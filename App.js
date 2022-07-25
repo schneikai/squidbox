@@ -1,20 +1,44 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from "react";
+import * as SplashScreen from "expo-splash-screen";
+import { auth } from "root/firebase.config";
+import { signInAnonymously } from "firebase/auth";
+import { ActionSheetProvider } from "@expo/react-native-action-sheet";
+
+import { BlockingProgressProvider } from "components/BlockingProgress";
+import RootNavigator from "navigation/RootNavigator";
+import { handleError } from "services/ErrorHandling";
+
+import { Provider as AssetBackgroundUploaderProvider } from "components/AssetBackgroundUploader";
 
 export default function App() {
-  return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
-  );
-}
+  const [appIsReady, setAppIsReady] = useState(false);
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+  useEffect(() => {
+    async function prepare() {
+      try {
+        await SplashScreen.preventAutoHideAsync();
+        await signInAnonymously(auth);
+        await SplashScreen.hideAsync();
+        setAppIsReady(true);
+      } catch (err) {
+        handleError("Failed to initialize app! Cannot continue!", err);
+      }
+    }
+
+    prepare();
+  }, []);
+
+  if (appIsReady) {
+    return (
+      <ActionSheetProvider>
+        <AssetBackgroundUploaderProvider>
+          <BlockingProgressProvider>
+            <RootNavigator />
+          </BlockingProgressProvider>
+        </AssetBackgroundUploaderProvider>
+      </ActionSheetProvider>
+    );
+  } else {
+    return <></>;
+  }
+}

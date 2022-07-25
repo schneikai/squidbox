@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "summertime4expo",
-    "slug": "summertime4expo",
-    "version": "1.0.0",
+    "name": "Squidbox3",
+    "slug": "squidbox3",
+    "version": "0.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#B1F1FF"
     },
     "updates": {
       "fallbackToCacheTimeout": 0
@@ -17,12 +17,13 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.schneikai.squidbox3"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
+        "backgroundColor": "#B1F1FF"
       }
     },
     "web": {
