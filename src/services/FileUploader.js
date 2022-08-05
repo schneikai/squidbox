@@ -19,3 +19,16 @@ export async function uploadFile(filename, localUri) {
 
   return publicUrl;
 }
+
+export async function uploadFileAsync(filename, localUri) {
+  const {
+    data: { presignedUrl, publicUrl },
+  } = await HttpService.post(INIT_UPLOAD_API_URL, {
+    filename: filename,
+  });
+
+  return FileSystem.uploadAsync(presignedUrl, localUri, {
+    httpMethod: "PUT",
+    sessionType: FileSystem.FileSystemSessionType.BACKGROUND,
+  });
+}

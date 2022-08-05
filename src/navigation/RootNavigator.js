@@ -5,6 +5,7 @@ import MediaLibrary from "components/MediaLibrary";
 import AssetLibrary from "components/AssetLibrary";
 import AlbumLibrary from "components/AlbumLibrary";
 import NewPostScreen from "screens/NewPostScreen";
+import SyncScren from "screens/SyncScreen";
 
 const RootStack = createNativeStackNavigator();
 
@@ -13,6 +14,7 @@ export default function RootNavigator() {
     <NavigationContainer>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         <RootStack.Screen name="Main" component={RootStackMainScreen} />
+        <RootStack.Screen name="Sync" component={SyncScren} />
         <RootStack.Screen name="MediaLibrary" component={MediaLibrary} options={{ presentation: "modal" }} />
         <RootStack.Screen name="AssetLibrary" component={AssetLibrary} options={{ presentation: "modal" }} />
         <RootStack.Screen name="AlbumLibrary" component={AlbumLibrary} options={{ presentation: "modal" }} />

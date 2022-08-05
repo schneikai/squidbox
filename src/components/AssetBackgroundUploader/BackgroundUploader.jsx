@@ -6,6 +6,7 @@ import { uploadFile } from "services/FileUploader";
 import { getTimestamp } from "services/TimeService";
 import { getFileExtension } from "services/FileService";
 import { deleteAsync } from "expo-file-system";
+import { thumbnailPathToUri } from "services/AssetThumbnailService";
 
 // Unfortunately we cannot use Firebase Storage for hosting the files.
 // The uploader (uploadBytesResumable) only supports uploading from
@@ -51,7 +52,9 @@ export default function BackgroundUploader() {
       setLoopInterval(getTimestamp());
     }, MAIN_LOOP_INTERVAL_LENGTH);
 
-    return () => clearInterval(intervalId);
+    return () => {
+      clearInterval(intervalId);
+    };
   }, []);
 
   useEffect(() => {
@@ -68,7 +71,8 @@ export default function BackgroundUploader() {
       cancelUploadRef,
       onProgress,
       setTotalNumberToUpload,
-      incrementCurrentNumberToUpload
+      incrementCurrentNumberToUpload,
+      setStatusMessage
     );
   }, [loopInterval]);
 
@@ -82,6 +86,7 @@ export default function BackgroundUploader() {
   // This is not used yet. Check comment in MultipartFileUploader
   function onProgress(percent) {
     console.log(`Uploading ${percent}%`);
+    setStatusMessage(`Uploading ${percent}%`);
   }
 
   function setTotalNumberToUpload(totalNumber) {
@@ -101,6 +106,13 @@ export default function BackgroundUploader() {
     });
   }
 
+  function setStatusMessage(message) {
+    dispatch({
+      type: "setStatusMessage",
+      payload: message,
+    });
+  }
+
   return <></>;
 }
 
@@ -110,7 +122,8 @@ async function mainLoop(
   cancelUploadRef,
   onProgress,
   setTotalNumberToUpload,
-  incrementCurrentNumberToUpload
+  incrementCurrentNumberToUpload,
+  setStatusMessage
 ) {
   mainLoopRunningRef.current = true;
 
@@ -131,21 +144,35 @@ async function mainLoop(
       return;
     }
 
-    const [fileUrl, thumbnailUrl] = await uploadAsset(asset, cancelUploadRef, onProgress);
+    if (!asset.thumbnailUrl) {
+      setStatusMessage(`Uploading thumbnail of asset #${asset.id}`);
+      asset.thumbnailUrl = await uploadAssetThumbnail(asset, cancelUploadRef, onProgress);
+      await updateAsset(asset.id, {
+        thumbnailUrl: asset.thumbnailUrl,
+        thumbnailPath: null,
+      });
+      // Thumbnail now exists online and we don't need it locally anymore.
+      await deleteAsync(thumbnailPathToUri(asset.thumbnailPath), { idempotent: true });
+      asset.thumbnailPath = null;
+    }
 
-    // I decided to not unset the fileUri since as long as it exists
-    // on the device we don't need to download it from the internet.
+    if (!asset.fileUrl) {
+      setStatusMessage(`Uploading asset #${asset.id}`);
+      asset.fileUrl = await uploadAsset(asset, cancelUploadRef, onProgress);
+      // I decided to not unset the fileUri since as long as it exists
+      // on the device we don't need to download it from the internet.
+      await updateAsset(asset.id, {
+        fileUrl: asset.fileUrl,
+      });
+    }
+
     await updateAsset(asset.id, {
-      fileUrl: fileUrl,
-      thumbnailUrl: thumbnailUrl,
-      thumbnailUri: null,
       isUploaded: true,
     });
 
-    // Thumbnail now exists online and we don't need it locally anymore.
-    await deleteAsync(asset.thumbnailUri, { idempotent: true });
-
     incrementCurrentNumberToUpload();
+
+    setStatusMessage(`Finished uploading asset #${asset.id}`);
   } catch (err) {
     // try {
     //   // TODO: Try to save error info for that asset to avoid sending data over and over.
@@ -156,31 +183,34 @@ async function mainLoop(
     //   throw("Failed to save error info! Exiting main loop! Sorry!")
     // }
     console.log("Upload failed!", err);
+    setStatusMessage(`Failed to upload asset #${asset.id}`);
   } finally {
     mainLoopRunningRef.current = false;
   }
 }
 
+async function uploadAssetThumbnail(asset, cancelUploadRef, onProgress) {
+  const filename = `${asset.id}_thumbnail.${getFileExtension(asset.thumbnailPath)}`;
+  return await uploadFile(filename, thumbnailPathToUri(asset.thumbnailPath));
+}
+
 async function uploadAsset(asset, cancelUploadRef, onProgress) {
-  console.log("Starting asset upload...", asset.id, getTimestamp());
+  const filename = `${asset.id}.${getFileExtension(asset.filelUri)}`;
 
-  // Upload thumbnail
-  const thumbnailFilename = `${asset.id}_thumbnail.${getFileExtension(asset.thumbnailUri)}`;
-  const thumbnailUrl = await uploadFile(thumbnailFilename, asset.thumbnailUri);
+  if (MultipartFileUploader.isQualifiedForMultipartUpload(asset.fileUri)) {
+    // TODO: Change multipart uploader to work with a filename we supply here
+    // and use this as aws s3 key instead of just supplying asset.id here.
+    const [uploadFilePromise, cancelUpload] = MultipartFileUploader.uploadFile(
+      asset.id,
+      asset.filename,
+      asset.fileUri,
+      onProgress
+    );
+    cancelUploadRef.current = cancelUpload;
+    return await uploadFilePromise;
+  }
 
-  // Upload main file
-  const [uploadFilePromise, cancelUpload] = MultipartFileUploader.uploadFile(
-    asset.id,
-    asset.filename,
-    asset.fileUri,
-    onProgress
-  );
-
-  cancelUploadRef.current = cancelUpload;
-  const fileUrl = await uploadFilePromise;
-
-  console.log("Finished asset upload!", asset.id, getTimestamp());
-  return [fileUrl, thumbnailUrl];
+  return await uploadFile(filename, asset.filelUri);
 }
 
 function sleep(ms) {

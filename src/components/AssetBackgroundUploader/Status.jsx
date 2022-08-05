@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, Button } from "react-native";
 import { Context } from "components/AssetBackgroundUploader/Context";
 import { getAllAssets, updateAsset } from "services/AssetDataService";
 
-export default function Status() {
+export default function Status({ style }) {
   const { state, dispatch } = useContext(Context);
 
   function pauseUpload() {
@@ -20,19 +20,8 @@ export default function Status() {
     });
   }
 
-  async function resetAssetsSyncStatus() {
-    const assets = await getAllAssets();
-    for (const asset of assets) {
-      await updateAsset(asset.id, {
-        fileUrl: null,
-        fileThumbnail: null,
-        isUploaded: false,
-      });
-    }
-  }
-
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       {!state.isPaused && state.totalNumber > 0 && (
         <>
           <Text>
@@ -52,9 +41,8 @@ export default function Status() {
         </>
       )}
 
-      {/* {<Button onPress={resetAssetsSyncStatus} title="Reset Assets" />} */}
-
       {/* <Text>{JSON.stringify(state)}</Text> */}
+      <Text>{state.statusMessage}</Text>
     </View>
   );
 }
@@ -66,7 +54,3 @@ const styles = StyleSheet.create({
     backgroundColor: "lightgrey",
   },
 });
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}

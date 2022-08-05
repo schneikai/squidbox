@@ -36,13 +36,14 @@ export function usePosts() {
   const [posts, setPosts] = useState();
 
   useEffect(() => {
-    async function getData() {
-      const q = query(collection(db, DB_NAME), ...getBaseScope(), ...getDefaultOrderBy());
-      return onSnapshot(q, (querySnapshot) => {
-        setPosts(querySnapshotToData(querySnapshot));
-      });
-    }
-    return getData();
+    const q = query(collection(db, DB_NAME), ...getBaseScope(), ...getDefaultOrderBy());
+    const unsub = onSnapshot(q, (querySnapshot) => {
+      setPosts(querySnapshotToData(querySnapshot));
+    });
+
+    return () => {
+      unsub();
+    };
   }, []);
 
   return [posts];

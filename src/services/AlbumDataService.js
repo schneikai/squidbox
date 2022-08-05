@@ -49,9 +49,12 @@ export function useAlbum(albumId, initialValue) {
   const [album, setAlbum] = useState(initialValue);
 
   useEffect(() => {
-    return onSnapshot(getAlbumRef(albumId), (docSnapshot) => {
+    const unsub = onSnapshot(getAlbumRef(albumId), (docSnapshot) => {
       setAlbum(docSnapshotToData(docSnapshot));
     });
+    return () => {
+      unsub();
+    };
   }, []);
 
   return [album];
@@ -61,13 +64,14 @@ export function useAlbums() {
   const [albums, setAlbums] = useState();
 
   useEffect(() => {
-    async function getData() {
-      const q = query(collection(db, DB_NAME), ...getBaseScope(), ...getDefaultOrderBy());
-      return onSnapshot(q, (querySnapshot) => {
-        setAlbums(querySnapshotToData(querySnapshot));
-      });
-    }
-    return getData();
+    const q = query(collection(db, DB_NAME), ...getBaseScope(), ...getDefaultOrderBy());
+    const unsub = onSnapshot(q, (querySnapshot) => {
+      setAlbums(querySnapshotToData(querySnapshot));
+    });
+
+    return () => {
+      unsub();
+    };
   }, []);
 
   return [albums];

@@ -15,7 +15,7 @@ import {
   limit,
 } from "firebase/firestore";
 import { querySnapshotToData, docSnapshotToData } from "services/DataService";
-import { getAssetThumbnail } from "services/AssetThumbnailService";
+import { getAssetThumbnail, thumbnailUriToPath } from "services/AssetThumbnailService";
 import { getTimestamp } from "services/TimeService";
 import { getUserId } from "root/firebase.config";
 
@@ -59,13 +59,13 @@ export function useAssets() {
   const [assets, setAssets] = useState();
 
   useEffect(() => {
-    async function getData() {
-      const q = query(collection(db, DB_NAME), ...getBaseScope(), ...getDefaultOrderBy());
-      return onSnapshot(q, (querySnapshot) => {
-        setAssets(querySnapshotToData(querySnapshot));
-      });
-    }
-    return getData();
+    const q = query(collection(db, DB_NAME), ...getBaseScope(), ...getDefaultOrderBy());
+    const unsub = onSnapshot(q, (querySnapshot) => {
+      setAssets(querySnapshotToData(querySnapshot));
+    });
+    return () => {
+      unsub();
+    };
   }, []);
 
   return [assets];
@@ -89,11 +89,12 @@ export async function createFromMediaLibrary(mediaLibraryAsset) {
 
     // Local file and thumbnail
     fileUri: mediaLibraryAsset.localUri,
-    thumbnailUri: thumbnailUri,
+    thumbnailPath: thumbnailUriToPath(thumbnailUri),
 
     // Cloud file and thumbnail
     // When asset is uploaded to cloud storage fileURL and thumbnailUrl
-    // are set and fileUri and thumbnailUri is removed. isUploaded is set to true.
+    // are set and fileUri and thumbnailPath are removed and isUploaded
+    // is set to true.
     fileUrl: null,
     thumbnailUrl: null,
     isUploaded: false,
@@ -116,7 +117,7 @@ export async function markAssetDeleted(id) {
 
 // Right now, assets can only be marked as deleted. When we add real delete
 // we need to delete fileUrl and thumbnailUrl from the storage
-// and thumbnailUri locally!
+// and thumbnailPath locally!
 // export async function deleteAsset(id) {
 //   return deleteDoc(getAssetRef(id));
 // }

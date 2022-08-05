@@ -22,7 +22,7 @@ export default async function mediaLibraryDownload(asset, onDownloadProgress) {
       await downloadFileFromUrl(asset.fileUrl, fileUri, onDownloadProgress);
     }
   } else {
-    throw "File not found!";
+    throw new Error("File not found!");
   }
 
   const mediaLibraryAsset = await MediaLibrary.createAssetAsync(fileUri);

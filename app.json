@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Squidbox3",
-    "slug": "squidbox3",
+    "name": "Squidbox4",
+    "slug": "squidbox4",
     "version": "0.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -18,7 +18,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.schneikai.squidbox3"
+      "bundleIdentifier": "com.schneikai.squidbox4"
     },
     "android": {
       "adaptiveIcon": {

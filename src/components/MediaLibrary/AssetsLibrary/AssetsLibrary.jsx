@@ -13,7 +13,9 @@ export default function AssetsLibrary({ onSelectAsset, isAssetSelected }) {
   const window = useWindowDimensions();
   const width = window.width / numColumns;
 
-  useEffect(loadAssets, []);
+  useEffect(() => {
+    loadAssets();
+  }, []);
 
   async function loadAssets() {
     if (isLoading) return;

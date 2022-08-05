@@ -89,50 +89,15 @@ async function initUpload(identifier, filename, localUri) {
   return [uploadId, key, parts];
 }
 
-// async function uploadPart(part, uploadId, key, localUri, onProgress, abortController) {
-//   console.log("Uploading part", part);
-
-//   // read binary data part from the source file
-//   const partData = await FileSystem.readAsStringAsync(localUri, {
-//     encoding: FileSystem.EncodingType.Base64,
-//     length: PART_SIZE,
-//     position: PART_SIZE * (part.partNumber - 1),
-//   });
-
-//   // get presigned url for part upload
-//   const {
-//     data: { presignedUrl },
-//   } = await HttpService.post(PREPARE_UPLOAD_PART_API_URL, {
-//     uploadId: uploadId,
-//     key: key,
-//     partNumber: part.partNumber,
-//   });
-
-//   const httpOptions = {
-//     headers: {
-//       "Content-Type": "application/octet-stream; charset=utf-8",
-//     },
-//     // TODO: To show a upload progress with bytes uploaded we would need to
-//     // take into account the total size of all chunks and already uploaded chunks
-//     // onUploadProgress: (progressEvent) => {
-//     //   const { loaded, total } = progressEvent;
-//     //   onProgress(Math.floor((loaded * 100) / total));
-//     // },
-//     signal: abortController.signal,
-//   };
-
-//   const response = await HttpService.put(presignedUrl, Buffer.from(partData, "base64"), httpOptions);
-
-//   part.etag = response.headers["etag"];
-//   // console.log("part uploaded!", part);
-// }
-
-// Added uploadPart implementation using uploadAsync that allows for background uploading
-// While this will finish to upload the part that is currently uploading when the
-// app is switched to background the whole background uploader still does not upload in background.
-// The app must be opened. See comment on src/components/AssetBackgroundUploader/BackgroundUploader.jsx
 async function uploadPart(part, uploadId, key, localUri, onProgress, abortController) {
   console.log("Uploading part", part);
+
+  // read binary data part from the source file
+  const partData = await FileSystem.readAsStringAsync(localUri, {
+    encoding: FileSystem.EncodingType.Base64,
+    length: PART_SIZE,
+    position: PART_SIZE * (part.partNumber - 1),
+  });
 
   // get presigned url for part upload
   const {
@@ -143,38 +108,73 @@ async function uploadPart(part, uploadId, key, localUri, onProgress, abortContro
     partNumber: part.partNumber,
   });
 
-  // read binary data part from the source file
-  const partData = await FileSystem.readAsStringAsync(localUri, {
-    encoding: FileSystem.EncodingType.Base64,
-    length: PART_SIZE,
-    position: PART_SIZE * (part.partNumber - 1),
-  });
+  const httpOptions = {
+    headers: {
+      "Content-Type": "application/octet-stream; charset=utf-8",
+    },
+    // TODO: To show a upload progress with bytes uploaded we would need to
+    // take into account the total size of all chunks and already uploaded chunks
+    onUploadProgress: (progressEvent) => {
+      const { loaded, total } = progressEvent;
+      onProgress(Math.floor((loaded * 100) / total));
+    },
+    signal: abortController.signal,
+  };
 
-  // Save part data to part file (FileSystem.uploadAsync can only upload local files)
-  await FileSystem.makeDirectoryAsync(PART_FILE_TEMP_DIR, { intermediates: true });
-  const partFileUri = `${PART_FILE_TEMP_DIR}${uuid.v4()}`;
+  const response = await HttpService.put(presignedUrl, Buffer.from(partData, "base64"), httpOptions);
 
-  await FileSystem.writeAsStringAsync(partFileUri, partData, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-
-  try {
-    const response = await FileSystem.uploadAsync(presignedUrl, partFileUri, {
-      httpMethod: "PUT",
-      sessionType: FileSystem.FileSystemSessionType.BACKGROUND,
-      headers: {
-        "Content-Type": "application/octet-stream; charset=utf-8",
-      },
-    });
-
-    part.etag = response.headers["Etag"];
-    // console.log("part uploaded!", part);
-  } catch (err) {
-    throw err;
-  } finally {
-    FileSystem.deleteAsync(partFileUri, { idempotent: true });
-  }
+  part.etag = response.headers["etag"];
+  // console.log("part uploaded!", part);
 }
+
+// // Added uploadPart implementation using uploadAsync that allows for background uploading
+// // While this will finish to upload the part that is currently uploading when the
+// // app is switched to background the whole background uploader still does not upload in background.
+// // The app must be opened. See comment on src/components/AssetBackgroundUploader/BackgroundUploader.jsx
+// async function uploadPart(part, uploadId, key, localUri, onProgress, abortController) {
+//   console.log("Uploading part", part);
+
+//   // get presigned url for part upload
+//   const {
+//     data: { presignedUrl },
+//   } = await HttpService.post(PREPARE_UPLOAD_PART_API_URL, {
+//     uploadId: uploadId,
+//     key: key,
+//     partNumber: part.partNumber,
+//   });
+
+//   // read binary data part from the source file
+//   const partData = await FileSystem.readAsStringAsync(localUri, {
+//     encoding: FileSystem.EncodingType.Base64,
+//     length: PART_SIZE,
+//     position: PART_SIZE * (part.partNumber - 1),
+//   });
+
+//   // Save part data to part file (FileSystem.uploadAsync can only upload local files)
+//   await FileSystem.makeDirectoryAsync(PART_FILE_TEMP_DIR, { intermediates: true });
+//   const partFileUri = `${PART_FILE_TEMP_DIR}${uuid.v4()}`;
+
+//   await FileSystem.writeAsStringAsync(partFileUri, partData, {
+//     encoding: FileSystem.EncodingType.Base64,
+//   });
+
+//   try {
+//     const response = await FileSystem.uploadAsync(presignedUrl, partFileUri, {
+//       httpMethod: "PUT",
+//       sessionType: FileSystem.FileSystemSessionType.BACKGROUND,
+//       headers: {
+//         "Content-Type": "application/octet-stream; charset=utf-8",
+//       },
+//     });
+
+//     part.etag = response.headers["Etag"];
+//     // console.log("part uploaded!", part);
+//   } catch (err) {
+//     throw err;
+//   } finally {
+//     FileSystem.deleteAsync(partFileUri, { idempotent: true });
+//   }
+// }
 
 async function finalizeUpload(uploadId, key) {
   const {
