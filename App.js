@@ -1,6 +1,18 @@
+/* eslint-disable import/first */
+
 // Must be at the top of the file according to https://reactnavigation.org/docs/stack-navigator/
 // eslint-disable-next-line import/no-duplicates
 import 'react-native-gesture-handler';
+
+// eslint-disable-next-line import/order
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: 'https://768b883ed2b06fea89a6978b62a36798@o4506870940106752.ingest.us.sentry.io/4506871127605248',
+  // If `true`, Sentry will try to print out useful debugging information if something goes wrong with
+  // sending the event. Set it to `false` in production
+  debug: process.env.EXPO_PUBLIC_SENTRY_DEBUG === 'true',
+});
 
 import { ActionSheetProvider } from '@expo/react-native-action-sheet';
 import { NavigationContainer } from '@react-navigation/native';
@@ -25,7 +37,7 @@ import useInitializeLocalData from '@/utils/local-data/useInitializeLocalData';
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
-export default function App() {
+const App = () => {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AppSettingsProvider>
@@ -43,7 +55,9 @@ export default function App() {
       </AppSettingsProvider>
     </GestureHandlerRootView>
   );
-}
+};
+
+export default Sentry.wrap(App);
 
 function AppComponent() {
   const initializeLocalDataAsync = useInitializeLocalData();
