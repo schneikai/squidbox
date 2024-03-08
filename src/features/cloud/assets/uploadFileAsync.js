@@ -1,12 +1,10 @@
 import * as FileSystem from 'expo-file-system';
 
-import getAssetFileInfoAsync from '@/utils/cloud-api/assets/getAssetFileInfoAsync';
+import validateUploadedFileAsync from '@/features/cloud/assets/validateUploadedFileAsync';
 import getAssetFileUploadUrlAsync from '@/utils/cloud-api/assets/getAssetFileUploadUrlAsync';
-import getFileChecksumAsync from '@/utils/files/getFileChecksumAsync';
-import normalizeS3Etag from '@/utils/normalizeS3Etag';
 
-export default async function uploadFileAsync(filename, fileUri) {
-  const localFileChecksum = await getFileChecksumAsync(fileUri);
+// Uploads a file to the cloud and validates the upload.
+export default async function uploadFileAsync(filename, fileUri, fileSize = null) {
   const presignedUrl = await getAssetFileUploadUrlAsync(filename);
 
   await FileSystem.uploadAsync(presignedUrl, fileUri, {
@@ -14,15 +12,9 @@ export default async function uploadFileAsync(filename, fileUri) {
     uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
   });
 
-  const { exists, etag } = await getAssetFileInfoAsync(filename);
+  const result = await validateUploadedFileAsync(fileUri, filename, fileSize);
 
-  if (!exists) {
-    throw new Error('File upload failed! File now found on server.');
-  }
-
-  const remoteFileChecksum = normalizeS3Etag(etag);
-
-  if (localFileChecksum !== remoteFileChecksum) {
-    throw new Error('File upload failed! Checksums do not match.');
+  if (!result.valid) {
+    throw new Error(`File upload failed! ${result.message}`);
   }
 }

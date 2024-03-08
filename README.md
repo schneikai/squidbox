@@ -4,7 +4,14 @@ This is a React Native app with a Rails API backend. It is a personal project an
 
 # Prerequisites
 
-For local development you need to have the squidbox-api Rails project checkout with the Rails server running on localhost:3000.
+For local development you need to have the squidbox-api Rails project checked out with the Rails server running on localhost:3000.
+
+If you want to try the app on your photo in development, you can use the Expo Go app. For this to work though, the Rails server must be accessible for your phone on the local wifi. To do this:
+
+- Find the IP address of your development computer. On macOS, you can go to System Preferences > Network and select your active network connection to find your IP address.
+- Set the API URL in the `.env.local` file to `http://<your-ip>:3000/api/v1`
+- Start the Rails server and have it accessible for all local connections via `rails server -b 0.0.0.0`
+- Open the Expo Go app on your phone and run the app
 
 ## Environment Variables and Secrets
 
@@ -103,13 +110,6 @@ SQLite is now also supported native in Expo 50
 https://docs.expo.dev/versions/v50.0.0/sdk/sqlite-next/
 
 # Notes
-
-## Uploading large files in chunks.
-
-I removed that because my implementation crashes with files > 2GB because of a integer bug in Expo
-You could try this instead:
-https://medium.com/@mohitrohilla2696/chunk-upload-in-react-native-using-file-read-and-write-from-storage-8554607e2bf9
-Chunk Uploader (they are doing it with React Native FS. maybe this doesn't crash with > 2GB files?)
 
 ## React-Navigation-Native vs Expo Router
 
