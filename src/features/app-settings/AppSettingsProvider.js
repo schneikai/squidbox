@@ -9,6 +9,7 @@ export default function AppSettingsProvider({ children }) {
   // "cover" | "contain"
   const defaultThumbnailStyle = 'cover';
   const [thumbnailStyle, setThumbnailStyle] = useState(defaultThumbnailStyle);
+  const [postsQuery, setPostsQuery] = useState('');
 
   useEffect(() => {
     async function loadSettings() {
@@ -41,7 +42,12 @@ export default function AppSettingsProvider({ children }) {
     saveSettings();
   }, [thumbnailStyle]);
 
-  const value = { thumbnailStyle, setThumbnailStyle };
+  const value = {
+    thumbnailStyle,
+    setThumbnailStyle,
+    postsQuery,
+    setPostsQuery,
+  };
 
   return <AppSettingsContext.Provider value={value}>{children}</AppSettingsContext.Provider>;
 }

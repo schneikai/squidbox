@@ -1,16 +1,20 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useNavigation } from '@react-navigation/native';
 import { Alert } from 'react-native';
 import { Menu, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
 
 import TextMenuOption from '@/components/popup-menu-options/TextMenuOption';
 import ToggleThumbnailStyleOption from '@/components/popup-menu-options/ToggleThumbnailStyleOption';
 import useAlbums from '@/features/albums-context/useAlbums';
+import useAppSettings from '@/features/app-settings/useAppSettings';
 import headerActionStyles from '@/styles/headerActionStyles';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 
 export default function MoreAction({ album, afterDelete }) {
   const { updateAlbum, setAlbumDeleted } = useAlbums();
+  const { setPostsQuery } = useAppSettings();
+  const navigation = useNavigation();
 
   // TODO: Right now we only mark album as deleted. I would like to have a
   // undo on shake feature to restore the album.
@@ -29,6 +33,11 @@ export default function MoreAction({ album, afterDelete }) {
         },
       },
     ]);
+  }
+
+  function handleShowPosts() {
+    setPostsQuery(`album:${album.id}`);
+    navigation.navigate('PostsTab', { screen: 'PostsScreen' });
   }
 
   async function handleRenameAlbum() {
@@ -52,6 +61,7 @@ export default function MoreAction({ album, afterDelete }) {
       </MenuTrigger>
       <MenuOptions customStyles={popupMenuStyles.menuOptions}>
         <ToggleThumbnailStyleOption />
+        <TextMenuOption label="Show posts" onPress={handleShowPosts} />
         <TextMenuOption label="Rename" onPress={handleRenameAlbum} />
         {!!album.archivedAt && <TextMenuOption label="Unarchive" onPress={handleUnarchiveAlbum} />}
         {!album.archivedAt && <TextMenuOption label="Archive" onPress={handleArchiveAlbum} />}

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HeaderActions from '@/components/HeaderActions';
 import SuperPressable from '@/components/SuperPressable';
 import ScreenHeaderWithSearch from '@/components/screen-header/ScreenHeaderWithSearch';
+import useAlbums from '@/features/albums-context/useAlbums';
 import PostList from '@/features/post-list/PostList';
 import PostListItem from '@/features/post-list/PostListItem';
 import AddPostAction from '@/features/post-list/actions/add-post-action/AddPostAction';
@@ -16,11 +17,14 @@ import useSortPostsAction from '@/features/post-list/actions/sort-posts-action/u
 import preparePosts from '@/features/post-list/preparePosts';
 import usePostList from '@/features/post-list/usePostList';
 import usePosts from '@/features/posts-context/usePosts';
+import SuggestedPostables from '@/features/suggested-postables/SuggestedPostables';
+import isBlank from '@/utils/isBlank';
 
 export default function PostsScreen({ navigation }) {
   const { posts, toggleFavoritePost } = usePosts();
+  const { albums } = useAlbums();
   const insets = useSafeAreaInsets();
-  const [postIds, setPostIds] = useState();
+  const [postIds, setPostIds] = useState([]);
 
   const { listRef, listScrollTop } = usePostList();
   const { sortOrder, sortFunction, sortPosts } = useSortPostsAction({ afterSort: listScrollTop });
@@ -30,12 +34,12 @@ export default function PostsScreen({ navigation }) {
   useEffect(() => {
     const postIds = preparePosts({
       posts: Object.values(posts),
+      albums,
       sortFn: sortFunction,
       filterFn: matchFilter,
       searchText,
     }).map((post) => post.id);
-    // We show the suggested postables at the top of the list.
-    setPostIds(['SuggestedPostables', ...postIds]);
+    setPostIds(postIds);
   }, [posts, sortOrder, activeFilter, searchText]);
 
   return (
@@ -73,6 +77,7 @@ export default function PostsScreen({ navigation }) {
             </ScreenHeaderWithSearch>
           </>
         }
+        FirstListEntryComponent={isBlank(searchText) ? <SuggestedPostables /> : null}
       />
     </>
   );

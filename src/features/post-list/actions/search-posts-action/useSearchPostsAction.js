@@ -1,14 +1,23 @@
 import { useEffect, useState } from 'react';
 
+import useAppSettings from '@/features/app-settings/useAppSettings';
+
 export default function useSearchPostsAction() {
   const [isSearchBarVisible, setIsSearchBarVisible] = useState(false);
-  const [searchText, setSearchText] = useState('');
+  // const [searchText, setSearchText] = useState('');
+  const { postsQuery, setPostsQuery } = useAppSettings();
 
   useEffect(() => {
     if (!isSearchBarVisible) {
-      setSearchText('');
+      setPostsQuery('');
     }
   }, [isSearchBarVisible]);
+
+  useEffect(() => {
+    if (postsQuery) {
+      setIsSearchBarVisible(true);
+    }
+  }, [postsQuery]);
 
   function toggleSearchBar() {
     setIsSearchBarVisible((isSearchBarVisible) => !isSearchBarVisible);
@@ -16,8 +25,8 @@ export default function useSearchPostsAction() {
 
   return {
     isSearchBarVisible,
-    searchText,
-    setSearchText,
+    searchText: postsQuery,
+    setSearchText: setPostsQuery,
     toggleSearchBar,
   };
 }
