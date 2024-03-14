@@ -7,6 +7,7 @@ import useCloud from '@/features/cloud/useCloud';
 import deleteAssetFileAsync from '@/utils/assets/files/deleteAssetFileAsync';
 import getAssetsWithSyncError from '@/utils/assets/queries/getAssetsWithSyncError';
 import getUnsyncedAssets from '@/utils/assets/queries/getUnsyncedAssets';
+import fileSizeToHumanReadable from '@/utils/fileSizeToHumanReadable';
 
 export default function CloudSyncProvider({ children }) {
   const { assets, updateAsset } = useAssets();
@@ -15,6 +16,7 @@ export default function CloudSyncProvider({ children }) {
   const [assetsWithSyncErrors, setAssetsWithSyncErrors] = useState([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState(null);
+  const [syncProgressMessage, setSyncProgressMessage] = useState(null);
 
   // Since state is not updated immediately I use this ref to make sure
   // that the sync function is not running multiple times at the same time.
@@ -26,6 +28,15 @@ export default function CloudSyncProvider({ children }) {
     setUnsyncedAssets(getUnsyncedAssets(assets));
     setAssetsWithSyncErrors(getAssetsWithSyncError(assets));
   }, [assets]);
+
+  function updateSyncProgressMessage({ totalBytesSent, totalBytesExpectedToSend }) {
+    const percent = Math.round((totalBytesSent / totalBytesExpectedToSend) * 100);
+    const totalBytesExpectedToSendFormatted = fileSizeToHumanReadable(totalBytesExpectedToSend);
+    const totalBytesSentFormatted = fileSizeToHumanReadable(totalBytesSent);
+    setSyncProgressMessage(
+      `Uploading ${totalBytesSentFormatted} of ${totalBytesExpectedToSendFormatted} (${percent}%)`,
+    );
+  }
 
   async function syncAssets() {
     // Just making double sure that we don't start syncing multiple times
@@ -39,7 +50,8 @@ export default function CloudSyncProvider({ children }) {
 
       try {
         if (!asset.isFileSynced) {
-          await uploadAssetFileAsync(asset);
+          await uploadAssetFileAsync(asset, updateSyncProgressMessage);
+          setSyncProgressMessage(null);
           await updateAsset(asset.id, { isFileSynced: true });
           // Delete local file. We don't need it anymore since it is now stored in the cloud.
           await deleteAssetFileAsync(asset.filename);
@@ -69,6 +81,7 @@ export default function CloudSyncProvider({ children }) {
     assetsWithSyncErrors,
     isSyncing,
     syncMessage,
+    syncProgressMessage,
     syncNow: syncAssets,
   };
 
