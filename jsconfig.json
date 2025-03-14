@@ -1,7 +1,15 @@
 // File is required to enable Javascript Refactor in VSCode
 {
   "compilerOptions": {
-    "target": "ES6"
+    "target": "ES6",
+    // We have enabled global imports via babel.config.js
+    // but we had to add the next two lines to make "go to definition" work in VSCode
+    "baseUrl": "./",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ]
+    }
   },
   "exclude": [
     "node_modules",

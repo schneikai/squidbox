@@ -9,7 +9,7 @@ export default function AddPostAction() {
 
   return (
     <Pressable
-      onPress={() => navigation.navigate('AddEditPostModal')}
+      onPress={() => navigation.navigate('CreatePostModal')}
       style={[headerActionStyles.button, { marginRight: 20 }]}
     >
       <Ionicons name="add" style={headerActionStyles.buttonIcon} />

@@ -25,7 +25,7 @@ export default function PostList({
       }}
       keyExtractor={(postId) => postId}
       ListHeaderComponent={ListHeaderComponent}
-      stickyHeaderIndices={[0]}
+      stickyHeaderIndices={ListHeaderComponent ? [0] : undefined}
       ref={listRef}
     />
   );

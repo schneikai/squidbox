@@ -43,13 +43,6 @@ export default function RootTabNavigator() {
             <Ionicons name={iconName('create', focused)} size={size} color={color} />
           ),
         }}
-        // listeners={{
-        //   tabPress: (e) => {
-        //     // Prevent default action
-        //     // e.preventDefault();
-        //     console.log('The tab was pressed!');
-        //   },
-        // }}
       />
       <Tab.Screen
         name="SettingsTab"

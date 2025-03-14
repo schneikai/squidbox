@@ -12,6 +12,7 @@ Sentry.init({
   // If `true`, Sentry will try to print out useful debugging information if something goes wrong with
   // sending the event. Set it to `false` in production
   debug: process.env.EXPO_PUBLIC_SENTRY_DEBUG === 'true',
+  enableInExpoDevelopment: false,
 });
 
 import { ActionSheetProvider } from '@expo/react-native-action-sheet';

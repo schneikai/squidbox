@@ -16,10 +16,13 @@ const postSchema = Yup.object()
     createdAt: Yup.number().default(getTimestamp),
     updatedAt: Yup.number().default(getTimestamp),
     rePostId: Yup.string().nullable().default(null), // Id of the post that this post is a repost of.
+    isIgnoredForRepost: Yup.boolean().default(false),
+    suggestRepostAt: Yup.number().default((obj) => obj.createdAt),
+    hasBeenReposted: Yup.boolean().default(false),
   })
   .test('textOrAssetRefs', 'Either text or assets must be present', function (value) {
     return value.text || (value.assetRefs && value.assetRefs.length > 0);
-  })
-  .noUnknown();
+  });
+  // .noUnknown();
 
 export default postSchema;

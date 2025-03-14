@@ -4,6 +4,7 @@ import Post from '@/features/post-detail/Post';
 import MoreAction from '@/features/post-detail/actions/MoreAction';
 import usePosts from '@/features/posts-context/usePosts';
 import formatDateTime from '@/utils/date-time/formatDateTime';
+import { HeaderBackButton } from '@react-navigation/elements';
 
 export default function PostScreen({ route, navigation }) {
   const { postId } = route.params;

@@ -17,8 +17,6 @@ import useSortPostsAction from '@/features/post-list/actions/sort-posts-action/u
 import preparePosts from '@/features/post-list/preparePosts';
 import usePostList from '@/features/post-list/usePostList';
 import usePosts from '@/features/posts-context/usePosts';
-import SuggestedPostables from '@/features/suggested-postables/SuggestedPostables';
-import isBlank from '@/utils/isBlank';
 
 export default function PostsScreen({ navigation }) {
   const { posts, toggleFavoritePost } = usePosts();
@@ -77,7 +75,6 @@ export default function PostsScreen({ navigation }) {
             </ScreenHeaderWithSearch>
           </>
         }
-        FirstListEntryComponent={isBlank(searchText) ? <SuggestedPostables /> : null}
       />
     </>
   );

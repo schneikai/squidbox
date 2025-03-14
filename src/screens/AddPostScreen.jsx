@@ -9,7 +9,7 @@ import postSchema from '@/utils/posts/postSchema';
 
 export default function AddPostScreen({ route, navigation }) {
   const { rePostId, assetIds } = route.params;
-  const { posts, addPost } = usePosts();
+  const { posts, addPost, updatePost } = usePosts();
   let rePost = null;
   const initialPostData = {
     text: '',
@@ -42,6 +42,9 @@ export default function AddPostScreen({ route, navigation }) {
 
     try {
       await addPost(addPostData);
+      if (rePost) {
+        await updatePost(rePost.id, { hasBeenReposted: true });
+      }
       navigation.popToTop();
     } catch (error) {
       Alert.alert('Failed to create post!', error.message);

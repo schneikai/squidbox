@@ -26,7 +26,19 @@ export default async function loadPostsAsync() {
   //   post.rePostId = null;
   // }
 
-  // await writeLocalDataAsync(filename, data);
+  // Add isIgnoredForRepost, suggestRepostAt, hasBeenReposted
+  for (const postId of Object.keys(data)) {
+    const post = data[postId];
+    if (!post.hasOwnProperty('isIgnoredForRepost')) {
+      post.isIgnoredForRepost = false;
+    }
+    if (!post.hasOwnProperty('suggestRepostAt')) {
+      post.suggestRepostAt = post.createdAt;
+    }
+    if (!post.hasOwnProperty('hasBeenReposted')) {
+      post.hasBeenReposted = false;
+    }
+  }
 
   return data;
 }
