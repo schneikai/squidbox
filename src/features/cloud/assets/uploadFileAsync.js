@@ -4,8 +4,8 @@ import validateUploadedFileAsync from '@/features/cloud/assets/validateUploadedF
 import getAssetFileUploadUrlAsync from '@/utils/cloud-api/assets/getAssetFileUploadUrlAsync';
 
 // Uploads a file to the cloud and validates the upload.
-export default async function uploadFileAsync(filename, fileUri, fileSize = null, onProgress = null) {
-  const presignedUrl = await getAssetFileUploadUrlAsync(filename);
+export default async function uploadFileAsync(filename, fileUri, fileSize, onProgress = null) {
+  const presignedUrl = await getAssetFileUploadUrlAsync(filename, fileSize);
 
   const uploadTask = FileSystem.createUploadTask(
     presignedUrl,
