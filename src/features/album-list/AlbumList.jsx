@@ -32,7 +32,7 @@ export default function AlbumList({ albumIds, renderItem, ListHeaderComponent, l
       }}
       keyExtractor={(albumId) => albumId}
       ListHeaderComponent={ListHeaderComponent}
-      stickyHeaderIndices={[0]}
+      stickyHeaderIndices={ListHeaderComponent ? [0] : undefined}
     />
   );
 }

@@ -21,7 +21,7 @@ export default function AssetList({ assetIds, ListHeaderComponent, renderListIte
       }}
       keyExtractor={(assetId) => assetId}
       ListHeaderComponent={ListHeaderComponent}
-      stickyHeaderIndices={[0]}
+      stickyHeaderIndices={ListHeaderComponent ? [0] : undefined}
       ref={listRef}
     />
   );
