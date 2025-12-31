@@ -25,7 +25,7 @@ export default async function uploadFileAsync(filename, fileUri, fileSize, onPro
   // to allow to cancel the upload if needed.
   await uploadTask.uploadAsync();
 
-  const validationResult = await validateUploadedFileAsync(fileUri, filename, fileSize);
+  const validationResult = await validateUploadedFileAsync(fileUri, filename, fileSize, onProgress);
 
   if (!validationResult.valid) {
     throw new Error(`File upload failed! ${validationResult.message}`);

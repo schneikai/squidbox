@@ -29,12 +29,28 @@ export default function CloudSyncProvider({ children }) {
     setAssetsWithSyncErrors(getAssetsWithSyncError(assets));
   }, [assets]);
 
-  function updateSyncProgressMessage({ totalBytesSent, totalBytesExpectedToSend }) {
-    const percent = Math.round((totalBytesSent / totalBytesExpectedToSend) * 100);
+  function updateSyncProgressMessage(progressData) {
+    // Handle S3 background upload progress (50-100%) - optional, only if cache available
+    if (progressData.s3Progress !== undefined) {
+      const adjustedPercent = 50 + Math.round(progressData.s3Progress / 2);
+      setSyncProgressMessage(`Uploading (${adjustedPercent}%)`);
+      return;
+    }
+    
+    // Handle messages (validation, finalizing, etc.)
+    if (progressData.message) {
+      setSyncProgressMessage(progressData.message);
+      return;
+    }
+    
+    // Handle upload to API progress (0-50%)
+    const { totalBytesSent, totalBytesExpectedToSend } = progressData;
+    const uploadPercent = Math.round((totalBytesSent / totalBytesExpectedToSend) * 100);
+    const adjustedPercent = Math.round(uploadPercent / 2); // Scale to 0-50%
     const totalBytesExpectedToSendFormatted = fileSizeToHumanReadable(totalBytesExpectedToSend);
     const totalBytesSentFormatted = fileSizeToHumanReadable(totalBytesSent);
     setSyncProgressMessage(
-      `Uploading ${totalBytesSentFormatted} of ${totalBytesExpectedToSendFormatted} (${percent}%)`,
+      `Uploading ${totalBytesSentFormatted} of ${totalBytesExpectedToSendFormatted} (${adjustedPercent}%)`,
     );
   }
 

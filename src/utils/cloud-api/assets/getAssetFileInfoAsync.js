@@ -8,7 +8,10 @@ export default async function getAssetFileInfoAsync(fileKey) {
   // Remove double quotes from S3 etag
   // I don't know why they are there but to compare the etag with a checksum
   // from a local file we need to remove the double quotes from the etag.
-  data.etag = data.etag.replace(/"/g, '');
+  // Note: etag may be undefined during background uploads, so check first
+  if (data.etag) {
+    data.etag = data.etag.replace(/"/g, '');
+  }
 
   return data;
 }
