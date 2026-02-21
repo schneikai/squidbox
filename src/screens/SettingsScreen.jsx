@@ -7,8 +7,23 @@ import useCloud from '@/features/cloud/useCloud';
 import CloudSyncControl from '@/features/cloud-sync/cloud-sync-control/CloudSyncControl';
 import deleteLocalDataAsync from '@/utils/local-data/deleteLocalDataAsync';
 
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/api\/v1\/?$/, '');
+
 export default function SettingsScreen({ route, navigation }) {
   const { isAuthenticated, user, loadDataAndSaveLocalAsync, backupDataAsync } = useCloud();
+
+  async function handleCheckApi() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/up`);
+      if (response.ok) {
+        Alert.alert('API is reachable', `${API_BASE_URL}`);
+      } else {
+        Alert.alert('API returned an error', `Status: ${response.status}\n${API_BASE_URL}`);
+      }
+    } catch (error) {
+      Alert.alert('API unreachable', `${error.message}\n${API_BASE_URL}`);
+    }
+  }
 
   async function handleDeleteLocalData(confirmed) {
     if (!confirmed) {
@@ -112,6 +127,11 @@ export default function SettingsScreen({ route, navigation }) {
           style={{ marginTop: 10 }}
         />
         <LogoutButton style={{ marginTop: 10 }} />
+        <Button
+          onPress={handleCheckApi}
+          title="Check API"
+          style={{ marginTop: 10 }}
+        />
       </View>
     );
   }
@@ -125,6 +145,11 @@ export default function SettingsScreen({ route, navigation }) {
           onPress={() => handleDeleteLocalData()}
           variant="danger"
           title="Delete local data"
+          style={{ marginTop: 10 }}
+        />
+        <Button
+          onPress={handleCheckApi}
+          title="Check API"
           style={{ marginTop: 10 }}
         />
       </View>

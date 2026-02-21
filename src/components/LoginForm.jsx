@@ -20,8 +20,10 @@ export default function LoginForm() {
     }
 
     // TODO: Add code to merge existing local data json files with the
-    // json data from the cloud.
-    // If there is no local data we can skip the confirmation all together.
+    // json data from the cloud. If there is no local data we can skip
+    // the confirmation all together.
+    // The actual deletion of local data on login is controlled by
+    // CLEAR_DATA_BETWEEN_LOGINS in src/constants.js.
     const confirmed = await confirmLoginAsync();
     if (!confirmed) return;
 

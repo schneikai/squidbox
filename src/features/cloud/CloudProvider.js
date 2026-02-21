@@ -9,6 +9,7 @@ import backupDataAsync from './data/backupDataAsync';
 import loadDataAndSaveLocalAsync from './data/loadDataAndSaveLocalAsync';
 import initializeCloudAsyncFn from './initializeCloudAsync';
 
+import { CLEAR_DATA_BETWEEN_LOGINS } from '@/constants';
 import setUserAsync from '@/features/cloud/user/setUserAsync';
 import apiLoginAsync from '@/utils/cloud-api/authentication/loginAsync';
 import apiLogoutAsync from '@/utils/cloud-api/authentication/logoutAsync';
@@ -19,11 +20,6 @@ export default function CloudProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const initializeLocalDataAsync = useInitializeLocalData();
-
-  // TODO: Added this flag to prevent accidental data loss during development
-  // until we have a way to detect and keep unsynced data on logout.
-  // This flag should always be true in production though!
-  const CLEAR_DATA_BETWEEN_LOGINS = false;
 
   async function updateUserAuthenticationStatusAsync(user) {
     // We need to make sure user is present before setting isAuthenticated
