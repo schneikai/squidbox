@@ -64,6 +64,15 @@ export default function CloudSyncProvider({ children }) {
     for (const [index, asset] of unsyncedAssets.entries()) {
       setSyncMessage(`Syncing ${index + 1} of ${unsyncedAssets.length}`);
 
+      // Files >= 4GB require the API proxy upload which is not yet supported
+      // in the current deployment. Skip them to avoid a failed sync attempt.
+      if (asset.fileSize >= 4 * 1024 * 1024 * 1024) {
+        await updateAsset(asset.id, {
+          syncError: `Skipped large file upload (${fileSizeToHumanReadable(asset.fileSize)})`,
+        });
+        continue;
+      }
+
       try {
         if (!asset.isFileSynced) {
           await uploadAssetFileAsync(asset, updateSyncProgressMessage);

@@ -1,9 +1,6 @@
 import * as FileSystem from 'expo-file-system';
 import { Alert } from 'react-native';
 
-import assetFileExistsAsync from './files/assetFileExistsAsync';
-import getAssetFileUri from './files/getAssetFileUri';
-
 import useCloud from '@/features/cloud/useCloud';
 import copyToMediaLibraryAsync from '@/utils/media-library/copyToMediaLibraryAsync';
 
@@ -53,12 +50,8 @@ export default function useSaveAssetsToMediaLibrary({ onStart, onProgress, onFin
     return false;
   }
 
-  async function requiresCloudToDownloadAsync(asset) {
-    if (await assetFileExistsAsync(asset.filename)) {
-      return false;
-    } else {
-      return true;
-    }
+  async function requiresCloudToDownloadAsync() {
+    return true;
   }
 
   function getAssetsTotalBytes(assets) {
@@ -66,13 +59,6 @@ export default function useSaveAssetsToMediaLibrary({ onStart, onProgress, onFin
   }
 
   async function downloadAndCopyToMediaLibraryAsync(asset, onProgress) {
-    if (!(await requiresCloudToDownloadAsync(asset))) {
-      const fileUri = getAssetFileUri(asset.filename);
-      await copyToMediaLibraryAsync(fileUri);
-      onProgress(asset.fileSize);
-      return;
-    }
-
     const fileUri = await downloadAssetFileAsync(asset, onProgress);
     try {
       await copyToMediaLibraryAsync(fileUri);
