@@ -29,6 +29,7 @@ const assetSchema = Yup.object()
     postHistory: Yup.array().of(Yup.string()).default([]),
     lastPostedAt: Yup.number().nullable().default(null),
     oldFileId: Yup.string().nullable().default(null),
+    notes: Yup.string().nullable().default(null),
   })
   .noUnknown();
 

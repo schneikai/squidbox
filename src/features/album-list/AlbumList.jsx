@@ -4,7 +4,7 @@ import useGetAlbumThumbnailAssetAndAssetCount from './useGetAlbumThumbnailAssetA
 
 import useAlbums from '@/features/albums-context/useAlbums';
 
-export default function AlbumList({ albumIds, renderItem, ListHeaderComponent, listRef }) {
+export default function AlbumList({ albumIds, renderItem, ListHeaderComponent, listRef, contentContainerStyle }) {
   const { albums } = useAlbums();
   const getAlbumThumbnailAssetAndAssetCount = useGetAlbumThumbnailAssetAndAssetCount();
 
@@ -33,6 +33,7 @@ export default function AlbumList({ albumIds, renderItem, ListHeaderComponent, l
       keyExtractor={(albumId) => albumId}
       ListHeaderComponent={ListHeaderComponent}
       stickyHeaderIndices={ListHeaderComponent ? [0] : undefined}
+      contentContainerStyle={contentContainerStyle}
     />
   );
 }

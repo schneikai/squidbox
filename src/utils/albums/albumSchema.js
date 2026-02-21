@@ -19,6 +19,7 @@ const albumSchema = Yup.object()
     lastPostedAt: Yup.number().nullable().default(null),
     showInPostSuggestionsAfter: Yup.number().nullable().default(null),
     oldCollectionName: Yup.string().nullable().default(null),
+    notes: Yup.string().nullable().default(null),
 
     smartAlbumType: Yup.mixed()
       .oneOf([null, ...Object.values(SMART_ALBUM_TYPES)])

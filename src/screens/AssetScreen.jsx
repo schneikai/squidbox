@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { SafeAreaView, FlatList, StyleSheet, useWindowDimensions } from 'react-native';
+import { SafeAreaView, FlatList, StyleSheet, useWindowDimensions, Text, TouchableOpacity } from 'react-native';
 
 import AssetHeader from '@/components/AssetHeader';
 import HeaderActions from '@/components/HeaderActions';
@@ -52,6 +52,15 @@ export default function AssetScreen({ route, navigation }) {
         </HeaderActions>
       </AssetHeader>
 
+      {!!asset.notes && (
+        <TouchableOpacity
+          style={styles.notesContainer}
+          onPress={() => navigation.navigate('EditNotesModal', { type: 'asset', id: asset.id, notes: asset.notes })}
+        >
+          <Text style={styles.notesText}>{asset.notes}</Text>
+        </TouchableOpacity>
+      )}
+
       <FlatList
         data={assetIds}
         keyExtractor={(assetId) => assetId}
@@ -78,5 +87,17 @@ export default function AssetScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  notesContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#ddd',
+    backgroundColor: '#fff',
+  },
+  notesText: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
   },
 });

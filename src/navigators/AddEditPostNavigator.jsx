@@ -8,9 +8,10 @@ const Stack = createNativeStackNavigator();
 
 export default function AddEditPostNavigator({ route }) {
   const isEditMode = Boolean(route.params?.postId);
+  const isRepostMode = Boolean(route.params?.rePostId);
   const screenName = isEditMode ? 'EditPostScreen' : 'AddPostScreen';
   const screenComponent = isEditMode ? EditPostScreen : AddPostScreen;
-  const sreenTitle = isEditMode ? 'Edit Post' : 'Add Post';
+  const sreenTitle = isEditMode ? 'Edit Post' : isRepostMode ? 'Repost' : 'Add Post';
 
   return (
     <Stack.Navigator>

@@ -6,6 +6,7 @@ import AddEditPostNavigator from '@/navigators/AddEditPostNavigator';
 import CreatePostNavigator from '@/navigators/CreatePostNavigator';
 import MainTabNavigator from '@/navigators/MainTabNavigator';
 import AddToAlbumScreen from '@/screens/AddToAlbumScreen';
+import EditNotesModal from '@/screens/EditNotesModal';
 const RootStack = createNativeStackNavigator();
 
 export default function RootNavigator() {
@@ -20,6 +21,7 @@ export default function RootNavigator() {
         <RootStack.Screen name="AddEditPostModal" component={AddEditPostNavigator} options={{ headerShown: false }} />
         <RootStack.Screen name="AssetPickerModal" component={AssetPickerScreen} />
         <RootStack.Screen name="AddToAlbumModal" component={AddToAlbumScreen} />
+        <RootStack.Screen name="EditNotesModal" component={EditNotesModal} />
       </RootStack.Group>
       <RootStack.Group>
         <RootStack.Screen name="MainTab" component={MainTabNavigator} options={{ headerShown: false }} />

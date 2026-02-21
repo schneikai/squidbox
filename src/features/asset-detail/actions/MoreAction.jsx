@@ -24,6 +24,10 @@ export default function MoreAction({ asset, navigation, onDeleteAsset }) {
     navigation.navigate('PostsTab', { screen: 'PostsScreen' });
   }
 
+  function handleEditNotes() {
+    navigation.navigate('EditNotesModal', { type: 'asset', id: asset.id, notes: asset.notes ?? '' });
+  }
+
   function handleDeleteAsset() {
     Alert.alert(
       `Delete ${humanizeMediaType(asset.mediaType)}`,
@@ -54,6 +58,7 @@ export default function MoreAction({ asset, navigation, onDeleteAsset }) {
         <TextMenuOption label="Add to album" onPress={handleAddToAlbum} />
         <TextMenuOption label="Create post" onPress={handleCreatePost} />
         <TextMenuOption label="Show posts" onPress={handleShowPosts} />
+        <TextMenuOption label={asset.notes ? 'Edit note' : 'Add note'} onPress={handleEditNotes} />
         <TextMenuOption
           label={`Delete ${asset && humanizeMediaType(asset.mediaType)}`}
           onPress={handleDeleteAsset}

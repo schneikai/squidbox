@@ -1,46 +1,33 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Menu, MenuOptions, MenuTrigger, renderers } from 'react-native-popup-menu';
 import SuperPressable from '@/components/SuperPressable';
+import TextMenuOption from '@/components/popup-menu-options/TextMenuOption';
+import headerActionStyles from '@/styles/headerActionStyles';
 import usePosts from '@/features/posts-context/usePosts';
 import PostList from '@/features/post-list/PostList';
 import PostListItem from '@/features/post-list/PostListItem';
 import preparePosts from '@/features/post-list/preparePosts';
-import useAlbums from '@/features/albums-context/useAlbums';
-import useAssets from '@/features/assets-context/useAssets';
-import getLatestPostDate from '@/utils/posts/getLatestPostDate';
 
 export default function CreatePostScreen({ navigation }) {
   const { posts, updatePost } = usePosts();
-  const { albums } = useAlbums();
-  const { assets } = useAssets();
+  const { bottom } = useSafeAreaInsets();
   const [postIds, setPostIds] = useState([]);
-
-  // Memoize the latest dates for all posts to avoid recalculating during sorts
-  const postDates = useMemo(() => {
-    const dates = new Map();
-    Object.values(posts).forEach(post => {
-      dates.set(post.id, getLatestPostDate(post, assets, albums));
-    });
-    return dates;
-  }, [posts, assets, albums]);
-
-  // Memoize the sorting function
-  const sortFn = useMemo(() => {
-    return (a, b) => postDates.get(a.id) - postDates.get(b.id);
-  }, [postDates]);
 
   useEffect(() => {
     const preparedPosts = preparePosts({
       posts: Object.values(posts),
-      sortFn,
+      sortFn: (a, b) =>
+        (a.suggestRepostAt || a.postedAt || 0) - (b.suggestRepostAt || b.postedAt || 0),
       filterFn: (post) => !post.isIgnoredForRepost && !post.hasBeenReposted,
     });
     setPostIds(preparedPosts.map(post => post.id));
-  }, [posts, sortFn]);
+  }, [posts]);
 
   const handleCreateNewPost = () => {
-    navigation.replace('AddEditPostModal');
+    navigation.navigate('AddEditPostModal');
   };
 
   const handleRepost = (post) => {
@@ -48,7 +35,6 @@ export default function CreatePostScreen({ navigation }) {
   };
 
   const handlePostpone = async (post) => {
-    // Randomly postpone between 1-12 months from now
     const monthsToPostpone = Math.floor(Math.random() * 12) + 1;
     const suggestRepostAt = new Date();
     suggestRepostAt.setMonth(suggestRepostAt.getMonth() + monthsToPostpone);
@@ -73,35 +59,20 @@ export default function CreatePostScreen({ navigation }) {
 
       <PostList
         postIds={postIds}
+        contentContainerStyle={{ paddingBottom: bottom + 16 }}
         FirstListEntryComponent={<Text style={styles.sectionTitle}>Repost something</Text>}
         renderListItem={(post) => {
           return (
             <SuperPressable
               onPress={() => navigation.navigate('PostScreen', { postId: post.id })}
-              onDoublePress={() => toggleFavoritePost(post)}
               style={{ flex: 1 }}
             >
               <PostListItem {...post} />
-              <View style={styles.postActionButtonContainer}>
-                <TouchableOpacity
-                  onPress={() => handleRepost(post)}
-                  style={styles.postActionButton}
-                >
-                  <Ionicons name="repeat" size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => handlePostpone(post)}
-                  style={{ ...styles.postActionButton, backgroundColor: '#999999' }}
-                >
-                  <Ionicons name="arrow-down" size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => handleIgnore(post)}
-                  style={{ ...styles.postActionButton, backgroundColor: '#999999' }}
-                >
-                  <Ionicons name="close" size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
+              <PostActions
+                onRepost={() => handleRepost(post)}
+                onPostpone={() => handlePostpone(post)}
+                onIgnore={() => handleIgnore(post)}
+              />
             </SuperPressable>
           );
         }}
@@ -109,6 +80,34 @@ export default function CreatePostScreen({ navigation }) {
     </>
   );
 }
+
+function PostActions({ onRepost, onPostpone, onIgnore }) {
+  return (
+    <View style={styles.menuContainer}>
+      <TouchableOpacity style={[headerActionStyles.button, styles.primaryButton]} onPress={onRepost}>
+        <Ionicons name="create" style={[headerActionStyles.buttonIcon, styles.primaryButtonIcon]} />
+      </TouchableOpacity>
+      <Menu renderer={renderers.Popover} rendererProps={{ preferredPlacement: 'top' }}>
+        <MenuTrigger customStyles={{ triggerWrapper: headerActionStyles.button }}>
+          <Ionicons name="ellipsis-horizontal" style={headerActionStyles.buttonIcon} />
+        </MenuTrigger>
+        <MenuOptions customStyles={menuStyles}>
+          <TextMenuOption label="Postpone" onPress={onPostpone} />
+          <TextMenuOption label="Ignore" onPress={onIgnore} isLast />
+        </MenuOptions>
+      </Menu>
+    </View>
+  );
+}
+
+const menuStyles = {
+  optionsContainer: {
+    backgroundColor: 'rgba(220, 220, 220, 0.96)',
+    borderRadius: 10,
+    shadowColor: 'transparent',
+    width: 160,
+  },
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -197,19 +196,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#8E8E93',
   },
-  postActionButtonContainer: {
+  menuContainer: {
     position: 'absolute',
-    right: 16,
-    bottom: 16,
+    right: 12,
+    bottom: 12,
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
-  postActionButton: {
+  primaryButton: {
     backgroundColor: '#007AFF',
-    width: 30,
-    height: 30,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
+  },
+  primaryButtonIcon: {
+    color: '#FFFFFF',
   },
 });

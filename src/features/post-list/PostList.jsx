@@ -8,6 +8,7 @@ export default function PostList({
   FirstListEntryComponent,
   renderListItem,
   listRef,
+  contentContainerStyle,
 }) {
   const { posts } = usePosts();
   const postIds = [...initialPostIds];
@@ -26,6 +27,7 @@ export default function PostList({
       keyExtractor={(postId) => postId}
       ListHeaderComponent={ListHeaderComponent}
       stickyHeaderIndices={ListHeaderComponent ? [0] : undefined}
+      contentContainerStyle={contentContainerStyle}
       ref={listRef}
     />
   );

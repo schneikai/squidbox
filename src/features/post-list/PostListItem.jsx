@@ -11,7 +11,7 @@ import assetRefsToPostAssets from '@/utils/posts/assetRefsToPostAssets';
 
 // import { getPostAssetsWithAssets } from '@/utils/postUtils';
 
-export default function PostListItem({ text, assetRefs, isFavorite, postedAt }) {
+export default function PostListItem({ text, assetRefs, isFavorite, postedAt, suggestRepostAt }) {
   const { assets } = useAssets();
   const [postAssets, setPostAssets] = useState([]);
 
@@ -27,6 +27,12 @@ export default function PostListItem({ text, assetRefs, isFavorite, postedAt }) 
 
       <View style={styles.postInfos}>
         <PostPostedAt postedAt={postedAt} style={styles.postedAt} />
+        {suggestRepostAt > Date.now() && (
+          <View style={styles.postponedBadge}>
+            <Ionicons name="time-outline" size={11} color="#fff" />
+            <Text style={styles.postponedBadgeText}>Postponed</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.indicators}>
@@ -55,6 +61,23 @@ const styles = StyleSheet.create({
 
   postInfos: {
     marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  postponedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#aaa',
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  postponedBadgeText: {
+    fontSize: 11,
+    color: '#fff',
+    fontWeight: '600',
   },
   postedAt: {
     fontSize: 12,

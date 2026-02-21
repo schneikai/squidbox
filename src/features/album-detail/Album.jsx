@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { useState, useEffect } from 'react';
-import { Text, StyleSheet, View, Pressable } from 'react-native';
+import { Text, StyleSheet, View, Pressable, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ScreenHeader from './ScreenHeader';
@@ -143,6 +143,14 @@ export default function Album({ album }) {
             <Text style={styles.albumIsArchived}>Archived</Text>
           </View>
         )}
+        {!!album.notes && (
+          <TouchableOpacity
+            style={styles.notesContainer}
+            onPress={() => navigation.navigate('EditNotesModal', { type: 'album', id: album.id, notes: album.notes })}
+          >
+            <Text style={styles.notesText}>{album.notes}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Simple Tab Bar */}
@@ -239,5 +247,16 @@ const styles = StyleSheet.create({
   },
   tabContent: {
     flex: 1,
+  },
+  notesContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#ddd',
+  },
+  notesText: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
   },
 });

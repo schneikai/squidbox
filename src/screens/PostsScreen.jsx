@@ -45,6 +45,7 @@ export default function PostsScreen({ navigation }) {
       <PostList
         listRef={listRef}
         postIds={postIds}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
         renderListItem={(post) => {
           return (
             <SuperPressable

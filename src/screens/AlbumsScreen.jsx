@@ -69,6 +69,7 @@ export default function AlbumsScreen({ route, navigation }) {
     <AlbumList
       listRef={listRef}
       albumIds={albumIds}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
       renderItem={({ album, thumbnailAsset, numberOfAssets, elementWidth }) => (
         <AlbumListItemWithEditMode
           isEditMode={isEditMode}

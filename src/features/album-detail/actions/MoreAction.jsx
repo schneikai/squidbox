@@ -46,6 +46,10 @@ export default function MoreAction({ album, afterDelete }) {
     });
   }
 
+  function handleEditNotes() {
+    navigation.navigate('EditNotesModal', { type: 'album', id: album.id, notes: album.notes ?? '' });
+  }
+
   async function handleArchiveAlbum() {
     await updateAlbum(album.id, { archivedAt: getTimestamp() });
   }
@@ -62,6 +66,7 @@ export default function MoreAction({ album, afterDelete }) {
       <MenuOptions customStyles={popupMenuStyles.menuOptions}>
         <ToggleThumbnailStyleOption />
         <TextMenuOption label="Show posts" onPress={handleShowPosts} />
+        <TextMenuOption label={album.notes ? 'Edit note' : 'Add note'} onPress={handleEditNotes} />
         <TextMenuOption label="Rename" onPress={handleRenameAlbum} />
         {!!album.archivedAt && <TextMenuOption label="Unarchive" onPress={handleUnarchiveAlbum} />}
         {!album.archivedAt && <TextMenuOption label="Archive" onPress={handleArchiveAlbum} />}

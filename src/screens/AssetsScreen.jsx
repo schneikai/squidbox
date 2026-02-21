@@ -58,6 +58,7 @@ export default function AssetsScreen({ route, navigation }) {
       <AssetList
         listRef={listRef}
         assetIds={assetIds}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
         renderListItem={(asset) => (
           <SuperPressable
             onPress={() => onPressAsset(asset)}
