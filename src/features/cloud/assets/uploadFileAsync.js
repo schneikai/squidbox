@@ -1,14 +1,19 @@
 import * as FileSystem from 'expo-file-system';
 
-import validateUploadedFileAsync from '@/features/cloud/assets/validateUploadedFileAsync';
-import getAssetFileUploadUrlAsync from '@/utils/cloud-api/assets/getAssetFileUploadUrlAsync';
+import { getAccessTokenAsync } from '@/utils/cloud-api/apiTokenStore';
 
-// Uploads a file to the cloud and validates the upload.
-export default async function uploadFileAsync(filename, fileUri, fileSize, onProgress = null) {
-  const presignedUrl = await getAssetFileUploadUrlAsync(filename, fileSize);
+// Uploads a file to the API which proxies it to S3 synchronously.
+// The API only responds 200 after S3 confirms the upload, so no extra validation is needed.
+export default async function uploadFileAsync(filename, fileUri, onProgress = null) {
+  const accessToken = await getAccessTokenAsync();
+
+  // Token is passed as a query param because iOS can silently drop Authorization
+  // headers on background upload tasks (NSURLSessionUploadTask limitation).
+  // The API's authenticate_request supports both header and ?token= param.
+  const uploadUrl = `${process.env.EXPO_PUBLIC_API_URL}/asset_files/upload/${encodeURIComponent(filename)}?token=${accessToken}`;
 
   const uploadTask = FileSystem.createUploadTask(
-    presignedUrl,
+    uploadUrl,
     fileUri,
     {
       httpMethod: 'PUT',
@@ -23,11 +28,10 @@ export default async function uploadFileAsync(filename, fileUri, fileSize, onPro
 
   // TODO: We could return the uploadTask.cancelAsync() method from this function
   // to allow to cancel the upload if needed.
-  await uploadTask.uploadAsync();
+  const result = await uploadTask.uploadAsync();
 
-  const validationResult = await validateUploadedFileAsync(fileUri, filename, fileSize, onProgress);
-
-  if (!validationResult.valid) {
-    throw new Error(`File upload failed! ${validationResult.message}`);
+  if (!result || result.status < 200 || result.status >= 300) {
+    const serverError = result?.body ? JSON.parse(result.body)?.error : null;
+    throw new Error(serverError || `Upload failed with status ${result?.status}`);
   }
 }

@@ -29,28 +29,12 @@ export default function CloudSyncProvider({ children }) {
     setAssetsWithSyncErrors(getAssetsWithSyncError(assets));
   }, [assets]);
 
-  function updateSyncProgressMessage(progressData) {
-    // Handle S3 background upload progress (50-100%) - optional, only if cache available
-    if (progressData.s3Progress !== undefined) {
-      const adjustedPercent = 50 + Math.round(progressData.s3Progress / 2);
-      setSyncProgressMessage(`Uploading (${adjustedPercent}%)`);
-      return;
-    }
-    
-    // Handle messages (validation, finalizing, etc.)
-    if (progressData.message) {
-      setSyncProgressMessage(progressData.message);
-      return;
-    }
-    
-    // Handle upload to API progress (0-50%)
-    const { totalBytesSent, totalBytesExpectedToSend } = progressData;
+  function updateSyncProgressMessage({ totalBytesSent, totalBytesExpectedToSend }) {
     const uploadPercent = Math.round((totalBytesSent / totalBytesExpectedToSend) * 100);
-    const adjustedPercent = Math.round(uploadPercent / 2); // Scale to 0-50%
     const totalBytesExpectedToSendFormatted = fileSizeToHumanReadable(totalBytesExpectedToSend);
     const totalBytesSentFormatted = fileSizeToHumanReadable(totalBytesSent);
     setSyncProgressMessage(
-      `Uploading ${totalBytesSentFormatted} of ${totalBytesExpectedToSendFormatted} (${adjustedPercent}%)`,
+      `Uploading ${totalBytesSentFormatted} of ${totalBytesExpectedToSendFormatted} (${uploadPercent}%)`,
     );
   }
 
@@ -63,15 +47,6 @@ export default function CloudSyncProvider({ children }) {
 
     for (const [index, asset] of unsyncedAssets.entries()) {
       setSyncMessage(`Syncing ${index + 1} of ${unsyncedAssets.length}`);
-
-      // Files >= 4GB require the API proxy upload which is not yet supported
-      // in the current deployment. Skip them to avoid a failed sync attempt.
-      if (asset.fileSize >= 4 * 1024 * 1024 * 1024) {
-        await updateAsset(asset.id, {
-          syncError: `Skipped large file upload (${fileSizeToHumanReadable(asset.fileSize)})`,
-        });
-        continue;
-      }
 
       try {
         if (!asset.isFileSynced) {
