@@ -68,6 +68,7 @@ export default function PostEditor({ post, onChange }) {
         onClose={() => setShowAiChat(false)}
         onSelect={(suggestion) => setText(suggestion)}
         recentPostTexts={recentPostTexts}
+        existingText={text}
       />
     </>
   );

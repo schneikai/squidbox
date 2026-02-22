@@ -4,7 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AlbumNavigator from '@/navigators/AlbumNavigator';
 import AssetNavigator from '@/navigators/AssetNavigator';
 import PostNavigator from '@/navigators/PostNavigator';
-import SettingsScreen from '@/screens/SettingsScreen';
+import SettingsNavigator from '@/navigators/SettingsNavigator';
 
 const Tab = createBottomTabNavigator();
 
@@ -46,9 +46,10 @@ export default function RootTabNavigator() {
       />
       <Tab.Screen
         name="SettingsTab"
-        component={SettingsScreen}
+        component={SettingsNavigator}
         options={{
           title: 'Settings',
+          headerShown: false,
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons name={iconName('settings', focused)} size={size} color={color} />
           ),

@@ -5,13 +5,14 @@ export { DEFAULT_MODEL } from './aiSuggestionsStorage';
 
 const FORMAT_INSTRUCTION = 'Always respond with a raw JSON array of strings and nothing else. Example: ["text one", "text two"]';
 
-function buildSystemPrompt(recentPostTexts) {
-  const referencePart =
-    recentPostTexts.length > 0
-      ? `Here are the user's ${recentPostTexts.length} most recent posts for reference:\n${recentPostTexts.map((text, i) => `${i + 1}. ${text}`).join('\n')}\n\n`
-      : '';
-
-  return `${referencePart}${FORMAT_INSTRUCTION}`;
+function buildSystemPrompt(recentPostTexts, customSystemPrompt) {
+  const parts = [];
+  if (customSystemPrompt?.trim()) parts.push(customSystemPrompt.trim());
+  if (recentPostTexts.length > 0) {
+    parts.push(`Here are the user's ${recentPostTexts.length} most recent posts for reference:\n${recentPostTexts.map((text, i) => `${i + 1}. ${text}`).join('\n')}`);
+  }
+  parts.push(FORMAT_INSTRUCTION);
+  return parts.join('\n\n');
 }
 
 /**
@@ -59,15 +60,16 @@ function parseResponse(content) {
  * @param {Array<{role: string, content: string}>} messages - Full chat history.
  * @param {string[]} recentPostTexts - Recent posts for reference (empty = disabled).
  * @param {string} model - The OpenAI model ID to use.
+ * @param {string} [customSystemPrompt] - Optional persona / instructions prepended to the system prompt.
  * @returns {Promise<string[]>} Parsed array of suggestion strings.
  */
-export default async function sendAiMessageAsync(messages, recentPostTexts, model) {
+export default async function sendAiMessageAsync(messages, recentPostTexts, model, customSystemPrompt) {
   const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
   if (!apiKey || apiKey === 'sk-...') {
     throw new Error('OpenAI API key not configured. Set EXPO_PUBLIC_OPENAI_API_KEY in .env.local.');
   }
 
-  const systemPrompt = buildSystemPrompt(recentPostTexts);
+  const systemPrompt = buildSystemPrompt(recentPostTexts, customSystemPrompt);
   const messagesPayload = systemPrompt
     ? [{ role: 'system', content: systemPrompt }, ...messages]
     : messages;

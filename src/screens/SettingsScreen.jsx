@@ -1,21 +1,20 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
-  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import BlockingModal from '@/components/BlockingModal';
 import LoginForm from '@/components/LoginForm';
 import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
-import { MODEL_STORAGE_KEY, PROMPT_STORAGE_KEY, DEFAULT_MODEL, DEFAULT_PROMPT } from '@/features/ai-suggestions/aiSuggestionsStorage';
+import { MODEL_STORAGE_KEY, DEFAULT_MODEL } from '@/features/ai-suggestions/aiSuggestionsStorage';
 import confirmLogoutAsync from '@/features/cloud/confirmLogoutAsync';
 import useCloud from '@/features/cloud/useCloud';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
@@ -63,37 +62,24 @@ function Row({ label, value, onPress, destructive, chevron, children }) {
 
 // ─── Main screen ────────────────────────────────────────────────────────────
 
-export default function SettingsScreen() {
+export default function SettingsScreen({ navigation }) {
   const { isAuthenticated, user, logoutAsync, loadDataAndSaveLocalAsync, backupDataAsync } = useCloud();
   const { unsyncedAssets, assetsWithSyncErrors, isSyncing, syncMessage, syncProgressMessage, syncSpeedMessage, syncNow } = useCloudSync();
   const [showSyncDetails, setShowSyncDetails] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
 
   const [aiModel, setAiModel] = useState(DEFAULT_MODEL);
-  const [aiPrompt, setAiPrompt] = useState(DEFAULT_PROMPT);
   const [logoutBlocking, setLogoutBlocking] = useState(false);
-  const promptRef = useRef(null);
 
   useEffect(() => {
     async function loadAiSettings() {
       try {
-        const [model, prompt] = await Promise.all([
-          AsyncStorage.getItem(MODEL_STORAGE_KEY),
-          AsyncStorage.getItem(PROMPT_STORAGE_KEY),
-        ]);
+        const model = await AsyncStorage.getItem(MODEL_STORAGE_KEY);
         if (model) setAiModel(model);
-        if (prompt !== null) setAiPrompt(prompt);
       } catch {}
     }
     loadAiSettings();
   }, []);
-
-  async function handleSavePrompt(text) {
-    setAiPrompt(text);
-    try {
-      await AsyncStorage.setItem(PROMPT_STORAGE_KEY, text);
-    } catch {}
-  }
 
   async function handleDeleteLocalData() {
     Alert.alert('Delete local data', 'This cannot be undone. Are you sure?', [
@@ -187,7 +173,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <KeyboardAwareScrollView style={styles.container} contentContainerStyle={styles.content} extraScrollHeight={20}>
       <BlockingModal visible={logoutBlocking} />
 
       {isAuthenticated ? (
@@ -257,18 +243,7 @@ export default function SettingsScreen() {
           <SectionHeader title="AI Caption Suggestions" />
           <Section>
             <Row label="Model" value={aiModel} />
-            <View style={styles.promptCell}>
-              <Text style={styles.promptCellLabel}>Default prompt</Text>
-              <TextInput
-                ref={promptRef}
-                style={styles.promptCellInput}
-                value={aiPrompt}
-                onChangeText={handleSavePrompt}
-                multiline
-                placeholder="e.g. create some caption ideas"
-                placeholderTextColor="#C7C7CC"
-              />
-            </View>
+            <Row label="Prompts" onPress={() => navigation.navigate('AiPromptsScreen')} chevron />
           </Section>
 
           {/* Developer */}
@@ -281,7 +256,7 @@ export default function SettingsScreen() {
       )}
 
       <View style={styles.footer} />
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 
@@ -368,23 +343,6 @@ const styles = StyleSheet.create({
   syncDetailMuted: {
     color: '#8E8E93',
   },
-  promptCell: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 12,
-  },
-  promptCellLabel: {
-    fontSize: 16,
-    color: '#000',
-    marginBottom: 4,
-  },
-  promptCellInput: {
-    fontSize: 15,
-    color: '#8E8E93',
-    lineHeight: 22,
-    minHeight: 36,
-  },
-
   loginWrapper: {
     paddingTop: 8,
   },

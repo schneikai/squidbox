@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   FlatList,
-  KeyboardAvoidingView,
+  Keyboard,
   Modal,
   Platform,
   StyleSheet,
@@ -20,16 +21,27 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import sendAiMessageAsync from './sendAiMessageAsync';
-import { CHAT_STORAGE_KEY, MODEL_STORAGE_KEY, PROMPT_STORAGE_KEY, DEFAULT_MODEL, DEFAULT_PROMPT } from './aiSuggestionsStorage';
+import {
+  CHAT_STORAGE_KEY,
+  MODEL_STORAGE_KEY,
+  PROMPT_STORAGE_KEY,
+  SYSTEM_PROMPT_STORAGE_KEY,
+  VARIATION_PROMPT_STORAGE_KEY,
+  DEFAULT_MODEL,
+  DEFAULT_PROMPT,
+  DEFAULT_SYSTEM_PROMPT,
+  DEFAULT_VARIATION_PROMPT,
+} from './aiSuggestionsStorage';
 
 // Models that are not useful for chat/text generation
 const MODEL_ID_BLOCKLIST = ['whisper', 'tts', 'dall-e', 'davinci', 'babbage', 'curie', 'ada', 'embedding', 'moderation'];
 
-export default function AiChatModal({ visible, onClose, onSelect, recentPostTexts }) {
+export default function AiChatModal({ visible, onClose, onSelect, recentPostTexts, existingText }) {
   const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [defaultPrompt, setDefaultPrompt] = useState(DEFAULT_PROMPT);
+  const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
   const [isLoading, setIsLoading] = useState(false);
   const [copiedKey, setCopiedKey] = useState(null);
   const [includeReference, setIncludeReference] = useState(true);
@@ -41,6 +53,7 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
   const [showReferencePosts, setShowReferencePosts] = useState(false);
   const flatListRef = useRef(null);
   const copiedKeyTimerRef = useRef(null);
+  const keyboardHeightAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
@@ -54,23 +67,54 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
     };
   }, []);
 
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, (e) => {
+      Animated.timing(keyboardHeightAnim, {
+        toValue: e.endCoordinates.height,
+        duration: e.duration ?? 250,
+        useNativeDriver: false,
+      }).start();
+    });
+    const hide = Keyboard.addListener(hideEvent, (e) => {
+      Animated.timing(keyboardHeightAnim, {
+        toValue: 0,
+        duration: e.duration ?? 250,
+        useNativeDriver: false,
+      }).start();
+    });
+    return () => { show.remove(); hide.remove(); };
+  }, [keyboardHeightAnim]);
+
   async function loadSettings() {
     try {
-      const [history, model, prompt] = await Promise.all([
+      const [history, model, prompt, sysPrompt, variationPrompt] = await Promise.all([
         AsyncStorage.getItem(CHAT_STORAGE_KEY),
         AsyncStorage.getItem(MODEL_STORAGE_KEY),
         AsyncStorage.getItem(PROMPT_STORAGE_KEY),
+        AsyncStorage.getItem(SYSTEM_PROMPT_STORAGE_KEY),
+        AsyncStorage.getItem(VARIATION_PROMPT_STORAGE_KEY),
       ]);
 
       const msgs = history ? JSON.parse(history) : [];
       const resolvedPrompt = prompt ?? DEFAULT_PROMPT;
+      const resolvedVariationPrompt = variationPrompt ?? DEFAULT_VARIATION_PROMPT;
       const resolvedModel = model ?? DEFAULT_MODEL;
+      const resolvedSystemPrompt = sysPrompt ?? DEFAULT_SYSTEM_PROMPT;
 
       setMessages(msgs);
       setDefaultPrompt(resolvedPrompt);
+      setSystemPrompt(resolvedSystemPrompt);
       setSelectedModel(resolvedModel);
 
-      if (msgs.length === 0) setInputText(resolvedPrompt);
+      if (msgs.length === 0) {
+        if (existingText?.trim()) {
+          setInputText(`${resolvedVariationPrompt}\n\n${existingText.trim()}`);
+        } else {
+          setInputText(resolvedPrompt);
+        }
+      }
     } catch {
       setMessages([]);
       setInputText(DEFAULT_PROMPT);
@@ -139,7 +183,7 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
 
     try {
       const contextPosts = includeReference ? recentPostTexts : [];
-      const suggestions = await sendAiMessageAsync(updatedMessages, contextPosts, selectedModel);
+      const suggestions = await sendAiMessageAsync(updatedMessages, contextPosts, selectedModel, systemPrompt);
       const assistantMessage = {
         role: 'assistant',
         content: JSON.stringify(suggestions),
@@ -248,11 +292,7 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
-      >
+      <Animated.View style={[styles.container, { paddingBottom: keyboardHeightAnim }]}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.headerButton}>
@@ -373,6 +413,7 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
           data={messages}
           keyExtractor={(_, i) => String(i)}
           renderItem={renderMessage}
+          style={styles.messageListContainer}
           contentContainerStyle={styles.messageList}
           onContentSizeChange={scrollToEnd}
           ListFooterComponent={renderLoadingBubble}
@@ -418,7 +459,7 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
             <Ionicons name="arrow-up" size={20} color="white" />
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </Animated.View>
     </Modal>
   );
 }
@@ -465,6 +506,9 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
 
+  messageListContainer: {
+    flex: 1,
+  },
   messageList: {
     padding: 12,
     paddingBottom: 4,
