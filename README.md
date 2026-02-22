@@ -109,6 +109,29 @@ https://blog.stackademic.com/offline-react-native-app-with-typeorm-expo-sqlite-a
 SQLite is now also supported native in Expo 50
 https://docs.expo.dev/versions/v50.0.0/sdk/sqlite-next/
 
+# Upload Architecture
+
+## How uploads work
+
+Files are uploaded via `PUT /api/v1/asset_files/upload/:file_key` using `expo-file-system`'s `createUploadTask`. The access token is passed as a query parameter because `createUploadTask` does not support custom headers.
+
+The upload flow per asset is:
+1. Upload the file (`isFileSynced`)
+2. Upload the thumbnail (`isThumbnailSynced`)
+3. Mark the asset as fully synced (`isSynced`) and delete the local copy
+
+### Why uploads don't appear in the API logs until the end
+
+Puma buffers the full request body before Rails processes anything. For a 5GB file at 4 MB/s this takes ~20 minutes. The `Started PUT ...` log entry only appears after the last byte arrives at the server. Client-side progress is real (data is flowing over TCP), but Rails is silent until Puma hands it the completed buffer.
+
+### Token handling
+
+`expo-file-system` does not go through the Axios interceptors that handle automatic token refresh for regular API calls. To compensate:
+
+- The JWT access token TTL on the server is set to **24 hours** so it does not expire during a long upload session.
+- `uploadFileAsync.js` catches 401 responses, refreshes the token, and retries the upload once before throwing.
+
+
 # Notes
 
 ## React-Navigation-Native vs Expo Router

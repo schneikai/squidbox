@@ -17,7 +17,7 @@ export default function AssetsProvider({ children }) {
   } = useLoadAndUpdateData({ localDataFilename: 'assets.json' });
 
   async function updateAssets(ids, updates) {
-    updateAsync({
+    await updateAsync({
       models: getModelsById(ids, assets),
       updates,
       schema: assetSchema,
