@@ -17,10 +17,19 @@ export default function CloudSyncProvider({ children }) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState(null);
   const [syncProgressMessage, setSyncProgressMessage] = useState(null);
+  const [syncSpeedMessage, setSyncSpeedMessage] = useState(null);
 
   // Since state is not updated immediately I use this ref to make sure
   // that the sync function is not running multiple times at the same time.
   const isSyncRunning = useRef(false);
+  const lastProgressRef = useRef(null);
+  const emaSpeedRef = useRef(0);
+  const sessionStartRef = useRef(null);
+  const completedBytesRef = useRef(0);
+
+  // Exponential moving average time constant (seconds).
+  // Higher = smoother but slower to react. 10s gives a stable readable number.
+  const EMA_TAU = 10;
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -30,12 +39,37 @@ export default function CloudSyncProvider({ children }) {
   }, [assets]);
 
   function updateSyncProgressMessage({ totalBytesSent, totalBytesExpectedToSend }) {
+    const now = Date.now();
+
+    if (lastProgressRef.current) {
+      const elapsedSeconds = (now - lastProgressRef.current.time) / 1000;
+      const bytesDelta = totalBytesSent - lastProgressRef.current.bytes;
+      if (elapsedSeconds > 0 && bytesDelta >= 0) {
+        const instantSpeed = bytesDelta / elapsedSeconds;
+        // Exponential moving average — weights recent samples more heavily
+        // while smoothing over ~EMA_TAU seconds to avoid a flickery display.
+        const alpha = 1 - Math.exp(-elapsedSeconds / EMA_TAU);
+        emaSpeedRef.current = alpha * instantSpeed + (1 - alpha) * emaSpeedRef.current;
+      }
+    }
+
+    lastProgressRef.current = { bytes: totalBytesSent, time: now };
+
+    const sessionElapsed = (now - sessionStartRef.current) / 1000;
+    const sessionTotalBytes = completedBytesRef.current + totalBytesSent;
+    const sessionAvgSpeed = sessionElapsed > 0 ? sessionTotalBytes / sessionElapsed : 0;
+
+    setSyncSpeedMessage({
+      now: `${fileSizeToHumanReadable(emaSpeedRef.current)}/s`,
+      avg: `${fileSizeToHumanReadable(sessionAvgSpeed)}/s`,
+    });
+
     const uploadPercent = Math.round((totalBytesSent / totalBytesExpectedToSend) * 100);
-    const totalBytesExpectedToSendFormatted = fileSizeToHumanReadable(totalBytesExpectedToSend);
-    const totalBytesSentFormatted = fileSizeToHumanReadable(totalBytesSent);
-    setSyncProgressMessage(
-      `Uploading ${totalBytesSentFormatted} of ${totalBytesExpectedToSendFormatted} (${uploadPercent}%)`,
-    );
+    setSyncProgressMessage({
+      sent: fileSizeToHumanReadable(totalBytesSent),
+      total: fileSizeToHumanReadable(totalBytesExpectedToSend),
+      percent: `${uploadPercent}%`,
+    });
   }
 
   async function syncAssets() {
@@ -44,14 +78,24 @@ export default function CloudSyncProvider({ children }) {
     isSyncRunning.current = true;
 
     setIsSyncing(true);
+    sessionStartRef.current = Date.now();
+    completedBytesRef.current = 0;
 
     for (const [index, asset] of unsyncedAssets.entries()) {
       setSyncMessage(`Syncing ${index + 1} of ${unsyncedAssets.length}`);
 
       try {
         if (!asset.isFileSynced) {
-          await uploadAssetFileAsync(asset, updateSyncProgressMessage);
+          lastProgressRef.current = null;
+          emaSpeedRef.current = 0;
+          let fileTotalBytes = 0;
+          await uploadAssetFileAsync(asset, (progress) => {
+            fileTotalBytes = progress.totalBytesExpectedToSend;
+            updateSyncProgressMessage(progress);
+          });
+          completedBytesRef.current += fileTotalBytes;
           setSyncProgressMessage(null);
+          setSyncSpeedMessage(null);
           await updateAsset(asset.id, { isFileSynced: true });
           // Delete local file. We don't need it anymore since it is now stored in the cloud.
           await deleteAssetFileAsync(asset.filename);
@@ -82,6 +126,7 @@ export default function CloudSyncProvider({ children }) {
     isSyncing,
     syncMessage,
     syncProgressMessage,
+    syncSpeedMessage,
     syncNow: syncAssets,
   };
 
