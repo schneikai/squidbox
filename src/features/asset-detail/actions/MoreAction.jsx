@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import * as Clipboard from 'expo-clipboard';
 import { Alert } from 'react-native';
 import { Menu, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
 
@@ -7,6 +8,7 @@ import useAppSettings from '@/features/app-settings/useAppSettings';
 import headerActionStyles from '@/styles/headerActionStyles';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 import humanizeMediaType from '@/utils/assets/humanizeMediaType';
+import getAssetFileDownloadUrlAsync from '@/utils/cloud-api/assets/getAssetFileDownloadUrlAsync';
 
 export default function MoreAction({ asset, navigation, onDeleteAsset }) {
   const { setPostsQuery } = useAppSettings();
@@ -22,6 +24,16 @@ export default function MoreAction({ asset, navigation, onDeleteAsset }) {
   function handleShowPosts() {
     setPostsQuery(`asset:${asset.id}`);
     navigation.navigate('PostsTab', { screen: 'PostsScreen' });
+  }
+
+  async function handleCopyFileUrl() {
+    try {
+      const url = await getAssetFileDownloadUrlAsync(asset.filename, { expiresIn: 7 * 24 * 60 * 60 });
+      await Clipboard.setStringAsync(url);
+      Alert.alert('Copied', 'File URL copied to clipboard.');
+    } catch {
+      Alert.alert('Error', 'Failed to get file URL.');
+    }
   }
 
   function handleEditNotes() {
@@ -58,6 +70,7 @@ export default function MoreAction({ asset, navigation, onDeleteAsset }) {
         <TextMenuOption label="Add to album" onPress={handleAddToAlbum} />
         <TextMenuOption label="Create post" onPress={handleCreatePost} />
         <TextMenuOption label="Show posts" onPress={handleShowPosts} />
+        <TextMenuOption label="Copy file URL" onPress={handleCopyFileUrl} />
         <TextMenuOption label={asset.notes ? 'Edit note' : 'Add note'} onPress={handleEditNotes} />
         <TextMenuOption
           label={`Delete ${asset && humanizeMediaType(asset.mediaType)}`}
