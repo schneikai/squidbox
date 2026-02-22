@@ -1,165 +1,395 @@
-import { View, StyleSheet, Alert, Text } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
-import { Button } from '@/components/Buttons';
+import Ionicons from '@expo/vector-icons/Ionicons';
+
+import BlockingModal from '@/components/BlockingModal';
 import LoginForm from '@/components/LoginForm';
-import LogoutButton from '@/components/LogoutButton';
+import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
+import { MODEL_STORAGE_KEY, PROMPT_STORAGE_KEY, DEFAULT_MODEL, DEFAULT_PROMPT } from '@/features/ai-suggestions/aiSuggestionsStorage';
+import confirmLogoutAsync from '@/features/cloud/confirmLogoutAsync';
 import useCloud from '@/features/cloud/useCloud';
-import CloudSyncControl from '@/features/cloud-sync/cloud-sync-control/CloudSyncControl';
+import useCloudSync from '@/features/cloud-sync/useCloudSync';
 import deleteLocalDataAsync from '@/utils/local-data/deleteLocalDataAsync';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/api\/v1\/?$/, '');
 
-export default function SettingsScreen({ route, navigation }) {
-  const { isAuthenticated, user, loadDataAndSaveLocalAsync, backupDataAsync } = useCloud();
+// ─── Reusable iOS-style building blocks ────────────────────────────────────
+
+function SectionHeader({ title }) {
+  return <Text style={styles.sectionHeader}>{title}</Text>;
+}
+
+function Section({ children }) {
+  const kids = Array.isArray(children) ? children.filter(Boolean) : [children].filter(Boolean);
+  return (
+    <View style={styles.section}>
+      {kids.map((child, i) => (
+        <View key={i}>
+          {child}
+          {i < kids.length - 1 && <View style={styles.divider} />}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function Row({ label, value, onPress, destructive, chevron, children }) {
+  const content = (
+    <View style={styles.row}>
+      <Text style={[styles.rowLabel, destructive && styles.rowLabelDestructive]}>{label}</Text>
+      <View style={styles.rowRight}>
+        {value ? <Text style={styles.rowValue}>{value}</Text> : null}
+        {children}
+        {chevron && <Ionicons name="chevron-forward" size={16} color="#C7C7CC" style={{ marginLeft: 4 }} />}
+      </View>
+    </View>
+  );
+
+  if (onPress) {
+    return <TouchableOpacity onPress={onPress} activeOpacity={0.6}>{content}</TouchableOpacity>;
+  }
+  return content;
+}
+
+// ─── Main screen ────────────────────────────────────────────────────────────
+
+export default function SettingsScreen() {
+  const { isAuthenticated, user, logoutAsync, loadDataAndSaveLocalAsync, backupDataAsync } = useCloud();
+  const { unsyncedAssets, assetsWithSyncErrors, isSyncing, syncMessage, syncProgressMessage, syncSpeedMessage, syncNow } = useCloudSync();
+  const [showSyncDetails, setShowSyncDetails] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+
+  const [aiModel, setAiModel] = useState(DEFAULT_MODEL);
+  const [aiPrompt, setAiPrompt] = useState(DEFAULT_PROMPT);
+  const [logoutBlocking, setLogoutBlocking] = useState(false);
+  const promptRef = useRef(null);
+
+  useEffect(() => {
+    async function loadAiSettings() {
+      try {
+        const [model, prompt] = await Promise.all([
+          AsyncStorage.getItem(MODEL_STORAGE_KEY),
+          AsyncStorage.getItem(PROMPT_STORAGE_KEY),
+        ]);
+        if (model) setAiModel(model);
+        if (prompt !== null) setAiPrompt(prompt);
+      } catch {}
+    }
+    loadAiSettings();
+  }, []);
+
+  async function handleSavePrompt(text) {
+    setAiPrompt(text);
+    try {
+      await AsyncStorage.setItem(PROMPT_STORAGE_KEY, text);
+    } catch {}
+  }
+
+  async function handleDeleteLocalData() {
+    Alert.alert('Delete local data', 'This cannot be undone. Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteLocalDataAsync();
+          Alert.alert('Done! Please restart the app.');
+        },
+      },
+    ]);
+  }
+
+  async function handleLoadFromCloud() {
+    Alert.alert('Load from cloud?', 'This will overwrite all local data.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Load',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteLocalDataAsync();
+            await loadDataAndSaveLocalAsync();
+            Alert.alert('Done! Reload the app to see changes.');
+          } catch (error) {
+            Alert.alert('Failed', error.message);
+          }
+        },
+      },
+    ]);
+  }
+
+  async function handleBackupToCloud() {
+    Alert.alert('Backup to cloud?', '', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Backup',
+        onPress: async () => {
+          try {
+            await backupDataAsync();
+            Alert.alert('Done!');
+          } catch (error) {
+            Alert.alert('Failed', error.message);
+          }
+        },
+      },
+    ]);
+  }
+
+  async function handleLogout() {
+    const confirmed = await confirmLogoutAsync();
+    if (!confirmed) return;
+    setLogoutBlocking(true);
+    try {
+      await logoutAsync();
+    } finally {
+      setLogoutBlocking(false);
+    }
+  }
 
   async function handleCheckApi() {
     try {
       const response = await fetch(`${API_BASE_URL}/up`);
       if (response.ok) {
-        Alert.alert('API is reachable', `${API_BASE_URL}`);
+        Alert.alert('API reachable', API_BASE_URL);
       } else {
-        Alert.alert('API returned an error', `Status: ${response.status}\n${API_BASE_URL}`);
+        Alert.alert('API error', `Status: ${response.status}\n${API_BASE_URL}`);
       }
     } catch (error) {
       Alert.alert('API unreachable', `${error.message}\n${API_BASE_URL}`);
     }
   }
 
-  async function handleDeleteLocalData(confirmed) {
-    if (!confirmed) {
-      Alert.alert('Delete local data', 'This cannot be undone. Are you sure?', [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Yes',
-          onPress: () => {
-            handleDeleteLocalData(true);
-          },
-        },
-      ]);
-      return;
-    }
+  const hasSyncDetails = isSyncing || assetsWithSyncErrors.length > 0;
 
-    await deleteLocalDataAsync();
-    Alert.alert('Done! Please restart app.');
-  }
-
-  async function handleLoadDataFromServerAsync(confirmed) {
-    if (!confirmed) {
-      Alert.alert(
-        'Load data from server?',
-        'This will overwrite all local data with the data from the server. Are you sure?',
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-          {
-            text: 'Yes',
-            onPress: () => {
-              handleLoadDataFromServerAsync(true);
-            },
-          },
-        ],
-      );
-      return;
-    }
-
-    try {
-      await deleteLocalDataAsync();
-      await loadDataAndSaveLocalAsync();
-      window.alert('Done! Reload app to see changes.');
-    } catch (error) {
-      window.alert(`Failed to load data from server. Error: ${error.message}`);
+  function handleSyncStatusPress() {
+    if (assetsWithSyncErrors.length > 0) {
+      setShowErrorModal(true);
+    } else if (isSyncing) {
+      setShowSyncDetails((v) => !v);
     }
   }
 
-  async function backupDataToServerAsync(confirmed) {
-    if (!confirmed) {
-      Alert.alert('Backup data to server?', '', [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Yes',
-          onPress: () => {
-            backupDataToServerAsync(true);
-          },
-        },
-      ]);
-      return;
-    }
-
-    try {
-      await backupDataAsync();
-      window.alert('Done!');
-    } catch (error) {
-      window.alert(`Failed to save data to server. Error: ${error.message}`);
-    }
+  function syncStatusText() {
+    if (isSyncing) return syncMessage ?? 'Syncing…';
+    if (assetsWithSyncErrors.length > 0) return `${assetsWithSyncErrors.length} error${assetsWithSyncErrors.length > 1 ? 's' : ''}`;
+    if (unsyncedAssets.length > 0) return `${unsyncedAssets.length} unsynced`;
+    return 'All synced';
   }
 
-  if (isAuthenticated) {
-    return (
-      <View style={styles.container}>
-        <Text style={{ marginBottom: 10 }}>Logged in as {user.email}</Text>
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <BlockingModal visible={logoutBlocking} />
 
-        <CloudSyncControl />
+      {isAuthenticated ? (
+        <>
+          {/* Account */}
+          <SectionHeader title="Account" />
+          <Section>
+            <Row label="Signed in as" value={user?.email} />
+            <Row label="Sign out" onPress={handleLogout} destructive chevron />
+          </Section>
 
-        <Button
-          onPress={() => handleDeleteLocalData()}
-          variant="danger"
-          title="Delete local data"
-          style={{ marginTop: 10 }}
-        />
-        <Button
-          onPress={() => handleLoadDataFromServerAsync()}
-          title="Load data from cloud"
-          variant="danger"
-          style={{ marginTop: 10 }}
-        />
-        <Button
-          onPress={() => backupDataToServerAsync()}
-          title="Backup data to cloud"
-          variant="danger"
-          style={{ marginTop: 10 }}
-        />
-        <LogoutButton style={{ marginTop: 10 }} />
-        <Button
-          onPress={handleCheckApi}
-          title="Check API"
-          style={{ marginTop: 10 }}
-        />
-      </View>
-    );
-  }
+          {/* Cloud sync */}
+          <SectionHeader title="Cloud Sync" />
+          <Section>
+            <>
+              <Row
+                label="Status"
+                value={syncStatusText()}
+                onPress={hasSyncDetails ? handleSyncStatusPress : undefined}
+                chevron={hasSyncDetails}
+              />
 
-  if (!isAuthenticated) {
-    return (
-      <View style={styles.container}>
-        <LoginForm />
+              {/* Inline progress panel — only shown while syncing */}
+              {showSyncDetails && isSyncing && (
+                <View style={styles.syncDetailPanel}>
+                  {syncProgressMessage && (
+                    <Text style={styles.syncDetailLine}>
+                      {syncProgressMessage.sent} / {syncProgressMessage.total}{'  '}
+                      <Text style={styles.syncDetailBold}>{syncProgressMessage.percent}</Text>
+                    </Text>
+                  )}
+                  {syncSpeedMessage && (
+                    <Text style={styles.syncDetailLine}>
+                      {syncSpeedMessage.now}{'  '}
+                      <Text style={styles.syncDetailMuted}>avg {syncSpeedMessage.avg}</Text>
+                    </Text>
+                  )}
+                </View>
+              )}
+            </>
 
-        <Button
-          onPress={() => handleDeleteLocalData()}
-          variant="danger"
-          title="Delete local data"
-          style={{ marginTop: 10 }}
-        />
-        <Button
-          onPress={handleCheckApi}
-          title="Check API"
-          style={{ marginTop: 10 }}
-        />
-      </View>
-    );
-  }
+            {/* Error modal */}
+            {showErrorModal && (
+              <SyncErrorViewer
+                assetsWithSyncErrors={assetsWithSyncErrors}
+                close={() => setShowErrorModal(false)}
+              />
+            )}
+
+            {unsyncedAssets.length > 0 && !isSyncing && (
+              <Row label="Sync now" onPress={() => syncNow()} chevron />
+            )}
+            <Row label="Backup to cloud" onPress={handleBackupToCloud} chevron />
+            <Row label="Load from cloud" onPress={handleLoadFromCloud} destructive chevron />
+            <Row label="Delete local data" onPress={handleDeleteLocalData} destructive chevron />
+          </Section>
+        </>
+      ) : (
+        <View style={styles.loginWrapper}>
+          <LoginForm />
+        </View>
+      )}
+
+      {isAuthenticated && (
+        <>
+          {/* AI Captions */}
+          <SectionHeader title="AI Caption Suggestions" />
+          <Section>
+            <Row label="Model" value={aiModel} />
+            <View style={styles.promptCell}>
+              <Text style={styles.promptCellLabel}>Default prompt</Text>
+              <TextInput
+                ref={promptRef}
+                style={styles.promptCellInput}
+                value={aiPrompt}
+                onChangeText={handleSavePrompt}
+                multiline
+                placeholder="e.g. create some caption ideas"
+                placeholderTextColor="#C7C7CC"
+              />
+            </View>
+          </Section>
+
+          {/* Developer */}
+          <SectionHeader title="Developer" />
+          <Section>
+            <Row label="API URL" value={API_BASE_URL} />
+            <Row label="Check API" onPress={handleCheckApi} chevron />
+          </Section>
+        </>
+      )}
+
+      <View style={styles.footer} />
+    </ScrollView>
+  );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
+    flex: 1,
+    backgroundColor: '#F2F2F7',
+  },
+  content: {
+    paddingTop: 20,
+    paddingHorizontal: 16,
+  },
+
+  sectionHeader: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: '#6D6D72',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    marginBottom: 6,
+    marginLeft: 4,
+    marginTop: 8,
+  },
+
+  section: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#C6C6C8',
+    marginLeft: 16,
+  },
+
+  row: {
+    flexDirection: 'row',
     alignItems: 'center',
+    minHeight: 44,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  rowLabel: {
+    flex: 1,
+    fontSize: 16,
+    color: '#000',
+  },
+  rowLabelDestructive: {
+    color: '#FF3B30',
+  },
+  rowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
+    marginLeft: 8,
+  },
+  rowValue: {
+    fontSize: 16,
+    color: '#8E8E93',
+    textAlign: 'right',
+    flexShrink: 1,
+  },
+
+  syncDetailPanel: {
+    backgroundColor: 'white',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#C6C6C8',
+    paddingHorizontal: 16,
+    paddingTop: 0,
+    paddingBottom: 15,
+    gap: 4,
+  },
+  syncDetailLine: {
+    fontSize: 13,
+    color: '#3C3C43',
+    lineHeight: 18,
+  },
+  syncDetailBold: {
+    fontWeight: '600',
+    color: '#000',
+  },
+  syncDetailMuted: {
+    color: '#8E8E93',
+  },
+  promptCell: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
+  },
+  promptCellLabel: {
+    fontSize: 16,
+    color: '#000',
+    marginBottom: 4,
+  },
+  promptCellInput: {
+    fontSize: 15,
+    color: '#8E8E93',
+    lineHeight: 22,
+    minHeight: 36,
+  },
+
+  loginWrapper: {
+    paddingTop: 8,
+  },
+
+  footer: {
+    height: 40,
   },
 });

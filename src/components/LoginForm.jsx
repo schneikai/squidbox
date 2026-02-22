@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { StyleSheet, View, Alert, TextInput } from 'react-native';
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import BlockingModal from '@/components/BlockingModal';
-import { Button } from '@/components/Buttons';
 import confirmLoginAsync from '@/features/cloud/confirmLoginAsync';
 import useCloud from '@/features/cloud/useCloud';
 import isBlank from '@/utils/isBlank';
@@ -19,25 +18,12 @@ export default function LoginForm() {
       return;
     }
 
-    // TODO: Add code to merge existing local data json files with the
-    // json data from the cloud. If there is no local data we can skip
-    // the confirmation all together.
-    // The actual deletion of local data on login is controlled by
-    // CLEAR_DATA_BETWEEN_LOGINS in src/constants.js.
     const confirmed = await confirmLoginAsync();
     if (!confirmed) return;
 
     setBlockerVisible(true);
-
     try {
       await loginAsync(email, password);
-
-      // TODO: If there is no assets in the app locally
-      // load data from the server. If there is assets locally
-      // we can either replace it with cloud data or merge it.
-
-      // For merging we need to compare the updatedAt field
-      // and use the most recent one.
     } catch (error) {
       Alert.alert('Authentication failed!', error.message);
     } finally {
@@ -48,40 +34,69 @@ export default function LoginForm() {
   return (
     <>
       <BlockingModal visible={blockerVisible} />
-      <View style={styles.container}>
+
+      {/* Input fields */}
+      <View style={styles.section}>
         <TextInput
           style={styles.input}
           onChangeText={setEmail}
           value={email}
           placeholder="Email"
+          placeholderTextColor="#C7C7CC"
           keyboardType="email-address"
           autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="next"
         />
+        <View style={styles.divider} />
         <TextInput
           style={styles.input}
           onChangeText={setPassword}
           value={password}
           placeholder="Password"
+          placeholderTextColor="#C7C7CC"
           secureTextEntry
+          returnKeyType="done"
+          onSubmitEditing={handleSubmit}
         />
-        <Button onPress={handleSubmit} title="Login" style={{ marginTop: 10 }} />
       </View>
+
+      {/* Login button */}
+      <TouchableOpacity style={styles.loginButton} onPress={handleSubmit}>
+        <Text style={styles.loginButtonText}>Sign In</Text>
+      </TouchableOpacity>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: 'lightgray',
+  section: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    overflow: 'hidden',
+    marginBottom: 16,
   },
   input: {
-    width: '100%',
-    margin: 12,
-    borderWidth: 1,
-    padding: 10,
+    height: 44,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: '#000',
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#C6C6C8',
+    marginLeft: 16,
+  },
+  loginButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 10,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loginButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
