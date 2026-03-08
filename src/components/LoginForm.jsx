@@ -1,7 +1,6 @@
-import { useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useState, useTransition } from 'react';
+import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import confirmLoginAsync from '@/features/cloud/confirmLoginAsync';
 import useCloud from '@/features/cloud/useCloud';
 import isBlank from '@/utils/isBlank';
@@ -10,25 +9,24 @@ export default function LoginForm() {
   const [email, setEmail] = useState(process.env.EXPO_PUBLIC_LOGIN_FORM_EMAIL);
   const [password, setPassword] = useState(process.env.EXPO_PUBLIC_LOGIN_FORM_PASSWORD);
   const { loginAsync } = useCloud();
-  const { showBlocking, hide: hideOverlay } = useProgressOverlay();
+  const [isPending, startTransition] = useTransition();
 
-  async function handleSubmit() {
+  function handleSubmit() {
     if (isBlank(email) || isBlank(password)) {
       Alert.alert('Please enter email and password');
       return;
     }
 
-    const confirmed = await confirmLoginAsync();
-    if (!confirmed) return;
+    startTransition(async () => {
+      const confirmed = await confirmLoginAsync();
+      if (!confirmed) return;
 
-    showBlocking();
-    try {
-      await loginAsync(email, password);
-    } catch (error) {
-      Alert.alert('Authentication failed!', error.message);
-    } finally {
-      hideOverlay();
-    }
+      try {
+        await loginAsync(email, password);
+      } catch (error) {
+        Alert.alert('Authentication failed!', error.message);
+      }
+    });
   }
 
   return (
@@ -61,8 +59,12 @@ export default function LoginForm() {
       </View>
 
       {/* Login button */}
-      <TouchableOpacity style={styles.loginButton} onPress={handleSubmit}>
-        <Text style={styles.loginButtonText}>Sign In</Text>
+      <TouchableOpacity style={[styles.loginButton, isPending && styles.loginButtonDisabled]} onPress={handleSubmit} disabled={isPending}>
+        {isPending ? (
+          <ActivityIndicator color="white" />
+        ) : (
+          <Text style={styles.loginButtonText}>Sign In</Text>
+        )}
       </TouchableOpacity>
     </>
   );
@@ -92,6 +94,9 @@ const styles = StyleSheet.create({
     height: 50,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  loginButtonDisabled: {
+    opacity: 0.6,
   },
   loginButtonText: {
     color: 'white',

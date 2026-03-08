@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -13,17 +13,17 @@ import preparePosts from '@/features/post-list/preparePosts';
 export default function CreatePostScreen({ navigation }) {
   const { posts, updatePost } = usePosts();
   const { bottom } = useSafeAreaInsets();
-  const [postIds, setPostIds] = useState([]);
 
-  useEffect(() => {
-    const preparedPosts = preparePosts({
-      posts: Object.values(posts),
-      sortFn: (a, b) =>
-        (a.suggestRepostAt || a.postedAt || 0) - (b.suggestRepostAt || b.postedAt || 0),
-      filterFn: (post) => !post.isIgnoredForRepost && !post.hasBeenReposted,
-    });
-    setPostIds(preparedPosts.map(post => post.id));
-  }, [posts]);
+  const postIds = useMemo(
+    () =>
+      preparePosts({
+        posts: Object.values(posts),
+        sortFn: (a, b) =>
+          (a.suggestRepostAt || a.postedAt || 0) - (b.suggestRepostAt || b.postedAt || 0),
+        filterFn: (post) => !post.isIgnoredForRepost && !post.hasBeenReposted,
+      }).map((post) => post.id),
+    [posts],
+  );
 
   const handleCreateNewPost = () => {
     navigation.navigate('AddEditPostModal');

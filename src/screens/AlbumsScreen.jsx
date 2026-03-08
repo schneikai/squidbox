@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -23,7 +23,6 @@ import isAlbumEditable from '@/utils/albums/isAlbumEditable';
 
 export default function AlbumsScreen({ route, navigation }) {
   const { albums, toggleFavoriteAlbum, setAlbumDeleted } = useAlbums();
-  const [albumIds, setAlbumIds] = useState();
   const insets = useSafeAreaInsets();
 
   const { listRef, listScrollTop } = useAlbumList();
@@ -32,16 +31,17 @@ export default function AlbumsScreen({ route, navigation }) {
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterSort: listScrollTop });
   const { isSearchBarVisible, toggleSearchBar, searchText, setSearchText } = useSearchAlbumsAction();
 
-  useEffect(() => {
-    const albumIds = prepareAlbums({
-      albums: Object.values(albums),
-      sortFn: sortFunction,
-      filterFn: matchFilter,
-      showArchivedAlbums: activeFilter.includes('archived'),
-      searchText,
-    }).map((album) => album.id);
-    setAlbumIds(albumIds);
-  }, [albums, sortOrder, activeFilter, searchText]);
+  const albumIds = useMemo(
+    () =>
+      prepareAlbums({
+        albums: Object.values(albums),
+        sortFn: sortFunction,
+        filterFn: matchFilter,
+        showArchivedAlbums: activeFilter.includes('archived'),
+        searchText,
+      }).map((album) => album.id),
+    [albums, sortFunction, matchFilter, activeFilter, searchText],
+  );
 
   function navigateToAlbumScreen(album) {
     navigation.navigate('AlbumScreen', { albumId: album.id });

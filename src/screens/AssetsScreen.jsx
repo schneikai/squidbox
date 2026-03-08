@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AssetQuickViewModal, { useAssetQuickViewModal } from '@/components/AssetQuickViewModal';
@@ -27,7 +27,6 @@ import useAssets from '@/features/assets-context/useAssets';
 export default function AssetsScreen({ route, navigation }) {
   const { assets, toggleFavoriteAsset } = useAssets();
   const insets = useSafeAreaInsets();
-  const [assetIds, setAssetIds] = useState();
 
   const { listRef, listScrollTop } = useAssetList();
   const { isSelectMode, selectedAssetIds, toggleSelectMode, toggleSelectAsset } = useToggleSelectAssetsAction();
@@ -35,14 +34,15 @@ export default function AssetsScreen({ route, navigation }) {
   const { activeFilter, toggleFilter, matchFilter } = useFilterAssetsAction({ afterFilter: listScrollTop });
   const { asset: quickViewAsset, open: openAssetQuickView, close: closeAssetQuickView } = useAssetQuickViewModal();
 
-  useEffect(() => {
-    const assetIds = prepareAssets({
-      assets: Object.values(assets),
-      sortFn: sortFunction,
-      filterFn: matchFilter,
-    }).map((asset) => asset.id);
-    setAssetIds(assetIds);
-  }, [assets, sortOrder, activeFilter]);
+  const assetIds = useMemo(
+    () =>
+      prepareAssets({
+        assets: Object.values(assets),
+        sortFn: sortFunction,
+        filterFn: matchFilter,
+      }).map((asset) => asset.id),
+    [assets, sortFunction, matchFilter],
+  );
 
   function onPressAsset(asset) {
     if (isSelectMode) {

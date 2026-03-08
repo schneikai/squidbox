@@ -1,7 +1,7 @@
-import { useContext } from 'react';
+import { use } from 'react';
 
 import AlbumsContext from './AlbumsContext';
 
 export default function useAlbums() {
-  return useContext(AlbumsContext);
+  return use(AlbumsContext);
 }

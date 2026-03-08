@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { StyleSheet, View, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -16,13 +16,20 @@ export default function PostEditor({ post, onChange }) {
 
   const { posts } = usePosts();
 
-  useEffect(() => {
-    onChange({ text, assetRefs, postedAt });
-    // onChange is intentionally excluded: it's an inline callback that changes
-    // reference every parent render, but re-running on every parent render would
-    // cause an infinite loop. The effect only needs to fire when local values change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, assetRefs, postedAt]);
+  function handleTextChange(newText) {
+    setText(newText);
+    onChange({ text: newText, assetRefs, postedAt });
+  }
+
+  function handleAssetRefsChange(newAssetRefs) {
+    setAssetRefs(newAssetRefs);
+    onChange({ text, assetRefs: newAssetRefs, postedAt });
+  }
+
+  function handlePostedAtChange(newPostedAt) {
+    setPostedAt(newPostedAt);
+    onChange({ text, assetRefs, postedAt: newPostedAt });
+  }
 
   const recentPostTexts = useMemo(
     () =>
@@ -37,7 +44,7 @@ export default function PostEditor({ post, onChange }) {
   return (
     <>
       <ScrollView automaticallyAdjustKeyboardInsets>
-        <PostAssetsEditor assetRefs={assetRefs} onChange={(assetRefs) => setAssetRefs(assetRefs)} />
+        <PostAssetsEditor assetRefs={assetRefs} onChange={handleAssetRefsChange} />
 
         <View style={styles.container}>
           <View style={styles.textInputWrapper}>
@@ -46,7 +53,7 @@ export default function PostEditor({ post, onChange }) {
               placeholder="What's new?"
               multiline
               numberOfLines={4}
-              onChangeText={(text) => setText(text)}
+              onChangeText={handleTextChange}
               value={text}
             />
             <TouchableOpacity
@@ -58,7 +65,7 @@ export default function PostEditor({ post, onChange }) {
             </TouchableOpacity>
           </View>
 
-          <DateTimePicker timestamp={postedAt} onChange={(postedAt) => setPostedAt(postedAt)} style={{ marginTop: 10 }} />
+          <DateTimePicker timestamp={postedAt} onChange={handlePostedAtChange} style={{ marginTop: 10 }} />
         </View>
       </ScrollView>
 

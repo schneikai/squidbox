@@ -1,7 +1,7 @@
-import { useContext } from 'react';
+import { use } from 'react';
 
 import AssetsContext from './AssetsContext';
 
 export default function useCloud() {
-  return useContext(AssetsContext);
+  return use(AssetsContext);
 }

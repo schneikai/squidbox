@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 
 import CloudSyncContext from './CloudSyncContext';
 
@@ -12,12 +12,20 @@ import fileSizeToHumanReadable from '@/utils/fileSizeToHumanReadable';
 export default function CloudSyncProvider({ children }) {
   const { assets, updateAsset } = useAssets();
   const { isAuthenticated, uploadAssetFileAsync, uploadAssetThumbnailAsync } = useCloud();
-  const [unsyncedAssets, setUnsyncedAssets] = useState([]);
-  const [assetsWithSyncErrors, setAssetsWithSyncErrors] = useState([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState(null);
   const [syncProgressMessage, setSyncProgressMessage] = useState(null);
   const [syncSpeedMessage, setSyncSpeedMessage] = useState(null);
+
+  const unsyncedAssets = useMemo(
+    () => (isAuthenticated ? getUnsyncedAssets(assets) : []),
+    [assets, isAuthenticated],
+  );
+
+  const assetsWithSyncErrors = useMemo(
+    () => (isAuthenticated ? getAssetsWithSyncError(assets) : []),
+    [assets, isAuthenticated],
+  );
 
   // Since state is not updated immediately I use this ref to make sure
   // that the sync function is not running multiple times at the same time.
@@ -30,13 +38,6 @@ export default function CloudSyncProvider({ children }) {
   // Exponential moving average time constant (seconds).
   // Higher = smoother but slower to react. 10s gives a stable readable number.
   const EMA_TAU = 10;
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    setUnsyncedAssets(getUnsyncedAssets(assets));
-    setAssetsWithSyncErrors(getAssetsWithSyncError(assets));
-  }, [assets]);
 
   function updateSyncProgressMessage({ totalBytesSent, totalBytesExpectedToSend }) {
     const now = Date.now();

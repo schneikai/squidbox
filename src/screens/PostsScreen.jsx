@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import HeaderActions from '@/components/HeaderActions';
@@ -22,23 +22,23 @@ export default function PostsScreen({ navigation }) {
   const { posts, toggleFavoritePost } = usePosts();
   const { albums } = useAlbums();
   const insets = useSafeAreaInsets();
-  const [postIds, setPostIds] = useState([]);
 
   const { listRef, listScrollTop } = usePostList();
   const { sortOrder, sortFunction, sortPosts } = useSortPostsAction({ afterSort: listScrollTop });
   const { activeFilter, toggleFilter, matchFilter } = useFilterPostsAction({ afterFilter: listScrollTop });
   const { isSearchBarVisible, toggleSearchBar, searchText, setSearchText } = useSearchPostsAction();
 
-  useEffect(() => {
-    const postIds = preparePosts({
-      posts: Object.values(posts),
-      albums,
-      sortFn: sortFunction,
-      filterFn: matchFilter,
-      searchText,
-    }).map((post) => post.id);
-    setPostIds(postIds);
-  }, [posts, sortOrder, activeFilter, searchText]);
+  const postIds = useMemo(
+    () =>
+      preparePosts({
+        posts: Object.values(posts),
+        albums,
+        sortFn: sortFunction,
+        filterFn: matchFilter,
+        searchText,
+      }).map((post) => post.id),
+    [posts, albums, sortFunction, matchFilter, searchText],
+  );
 
   return (
     <>

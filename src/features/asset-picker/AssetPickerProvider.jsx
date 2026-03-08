@@ -13,6 +13,16 @@ export default function AssetPickerProvider({ children }) {
   const [albumScreenProps, setAlbumScreenProps] = useState(null);
   const onClosePromiseResolveRef = useRef();
 
+  const isAssetSelected = useCallback((asset) => {
+    return selectedAssets.find((selectedAsset) => selectedAsset.id === asset.id);
+  }, [selectedAssets]);
+
+  const cleanUpAndClose = useCallback(() => {
+    setSelectedAssets([]);
+    onClosePromiseResolveRef.current = null;
+    setAlbumScreenProps(null);
+  }, []);
+
   // openAssetPicker works like the build-in image picker and returns
   // a promise that resolves with the selected assets.
   const openAssetPicker = useCallback(() => {
@@ -20,17 +30,17 @@ export default function AssetPickerProvider({ children }) {
       onClosePromiseResolveRef.current = resolve;
       navigation.navigate('AssetPickerModal');
     });
-  });
+  }, [navigation]);
 
   const onConfirmSelection = useCallback(() => {
     onClosePromiseResolveRef.current({ canceled: false, assets: selectedAssets });
     cleanUpAndClose();
-  });
+  }, [selectedAssets, cleanUpAndClose]);
 
   const onCancelSelection = useCallback(() => {
     onClosePromiseResolveRef.current({ canceled: true, assets: [] });
     cleanUpAndClose();
-  });
+  }, [cleanUpAndClose]);
 
   const toggleSelectAsset = useCallback((asset) => {
     setSelectedAssets((selectedAssets) => {
@@ -39,17 +49,7 @@ export default function AssetPickerProvider({ children }) {
       }
       return [...selectedAssets, asset];
     });
-  });
-
-  const cleanUpAndClose = useCallback(() => {
-    setSelectedAssets([]);
-    onClosePromiseResolveRef.current = null;
-    setAlbumScreenProps(null);
-  });
-
-  const isAssetSelected = useCallback((asset) => {
-    return selectedAssets.find((selectedAsset) => selectedAsset.id === asset.id);
-  });
+  }, [isAssetSelected]);
 
   return (
     <AssetPickerContext.Provider

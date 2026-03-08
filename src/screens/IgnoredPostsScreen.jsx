@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -13,16 +13,16 @@ import preparePosts from '@/features/post-list/preparePosts';
 export default function IgnoredPostsScreen({ navigation }) {
   const { posts, updatePost } = usePosts();
   const { bottom } = useSafeAreaInsets();
-  const [postIds, setPostIds] = useState([]);
 
-  useEffect(() => {
-    const preparedPosts = preparePosts({
-      posts: Object.values(posts),
-      sortFn: (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0),
-      filterFn: (post) => !!post.isIgnoredForRepost,
-    });
-    setPostIds(preparedPosts.map(post => post.id));
-  }, [posts]);
+  const postIds = useMemo(
+    () =>
+      preparePosts({
+        posts: Object.values(posts),
+        sortFn: (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0),
+        filterFn: (post) => !!post.isIgnoredForRepost,
+      }).map((post) => post.id),
+    [posts],
+  );
 
   const handleRestore = async (post) => {
     await updatePost(post.id, { isIgnoredForRepost: false });
