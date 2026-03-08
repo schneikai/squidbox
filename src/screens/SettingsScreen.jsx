@@ -2,12 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import {
   Alert,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -175,7 +175,7 @@ export default function SettingsScreen({ navigation }) {
   }
 
   return (
-    <KeyboardAwareScrollView style={styles.container} contentContainerStyle={styles.content} extraScrollHeight={20}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} automaticallyAdjustKeyboardInsets>
       <BlockingModal visible={logoutBlocking} />
 
       {isAuthenticated ? (
@@ -258,7 +258,7 @@ export default function SettingsScreen({ navigation }) {
       )}
 
       <View style={styles.footer} />
-    </KeyboardAwareScrollView>
+    </ScrollView>
   );
 }
 

@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { StyleSheet, Text, TextInput, View, ScrollView } from 'react-native';
 
 import { SCREEN_PADDING } from '@/constants';
 import {
@@ -41,7 +40,7 @@ export default function AiPromptsScreen() {
   }
 
   return (
-    <KeyboardAwareScrollView style={styles.container} contentContainerStyle={styles.content} extraScrollHeight={20}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} automaticallyAdjustKeyboardInsets>
       <Text style={styles.sectionHeader}>Default Prompt</Text>
       <View style={styles.section}>
         <View style={styles.cell}>
@@ -91,7 +90,7 @@ export default function AiPromptsScreen() {
       </Text>
 
       <View style={styles.footer} />
-    </KeyboardAwareScrollView>
+    </ScrollView>
   );
 }
 

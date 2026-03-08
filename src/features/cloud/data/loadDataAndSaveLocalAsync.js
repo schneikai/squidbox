@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import getDataAsync from '@/utils/cloud-api/data/getDataAsync';
 import { DATA_FILES } from '@/utils/local-data/constants';

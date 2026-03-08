@@ -4,7 +4,7 @@
 // This required a file src/secrets.js with the following content:
 // export const FILE_UPLOADER_API_URL = 'https://calm-spire-55473-bde7287eddd0.herokuapp.com/';
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import uuid from 'react-native-uuid';
 
 import { FILE_UPLOADER_API_URL } from '@/secrets';

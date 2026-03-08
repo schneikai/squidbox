@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import finalizeBackupAsync from '@/utils/cloud-api/data/finalizeBackupAsync';
 import initBackupAsync from '@/utils/cloud-api/data/initBackupAsync';

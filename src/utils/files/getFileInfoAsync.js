@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 export default async function getFileInfoAsync(uri, options = {}) {
   // If this is done on a file that doesn't exist it throws error

@@ -3,8 +3,9 @@ import { Modal, View, StyleSheet } from 'react-native';
 import CircularProgress from 'react-native-circular-progress-indicator';
 
 export default function ProgressModal({ visible, progress }) {
+  if (!visible) return null;
   return (
-    <Modal transparent animationType="fade" visible={visible}>
+    <Modal transparent animationType="fade" visible>
       <View style={styles.modalBackground}>
         <CircularProgress value={progress} />
       </View>

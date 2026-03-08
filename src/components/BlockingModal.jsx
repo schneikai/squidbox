@@ -2,8 +2,9 @@ import React from 'react';
 import { Modal, View, StyleSheet, ActivityIndicator } from 'react-native';
 
 export default function BlockingModal({ visible }) {
+  if (!visible) return null;
   return (
-    <Modal transparent animationType="fade" visible={visible}>
+    <Modal transparent animationType="fade" visible>
       <View style={styles.modalBackground}>
         <ActivityIndicator size="large" />
       </View>

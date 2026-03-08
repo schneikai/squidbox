@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { StyleSheet, View, TextInput, TouchableOpacity } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { StyleSheet, View, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import DateTimePicker from '@/components/DateTimePicker';
@@ -37,7 +36,7 @@ export default function PostEditor({ post, onChange }) {
 
   return (
     <>
-      <KeyboardAwareScrollView extraScrollHeight={40}>
+      <ScrollView automaticallyAdjustKeyboardInsets>
         <PostAssetsEditor assetRefs={assetRefs} onChange={(assetRefs) => setAssetRefs(assetRefs)} />
 
         <View style={styles.container}>
@@ -61,7 +60,7 @@ export default function PostEditor({ post, onChange }) {
 
           <DateTimePicker timestamp={postedAt} onChange={(postedAt) => setPostedAt(postedAt)} style={{ marginTop: 10 }} />
         </View>
-      </KeyboardAwareScrollView>
+      </ScrollView>
 
       <AiChatModal
         visible={showAiChat}

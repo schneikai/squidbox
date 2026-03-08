@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { SafeAreaView, FlatList, StyleSheet, useWindowDimensions, Text, TouchableOpacity } from 'react-native';
+import { FlatList, StyleSheet, useWindowDimensions, Text, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SCREEN_PADDING } from '@/constants';
 import AssetHeader from '@/components/AssetHeader';

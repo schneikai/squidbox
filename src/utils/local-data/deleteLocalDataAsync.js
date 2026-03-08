@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import { DATA_FILES } from './constants';
 import getDataFileUri from './getDataFileUri';

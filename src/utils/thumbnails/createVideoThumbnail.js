@@ -1,14 +1,12 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
-import * as VideoThumbnails from 'expo-video-thumbnails';
+import { generateThumbnailsAsync } from 'expo-video';
 
 export default async function createVideoThumbnail(videoUri) {
   let resizeParams, thumbnailUri;
 
-  const videoThumbnail = await VideoThumbnails.getThumbnailAsync(videoUri, {
-    time: 0,
-    quality: 1,
-  });
+  const thumbnails = await generateThumbnailsAsync(videoUri, { times: [0], quality: 1 });
+  const videoThumbnail = thumbnails[0];
 
   try {
     if (videoThumbnail.width > videoThumbnail.height) {

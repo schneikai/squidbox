@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import { getAccessTokenAsync, getRefreshTokenAsync } from '@/utils/cloud-api/apiTokenStore';
 import refreshAccessTokenAsync from '@/utils/cloud-api/authentication/refreshAccessTokenAsync';
