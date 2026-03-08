@@ -34,10 +34,11 @@ export default function CreatePostScreen({ navigation }) {
   };
 
   const handlePostpone = async (post) => {
-    const monthsToPostpone = Math.floor(Math.random() * 12) + 1;
-    const suggestRepostAt = new Date();
-    suggestRepostAt.setMonth(suggestRepostAt.getMonth() + monthsToPostpone);
-    await updatePost(post.id, { suggestRepostAt: suggestRepostAt.getTime() });
+    const allPosts = Object.values(posts);
+    const newestDate = allPosts.reduce((max, p) => Math.max(max, p.suggestRepostAt || p.postedAt || 0), 0);
+    const from = post.suggestRepostAt || Date.now();
+    const suggestRepostAt = from + Math.random() * (newestDate - from);
+    await updatePost(post.id, { suggestRepostAt });
   };
 
   const handleIgnore = async (post) => {
