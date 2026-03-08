@@ -1,14 +1,13 @@
-import { useState } from 'react';
 import { View } from 'react-native';
 
-import BlockingModal from '@/components/BlockingModal';
+import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import { Button } from '@/components/Buttons';
 import confirmLogoutAsync from '@/features/cloud/confirmLogoutAsync';
 import useCloud from '@/features/cloud/useCloud';
 
 export default function LogoutButton({ style }) {
   const { logoutAsync } = useCloud();
-  const [blockerVisible, setBlockerVisible] = useState(false);
+  const { showBlocking, hide: hideOverlay } = useProgressOverlay();
 
   async function handleLogoutAsync() {
     // TODO: We need a way to detect unsynced data and only ask for confirmation
@@ -20,18 +19,17 @@ export default function LogoutButton({ style }) {
     const confirmed = await confirmLogoutAsync();
     if (!confirmed) return;
 
-    setBlockerVisible(true);
+    showBlocking();
 
     try {
       await logoutAsync();
     } finally {
-      setBlockerVisible(false);
+      hideOverlay();
     }
   }
 
   return (
     <View style={style}>
-      <BlockingModal visible={blockerVisible} />
       <Button onPress={() => handleLogoutAsync()} title="Logout" style={{ marginTop: 10 }} />
     </View>
   );

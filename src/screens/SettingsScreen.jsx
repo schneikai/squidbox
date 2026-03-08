@@ -13,7 +13,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { SCREEN_PADDING } from '@/constants';
 
-import BlockingModal from '@/components/BlockingModal';
+import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import LoginForm from '@/components/LoginForm';
 import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
 import { MODEL_STORAGE_KEY, DEFAULT_MODEL } from '@/features/ai-suggestions/aiSuggestionsStorage';
@@ -71,7 +71,7 @@ export default function SettingsScreen({ navigation }) {
   const [showErrorModal, setShowErrorModal] = useState(false);
 
   const [aiModel, setAiModel] = useState(DEFAULT_MODEL);
-  const [logoutBlocking, setLogoutBlocking] = useState(false);
+  const { showBlocking, hide: hideOverlay } = useProgressOverlay();
 
   useEffect(() => {
     async function loadAiSettings() {
@@ -136,11 +136,11 @@ export default function SettingsScreen({ navigation }) {
   async function handleLogout() {
     const confirmed = await confirmLogoutAsync();
     if (!confirmed) return;
-    setLogoutBlocking(true);
+    showBlocking();
     try {
       await logoutAsync();
     } finally {
-      setLogoutBlocking(false);
+      hideOverlay();
     }
   }
 
@@ -176,8 +176,6 @@ export default function SettingsScreen({ navigation }) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} automaticallyAdjustKeyboardInsets>
-      <BlockingModal visible={logoutBlocking} />
-
       {isAuthenticated ? (
         <>
           {/* Account */}

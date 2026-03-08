@@ -1,25 +1,16 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState } from 'react';
 import { Pressable, Alert } from 'react-native';
 
-import ProgressModal from '@/components/ProgressModal';
+import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import useAddAssetsFromCameraRoll from '@/features/assets-context/useAddAssetsFromCameraRoll';
 import headerActionStyles from '@/styles/headerActionStyles';
 
 export default function AddAssetAction() {
-  const [progress, setProgress] = useState(0);
-  const [progressVisible, setProgressVisible] = useState(false);
+  const { show, hide, updateProgress } = useProgressOverlay();
   const addAssetsFromCameraRollAsync = useAddAssetsFromCameraRoll({
-    onStart: () => {
-      setProgressVisible(true);
-    },
-    onProgress: (progress) => {
-      setProgress(progress);
-    },
-    onFinish: () => {
-      setProgressVisible(false);
-      setProgress(0);
-    },
+    onStart: show,
+    onProgress: updateProgress,
+    onFinish: hide,
   });
 
   async function handleAddAssets() {
@@ -31,11 +22,8 @@ export default function AddAssetAction() {
   }
 
   return (
-    <>
-      <ProgressModal visible={progressVisible} progress={progress} />
-      <Pressable onPress={handleAddAssets} style={[headerActionStyles.button, { marginRight: 20 }]}>
-        <Ionicons name="add" style={headerActionStyles.buttonIcon} />
-      </Pressable>
-    </>
+    <Pressable onPress={handleAddAssets} style={[headerActionStyles.button, { marginRight: 20 }]}>
+      <Ionicons name="add" style={headerActionStyles.buttonIcon} />
+    </Pressable>
   );
 }

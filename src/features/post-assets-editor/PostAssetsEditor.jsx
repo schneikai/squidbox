@@ -6,7 +6,7 @@ import AddAssetButton from './AddAssetButton';
 import PostAsset from './PostAsset';
 import useAssetPickerHandler from './useAssetPickerHandler';
 
-import ProgressModal from '@/components/ProgressModal';
+import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import useAssets from '@/features/assets-context/useAssets';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 import assetRefsToPostAssets from '@/utils/posts/assetRefsToPostAssets';
@@ -20,20 +20,12 @@ export default function PostAssetsEditor({ assetRefs, onChange }) {
   const [postAssets, setPostAssets] = useState(assetRefsToPostAssets(assetRefs, assets));
   const [assetCountInfo, setAssetCountInfo] = useState('');
   const { width: screenWidth } = useWindowDimensions();
-  const [progress, setProgress] = useState(0);
-  const [progressVisible, setProgressVisible] = useState(false);
+  const { show, hide, updateProgress } = useProgressOverlay();
   const handleAddAssets = useAssetPickerHandler({
     addAssetsToPost: addPostAssets,
-    onStart: () => {
-      setProgressVisible(true);
-    },
-    onProgress: (progress) => {
-      setProgress(progress);
-    },
-    onFinish: () => {
-      setProgressVisible(false);
-      setProgress(0);
-    },
+    onStart: show,
+    onProgress: updateProgress,
+    onFinish: hide,
   });
 
   const itemDimension = {
@@ -57,7 +49,6 @@ export default function PostAssetsEditor({ assetRefs, onChange }) {
 
   return (
     <>
-      <ProgressModal visible={progressVisible} progress={progress} />
       <View style={[styles.container, { width: screenWidth, height: screenWidth }]}>
         <DraggableFlatList
           data={postAssets}

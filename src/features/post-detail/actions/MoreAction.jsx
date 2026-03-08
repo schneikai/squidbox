@@ -1,10 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
 import { Alert } from 'react-native';
 import { Menu, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
 
-import ProgressModal from '@/components/ProgressModal';
+import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import TextMenuOption from '@/components/popup-menu-options/TextMenuOption';
 import useAssets from '@/features/assets-context/useAssets';
 import usePosts from '@/features/posts-context/usePosts';
@@ -17,19 +16,11 @@ export default function MoreAction({ post, afterDelete }) {
   const { deletePost } = usePosts();
   const { assets } = useAssets();
   const navigation = useNavigation();
-  const [progress, setProgress] = useState(0);
-  const [progressVisible, setProgressVisible] = useState(false);
+  const { show, hide, updateProgress } = useProgressOverlay();
   const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary({
-    onStart: () => {
-      setProgressVisible(true);
-    },
-    onProgress: (progress) => {
-      setProgress(progress);
-    },
-    onFinish: () => {
-      setProgressVisible(false);
-      setProgress(0);
-    },
+    onStart: show,
+    onProgress: updateProgress,
+    onFinish: hide,
   });
 
   function handleEditPost() {
@@ -65,7 +56,6 @@ export default function MoreAction({ post, afterDelete }) {
 
   return (
     <>
-      <ProgressModal visible={progressVisible} progress={progress} />
       <Menu>
         <MenuTrigger customStyles={{ triggerWrapper: headerActionStyles.button }}>
           <Ionicons name="ellipsis-vertical" style={headerActionStyles.buttonIcon} />

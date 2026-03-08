@@ -14,7 +14,6 @@ export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFini
 
     if (!imagePickerResults || imagePickerResults.length === 0) return [];
 
-    // Picker has closed — show the loader immediately before any heavy work.
     if (onStart) onStart();
 
     // Fetch isFavorite for each asset (moved here from pickImageFromMediaLibrary

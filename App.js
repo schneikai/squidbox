@@ -23,6 +23,7 @@ import { useState, useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { MenuProvider } from 'react-native-popup-menu';
 
+import ProgressOverlayProvider from '@/components/progress-overlay/ProgressOverlayProvider';
 import AlbumsProvider from '@/features/albums-context/AlbumsProvider';
 import AppSettingsProvider from '@/features/app-settings/AppSettingsProvider';
 import AssetPickerProvider from '@/features/asset-picker/AssetPickerProvider';
@@ -41,6 +42,7 @@ SplashScreen.preventAutoHideAsync();
 const App = () => {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <ProgressOverlayProvider>
       <AppSettingsProvider>
         <AssetsProvider>
           <AlbumsProvider>
@@ -54,6 +56,7 @@ const App = () => {
           </AlbumsProvider>
         </AssetsProvider>
       </AppSettingsProvider>
+      </ProgressOverlayProvider>
     </GestureHandlerRootView>
   );
 };

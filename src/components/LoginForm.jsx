@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-import BlockingModal from '@/components/BlockingModal';
+import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import confirmLoginAsync from '@/features/cloud/confirmLoginAsync';
 import useCloud from '@/features/cloud/useCloud';
 import isBlank from '@/utils/isBlank';
@@ -10,7 +10,7 @@ export default function LoginForm() {
   const [email, setEmail] = useState(process.env.EXPO_PUBLIC_LOGIN_FORM_EMAIL);
   const [password, setPassword] = useState(process.env.EXPO_PUBLIC_LOGIN_FORM_PASSWORD);
   const { loginAsync } = useCloud();
-  const [blockerVisible, setBlockerVisible] = useState(false);
+  const { showBlocking, hide: hideOverlay } = useProgressOverlay();
 
   async function handleSubmit() {
     if (isBlank(email) || isBlank(password)) {
@@ -21,19 +21,18 @@ export default function LoginForm() {
     const confirmed = await confirmLoginAsync();
     if (!confirmed) return;
 
-    setBlockerVisible(true);
+    showBlocking();
     try {
       await loginAsync(email, password);
     } catch (error) {
       Alert.alert('Authentication failed!', error.message);
     } finally {
-      setBlockerVisible(false);
+      hideOverlay();
     }
   }
 
   return (
     <>
-      <BlockingModal visible={blockerVisible} />
 
       {/* Input fields */}
       <View style={styles.section}>
