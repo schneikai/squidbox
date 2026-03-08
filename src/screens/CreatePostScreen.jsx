@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Menu, MenuOptions, MenuTrigger, renderers } from 'react-native-popup-menu';
 import SuperPressable from '@/components/SuperPressable';
-import TextMenuOption from '@/components/popup-menu-options/TextMenuOption';
 import headerActionStyles from '@/styles/headerActionStyles';
+import { SCREEN_PADDING } from '@/constants';
 import usePosts from '@/features/posts-context/usePosts';
 import PostList from '@/features/post-list/PostList';
 import PostListItem from '@/features/post-list/PostListItem';
@@ -60,7 +59,15 @@ export default function CreatePostScreen({ navigation }) {
       <PostList
         postIds={postIds}
         contentContainerStyle={{ paddingBottom: bottom + 16 }}
-        FirstListEntryComponent={<Text style={styles.sectionTitle}>Repost something</Text>}
+        FirstListEntryComponent={
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Repost something</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('IgnoredPostsScreen')} style={styles.ignoredButton}>
+              <Ionicons name="eye-off-outline" size={14} color="#8E8E93" />
+              <Text style={styles.ignoredButtonLabel}>Ignored posts</Text>
+            </TouchableOpacity>
+          </View>
+        }
         renderListItem={(post) => {
           return (
             <SuperPressable
@@ -87,27 +94,15 @@ function PostActions({ onRepost, onPostpone, onIgnore }) {
       <TouchableOpacity style={[headerActionStyles.button, styles.primaryButton]} onPress={onRepost}>
         <Ionicons name="create" style={[headerActionStyles.buttonIcon, styles.primaryButtonIcon]} />
       </TouchableOpacity>
-      <Menu renderer={renderers.Popover} rendererProps={{ preferredPlacement: 'top' }}>
-        <MenuTrigger customStyles={{ triggerWrapper: headerActionStyles.button }}>
-          <Ionicons name="ellipsis-horizontal" style={headerActionStyles.buttonIcon} />
-        </MenuTrigger>
-        <MenuOptions customStyles={menuStyles}>
-          <TextMenuOption label="Postpone" onPress={onPostpone} />
-          <TextMenuOption label="Ignore" onPress={onIgnore} isLast />
-        </MenuOptions>
-      </Menu>
+      <TouchableOpacity style={headerActionStyles.button} onPress={onPostpone}>
+        <Ionicons name="time-outline" style={headerActionStyles.buttonIcon} />
+      </TouchableOpacity>
+      <TouchableOpacity style={headerActionStyles.button} onPress={onIgnore}>
+        <Ionicons name="eye-off-outline" style={headerActionStyles.buttonIcon} />
+      </TouchableOpacity>
     </View>
   );
 }
-
-const menuStyles = {
-  optionsContainer: {
-    backgroundColor: 'rgba(220, 220, 220, 0.96)',
-    borderRadius: 10,
-    shadowColor: 'transparent',
-    width: 160,
-  },
-};
 
 const styles = StyleSheet.create({
   container: {
@@ -115,7 +110,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F2F2F7',
   },
   createPostSection: {
-    padding: 16,
+    padding: SCREEN_PADDING,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5EA',
@@ -125,7 +120,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#007AFF',
-    padding: 16,
+    padding: SCREEN_PADDING,
     borderRadius: 12,
   },
   createPostText: {
@@ -137,12 +132,28 @@ const styles = StyleSheet.create({
   repostSection: {
     flex: 1,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SCREEN_PADDING,
+    paddingTop: SCREEN_PADDING,
+    paddingBottom: 8,
+  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '600',
     color: '#000000',
-    padding: 16,
-    paddingBottom: 8,
+    flex: 1,
+  },
+  ignoredButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    padding: 4,
+  },
+  ignoredButtonLabel: {
+    fontSize: 13,
+    color: '#8E8E93',
   },
   listContent: {
     paddingBottom: 16,

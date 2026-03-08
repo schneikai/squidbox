@@ -2,6 +2,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useState } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 
+import { SCREEN_PADDING } from '@/constants';
+
 import PostImage from './PostImage';
 
 import useAssets from '@/features/assets-context/useAssets';
@@ -51,7 +53,7 @@ function FavoritePostIndicator({ isFavorite }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 10,
+    padding: SCREEN_PADDING,
   },
   postText: {
     fontSize: 15,

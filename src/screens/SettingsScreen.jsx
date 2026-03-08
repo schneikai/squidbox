@@ -11,6 +11,8 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 
+import { SCREEN_PADDING } from '@/constants';
+
 import BlockingModal from '@/components/BlockingModal';
 import LoginForm from '@/components/LoginForm';
 import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
@@ -267,7 +269,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingTop: 20,
-    paddingHorizontal: 16,
+    paddingHorizontal: SCREEN_PADDING,
   },
 
   sectionHeader: {
@@ -298,7 +300,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 44,
-    paddingHorizontal: 16,
+    paddingHorizontal: SCREEN_PADDING,
     paddingVertical: 10,
   },
   rowLabel: {
@@ -326,7 +328,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#C6C6C8',
-    paddingHorizontal: 16,
+    paddingHorizontal: SCREEN_PADDING,
     paddingTop: 0,
     paddingBottom: 15,
     gap: 4,

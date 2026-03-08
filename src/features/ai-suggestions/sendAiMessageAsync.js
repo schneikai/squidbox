@@ -1,5 +1,5 @@
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
-export const REFERENCE_POST_COUNT = 50;
+export const REFERENCE_POST_COUNT = 100;
 
 export { DEFAULT_MODEL } from './aiSuggestionsStorage';
 
@@ -9,7 +9,7 @@ function buildSystemPrompt(recentPostTexts, customSystemPrompt) {
   const parts = [];
   if (customSystemPrompt?.trim()) parts.push(customSystemPrompt.trim());
   if (recentPostTexts.length > 0) {
-    parts.push(`Here are the user's ${recentPostTexts.length} most recent posts for reference:\n${recentPostTexts.map((text, i) => `${i + 1}. ${text}`).join('\n')}`);
+    parts.push(`Here are some recent tweets as reference for tone and style:\n${recentPostTexts.map((text, i) => `${i + 1}. ${text}`).join('\n')}`);
   }
   parts.push(FORMAT_INSTRUCTION);
   return parts.join('\n\n');

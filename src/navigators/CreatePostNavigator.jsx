@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import PostScreen from '@/screens/PostScreen';
 import CreatePostScreen from '@/screens/CreatePostScreen';
+import IgnoredPostsScreen from '@/screens/IgnoredPostsScreen';
 import AlbumNavigator from '@/navigators/AlbumNavigator';
 import { MenuProvider } from 'react-native-popup-menu';
 import { HeaderBackButton } from '@react-navigation/elements';
@@ -24,6 +25,7 @@ export default function CreatePostNavigator() {
           })}
       />
       <Stack.Screen name="PostScreen" component={PostScreen} />
+      <Stack.Screen name="IgnoredPostsScreen" component={IgnoredPostsScreen} options={{ title: 'Ignored Posts' }} />
       <Stack.Screen 
         name="PostAlbumStack" 
         component={AlbumNavigator}

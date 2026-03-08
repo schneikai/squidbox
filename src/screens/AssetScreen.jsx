@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { SafeAreaView, FlatList, StyleSheet, useWindowDimensions, Text, TouchableOpacity } from 'react-native';
 
+import { SCREEN_PADDING } from '@/constants';
 import AssetHeader from '@/components/AssetHeader';
 import HeaderActions from '@/components/HeaderActions';
 import VideoControls from '@/components/VideoControls';
@@ -89,7 +90,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   notesContainer: {
-    paddingHorizontal: 16,
+    paddingHorizontal: SCREEN_PADDING,
     paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#ddd',

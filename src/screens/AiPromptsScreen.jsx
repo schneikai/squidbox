@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
+import { SCREEN_PADDING } from '@/constants';
 import {
   DEFAULT_PROMPT,
   DEFAULT_SYSTEM_PROMPT,
@@ -101,7 +102,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingTop: 20,
-    paddingHorizontal: 16,
+    paddingHorizontal: SCREEN_PADDING,
   },
 
   sectionHeader: {
@@ -136,7 +137,7 @@ const styles = StyleSheet.create({
   },
 
   cell: {
-    paddingHorizontal: 16,
+    paddingHorizontal: SCREEN_PADDING,
     paddingTop: 10,
     paddingBottom: 12,
   },

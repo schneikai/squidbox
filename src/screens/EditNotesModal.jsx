@@ -1,6 +1,7 @@
 import { useState, useLayoutEffect } from 'react';
 import { Button, TextInput, StyleSheet, View } from 'react-native';
 
+import { SCREEN_PADDING } from '@/constants';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useAssets from '@/features/assets-context/useAssets';
 
@@ -47,7 +48,7 @@ export default function EditNotesModal({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    padding: SCREEN_PADDING,
     backgroundColor: '#fff',
   },
   input: {
