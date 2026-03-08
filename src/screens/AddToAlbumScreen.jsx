@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect } from 'react';
+import { useMemo, useLayoutEffect } from 'react';
 import { Button, TouchableOpacity } from 'react-native';
 
 import HeaderActions from '@/components/HeaderActions';
@@ -18,7 +18,6 @@ import useAlbums from '@/features/albums-context/useAlbums';
 
 export default function AddToAlbumScreen({ route, navigation }) {
   const { albums, addAssetsToAlbum } = useAlbums();
-  const [albumIds, setAlbumIds] = useState();
 
   const { listRef, listScrollTop } = useAlbumList();
   const { sortOrder, sortFunction, sortAlbums } = useSortAlbumsAction({ afterSort: listScrollTop });
@@ -33,16 +32,17 @@ export default function AddToAlbumScreen({ route, navigation }) {
     });
   }, [navigation]);
 
-  useEffect(() => {
-    const albumIds = prepareAlbums({
-      albums: Object.values(albums),
-      sortFn: sortFunction,
-      filterFn: matchFilter,
-      searchText,
-      showSystemAlbums: false,
-    }).map((album) => album.id);
-    setAlbumIds(albumIds);
-  }, [albums, sortOrder, activeFilter, searchText]);
+  const albumIds = useMemo(
+    () =>
+      prepareAlbums({
+        albums: Object.values(albums),
+        sortFn: sortFunction,
+        filterFn: matchFilter,
+        searchText,
+        showSystemAlbums: false,
+      }).map((album) => album.id),
+    [albums, sortFunction, matchFilter, activeFilter, searchText],
+  );
 
   function handleAddAssetsToAlbum(album) {
     addAssetsToAlbum(album, route.params.assetIds);

@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import HeaderActions from '@/components/HeaderActions';
@@ -14,19 +13,15 @@ import SearchAlbumsAction from '@/features/album-list/actions/search-albums-acti
 import useSearchAlbumsAction from '@/features/album-list/actions/search-albums-action/useSearchAlbumsAction';
 import SortAlbumsAction from '@/features/album-list/actions/sort-albums-action/SortAlbumsAction';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
-import ToggleEditAlbumsAction from '@/features/album-list/actions/toggle-edit-albums-action/ToggleEditAlbumsAction';
-import useToggleEditAlbumsAction from '@/features/album-list/actions/toggle-edit-albums-action/useToggleEditAlbumsAction';
 import prepareAlbums from '@/features/album-list/prepareAlbums';
 import useAlbumList from '@/features/album-list/useAlbumList';
 import useAlbums from '@/features/albums-context/useAlbums';
-import isAlbumEditable from '@/utils/albums/isAlbumEditable';
 
 export default function AlbumsScreen({ route, navigation }) {
-  const { albums, toggleFavoriteAlbum, setAlbumDeleted } = useAlbums();
+  const { albums, toggleFavoriteAlbum } = useAlbums();
   const insets = useSafeAreaInsets();
 
   const { listRef, listScrollTop } = useAlbumList();
-  const { isEditMode, toggleEditMode } = useToggleEditAlbumsAction();
   const { sortOrder, sortFunction, sortAlbums } = useSortAlbumsAction({ afterSort: listScrollTop });
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterSort: listScrollTop });
   const { isSearchBarVisible, toggleSearchBar, searchText, setSearchText } = useSearchAlbumsAction();
@@ -43,28 +38,6 @@ export default function AlbumsScreen({ route, navigation }) {
     [albums, sortFunction, matchFilter, activeFilter, searchText],
   );
 
-  function navigateToAlbumScreen(album) {
-    navigation.navigate('AlbumScreen', { albumId: album.id });
-  }
-
-  function handleSetAlbumDeleted(album) {
-    // TODO: Until there is no way to restore deleted albums, I
-    // added a confirmation prompt to prevent accidental deletion.
-    Alert.alert('Delete Album', 'Are you sure you want to delete this album? Images will not be deleted.', [
-      {
-        text: 'Cancel',
-        style: 'cancel',
-      },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          setAlbumDeleted(album);
-        },
-      },
-    ]);
-  }
-
   return (
     <AlbumList
       listRef={listRef}
@@ -72,11 +45,9 @@ export default function AlbumsScreen({ route, navigation }) {
       contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
       renderItem={({ album, thumbnailAsset, numberOfAssets, elementWidth }) => (
         <AlbumListItemWithEditMode
-          isEditMode={isEditMode}
-          isEditable={isAlbumEditable(album)}
-          singleTap={() => navigateToAlbumScreen(album)}
+          isEditMode={false}
+          singleTap={() => navigation.navigate('AlbumScreen', { albumId: album.id })}
           doubleTap={() => toggleFavoriteAlbum(album)}
-          onPressDelete={() => handleSetAlbumDeleted(album)}
         >
           <AlbumListItem
             album={album}
@@ -98,7 +69,6 @@ export default function AlbumsScreen({ route, navigation }) {
         >
           <HeaderActions>
             <AddAlbumAction />
-            <ToggleEditAlbumsAction isEditMode={isEditMode} onPress={toggleEditMode} />
             <SearchAlbumsAction isSearchBarVisible={isSearchBarVisible} onPress={toggleSearchBar} />
             <SortAlbumsAction sortOrder={sortOrder} onPress={sortAlbums} />
             <FilterAlbumsAction activeFilter={activeFilter} onPress={toggleFilter} />

@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Text, StyleSheet, View, Pressable, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -61,17 +61,17 @@ function AssetsTab({ album, assetIds, isSelectMode, selectedAssetIds, onPressAss
 // Posts Tab Component
 function PostsTab({ album, navigation }) {
   const { posts } = usePosts();
-  const [postIds, setPostIds] = useState([]);
 
-  useEffect(() => {
-    const postIds = preparePosts({
-      posts: Object.values(posts),
-      albums: { [album.id]: album },
-      searchText: `album:${album.id}`,
-      sortFn: (a, b) => b.postedAt - a.postedAt,
-    }).map((post) => post.id);
-    setPostIds(postIds);
-  }, [posts, album]);
+  const postIds = useMemo(
+    () =>
+      preparePosts({
+        posts: Object.values(posts),
+        albums: { [album.id]: album },
+        searchText: `album:${album.id}`,
+        sortFn: (a, b) => b.postedAt - a.postedAt,
+      }).map((post) => post.id),
+    [posts, album],
+  );
 
   return (
     <PostList
@@ -93,7 +93,6 @@ export default function Album({ album }) {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
-  const [assetIds, setAssetIds] = useState();
   const { listRef, listScrollTop } = useAssetList();
   const { isSelectMode, selectedAssetIds, toggleSelectMode, toggleSelectAsset } = useToggleSelectAssetsAction();
   const { sortOrder, sortFunction, sortAssets } = useSortAssetsAction({ afterSort: listScrollTop });
@@ -101,15 +100,15 @@ export default function Album({ album }) {
   const { asset: quickViewAsset, open: openAssetQuickView, close: closeAssetQuickView } = useAssetQuickViewModal();
   const [activeTab, setActiveTab] = useState('Assets');
 
-  useEffect(() => {
-    const albumAssets = getAlbumAssets(album, assets);
-    const assetIds = prepareAssets({
-      assets: albumAssets,
-      sortFn: sortFunction,
-      filterFn: matchFilter,
-    }).map((asset) => asset.id);
-    setAssetIds(assetIds);
-  }, [album, assets, sortOrder, activeFilter]);
+  const assetIds = useMemo(
+    () =>
+      prepareAssets({
+        assets: getAlbumAssets(album, assets),
+        sortFn: sortFunction,
+        filterFn: matchFilter,
+      }).map((asset) => asset.id),
+    [album, assets, sortFunction, matchFilter],
+  );
 
   function onPressAsset(asset) {
     if (isSelectMode) {

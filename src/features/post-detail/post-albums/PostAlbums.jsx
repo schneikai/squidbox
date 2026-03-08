@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { ScrollView, View, StyleSheet, Dimensions } from 'react-native';
 
 import PostAlbum from './PostAlbum';
@@ -11,14 +11,12 @@ const itemWidth = screenWidth / 2.7;
 
 export default function PostAlbums({ post }) {
   const { albums } = useAlbums();
-  const [postAlbums, setPostAlbums] = useState([]);
 
-  useEffect(() => {
-    if (!post) return;
+  const postAlbums = useMemo(() => {
+    if (!post) return [];
     const assetIds = post.assetRefs.map((assetRef) => assetRef.assetId);
-    const postAlbums = getAlbumsByAssetIds(assetIds, albums);
-    setPostAlbums(postAlbums);
-  }, [post]);
+    return getAlbumsByAssetIds(assetIds, albums);
+  }, [post, albums]);
 
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.container}>

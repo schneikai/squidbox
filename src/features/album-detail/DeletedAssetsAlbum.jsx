@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { useState, useEffect } from 'react';
+import { useState, useMemo, useTransition } from 'react';
 import { Alert, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -20,15 +20,13 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
-  const [assetIds, setAssetIds] = useState();
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleting, startDeleteTransition] = useTransition();
   const { isSelectMode, selectedAssetIds, toggleSelectMode, toggleSelectAsset } = useToggleSelectAssetsAction();
 
-  useEffect(() => {
-    const albumAssets = getAlbumAssets(album, Object.values(assets));
-    const assetIds = prepareAssets({ assets: albumAssets, filterDeleted: false }).map((asset) => asset.id);
-    setAssetIds(assetIds);
-  }, [album, assets]);
+  const assetIds = useMemo(
+    () => prepareAssets({ assets: getAlbumAssets(album, Object.values(assets)), filterDeleted: false }).map((asset) => asset.id),
+    [album, assets],
+  );
 
   function handleRestoreAssets() {
     const title = isSelectMode ? 'Restore selected' : 'Restore all';
@@ -73,17 +71,15 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
       },
       {
         text: 'Delete',
-        onPress: async () => {
-          setIsDeleting(true);
-
-          try {
-            await deleteAssetsAsync(assetsToDelete);
-            if (isSelectMode) toggleSelectMode();
-          } catch (error) {
-            Alert.alert('Failed to delete assets!', error.message);
-          } finally {
-            setIsDeleting(false);
-          }
+        onPress: () => {
+          startDeleteTransition(async () => {
+            try {
+              await deleteAssetsAsync(assetsToDelete);
+              if (isSelectMode) toggleSelectMode();
+            } catch (error) {
+              Alert.alert('Failed to delete assets!', error.message);
+            }
+          });
         },
       },
     ]);

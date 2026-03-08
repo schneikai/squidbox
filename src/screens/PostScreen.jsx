@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 
 import Post from '@/features/post-detail/Post';
 import MoreAction from '@/features/post-detail/actions/MoreAction';
@@ -9,11 +9,7 @@ import { HeaderBackButton } from '@react-navigation/elements';
 export default function PostScreen({ route, navigation }) {
   const { postId } = route.params;
   const { posts } = usePosts();
-  const [post, setPost] = useState(null);
-
-  useEffect(() => {
-    setPost(posts[postId]);
-  }, [posts, postId]);
+  const post = posts[postId] ?? null;
 
   useEffect(() => {
     if (!post) return;

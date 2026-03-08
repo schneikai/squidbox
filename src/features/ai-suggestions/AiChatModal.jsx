@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Clipboard from 'expo-clipboard';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -42,7 +42,7 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
   const [inputText, setInputText] = useState('');
   const [defaultPrompt, setDefaultPrompt] = useState(DEFAULT_PROMPT);
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, startMessageTransition] = useTransition();
   const [copiedKey, setCopiedKey] = useState(null);
   const [includeReference, setIncludeReference] = useState(true);
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
@@ -179,24 +179,23 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
     const userMessage = { role: 'user', content: userText };
     const updatedMessages = [...currentMessages, userMessage];
     setMessages(updatedMessages);
-    setIsLoading(true);
 
-    try {
-      const contextPosts = includeReference ? recentPostTexts : [];
-      const suggestions = await sendAiMessageAsync(updatedMessages, contextPosts, selectedModel, systemPrompt);
-      const assistantMessage = {
-        role: 'assistant',
-        content: JSON.stringify(suggestions),
-      };
-      const finalMessages = [...updatedMessages, assistantMessage];
-      setMessages(finalMessages);
-      await saveHistory(finalMessages);
-    } catch (error) {
-      Alert.alert('Error', error.message);
-      setMessages(currentMessages);
-    } finally {
-      setIsLoading(false);
-    }
+    startMessageTransition(async () => {
+      try {
+        const contextPosts = includeReference ? recentPostTexts : [];
+        const suggestions = await sendAiMessageAsync(updatedMessages, contextPosts, selectedModel, systemPrompt);
+        const assistantMessage = {
+          role: 'assistant',
+          content: JSON.stringify(suggestions),
+        };
+        const finalMessages = [...updatedMessages, assistantMessage];
+        setMessages(finalMessages);
+        await saveHistory(finalMessages);
+      } catch (error) {
+        Alert.alert('Error', error.message);
+        setMessages(currentMessages);
+      }
+    });
   }
 
   async function handleClearChat() {

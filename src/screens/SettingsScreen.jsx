@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
@@ -13,7 +14,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { SCREEN_PADDING } from '@/constants';
 
-import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import LoginForm from '@/components/LoginForm';
 import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
 import { MODEL_STORAGE_KEY, DEFAULT_MODEL } from '@/features/ai-suggestions/aiSuggestionsStorage';
@@ -71,7 +71,7 @@ export default function SettingsScreen({ navigation }) {
   const [showErrorModal, setShowErrorModal] = useState(false);
 
   const [aiModel, setAiModel] = useState(DEFAULT_MODEL);
-  const { showBlocking, hide: hideOverlay } = useProgressOverlay();
+  const [isLoggingOut, startLogoutTransition] = useTransition();
 
   useEffect(() => {
     async function loadAiSettings() {
@@ -133,15 +133,12 @@ export default function SettingsScreen({ navigation }) {
     ]);
   }
 
-  async function handleLogout() {
-    const confirmed = await confirmLogoutAsync();
-    if (!confirmed) return;
-    showBlocking();
-    try {
+  function handleLogout() {
+    startLogoutTransition(async () => {
+      const confirmed = await confirmLogoutAsync();
+      if (!confirmed) return;
       await logoutAsync();
-    } finally {
-      hideOverlay();
-    }
+    });
   }
 
   async function handleCheckApi() {
@@ -182,7 +179,14 @@ export default function SettingsScreen({ navigation }) {
           <SectionHeader title="Account" />
           <Section>
             <Row label="Signed in as" value={user?.email} />
-            <Row label="Sign out" onPress={handleLogout} destructive chevron />
+            <Row
+              label="Sign out"
+              onPress={isLoggingOut ? undefined : handleLogout}
+              destructive
+              chevron={!isLoggingOut}
+            >
+              {isLoggingOut && <ActivityIndicator size="small" color="#FF3B30" />}
+            </Row>
           </Section>
 
           {/* Cloud sync */}
