@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import AppSettingsContext from './AppSettingsContext';
 
@@ -42,12 +42,15 @@ export default function AppSettingsProvider({ children }) {
     saveSettings();
   }, [thumbnailStyle]);
 
-  const value = {
-    thumbnailStyle,
-    setThumbnailStyle,
-    postsQuery,
-    setPostsQuery,
-  };
+  const value = useMemo(
+    () => ({
+      thumbnailStyle,
+      setThumbnailStyle,
+      postsQuery,
+      setPostsQuery,
+    }),
+    [thumbnailStyle, postsQuery],
+  );
 
   return <AppSettingsContext.Provider value={value}>{children}</AppSettingsContext.Provider>;
 }

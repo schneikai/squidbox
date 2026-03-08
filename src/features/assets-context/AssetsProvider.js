@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import AssetsContext from './AssetsContext';
 
 import deleteAssetFilesAsync from '@/features/cloud/assets/deleteAssetFilesAsync';
@@ -31,49 +33,52 @@ export default function AssetsProvider({ children }) {
   // I would also like to update all methods to use the object instead of just the id.
   // Right now we sometimes use id and sometimes the object. This is confusing.
 
-  const value = {
-    assets,
-    loadAssetsAsync: async () => {
-      const assets = await loadAssetsAsync();
-      initializeData(assets);
-    },
-    addAssetAsync: async (data) => {
-      return await addAsync({
-        data,
-        schema: assetSchema,
-        setState: setAssets,
-      });
-    },
-    addAssetsAsync: async (data) => {
-      return await addAsync({
-        data,
-        schema: assetSchema,
-        setState: setAssets,
-      });
-    },
-    updateAsset: async (id, updates) => {
-      await updateAssets([id], updates);
-    },
-    updateAssets: async (ids, updates) => {
-      await updateAssets(ids, updates);
-    },
-    toggleFavoriteAsset: async (asset) => {
-      const isFavorite = !asset.isFavorite;
-      await updateAssets([asset.id], { isFavorite });
-    },
-    setAssetsDeleted: async (assetIds) => {
-      await updateAssets(assetIds, { isDeleted: true });
-    },
-    restoreDeletedAssets: async (assetIds) => {
-      await updateAssets(assetIds, { isDeleted: false });
-    },
-    deleteAssetsAsync: async (assetsToDelete) => {
-      // TODO: If we are dealing with a cloud asset here (isSynced) we need to
-      // add a check if cloud is authorized and if there is internet connection.
-      await deleteAssetFilesAsync(assetsToDelete);
-      await deleteAsync({ ids: assetsToDelete.map((asset) => asset.id), setState: setAssets });
-    },
-  };
+  const value = useMemo(
+    () => ({
+      assets,
+      loadAssetsAsync: async () => {
+        const assets = await loadAssetsAsync();
+        initializeData(assets);
+      },
+      addAssetAsync: async (data) => {
+        return await addAsync({
+          data,
+          schema: assetSchema,
+          setState: setAssets,
+        });
+      },
+      addAssetsAsync: async (data) => {
+        return await addAsync({
+          data,
+          schema: assetSchema,
+          setState: setAssets,
+        });
+      },
+      updateAsset: async (id, updates) => {
+        await updateAssets([id], updates);
+      },
+      updateAssets: async (ids, updates) => {
+        await updateAssets(ids, updates);
+      },
+      toggleFavoriteAsset: async (asset) => {
+        const isFavorite = !asset.isFavorite;
+        await updateAssets([asset.id], { isFavorite });
+      },
+      setAssetsDeleted: async (assetIds) => {
+        await updateAssets(assetIds, { isDeleted: true });
+      },
+      restoreDeletedAssets: async (assetIds) => {
+        await updateAssets(assetIds, { isDeleted: false });
+      },
+      deleteAssetsAsync: async (assetsToDelete) => {
+        // TODO: If we are dealing with a cloud asset here (isSynced) we need to
+        // add a check if cloud is authorized and if there is internet connection.
+        await deleteAssetFilesAsync(assetsToDelete);
+        await deleteAsync({ ids: assetsToDelete.map((asset) => asset.id), setState: setAssets });
+      },
+    }),
+    [assets],
+  );
 
   return <AssetsContext.Provider value={value}>{children}</AssetsContext.Provider>;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import AssetThumbnailLoaderContext from './AssetThumbnailLoaderContext';
 
@@ -47,9 +47,7 @@ export default function AssetThumbnailLoaderProvider({ children }) {
     });
   }
 
-  const value = {
-    loadThumbnail,
-  };
+  const value = useMemo(() => ({ loadThumbnail }), []);
 
   return <AssetThumbnailLoaderContext.Provider value={value}>{children}</AssetThumbnailLoaderContext.Provider>;
 }

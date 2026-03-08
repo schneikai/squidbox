@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 import CloudContext from './CloudContext';
 import downloadAssetFileAsync from './assets/downloadAssetFileAsync';
@@ -47,40 +47,43 @@ export default function CloudProvider({ children }) {
     await setUserAsync(user);
   }
 
-  const value = {
-    isAuthenticated,
-    user,
-    initializeCloudAsync: async () => {
-      const user = await initializeCloudAsyncFn();
-      await updateUserAuthenticationStatusAsync(user);
-    },
-    loginAsync: async (email, password) => {
-      try {
-        const user = await apiLoginAsync(email, password);
-        if (CLEAR_DATA_BETWEEN_LOGINS) {
-          await deleteLocalDataAsync();
-          await loadDataAndSaveLocalAsync();
-        }
+  const value = useMemo(
+    () => ({
+      isAuthenticated,
+      user,
+      initializeCloudAsync: async () => {
+        const user = await initializeCloudAsyncFn();
         await updateUserAuthenticationStatusAsync(user);
-      } catch (error) {
-        await updateUserAuthenticationStatusAsync(null);
-        throw error;
-      }
-    },
-    logoutAsync: async () => {
-      try {
-        await apiLogoutAsync();
-      } finally {
-        await updateUserAuthenticationStatusAsync(null);
-      }
-    },
-    loadDataAndSaveLocalAsync,
-    backupDataAsync,
-    preloadAssetThumbnailsAsync,
-    uploadAssetFileAsync,
-    uploadAssetThumbnailAsync,
-    downloadAssetFileAsync,
-  };
+      },
+      loginAsync: async (email, password) => {
+        try {
+          const user = await apiLoginAsync(email, password);
+          if (CLEAR_DATA_BETWEEN_LOGINS) {
+            await deleteLocalDataAsync();
+            await loadDataAndSaveLocalAsync();
+          }
+          await updateUserAuthenticationStatusAsync(user);
+        } catch (error) {
+          await updateUserAuthenticationStatusAsync(null);
+          throw error;
+        }
+      },
+      logoutAsync: async () => {
+        try {
+          await apiLogoutAsync();
+        } finally {
+          await updateUserAuthenticationStatusAsync(null);
+        }
+      },
+      loadDataAndSaveLocalAsync,
+      backupDataAsync,
+      preloadAssetThumbnailsAsync,
+      uploadAssetFileAsync,
+      uploadAssetThumbnailAsync,
+      downloadAssetFileAsync,
+    }),
+    [isAuthenticated, user],
+  );
 
   return <CloudContext.Provider value={value}>{children}</CloudContext.Provider>;
 }

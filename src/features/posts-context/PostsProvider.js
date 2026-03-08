@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import PostsContext from './PostsContext';
 
 import useLoadAndUpdateData from '@/utils/local-data/useLoadAndUpdateData';
@@ -22,39 +24,42 @@ export default function PostsProvider({ children }) {
     });
   }
 
-  const value = {
-    posts,
-    loadPostsAsync: async () => {
-      const posts = await loadPostsAsync();
-      initializeData(posts);
-    },
-    addPost: async (data) => {
-      const post = await addAsync({
-        data,
-        schema: postSchema,
-        setState: setPosts,
-      });
+  const value = useMemo(
+    () => ({
+      posts,
+      loadPostsAsync: async () => {
+        const posts = await loadPostsAsync();
+        initializeData(posts);
+      },
+      addPost: async (data) => {
+        const post = await addAsync({
+          data,
+          schema: postSchema,
+          setState: setPosts,
+        });
 
-      await addPostHistoryAsync(post);
+        await addPostHistoryAsync(post);
 
-      return post;
-    },
-    updatePost: async (id, updates) => {
-      await updatePosts([id], updates);
-    },
-    toggleFavoritePost: async (post) => {
-      const isFavorite = !post.isFavorite;
-      await updatePosts([post.id], { isFavorite });
-    },
-    // TODO: We have setXYDeleted for Assets and Albums. Should we have one for Posts?
-    deletePost: async (id) => {
-      const post = posts[id];
-      if (!post) throw new Error(`Post ${id} not found.`);
+        return post;
+      },
+      updatePost: async (id, updates) => {
+        await updatePosts([id], updates);
+      },
+      toggleFavoritePost: async (post) => {
+        const isFavorite = !post.isFavorite;
+        await updatePosts([post.id], { isFavorite });
+      },
+      // TODO: We have setXYDeleted for Assets and Albums. Should we have one for Posts?
+      deletePost: async (id) => {
+        const post = posts[id];
+        if (!post) throw new Error(`Post ${id} not found.`);
 
-      await removePostHistoryAsync(post);
-      await deleteAsync({ ids: [id], setState: setPosts });
-    },
-  };
+        await removePostHistoryAsync(post);
+        await deleteAsync({ ids: [id], setState: setPosts });
+      },
+    }),
+    [posts],
+  );
 
   return <PostsContext.Provider value={value}>{children}</PostsContext.Provider>;
 }

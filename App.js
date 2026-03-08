@@ -18,7 +18,7 @@ Sentry.init({
 import { ActionSheetProvider } from '@expo/react-native-action-sheet';
 import { NavigationContainer } from '@react-navigation/native';
 import * as SplashScreen from 'expo-splash-screen';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, StrictMode } from 'react';
 // eslint-disable-next-line import/no-duplicates
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { MenuProvider } from 'react-native-popup-menu';
@@ -41,6 +41,7 @@ SplashScreen.preventAutoHideAsync();
 
 const App = () => {
   return (
+    <StrictMode>
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ProgressOverlayProvider>
       <AppSettingsProvider>
@@ -58,6 +59,7 @@ const App = () => {
       </AppSettingsProvider>
       </ProgressOverlayProvider>
     </GestureHandlerRootView>
+    </StrictMode>
   );
 };
 

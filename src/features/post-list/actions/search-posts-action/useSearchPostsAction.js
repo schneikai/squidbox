@@ -1,32 +1,29 @@
-import { useEffect, useState } from 'react';
+import { useState, useTransition } from 'react';
 
 import useAppSettings from '@/features/app-settings/useAppSettings';
 
 export default function useSearchPostsAction() {
-  const [isSearchBarVisible, setIsSearchBarVisible] = useState(false);
-  // const [searchText, setSearchText] = useState('');
   const { postsQuery, setPostsQuery } = useAppSettings();
-
-  useEffect(() => {
-    if (!isSearchBarVisible) {
-      setPostsQuery('');
-    }
-  }, [isSearchBarVisible]);
-
-  useEffect(() => {
-    if (postsQuery) {
-      setIsSearchBarVisible(true);
-    }
-  }, [postsQuery]);
+  // If a query is already stored in settings, start with the bar visible.
+  const [isSearchBarVisible, setIsSearchBarVisible] = useState(() => !!postsQuery);
+  const [, startTransition] = useTransition();
 
   function toggleSearchBar() {
-    setIsSearchBarVisible((isSearchBarVisible) => !isSearchBarVisible);
+    setIsSearchBarVisible((prev) => {
+      if (prev) startTransition(() => setPostsQuery(''));
+      return !prev;
+    });
+  }
+
+  function setSearchText(text) {
+    startTransition(() => setPostsQuery(text));
+    if (text && !isSearchBarVisible) setIsSearchBarVisible(true);
   }
 
   return {
     isSearchBarVisible,
     searchText: postsQuery,
-    setSearchText: setPostsQuery,
+    setSearchText,
     toggleSearchBar,
   };
 }

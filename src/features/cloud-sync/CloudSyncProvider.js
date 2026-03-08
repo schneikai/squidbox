@@ -121,15 +121,18 @@ export default function CloudSyncProvider({ children }) {
     isSyncRunning.current = false;
   }
 
-  const value = {
-    unsyncedAssets,
-    assetsWithSyncErrors,
-    isSyncing,
-    syncMessage,
-    syncProgressMessage,
-    syncSpeedMessage,
-    syncNow: syncAssets,
-  };
+  const value = useMemo(
+    () => ({
+      unsyncedAssets,
+      assetsWithSyncErrors,
+      isSyncing,
+      syncMessage,
+      syncProgressMessage,
+      syncSpeedMessage,
+      syncNow: syncAssets,
+    }),
+    [unsyncedAssets, assetsWithSyncErrors, isSyncing, syncMessage, syncProgressMessage, syncSpeedMessage],
+  );
 
   return <CloudSyncContext.Provider value={value}>{children}</CloudSyncContext.Provider>;
 }

@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import AlbumsContext from './AlbumsContext';
 
 import albumSchema from '@/utils/albums/albumSchema';
@@ -24,50 +26,53 @@ export default function AlbumsProvider({ children }) {
     });
   }
 
-  const value = {
-    albums,
-    loadAlbumsAsync: async () => {
-      const albums = await loadAlbumsAsync();
-      initializeData(albums);
-    },
-    addAlbum: async (data) => {
-      return await addAsync({
-        data,
-        schema: albumSchema,
-        setState: setAlbums,
-      });
-    },
-    updateAlbum: async (id, updates) => {
-      await updateAlbums([id], updates);
-    },
-    updateAlbums: async (ids, updates) => {
-      await updateAlbums(ids, updates);
-    },
-    toggleFavoriteAlbum: async (album) => {
-      const isFavorite = !album.isFavorite;
-      await updateAlbums([album.id], { isFavorite });
-    },
-    addAssetsToAlbum: async (album, assetsOrAssetIds) => {
-      const assetIds = assetsOrAssetIds.map((assetOrAssetId) =>
-        typeof assetOrAssetId === 'string' ? assetOrAssetId : assetOrAssetId.id,
-      );
-      const updatedAssets = [...album.assets, ...assetIds];
-      await updateAlbums([album.id], { assets: updatedAssets });
-    },
-    removeAssetsFromAlbum: async (album, assetsOrAssetIds) => {
-      const assetIds = assetsOrAssetIds.map((assetOrAssetId) =>
-        typeof assetOrAssetId === 'string' ? assetOrAssetId : assetOrAssetId.id,
-      );
-      const updatedAssets = album.assets.filter((assetId) => !assetIds.includes(assetId));
-      await updateAlbums([album.id], { assets: updatedAssets });
-    },
-    setAlbumDeleted: async (album) => {
-      await updateAlbums([album.id], { isDeleted: true });
-    },
-    deleteAlbumAsync: async (album) => {
-      await deleteAsync({ ids: [album.id], setState: setAlbums });
-    },
-  };
+  const value = useMemo(
+    () => ({
+      albums,
+      loadAlbumsAsync: async () => {
+        const albums = await loadAlbumsAsync();
+        initializeData(albums);
+      },
+      addAlbum: async (data) => {
+        return await addAsync({
+          data,
+          schema: albumSchema,
+          setState: setAlbums,
+        });
+      },
+      updateAlbum: async (id, updates) => {
+        await updateAlbums([id], updates);
+      },
+      updateAlbums: async (ids, updates) => {
+        await updateAlbums(ids, updates);
+      },
+      toggleFavoriteAlbum: async (album) => {
+        const isFavorite = !album.isFavorite;
+        await updateAlbums([album.id], { isFavorite });
+      },
+      addAssetsToAlbum: async (album, assetsOrAssetIds) => {
+        const assetIds = assetsOrAssetIds.map((assetOrAssetId) =>
+          typeof assetOrAssetId === 'string' ? assetOrAssetId : assetOrAssetId.id,
+        );
+        const updatedAssets = [...album.assets, ...assetIds];
+        await updateAlbums([album.id], { assets: updatedAssets });
+      },
+      removeAssetsFromAlbum: async (album, assetsOrAssetIds) => {
+        const assetIds = assetsOrAssetIds.map((assetOrAssetId) =>
+          typeof assetOrAssetId === 'string' ? assetOrAssetId : assetOrAssetId.id,
+        );
+        const updatedAssets = album.assets.filter((assetId) => !assetIds.includes(assetId));
+        await updateAlbums([album.id], { assets: updatedAssets });
+      },
+      setAlbumDeleted: async (album) => {
+        await updateAlbums([album.id], { isDeleted: true });
+      },
+      deleteAlbumAsync: async (album) => {
+        await deleteAsync({ ids: [album.id], setState: setAlbums });
+      },
+    }),
+    [albums],
+  );
 
   return <AlbumsContext.Provider value={value}>{children}</AlbumsContext.Provider>;
 }
