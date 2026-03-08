@@ -5,17 +5,17 @@ import AssetQuickViewModal, { useAssetQuickViewModal } from '@/components/AssetQ
 import HeaderActions from '@/components/HeaderActions';
 import SuperPressable from '@/components/SuperPressable';
 import ScreenHeader from '@/components/screen-header/ScreenHeader';
-import SelectedAssetsToolBar from '@/components/selected-assets-tool-bar/SelectedAssetsToolBar';
-import AddSelectedAssetsToAlbumAction from '@/components/selected-assets-tool-bar/actions/add-selected-assets-to-album-action/AddSelectedAssetsToAlbumAction';
-import CreatePostAction from '@/components/selected-assets-tool-bar/actions/create-post-action/CreatePostAction';
-import DeleteSelectedAssetsAction from '@/components/selected-assets-tool-bar/actions/delete-selected-assets-action/DeleteSelectedAssetsAction';
-import DownloadSelectedAssetsAction from '@/components/selected-assets-tool-bar/actions/download-selected-assets-action/DownloadSelectedAssetsAction';
+import AddToAlbumSelectionMenuOption from '@/components/selected-assets-tool-bar/actions/add-to-album-selection-menu-option/AddToAlbumSelectionMenuOption';
+import CreatePostSelectionMenuOption from '@/components/selected-assets-tool-bar/actions/create-post-selection-menu-option/CreatePostSelectionMenuOption';
+import DeleteSelectionMenuOption from '@/components/selected-assets-tool-bar/actions/delete-selection-menu-option/DeleteSelectionMenuOption';
+import DownloadSelectionMenuOption from '@/components/selected-assets-tool-bar/actions/download-selection-menu-option/DownloadSelectionMenuOption';
 import AssetList from '@/features/asset-list/AssetList';
 import AssetListItem from '@/features/asset-list/AssetListItem';
 import AddAssetAction from '@/features/asset-list/actions/add-asset-action/AddAssetAction';
 import FilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/FilterAssetsAction';
 import useFilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/useFilterAssetsAction';
 import MoreAction from '@/features/asset-list/actions/more-action/MoreAction';
+import SelectionActionsMenu from '@/features/asset-list/actions/selection-actions-menu/SelectionActionsMenu';
 import SortAssetsAction from '@/features/asset-list/actions/sort-assets-action/SortAssetsAction';
 import useSortAssetsAction from '@/features/asset-list/actions/sort-assets-action/useSortAssetsAction';
 import ToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/ToggleSelectAssetsAction';
@@ -77,23 +77,29 @@ export default function AssetsScreen({ route, navigation }) {
         ListHeaderComponent={
           <ScreenHeader label="Assets" insets={insets}>
             <HeaderActions>
-              <AddAssetAction />
-              <ToggleSelectAssetsAction isSelectMode={isSelectMode} onPress={toggleSelectMode} />
-              <SortAssetsAction sortOrder={sortOrder} onPress={sortAssets} />
-              <FilterAssetsAction activeFilter={activeFilter} onPress={toggleFilter} />
-              <MoreAction />
+              {isSelectMode ? (
+                <>
+                  <ToggleSelectAssetsAction isSelectMode={isSelectMode} onPress={toggleSelectMode} />
+                  <SelectionActionsMenu selectedAssetIds={selectedAssetIds} allAssetIds={assetIds}>
+                    <DownloadSelectionMenuOption />
+                    <AddToAlbumSelectionMenuOption />
+                    <CreatePostSelectionMenuOption />
+                    <DeleteSelectionMenuOption afterAction={() => toggleSelectMode()} />
+                  </SelectionActionsMenu>
+                </>
+              ) : (
+                <>
+                  <AddAssetAction />
+                  <ToggleSelectAssetsAction isSelectMode={isSelectMode} onPress={toggleSelectMode} />
+                  <SortAssetsAction sortOrder={sortOrder} onPress={sortAssets} />
+                  <FilterAssetsAction activeFilter={activeFilter} onPress={toggleFilter} />
+                  <MoreAction />
+                </>
+              )}
             </HeaderActions>
           </ScreenHeader>
         }
       />
-      {isSelectMode && (
-        <SelectedAssetsToolBar selectedAssetIds={selectedAssetIds} allAssetIds={assetIds}>
-          <DownloadSelectedAssetsAction />
-          <AddSelectedAssetsToAlbumAction />
-          <CreatePostAction />
-          <DeleteSelectedAssetsAction afterAction={() => toggleSelectMode()} />
-        </SelectedAssetsToolBar>
-      )}
     </>
   );
 }

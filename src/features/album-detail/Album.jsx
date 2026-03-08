@@ -8,14 +8,14 @@ import ScreenHeader from './ScreenHeader';
 import AssetQuickViewModal, { useAssetQuickViewModal } from '@/components/AssetQuickViewModal';
 import HeaderActions from '@/components/HeaderActions';
 import SuperPressable from '@/components/SuperPressable';
-import SelectedAssetsToolBar from '@/components/selected-assets-tool-bar/SelectedAssetsToolBar';
-import AddSelectedAssetsToAlbumAction from '@/components/selected-assets-tool-bar/actions/add-selected-assets-to-album-action/AddSelectedAssetsToAlbumAction';
-import CreatePostAction from '@/components/selected-assets-tool-bar/actions/create-post-action/CreatePostAction';
-import DeleteSelectedAssetsFromAlbumAction from '@/components/selected-assets-tool-bar/actions/delete-selected-assets-from-album-action/DeleteSelectedAssetsFromAlbumAction';
-import DownloadSelectedAssetsAction from '@/components/selected-assets-tool-bar/actions/download-selected-assets-action/DownloadSelectedAssetsAction';
+import AddToAlbumSelectionMenuOption from '@/components/selected-assets-tool-bar/actions/add-to-album-selection-menu-option/AddToAlbumSelectionMenuOption';
+import CreatePostSelectionMenuOption from '@/components/selected-assets-tool-bar/actions/create-post-selection-menu-option/CreatePostSelectionMenuOption';
+import DeleteFromAlbumSelectionMenuOption from '@/components/selected-assets-tool-bar/actions/delete-from-album-selection-menu-option/DeleteFromAlbumSelectionMenuOption';
+import DownloadSelectionMenuOption from '@/components/selected-assets-tool-bar/actions/download-selection-menu-option/DownloadSelectionMenuOption';
 import AddAssetAction from '@/features/album-detail/actions/AddAssetAction';
 import MoreAction from '@/features/album-detail/actions/MoreAction';
 import AssetList from '@/features/asset-list/AssetList';
+import SelectionActionsMenu from '@/features/asset-list/actions/selection-actions-menu/SelectionActionsMenu';
 import AssetListItem from '@/features/asset-list/AssetListItem';
 import FilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/FilterAssetsAction';
 import useFilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/useFilterAssetsAction';
@@ -130,11 +130,27 @@ export default function Album({ album }) {
       <View>
         <ScreenHeader album={album} numberOfAssets={assetIds?.length} onPressBack={handleBackPress} insets={insets}>
           <HeaderActions>
-            {!isSmartAlbum(album) && <AddAssetAction album={album} />}
-            <ToggleSelectAssetsAction isSelectMode={isSelectMode} onPress={toggleSelectMode} />
-            <SortAssetsAction sortOrder={sortOrder} onPress={sortAssets} />
-            <FilterAssetsAction activeFilter={activeFilter} onPress={toggleFilter} />
-            {!isSmartAlbum(album) && <MoreAction album={album} afterDelete={handleBackPress} />}
+            {isSelectMode ? (
+              <>
+                <ToggleSelectAssetsAction isSelectMode={isSelectMode} onPress={toggleSelectMode} />
+                <SelectionActionsMenu selectedAssetIds={selectedAssetIds} allAssetIds={assetIds}>
+                  <DownloadSelectionMenuOption />
+                  <AddToAlbumSelectionMenuOption />
+                  <CreatePostSelectionMenuOption />
+                  {!isSmartAlbum(album) && (
+                    <DeleteFromAlbumSelectionMenuOption album={album} afterAction={() => toggleSelectMode()} />
+                  )}
+                </SelectionActionsMenu>
+              </>
+            ) : (
+              <>
+                {!isSmartAlbum(album) && <AddAssetAction album={album} />}
+                <ToggleSelectAssetsAction isSelectMode={isSelectMode} onPress={toggleSelectMode} />
+                <SortAssetsAction sortOrder={sortOrder} onPress={sortAssets} />
+                <FilterAssetsAction activeFilter={activeFilter} onPress={toggleFilter} />
+                {!isSmartAlbum(album) && <MoreAction album={album} afterDelete={handleBackPress} />}
+              </>
+            )}
           </HeaderActions>
         </ScreenHeader>
         {!!album.archivedAt && (
@@ -192,17 +208,6 @@ export default function Album({ album }) {
         )}
       </View>
 
-      {/* Selection toolbar */}
-      {isSelectMode && (
-        <SelectedAssetsToolBar selectedAssetIds={selectedAssetIds} allAssetIds={assetIds}>
-          <DownloadSelectedAssetsAction />
-          <AddSelectedAssetsToAlbumAction />
-          <CreatePostAction />
-          {!isSmartAlbum(album) && (
-            <DeleteSelectedAssetsFromAlbumAction album={album} afterAction={() => toggleSelectMode()} />
-          )}
-        </SelectedAssetsToolBar>
-      )}
     </>
   );
 }

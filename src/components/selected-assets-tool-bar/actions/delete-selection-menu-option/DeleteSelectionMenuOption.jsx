@@ -1,16 +1,15 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Pressable, Alert } from 'react-native';
+import { Text, Alert } from 'react-native';
+import { MenuOption } from 'react-native-popup-menu';
 
-import useSelectedAssets from '@/components/selected-assets-tool-bar/useSelectedAssets';
 import useAssets from '@/features/assets-context/useAssets';
-import selectedAssetsToolBarStyles from '@/styles/selectedAssetsToolBarStyles';
+import popupMenuStyles from '@/styles/popupMenuStyles';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
-export default function DeleteSelectedAssetsAction({ afterAction }) {
+export default function DeleteSelectionMenuOption({ getSelectedAssets, afterAction }) {
   const { setAssetsDeleted } = useAssets();
-  const getSelectedAssets = useSelectedAssets();
 
-  function handlePress() {
+  function handleSelect() {
     const selectedAssets = getSelectedAssets();
 
     Alert.alert(`Delete ${getAssetCountInfo(selectedAssets)}?`, '', [
@@ -30,11 +29,9 @@ export default function DeleteSelectedAssetsAction({ afterAction }) {
   }
 
   return (
-    <Pressable onPress={handlePress} style={selectedAssetsToolBarStyles.button}>
-      <Ionicons
-        name="trash-outline"
-        style={[selectedAssetsToolBarStyles.buttonIcon, selectedAssetsToolBarStyles.buttonIconDanger]}
-      />
-    </Pressable>
+    <MenuOption onSelect={handleSelect} customStyles={{ optionWrapper: { ...popupMenuStyles.menuOption, ...popupMenuStyles.menuOptionLast } }}>
+      <Text style={popupMenuStyles.menuOptionText}>Delete</Text>
+      <Ionicons name="trash-outline" style={popupMenuStyles.menuOptionIcon} />
+    </MenuOption>
   );
 }
