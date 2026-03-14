@@ -20,6 +20,7 @@ import { SCREEN_PADDING } from '@/constants';
 import LoginForm from '@/components/LoginForm';
 import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
 import { MODEL_STORAGE_KEY, DEFAULT_MODEL } from '@/features/ai-suggestions/aiSuggestionsStorage';
+import useScreenPadding from '@/hooks/useScreenPadding';
 import confirmLogoutAsync from '@/features/cloud/confirmLogoutAsync';
 import useCloud from '@/features/cloud/useCloud';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
@@ -175,10 +176,12 @@ export default function SettingsScreen() {
     return 'All synced';
   }
 
+  const { paddingTop } = useScreenPadding('detail');
+
   return (
     <Page>
     <FloatingDetailHeader title="Settings" onBack={() => navigation.goBack()} />
-    <ScrollView contentContainerStyle={styles.content} automaticallyAdjustKeyboardInsets>
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop }]} automaticallyAdjustKeyboardInsets>
       {isAuthenticated ? (
         <>
           {/* Account */}
@@ -273,7 +276,6 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingTop: 100,
     paddingHorizontal: SCREEN_PADDING,
   },
 

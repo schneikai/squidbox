@@ -58,7 +58,6 @@ export default function PostsScreen() {
       onFilter: toggleFilter,
       onAdd: handleAdd,
     });
-    screenOptionsRef.current._activeTab = 'posts';
   }, [sortOrder, activeFilter]);
 
   function handleScroll(event) {

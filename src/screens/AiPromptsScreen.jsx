@@ -3,35 +3,43 @@ import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, TextInput, View, ScrollView } from 'react-native';
 
+import useScreenPadding from '@/hooks/useScreenPadding';
+
 import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { SCREEN_PADDING } from '@/constants';
 import {
   DEFAULT_PROMPT,
+  DEFAULT_RANDOM_TWEETS_PROMPT,
   DEFAULT_SYSTEM_PROMPT,
   DEFAULT_VARIATION_PROMPT,
   PROMPT_STORAGE_KEY,
+  RANDOM_TWEETS_PROMPT_STORAGE_KEY,
   SYSTEM_PROMPT_STORAGE_KEY,
   VARIATION_PROMPT_STORAGE_KEY,
 } from '@/features/ai-suggestions/aiSuggestionsStorage';
 
 export default function AiPromptsScreen() {
   const navigation = useNavigation();
+  const { paddingTop } = useScreenPadding('detail');
   const [defaultPrompt, setDefaultPrompt] = useState(DEFAULT_PROMPT);
   const [variationPrompt, setVariationPrompt] = useState(DEFAULT_VARIATION_PROMPT);
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
+  const [randomTweetsPrompt, setRandomTweetsPrompt] = useState(DEFAULT_RANDOM_TWEETS_PROMPT);
 
   useEffect(() => {
     async function load() {
       try {
-        const [p, v, s] = await Promise.all([
+        const [p, v, s, r] = await Promise.all([
           AsyncStorage.getItem(PROMPT_STORAGE_KEY),
           AsyncStorage.getItem(VARIATION_PROMPT_STORAGE_KEY),
           AsyncStorage.getItem(SYSTEM_PROMPT_STORAGE_KEY),
+          AsyncStorage.getItem(RANDOM_TWEETS_PROMPT_STORAGE_KEY),
         ]);
         if (p !== null) setDefaultPrompt(p);
         if (v !== null) setVariationPrompt(v);
         if (s !== null) setSystemPrompt(s);
+        if (r !== null) setRandomTweetsPrompt(r);
       } catch {}
     }
     load();
@@ -46,7 +54,7 @@ export default function AiPromptsScreen() {
   return (
     <Page>
     <FloatingDetailHeader title="AI Prompts" onBack={() => navigation.goBack()} />
-    <ScrollView contentContainerStyle={styles.content} automaticallyAdjustKeyboardInsets>
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop }]} automaticallyAdjustKeyboardInsets>
       <Text style={styles.sectionHeader}>Default Prompt</Text>
       <View style={styles.section}>
         <View style={styles.cell}>
@@ -77,6 +85,24 @@ export default function AiPromptsScreen() {
         The variation prompt is used when you open the wand on a post that already has text.
       </Text>
 
+      <Text style={styles.sectionHeader}>Random Suggestions</Text>
+      <View style={styles.section}>
+        <View style={styles.cell}>
+          <Text style={styles.cellLabel}>Random tweet prompt</Text>
+          <TextInput
+            style={[styles.cellInput, styles.cellInputCapped]}
+            value={randomTweetsPrompt}
+            onChangeText={(v) => { setRandomTweetsPrompt(v); save(RANDOM_TWEETS_PROMPT_STORAGE_KEY, v); }}
+            multiline
+            placeholder="e.g. Create tweets with variety…"
+            placeholderTextColor="#C7C7CC"
+          />
+        </View>
+      </View>
+      <Text style={styles.sectionFooter}>
+        Used by the dice button in Add Post. Describe the style and tone — the instruction to generate 10 tweets and return them as JSON is added automatically.
+      </Text>
+
       <Text style={styles.sectionHeader}>System Prompt</Text>
       <View style={styles.section}>
         <View style={styles.cell}>
@@ -103,7 +129,6 @@ export default function AiPromptsScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingTop: 100,
     paddingHorizontal: SCREEN_PADDING,
   },
 
@@ -153,6 +178,9 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     lineHeight: 22,
     minHeight: 36,
+  },
+  cellInputCapped: {
+    maxHeight: 66,
   },
 
   footer: {

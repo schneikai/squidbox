@@ -33,6 +33,19 @@ export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot
       style={[styles.container, { top: insets.top + 8 }]}
       pointerEvents="box-none"
     >
+      {/* Centre — rendered first so it sits below the pills in z-order;
+          pointerEvents="none" ensures touches pass through to the pills above */}
+      {(!!title || !!subtitle) && (
+        <Animated.View style={[styles.infoArea, leftStyle]} pointerEvents="none">
+          <FloatingPill style={styles.infoPill}>
+            <View style={styles.infoContent}>
+              {!!title && <Text style={styles.title} numberOfLines={2}>{title}</Text>}
+              {!!subtitle && <Text style={styles.subtitle} numberOfLines={2}>{subtitle}</Text>}
+            </View>
+          </FloatingPill>
+        </Animated.View>
+      )}
+
       {/* Left — back chevron pill */}
       <Animated.View style={leftStyle}>
         <FloatingPill style={styles.backPill}>
@@ -45,18 +58,6 @@ export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot
           </Pressable>
         </FloatingPill>
       </Animated.View>
-
-      {/* Centre — info pill */}
-      {(!!title || !!subtitle) && (
-        <Animated.View style={[styles.infoArea, leftStyle]} pointerEvents="none">
-          <FloatingPill style={styles.infoPill}>
-            <View style={styles.infoContent}>
-              {!!title && <Text style={styles.title} numberOfLines={2}>{title}</Text>}
-              {!!subtitle && <Text style={styles.subtitle} numberOfLines={2}>{subtitle}</Text>}
-            </View>
-          </FloatingPill>
-        </Animated.View>
-      )}
 
       {/* Right — menu / action pill */}
       {!!menuSlot && (
@@ -75,6 +76,7 @@ const styles = StyleSheet.create({
     right: spacing.floatingBarSide,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     zIndex: 100,
   },
 
@@ -95,9 +97,10 @@ const styles = StyleSheet.create({
 
   // ── Info pill ─────────────────────────────────────────────────────────────
   infoArea: {
-    flex: 1,
+    position: 'absolute',
+    left: 0,
+    right: 0,
     alignItems: 'center',
-    paddingHorizontal: 8,
   },
   infoPill: {
     maxWidth: '100%',

@@ -1,8 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect } from 'react';
 import Animated, {
   useAnimatedStyle,
+  useSharedValue,
   withTiming,
   interpolate,
   Extrapolation,
@@ -24,7 +26,7 @@ const NAV_ITEMS = [
 export default function FloatingNavigationBar() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { navBarVisible, isSearchActive, isSelectMode, resetScroll } = useFloatingBars();
+  const { navScrollOffset, isSearchActive, isSelectMode, resetScroll } = useFloatingBars();
 
   const activeTab = useNavigationState((s) => getActiveTabName(s));
   const stackDepth = useNavigationState((s) => getActiveStackDepth(s));
@@ -32,12 +34,22 @@ export default function FloatingNavigationBar() {
 
   const hideBar = isSearchActive || !isMainScreen || isSelectMode;
 
+  // Animates 0 → 1 (hide) and 1 → 0 (show) so both directions get a smooth transition
+  const contextHidden = useSharedValue(hideBar ? 1 : 0);
+  useEffect(() => {
+    contextHidden.value = withTiming(hideBar ? 1 : 0, { duration: 250 });
+  }, [hideBar]);
+
   const navBarStyle = useAnimatedStyle(() => {
-    const scrollHide = interpolate(navBarVisible.value, [0, 1], [100, 0], Extrapolation.CLAMP);
-    const contextHide = hideBar ? 100 : 0;
+    // Scroll-driven: tracks accumulated downward scroll, resets via spring on scroll-up
+    const scrollTranslate = interpolate(navScrollOffset.value, [20, 100], [0, 100], Extrapolation.CLAMP);
+    const scrollOpacity = interpolate(navScrollOffset.value, [20, 100], [1, 0], Extrapolation.CLAMP);
+    // Toggle-driven: animated shared value so both hide and show are smooth
+    const contextTranslate = interpolate(contextHidden.value, [0, 1], [0, 100]);
+    const contextOpacity = interpolate(contextHidden.value, [0, 1], [1, 0]);
     return {
-      transform: [{ translateY: withTiming(Math.max(scrollHide, contextHide), { duration: 250 }) }],
-      opacity: withTiming(hideBar ? 0 : 1, { duration: 250 }),
+      transform: [{ translateY: Math.max(scrollTranslate, contextTranslate) }],
+      opacity: Math.min(scrollOpacity, contextOpacity),
     };
   });
 

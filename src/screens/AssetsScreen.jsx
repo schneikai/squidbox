@@ -124,7 +124,6 @@ export default function AssetsScreen({ route }) {
       onPost: handlePost,
       onDelete: handleDelete,
     });
-    screenOptionsRef.current._activeTab = 'assets';
   }, [sortOrder, activeFilter]);
 
   function onPressAsset(asset) {

@@ -53,7 +53,6 @@ export default function AlbumsScreen({ navigation }) {
       onFilter: toggleFilter,
       onAdd: handleAdd,
     });
-    screenOptionsRef.current._activeTab = 'albums';
   }, [sortOrder, activeFilter]);
 
   function handleScroll(event) {

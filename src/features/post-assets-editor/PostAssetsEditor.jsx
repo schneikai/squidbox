@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
 import DraggableFlatList from 'react-native-draggable-flatlist';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 import AddAssetButton from './AddAssetButton';
 import PostAsset from './PostAsset';
@@ -10,12 +11,13 @@ import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay
 import useAssets from '@/features/assets-context/useAssets';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 import assetRefsToPostAssets from '@/utils/posts/assetRefsToPostAssets';
+import buildPostAsset from '@/utils/posts/buildPostAsset';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
 import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
 
 const LIST_VERTICAL_PADDING = 80;
 
-export default function PostAssetsEditor({ assetRefs, onChange }) {
+export default function PostAssetsEditor({ assetRefs, onChange, getRandomAsset, randomizeRef }) {
   const { assets } = useAssets();
   const [postAssets, setPostAssets] = useState(assetRefsToPostAssets(assetRefs, assets));
   const [assetCountInfo, setAssetCountInfo] = useState('');
@@ -47,6 +49,15 @@ export default function PostAssetsEditor({ assetRefs, onChange }) {
     setPostAssets((postAssets) => postAssets.filter((x) => x.id !== postAsset.id));
   }
 
+  function handleRandomizeAsset() {
+    const asset = getRandomAsset?.();
+    if (asset) setPostAssets([buildPostAsset(asset)]);
+  }
+
+  useEffect(() => {
+    if (randomizeRef) randomizeRef.current = handleRandomizeAsset;
+  });
+
   return (
     <>
       <View style={[styles.container, { width: screenWidth, height: screenWidth }]}>
@@ -68,6 +79,15 @@ export default function PostAssetsEditor({ assetRefs, onChange }) {
           ListFooterComponent={<AddAssetButton onAdd={handleAddAssets} itemDimension={itemDimension} />}
         />
         {postAssets.length > 0 && <Text style={styles.assetCountInfo}>{assetCountInfo}</Text>}
+        {getRandomAsset && (
+          <TouchableOpacity
+            style={styles.randomizeAssetButton}
+            onPress={handleRandomizeAsset}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="dice-outline" size={22} color="white" />
+          </TouchableOpacity>
+        )}
       </View>
     </>
   );
@@ -84,5 +104,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'gray',
     fontWeight: 'bold',
+  },
+  randomizeAssetButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    borderRadius: 16,
+    padding: 5,
   },
 });

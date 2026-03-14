@@ -1,7 +1,15 @@
 import { useState, useRef, useCallback } from 'react';
-import { useSharedValue } from 'react-native-reanimated';
+import { useNavigationState } from '@react-navigation/native';
+import { useSharedValue, withSpring } from 'react-native-reanimated';
 
 import FloatingBarsContext from './FloatingBarsContext';
+import { getActiveTabName } from './navStateHelpers';
+
+const TAB_TO_OPTIONS_KEY = {
+  AssetsTab: 'assets',
+  AlbumsTab: 'albums',
+  PostsTab: 'posts',
+};
 
 export default function FloatingBarsProvider({ children }) {
   // ── Search ────────────────────────────────────────────────────────────────
@@ -28,19 +36,17 @@ export default function FloatingBarsProvider({ children }) {
   const [filterModalData, setFilterModalData] = useState(null);
 
   // ── Per-screen options (ref = no extra re-renders on every sort/filter change)
-  const screenOptionsRef = useRef({
-    assets: null,
-    albums: null,
-    posts: null,
-  });
+  const screenOptionsRef = useRef({});
 
   const registerScreenOptions = useCallback((tab, options) => {
     screenOptionsRef.current[tab] = options;
   }, []);
 
+  const activeTabName = useNavigationState(getActiveTabName);
+
   function openFilterModal() {
-    const activeTab = screenOptionsRef.current._activeTab ?? 'assets';
-    setFilterModalData({ ...screenOptionsRef.current[activeTab] });
+    const key = TAB_TO_OPTIONS_KEY[activeTabName] ?? 'assets';
+    setFilterModalData({ ...screenOptionsRef.current[key] });
     setIsFilterModalOpen(true);
   }
 
@@ -70,27 +76,28 @@ export default function FloatingBarsProvider({ children }) {
     );
   }
 
-  // ── Scroll-driven nav visibility (Reanimated shared values) ───────────────
+  // ── Scroll-driven visibility (Reanimated shared values) ───────────────────
   const scrollY = useSharedValue(0);
   const lastScrollY = useSharedValue(0);
-  const navBarVisible = useSharedValue(1);
+  // Accumulated downward scroll since last direction reversal.
+  // Resets to 0 the instant the user scrolls up → nav bar snaps back immediately.
+  const navScrollOffset = useSharedValue(0);
 
-  // Called by each main screen's FlatList via onScroll (JS thread)
   function onScrollUpdate(y) {
-    if (y > lastScrollY.value + 10 && y > 50) {
-      navBarVisible.value = 0;
-    } else if (y < lastScrollY.value - 10) {
-      navBarVisible.value = 1;
+    const delta = y - lastScrollY.value;
+    if (delta < -2) {
+      navScrollOffset.value = withSpring(0, { damping: 20, stiffness: 250 });
+    } else if (delta > 2) {
+      navScrollOffset.value = Math.min(navScrollOffset.value + delta, 100);
     }
     lastScrollY.value = y;
     scrollY.value = y;
   }
 
-  // Reset nav state when switching tabs
   function resetScroll() {
     scrollY.value = 0;
     lastScrollY.value = 0;
-    navBarVisible.value = 1;
+    navScrollOffset.value = 0;
   }
 
   const value = {
@@ -120,7 +127,7 @@ export default function FloatingBarsProvider({ children }) {
 
     // Scroll animation values (passed to animated components)
     scrollY,
-    navBarVisible,
+    navScrollOffset,
     onScrollUpdate,
     resetScroll,
   };
