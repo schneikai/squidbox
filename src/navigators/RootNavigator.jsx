@@ -1,5 +1,4 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { HeaderBackButton } from '@react-navigation/elements';
 
 import AssetPickerScreen from '@/features/asset-picker/AssetPickerScreen';
 import AddEditPostNavigator from '@/navigators/AddEditPostNavigator';
@@ -7,14 +6,18 @@ import CreatePostNavigator from '@/navigators/CreatePostNavigator';
 import MainTabNavigator from '@/navigators/MainTabNavigator';
 import AddToAlbumScreen from '@/screens/AddToAlbumScreen';
 import EditNotesModal from '@/screens/EditNotesModal';
+
 const RootStack = createNativeStackNavigator();
 
 export default function RootNavigator() {
   return (
-    <RootStack.Navigator initialRouteName="MainTab">
+    <RootStack.Navigator
+      initialRouteName="MainTab"
+      screenOptions={{ contentStyle: { backgroundColor: 'transparent' } }}
+    >
       <RootStack.Group screenOptions={{ presentation: 'modal' }}>
-        <RootStack.Screen 
-          name="CreatePostModal" 
+        <RootStack.Screen
+          name="CreatePostModal"
           component={CreatePostNavigator}
           options={{ headerShown: false }}
         />

@@ -1,16 +1,12 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Clipboard from 'expo-clipboard';
 import { Alert } from 'react-native';
-import { Menu, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
 
-import TextMenuOption from '@/components/popup-menu-options/TextMenuOption';
+import PopupMenu from '@/components/popup-menu-options/PopupMenu';
+import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useAppSettings from '@/features/app-settings/useAppSettings';
-import headerActionStyles from '@/styles/headerActionStyles';
-import popupMenuStyles from '@/styles/popupMenuStyles';
-import humanizeMediaType from '@/utils/assets/humanizeMediaType';
 import getAssetFileDownloadUrlAsync from '@/utils/cloud-api/assets/getAssetFileDownloadUrlAsync';
 
-export default function MoreAction({ asset, navigation, onDeleteAsset }) {
+export default function MoreAction({ asset, navigation }) {
   const { setPostsQuery } = useAppSettings();
 
   function handleAddToAlbum() {
@@ -40,44 +36,18 @@ export default function MoreAction({ asset, navigation, onDeleteAsset }) {
     navigation.navigate('EditNotesModal', { type: 'asset', id: asset.id, notes: asset.notes ?? '' });
   }
 
-  function handleDeleteAsset() {
-    Alert.alert(
-      `Delete ${humanizeMediaType(asset.mediaType)}`,
-      `Are you sure you want to delete this ${humanizeMediaType(asset.mediaType)}?`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            onDeleteAsset(asset);
-            navigation.goBack();
-          },
-        },
-      ],
-    );
-  }
-
   return (
-    <Menu>
-      <MenuTrigger customStyles={{ triggerWrapper: headerActionStyles.button }}>
-        <Ionicons name="ellipsis-vertical" style={headerActionStyles.buttonIcon} />
-      </MenuTrigger>
-      <MenuOptions customStyles={popupMenuStyles.menuOptions}>
-        <TextMenuOption label="Add to album" onPress={handleAddToAlbum} />
-        <TextMenuOption label="Create post" onPress={handleCreatePost} />
-        <TextMenuOption label="Show posts" onPress={handleShowPosts} />
-        <TextMenuOption label="Copy file URL" onPress={handleCopyFileUrl} />
-        <TextMenuOption label={asset.notes ? 'Edit note' : 'Add note'} onPress={handleEditNotes} />
-        <TextMenuOption
-          label={`Delete ${asset && humanizeMediaType(asset.mediaType)}`}
-          onPress={handleDeleteAsset}
-          isLast
-        />
-      </MenuOptions>
-    </Menu>
+    <PopupMenu icon="ellipsis-horizontal" variant="pill">
+      <MenuOption label="Add to album" icon="albums-outline" onPress={handleAddToAlbum} />
+      <MenuOption label="Create post" icon="create-outline" onPress={handleCreatePost} />
+      <MenuOption label="Show posts" icon="list-outline" onPress={handleShowPosts} />
+      <MenuOption label="Copy file URL" icon="link-outline" onPress={handleCopyFileUrl} />
+      <MenuOption
+        label={asset.notes ? 'Edit note' : 'Add note'}
+        icon="document-text-outline"
+        onPress={handleEditNotes}
+        isLast
+      />
+    </PopupMenu>
   );
 }

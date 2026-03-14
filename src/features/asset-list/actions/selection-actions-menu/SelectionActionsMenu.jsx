@@ -1,10 +1,7 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Children, cloneElement } from 'react';
-import { Menu, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
 
+import PopupMenu from '@/components/popup-menu-options/PopupMenu';
 import useAssets from '@/features/assets-context/useAssets';
-import headerActionStyles from '@/styles/headerActionStyles';
-import popupMenuStyles from '@/styles/popupMenuStyles';
 
 const allAssetsLimit = 500;
 
@@ -25,11 +22,8 @@ export default function SelectionActionsMenu({ selectedAssetIds, allAssetIds, ch
   );
 
   return (
-    <Menu>
-      <MenuTrigger customStyles={{ triggerWrapper: headerActionStyles.button }}>
-        <Ionicons name="ellipsis-vertical" style={headerActionStyles.buttonIcon} />
-      </MenuTrigger>
-      <MenuOptions customStyles={popupMenuStyles.menuOptions}>{childrenWithProps}</MenuOptions>
-    </Menu>
+    <PopupMenu icon="ellipsis-horizontal">
+      {childrenWithProps}
+    </PopupMenu>
   );
 }

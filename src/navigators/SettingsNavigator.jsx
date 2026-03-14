@@ -7,9 +7,9 @@ const Stack = createNativeStackNavigator();
 
 export default function SettingsNavigator() {
   return (
-    <Stack.Navigator>
-      <Stack.Screen name="SettingsScreen" component={SettingsScreen} options={{ title: 'Settings' }} />
-      <Stack.Screen name="AiPromptsScreen" component={AiPromptsScreen} options={{ title: 'AI Prompts' }} />
+    <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
+      <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
+      <Stack.Screen name="AiPromptsScreen" component={AiPromptsScreen} />
     </Stack.Navigator>
   );
 }

@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState, useTransition } from 'react';
 import {
   ActivityIndicator,
@@ -12,6 +13,8 @@ import {
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 
+import Page from '@/components/Page';
+import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { SCREEN_PADDING } from '@/constants';
 
 import LoginForm from '@/components/LoginForm';
@@ -64,7 +67,8 @@ function Row({ label, value, onPress, destructive, chevron, children }) {
 
 // ─── Main screen ────────────────────────────────────────────────────────────
 
-export default function SettingsScreen({ navigation }) {
+export default function SettingsScreen() {
+  const navigation = useNavigation();
   const { isAuthenticated, user, logoutAsync, loadDataAndSaveLocalAsync, backupDataAsync } = useCloud();
   const { unsyncedAssets, assetsWithSyncErrors, isSyncing, syncMessage, syncProgressMessage, syncSpeedMessage, syncNow } = useCloudSync();
   const [showSyncDetails, setShowSyncDetails] = useState(false);
@@ -172,7 +176,9 @@ export default function SettingsScreen({ navigation }) {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} automaticallyAdjustKeyboardInsets>
+    <Page>
+    <FloatingDetailHeader title="Settings" onBack={() => navigation.goBack()} />
+    <ScrollView contentContainerStyle={styles.content} automaticallyAdjustKeyboardInsets>
       {isAuthenticated ? (
         <>
           {/* Account */}
@@ -261,16 +267,13 @@ export default function SettingsScreen({ navigation }) {
 
       <View style={styles.footer} />
     </ScrollView>
+    </Page>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
   content: {
-    paddingTop: 20,
+    paddingTop: 100,
     paddingHorizontal: SCREEN_PADDING,
   },
 

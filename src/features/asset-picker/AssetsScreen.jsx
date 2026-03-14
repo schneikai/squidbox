@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 
 import AssetQuickViewModal, { useAssetQuickViewModal } from '@/components/AssetQuickViewModal';
-import HeaderActions from '@/components/HeaderActions';
+import PickerHeader from '@/components/PickerHeader';
 import SuperPressable from '@/components/SuperPressable';
-import ScreenHeader from '@/components/screen-header/ScreenHeader';
 import AssetList from '@/features/asset-list/AssetList';
 import AssetListItem from '@/features/asset-list/AssetListItem';
 import FilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/FilterAssetsAction';
@@ -55,12 +54,10 @@ export default function AssetsScreen() {
           </SuperPressable>
         )}
         ListHeaderComponent={
-          <ScreenHeader label="Assets">
-            <HeaderActions>
-              <SortAssetsAction sortOrder={sortOrder} onPress={sortAssets} />
-              <FilterAssetsAction activeFilter={activeFilter} onPress={toggleFilter} />
-            </HeaderActions>
-          </ScreenHeader>
+          <PickerHeader label="Assets">
+            <SortAssetsAction sortOrder={sortOrder} onPress={sortAssets} />
+            <FilterAssetsAction activeFilter={activeFilter} onPress={toggleFilter} />
+          </PickerHeader>
         }
       />
     </>

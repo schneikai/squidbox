@@ -1,15 +1,15 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable } from 'react-native';
 
-import headerActionStyles from '@/styles/headerActionStyles';
+import actionButtonStyles from '@/styles/actionButtonStyles';
 
 export default function SearchPostsAction({ isSearchBarVisible, onPress }) {
   return (
     <Pressable
       onPress={onPress}
-      style={[headerActionStyles.button, isSearchBarVisible && headerActionStyles.buttonActive]}
+      style={[actionButtonStyles.button, isSearchBarVisible && actionButtonStyles.buttonActive]}
     >
-      <Ionicons name="search-outline" style={headerActionStyles.buttonIcon} />
+      <Ionicons name="search-outline" style={actionButtonStyles.buttonIcon} />
     </Pressable>
   );
 }

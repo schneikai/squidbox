@@ -1,12 +1,23 @@
-import TextMenuOption from '@/components/popup-menu-options/TextMenuOption';
+import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useAppSettings from '@/features/app-settings/useAppSettings';
 
 export default function ToggleThumbnailStyleOption() {
   const { thumbnailStyle, setThumbnailStyle } = useAppSettings();
 
   if (thumbnailStyle === 'contain') {
-    return <TextMenuOption label="Square image grid" onPress={() => setThumbnailStyle('cover')} />;
-  } else {
-    return <TextMenuOption label="Full image grid" onPress={() => setThumbnailStyle('contain')} />;
+    return (
+      <MenuOption
+        label="Square image grid"
+        icon="grid-outline"
+        onPress={() => setThumbnailStyle('cover')}
+      />
+    );
   }
+  return (
+    <MenuOption
+      label="Full image grid"
+      icon="expand-outline"
+      onPress={() => setThumbnailStyle('contain')}
+    />
+  );
 }

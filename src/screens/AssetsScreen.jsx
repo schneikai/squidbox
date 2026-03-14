@@ -1,38 +1,48 @@
-import { useMemo } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useCallback, useEffect, useMemo } from 'react';
+import { Alert } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 
 import AssetQuickViewModal, { useAssetQuickViewModal } from '@/components/AssetQuickViewModal';
-import HeaderActions from '@/components/HeaderActions';
 import SuperPressable from '@/components/SuperPressable';
-import ScreenHeader from '@/components/screen-header/ScreenHeader';
-import AddToAlbumSelectionMenuOption from '@/components/selected-assets-tool-bar/actions/add-to-album-selection-menu-option/AddToAlbumSelectionMenuOption';
-import CreatePostSelectionMenuOption from '@/components/selected-assets-tool-bar/actions/create-post-selection-menu-option/CreatePostSelectionMenuOption';
-import DeleteSelectionMenuOption from '@/components/selected-assets-tool-bar/actions/delete-selection-menu-option/DeleteSelectionMenuOption';
-import DownloadSelectionMenuOption from '@/components/selected-assets-tool-bar/actions/download-selection-menu-option/DownloadSelectionMenuOption';
+import { useFloatingBars } from '@/components/floating-bars/FloatingBarsContext';
 import AssetList from '@/features/asset-list/AssetList';
 import AssetListItem from '@/features/asset-list/AssetListItem';
-import AddAssetAction from '@/features/asset-list/actions/add-asset-action/AddAssetAction';
-import FilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/FilterAssetsAction';
 import useFilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/useFilterAssetsAction';
-import MoreAction from '@/features/asset-list/actions/more-action/MoreAction';
-import SelectionActionsMenu from '@/features/asset-list/actions/selection-actions-menu/SelectionActionsMenu';
-import SortAssetsAction from '@/features/asset-list/actions/sort-assets-action/SortAssetsAction';
 import useSortAssetsAction from '@/features/asset-list/actions/sort-assets-action/useSortAssetsAction';
-import ToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/ToggleSelectAssetsAction';
-import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import prepareAssets from '@/features/asset-list/prepareAssets';
 import useAssetList from '@/features/asset-list/useAssetList';
 import useAssets from '@/features/assets-context/useAssets';
+import useAddAssetsFromCameraRoll from '@/features/assets-context/useAddAssetsFromCameraRoll';
+import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
+import useScreenPadding from '@/hooks/useScreenPadding';
 
-export default function AssetsScreen({ route, navigation }) {
-  const { assets, toggleFavoriteAsset } = useAssets();
-  const insets = useSafeAreaInsets();
+export default function AssetsScreen({ route }) {
+  const navigation = useNavigation();
+  const { assets, toggleFavoriteAsset, setAssetsDeleted } = useAssets();
+  const { paddingTop, paddingBottom } = useScreenPadding('main');
 
   const { listRef, listScrollTop } = useAssetList();
-  const { isSelectMode, selectedAssetIds, toggleSelectMode, toggleSelectAsset } = useToggleSelectAssetsAction();
   const { sortOrder, sortFunction, sortAssets } = useSortAssetsAction({ afterSort: listScrollTop });
   const { activeFilter, toggleFilter, matchFilter } = useFilterAssetsAction({ afterFilter: listScrollTop });
   const { asset: quickViewAsset, open: openAssetQuickView, close: closeAssetQuickView } = useAssetQuickViewModal();
+
+  const {
+    isSelectMode,
+    selectedAssetIds,
+    toggleSelectAsset,
+    exitSelectMode,
+    registerScreenOptions,
+    screenOptionsRef,
+    onScrollUpdate,
+    searchText,
+  } = useFloatingBars();
+
+  const { show, hide, updateProgress } = useProgressOverlay();
+  const addAssetsFromCameraRollAsync = useAddAssetsFromCameraRoll({
+    onStart: show,
+    onProgress: updateProgress,
+    onFinish: hide,
+  });
 
   const assetIds = useMemo(
     () =>
@@ -40,9 +50,82 @@ export default function AssetsScreen({ route, navigation }) {
         assets: Object.values(assets),
         sortFn: sortFunction,
         filterFn: matchFilter,
+        searchText,
       }).map((asset) => asset.id),
-    [assets, sortFunction, matchFilter],
+    [assets, sortFunction, matchFilter, searchText],
   );
+
+  // ── Action handlers wired into FloatingHeader via context ─────────────────
+
+  async function handleAdd() {
+    try {
+      await addAssetsFromCameraRollAsync();
+    } catch (error) {
+      Alert.alert('Failed to add assets!', error.message);
+    }
+  }
+
+  function handleDownload() {
+    const selected = getSelectedAssets();
+    // Trigger download via the existing save utility
+    screenOptionsRef.current._downloadSelected?.(selected);
+  }
+
+  function handleAddToAlbum() {
+    const ids = selectedAssetIds.length > 0 ? selectedAssetIds : assetIds.slice(0, 500);
+    navigation.navigate('AddToAlbumModal', { assetIds: ids });
+    exitSelectMode();
+  }
+
+  function handlePost() {
+    const ids = selectedAssetIds.length > 0 ? selectedAssetIds : [];
+    if (ids.length === 0) return;
+    navigation.navigate('AddEditPostModal', { assetIds: ids });
+    exitSelectMode();
+  }
+
+  function handleDelete() {
+    const selected = getSelectedAssets();
+    Alert.alert(`Delete ${selected.length} item${selected.length !== 1 ? 's' : ''}?`, '', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          setAssetsDeleted(selected.map((a) => a.id));
+          exitSelectMode();
+        },
+      },
+    ]);
+  }
+
+  function getSelectedAssets() {
+    const ids = selectedAssetIds.length > 0 ? selectedAssetIds : assetIds.slice(0, 500);
+    return Object.values(assets).filter((a) => ids.includes(a.id));
+  }
+
+  // Register this screen's options with the floating bars context
+  useEffect(() => {
+    registerScreenOptions('assets', {
+      sortOrder,
+      activeFilter,
+      filterOptions: [
+        { key: 'all', label: 'All Media', icon: 'apps-outline' },
+        { key: 'favorites', label: 'Favorites', icon: 'heart-outline' },
+        { key: 'images', label: 'Photos', icon: 'image-outline' },
+        { key: 'videos', label: 'Videos', icon: 'videocam-outline' },
+      ],
+      showViewOptions: true,
+      onSort: sortAssets,
+      onFilter: toggleFilter,
+      onAdd: handleAdd,
+      onDownload: handleDownload,
+      onAddToAlbum: handleAddToAlbum,
+      onPost: handlePost,
+      onDelete: handleDelete,
+    });
+    screenOptionsRef.current._activeTab = 'assets';
+  }, [sortOrder, activeFilter]);
 
   function onPressAsset(asset) {
     if (isSelectMode) {
@@ -52,13 +135,18 @@ export default function AssetsScreen({ route, navigation }) {
     }
   }
 
+  function handleScroll(event) {
+    onScrollUpdate(event.nativeEvent.contentOffset.y);
+  }
+
   return (
     <>
       <AssetQuickViewModal asset={quickViewAsset} isVisible={!!quickViewAsset} />
       <AssetList
         listRef={listRef}
         assetIds={assetIds}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+        contentContainerStyle={{ paddingTop, paddingBottom }}
+        onScroll={handleScroll}
         renderListItem={(asset) => (
           <SuperPressable
             onPress={() => onPressAsset(asset)}
@@ -69,36 +157,12 @@ export default function AssetsScreen({ route, navigation }) {
           >
             <AssetListItem
               asset={asset}
+              isSelectMode={isSelectMode}
               isSelected={selectedAssetIds.includes(asset.id)}
               showLastPostedAt={sortOrder.includes('lastPostedAt')}
             />
           </SuperPressable>
         )}
-        ListHeaderComponent={
-          <ScreenHeader label="Assets" insets={insets}>
-            <HeaderActions>
-              {isSelectMode ? (
-                <>
-                  <ToggleSelectAssetsAction isSelectMode={isSelectMode} onPress={toggleSelectMode} />
-                  <SelectionActionsMenu selectedAssetIds={selectedAssetIds} allAssetIds={assetIds}>
-                    <DownloadSelectionMenuOption />
-                    <AddToAlbumSelectionMenuOption />
-                    <CreatePostSelectionMenuOption />
-                    <DeleteSelectionMenuOption afterAction={() => toggleSelectMode()} />
-                  </SelectionActionsMenu>
-                </>
-              ) : (
-                <>
-                  <AddAssetAction />
-                  <ToggleSelectAssetsAction isSelectMode={isSelectMode} onPress={toggleSelectMode} />
-                  <SortAssetsAction sortOrder={sortOrder} onPress={sortAssets} />
-                  <FilterAssetsAction activeFilter={activeFilter} onPress={toggleFilter} />
-                  <MoreAction />
-                </>
-              )}
-            </HeaderActions>
-          </ScreenHeader>
-        }
       />
     </>
   );

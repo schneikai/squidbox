@@ -3,7 +3,7 @@ import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import SuperPressable from '@/components/SuperPressable';
-import headerActionStyles from '@/styles/headerActionStyles';
+import actionButtonStyles from '@/styles/actionButtonStyles';
 import { SCREEN_PADDING } from '@/constants';
 import usePosts from '@/features/posts-context/usePosts';
 import PostList from '@/features/post-list/PostList';
@@ -92,14 +92,14 @@ export default function CreatePostScreen({ navigation }) {
 function PostActions({ onRepost, onPostpone, onIgnore }) {
   return (
     <View style={styles.menuContainer}>
-      <TouchableOpacity style={[headerActionStyles.button, styles.primaryButton]} onPress={onRepost}>
-        <Ionicons name="create" style={[headerActionStyles.buttonIcon, styles.primaryButtonIcon]} />
+      <TouchableOpacity style={[actionButtonStyles.button, styles.primaryButton]} onPress={onRepost}>
+        <Ionicons name="create" style={[actionButtonStyles.buttonIcon, styles.primaryButtonIcon]} />
       </TouchableOpacity>
-      <TouchableOpacity style={headerActionStyles.button} onPress={onPostpone}>
-        <Ionicons name="time-outline" style={headerActionStyles.buttonIcon} />
+      <TouchableOpacity style={actionButtonStyles.button} onPress={onPostpone}>
+        <Ionicons name="time-outline" style={actionButtonStyles.buttonIcon} />
       </TouchableOpacity>
-      <TouchableOpacity style={headerActionStyles.button} onPress={onIgnore}>
-        <Ionicons name="eye-off-outline" style={headerActionStyles.buttonIcon} />
+      <TouchableOpacity style={actionButtonStyles.button} onPress={onIgnore}>
+        <Ionicons name="eye-off-outline" style={actionButtonStyles.buttonIcon} />
       </TouchableOpacity>
     </View>
   );

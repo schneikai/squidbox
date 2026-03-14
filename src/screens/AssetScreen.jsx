@@ -1,37 +1,37 @@
 import { useState, useEffect, useRef } from 'react';
-import { FlatList, StyleSheet, useWindowDimensions, Text, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { FlatList, StyleSheet, TouchableOpacity, Text, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { SCREEN_PADDING } from '@/constants';
-import AssetHeader from '@/components/AssetHeader';
-import HeaderActions from '@/components/HeaderActions';
+import Page from '@/components/Page';
+
+import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
+import FloatingDetailActionsBar from '@/components/floating-bars/FloatingDetailActionsBar';
 import VideoControls from '@/components/VideoControls';
 import AssetItem from '@/features/asset-detail/AssetItem';
-import DownloadAssetAction from '@/features/asset-detail/actions/DownloadAssetAction';
 import MoreAction from '@/features/asset-detail/actions/MoreAction';
-import ToggleFavoriteAssetAction from '@/features/asset-detail/actions/ToggleFavoriteAssetAction';
 import useAssets from '@/features/assets-context/useAssets';
+import { SCREEN_PADDING } from '@/constants';
 import { MEDIA_TYPES } from '@/utils/assets/constants';
+import dateToSimpleFormat from '@/utils/date-time/dateToSimpleFormat';
+import { spacing } from '@/styles/designTokens';
 
 export default function AssetScreen({ route, navigation }) {
   const { assets, setAssetsDeleted } = useAssets();
   const [asset, setAsset] = useState(assets[route.params.assetId]);
   const [assetIds, setAssetIds] = useState(route.params.assetIds);
+  const insets = useSafeAreaInsets();
 
   const window = useWindowDimensions();
   const windowWidth = window.width;
   const initialScrollIndex = assetIds.findIndex((x) => x === route.params.assetId);
 
   useEffect(() => {
-    // If state was updated, we need to update the asset.
     let updatedAsset = assets[asset.id];
 
-    // If asset was deleted we need to remove it from the list of assets
-    // and get the next asset from the list.
     if (updatedAsset.isDeleted) {
       const assetIndex = assetIds.findIndex((x) => x === asset.id);
       const newAssetId = assetIds[assetIndex + 1] || assetIds[assetIndex - 1];
-      setAssetIds((assetIds) => assetIds.filter((x) => x !== asset.id));
+      setAssetIds((prev) => prev.filter((x) => x !== asset.id));
       updatedAsset = assets[newAssetId];
     }
 
@@ -44,19 +44,21 @@ export default function AssetScreen({ route, navigation }) {
     setAsset(assets[assetId]);
   });
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <AssetHeader asset={asset} onPressBack={() => navigation.goBack()}>
-        <HeaderActions>
-          <ToggleFavoriteAssetAction asset={asset} />
-          <DownloadAssetAction asset={asset} />
-          <MoreAction asset={asset} navigation={navigation} onDeleteAsset={(asset) => setAssetsDeleted([asset.id])} />
-        </HeaderActions>
-      </AssetHeader>
+  const headerTopOffset = insets.top + spacing.contentPaddingTop;
 
-      {!!asset.notes && (
+  return (
+    <Page>
+      <FloatingDetailHeader
+        title={asset ? dateToSimpleFormat(asset.createdAt) : ''}
+        onBack={() => navigation.goBack()}
+        menuSlot={
+          <MoreAction asset={asset} navigation={navigation} />
+        }
+      />
+
+      {!!asset?.notes && (
         <TouchableOpacity
-          style={styles.notesContainer}
+          style={[styles.notesContainer, { marginTop: headerTopOffset }]}
           onPress={() => navigation.navigate('EditNotesModal', { type: 'asset', id: asset.id, notes: asset.notes })}
         >
           <Text style={styles.notesText}>{asset.notes}</Text>
@@ -67,9 +69,9 @@ export default function AssetScreen({ route, navigation }) {
         data={assetIds}
         keyExtractor={(assetId) => assetId}
         renderItem={({ item: assetId }) => {
-          const asset = assets[assetId];
-          if (!asset) return null;
-          return <AssetItem asset={asset} style={{ width: windowWidth }} />;
+          const a = assets[assetId];
+          if (!a) return null;
+          return <AssetItem asset={a} style={{ width: windowWidth }} />;
         }}
         getItemLayout={(data, index) => ({ length: windowWidth, offset: windowWidth * index, index })}
         initialScrollIndex={initialScrollIndex}
@@ -82,20 +84,25 @@ export default function AssetScreen({ route, navigation }) {
       />
 
       {asset && asset.mediaType === MEDIA_TYPES.VIDEO && <VideoControls asset={asset} />}
-    </SafeAreaView>
+
+      {asset && (
+        <FloatingDetailActionsBar
+          asset={asset}
+          onDeleteAsset={(a) => setAssetsDeleted([a.id])}
+          navigation={navigation}
+        />
+      )}
+    </Page>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   notesContainer: {
     paddingHorizontal: SCREEN_PADDING,
     paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#ddd',
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.9)',
   },
   notesText: {
     fontSize: 14,

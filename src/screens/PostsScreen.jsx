@@ -1,32 +1,38 @@
-import { useMemo } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useEffect, useMemo } from 'react';
+import { useNavigation } from '@react-navigation/native';
 
-import HeaderActions from '@/components/HeaderActions';
 import SuperPressable from '@/components/SuperPressable';
-import ScreenHeaderWithSearch from '@/components/screen-header/ScreenHeaderWithSearch';
+import { useFloatingBars } from '@/components/floating-bars/FloatingBarsContext';
 import useAlbums from '@/features/albums-context/useAlbums';
 import PostList from '@/features/post-list/PostList';
 import PostListItem from '@/features/post-list/PostListItem';
-import AddPostAction from '@/features/post-list/actions/add-post-action/AddPostAction';
-import FilterPostsAction from '@/features/post-list/actions/filter-posts-action/FilterPostsAction';
 import useFilterPostsAction from '@/features/post-list/actions/filter-posts-action/useFilterPostsAction';
-import SearchPostsAction from '@/features/post-list/actions/search-posts-action/SearchPostsAction';
 import useSearchPostsAction from '@/features/post-list/actions/search-posts-action/useSearchPostsAction';
-import SortPostsAction from '@/features/post-list/actions/sort-posts-action/SortPostsAction';
 import useSortPostsAction from '@/features/post-list/actions/sort-posts-action/useSortPostsAction';
 import preparePosts from '@/features/post-list/preparePosts';
 import usePostList from '@/features/post-list/usePostList';
 import usePosts from '@/features/posts-context/usePosts';
+import useScreenPadding from '@/hooks/useScreenPadding';
 
-export default function PostsScreen({ navigation }) {
+export default function PostsScreen() {
+  const navigation = useNavigation();
   const { posts, toggleFavoritePost } = usePosts();
   const { albums } = useAlbums();
-  const insets = useSafeAreaInsets();
+  const { paddingTop, paddingBottom } = useScreenPadding('main');
 
   const { listRef, listScrollTop } = usePostList();
   const { sortOrder, sortFunction, sortPosts } = useSortPostsAction({ afterSort: listScrollTop });
   const { activeFilter, toggleFilter, matchFilter } = useFilterPostsAction({ afterFilter: listScrollTop });
-  const { isSearchBarVisible, toggleSearchBar, searchText, setSearchText } = useSearchPostsAction();
+
+  // Posts search uses persisted AppSettings query
+  const { searchText: postsSearchText, setSearchText: setPersistentSearch } = useSearchPostsAction();
+
+  const { registerScreenOptions, screenOptionsRef, onScrollUpdate, searchText: globalSearchText } = useFloatingBars();
+
+  // Sync global search bar input to persisted posts query
+  useEffect(() => {
+    setPersistentSearch(globalSearchText);
+  }, [globalSearchText]);
 
   const postIds = useMemo(
     () =>
@@ -35,48 +41,45 @@ export default function PostsScreen({ navigation }) {
         albums,
         sortFn: sortFunction,
         filterFn: matchFilter,
-        searchText,
+        searchText: postsSearchText,
       }).map((post) => post.id),
-    [posts, albums, sortFunction, matchFilter, searchText],
+    [posts, albums, sortFunction, matchFilter, postsSearchText],
   );
 
+  function handleAdd() {
+    navigation.navigate('CreatePostModal');
+  }
+
+  useEffect(() => {
+    registerScreenOptions('posts', {
+      sortOrder,
+      activeFilter,
+      onSort: sortPosts,
+      onFilter: toggleFilter,
+      onAdd: handleAdd,
+    });
+    screenOptionsRef.current._activeTab = 'posts';
+  }, [sortOrder, activeFilter]);
+
+  function handleScroll(event) {
+    onScrollUpdate(event.nativeEvent.contentOffset.y);
+  }
+
   return (
-    <>
-      <PostList
-        listRef={listRef}
-        postIds={postIds}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
-        renderListItem={(post) => {
-          return (
-            <SuperPressable
-              onPress={() => navigation.navigate('PostScreen', { postId: post.id })}
-              onDoublePress={() => toggleFavoritePost(post)}
-              style={{ flex: 1 }}
-            >
-              <PostListItem {...post} />
-            </SuperPressable>
-          );
-        }}
-        ListHeaderComponent={
-          <>
-            <ScreenHeaderWithSearch
-              label="Posts"
-              insets={insets}
-              isSearchBarVisible={isSearchBarVisible}
-              searchText={searchText}
-              setSearchText={setSearchText}
-              toggleSearchBar={toggleSearchBar}
-            >
-              <HeaderActions>
-                <AddPostAction />
-                <SearchPostsAction isSearchBarVisible={isSearchBarVisible} onPress={toggleSearchBar} />
-                <SortPostsAction sortOrder={sortOrder} onPress={sortPosts} />
-                <FilterPostsAction activeFilter={activeFilter} onPress={toggleFilter} />
-              </HeaderActions>
-            </ScreenHeaderWithSearch>
-          </>
-        }
-      />
-    </>
+    <PostList
+      listRef={listRef}
+      postIds={postIds}
+      contentContainerStyle={{ paddingTop, paddingBottom }}
+      onScroll={handleScroll}
+      renderListItem={(post) => (
+        <SuperPressable
+          onPress={() => navigation.navigate('PostScreen', { postId: post.id })}
+          onDoublePress={() => toggleFavoritePost(post)}
+          style={{ flex: 1 }}
+        >
+          <PostListItem {...post} />
+        </SuperPressable>
+      )}
+    />
   );
 }

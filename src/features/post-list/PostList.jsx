@@ -9,6 +9,7 @@ export default function PostList({
   renderListItem,
   listRef,
   contentContainerStyle,
+  onScroll,
 }) {
   const { posts } = usePosts();
   const postIds = [...initialPostIds];
@@ -29,6 +30,8 @@ export default function PostList({
       stickyHeaderIndices={ListHeaderComponent ? [0] : undefined}
       contentContainerStyle={contentContainerStyle}
       ref={listRef}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
     />
   );
 }

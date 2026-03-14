@@ -1,26 +1,28 @@
-import { useEffect } from 'react';
-
+import Page from '@/components/Page';
+import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import Post from '@/features/post-detail/Post';
 import MoreAction from '@/features/post-detail/actions/MoreAction';
 import usePosts from '@/features/posts-context/usePosts';
 import formatDateTime from '@/utils/date-time/formatDateTime';
-import { HeaderBackButton } from '@react-navigation/elements';
+import useScreenPadding from '@/hooks/useScreenPadding';
 
 export default function PostScreen({ route, navigation }) {
   const { postId } = route.params;
   const { posts } = usePosts();
   const post = posts[postId] ?? null;
+  const { paddingTop } = useScreenPadding('detail');
 
-  useEffect(() => {
-    if (!post) return;
-    navigation.setOptions({
-      title: formatDateTime(post.postedAt),
-      headerRight: () => <MoreAction post={post} afterDelete={() => navigation.goBack()} />,
-    });
-  }, [navigation, post]);
-
-  // TODO: Show post not found
   if (!post) return null;
 
-  return <Post post={post} />;
+  return (
+    <Page>
+      <FloatingDetailHeader
+        title={formatDateTime(post.postedAt)}
+        onBack={() => navigation.goBack()}
+        menuSlot={<MoreAction post={post} afterDelete={() => navigation.goBack()} />}
+      />
+
+      <Post post={post} contentPaddingTop={paddingTop} />
+    </Page>
+  );
 }

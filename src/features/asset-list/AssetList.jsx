@@ -2,7 +2,14 @@ import { View, FlatList, useWindowDimensions } from 'react-native';
 
 import useAssets from '@/features/assets-context/useAssets';
 
-export default function AssetList({ assetIds, ListHeaderComponent, renderListItem, listRef, contentContainerStyle }) {
+export default function AssetList({
+  assetIds,
+  ListHeaderComponent,
+  renderListItem,
+  listRef,
+  contentContainerStyle,
+  onScroll,
+}) {
   const { assets } = useAssets();
   const numColumns = 3;
   const window = useWindowDimensions();
@@ -24,6 +31,8 @@ export default function AssetList({ assetIds, ListHeaderComponent, renderListIte
       stickyHeaderIndices={ListHeaderComponent ? [0] : undefined}
       contentContainerStyle={contentContainerStyle}
       ref={listRef}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
     />
   );
 }

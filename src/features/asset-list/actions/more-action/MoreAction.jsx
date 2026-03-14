@@ -1,19 +1,10 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { Menu, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
-
+import PopupMenu from '@/components/popup-menu-options/PopupMenu';
 import ToggleThumbnailStyleOption from '@/components/popup-menu-options/ToggleThumbnailStyleOption';
-import headerActionStyles from '@/styles/headerActionStyles';
-import popupMenuStyles from '@/styles/popupMenuStyles';
 
 export default function MoreAction() {
   return (
-    <Menu>
-      <MenuTrigger customStyles={{ triggerWrapper: headerActionStyles.button }}>
-        <Ionicons name="ellipsis-vertical" style={headerActionStyles.buttonIcon} />
-      </MenuTrigger>
-      <MenuOptions customStyles={popupMenuStyles.menuOptions}>
-        <ToggleThumbnailStyleOption />
-      </MenuOptions>
-    </Menu>
+    <PopupMenu icon="ellipsis-vertical">
+      <ToggleThumbnailStyleOption />
+    </PopupMenu>
   );
 }

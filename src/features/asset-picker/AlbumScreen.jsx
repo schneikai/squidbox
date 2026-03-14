@@ -2,9 +2,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useState, useEffect, useCallback } from 'react';
 
 import AssetQuickViewModal, { useAssetQuickViewModal } from '@/components/AssetQuickViewModal';
-import HeaderActions from '@/components/HeaderActions';
+import PickerHeader from '@/components/PickerHeader';
 import SuperPressable from '@/components/SuperPressable';
-import ScreenHeaderWithBackButton from '@/components/screen-header/ScreenHeaderWithBackButton';
 import useAlbums from '@/features/albums-context/useAlbums';
 import AssetList from '@/features/asset-list/AssetList';
 import AssetListItem from '@/features/asset-list/AssetListItem';
@@ -70,12 +69,10 @@ export default function AlbumScreen({ route, navigation }) {
           </SuperPressable>
         )}
         ListHeaderComponent={
-          <ScreenHeaderWithBackButton label={album.name} onPressBack={() => navigation.goBack()}>
-            <HeaderActions>
-              <SortAssetsAction sortOrder={sortOrder} onPress={sortAssets} />
-              <FilterAssetsAction activeFilter={activeFilter} onPress={toggleFilter} />
-            </HeaderActions>
-          </ScreenHeaderWithBackButton>
+          <PickerHeader label={album.name}>
+            <SortAssetsAction sortOrder={sortOrder} onPress={sortAssets} />
+            <FilterAssetsAction activeFilter={activeFilter} onPress={toggleFilter} />
+          </PickerHeader>
         }
       />
     </>

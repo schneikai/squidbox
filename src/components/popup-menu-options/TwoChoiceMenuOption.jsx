@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { MenuOption } from 'react-native-popup-menu';
 
+import { colors, spacing } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
 export default function TwoChoiceMenuOption({
@@ -12,14 +13,14 @@ export default function TwoChoiceMenuOption({
   style,
 }) {
   return (
-    <View style={[popupMenuStyles.menuOption, styles.menuOption, style]}>
-      <Text style={[popupMenuStyles.menuOptionText, styles.menuOptionText]}>{label}</Text>
-      <View style={styles.optionsContainer}>
-        <MenuOption onSelect={onPressOptionB} customStyles={{ optionWrapper: styles.optionButton }}>
-          <Text style={[styles.optionButtonText, optionBSelected && styles.optionButtonTextActive]}>↓</Text>
+    <View style={[popupMenuStyles.menuOption, style]}>
+      <Text style={[popupMenuStyles.menuOptionText, styles.label]}>{label}</Text>
+      <View style={styles.controls}>
+        <MenuOption onSelect={onPressOptionB} customStyles={{ optionWrapper: styles.btn }}>
+          <Text style={[styles.btnText, optionBSelected && styles.btnTextActive]}>↓</Text>
         </MenuOption>
-        <MenuOption onSelect={onPressOptionA} customStyles={{ optionWrapper: styles.optionButton }}>
-          <Text style={[styles.optionButtonText, optionASelected && styles.optionButtonTextActive]}>↑</Text>
+        <MenuOption onSelect={onPressOptionA} customStyles={{ optionWrapper: styles.btn }}>
+          <Text style={[styles.btnText, optionASelected && styles.btnTextActive]}>↑</Text>
         </MenuOption>
       </View>
     </View>
@@ -27,25 +28,23 @@ export default function TwoChoiceMenuOption({
 }
 
 const styles = StyleSheet.create({
-  menuOption: {
-    padding: 0,
+  label: {
+    paddingLeft: spacing.menuIconSize + spacing.menuIconGap, // indent to align with icon rows
   },
-  menuOptionText: {
-    paddingLeft: 12,
-  },
-  optionsContainer: {
+  controls: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  optionButton: {
-    padding: 10,
+  btn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
-  optionButtonText: {
-    fontSize: 20,
-    color: 'gray',
+  btnText: {
+    fontSize: 18,
+    color: colors.darkModalTextDim,
   },
-  optionButtonTextActive: {
-    color: 'black',
-    fontWeight: 'bold',
+  btnTextActive: {
+    color: colors.accent,
+    fontWeight: '700',
   },
 });

@@ -1,25 +1,39 @@
-import { View, Text } from 'react-native';
-import { StyleSheet } from 'react-native';
-import { MenuOption } from 'react-native-popup-menu';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { View, Text, StyleSheet } from 'react-native';
+import { MenuOption } from 'react-native-popup-menu';
+
+import { colors, spacing } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
 export default function FilterMenuOptions({ filters, onPress, activeFilter }) {
   return (
     <>
       <MenuOption onSelect={() => onPress('all')} style={popupMenuStyles.menuOption}>
-        <Text style={popupMenuStyles.menuOptionText}>All</Text>
-        {activeFilter.length === 0 && <Ionicons name="checkmark" style={popupMenuStyles.menuOptionIcon} />}
+        <Text style={[popupMenuStyles.menuOptionText, styles.allLabel]}>All</Text>
+        {activeFilter.length === 0 && (
+          <Ionicons name="checkmark" size={spacing.menuIconSize} color={colors.accent} />
+        )}
       </MenuOption>
-      <Text style={styles.divider}>Only</Text>
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionLabel}>Only</Text>
+      </View>
+
       {filters.map((filter, index) => (
         <MenuOption
           onSelect={() => onPress(filter)}
           key={filter}
-          style={[popupMenuStyles.menuOption, index === filters.length - 1 && popupMenuStyles.menuOptionLast]}
+          style={[
+            popupMenuStyles.menuOption,
+            index === filters.length - 1 && popupMenuStyles.menuOptionLast,
+          ]}
         >
-          <Text style={popupMenuStyles.menuOptionText}>{filter.charAt(0).toUpperCase() + filter.slice(1)}</Text>
-          {activeFilter.includes(filter) && <Ionicons name="checkmark" style={popupMenuStyles.menuOptionIcon} />}
+          <Text style={[popupMenuStyles.menuOptionText, styles.filterLabel]}>
+            {filter.charAt(0).toUpperCase() + filter.slice(1)}
+          </Text>
+          {activeFilter.includes(filter) && (
+            <Ionicons name="checkmark" size={spacing.menuIconSize} color={colors.accent} />
+          )}
         </MenuOption>
       ))}
     </>
@@ -27,11 +41,23 @@ export default function FilterMenuOptions({ filters, onPress, activeFilter }) {
 }
 
 const styles = StyleSheet.create({
-  divider: {
-    paddingHorizontal: 12,
+  allLabel: {
+    paddingLeft: spacing.menuIconSize + spacing.menuIconGap,
+  },
+  filterLabel: {
+    paddingLeft: spacing.menuIconSize + spacing.menuIconGap,
+  },
+  sectionHeader: {
+    paddingHorizontal: spacing.menuRowH,
     paddingVertical: 4,
-    fontSize: 12,
-    color: 'dimgray',
-    backgroundColor: 'silver',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.darkModalBorder,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.darkModalTextDim,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });

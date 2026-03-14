@@ -1,12 +1,12 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable } from 'react-native';
 
-import headerActionStyles from '@/styles/headerActionStyles';
+import actionButtonStyles from '@/styles/actionButtonStyles';
 
 export default function ToggleEditAlbumsAction({ isEditMode, onPress }) {
   return (
-    <Pressable onPress={onPress} style={[headerActionStyles.button, isEditMode && headerActionStyles.buttonActive]}>
-      <Ionicons name="pencil-outline" style={headerActionStyles.buttonIcon} />
+    <Pressable onPress={onPress} style={[actionButtonStyles.button, isEditMode && actionButtonStyles.buttonActive]}>
+      <Ionicons name="pencil-outline" style={actionButtonStyles.buttonIcon} />
     </Pressable>
   );
 }

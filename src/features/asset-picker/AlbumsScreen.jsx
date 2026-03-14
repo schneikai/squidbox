@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
 import { TouchableOpacity } from 'react-native';
 
-import HeaderActions from '@/components/HeaderActions';
-import ScreenHeaderWithSearch from '@/components/screen-header/ScreenHeaderWithSearch';
+import PickerHeader from '@/components/PickerHeader';
 import AlbumList from '@/features/album-list/AlbumList';
 import AlbumListItem from '@/features/album-list/AlbumListItem';
 import FilterAlbumsAction from '@/features/album-list/actions/filter-albums-action/FilterAlbumsAction';
 import useFilterAlbumsAction from '@/features/album-list/actions/filter-albums-action/useFilterAlbumsAction';
-import SearchAlbumsAction from '@/features/album-list/actions/search-albums-action/SearchAlbumsAction';
 import useSearchAlbumsAction from '@/features/album-list/actions/search-albums-action/useSearchAlbumsAction';
 import SortAlbumsAction from '@/features/album-list/actions/sort-albums-action/SortAlbumsAction';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
@@ -22,7 +20,7 @@ export default function AlbumsScreen({ navigation }) {
   const { listRef, listScrollTop } = useAlbumList();
   const { sortOrder, sortFunction, sortAlbums } = useSortAlbumsAction({ afterSort: listScrollTop });
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterSort: listScrollTop });
-  const { isSearchBarVisible, toggleSearchBar, searchText, setSearchText } = useSearchAlbumsAction();
+  const { searchText, setSearchText } = useSearchAlbumsAction();
 
   useEffect(() => {
     const albumIds = prepareAlbums({
@@ -49,19 +47,10 @@ export default function AlbumsScreen({ navigation }) {
         </TouchableOpacity>
       )}
       ListHeaderComponent={
-        <ScreenHeaderWithSearch
-          label="Albums"
-          isSearchBarVisible={isSearchBarVisible}
-          searchText={searchText}
-          setSearchText={setSearchText}
-          toggleSearchBar={toggleSearchBar}
-        >
-          <HeaderActions>
-            <SearchAlbumsAction isSearchBarVisible={isSearchBarVisible} onPress={toggleSearchBar} />
-            <SortAlbumsAction sortOrder={sortOrder} onPress={sortAlbums} />
-            <FilterAlbumsAction activeFilter={activeFilter} onPress={toggleFilter} />
-          </HeaderActions>
-        </ScreenHeaderWithSearch>
+        <PickerHeader label="Albums">
+          <SortAlbumsAction sortOrder={sortOrder} onPress={sortAlbums} />
+          <FilterAlbumsAction activeFilter={activeFilter} onPress={toggleFilter} />
+        </PickerHeader>
       }
     />
   );

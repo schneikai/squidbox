@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { Pressable } from 'react-native';
 
-import headerActionStyles from '@/styles/headerActionStyles';
+import actionButtonStyles from '@/styles/actionButtonStyles';
 
 export default function AddPostAction() {
   const navigation = useNavigation();
@@ -10,9 +10,9 @@ export default function AddPostAction() {
   return (
     <Pressable
       onPress={() => navigation.navigate('CreatePostModal')}
-      style={[headerActionStyles.button, { marginRight: 20 }]}
+      style={[actionButtonStyles.button, { marginRight: 20 }]}
     >
-      <Ionicons name="add" style={headerActionStyles.buttonIcon} />
+      <Ionicons name="add" style={actionButtonStyles.buttonIcon} />
     </Pressable>
   );
 }

@@ -3,7 +3,7 @@ import { Pressable, Alert } from 'react-native';
 
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import useAddAssetsFromCameraRoll from '@/features/assets-context/useAddAssetsFromCameraRoll';
-import headerActionStyles from '@/styles/headerActionStyles';
+import actionButtonStyles from '@/styles/actionButtonStyles';
 
 export default function AddAssetAction() {
   const { show, hide, updateProgress } = useProgressOverlay();
@@ -22,8 +22,8 @@ export default function AddAssetAction() {
   }
 
   return (
-    <Pressable onPress={handleAddAssets} style={[headerActionStyles.button, { marginRight: 20 }]}>
-      <Ionicons name="add" style={headerActionStyles.buttonIcon} />
+    <Pressable onPress={handleAddAssets} style={[actionButtonStyles.button, { marginRight: 20 }]}>
+      <Ionicons name="add" style={actionButtonStyles.buttonIcon} />
     </Pressable>
   );
 }

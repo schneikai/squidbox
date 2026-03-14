@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, Alert } from 'react-native';
 
 import useAlbums from '@/features/albums-context/useAlbums';
-import headerActionStyles from '@/styles/headerActionStyles';
+import actionButtonStyles from '@/styles/actionButtonStyles';
 
 export default function AddAlbumAction() {
   const { addAlbum } = useAlbums();
@@ -14,8 +14,8 @@ export default function AddAlbumAction() {
   }
 
   return (
-    <Pressable onPress={handleAddAlbum} style={[headerActionStyles.button, { marginRight: 20 }]}>
-      <Ionicons name="add" style={headerActionStyles.buttonIcon} />
+    <Pressable onPress={handleAddAlbum} style={[actionButtonStyles.button, { marginRight: 20 }]}>
+      <Ionicons name="add" style={actionButtonStyles.buttonIcon} />
     </Pressable>
   );
 }

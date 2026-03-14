@@ -6,20 +6,25 @@ import AssetImage from '@/components/AssetImage';
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
-export default function AssetListItem({ asset, isSelected, showLastPostedAt }) {
+export default function AssetListItem({ asset, isSelected, isSelectMode, showLastPostedAt }) {
   const { lastPostedAt, duration, isFavorite, isSynced, notes } = asset;
   return (
     <View style={styles.container}>
       <AssetImage asset={asset} />
       {showLastPostedAt && <LastPostedAt lastPostedAt={lastPostedAt} />}
       <VideoDuration duration={duration} />
-      <CornerGlow corner="topLeft" size={80} />
+
+      {/* Top-right: favorite / cloud / note indicators */}
+      <CornerGlow corner="topRight" size={80} />
       <View style={styles.indicators}>
         <FavoriteAssetIndicator isFavorite={isFavorite} />
         <CloudIndicator isSynced={isSynced} />
         <NoteIndicator hasNote={!!notes} />
       </View>
-      {isSelected && <Ionicons name="checkmark-circle" style={styles.selectIndicator} />}
+
+      {/* Top-left: selection indicator (empty ring or filled checkmark) */}
+      {isSelectMode && <CornerGlow corner="topLeft" size={60} />}
+      {isSelectMode && <SelectIndicator isSelected={isSelected} />}
     </View>
   );
 }
@@ -84,6 +89,16 @@ function NoteIndicator({ hasNote }) {
   return <Ionicons name="document-text" style={styles.noteIndicator} />;
 }
 
+function SelectIndicator({ isSelected }) {
+  return (
+    <View style={[styles.selectBadge, isSelected && styles.selectBadgeActive]}>
+      {isSelected
+        ? <Ionicons name="checkmark-sharp" size={15} color="#fff" />
+        : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -110,10 +125,10 @@ const styles = StyleSheet.create({
   indicators: {
     position: 'absolute',
     top: 5,
-    left: 5,
+    right: 5,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
   },
   favoriteAssetIndicator: {
     fontSize: 20,
@@ -128,12 +143,21 @@ const styles = StyleSheet.create({
     color: 'white',
   },
 
-  selectIndicator: {
+  selectBadge: {
     position: 'absolute',
-    left: 5,
-    bottom: 5,
-    fontSize: 26,
-    textAlign: 'center',
-    color: 'turquoise',
+    top: 6,
+    left: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#fff',
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectBadgeActive: {
+    backgroundColor: '#7C3AED',
+    borderColor: '#7C3AED',
   },
 });

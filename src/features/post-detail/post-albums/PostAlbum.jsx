@@ -18,10 +18,7 @@ export default function PostAlbum({ album, size }) {
   }, [album]);
 
   async function handlePress() {
-    navigation.navigate('PostAlbumStack', {
-      screen: 'AlbumScreen',
-      params: { albumId: album.id },
-    });
+    navigation.navigate('AlbumScreen', { albumId: album.id });
   }
 
   if (!thumbnailAsset) return null;

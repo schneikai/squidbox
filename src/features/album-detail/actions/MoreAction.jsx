@@ -1,29 +1,21 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { Alert } from 'react-native';
-import { Menu, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
 
-import TextMenuOption from '@/components/popup-menu-options/TextMenuOption';
+import PopupMenu from '@/components/popup-menu-options/PopupMenu';
+import MenuOption from '@/components/popup-menu-options/MenuOption';
 import ToggleThumbnailStyleOption from '@/components/popup-menu-options/ToggleThumbnailStyleOption';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useAppSettings from '@/features/app-settings/useAppSettings';
-import headerActionStyles from '@/styles/headerActionStyles';
-import popupMenuStyles from '@/styles/popupMenuStyles';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 
-export default function MoreAction({ album, afterDelete }) {
+export default function MoreAction({ album, afterDelete, onSelect }) {
   const { updateAlbum, setAlbumDeleted } = useAlbums();
   const { setPostsQuery } = useAppSettings();
   const navigation = useNavigation();
 
-  // TODO: Right now we only mark album as deleted. I would like to have a
-  // undo on shake feature to restore the album.
   async function handleDeleteAlbum() {
     Alert.alert('Delete Album?', '', [
-      {
-        text: 'Cancel',
-        style: 'cancel',
-      },
+      { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
@@ -59,19 +51,22 @@ export default function MoreAction({ album, afterDelete }) {
   }
 
   return (
-    <Menu>
-      <MenuTrigger customStyles={{ triggerWrapper: headerActionStyles.button }}>
-        <Ionicons name="ellipsis-vertical" style={headerActionStyles.buttonIcon} />
-      </MenuTrigger>
-      <MenuOptions customStyles={popupMenuStyles.menuOptions}>
-        <ToggleThumbnailStyleOption />
-        <TextMenuOption label="Show posts" onPress={handleShowPosts} />
-        <TextMenuOption label={album.notes ? 'Edit note' : 'Add note'} onPress={handleEditNotes} />
-        <TextMenuOption label="Rename" onPress={handleRenameAlbum} />
-        {!!album.archivedAt && <TextMenuOption label="Unarchive" onPress={handleUnarchiveAlbum} />}
-        {!album.archivedAt && <TextMenuOption label="Archive" onPress={handleArchiveAlbum} />}
-        <TextMenuOption label="Delete" onPress={handleDeleteAlbum} isLast />
-      </MenuOptions>
-    </Menu>
+    <PopupMenu icon="ellipsis-horizontal" variant="pill">
+      {!!onSelect && <MenuOption label="Select" icon="checkmark-circle-outline" onPress={onSelect} />}
+      <ToggleThumbnailStyleOption />
+      <MenuOption
+        label={album.notes ? 'Edit note' : 'Add note'}
+        icon="document-text-outline"
+        onPress={handleEditNotes}
+      />
+      <MenuOption label="Rename" icon="pencil-outline" onPress={handleRenameAlbum} />
+      {!!album.archivedAt && (
+        <MenuOption label="Unarchive" icon="arrow-up-circle-outline" onPress={handleUnarchiveAlbum} />
+      )}
+      {!album.archivedAt && (
+        <MenuOption label="Archive" icon="archive-outline" onPress={handleArchiveAlbum} />
+      )}
+      <MenuOption label="Delete" icon="trash-outline" onPress={handleDeleteAlbum} danger isLast />
+    </PopupMenu>
   );
 }

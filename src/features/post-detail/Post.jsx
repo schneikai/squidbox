@@ -6,14 +6,14 @@ import PostAlbums from './post-albums/PostAlbums';
 
 import PostPostedAt from '@/features/posts/PostPostedAt';
 
-export default function Post({ post }) {
+export default function Post({ post, contentPaddingTop = 0 }) {
   async function handleCopyToClipboard() {
     await Clipboard.setStringAsync(post.text);
     Alert.alert('Copied to clipboard');
   }
 
   return (
-    <ScrollView>
+    <ScrollView contentContainerStyle={{ paddingTop: contentPaddingTop }}>
       <PostAssets assetRefs={post.assetRefs} />
 
       <View style={styles.container}>

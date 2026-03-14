@@ -1,7 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useRef, useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, TextInput, View, ScrollView } from 'react-native';
 
+import Page from '@/components/Page';
+import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { SCREEN_PADDING } from '@/constants';
 import {
   DEFAULT_PROMPT,
@@ -13,6 +16,7 @@ import {
 } from '@/features/ai-suggestions/aiSuggestionsStorage';
 
 export default function AiPromptsScreen() {
+  const navigation = useNavigation();
   const [defaultPrompt, setDefaultPrompt] = useState(DEFAULT_PROMPT);
   const [variationPrompt, setVariationPrompt] = useState(DEFAULT_VARIATION_PROMPT);
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
@@ -40,7 +44,9 @@ export default function AiPromptsScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} automaticallyAdjustKeyboardInsets>
+    <Page>
+    <FloatingDetailHeader title="AI Prompts" onBack={() => navigation.goBack()} />
+    <ScrollView contentContainerStyle={styles.content} automaticallyAdjustKeyboardInsets>
       <Text style={styles.sectionHeader}>Default Prompt</Text>
       <View style={styles.section}>
         <View style={styles.cell}>
@@ -91,16 +97,13 @@ export default function AiPromptsScreen() {
 
       <View style={styles.footer} />
     </ScrollView>
+    </Page>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
   content: {
-    paddingTop: 20,
+    paddingTop: 100,
     paddingHorizontal: SCREEN_PADDING,
   },
 

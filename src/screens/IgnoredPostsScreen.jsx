@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { TouchableOpacity } from 'react-native';
 import SuperPressable from '@/components/SuperPressable';
-import headerActionStyles from '@/styles/headerActionStyles';
+import actionButtonStyles from '@/styles/actionButtonStyles';
 import usePosts from '@/features/posts-context/usePosts';
 import PostList from '@/features/post-list/PostList';
 import PostListItem from '@/features/post-list/PostListItem';
@@ -39,8 +39,8 @@ export default function IgnoredPostsScreen({ navigation }) {
         >
           <PostListItem {...post} />
           <View style={styles.actionContainer}>
-            <TouchableOpacity style={headerActionStyles.button} onPress={() => handleRestore(post)}>
-              <Ionicons name="eye-outline" style={headerActionStyles.buttonIcon} />
+            <TouchableOpacity style={actionButtonStyles.button} onPress={() => handleRestore(post)}>
+              <Ionicons name="eye-outline" style={actionButtonStyles.buttonIcon} />
             </TouchableOpacity>
           </View>
         </SuperPressable>

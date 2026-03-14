@@ -17,12 +17,23 @@ Sentry.init({
 
 import { ActionSheetProvider } from '@expo/react-native-action-sheet';
 import { NavigationContainer } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as SplashScreen from 'expo-splash-screen';
 import { useState, useEffect } from 'react';
+import { StyleSheet, View } from 'react-native';
 // eslint-disable-next-line import/no-duplicates
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { MenuProvider } from 'react-native-popup-menu';
+import { Menu, MenuProvider } from 'react-native-popup-menu';
+import BlurPopoverRenderer from '@/components/popup-menu-options/BlurPopoverRenderer';
 
+Menu.setDefaultRenderer(BlurPopoverRenderer);
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
+import FloatingBarsProvider from '@/components/floating-bars/FloatingBarsProvider';
+import FloatingFilterModal from '@/components/floating-bars/FloatingFilterModal';
+import FloatingHeader from '@/components/floating-bars/FloatingHeader';
+import FloatingNavigationBar from '@/components/floating-bars/FloatingNavigationBar';
 import ProgressOverlayProvider from '@/components/progress-overlay/ProgressOverlayProvider';
 import AlbumsProvider from '@/features/albums-context/AlbumsProvider';
 import AppSettingsProvider from '@/features/app-settings/AppSettingsProvider';
@@ -34,6 +45,7 @@ import useCloud from '@/features/cloud/useCloud';
 import CloudSyncProvider from '@/features/cloud-sync/CloudSyncProvider';
 import PostsProvider from '@/features/posts-context/PostsProvider';
 import RootNavigator from '@/navigators/RootNavigator';
+import { colors } from '@/styles/designTokens';
 import useInitializeLocalData from '@/utils/local-data/useInitializeLocalData';
 
 // Keep the splash screen visible while we fetch resources
@@ -42,6 +54,7 @@ SplashScreen.preventAutoHideAsync();
 const App = () => {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
       <ProgressOverlayProvider>
       <AppSettingsProvider>
         <AssetsProvider>
@@ -57,6 +70,7 @@ const App = () => {
         </AssetsProvider>
       </AppSettingsProvider>
       </ProgressOverlayProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 };
@@ -94,7 +108,21 @@ function AppComponent() {
         <ActionSheetProvider>
           <MenuProvider>
             <AssetPickerProvider>
-              <RootNavigator />
+              <FloatingBarsProvider>
+                <View style={styles.root}>
+                  <LinearGradient
+                    colors={colors.appBackground}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <RootNavigator />
+                  <FloatingHeader />
+                  <FloatingActionsBar />
+                  <FloatingNavigationBar />
+                  <FloatingFilterModal />
+                </View>
+              </FloatingBarsProvider>
             </AssetPickerProvider>
           </MenuProvider>
         </ActionSheetProvider>
@@ -102,3 +130,9 @@ function AppComponent() {
     </AssetThumbnailLoaderProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+})

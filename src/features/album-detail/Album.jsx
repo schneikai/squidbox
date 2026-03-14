@@ -1,104 +1,87 @@
+import { useActionSheet } from '@expo/react-native-action-sheet';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useState, useMemo } from 'react';
-import { Text, StyleSheet, View, Pressable, TouchableOpacity } from 'react-native';
+import { Text, StyleSheet, View, Pressable, TouchableOpacity, useWindowDimensions } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import ScreenHeader from './ScreenHeader';
-
 import AssetQuickViewModal, { useAssetQuickViewModal } from '@/components/AssetQuickViewModal';
-import HeaderActions from '@/components/HeaderActions';
+import GradientButton from '@/components/GradientButton';
+import Page from '@/components/Page';
+import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
+import FloatingPill from '@/components/floating-bars/FloatingPill';
 import SuperPressable from '@/components/SuperPressable';
-import AddToAlbumSelectionMenuOption from '@/components/selected-assets-tool-bar/actions/add-to-album-selection-menu-option/AddToAlbumSelectionMenuOption';
-import CreatePostSelectionMenuOption from '@/components/selected-assets-tool-bar/actions/create-post-selection-menu-option/CreatePostSelectionMenuOption';
-import DeleteFromAlbumSelectionMenuOption from '@/components/selected-assets-tool-bar/actions/delete-from-album-selection-menu-option/DeleteFromAlbumSelectionMenuOption';
-import DownloadSelectionMenuOption from '@/components/selected-assets-tool-bar/actions/download-selection-menu-option/DownloadSelectionMenuOption';
+import SearchOptionsBar from '@/components/floating-bars/SearchOptionsBar';
+import SortFilterModal from '@/components/floating-bars/SortFilterModal';
 import AddAssetAction from '@/features/album-detail/actions/AddAssetAction';
 import MoreAction from '@/features/album-detail/actions/MoreAction';
-import AssetList from '@/features/asset-list/AssetList';
-import SelectionActionsMenu from '@/features/asset-list/actions/selection-actions-menu/SelectionActionsMenu';
-import AssetListItem from '@/features/asset-list/AssetListItem';
-import FilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/FilterAssetsAction';
+import AlbumAssetsView from '@/features/album-detail/AlbumAssetsView';
+import AlbumPostsView from '@/features/album-detail/AlbumPostsView';
 import useFilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/useFilterAssetsAction';
-import SortAssetsAction from '@/features/asset-list/actions/sort-assets-action/SortAssetsAction';
 import useSortAssetsAction from '@/features/asset-list/actions/sort-assets-action/useSortAssetsAction';
-import ToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/ToggleSelectAssetsAction';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import prepareAssets from '@/features/asset-list/prepareAssets';
 import useAssetList from '@/features/asset-list/useAssetList';
 import useAssets from '@/features/assets-context/useAssets';
+import useAlbums from '@/features/albums-context/useAlbums';
+import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
+import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
+import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 import getAlbumAssets from '@/utils/albums/getAlbumAssets';
 import isSmartAlbum from '@/utils/albums/isSmartAlbum';
-import PostList from '@/features/post-list/PostList';
-import PostListItem from '@/features/post-list/PostListItem';
-import usePosts from '@/features/posts-context/usePosts';
-import preparePosts from '@/features/post-list/preparePosts';
+import useScreenPadding from '@/hooks/useScreenPadding';
+import { colors, shadows, spacing } from '@/styles/designTokens';
+import pluralizeText from '@/utils/pluralizeText';
 
-// Assets Tab Component
-function AssetsTab({ album, assetIds, isSelectMode, selectedAssetIds, onPressAsset, toggleFavoriteAsset, openAssetQuickView, closeAssetQuickView, sortOrder, listRef }) {
-  return (
-    <AssetList
-      listRef={listRef}
-      assetIds={assetIds}
-      renderListItem={(asset) => (
-        <SuperPressable
-          onPress={() => onPressAsset(asset)}
-          onDoublePress={() => toggleFavoriteAsset(asset)}
-          onLongPress={() => openAssetQuickView(asset)}
-          onLongPressOut={() => closeAssetQuickView()}
-          style={{ flex: 1 }}
-        >
-          <AssetListItem
-            asset={asset}
-            isSelected={selectedAssetIds.includes(asset.id)}
-            showLastPostedAt={sortOrder.includes('lastPostedAt')}
-          />
-        </SuperPressable>
-      )}
-    />
-  );
-}
+const TABS = [
+  { key: 'Assets', icon: 'grid-outline',        iconActive: 'grid' },
+  { key: 'Posts',  icon: 'share-social-outline', iconActive: 'share-social' },
+];
 
-// Posts Tab Component
-function PostsTab({ album, navigation }) {
-  const { posts } = usePosts();
-
-  const postIds = useMemo(
-    () =>
-      preparePosts({
-        posts: Object.values(posts),
-        albums: { [album.id]: album },
-        searchText: `album:${album.id}`,
-        sortFn: (a, b) => b.postedAt - a.postedAt,
-      }).map((post) => post.id),
-    [posts, album],
-  );
-
-  return (
-    <PostList
-      postIds={postIds}
-      renderListItem={(post) => (
-        <SuperPressable
-          onPress={() => navigation.navigate('PostScreen', { postId: post.id })}
-          style={{ flex: 1 }}
-        >
-          <PostListItem {...post} />
-        </SuperPressable>
-      )}
-    />
-  );
-}
+const ASSET_FILTER_OPTIONS = [
+  { key: 'all',       label: 'All Media',  icon: 'apps-outline' },
+  { key: 'favorites', label: 'Favorites',  icon: 'heart-outline' },
+  { key: 'images',    label: 'Photos',     icon: 'image-outline' },
+  { key: 'videos',    label: 'Videos',     icon: 'videocam-outline' },
+];
 
 export default function Album({ album }) {
-  const { assets, toggleFavoriteAsset } = useAssets();
+  const { assets, toggleFavoriteAsset, setAssetsDeleted } = useAssets();
+  const { removeAssetsFromAlbum } = useAlbums();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { paddingTop, paddingBottom } = useScreenPadding('detail');
+  const { showActionSheetWithOptions } = useActionSheet();
+
+  const { show, hide, updateProgress } = useProgressOverlay();
+  const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary({
+    onStart: show,
+    onProgress: updateProgress,
+    onFinish: hide,
+  });
 
   const { listRef, listScrollTop } = useAssetList();
   const { isSelectMode, selectedAssetIds, toggleSelectMode, toggleSelectAsset } = useToggleSelectAssetsAction();
   const { sortOrder, sortFunction, sortAssets } = useSortAssetsAction({ afterSort: listScrollTop });
-  const { activeFilter, toggleFilter, matchFilter } = useFilterAssetsAction({ afterFilter: listScrollTop });
+  const { activeFilter, matchFilter, toggleFilter } = useFilterAssetsAction({ afterFilter: listScrollTop });
   const { asset: quickViewAsset, open: openAssetQuickView, close: closeAssetQuickView } = useAssetQuickViewModal();
   const [activeTab, setActiveTab] = useState('Assets');
+  const [isSortFilterOpen, setIsSortFilterOpen] = useState(false);
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const { width: screenWidth } = useWindowDimensions();
+  const expandProgress = useSharedValue(0);
+
+  function openSearch() { setIsSearchActive(true); }
+  function closeSearch() { setIsSearchActive(false); setSearchText(''); }
 
   const assetIds = useMemo(
     () =>
@@ -106,93 +89,114 @@ export default function Album({ album }) {
         assets: getAlbumAssets(album, assets),
         sortFn: sortFunction,
         filterFn: matchFilter,
+        searchText,
       }).map((asset) => asset.id),
-    [album, assets, sortFunction, matchFilter],
+    [album, assets, sortFunction, matchFilter, searchText],
   );
+
+  const hasSelection = selectedAssetIds.length > 0;
+
+  function getSelectedAssets() {
+    const ids = selectedAssetIds.length > 0 ? selectedAssetIds : assetIds;
+    return Object.values(assets).filter((a) => ids.includes(a.id));
+  }
 
   function onPressAsset(asset) {
     if (isSelectMode) {
       toggleSelectAsset(asset.id);
     } else {
-      navigation.navigate('AlbumAssetScreen', { assetId: asset.id, assetIds });
+      navigation.navigate('AssetScreen', { assetId: asset.id, assetIds });
     }
   }
 
-  function handleBackPress() {
-    navigation.goBack();
+  async function handleDownload() {
+    await saveAssetsToMediaLibraryAsync(getSelectedAssets());
+  }
+
+  function handleAddToAlbum() {
+    const ids = selectedAssetIds.length > 0 ? selectedAssetIds : assetIds;
+    navigation.navigate('AddToAlbumModal', { assetIds: ids });
+    toggleSelectMode();
+  }
+
+  function handleCreatePost() {
+    if (!hasSelection) return;
+    navigation.navigate('AddEditPostModal', { assetIds: selectedAssetIds });
+    toggleSelectMode();
+  }
+
+  function handleDeleteFromAlbum() {
+    const selected = getSelectedAssets();
+    showActionSheetWithOptions(
+      {
+        options: ['Remove from album', 'Delete', 'Cancel'],
+        cancelButtonIndex: 2,
+        title: `${getAssetCountInfo(selected).toLowerCase()} selected`,
+      },
+      async (index) => {
+        if (index === 0) {
+          removeAssetsFromAlbum(album, selected);
+          toggleSelectMode();
+        } else if (index === 1) {
+          setAssetsDeleted(selected.map((a) => a.id));
+          toggleSelectMode();
+        }
+      },
+    );
   }
 
   return (
-    <>
+    <Page>
       <AssetQuickViewModal asset={quickViewAsset} isVisible={!!quickViewAsset} />
-      
-      {/* Header section */}
-      <View>
-        <ScreenHeader album={album} numberOfAssets={assetIds?.length} onPressBack={handleBackPress} insets={insets}>
-          <HeaderActions>
-            {isSelectMode ? (
-              <>
-                <ToggleSelectAssetsAction isSelectMode={isSelectMode} onPress={toggleSelectMode} />
-                <SelectionActionsMenu selectedAssetIds={selectedAssetIds} allAssetIds={assetIds}>
-                  <DownloadSelectionMenuOption />
-                  <AddToAlbumSelectionMenuOption />
-                  <CreatePostSelectionMenuOption />
-                  {!isSmartAlbum(album) && (
-                    <DeleteFromAlbumSelectionMenuOption album={album} afterAction={() => toggleSelectMode()} />
-                  )}
-                </SelectionActionsMenu>
-              </>
-            ) : (
-              <>
-                {!isSmartAlbum(album) && <AddAssetAction album={album} />}
-                <ToggleSelectAssetsAction isSelectMode={isSelectMode} onPress={toggleSelectMode} />
-                <SortAssetsAction sortOrder={sortOrder} onPress={sortAssets} />
-                <FilterAssetsAction activeFilter={activeFilter} onPress={toggleFilter} />
-                {!isSmartAlbum(album) && <MoreAction album={album} afterDelete={handleBackPress} />}
-              </>
-            )}
-          </HeaderActions>
-        </ScreenHeader>
-        {!!album.archivedAt && (
-          <View style={styles.flagContainer}>
-            <Text style={styles.albumIsArchived}>Archived</Text>
-          </View>
-        )}
-        {!!album.notes && (
-          <TouchableOpacity
-            style={styles.notesContainer}
-            onPress={() => navigation.navigate('EditNotesModal', { type: 'album', id: album.id, notes: album.notes })}
-          >
-            <Text style={styles.notesText}>{album.notes}</Text>
-          </TouchableOpacity>
-        )}
-      </View>
 
-      {/* Simple Tab Bar */}
-      <View style={styles.tabBar}>
-        <Pressable 
-          style={[styles.tab, activeTab === 'Assets' && styles.activeTab]} 
-          onPress={() => setActiveTab('Assets')}
-        >
-          <Text style={[styles.tabText, activeTab === 'Assets' && styles.activeTabText]}>
-            Assets
-          </Text>
-        </Pressable>
-        <Pressable 
-          style={[styles.tab, activeTab === 'Posts' && styles.activeTab]} 
-          onPress={() => setActiveTab('Posts')}
-        >
-          <Text style={[styles.tabText, activeTab === 'Posts' && styles.activeTabText]}>
-            Posts
-          </Text>
-        </Pressable>
-      </View>
+      <FloatingDetailHeader
+        title={album.name}
+        subtitle={pluralizeText('1 Asset', '%{count} Assets', assetIds.length)}
+        onBack={() => navigation.goBack()}
+        isSelectMode={isSelectMode}
+        menuSlot={
+          isSelectMode ? (
+            // Selection toolbar — mirrors the main screen's select pill
+            <>
+              <PillButton iconName="download-outline" onPress={handleDownload} disabled={!hasSelection} />
+              <PillButton iconName="albums-outline" onPress={handleAddToAlbum} disabled={!hasSelection} />
+              <PillButton iconName="share-outline" onPress={handleCreatePost} disabled={!hasSelection} />
+              {!isSmartAlbum(album) && (
+                <PillButton iconName="trash-outline" onPress={handleDeleteFromAlbum} disabled={!hasSelection} danger />
+              )}
+              <View style={styles.separator} />
+              <GradientButton onPress={toggleSelectMode} style={styles.closeButton}>
+                <Ionicons name="close" size={20} color={colors.textInverse} />
+              </GradientButton>
+            </>
+          ) : (
+            // Normal toolbar
+            <>
+              {!isSmartAlbum(album) && <AddAssetAction album={album} />}
+              <MoreAction album={album} afterDelete={() => navigation.goBack()} onSelect={toggleSelectMode} />
+            </>
+          )
+        }
+      />
 
-      {/* Tab Content */}
-      <View style={styles.tabContent}>
+      {/* Sub-header — only shown when there's an archived badge or notes */}
+      {(!!album.archivedAt || !!album.notes) && (
+        <View style={[styles.subHeader, { marginTop: paddingTop }]}>
+          {!!album.archivedAt && <Text style={styles.archivedBadge}>Archived</Text>}
+          {!!album.notes && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('EditNotesModal', { type: 'album', id: album.id, notes: album.notes })}
+            >
+              <Text style={styles.notesText}>{album.notes}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* Active view — paddingTop always clears the floating header */}
+      <View style={[styles.content, { paddingTop: (!!album.archivedAt || !!album.notes) ? 0 : paddingTop }]}>
         {activeTab === 'Assets' ? (
-          <AssetsTab
-            album={album}
+          <AlbumAssetsView
             assetIds={assetIds}
             isSelectMode={isSelectMode}
             selectedAssetIds={selectedAssetIds}
@@ -202,65 +206,193 @@ export default function Album({ album }) {
             closeAssetQuickView={closeAssetQuickView}
             sortOrder={sortOrder}
             listRef={listRef}
+            paddingBottom={paddingBottom}
           />
         ) : (
-          <PostsTab album={album} navigation={navigation} />
+          <AlbumPostsView album={album} paddingBottom={paddingBottom} />
         )}
       </View>
 
-    </>
+      {/* Floating segment pill — bottom right (slides out when search is active) */}
+      <SegmentPill
+        tabs={TABS}
+        activeTab={activeTab}
+        onTabPress={setActiveTab}
+        expandProgress={expandProgress}
+        bottom={insets.bottom + spacing.floatingBarBottom}
+      />
+
+      {/* Floating search + options bar — bottom left (assets tab only, hidden in select mode) */}
+      {activeTab === 'Assets' && !isSelectMode && (
+        <SearchOptionsBar
+          expandProgress={expandProgress}
+          isSearchActive={isSearchActive}
+          searchText={searchText}
+          onOpenSearch={openSearch}
+          onCloseSearch={closeSearch}
+          onChangeSearch={setSearchText}
+          onOpenOptions={() => setIsSortFilterOpen(true)}
+          hasActiveState={activeFilter.length > 0 || !sortOrder.startsWith('createdAt')}
+          placeholder="Search notes…"
+          bottom={insets.bottom + spacing.floatingBarBottom}
+          left={spacing.floatingBarSide}
+          maxWidth={screenWidth - spacing.floatingBarSide * 2}
+        />
+      )}
+
+      {/* Sort / filter modal for the assets view */}
+      <SortFilterModal
+        visible={isSortFilterOpen}
+        onClose={() => setIsSortFilterOpen(false)}
+        sortOrder={sortOrder}
+        activeFilter={activeFilter}
+        filterOptions={ASSET_FILTER_OPTIONS}
+        onSort={sortAssets}
+        onFilter={toggleFilter}
+        showViewOptions
+        bottom={insets.bottom + spacing.floatingBarBottom + spacing.iconButtonSize + spacing.popoverGap}
+        left={spacing.floatingBarSide}
+      />
+    </Page>
+  );
+}
+
+function SegmentPill({ tabs, activeTab, onTabPress, expandProgress, bottom }) {
+  const slideStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(expandProgress.value, [0, 0.5], [1, 0], Extrapolation.CLAMP),
+    transform: [{ translateX: interpolate(expandProgress.value, [0, 1], [0, 30], Extrapolation.CLAMP) }],
+    pointerEvents: expandProgress.value > 0.3 ? 'none' : 'auto',
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        styles.segmentContainer,
+        { bottom, right: spacing.floatingBarSide },
+        slideStyle,
+      ]}
+      pointerEvents="box-none"
+    >
+      <FloatingPill>
+        {tabs.map((tab) => (
+          <SegmentButton
+            key={tab.key}
+            tab={tab}
+            isActive={activeTab === tab.key}
+            onPress={() => onTabPress(tab.key)}
+          />
+        ))}
+      </FloatingPill>
+    </Animated.View>
+  );
+}
+
+function PillButton({ iconName, onPress, disabled, danger }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.pillButton,
+        pressed && styles.pillButtonPressed,
+        disabled && styles.pillButtonDisabled,
+      ]}
+    >
+      <Ionicons name={iconName} size={20} color={danger ? colors.danger : colors.text} />
+    </Pressable>
+  );
+}
+
+function SegmentButton({ tab, isActive, onPress }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.segmentButton, pressed && !isActive && styles.segmentButtonPressed]}
+    >
+      {isActive ? (
+        <LinearGradient
+          colors={[colors.gradientStart, colors.gradientEnd]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.segmentButton, styles.segmentButtonActive]}
+        >
+          <Ionicons name={tab.iconActive} size={20} color={colors.iconActive} />
+        </LinearGradient>
+      ) : (
+        <View style={styles.segmentButton}>
+          <Ionicons name={tab.icon} size={20} color={colors.iconInactive} />
+        </View>
+      )}
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  flagContainer: {
-    alignSelf: 'left',
-    padding: 10,
-    marginTop: -10,
+  subHeader: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    gap: 4,
   },
-  albumIsArchived: {
-    backgroundColor: 'pink',
-    padding: 4,
+  archivedBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,200,200,0.8)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
     fontSize: 10,
     textTransform: 'uppercase',
     fontWeight: '800',
-    zIndex: 1,
-  },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#000',
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-  },
-  activeTabText: {
-    color: '#000',
-  },
-  tabContent: {
-    flex: 1,
-  },
-  notesContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ddd',
+    color: colors.danger,
   },
   notesText: {
-    fontSize: 14,
-    color: '#333',
-    lineHeight: 20,
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  content: {
+    flex: 1,
+  },
+
+  // ── Selection toolbar ────────────────────────────────────────────────────
+  pillButton: {
+    width: spacing.iconButtonSize,
+    height: spacing.iconButtonSize,
+    borderRadius: spacing.iconButtonSize / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pillButtonPressed: {
+    backgroundColor: 'rgba(0,0,0,0.06)',
+  },
+  pillButtonDisabled: {
+    opacity: 0.35,
+  },
+  separator: {
+    width: 1,
+    height: 20,
+    backgroundColor: colors.glassBorder,
+    marginHorizontal: 4,
+  },
+  closeButton: {
+    marginLeft: 2,
+  },
+
+  // ── Floating segment pill ─────────────────────────────────────────────────
+  segmentContainer: {
+    position: 'absolute',
+    zIndex: 100,
+  },
+  segmentButton: {
+    width: spacing.iconButtonSize,
+    height: spacing.iconButtonSize,
+    borderRadius: spacing.iconButtonSize / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentButtonPressed: {
+    backgroundColor: 'rgba(0,0,0,0.06)',
+  },
+  segmentButtonActive: {
+    ...shadows.accent,
   },
 });

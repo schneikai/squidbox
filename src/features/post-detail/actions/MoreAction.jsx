@@ -1,14 +1,11 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { Alert } from 'react-native';
-import { Menu, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
 
+import PopupMenu from '@/components/popup-menu-options/PopupMenu';
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
-import TextMenuOption from '@/components/popup-menu-options/TextMenuOption';
+import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useAssets from '@/features/assets-context/useAssets';
 import usePosts from '@/features/posts-context/usePosts';
-import headerActionStyles from '@/styles/headerActionStyles';
-import popupMenuStyles from '@/styles/popupMenuStyles';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 import assetRefsToPostAssets from '@/utils/posts/assetRefsToPostAssets';
 
@@ -55,18 +52,11 @@ export default function MoreAction({ post, afterDelete }) {
   }
 
   return (
-    <>
-      <Menu>
-        <MenuTrigger customStyles={{ triggerWrapper: headerActionStyles.button }}>
-          <Ionicons name="ellipsis-vertical" style={headerActionStyles.buttonIcon} />
-        </MenuTrigger>
-        <MenuOptions customStyles={popupMenuStyles.menuOptions}>
-          <TextMenuOption label="Download Assets" onPress={handleDownloadAssets} />
-          <TextMenuOption label="Edit" onPress={handleEditPost} />
-          <TextMenuOption label="Repost" onPress={handleRepost} />
-          <TextMenuOption label="Delete" onPress={handleDeletePost} isLast />
-        </MenuOptions>
-      </Menu>
-    </>
+    <PopupMenu icon="ellipsis-horizontal" variant="pill">
+      <MenuOption label="Download assets" icon="cloud-download-outline" onPress={handleDownloadAssets} />
+      <MenuOption label="Edit" icon="create-outline" onPress={handleEditPost} />
+      <MenuOption label="Repost" icon="repeat-outline" onPress={handleRepost} />
+      <MenuOption label="Delete" icon="trash-outline" onPress={handleDeletePost} danger isLast />
+    </PopupMenu>
   );
 }
