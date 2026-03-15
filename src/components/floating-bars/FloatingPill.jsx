@@ -21,6 +21,7 @@ const styles = StyleSheet.create({
   shadow: {
     borderRadius: radii.pill,
     ...shadows.floating,
+    flexShrink: 1,
   },
   blur: {
     borderRadius: radii.pill,
@@ -33,5 +34,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.barPaddingX,
     paddingVertical: spacing.barPaddingY,
+    flexShrink: 1,
   },
 });

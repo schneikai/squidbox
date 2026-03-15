@@ -35,7 +35,7 @@ export default function MoreAction({ album, afterDelete, onSelect }) {
   async function handleRenameAlbum() {
     Alert.prompt('Album name', '', async (name) => {
       await updateAlbum(album.id, { name });
-    });
+    }, 'plain-text', album.name);
   }
 
   function handleEditNotes() {

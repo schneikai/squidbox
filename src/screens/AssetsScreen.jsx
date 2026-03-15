@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
@@ -58,6 +58,10 @@ export default function AssetsScreen({ route }) {
   );
 
   // ── Action handlers wired into FloatingHeader via context ─────────────────
+  // Keep a ref that's always current so registered callbacks never go stale,
+  // even if the user taps a button before the next useEffect fires.
+  const handlersRef = useRef({});
+  handlersRef.current = { selectedAssetIds, assetIds, assets };
 
   async function handleAdd() {
     try {
@@ -69,18 +73,17 @@ export default function AssetsScreen({ route }) {
 
   function handleDownload() {
     const selected = getSelectedAssets();
-    // Trigger download via the existing save utility
     screenOptionsRef.current._downloadSelected?.(selected);
   }
 
   function handleAddToAlbum() {
-    const ids = selectedAssetIds.length > 0 ? selectedAssetIds : assetIds.slice(0, 500);
-    navigation.navigate('AddToAlbumModal', { assetIds: ids });
+    const { selectedAssetIds: ids, assetIds: all } = handlersRef.current;
+    navigation.navigate('AddToAlbumModal', { assetIds: ids.length > 0 ? ids : all.slice(0, 500) });
     exitSelectMode();
   }
 
   function handlePost() {
-    const ids = selectedAssetIds.length > 0 ? selectedAssetIds : [];
+    const { selectedAssetIds: ids } = handlersRef.current;
     if (ids.length === 0) return;
     navigation.navigate('AddEditPostModal', { assetIds: ids });
     exitSelectMode();
@@ -102,11 +105,14 @@ export default function AssetsScreen({ route }) {
   }
 
   function getSelectedAssets() {
-    const ids = selectedAssetIds.length > 0 ? selectedAssetIds : assetIds.slice(0, 500);
-    return Object.values(assets).filter((a) => ids.includes(a.id));
+    const { selectedAssetIds: ids, assetIds: all, assets: allAssets } = handlersRef.current;
+    const resolvedIds = ids.length > 0 ? ids : all.slice(0, 500);
+    return Object.values(allAssets).filter((a) => resolvedIds.includes(a.id));
   }
 
-  // Register this screen's options with the floating bars context
+  // Register this screen's options with the floating bars context.
+  // Callbacks delegate through handlersRef so they always read the latest
+  // selectedAssetIds without needing it as a dependency here.
   useEffect(() => {
     registerScreenOptions('assets', {
       sortOrder,
@@ -121,10 +127,10 @@ export default function AssetsScreen({ route }) {
       onSort: sortAssets,
       onFilter: toggleFilter,
       onAdd: handleAdd,
-      onDownload: handleDownload,
-      onAddToAlbum: handleAddToAlbum,
-      onPost: handlePost,
-      onDelete: handleDelete,
+      onDownload: () => handleDownload(),
+      onAddToAlbum: () => handleAddToAlbum(),
+      onPost: () => handlePost(),
+      onDelete: () => handleDelete(),
     });
   }, [sortOrder, activeFilter]);
 

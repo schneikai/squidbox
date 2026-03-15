@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useState, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,35 +21,52 @@ import { colors, spacing } from '@/styles/designTokens';
  *   menuSlot     — element(s) rendered inside the right FloatingPill
  *   isSelectMode — when true, back + info animate out to the left
  */
+
+const SIDE_GAP = 12;
+
 export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot, isSelectMode = false }) {
   const insets = useSafeAreaInsets();
+
+  const [containerWidth, setContainerWidth] = useState(0);
+  const [leftWidth, setLeftWidth] = useState(0);
+  const [rightWidth, setRightWidth] = useState(0);
+
+  const centerMaxWidth = useMemo(() => {
+    if (!containerWidth) return 0;
+    const sideClearance = Math.max(leftWidth, rightWidth) + SIDE_GAP;
+    return Math.max(0, containerWidth - sideClearance * 2);
+  }, [containerWidth, leftWidth, rightWidth]);
 
   const leftStyle = useAnimatedStyle(() => ({
     opacity: withTiming(isSelectMode ? 0 : 1, { duration: 200 }),
     transform: [{ translateX: withTiming(isSelectMode ? -24 : 0, { duration: 200 }) }],
-    pointerEvents: isSelectMode ? 'none' : 'auto',
   }));
 
   return (
     <View
       style={[styles.container, { top: insets.top + 8 }]}
       pointerEvents="box-none"
+      onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
     >
       {/* Centre — rendered first so it sits below the pills in z-order;
           pointerEvents="none" ensures touches pass through to the pills above */}
       {(!!title || !!subtitle) && (
         <Animated.View style={[styles.infoArea, leftStyle]} pointerEvents="none">
-          <FloatingPill style={styles.infoPill}>
+          <FloatingPill style={[styles.infoPill, centerMaxWidth > 0 && { maxWidth: centerMaxWidth }]}>
             <View style={styles.infoContent}>
-              {!!title && <Text style={styles.title} numberOfLines={2}>{title}</Text>}
-              {!!subtitle && <Text style={styles.subtitle} numberOfLines={2}>{subtitle}</Text>}
+              {!!title && <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">{title}</Text>}
+              {!!subtitle && <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">{subtitle}</Text>}
             </View>
           </FloatingPill>
         </Animated.View>
       )}
 
       {/* Left — back chevron pill */}
-      <Animated.View style={leftStyle}>
+      <Animated.View
+        style={leftStyle}
+        pointerEvents={isSelectMode ? 'none' : 'auto'}
+        onLayout={(e) => setLeftWidth(e.nativeEvent.layout.width)}
+      >
         <FloatingPill style={styles.backPill}>
           <Pressable
             onPress={onBack}
@@ -62,9 +80,18 @@ export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot
 
       {/* Right — menu / action pill */}
       {!!menuSlot && (
-        <FloatingPill style={styles.menuPill}>
-          {menuSlot}
-        </FloatingPill>
+        <View onLayout={(e) => setRightWidth(e.nativeEvent.layout.width)}>
+          <FloatingPill style={styles.menuPill}>{menuSlot}</FloatingPill>
+        </View>
+      )}
+
+      {/* Placeholder so rightWidth is measured even when there is no menuSlot */}
+      {!menuSlot && (
+        <View
+          pointerEvents="none"
+          onLayout={(e) => setRightWidth(e.nativeEvent.layout.width)}
+          style={styles.emptyRightMeasure}
+        />
       )}
     </View>
   );
@@ -81,9 +108,7 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
 
-  // ── Back pill ─────────────────────────────────────────────────────────────
-  backPill: {
-  },
+  backPill: {},
 
   // ── Info pill ─────────────────────────────────────────────────────────────
   infoArea: {
@@ -97,25 +122,30 @@ const styles = StyleSheet.create({
   },
   infoContent: {
     minHeight: spacing.iconButtonSize,
-    flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: spacing.barPaddingX,
+    flexShrink: 1,
+    width: '100%',
   },
   title: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
     textAlign: 'center',
+    flexShrink: 1,
   },
   subtitle: {
     fontSize: 12,
     color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 2,
+    flexShrink: 1,
   },
 
-  // ── Menu pill ─────────────────────────────────────────────────────────────
-  menuPill: {
+  menuPill: {},
+
+  emptyRightMeasure: {
+    width: 0,
+    height: 0,
   },
 });

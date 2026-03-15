@@ -3,10 +3,13 @@ import { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, TextInput } from 'react-native';
 import Animated, {
   useAnimatedStyle,
+  useAnimatedKeyboard,
   withTiming,
   interpolate,
   Extrapolation,
 } from 'react-native-reanimated';
+
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
 import actionButtonStyles from '@/styles/actionButtonStyles';
@@ -47,6 +50,8 @@ export default function SearchOptionsBar({
   maxWidth,
 }) {
   const inputRef = useRef(null);
+  const keyboard = useAnimatedKeyboard();
+  const { bottom: bottomInset } = useSafeAreaInsets();
 
   useEffect(() => {
     expandProgress.value = withTiming(isSearchActive ? 1 : 0, { duration: 280 });
@@ -60,6 +65,9 @@ export default function SearchOptionsBar({
       [spacing.iconButtonSize * 2 + 20, maxWidth],
       Extrapolation.CLAMP,
     ),
+    // keyboard.height on iOS includes the bottom safe area inset, which is already
+    // baked into the `bottom` prop — subtract it to avoid double-counting.
+    bottom: bottom + Math.max(0, keyboard.height.value - bottomInset),
   }));
 
   const collapsedStyle = useAnimatedStyle(() => ({
@@ -75,7 +83,7 @@ export default function SearchOptionsBar({
   }));
 
   return (
-    <Animated.View style={[styles.container, { bottom, left }, containerStyle]}>
+    <Animated.View style={[styles.container, { left }, containerStyle]}>
       <FloatingPill style={styles.pill}>
         {/* Search icon — always visible */}
         <Pressable
