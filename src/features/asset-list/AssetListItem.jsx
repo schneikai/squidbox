@@ -5,6 +5,7 @@ import { Defs, RadialGradient, Rect, Stop, Svg } from 'react-native-svg';
 import AssetImage from '@/components/AssetImage';
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
 import formatVideoDuration from '@/utils/formatVideoDuration';
+import { colors } from '@/styles/designTokens';
 
 export default function AssetListItem({ asset, isSelected, isSelectMode, showLastPostedAt }) {
   const { lastPostedAt, duration, isFavorite, isSynced, notes } = asset;
@@ -93,7 +94,7 @@ function SelectIndicator({ isSelected }) {
   return (
     <View style={[styles.selectBadge, isSelected && styles.selectBadgeActive]}>
       {isSelected
-        ? <Ionicons name="checkmark-sharp" size={15} color="#fff" />
+        ? <Ionicons name="checkmark-sharp" size={15} color={colors.textInverse} />
         : null}
     </View>
   );
@@ -108,7 +109,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 6,
     right: 6,
-    color: 'white',
+    color: colors.textInverse,
     fontSize: 11,
     fontWeight: '600',
   },
@@ -117,7 +118,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 5,
     left: 5,
-    color: 'white',
+    color: colors.textInverse,
     fontSize: 10,
     fontWeight: 'bold',
   },
@@ -132,15 +133,15 @@ const styles = StyleSheet.create({
   },
   favoriteAssetIndicator: {
     fontSize: 20,
-    color: 'white',
+    color: colors.textInverse,
   },
   cloudIndicator: {
     fontSize: 20,
-    color: 'white',
+    color: colors.textInverse,
   },
   noteIndicator: {
     fontSize: 16,
-    color: 'white',
+    color: colors.textInverse,
   },
 
   selectBadge: {
@@ -151,13 +152,13 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: colors.textInverse,
     backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
   },
   selectBadgeActive: {
-    backgroundColor: '#7C3AED',
-    borderColor: '#7C3AED',
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
 });

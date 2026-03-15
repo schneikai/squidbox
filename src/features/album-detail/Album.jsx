@@ -1,9 +1,8 @@
 import { useActionSheet } from '@expo/react-native-action-sheet';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useState, useMemo } from 'react';
-import { Text, StyleSheet, View, Pressable, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { Text, StyleSheet, View, Pressable, TouchableOpacity } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -38,7 +37,8 @@ import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 import getAlbumAssets from '@/utils/albums/getAlbumAssets';
 import isSmartAlbum from '@/utils/albums/isSmartAlbum';
 import useScreenPadding from '@/hooks/useScreenPadding';
-import { colors, shadows, spacing } from '@/styles/designTokens';
+import actionButtonStyles from '@/styles/actionButtonStyles';
+import { colors, spacing } from '@/styles/designTokens';
 import pluralizeText from '@/utils/pluralizeText';
 
 const TABS = [
@@ -164,9 +164,9 @@ export default function Album({ album }) {
               {!isSmartAlbum(album) && (
                 <PillButton iconName="trash-outline" onPress={handleDeleteFromAlbum} disabled={!hasSelection} danger />
               )}
-              <View style={styles.separator} />
+              <View style={actionButtonStyles.pillSeparator} />
               <GradientButton onPress={toggleSelectMode} style={styles.closeButton}>
-                <Ionicons name="close" size={20} color={colors.textInverse} />
+                <Ionicons name="close" size={spacing.iconSize} color={colors.textInverse} />
               </GradientButton>
             </>
           ) : (
@@ -293,36 +293,30 @@ function PillButton({ iconName, onPress, disabled, danger }) {
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
-        styles.pillButton,
-        pressed && styles.pillButtonPressed,
+        actionButtonStyles.pillButton,
+        pressed && { backgroundColor: colors.pressedBg },
         disabled && styles.pillButtonDisabled,
       ]}
     >
-      <Ionicons name={iconName} size={20} color={danger ? colors.danger : colors.text} />
+      <Ionicons name={iconName} size={spacing.iconSize} color={danger ? colors.danger : colors.text} />
     </Pressable>
   );
 }
 
 function SegmentButton({ tab, isActive, onPress }) {
+  if (isActive) {
+    return (
+      <GradientButton onPress={onPress}>
+        <Ionicons name={tab.iconActive} size={spacing.iconSize} color={colors.iconActive} />
+      </GradientButton>
+    );
+  }
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.segmentButton, pressed && !isActive && styles.segmentButtonPressed]}
+      style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
     >
-      {isActive ? (
-        <LinearGradient
-          colors={[colors.gradientStart, colors.gradientEnd]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.segmentButton, styles.segmentButtonActive]}
-        >
-          <Ionicons name={tab.iconActive} size={20} color={colors.iconActive} />
-        </LinearGradient>
-      ) : (
-        <View style={styles.segmentButton}>
-          <Ionicons name={tab.icon} size={20} color={colors.iconInactive} />
-        </View>
-      )}
+      <Ionicons name={tab.icon} size={spacing.iconSize} color={colors.iconInactive} />
     </Pressable>
   );
 }
@@ -354,24 +348,8 @@ const styles = StyleSheet.create({
   },
 
   // ── Selection toolbar ────────────────────────────────────────────────────
-  pillButton: {
-    width: spacing.iconButtonSize,
-    height: spacing.iconButtonSize,
-    borderRadius: spacing.iconButtonSize / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pillButtonPressed: {
-    backgroundColor: 'rgba(0,0,0,0.06)',
-  },
   pillButtonDisabled: {
     opacity: 0.35,
-  },
-  separator: {
-    width: 1,
-    height: 20,
-    backgroundColor: colors.glassBorder,
-    marginHorizontal: 4,
   },
   closeButton: {
     marginLeft: 2,
@@ -381,18 +359,5 @@ const styles = StyleSheet.create({
   segmentContainer: {
     position: 'absolute',
     zIndex: 100,
-  },
-  segmentButton: {
-    width: spacing.iconButtonSize,
-    height: spacing.iconButtonSize,
-    borderRadius: spacing.iconButtonSize / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentButtonPressed: {
-    backgroundColor: 'rgba(0,0,0,0.06)',
-  },
-  segmentButtonActive: {
-    ...shadows.accent,
   },
 });

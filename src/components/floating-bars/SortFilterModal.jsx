@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import useAppSettings from '@/features/app-settings/useAppSettings';
+import popupMenuStyles from '@/styles/popupMenuStyles';
 import { colors, radii, shadows, spacing } from '@/styles/designTokens';
 
 const SORT_OPTIONS = [
@@ -222,7 +223,7 @@ export default function SortFilterModal({
                     style={styles.rowLeadIcon}
                   />
                   <Text style={styles.rowLabel}>{option.label}</Text>
-                  {isActive && <View style={styles.activeDot} />}
+                  {isActive && <View style={popupMenuStyles.activeDot} />}
                 </Pressable>
               );
             })}
@@ -250,11 +251,11 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 13,
+    paddingHorizontal: spacing.menuRowH,
+    paddingVertical: spacing.menuRowV,
   },
   rowPressed: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.darkModalHover,
   },
   rowLabel: {
     flex: 1,
@@ -279,12 +280,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.darkModalBorder,
     marginVertical: 4,
     marginHorizontal: 10,
-  },
-  activeDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: colors.accent,
-    marginLeft: 8,
   },
 });

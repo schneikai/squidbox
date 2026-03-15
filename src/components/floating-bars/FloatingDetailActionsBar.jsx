@@ -7,6 +7,7 @@ import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay
 import useAssets from '@/features/assets-context/useAssets';
 import humanizeMediaType from '@/utils/assets/humanizeMediaType';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
+import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, spacing } from '@/styles/designTokens';
 
 /**
@@ -65,19 +66,19 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
         <ActionButton onPress={handleToggleFavorite}>
           <Ionicons
             name={asset.isFavorite ? 'heart' : 'heart-outline'}
-            size={20}
+            size={spacing.iconSize}
             color={asset.isFavorite ? colors.danger : colors.iconInactive}
           />
         </ActionButton>
         <ActionButton onPress={handleDownload}>
-          <Ionicons name="cloud-download-outline" size={20} color={colors.iconInactive} />
+          <Ionicons name="cloud-download-outline" size={spacing.iconSize} color={colors.iconInactive} />
         </ActionButton>
       </FloatingPill>
 
       {/* Right pill — delete */}
       <FloatingPill>
         <ActionButton onPress={handleDelete} danger>
-          <Ionicons name="trash-outline" size={20} color={colors.danger} />
+          <Ionicons name="trash-outline" size={spacing.iconSize} color={colors.danger} />
         </ActionButton>
       </FloatingPill>
     </View>
@@ -89,8 +90,8 @@ function ActionButton({ onPress, danger = false, children }) {
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
-        styles.button,
-        pressed && (danger ? styles.buttonPressedDanger : styles.buttonPressed),
+        actionButtonStyles.pillButton,
+        pressed && (danger ? actionButtonStyles.buttonDanger : { backgroundColor: colors.pressedBg }),
       ]}
     >
       {children}
@@ -106,18 +107,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     zIndex: 100,
-  },
-  button: {
-    width: spacing.iconButtonSize,
-    height: spacing.iconButtonSize,
-    borderRadius: spacing.iconButtonSize / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonPressed: {
-    backgroundColor: 'rgba(0,0,0,0.06)',
-  },
-  buttonPressedDanger: {
-    backgroundColor: colors.dangerLight,
   },
 });

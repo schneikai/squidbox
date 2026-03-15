@@ -1,6 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import { useEffect } from 'react';
 import Animated, {
   useAnimatedStyle,
@@ -12,10 +11,12 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigationState, useNavigation } from '@react-navigation/native';
 
+import GradientButton from '@/components/GradientButton';
 import { useFloatingBars } from './FloatingBarsContext';
 import { getActiveTabName, getActiveStackDepth } from './navStateHelpers';
 import FloatingPill from './FloatingPill';
-import { colors, spacing, shadows } from '@/styles/designTokens';
+import actionButtonStyles from '@/styles/actionButtonStyles';
+import { colors, spacing } from '@/styles/designTokens';
 
 const NAV_ITEMS = [
   { tab: 'AssetsTab', icon: 'grid-outline', iconActive: 'grid' },
@@ -87,25 +88,19 @@ export default function FloatingNavigationBar() {
 }
 
 function NavButton({ icon, isActive, onPress }) {
+  if (isActive) {
+    return (
+      <GradientButton onPress={onPress}>
+        <Ionicons name={icon} size={spacing.iconSize} color={colors.iconActive} />
+      </GradientButton>
+    );
+  }
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.button, pressed && !isActive && styles.buttonPressed]}
+      style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
     >
-      {isActive ? (
-        <LinearGradient
-          colors={[colors.gradientStart, colors.gradientEnd]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.button, styles.activeGradient]}
-        >
-          <Ionicons name={icon} size={20} color={colors.iconActive} />
-        </LinearGradient>
-      ) : (
-        <View style={styles.button}>
-          <Ionicons name={icon} size={20} color={colors.iconInactive} />
-        </View>
-      )}
+      <Ionicons name={icon} size={spacing.iconSize} color={colors.iconInactive} />
     </Pressable>
   );
 }
@@ -114,18 +109,5 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     zIndex: 100,
-  },
-  button: {
-    width: spacing.iconButtonSize,
-    height: spacing.iconButtonSize,
-    borderRadius: spacing.iconButtonSize / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonPressed: {
-    backgroundColor: 'rgba(0,0,0,0.06)',
-  },
-  activeGradient: {
-    ...shadows.accent,
   },
 });

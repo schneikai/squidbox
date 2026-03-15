@@ -10,9 +10,9 @@ import { colors, spacing, radii } from '@/styles/designTokens';
  * touchable's underlay — this style object targets the TouchableHighlight itself.
  */
 export const menuTriggerTouchable = {
-  underlayColor: 'rgba(0,0,0,0.06)',
+  underlayColor: colors.pressedBg,
   style: {
-    borderRadius: spacing.iconButtonSize / 2,
+    borderRadius: radii.pill,
     overflow: 'hidden',
   },
 };
@@ -29,7 +29,7 @@ export default StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.06)',
+    backgroundColor: colors.pressedBg,
   },
   // Used inside a FloatingPill — same shape as button but no background,
   // since the pill already provides the visual container.
@@ -51,7 +51,7 @@ export default StyleSheet.create({
     backgroundColor: colors.dangerLight,
   },
   buttonIcon: {
-    fontSize: 20,
+    fontSize: spacing.iconSize,
     color: colors.text,
   },
   buttonIconActive: {
@@ -59,5 +59,12 @@ export default StyleSheet.create({
   },
   buttonIconDanger: {
     color: colors.danger,
+  },
+  // Vertical divider between adjacent buttons inside a FloatingPill row
+  pillSeparator: {
+    width: 1,
+    height: 20,
+    backgroundColor: colors.glassBorder,
+    marginHorizontal: 4,
   },
 });

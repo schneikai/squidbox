@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   gradientIcon: {
-    fontSize: 20,
+    fontSize: spacing.iconSize,
     color: colors.iconActive,
   },
 });

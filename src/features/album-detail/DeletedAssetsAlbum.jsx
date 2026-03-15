@@ -12,6 +12,7 @@ import prepareAssets from '@/features/asset-list/prepareAssets';
 import useAssets from '@/features/assets-context/useAssets';
 import getAlbumAssets from '@/utils/albums/getAlbumAssets';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, spacing } from '@/styles/designTokens';
 
 export default function AlbumScreenComponentForDeletedAssets({ album }) {
@@ -87,24 +88,24 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
           <View style={styles.menuRow}>
             <Pressable
               onPress={handleRestoreAssets}
-              style={({ pressed }) => [styles.menuBtn, pressed && styles.menuBtnPressed]}
+              style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
               hitSlop={4}
             >
-              <Ionicons name="arrow-undo-outline" size={20} color={colors.text} />
+              <Ionicons name="arrow-undo-outline" size={spacing.iconSize} color={colors.text} />
             </Pressable>
             <Pressable
               onPress={toggleSelectMode}
-              style={({ pressed }) => [styles.menuBtn, pressed && styles.menuBtnPressed]}
+              style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
               hitSlop={4}
             >
-              <Ionicons name="checkbox-outline" size={20} color={colors.text} />
+              <Ionicons name="checkbox-outline" size={spacing.iconSize} color={colors.text} />
             </Pressable>
             <Pressable
               onPress={handleDeleteAssets}
-              style={({ pressed }) => [styles.menuBtn, pressed && styles.menuBtnPressed]}
+              style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
               hitSlop={4}
             >
-              <Ionicons name="trash-outline" size={20} color={colors.danger} />
+              <Ionicons name="trash-outline" size={spacing.iconSize} color={colors.danger} />
             </Pressable>
           </View>
         }
@@ -133,15 +134,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-  },
-  menuBtn: {
-    width: spacing.iconButtonSize,
-    height: spacing.iconButtonSize,
-    borderRadius: spacing.iconButtonSize / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menuBtnPressed: {
-    backgroundColor: 'rgba(0,0,0,0.06)',
   },
 });

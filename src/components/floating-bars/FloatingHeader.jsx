@@ -14,7 +14,8 @@ import GradientButton from '@/components/GradientButton';
 import { useFloatingBars } from './FloatingBarsContext';
 import { MAIN_TABS, getActiveTabName, getActiveStackDepth } from './navStateHelpers';
 import FloatingPill from './FloatingPill';
-import { colors, shadows, spacing, radii } from '@/styles/designTokens';
+import actionButtonStyles from '@/styles/actionButtonStyles';
+import { colors, shadows, spacing } from '@/styles/designTokens';
 import useCloud from '@/features/cloud/useCloud';
 
 const SCREEN_TITLES = {
@@ -97,7 +98,7 @@ export default function FloatingHeader() {
             <PillButton iconName="checkmark-circle-outline" onPress={toggleSelectMode} />
           )}
           <GradientButton onPress={handleAdd} style={styles.addButton}>
-            <Ionicons name="add" size={20} color={colors.textInverse} />
+            <Ionicons name="add" size={spacing.iconSize} color={colors.textInverse} />
           </GradientButton>
         </FloatingPill>
 
@@ -113,11 +114,11 @@ export default function FloatingHeader() {
               end={{ x: 1, y: 1 }}
               style={styles.avatarGradient}
             >
-              <Ionicons name="person" size={18} color={colors.textInverse} />
+              <Ionicons name="person" size={spacing.iconSizeSmall} color={colors.textInverse} />
             </LinearGradient>
           ) : (
             <View style={styles.avatarFallback}>
-              <Ionicons name="person" size={18} color={colors.textSecondary} />
+              <Ionicons name="person" size={spacing.iconSizeSmall} color={colors.textSecondary} />
             </View>
           )}
         </Pressable>
@@ -131,9 +132,9 @@ export default function FloatingHeader() {
             <PillButton iconName="albums-outline" onPress={handleAddToAlbum} disabled={!hasSelection} />
             <PillButton iconName="share-outline" onPress={handlePost} disabled={!hasSelection} />
             <PillButton iconName="trash-outline" onPress={handleDelete} disabled={!hasSelection} danger />
-            <View style={styles.separator} />
+            <View style={actionButtonStyles.pillSeparator} />
             <GradientButton onPress={exitSelectMode} style={styles.addButton}>
-              <Ionicons name="close" size={20} color={colors.textInverse} />
+              <Ionicons name="close" size={spacing.iconSize} color={colors.textInverse} />
             </GradientButton>
           </FloatingPill>
         </Animated.View>
@@ -148,12 +149,12 @@ function PillButton({ iconName, onPress, disabled, danger }) {
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
-        styles.pillButton,
-        pressed && styles.pillButtonPressed,
+        actionButtonStyles.pillButton,
+        pressed && { backgroundColor: colors.pressedBg },
         disabled && styles.pillButtonDisabled,
       ]}
     >
-      <Ionicons name={iconName} size={20} color={danger ? colors.danger : colors.text} />
+      <Ionicons name={iconName} size={spacing.iconSize} color={danger ? colors.danger : colors.text} />
     </Pressable>
   );
 }
@@ -217,22 +218,6 @@ const styles = StyleSheet.create({
   // ── Pill internals ────────────────────────────────────────────────────────
   addButton: {
     marginLeft: 2,
-  },
-  separator: {
-    width: 1,
-    height: 20,
-    backgroundColor: colors.glassBorder,
-    marginHorizontal: 4,
-  },
-  pillButton: {
-    width: spacing.iconButtonSize,
-    height: spacing.iconButtonSize,
-    borderRadius: spacing.iconButtonSize / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pillButtonPressed: {
-    backgroundColor: 'rgba(0,0,0,0.06)',
   },
   pillButtonDisabled: {
     opacity: 0.35,

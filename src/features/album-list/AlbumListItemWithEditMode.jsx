@@ -2,6 +2,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, View, Pressable } from 'react-native';
 import DoubleTap from 'react-native-double-tap';
 
+import { colors, spacing, radii } from '@/styles/designTokens';
+
 export default function AlbumListItemWithEditMode({
   children,
   isEditMode,
@@ -34,16 +36,16 @@ const styles = StyleSheet.create({
   deleteButton: {
     position: 'absolute',
     right: 5,
-    backgroundColor: 'crimson',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
+    backgroundColor: colors.danger,
+    borderRadius: radii.pill,
+    width: spacing.iconButtonSize,
+    height: spacing.iconButtonSize,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
   },
   deleteButtonIcon: {
-    fontSize: 20,
-    color: 'white',
+    fontSize: spacing.iconSize,
+    color: colors.textInverse,
   },
 });

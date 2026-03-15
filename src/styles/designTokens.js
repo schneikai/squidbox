@@ -1,3 +1,21 @@
+import { Dimensions } from 'react-native';
+
+const BASE_WIDTH = 390; // iPhone 14 Pro — design baseline
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const SCALE_FACTOR = SCREEN_WIDTH / BASE_WIDTH;
+
+/**
+ * Scale a size proportionally to screen width, clamped to a safe range.
+ * Base value is designed for a 390 pt wide screen (iPhone 14 Pro).
+ * Typical results: SE (375) → ~0.96×, Pro Max (430) → ~1.10×
+ *
+ * @param {number} size   Base size in points
+ * @param {number} [min=0.85]  Minimum scale factor
+ * @param {number} [max=1.15]  Maximum scale factor
+ */
+export const scale = (size, min = 0.85, max = 1.15) =>
+  Math.round(size * Math.min(Math.max(SCALE_FACTOR, min), max));
+
 export const colors = {
   gradientStart: '#7C3AED',
   gradientEnd: '#4F46E5',
@@ -27,6 +45,10 @@ export const colors = {
   iconActive: '#FFFFFF',
 
   separator: 'rgba(255,255,255,0.1)',
+
+  // Interactive states
+  pressedBg: 'rgba(0,0,0,0.06)',       // subtle press overlay on light surfaces
+  darkModalHover: 'rgba(255,255,255,0.08)', // highlighted row on dark modal surfaces
 };
 
 export const shadows = {
@@ -61,15 +83,17 @@ export const radii = {
 };
 
 export const spacing = {
-  floatingBarSide: 16,
-  floatingBarBottom: 16,
-  iconButtonSize: 40,
-  barPaddingX: 8,
-  barPaddingY: 6,
-  contentPaddingTop: 80,
-  contentPaddingBottom: 120,
+  floatingBarSide: scale(16),
+  floatingBarBottom: scale(16),
+  iconButtonSize: scale(44),   // 44pt baseline (Apple HIG minimum tap target), scales with screen
+  iconSize: scale(20),         // standard icon inside a button (~45% of button size)
+  iconSizeSmall: scale(18),    // compact icon (avatar, secondary indicators)
+  barPaddingX: scale(8),
+  barPaddingY: scale(6),
+  contentPaddingTop: scale(88),
+  contentPaddingBottom: scale(128),
 
-  // Popup / popover menu rows
+  // Popup / popover menu rows (intentionally not scaled — menu text drives these)
   menuRowH: 16,     // horizontal padding inside each row
   menuRowV: 13,     // vertical padding inside each row
   menuIconSize: 16,

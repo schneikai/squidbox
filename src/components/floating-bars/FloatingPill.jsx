@@ -1,7 +1,7 @@
 import { BlurView } from 'expo-blur';
 import { StyleSheet, View } from 'react-native';
 
-import { glass, radii, shadows } from '@/styles/designTokens';
+import { glass, radii, shadows, spacing } from '@/styles/designTokens';
 
 /**
  * Base frosted-glass pill container used by all three floating bars.
@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingHorizontal: spacing.barPaddingX,
+    paddingVertical: spacing.barPaddingY,
   },
 });

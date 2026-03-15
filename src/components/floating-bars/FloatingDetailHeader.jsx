@@ -4,6 +4,7 @@ import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
+import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, spacing } from '@/styles/designTokens';
 
 /**
@@ -51,10 +52,10 @@ export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot
         <FloatingPill style={styles.backPill}>
           <Pressable
             onPress={onBack}
-            style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+            style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
             hitSlop={8}
           >
-            <Ionicons name="chevron-back" size={22} color={colors.text} />
+            <Ionicons name="chevron-back" size={spacing.iconSize} color={colors.text} />
           </Pressable>
         </FloatingPill>
       </Animated.View>
@@ -82,17 +83,6 @@ const styles = StyleSheet.create({
 
   // ── Back pill ─────────────────────────────────────────────────────────────
   backPill: {
-  },
-  backButton: {
-    width: spacing.iconButtonSize,
-    height: spacing.iconButtonSize,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: spacing.iconButtonSize / 2,
-  },
-  pressed: {
-    backgroundColor: 'rgba(0,0,0,0.06)',
-    borderRadius: spacing.iconButtonSize / 2,
   },
 
   // ── Info pill ─────────────────────────────────────────────────────────────

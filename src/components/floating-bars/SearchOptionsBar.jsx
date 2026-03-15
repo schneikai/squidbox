@@ -80,9 +80,9 @@ export default function SearchOptionsBar({
         {/* Search icon — always visible */}
         <Pressable
           onPress={onOpenSearch}
-          style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+          style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
         >
-          <Ionicons name="search" size={20} color={colors.iconInactive} />
+          <Ionicons name="search" size={spacing.iconSize} color={colors.iconInactive} />
         </Pressable>
 
         {/* Collapsed: options button */}
@@ -90,14 +90,14 @@ export default function SearchOptionsBar({
           <Pressable
             onPress={onOpenOptions}
             style={({ pressed }) => [
-              styles.iconButton,
+              actionButtonStyles.pillButton,
               hasActiveState && actionButtonStyles.buttonWarning,
-              pressed && styles.iconButtonPressed,
+              pressed && { backgroundColor: colors.pressedBg },
             ]}
           >
             <Ionicons
               name="options-outline"
-              size={20}
+              size={spacing.iconSize}
               color={hasActiveState ? colors.accent : colors.iconInactive}
             />
           </Pressable>
@@ -116,21 +116,21 @@ export default function SearchOptionsBar({
           />
           <Pressable
             onPress={onCloseSearch}
-            style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+            style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
           >
-            <Ionicons name="close" size={20} color={colors.iconInactive} />
+            <Ionicons name="close" size={spacing.iconSize} color={colors.iconInactive} />
           </Pressable>
           <Pressable
             onPress={onOpenOptions}
             style={({ pressed }) => [
-              styles.iconButton,
+              actionButtonStyles.pillButton,
               hasActiveState && actionButtonStyles.buttonWarning,
-              pressed && styles.iconButtonPressed,
+              pressed && { backgroundColor: colors.pressedBg },
             ]}
           >
             <Ionicons
               name="options-outline"
-              size={20}
+              size={spacing.iconSize}
               color={hasActiveState ? colors.accent : colors.iconInactive}
             />
           </Pressable>
@@ -147,16 +147,6 @@ const styles = StyleSheet.create({
   },
   pill: {
     flex: 1,
-  },
-  iconButton: {
-    width: spacing.iconButtonSize,
-    height: spacing.iconButtonSize,
-    borderRadius: spacing.iconButtonSize / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconButtonPressed: {
-    backgroundColor: 'rgba(0,0,0,0.06)',
   },
   expandedRow: {
     flexDirection: 'row',
