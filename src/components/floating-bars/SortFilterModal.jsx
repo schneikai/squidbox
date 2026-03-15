@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     flex: 1,
-    fontSize: 14,
+    fontSize: spacing.menuFontSize,
     color: colors.darkModalText,
   },
   rowIcon: {

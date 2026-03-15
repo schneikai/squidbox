@@ -31,7 +31,7 @@ export default {
   // Applied to the <Text> inside each option
   menuOptionText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: spacing.menuFontSize,
     fontWeight: '500',
     color: colors.darkModalText,
   },

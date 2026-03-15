@@ -93,11 +93,12 @@ export const spacing = {
   contentPaddingTop: scale(88),
   contentPaddingBottom: scale(128),
 
-  // Popup / popover menu rows (intentionally not scaled — menu text drives these)
-  menuRowH: 16,     // horizontal padding inside each row
-  menuRowV: 13,     // vertical padding inside each row
-  menuIconSize: 16,
-  menuIconGap: 12,  // gap between leading icon and label text
+  // Popup / popover menu rows
+  menuFontSize: scale(14),
+  menuRowH: scale(16),   // horizontal padding inside each row
+  menuRowV: scale(13),   // vertical padding inside each row
+  menuIconSize: scale(16),
+  menuIconGap: scale(12), // gap between leading icon and label text
 
   // Gap between a trigger button and the popover that opens from it
   popoverGap: 25,
