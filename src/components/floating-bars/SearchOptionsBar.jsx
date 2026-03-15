@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
 import actionButtonStyles from '@/styles/actionButtonStyles';
-import { colors, spacing } from '@/styles/designTokens';
+import { colors, scale, spacing, typography } from '@/styles/designTokens';
 
 /**
  * Reusable bottom-left floating search + options bar.
@@ -56,6 +56,7 @@ export default function SearchOptionsBar({
   useEffect(() => {
     expandProgress.value = withTiming(isSearchActive ? 1 : 0, { duration: 280 });
     if (isSearchActive) setTimeout(() => inputRef.current?.focus(), 300);
+    else inputRef.current?.blur();
   }, [isSearchActive]);
 
   const containerStyle = useAnimatedStyle(() => ({
@@ -163,10 +164,10 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: typography.base,
+    lineHeight: typography.lg,
     color: colors.text,
-    paddingHorizontal: 4,
+    paddingHorizontal: scale(4),
     paddingVertical: 0,
   },
 });

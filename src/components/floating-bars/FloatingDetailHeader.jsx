@@ -119,13 +119,15 @@ const styles = StyleSheet.create({
   },
   infoPill: {
     maxWidth: '100%',
+    minWidth: 80,
+    alignSelf: 'center',
   },
   infoContent: {
     minHeight: spacing.iconButtonSize,
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 1,
-    width: '100%',
+    paddingHorizontal: spacing.barPaddingX,
   },
   title: {
     fontSize: 14,

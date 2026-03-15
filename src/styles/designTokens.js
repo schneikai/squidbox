@@ -104,6 +104,15 @@ export const spacing = {
   popoverGap: 25,
 };
 
+export const typography = {
+  xs:   scale(11),
+  sm:   scale(13),
+  base: scale(17),
+  lg:   scale(20),
+  xl:   scale(24),
+  xxl:  scale(28),
+};
+
 export const glass = {
   backgroundColor: colors.glassSurface,
   borderColor: colors.glassBorder,

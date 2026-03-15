@@ -15,11 +15,11 @@ import { useFloatingBars } from './FloatingBarsContext';
 import { MAIN_TABS, getActiveTabName, getActiveStackDepth } from './navStateHelpers';
 import FloatingPill from './FloatingPill';
 import actionButtonStyles from '@/styles/actionButtonStyles';
-import { colors, shadows, spacing } from '@/styles/designTokens';
+import { colors, shadows, spacing, typography } from '@/styles/designTokens';
 import useCloud from '@/features/cloud/useCloud';
 
 const SCREEN_TITLES = {
-  AssetsTab: 'Media Library',
+  AssetsTab: 'Library',
   AlbumsTab: 'Albums',
   PostsTab: 'Posts',
 };
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   title: {
-    fontSize: 28,
+    fontSize: typography.xxl,
     fontWeight: '700',
     color: colors.text,
     flex: 1,
