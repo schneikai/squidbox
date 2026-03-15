@@ -23,6 +23,8 @@ const NAV_ITEMS = [
   { tab: 'PostsTab', icon: 'share-social-outline', iconActive: 'share-social' },
 ];
 
+const MAIN_TABS = NAV_ITEMS.map((item) => item.tab);
+
 export default function FloatingNavigationBar() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
@@ -30,7 +32,7 @@ export default function FloatingNavigationBar() {
 
   const activeTab = useNavigationState((s) => getActiveTabName(s));
   const stackDepth = useNavigationState((s) => getActiveStackDepth(s));
-  const isMainScreen = stackDepth === 0;
+  const isMainScreen = stackDepth === 0 && MAIN_TABS.includes(activeTab);
 
   const hideBar = isSearchActive || !isMainScreen || isSelectMode;
 
