@@ -3,6 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 
 import SuperPressable from '@/components/SuperPressable';
 import { useFloatingBars } from '@/components/floating-bars/FloatingBarsContext';
+import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
 import useAlbums from '@/features/albums-context/useAlbums';
 import PostList from '@/features/post-list/PostList';
 import PostListItem from '@/features/post-list/PostListItem';
@@ -27,7 +28,8 @@ export default function PostsScreen() {
   // Posts search uses persisted AppSettings query
   const { searchText: postsSearchText, setSearchText: setPersistentSearch } = useSearchPostsAction();
 
-  const { registerScreenOptions, screenOptionsRef, onScrollUpdate, searchText: globalSearchText } = useFloatingBars();
+  const { registerScreenOptions, screenOptionsRef, searchText: globalSearchText } = useFloatingBars();
+  const scrollHandler = useFloatingBarScrollHandler();
 
   // Sync global search bar input to persisted posts query
   useEffect(() => {
@@ -60,16 +62,12 @@ export default function PostsScreen() {
     });
   }, [sortOrder, activeFilter]);
 
-  function handleScroll(event) {
-    onScrollUpdate(event.nativeEvent.contentOffset.y);
-  }
-
   return (
     <PostList
       listRef={listRef}
       postIds={postIds}
       contentContainerStyle={{ paddingTop, paddingBottom }}
-      onScroll={handleScroll}
+      onScroll={scrollHandler}
       renderListItem={(post) => (
         <SuperPressable
           onPress={() => navigation.navigate('PostScreen', { postId: post.id })}

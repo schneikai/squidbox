@@ -1,4 +1,5 @@
-import { View, FlatList, useWindowDimensions } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import useAssets from '@/features/assets-context/useAssets';
 
@@ -18,7 +19,7 @@ export default function AssetList({
   if (!assetIds) return null;
 
   return (
-    <FlatList
+    <Animated.FlatList
       data={assetIds}
       numColumns={numColumns}
       renderItem={({ item: assetId }) => {

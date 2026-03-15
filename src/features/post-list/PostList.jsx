@@ -1,4 +1,4 @@
-import { FlatList } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import usePosts from '@/features/posts-context/usePosts';
 
@@ -16,7 +16,7 @@ export default function PostList({
   if (FirstListEntryComponent) postIds.unshift('FirstListEntryComponent');
 
   return (
-    <FlatList
+    <Animated.FlatList
       data={postIds}
       renderItem={({ item: postId, index }) => {
         if (postId === 'FirstListEntryComponent') return FirstListEntryComponent;
@@ -35,3 +35,4 @@ export default function PostList({
     />
   );
 }
+

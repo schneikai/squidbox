@@ -6,7 +6,6 @@ import Animated, {
   useSharedValue,
   withTiming,
   interpolate,
-  Extrapolation,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigationState, useNavigation } from '@react-navigation/native';
@@ -27,7 +26,7 @@ const NAV_ITEMS = [
 export default function FloatingNavigationBar() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { navScrollOffset, isSearchActive, isSelectMode, resetScroll } = useFloatingBars();
+  const { isNavBarHidden, isSearchActive, isSelectMode, resetScroll } = useFloatingBars();
 
   const activeTab = useNavigationState((s) => getActiveTabName(s));
   const stackDepth = useNavigationState((s) => getActiveStackDepth(s));
@@ -35,19 +34,20 @@ export default function FloatingNavigationBar() {
 
   const hideBar = isSearchActive || !isMainScreen || isSelectMode;
 
-  // Animates 0 → 1 (hide) and 1 → 0 (show) so both directions get a smooth transition
+  // Toggle-driven: search / select / depth — animated both ways via shared value
   const contextHidden = useSharedValue(hideBar ? 1 : 0);
   useEffect(() => {
     contextHidden.value = withTiming(hideBar ? 1 : 0, { duration: 250 });
   }, [hideBar]);
 
   const navBarStyle = useAnimatedStyle(() => {
-    // Scroll-driven: tracks accumulated downward scroll, resets via spring on scroll-up
-    const scrollTranslate = interpolate(navScrollOffset.value, [20, 100], [0, 100], Extrapolation.CLAMP);
-    const scrollOpacity = interpolate(navScrollOffset.value, [20, 100], [1, 0], Extrapolation.CLAMP);
-    // Toggle-driven: animated shared value so both hide and show are smooth
+    // Scroll-driven: isNavBarHidden is already animated at the source (scroll handler)
+    const scrollTranslate = interpolate(isNavBarHidden.value, [0, 1], [0, 100]);
+    const scrollOpacity = interpolate(isNavBarHidden.value, [0, 1], [1, 0]);
+    // Toggle-driven: search / select / depth
     const contextTranslate = interpolate(contextHidden.value, [0, 1], [0, 100]);
     const contextOpacity = interpolate(contextHidden.value, [0, 1], [1, 0]);
+    // Most-hidden value wins
     return {
       transform: [{ translateY: Math.max(scrollTranslate, contextTranslate) }],
       opacity: Math.min(scrollOpacity, contextOpacity),

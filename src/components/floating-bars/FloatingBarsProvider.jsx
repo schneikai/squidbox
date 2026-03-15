@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { useNavigationState } from '@react-navigation/native';
-import { useSharedValue, withSpring } from 'react-native-reanimated';
+import { useSharedValue } from 'react-native-reanimated';
 
 import FloatingBarsContext from './FloatingBarsContext';
 import { getActiveTabName } from './navStateHelpers';
@@ -78,26 +78,11 @@ export default function FloatingBarsProvider({ children }) {
 
   // ── Scroll-driven visibility (Reanimated shared values) ───────────────────
   const scrollY = useSharedValue(0);
-  const lastScrollY = useSharedValue(0);
-  // Accumulated downward scroll since last direction reversal.
-  // Resets to 0 the instant the user scrolls up → nav bar snaps back immediately.
-  const navScrollOffset = useSharedValue(0);
-
-  function onScrollUpdate(y) {
-    const delta = y - lastScrollY.value;
-    if (delta < -2) {
-      navScrollOffset.value = withSpring(0, { damping: 20, stiffness: 250 });
-    } else if (delta > 2) {
-      navScrollOffset.value = Math.min(navScrollOffset.value + delta, 100);
-    }
-    lastScrollY.value = y;
-    scrollY.value = y;
-  }
+  const isNavBarHidden = useSharedValue(0); // 0 = visible, 1 = hidden
 
   function resetScroll() {
     scrollY.value = 0;
-    lastScrollY.value = 0;
-    navScrollOffset.value = 0;
+    isNavBarHidden.value = 0;
   }
 
   const value = {
@@ -127,8 +112,7 @@ export default function FloatingBarsProvider({ children }) {
 
     // Scroll animation values (passed to animated components)
     scrollY,
-    navScrollOffset,
-    onScrollUpdate,
+    isNavBarHidden,
     resetScroll,
   };
 

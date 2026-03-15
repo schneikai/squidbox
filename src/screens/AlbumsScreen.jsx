@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { Alert } from 'react-native';
 
 import { useFloatingBars } from '@/components/floating-bars/FloatingBarsContext';
+import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
 import AlbumList from '@/features/album-list/AlbumList';
 import AlbumListItem from '@/features/album-list/AlbumListItem';
 import AlbumListItemWithEditMode from '@/features/album-list/AlbumListItemWithEditMode';
@@ -20,7 +21,8 @@ export default function AlbumsScreen({ navigation }) {
   const { sortOrder, sortFunction, sortAlbums } = useSortAlbumsAction({ afterSort: listScrollTop });
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterFilter: listScrollTop });
 
-  const { registerScreenOptions, screenOptionsRef, onScrollUpdate, searchText } = useFloatingBars();
+  const { registerScreenOptions, screenOptionsRef, searchText } = useFloatingBars();
+  const scrollHandler = useFloatingBarScrollHandler();
 
   const albumIds = useMemo(
     () =>
@@ -55,16 +57,12 @@ export default function AlbumsScreen({ navigation }) {
     });
   }, [sortOrder, activeFilter]);
 
-  function handleScroll(event) {
-    onScrollUpdate(event.nativeEvent.contentOffset.y);
-  }
-
   return (
     <AlbumList
       listRef={listRef}
       albumIds={albumIds}
       contentContainerStyle={{ paddingTop, paddingBottom }}
-      onScroll={handleScroll}
+      onScroll={scrollHandler}
       renderItem={({ album, thumbnailAsset, numberOfAssets, elementWidth }) => (
         <AlbumListItemWithEditMode
           isEditMode={false}

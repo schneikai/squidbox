@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import AssetQuickViewModal, { useAssetQuickViewModal } from '@/components/AssetQuickViewModal';
 import SuperPressable from '@/components/SuperPressable';
 import { useFloatingBars } from '@/components/floating-bars/FloatingBarsContext';
+import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
 import AssetList from '@/features/asset-list/AssetList';
 import AssetListItem from '@/features/asset-list/AssetListItem';
 import useFilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/useFilterAssetsAction';
@@ -33,9 +34,10 @@ export default function AssetsScreen({ route }) {
     exitSelectMode,
     registerScreenOptions,
     screenOptionsRef,
-    onScrollUpdate,
     searchText,
   } = useFloatingBars();
+
+  const scrollHandler = useFloatingBarScrollHandler();
 
   const { show, hide, updateProgress } = useProgressOverlay();
   const addAssetsFromCameraRollAsync = useAddAssetsFromCameraRoll({
@@ -134,10 +136,6 @@ export default function AssetsScreen({ route }) {
     }
   }
 
-  function handleScroll(event) {
-    onScrollUpdate(event.nativeEvent.contentOffset.y);
-  }
-
   return (
     <>
       <AssetQuickViewModal asset={quickViewAsset} isVisible={!!quickViewAsset} />
@@ -145,7 +143,7 @@ export default function AssetsScreen({ route }) {
         listRef={listRef}
         assetIds={assetIds}
         contentContainerStyle={{ paddingTop, paddingBottom }}
-        onScroll={handleScroll}
+        onScroll={scrollHandler}
         renderListItem={(asset) => (
           <SuperPressable
             onPress={() => onPressAsset(asset)}

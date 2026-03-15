@@ -1,4 +1,5 @@
-import { FlatList, useWindowDimensions } from 'react-native';
+import { useWindowDimensions } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import useGetAlbumThumbnailAssetAndAssetCount from './useGetAlbumThumbnailAssetAndAssetCount';
 
@@ -17,7 +18,7 @@ export default function AlbumList({ albumIds, renderItem, ListHeaderComponent, l
   const elementWidth = window.width / numColumns - 15;
 
   return (
-    <FlatList
+    <Animated.FlatList
       ref={listRef}
       data={albumIds}
       numColumns={numColumns}
@@ -39,3 +40,4 @@ export default function AlbumList({ albumIds, renderItem, ListHeaderComponent, l
     />
   );
 }
+
