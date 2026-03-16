@@ -3,14 +3,11 @@ import { Alert } from 'react-native';
 
 import PopupMenu from '@/components/popup-menu-options/PopupMenu';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
-import ToggleThumbnailStyleOption from '@/components/popup-menu-options/ToggleThumbnailStyleOption';
 import useAlbums from '@/features/albums-context/useAlbums';
-import useAppSettings from '@/features/app-settings/useAppSettings';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 
 export default function MoreAction({ album, afterDelete, onSelect }) {
   const { updateAlbum, setAlbumDeleted } = useAlbums();
-  const { setPostsQuery } = useAppSettings();
   const navigation = useNavigation();
 
   async function handleDeleteAlbum() {
@@ -25,11 +22,6 @@ export default function MoreAction({ album, afterDelete, onSelect }) {
         },
       },
     ]);
-  }
-
-  function handleShowPosts() {
-    setPostsQuery(`album:${album.id}`);
-    navigation.navigate('PostsTab', { screen: 'PostsScreen' });
   }
 
   async function handleRenameAlbum() {
@@ -53,7 +45,6 @@ export default function MoreAction({ album, afterDelete, onSelect }) {
   return (
     <PopupMenu icon="ellipsis-horizontal" variant="pill">
       {!!onSelect && <MenuOption label="Select" icon="checkmark-circle-outline" onPress={onSelect} />}
-      <ToggleThumbnailStyleOption />
       <MenuOption
         label={album.notes ? 'Edit note' : 'Add note'}
         icon="document-text-outline"

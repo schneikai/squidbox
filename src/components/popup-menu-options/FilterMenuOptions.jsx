@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { View, Text, StyleSheet } from 'react-native';
 import { MenuOption } from 'react-native-popup-menu';
 
-import { colors, spacing } from '@/styles/designTokens';
+import { colors, spacing, scale } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
 export default function FilterMenuOptions({ filters, onPress, activeFilter }) {
@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.darkModalBorder,
   },
   sectionLabel: {
-    fontSize: 11,
+    fontSize: scale(11),
     fontWeight: '600',
     color: colors.darkModalTextDim,
     textTransform: 'uppercase',

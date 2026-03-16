@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { MenuOption } from 'react-native-popup-menu';
 
-import { colors, spacing } from '@/styles/designTokens';
+import { colors, spacing, scale } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
 export default function TwoChoiceMenuOption({
@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   btnText: {
-    fontSize: 18,
+    fontSize: scale(18),
     color: colors.darkModalTextDim,
   },
   btnTextActive: {

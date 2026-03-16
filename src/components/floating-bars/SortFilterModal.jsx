@@ -131,7 +131,7 @@ export default function SortFilterModal({
                   {isActive && (
                     <Ionicons
                       name={dir === 'asc' ? 'arrow-up' : 'arrow-down'}
-                      size={16}
+                      size={spacing.menuIconSize}
                       color={colors.accent}
                       style={styles.rowIcon}
                     />
@@ -149,7 +149,7 @@ export default function SortFilterModal({
               <Text style={styles.rowLabel}>Filter</Text>
               <Ionicons
                 name="chevron-forward"
-                size={16}
+                size={spacing.menuIconSize}
                 color={colors.darkModalTextDim}
                 style={styles.rowIcon}
               />
@@ -163,7 +163,7 @@ export default function SortFilterModal({
               >
                 <Ionicons
                   name="close-circle-outline"
-                  size={16}
+                  size={spacing.menuIconSize}
                   color={colors.darkModalTextDim}
                   style={styles.rowLeadIcon}
                 />
@@ -181,7 +181,7 @@ export default function SortFilterModal({
                 >
                   <Ionicons
                     name={thumbnailStyle === 'cover' ? 'expand-outline' : 'grid-outline'}
-                    size={16}
+                    size={spacing.menuIconSize}
                     color={colors.darkModalTextDim}
                     style={styles.rowLeadIcon}
                   />
@@ -199,7 +199,7 @@ export default function SortFilterModal({
               onPress={() => setShowFilterPanel(false)}
               style={({ pressed }) => [styles.row, styles.backRow, pressed && styles.rowPressed]}
             >
-              <Ionicons name="chevron-back" size={16} color={colors.darkModalTextDim} />
+              <Ionicons name="chevron-back" size={spacing.menuIconSize} color={colors.darkModalTextDim} />
               <Text style={[styles.rowLabel, styles.backLabel]}>Filter</Text>
             </Pressable>
 
@@ -218,7 +218,7 @@ export default function SortFilterModal({
                 >
                   <Ionicons
                     name={option.icon}
-                    size={16}
+                    size={spacing.menuIconSize}
                     color={colors.darkModalTextDim}
                     style={styles.rowLeadIcon}
                   />
