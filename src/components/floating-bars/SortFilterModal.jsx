@@ -14,7 +14,7 @@ import useAppSettings from '@/features/app-settings/useAppSettings';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 import { colors, radii, shadows, spacing } from '@/styles/designTokens';
 
-const SORT_OPTIONS = [
+const DEFAULT_SORT_OPTIONS = [
   { key: 'createdAt', label: 'Created At' },
   { key: 'lastPostedAt', label: 'Last Posted At' },
 ];
@@ -38,6 +38,7 @@ export default function SortFilterModal({
   visible,
   onClose,
   sortOrder = 'createdAt:desc',
+  sortOptions = DEFAULT_SORT_OPTIONS,
   activeFilter = [],
   filterOptions = [],
   onSort,
@@ -118,7 +119,7 @@ export default function SortFilterModal({
         {!showFilterPanel ? (
           // ── Root panel ──────────────────────────────────────────────────────
           <>
-            {SORT_OPTIONS.map((option) => {
+            {sortOptions.map((option) => {
               const dir = getSortDirection(option.key);
               const isActive = dir !== null;
               return (

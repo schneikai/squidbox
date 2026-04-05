@@ -23,6 +23,7 @@ export default function FloatingFilterModal() {
       visible={isFilterModalOpen}
       onClose={closeFilterModal}
       sortOrder={filterModalData?.sortOrder ?? 'createdAt:desc'}
+      sortOptions={filterModalData?.sortOptions}
       activeFilter={filterModalData?.activeFilter ?? []}
       filterOptions={filterModalData?.filterOptions ?? DEFAULT_FILTER_OPTIONS}
       onSort={filterModalData?.onSort}

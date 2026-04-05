@@ -45,6 +45,11 @@ export default function AlbumsScreen({ navigation }) {
   useEffect(() => {
     registerScreenOptions('albums', {
       sortOrder,
+      sortOptions: [
+        { key: 'name', label: 'Name' },
+        { key: 'createdAt', label: 'Created At' },
+        { key: 'lastPostedAt', label: 'Last Posted At' },
+      ],
       activeFilter,
       filterOptions: [
         { key: 'all', label: 'All Albums', icon: 'apps-outline' },
