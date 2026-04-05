@@ -32,8 +32,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.barPaddingX,
-    paddingVertical: spacing.barPaddingY,
+    padding: spacing.barPaddingY,
     flexShrink: 1,
   },
 });
