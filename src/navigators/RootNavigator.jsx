@@ -23,8 +23,8 @@ export default function RootNavigator() {
         />
         <RootStack.Screen name="AddEditPostModal" component={AddEditPostNavigator} options={{ headerShown: false }} />
         <RootStack.Screen name="AssetPickerModal" component={AssetPickerScreen} />
-        <RootStack.Screen name="AddToAlbumModal" component={AddToAlbumScreen} />
-        <RootStack.Screen name="EditNotesModal" component={EditNotesModal} />
+        <RootStack.Screen name="AddToAlbumModal" component={AddToAlbumScreen} options={{ headerShown: false }} />
+        <RootStack.Screen name="EditNotesModal" component={EditNotesModal} options={{ headerShown: false }} />
       </RootStack.Group>
       <RootStack.Group>
         <RootStack.Screen name="MainTab" component={MainTabNavigator} options={{ headerShown: false }} />

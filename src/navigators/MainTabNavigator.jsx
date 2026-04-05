@@ -27,6 +27,10 @@ function AnimatedTab({ children, tabIndex }) {
 
   useFocusEffect(
     useCallback(() => {
+      // Only animate on an actual tab switch. When a modal is dismissed the
+      // screen regains focus without the tab index changing, so we skip it.
+      if (tabIndex === prevTabIndexRef.current) return;
+
       const direction = tabIndex >= prevTabIndexRef.current ? 1 : -1;
       prevTabIndexRef.current = tabIndex;
 

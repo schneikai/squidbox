@@ -18,9 +18,7 @@ export default function AddEditPostNavigator({ route }) {
       <Stack.Screen
         name={screenName}
         component={screenComponent}
-        options={{
-          title: sreenTitle,
-        }}
+        options={{ headerShown: false }}
         initialParams={{ ...route.params }}
       />
       {/* 

@@ -4,6 +4,8 @@ import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity
 import confirmLoginAsync from '@/features/cloud/confirmLoginAsync';
 import useCloud from '@/features/cloud/useCloud';
 import isBlank from '@/utils/isBlank';
+import actionButtonStyles from '@/styles/actionButtonStyles';
+import { colors, radii, scale, spacing } from '@/styles/designTokens';
 
 export default function LoginForm() {
   const [email, setEmail] = useState(process.env.EXPO_PUBLIC_LOGIN_FORM_EMAIL);
@@ -31,37 +33,38 @@ export default function LoginForm() {
 
   return (
     <>
-
-      {/* Input fields */}
       <View style={styles.section}>
         <TextInput
           style={styles.input}
           onChangeText={setEmail}
           value={email}
           placeholder="Email"
-          placeholderTextColor="#C7C7CC"
+          placeholderTextColor={colors.textTertiary}
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
           returnKeyType="next"
         />
-        <View style={styles.divider} />
+        <View style={actionButtonStyles.listDivider} />
         <TextInput
           style={styles.input}
           onChangeText={setPassword}
           value={password}
           placeholder="Password"
-          placeholderTextColor="#C7C7CC"
+          placeholderTextColor={colors.textTertiary}
           secureTextEntry
           returnKeyType="done"
           onSubmitEditing={handleSubmit}
         />
       </View>
 
-      {/* Login button */}
-      <TouchableOpacity style={[styles.loginButton, isPending && styles.loginButtonDisabled]} onPress={handleSubmit} disabled={isPending}>
+      <TouchableOpacity
+        style={[styles.loginButton, isPending && styles.loginButtonDisabled]}
+        onPress={handleSubmit}
+        disabled={isPending}
+      >
         {isPending ? (
-          <ActivityIndicator color="white" />
+          <ActivityIndicator color={colors.textInverse} />
         ) : (
           <Text style={styles.loginButtonText}>Sign In</Text>
         )}
@@ -72,25 +75,20 @@ export default function LoginForm() {
 
 const styles = StyleSheet.create({
   section: {
-    backgroundColor: 'white',
-    borderRadius: 10,
+    backgroundColor: colors.glassSurface,
+    borderRadius: radii.card,
     overflow: 'hidden',
     marginBottom: 16,
   },
   input: {
-    height: 44,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#000',
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: '#C6C6C8',
-    marginLeft: 16,
+    height: spacing.iconButtonSize,
+    paddingHorizontal: spacing.floatingBarSide,
+    fontSize: scale(16),
+    color: colors.text,
   },
   loginButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 10,
+    backgroundColor: colors.accent,
+    borderRadius: radii.card,
     height: 50,
     alignItems: 'center',
     justifyContent: 'center',
@@ -99,8 +97,8 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   loginButtonText: {
-    color: 'white',
-    fontSize: 16,
+    color: colors.textInverse,
+    fontSize: scale(16),
     fontWeight: '600',
   },
 });

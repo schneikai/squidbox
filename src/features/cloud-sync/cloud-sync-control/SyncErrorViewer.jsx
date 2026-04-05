@@ -1,11 +1,17 @@
-import { Modal, View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import Animated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import useAssets from '@/features/assets-context/useAssets';
+import ModalCloseButton from '@/components/ModalCloseButton';
+import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import { colors, radii, scale, spacing } from '@/styles/designTokens';
 
 export default function SyncErrorViewer({ assetsWithSyncErrors, close }) {
   const insets = useSafeAreaInsets();
   const { updateAssets } = useAssets();
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
 
   async function handleRetry() {
     const assetIds = assetsWithSyncErrors.map((asset) => asset.id);
@@ -16,25 +22,21 @@ export default function SyncErrorViewer({ assetsWithSyncErrors, close }) {
   return (
     <Modal animationType="slide" visible presentationStyle="pageSheet" onRequestClose={close}>
       <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Sync Errors ({assetsWithSyncErrors.length})</Text>
-          <TouchableOpacity onPress={close} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={styles.closeText}>Close</Text>
-          </TouchableOpacity>
-        </View>
+        <ModalHeader
+          leftSlot={<ModalCloseButton onPress={close} />}
+          centerSlot={`Sync Errors (${assetsWithSyncErrors.length})`}
+          scrollY={scrollY}
+        />
 
-        {/* Error list */}
-        <ScrollView contentContainerStyle={styles.list}>
+        <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={[styles.list, { paddingTop: MODAL_HEADER_HEIGHT }]}>
           {assetsWithSyncErrors.map((asset) => (
             <View key={asset.id} style={styles.errorRow}>
               <Text style={styles.errorAssetId} numberOfLines={1}>{asset.id}</Text>
               <Text style={styles.errorMessage}>{asset.syncError}</Text>
             </View>
           ))}
-        </ScrollView>
+        </Animated.ScrollView>
 
-        {/* Footer */}
         <View style={styles.footer}>
           <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
             <Text style={styles.retryButtonText}>Retry All</Text>
@@ -48,26 +50,7 @@ export default function SyncErrorViewer({ assetsWithSyncErrors, close }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: 'white',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#C6C6C8',
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  closeText: {
-    fontSize: 16,
-    color: '#007AFF',
+    backgroundColor: colors.appBackground[0],
   },
 
   list: {
@@ -75,18 +58,18 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   errorRow: {
-    backgroundColor: 'white',
-    borderRadius: 10,
+    backgroundColor: colors.glassSurface,
+    borderRadius: radii.card,
     padding: 12,
   },
   errorAssetId: {
-    fontSize: 12,
-    color: '#8E8E93',
+    fontSize: scale(12),
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   errorMessage: {
-    fontSize: 14,
-    color: '#FF3B30',
+    fontSize: scale(14),
+    color: colors.danger,
     lineHeight: 20,
   },
 
@@ -94,14 +77,14 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   retryButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 12,
+    backgroundColor: colors.accent,
+    borderRadius: radii.card,
     paddingVertical: 14,
     alignItems: 'center',
   },
   retryButtonText: {
-    color: 'white',
-    fontSize: 16,
+    color: colors.textInverse,
+    fontSize: scale(16),
     fontWeight: '600',
   },
 });

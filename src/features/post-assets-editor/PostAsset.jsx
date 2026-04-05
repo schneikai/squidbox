@@ -1,4 +1,5 @@
 import { Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { colors, scale } from '@/styles/designTokens';
 import { ScaleDecorator } from 'react-native-draggable-flatlist';
 
 import AssetImage from '@/components/AssetImage';
@@ -40,8 +41,8 @@ const styles = StyleSheet.create({
     bottom: 10,
     right: 10,
     zIndex: 10,
-    color: 'white',
-    fontSize: 12,
+    color: colors.textInverse,
+    fontSize: scale(12),
     fontWeight: 'bold',
   },
 });

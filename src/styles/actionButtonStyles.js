@@ -67,4 +67,10 @@ export default StyleSheet.create({
     backgroundColor: colors.glassBorder,
     marginHorizontal: 4,
   },
+  // iOS hairline divider between rows in a grouped list/settings section
+  listDivider: {
+    height: 1,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+    marginLeft: spacing.floatingBarSide,
+  },
 });

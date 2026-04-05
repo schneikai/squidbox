@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import DraggableFlatList from 'react-native-draggable-flatlist';
-import Ionicons from '@expo/vector-icons/Ionicons';
 
 import AddAssetButton from './AddAssetButton';
 import PostAsset from './PostAsset';
@@ -14,6 +13,7 @@ import assetRefsToPostAssets from '@/utils/posts/assetRefsToPostAssets';
 import buildPostAsset from '@/utils/posts/buildPostAsset';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
 import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
+import { colors, scale } from '@/styles/designTokens';
 
 const LIST_VERTICAL_PADDING = 80;
 
@@ -21,7 +21,7 @@ export default function PostAssetsEditor({ assetRefs, onChange, getRandomAsset, 
   const { assets } = useAssets();
   const [postAssets, setPostAssets] = useState(assetRefsToPostAssets(assetRefs, assets));
   const [assetCountInfo, setAssetCountInfo] = useState('');
-  const { width: screenWidth } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const { show, hide, updateProgress } = useProgressOverlay();
   const handleAddAssets = useAssetPickerHandler({
     addAssetsToPost: addPostAssets,
@@ -31,8 +31,8 @@ export default function PostAssetsEditor({ assetRefs, onChange, getRandomAsset, 
   });
 
   const itemDimension = {
-    width: screenWidth / 2.5,
-    height: screenWidth - LIST_VERTICAL_PADDING * 2,
+    width: width / 2.5,
+    height: width - LIST_VERTICAL_PADDING * 2,
   };
 
   useEffect(() => {
@@ -59,37 +59,26 @@ export default function PostAssetsEditor({ assetRefs, onChange, getRandomAsset, 
   });
 
   return (
-    <>
-      <View style={[styles.container, { width: screenWidth, height: screenWidth }]}>
-        <DraggableFlatList
-          data={postAssets}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          onDragEnd={({ data }) => setPostAssets(data)}
-          keyExtractor={(postAsset) => postAsset.id}
-          renderItem={({ item: postAsset, drag, isActive }) => (
-            <PostAsset
-              postAsset={postAsset}
-              onDelete={deletePostAsset}
-              onLongPress={drag}
-              isActive={isActive}
-              itemDimension={itemDimension}
-            />
-          )}
-          ListFooterComponent={<AddAssetButton onAdd={handleAddAssets} itemDimension={itemDimension} />}
-        />
-        {postAssets.length > 0 && <Text style={styles.assetCountInfo}>{assetCountInfo}</Text>}
-        {getRandomAsset && (
-          <TouchableOpacity
-            style={styles.randomizeAssetButton}
-            onPress={handleRandomizeAsset}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="dice-outline" size={22} color="white" />
-          </TouchableOpacity>
+    <View style={[styles.container, { width, height: width }]}>
+      <DraggableFlatList
+        data={postAssets}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        onDragEnd={({ data }) => setPostAssets(data)}
+        keyExtractor={(postAsset) => postAsset.id}
+        renderItem={({ item: postAsset, drag, isActive }) => (
+          <PostAsset
+            postAsset={postAsset}
+            onDelete={deletePostAsset}
+            onLongPress={drag}
+            isActive={isActive}
+            itemDimension={itemDimension}
+          />
         )}
-      </View>
-    </>
+        ListFooterComponent={<AddAssetButton onAdd={handleAddAssets} itemDimension={itemDimension} />}
+      />
+      {postAssets.length > 0 && <Text style={styles.assetCountInfo}>{assetCountInfo}</Text>}
+    </View>
   );
 }
 
@@ -97,20 +86,12 @@ const styles = StyleSheet.create({
   container: {
     paddingVertical: LIST_VERTICAL_PADDING,
     paddingLeft: 15,
-    backgroundColor: 'lightgray',
+    backgroundColor: colors.glassSurface,
   },
   assetCountInfo: {
     paddingLeft: 5,
-    fontSize: 12,
-    color: 'gray',
+    fontSize: scale(12),
+    color: colors.textSecondary,
     fontWeight: 'bold',
-  },
-  randomizeAssetButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    borderRadius: 16,
-    padding: 5,
   },
 });

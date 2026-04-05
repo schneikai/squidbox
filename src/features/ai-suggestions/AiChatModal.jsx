@@ -32,6 +32,10 @@ import {
   DEFAULT_SYSTEM_PROMPT,
   DEFAULT_VARIATION_PROMPT,
 } from './aiSuggestionsStorage';
+import ModalCloseButton from '@/components/ModalCloseButton';
+import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import actionButtonStyles from '@/styles/actionButtonStyles';
+import { colors, radii, scale, spacing } from '@/styles/designTokens';
 
 // Models that are not useful for chat/text generation
 const MODEL_ID_BLOCKLIST = ['whisper', 'tts', 'dall-e', 'davinci', 'babbage', 'curie', 'ada', 'embedding', 'moderation'];
@@ -262,8 +266,8 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
                 >
                   <Ionicons
                     name={copiedKey === key ? 'checkmark-outline' : 'copy-outline'}
-                    size={16}
-                    color={copiedKey === key ? '#34C759' : '#999'}
+                    size={scale(16)}
+                    color={copiedKey === key ? '#34C759' : colors.textTertiary}
                   />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.useButton} onPress={() => handleUse(suggestion)}>
@@ -282,7 +286,7 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
     return (
       <View style={styles.assistantContainer}>
         <View style={styles.loadingBubble}>
-          <ActivityIndicator size="small" color="#888" />
+          <ActivityIndicator size="small" color={colors.textSecondary} />
           <Text style={styles.loadingText}>Generating captions…</Text>
         </View>
       </View>
@@ -292,19 +296,21 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <Animated.View style={[styles.container, { paddingBottom: keyboardHeightAnim }]}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.headerButton}>
-            <Text style={styles.headerButtonText}>Close</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.modelSelector} onPress={handleOpenModelPicker}>
-            <Text style={styles.modelSelectorText}>{selectedModel}</Text>
-            <Ionicons name="chevron-down" size={14} color="#555" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleClearChat} style={styles.headerButton}>
-            <Text style={[styles.headerButtonText, styles.clearButton]}>Clear</Text>
-          </TouchableOpacity>
-        </View>
+        <ModalHeader
+          leftSlot={<ModalCloseButton onPress={onClose} />}
+          centerSlot={
+            <TouchableOpacity style={styles.modelSelector} onPress={handleOpenModelPicker}>
+              <Text style={styles.modelSelectorText} numberOfLines={1}>{selectedModel}</Text>
+              <Ionicons name="chevron-down" size={scale(14)} color={colors.textSecondary} />
+            </TouchableOpacity>
+          }
+          centerStyle="pill"
+          rightSlot={
+            <TouchableOpacity onPress={handleClearChat} style={actionButtonStyles.pillButton}>
+              <Text style={styles.clearButton}>Clear</Text>
+            </TouchableOpacity>
+          }
+        />
 
         {/* Model picker overlay */}
         <Modal
@@ -321,16 +327,15 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
             <View style={styles.pickerSheet}>
               <Text style={styles.pickerTitle}>Select Model</Text>
 
-              {/* Search bar */}
               {!loadingModels && availableModels.length > 0 && (
                 <View style={styles.pickerSearchRow}>
-                  <Ionicons name="search-outline" size={16} color="#8E8E93" />
+                  <Ionicons name="search-outline" size={scale(16)} color={colors.textSecondary} />
                   <TextInput
                     style={styles.pickerSearchInput}
                     value={modelSearch}
                     onChangeText={setModelSearch}
                     placeholder="Search"
-                    placeholderTextColor="#C7C7CC"
+                    placeholderTextColor={colors.textTertiary}
                     autoCorrect={false}
                     autoCapitalize="none"
                     clearButtonMode="while-editing"
@@ -340,7 +345,7 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
 
               {loadingModels ? (
                 <View style={styles.pickerLoading}>
-                  <ActivityIndicator size="small" color="#888" />
+                  <ActivityIndicator size="small" color={colors.textSecondary} />
                   <Text style={styles.pickerLoadingText}>Loading models…</Text>
                 </View>
               ) : availableModels.length === 0 ? (
@@ -365,7 +370,7 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
                         {modelId}
                       </Text>
                       {selectedModel === modelId && (
-                        <Ionicons name="checkmark" size={18} color="#007AFF" />
+                        <Ionicons name="checkmark" size={scale(18)} color={colors.accent} />
                       )}
                     </TouchableOpacity>
                   )}
@@ -421,7 +426,7 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
           }
         />
 
-        {/* Reference toggle — only shown before the first message is sent, and only if there are posts */}
+        {/* Reference toggle */}
         {messages.length === 0 && recentPostTexts.length > 0 && (
           <View style={styles.referenceRow}>
             <TouchableOpacity onPress={() => setShowReferencePosts(true)} style={styles.referenceLabelButton}>
@@ -432,8 +437,8 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
             <Switch
               value={includeReference}
               onValueChange={setIncludeReference}
-              trackColor={{ false: '#ddd', true: '#007AFF' }}
-              thumbColor="white"
+              trackColor={{ false: colors.glassBorder, true: colors.accent }}
+              thumbColor={colors.textInverse}
               style={styles.referenceSwitch}
             />
           </View>
@@ -443,8 +448,8 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
         <View style={[styles.inputBar, { paddingBottom: insets.bottom + 8 }]}>
           <TextInput
             style={styles.input}
-            placeholder="e.g. create some kinky nsfw tweet ideas"
-            placeholderTextColor="#aaa"
+            placeholder="e.g. create some caption ideas"
+            placeholderTextColor={colors.textTertiary}
             value={inputText}
             onChangeText={setInputText}
             multiline
@@ -455,7 +460,7 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
             onPress={handleSend}
             disabled={!inputText.trim() || isLoading}
           >
-            <Ionicons name="arrow-up" size={20} color="white" />
+            <Ionicons name="arrow-up" size={scale(20)} color={colors.textInverse} />
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -466,43 +471,27 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f2f2f7',
+    backgroundColor: colors.appBackground[0],
   },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: 'white',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ddd',
-  },
   modelSelector: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#f2f2f7',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingHorizontal: spacing.barPaddingX,
+    minHeight: spacing.iconButtonSize,
+    maxWidth: 180,
   },
   modelSelectorText: {
-    fontSize: 14,
+    fontSize: scale(14),
     fontWeight: '500',
-    color: '#333',
-  },
-  headerButton: {
-    minWidth: 56,
-  },
-  headerButtonText: {
-    fontSize: 16,
-    color: '#007AFF',
+    color: colors.text,
   },
   clearButton: {
-    color: '#FF3B30',
-    textAlign: 'right',
+    fontSize: scale(15),
+    fontWeight: '500',
+    color: colors.danger,
+    paddingHorizontal: 4,
   },
 
   messageListContainer: {
@@ -510,13 +499,14 @@ const styles = StyleSheet.create({
   },
   messageList: {
     padding: 12,
+    paddingTop: MODAL_HEADER_HEIGHT,
     paddingBottom: 4,
     flexGrow: 1,
   },
 
   emptyHint: {
-    color: '#aaa',
-    fontSize: 14,
+    color: colors.textTertiary,
+    fontSize: scale(14),
     textAlign: 'center',
     marginTop: 40,
     paddingHorizontal: 24,
@@ -527,7 +517,7 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   userBubble: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.accent,
     borderRadius: 18,
     borderBottomRightRadius: 4,
     paddingHorizontal: 14,
@@ -535,13 +525,13 @@ const styles = StyleSheet.create({
     maxWidth: '80%',
   },
   userBubbleText: {
-    color: 'white',
-    fontSize: 15,
+    color: colors.textInverse,
+    fontSize: scale(15),
     lineHeight: 21,
   },
 
   assistantBubble: {
-    backgroundColor: 'white',
+    backgroundColor: colors.glassSurface,
     borderRadius: 14,
     borderBottomLeftRadius: 4,
     marginVertical: 4,
@@ -562,13 +552,13 @@ const styles = StyleSheet.create({
   },
   suggestionRowDivider: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#eee',
+    borderBottomColor: colors.glassBorder,
   },
   suggestionText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: scale(14),
     lineHeight: 20,
-    color: '#111',
+    color: colors.text,
   },
   suggestionActions: {
     flexDirection: 'row',
@@ -577,21 +567,21 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   useButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.accent,
     borderRadius: 6,
     paddingHorizontal: 10,
     paddingVertical: 3,
   },
   useButtonText: {
-    color: 'white',
-    fontSize: 12,
+    color: colors.textInverse,
+    fontSize: scale(12),
     fontWeight: '600',
   },
 
   loadingBubble: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: colors.glassSurface,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -605,36 +595,37 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   loadingText: {
-    color: '#888',
-    fontSize: 14,
+    color: colors.textSecondary,
+    fontSize: scale(14),
   },
 
   refModalContainer: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: colors.appBackground[0],
   },
   refModalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.floatingBarSide,
     paddingVertical: 14,
-    backgroundColor: 'white',
+    backgroundColor: colors.glassSurface,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#C6C6C8',
+    borderBottomColor: colors.glassBorder,
   },
   refModalTitle: {
-    fontSize: 16,
+    fontSize: scale(16),
     fontWeight: '600',
+    color: colors.text,
   },
   refModalClose: {
-    fontSize: 16,
-    color: '#007AFF',
+    fontSize: scale(16),
+    color: colors.accent,
     fontWeight: '600',
   },
   refModalSubtitle: {
-    fontSize: 13,
-    color: '#8E8E93',
+    fontSize: scale(13),
+    color: colors.textSecondary,
     textAlign: 'center',
     paddingHorizontal: 24,
     paddingTop: 16,
@@ -646,8 +637,8 @@ const styles = StyleSheet.create({
   refModalRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: 'white',
-    borderRadius: 10,
+    backgroundColor: colors.glassSurface,
+    borderRadius: radii.card,
     padding: 12,
     gap: 10,
   },
@@ -656,8 +647,8 @@ const styles = StyleSheet.create({
   },
   refModalText: {
     flex: 1,
-    fontSize: 15,
-    color: '#000',
+    fontSize: scale(15),
+    color: colors.text,
     lineHeight: 22,
   },
 
@@ -667,9 +658,9 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 7,
-    backgroundColor: 'white',
+    backgroundColor: colors.glassSurface,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#eee',
+    borderTopColor: colors.glassBorder,
   },
   referenceLabelButton: {
     flex: 1,
@@ -678,8 +669,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   referenceLabel: {
-    fontSize: 13,
-    color: '#3C3C43',
+    fontSize: scale(13),
+    color: colors.text,
   },
   referenceSwitch: {
     transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }],
@@ -691,45 +682,45 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     paddingTop: 16,
-    backgroundColor: 'white',
+    backgroundColor: colors.glassSurface,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#ddd',
+    borderTopColor: colors.glassBorder,
   },
   input: {
     flex: 1,
     minHeight: 40,
     maxHeight: 120,
-    backgroundColor: '#f2f2f7',
+    backgroundColor: colors.appBackground[0],
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingTop: Platform.OS === 'ios' ? 10 : 8,
     paddingBottom: Platform.OS === 'ios' ? 10 : 8,
-    fontSize: 15,
-    color: '#111',
+    fontSize: scale(15),
+    color: colors.text,
   },
   sendButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
   },
   sendButtonDisabled: {
-    backgroundColor: '#c7c7cc',
+    backgroundColor: colors.textTertiary,
   },
 
   pickerOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: colors.overlayDark,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
   pickerSheet: {
-    backgroundColor: 'white',
-    borderRadius: 16,
+    backgroundColor: colors.glassSurface,
+    borderRadius: radii.card,
     width: '100%',
     height: 440,
     paddingTop: 8,
@@ -741,9 +732,9 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   pickerTitle: {
-    fontSize: 13,
+    fontSize: scale(13),
     fontWeight: '600',
-    color: '#888',
+    color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     paddingHorizontal: 16,
@@ -752,8 +743,8 @@ const styles = StyleSheet.create({
   pickerSearchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F2F2F7',
-    borderRadius: 10,
+    backgroundColor: colors.appBackground[0],
+    borderRadius: radii.card,
     marginHorizontal: 12,
     marginBottom: 8,
     paddingHorizontal: 10,
@@ -762,8 +753,8 @@ const styles = StyleSheet.create({
   },
   pickerSearchInput: {
     flex: 1,
-    fontSize: 15,
-    color: '#000',
+    fontSize: scale(15),
+    color: colors.text,
   },
   pickerList: {
     flex: 1,
@@ -775,12 +766,12 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   pickerLoadingText: {
-    color: '#888',
-    fontSize: 14,
+    color: colors.textSecondary,
+    fontSize: scale(14),
   },
   pickerEmptyText: {
-    color: '#aaa',
-    fontSize: 14,
+    color: colors.textTertiary,
+    fontSize: scale(14),
     padding: 16,
   },
   pickerOption: {
@@ -790,15 +781,15 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   pickerOptionSelected: {
-    backgroundColor: '#f0f6ff',
+    backgroundColor: colors.accentLight,
   },
   pickerOptionLabel: {
     flex: 1,
-    fontSize: 15,
-    color: '#111',
+    fontSize: scale(15),
+    color: colors.text,
   },
   pickerOptionLabelSelected: {
-    color: '#007AFF',
+    color: colors.accent,
     fontWeight: '500',
   },
 });

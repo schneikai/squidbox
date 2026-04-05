@@ -49,6 +49,9 @@ export const colors = {
   // Interactive states
   pressedBg: 'rgba(0,0,0,0.06)',       // subtle press overlay on light surfaces
   darkModalHover: 'rgba(255,255,255,0.08)', // highlighted row on dark modal surfaces
+
+  // Generic overlays for thumbnail badges etc.
+  overlayDark: 'rgba(0,0,0,0.35)',
 };
 
 export const shadows = {
@@ -105,12 +108,14 @@ export const spacing = {
 };
 
 export const typography = {
-  xs:   scale(11),
-  sm:   scale(13),
-  base: scale(17),
-  lg:   scale(20),
-  xl:   scale(24),
-  xxl:  scale(28),
+  xs:    scale(11),
+  sm:    scale(13),
+  base:  scale(17),
+  lg:    scale(20),
+  xl:    scale(24),
+  xxl:   scale(28),
+  // Semantic token — used for all text inputs (search, notes, post text, etc.)
+  input: scale(17),
 };
 
 export const glass = {

@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { colors, scale } from '@/styles/designTokens';
 
 import AssetImage from '@/components/AssetImage';
 import useGetAlbumThumbnailAssetAndAssetCount from '@/features/album-list/useGetAlbumThumbnailAssetAndAssetCount';
@@ -50,7 +51,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   numberOfAssets: {
-    color: 'gray',
-    fontSize: 12,
+    color: colors.textSecondary,
+    fontSize: scale(12),
   },
 });

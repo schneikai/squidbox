@@ -1,5 +1,6 @@
 import * as Clipboard from 'expo-clipboard';
 import { StyleSheet, View, Text, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { colors, scale } from '@/styles/designTokens';
 
 import PostAssets from './PostAssets';
 import PostAlbums from './post-albums/PostAlbums';
@@ -35,11 +36,11 @@ const styles = StyleSheet.create({
   postedAlbums: {
     marginTop: 20,
     borderTopWidth: 1,
-    borderTopColor: '#ddd',
+    borderTopColor: colors.glassBorder,
     paddingTop: 15,
   },
   postedAlbumsHeadline: {
-    fontSize: 16,
+    fontSize: scale(16),
     fontWeight: 'bold',
     marginBottom: 10,
   },
@@ -48,13 +49,13 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   postText: {
-    fontSize: 16,
+    fontSize: scale(16),
     lineHeight: 26,
   },
   postedAt: {
     marginTop: 10,
-    fontSize: 12,
-    color: 'gray',
+    fontSize: scale(12),
+    color: colors.textSecondary,
     fontWeight: 'bold',
   },
 });

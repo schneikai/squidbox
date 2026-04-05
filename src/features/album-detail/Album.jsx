@@ -38,7 +38,7 @@ import getAlbumAssets from '@/utils/albums/getAlbumAssets';
 import isSmartAlbum from '@/utils/albums/isSmartAlbum';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import actionButtonStyles from '@/styles/actionButtonStyles';
-import { colors, spacing } from '@/styles/designTokens';
+import { colors, scale, spacing, typography } from '@/styles/designTokens';
 import pluralizeText from '@/utils/pluralizeText';
 
 const TABS = [
@@ -333,13 +333,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
-    fontSize: 10,
+    fontSize: scale(10),
     textTransform: 'uppercase',
     fontWeight: '800',
     color: colors.danger,
   },
   notesText: {
-    fontSize: 13,
+    fontSize: typography.sm,
     color: colors.textSecondary,
     lineHeight: 18,
   },

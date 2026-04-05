@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Alert, Button } from 'react-native';
+import { useState } from 'react';
+import { Alert } from 'react-native';
 
 import PostEditor from '@/features/posts/PostEditor';
 import usePosts from '@/features/posts-context/usePosts';
@@ -15,13 +15,6 @@ export default function EditPostScreen({ route, navigation }) {
     assetRefs: post?.assetRefs,
     postedAt: post?.postedAt,
   });
-
-  useEffect(() => {
-    navigation.setOptions({
-      headerLeft: () => <Button onPress={() => navigation.goBack()} title="Cancel" />,
-      headerRight: () => <Button onPress={handleUpdatePost} disabled={!canUpdatePost()} title="Save" />,
-    });
-  }, [navigation, postData]);
 
   function handleUpdatePost() {
     try {
@@ -41,5 +34,14 @@ export default function EditPostScreen({ route, navigation }) {
     }
   }
 
-  return <PostEditor post={postData} onChange={(postData) => setPostData(postData)} />;
+  return (
+    <PostEditor
+      post={postData}
+      onChange={(postData) => setPostData(postData)}
+      navigation={navigation}
+      onSave={handleUpdatePost}
+      canSave={canUpdatePost()}
+      title="Edit Post"
+    />
+  );
 }

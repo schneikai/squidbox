@@ -1,4 +1,5 @@
 import { StyleSheet, View, Text } from 'react-native';
+import { colors, scale } from '@/styles/designTokens';
 
 import AssetImage from '@/components/AssetImage';
 import FavoriteAlbumIndicator from '@/components/FavoriteAlbumIndicator';
@@ -39,8 +40,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   albumInfo: {
-    color: 'grey',
-    fontSize: 12,
+    color: colors.textSecondary,
+    fontSize: scale(12),
     fontWeight: '500',
   },
   indicators: {
@@ -57,7 +58,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'pink',
     paddingHorizontal: 3,
     paddingVertical: 2,
-    fontSize: 9,
+    fontSize: scale(9),
     textTransform: 'uppercase',
     fontWeight: '800',
     zIndex: 1,

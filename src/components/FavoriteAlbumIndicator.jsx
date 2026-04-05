@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { colors, typography } from '@/styles/designTokens';
 
 export default function FavoriteAlbumIndicator({ isFavorite }) {
   if(!isFavorite) return;
@@ -11,7 +12,7 @@ export default function FavoriteAlbumIndicator({ isFavorite }) {
 
 const styles = StyleSheet.create({
   favoriteAlbumIndicator: {
-    fontSize: 20,
-    color: "white",
+    fontSize: typography.lg,
+    color: colors.textInverse,
   },
 });

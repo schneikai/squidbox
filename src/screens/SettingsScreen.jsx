@@ -14,6 +14,7 @@ import {
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import Page from '@/components/Page';
+import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { SCREEN_PADDING } from '@/constants';
 
@@ -25,14 +26,12 @@ import confirmLogoutAsync from '@/features/cloud/confirmLogoutAsync';
 import useCloud from '@/features/cloud/useCloud';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
 import deleteLocalDataAsync from '@/utils/local-data/deleteLocalDataAsync';
+import actionButtonStyles from '@/styles/actionButtonStyles';
+import { colors, radii, spacing, typography } from '@/styles/designTokens';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/api\/v1\/?$/, '');
 
 // ─── Reusable iOS-style building blocks ────────────────────────────────────
-
-function SectionHeader({ title }) {
-  return <Text style={styles.sectionHeader}>{title}</Text>;
-}
 
 function Section({ children }) {
   const kids = Array.isArray(children) ? children.filter(Boolean) : [children].filter(Boolean);
@@ -41,7 +40,7 @@ function Section({ children }) {
       {kids.map((child, i) => (
         <View key={i}>
           {child}
-          {i < kids.length - 1 && <View style={styles.divider} />}
+          {i < kids.length - 1 && <View style={actionButtonStyles.listDivider} />}
         </View>
       ))}
     </View>
@@ -55,7 +54,7 @@ function Row({ label, value, onPress, destructive, chevron, children }) {
       <View style={styles.rowRight}>
         {value ? <Text style={styles.rowValue}>{value}</Text> : null}
         {children}
-        {chevron && <Ionicons name="chevron-forward" size={16} color="#C7C7CC" style={{ marginLeft: 4 }} />}
+        {chevron && <Ionicons name="chevron-forward" size={spacing.iconSizeSmall} color={colors.textTertiary} style={{ marginLeft: 4 }} />}
       </View>
     </View>
   );
@@ -180,96 +179,90 @@ export default function SettingsScreen() {
 
   return (
     <Page>
-    <FloatingDetailHeader title="Settings" onBack={() => navigation.goBack()} />
-    <ScrollView contentContainerStyle={[styles.content, { paddingTop }]} automaticallyAdjustKeyboardInsets>
-      {isAuthenticated ? (
-        <>
-          {/* Account */}
-          <SectionHeader title="Account" />
-          <Section>
-            <Row label="Signed in as" value={user?.email} />
-            <Row
-              label="Sign out"
-              onPress={isLoggingOut ? undefined : handleLogout}
-              destructive
-              chevron={!isLoggingOut}
-            >
-              {isLoggingOut && <ActivityIndicator size="small" color="#FF3B30" />}
-            </Row>
-          </Section>
-
-          {/* Cloud sync */}
-          <SectionHeader title="Cloud Sync" />
-          <Section>
-            <>
+      <FloatingDetailHeader title="Settings" onBack={() => navigation.goBack()} />
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop }]} automaticallyAdjustKeyboardInsets>
+        {isAuthenticated ? (
+          <>
+            <ScreenSectionHeader title="Account" />
+            <Section>
+              <Row label="Signed in as" value={user?.email} />
               <Row
-                label="Status"
-                value={syncStatusText()}
-                onPress={hasSyncDetails ? handleSyncStatusPress : undefined}
-                chevron={hasSyncDetails}
-              />
+                label="Sign out"
+                onPress={isLoggingOut ? undefined : handleLogout}
+                destructive
+                chevron={!isLoggingOut}
+              >
+                {isLoggingOut && <ActivityIndicator size="small" color={colors.danger} />}
+              </Row>
+            </Section>
 
-              {/* Inline progress panel — only shown while syncing */}
-              {showSyncDetails && isSyncing && (
-                <View style={styles.syncDetailPanel}>
-                  {syncProgressMessage && (
-                    <Text style={styles.syncDetailLine}>
-                      {syncProgressMessage.sent} / {syncProgressMessage.total}{'  '}
-                      <Text style={styles.syncDetailBold}>{syncProgressMessage.percent}</Text>
-                    </Text>
-                  )}
-                  {syncSpeedMessage && (
-                    <Text style={styles.syncDetailLine}>
-                      {syncSpeedMessage.now}{'  '}
-                      <Text style={styles.syncDetailMuted}>avg {syncSpeedMessage.avg}</Text>
-                    </Text>
-                  )}
-                </View>
+            <ScreenSectionHeader title="Cloud Sync" />
+            <Section>
+              <>
+                <Row
+                  label="Status"
+                  value={syncStatusText()}
+                  onPress={hasSyncDetails ? handleSyncStatusPress : undefined}
+                  chevron={hasSyncDetails}
+                />
+
+                {showSyncDetails && isSyncing && (
+                  <View style={styles.syncDetailPanel}>
+                    {syncProgressMessage && (
+                      <Text style={styles.syncDetailLine}>
+                        {syncProgressMessage.sent} / {syncProgressMessage.total}{'  '}
+                        <Text style={styles.syncDetailBold}>{syncProgressMessage.percent}</Text>
+                      </Text>
+                    )}
+                    {syncSpeedMessage && (
+                      <Text style={styles.syncDetailLine}>
+                        {syncSpeedMessage.now}{'  '}
+                        <Text style={styles.syncDetailMuted}>avg {syncSpeedMessage.avg}</Text>
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </>
+
+              {showErrorModal && (
+                <SyncErrorViewer
+                  assetsWithSyncErrors={assetsWithSyncErrors}
+                  close={() => setShowErrorModal(false)}
+                />
               )}
-            </>
 
-            {/* Error modal */}
-            {showErrorModal && (
-              <SyncErrorViewer
-                assetsWithSyncErrors={assetsWithSyncErrors}
-                close={() => setShowErrorModal(false)}
-              />
-            )}
+              {unsyncedAssets.length > 0 && !isSyncing && (
+                <Row label="Sync now" onPress={() => syncNow()} chevron />
+              )}
+              <Row label="Backup to cloud" onPress={handleBackupToCloud} chevron />
+              <Row label="Load from cloud" onPress={handleLoadFromCloud} destructive chevron />
+              <Row label="Delete local data" onPress={handleDeleteLocalData} destructive chevron />
+            </Section>
+          </>
+        ) : (
+          <View style={styles.loginWrapper}>
+            <LoginForm />
+          </View>
+        )}
 
-            {unsyncedAssets.length > 0 && !isSyncing && (
-              <Row label="Sync now" onPress={() => syncNow()} chevron />
-            )}
-            <Row label="Backup to cloud" onPress={handleBackupToCloud} chevron />
-            <Row label="Load from cloud" onPress={handleLoadFromCloud} destructive chevron />
-            <Row label="Delete local data" onPress={handleDeleteLocalData} destructive chevron />
-          </Section>
-        </>
-      ) : (
-        <View style={styles.loginWrapper}>
-          <LoginForm />
-        </View>
-      )}
+        {isAuthenticated && (
+          <>
+            <ScreenSectionHeader title="AI Caption Suggestions" />
+            <Section>
+              <Row label="Model" value={aiModel} />
+              <Row label="Prompts" onPress={() => navigation.navigate('AiPromptsScreen')} chevron />
+            </Section>
 
-      {isAuthenticated && (
-        <>
-          {/* AI Captions */}
-          <SectionHeader title="AI Caption Suggestions" />
-          <Section>
-            <Row label="Model" value={aiModel} />
-            <Row label="Prompts" onPress={() => navigation.navigate('AiPromptsScreen')} chevron />
-          </Section>
+            <ScreenSectionHeader title="Developer" />
+            <Section>
+              <Row label="API URL" value={API_BASE_URL} />
+              <Row label="Check API" onPress={handleCheckApi} chevron />
+            </Section>
+          </>
+        )}
 
-          {/* Developer */}
-          <SectionHeader title="Developer" />
-          <Section>
-            <Row label="API URL" value={API_BASE_URL} />
-            <Row label="Check API" onPress={handleCheckApi} chevron />
-          </Section>
-        </>
-      )}
-
-      <View style={styles.footer} />
-    </ScrollView>
+        <View style={styles.footer} />
+      </ScrollView>
     </Page>
   );
 }
@@ -279,44 +272,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: SCREEN_PADDING,
   },
 
-  sectionHeader: {
-    fontSize: 13,
-    fontWeight: '400',
-    color: '#6D6D72',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    marginBottom: 6,
-    marginLeft: 4,
-    marginTop: 8,
-  },
-
   section: {
-    backgroundColor: 'white',
-    borderRadius: 10,
-    marginBottom: 8,
-    overflow: 'hidden',
-  },
-
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: '#C6C6C8',
-    marginLeft: 16,
+    backgroundColor: colors.glassSurface,
+    borderRadius: radii.card,
+    marginBottom: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 20,
+    elevation: 4,
   },
 
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 44,
+    minHeight: spacing.iconButtonSize,
     paddingHorizontal: SCREEN_PADDING,
-    paddingVertical: 10,
+    paddingVertical: 16,
   },
   rowLabel: {
     flex: 1,
-    fontSize: 16,
-    color: '#000',
+    fontSize: typography.base,
+    color: colors.text,
   },
   rowLabelDestructive: {
-    color: '#FF3B30',
+    color: colors.danger,
   },
   rowRight: {
     flexDirection: 'row',
@@ -325,33 +305,34 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   rowValue: {
-    fontSize: 16,
-    color: '#8E8E93',
+    fontSize: typography.base,
+    color: colors.textSecondary,
     textAlign: 'right',
     flexShrink: 1,
   },
 
   syncDetailPanel: {
-    backgroundColor: 'white',
+    backgroundColor: colors.glassSurface,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#C6C6C8',
+    borderBottomColor: colors.glassBorder,
     paddingHorizontal: SCREEN_PADDING,
     paddingTop: 0,
     paddingBottom: 15,
     gap: 4,
   },
   syncDetailLine: {
-    fontSize: 13,
-    color: '#3C3C43',
+    fontSize: typography.sm,
+    color: colors.text,
     lineHeight: 18,
   },
   syncDetailBold: {
     fontWeight: '600',
-    color: '#000',
+    color: colors.text,
   },
   syncDetailMuted: {
-    color: '#8E8E93',
+    color: colors.textSecondary,
   },
+
   loginWrapper: {
     paddingTop: 8,
   },

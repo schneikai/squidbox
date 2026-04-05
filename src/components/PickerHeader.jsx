@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors } from '@/styles/designTokens';
+import { colors, typography } from '@/styles/designTokens';
 
 /**
  * Simple non-floating header for modal / picker screens that render
@@ -26,7 +26,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: {
-    fontSize: 28,
+    fontSize: typography.xxl,
     fontWeight: '700',
     color: colors.text,
     flex: 1,

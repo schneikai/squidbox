@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 
 import { SCREEN_PADDING } from '@/constants';
+import { colors, scale, typography } from '@/styles/designTokens';
 
 import PostImage from './PostImage';
 
@@ -56,7 +57,7 @@ const styles = StyleSheet.create({
     padding: SCREEN_PADDING,
   },
   postText: {
-    fontSize: 15,
+    fontSize: scale(15),
     marginTop: 10,
     lineHeight: 22,
   },
@@ -71,19 +72,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#aaa',
+    backgroundColor: colors.textTertiary,
     borderRadius: 10,
     paddingHorizontal: 7,
     paddingVertical: 2,
   },
   postponedBadgeText: {
-    fontSize: 11,
-    color: '#fff',
+    fontSize: typography.xs,
+    color: colors.textInverse,
     fontWeight: '600',
   },
   postedAt: {
-    fontSize: 12,
-    color: 'gray',
+    fontSize: scale(12),
+    color: colors.textSecondary,
     fontWeight: 'bold',
   },
 
@@ -96,7 +97,7 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   favoritePostIndicator: {
-    fontSize: 20,
-    color: 'white',
+    fontSize: typography.lg,
+    color: colors.textInverse,
   },
 });

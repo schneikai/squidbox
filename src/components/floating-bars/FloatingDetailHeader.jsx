@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
 import actionButtonStyles from '@/styles/actionButtonStyles';
-import { colors, spacing } from '@/styles/designTokens';
+import { colors, scale, spacing } from '@/styles/designTokens';
 
 /**
  * Three-part floating header for detail screens, mirroring the main screen
@@ -130,14 +130,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.barPaddingX,
   },
   title: {
-    fontSize: 14,
+    fontSize: scale(14),
     fontWeight: '600',
     color: colors.text,
     textAlign: 'center',
     flexShrink: 1,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: scale(12),
     color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 2,

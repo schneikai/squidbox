@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { colors, typography } from '@/styles/designTokens';
 
 import useCloudSync from '../useCloudSync';
 
@@ -65,8 +66,8 @@ const styles = StyleSheet.create({
   },
   hint: {
     textAlign: 'center',
-    fontSize: 11,
-    color: '#aaa',
+    fontSize: typography.xs,
+    color: colors.textTertiary,
     marginTop: 2,
   },
 });

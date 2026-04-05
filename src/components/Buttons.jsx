@@ -1,23 +1,68 @@
-import { Pressable, Text } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 
-import buttonStyles from '@/styles/buttonStyles';
+import { colors, radii, scale } from '@/styles/designTokens';
 
 export function Button({ title, onPress, disabled, variant = 'default', style = {} }) {
-  const styles = {
-    default: [buttonStyles.button, style],
-    primary: [buttonStyles.button, buttonStyles.buttonPrimary, style],
-    danger: [buttonStyles.button, buttonStyles.buttonDanger, style],
-  };
-
-  const textStyles = {
-    default: buttonStyles.buttonText,
-    primary: [buttonStyles.buttonText, buttonStyles.buttonPrimaryText],
-    danger: [buttonStyles.buttonText, buttonStyles.buttonDangerText],
-  };
-
   return (
-    <Pressable style={styles[variant]} onPress={onPress} disabled={disabled}>
-      <Text style={textStyles[variant]}>{title}</Text>
+    <Pressable
+      style={({ pressed }) => [
+        styles.button,
+        variant === 'primary' && styles.buttonPrimary,
+        variant === 'danger' && styles.buttonDanger,
+        pressed && styles.buttonPressed,
+        disabled && styles.buttonDisabled,
+        style,
+      ]}
+      onPress={onPress}
+      disabled={disabled}
+    >
+      <Text
+        style={[
+          styles.buttonText,
+          variant === 'primary' && styles.buttonPrimaryText,
+          variant === 'danger' && styles.buttonDangerText,
+        ]}
+      >
+        {title}
+      </Text>
     </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  button: {
+    borderWidth: 1.5,
+    borderColor: colors.glassBorder,
+    borderRadius: radii.card,
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  buttonPressed: {
+    opacity: 0.7,
+  },
+  buttonDisabled: {
+    opacity: 0.4,
+  },
+  buttonText: {
+    fontWeight: '600',
+    fontSize: scale(15),
+    color: colors.text,
+  },
+
+  buttonPrimary: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accentLight,
+  },
+  buttonPrimaryText: {
+    color: colors.accent,
+  },
+
+  buttonDanger: {
+    borderColor: colors.danger,
+    backgroundColor: colors.dangerLight,
+  },
+  buttonDangerText: {
+    color: colors.danger,
+  },
+});

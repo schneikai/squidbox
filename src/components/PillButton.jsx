@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View, Pressable, Text } from 'react-native';
+import { scale } from '@/styles/designTokens';
 
 export default function PillButton({
   activeButtonLabel,
@@ -67,6 +68,6 @@ const styles = StyleSheet.create({
     shadowRadius: 2, // iOS
   },
   buttonLabel: {
-    fontSize: 14,
+    fontSize: scale(14),
   },
 });

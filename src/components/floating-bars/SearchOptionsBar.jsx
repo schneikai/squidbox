@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: typography.base,
+    fontSize: typography.input,
     lineHeight: typography.lg,
     color: colors.text,
     paddingHorizontal: scale(4),

@@ -1,4 +1,5 @@
 import { StyleSheet, View, Text } from 'react-native';
+import { scale } from '@/styles/designTokens';
 
 import AssetImage from '@/components/AssetImage';
 
@@ -90,7 +91,7 @@ function PostImageFourImages({ assets }) {
       color: 'white',
       bottom: 10,
       right: 10,
-      fontSize: 18,
+      fontSize: scale(18),
       fontWeight: '600',
     },
   });

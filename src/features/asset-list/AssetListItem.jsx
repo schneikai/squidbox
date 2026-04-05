@@ -5,7 +5,7 @@ import { Defs, RadialGradient, Rect, Stop, Svg } from 'react-native-svg';
 import AssetImage from '@/components/AssetImage';
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
 import formatVideoDuration from '@/utils/formatVideoDuration';
-import { colors } from '@/styles/designTokens';
+import { colors, scale, typography } from '@/styles/designTokens';
 
 export default function AssetListItem({ asset, isSelected, isSelectMode, showLastPostedAt }) {
   const { lastPostedAt, duration, isFavorite, isSynced, notes } = asset;
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     bottom: 6,
     right: 6,
     color: colors.textInverse,
-    fontSize: 11,
+    fontSize: typography.xs,
     fontWeight: '600',
   },
 
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     bottom: 5,
     left: 5,
     color: colors.textInverse,
-    fontSize: 10,
+    fontSize: scale(10),
     fontWeight: 'bold',
   },
 
@@ -132,15 +132,15 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   favoriteAssetIndicator: {
-    fontSize: 20,
+    fontSize: typography.lg,
     color: colors.textInverse,
   },
   cloudIndicator: {
-    fontSize: 20,
+    fontSize: typography.lg,
     color: colors.textInverse,
   },
   noteIndicator: {
-    fontSize: 16,
+    fontSize: scale(16),
     color: colors.textInverse,
   },
 
