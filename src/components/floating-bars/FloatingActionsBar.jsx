@@ -18,20 +18,19 @@ export default function FloatingActionsBar() {
     closeSearch,
     setSearchText,
     openFilterModal,
-    isSelectMode,
+    tabHasActiveOptions,
   } = useFloatingBars();
 
-  // expandProgress is owned here so FloatingHeader can potentially react to it in the future.
-  // hasActiveState is not shown on the main screen bar because screenOptionsRef is a ref
-  // (not reactive state), so it can't trigger re-renders. The album detail has local state
-  // and can properly derive this value.
   const expandProgress = useSharedValue(0);
 
   const activeTab = useNavigationState((s) => getActiveTabName(s));
   const stackDepth = useNavigationState((s) => getActiveStackDepth(s));
   const isMainScreen = MAIN_TABS.includes(activeTab) && stackDepth === 0;
 
-  if (!isMainScreen || isSelectMode) return null;
+  const TAB_KEY = { AssetsTab: 'assets', AlbumsTab: 'albums', PostsTab: 'posts' };
+  const hasActiveState = tabHasActiveOptions[TAB_KEY[activeTab]] ?? false;
+
+  if (!isMainScreen) return null;
 
   return (
     <SearchOptionsBar
@@ -42,7 +41,7 @@ export default function FloatingActionsBar() {
       onCloseSearch={closeSearch}
       onChangeSearch={setSearchText}
       onOpenOptions={openFilterModal}
-      hasActiveState={false}
+      hasActiveState={hasActiveState}
       bottom={insets.bottom + spacing.floatingBarBottom}
       left={spacing.floatingBarSide}
       maxWidth={screenWidth - spacing.floatingBarSide * 2}

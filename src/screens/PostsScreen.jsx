@@ -28,7 +28,7 @@ export default function PostsScreen() {
   // Posts search uses persisted AppSettings query
   const { searchText: postsSearchText, setSearchText: setPersistentSearch } = useSearchPostsAction();
 
-  const { registerScreenOptions, screenOptionsRef, searchText: globalSearchText } = useFloatingBars();
+  const { registerScreenOptions, screenOptionsRef, searchText: globalSearchText, setTabHasActiveOptions } = useFloatingBars();
   const scrollHandler = useFloatingBarScrollHandler();
 
   // Sync global search bar input to persisted posts query
@@ -53,6 +53,7 @@ export default function PostsScreen() {
   }
 
   useEffect(() => {
+    setTabHasActiveOptions('posts', activeFilter.length > 0 || sortOrder !== 'postedAt:desc');
     registerScreenOptions('posts', {
       sortOrder,
       activeFilter,

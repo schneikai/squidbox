@@ -21,7 +21,7 @@ export default function AlbumsScreen({ navigation }) {
   const { sortOrder, sortFunction, sortAlbums } = useSortAlbumsAction({ afterSort: listScrollTop });
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterFilter: listScrollTop });
 
-  const { registerScreenOptions, screenOptionsRef, searchText } = useFloatingBars();
+  const { registerScreenOptions, screenOptionsRef, searchText, setTabHasActiveOptions } = useFloatingBars();
   const scrollHandler = useFloatingBarScrollHandler();
 
   const albumIds = useMemo(
@@ -43,6 +43,7 @@ export default function AlbumsScreen({ navigation }) {
   }
 
   useEffect(() => {
+    setTabHasActiveOptions('albums', activeFilter.length > 0 || sortOrder !== 'createdAt:desc');
     registerScreenOptions('albums', {
       sortOrder,
       sortOptions: [

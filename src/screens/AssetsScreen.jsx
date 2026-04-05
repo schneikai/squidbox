@@ -35,6 +35,7 @@ export default function AssetsScreen({ route }) {
     registerScreenOptions,
     screenOptionsRef,
     searchText,
+    setTabHasActiveOptions,
   } = useFloatingBars();
 
   const scrollHandler = useFloatingBarScrollHandler();
@@ -114,6 +115,7 @@ export default function AssetsScreen({ route }) {
   // Callbacks delegate through handlersRef so they always read the latest
   // selectedAssetIds without needing it as a dependency here.
   useEffect(() => {
+    setTabHasActiveOptions('assets', activeFilter.length > 0 || sortOrder !== 'createdAt:desc');
     registerScreenOptions('assets', {
       sortOrder,
       activeFilter,

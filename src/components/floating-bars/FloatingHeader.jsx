@@ -132,7 +132,6 @@ export default function FloatingHeader() {
             <PillButton iconName="albums-outline" onPress={handleAddToAlbum} disabled={!hasSelection} />
             <PillButton iconName="share-outline" onPress={handlePost} disabled={!hasSelection} />
             <PillButton iconName="trash-outline" onPress={handleDelete} disabled={!hasSelection} danger />
-            <View style={actionButtonStyles.pillSeparator} />
             <GradientButton onPress={exitSelectMode} style={styles.addButton}>
               <Ionicons name="close" size={spacing.iconSize} color={colors.textInverse} />
             </GradientButton>

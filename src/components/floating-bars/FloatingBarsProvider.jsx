@@ -42,6 +42,16 @@ export default function FloatingBarsProvider({ children }) {
     screenOptionsRef.current[tab] = options;
   }, []);
 
+  // ── Per-tab active state (reactive, drives the highlighted options button)
+  const [tabHasActiveOptions, setTabHasActiveOptionsState] = useState({});
+
+  const setTabHasActiveOptions = useCallback((tab, hasActive) => {
+    setTabHasActiveOptionsState((prev) => {
+      if (prev[tab] === hasActive) return prev;
+      return { ...prev, [tab]: hasActive };
+    });
+  }, []);
+
   const activeTabName = useNavigationState(getActiveTabName);
 
   function openFilterModal() {
@@ -102,6 +112,8 @@ export default function FloatingBarsProvider({ children }) {
     // Screen options registration
     registerScreenOptions,
     screenOptionsRef,
+    tabHasActiveOptions,
+    setTabHasActiveOptions,
 
     // Select mode
     isSelectMode,
