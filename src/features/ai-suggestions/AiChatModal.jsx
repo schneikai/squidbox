@@ -17,10 +17,14 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Menu, MenuOptions, MenuProvider, MenuTrigger } from 'react-native-popup-menu';
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import sendAiMessageAsync from './sendAiMessageAsync';
+import ModelSelectorButton from './ModelSelectorButton';
+import MenuOption from '@/components/popup-menu-options/MenuOption';
+import popupMenuStyles from '@/styles/popupMenuStyles';
 import {
   CHAT_STORAGE_KEY,
   MODEL_STORAGE_KEY,
@@ -37,9 +41,6 @@ import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, radii, scale, spacing } from '@/styles/designTokens';
 
-// Models that are not useful for chat/text generation
-const MODEL_ID_BLOCKLIST = ['whisper', 'tts', 'dall-e', 'davinci', 'babbage', 'curie', 'ada', 'embedding', 'moderation'];
-
 export default function AiChatModal({ visible, onClose, onSelect, recentPostTexts, existingText }) {
   const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState([]);
@@ -50,14 +51,13 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
   const [copiedKey, setCopiedKey] = useState(null);
   const [includeReference, setIncludeReference] = useState(true);
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
-  const [availableModels, setAvailableModels] = useState([]);
-  const [loadingModels, setLoadingModels] = useState(false);
-  const [showModelPicker, setShowModelPicker] = useState(false);
-  const [modelSearch, setModelSearch] = useState('');
   const [showReferencePosts, setShowReferencePosts] = useState(false);
   const flatListRef = useRef(null);
   const copiedKeyTimerRef = useRef(null);
   const keyboardHeightAnim = useRef(new Animated.Value(0)).current;
+  const ellipsisMenuRef = useRef(null);
+  const [ellipsisMenuOpen, setEllipsisMenuOpen] = useState(false);
+  const modelPickerRef = useRef(null);
 
   useEffect(() => {
     if (visible) {
@@ -125,44 +125,6 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
     }
   }
 
-  async function fetchAvailableModels() {
-    const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
-    if (!apiKey || apiKey === 'sk-...') return;
-    setLoadingModels(true);
-    try {
-      const res = await fetch('https://api.openai.com/v1/models', {
-        headers: { Authorization: `Bearer ${apiKey}` },
-      });
-      const data = await res.json();
-      const models = (data.data ?? [])
-        .map((m) => m.id)
-        .filter((id) => !MODEL_ID_BLOCKLIST.some((blocked) => id.includes(blocked)))
-        .sort();
-      setAvailableModels(models);
-    } catch {
-      setAvailableModels([]);
-    } finally {
-      setLoadingModels(false);
-    }
-  }
-
-  async function handleOpenModelPicker() {
-    setModelSearch('');
-    setShowModelPicker(true);
-    if (availableModels.length === 0) {
-      await fetchAvailableModels();
-    }
-  }
-
-  async function saveModel(modelId) {
-    setSelectedModel(modelId);
-    setShowModelPicker(false);
-    try {
-      await AsyncStorage.setItem(MODEL_STORAGE_KEY, modelId);
-    } catch {
-      // non-critical
-    }
-  }
 
   async function saveHistory(msgs) {
     try {
@@ -295,90 +257,39 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <MenuProvider skipInstanceCheck>
       <Animated.View style={[styles.container, { paddingBottom: keyboardHeightAnim }]}>
         <ModalHeader
           leftSlot={<ModalCloseButton onPress={onClose} />}
-          centerSlot={
-            <TouchableOpacity style={styles.modelSelector} onPress={handleOpenModelPicker}>
-              <Text style={styles.modelSelectorText} numberOfLines={1}>{selectedModel}</Text>
-              <Ionicons name="chevron-down" size={scale(14)} color={colors.textSecondary} />
-            </TouchableOpacity>
-          }
-          centerStyle="pill"
+          centerSlot="AI Captions"
           rightSlot={
-            <TouchableOpacity onPress={handleClearChat} style={actionButtonStyles.pillButton}>
-              <Text style={styles.clearButton}>Clear</Text>
-            </TouchableOpacity>
+            <Menu
+              ref={ellipsisMenuRef}
+              onOpen={() => setEllipsisMenuOpen(true)}
+              onClose={() => setEllipsisMenuOpen(false)}
+            >
+              <MenuTrigger
+                disabled
+                customStyles={{ triggerWrapper: actionButtonStyles.pillButton }}
+              >
+                <TouchableOpacity
+                  onPress={() => ellipsisMenuOpen
+                    ? ellipsisMenuRef.current?.close()
+                    : ellipsisMenuRef.current?.open()
+                  }
+                  style={styles.ellipsisTrigger}
+                  hitSlop={8}
+                >
+                  <Ionicons name="ellipsis-horizontal" style={actionButtonStyles.buttonIcon} />
+                </TouchableOpacity>
+              </MenuTrigger>
+              <MenuOptions customStyles={popupMenuStyles.menuOptions}>
+                <MenuOption label={selectedModel} icon="hardware-chip-outline" onPress={() => modelPickerRef.current?.open()} />
+                <MenuOption label="Clear Chat" icon="trash-outline" onPress={handleClearChat} isLast />
+              </MenuOptions>
+            </Menu>
           }
         />
-
-        {/* Model picker overlay */}
-        <Modal
-          visible={showModelPicker}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowModelPicker(false)}
-        >
-          <TouchableOpacity
-            style={styles.pickerOverlay}
-            activeOpacity={1}
-            onPress={() => setShowModelPicker(false)}
-          >
-            <View style={styles.pickerSheet}>
-              <Text style={styles.pickerTitle}>Select Model</Text>
-
-              {!loadingModels && availableModels.length > 0 && (
-                <View style={styles.pickerSearchRow}>
-                  <Ionicons name="search-outline" size={scale(16)} color={colors.textSecondary} />
-                  <TextInput
-                    style={styles.pickerSearchInput}
-                    value={modelSearch}
-                    onChangeText={setModelSearch}
-                    placeholder="Search"
-                    placeholderTextColor={colors.textTertiary}
-                    autoCorrect={false}
-                    autoCapitalize="none"
-                    clearButtonMode="while-editing"
-                  />
-                </View>
-              )}
-
-              {loadingModels ? (
-                <View style={styles.pickerLoading}>
-                  <ActivityIndicator size="small" color={colors.textSecondary} />
-                  <Text style={styles.pickerLoadingText}>Loading models…</Text>
-                </View>
-              ) : availableModels.length === 0 ? (
-                <Text style={styles.pickerEmptyText}>No models found. Check your API key.</Text>
-              ) : (
-                <FlatList
-                  data={availableModels.filter((id) =>
-                    id.toLowerCase().includes(modelSearch.toLowerCase())
-                  )}
-                  keyExtractor={(id) => id}
-                  style={styles.pickerList}
-                  keyboardShouldPersistTaps="handled"
-                  ListEmptyComponent={
-                    <Text style={styles.pickerEmptyText}>No results for "{modelSearch}"</Text>
-                  }
-                  renderItem={({ item: modelId }) => (
-                    <TouchableOpacity
-                      style={[styles.pickerOption, selectedModel === modelId && styles.pickerOptionSelected]}
-                      onPress={() => saveModel(modelId)}
-                    >
-                      <Text style={[styles.pickerOptionLabel, selectedModel === modelId && styles.pickerOptionLabelSelected]}>
-                        {modelId}
-                      </Text>
-                      {selectedModel === modelId && (
-                        <Ionicons name="checkmark" size={scale(18)} color={colors.accent} />
-                      )}
-                    </TouchableOpacity>
-                  )}
-                />
-              )}
-            </View>
-          </TouchableOpacity>
-        </Modal>
 
         {/* Reference posts viewer */}
         <Modal
@@ -463,7 +374,12 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
             <Ionicons name="arrow-up" size={scale(20)} color={colors.textInverse} />
           </TouchableOpacity>
         </View>
+        {/* Hidden model picker */}
+        <View style={styles.hidden}>
+          <ModelSelectorButton ref={modelPickerRef} onChange={setSelectedModel} />
+        </View>
       </Animated.View>
+      </MenuProvider>
     </Modal>
   );
 }
@@ -474,24 +390,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.appBackground[0],
   },
 
-  modelSelector: {
-    flexDirection: 'row',
+  hidden: {
+    position: 'absolute',
+    width: 0,
+    height: 0,
+    overflow: 'hidden',
+  },
+  ellipsisTrigger: {
+    flex: 1,
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: spacing.barPaddingX,
-    minHeight: spacing.iconButtonSize,
-    maxWidth: 180,
-  },
-  modelSelectorText: {
-    fontSize: scale(14),
-    fontWeight: '500',
-    color: colors.text,
-  },
-  clearButton: {
-    fontSize: scale(15),
-    fontWeight: '500',
-    color: colors.danger,
-    paddingHorizontal: 4,
+    justifyContent: 'center',
   },
 
   messageListContainer: {
@@ -711,85 +619,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.textTertiary,
   },
 
-  pickerOverlay: {
-    flex: 1,
-    backgroundColor: colors.overlayDark,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  pickerSheet: {
-    backgroundColor: colors.glassSurface,
-    borderRadius: radii.card,
-    width: '100%',
-    height: 440,
-    paddingTop: 8,
-    paddingBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  pickerTitle: {
-    fontSize: scale(13),
-    fontWeight: '600',
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  pickerSearchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.appBackground[0],
-    borderRadius: radii.card,
-    marginHorizontal: 12,
-    marginBottom: 8,
-    paddingHorizontal: 10,
-    height: 36,
-    gap: 6,
-  },
-  pickerSearchInput: {
-    flex: 1,
-    fontSize: scale(15),
-    color: colors.text,
-  },
-  pickerList: {
-    flex: 1,
-  },
-  pickerLoading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 16,
-  },
-  pickerLoadingText: {
-    color: colors.textSecondary,
-    fontSize: scale(14),
-  },
-  pickerEmptyText: {
-    color: colors.textTertiary,
-    fontSize: scale(14),
-    padding: 16,
-  },
-  pickerOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  pickerOptionSelected: {
-    backgroundColor: colors.accentLight,
-  },
-  pickerOptionLabel: {
-    flex: 1,
-    fontSize: scale(15),
-    color: colors.text,
-  },
-  pickerOptionLabelSelected: {
-    color: colors.accent,
-    fontWeight: '500',
-  },
 });

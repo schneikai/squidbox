@@ -8,11 +8,11 @@ import getNewItemId from '@/utils/getNewItemId';
 import postSchema from '@/utils/posts/postSchema';
 
 export default function AddPostScreen({ route, navigation }) {
-  const { rePostId, assetIds } = route.params;
+  const { rePostId, assetIds, text: prefilledText } = route.params ?? {};
   const { posts, addPost, updatePost } = usePosts();
   let rePost = null;
   const initialPostData = {
-    text: '',
+    text: prefilledText ?? '',
     assetRefs: [],
     postedAt: getTimestamp(),
   };

@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,8 @@ import SuperPressable from '@/components/SuperPressable';
 import GradientPillButton from '@/components/GradientPillButton';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import RandomSuggestionsModal from '@/features/post-random-suggestions/RandomSuggestionsModal';
+import { REFERENCE_POST_COUNT } from '@/features/ai-suggestions/sendAiMessageAsync';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { SCREEN_PADDING } from '@/constants';
 import usePosts from '@/features/posts-context/usePosts';
@@ -21,6 +23,17 @@ export default function CreatePostScreen({ navigation }) {
   const { bottom } = useSafeAreaInsets();
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
+  const [showRandomSuggestions, setShowRandomSuggestions] = useState(false);
+
+  const recentPostTexts = useMemo(
+    () =>
+      Object.values(posts ?? {})
+        .filter((p) => p.text?.trim())
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, REFERENCE_POST_COUNT)
+        .map((p) => p.text.trim()),
+    [posts],
+  );
 
   const postIds = useMemo(
     () =>
@@ -42,6 +55,13 @@ export default function CreatePostScreen({ navigation }) {
 
   function handleCreateNewPost() {
     navigation.navigate('AddEditPostModal');
+  }
+
+  function handleSuggestionConfirm(asset, text) {
+    const params = {};
+    if (asset) params.assetIds = [asset.id];
+    if (text) params.text = text;
+    navigation.navigate('AddEditPostModal', params);
   }
 
   function handleRepost(post) {
@@ -74,11 +94,16 @@ export default function CreatePostScreen({ navigation }) {
         onScroll={onScroll}
         FirstListEntryComponent={
           <View style={styles.topSection}>
-            {/* New post card */}
-            <TouchableOpacity style={styles.newPostButton} onPress={handleCreateNewPost} activeOpacity={0.85}>
-              <Ionicons name="add" size={scale(22)} color={colors.textInverse} />
-              <Text style={styles.newPostText}>New Post</Text>
-            </TouchableOpacity>
+            {/* New post + AI suggestions row */}
+            <View style={styles.actionRow}>
+              <TouchableOpacity style={[styles.newPostButton, styles.actionRowFlex]} onPress={handleCreateNewPost} activeOpacity={0.85}>
+                <Ionicons name="add" size={scale(22)} color={colors.textInverse} />
+                <Text style={styles.newPostText}>New Post</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.aiButton} onPress={() => setShowRandomSuggestions(true)} activeOpacity={0.85}>
+                <Ionicons name="sparkles-outline" size={scale(22)} color={colors.textInverse} />
+              </TouchableOpacity>
+            </View>
 
             {/* Repost section header */}
             <View style={styles.sectionHeader}>
@@ -105,6 +130,12 @@ export default function CreatePostScreen({ navigation }) {
             </SuperPressable>
           );
         }}
+      />
+      <RandomSuggestionsModal
+        visible={showRandomSuggestions}
+        onClose={() => setShowRandomSuggestions(false)}
+        onConfirm={handleSuggestionConfirm}
+        recentPostTexts={recentPostTexts}
       />
     </View>
   );
@@ -138,6 +169,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
+  actionRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionRowFlex: {
+    flex: 1,
+  },
   newPostButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -151,6 +189,13 @@ const styles = StyleSheet.create({
     color: colors.textInverse,
     fontSize: typography.base,
     fontWeight: '600',
+  },
+  aiButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accent,
+    borderRadius: radii.card,
+    paddingHorizontal: 18,
   },
 
   sectionHeader: {

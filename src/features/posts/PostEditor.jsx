@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef } from 'react';
-import { ActivityIndicator, StyleSheet, View, TextInput, TouchableOpacity } from 'react-native';
+import { useState, useMemo } from 'react';
+import { Pressable, StyleSheet, View, TextInput, TouchableOpacity } from 'react-native';
 import Animated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -9,10 +9,12 @@ import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import AiChatModal from '@/features/ai-suggestions/AiChatModal';
-import useRandomSuggestions from '@/features/post-random-suggestions/useRandomSuggestions';
+import RandomSuggestionsModal from '@/features/post-random-suggestions/RandomSuggestionsModal';
 import usePosts from '@/features/posts-context/usePosts';
 import { REFERENCE_POST_COUNT } from '@/features/ai-suggestions/sendAiMessageAsync';
+import getNewItemId from '@/utils/getNewItemId';
 import { SCREEN_PADDING } from '@/constants';
+import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, glass, radii, spacing, typography } from '@/styles/designTokens';
 
 export default function PostEditor({ post, onChange, navigation, onSave, canSave, title = 'Post' }) {
@@ -22,6 +24,7 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
   const [assetRefs, setAssetRefs] = useState(post.assetRefs);
   const [postedAt, setPostedAt] = useState(post.postedAt);
   const [showAiChat, setShowAiChat] = useState(false);
+  const [showRandomSuggestions, setShowRandomSuggestions] = useState(false);
 
   const { posts } = usePosts();
 
@@ -34,9 +37,6 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
         .map((p) => p.text.trim()),
     [posts],
   );
-
-  const { getNextTweet, getNextAsset, isLoading } = useRandomSuggestions({ recentPostTexts });
-  const randomizeAssetRef = useRef(null);
 
   function handleTextChange(newText) {
     setText(newText);
@@ -53,23 +53,9 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
     onChange({ text, assetRefs, postedAt: newPostedAt });
   }
 
-  async function handleShuffleBoth() {
-    try {
-      const tweet = await getNextTweet();
-      if (tweet) handleTextChange(tweet);
-      randomizeAssetRef.current?.();
-    } catch (e) {
-      console.warn('Random suggestion failed:', e.message);
-    }
-  }
-
-  async function handleRandomizeTweet() {
-    try {
-      const tweet = await getNextTweet();
-      if (tweet) handleTextChange(tweet);
-    } catch (e) {
-      console.warn('Random tweet failed:', e.message);
-    }
+  function handleSuggestionConfirm(asset, text) {
+    if (asset) handleAssetRefsChange([{ id: getNewItemId(), assetId: asset.id }]);
+    if (text) handleTextChange(text);
   }
 
   return (
@@ -79,23 +65,21 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
         scrollY={scrollY}
         rightSlot={
           <>
-            <TouchableOpacity
-              onPress={handleShuffleBoth}
-              disabled={isLoading}
-              style={styles.dicePillButton}
+            <Pressable
+              onPress={() => setShowRandomSuggestions(true)}
+              style={({ pressed }) => [
+                actionButtonStyles.pillButton,
+                pressed && { backgroundColor: colors.pressedBg },
+              ]}
               hitSlop={8}
             >
-              {isLoading ? (
-                <ActivityIndicator size="small" color={colors.accent} />
-              ) : (
-                <Ionicons name="dice-outline" size={spacing.iconSize} color={colors.text} />
-              )}
-            </TouchableOpacity>
+              <Ionicons name="sparkles-outline" size={spacing.iconSize} color={colors.text} />
+            </Pressable>
             {onSave && (
               <GradientPillButton
                 label="Save"
                 onPress={onSave}
-                disabled={!canSave || isLoading}
+                disabled={!canSave}
               />
             )}
           </>
@@ -107,22 +91,11 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
         scrollEventThrottle={16}
         contentContainerStyle={styles.scrollContent}
       >
-        <View>
-          <View style={[styles.card, styles.mediaCard]}>
-            <PostAssetsEditor
-              assetRefs={assetRefs}
-              onChange={handleAssetRefsChange}
-              getRandomAsset={getNextAsset}
-              randomizeRef={randomizeAssetRef}
-            />
-          </View>
-          <TouchableOpacity
-            style={styles.mediaDiceButton}
-            onPress={() => randomizeAssetRef.current?.()}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="dice-outline" size={22} color={colors.textInverse} />
-          </TouchableOpacity>
+        <View style={[styles.card, styles.mediaCard]}>
+          <PostAssetsEditor
+            assetRefs={assetRefs}
+            onChange={handleAssetRefsChange}
+          />
         </View>
 
         <View style={[styles.card, styles.textCard]}>
@@ -136,17 +109,6 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
             value={text}
           />
           <View style={styles.inputButtons}>
-            <TouchableOpacity
-              onPress={handleRandomizeTweet}
-              disabled={isLoading}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              {isLoading ? (
-                <ActivityIndicator size="small" color={colors.accent} />
-              ) : (
-                <Ionicons name="dice-outline" size={spacing.iconSize} color={colors.accent} />
-              )}
-            </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setShowAiChat(true)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -165,6 +127,13 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
         onSelect={(suggestion) => handleTextChange(suggestion)}
         recentPostTexts={recentPostTexts}
         existingText={text}
+      />
+
+      <RandomSuggestionsModal
+        visible={showRandomSuggestions}
+        onClose={() => setShowRandomSuggestions(false)}
+        onConfirm={handleSuggestionConfirm}
+        recentPostTexts={recentPostTexts}
       />
     </View>
   );
@@ -192,14 +161,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 
-  mediaDiceButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: colors.overlayDark,
-    borderRadius: 16,
-    padding: 5,
-  },
 
   textCard: {
     paddingTop: SCREEN_PADDING,
@@ -224,10 +185,4 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
-  dicePillButton: {
-    width: spacing.iconButtonSize,
-    height: spacing.iconButtonSize,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 });
