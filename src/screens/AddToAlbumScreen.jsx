@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Icon from '@/components/Icon';
 import { useMemo, useState } from 'react';
 import { Alert, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
@@ -20,9 +20,9 @@ import useAlbums from '@/features/albums-context/useAlbums';
 import { colors, spacing } from '@/styles/designTokens';
 
 const FILTER_OPTIONS = [
-  { key: 'all',      label: 'All Albums', icon: 'apps-outline' },
-  { key: 'starred',  label: 'Starred',    icon: 'star-outline' },
-  { key: 'archived', label: 'Archived',   icon: 'archive-outline' },
+  { key: 'all',      label: 'All Albums', icon: 'apps' },
+  { key: 'starred',  label: 'Starred',    icon: 'star' },
+  { key: 'archived', label: 'Archived',   icon: 'archive' },
 ];
 
 const SORT_OPTIONS = [
@@ -83,7 +83,7 @@ export default function AddToAlbumScreen({ route, navigation }) {
         scrollY={scrollY}
         rightSlot={
           <GradientButton onPress={handleAddAlbum}>
-            <Ionicons name="add" size={spacing.iconSize} color={colors.textInverse} />
+            <Icon name="add" color={colors.textInverse} />
           </GradientButton>
         }
       />

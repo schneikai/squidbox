@@ -3,7 +3,6 @@ import {
   Modal,
   View,
   Text,
-  TextInput,
   StyleSheet,
   TouchableOpacity,
   PanResponder,
@@ -11,19 +10,22 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Icon from '@/components/Icon';
+import { MenuProvider } from 'react-native-popup-menu';
 
 import AssetImage from '@/components/AssetImage';
+import ModalSheet from '@/components/ModalSheet';
+import Card from '@/components/Card';
+import IconButton from '@/components/IconButton';
+import EmptyState from '@/components/EmptyState';
 import GradientPillButton from '@/components/GradientPillButton';
+import IconMenuButton from '@/components/IconMenuButton';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import Textarea from '@/components/Textarea';
 import useAssets from '@/features/assets-context/useAssets';
 import ModelSelectorButton from '@/features/ai-suggestions/ModelSelectorButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
-import { Menu, MenuOptions, MenuProvider, MenuTrigger } from 'react-native-popup-menu';
-import actionButtonStyles, { menuTriggerTouchable } from '@/styles/actionButtonStyles';
-import popupMenuStyles from '@/styles/popupMenuStyles';
 import sendAiMessageAsync from '@/features/ai-suggestions/sendAiMessageAsync';
 import {
   DEFAULT_MODEL,
@@ -34,7 +36,7 @@ import {
   DEFAULT_SYSTEM_PROMPT,
 } from '@/features/ai-suggestions/aiSuggestionsStorage';
 import formatVideoDuration from '@/utils/formatVideoDuration';
-import { colors, glass, radii, scale, typography } from '@/styles/designTokens';
+import { colors, radii, scale } from '@/styles/designTokens';
 import { SCREEN_PADDING } from '@/constants';
 
 const TWEET_BATCH_SIZE = 10;
@@ -45,8 +47,6 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
   const { assets } = useAssets();
 
   // --- Ellipsis menu ---
-  const ellipsisMenuRef = useRef(null);
-  const [ellipsisMenuOpen, setEllipsisMenuOpen] = useState(false);
   const modelPickerRef = useRef(null);
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
 
@@ -68,7 +68,6 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
     setTextIndex(0);
     fetchTextBatch();
   }
-
 
   // --- Filter state (type: exclusive All/Images/Videos; favorites: additive) ---
   const [showImages, setShowImages] = useState(true);
@@ -202,7 +201,6 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
   function navigateText(direction) {
     if (textPool.length === 0) return;
     if (direction === 'next' && textIndex === textPool.length - 1) {
-      // Reached the end — fetch more and append
       fetchTextBatch().then((newTweets) => {
         if (newTweets.length > 0) {
           setTextPool((prev) => {
@@ -277,38 +275,16 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <MenuProvider skipInstanceCheck>
-      <View style={styles.container}>
+      <ModalSheet style={styles.containerPadding}>
         <ModalHeader
           leftSlot={<ModalCloseButton onPress={onClose} />}
           centerSlot="Suggestions"
           rightSlot={
             <View style={styles.headerRight}>
-              
-              <Menu
-                ref={ellipsisMenuRef}
-                onOpen={() => setEllipsisMenuOpen(true)}
-                onClose={() => setEllipsisMenuOpen(false)}
-              >
-                <MenuTrigger
-                  disabled
-                  customStyles={{ triggerWrapper: actionButtonStyles.pillButton }}
-                >
-                  <TouchableOpacity
-                    onPress={() => ellipsisMenuOpen
-                      ? ellipsisMenuRef.current?.close()
-                      : ellipsisMenuRef.current?.open()
-                    }
-                    style={styles.ellipsisTrigger}
-                    hitSlop={8}
-                  >
-                    <Ionicons name="ellipsis-horizontal" style={actionButtonStyles.buttonIcon} />
-                  </TouchableOpacity>
-                </MenuTrigger>
-                <MenuOptions customStyles={popupMenuStyles.menuOptions}>
-                  <MenuOption label={selectedModel} icon="hardware-chip-outline" onPress={() => modelPickerRef.current?.open()} />
-                  <MenuOption label="Edit Prompt" icon="pencil-outline" onPress={openEditPrompt} isLast />
-                </MenuOptions>
-              </Menu>
+              <IconMenuButton accessibilityLabel="Suggestions options">
+                <MenuOption label={selectedModel} icon="cpu" onPress={() => modelPickerRef.current?.open()} />
+                <MenuOption label="Edit Prompt" icon="pencil" onPress={openEditPrompt} isLast />
+              </IconMenuButton>
               <GradientPillButton
                 label="Use"
                 onPress={handleConfirm}
@@ -327,23 +303,20 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
         </View>
 
         {/* Media card */}
-        <View style={styles.mediaCard} {...mediaPanHandlers}>
+        <Card style={styles.mediaCard} {...mediaPanHandlers}>
           <Animated.View style={[StyleSheet.absoluteFill, mediaAnimStyle]}>
             {currentAsset ? (
               <>
                 <AssetImage asset={currentAsset} contentFit="contain" placeholderColor="transparent" />
                 {currentAsset.duration ? (
                   <View style={styles.videoBadge}>
-                    <Ionicons name="videocam" size={scale(11)} color={colors.textInverse} />
+                    <Icon name="video" size={scale(11)} color={colors.textInverse} />
                     <Text style={styles.videoBadgeText}>{formatVideoDuration(currentAsset.duration)}</Text>
                   </View>
                 ) : null}
               </>
             ) : (
-              <View style={styles.emptyMedia}>
-                <Ionicons name="images-outline" size={scale(48)} color={colors.textTertiary} />
-                <Text style={styles.emptyText}>No media matches these filters</Text>
-              </View>
+              <EmptyState icon="images" title="No media matches these filters" style={{ flex: 1 }} />
             )}
           </Animated.View>
 
@@ -354,49 +327,54 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
                 onPress={() => navigateAsset('prev')}
                 hitSlop={8}
               >
-                <Ionicons name="chevron-back" size={scale(18)} color={colors.text} />
+                <Icon name="chevron-left" size={scale(18)} color={colors.text} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.arrowButton, styles.arrowRight]}
                 onPress={() => navigateAsset('next')}
                 hitSlop={8}
               >
-                <Ionicons name="chevron-forward" size={scale(18)} color={colors.text} />
+                <Icon name="chevron-right" size={scale(18)} color={colors.text} />
               </TouchableOpacity>
             </>
           )}
-        </View>
+        </Card>
 
         {/* Caption card */}
-        <View style={styles.captionCard} {...textPanHandlers}>
+        <Card style={styles.captionCard} {...textPanHandlers}>
           {textPool.length > 1 && (
-            <TouchableOpacity style={styles.captionArrowBtn} onPress={() => navigateText('prev')} hitSlop={8}>
-              <Ionicons name="chevron-back" size={scale(20)} color={colors.textSecondary} />
-            </TouchableOpacity>
+            <IconButton
+              icon="chevron-left"
+              size={scale(20)}
+              color={colors.textSecondary}
+              onPress={() => navigateText('prev')}
+              accessibilityLabel="Previous suggestion"
+            />
           )}
           <Animated.View style={[styles.captionContent, textAnimStyle]}>
             {isLoading ? (
               <ActivityIndicator size="small" color={colors.textTertiary} style={styles.captionSpinner} />
             ) : (
-              <TextInput
-                style={styles.captionInput}
+              <Textarea
                 value={editableText}
                 onChangeText={handleTextEdit}
                 placeholder="Generating captions…"
-                placeholderTextColor={colors.textTertiary}
-                multiline
-                textAlignVertical="top"
+                style={styles.captionInput}
               />
             )}
           </Animated.View>
           {textPool.length > 1 && (
-            <TouchableOpacity style={styles.captionArrowBtn} onPress={() => navigateText('next')} hitSlop={8}>
-              <Ionicons name="chevron-forward" size={scale(20)} color={colors.textSecondary} />
-            </TouchableOpacity>
+            <IconButton
+              icon="chevron-right"
+              size={scale(20)}
+              color={colors.textSecondary}
+              onPress={() => navigateText('next')}
+              accessibilityLabel="Next suggestion"
+            />
           )}
-        </View>
+        </Card>
 
-      </View>
+      </ModalSheet>
 
       {/* Hidden model picker — trigger is invisible, the picker Modal still works */}
       <View style={styles.hidden}>
@@ -419,15 +397,12 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
             rightSlot={<GradientPillButton label="Save" onPress={handleSavePrompt} />}
           />
           <View style={styles.promptInputCard}>
-            <TextInput
-              style={styles.promptInput}
+            <Textarea
               value={editablePrompt}
               onChangeText={setEditablePrompt}
               placeholder="Describe the style of posts to generate…"
-              placeholderTextColor={colors.textTertiary}
-              multiline
               autoFocus
-              textAlignVertical="top"
+              style={styles.promptInput}
             />
           </View>
         </View>
@@ -449,9 +424,7 @@ function FilterPill({ label, active, onPress }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.appBackground[0],
+  containerPadding: {
     paddingHorizontal: SCREEN_PADDING,
     paddingTop: MODAL_HEADER_HEIGHT,
   },
@@ -486,11 +459,8 @@ const styles = StyleSheet.create({
 
   // --- Media card ---
   mediaCard: {
-    ...glass,
     width: '100%',
     aspectRatio: 1,
-    borderRadius: radii.card,
-    overflow: 'hidden',
   },
   arrowButton: {
     position: 'absolute',
@@ -526,18 +496,6 @@ const styles = StyleSheet.create({
     fontSize: scale(11),
     fontWeight: '600',
   },
-  emptyMedia: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  emptyText: {
-    fontSize: typography.sm,
-    color: colors.textTertiary,
-    textAlign: 'center',
-    paddingHorizontal: 24,
-  },
 
   hidden: {
     position: 'absolute',
@@ -552,25 +510,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  ellipsisTrigger: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 
   // --- Caption card ---
   captionCard: {
-    ...glass,
-    borderRadius: radii.card,
     marginTop: 12,
     flexDirection: 'row',
-    alignItems: 'stretch',
-    minHeight: 180,
-  },
-  captionArrowBtn: {
-    paddingHorizontal: SCREEN_PADDING,
     alignItems: 'center',
-    justifyContent: 'center',
+    minHeight: 180,
   },
   captionContent: {
     flex: 1,
@@ -578,10 +524,6 @@ const styles = StyleSheet.create({
   },
   captionInput: {
     flex: 1,
-    fontSize: typography.input,
-    color: colors.text,
-    lineHeight: 24,
-    textAlignVertical: 'top',
   },
   captionSpinner: {
     flex: 1,
@@ -609,11 +551,6 @@ const styles = StyleSheet.create({
   },
   promptInput: {
     flex: 1,
-    fontSize: typography.input,
-    lineHeight: 24,
-    color: colors.text,
     padding: SCREEN_PADDING,
-    textAlignVertical: 'top',
   },
-
 });

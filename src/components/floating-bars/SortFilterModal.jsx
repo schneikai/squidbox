@@ -5,7 +5,7 @@
 //
 // TODO: Consider unifying with PopupMenu/BlurPopoverRenderer into a single system.
 // Would require adding sub-panel navigation support to the popup-menu renderer.
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Icon from '@/components/Icon';
 import { BlurView } from 'expo-blur';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -130,7 +130,7 @@ export default function SortFilterModal({
                 >
                   <Text style={styles.rowLabel}>{option.label}</Text>
                   {isActive && (
-                    <Ionicons
+                    <Icon
                       name={dir === 'asc' ? 'arrow-up' : 'arrow-down'}
                       size={spacing.menuIconSize}
                       color={colors.accent}
@@ -148,8 +148,8 @@ export default function SortFilterModal({
               style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
             >
               <Text style={styles.rowLabel}>Filter</Text>
-              <Ionicons
-                name="chevron-forward"
+              <Icon
+                name="chevron-right"
                 size={spacing.menuIconSize}
                 color={colors.darkModalTextDim}
                 style={styles.rowIcon}
@@ -162,8 +162,8 @@ export default function SortFilterModal({
                 onPress={() => handleFilterSelect('all')}
                 style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
               >
-                <Ionicons
-                  name="close-circle-outline"
+                <Icon
+                  name="close-circle"
                   size={spacing.menuIconSize}
                   color={colors.darkModalTextDim}
                   style={styles.rowLeadIcon}
@@ -180,8 +180,8 @@ export default function SortFilterModal({
                   onPress={handleThumbnailStyleToggle}
                   style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
                 >
-                  <Ionicons
-                    name={thumbnailStyle === 'cover' ? 'expand-outline' : 'grid-outline'}
+                  <Icon
+                    name={thumbnailStyle === 'cover' ? 'expand' : 'grid'}
                     size={spacing.menuIconSize}
                     color={colors.darkModalTextDim}
                     style={styles.rowLeadIcon}
@@ -200,7 +200,7 @@ export default function SortFilterModal({
               onPress={() => setShowFilterPanel(false)}
               style={({ pressed }) => [styles.row, styles.backRow, pressed && styles.rowPressed]}
             >
-              <Ionicons name="chevron-back" size={spacing.menuIconSize} color={colors.darkModalTextDim} />
+              <Icon name="chevron-left" size={spacing.menuIconSize} color={colors.darkModalTextDim} />
               <Text style={[styles.rowLabel, styles.backLabel]}>Filter</Text>
             </Pressable>
 
@@ -217,7 +217,7 @@ export default function SortFilterModal({
                   onPress={() => handleFilterSelect(option.key)}
                   style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
                 >
-                  <Ionicons
+                  <Icon
                     name={option.icon}
                     size={spacing.menuIconSize}
                     color={colors.darkModalTextDim}

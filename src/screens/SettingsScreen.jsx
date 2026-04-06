@@ -4,15 +4,15 @@ import { useEffect, useState, useTransition } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Icon from '@/components/Icon';
 
+import DetailScrollView from '@/components/DetailScrollView';
 import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
@@ -21,7 +21,6 @@ import { SCREEN_PADDING } from '@/constants';
 import LoginForm from '@/components/LoginForm';
 import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
 import { MODEL_STORAGE_KEY, DEFAULT_MODEL } from '@/features/ai-suggestions/aiSuggestionsStorage';
-import useScreenPadding from '@/hooks/useScreenPadding';
 import confirmLogoutAsync from '@/features/cloud/confirmLogoutAsync';
 import useCloud from '@/features/cloud/useCloud';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
@@ -54,7 +53,7 @@ function Row({ label, value, onPress, destructive, chevron, children }) {
       <View style={styles.rowRight}>
         {value ? <Text style={styles.rowValue}>{value}</Text> : null}
         {children}
-        {chevron && <Ionicons name="chevron-forward" size={spacing.iconSizeSmall} color={colors.textTertiary} style={{ marginLeft: 4 }} />}
+        {chevron && <Icon name="chevron-right" size={spacing.iconSizeSmall} color={colors.textTertiary} style={{ marginLeft: 4 }} />}
       </View>
     </View>
   );
@@ -175,12 +174,10 @@ export default function SettingsScreen() {
     return 'All synced';
   }
 
-  const { paddingTop } = useScreenPadding('detail');
-
   return (
     <Page>
       <FloatingDetailHeader title="Settings" onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop }]} automaticallyAdjustKeyboardInsets>
+      <DetailScrollView>
         {isAuthenticated ? (
           <>
             <ScreenSectionHeader title="Account" />
@@ -261,17 +258,12 @@ export default function SettingsScreen() {
           </>
         )}
 
-        <View style={styles.footer} />
-      </ScrollView>
+      </DetailScrollView>
     </Page>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    paddingHorizontal: SCREEN_PADDING,
-  },
-
   section: {
     backgroundColor: colors.glassSurface,
     borderRadius: radii.card,
@@ -335,9 +327,5 @@ const styles = StyleSheet.create({
 
   loginWrapper: {
     paddingTop: 8,
-  },
-
-  footer: {
-    height: 40,
   },
 });

@@ -4,7 +4,7 @@ import popupMenuStyles from '@/styles/popupMenuStyles';
 
 export default function SortPostsAction({ sortOrder, onPress }) {
   return (
-    <PopupMenu icon="swap-vertical">
+    <PopupMenu icon="sort">
       <TwoChoiceMenuOption
         label="Posted"
         onPressOptionA={() => onPress('postedAt:asc')}

@@ -52,11 +52,11 @@ export default function MoreAction({ post, afterDelete }) {
   }
 
   return (
-    <PopupMenu icon="ellipsis-horizontal" variant="pill">
-      <MenuOption label="Download assets" icon="cloud-download-outline" onPress={handleDownloadAssets} />
-      <MenuOption label="Edit" icon="create-outline" onPress={handleEditPost} />
-      <MenuOption label="Repost" icon="repeat-outline" onPress={handleRepost} />
-      <MenuOption label="Delete" icon="trash-outline" onPress={handleDeletePost} danger isLast />
+    <PopupMenu icon="menu" variant="pill">
+      <MenuOption label="Download assets" icon="cloud-download" onPress={handleDownloadAssets} />
+      <MenuOption label="Edit" icon="edit" onPress={handleEditPost} />
+      <MenuOption label="Repost" icon="repeat" onPress={handleRepost} />
+      <MenuOption label="Delete" icon="trash" onPress={handleDeletePost} danger isLast />
     </PopupMenu>
   );
 }

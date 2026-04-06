@@ -1,12 +1,15 @@
 import { useState, useMemo } from 'react';
-import { Pressable, StyleSheet, View, TextInput, TouchableOpacity } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
-import Ionicons from '@expo/vector-icons/Ionicons';
 
+import Card from '@/components/Card';
+import ModalSheet from '@/components/ModalSheet';
 import DateTimePicker from '@/components/DateTimePicker';
 import GradientPillButton from '@/components/GradientPillButton';
+import IconButton from '@/components/IconButton';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import Textarea from '@/components/Textarea';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import AiChatModal from '@/features/ai-suggestions/AiChatModal';
 import RandomSuggestionsModal from '@/features/post-random-suggestions/RandomSuggestionsModal';
@@ -14,8 +17,7 @@ import usePosts from '@/features/posts-context/usePosts';
 import { REFERENCE_POST_COUNT } from '@/features/ai-suggestions/sendAiMessageAsync';
 import getNewItemId from '@/utils/getNewItemId';
 import { SCREEN_PADDING } from '@/constants';
-import actionButtonStyles from '@/styles/actionButtonStyles';
-import { colors, glass, radii, spacing, typography } from '@/styles/designTokens';
+import { colors } from '@/styles/designTokens';
 
 export default function PostEditor({ post, onChange, navigation, onSave, canSave, title = 'Post' }) {
   const scrollY = useSharedValue(0);
@@ -59,22 +61,17 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
   }
 
   return (
-    <View style={styles.container}>
+    <ModalSheet>
       <ModalHeader
         leftSlot={navigation ? <ModalCloseButton onPress={() => navigation.goBack()} /> : null}
         scrollY={scrollY}
         rightSlot={
           <>
-            <Pressable
+            <IconButton
+              icon="sparkles"
               onPress={() => setShowRandomSuggestions(true)}
-              style={({ pressed }) => [
-                actionButtonStyles.pillButton,
-                pressed && { backgroundColor: colors.pressedBg },
-              ]}
-              hitSlop={8}
-            >
-              <Ionicons name="sparkles-outline" size={spacing.iconSize} color={colors.text} />
-            </Pressable>
+              accessibilityLabel="AI suggestions"
+            />
             {onSave && (
               <GradientPillButton
                 label="Save"
@@ -91,32 +88,30 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
         scrollEventThrottle={16}
         contentContainerStyle={styles.scrollContent}
       >
-        <View style={[styles.card, styles.mediaCard]}>
+        <Card style={styles.mediaCard}>
           <PostAssetsEditor
             assetRefs={assetRefs}
             onChange={handleAssetRefsChange}
           />
-        </View>
+        </Card>
 
-        <View style={[styles.card, styles.textCard]}>
-          <TextInput
-            style={styles.textArea}
+        <Card style={styles.textCard}>
+          <Textarea
             placeholder="What's new?"
-            placeholderTextColor={colors.textTertiary}
-            multiline
             numberOfLines={4}
             onChangeText={handleTextChange}
             value={text}
+            style={styles.textArea}
           />
           <View style={styles.inputButtons}>
-            <TouchableOpacity
+            <IconButton
+              icon="wand"
               onPress={() => setShowAiChat(true)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="color-wand-outline" size={spacing.iconSize} color={colors.accent} />
-            </TouchableOpacity>
+              color={colors.accent}
+              accessibilityLabel="AI caption suggestions"
+            />
           </View>
-        </View>
+        </Card>
 
         <DateTimePicker timestamp={postedAt} onChange={handlePostedAtChange} />
       </Animated.ScrollView>
@@ -135,16 +130,11 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
         onConfirm={handleSuggestionConfirm}
         recentPostTexts={recentPostTexts}
       />
-    </View>
+    </ModalSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.appBackground[0],
-  },
-
   scrollContent: {
     paddingTop: MODAL_HEADER_HEIGHT + SCREEN_PADDING,
     paddingHorizontal: SCREEN_PADDING,
@@ -152,15 +142,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
 
-  card: {
-    ...glass,
-    borderRadius: radii.card,
-  },
-
   mediaCard: {
     overflow: 'hidden',
   },
-
 
   textCard: {
     paddingTop: SCREEN_PADDING,
@@ -169,12 +153,9 @@ const styles = StyleSheet.create({
   },
 
   textArea: {
-    fontSize: typography.input,
     lineHeight: 26,
-    color: colors.text,
     paddingRight: 56,
     minHeight: 100,
-    textAlignVertical: 'top',
   },
 
   inputButtons: {
@@ -184,5 +165,4 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-
 });

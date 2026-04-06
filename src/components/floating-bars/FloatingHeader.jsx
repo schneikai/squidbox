@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Icon from '@/components/Icon';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -79,10 +79,10 @@ export default function FloatingHeader({
         {/* Action pill: select toggle + add */}
         <FloatingPill>
           {isAssetsTab && (
-            <PillButton iconName="checkmark-circle-outline" onPress={toggleSelectMode} />
+            <PillButton iconName="check-circle" onPress={toggleSelectMode} />
           )}
           <GradientButton onPress={onAdd} style={styles.addButton}>
-            <Ionicons name="add" size={spacing.iconSize} color={colors.textInverse} />
+              <Icon name="add" color={colors.textInverse} />
           </GradientButton>
         </FloatingPill>
 
@@ -98,11 +98,11 @@ export default function FloatingHeader({
               end={{ x: 1, y: 1 }}
               style={styles.avatarGradient}
             >
-              <Ionicons name="person" size={spacing.iconSizeSmall} color={colors.textInverse} />
+              <Icon name="user" size={spacing.iconSizeSmall} color={colors.textInverse} />
             </LinearGradient>
           ) : (
             <View style={styles.avatarFallback}>
-              <Ionicons name="person" size={spacing.iconSizeSmall} color={colors.textSecondary} />
+              <Icon name="user" size={spacing.iconSizeSmall} color={colors.textSecondary} />
             </View>
           )}
         </Pressable>
@@ -112,12 +112,12 @@ export default function FloatingHeader({
       {isAssetsTab && (
         <Animated.View style={[styles.pillWrapper, selectPillStyle]}>
           <FloatingPill>
-            <PillButton iconName="download-outline" onPress={onDownload} disabled={!hasSelection} />
-            <PillButton iconName="albums-outline" onPress={onAddToAlbum} disabled={!hasSelection} />
-            <PillButton iconName="share-outline" onPress={onPost} disabled={!hasSelection} />
-            <PillButton iconName="trash-outline" onPress={onDelete} disabled={!hasSelection} danger />
+            <PillButton iconName="download" onPress={onDownload} disabled={!hasSelection} />
+            <PillButton iconName="library" onPress={onAddToAlbum} disabled={!hasSelection} />
+            <PillButton iconName="share" onPress={onPost} disabled={!hasSelection} />
+            <PillButton iconName="trash" onPress={onDelete} disabled={!hasSelection} danger />
             <GradientButton onPress={exitSelectMode} style={styles.addButton}>
-              <Ionicons name="close" size={spacing.iconSize} color={colors.textInverse} />
+              <Icon name="close" color={colors.textInverse} />
             </GradientButton>
           </FloatingPill>
         </Animated.View>
@@ -137,7 +137,7 @@ function PillButton({ iconName, onPress, disabled, danger }) {
         disabled && styles.pillButtonDisabled,
       ]}
     >
-      <Ionicons name={iconName} size={spacing.iconSize} color={danger ? colors.danger : colors.text} />
+      <Icon name={iconName} color={danger ? colors.danger : colors.text} />
     </Pressable>
   );
 }

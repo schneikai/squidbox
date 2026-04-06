@@ -43,21 +43,21 @@ export default function MoreAction({ album, afterDelete, onSelect }) {
   }
 
   return (
-    <PopupMenu icon="ellipsis-horizontal" variant="pill">
-      {!!onSelect && <MenuOption label="Select" icon="checkmark-circle-outline" onPress={onSelect} />}
+    <PopupMenu icon="menu" variant="pill">
+      {!!onSelect && <MenuOption label="Select" icon="check-circle" onPress={onSelect} />}
       <MenuOption
         label={album.notes ? 'Edit note' : 'Add note'}
-        icon="document-text-outline"
+        icon="document"
         onPress={handleEditNotes}
       />
-      <MenuOption label="Rename" icon="pencil-outline" onPress={handleRenameAlbum} />
+      <MenuOption label="Rename" icon="pencil" onPress={handleRenameAlbum} />
       {!!album.archivedAt && (
-        <MenuOption label="Unarchive" icon="arrow-up-circle-outline" onPress={handleUnarchiveAlbum} />
+        <MenuOption label="Unarchive" icon="arrow-up-circle" onPress={handleUnarchiveAlbum} />
       )}
       {!album.archivedAt && (
-        <MenuOption label="Archive" icon="archive-outline" onPress={handleArchiveAlbum} />
+        <MenuOption label="Archive" icon="archive" onPress={handleArchiveAlbum} />
       )}
-      <MenuOption label="Delete" icon="trash-outline" onPress={handleDeleteAlbum} danger isLast />
+      <MenuOption label="Delete" icon="trash" onPress={handleDeleteAlbum} danger isLast />
     </PopupMenu>
   );
 }

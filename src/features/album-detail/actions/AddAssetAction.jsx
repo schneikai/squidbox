@@ -38,8 +38,8 @@ export default function AddAssetAction({ album }) {
 
   return (
     <PopupMenu icon="add" variant="gradient">
-      <MenuOption label={UPLOAD_MEDIA_FROM_DEVICE} icon="phone-portrait-outline" onPress={handleAddAssetsFromDevice} />
-      <MenuOption label={UPLOAD_MEDIA_FROM_APP} icon="albums-outline" onPress={handleAddAssetsFromApp} isLast />
+      <MenuOption label={UPLOAD_MEDIA_FROM_DEVICE} icon="mobile" onPress={handleAddAssetsFromDevice} />
+      <MenuOption label={UPLOAD_MEDIA_FROM_APP} icon="library" onPress={handleAddAssetsFromApp} isLast />
     </PopupMenu>
   );
 }

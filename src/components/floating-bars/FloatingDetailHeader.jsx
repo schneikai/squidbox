@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Icon from '@/components/Icon';
 import { useState, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
@@ -73,7 +73,7 @@ export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot
             style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
             hitSlop={8}
           >
-            <Ionicons name="chevron-back" size={spacing.iconSize} color={colors.text} />
+            <Icon name="chevron-left" color={colors.text} />
           </Pressable>
         </FloatingPill>
       </Animated.View>

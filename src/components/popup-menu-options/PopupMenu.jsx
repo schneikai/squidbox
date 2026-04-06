@@ -6,8 +6,9 @@
 // TODO: Consider unifying with SortFilterModal into a single popover system.
 // The main obstacle is that react-native-popup-menu doesn't support sub-panel
 // navigation out of the box (needed for the sort/filter drill-down).
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
+
+import Icon from '@/components/Icon';
 import { StyleSheet } from 'react-native';
 import { Menu, MenuTrigger, MenuOptions } from 'react-native-popup-menu';
 
@@ -62,16 +63,10 @@ export default function PopupMenu({ icon, variant = 'bar', active = false, warni
             end={{ x: 1, y: 1 }}
             style={styles.gradientFill}
           >
-            <Ionicons name={icon} style={styles.gradientIcon} />
+            <Icon name={icon} color={colors.iconActive} />
           </LinearGradient>
         ) : (
-          <Ionicons
-            name={icon}
-            style={[
-              actionButtonStyles.buttonIcon,
-              (active || warning) && actionButtonStyles.buttonIconActive,
-            ]}
-          />
+          <Icon name={icon} color={active || warning ? colors.accent : colors.text} />
         )}
       </MenuTrigger>
       <MenuOptions customStyles={popupMenuStyles.menuOptions}>
@@ -93,9 +88,5 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  gradientIcon: {
-    fontSize: spacing.iconSize,
-    color: colors.iconActive,
   },
 });

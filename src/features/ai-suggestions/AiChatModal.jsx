@@ -12,19 +12,22 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Menu, MenuOptions, MenuProvider, MenuTrigger } from 'react-native-popup-menu';
+import { MenuProvider } from 'react-native-popup-menu';
 
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Icon from '@/components/Icon';
 
+import Textarea from '@/components/Textarea';
 import sendAiMessageAsync from './sendAiMessageAsync';
 import ModelSelectorButton from './ModelSelectorButton';
+import IconButton from '@/components/IconButton';
+import IconMenuButton from '@/components/IconMenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
-import popupMenuStyles from '@/styles/popupMenuStyles';
+import ModalCloseButton from '@/components/ModalCloseButton';
+import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import {
   CHAT_STORAGE_KEY,
   MODEL_STORAGE_KEY,
@@ -36,9 +39,6 @@ import {
   DEFAULT_SYSTEM_PROMPT,
   DEFAULT_VARIATION_PROMPT,
 } from './aiSuggestionsStorage';
-import ModalCloseButton from '@/components/ModalCloseButton';
-import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
-import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, radii, scale, spacing } from '@/styles/designTokens';
 
 export default function AiChatModal({ visible, onClose, onSelect, recentPostTexts, existingText }) {
@@ -55,8 +55,6 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
   const flatListRef = useRef(null);
   const copiedKeyTimerRef = useRef(null);
   const keyboardHeightAnim = useRef(new Animated.Value(0)).current;
-  const ellipsisMenuRef = useRef(null);
-  const [ellipsisMenuOpen, setEllipsisMenuOpen] = useState(false);
   const modelPickerRef = useRef(null);
 
   useEffect(() => {
@@ -124,7 +122,6 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
       setInputText(DEFAULT_PROMPT);
     }
   }
-
 
   async function saveHistory(msgs) {
     try {
@@ -222,16 +219,13 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
             <View key={key} style={[styles.suggestionRow, !isLast && styles.suggestionRowDivider]}>
               <Text style={styles.suggestionText}>{suggestion}</Text>
               <View style={styles.suggestionActions}>
-                <TouchableOpacity
+                <IconButton
+                  icon={copiedKey === key ? 'check' : 'copy'}
+                  size={scale(16)}
+                  color={copiedKey === key ? '#34C759' : colors.textTertiary}
                   onPress={() => handleCopy(suggestion, key)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons
-                    name={copiedKey === key ? 'checkmark-outline' : 'copy-outline'}
-                    size={scale(16)}
-                    color={copiedKey === key ? '#34C759' : colors.textTertiary}
-                  />
-                </TouchableOpacity>
+                  accessibilityLabel="Copy message"
+                />
                 <TouchableOpacity style={styles.useButton} onPress={() => handleUse(suggestion)}>
                   <Text style={styles.useButtonText}>Use</Text>
                 </TouchableOpacity>
@@ -263,31 +257,10 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
           leftSlot={<ModalCloseButton onPress={onClose} />}
           centerSlot="AI Captions"
           rightSlot={
-            <Menu
-              ref={ellipsisMenuRef}
-              onOpen={() => setEllipsisMenuOpen(true)}
-              onClose={() => setEllipsisMenuOpen(false)}
-            >
-              <MenuTrigger
-                disabled
-                customStyles={{ triggerWrapper: actionButtonStyles.pillButton }}
-              >
-                <TouchableOpacity
-                  onPress={() => ellipsisMenuOpen
-                    ? ellipsisMenuRef.current?.close()
-                    : ellipsisMenuRef.current?.open()
-                  }
-                  style={styles.ellipsisTrigger}
-                  hitSlop={8}
-                >
-                  <Ionicons name="ellipsis-horizontal" style={actionButtonStyles.buttonIcon} />
-                </TouchableOpacity>
-              </MenuTrigger>
-              <MenuOptions customStyles={popupMenuStyles.menuOptions}>
-                <MenuOption label={selectedModel} icon="hardware-chip-outline" onPress={() => modelPickerRef.current?.open()} />
-                <MenuOption label="Clear Chat" icon="trash-outline" onPress={handleClearChat} isLast />
-              </MenuOptions>
-            </Menu>
+            <IconMenuButton accessibilityLabel="Chat options">
+              <MenuOption label={selectedModel} icon="cpu" onPress={() => modelPickerRef.current?.open()} />
+              <MenuOption label="Clear Chat" icon="trash" onPress={handleClearChat} isLast />
+            </IconMenuButton>
           }
         />
 
@@ -299,12 +272,10 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
           onRequestClose={() => setShowReferencePosts(false)}
         >
           <View style={[styles.refModalContainer, { paddingBottom: insets.bottom }]}>
-            <View style={styles.refModalHeader}>
-              <Text style={styles.refModalTitle}>Style Reference</Text>
-              <TouchableOpacity onPress={() => setShowReferencePosts(false)}>
-                <Text style={styles.refModalClose}>Done</Text>
-              </TouchableOpacity>
-            </View>
+            <ModalHeader
+              leftSlot={<ModalCloseButton onPress={() => setShowReferencePosts(false)} />}
+              centerSlot="Style Reference"
+            />
             <Text style={styles.refModalSubtitle}>
               Your {recentPostTexts.length} most recent posts will be used to match your tone.
             </Text>
@@ -357,13 +328,11 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
 
         {/* Input bar */}
         <View style={[styles.inputBar, { paddingBottom: insets.bottom + 8 }]}>
-          <TextInput
+          <Textarea
             style={styles.input}
             placeholder="e.g. create some caption ideas"
-            placeholderTextColor={colors.textTertiary}
             value={inputText}
             onChangeText={setInputText}
-            multiline
             returnKeyType="default"
           />
           <TouchableOpacity
@@ -371,7 +340,7 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
             onPress={handleSend}
             disabled={!inputText.trim() || isLoading}
           >
-            <Ionicons name="arrow-up" size={scale(20)} color={colors.textInverse} />
+            <Icon name="arrow-up" size={scale(20)} color={colors.textInverse} />
           </TouchableOpacity>
         </View>
         {/* Hidden model picker */}
@@ -395,11 +364,6 @@ const styles = StyleSheet.create({
     width: 0,
     height: 0,
     overflow: 'hidden',
-  },
-  ellipsisTrigger: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
   messageListContainer: {
@@ -511,32 +475,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.appBackground[0],
   },
-  refModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.floatingBarSide,
-    paddingVertical: 14,
-    backgroundColor: colors.glassSurface,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.glassBorder,
-  },
-  refModalTitle: {
-    fontSize: scale(16),
-    fontWeight: '600',
-    color: colors.text,
-  },
-  refModalClose: {
-    fontSize: scale(16),
-    color: colors.accent,
-    fontWeight: '600',
-  },
   refModalSubtitle: {
     fontSize: scale(13),
     color: colors.textSecondary,
     textAlign: 'center',
     paddingHorizontal: 24,
-    paddingTop: 16,
+    paddingTop: MODAL_HEADER_HEIGHT + 16,
     paddingBottom: 4,
   },
   refModalList: {
@@ -618,5 +562,4 @@ const styles = StyleSheet.create({
   sendButtonDisabled: {
     backgroundColor: colors.textTertiary,
   },
-
 });

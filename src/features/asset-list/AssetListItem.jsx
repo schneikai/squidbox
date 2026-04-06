@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Icon from '@/components/Icon';
 import { View, StyleSheet, Text } from 'react-native';
 import { Defs, RadialGradient, Rect, Stop, Svg } from 'react-native-svg';
 
@@ -75,26 +75,26 @@ function VideoDuration({ duration }) {
 function FavoriteAssetIndicator({ isFavorite }) {
   if (!isFavorite) return;
 
-  return <Ionicons name="heart" style={styles.favoriteAssetIndicator} />;
+  return <Icon name="heart" filled size={typography.lg} color={colors.textInverse} />;
 }
 
 function CloudIndicator({ isSynced }) {
-  const iconName = isSynced ? 'cloud-done' : 'cloud-offline';
+  const iconName = isSynced ? 'cloud-check' : 'cloud-offline';
 
-  return <Ionicons name={iconName} style={styles.cloudIndicator} />;
+  return <Icon name={iconName} size={typography.lg} color={colors.textInverse} />;
 }
 
 function NoteIndicator({ hasNote }) {
   if (!hasNote) return null;
 
-  return <Ionicons name="document-text" style={styles.noteIndicator} />;
+  return <Icon name="document" size={scale(16)} color={colors.textInverse} />;
 }
 
 function SelectIndicator({ isSelected }) {
   return (
     <View style={[styles.selectBadge, isSelected && styles.selectBadgeActive]}>
       {isSelected
-        ? <Ionicons name="checkmark-sharp" size={15} color={colors.textInverse} />
+        ? <Icon name="check" size={15} color={colors.textInverse} />
         : null}
     </View>
   );
@@ -131,18 +131,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  favoriteAssetIndicator: {
-    fontSize: typography.lg,
-    color: colors.textInverse,
-  },
-  cloudIndicator: {
-    fontSize: typography.lg,
-    color: colors.textInverse,
-  },
-  noteIndicator: {
-    fontSize: scale(16),
-    color: colors.textInverse,
-  },
+
 
   selectBadge: {
     position: 'absolute',

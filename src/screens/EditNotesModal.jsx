@@ -1,16 +1,17 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { SCREEN_PADDING } from '@/constants';
+import ModalSheet from '@/components/ModalSheet';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useAssets from '@/features/assets-context/useAssets';
 import GradientPillButton from '@/components/GradientPillButton';
+import IconButton from '@/components/IconButton';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
-import actionButtonStyles from '@/styles/actionButtonStyles';
-import { colors, scale, spacing, typography } from '@/styles/designTokens';
+import Textarea from '@/components/Textarea';
+import { colors } from '@/styles/designTokens';
 
 export default function EditNotesModal({ route, navigation }) {
   const { type, id, notes: initialNotes } = route.params;
@@ -40,47 +41,36 @@ export default function EditNotesModal({ route, navigation }) {
   }
 
   return (
-    <View style={[styles.container, { paddingBottom: bottom || SCREEN_PADDING }]}>
+    <ModalSheet style={{ paddingBottom: bottom || SCREEN_PADDING }}>
       <ModalHeader
         leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />}
         centerSlot="Notes"
         rightSlot={
           <View style={styles.rightActions}>
-            <Pressable
+            <IconButton
+              icon="trash"
               onPress={handleDelete}
-              style={({ pressed }) => [
-                actionButtonStyles.pillButton,
-                pressed && { backgroundColor: colors.pressedBg },
-              ]}
-              hitSlop={8}
-            >
-              <Ionicons name="trash-outline" size={spacing.iconSize} color={colors.danger} />
-            </Pressable>
+              color={colors.danger}
+              accessibilityLabel="Delete note"
+            />
             <GradientPillButton label="Save" onPress={handleSave} />
           </View>
         }
       />
       <View style={[styles.inputCard, { marginTop: MODAL_HEADER_HEIGHT + 8 }]}>
-        <TextInput
-          style={styles.input}
+        <Textarea
           value={notes}
           onChangeText={setNotes}
           placeholder="Add a note…"
-          placeholderTextColor={colors.textTertiary}
-          multiline
           autoFocus
-          textAlignVertical="top"
+          style={styles.input}
         />
       </View>
-    </View>
+    </ModalSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.appBackground[0],
-  },
   inputCard: {
     flex: 1,
     margin: SCREEN_PADDING,
@@ -96,9 +86,6 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: typography.input,
-    lineHeight: 24,
-    color: colors.text,
     padding: SCREEN_PADDING,
   },
   rightActions: {

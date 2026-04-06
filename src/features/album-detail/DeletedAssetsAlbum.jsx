@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Icon from '@/components/Icon';
 import { useNavigation } from '@react-navigation/native';
 import { useState, useMemo, useTransition } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
@@ -13,7 +13,7 @@ import useAssets from '@/features/assets-context/useAssets';
 import getAlbumAssets from '@/utils/albums/getAlbumAssets';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import actionButtonStyles from '@/styles/actionButtonStyles';
-import { colors, spacing } from '@/styles/designTokens';
+import { colors } from '@/styles/designTokens';
 
 export default function AlbumScreenComponentForDeletedAssets({ album }) {
   const { assets, restoreDeletedAssets, deleteAssetsAsync } = useAssets();
@@ -91,21 +91,21 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
               style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
               hitSlop={4}
             >
-              <Ionicons name="arrow-undo-outline" size={spacing.iconSize} color={colors.text} />
+              <Icon name="undo" color={colors.text} />
             </Pressable>
             <Pressable
               onPress={toggleSelectMode}
               style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
               hitSlop={4}
             >
-              <Ionicons name="checkbox-outline" size={spacing.iconSize} color={colors.text} />
+              <Icon name="checkbox" color={colors.text} />
             </Pressable>
             <Pressable
               onPress={handleDeleteAssets}
               style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
               hitSlop={4}
             >
-              <Ionicons name="trash-outline" size={spacing.iconSize} color={colors.danger} />
+              <Icon name="trash" color={colors.danger} />
             </Pressable>
           </View>
         }

@@ -1,9 +1,10 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { Text } from 'react-native';
 import { MenuOption } from 'react-native-popup-menu';
 
+import Icon from '@/components/Icon';
 import popupMenuStyles from '@/styles/popupMenuStyles';
+import { colors, spacing } from '@/styles/designTokens';
 
 export default function CreatePostSelectionMenuOption({ getSelectedAssets }) {
   const navigation = useNavigation();
@@ -15,7 +16,7 @@ export default function CreatePostSelectionMenuOption({ getSelectedAssets }) {
   return (
     <MenuOption onSelect={handleSelect} customStyles={{ optionWrapper: popupMenuStyles.menuOption }}>
       <Text style={popupMenuStyles.menuOptionText}>Create Post</Text>
-      <Ionicons name="create-outline" style={popupMenuStyles.menuOptionIcon} />
+      <Icon name="edit" size={spacing.menuIconSize} color={colors.darkModalTextDim} style={popupMenuStyles.menuOptionIcon} />
     </MenuOption>
   );
 }

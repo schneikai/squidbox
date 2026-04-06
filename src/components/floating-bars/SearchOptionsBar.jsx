@@ -1,6 +1,6 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Icon from '@/components/Icon';
 import { useEffect, useRef } from 'react';
-import { Pressable, StyleSheet, TextInput } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useAnimatedKeyboard,
@@ -11,6 +11,7 @@ import Animated, {
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import AppTextInput from '@/components/TextInput';
 import FloatingPill from './FloatingPill';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, scale, spacing, typography } from '@/styles/designTokens';
@@ -91,7 +92,7 @@ export default function SearchOptionsBar({
           onPress={onOpenSearch}
           style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
         >
-          <Ionicons name="search" size={spacing.iconSize} color={colors.iconInactive} />
+          <Icon name="search" color={colors.iconInactive} />
         </Pressable>
 
         {/* Collapsed: options button */}
@@ -104,22 +105,17 @@ export default function SearchOptionsBar({
               pressed && { backgroundColor: colors.pressedBg },
             ]}
           >
-            <Ionicons
-              name="options-outline"
-              size={spacing.iconSize}
-              color={hasActiveState ? colors.accent : colors.iconInactive}
-            />
+            <Icon name="options" color={hasActiveState ? colors.accent : colors.iconInactive} />
           </Pressable>
         </Animated.View>
 
         {/* Expanded: text input + close + options */}
         <Animated.View style={[styles.expandedRow, expandedStyle]}>
-          <TextInput
+          <AppTextInput
             ref={inputRef}
             value={searchText}
             onChangeText={onChangeSearch}
             placeholder={placeholder}
-            placeholderTextColor={colors.textTertiary}
             style={styles.input}
             returnKeyType="search"
           />
@@ -127,7 +123,7 @@ export default function SearchOptionsBar({
             onPress={onCloseSearch}
             style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
           >
-            <Ionicons name="close" size={spacing.iconSize} color={colors.iconInactive} />
+            <Icon name="close" color={colors.iconInactive} />
           </Pressable>
           <Pressable
             onPress={onOpenOptions}
@@ -137,11 +133,7 @@ export default function SearchOptionsBar({
               pressed && { backgroundColor: colors.pressedBg },
             ]}
           >
-            <Ionicons
-              name="options-outline"
-              size={spacing.iconSize}
-              color={hasActiveState ? colors.accent : colors.iconInactive}
-            />
+            <Icon name="options" color={hasActiveState ? colors.accent : colors.iconInactive} />
           </Pressable>
         </Animated.View>
       </FloatingPill>
@@ -164,9 +156,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: typography.input,
     lineHeight: typography.lg,
-    color: colors.text,
     paddingHorizontal: scale(4),
     paddingVertical: 0,
   },

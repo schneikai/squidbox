@@ -4,7 +4,7 @@ import popupMenuStyles from '@/styles/popupMenuStyles';
 
 export default function SortAssetsAction({ sortOrder, onPress }) {
   return (
-    <PopupMenu icon="swap-vertical">
+    <PopupMenu icon="sort">
       <TwoChoiceMenuOption
         label="Created at"
         onPressOptionA={() => onPress('createdAt:asc')}

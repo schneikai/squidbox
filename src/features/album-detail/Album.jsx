@@ -1,5 +1,5 @@
 import { useActionSheet } from '@expo/react-native-action-sheet';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Icon from '@/components/Icon';
 import { useNavigation } from '@react-navigation/native';
 import { useState, useMemo } from 'react';
 import { Text, StyleSheet, View, Pressable, TouchableOpacity, useWindowDimensions } from 'react-native';
@@ -42,15 +42,15 @@ import { colors, scale, spacing, typography } from '@/styles/designTokens';
 import pluralizeText from '@/utils/pluralizeText';
 
 const TABS = [
-  { key: 'Assets', icon: 'grid-outline',        iconActive: 'grid' },
-  { key: 'Posts',  icon: 'share-social-outline', iconActive: 'share-social' },
+  { key: 'Assets', icon: 'grid' },
+  { key: 'Posts',  icon: 'share-alt' },
 ];
 
 const ASSET_FILTER_OPTIONS = [
-  { key: 'all',       label: 'All Media',  icon: 'apps-outline' },
-  { key: 'favorites', label: 'Favorites',  icon: 'heart-outline' },
-  { key: 'images',    label: 'Photos',     icon: 'image-outline' },
-  { key: 'videos',    label: 'Videos',     icon: 'videocam-outline' },
+  { key: 'all',       label: 'All Media',  icon: 'apps' },
+  { key: 'favorites', label: 'Favorites',  icon: 'heart' },
+  { key: 'images',    label: 'Photos',     icon: 'image' },
+  { key: 'videos',    label: 'Videos',     icon: 'video' },
 ];
 
 export default function Album({ album }) {
@@ -158,15 +158,15 @@ export default function Album({ album }) {
           isSelectMode ? (
             // Selection toolbar — mirrors the main screen's select pill
             <>
-              <PillButton iconName="download-outline" onPress={handleDownload} disabled={!hasSelection} />
-              <PillButton iconName="albums-outline" onPress={handleAddToAlbum} disabled={!hasSelection} />
-              <PillButton iconName="share-outline" onPress={handleCreatePost} disabled={!hasSelection} />
+              <PillButton iconName="download" onPress={handleDownload} disabled={!hasSelection} />
+              <PillButton iconName="library" onPress={handleAddToAlbum} disabled={!hasSelection} />
+              <PillButton iconName="share" onPress={handleCreatePost} disabled={!hasSelection} />
               {!isSmartAlbum(album) && (
-                <PillButton iconName="trash-outline" onPress={handleDeleteFromAlbum} disabled={!hasSelection} danger />
+                <PillButton iconName="trash" onPress={handleDeleteFromAlbum} disabled={!hasSelection} danger />
               )}
               <View style={actionButtonStyles.pillSeparator} />
               <GradientButton onPress={toggleSelectMode} style={styles.closeButton}>
-                <Ionicons name="close" size={spacing.iconSize} color={colors.textInverse} />
+                <Icon name="close" color={colors.textInverse} />
               </GradientButton>
             </>
           ) : (
@@ -298,7 +298,7 @@ function PillButton({ iconName, onPress, disabled, danger }) {
         disabled && styles.pillButtonDisabled,
       ]}
     >
-      <Ionicons name={iconName} size={spacing.iconSize} color={danger ? colors.danger : colors.text} />
+      <Icon name={iconName} color={danger ? colors.danger : colors.text} />
     </Pressable>
   );
 }
@@ -307,7 +307,7 @@ function SegmentButton({ tab, isActive, onPress }) {
   if (isActive) {
     return (
       <GradientButton onPress={onPress}>
-        <Ionicons name={tab.iconActive} size={spacing.iconSize} color={colors.iconActive} />
+        <Icon name={tab.icon} color={colors.iconActive} />
       </GradientButton>
     );
   }
@@ -316,7 +316,7 @@ function SegmentButton({ tab, isActive, onPress }) {
       onPress={onPress}
       style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
     >
-      <Ionicons name={tab.icon} size={spacing.iconSize} color={colors.iconInactive} />
+      <Icon name={tab.icon} color={colors.iconInactive} />
     </Pressable>
   );
 }

@@ -26,7 +26,7 @@ import { colors, scale, spacing } from '@/styles/designTokens';
  *   scrollY     Reanimated SharedValue<number> (optional) — drives title fade-out on scroll
  */
 
-export const MODAL_HEADER_HEIGHT = spacing.iconButtonSize + spacing.floatingBarBottom * 2;
+export const MODAL_HEADER_HEIGHT = spacing.iconButtonSize + spacing.floatingBarBottom * 2 + 8;
 
 export default function ModalHeader({ leftSlot, rightSlot, centerSlot, centerStyle = 'plain', scrollY }) {
   // Stable fallback so animated style always has a value to read
@@ -48,10 +48,12 @@ export default function ModalHeader({ leftSlot, rightSlot, centerSlot, centerSty
 
   return (
     <View style={styles.container} pointerEvents="box-none">
-      {/* Left slot */}
-      <View style={styles.side} pointerEvents="box-none">
-        {leftSlot ?? null}
-      </View>
+      {/* Left slot — wrapped in FloatingPill */}
+      {leftSlot != null && (
+        <View style={styles.side} pointerEvents="box-none">
+          <FloatingPill>{leftSlot}</FloatingPill>
+        </View>
+      )}
 
       {/* Center — absolutely positioned so it doesn't affect side layout */}
       <View style={styles.centerAbsolute} pointerEvents="box-none">

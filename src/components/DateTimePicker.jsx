@@ -3,8 +3,7 @@
 // opacity: 0.01 keeps the picker interactive (opacity: 0 disables touch on iOS).
 import CommunityDateTimePicker from '@react-native-community/datetimepicker';
 import { StyleSheet, View, Text } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
-
+import Icon from '@/components/Icon';
 import { colors, glass, radii, spacing, typography } from '@/styles/designTokens';
 
 export default function DateTimePicker({ datetime: dt, timestamp, onChange, style = {} }) {
@@ -27,7 +26,7 @@ export default function DateTimePicker({ datetime: dt, timestamp, onChange, styl
       <View style={styles.pill}>
         <CommunityDateTimePicker mode="date" value={dateTime} display="compact" onChange={handleChange} style={styles.nativePicker} />
         <View style={[StyleSheet.absoluteFill, styles.overlay]} pointerEvents="none">
-          <Ionicons name="calendar-outline" size={spacing.iconSizeSmall} color={colors.textSecondary} />
+          <Icon name="calendar" size={spacing.iconSizeSmall} color={colors.textSecondary} />
           <Text style={styles.label}>{dateLabel}</Text>
         </View>
       </View>
@@ -35,7 +34,7 @@ export default function DateTimePicker({ datetime: dt, timestamp, onChange, styl
       <View style={styles.pill}>
         <CommunityDateTimePicker mode="time" value={dateTime} display="compact" onChange={handleChange} style={styles.nativePicker} />
         <View style={[StyleSheet.absoluteFill, styles.overlay]} pointerEvents="none">
-          <Ionicons name="time-outline" size={spacing.iconSizeSmall} color={colors.textSecondary} />
+          <Icon name="clock" size={spacing.iconSizeSmall} color={colors.textSecondary} />
           <Text style={styles.label}>{timeLabel}</Text>
         </View>
       </View>

@@ -1,12 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, TextInput, View, ScrollView } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-import useScreenPadding from '@/hooks/useScreenPadding';
-
+import Card from '@/components/Card';
+import DetailScrollView from '@/components/DetailScrollView';
+import Field from '@/components/Field';
 import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
+import Textarea from '@/components/Textarea';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { SCREEN_PADDING } from '@/constants';
 import {
@@ -19,11 +21,9 @@ import {
   SYSTEM_PROMPT_STORAGE_KEY,
   VARIATION_PROMPT_STORAGE_KEY,
 } from '@/features/ai-suggestions/aiSuggestionsStorage';
-import { colors, glass, radii, typography } from '@/styles/designTokens';
 
 export default function AiPromptsScreen() {
   const navigation = useNavigation();
-  const { paddingTop, paddingBottom } = useScreenPadding('detail');
   const [defaultPrompt, setDefaultPrompt] = useState(DEFAULT_PROMPT);
   const [variationPrompt, setVariationPrompt] = useState(DEFAULT_VARIATION_PROMPT);
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
@@ -56,103 +56,70 @@ export default function AiPromptsScreen() {
   return (
     <Page>
       <FloatingDetailHeader title="AI Prompts" onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop, paddingBottom }]} automaticallyAdjustKeyboardInsets>
+      <DetailScrollView>
         <ScreenSectionHeader title="Default Prompt" />
-        <View style={styles.card}>
-          <Text style={styles.label}>New post prompt</Text>
-          <TextInput
-            style={styles.input}
-            value={defaultPrompt}
-            onChangeText={(v) => { setDefaultPrompt(v); save(PROMPT_STORAGE_KEY, v); }}
-            multiline
-            placeholder="e.g. Create some caption ideas"
-            placeholderTextColor={colors.textTertiary}
-          />
-        </View>
-        <View style={styles.card}>
-          <Text style={styles.label}>Variation prompt</Text>
-          <TextInput
-            style={styles.input}
-            value={variationPrompt}
-            onChangeText={(v) => { setVariationPrompt(v); save(VARIATION_PROMPT_STORAGE_KEY, v); }}
-            multiline
-            placeholder="e.g. Create fresh variations of this post…"
-            placeholderTextColor={colors.textTertiary}
-          />
-        </View>
-        <Text style={styles.footer}>
-          The variation prompt is used when you open the wand on a post that already has text.
-        </Text>
+        <Card style={styles.card}>
+          <Field label="New post prompt">
+            <Textarea
+              value={defaultPrompt}
+              onChangeText={(v) => { setDefaultPrompt(v); save(PROMPT_STORAGE_KEY, v); }}
+              placeholder="e.g. Create some caption ideas"
+              minHeight={60}
+            />
+          </Field>
+        </Card>
+        <Card style={styles.card}>
+          <Field
+            label="Variation prompt"
+            description="The variation prompt is used when you open the wand on a post that already has text."
+          >
+            <Textarea
+              value={variationPrompt}
+              onChangeText={(v) => { setVariationPrompt(v); save(VARIATION_PROMPT_STORAGE_KEY, v); }}
+              placeholder="e.g. Create fresh variations of this post…"
+              minHeight={60}
+            />
+          </Field>
+        </Card>
 
         <ScreenSectionHeader title="Random Suggestions" />
-        <View style={styles.card}>
-          <Text style={styles.label}>Random tweet prompt</Text>
-          <TextInput
-            style={styles.input}
-            value={randomTweetsPrompt}
-            onChangeText={(v) => { setRandomTweetsPrompt(v); save(RANDOM_TWEETS_PROMPT_STORAGE_KEY, v); }}
-            multiline
-            placeholder="e.g. Create tweets with variety…"
-            placeholderTextColor={colors.textTertiary}
-          />
-        </View>
-        <Text style={styles.footer}>
-          Used by the dice button in Add Post. Describe the style and tone — the instruction to generate 10 tweets and return them as JSON is added automatically.
-        </Text>
+        <Card style={styles.card}>
+          <Field
+            label="Random tweet prompt"
+            description="Used by the dice button in Add Post. Describe the style and tone — the instruction to generate 10 tweets and return them as JSON is added automatically."
+          >
+            <Textarea
+              value={randomTweetsPrompt}
+              onChangeText={(v) => { setRandomTweetsPrompt(v); save(RANDOM_TWEETS_PROMPT_STORAGE_KEY, v); }}
+              placeholder="e.g. Create tweets with variety…"
+              minHeight={60}
+            />
+          </Field>
+        </Card>
 
         <ScreenSectionHeader title="System Prompt" />
-        <View style={styles.card}>
-          <Text style={styles.label}>Persona / instructions</Text>
-          <TextInput
-            style={styles.input}
-            value={systemPrompt}
-            onChangeText={(v) => { setSystemPrompt(v); save(SYSTEM_PROMPT_STORAGE_KEY, v); }}
-            multiline
-            placeholder="e.g. You are a creative writer for an OnlyFans account. Keep captions short and flirty."
-            placeholderTextColor={colors.textTertiary}
-          />
-        </View>
-        <Text style={styles.footer}>
-          Prepended to every request before the style reference and format instructions. Leave blank to use no persona.
-        </Text>
+        <Card style={styles.card}>
+          <Field
+            label="Persona / instructions"
+            description="Prepended to every request before the style reference and format instructions. Leave blank to use no persona."
+          >
+            <Textarea
+              value={systemPrompt}
+              onChangeText={(v) => { setSystemPrompt(v); save(SYSTEM_PROMPT_STORAGE_KEY, v); }}
+              placeholder="e.g. You are a creative writer for an OnlyFans account. Keep captions short and flirty."
+              minHeight={60}
+            />
+          </Field>
+        </Card>
 
-      </ScrollView>
+      </DetailScrollView>
     </Page>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    paddingHorizontal: SCREEN_PADDING,
-  },
-
   card: {
-    ...glass,
-    borderRadius: radii.card,
     padding: SCREEN_PADDING,
     marginBottom: 8,
   },
-  label: {
-    fontSize: typography.sm,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: 8,
-  },
-  input: {
-    fontSize: typography.input,
-    color: colors.text,
-    lineHeight: 26,
-    minHeight: 60,
-    textAlignVertical: 'top',
-  },
-
-  footer: {
-    fontSize: typography.sm,
-    color: colors.textSecondary,
-    marginTop: 4,
-    marginBottom: 8,
-    marginHorizontal: 4,
-    lineHeight: 20,
-  },
-
 });

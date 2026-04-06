@@ -4,7 +4,7 @@ import popupMenuStyles from '@/styles/popupMenuStyles';
 
 export default function SortAlbumsAction({ onPress, sortOrder }) {
   return (
-    <PopupMenu icon="swap-vertical">
+    <PopupMenu icon="sort">
       <TwoChoiceMenuOption
         label="Name"
         onPressOptionA={() => onPress('name:asc')}

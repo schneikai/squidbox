@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Icon from '@/components/Icon';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -64,21 +64,21 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
       {/* Left pill — favorite + download */}
       <FloatingPill>
         <ActionButton onPress={handleToggleFavorite}>
-          <Ionicons
-            name={asset.isFavorite ? 'heart' : 'heart-outline'}
-            size={spacing.iconSize}
+          <Icon
+            name="heart"
+            filled={asset.isFavorite}
             color={asset.isFavorite ? colors.danger : colors.iconInactive}
           />
         </ActionButton>
         <ActionButton onPress={handleDownload}>
-          <Ionicons name="cloud-download-outline" size={spacing.iconSize} color={colors.iconInactive} />
+          <Icon name="cloud-download" color={colors.iconInactive} />
         </ActionButton>
       </FloatingPill>
 
       {/* Right pill — delete */}
       <FloatingPill>
         <ActionButton onPress={handleDelete} danger>
-          <Ionicons name="trash-outline" size={spacing.iconSize} color={colors.danger} />
+          <Icon name="trash" color={colors.danger} />
         </ActionButton>
       </FloatingPill>
     </View>

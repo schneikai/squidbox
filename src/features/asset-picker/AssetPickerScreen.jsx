@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from 'react-native';
 
-import PillButton from '@/components/PillButton';
+import SegmentedControl from '@/components/SegmentedControl';
 import AddAssetsButton from '@/features/asset-picker/AddAssetsButton';
 import AssetPickerStackNavigator from '@/features/asset-picker/AssetPickerStackNavigator';
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';
@@ -39,7 +39,7 @@ export default function AssetPickerScreen({ navigation }) {
       headerLeft: () => <Button onPress={cancelSelection} title="Cancel" />,
       headerRight: () => <AddAssetsButton selectedAssets={selectedAssets} onPress={confirmSelection} />,
       headerTitle: () => (
-        <PillButton
+        <SegmentedControl
           activeButtonLabel={activeNavigationItem}
           leftButtonLabel="Assets"
           leftButtonOnPress={() => navigateTo('Assets')}

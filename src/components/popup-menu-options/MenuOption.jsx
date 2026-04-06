@@ -1,6 +1,7 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Text, View } from 'react-native';
 import { MenuOption as MenuOptionBase } from 'react-native-popup-menu';
+
+import Icon from '@/components/Icon';
 
 import { colors, spacing } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
@@ -12,7 +13,7 @@ export default function MenuOption({ label, icon, onPress, isLast = false, dange
       style={[popupMenuStyles.menuOption, isLast && popupMenuStyles.menuOptionLast]}
     >
       {icon && (
-        <Ionicons
+        <Icon
           name={icon}
           size={spacing.menuIconSize}
           color={danger ? colors.danger : active ? colors.accent : colors.darkModalTextDim}

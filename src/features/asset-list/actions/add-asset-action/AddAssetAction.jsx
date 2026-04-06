@@ -1,9 +1,10 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Icon from '@/components/Icon';
 import { Pressable, Alert } from 'react-native';
 
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import useAddAssetsFromCameraRoll from '@/features/assets-context/useAddAssetsFromCameraRoll';
 import actionButtonStyles from '@/styles/actionButtonStyles';
+import { colors } from '@/styles/designTokens';
 
 export default function AddAssetAction() {
   const { show, hide, updateProgress } = useProgressOverlay();
@@ -23,7 +24,7 @@ export default function AddAssetAction() {
 
   return (
     <Pressable onPress={handleAddAssets} style={[actionButtonStyles.button, { marginRight: 20 }]}>
-      <Ionicons name="add" style={actionButtonStyles.buttonIcon} />
+      <Icon name="add" color={colors.text} />
     </Pressable>
   );
 }

@@ -1,5 +1,6 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { View, Text, StyleSheet } from 'react-native';
+
+import Icon from '@/components/Icon';
 import { MenuOption } from 'react-native-popup-menu';
 
 import { colors, spacing, scale } from '@/styles/designTokens';
@@ -11,7 +12,7 @@ export default function FilterMenuOptions({ filters, onPress, activeFilter }) {
       <MenuOption onSelect={() => onPress('all')} style={popupMenuStyles.menuOption}>
         <Text style={[popupMenuStyles.menuOptionText, styles.allLabel]}>All</Text>
         {activeFilter.length === 0 && (
-          <Ionicons name="checkmark" size={spacing.menuIconSize} color={colors.accent} />
+          <Icon name="check" size={spacing.menuIconSize} color={colors.accent} />
         )}
       </MenuOption>
 
@@ -32,10 +33,10 @@ export default function FilterMenuOptions({ filters, onPress, activeFilter }) {
             {filter.charAt(0).toUpperCase() + filter.slice(1)}
           </Text>
           {activeFilter.includes(filter) && (
-            <Ionicons name="checkmark" size={spacing.menuIconSize} color={colors.accent} />
-          )}
-        </MenuOption>
-      ))}
+          <Icon name="check" size={spacing.menuIconSize} color={colors.accent} />
+        )}
+      </MenuOption>
+    ))}
     </>
   );
 }

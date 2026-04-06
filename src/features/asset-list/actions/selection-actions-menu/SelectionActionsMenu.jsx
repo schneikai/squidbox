@@ -22,7 +22,7 @@ export default function SelectionActionsMenu({ selectedAssetIds, allAssetIds, ch
   );
 
   return (
-    <PopupMenu icon="ellipsis-horizontal">
+    <PopupMenu icon="menu">
       {childrenWithProps}
     </PopupMenu>
   );

@@ -37,14 +37,14 @@ export default function MoreAction({ asset, navigation }) {
   }
 
   return (
-    <PopupMenu icon="ellipsis-horizontal" variant="pill">
-      <MenuOption label="Add to album" icon="albums-outline" onPress={handleAddToAlbum} />
-      <MenuOption label="Create post" icon="create-outline" onPress={handleCreatePost} />
-      <MenuOption label="Show posts" icon="list-outline" onPress={handleShowPosts} />
-      <MenuOption label="Copy file URL" icon="link-outline" onPress={handleCopyFileUrl} />
+    <PopupMenu icon="menu" variant="pill">
+      <MenuOption label="Add to album" icon="library" onPress={handleAddToAlbum} />
+      <MenuOption label="Create post" icon="edit" onPress={handleCreatePost} />
+      <MenuOption label="Show posts" icon="list" onPress={handleShowPosts} />
+      <MenuOption label="Copy file URL" icon="link" onPress={handleCopyFileUrl} />
       <MenuOption
         label={asset.notes ? 'Edit note' : 'Add note'}
-        icon="document-text-outline"
+        icon="document"
         onPress={handleEditNotes}
         isLast
       />

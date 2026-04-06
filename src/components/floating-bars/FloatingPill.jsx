@@ -33,6 +33,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: spacing.barPaddingY,
+    gap: 4,
     flexShrink: 1,
   },
 });

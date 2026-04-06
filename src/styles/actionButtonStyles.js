@@ -50,16 +50,6 @@ export default StyleSheet.create({
   buttonDanger: {
     backgroundColor: colors.dangerLight,
   },
-  buttonIcon: {
-    fontSize: spacing.iconSize,
-    color: colors.text,
-  },
-  buttonIconActive: {
-    color: colors.accent,
-  },
-  buttonIconDanger: {
-    color: colors.danger,
-  },
   // Vertical divider between adjacent buttons inside a FloatingPill row
   pillSeparator: {
     width: 1,

@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Icon from '@/components/Icon';
 import { useEffect, useState } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 
@@ -32,7 +32,7 @@ export default function PostListItem({ text, assetRefs, isFavorite, postedAt, su
         <PostPostedAt postedAt={postedAt} style={styles.postedAt} />
         {suggestRepostAt > Date.now() && (
           <View style={styles.postponedBadge}>
-            <Ionicons name="time-outline" size={11} color="#fff" />
+            <Icon name="clock" size={11} color={colors.textInverse} />
             <Text style={styles.postponedBadgeText}>Postponed</Text>
           </View>
         )}
@@ -48,7 +48,7 @@ export default function PostListItem({ text, assetRefs, isFavorite, postedAt, su
 function FavoritePostIndicator({ isFavorite }) {
   if (!isFavorite) return;
 
-  return <Ionicons name="heart" style={styles.favoritePostIndicator} />;
+  return <Icon name="heart" filled size={typography.lg} color={colors.textInverse} />;
 }
 
 const styles = StyleSheet.create({
@@ -95,9 +95,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-  },
-  favoritePostIndicator: {
-    fontSize: typography.lg,
-    color: colors.textInverse,
   },
 });

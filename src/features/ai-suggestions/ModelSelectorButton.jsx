@@ -6,14 +6,17 @@ import {
   Modal,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Icon from '@/components/Icon';
 
 import { DEFAULT_MODEL, MODEL_STORAGE_KEY } from './aiSuggestionsStorage';
-import { colors, glass, radii, scale, shadows, typography } from '@/styles/designTokens';
+import EmptyState from '@/components/EmptyState';
+import ModalCloseButton from '@/components/ModalCloseButton';
+import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import SearchInput from '@/components/SearchInput';
+import { colors, radii, scale, shadows, typography } from '@/styles/designTokens';
 
 const MODEL_ID_BLOCKLIST = [
   'whisper', 'tts', 'dall-e', 'davinci', 'babbage', 'curie', 'ada', 'embedding', 'moderation',
@@ -90,7 +93,7 @@ const ModelSelectorButton = forwardRef(function ModelSelectorButton({ onChange }
     <>
       <TouchableOpacity style={styles.trigger} onPress={handleOpen}>
         <Text style={styles.triggerText} numberOfLines={1}>{selectedModel}</Text>
-        <Ionicons name="chevron-down" size={scale(14)} color={colors.textSecondary} />
+        <Icon name="chevron-down" size={scale(14)} color={colors.textSecondary} />
       </TouchableOpacity>
 
       <Modal
@@ -105,61 +108,61 @@ const ModelSelectorButton = forwardRef(function ModelSelectorButton({ onChange }
           onPress={() => setShowPicker(false)}
         >
           <View style={styles.sheet}>
-            <View style={styles.titleRow}>
-              <Text style={styles.title}>Select Model</Text>
-              <TouchableOpacity onPress={() => setShowPicker(false)} hitSlop={8}>
-                <Ionicons name="close" size={scale(20)} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            {!loadingModels && availableModels.length > 0 && (
-              <View style={styles.searchRow}>
-                <Ionicons name="search-outline" size={scale(18)} color={colors.textSecondary} />
-                <TextInput
-                  style={styles.searchInput}
+            <ModalHeader
+              leftSlot={<ModalCloseButton onPress={() => setShowPicker(false)} />}
+              centerSlot="Select Model"
+            />
+            <View style={styles.content}>
+              {!loadingModels && availableModels.length > 0 && (
+                <SearchInput
                   value={search}
                   onChangeText={setSearch}
-                  placeholder="Search"
-                  placeholderTextColor={colors.textTertiary}
-                  autoCorrect={false}
-                  autoCapitalize="none"
                   clearButtonMode="while-editing"
                 />
-              </View>
-            )}
+              )}
 
-            {loadingModels ? (
-              <View style={styles.loadingRow}>
-                <ActivityIndicator size="small" color={colors.textSecondary} />
-                <Text style={styles.loadingText}>Loading models…</Text>
-              </View>
-            ) : availableModels.length === 0 ? (
-              <Text style={styles.emptyText}>No models found. Check your API key.</Text>
-            ) : (
-              <FlatList
-                data={filtered}
-                keyExtractor={(id) => id}
-                style={styles.list}
-                keyboardShouldPersistTaps="handled"
-                ItemSeparatorComponent={() => <View style={styles.divider} />}
-                ListEmptyComponent={
-                  <Text style={styles.emptyText}>No results for "{search}"</Text>
-                }
-                renderItem={({ item: modelId }) => (
-                  <TouchableOpacity
-                    style={[styles.option, selectedModel === modelId && styles.optionSelected]}
-                    onPress={() => handleSelect(modelId)}
-                  >
-                    <Text style={[styles.optionLabel, selectedModel === modelId && styles.optionLabelSelected]}>
-                      {modelId}
-                    </Text>
-                    {selectedModel === modelId && (
-                      <Ionicons name="checkmark" size={scale(18)} color={colors.accent} />
-                    )}
-                  </TouchableOpacity>
-                )}
-              />
-            )}
+              {loadingModels ? (
+                <View style={styles.loadingRow}>
+                  <ActivityIndicator size="small" color={colors.textSecondary} />
+                  <Text style={styles.loadingText}>Loading models…</Text>
+                </View>
+              ) : availableModels.length === 0 ? (
+                <EmptyState
+                  icon="alert"
+                  title="No models found"
+                  subtitle="Check your API key."
+                  style={styles.emptyFull}
+                />
+              ) : (
+                <FlatList
+                  data={filtered}
+                  keyExtractor={(id) => id}
+                  style={styles.list}
+                  keyboardShouldPersistTaps="handled"
+                  ItemSeparatorComponent={() => <View style={styles.divider} />}
+                  ListEmptyComponent={
+                    <EmptyState
+                      icon="search"
+                      title={`No results for "${search}"`}
+                      style={styles.emptyInList}
+                    />
+                  }
+                  renderItem={({ item: modelId }) => (
+                    <TouchableOpacity
+                      style={[styles.option, selectedModel === modelId && styles.optionSelected]}
+                      onPress={() => handleSelect(modelId)}
+                    >
+                      <Text style={[styles.optionLabel, selectedModel === modelId && styles.optionLabelSelected]}>
+                        {modelId}
+                      </Text>
+                      {selectedModel === modelId && (
+                        <Icon name="check" size={scale(18)} color={colors.accent} />
+                      )}
+                    </TouchableOpacity>
+                  )}
+                />
+              )}
+            </View>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -198,50 +201,35 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 440,
     overflow: 'hidden',
-    padding: 20,
-    gap: 20,
     ...shadows.floating,
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  title: {
-    fontSize: typography.base,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  searchRow: {
-    ...glass,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: radii.card,
-    padding: 12,
-    gap: 8,
-    marginHorizontal: -4,
-  },
-  searchInput: {
+  content: {
     flex: 1,
-    fontSize: typography.input,
-    color: colors.text,
+    paddingTop: MODAL_HEADER_HEIGHT,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    gap: 16,
   },
   list: {
     flex: 1,
-    marginTop: -14,
   },
   loadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    paddingTop: 8,
   },
   loadingText: {
     color: colors.textSecondary,
     fontSize: typography.base,
   },
-  emptyText: {
-    color: colors.textTertiary,
-    fontSize: typography.base,
+  emptyFull: {
+    flex: 1,
+    paddingBottom: 40,
+  },
+  emptyInList: {
+    paddingTop: 32,
+    paddingBottom: 0,
   },
   option: {
     flexDirection: 'row',
@@ -250,7 +238,8 @@ const styles = StyleSheet.create({
   },
   optionSelected: {
     backgroundColor: colors.accentLight,
-    padding: 14,
+    paddingHorizontal: 14,
+    borderRadius: 8,
   },
   optionLabel: {
     flex: 1,

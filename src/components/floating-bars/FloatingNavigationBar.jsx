@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Icon from '@/components/Icon';
 import { Pressable, StyleSheet } from 'react-native';
 import { useEffect } from 'react';
 import Animated, {
@@ -18,9 +18,9 @@ import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, spacing } from '@/styles/designTokens';
 
 const NAV_ITEMS = [
-  { tab: 'AssetsTab', icon: 'grid-outline', iconActive: 'grid' },
-  { tab: 'AlbumsTab', icon: 'folder-outline', iconActive: 'folder' },
-  { tab: 'PostsTab', icon: 'share-social-outline', iconActive: 'share-social' },
+  { tab: 'AssetsTab', icon: 'grid' },
+  { tab: 'AlbumsTab', icon: 'folder' },
+  { tab: 'PostsTab', icon: 'share-alt' },
 ];
 
 const MAIN_TABS = NAV_ITEMS.map((item) => item.tab);
@@ -73,12 +73,12 @@ export default function FloatingNavigationBar() {
       ]}
     >
       <FloatingPill>
-        {NAV_ITEMS.map(({ tab, icon, iconActive }) => {
+        {NAV_ITEMS.map(({ tab, icon }) => {
           const isActive = activeTab === tab;
           return (
             <NavButton
               key={tab}
-              icon={isActive ? iconActive : icon}
+              icon={icon}
               isActive={isActive}
               onPress={() => handleNavigate(tab)}
             />
@@ -93,7 +93,7 @@ function NavButton({ icon, isActive, onPress }) {
   if (isActive) {
     return (
       <GradientButton onPress={onPress}>
-        <Ionicons name={icon} size={spacing.iconSize} color={colors.iconActive} />
+        <Icon name={icon} color={colors.iconActive} />
       </GradientButton>
     );
   }
@@ -102,7 +102,7 @@ function NavButton({ icon, isActive, onPress }) {
       onPress={onPress}
       style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
     >
-      <Ionicons name={icon} size={spacing.iconSize} color={colors.iconInactive} />
+      <Icon name={icon} color={colors.iconInactive} />
     </Pressable>
   );
 }

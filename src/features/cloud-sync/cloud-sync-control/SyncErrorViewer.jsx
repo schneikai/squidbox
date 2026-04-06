@@ -4,11 +4,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import useAssets from '@/features/assets-context/useAssets';
 import ModalCloseButton from '@/components/ModalCloseButton';
+import ModalSheet from '@/components/ModalSheet';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import { colors, radii, scale, spacing } from '@/styles/designTokens';
 
 export default function SyncErrorViewer({ assetsWithSyncErrors, close }) {
-  const insets = useSafeAreaInsets();
+  const { bottom } = useSafeAreaInsets();
   const { updateAssets } = useAssets();
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
@@ -21,7 +22,7 @@ export default function SyncErrorViewer({ assetsWithSyncErrors, close }) {
 
   return (
     <Modal animationType="slide" visible presentationStyle="pageSheet" onRequestClose={close}>
-      <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+      <ModalSheet style={{ paddingBottom: bottom }}>
         <ModalHeader
           leftSlot={<ModalCloseButton onPress={close} />}
           centerSlot={`Sync Errors (${assetsWithSyncErrors.length})`}
@@ -42,17 +43,12 @@ export default function SyncErrorViewer({ assetsWithSyncErrors, close }) {
             <Text style={styles.retryButtonText}>Retry All</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ModalSheet>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.appBackground[0],
-  },
-
   list: {
     padding: 16,
     gap: 10,

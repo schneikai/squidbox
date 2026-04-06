@@ -2,12 +2,13 @@ import { useMemo, useEffect, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Icon from '@/components/Icon';
 
+import ModalSheet from '@/components/ModalSheet';
 import SuperPressable from '@/components/SuperPressable';
-import GradientPillButton from '@/components/GradientPillButton';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import RandomSuggestionsModal from '@/features/post-random-suggestions/RandomSuggestionsModal';
 import { REFERENCE_POST_COUNT } from '@/features/ai-suggestions/sendAiMessageAsync';
 import actionButtonStyles from '@/styles/actionButtonStyles';
@@ -16,7 +17,7 @@ import usePosts from '@/features/posts-context/usePosts';
 import PostList from '@/features/post-list/PostList';
 import PostListItem from '@/features/post-list/PostListItem';
 import preparePosts from '@/features/post-list/preparePosts';
-import { colors, radii, scale, spacing, typography } from '@/styles/designTokens';
+import { colors, radii, scale, typography } from '@/styles/designTokens';
 
 export default function CreatePostScreen({ navigation }) {
   const { posts, updatePost } = usePosts();
@@ -81,7 +82,7 @@ export default function CreatePostScreen({ navigation }) {
   }
 
   return (
-    <View style={styles.container}>
+    <ModalSheet>
       <ModalHeader
         leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />}
         centerSlot="Create Post"
@@ -97,22 +98,24 @@ export default function CreatePostScreen({ navigation }) {
             {/* New post + AI suggestions row */}
             <View style={styles.actionRow}>
               <TouchableOpacity style={[styles.newPostButton, styles.actionRowFlex]} onPress={handleCreateNewPost} activeOpacity={0.85}>
-                <Ionicons name="add" size={scale(22)} color={colors.textInverse} />
+                <Icon name="add" size={scale(22)} color={colors.textInverse} />
                 <Text style={styles.newPostText}>New Post</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.aiButton} onPress={() => setShowRandomSuggestions(true)} activeOpacity={0.85}>
-                <Ionicons name="sparkles-outline" size={scale(22)} color={colors.textInverse} />
+                <Icon name="sparkles" size={scale(22)} color={colors.textInverse} />
               </TouchableOpacity>
             </View>
 
             {/* Repost section header */}
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Repost something</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('IgnoredPostsScreen')} style={styles.ignoredButton}>
-                <Ionicons name="eye-off-outline" size={scale(14)} color={colors.textSecondary} />
-                <Text style={styles.ignoredButtonLabel}>Ignored posts</Text>
-              </TouchableOpacity>
-            </View>
+            <ScreenSectionHeader
+              title="Repost something"
+              rightSlot={
+                <TouchableOpacity onPress={() => navigation.navigate('IgnoredPostsScreen')} style={styles.ignoredButton}>
+                  <Icon name="eye-off" size={scale(14)} color={colors.textSecondary} />
+                  <Text style={styles.ignoredButtonLabel}>Ignored posts</Text>
+                </TouchableOpacity>
+              }
+            />
           </View>
         }
         renderListItem={(post) => {
@@ -137,7 +140,7 @@ export default function CreatePostScreen({ navigation }) {
         onConfirm={handleSuggestionConfirm}
         recentPostTexts={recentPostTexts}
       />
-    </View>
+    </ModalSheet>
   );
 }
 
@@ -145,24 +148,19 @@ function PostActions({ onRepost, onPostpone, onIgnore }) {
   return (
     <View style={styles.menuContainer}>
       <TouchableOpacity style={[actionButtonStyles.button, styles.primaryButton]} onPress={onRepost}>
-        <Ionicons name="create" style={[actionButtonStyles.buttonIcon, styles.primaryButtonIcon]} />
+        <Icon name="edit" color={colors.textInverse} />
       </TouchableOpacity>
       <TouchableOpacity style={actionButtonStyles.button} onPress={onPostpone}>
-        <Ionicons name="time-outline" style={actionButtonStyles.buttonIcon} />
+        <Icon name="clock" color={colors.text} />
       </TouchableOpacity>
       <TouchableOpacity style={actionButtonStyles.button} onPress={onIgnore}>
-        <Ionicons name="eye-off-outline" style={actionButtonStyles.buttonIcon} />
+        <Icon name="eye-off" color={colors.text} />
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.appBackground[0],
-  },
-
   topSection: {
     paddingHorizontal: SCREEN_PADDING,
     paddingTop: 20,
@@ -198,18 +196,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
 
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 20,
-    paddingBottom: 4,
-  },
-  sectionTitle: {
-    fontSize: typography.base,
-    fontWeight: '700',
-    color: colors.text,
-    flex: 1,
-  },
   ignoredButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -230,8 +216,5 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     backgroundColor: colors.accent,
-  },
-  primaryButtonIcon: {
-    color: colors.textInverse,
   },
 });

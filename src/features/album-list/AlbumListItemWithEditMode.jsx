@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Icon from '@/components/Icon';
 import { StyleSheet, View, Pressable } from 'react-native';
 import DoubleTap from 'react-native-double-tap';
 
@@ -18,7 +18,7 @@ export default function AlbumListItemWithEditMode({
     return (
       <View>
         <Pressable onPress={onPressDelete} style={styles.deleteButton}>
-          <Ionicons name="trash-outline" style={styles.deleteButtonIcon} />
+          <Icon name="trash" color={colors.textInverse} />
         </Pressable>
         {children}
       </View>
@@ -43,9 +43,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
-  },
-  deleteButtonIcon: {
-    fontSize: spacing.iconSize,
-    color: colors.textInverse,
   },
 });

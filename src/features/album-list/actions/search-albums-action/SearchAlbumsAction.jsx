@@ -1,7 +1,8 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable } from 'react-native';
 
+import Icon from '@/components/Icon';
 import actionButtonStyles from '@/styles/actionButtonStyles';
+import { colors } from '@/styles/designTokens';
 
 export default function SearchAlbumsAction({ isSearchBarVisible, onPress }) {
   return (
@@ -9,7 +10,7 @@ export default function SearchAlbumsAction({ isSearchBarVisible, onPress }) {
       onPress={onPress}
       style={[actionButtonStyles.button, isSearchBarVisible && actionButtonStyles.buttonActive]}
     >
-      <Ionicons name="search-outline" style={actionButtonStyles.buttonIcon} />
+      <Icon name="search" color={colors.text} />
     </Pressable>
   );
 }

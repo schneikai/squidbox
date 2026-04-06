@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View, Pressable, Text } from 'react-native';
 import { scale } from '@/styles/designTokens';
 
-export default function PillButton({
+export default function SegmentedControl({
   activeButtonLabel,
   leftButtonLabel,
   leftButtonOnPress,
@@ -26,7 +26,7 @@ export default function PillButton({
   }
 
   return (
-    <View style={styles.pillButton}>
+    <View style={styles.container}>
       <Pressable
         style={[styles.button, activeButton === leftButtonLabel && styles.buttonActive]}
         onPress={pressLeftButton}
@@ -44,7 +44,7 @@ export default function PillButton({
 }
 
 const styles = StyleSheet.create({
-  pillButton: {
+  container: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -61,11 +61,11 @@ const styles = StyleSheet.create({
   },
   buttonActive: {
     backgroundColor: 'white',
-    elevation: 2, // Android
-    shadowColor: '#000', // iOS
-    shadowOffset: { width: 0, height: 1 }, // iOS
-    shadowOpacity: 0.2, // iOS
-    shadowRadius: 2, // iOS
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   buttonLabel: {
     fontSize: scale(14),
