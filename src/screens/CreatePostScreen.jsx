@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
 
   topSection: {
     paddingHorizontal: SCREEN_PADDING,
-    paddingTop: 8,
+    paddingTop: 20,
     gap: 8,
   },
 
