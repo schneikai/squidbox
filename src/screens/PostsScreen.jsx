@@ -1,5 +1,9 @@
 import { useEffect, useMemo } from 'react';
+import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+
+import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
+import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 
 import SuperPressable from '@/components/SuperPressable';
 import { useFloatingBars } from '@/components/floating-bars/FloatingBarsContext';
@@ -28,7 +32,7 @@ export default function PostsScreen() {
   // Posts search uses persisted AppSettings query
   const { searchText: postsSearchText, setSearchText: setPersistentSearch } = useSearchPostsAction();
 
-  const { registerScreenOptions, screenOptionsRef, searchText: globalSearchText, setTabHasActiveOptions } = useFloatingBars();
+  const { registerScreenOptions, searchText: globalSearchText } = useFloatingBars();
   const scrollHandler = useFloatingBarScrollHandler();
 
   // Sync global search bar input to persisted posts query
@@ -53,31 +57,35 @@ export default function PostsScreen() {
   }
 
   useEffect(() => {
-    setTabHasActiveOptions('posts', activeFilter.length > 0 || sortOrder !== 'postedAt:desc');
     registerScreenOptions('posts', {
       sortOrder,
       activeFilter,
       onSort: sortPosts,
       onFilter: toggleFilter,
-      onAdd: handleAdd,
     });
   }, [sortOrder, activeFilter]);
 
+  const hasActiveOptions = activeFilter.length > 0 || sortOrder !== 'postedAt:desc';
+
   return (
-    <PostList
-      listRef={listRef}
-      postIds={postIds}
-      contentContainerStyle={{ paddingTop, paddingBottom }}
-      onScroll={scrollHandler}
-      renderListItem={(post) => (
-        <SuperPressable
-          onPress={() => navigation.navigate('PostScreen', { postId: post.id })}
-          onDoublePress={() => toggleFavoritePost(post)}
-          style={{ flex: 1 }}
-        >
-          <PostListItem {...post} />
-        </SuperPressable>
-      )}
-    />
+    <View style={{ flex: 1 }}>
+      <FloatingHeader title="Posts" onAdd={handleAdd} />
+      <PostList
+        listRef={listRef}
+        postIds={postIds}
+        contentContainerStyle={{ paddingTop, paddingBottom }}
+        onScroll={scrollHandler}
+        renderListItem={(post) => (
+          <SuperPressable
+            onPress={() => navigation.navigate('PostScreen', { postId: post.id })}
+            onDoublePress={() => toggleFavoritePost(post)}
+            style={{ flex: 1 }}
+          >
+            <PostListItem {...post} />
+          </SuperPressable>
+        )}
+      />
+      <FloatingActionsBar hasActiveState={hasActiveOptions} />
+    </View>
   );
 }

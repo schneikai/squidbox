@@ -29,10 +29,8 @@ import BlurPopoverRenderer from '@/components/popup-menu-options/BlurPopoverRend
 Menu.setDefaultRenderer(BlurPopoverRenderer);
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
 import FloatingBarsProvider from '@/components/floating-bars/FloatingBarsProvider';
 import FloatingFilterModal from '@/components/floating-bars/FloatingFilterModal';
-import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 import FloatingNavigationBar from '@/components/floating-bars/FloatingNavigationBar';
 import ProgressOverlayProvider from '@/components/progress-overlay/ProgressOverlayProvider';
 import AlbumsProvider from '@/features/albums-context/AlbumsProvider';
@@ -117,8 +115,6 @@ function AppComponent() {
                     style={StyleSheet.absoluteFill}
                   />
                   <RootNavigator />
-                  <FloatingHeader />
-                  <FloatingActionsBar />
                   <FloatingNavigationBar />
                   <FloatingFilterModal />
                 </View>

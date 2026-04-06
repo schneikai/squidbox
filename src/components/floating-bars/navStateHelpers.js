@@ -4,8 +4,6 @@
  * FloatingNavigationBar.
  */
 
-export const MAIN_TABS = ['AssetsTab', 'AlbumsTab', 'PostsTab'];
-
 /**
  * Finds the MainTab route regardless of whether a modal is currently on top.
  * When a modal is active the root stack's active index points to the modal,

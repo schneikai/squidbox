@@ -1,5 +1,8 @@
 import { useEffect, useMemo } from 'react';
-import { Alert } from 'react-native';
+import { Alert, View } from 'react-native';
+
+import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
+import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 
 import { useFloatingBars } from '@/components/floating-bars/FloatingBarsContext';
 import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
@@ -21,7 +24,7 @@ export default function AlbumsScreen({ navigation }) {
   const { sortOrder, sortFunction, sortAlbums } = useSortAlbumsAction({ afterSort: listScrollTop });
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterFilter: listScrollTop });
 
-  const { registerScreenOptions, screenOptionsRef, searchText, setTabHasActiveOptions } = useFloatingBars();
+  const { registerScreenOptions, searchText } = useFloatingBars();
   const scrollHandler = useFloatingBarScrollHandler();
 
   const albumIds = useMemo(
@@ -43,7 +46,6 @@ export default function AlbumsScreen({ navigation }) {
   }
 
   useEffect(() => {
-    setTabHasActiveOptions('albums', activeFilter.length > 0 || sortOrder !== 'createdAt:desc');
     registerScreenOptions('albums', {
       sortOrder,
       sortOptions: [
@@ -59,31 +61,36 @@ export default function AlbumsScreen({ navigation }) {
       ],
       onSort: sortAlbums,
       onFilter: toggleFilter,
-      onAdd: handleAdd,
     });
   }, [sortOrder, activeFilter]);
 
+  const hasActiveOptions = activeFilter.length > 0 || sortOrder !== 'createdAt:desc';
+
   return (
-    <AlbumList
-      listRef={listRef}
-      albumIds={albumIds}
-      contentContainerStyle={{ paddingTop, paddingBottom }}
-      onScroll={scrollHandler}
-      renderItem={({ album, thumbnailAsset, numberOfAssets, elementWidth }) => (
-        <AlbumListItemWithEditMode
-          isEditMode={false}
-          singleTap={() => navigation.navigate('AlbumScreen', { albumId: album.id })}
-          doubleTap={() => toggleFavoriteAlbum(album)}
-        >
-          <AlbumListItem
-            album={album}
-            thumbnailAsset={thumbnailAsset}
-            numberOfAssets={numberOfAssets}
-            elementWidth={elementWidth}
-            showLastPostedAt={sortOrder.includes('lastPostedAt')}
-          />
-        </AlbumListItemWithEditMode>
-      )}
-    />
+    <View style={{ flex: 1 }}>
+      <FloatingHeader title="Albums" onAdd={handleAdd} />
+      <AlbumList
+        listRef={listRef}
+        albumIds={albumIds}
+        contentContainerStyle={{ paddingTop, paddingBottom }}
+        onScroll={scrollHandler}
+        renderItem={({ album, thumbnailAsset, numberOfAssets, elementWidth }) => (
+          <AlbumListItemWithEditMode
+            isEditMode={false}
+            singleTap={() => navigation.navigate('AlbumScreen', { albumId: album.id })}
+            doubleTap={() => toggleFavoriteAlbum(album)}
+          >
+            <AlbumListItem
+              album={album}
+              thumbnailAsset={thumbnailAsset}
+              numberOfAssets={numberOfAssets}
+              elementWidth={elementWidth}
+              showLastPostedAt={sortOrder.includes('lastPostedAt')}
+            />
+          </AlbumListItemWithEditMode>
+        )}
+      />
+      <FloatingActionsBar hasActiveState={hasActiveOptions} />
+    </View>
   );
 }

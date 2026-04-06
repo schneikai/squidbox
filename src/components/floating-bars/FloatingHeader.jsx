@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation, useNavigationState } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -12,34 +12,30 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import GradientButton from '@/components/GradientButton';
 import { useFloatingBars } from './FloatingBarsContext';
-import { MAIN_TABS, getActiveTabName, getActiveStackDepth } from './navStateHelpers';
 import FloatingPill from './FloatingPill';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, shadows, spacing, typography } from '@/styles/designTokens';
 import useCloud from '@/features/cloud/useCloud';
 
-const SCREEN_TITLES = {
-  AssetsTab: 'Library',
-  AlbumsTab: 'Albums',
-  PostsTab: 'Posts',
-};
-
-
-export default function FloatingHeader() {
+export default function FloatingHeader({
+  title,
+  isAssetsTab = false,
+  onAdd,
+  onDownload,
+  onAddToAlbum,
+  onPost,
+  onDelete,
+}) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { isAuthenticated, user } = useCloud();
+  const { isAuthenticated } = useCloud();
   const {
     scrollY,
     isSelectMode,
     selectedAssetIds,
     toggleSelectMode,
     exitSelectMode,
-    screenOptionsRef,
   } = useFloatingBars();
-
-  const activeTab = useNavigationState((s) => getActiveTabName(s));
-  const stackDepth = useNavigationState((s) => getActiveStackDepth(s));
 
   // ── Animated styles (must be called before any conditional return) ─────────
   const titleStyle = useAnimatedStyle(() => {
@@ -69,21 +65,9 @@ export default function FloatingHeader() {
     pointerEvents: isSelectMode ? 'auto' : 'none',
   }));
 
-  const isMainScreen = MAIN_TABS.includes(activeTab) && stackDepth === 0;
-  if (!isMainScreen) return null;
-
-  const title = SCREEN_TITLES[activeTab] ?? '';
-  const isAssetsTab = activeTab === 'AssetsTab';
-  const screenOpts = screenOptionsRef.current[activeTab?.replace('Tab', '').toLowerCase()] ?? {};
-
   const hasSelection = selectedAssetIds.length > 0;
 
-  function handleAdd() { screenOpts.onAdd?.(); }
   function handleSettings() { navigation.navigate('SettingsTab'); }
-  function handleDownload() { screenOpts.onDownload?.(); }
-  function handleAddToAlbum() { screenOpts.onAddToAlbum?.(); }
-  function handlePost() { screenOpts.onPost?.(); }
-  function handleDelete() { screenOpts.onDelete?.(); }
 
   return (
     <View style={[styles.container, { top: insets.top }]} pointerEvents="box-none">
@@ -97,7 +81,7 @@ export default function FloatingHeader() {
           {isAssetsTab && (
             <PillButton iconName="checkmark-circle-outline" onPress={toggleSelectMode} />
           )}
-          <GradientButton onPress={handleAdd} style={styles.addButton}>
+          <GradientButton onPress={onAdd} style={styles.addButton}>
             <Ionicons name="add" size={spacing.iconSize} color={colors.textInverse} />
           </GradientButton>
         </FloatingPill>
@@ -128,10 +112,10 @@ export default function FloatingHeader() {
       {isAssetsTab && (
         <Animated.View style={[styles.pillWrapper, selectPillStyle]}>
           <FloatingPill>
-            <PillButton iconName="download-outline" onPress={handleDownload} disabled={!hasSelection} />
-            <PillButton iconName="albums-outline" onPress={handleAddToAlbum} disabled={!hasSelection} />
-            <PillButton iconName="share-outline" onPress={handlePost} disabled={!hasSelection} />
-            <PillButton iconName="trash-outline" onPress={handleDelete} disabled={!hasSelection} danger />
+            <PillButton iconName="download-outline" onPress={onDownload} disabled={!hasSelection} />
+            <PillButton iconName="albums-outline" onPress={onAddToAlbum} disabled={!hasSelection} />
+            <PillButton iconName="share-outline" onPress={onPost} disabled={!hasSelection} />
+            <PillButton iconName="trash-outline" onPress={onDelete} disabled={!hasSelection} danger />
             <GradientButton onPress={exitSelectMode} style={styles.addButton}>
               <Ionicons name="close" size={spacing.iconSize} color={colors.textInverse} />
             </GradientButton>

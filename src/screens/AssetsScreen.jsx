@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Alert } from 'react-native';
+import { Alert, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+
+import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
+import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 
 import AssetQuickViewModal, { useAssetQuickViewModal } from '@/components/AssetQuickViewModal';
 import SuperPressable from '@/components/SuperPressable';
@@ -35,7 +38,6 @@ export default function AssetsScreen({ route }) {
     registerScreenOptions,
     screenOptionsRef,
     searchText,
-    setTabHasActiveOptions,
   } = useFloatingBars();
 
   const scrollHandler = useFloatingBarScrollHandler();
@@ -115,7 +117,6 @@ export default function AssetsScreen({ route }) {
   // Callbacks delegate through handlersRef so they always read the latest
   // selectedAssetIds without needing it as a dependency here.
   useEffect(() => {
-    setTabHasActiveOptions('assets', activeFilter.length > 0 || sortOrder !== 'createdAt:desc');
     registerScreenOptions('assets', {
       sortOrder,
       activeFilter,
@@ -128,11 +129,6 @@ export default function AssetsScreen({ route }) {
       showViewOptions: true,
       onSort: sortAssets,
       onFilter: toggleFilter,
-      onAdd: handleAdd,
-      onDownload: () => handleDownload(),
-      onAddToAlbum: () => handleAddToAlbum(),
-      onPost: () => handlePost(),
-      onDelete: () => handleDelete(),
     });
   }, [sortOrder, activeFilter]);
 
@@ -144,8 +140,19 @@ export default function AssetsScreen({ route }) {
     }
   }
 
+  const hasActiveOptions = activeFilter.length > 0 || sortOrder !== 'createdAt:desc';
+
   return (
-    <>
+    <View style={{ flex: 1 }}>
+      <FloatingHeader
+        title="Library"
+        isAssetsTab
+        onAdd={handleAdd}
+        onDownload={handleDownload}
+        onAddToAlbum={handleAddToAlbum}
+        onPost={handlePost}
+        onDelete={handleDelete}
+      />
       <AssetQuickViewModal asset={quickViewAsset} isVisible={!!quickViewAsset} />
       <AssetList
         listRef={listRef}
@@ -169,6 +176,7 @@ export default function AssetsScreen({ route }) {
           </SuperPressable>
         )}
       />
-    </>
+      <FloatingActionsBar hasActiveState={hasActiveOptions} />
+    </View>
   );
 }
