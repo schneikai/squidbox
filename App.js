@@ -25,6 +25,8 @@ import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Menu, MenuProvider } from 'react-native-popup-menu';
 
+// Must be imported here so the setDefaultRenderer call below runs before other imports; order rule disabled.
+// eslint-disable-next-line import/order
 import BlurPopoverRenderer from '@/components/popup-menu-options/BlurPopoverRenderer';
 
 Menu.setDefaultRenderer(BlurPopoverRenderer);

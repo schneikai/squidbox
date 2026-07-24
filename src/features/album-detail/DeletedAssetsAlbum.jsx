@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { useState, useMemo, useTransition } from 'react';
+import { useMemo, useTransition } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import Icon from '@/components/Icon';

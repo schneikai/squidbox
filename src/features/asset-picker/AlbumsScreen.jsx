@@ -20,7 +20,7 @@ export default function AlbumsScreen({ navigation }) {
   const { listRef, listScrollTop } = useAlbumList();
   const { sortOrder, sortFunction, sortAlbums } = useSortAlbumsAction({ afterSort: listScrollTop });
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterSort: listScrollTop });
-  const { searchText, setSearchText } = useSearchAlbumsAction();
+  const { searchText } = useSearchAlbumsAction();
 
   useEffect(() => {
     const albumIds = prepareAlbums({

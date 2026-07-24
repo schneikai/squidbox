@@ -6,7 +6,7 @@ import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import useAssets from '@/features/assets-context/useAssets';
-import { colors, radii, scale, spacing } from '@/styles/designTokens';
+import { colors, radii, scale } from '@/styles/designTokens';
 
 export default function SyncErrorViewer({ assetsWithSyncErrors, close }) {
   const { bottom } = useSafeAreaInsets();

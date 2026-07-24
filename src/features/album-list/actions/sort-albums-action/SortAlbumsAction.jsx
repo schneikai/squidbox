@@ -9,22 +9,22 @@ export default function SortAlbumsAction({ onPress, sortOrder }) {
         label="Name"
         onPressOptionA={() => onPress('name:asc')}
         onPressOptionB={() => onPress('name:desc')}
-        optionASelected={sortOrder == 'name:asc'}
-        optionBSelected={sortOrder == 'name:desc'}
+        optionASelected={sortOrder === 'name:asc'}
+        optionBSelected={sortOrder === 'name:desc'}
       />
       <TwoChoiceMenuOption
         label="Created at"
         onPressOptionA={() => onPress('createdAt:asc')}
         onPressOptionB={() => onPress('createdAt:desc')}
-        optionASelected={sortOrder == 'createdAt:asc'}
-        optionBSelected={sortOrder == 'createdAt:desc'}
+        optionASelected={sortOrder === 'createdAt:asc'}
+        optionBSelected={sortOrder === 'createdAt:desc'}
       />
       <TwoChoiceMenuOption
         label="Last posted"
         onPressOptionA={() => onPress('lastPostedAt:asc')}
         onPressOptionB={() => onPress('lastPostedAt:desc')}
-        optionASelected={sortOrder == 'lastPostedAt:asc'}
-        optionBSelected={sortOrder == 'lastPostedAt:desc'}
+        optionASelected={sortOrder === 'lastPostedAt:asc'}
+        optionBSelected={sortOrder === 'lastPostedAt:desc'}
         style={popupMenuStyles.menuOptionLast}
       />
     </PopupMenu>

@@ -1,3 +1,4 @@
+/* eslint-env node */ // Metro config runs in Node, so __dirname/require are globals here.
 // getSentryExpoConfig wraps Expo's default Metro config with Sentry source-map support.
 const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 

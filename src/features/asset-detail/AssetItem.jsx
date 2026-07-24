@@ -3,7 +3,7 @@
 // The image should zoom in where you pinch, not just from the center as it does now
 
 import { useRef, useState } from 'react';
-import { View, Animated, Pressable } from 'react-native';
+import { Animated, Pressable } from 'react-native';
 import { PinchGestureHandler, State } from 'react-native-gesture-handler';
 
 import AssetImage from '@/components/AssetImage';

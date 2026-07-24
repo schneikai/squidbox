@@ -40,7 +40,7 @@ import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import Textarea from '@/components/Textarea';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
-import { colors, radii, scale, spacing } from '@/styles/designTokens';
+import { colors, radii, scale } from '@/styles/designTokens';
 
 export default function AiChatModal({ visible, onClose, onSelect, recentPostTexts, existingText }) {
   const insets = useSafeAreaInsets();

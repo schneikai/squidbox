@@ -12,7 +12,7 @@ import { SCREEN_PADDING } from '@/constants';
 import AssetItem from '@/features/asset-detail/AssetItem';
 import MoreAction from '@/features/asset-detail/actions/MoreAction';
 import useAssets from '@/features/assets-context/useAssets';
-import { colors, radii, scale, spacing } from '@/styles/designTokens';
+import { radii, scale, spacing } from '@/styles/designTokens';
 import { MEDIA_TYPES } from '@/utils/assets/constants';
 
 export default function AssetScreen({ route, navigation }) {

@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Alert, View } from 'react-native';
 
 import AssetQuickViewModal, { useAssetQuickViewModal } from '@/components/AssetQuickViewModal';
