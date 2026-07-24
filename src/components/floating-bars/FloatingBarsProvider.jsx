@@ -76,6 +76,10 @@ export default function FloatingBarsProvider({ children }) {
     );
   }
 
+  function selectAssets(assetIds) {
+    setSelectedAssetIds(assetIds);
+  }
+
   // ── Scroll-driven visibility (Reanimated shared values) ───────────────────
   const scrollY = useSharedValue(0);
   const isNavBarHidden = useSharedValue(0); // 0 = visible, 1 = hidden
@@ -109,6 +113,7 @@ export default function FloatingBarsProvider({ children }) {
     toggleSelectMode,
     exitSelectMode,
     toggleSelectAsset,
+    selectAssets,
 
     // Scroll animation values (passed to animated components)
     scrollY,

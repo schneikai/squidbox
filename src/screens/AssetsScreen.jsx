@@ -34,6 +34,7 @@ export default function AssetsScreen({ route }) {
     isSelectMode,
     selectedAssetIds,
     toggleSelectAsset,
+    selectAssets,
     exitSelectMode,
     registerScreenOptions,
     screenOptionsRef,
@@ -72,6 +73,11 @@ export default function AssetsScreen({ route }) {
     } catch (error) {
       Alert.alert('Failed to add assets!', error.message);
     }
+  }
+
+  function handleSelectAll() {
+    const { selectedAssetIds: ids, assetIds: all } = handlersRef.current;
+    selectAssets(ids.length === all.length ? [] : all);
   }
 
   function handleDownload() {
@@ -141,6 +147,7 @@ export default function AssetsScreen({ route }) {
   }
 
   const hasActiveOptions = activeFilter.length > 0 || sortOrder !== 'createdAt:desc';
+  const allSelected = assetIds.length > 0 && selectedAssetIds.length === assetIds.length;
 
   return (
     <View style={{ flex: 1 }}>
@@ -148,6 +155,8 @@ export default function AssetsScreen({ route }) {
         title="Library"
         isAssetsTab
         onAdd={handleAdd}
+        onSelectAll={handleSelectAll}
+        allSelected={allSelected}
         onDownload={handleDownload}
         onAddToAlbum={handleAddToAlbum}
         onPost={handlePost}

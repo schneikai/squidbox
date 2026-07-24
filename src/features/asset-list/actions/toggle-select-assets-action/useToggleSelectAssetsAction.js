@@ -23,10 +23,15 @@ export default function useToggleSelectAssetsAction() {
     });
   }
 
+  function selectAssets(assetIds) {
+    setSelectedAssetIds(assetIds);
+  }
+
   return {
     isSelectMode,
     selectedAssetIds,
     toggleSelectMode,
     toggleSelectAsset,
+    selectAssets,
   };
 }

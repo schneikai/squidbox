@@ -24,6 +24,8 @@ import AddAssetAction from '@/features/album-detail/actions/AddAssetAction';
 import MoreAction from '@/features/album-detail/actions/MoreAction';
 import AlbumAssetsView from '@/features/album-detail/AlbumAssetsView';
 import AlbumPostsView from '@/features/album-detail/AlbumPostsView';
+import preparePosts from '@/features/post-list/preparePosts';
+import usePosts from '@/features/posts-context/usePosts';
 import useFilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/useFilterAssetsAction';
 import useSortAssetsAction from '@/features/asset-list/actions/sort-assets-action/useSortAssetsAction';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
@@ -56,6 +58,7 @@ const ASSET_FILTER_OPTIONS = [
 export default function Album({ album }) {
   const { assets, toggleFavoriteAsset, setAssetsDeleted } = useAssets();
   const { removeAssetsFromAlbum } = useAlbums();
+  const { posts } = usePosts();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
@@ -69,7 +72,8 @@ export default function Album({ album }) {
   });
 
   const { listRef, listScrollTop } = useAssetList();
-  const { isSelectMode, selectedAssetIds, toggleSelectMode, toggleSelectAsset } = useToggleSelectAssetsAction();
+  const { isSelectMode, selectedAssetIds, toggleSelectMode, toggleSelectAsset, selectAssets } =
+    useToggleSelectAssetsAction();
   const { sortOrder, sortFunction, sortAssets } = useSortAssetsAction({ afterSort: listScrollTop });
   const { activeFilter, matchFilter, toggleFilter } = useFilterAssetsAction({ afterFilter: listScrollTop });
   const { asset: quickViewAsset, open: openAssetQuickView, close: closeAssetQuickView } = useAssetQuickViewModal();
@@ -94,8 +98,24 @@ export default function Album({ album }) {
     [album, assets, sortFunction, matchFilter, searchText],
   );
 
+  const postIds = useMemo(
+    () =>
+      preparePosts({
+        posts: Object.values(posts),
+        albums: { [album.id]: album },
+        searchText: `album:${album.id}`,
+        sortFn: (a, b) => b.postedAt - a.postedAt,
+      }).map((post) => post.id),
+    [posts, album],
+  );
+
   const hasSelection = selectedAssetIds.length > 0;
   const hasSubHeader = !!album.archivedAt || !!album.notes;
+
+  const headerSubtitle =
+    activeTab === 'Posts'
+      ? pluralizeText('1 Post', '%{count} Posts', postIds.length)
+      : pluralizeText('1 Asset', '%{count} Assets', assetIds.length);
 
   function getSelectedAssets() {
     const ids = selectedAssetIds.length > 0 ? selectedAssetIds : assetIds;
@@ -112,6 +132,10 @@ export default function Album({ album }) {
 
   async function handleDownload() {
     await saveAssetsToMediaLibraryAsync(getSelectedAssets());
+  }
+
+  function handleSelectAll() {
+    selectAssets(selectedAssetIds.length === assetIds.length ? [] : assetIds);
   }
 
   function handleAddToAlbum() {
@@ -152,13 +176,18 @@ export default function Album({ album }) {
 
       <FloatingDetailHeader
         title={album.name}
-        subtitle={pluralizeText('1 Asset', '%{count} Assets', assetIds.length)}
+        subtitle={headerSubtitle}
         onBack={() => navigation.goBack()}
         isSelectMode={isSelectMode}
         menuSlot={
           isSelectMode ? (
             // Selection toolbar — mirrors the main screen's select pill
             <>
+              <PillButton
+                iconName="checkbox"
+                onPress={handleSelectAll}
+                active={selectedAssetIds.length === assetIds.length && assetIds.length > 0}
+              />
               <PillButton iconName="download" onPress={handleDownload} disabled={!hasSelection} />
               <PillButton iconName="library" onPress={handleAddToAlbum} disabled={!hasSelection} />
               <PillButton iconName="share" onPress={handleCreatePost} disabled={!hasSelection} />
@@ -214,7 +243,7 @@ export default function Album({ album }) {
           />
         ) : (
           <AlbumPostsView
-            album={album}
+            postIds={postIds}
             paddingTop={hasSubHeader ? 0 : paddingTop}
             paddingBottom={paddingBottom}
           />
@@ -295,7 +324,7 @@ function SegmentPill({ tabs, activeTab, onTabPress, expandProgress, bottom }) {
   );
 }
 
-function PillButton({ iconName, onPress, disabled, danger }) {
+function PillButton({ iconName, onPress, disabled, danger, active }) {
   return (
     <Pressable
       onPress={onPress}
@@ -306,7 +335,7 @@ function PillButton({ iconName, onPress, disabled, danger }) {
         disabled && styles.pillButtonDisabled,
       ]}
     >
-      <Icon name={iconName} color={danger ? colors.danger : colors.text} />
+      <Icon name={iconName} color={active ? colors.accent : danger ? colors.danger : colors.text} />
     </Pressable>
   );
 }

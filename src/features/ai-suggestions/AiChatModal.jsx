@@ -200,11 +200,20 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
 
   function renderMessage({ item, index }) {
     if (item.role === 'user') {
+      const key = `user-${index}`;
       return (
         <View style={styles.userBubbleContainer}>
           <View style={styles.userBubble}>
             <Text style={styles.userBubbleText}>{item.content}</Text>
           </View>
+          <IconButton
+            icon={copiedKey === key ? 'check' : 'copy'}
+            size={scale(15)}
+            color={copiedKey === key ? '#34C759' : colors.textTertiary}
+            onPress={() => handleCopy(item.content, key)}
+            accessibilityLabel="Copy message"
+            style={styles.userCopyButton}
+          />
         </View>
       );
     }
@@ -396,6 +405,10 @@ const styles = StyleSheet.create({
   userBubbleContainer: {
     alignItems: 'flex-end',
     marginVertical: 4,
+  },
+  userCopyButton: {
+    marginTop: 2,
+    marginRight: 2,
   },
   userBubble: {
     backgroundColor: colors.accent,

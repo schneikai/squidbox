@@ -21,6 +21,8 @@ export default function FloatingHeader({
   title,
   isAssetsTab = false,
   onAdd,
+  onSelectAll,
+  allSelected = false,
   onDownload,
   onAddToAlbum,
   onPost,
@@ -112,6 +114,11 @@ export default function FloatingHeader({
       {isAssetsTab && (
         <Animated.View style={[styles.pillWrapper, selectPillStyle]}>
           <FloatingPill>
+            <PillButton
+              iconName="checkbox"
+              onPress={onSelectAll}
+              active={allSelected}
+            />
             <PillButton iconName="download" onPress={onDownload} disabled={!hasSelection} />
             <PillButton iconName="library" onPress={onAddToAlbum} disabled={!hasSelection} />
             <PillButton iconName="share" onPress={onPost} disabled={!hasSelection} />
@@ -126,7 +133,7 @@ export default function FloatingHeader({
   );
 }
 
-function PillButton({ iconName, onPress, disabled, danger }) {
+function PillButton({ iconName, onPress, disabled, danger, active }) {
   return (
     <Pressable
       onPress={onPress}
@@ -137,7 +144,7 @@ function PillButton({ iconName, onPress, disabled, danger }) {
         disabled && styles.pillButtonDisabled,
       ]}
     >
-      <Icon name={iconName} color={danger ? colors.danger : colors.text} />
+      <Icon name={iconName} color={active ? colors.accent : danger ? colors.danger : colors.text} />
     </Pressable>
   );
 }
