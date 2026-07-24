@@ -10,7 +10,8 @@ export default function getAlbumAssets(album, assets) {
     return getDeletedAssets(assets);
   }
 
-  const albumAssets = album.assets.map((assetId) => assets[assetId]).filter(Boolean);
+  const uniqueAssetIds = [...new Set(album.assets)];
+  const albumAssets = uniqueAssetIds.map((assetId) => assets[assetId]).filter(Boolean);
   const filterFn = (asset) => !asset.isDeleted;
   return albumAssets.filter(filterFn);
 }

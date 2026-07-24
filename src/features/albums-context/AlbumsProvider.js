@@ -54,7 +54,7 @@ export default function AlbumsProvider({ children }) {
         const assetIds = assetsOrAssetIds.map((assetOrAssetId) =>
           typeof assetOrAssetId === 'string' ? assetOrAssetId : assetOrAssetId.id,
         );
-        const updatedAssets = [...album.assets, ...assetIds];
+        const updatedAssets = [...new Set([...album.assets, ...assetIds])];
         await updateAlbums([album.id], { assets: updatedAssets });
       },
       removeAssetsFromAlbum: async (album, assetsOrAssetIds) => {

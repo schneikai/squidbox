@@ -31,14 +31,12 @@ export function getActiveTabName(state) {
 }
 
 /**
- * Returns how many screens deep we are inside the active tab stack.
- * 0 = root tab screen, >0 = pushed detail screen.
- * Works correctly even when a modal is layered on top of MainTab.
+ * True when a detail screen or modal is layered on top of MainTab on the
+ * root stack. Detail screens (AlbumScreen, PostScreen, AssetScreen) now live
+ * on the root stack above the tabs, so anything that isn't MainTab means the
+ * floating tab bar should be hidden.
  */
-export function getActiveStackDepth(state) {
-  const mainTab = getMainTabRoute(state);
-  if (!mainTab?.state) return 0;
-  const tabRoute = mainTab.state.routes[mainTab.state.index ?? 0];
-  if (tabRoute?.state) return tabRoute.state.index ?? 0;
-  return 0;
+export function isDetailScreenActive(state) {
+  if (!state) return false;
+  return state.routes[state.index]?.name !== 'MainTab';
 }

@@ -12,7 +12,7 @@ import { useNavigationState, useNavigation } from '@react-navigation/native';
 
 import GradientButton from '@/components/GradientButton';
 import { useFloatingBars } from './FloatingBarsContext';
-import { getActiveTabName, getActiveStackDepth } from './navStateHelpers';
+import { getActiveTabName, isDetailScreenActive } from './navStateHelpers';
 import FloatingPill from './FloatingPill';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, spacing } from '@/styles/designTokens';
@@ -31,8 +31,8 @@ export default function FloatingNavigationBar() {
   const { isNavBarHidden, isSearchActive, isSelectMode, resetScroll } = useFloatingBars();
 
   const activeTab = useNavigationState((s) => getActiveTabName(s));
-  const stackDepth = useNavigationState((s) => getActiveStackDepth(s));
-  const isMainScreen = stackDepth === 0 && MAIN_TABS.includes(activeTab);
+  const isDetailActive = useNavigationState((s) => isDetailScreenActive(s));
+  const isMainScreen = !isDetailActive && MAIN_TABS.includes(activeTab);
 
   const hideBar = isSearchActive || !isMainScreen || isSelectMode;
 

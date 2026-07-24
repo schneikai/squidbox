@@ -10,15 +10,13 @@ const Stack = createNativeStackNavigator();
 export default function CreatePostNavigator() {
   return (
     <MenuProvider skipInstanceCheck>
-      <Stack.Navigator>
-        <Stack.Screen
-          name="CreatePostScreen"
-          component={CreatePostScreen}
-          options={{ headerShown: false }}
-        />
-      <Stack.Screen name="PostScreen" component={PostScreen} />
-      <Stack.Screen name="IgnoredPostsScreen" component={IgnoredPostsScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="AlbumScreen" component={AlbumScreen} options={{ headerShown: false }} />
+      <Stack.Navigator
+        screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}
+      >
+        <Stack.Screen name="CreatePostScreen" component={CreatePostScreen} />
+        <Stack.Screen name="PostScreen" component={PostScreen} />
+        <Stack.Screen name="IgnoredPostsScreen" component={IgnoredPostsScreen} />
+        <Stack.Screen name="AlbumScreen" component={AlbumScreen} />
       </Stack.Navigator>
     </MenuProvider>
   );
