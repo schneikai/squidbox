@@ -68,6 +68,10 @@ export default function AlbumsProvider({ children }) {
         const updatedAssets = album.assets.filter((assetId) => !assetIds.includes(assetId));
         await updateAlbums([album.id], { assets: updatedAssets });
       },
+      reorderAlbumAssets: async (album, orderedAssetIds) => {
+        const updatedAssets = [...new Set(orderedAssetIds)];
+        await updateAlbums([album.id], { assets: updatedAssets, sortOrder: 'custom' });
+      },
       setAlbumDeleted: async (album) => {
         await updateAlbums([album.id], { isDeleted: true });
       },

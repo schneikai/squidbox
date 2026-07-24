@@ -3,13 +3,7 @@ import Icon from '@/components/Icon';
 import { useNavigation } from '@react-navigation/native';
 import { useState, useMemo } from 'react';
 import { Text, StyleSheet, View, Pressable, TouchableOpacity, useWindowDimensions } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  interpolate,
-  Extrapolation,
-} from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AssetQuickViewModal, { useAssetQuickViewModal } from '@/components/AssetQuickViewModal';
@@ -17,7 +11,6 @@ import GradientButton from '@/components/GradientButton';
 import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import FloatingPill from '@/components/floating-bars/FloatingPill';
-import SuperPressable from '@/components/SuperPressable';
 import SearchOptionsBar from '@/components/floating-bars/SearchOptionsBar';
 import SortFilterModal from '@/components/floating-bars/SortFilterModal';
 import AddAssetAction from '@/features/album-detail/actions/AddAssetAction';
@@ -27,7 +20,7 @@ import AlbumPostsView from '@/features/album-detail/AlbumPostsView';
 import preparePosts from '@/features/post-list/preparePosts';
 import usePosts from '@/features/posts-context/usePosts';
 import useFilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/useFilterAssetsAction';
-import useSortAssetsAction from '@/features/asset-list/actions/sort-assets-action/useSortAssetsAction';
+import { assetSortOptions } from '@/features/asset-list/actions/sort-assets-action/useSortAssetsAction';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import prepareAssets from '@/features/asset-list/prepareAssets';
 import useAssetList from '@/features/asset-list/useAssetList';
@@ -38,6 +31,7 @@ import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibr
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 import getAlbumAssets from '@/utils/albums/getAlbumAssets';
 import isSmartAlbum from '@/utils/albums/isSmartAlbum';
+import useAppSettings from '@/features/app-settings/useAppSettings';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, scale, spacing, typography } from '@/styles/designTokens';
@@ -55,9 +49,16 @@ const ASSET_FILTER_OPTIONS = [
   { key: 'videos',    label: 'Videos',     icon: 'video' },
 ];
 
+const ASSET_SORT_OPTIONS = [
+  { key: 'custom',       label: 'Custom',         directional: false },
+  { key: 'createdAt',    label: 'Created At' },
+  { key: 'lastPostedAt', label: 'Last Posted At' },
+];
+
 export default function Album({ album }) {
   const { assets, toggleFavoriteAsset, setAssetsDeleted } = useAssets();
-  const { removeAssetsFromAlbum } = useAlbums();
+  const { removeAssetsFromAlbum, reorderAlbumAssets, updateAlbum } = useAlbums();
+  const { albumSortOrder, setAlbumSortOrder } = useAppSettings();
   const { posts } = usePosts();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -74,7 +75,12 @@ export default function Album({ album }) {
   const { listRef, listScrollTop } = useAssetList();
   const { isSelectMode, selectedAssetIds, toggleSelectMode, toggleSelectAsset, selectAssets } =
     useToggleSelectAssetsAction();
-  const { sortOrder, sortFunction, sortAssets } = useSortAssetsAction({ afterSort: listScrollTop });
+  // Sort resolution: an album on custom order shows its own manual order; every
+  // other album follows the shared global sort. A per-session override lets the
+  // active album react immediately to sort/reorder changes.
+  const [sessionSortOrder, setSessionSortOrder] = useState(null);
+  const sortOrder = sessionSortOrder ?? (album.sortOrder === 'custom' ? 'custom' : albumSortOrder);
+  const sortFunction = assetSortOptions[sortOrder] ?? assetSortOptions['createdAt:desc'];
   const { activeFilter, matchFilter, toggleFilter } = useFilterAssetsAction({ afterFilter: listScrollTop });
   const { asset: quickViewAsset, open: openAssetQuickView, close: closeAssetQuickView } = useAssetQuickViewModal();
   const [activeTab, setActiveTab] = useState('Assets');
@@ -111,6 +117,44 @@ export default function Album({ album }) {
 
   const hasSelection = selectedAssetIds.length > 0;
   const hasSubHeader = !!album.archivedAt || !!album.notes;
+
+  // Drag-to-reorder only makes sense on the full, unfiltered album order and has
+  // nowhere to persist for smart albums, so it stays off otherwise.
+  const reorderEnabled =
+    activeTab === 'Assets' &&
+    !isSelectMode &&
+    !isSmartAlbum(album) &&
+    activeFilter.length === 0 &&
+    !searchText.trim();
+
+  // Smart albums (Favorites/Deleted) have no stored order, so hide "Custom".
+  const sortOptions = isSmartAlbum(album)
+    ? ASSET_SORT_OPTIONS.filter((option) => option.key !== 'custom')
+    : ASSET_SORT_OPTIONS;
+
+  function handleSort(order) {
+    if (order === 'custom') {
+      // Custom is per-album: flag this album and leave the global sort alone.
+      updateAlbum(album.id, { sortOrder: 'custom' });
+    } else {
+      // Any date sort becomes the shared default and takes this album off custom
+      // (the manual order data in album.assets is kept for later).
+      setAlbumSortOrder(order);
+      updateAlbum(album.id, { sortOrder: null });
+    }
+    setSessionSortOrder(order);
+    listScrollTop();
+  }
+
+  function handleReorder(newVisibleOrder) {
+    // Preserve any ids not in the visible set (deleted / duplicated) by appending
+    // them after the new order, deduped. reorderAlbumAssets also flags the album
+    // as custom-sorted.
+    const merged = [...new Set([...newVisibleOrder, ...album.assets])];
+    reorderAlbumAssets(album, merged);
+    // Reflect the manual order immediately without the usual scroll-to-top.
+    setSessionSortOrder('custom');
+  }
 
   const headerSubtitle =
     activeTab === 'Posts'
@@ -241,6 +285,8 @@ export default function Album({ album }) {
             paddingTop={hasSubHeader ? 0 : paddingTop}
             paddingBottom={paddingBottom}
             selectAssets={selectAssets}
+            reorderEnabled={reorderEnabled}
+            onReorder={handleReorder}
           />
         ) : (
           <AlbumPostsView
@@ -284,8 +330,9 @@ export default function Album({ album }) {
         onClose={() => setIsSortFilterOpen(false)}
         sortOrder={sortOrder}
         activeFilter={activeFilter}
+        sortOptions={sortOptions}
         filterOptions={ASSET_FILTER_OPTIONS}
-        onSort={sortAssets}
+        onSort={handleSort}
         onFilter={toggleFilter}
         showViewOptions
         bottom={insets.bottom + spacing.floatingBarBottom + spacing.iconButtonSize + spacing.popoverGap}

@@ -1,6 +1,8 @@
 import { useMemo, useRef } from 'react';
 import { Gesture } from 'react-native-gesture-handler';
 
+import gridIndexAtPoint from './gridIndexAtPoint';
+
 // Apple Photos-style drag-to-select for the asset grid.
 //
 // While in select mode, a short hold begins a marquee drag: the cell you start
@@ -39,16 +41,16 @@ export default function useAssetDragSelect({
 
   const handlers = useRef({});
 
-  handlers.current.indexAtPoint = (x, y) => {
-    const offset = scrollY?.value ?? 0;
-    const col = Math.min(Math.max(Math.floor(x / itemSize), 0), numColumns - 1);
-    const contentY = y + offset - paddingTop;
-    if (contentY < 0) return -1;
-    const row = Math.floor(contentY / itemSize);
-    const index = row * numColumns + col;
-    if (index < 0 || index >= assetIds.length) return -1;
-    return index;
-  };
+  handlers.current.indexAtPoint = (x, y) =>
+    gridIndexAtPoint({
+      x,
+      y,
+      scrollOffset: scrollY?.value ?? 0,
+      paddingTop,
+      itemSize,
+      numColumns,
+      count: assetIds.length,
+    });
 
   handlers.current.applyRange = (currentIndex) => {
     const anchor = anchorIndexRef.current;

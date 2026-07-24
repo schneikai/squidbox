@@ -20,6 +20,9 @@ const albumSchema = Yup.object()
     showInPostSuggestionsAfter: Yup.number().nullable().default(null),
     oldCollectionName: Yup.string().nullable().default(null),
     notes: Yup.string().nullable().default(null),
+    // Per-album manual order flag. 'custom' means show album.assets order; when
+    // null the album follows the global albumSortOrder setting.
+    sortOrder: Yup.mixed().oneOf([null, 'custom']).nullable().default(null),
 
     smartAlbumType: Yup.mixed()
       .oneOf([null, ...Object.values(SMART_ALBUM_TYPES)])

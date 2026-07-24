@@ -65,11 +65,17 @@ export default function SortFilterModal({
     onClose();
   }
 
-  function handleSortSelect(sortKey) {
+  function handleSortSelect(option) {
     if (!onSort) return;
+    // Directionless options (e.g. manual "custom" order) have no asc/desc toggle.
+    if (option.directional === false) {
+      onSort(option.key);
+      handleClose();
+      return;
+    }
     const [currentField, currentDir] = sortOrder.split(':');
-    const newDir = currentField === sortKey && currentDir === 'desc' ? 'asc' : 'desc';
-    onSort(`${sortKey}:${newDir}`);
+    const newDir = currentField === option.key && currentDir === 'desc' ? 'asc' : 'desc';
+    onSort(`${option.key}:${newDir}`);
     handleClose();
   }
 
@@ -121,15 +127,17 @@ export default function SortFilterModal({
           <>
             {sortOptions.map((option) => {
               const dir = getSortDirection(option.key);
-              const isActive = dir !== null;
+              const isDirectionless = option.directional === false;
+              const isActive = isDirectionless ? sortOrder === option.key : dir !== null;
               return (
                 <Pressable
                   key={option.key}
-                  onPress={() => handleSortSelect(option.key)}
+                  onPress={() => handleSortSelect(option)}
                   style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
                 >
                   <Text style={styles.rowLabel}>{option.label}</Text>
-                  {isActive && (
+                  {isActive && isDirectionless && <View style={popupMenuStyles.activeDot} />}
+                  {isActive && !isDirectionless && (
                     <Icon
                       name={dir === 'asc' ? 'arrow-up' : 'arrow-down'}
                       size={spacing.menuIconSize}

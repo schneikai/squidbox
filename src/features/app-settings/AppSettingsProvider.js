@@ -8,7 +8,10 @@ const STORAGE_KEY = 'app-settings';
 export default function AppSettingsProvider({ children }) {
   // "cover" | "contain"
   const defaultThumbnailStyle = 'cover';
+  // Global album sort applied to every album that isn't on its own custom order.
+  const defaultAlbumSortOrder = 'createdAt:desc';
   const [thumbnailStyle, setThumbnailStyle] = useState(defaultThumbnailStyle);
+  const [albumSortOrder, setAlbumSortOrder] = useState(defaultAlbumSortOrder);
   const [postsQuery, setPostsQuery] = useState('');
 
   useEffect(() => {
@@ -17,10 +20,13 @@ export default function AppSettingsProvider({ children }) {
       if (!settings) return;
 
       try {
-        const { thumbnailStyle } = JSON.parse(settings);
+        const { thumbnailStyle, albumSortOrder } = JSON.parse(settings);
 
         if (thumbnailStyle) {
           setThumbnailStyle(thumbnailStyle);
+        }
+        if (albumSortOrder) {
+          setAlbumSortOrder(albumSortOrder);
         }
       } catch (error) {
         console.error('Error loading app settings', error);
@@ -36,20 +42,25 @@ export default function AppSettingsProvider({ children }) {
       if (thumbnailStyle !== defaultThumbnailStyle) {
         settings.thumbnailStyle = thumbnailStyle;
       }
+      if (albumSortOrder !== defaultAlbumSortOrder) {
+        settings.albumSortOrder = albumSortOrder;
+      }
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     }
 
     saveSettings();
-  }, [thumbnailStyle]);
+  }, [thumbnailStyle, albumSortOrder]);
 
   const value = useMemo(
     () => ({
       thumbnailStyle,
       setThumbnailStyle,
+      albumSortOrder,
+      setAlbumSortOrder,
       postsQuery,
       setPostsQuery,
     }),
-    [thumbnailStyle, postsQuery],
+    [thumbnailStyle, albumSortOrder, postsQuery],
   );
 
   return <AppSettingsContext.Provider value={value}>{children}</AppSettingsContext.Provider>;
