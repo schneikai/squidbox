@@ -95,6 +95,7 @@ export default function Album({ album }) {
   );
 
   const hasSelection = selectedAssetIds.length > 0;
+  const hasSubHeader = !!album.archivedAt || !!album.notes;
 
   function getSelectedAssets() {
     const ids = selectedAssetIds.length > 0 ? selectedAssetIds : assetIds;
@@ -193,8 +194,10 @@ export default function Album({ album }) {
         </View>
       )}
 
-      {/* Active view — paddingTop always clears the floating header */}
-      <View style={[styles.content, { paddingTop: (!!album.archivedAt || !!album.notes) ? 0 : paddingTop }]}>
+      {/* Active view — content scrolls behind the floating header. The sub-header
+          (when present) already reserves the top space, so the list padding drops
+          to 0 in that case. */}
+      <View style={styles.content}>
         {activeTab === 'Assets' ? (
           <AlbumAssetsView
             assetIds={assetIds}
@@ -206,10 +209,15 @@ export default function Album({ album }) {
             closeAssetQuickView={closeAssetQuickView}
             sortOrder={sortOrder}
             listRef={listRef}
+            paddingTop={hasSubHeader ? 0 : paddingTop}
             paddingBottom={paddingBottom}
           />
         ) : (
-          <AlbumPostsView album={album} paddingBottom={paddingBottom} />
+          <AlbumPostsView
+            album={album}
+            paddingTop={hasSubHeader ? 0 : paddingTop}
+            paddingBottom={paddingBottom}
+          />
         )}
       </View>
 

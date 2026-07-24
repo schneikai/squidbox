@@ -3,6 +3,7 @@ import Animated from 'react-native-reanimated';
 
 import useGetAlbumThumbnailAssetAndAssetCount from './useGetAlbumThumbnailAssetAndAssetCount';
 
+import { SCREEN_PADDING } from '@/constants';
 import useAlbums from '@/features/albums-context/useAlbums';
 
 export default function AlbumList({ albumIds, renderItem, ListHeaderComponent, listRef, contentContainerStyle, onScroll }) {
@@ -13,16 +14,22 @@ export default function AlbumList({ albumIds, renderItem, ListHeaderComponent, l
   // in the view. We also use columnWrapperStyle to get even margins left, right
   // and between the items without having the margins doubled where they touch.
 
+  // Keep side insets and the gap between columns equal to SCREEN_PADDING so the
+  // albums grid lines up with the posts list (which pads each item by SCREEN_PADDING).
   const window = useWindowDimensions();
   const numColumns = 2;
-  const elementWidth = window.width / numColumns - 15;
+  const elementWidth = window.width / numColumns - SCREEN_PADDING * 1.5;
 
   return (
     <Animated.FlatList
       ref={listRef}
       data={albumIds}
       numColumns={numColumns}
-      columnWrapperStyle={{ marginHorizontal: 10, marginTop: 10, justifyContent: 'space-between' }}
+      columnWrapperStyle={{
+        marginHorizontal: SCREEN_PADDING,
+        marginTop: SCREEN_PADDING,
+        justifyContent: 'space-between',
+      }}
       renderItem={({ item: albumId }) => {
         const album = albums[albumId];
         if (!album) return null;

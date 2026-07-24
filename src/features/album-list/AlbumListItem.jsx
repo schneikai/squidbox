@@ -21,10 +21,14 @@ export default function AlbumListItem({ album, thumbnailAsset, numberOfAssets, e
           <Text style={styles.isArchived}>Archived</Text>
         </View>
       )}
-      <Text style={styles.albumTitle}>{album.name}</Text>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <Text style={styles.albumInfo}>{pluralizeText('1 Asset', '%{count} Assets', numberOfAssets)}</Text>
-        <AlbumLastPostedAt album={album} style={styles.albumInfo} />
+      <Text style={styles.albumTitle} numberOfLines={1} ellipsizeMode="tail">
+        {album.name}
+      </Text>
+      <View style={styles.metaRow}>
+        <Text style={[styles.albumInfo, styles.metaCount]} numberOfLines={1}>
+          {pluralizeText('1 Asset', '%{count} Assets', numberOfAssets)}
+        </Text>
+        <AlbumLastPostedAt album={album} style={[styles.albumInfo, styles.metaPosted]} numberOfLines={1} />
       </View>
     </View>
   );
@@ -39,10 +43,23 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: '600',
   },
+  metaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    gap: 6,
+  },
   albumInfo: {
     color: colors.textSecondary,
     fontSize: scale(12),
     fontWeight: '500',
+  },
+  metaCount: {
+    flexShrink: 0,
+  },
+  metaPosted: {
+    flexShrink: 1,
+    textAlign: 'right',
   },
   indicators: {
     position: 'absolute',

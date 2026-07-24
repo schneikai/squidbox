@@ -12,13 +12,14 @@ export default function AlbumAssetsView({
   closeAssetQuickView,
   sortOrder,
   listRef,
+  paddingTop,
   paddingBottom,
 }) {
   return (
     <AssetList
       listRef={listRef}
       assetIds={assetIds}
-      contentContainerStyle={{ paddingBottom }}
+      contentContainerStyle={{ paddingTop, paddingBottom }}
       renderListItem={(asset) => (
         <SuperPressable
           onPress={() => onPressAsset(asset)}

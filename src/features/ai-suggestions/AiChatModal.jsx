@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Reanimated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MenuProvider } from 'react-native-popup-menu';
 
@@ -56,6 +57,11 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
   const copiedKeyTimerRef = useRef(null);
   const keyboardHeightAnim = useRef(new Animated.Value(0)).current;
   const modelPickerRef = useRef(null);
+  const scrollY = useSharedValue(0);
+
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y;
+  });
 
   useEffect(() => {
     if (visible) {
@@ -256,6 +262,7 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
         <ModalHeader
           leftSlot={<ModalCloseButton onPress={onClose} />}
           centerSlot="AI Captions"
+          scrollY={scrollY}
           rightSlot={
             <IconMenuButton accessibilityLabel="Chat options">
               <MenuOption label={selectedModel} icon="cpu" onPress={() => modelPickerRef.current?.open()} />
@@ -294,7 +301,7 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
         </Modal>
 
         {/* Message list */}
-        <FlatList
+        <Reanimated.FlatList
           ref={flatListRef}
           data={messages}
           keyExtractor={(_, i) => String(i)}
@@ -302,6 +309,8 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
           style={styles.messageListContainer}
           contentContainerStyle={styles.messageList}
           onContentSizeChange={scrollToEnd}
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
           ListFooterComponent={renderLoadingBubble}
           ListEmptyComponent={
             <Text style={styles.emptyHint}>Edit the prompt below and tap send to get caption ideas.</Text>
