@@ -76,9 +76,11 @@ export default function FloatingBarsProvider({ children }) {
     );
   }
 
-  function selectAssets(assetIds) {
+  // Stable identity so the drag-select gesture isn't rebuilt mid-drag when the
+  // selection changes and re-renders this provider.
+  const selectAssets = useCallback((assetIds) => {
     setSelectedAssetIds(assetIds);
-  }
+  }, []);
 
   // ── Scroll-driven visibility (Reanimated shared values) ───────────────────
   const scrollY = useSharedValue(0);

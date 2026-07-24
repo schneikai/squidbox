@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 export default function useToggleSelectAssetsAction() {
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -23,9 +23,11 @@ export default function useToggleSelectAssetsAction() {
     });
   }
 
-  function selectAssets(assetIds) {
+  // Stable identity so the drag-select gesture isn't rebuilt mid-drag when the
+  // selection changes and re-renders the album screen.
+  const selectAssets = useCallback((assetIds) => {
     setSelectedAssetIds(assetIds);
-  }
+  }, []);
 
   return {
     isSelectMode,

@@ -1,7 +1,10 @@
+import { useRef } from 'react';
 import { View, useWindowDimensions } from 'react-native';
-import Animated from 'react-native-reanimated';
+import { GestureDetector } from 'react-native-gesture-handler';
+import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 
 import useAssets from '@/features/assets-context/useAssets';
+import useAssetDragSelect from './useAssetDragSelect';
 
 export default function AssetList({
   assetIds,
@@ -10,15 +13,44 @@ export default function AssetList({
   listRef,
   contentContainerStyle,
   onScroll,
+  scrollY,
+  dragSelectEnabled = false,
+  selectedAssetIds,
+  selectAssets,
 }) {
   const { assets } = useAssets();
   const numColumns = 3;
   const window = useWindowDimensions();
   const listItemWidth = window.width / numColumns;
 
+  // Track scroll offset internally when the screen doesn't already provide a
+  // handler (e.g. album detail). When one is provided (library floating bars) we
+  // reuse its shared value so drag-select reads an always-current offset.
+  const internalScrollY = useSharedValue(0);
+  const internalScrollHandler = useAnimatedScrollHandler((event) => {
+    internalScrollY.value = event.contentOffset.y;
+  });
+  const effectiveScrollY = scrollY ?? internalScrollY;
+  const effectiveOnScroll = onScroll ?? internalScrollHandler;
+
+  const selectedIdsRef = useRef(selectedAssetIds);
+  selectedIdsRef.current = selectedAssetIds;
+
+  const { gesture, onContainerLayout } = useAssetDragSelect({
+    enabled: dragSelectEnabled,
+    assetIds: assetIds ?? [],
+    numColumns,
+    itemSize: listItemWidth,
+    paddingTop: contentContainerStyle?.paddingTop ?? 0,
+    listRef,
+    scrollY: effectiveScrollY,
+    selectedIdsRef,
+    selectAssets,
+  });
+
   if (!assetIds) return null;
 
-  return (
+  const list = (
     <Animated.FlatList
       data={assetIds}
       numColumns={numColumns}
@@ -32,8 +64,21 @@ export default function AssetList({
       stickyHeaderIndices={ListHeaderComponent ? [0] : undefined}
       contentContainerStyle={contentContainerStyle}
       ref={listRef}
-      onScroll={onScroll}
+      onScroll={effectiveOnScroll}
       scrollEventThrottle={16}
     />
+  );
+
+  // Only wrap in the drag-select gesture when the screen opted in by passing
+  // selectAssets. Keeping the wrapper mounted regardless of select mode
+  // avoids remounting the list (which would reset scroll position).
+  if (!selectAssets) return list;
+
+  return (
+    <GestureDetector gesture={gesture}>
+      <View style={{ flex: 1 }} onLayout={(e) => onContainerLayout(e.nativeEvent.layout.height)}>
+        {list}
+      </View>
+    </GestureDetector>
   );
 }

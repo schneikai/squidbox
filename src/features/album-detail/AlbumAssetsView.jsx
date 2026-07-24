@@ -14,17 +14,21 @@ export default function AlbumAssetsView({
   listRef,
   paddingTop,
   paddingBottom,
+  selectAssets,
 }) {
   return (
     <AssetList
       listRef={listRef}
       assetIds={assetIds}
       contentContainerStyle={{ paddingTop, paddingBottom }}
+      dragSelectEnabled={isSelectMode}
+      selectedAssetIds={selectedAssetIds}
+      selectAssets={selectAssets}
       renderListItem={(asset) => (
         <SuperPressable
           onPress={() => onPressAsset(asset)}
           onDoublePress={() => toggleFavoriteAsset(asset)}
-          onLongPress={() => openAssetQuickView(asset)}
+          onLongPress={() => (isSelectMode ? undefined : openAssetQuickView(asset))}
           onLongPressOut={() => closeAssetQuickView()}
           style={{ flex: 1 }}
         >

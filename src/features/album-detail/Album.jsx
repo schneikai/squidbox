@@ -240,6 +240,7 @@ export default function Album({ album }) {
             listRef={listRef}
             paddingTop={hasSubHeader ? 0 : paddingTop}
             paddingBottom={paddingBottom}
+            selectAssets={selectAssets}
           />
         ) : (
           <AlbumPostsView

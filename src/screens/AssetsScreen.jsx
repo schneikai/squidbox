@@ -39,6 +39,7 @@ export default function AssetsScreen({ route }) {
     registerScreenOptions,
     screenOptionsRef,
     searchText,
+    scrollY,
   } = useFloatingBars();
 
   const scrollHandler = useFloatingBarScrollHandler();
@@ -168,11 +169,15 @@ export default function AssetsScreen({ route }) {
         assetIds={assetIds}
         contentContainerStyle={{ paddingTop, paddingBottom }}
         onScroll={scrollHandler}
+        scrollY={scrollY}
+        dragSelectEnabled={isSelectMode}
+        selectedAssetIds={selectedAssetIds}
+        selectAssets={selectAssets}
         renderListItem={(asset) => (
           <SuperPressable
             onPress={() => onPressAsset(asset)}
             onDoublePress={() => toggleFavoriteAsset(asset)}
-            onLongPress={() => openAssetQuickView(asset)}
+            onLongPress={() => (isSelectMode ? undefined : openAssetQuickView(asset))}
             onLongPressOut={() => closeAssetQuickView()}
             style={{ flex: 1 }}
           >
