@@ -20,10 +20,13 @@ export default function AssetPickerScreen({ navigation }) {
     navigation.goBack();
   }, [onCancelSelection, navigation]);
 
-  const navigateTo = useCallback((to) => {
-    setActiveNavigationItem(to);
-    navigation.navigate(to);
-  }, [navigation]);
+  const navigateTo = useCallback(
+    (to) => {
+      setActiveNavigationItem(to);
+      navigation.navigate(to);
+    },
+    [navigation],
+  );
 
   useEffect(() => {
     if (albumScreenProps?.navigation) {

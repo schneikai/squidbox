@@ -12,10 +12,7 @@ export default function PostAssets({ assetRefs }) {
   const [currentPage, setCurrentPage] = useState(0);
   const { width: screenWidth } = useWindowDimensions();
 
-  const postAssets = useMemo(
-    () => assetRefsToPostAssets(assetRefs, assets),
-    [assetRefs, assets],
-  );
+  const postAssets = useMemo(() => assetRefsToPostAssets(assetRefs, assets), [assetRefs, assets]);
 
   const handleScroll = (event) => {
     const contentOffsetX = event.nativeEvent.contentOffset.x;

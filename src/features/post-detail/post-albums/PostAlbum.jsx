@@ -1,10 +1,10 @@
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { colors, scale } from '@/styles/designTokens';
 
 import AssetImage from '@/components/AssetImage';
 import useGetAlbumThumbnailAssetAndAssetCount from '@/features/album-list/useGetAlbumThumbnailAssetAndAssetCount';
+import { colors, scale } from '@/styles/designTokens';
 
 export default function PostAlbum({ album, size }) {
   const getAlbumThumbnailAssetAndAssetCount = useGetAlbumThumbnailAssetAndAssetCount();

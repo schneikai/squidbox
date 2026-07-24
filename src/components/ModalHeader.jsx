@@ -57,11 +57,7 @@ export default function ModalHeader({ leftSlot, rightSlot, centerSlot, centerSty
 
       {/* Center — absolutely positioned so it doesn't affect side layout */}
       <View style={styles.centerAbsolute} pointerEvents="box-none">
-        {centerStyle === 'pill' && center ? (
-          <FloatingPill>{center}</FloatingPill>
-        ) : (
-          center
-        )}
+        {centerStyle === 'pill' && center ? <FloatingPill>{center}</FloatingPill> : center}
       </View>
 
       {/* Right slot — wrapped in FloatingPill */}

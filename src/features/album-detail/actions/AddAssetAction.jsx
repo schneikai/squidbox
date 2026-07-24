@@ -1,8 +1,8 @@
 import { Alert } from 'react-native';
 
+import MenuOption from '@/components/popup-menu-options/MenuOption';
 import PopupMenu from '@/components/popup-menu-options/PopupMenu';
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
-import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { UPLOAD_MEDIA_FROM_DEVICE, UPLOAD_MEDIA_FROM_APP } from '@/constants';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';

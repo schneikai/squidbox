@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View, Pressable, Text } from 'react-native';
+
 import { scale } from '@/styles/designTokens';
 
 export default function SegmentedControl({

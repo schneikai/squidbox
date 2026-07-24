@@ -1,25 +1,26 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Modal,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import Icon from '@/components/Icon';
+import { ActivityIndicator, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { DEFAULT_MODEL, MODEL_STORAGE_KEY } from './aiSuggestionsStorage';
+
 import EmptyState from '@/components/EmptyState';
+import Icon from '@/components/Icon';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import SearchInput from '@/components/SearchInput';
 import { colors, radii, scale, shadows, typography } from '@/styles/designTokens';
 
 const MODEL_ID_BLOCKLIST = [
-  'whisper', 'tts', 'dall-e', 'davinci', 'babbage', 'curie', 'ada', 'embedding', 'moderation',
+  'whisper',
+  'tts',
+  'dall-e',
+  'davinci',
+  'babbage',
+  'curie',
+  'ada',
+  'embedding',
+  'moderation',
 ];
 
 /**
@@ -85,28 +86,19 @@ const ModelSelectorButton = forwardRef(function ModelSelectorButton({ onChange }
     onChange?.(modelId);
   }
 
-  const filtered = availableModels.filter((id) =>
-    id.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = availableModels.filter((id) => id.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <>
       <TouchableOpacity style={styles.trigger} onPress={handleOpen}>
-        <Text style={styles.triggerText} numberOfLines={1}>{selectedModel}</Text>
+        <Text style={styles.triggerText} numberOfLines={1}>
+          {selectedModel}
+        </Text>
         <Icon name="chevron-down" size={scale(14)} color={colors.textSecondary} />
       </TouchableOpacity>
 
-      <Modal
-        visible={showPicker}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowPicker(false)}
-      >
-        <TouchableOpacity
-          style={styles.overlay}
-          activeOpacity={1}
-          onPress={() => setShowPicker(false)}
-        >
+      <Modal visible={showPicker} transparent animationType="fade" onRequestClose={() => setShowPicker(false)}>
+        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setShowPicker(false)}>
           <View style={styles.sheet}>
             <ModalHeader
               leftSlot={<ModalCloseButton onPress={() => setShowPicker(false)} />}
@@ -114,11 +106,7 @@ const ModelSelectorButton = forwardRef(function ModelSelectorButton({ onChange }
             />
             <View style={styles.content}>
               {!loadingModels && availableModels.length > 0 && (
-                <SearchInput
-                  value={search}
-                  onChangeText={setSearch}
-                  clearButtonMode="while-editing"
-                />
+                <SearchInput value={search} onChangeText={setSearch} clearButtonMode="while-editing" />
               )}
 
               {loadingModels ? (
@@ -141,11 +129,7 @@ const ModelSelectorButton = forwardRef(function ModelSelectorButton({ onChange }
                   keyboardShouldPersistTaps="handled"
                   ItemSeparatorComponent={() => <View style={styles.divider} />}
                   ListEmptyComponent={
-                    <EmptyState
-                      icon="search"
-                      title={`No results for "${search}"`}
-                      style={styles.emptyInList}
-                    />
+                    <EmptyState icon="search" title={`No results for "${search}"`} style={styles.emptyInList} />
                   }
                   renderItem={({ item: modelId }) => (
                     <TouchableOpacity
@@ -155,9 +139,7 @@ const ModelSelectorButton = forwardRef(function ModelSelectorButton({ onChange }
                       <Text style={[styles.optionLabel, selectedModel === modelId && styles.optionLabelSelected]}>
                         {modelId}
                       </Text>
-                      {selectedModel === modelId && (
-                        <Icon name="check" size={scale(18)} color={colors.accent} />
-                      )}
+                      {selectedModel === modelId && <Icon name="check" size={scale(18)} color={colors.accent} />}
                     </TouchableOpacity>
                   )}
                 />

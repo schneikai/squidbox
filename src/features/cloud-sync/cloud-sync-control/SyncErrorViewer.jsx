@@ -2,17 +2,19 @@ import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import useAssets from '@/features/assets-context/useAssets';
 import ModalCloseButton from '@/components/ModalCloseButton';
-import ModalSheet from '@/components/ModalSheet';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import ModalSheet from '@/components/ModalSheet';
+import useAssets from '@/features/assets-context/useAssets';
 import { colors, radii, scale, spacing } from '@/styles/designTokens';
 
 export default function SyncErrorViewer({ assetsWithSyncErrors, close }) {
   const { bottom } = useSafeAreaInsets();
   const { updateAssets } = useAssets();
   const scrollY = useSharedValue(0);
-  const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
 
   async function handleRetry() {
     const assetIds = assetsWithSyncErrors.map((asset) => asset.id);
@@ -29,10 +31,16 @@ export default function SyncErrorViewer({ assetsWithSyncErrors, close }) {
           scrollY={scrollY}
         />
 
-        <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={[styles.list, { paddingTop: MODAL_HEADER_HEIGHT }]}>
+        <Animated.ScrollView
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          contentContainerStyle={[styles.list, { paddingTop: MODAL_HEADER_HEIGHT }]}
+        >
           {assetsWithSyncErrors.map((asset) => (
             <View key={asset.id} style={styles.errorRow}>
-              <Text style={styles.errorAssetId} numberOfLines={1}>{asset.id}</Text>
+              <Text style={styles.errorAssetId} numberOfLines={1}>
+                {asset.id}
+              </Text>
               <Text style={styles.errorMessage}>{asset.syncError}</Text>
             </View>
           ))}

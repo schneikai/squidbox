@@ -1,12 +1,11 @@
+import { useNavigation } from '@react-navigation/native';
 import { useEffect, useMemo } from 'react';
 import { View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-
-import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
-import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 
 import SuperPressable from '@/components/SuperPressable';
+import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
 import { useFloatingBars } from '@/components/floating-bars/FloatingBarsContext';
+import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
 import useAlbums from '@/features/albums-context/useAlbums';
 import PostList from '@/features/post-list/PostList';

@@ -2,6 +2,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useFloatingBars } from './FloatingBarsContext';
 import SortFilterModal from './SortFilterModal';
+
 import { spacing } from '@/styles/designTokens';
 
 const DEFAULT_FILTER_OPTIONS = [
@@ -15,8 +16,7 @@ export default function FloatingFilterModal() {
   const insets = useSafeAreaInsets();
   const { isFilterModalOpen, closeFilterModal, filterModalData } = useFloatingBars();
 
-  const bottom =
-    insets.bottom + spacing.floatingBarBottom + spacing.iconButtonSize + spacing.popoverGap;
+  const bottom = insets.bottom + spacing.floatingBarBottom + spacing.iconButtonSize + spacing.popoverGap;
 
   return (
     <SortFilterModal

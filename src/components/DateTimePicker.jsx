@@ -3,6 +3,7 @@
 // opacity: 0.01 keeps the picker interactive (opacity: 0 disables touch on iOS).
 import CommunityDateTimePicker from '@react-native-community/datetimepicker';
 import { StyleSheet, View, Text } from 'react-native';
+
 import Icon from '@/components/Icon';
 import { colors, glass, radii, spacing, typography } from '@/styles/designTokens';
 
@@ -24,7 +25,13 @@ export default function DateTimePicker({ datetime: dt, timestamp, onChange, styl
   return (
     <View style={[styles.row, style]}>
       <View style={styles.pill}>
-        <CommunityDateTimePicker mode="date" value={dateTime} display="compact" onChange={handleChange} style={styles.nativePicker} />
+        <CommunityDateTimePicker
+          mode="date"
+          value={dateTime}
+          display="compact"
+          onChange={handleChange}
+          style={styles.nativePicker}
+        />
         <View style={[StyleSheet.absoluteFill, styles.overlay]} pointerEvents="none">
           <Icon name="calendar" size={spacing.iconSizeSmall} color={colors.textSecondary} />
           <Text style={styles.label}>{dateLabel}</Text>
@@ -32,7 +39,13 @@ export default function DateTimePicker({ datetime: dt, timestamp, onChange, styl
       </View>
 
       <View style={styles.pill}>
-        <CommunityDateTimePicker mode="time" value={dateTime} display="compact" onChange={handleChange} style={styles.nativePicker} />
+        <CommunityDateTimePicker
+          mode="time"
+          value={dateTime}
+          display="compact"
+          onChange={handleChange}
+          style={styles.nativePicker}
+        />
         <View style={[StyleSheet.absoluteFill, styles.overlay]} pointerEvents="none">
           <Icon name="clock" size={spacing.iconSizeSmall} color={colors.textSecondary} />
           <Text style={styles.label}>{timeLabel}</Text>

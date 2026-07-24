@@ -23,9 +23,9 @@ export default function dateToTimeAgo(dateTime) {
     // For dates more than a year old, show 'x years' or 'x years, y months' if months > 0
     const years = moment().diff(momentDate, 'years');
     const months = moment().diff(momentDate, 'months') % 12;
-    return months > 0 
-      // ? `${years} year${years !== 1 ? 's' : ''}, ${months} month${months !== 1 ? 's' : ''} ago`
-      ? `${years}y ${months}m ago`
+    return months > 0
+      ? // ? `${years} year${years !== 1 ? 's' : ''}, ${months} month${months !== 1 ? 's' : ''} ago`
+        `${years}y ${months}m ago`
       : `${years} year${years !== 1 ? 's' : ''} ago`;
   }
 }

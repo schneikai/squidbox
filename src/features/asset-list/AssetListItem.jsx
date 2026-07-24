@@ -1,11 +1,11 @@
-import Icon from '@/components/Icon';
 import { View, StyleSheet, Text } from 'react-native';
 import { Defs, RadialGradient, Rect, Stop, Svg } from 'react-native-svg';
 
 import AssetImage from '@/components/AssetImage';
+import Icon from '@/components/Icon';
+import { colors, scale, typography } from '@/styles/designTokens';
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
 import formatVideoDuration from '@/utils/formatVideoDuration';
-import { colors, scale, typography } from '@/styles/designTokens';
 
 export default function AssetListItem({ asset, isSelected, isSelectMode, showLastPostedAt }) {
   const { lastPostedAt, duration, isFavorite, isSynced, notes } = asset;
@@ -39,17 +39,21 @@ function LastPostedAt({ lastPostedAt }) {
 }
 
 const CORNER_POSITIONS = {
-  topLeft:     { top: 0,    left: 0,  cx: '0%',   cy: '0%'   },
-  topRight:    { top: 0,    right: 0, cx: '100%',  cy: '0%'   },
-  bottomRight: { bottom: 0, right: 0, cx: '100%',  cy: '100%' },
-  bottomLeft:  { bottom: 0, left: 0,  cx: '0%',   cy: '100%' },
+  topLeft: { top: 0, left: 0, cx: '0%', cy: '0%' },
+  topRight: { top: 0, right: 0, cx: '100%', cy: '0%' },
+  bottomRight: { bottom: 0, right: 0, cx: '100%', cy: '100%' },
+  bottomLeft: { bottom: 0, left: 0, cx: '0%', cy: '100%' },
 };
 
-function CornerGlow({ corner = 'bottomRight', size = 80, opacity = .6 }) {
+function CornerGlow({ corner = 'bottomRight', size = 80, opacity = 0.6 }) {
   const { cx, cy, ...pos } = CORNER_POSITIONS[corner];
   const id = `cornerGlow_${corner}`;
   return (
-    <Svg style={[{ position: 'absolute', width: size, height: size }, pos]} viewBox="0 0 100 100" preserveAspectRatio="none">
+    <Svg
+      style={[{ position: 'absolute', width: size, height: size }, pos]}
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+    >
       <Defs>
         <RadialGradient id={id} cx={cx} cy={cy} r="100%" fx={cx} fy={cy}>
           <Stop offset="0%" stopColor="#000" stopOpacity={opacity} />
@@ -93,9 +97,7 @@ function NoteIndicator({ hasNote }) {
 function SelectIndicator({ isSelected }) {
   return (
     <View style={[styles.selectBadge, isSelected && styles.selectBadgeActive]}>
-      {isSelected
-        ? <Icon name="check" size={15} color={colors.textInverse} />
-        : null}
+      {isSelected ? <Icon name="check" size={15} color={colors.textInverse} /> : null}
     </View>
   );
 }
@@ -131,7 +133,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-
 
   selectBadge: {
     position: 'absolute',

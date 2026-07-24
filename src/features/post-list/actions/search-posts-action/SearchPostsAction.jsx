@@ -1,6 +1,6 @@
-import Icon from '@/components/Icon';
 import { Pressable } from 'react-native';
 
+import Icon from '@/components/Icon';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors } from '@/styles/designTokens';
 

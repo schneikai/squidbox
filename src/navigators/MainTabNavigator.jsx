@@ -54,26 +54,35 @@ function AnimatedTab({ children, tabIndex }) {
     }, [tabIndex]),
   );
 
-  return (
-    <Animated.View style={{ flex: 1, opacity, transform: [{ translateX }] }}>
-      {children}
-    </Animated.View>
-  );
+  return <Animated.View style={{ flex: 1, opacity, transform: [{ translateX }] }}>{children}</Animated.View>;
 }
 
-const FadeAssetNavigator    = () => <AnimatedTab tabIndex={0}><AssetNavigator /></AnimatedTab>;
-const FadeAlbumNavigator    = () => <AnimatedTab tabIndex={1}><AlbumNavigator /></AnimatedTab>;
-const FadePostNavigator     = () => <AnimatedTab tabIndex={2}><PostNavigator /></AnimatedTab>;
-const FadeSettingsNavigator = () => <AnimatedTab tabIndex={3}><SettingsNavigator /></AnimatedTab>;
+const FadeAssetNavigator = () => (
+  <AnimatedTab tabIndex={0}>
+    <AssetNavigator />
+  </AnimatedTab>
+);
+const FadeAlbumNavigator = () => (
+  <AnimatedTab tabIndex={1}>
+    <AlbumNavigator />
+  </AnimatedTab>
+);
+const FadePostNavigator = () => (
+  <AnimatedTab tabIndex={2}>
+    <PostNavigator />
+  </AnimatedTab>
+);
+const FadeSettingsNavigator = () => (
+  <AnimatedTab tabIndex={3}>
+    <SettingsNavigator />
+  </AnimatedTab>
+);
 
 const Tab = createBottomTabNavigator();
 
 export default function MainTabNavigator() {
   return (
-    <Tab.Navigator
-      tabBar={() => null}
-      sceneContainerStyle={{ backgroundColor: 'transparent' }}
-    >
+    <Tab.Navigator tabBar={() => null} sceneContainerStyle={{ backgroundColor: 'transparent' }}>
       <Tab.Screen name="AssetsTab" component={FadeAssetNavigator} options={{ headerShown: false }} />
       <Tab.Screen name="AlbumsTab" component={FadeAlbumNavigator} options={{ headerShown: false }} />
       <Tab.Screen name="PostsTab" component={FadePostNavigator} options={{ headerShown: false }} />

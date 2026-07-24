@@ -4,19 +4,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useFloatingBars } from './FloatingBarsContext';
 import SearchOptionsBar from './SearchOptionsBar';
+
 import { spacing } from '@/styles/designTokens';
 
 export default function FloatingActionsBar({ hasActiveState = false }) {
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
-  const {
-    isSearchActive,
-    searchText,
-    openSearch,
-    closeSearch,
-    setSearchText,
-    openFilterModal,
-  } = useFloatingBars();
+  const { isSearchActive, searchText, openSearch, closeSearch, setSearchText, openFilterModal } = useFloatingBars();
 
   const expandProgress = useSharedValue(0);
 

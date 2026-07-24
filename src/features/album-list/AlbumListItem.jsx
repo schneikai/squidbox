@@ -1,9 +1,9 @@
 import { StyleSheet, View, Text } from 'react-native';
-import { colors, scale } from '@/styles/designTokens';
 
 import AssetImage from '@/components/AssetImage';
 import FavoriteAlbumIndicator from '@/components/FavoriteAlbumIndicator';
 import AlbumLastPostedAt from '@/features/album-list/AlbumLastPostedAt';
+import { colors, scale } from '@/styles/designTokens';
 import pluralizeText from '@/utils/pluralizeText';
 
 export default function AlbumListItem({ album, thumbnailAsset, numberOfAssets, elementWidth }) {

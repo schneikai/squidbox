@@ -1,14 +1,15 @@
-import Icon from '@/components/Icon';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
+
+import Icon from '@/components/Icon';
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import useAssets from '@/features/assets-context/useAssets';
-import humanizeMediaType from '@/utils/assets/humanizeMediaType';
-import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, spacing } from '@/styles/designTokens';
+import humanizeMediaType from '@/utils/assets/humanizeMediaType';
+import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 
 /**
  * Bottom floating action bar for the asset detail screen.
@@ -54,21 +55,11 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
   }
 
   return (
-    <View
-      style={[
-        styles.container,
-        { bottom: insets.bottom + spacing.floatingBarBottom },
-      ]}
-      pointerEvents="box-none"
-    >
+    <View style={[styles.container, { bottom: insets.bottom + spacing.floatingBarBottom }]} pointerEvents="box-none">
       {/* Left pill — favorite + download */}
       <FloatingPill>
         <ActionButton onPress={handleToggleFavorite}>
-          <Icon
-            name="heart"
-            filled={asset.isFavorite}
-            color={asset.isFavorite ? colors.danger : colors.iconInactive}
-          />
+          <Icon name="heart" filled={asset.isFavorite} color={asset.isFavorite ? colors.danger : colors.iconInactive} />
         </ActionButton>
         <ActionButton onPress={handleDownload}>
           <Icon name="cloud-download" color={colors.iconInactive} />

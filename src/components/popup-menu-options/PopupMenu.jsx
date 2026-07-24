@@ -7,14 +7,13 @@
 // The main obstacle is that react-native-popup-menu doesn't support sub-panel
 // navigation out of the box (needed for the sort/filter drill-down).
 import { LinearGradient } from 'expo-linear-gradient';
-
-import Icon from '@/components/Icon';
 import { StyleSheet } from 'react-native';
 import { Menu, MenuTrigger, MenuOptions } from 'react-native-popup-menu';
 
+import Icon from '@/components/Icon';
 import actionButtonStyles, { menuTriggerTouchable } from '@/styles/actionButtonStyles';
-import popupMenuStyles from '@/styles/popupMenuStyles';
 import { colors, shadows, spacing, radii } from '@/styles/designTokens';
+import popupMenuStyles from '@/styles/popupMenuStyles';
 
 /**
  * Self-contained popup menu that owns all the repeated boilerplate:
@@ -69,9 +68,7 @@ export default function PopupMenu({ icon, variant = 'bar', active = false, warni
           <Icon name={icon} color={active || warning ? colors.accent : colors.text} />
         )}
       </MenuTrigger>
-      <MenuOptions customStyles={popupMenuStyles.menuOptions}>
-        {children}
-      </MenuOptions>
+      <MenuOptions customStyles={popupMenuStyles.menuOptions}>{children}</MenuOptions>
     </Menu>
   );
 }

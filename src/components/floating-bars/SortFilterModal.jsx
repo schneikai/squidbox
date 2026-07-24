@@ -5,14 +5,14 @@
 //
 // TODO: Consider unifying with PopupMenu/BlurPopoverRenderer into a single system.
 // Would require adding sub-panel navigation support to the popup-menu renderer.
-import Icon from '@/components/Icon';
 import { BlurView } from 'expo-blur';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import Icon from '@/components/Icon';
 import useAppSettings from '@/features/app-settings/useAppSettings';
-import popupMenuStyles from '@/styles/popupMenuStyles';
 import { colors, radii, shadows, spacing } from '@/styles/designTokens';
+import popupMenuStyles from '@/styles/popupMenuStyles';
 
 const DEFAULT_SORT_OPTIONS = [
   { key: 'createdAt', label: 'Created At' },
@@ -97,13 +97,7 @@ export default function SortFilterModal({
   }
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={handleClose}
-      statusBarTranslucent
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose} statusBarTranslucent>
       {/* Backdrop */}
       <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
 
@@ -215,10 +209,7 @@ export default function SortFilterModal({
             <View style={styles.divider} />
 
             {filterOptions.map((option) => {
-              const isActive =
-                option.key === 'all'
-                  ? activeFilter.length === 0
-                  : activeFilter.includes(option.key);
+              const isActive = option.key === 'all' ? activeFilter.length === 0 : activeFilter.includes(option.key);
               return (
                 <Pressable
                   key={option.key}

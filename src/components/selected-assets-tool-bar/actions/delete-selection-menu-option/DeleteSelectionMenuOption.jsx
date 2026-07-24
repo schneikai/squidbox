@@ -3,8 +3,8 @@ import { MenuOption } from 'react-native-popup-menu';
 
 import Icon from '@/components/Icon';
 import useAssets from '@/features/assets-context/useAssets';
-import popupMenuStyles from '@/styles/popupMenuStyles';
 import { colors, spacing } from '@/styles/designTokens';
+import popupMenuStyles from '@/styles/popupMenuStyles';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
 export default function DeleteSelectionMenuOption({ getSelectedAssets, afterAction }) {
@@ -30,7 +30,10 @@ export default function DeleteSelectionMenuOption({ getSelectedAssets, afterActi
   }
 
   return (
-    <MenuOption onSelect={handleSelect} customStyles={{ optionWrapper: { ...popupMenuStyles.menuOption, ...popupMenuStyles.menuOptionLast } }}>
+    <MenuOption
+      onSelect={handleSelect}
+      customStyles={{ optionWrapper: { ...popupMenuStyles.menuOption, ...popupMenuStyles.menuOptionLast } }}
+    >
       <Text style={popupMenuStyles.menuOptionText}>Delete</Text>
       <Icon name="trash" size={spacing.menuIconSize} color={colors.danger} style={popupMenuStyles.menuOptionIcon} />
     </MenuOption>

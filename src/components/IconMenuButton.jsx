@@ -18,21 +18,10 @@ import MenuButton from './MenuButton';
  *   by default; IconButton owns its own appearance. Only pass style when you need
  *   to constrain the outer wrapper (rare).
  */
-export default function IconMenuButton({
-  icon = 'menu',
-  accessibilityLabel = 'More options',
-  style,
-  children,
-}) {
+export default function IconMenuButton({ icon = 'menu', accessibilityLabel = 'More options', style, children }) {
   return (
     <MenuButton
-      trigger={({ toggle }) => (
-        <IconButton
-          icon={icon}
-          onPress={toggle}
-          accessibilityLabel={accessibilityLabel}
-        />
-      )}
+      trigger={({ toggle }) => <IconButton icon={icon} onPress={toggle} accessibilityLabel={accessibilityLabel} />}
       triggerContainerStyle={style}
     >
       {children}

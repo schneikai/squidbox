@@ -1,10 +1,11 @@
-import Icon from '@/components/Icon';
 import { useState, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
+
+import Icon from '@/components/Icon';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, scale, spacing } from '@/styles/designTokens';
 
@@ -54,8 +55,16 @@ export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot
         <Animated.View style={[styles.infoArea, leftStyle]} pointerEvents="none">
           <FloatingPill style={[styles.infoPill, centerMaxWidth > 0 && { maxWidth: centerMaxWidth }]}>
             <View style={styles.infoContent}>
-              {!!title && <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">{title}</Text>}
-              {!!subtitle && <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">{subtitle}</Text>}
+              {!!title && (
+                <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+                  {title}
+                </Text>
+              )}
+              {!!subtitle && (
+                <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">
+                  {subtitle}
+                </Text>
+              )}
             </View>
           </FloatingPill>
         </Animated.View>

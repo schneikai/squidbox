@@ -31,12 +31,7 @@ import popupMenuStyles from '@/styles/popupMenuStyles';
  * menuOptionsCustomStyles — optional override for MenuOptions customStyles object
  *   passed to react-native-popup-menu (rare).
  */
-export default function MenuButton({
-  trigger,
-  triggerContainerStyle,
-  menuOptionsCustomStyles,
-  children,
-}) {
+export default function MenuButton({ trigger, triggerContainerStyle, menuOptionsCustomStyles, children }) {
   const menuRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -49,20 +44,11 @@ export default function MenuButton({
   }
 
   return (
-    <Menu
-      ref={menuRef}
-      onOpen={() => setIsOpen(true)}
-      onClose={() => setIsOpen(false)}
-    >
-      <MenuTrigger
-        disabled
-        customStyles={{ triggerWrapper: triggerContainerStyle }}
-      >
+    <Menu ref={menuRef} onOpen={() => setIsOpen(true)} onClose={() => setIsOpen(false)}>
+      <MenuTrigger disabled customStyles={{ triggerWrapper: triggerContainerStyle }}>
         {trigger({ toggle, isOpen })}
       </MenuTrigger>
-      <MenuOptions customStyles={menuOptionsCustomStyles ?? popupMenuStyles.menuOptions}>
-        {children}
-      </MenuOptions>
+      <MenuOptions customStyles={menuOptionsCustomStyles ?? popupMenuStyles.menuOptions}>{children}</MenuOptions>
     </Menu>
   );
 }

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { colors, typography } from '@/styles/designTokens';
 
 import useCloudSync from '../useCloudSync';
+
+import { colors, typography } from '@/styles/designTokens';
 
 export default function StatusSyncing() {
   const { syncMessage, syncProgressMessage, syncSpeedMessage } = useCloudSync();

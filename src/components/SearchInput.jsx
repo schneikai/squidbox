@@ -1,8 +1,9 @@
 import { StyleSheet } from 'react-native';
-import Icon from '@/components/Icon';
 
 import Card from './Card';
 import TextInput from './TextInput';
+
+import Icon from '@/components/Icon';
 import { colors, spacing } from '@/styles/designTokens';
 
 /**

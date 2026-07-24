@@ -1,7 +1,7 @@
 import isBlank from '@/utils/isBlank';
 
 export default function preparePosts({ posts, albums, sortFn, filterFn, searchText = '', filterDeleted = true }) {
-  // Extract search key and value from searchText (e.g. "asset:123" or "album:456") 
+  // Extract search key and value from searchText (e.g. "asset:123" or "album:456")
   const matched = searchText?.match(/(asset|album):([^\s]+)/i);
   const searchKey = matched ? matched[1] : null; // 'asset' or 'album'
   const searchValue = matched ? matched[2] : null; // asset or album id

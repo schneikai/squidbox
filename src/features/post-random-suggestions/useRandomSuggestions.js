@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRef, useState, useMemo } from 'react';
 
-import sendAiMessageAsync from '@/features/ai-suggestions/sendAiMessageAsync';
 import {
   DEFAULT_MODEL,
   DEFAULT_RANDOM_TWEETS_PROMPT,
@@ -10,6 +9,7 @@ import {
   SYSTEM_PROMPT_STORAGE_KEY,
   DEFAULT_SYSTEM_PROMPT,
 } from '@/features/ai-suggestions/aiSuggestionsStorage';
+import sendAiMessageAsync from '@/features/ai-suggestions/sendAiMessageAsync';
 import useAssets from '@/features/assets-context/useAssets';
 
 const TWEET_BATCH_SIZE = 10;

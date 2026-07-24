@@ -13,8 +13,7 @@ const SCALE_FACTOR = SCREEN_WIDTH / BASE_WIDTH;
  * @param {number} [min=0.85]  Minimum scale factor
  * @param {number} [max=1.15]  Maximum scale factor
  */
-export const scale = (size, min = 0.85, max = 1.15) =>
-  Math.round(size * Math.min(Math.max(SCALE_FACTOR, min), max));
+export const scale = (size, min = 0.85, max = 1.15) => Math.round(size * Math.min(Math.max(SCALE_FACTOR, min), max));
 
 export const colors = {
   gradientStart: '#7C3AED',
@@ -47,7 +46,7 @@ export const colors = {
   separator: 'rgba(255,255,255,0.1)',
 
   // Interactive states
-  pressedBg: 'rgba(0,0,0,0.06)',       // subtle press overlay on light surfaces
+  pressedBg: 'rgba(0,0,0,0.06)', // subtle press overlay on light surfaces
   darkModalHover: 'rgba(255,255,255,0.08)', // highlighted row on dark modal surfaces
 
   // Generic overlays for thumbnail badges etc.
@@ -88,9 +87,9 @@ export const radii = {
 export const spacing = {
   floatingBarSide: scale(16),
   floatingBarBottom: scale(16),
-  iconButtonSize: scale(44),   // 44pt baseline (Apple HIG minimum tap target), scales with screen
-  iconSize: scale(20),         // standard icon inside a button (~45% of button size)
-  iconSizeSmall: scale(18),    // compact icon (avatar, secondary indicators)
+  iconButtonSize: scale(44), // 44pt baseline (Apple HIG minimum tap target), scales with screen
+  iconSize: scale(20), // standard icon inside a button (~45% of button size)
+  iconSizeSmall: scale(18), // compact icon (avatar, secondary indicators)
   barPaddingX: scale(8),
   barPaddingY: scale(6),
   contentPaddingTop: scale(88),
@@ -98,8 +97,8 @@ export const spacing = {
 
   // Popup / popover menu rows
   menuFontSize: scale(14),
-  menuRowH: scale(16),   // horizontal padding inside each row
-  menuRowV: scale(13),   // vertical padding inside each row
+  menuRowH: scale(16), // horizontal padding inside each row
+  menuRowV: scale(13), // vertical padding inside each row
   menuIconSize: scale(16),
   menuIconGap: scale(12), // gap between leading icon and label text
 
@@ -108,12 +107,12 @@ export const spacing = {
 };
 
 export const typography = {
-  xs:    scale(11),
-  sm:    scale(13),
-  base:  scale(17),
-  lg:    scale(20),
-  xl:    scale(24),
-  xxl:   scale(28),
+  xs: scale(11),
+  sm: scale(13),
+  base: scale(17),
+  lg: scale(20),
+  xl: scale(24),
+  xxl: scale(28),
   // Semantic token — used for all text inputs (search, notes, post text, etc.)
   input: scale(17),
 };

@@ -39,7 +39,7 @@ export default function SuperPressable({ onPress, onDoublePress, onLongPress, on
 
   return (
     <Pressable onPress={handlePress} onLongPress={handleLongPress} onPressOut={handlePressOut} {...props}>
-      { children }
+      {children}
     </Pressable>
-  )
+  );
 }

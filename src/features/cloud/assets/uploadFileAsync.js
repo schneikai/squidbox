@@ -25,7 +25,9 @@ async function doUploadAsync(filename, fileUri, accessToken, onProgress) {
   // Token is passed as a query param because iOS can silently drop Authorization
   // headers on background upload tasks (NSURLSessionUploadTask limitation).
   // The API's authenticate_request supports both header and ?token= param.
-  const uploadUrl = `${process.env.EXPO_PUBLIC_API_URL}/asset_files/upload/${encodeURIComponent(filename)}?token=${accessToken}`;
+  const uploadUrl = `${process.env.EXPO_PUBLIC_API_URL}/asset_files/upload/${encodeURIComponent(
+    filename,
+  )}?token=${accessToken}`;
 
   // TODO: We could return the uploadTask.cancelAsync() method from this function
   // to allow to cancel the upload if needed.

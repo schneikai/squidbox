@@ -8,12 +8,12 @@ import useAssetPickerHandler from './useAssetPickerHandler';
 
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import useAssets from '@/features/assets-context/useAssets';
+import { colors, scale } from '@/styles/designTokens';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 import assetRefsToPostAssets from '@/utils/posts/assetRefsToPostAssets';
 import buildPostAsset from '@/utils/posts/buildPostAsset';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
 import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
-import { colors, scale } from '@/styles/designTokens';
 
 const LIST_VERTICAL_PADDING = 80;
 

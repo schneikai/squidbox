@@ -1,32 +1,23 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  PanResponder,
-  ActivityIndicator,
-} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
-import Icon from '@/components/Icon';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, PanResponder, ActivityIndicator } from 'react-native';
 import { MenuProvider } from 'react-native-popup-menu';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
 
 import AssetImage from '@/components/AssetImage';
-import ModalSheet from '@/components/ModalSheet';
 import Card from '@/components/Card';
-import IconButton from '@/components/IconButton';
 import EmptyState from '@/components/EmptyState';
 import GradientPillButton from '@/components/GradientPillButton';
+import Icon from '@/components/Icon';
+import IconButton from '@/components/IconButton';
 import IconMenuButton from '@/components/IconMenuButton';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import ModalSheet from '@/components/ModalSheet';
 import Textarea from '@/components/Textarea';
-import useAssets from '@/features/assets-context/useAssets';
-import ModelSelectorButton from '@/features/ai-suggestions/ModelSelectorButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
-import sendAiMessageAsync from '@/features/ai-suggestions/sendAiMessageAsync';
+import { SCREEN_PADDING } from '@/constants';
+import ModelSelectorButton from '@/features/ai-suggestions/ModelSelectorButton';
 import {
   DEFAULT_MODEL,
   DEFAULT_RANDOM_TWEETS_PROMPT,
@@ -35,9 +26,10 @@ import {
   SYSTEM_PROMPT_STORAGE_KEY,
   DEFAULT_SYSTEM_PROMPT,
 } from '@/features/ai-suggestions/aiSuggestionsStorage';
-import formatVideoDuration from '@/utils/formatVideoDuration';
+import sendAiMessageAsync from '@/features/ai-suggestions/sendAiMessageAsync';
+import useAssets from '@/features/assets-context/useAssets';
 import { colors, radii, scale } from '@/styles/designTokens';
-import { SCREEN_PADDING } from '@/constants';
+import formatVideoDuration from '@/utils/formatVideoDuration';
 
 const TWEET_BATCH_SIZE = 10;
 const BATCH_INSTRUCTION = `Generate exactly ${TWEET_BATCH_SIZE} tweets and return them as a raw JSON array of strings. Nothing else.`;
@@ -205,9 +197,7 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
         if (newTweets.length > 0) {
           setTextPool((prev) => {
             const appended = [...prev, ...newTweets];
-            animateTransition(textOpacity, textTranslateX, 'next', () =>
-              setTextIndex(prev.length),
-            );
+            animateTransition(textOpacity, textTranslateX, 'next', () => setTextIndex(prev.length));
             return appended;
           });
         }
@@ -215,10 +205,7 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
       return;
     }
     if (textPool.length <= 1) return;
-    const newIndex =
-      direction === 'next'
-        ? textIndex + 1
-        : (textIndex - 1 + textPool.length) % textPool.length;
+    const newIndex = direction === 'next' ? textIndex + 1 : (textIndex - 1 + textPool.length) % textPool.length;
     animateTransition(textOpacity, textTranslateX, direction, () => setTextIndex(newIndex));
   }
 
@@ -275,112 +262,106 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <MenuProvider skipInstanceCheck>
-      <ModalSheet style={styles.containerPadding}>
-        <ModalHeader
-          leftSlot={<ModalCloseButton onPress={onClose} />}
-          centerSlot="Suggestions"
-          rightSlot={
-            <View style={styles.headerRight}>
-              <IconMenuButton accessibilityLabel="Suggestions options">
-                <MenuOption label={selectedModel} icon="cpu" onPress={() => modelPickerRef.current?.open()} />
-                <MenuOption label="Edit Prompt" icon="pencil" onPress={openEditPrompt} isLast />
-              </IconMenuButton>
-              <GradientPillButton
-                label="Use"
-                onPress={handleConfirm}
-                disabled={!currentAsset && !editableText}
-              />
-            </View>
-          }
-        />
+        <ModalSheet style={styles.containerPadding}>
+          <ModalHeader
+            leftSlot={<ModalCloseButton onPress={onClose} />}
+            centerSlot="Suggestions"
+            rightSlot={
+              <View style={styles.headerRight}>
+                <IconMenuButton accessibilityLabel="Suggestions options">
+                  <MenuOption label={selectedModel} icon="cpu" onPress={() => modelPickerRef.current?.open()} />
+                  <MenuOption label="Edit Prompt" icon="pencil" onPress={openEditPrompt} isLast />
+                </IconMenuButton>
+                <GradientPillButton label="Use" onPress={handleConfirm} disabled={!currentAsset && !editableText} />
+              </View>
+            }
+          />
 
-        {/* Filter bar */}
-        <View style={styles.filterBar}>
-          <FilterPill label="All" active={allTypesActive} onPress={handlePressAll} />
-          <FilterPill label="Images" active={showImages && !showVideos} onPress={handlePressImages} />
-          <FilterPill label="Videos" active={!showImages && showVideos} onPress={handlePressVideos} />
-          <FilterPill label="Favorites" active={onlyFavorites} onPress={() => setOnlyFavorites((v) => !v)} />
-        </View>
+          {/* Filter bar */}
+          <View style={styles.filterBar}>
+            <FilterPill label="All" active={allTypesActive} onPress={handlePressAll} />
+            <FilterPill label="Images" active={showImages && !showVideos} onPress={handlePressImages} />
+            <FilterPill label="Videos" active={!showImages && showVideos} onPress={handlePressVideos} />
+            <FilterPill label="Favorites" active={onlyFavorites} onPress={() => setOnlyFavorites((v) => !v)} />
+          </View>
 
-        {/* Media card */}
-        <Card style={styles.mediaCard} {...mediaPanHandlers}>
-          <Animated.View style={[StyleSheet.absoluteFill, mediaAnimStyle]}>
-            {currentAsset ? (
+          {/* Media card */}
+          <Card style={styles.mediaCard} {...mediaPanHandlers}>
+            <Animated.View style={[StyleSheet.absoluteFill, mediaAnimStyle]}>
+              {currentAsset ? (
+                <>
+                  <AssetImage asset={currentAsset} contentFit="contain" placeholderColor="transparent" />
+                  {currentAsset.duration ? (
+                    <View style={styles.videoBadge}>
+                      <Icon name="video" size={scale(11)} color={colors.textInverse} />
+                      <Text style={styles.videoBadgeText}>{formatVideoDuration(currentAsset.duration)}</Text>
+                    </View>
+                  ) : null}
+                </>
+              ) : (
+                <EmptyState icon="images" title="No media matches these filters" style={{ flex: 1 }} />
+              )}
+            </Animated.View>
+
+            {assetPool.length > 1 && (
               <>
-                <AssetImage asset={currentAsset} contentFit="contain" placeholderColor="transparent" />
-                {currentAsset.duration ? (
-                  <View style={styles.videoBadge}>
-                    <Icon name="video" size={scale(11)} color={colors.textInverse} />
-                    <Text style={styles.videoBadgeText}>{formatVideoDuration(currentAsset.duration)}</Text>
-                  </View>
-                ) : null}
+                <TouchableOpacity
+                  style={[styles.arrowButton, styles.arrowLeft]}
+                  onPress={() => navigateAsset('prev')}
+                  hitSlop={8}
+                >
+                  <Icon name="chevron-left" size={scale(18)} color={colors.text} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.arrowButton, styles.arrowRight]}
+                  onPress={() => navigateAsset('next')}
+                  hitSlop={8}
+                >
+                  <Icon name="chevron-right" size={scale(18)} color={colors.text} />
+                </TouchableOpacity>
               </>
-            ) : (
-              <EmptyState icon="images" title="No media matches these filters" style={{ flex: 1 }} />
             )}
-          </Animated.View>
+          </Card>
 
-          {assetPool.length > 1 && (
-            <>
-              <TouchableOpacity
-                style={[styles.arrowButton, styles.arrowLeft]}
-                onPress={() => navigateAsset('prev')}
-                hitSlop={8}
-              >
-                <Icon name="chevron-left" size={scale(18)} color={colors.text} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.arrowButton, styles.arrowRight]}
-                onPress={() => navigateAsset('next')}
-                hitSlop={8}
-              >
-                <Icon name="chevron-right" size={scale(18)} color={colors.text} />
-              </TouchableOpacity>
-            </>
-          )}
-        </Card>
-
-        {/* Caption card */}
-        <Card style={styles.captionCard} {...textPanHandlers}>
-          {textPool.length > 1 && (
-            <IconButton
-              icon="chevron-left"
-              size={scale(20)}
-              color={colors.textSecondary}
-              onPress={() => navigateText('prev')}
-              accessibilityLabel="Previous suggestion"
-            />
-          )}
-          <Animated.View style={[styles.captionContent, textAnimStyle]}>
-            {isLoading ? (
-              <ActivityIndicator size="small" color={colors.textTertiary} style={styles.captionSpinner} />
-            ) : (
-              <Textarea
-                value={editableText}
-                onChangeText={handleTextEdit}
-                placeholder="Generating captions…"
-                style={styles.captionInput}
+          {/* Caption card */}
+          <Card style={styles.captionCard} {...textPanHandlers}>
+            {textPool.length > 1 && (
+              <IconButton
+                icon="chevron-left"
+                size={scale(20)}
+                color={colors.textSecondary}
+                onPress={() => navigateText('prev')}
+                accessibilityLabel="Previous suggestion"
               />
             )}
-          </Animated.View>
-          {textPool.length > 1 && (
-            <IconButton
-              icon="chevron-right"
-              size={scale(20)}
-              color={colors.textSecondary}
-              onPress={() => navigateText('next')}
-              accessibilityLabel="Next suggestion"
-            />
-          )}
-        </Card>
+            <Animated.View style={[styles.captionContent, textAnimStyle]}>
+              {isLoading ? (
+                <ActivityIndicator size="small" color={colors.textTertiary} style={styles.captionSpinner} />
+              ) : (
+                <Textarea
+                  value={editableText}
+                  onChangeText={handleTextEdit}
+                  placeholder="Generating captions…"
+                  style={styles.captionInput}
+                />
+              )}
+            </Animated.View>
+            {textPool.length > 1 && (
+              <IconButton
+                icon="chevron-right"
+                size={scale(20)}
+                color={colors.textSecondary}
+                onPress={() => navigateText('next')}
+                accessibilityLabel="Next suggestion"
+              />
+            )}
+          </Card>
+        </ModalSheet>
 
-      </ModalSheet>
-
-      {/* Hidden model picker — trigger is invisible, the picker Modal still works */}
-      <View style={styles.hidden}>
-        <ModelSelectorButton ref={modelPickerRef} onChange={setSelectedModel} />
-      </View>
-
+        {/* Hidden model picker — trigger is invisible, the picker Modal still works */}
+        <View style={styles.hidden}>
+          <ModelSelectorButton ref={modelPickerRef} onChange={setSelectedModel} />
+        </View>
       </MenuProvider>
 
       {/* Edit Prompt modal */}

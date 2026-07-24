@@ -5,8 +5,8 @@ import { MenuOption } from 'react-native-popup-menu';
 import Icon from '@/components/Icon';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useAssets from '@/features/assets-context/useAssets';
-import popupMenuStyles from '@/styles/popupMenuStyles';
 import { colors, spacing } from '@/styles/designTokens';
+import popupMenuStyles from '@/styles/popupMenuStyles';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
 export default function DeleteFromAlbumSelectionMenuOption({ getSelectedAssets, album, afterAction }) {
@@ -40,7 +40,10 @@ export default function DeleteFromAlbumSelectionMenuOption({ getSelectedAssets, 
   }
 
   return (
-    <MenuOption onSelect={handleSelect} customStyles={{ optionWrapper: { ...popupMenuStyles.menuOption, ...popupMenuStyles.menuOptionLast } }}>
+    <MenuOption
+      onSelect={handleSelect}
+      customStyles={{ optionWrapper: { ...popupMenuStyles.menuOption, ...popupMenuStyles.menuOptionLast } }}
+    >
       <Text style={popupMenuStyles.menuOptionText}>Delete</Text>
       <Icon name="trash" size={spacing.menuIconSize} color={colors.danger} style={popupMenuStyles.menuOptionIcon} />
     </MenuOption>

@@ -62,7 +62,10 @@ export default function AiPromptsScreen() {
           <Field label="New post prompt">
             <Textarea
               value={defaultPrompt}
-              onChangeText={(v) => { setDefaultPrompt(v); save(PROMPT_STORAGE_KEY, v); }}
+              onChangeText={(v) => {
+                setDefaultPrompt(v);
+                save(PROMPT_STORAGE_KEY, v);
+              }}
               placeholder="e.g. Create some caption ideas"
               minHeight={60}
             />
@@ -75,7 +78,10 @@ export default function AiPromptsScreen() {
           >
             <Textarea
               value={variationPrompt}
-              onChangeText={(v) => { setVariationPrompt(v); save(VARIATION_PROMPT_STORAGE_KEY, v); }}
+              onChangeText={(v) => {
+                setVariationPrompt(v);
+                save(VARIATION_PROMPT_STORAGE_KEY, v);
+              }}
               placeholder="e.g. Create fresh variations of this post…"
               minHeight={60}
             />
@@ -90,7 +96,10 @@ export default function AiPromptsScreen() {
           >
             <Textarea
               value={randomTweetsPrompt}
-              onChangeText={(v) => { setRandomTweetsPrompt(v); save(RANDOM_TWEETS_PROMPT_STORAGE_KEY, v); }}
+              onChangeText={(v) => {
+                setRandomTweetsPrompt(v);
+                save(RANDOM_TWEETS_PROMPT_STORAGE_KEY, v);
+              }}
               placeholder="e.g. Create tweets with variety…"
               minHeight={60}
             />
@@ -105,13 +114,15 @@ export default function AiPromptsScreen() {
           >
             <Textarea
               value={systemPrompt}
-              onChangeText={(v) => { setSystemPrompt(v); save(SYSTEM_PROMPT_STORAGE_KEY, v); }}
+              onChangeText={(v) => {
+                setSystemPrompt(v);
+                save(SYSTEM_PROMPT_STORAGE_KEY, v);
+              }}
               placeholder="e.g. You are a creative writer for an OnlyFans account. Keep captions short and flirty."
               minHeight={60}
             />
           </Field>
         </Card>
-
       </DetailScrollView>
     </Page>
   );

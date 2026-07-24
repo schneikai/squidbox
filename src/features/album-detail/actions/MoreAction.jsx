@@ -1,8 +1,8 @@
 import { useNavigation } from '@react-navigation/native';
 import { Alert } from 'react-native';
 
-import PopupMenu from '@/components/popup-menu-options/PopupMenu';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
+import PopupMenu from '@/components/popup-menu-options/PopupMenu';
 import useAlbums from '@/features/albums-context/useAlbums';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 
@@ -25,9 +25,15 @@ export default function MoreAction({ album, afterDelete, onSelect }) {
   }
 
   async function handleRenameAlbum() {
-    Alert.prompt('Album name', '', async (name) => {
-      await updateAlbum(album.id, { name });
-    }, 'plain-text', album.name);
+    Alert.prompt(
+      'Album name',
+      '',
+      async (name) => {
+        await updateAlbum(album.id, { name });
+      },
+      'plain-text',
+      album.name,
+    );
   }
 
   function handleEditNotes() {
@@ -45,18 +51,10 @@ export default function MoreAction({ album, afterDelete, onSelect }) {
   return (
     <PopupMenu icon="menu" variant="pill">
       {!!onSelect && <MenuOption label="Select" icon="check-circle" onPress={onSelect} />}
-      <MenuOption
-        label={album.notes ? 'Edit note' : 'Add note'}
-        icon="document"
-        onPress={handleEditNotes}
-      />
+      <MenuOption label={album.notes ? 'Edit note' : 'Add note'} icon="document" onPress={handleEditNotes} />
       <MenuOption label="Rename" icon="pencil" onPress={handleRenameAlbum} />
-      {!!album.archivedAt && (
-        <MenuOption label="Unarchive" icon="arrow-up-circle" onPress={handleUnarchiveAlbum} />
-      )}
-      {!album.archivedAt && (
-        <MenuOption label="Archive" icon="archive" onPress={handleArchiveAlbum} />
-      )}
+      {!!album.archivedAt && <MenuOption label="Unarchive" icon="arrow-up-circle" onPress={handleUnarchiveAlbum} />}
+      {!album.archivedAt && <MenuOption label="Archive" icon="archive" onPress={handleArchiveAlbum} />}
       <MenuOption label="Delete" icon="trash" onPress={handleDeleteAlbum} danger isLast />
     </PopupMenu>
   );

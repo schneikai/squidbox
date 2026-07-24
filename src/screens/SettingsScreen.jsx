@@ -1,35 +1,26 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useCallback, useState, useTransition } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-
-import Icon from '@/components/Icon';
+import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import DetailScrollView from '@/components/DetailScrollView';
+import Icon from '@/components/Icon';
+import LoginForm from '@/components/LoginForm';
 import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
-import { SCREEN_PADDING } from '@/constants';
-
-import LoginForm from '@/components/LoginForm';
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
-import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
+import { SCREEN_PADDING } from '@/constants';
 import { MODEL_STORAGE_KEY, DEFAULT_MODEL } from '@/features/ai-suggestions/aiSuggestionsStorage';
 import confirmLogoutAsync from '@/features/cloud/confirmLogoutAsync';
 import useCloud from '@/features/cloud/useCloud';
+import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
+import actionButtonStyles from '@/styles/actionButtonStyles';
+import { colors, radii, spacing, typography } from '@/styles/designTokens';
 import deleteLocalDataAsync from '@/utils/local-data/deleteLocalDataAsync';
 import useRecalculatePostHistory from '@/utils/tools/useRecalculatePostHistory';
 import useResortAlbumsByName from '@/utils/tools/useResortAlbumsByName';
-import actionButtonStyles from '@/styles/actionButtonStyles';
-import { colors, radii, spacing, typography } from '@/styles/designTokens';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/api\/v1\/?$/, '');
 
@@ -56,13 +47,24 @@ function Row({ label, value, onPress, destructive, chevron, children }) {
       <View style={styles.rowRight}>
         {value ? <Text style={styles.rowValue}>{value}</Text> : null}
         {children}
-        {chevron && <Icon name="chevron-right" size={spacing.iconSizeSmall} color={colors.textTertiary} style={{ marginLeft: 4 }} />}
+        {chevron && (
+          <Icon
+            name="chevron-right"
+            size={spacing.iconSizeSmall}
+            color={colors.textTertiary}
+            style={{ marginLeft: 4 }}
+          />
+        )}
       </View>
     </View>
   );
 
   if (onPress) {
-    return <TouchableOpacity onPress={onPress} activeOpacity={0.6}>{content}</TouchableOpacity>;
+    return (
+      <TouchableOpacity onPress={onPress} activeOpacity={0.6}>
+        {content}
+      </TouchableOpacity>
+    );
   }
   return content;
 }
@@ -72,7 +74,15 @@ function Row({ label, value, onPress, destructive, chevron, children }) {
 export default function SettingsScreen() {
   const navigation = useNavigation();
   const { isAuthenticated, user, logoutAsync, loadDataAndSaveLocalAsync, backupDataAsync } = useCloud();
-  const { unsyncedAssets, assetsWithSyncErrors, isSyncing, syncMessage, syncProgressMessage, syncSpeedMessage, syncNow } = useCloudSync();
+  const {
+    unsyncedAssets,
+    assetsWithSyncErrors,
+    isSyncing,
+    syncMessage,
+    syncProgressMessage,
+    syncSpeedMessage,
+    syncNow,
+  } = useCloudSync();
   const [showSyncDetails, setShowSyncDetails] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
 
@@ -226,7 +236,8 @@ export default function SettingsScreen() {
 
   function syncStatusText() {
     if (isSyncing) return syncMessage ?? 'Syncing…';
-    if (assetsWithSyncErrors.length > 0) return `${assetsWithSyncErrors.length} error${assetsWithSyncErrors.length > 1 ? 's' : ''}`;
+    if (assetsWithSyncErrors.length > 0)
+      return `${assetsWithSyncErrors.length} error${assetsWithSyncErrors.length > 1 ? 's' : ''}`;
     if (unsyncedAssets.length > 0) return `${unsyncedAssets.length} unsynced`;
     return 'All synced';
   }
@@ -264,13 +275,15 @@ export default function SettingsScreen() {
                   <View style={styles.syncDetailPanel}>
                     {syncProgressMessage && (
                       <Text style={styles.syncDetailLine}>
-                        {syncProgressMessage.sent} / {syncProgressMessage.total}{'  '}
+                        {syncProgressMessage.sent} / {syncProgressMessage.total}
+                        {'  '}
                         <Text style={styles.syncDetailBold}>{syncProgressMessage.percent}</Text>
                       </Text>
                     )}
                     {syncSpeedMessage && (
                       <Text style={styles.syncDetailLine}>
-                        {syncSpeedMessage.now}{'  '}
+                        {syncSpeedMessage.now}
+                        {'  '}
                         <Text style={styles.syncDetailMuted}>avg {syncSpeedMessage.avg}</Text>
                       </Text>
                     )}
@@ -279,15 +292,10 @@ export default function SettingsScreen() {
               </>
 
               {showErrorModal && (
-                <SyncErrorViewer
-                  assetsWithSyncErrors={assetsWithSyncErrors}
-                  close={() => setShowErrorModal(false)}
-                />
+                <SyncErrorViewer assetsWithSyncErrors={assetsWithSyncErrors} close={() => setShowErrorModal(false)} />
               )}
 
-              {unsyncedAssets.length > 0 && !isSyncing && (
-                <Row label="Sync now" onPress={() => syncNow()} chevron />
-              )}
+              {unsyncedAssets.length > 0 && !isSyncing && <Row label="Sync now" onPress={() => syncNow()} chevron />}
               <Row label="Backup to cloud" onPress={handleBackupToCloud} chevron />
               <Row label="Load from cloud" onPress={handleLoadFromCloud} destructive chevron />
               <Row label="Delete local data" onPress={handleDeleteLocalData} destructive chevron />
@@ -320,7 +328,6 @@ export default function SettingsScreen() {
             </Section>
           </>
         )}
-
       </DetailScrollView>
     </Page>
   );
@@ -333,7 +340,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.10,
+    shadowOpacity: 0.1,
     shadowRadius: 20,
     elevation: 4,
   },

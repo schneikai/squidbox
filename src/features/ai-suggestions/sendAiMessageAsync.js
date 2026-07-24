@@ -8,7 +8,8 @@ export const REFERENCE_SAMPLE_SIZE = 40;
 
 export { DEFAULT_MODEL } from './aiSuggestionsStorage';
 
-const FORMAT_INSTRUCTION = 'Always respond with a raw JSON array of strings and nothing else. Example: ["text one", "text two"]';
+const FORMAT_INSTRUCTION =
+  'Always respond with a raw JSON array of strings and nothing else. Example: ["text one", "text two"]';
 
 /**
  * Returns up to `size` randomly-selected items from `items` (Fisher–Yates).
@@ -29,7 +30,11 @@ function buildSystemPrompt(referencePosts, customSystemPrompt) {
   const parts = [];
   if (customSystemPrompt?.trim()) parts.push(customSystemPrompt.trim());
   if (referencePosts.length > 0) {
-    parts.push(`Here are some of your past tweets as reference for tone and style:\n${referencePosts.map((text, i) => `${i + 1}. ${text}`).join('\n')}`);
+    parts.push(
+      `Here are some of your past tweets as reference for tone and style:\n${referencePosts
+        .map((text, i) => `${i + 1}. ${text}`)
+        .join('\n')}`,
+    );
   }
   parts.push(FORMAT_INSTRUCTION);
   return parts.join('\n\n');
@@ -64,11 +69,17 @@ function parseResponse(content) {
   if (bulletLines.length > 0) return bulletLines.filter(Boolean);
 
   // 5. Blank-line-separated paragraphs
-  const paragraphs = content.split(/\n\s*\n/).map((s) => s.trim()).filter(Boolean);
+  const paragraphs = content
+    .split(/\n\s*\n/)
+    .map((s) => s.trim())
+    .filter(Boolean);
   if (paragraphs.length > 1) return paragraphs;
 
   // 6. Plain line-by-line
-  const lines = content.split('\n').map((s) => s.trim()).filter(Boolean);
+  const lines = content
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean);
   if (lines.length > 0) return lines;
 
   return [content.trim()];
@@ -92,9 +103,7 @@ export default async function sendAiMessageAsync(messages, referencePostPool, mo
 
   const referencePosts = sampleRandom(referencePostPool ?? [], REFERENCE_SAMPLE_SIZE);
   const systemPrompt = buildSystemPrompt(referencePosts, customSystemPrompt);
-  const messagesPayload = systemPrompt
-    ? [{ role: 'system', content: systemPrompt }, ...messages]
-    : messages;
+  const messagesPayload = systemPrompt ? [{ role: 'system', content: systemPrompt }, ...messages] : messages;
 
   const response = await fetch(OPENAI_API_URL, {
     method: 'POST',

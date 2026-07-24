@@ -23,7 +23,6 @@
  * map — this is required for the CJS subpaths used in the shim to be reachable.
  */
 
-import { spacing } from '@/styles/designTokens';
 import {
   Archive,
   ArrowDown,
@@ -79,61 +78,62 @@ import {
   Wand,
   X,
 } from '@/lib/lucide';
+import { spacing } from '@/styles/designTokens';
 
 const ICON_MAP = {
-  'add':              Plus,
-  'alert':            CircleAlert,
-  'apps':             LayoutGrid,
-  'archive':          Archive,
-  'arrow-down':       ArrowDown,
-  'arrow-up':         ArrowUp,
-  'arrow-up-circle':  CircleArrowUp,
-  'calendar':         Calendar,
-  'check':            Check,
-  'check-circle':     CircleCheck,
-  'checkbox':         SquareCheck,
-  'chevron-down':     ChevronDown,
-  'chevron-left':     ChevronLeft,
-  'chevron-right':    ChevronRight,
-  'close':            X,
-  'close-circle':     CircleX,
-  'clock':            Clock,
-  'cloud-check':      CloudCheck,
-  'cloud-download':   CloudDownload,
-  'cloud-offline':    CloudOff,
-  'copy':             Copy,
-  'cpu':              Cpu,
-  'document':         FileText,
-  'download':         Download,
-  'edit':             PenLine,
-  'expand':           Maximize2,
-  'eye':              Eye,
-  'eye-off':          EyeOff,
-  'filter':           ListFilter,
-  'folder':           Folder,
-  'grid':             Grid3x3,
-  'heart':            Heart,
-  'image':            Image,
-  'images':           Images,
-  'library':          Library,
-  'link':             Link,
-  'list':             List,
-  'menu':             Ellipsis,
-  'mobile':           Smartphone,
-  'options':          SlidersHorizontal,
-  'pencil':           Pencil,
-  'repeat':           Repeat2,
-  'search':           Search,
-  'share':            Share,
-  'share-alt':        Share2,
-  'sort':             ArrowUpDown,
-  'sparkles':         Sparkles,
-  'star':             Star,
-  'trash':            Trash2,
-  'undo':             Undo2,
-  'user':             User,
-  'video':            Video,
-  'wand':             Wand,
+  add: Plus,
+  alert: CircleAlert,
+  apps: LayoutGrid,
+  archive: Archive,
+  'arrow-down': ArrowDown,
+  'arrow-up': ArrowUp,
+  'arrow-up-circle': CircleArrowUp,
+  calendar: Calendar,
+  check: Check,
+  'check-circle': CircleCheck,
+  checkbox: SquareCheck,
+  'chevron-down': ChevronDown,
+  'chevron-left': ChevronLeft,
+  'chevron-right': ChevronRight,
+  close: X,
+  'close-circle': CircleX,
+  clock: Clock,
+  'cloud-check': CloudCheck,
+  'cloud-download': CloudDownload,
+  'cloud-offline': CloudOff,
+  copy: Copy,
+  cpu: Cpu,
+  document: FileText,
+  download: Download,
+  edit: PenLine,
+  expand: Maximize2,
+  eye: Eye,
+  'eye-off': EyeOff,
+  filter: ListFilter,
+  folder: Folder,
+  grid: Grid3x3,
+  heart: Heart,
+  image: Image,
+  images: Images,
+  library: Library,
+  link: Link,
+  list: List,
+  menu: Ellipsis,
+  mobile: Smartphone,
+  options: SlidersHorizontal,
+  pencil: Pencil,
+  repeat: Repeat2,
+  search: Search,
+  share: Share,
+  'share-alt': Share2,
+  sort: ArrowUpDown,
+  sparkles: Sparkles,
+  star: Star,
+  trash: Trash2,
+  undo: Undo2,
+  user: User,
+  video: Video,
+  wand: Wand,
 };
 
 export default function Icon({ name, size = spacing.iconSize, color, filled, style }) {
@@ -146,11 +146,6 @@ export default function Icon({ name, size = spacing.iconSize, color, filled, sty
 
   // Omit fill when unset — fill={undefined} overrides Lucide's fill="none" default, rendering icons black.
   return (
-    <IconComponent
-      size={size}
-      color={color}
-      {...(filled && color !== undefined && { fill: color })}
-      style={style}
-    />
+    <IconComponent size={size} color={color} {...(filled && color !== undefined && { fill: color })} style={style} />
   );
 }

@@ -1,10 +1,10 @@
-import Icon from '@/components/Icon';
 import { useMemo, useState } from 'react';
 import { Alert, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import GradientButton from '@/components/GradientButton';
+import Icon from '@/components/Icon';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import SearchOptionsBar from '@/components/floating-bars/SearchOptionsBar';
@@ -20,14 +20,14 @@ import useAlbums from '@/features/albums-context/useAlbums';
 import { colors, spacing } from '@/styles/designTokens';
 
 const FILTER_OPTIONS = [
-  { key: 'all',      label: 'All Albums', icon: 'apps' },
-  { key: 'starred',  label: 'Starred',    icon: 'star' },
-  { key: 'archived', label: 'Archived',   icon: 'archive' },
+  { key: 'all', label: 'All Albums', icon: 'apps' },
+  { key: 'starred', label: 'Starred', icon: 'star' },
+  { key: 'archived', label: 'Archived', icon: 'archive' },
 ];
 
 const SORT_OPTIONS = [
-  { key: 'name',         label: 'Name' },
-  { key: 'createdAt',    label: 'Created At' },
+  { key: 'name', label: 'Name' },
+  { key: 'createdAt', label: 'Created At' },
   { key: 'lastPostedAt', label: 'Last Posted At' },
 ];
 
@@ -45,10 +45,17 @@ export default function AddToAlbumScreen({ route, navigation }) {
   const [isSortFilterOpen, setIsSortFilterOpen] = useState(false);
   const expandProgress = useSharedValue(0);
   const scrollY = useSharedValue(0);
-  const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
 
-  function openSearch() { setIsSearchActive(true); }
-  function closeSearch() { setIsSearchActive(false); setSearchText(''); }
+  function openSearch() {
+    setIsSearchActive(true);
+  }
+  function closeSearch() {
+    setIsSearchActive(false);
+    setSearchText('');
+  }
 
   const albumIds = useMemo(
     () =>
@@ -91,7 +98,10 @@ export default function AddToAlbumScreen({ route, navigation }) {
       <AlbumList
         listRef={listRef}
         albumIds={albumIds}
-        contentContainerStyle={{ paddingTop: MODAL_HEADER_HEIGHT, paddingBottom: bottom + spacing.iconButtonSize + spacing.floatingBarBottom * 2 + 16 }}
+        contentContainerStyle={{
+          paddingTop: MODAL_HEADER_HEIGHT,
+          paddingBottom: bottom + spacing.iconButtonSize + spacing.floatingBarBottom * 2 + 16,
+        }}
         onScroll={onScroll}
         renderItem={({ album, thumbnailAsset, numberOfAssets, elementWidth }) => (
           <TouchableOpacity onPress={() => handleAddAssetsToAlbum(album)}>

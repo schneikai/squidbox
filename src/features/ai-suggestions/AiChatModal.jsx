@@ -15,20 +15,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { MenuProvider } from 'react-native-popup-menu';
 import Reanimated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MenuProvider } from 'react-native-popup-menu';
 
-import Icon from '@/components/Icon';
-
-import Textarea from '@/components/Textarea';
-import sendAiMessageAsync from './sendAiMessageAsync';
 import ModelSelectorButton from './ModelSelectorButton';
-import IconButton from '@/components/IconButton';
-import IconMenuButton from '@/components/IconMenuButton';
-import MenuOption from '@/components/popup-menu-options/MenuOption';
-import ModalCloseButton from '@/components/ModalCloseButton';
-import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import {
   CHAT_STORAGE_KEY,
   MODEL_STORAGE_KEY,
@@ -40,6 +31,15 @@ import {
   DEFAULT_SYSTEM_PROMPT,
   DEFAULT_VARIATION_PROMPT,
 } from './aiSuggestionsStorage';
+import sendAiMessageAsync from './sendAiMessageAsync';
+
+import Icon from '@/components/Icon';
+import IconButton from '@/components/IconButton';
+import IconMenuButton from '@/components/IconMenuButton';
+import ModalCloseButton from '@/components/ModalCloseButton';
+import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import Textarea from '@/components/Textarea';
+import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { colors, radii, scale, spacing } from '@/styles/designTokens';
 
 export default function AiChatModal({ visible, onClose, onSelect, recentPostTexts, existingText }) {
@@ -92,7 +92,10 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
         useNativeDriver: false,
       }).start();
     });
-    return () => { show.remove(); hide.remove(); };
+    return () => {
+      show.remove();
+      hide.remove();
+    };
   }, [keyboardHeightAnim]);
 
   async function loadSettings() {
@@ -267,106 +270,104 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <MenuProvider skipInstanceCheck>
-      <Animated.View style={[styles.container, { paddingBottom: keyboardHeightAnim }]}>
-        <ModalHeader
-          leftSlot={<ModalCloseButton onPress={onClose} />}
-          centerSlot="AI Captions"
-          scrollY={scrollY}
-          rightSlot={
-            <IconMenuButton accessibilityLabel="Chat options">
-              <MenuOption label={selectedModel} icon="cpu" onPress={() => modelPickerRef.current?.open()} />
-              <MenuOption label="Clear Chat" icon="trash" onPress={handleClearChat} isLast />
-            </IconMenuButton>
-          }
-        />
-
-        {/* Reference posts viewer */}
-        <Modal
-          visible={showReferencePosts}
-          animationType="slide"
-          presentationStyle="pageSheet"
-          onRequestClose={() => setShowReferencePosts(false)}
-        >
-          <View style={[styles.refModalContainer, { paddingBottom: insets.bottom }]}>
-            <ModalHeader
-              leftSlot={<ModalCloseButton onPress={() => setShowReferencePosts(false)} />}
-              centerSlot="Style Reference"
-            />
-            <Text style={styles.refModalSubtitle}>
-              A random selection from your {recentPostTexts.length} past posts is used on each
-              generation to match your tone and keep ideas fresh.
-            </Text>
-            <FlatList
-              data={recentPostTexts}
-              keyExtractor={(_, i) => String(i)}
-              contentContainerStyle={styles.refModalList}
-              ItemSeparatorComponent={() => <View style={styles.refModalDivider} />}
-              renderItem={({ item }) => (
-                <View style={styles.refModalRow}>
-                  <Text style={styles.refModalText}>{item}</Text>
-                </View>
-              )}
-            />
-          </View>
-        </Modal>
-
-        {/* Message list */}
-        <Reanimated.FlatList
-          ref={flatListRef}
-          data={messages}
-          keyExtractor={(_, i) => String(i)}
-          renderItem={renderMessage}
-          style={styles.messageListContainer}
-          contentContainerStyle={styles.messageList}
-          onContentSizeChange={scrollToEnd}
-          onScroll={scrollHandler}
-          scrollEventThrottle={16}
-          ListFooterComponent={renderLoadingBubble}
-          ListEmptyComponent={
-            <Text style={styles.emptyHint}>Edit the prompt below and tap send to get caption ideas.</Text>
-          }
-        />
-
-        {/* Reference toggle */}
-        {messages.length === 0 && recentPostTexts.length > 0 && (
-          <View style={styles.referenceRow}>
-            <TouchableOpacity onPress={() => setShowReferencePosts(true)} style={styles.referenceLabelButton}>
-              <Text style={styles.referenceLabel}>
-                Match my writing style
-              </Text>
-            </TouchableOpacity>
-            <Switch
-              value={includeReference}
-              onValueChange={setIncludeReference}
-              trackColor={{ false: colors.glassBorder, true: colors.accent }}
-              thumbColor={colors.textInverse}
-              style={styles.referenceSwitch}
-            />
-          </View>
-        )}
-
-        {/* Input bar */}
-        <View style={[styles.inputBar, { paddingBottom: insets.bottom + 8 }]}>
-          <Textarea
-            style={styles.input}
-            placeholder="e.g. create some caption ideas"
-            value={inputText}
-            onChangeText={setInputText}
-            returnKeyType="default"
+        <Animated.View style={[styles.container, { paddingBottom: keyboardHeightAnim }]}>
+          <ModalHeader
+            leftSlot={<ModalCloseButton onPress={onClose} />}
+            centerSlot="AI Captions"
+            scrollY={scrollY}
+            rightSlot={
+              <IconMenuButton accessibilityLabel="Chat options">
+                <MenuOption label={selectedModel} icon="cpu" onPress={() => modelPickerRef.current?.open()} />
+                <MenuOption label="Clear Chat" icon="trash" onPress={handleClearChat} isLast />
+              </IconMenuButton>
+            }
           />
-          <TouchableOpacity
-            style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]}
-            onPress={handleSend}
-            disabled={!inputText.trim() || isLoading}
+
+          {/* Reference posts viewer */}
+          <Modal
+            visible={showReferencePosts}
+            animationType="slide"
+            presentationStyle="pageSheet"
+            onRequestClose={() => setShowReferencePosts(false)}
           >
-            <Icon name="arrow-up" size={scale(20)} color={colors.textInverse} />
-          </TouchableOpacity>
-        </View>
-        {/* Hidden model picker */}
-        <View style={styles.hidden}>
-          <ModelSelectorButton ref={modelPickerRef} onChange={setSelectedModel} />
-        </View>
-      </Animated.View>
+            <View style={[styles.refModalContainer, { paddingBottom: insets.bottom }]}>
+              <ModalHeader
+                leftSlot={<ModalCloseButton onPress={() => setShowReferencePosts(false)} />}
+                centerSlot="Style Reference"
+              />
+              <Text style={styles.refModalSubtitle}>
+                A random selection from your {recentPostTexts.length} past posts is used on each generation to match
+                your tone and keep ideas fresh.
+              </Text>
+              <FlatList
+                data={recentPostTexts}
+                keyExtractor={(_, i) => String(i)}
+                contentContainerStyle={styles.refModalList}
+                ItemSeparatorComponent={() => <View style={styles.refModalDivider} />}
+                renderItem={({ item }) => (
+                  <View style={styles.refModalRow}>
+                    <Text style={styles.refModalText}>{item}</Text>
+                  </View>
+                )}
+              />
+            </View>
+          </Modal>
+
+          {/* Message list */}
+          <Reanimated.FlatList
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(_, i) => String(i)}
+            renderItem={renderMessage}
+            style={styles.messageListContainer}
+            contentContainerStyle={styles.messageList}
+            onContentSizeChange={scrollToEnd}
+            onScroll={scrollHandler}
+            scrollEventThrottle={16}
+            ListFooterComponent={renderLoadingBubble}
+            ListEmptyComponent={
+              <Text style={styles.emptyHint}>Edit the prompt below and tap send to get caption ideas.</Text>
+            }
+          />
+
+          {/* Reference toggle */}
+          {messages.length === 0 && recentPostTexts.length > 0 && (
+            <View style={styles.referenceRow}>
+              <TouchableOpacity onPress={() => setShowReferencePosts(true)} style={styles.referenceLabelButton}>
+                <Text style={styles.referenceLabel}>Match my writing style</Text>
+              </TouchableOpacity>
+              <Switch
+                value={includeReference}
+                onValueChange={setIncludeReference}
+                trackColor={{ false: colors.glassBorder, true: colors.accent }}
+                thumbColor={colors.textInverse}
+                style={styles.referenceSwitch}
+              />
+            </View>
+          )}
+
+          {/* Input bar */}
+          <View style={[styles.inputBar, { paddingBottom: insets.bottom + 8 }]}>
+            <Textarea
+              style={styles.input}
+              placeholder="e.g. create some caption ideas"
+              value={inputText}
+              onChangeText={setInputText}
+              returnKeyType="default"
+            />
+            <TouchableOpacity
+              style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]}
+              onPress={handleSend}
+              disabled={!inputText.trim() || isLoading}
+            >
+              <Icon name="arrow-up" size={scale(20)} color={colors.textInverse} />
+            </TouchableOpacity>
+          </View>
+          {/* Hidden model picker */}
+          <View style={styles.hidden}>
+            <ModelSelectorButton ref={modelPickerRef} onChange={setSelectedModel} />
+          </View>
+        </Animated.View>
       </MenuProvider>
     </Modal>
   );

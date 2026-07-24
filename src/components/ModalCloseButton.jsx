@@ -12,10 +12,7 @@ export default function ModalCloseButton({ onPress }) {
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [
-        actionButtonStyles.pillButton,
-        pressed && { backgroundColor: colors.pressedBg },
-      ]}
+      style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
       hitSlop={8}
     >
       <Icon name="close" color={colors.text} />

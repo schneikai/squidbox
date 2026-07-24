@@ -2,25 +2,27 @@ import { useMemo } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Icon from '@/components/Icon';
 
 import EmptyState from '@/components/EmptyState';
-import ModalSheet from '@/components/ModalSheet';
-import SuperPressable from '@/components/SuperPressable';
+import Icon from '@/components/Icon';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
-import actionButtonStyles from '@/styles/actionButtonStyles';
-import usePosts from '@/features/posts-context/usePosts';
+import ModalSheet from '@/components/ModalSheet';
+import SuperPressable from '@/components/SuperPressable';
 import PostList from '@/features/post-list/PostList';
 import PostListItem from '@/features/post-list/PostListItem';
 import preparePosts from '@/features/post-list/preparePosts';
+import usePosts from '@/features/posts-context/usePosts';
+import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors } from '@/styles/designTokens';
 
 export default function IgnoredPostsScreen({ navigation }) {
   const { posts, updatePost } = usePosts();
   const { bottom } = useSafeAreaInsets();
   const scrollY = useSharedValue(0);
-  const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
 
   const postIds = useMemo(
     () =>
@@ -57,10 +59,7 @@ export default function IgnoredPostsScreen({ navigation }) {
           contentContainerStyle={{ paddingTop: MODAL_HEADER_HEIGHT, paddingBottom: bottom + 16 }}
           onScroll={onScroll}
           renderListItem={(post) => (
-            <SuperPressable
-              onPress={() => navigation.navigate('PostScreen', { postId: post.id })}
-              style={{ flex: 1 }}
-            >
+            <SuperPressable onPress={() => navigation.navigate('PostScreen', { postId: post.id })} style={{ flex: 1 }}>
               <PostListItem {...post} />
               <View style={styles.actionContainer}>
                 <TouchableOpacity style={actionButtonStyles.button} onPress={() => handleRestore(post)}>

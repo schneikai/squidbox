@@ -1,19 +1,15 @@
-import Icon from '@/components/Icon';
-import { Pressable, StyleSheet } from 'react-native';
-import { useEffect } from 'react';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-  interpolate,
-} from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigationState, useNavigation } from '@react-navigation/native';
+import { useEffect } from 'react';
+import { Pressable, StyleSheet } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming, interpolate } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { useFloatingBars } from './FloatingBarsContext';
+import FloatingPill from './FloatingPill';
+import { getActiveTabName, isDetailScreenActive } from './navStateHelpers';
 
 import GradientButton from '@/components/GradientButton';
-import { useFloatingBars } from './FloatingBarsContext';
-import { getActiveTabName, isDetailScreenActive } from './navStateHelpers';
-import FloatingPill from './FloatingPill';
+import Icon from '@/components/Icon';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, spacing } from '@/styles/designTokens';
 
@@ -75,14 +71,7 @@ export default function FloatingNavigationBar() {
       <FloatingPill>
         {NAV_ITEMS.map(({ tab, icon }) => {
           const isActive = activeTab === tab;
-          return (
-            <NavButton
-              key={tab}
-              icon={icon}
-              isActive={isActive}
-              onPress={() => handleNavigate(tab)}
-            />
-          );
+          return <NavButton key={tab} icon={icon} isActive={isActive} onPress={() => handleNavigate(tab)} />;
         })}
       </FloatingPill>
     </Animated.View>

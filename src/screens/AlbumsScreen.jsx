@@ -2,9 +2,8 @@ import { useEffect, useMemo } from 'react';
 import { Alert, View } from 'react-native';
 
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
-import FloatingHeader from '@/components/floating-bars/FloatingHeader';
-
 import { useFloatingBars } from '@/components/floating-bars/FloatingBarsContext';
+import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
 import AlbumList from '@/features/album-list/AlbumList';
 import AlbumListItem from '@/features/album-list/AlbumListItem';

@@ -19,11 +19,7 @@ export default function RootNavigator() {
       screenOptions={{ contentStyle: { backgroundColor: 'transparent' } }}
     >
       <RootStack.Group screenOptions={{ presentation: 'modal' }}>
-        <RootStack.Screen
-          name="CreatePostModal"
-          component={CreatePostNavigator}
-          options={{ headerShown: false }}
-        />
+        <RootStack.Screen name="CreatePostModal" component={CreatePostNavigator} options={{ headerShown: false }} />
         <RootStack.Screen name="AddEditPostModal" component={AddEditPostNavigator} options={{ headerShown: false }} />
         <RootStack.Screen name="AssetPickerModal" component={AssetPickerScreen} />
         <RootStack.Screen name="AddToAlbumModal" component={AddToAlbumScreen} options={{ headerShown: false }} />

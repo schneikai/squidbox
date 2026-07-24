@@ -2,27 +2,29 @@ import { useMemo, useEffect, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Icon from '@/components/Icon';
 
-import ModalSheet from '@/components/ModalSheet';
-import SuperPressable from '@/components/SuperPressable';
+import Icon from '@/components/Icon';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import ModalSheet from '@/components/ModalSheet';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
-import RandomSuggestionsModal from '@/features/post-random-suggestions/RandomSuggestionsModal';
-import actionButtonStyles from '@/styles/actionButtonStyles';
+import SuperPressable from '@/components/SuperPressable';
 import { SCREEN_PADDING } from '@/constants';
-import usePosts from '@/features/posts-context/usePosts';
 import PostList from '@/features/post-list/PostList';
 import PostListItem from '@/features/post-list/PostListItem';
 import preparePosts from '@/features/post-list/preparePosts';
+import RandomSuggestionsModal from '@/features/post-random-suggestions/RandomSuggestionsModal';
+import usePosts from '@/features/posts-context/usePosts';
+import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, radii, scale, typography } from '@/styles/designTokens';
 
 export default function CreatePostScreen({ navigation }) {
   const { posts, updatePost } = usePosts();
   const { bottom } = useSafeAreaInsets();
   const scrollY = useSharedValue(0);
-  const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
   const [showRandomSuggestions, setShowRandomSuggestions] = useState(false);
 
   const recentPostTexts = useMemo(
@@ -38,8 +40,7 @@ export default function CreatePostScreen({ navigation }) {
     () =>
       preparePosts({
         posts: Object.values(posts),
-        sortFn: (a, b) =>
-          (a.suggestRepostAt || a.postedAt || 0) - (b.suggestRepostAt || b.postedAt || 0),
+        sortFn: (a, b) => (a.suggestRepostAt || a.postedAt || 0) - (b.suggestRepostAt || b.postedAt || 0),
         filterFn: (post) => !post.isIgnoredForRepost && !post.hasBeenReposted,
       }).map((post) => post.id),
     [posts],
@@ -95,11 +96,19 @@ export default function CreatePostScreen({ navigation }) {
           <View style={styles.topSection}>
             {/* New post + AI suggestions row */}
             <View style={styles.actionRow}>
-              <TouchableOpacity style={[styles.newPostButton, styles.actionRowFlex]} onPress={handleCreateNewPost} activeOpacity={0.85}>
+              <TouchableOpacity
+                style={[styles.newPostButton, styles.actionRowFlex]}
+                onPress={handleCreateNewPost}
+                activeOpacity={0.85}
+              >
                 <Icon name="add" size={scale(22)} color={colors.textInverse} />
                 <Text style={styles.newPostText}>New Post</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.aiButton} onPress={() => setShowRandomSuggestions(true)} activeOpacity={0.85}>
+              <TouchableOpacity
+                style={styles.aiButton}
+                onPress={() => setShowRandomSuggestions(true)}
+                activeOpacity={0.85}
+              >
                 <Icon name="sparkles" size={scale(22)} color={colors.textInverse} />
               </TouchableOpacity>
             </View>
@@ -108,7 +117,10 @@ export default function CreatePostScreen({ navigation }) {
             <ScreenSectionHeader
               title="Repost something"
               rightSlot={
-                <TouchableOpacity onPress={() => navigation.navigate('IgnoredPostsScreen')} style={styles.ignoredButton}>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('IgnoredPostsScreen')}
+                  style={styles.ignoredButton}
+                >
                   <Icon name="eye-off" size={scale(14)} color={colors.textSecondary} />
                   <Text style={styles.ignoredButtonLabel}>Ignored posts</Text>
                 </TouchableOpacity>
@@ -118,10 +130,7 @@ export default function CreatePostScreen({ navigation }) {
         }
         renderListItem={(post) => {
           return (
-            <SuperPressable
-              onPress={() => navigation.navigate('PostScreen', { postId: post.id })}
-              style={{ flex: 1 }}
-            >
+            <SuperPressable onPress={() => navigation.navigate('PostScreen', { postId: post.id })} style={{ flex: 1 }}>
               <PostListItem {...post} />
               <PostActions
                 onRepost={() => handleRepost(post)}

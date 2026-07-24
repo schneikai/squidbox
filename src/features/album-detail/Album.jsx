@@ -1,5 +1,4 @@
 import { useActionSheet } from '@expo/react-native-action-sheet';
-import Icon from '@/components/Icon';
 import { useNavigation } from '@react-navigation/native';
 import { useState, useMemo } from 'react';
 import { Text, StyleSheet, View, Pressable, TouchableOpacity, useWindowDimensions } from 'react-native';
@@ -8,50 +7,51 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AssetQuickViewModal, { useAssetQuickViewModal } from '@/components/AssetQuickViewModal';
 import GradientButton from '@/components/GradientButton';
+import Icon from '@/components/Icon';
 import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 import SearchOptionsBar from '@/components/floating-bars/SearchOptionsBar';
 import SortFilterModal from '@/components/floating-bars/SortFilterModal';
-import AddAssetAction from '@/features/album-detail/actions/AddAssetAction';
-import MoreAction from '@/features/album-detail/actions/MoreAction';
+import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import AlbumAssetsView from '@/features/album-detail/AlbumAssetsView';
 import AlbumPostsView from '@/features/album-detail/AlbumPostsView';
-import preparePosts from '@/features/post-list/preparePosts';
-import usePosts from '@/features/posts-context/usePosts';
+import useAlbums from '@/features/albums-context/useAlbums';
 import useFilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/useFilterAssetsAction';
 import { assetSortOptions } from '@/features/asset-list/actions/sort-assets-action/useSortAssetsAction';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import prepareAssets from '@/features/asset-list/prepareAssets';
 import useAssetList from '@/features/asset-list/useAssetList';
 import useAssets from '@/features/assets-context/useAssets';
-import useAlbums from '@/features/albums-context/useAlbums';
-import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
-import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
-import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
-import getAlbumAssets from '@/utils/albums/getAlbumAssets';
-import isSmartAlbum from '@/utils/albums/isSmartAlbum';
+import AddAssetAction from '@/features/album-detail/actions/AddAssetAction';
+import MoreAction from '@/features/album-detail/actions/MoreAction';
 import useAppSettings from '@/features/app-settings/useAppSettings';
+import preparePosts from '@/features/post-list/preparePosts';
+import usePosts from '@/features/posts-context/usePosts';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, scale, spacing, typography } from '@/styles/designTokens';
+import getAlbumAssets from '@/utils/albums/getAlbumAssets';
+import isSmartAlbum from '@/utils/albums/isSmartAlbum';
+import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
+import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 import pluralizeText from '@/utils/pluralizeText';
 
 const TABS = [
   { key: 'Assets', icon: 'grid' },
-  { key: 'Posts',  icon: 'share-alt' },
+  { key: 'Posts', icon: 'share-alt' },
 ];
 
 const ASSET_FILTER_OPTIONS = [
-  { key: 'all',       label: 'All Media',  icon: 'apps' },
-  { key: 'favorites', label: 'Favorites',  icon: 'heart' },
-  { key: 'images',    label: 'Photos',     icon: 'image' },
-  { key: 'videos',    label: 'Videos',     icon: 'video' },
+  { key: 'all', label: 'All Media', icon: 'apps' },
+  { key: 'favorites', label: 'Favorites', icon: 'heart' },
+  { key: 'images', label: 'Photos', icon: 'image' },
+  { key: 'videos', label: 'Videos', icon: 'video' },
 ];
 
 const ASSET_SORT_OPTIONS = [
-  { key: 'custom',       label: 'Custom',         directional: false },
-  { key: 'createdAt',    label: 'Created At' },
+  { key: 'custom', label: 'Custom', directional: false },
+  { key: 'createdAt', label: 'Created At' },
   { key: 'lastPostedAt', label: 'Last Posted At' },
 ];
 
@@ -90,8 +90,13 @@ export default function Album({ album }) {
   const { width: screenWidth } = useWindowDimensions();
   const expandProgress = useSharedValue(0);
 
-  function openSearch() { setIsSearchActive(true); }
-  function closeSearch() { setIsSearchActive(false); setSearchText(''); }
+  function openSearch() {
+    setIsSearchActive(true);
+  }
+  function closeSearch() {
+    setIsSearchActive(false);
+    setSearchText('');
+  }
 
   const assetIds = useMemo(
     () =>
@@ -121,11 +126,7 @@ export default function Album({ album }) {
   // Drag-to-reorder only makes sense on the full, unfiltered album order and has
   // nowhere to persist for smart albums, so it stays off otherwise.
   const reorderEnabled =
-    activeTab === 'Assets' &&
-    !isSelectMode &&
-    !isSmartAlbum(album) &&
-    activeFilter.length === 0 &&
-    !searchText.trim();
+    activeTab === 'Assets' && !isSelectMode && !isSmartAlbum(album) && activeFilter.length === 0 && !searchText.trim();
 
   // Smart albums (Favorites/Deleted) have no stored order, so hide "Custom".
   const sortOptions = isSmartAlbum(album)
@@ -289,11 +290,7 @@ export default function Album({ album }) {
             onReorder={handleReorder}
           />
         ) : (
-          <AlbumPostsView
-            postIds={postIds}
-            paddingTop={hasSubHeader ? 0 : paddingTop}
-            paddingBottom={paddingBottom}
-          />
+          <AlbumPostsView postIds={postIds} paddingTop={hasSubHeader ? 0 : paddingTop} paddingBottom={paddingBottom} />
         )}
       </View>
 
@@ -351,21 +348,12 @@ function SegmentPill({ tabs, activeTab, onTabPress, expandProgress, bottom }) {
 
   return (
     <Animated.View
-      style={[
-        styles.segmentContainer,
-        { bottom, right: spacing.floatingBarSide },
-        slideStyle,
-      ]}
+      style={[styles.segmentContainer, { bottom, right: spacing.floatingBarSide }, slideStyle]}
       pointerEvents="box-none"
     >
       <FloatingPill>
         {tabs.map((tab) => (
-          <SegmentButton
-            key={tab.key}
-            tab={tab}
-            isActive={activeTab === tab.key}
-            onPress={() => onTabPress(tab.key)}
-          />
+          <SegmentButton key={tab.key} tab={tab} isActive={activeTab === tab.key} onPress={() => onTabPress(tab.key)} />
         ))}
       </FloatingPill>
     </Animated.View>

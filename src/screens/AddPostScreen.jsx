@@ -29,7 +29,6 @@ export default function AddPostScreen({ route, navigation }) {
 
   const [postData, setPostData] = useState(initialPostData);
 
-
   async function handleAddPost() {
     const addPostData = { ...postData };
     if (rePost) addPostData.rePostId = rePost.id;

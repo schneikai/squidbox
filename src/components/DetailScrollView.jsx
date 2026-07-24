@@ -1,7 +1,7 @@
 import { ScrollView, StyleSheet } from 'react-native';
 
-import useScreenPadding from '@/hooks/useScreenPadding';
 import { SCREEN_PADDING } from '@/constants';
+import useScreenPadding from '@/hooks/useScreenPadding';
 
 /**
  * Scrollable body for Page-based detail screens (stack screens using

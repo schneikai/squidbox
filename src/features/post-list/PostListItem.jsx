@@ -1,14 +1,13 @@
-import Icon from '@/components/Icon';
 import { useEffect, useState } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 
-import { SCREEN_PADDING } from '@/constants';
-import { colors, scale, typography } from '@/styles/designTokens';
-
 import PostImage from './PostImage';
 
+import Icon from '@/components/Icon';
+import { SCREEN_PADDING } from '@/constants';
 import useAssets from '@/features/assets-context/useAssets';
 import PostPostedAt from '@/features/posts/PostPostedAt';
+import { colors, scale, typography } from '@/styles/designTokens';
 import isPresent from '@/utils/isPresent';
 import assetRefsToPostAssets from '@/utils/posts/assetRefsToPostAssets';
 

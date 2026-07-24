@@ -1,19 +1,19 @@
+import moment from 'moment';
 import { useState, useEffect, useRef } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, TouchableOpacity, Text, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import Page from '@/components/Page';
-import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
-import FloatingDetailActionsBar from '@/components/floating-bars/FloatingDetailActionsBar';
-import VideoControls from '@/components/VideoControls';
-import AssetItem from '@/features/asset-detail/AssetItem';
 import AssetImage from '@/components/AssetImage';
+import Page from '@/components/Page';
+import VideoControls from '@/components/VideoControls';
+import FloatingDetailActionsBar from '@/components/floating-bars/FloatingDetailActionsBar';
+import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
+import { SCREEN_PADDING } from '@/constants';
+import AssetItem from '@/features/asset-detail/AssetItem';
 import MoreAction from '@/features/asset-detail/actions/MoreAction';
 import useAssets from '@/features/assets-context/useAssets';
-import { SCREEN_PADDING } from '@/constants';
-import { MEDIA_TYPES } from '@/utils/assets/constants';
-import moment from 'moment';
 import { colors, radii, scale, spacing } from '@/styles/designTokens';
+import { MEDIA_TYPES } from '@/utils/assets/constants';
 
 export default function AssetScreen({ route, navigation }) {
   const { assets, setAssetsDeleted } = useAssets();
@@ -56,12 +56,16 @@ export default function AssetScreen({ route, navigation }) {
   return (
     <Page>
       <FloatingDetailHeader
-        title={asset ? moment(asset.createdAt).calendar(null, {
-          lastWeek: 'dddd',
-          lastDay: '[Yesterday]',
-          sameDay: '[Today]',
-          sameElse: 'DD. MMM YYYY',
-        }) : ''}
+        title={
+          asset
+            ? moment(asset.createdAt).calendar(null, {
+                lastWeek: 'dddd',
+                lastDay: '[Yesterday]',
+                sameDay: '[Today]',
+                sameElse: 'DD. MMM YYYY',
+              })
+            : ''
+        }
         subtitle={asset ? moment(asset.createdAt).format('LT') : ''}
         onBack={() => navigation.goBack()}
         menuSlot={<MoreAction asset={asset} navigation={navigation} />}
@@ -83,13 +87,7 @@ export default function AssetScreen({ route, navigation }) {
         renderItem={({ item: assetId }) => {
           const a = assets[assetId];
           if (!a) return null;
-          return (
-            <AssetItem
-              asset={a}
-              style={{ width: windowWidth }}
-              onTap={() => setIsFullscreen(true)}
-            />
-          );
+          return <AssetItem asset={a} style={{ width: windowWidth }} onTap={() => setIsFullscreen(true)} />;
         }}
         getItemLayout={(data, index) => ({ length: windowWidth, offset: windowWidth * index, index })}
         initialScrollIndex={initialScrollIndex}

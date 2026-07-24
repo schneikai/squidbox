@@ -1,18 +1,17 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { MenuProvider } from 'react-native-popup-menu';
 
-import PostScreen from '@/screens/PostScreen';
+import AlbumScreen from '@/screens/AlbumScreen';
 import CreatePostScreen from '@/screens/CreatePostScreen';
 import IgnoredPostsScreen from '@/screens/IgnoredPostsScreen';
-import AlbumScreen from '@/screens/AlbumScreen';
-import { MenuProvider } from 'react-native-popup-menu';
+import PostScreen from '@/screens/PostScreen';
+
 const Stack = createNativeStackNavigator();
 
 export default function CreatePostNavigator() {
   return (
     <MenuProvider skipInstanceCheck>
-      <Stack.Navigator
-        screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}
-      >
+      <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
         <Stack.Screen name="CreatePostScreen" component={CreatePostScreen} />
         <Stack.Screen name="PostScreen" component={PostScreen} />
         <Stack.Screen name="IgnoredPostsScreen" component={IgnoredPostsScreen} />

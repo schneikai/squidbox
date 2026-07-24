@@ -1,4 +1,3 @@
-import Icon from '@/components/Icon';
 import { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import Animated, {
@@ -8,11 +7,12 @@ import Animated, {
   interpolate,
   Extrapolation,
 } from 'react-native-reanimated';
-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import AppTextInput from '@/components/TextInput';
 import FloatingPill from './FloatingPill';
+
+import Icon from '@/components/Icon';
+import AppTextInput from '@/components/TextInput';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, scale, spacing, typography } from '@/styles/designTokens';
 
@@ -61,12 +61,7 @@ export default function SearchOptionsBar({
   }, [isSearchActive]);
 
   const containerStyle = useAnimatedStyle(() => ({
-    width: interpolate(
-      expandProgress.value,
-      [0, 1],
-      [spacing.iconButtonSize * 2 + 20, maxWidth],
-      Extrapolation.CLAMP,
-    ),
+    width: interpolate(expandProgress.value, [0, 1], [spacing.iconButtonSize * 2 + 20, maxWidth], Extrapolation.CLAMP),
     // keyboard.height on iOS includes the bottom safe area inset, which is already
     // baked into the `bottom` prop — subtract it to avoid double-counting.
     bottom: bottom + Math.max(0, keyboard.height.value - bottomInset),

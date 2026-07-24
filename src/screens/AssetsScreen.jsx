@@ -1,23 +1,22 @@
+import { useNavigation } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Alert, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-
-import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
-import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 
 import AssetQuickViewModal, { useAssetQuickViewModal } from '@/components/AssetQuickViewModal';
 import SuperPressable from '@/components/SuperPressable';
+import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
 import { useFloatingBars } from '@/components/floating-bars/FloatingBarsContext';
+import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
+import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import AssetList from '@/features/asset-list/AssetList';
 import AssetListItem from '@/features/asset-list/AssetListItem';
 import useFilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/useFilterAssetsAction';
 import useSortAssetsAction from '@/features/asset-list/actions/sort-assets-action/useSortAssetsAction';
 import prepareAssets from '@/features/asset-list/prepareAssets';
 import useAssetList from '@/features/asset-list/useAssetList';
-import useAssets from '@/features/assets-context/useAssets';
 import useAddAssetsFromCameraRoll from '@/features/assets-context/useAddAssetsFromCameraRoll';
-import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
+import useAssets from '@/features/assets-context/useAssets';
 import useScreenPadding from '@/hooks/useScreenPadding';
 
 export default function AssetsScreen({ route }) {

@@ -6,7 +6,14 @@ import useGetAlbumThumbnailAssetAndAssetCount from './useGetAlbumThumbnailAssetA
 import { SCREEN_PADDING } from '@/constants';
 import useAlbums from '@/features/albums-context/useAlbums';
 
-export default function AlbumList({ albumIds, renderItem, ListHeaderComponent, listRef, contentContainerStyle, onScroll }) {
+export default function AlbumList({
+  albumIds,
+  renderItem,
+  ListHeaderComponent,
+  listRef,
+  contentContainerStyle,
+  onScroll,
+}) {
   const { albums } = useAlbums();
   const getAlbumThumbnailAssetAndAssetCount = useGetAlbumThumbnailAssetAndAssetCount();
 
@@ -47,4 +54,3 @@ export default function AlbumList({ albumIds, renderItem, ListHeaderComponent, l
     />
   );
 }
-

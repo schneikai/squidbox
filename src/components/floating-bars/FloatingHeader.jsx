@@ -1,21 +1,17 @@
-import Icon from '@/components/Icon';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  interpolate,
-  Extrapolation,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, interpolate, Extrapolation, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import GradientButton from '@/components/GradientButton';
 import { useFloatingBars } from './FloatingBarsContext';
 import FloatingPill from './FloatingPill';
+
+import GradientButton from '@/components/GradientButton';
+import Icon from '@/components/Icon';
+import useCloud from '@/features/cloud/useCloud';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, shadows, spacing, typography } from '@/styles/designTokens';
-import useCloud from '@/features/cloud/useCloud';
 
 export default function FloatingHeader({
   title,
@@ -31,13 +27,7 @@ export default function FloatingHeader({
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { isAuthenticated } = useCloud();
-  const {
-    scrollY,
-    isSelectMode,
-    selectedAssetIds,
-    toggleSelectMode,
-    exitSelectMode,
-  } = useFloatingBars();
+  const { scrollY, isSelectMode, selectedAssetIds, toggleSelectMode, exitSelectMode } = useFloatingBars();
 
   // ── Animated styles (must be called before any conditional return) ─────────
   const titleStyle = useAnimatedStyle(() => {
@@ -45,10 +35,7 @@ export default function FloatingHeader({
     const scrollY_ = interpolate(scrollY.value, [0, 60], [0, -8], Extrapolation.CLAMP);
     return {
       opacity: withTiming(isSelectMode ? 0 : scrollOpacity, { duration: 200 }),
-      transform: [
-        { translateY: scrollY_ },
-        { translateX: withTiming(isSelectMode ? -24 : 0, { duration: 200 }) },
-      ],
+      transform: [{ translateY: scrollY_ }, { translateX: withTiming(isSelectMode ? -24 : 0, { duration: 200 }) }],
       pointerEvents: isSelectMode ? 'none' : 'auto',
     };
   });
@@ -69,7 +56,9 @@ export default function FloatingHeader({
 
   const hasSelection = selectedAssetIds.length > 0;
 
-  function handleSettings() { navigation.navigate('SettingsTab'); }
+  function handleSettings() {
+    navigation.navigate('SettingsTab');
+  }
 
   return (
     <View style={[styles.container, { top: insets.top }]} pointerEvents="box-none">
@@ -80,11 +69,9 @@ export default function FloatingHeader({
       <Animated.View style={[styles.rightGroup, normalStyle]}>
         {/* Action pill: select toggle + add */}
         <FloatingPill>
-          {isAssetsTab && (
-            <PillButton iconName="check-circle" onPress={toggleSelectMode} />
-          )}
+          {isAssetsTab && <PillButton iconName="check-circle" onPress={toggleSelectMode} />}
           <GradientButton onPress={onAdd} style={styles.addButton}>
-              <Icon name="add" color={colors.textInverse} />
+            <Icon name="add" color={colors.textInverse} />
           </GradientButton>
         </FloatingPill>
 
@@ -114,11 +101,7 @@ export default function FloatingHeader({
       {isAssetsTab && (
         <Animated.View style={[styles.pillWrapper, selectPillStyle]}>
           <FloatingPill>
-            <PillButton
-              iconName="checkbox"
-              onPress={onSelectAll}
-              active={allSelected}
-            />
+            <PillButton iconName="checkbox" onPress={onSelectAll} active={allSelected} />
             <PillButton iconName="download" onPress={onDownload} disabled={!hasSelection} />
             <PillButton iconName="library" onPress={onAddToAlbum} disabled={!hasSelection} />
             <PillButton iconName="share" onPress={onPost} disabled={!hasSelection} />

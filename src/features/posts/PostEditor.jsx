@@ -3,24 +3,26 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 
 import Card from '@/components/Card';
-import ModalSheet from '@/components/ModalSheet';
 import DateTimePicker from '@/components/DateTimePicker';
 import GradientPillButton from '@/components/GradientPillButton';
 import IconButton from '@/components/IconButton';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import ModalSheet from '@/components/ModalSheet';
 import Textarea from '@/components/Textarea';
-import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
+import { SCREEN_PADDING } from '@/constants';
 import AiChatModal from '@/features/ai-suggestions/AiChatModal';
+import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import RandomSuggestionsModal from '@/features/post-random-suggestions/RandomSuggestionsModal';
 import usePosts from '@/features/posts-context/usePosts';
-import getNewItemId from '@/utils/getNewItemId';
-import { SCREEN_PADDING } from '@/constants';
 import { colors } from '@/styles/designTokens';
+import getNewItemId from '@/utils/getNewItemId';
 
 export default function PostEditor({ post, onChange, navigation, onSave, canSave, title = 'Post' }) {
   const scrollY = useSharedValue(0);
-  const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
   const [text, setText] = useState(post.text);
   const [assetRefs, setAssetRefs] = useState(post.assetRefs);
   const [postedAt, setPostedAt] = useState(post.postedAt);
@@ -75,13 +77,7 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
               onPress={() => setShowRandomSuggestions(true)}
               accessibilityLabel="AI suggestions"
             />
-            {onSave && (
-              <GradientPillButton
-                label="Save"
-                onPress={onSave}
-                disabled={!canSave}
-              />
-            )}
+            {onSave && <GradientPillButton label="Save" onPress={onSave} disabled={!canSave} />}
           </>
         }
       />
@@ -92,10 +88,7 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
         contentContainerStyle={styles.scrollContent}
       >
         <Card style={styles.mediaCard}>
-          <PostAssetsEditor
-            assetRefs={assetRefs}
-            onChange={handleAssetRefsChange}
-          />
+          <PostAssetsEditor assetRefs={assetRefs} onChange={handleAssetRefsChange} />
         </Card>
 
         <Card style={styles.textCard}>

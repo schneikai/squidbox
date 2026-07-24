@@ -19,11 +19,7 @@ import { colors } from '@/styles/designTokens';
  * style applies to the root View.
  */
 export default function ModalSheet({ children, style }) {
-  return (
-    <View style={[styles.root, style]}>
-      {children}
-    </View>
-  );
+  return <View style={[styles.root, style]}>{children}</View>;
 }
 
 const styles = StyleSheet.create({

@@ -24,6 +24,7 @@ import { StyleSheet, View } from 'react-native';
 // eslint-disable-next-line import/no-duplicates
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Menu, MenuProvider } from 'react-native-popup-menu';
+
 import BlurPopoverRenderer from '@/components/popup-menu-options/BlurPopoverRenderer';
 
 Menu.setDefaultRenderer(BlurPopoverRenderer);
@@ -53,21 +54,21 @@ const App = () => {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-      <ProgressOverlayProvider>
-      <AppSettingsProvider>
-        <AssetsProvider>
-          <AlbumsProvider>
-            <PostsProvider>
-              <CloudProvider>
-                <CloudSyncProvider>
-                  <AppComponent />
-                </CloudSyncProvider>
-              </CloudProvider>
-            </PostsProvider>
-          </AlbumsProvider>
-        </AssetsProvider>
-      </AppSettingsProvider>
-      </ProgressOverlayProvider>
+        <ProgressOverlayProvider>
+          <AppSettingsProvider>
+            <AssetsProvider>
+              <AlbumsProvider>
+                <PostsProvider>
+                  <CloudProvider>
+                    <CloudSyncProvider>
+                      <AppComponent />
+                    </CloudSyncProvider>
+                  </CloudProvider>
+                </PostsProvider>
+              </AlbumsProvider>
+            </AssetsProvider>
+          </AppSettingsProvider>
+        </ProgressOverlayProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
@@ -131,4 +132,4 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
-})
+});

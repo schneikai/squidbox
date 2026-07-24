@@ -8,16 +8,21 @@ export default function confirmLoginAsync() {
     : 'You will be logged in. Your local data will not be affected.';
 
   return new Promise((resolve) => {
-    Alert.alert('Confirm Login', message, [
-      {
-        text: 'Cancel',
-        style: 'cancel',
-        onPress: () => resolve(false),
-      },
-      {
-        text: 'Login',
-        onPress: () => resolve(true),
-      },
-    ], { cancelable: false });
+    Alert.alert(
+      'Confirm Login',
+      message,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => resolve(false),
+        },
+        {
+          text: 'Login',
+          onPress: () => resolve(true),
+        },
+      ],
+      { cancelable: false },
+    );
   });
 }

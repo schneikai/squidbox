@@ -13,9 +13,12 @@ export default function AssetPickerProvider({ children }) {
   const [albumScreenProps, setAlbumScreenProps] = useState(null);
   const onClosePromiseResolveRef = useRef();
 
-  const isAssetSelected = useCallback((asset) => {
-    return selectedAssets.find((selectedAsset) => selectedAsset.id === asset.id);
-  }, [selectedAssets]);
+  const isAssetSelected = useCallback(
+    (asset) => {
+      return selectedAssets.find((selectedAsset) => selectedAsset.id === asset.id);
+    },
+    [selectedAssets],
+  );
 
   const cleanUpAndClose = useCallback(() => {
     setSelectedAssets([]);
@@ -42,14 +45,17 @@ export default function AssetPickerProvider({ children }) {
     cleanUpAndClose();
   }, [cleanUpAndClose]);
 
-  const toggleSelectAsset = useCallback((asset) => {
-    setSelectedAssets((selectedAssets) => {
-      if (isAssetSelected(asset)) {
-        return selectedAssets.filter((selectedAsset) => selectedAsset !== asset);
-      }
-      return [...selectedAssets, asset];
-    });
-  }, [isAssetSelected]);
+  const toggleSelectAsset = useCallback(
+    (asset) => {
+      setSelectedAssets((selectedAssets) => {
+        if (isAssetSelected(asset)) {
+          return selectedAssets.filter((selectedAsset) => selectedAsset !== asset);
+        }
+        return [...selectedAssets, asset];
+      });
+    },
+    [isAssetSelected],
+  );
 
   return (
     <AssetPickerContext.Provider

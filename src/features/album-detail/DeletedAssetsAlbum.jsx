@@ -1,19 +1,19 @@
-import Icon from '@/components/Icon';
 import { useNavigation } from '@react-navigation/native';
 import { useState, useMemo, useTransition } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
-import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
+import Icon from '@/components/Icon';
 import Page from '@/components/Page';
+import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import AssetList from '@/features/asset-list/AssetList';
 import AssetListItem from '@/features/asset-list/AssetListItem';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import prepareAssets from '@/features/asset-list/prepareAssets';
 import useAssets from '@/features/assets-context/useAssets';
-import getAlbumAssets from '@/utils/albums/getAlbumAssets';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors } from '@/styles/designTokens';
+import getAlbumAssets from '@/utils/albums/getAlbumAssets';
 
 export default function AlbumScreenComponentForDeletedAssets({ album }) {
   const { assets, restoreDeletedAssets, deleteAssetsAsync } = useAssets();
@@ -24,7 +24,10 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
   const { isSelectMode, selectedAssetIds, toggleSelectMode, toggleSelectAsset } = useToggleSelectAssetsAction();
 
   const assetIds = useMemo(
-    () => prepareAssets({ assets: getAlbumAssets(album, Object.values(assets)), filterDeleted: false }).map((asset) => asset.id),
+    () =>
+      prepareAssets({ assets: getAlbumAssets(album, Object.values(assets)), filterDeleted: false }).map(
+        (asset) => asset.id,
+      ),
     [album, assets],
   );
 
@@ -52,9 +55,7 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
       return;
     }
 
-    const assetsToDelete = isSelectMode
-      ? selectedAssetIds.map((id) => assets[id])
-      : assetIds.map((id) => assets[id]);
+    const assetsToDelete = isSelectMode ? selectedAssetIds.map((id) => assets[id]) : assetIds.map((id) => assets[id]);
 
     const title = isSelectMode ? 'Delete selected' : 'Delete all';
     const message = isSelectMode

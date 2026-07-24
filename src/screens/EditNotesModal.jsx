@@ -2,15 +2,15 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { SCREEN_PADDING } from '@/constants';
-import ModalSheet from '@/components/ModalSheet';
-import useAlbums from '@/features/albums-context/useAlbums';
-import useAssets from '@/features/assets-context/useAssets';
 import GradientPillButton from '@/components/GradientPillButton';
 import IconButton from '@/components/IconButton';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import ModalSheet from '@/components/ModalSheet';
 import Textarea from '@/components/Textarea';
+import { SCREEN_PADDING } from '@/constants';
+import useAlbums from '@/features/albums-context/useAlbums';
+import useAssets from '@/features/assets-context/useAssets';
 import { colors } from '@/styles/designTokens';
 
 export default function EditNotesModal({ route, navigation }) {
@@ -47,24 +47,13 @@ export default function EditNotesModal({ route, navigation }) {
         centerSlot="Notes"
         rightSlot={
           <View style={styles.rightActions}>
-            <IconButton
-              icon="trash"
-              onPress={handleDelete}
-              color={colors.danger}
-              accessibilityLabel="Delete note"
-            />
+            <IconButton icon="trash" onPress={handleDelete} color={colors.danger} accessibilityLabel="Delete note" />
             <GradientPillButton label="Save" onPress={handleSave} />
           </View>
         }
       />
       <View style={[styles.inputCard, { marginTop: MODAL_HEADER_HEIGHT + 8 }]}>
-        <Textarea
-          value={notes}
-          onChangeText={setNotes}
-          placeholder="Add a note…"
-          autoFocus
-          style={styles.input}
-        />
+        <Textarea value={notes} onChangeText={setNotes} placeholder="Add a note…" autoFocus style={styles.input} />
       </View>
     </ModalSheet>
   );

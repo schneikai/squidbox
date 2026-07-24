@@ -10,7 +10,10 @@ export default function ProgressOverlayProvider({ children }) {
 
   const show = useCallback(() => setMode('progress'), []);
   const showBlocking = useCallback(() => setMode('blocking'), []);
-  const hide = useCallback(() => { setMode(null); setProgress(0); }, []);
+  const hide = useCallback(() => {
+    setMode(null);
+    setProgress(0);
+  }, []);
   const updateProgress = useCallback((value) => setProgress(value), []);
 
   return (
@@ -18,9 +21,11 @@ export default function ProgressOverlayProvider({ children }) {
       {children}
       {mode !== null && (
         <View style={styles.overlay} pointerEvents="box-only">
-          {mode === 'progress'
-            ? <CircularProgress value={Math.round(progress)} maxValue={100} duration={0} />
-            : <ActivityIndicator size="large" color="white" />}
+          {mode === 'progress' ? (
+            <CircularProgress value={Math.round(progress)} maxValue={100} duration={0} />
+          ) : (
+            <ActivityIndicator size="large" color="white" />
+          )}
         </View>
       )}
     </ProgressOverlayContext.Provider>

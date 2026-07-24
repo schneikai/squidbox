@@ -1,5 +1,5 @@
-import PopupMenu from '@/components/popup-menu-options/PopupMenu';
 import FilterMenuOptions from '@/components/popup-menu-options/FilterMenuOptions';
+import PopupMenu from '@/components/popup-menu-options/PopupMenu';
 
 export default function FilterPostsAction({ activeFilter, onPress }) {
   return (

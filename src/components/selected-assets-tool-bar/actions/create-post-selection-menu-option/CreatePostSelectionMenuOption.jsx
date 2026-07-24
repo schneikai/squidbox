@@ -3,8 +3,8 @@ import { Text } from 'react-native';
 import { MenuOption } from 'react-native-popup-menu';
 
 import Icon from '@/components/Icon';
-import popupMenuStyles from '@/styles/popupMenuStyles';
 import { colors, spacing } from '@/styles/designTokens';
+import popupMenuStyles from '@/styles/popupMenuStyles';
 
 export default function CreatePostSelectionMenuOption({ getSelectedAssets }) {
   const navigation = useNavigation();
@@ -16,7 +16,12 @@ export default function CreatePostSelectionMenuOption({ getSelectedAssets }) {
   return (
     <MenuOption onSelect={handleSelect} customStyles={{ optionWrapper: popupMenuStyles.menuOption }}>
       <Text style={popupMenuStyles.menuOptionText}>Create Post</Text>
-      <Icon name="edit" size={spacing.menuIconSize} color={colors.darkModalTextDim} style={popupMenuStyles.menuOptionIcon} />
+      <Icon
+        name="edit"
+        size={spacing.menuIconSize}
+        color={colors.darkModalTextDim}
+        style={popupMenuStyles.menuOptionIcon}
+      />
     </MenuOption>
   );
 }

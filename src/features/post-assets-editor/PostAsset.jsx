@@ -1,8 +1,8 @@
 import { Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { colors, scale } from '@/styles/designTokens';
 import { ScaleDecorator } from 'react-native-draggable-flatlist';
 
 import AssetImage from '@/components/AssetImage';
+import { colors, scale } from '@/styles/designTokens';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
 export default function PostAsset({ postAsset, onDelete, onLongPress, isActive, itemDimension }) {

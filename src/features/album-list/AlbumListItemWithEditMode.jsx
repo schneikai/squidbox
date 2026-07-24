@@ -1,7 +1,7 @@
-import Icon from '@/components/Icon';
 import { StyleSheet, View, Pressable } from 'react-native';
 import DoubleTap from 'react-native-double-tap';
 
+import Icon from '@/components/Icon';
 import { colors, spacing, radii } from '@/styles/designTokens';
 
 export default function AlbumListItemWithEditMode({

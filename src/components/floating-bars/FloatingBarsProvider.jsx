@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from 'react';
 import { useNavigationState } from '@react-navigation/native';
+import { useState, useRef, useCallback } from 'react';
 import { useSharedValue } from 'react-native-reanimated';
 
 import FloatingBarsContext from './FloatingBarsContext';
@@ -71,9 +71,7 @@ export default function FloatingBarsProvider({ children }) {
   }
 
   function toggleSelectAsset(assetId) {
-    setSelectedAssetIds((prev) =>
-      prev.includes(assetId) ? prev.filter((id) => id !== assetId) : [...prev, assetId],
-    );
+    setSelectedAssetIds((prev) => (prev.includes(assetId) ? prev.filter((id) => id !== assetId) : [...prev, assetId]));
   }
 
   // Stable identity so the drag-select gesture isn't rebuilt mid-drag when the

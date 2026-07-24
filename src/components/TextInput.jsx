@@ -12,13 +12,7 @@ import { colors, typography } from '@/styles/designTokens';
  * Accepts and forwards all React Native TextInput props.
  */
 export default function TextInput({ style, ...rest }) {
-  return (
-    <RNTextInput
-      placeholderTextColor={colors.textTertiary}
-      style={[styles.base, style]}
-      {...rest}
-    />
-  );
+  return <RNTextInput placeholderTextColor={colors.textTertiary} style={[styles.base, style]} {...rest} />;
 }
 
 const styles = StyleSheet.create({

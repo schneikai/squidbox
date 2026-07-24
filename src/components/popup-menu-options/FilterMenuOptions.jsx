@@ -1,8 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
-
-import Icon from '@/components/Icon';
 import { MenuOption } from 'react-native-popup-menu';
 
+import Icon from '@/components/Icon';
 import { colors, spacing, scale } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
@@ -11,9 +10,7 @@ export default function FilterMenuOptions({ filters, onPress, activeFilter }) {
     <>
       <MenuOption onSelect={() => onPress('all')} style={popupMenuStyles.menuOption}>
         <Text style={[popupMenuStyles.menuOptionText, styles.allLabel]}>All</Text>
-        {activeFilter.length === 0 && (
-          <Icon name="check" size={spacing.menuIconSize} color={colors.accent} />
-        )}
+        {activeFilter.length === 0 && <Icon name="check" size={spacing.menuIconSize} color={colors.accent} />}
       </MenuOption>
 
       <View style={styles.sectionHeader}>
@@ -24,19 +21,14 @@ export default function FilterMenuOptions({ filters, onPress, activeFilter }) {
         <MenuOption
           onSelect={() => onPress(filter)}
           key={filter}
-          style={[
-            popupMenuStyles.menuOption,
-            index === filters.length - 1 && popupMenuStyles.menuOptionLast,
-          ]}
+          style={[popupMenuStyles.menuOption, index === filters.length - 1 && popupMenuStyles.menuOptionLast]}
         >
           <Text style={[popupMenuStyles.menuOptionText, styles.filterLabel]}>
             {filter.charAt(0).toUpperCase() + filter.slice(1)}
           </Text>
-          {activeFilter.includes(filter) && (
-          <Icon name="check" size={spacing.menuIconSize} color={colors.accent} />
-        )}
-      </MenuOption>
-    ))}
+          {activeFilter.includes(filter) && <Icon name="check" size={spacing.menuIconSize} color={colors.accent} />}
+        </MenuOption>
+      ))}
     </>
   );
 }

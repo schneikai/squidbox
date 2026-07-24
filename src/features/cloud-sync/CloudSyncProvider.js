@@ -17,10 +17,7 @@ export default function CloudSyncProvider({ children }) {
   const [syncProgressMessage, setSyncProgressMessage] = useState(null);
   const [syncSpeedMessage, setSyncSpeedMessage] = useState(null);
 
-  const unsyncedAssets = useMemo(
-    () => (isAuthenticated ? getUnsyncedAssets(assets) : []),
-    [assets, isAuthenticated],
-  );
+  const unsyncedAssets = useMemo(() => (isAuthenticated ? getUnsyncedAssets(assets) : []), [assets, isAuthenticated]);
 
   const assetsWithSyncErrors = useMemo(
     () => (isAuthenticated ? getAssetsWithSyncError(assets) : []),

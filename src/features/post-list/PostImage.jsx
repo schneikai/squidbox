@@ -1,7 +1,7 @@
 import { StyleSheet, View, Text } from 'react-native';
-import { scale } from '@/styles/designTokens';
 
 import AssetImage from '@/components/AssetImage';
+import { scale } from '@/styles/designTokens';
 
 const IMAGE_ELEMENT_HEIGHT = 240;
 

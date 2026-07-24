@@ -3,8 +3,9 @@ import { View, useWindowDimensions } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 
-import useAssets from '@/features/assets-context/useAssets';
 import useAssetDragSelect from './useAssetDragSelect';
+
+import useAssets from '@/features/assets-context/useAssets';
 
 export default function AssetList({
   assetIds,

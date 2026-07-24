@@ -23,6 +23,6 @@ const postSchema = Yup.object()
   .test('textOrAssetRefs', 'Either text or assets must be present', function (value) {
     return value.text || (value.assetRefs && value.assetRefs.length > 0);
   });
-  // .noUnknown();
+// .noUnknown();
 
 export default postSchema;

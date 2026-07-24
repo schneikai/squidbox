@@ -1,11 +1,11 @@
 import * as Clipboard from 'expo-clipboard';
 import { StyleSheet, View, Text, TouchableOpacity, Alert, ScrollView } from 'react-native';
-import { colors, scale } from '@/styles/designTokens';
 
 import PostAssets from './PostAssets';
 import PostAlbums from './post-albums/PostAlbums';
 
 import PostPostedAt from '@/features/posts/PostPostedAt';
+import { colors, scale } from '@/styles/designTokens';
 
 export default function Post({ post, contentPaddingTop = 0 }) {
   async function handleCopyToClipboard() {

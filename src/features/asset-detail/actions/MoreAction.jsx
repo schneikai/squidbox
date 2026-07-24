@@ -1,8 +1,8 @@
 import * as Clipboard from 'expo-clipboard';
 import { Alert } from 'react-native';
 
-import PopupMenu from '@/components/popup-menu-options/PopupMenu';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
+import PopupMenu from '@/components/popup-menu-options/PopupMenu';
 import useAppSettings from '@/features/app-settings/useAppSettings';
 import getAssetFileDownloadUrlAsync from '@/utils/cloud-api/assets/getAssetFileDownloadUrlAsync';
 
@@ -42,12 +42,7 @@ export default function MoreAction({ asset, navigation }) {
       <MenuOption label="Create post" icon="edit" onPress={handleCreatePost} />
       <MenuOption label="Show posts" icon="list" onPress={handleShowPosts} />
       <MenuOption label="Copy file URL" icon="link" onPress={handleCopyFileUrl} />
-      <MenuOption
-        label={asset.notes ? 'Edit note' : 'Add note'}
-        icon="document"
-        onPress={handleEditNotes}
-        isLast
-      />
+      <MenuOption label={asset.notes ? 'Edit note' : 'Add note'} icon="document" onPress={handleEditNotes} isLast />
     </PopupMenu>
   );
 }

@@ -12,10 +12,7 @@ export default function AlbumPostsView({ postIds, paddingTop, paddingBottom }) {
       postIds={postIds}
       contentContainerStyle={{ paddingTop, paddingBottom }}
       renderListItem={(post) => (
-        <SuperPressable
-          onPress={() => navigation.navigate('PostScreen', { postId: post.id })}
-          style={{ flex: 1 }}
-        >
+        <SuperPressable onPress={() => navigation.navigate('PostScreen', { postId: post.id })} style={{ flex: 1 }}>
           <PostListItem {...post} />
         </SuperPressable>
       )}
