@@ -1,15 +1,35 @@
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
-export const REFERENCE_POST_COUNT = 100;
+
+// How many past posts to include as style reference on each generation. A random
+// subset is drawn from the full history on every call so repeated batches pull
+// different examples (including older ones) instead of always the same recent
+// posts — this keeps the suggestions fresh and less repetitive.
+export const REFERENCE_SAMPLE_SIZE = 40;
 
 export { DEFAULT_MODEL } from './aiSuggestionsStorage';
 
 const FORMAT_INSTRUCTION = 'Always respond with a raw JSON array of strings and nothing else. Example: ["text one", "text two"]';
 
-function buildSystemPrompt(recentPostTexts, customSystemPrompt) {
+/**
+ * Returns up to `size` randomly-selected items from `items` (Fisher–Yates).
+ * Does not mutate the input.
+ */
+function sampleRandom(items, size) {
+  if (items.length <= size) return [...items];
+
+  const pool = [...items];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, size);
+}
+
+function buildSystemPrompt(referencePosts, customSystemPrompt) {
   const parts = [];
   if (customSystemPrompt?.trim()) parts.push(customSystemPrompt.trim());
-  if (recentPostTexts.length > 0) {
-    parts.push(`Here are some recent tweets as reference for tone and style:\n${recentPostTexts.map((text, i) => `${i + 1}. ${text}`).join('\n')}`);
+  if (referencePosts.length > 0) {
+    parts.push(`Here are some of your past tweets as reference for tone and style:\n${referencePosts.map((text, i) => `${i + 1}. ${text}`).join('\n')}`);
   }
   parts.push(FORMAT_INSTRUCTION);
   return parts.join('\n\n');
@@ -58,18 +78,20 @@ function parseResponse(content) {
  * Sends a message to the OpenAI chat completions API and returns the suggestions.
  *
  * @param {Array<{role: string, content: string}>} messages - Full chat history.
- * @param {string[]} recentPostTexts - Recent posts for reference (empty = disabled).
+ * @param {string[]} referencePostPool - Candidate past posts for style reference
+ *   (empty = disabled). A random subset is sampled from this pool on every call.
  * @param {string} model - The OpenAI model ID to use.
  * @param {string} [customSystemPrompt] - Optional persona / instructions prepended to the system prompt.
  * @returns {Promise<string[]>} Parsed array of suggestion strings.
  */
-export default async function sendAiMessageAsync(messages, recentPostTexts, model, customSystemPrompt) {
+export default async function sendAiMessageAsync(messages, referencePostPool, model, customSystemPrompt) {
   const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
   if (!apiKey || apiKey === 'sk-...') {
     throw new Error('OpenAI API key not configured. Set EXPO_PUBLIC_OPENAI_API_KEY in .env.local.');
   }
 
-  const systemPrompt = buildSystemPrompt(recentPostTexts, customSystemPrompt);
+  const referencePosts = sampleRandom(referencePostPool ?? [], REFERENCE_SAMPLE_SIZE);
+  const systemPrompt = buildSystemPrompt(referencePosts, customSystemPrompt);
   const messagesPayload = systemPrompt
     ? [{ role: 'system', content: systemPrompt }, ...messages]
     : messages;

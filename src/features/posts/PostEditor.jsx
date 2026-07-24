@@ -14,7 +14,6 @@ import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import AiChatModal from '@/features/ai-suggestions/AiChatModal';
 import RandomSuggestionsModal from '@/features/post-random-suggestions/RandomSuggestionsModal';
 import usePosts from '@/features/posts-context/usePosts';
-import { REFERENCE_POST_COUNT } from '@/features/ai-suggestions/sendAiMessageAsync';
 import getNewItemId from '@/utils/getNewItemId';
 import { SCREEN_PADDING } from '@/constants';
 import { colors } from '@/styles/designTokens';
@@ -35,7 +34,6 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
       Object.values(posts ?? {})
         .filter((p) => p.text?.trim())
         .sort((a, b) => b.createdAt - a.createdAt)
-        .slice(0, REFERENCE_POST_COUNT)
         .map((p) => p.text.trim()),
     [posts],
   );

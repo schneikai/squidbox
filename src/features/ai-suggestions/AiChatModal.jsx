@@ -293,7 +293,8 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
               centerSlot="Style Reference"
             />
             <Text style={styles.refModalSubtitle}>
-              Your {recentPostTexts.length} most recent posts will be used to match your tone.
+              A random selection from your {recentPostTexts.length} past posts is used on each
+              generation to match your tone and keep ideas fresh.
             </Text>
             <FlatList
               data={recentPostTexts}

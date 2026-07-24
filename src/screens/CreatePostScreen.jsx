@@ -10,7 +10,6 @@ import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import RandomSuggestionsModal from '@/features/post-random-suggestions/RandomSuggestionsModal';
-import { REFERENCE_POST_COUNT } from '@/features/ai-suggestions/sendAiMessageAsync';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { SCREEN_PADDING } from '@/constants';
 import usePosts from '@/features/posts-context/usePosts';
@@ -31,7 +30,6 @@ export default function CreatePostScreen({ navigation }) {
       Object.values(posts ?? {})
         .filter((p) => p.text?.trim())
         .sort((a, b) => b.createdAt - a.createdAt)
-        .slice(0, REFERENCE_POST_COUNT)
         .map((p) => p.text.trim()),
     [posts],
   );
