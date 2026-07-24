@@ -10,6 +10,7 @@ import addAsync from '@/utils/state/addAsync';
 import deleteAsync from '@/utils/state/deleteAsync';
 import getModelsById from '@/utils/state/getModelsById';
 import updateAsync from '@/utils/state/updateAsync';
+import updateManyAsync from '@/utils/state/updateManyAsync';
 
 export default function AssetsProvider({ children }) {
   const {
@@ -59,6 +60,9 @@ export default function AssetsProvider({ children }) {
       },
       updateAssets: async (ids, updates) => {
         await updateAssets(ids, updates);
+      },
+      updateManyAssets: async (updatesById) => {
+        await updateManyAsync({ updatesById, setState: setAssets });
       },
       toggleFavoriteAsset: async (asset) => {
         const isFavorite = !asset.isFavorite;

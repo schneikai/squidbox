@@ -19,7 +19,7 @@ export default function ProgressOverlayProvider({ children }) {
       {mode !== null && (
         <View style={styles.overlay} pointerEvents="box-only">
           {mode === 'progress'
-            ? <CircularProgress value={progress} />
+            ? <CircularProgress value={Math.round(progress)} maxValue={100} duration={0} />
             : <ActivityIndicator size="large" color="white" />}
         </View>
       )}

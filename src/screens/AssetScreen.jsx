@@ -26,6 +26,12 @@ export default function AssetScreen({ route, navigation }) {
   const windowWidth = window.width;
   const initialScrollIndex = assetIds.findIndex((x) => x === route.params.assetId);
 
+  // Keep the latest assets available to the viewability callback below, which is
+  // created once and would otherwise capture a stale assets map (showing the
+  // wrong favorite state when paging between assets).
+  const assetsRef = useRef(assets);
+  assetsRef.current = assets;
+
   useEffect(() => {
     let updatedAsset = assets[asset.id];
 
@@ -42,7 +48,7 @@ export default function AssetScreen({ route, navigation }) {
   const onViewableItemsChangedRef = useRef(({ viewableItems }) => {
     const assetId = viewableItems && viewableItems.length > 0 && viewableItems[0].item;
     if (!assetId) return;
-    setAsset(assets[assetId]);
+    setAsset(assetsRef.current[assetId]);
   });
 
   const headerTopOffset = insets.top + spacing.contentPaddingTop;

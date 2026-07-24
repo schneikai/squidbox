@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
-import { useEffect, useState, useTransition } from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useCallback, useState, useTransition } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,12 +19,15 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import { SCREEN_PADDING } from '@/constants';
 
 import LoginForm from '@/components/LoginForm';
+import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
 import { MODEL_STORAGE_KEY, DEFAULT_MODEL } from '@/features/ai-suggestions/aiSuggestionsStorage';
 import confirmLogoutAsync from '@/features/cloud/confirmLogoutAsync';
 import useCloud from '@/features/cloud/useCloud';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
 import deleteLocalDataAsync from '@/utils/local-data/deleteLocalDataAsync';
+import useRecalculatePostHistory from '@/utils/tools/useRecalculatePostHistory';
+import useResortAlbumsByName from '@/utils/tools/useResortAlbumsByName';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, radii, spacing, typography } from '@/styles/designTokens';
 
@@ -76,15 +79,21 @@ export default function SettingsScreen() {
   const [aiModel, setAiModel] = useState(DEFAULT_MODEL);
   const [isLoggingOut, startLogoutTransition] = useTransition();
 
-  useEffect(() => {
-    async function loadAiSettings() {
-      try {
-        const model = await AsyncStorage.getItem(MODEL_STORAGE_KEY);
-        if (model) setAiModel(model);
-      } catch {}
-    }
-    loadAiSettings();
-  }, []);
+  const { showBlocking, hide } = useProgressOverlay();
+  const recalculatePostHistoryAsync = useRecalculatePostHistory();
+  const resortAlbumsByNameAsync = useResortAlbumsByName();
+
+  useFocusEffect(
+    useCallback(() => {
+      async function loadAiSettings() {
+        try {
+          const model = await AsyncStorage.getItem(MODEL_STORAGE_KEY);
+          if (model) setAiModel(model);
+        } catch {}
+      }
+      loadAiSettings();
+    }, []),
+  );
 
   async function handleDeleteLocalData() {
     Alert.alert('Delete local data', 'This cannot be undone. Are you sure?', [
@@ -142,6 +151,54 @@ export default function SettingsScreen() {
       if (!confirmed) return;
       await logoutAsync();
     });
+  }
+
+  function handleRecalculatePostHistory() {
+    Alert.alert(
+      'Recalculate last posted?',
+      'Rebuilds post history and "last posted" for all albums and assets from your posts.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Recalculate',
+          onPress: async () => {
+            try {
+              showBlocking();
+              await recalculatePostHistoryAsync();
+              Alert.alert('Done!');
+            } catch (error) {
+              Alert.alert('Failed', error.message);
+            } finally {
+              hide();
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  function handleResortAlbums() {
+    Alert.alert(
+      'Sort albums by name?',
+      'Reorders all albums to follow their numeric name order (e.g. 210, 220, 230), regardless of upload order.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sort',
+          onPress: async () => {
+            try {
+              showBlocking();
+              const count = await resortAlbumsByNameAsync();
+              Alert.alert('Done!', `Sorted ${count} album${count === 1 ? '' : 's'}.`);
+            } catch (error) {
+              Alert.alert('Failed', error.message);
+            } finally {
+              hide();
+            }
+          },
+        },
+      ],
+    );
   }
 
   async function handleCheckApi() {
@@ -248,6 +305,12 @@ export default function SettingsScreen() {
             <Section>
               <Row label="Model" value={aiModel} />
               <Row label="Prompts" onPress={() => navigation.navigate('AiPromptsScreen')} chevron />
+            </Section>
+
+            <ScreenSectionHeader title="Data" />
+            <Section>
+              <Row label="Recalculate last posted" onPress={handleRecalculatePostHistory} chevron />
+              <Row label="Sort albums by name" onPress={handleResortAlbums} chevron />
             </Section>
 
             <ScreenSectionHeader title="Developer" />

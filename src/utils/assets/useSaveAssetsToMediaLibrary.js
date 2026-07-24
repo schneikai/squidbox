@@ -2,6 +2,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { Alert } from 'react-native';
 
 import useCloud from '@/features/cloud/useCloud';
+import assetFileExistsAsync from '@/utils/assets/files/assetFileExistsAsync';
+import getAssetFileUri from '@/utils/assets/files/getAssetFileUri';
 import copyToMediaLibraryAsync from '@/utils/media-library/copyToMediaLibraryAsync';
 
 export default function useSaveAssetsToMediaLibrary({ onStart, onProgress, onFinish }) {
@@ -50,8 +52,10 @@ export default function useSaveAssetsToMediaLibrary({ onStart, onProgress, onFin
     return false;
   }
 
-  async function requiresCloudToDownloadAsync() {
-    return true;
+  async function requiresCloudToDownloadAsync(asset) {
+    // A local copy only exists until the asset is fully synced to the cloud.
+    // If it's still on the device we can save it without cloud access.
+    return !(await assetFileExistsAsync(asset.filename));
   }
 
   function getAssetsTotalBytes(assets) {
@@ -59,6 +63,14 @@ export default function useSaveAssetsToMediaLibrary({ onStart, onProgress, onFin
   }
 
   async function downloadAndCopyToMediaLibraryAsync(asset, onProgress) {
+    if (await assetFileExistsAsync(asset.filename)) {
+      // Not uploaded yet — copy the on-device file directly. Do not delete it,
+      // it's the app's own asset file (still needed for uploading).
+      await copyToMediaLibraryAsync(getAssetFileUri(asset.filename));
+      onProgress(asset.fileSize);
+      return;
+    }
+
     const fileUri = await downloadAssetFileAsync(asset, onProgress);
     try {
       await copyToMediaLibraryAsync(fileUri);

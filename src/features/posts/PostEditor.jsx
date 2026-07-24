@@ -55,9 +55,14 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
     onChange({ text, assetRefs, postedAt: newPostedAt });
   }
 
-  function handleSuggestionConfirm(asset, text) {
-    if (asset) handleAssetRefsChange([{ id: getNewItemId(), assetId: asset.id }]);
-    if (text) handleTextChange(text);
+  function handleSuggestionConfirm(asset, suggestionText) {
+    // Apply both changes in a single onChange so the second update doesn't
+    // overwrite the first with a stale value from this render's closure.
+    const newAssetRefs = asset ? [{ id: getNewItemId(), assetId: asset.id }] : assetRefs;
+    const newText = suggestionText || text;
+    setAssetRefs(newAssetRefs);
+    setText(newText);
+    onChange({ text: newText, assetRefs: newAssetRefs, postedAt });
   }
 
   return (

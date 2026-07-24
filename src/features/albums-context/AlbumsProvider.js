@@ -9,6 +9,7 @@ import addAsync from '@/utils/state/addAsync';
 import deleteAsync from '@/utils/state/deleteAsync';
 import getModelsById from '@/utils/state/getModelsById';
 import updateAsync from '@/utils/state/updateAsync';
+import updateManyAsync from '@/utils/state/updateManyAsync';
 
 export default function AlbumsProvider({ children }) {
   const {
@@ -45,6 +46,9 @@ export default function AlbumsProvider({ children }) {
       },
       updateAlbums: async (ids, updates) => {
         await updateAlbums(ids, updates);
+      },
+      updateManyAlbums: async (updatesById) => {
+        await updateManyAsync({ updatesById, setState: setAlbums });
       },
       toggleFavoriteAlbum: async (album) => {
         const isFavorite = !album.isFavorite;
