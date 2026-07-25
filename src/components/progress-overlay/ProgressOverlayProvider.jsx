@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
-import CircularProgress from 'react-native-circular-progress-indicator';
 
 import ProgressOverlayContext from './ProgressOverlayContext';
+import ProgressRing from './ProgressRing';
 
 export default function ProgressOverlayProvider({ children }) {
   const [mode, setMode] = useState(null); // null | 'progress' | 'blocking'
@@ -21,11 +21,7 @@ export default function ProgressOverlayProvider({ children }) {
       {children}
       {mode !== null && (
         <View style={styles.overlay} pointerEvents="box-only">
-          {mode === 'progress' ? (
-            <CircularProgress value={Math.round(progress)} maxValue={100} duration={0} />
-          ) : (
-            <ActivityIndicator size="large" color="white" />
-          )}
+          {mode === 'progress' ? <ProgressRing value={progress} /> : <ActivityIndicator size="large" color="white" />}
         </View>
       )}
     </ProgressOverlayContext.Provider>
