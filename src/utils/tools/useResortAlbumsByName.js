@@ -1,13 +1,13 @@
 import useAlbums from '@/features/albums-context/useAlbums';
 
-// Spacing between generated timestamps. Keeps createdAt values distinct and
-// monotonic so the album order follows the numeric name order.
-const STEP_MS = 60_000;
-
 /**
- * Rewrites createdAt for all real (non-smart) albums so their order follows the
- * numeric name order (e.g. 210, 220, 230), regardless of the original upload
- * order. Higher name = newer createdAt.
+ * Reorders albums with a numeric name from highest to lowest (e.g. 230, 220,
+ * 210) so the list looks like the numbered shot albums were uploaded in
+ * sequence. Albums without a numeric name keep their exact position.
+ *
+ * The albums list is sorted by createdAt (newest first), so we only shuffle the
+ * createdAt values among the numeric albums' existing slots. Non-numeric albums
+ * are never touched.
  */
 export default function useResortAlbumsByName() {
   const { albums, updateManyAlbums } = useAlbums();
@@ -15,22 +15,32 @@ export default function useResortAlbumsByName() {
   async function resortAlbumsByNameAsync() {
     const realAlbums = Object.values(albums).filter((album) => !album.smartAlbumType);
 
-    const sorted = [...realAlbums].sort((a, b) =>
-      (a.name || '').localeCompare(b.name || '', undefined, { numeric: true, sensitivity: 'base' }),
-    );
+    // Current display order: newest createdAt first.
+    const currentOrder = [...realAlbums].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
 
-    const existingCreatedAts = sorted.map((album) => album.createdAt).filter((value) => typeof value === 'number');
-    const base = existingCreatedAts.length > 0 ? Math.min(...existingCreatedAts) : Date.now();
+    const numericAlbums = currentOrder.filter((album) => isNumericName(album.name));
+    const slotCreatedAts = numericAlbums.map((album) => album.createdAt);
+
+    // Highest number first so it lands in the newest (top) slot.
+    const sortedDesc = [...numericAlbums].sort((a, b) => numericName(b.name) - numericName(a.name));
 
     const updates = {};
-    sorted.forEach((album, index) => {
-      updates[album.id] = { createdAt: base + index * STEP_MS };
+    sortedDesc.forEach((album, index) => {
+      updates[album.id] = { createdAt: slotCreatedAts[index] };
     });
 
     await updateManyAlbums(updates);
 
-    return sorted.length;
+    return sortedDesc.length;
   }
 
   return resortAlbumsByNameAsync;
+}
+
+function isNumericName(name) {
+  return /^\d+$/.test((name ?? '').trim());
+}
+
+function numericName(name) {
+  return Number((name ?? '').trim());
 }

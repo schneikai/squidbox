@@ -190,7 +190,7 @@ export default function SettingsScreen() {
   function handleResortAlbums() {
     Alert.alert(
       'Sort albums by name?',
-      'Reorders all albums to follow their numeric name order (e.g. 210, 220, 230), regardless of upload order.',
+      'Reorders numbered albums from highest to lowest (e.g. 230, 220, 210). Albums without a numeric name stay where they are.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
