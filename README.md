@@ -1,139 +1,138 @@
-# Squidbox - A React Native app for managing photos and videos in the cloud
+# Squidbox
 
-This is a React Native app with a Rails API backend. It is a personal project and I use it to manage my photos and videos in the cloud. It works pretty much like Apple Photos but the files are not stored on the device but rather in he cloud. I have a lot of very big photo and video shoots and want to have them accessible on my phone without using up all the storage.
+A React Native app for managing photos and videos in the cloud. Like Apple Photos, but files live in the cloud, not on the device — so large photo and video shoots are accessible from your phone without using up its storage. Personal project, backed by a Rails API.
 
 # Prerequisites
 
-For local development you need to have the squidbox-api Rails project checked out with the Rails server running on localhost:3000.
+Builds and previews run from a cloud workspace (no Mac) using EAS Build and an App Store Connect API Key. You need:
 
-If you want to try the app on your photo in development, you can use the Expo Go app. For this to work though, the Rails server must be accessible for your phone on the local wifi. To do this:
+- An Expo account + EAS project (`eas.json`, `app.config.js`).
+- An **App Store Connect API Key** (`.p8`) — see [Building from the cloud](#building-from-the-cloud-no-mac).
+- App secrets stored in EAS (see below).
 
-- Find the IP address of your development computer. On macOS, you can go to System Preferences > Network and select your active network connection to find your IP address.
-- Set the API URL in the `.env.local` file to `http://<your-ip>:3000/api/v1`
-- Start the Rails server and have it accessible for all local connections via `rails server -b 0.0.0.0`
-- Open the Expo Go app on your phone and run the app
+# Environment & secrets
 
-## Environment Variables and Secrets
+Two gitignored env files, each for a different audience:
 
-For your local development environment, create a `.env.local` file in the root of the project and add the following environment variables:
+| File | Read by | Purpose |
+|---|---|---|
+| `.env.local` | Metro, at runtime | Supplies `EXPO_PUBLIC_*` to the **dev client** over the tunnel. Copy from `.env.local.example`. The API URL must be reachable from the phone (not `localhost`). |
+| `.secrets` | you, once | Upload bundle to push **preview/production** secrets to EAS. Not read at runtime. |
 
-      EXPO_PUBLIC_API_URL=http://localhost:3000/api/v1
-      EXPO_PUBLIC_LOGIN_FORM_EMAIL=user@example.com
-      EXPO_PUBLIC_LOGIN_FORM_PASSWORD=password
-      EXPO_PUBLIC_SENTRY_DEBUG=true
+`.env.local` (template in `.env.local.example`):
 
-Environment variables for Preview and Production builds must be added to `eas.json`.
-https://docs.expo.dev/build-reference/variables/#setting-plaintext-environment-variables-in-easjson
+```
+EXPO_PUBLIC_API_URL=<reachable-api-url>/api/v1
+EXPO_PUBLIC_LOGIN_FORM_EMAIL=user@example.com
+EXPO_PUBLIC_LOGIN_FORM_PASSWORD=password
+EXPO_PUBLIC_SENTRY_DEBUG=true
+EXPO_PUBLIC_OPENAI_API_KEY=<openai-key>
+```
 
-### Secrets
+`.secrets` (push to EAS):
 
-Secrets must be added to the Expo project on the Expo website. I use a `.secrets` file in the root of the project and then upload it to Expo to create the secrets on their servers. The file looks like this:
+```
+EXPO_PUBLIC_API_URL=<production-api-url>
+SENTRY_AUTH_TOKEN=<sentry-token>
+```
 
-      EXPO_PUBLIC_API_URL=the-secret-production-api-url
-      SENTRY_AUTH_TOKEN=the-secret-token
+Manage EAS secrets:
 
-Heads-up: The EXPO_PUBLIC_API_URL is a secret and not a environment variable just because I don't want to have it fly around on Github. We could have also just added it to `eas.json`.
+```
+eas secret:push --scope project --env-file .secrets   # add (--force to update)
+eas secret:list                                       # list
+```
 
-Now, to create the secrets in your Expo project run:
+On a fresh checkout, runtime secrets are already in EAS. Restore the rest from your password manager: `.env.local`, `EXPO_TOKEN`, and the ASC `.p8`+IDs, then run `scripts/check-env.sh` to verify.
 
-      eas secret:push --scope project --env-file .secrets
+# Build & preview
 
-If you want to update existing secrets you need to add `--force` to the command.
+Two ways to get the app on a device — they install as **separate apps** (different bundle IDs), so both can coexist on the phone:
 
-If you want to list all available secrets you can run:
+| | Dev client | Preview build |
+|---|---|---|
+| Profile | `development` | `preview` |
+| Bundle ID | `com.schneikai.squidbox.dev` | `com.schneikai.squidbox` |
+| App name | Squidbox (Dev) | Squidbox |
+| JS bundle | served by Metro over a tunnel (hot reload) | baked in at build time |
+| Use for | fast iteration | testing a stable snapshot |
 
-      eas secret:list
+The bundle ID is chosen in `app.config.js` from `EAS_BUILD_PROFILE`, which is why the two don't overwrite each other. Builds are distributed via [Internal Distribution](https://docs.expo.dev/build/internal-distribution/) (no App Store).
 
-# To run the project
+## Building from the cloud (no Mac)
 
-    nvm use
-    npx expo start
+From a cloud workspace, authenticate Apple with an **App Store Connect API Key** — no Mac, no Apple ID password, no 2FA (Apple ID + 2FA is blocked from cloud/datacenter IPs; the API key is Apple's CI-native path).
 
-Clear cache and start Expo (useful when you get errors or installed/upgraded packages)
+**One-time setup:**
 
-    npx expo start -c
+1. Generate an App Store Connect API Key (**Admin** role) at [appstoreconnect.apple.com](https://appstoreconnect.apple.com) → Users and Access → Integrations → Team Keys. Download the `.p8` (downloadable **once**) and note the **Key ID** and **Issuer ID**.
+2. Get your **Apple Team ID** from [developer.apple.com](https://developer.apple.com) → Membership.
+3. The `.p8` is gitignored (`*.p8`) — never commit it.
 
-# Build the project
+**Env vars (set before each build):**
 
-You can use Internal Distribution to get the app on your device without having to go through App Store
-https://docs.expo.dev/build/internal-distribution/
+```
+EXPO_TOKEN=<expo access token>
+EAS_BUILD_PROFILE=<development | preview>
+EXPO_ASC_API_KEY_PATH=<path to .p8>
+EXPO_ASC_KEY_ID=<key id>
+EXPO_ASC_ISSUER_ID=<issuer id>
+EXPO_APPLE_TEAM_ID=<team id>
+EXPO_APPLE_TEAM_TYPE=INDIVIDUAL
+CI=1
+```
 
-Setup your app.json:
+The CLI authenticates to Expo via `EXPO_TOKEN` (no `eas login`). Routine builds reuse stored credentials; the `.p8` is only needed for one-time credential setup on a new bundle ID.
 
-- set name, slug and version
-- add and configure icons and splash screen (assets/adaptive-icon.png, icon.png, splash.png)
+**Preview build** (secrets already in EAS):
 
-Install eas-cli and login (you can check if you are already logged in with `eas whoami`)
+```
+eas build --profile preview --platform ios --non-interactive
+```
 
-      nvm use
-      npm install -g eas-cli
-      eas login
+**Dev client build:**
 
-The credentials for EAS are the same as for Expo.
+```
+eas credentials:configure-build -p ios -e development   # first time only; TTY prompts need expect
+eas build --profile development --platform ios --non-interactive
+```
 
-Create a build profile for preview builds
+Install from the EAS build page (Internal Distribution → Install), then trust the dev certificate in Settings → General → VPN & Device Management.
 
-      eas build:configure
+## Dev client: Metro + tunnel
 
-If you have not used your device with Internal Distribution yet you need to run:
+The dev client loads JS from Metro at runtime. Start Metro and the tunnel, then point the dev client at the tunnel URL:
 
-      eas device:create
+```
+EXPO_PACKAGER_PROXY_URL=https://<tunnel-host> npx expo start --offline
+node tunnel.js
+```
 
-If you need to remove devices or get a list of registered devices checkout https://docs.expo.dev/build/internal-distribution/#managing-devices
+Add `-c` to `expo start` to clear the cache (after changing `.env.local` or upgrading packages). Verify the tunnel before connecting: `curl -o /dev/null -w "%{http_code}" https://<tunnel-host>/manifest?platform=ios&dev=true`.
 
-And finally create a preview build
+> The full headless runbook (exact commands, the `expect`-driven credential setup, troubleshooting) is in the `cloud-ios-build` skill.
 
-      eas build --profile preview --platform ios
+## One-time EAS setup
 
-## Expiring preview builds
+Run `eas build:configure` to generate `eas.json`, then register a device for Internal Distribution with `eas device:create` (manage devices at https://docs.expo.dev/build/internal-distribution/#managing-devices).
 
-When creating preview builds they get signed with a certificate that expires after a year. When the cert has expired you cannot use the preview app anymore and need to create a new build.
+## Legacy workflow (historical)
 
-## Help articles on Expo.dev
-
-- https://docs.expo.dev/build/setup/
-- https://docs.expo.dev/build/internal-distribution/
+Builds used to run on a Mac with the Rails API on `localhost:3000` and the phone on the same wifi (or Expo Go). That path is gone, but remnants may still turn up: a `.env.local` pointing at `localhost`, references to `eas login`/Expo Go/`rails server -b 0.0.0.0`, or a static `app.json` (now `app.config.js`). They're leftovers, not the current process.
 
 # Sentry
 
-We use Sentry for error tracking. You need to set the required config and secrets for your own Sentry account though.
+Sentry handles error tracking. Configure it for your own account:
 
-- app.json: Specify organization and project in the Sentry Plugin section
-- SENTRY_AUTH_TOKEN: This is a secret you need to add to your project on the Expo website
-- App.js: Set the DSN in the Sentry.init call
+- `app.config.js`: specify organization and project in the Sentry Plugin section
+- `SENTRY_AUTH_TOKEN`: a secret stored in EAS (see [Environment & secrets](#environment--secrets))
+- `App.js`: set the DSN in the `Sentry.init` call
 
 # Ideas
 
-Use SQLite to store data locally
-https://blog.stackademic.com/offline-react-native-app-with-typeorm-expo-sqlite-and-react-query-37e5b8a05abb
-SQLite is now also supported native in Expo 50
-https://docs.expo.dev/versions/v50.0.0/sdk/sqlite-next/
+- Try the native Expo Router (introduced in Expo 50) and maybe drop the `react-navigation-native` dependency.
+- SQLite for local data storage: native in Expo 50+ https://docs.expo.dev/versions/v50.0.0/sdk/sqlite-next/ · guide https://blog.stackademic.com/offline-react-native-app-with-typeorm-expo-sqlite-and-react-query-37e5b8a05abb
 
-# Upload Architecture
+# Caveats
 
-## How uploads work
-
-Files are uploaded via `PUT /api/v1/asset_files/upload/:file_key` using `expo-file-system`'s `createUploadTask`. The access token is passed as a query parameter because `createUploadTask` does not support custom headers.
-
-The upload flow per asset is:
-1. Upload the file (`isFileSynced`)
-2. Upload the thumbnail (`isThumbnailSynced`)
-3. Mark the asset as fully synced (`isSynced`) and delete the local copy
-
-### Why uploads don't appear in the API logs until the end
-
-Puma buffers the full request body before Rails processes anything. For a 5GB file at 4 MB/s this takes ~20 minutes. The `Started PUT ...` log entry only appears after the last byte arrives at the server. Client-side progress is real (data is flowing over TCP), but Rails is silent until Puma hands it the completed buffer.
-
-### Token handling
-
-`expo-file-system` does not go through the Axios interceptors that handle automatic token refresh for regular API calls. To compensate:
-
-- The JWT access token TTL on the server is set to **24 hours** so it does not expire during a long upload session.
-- `uploadFileAsync.js` catches 401 responses, refreshes the token, and retries the upload once before throwing.
-
-
-# Notes
-
-## React-Navigation-Native vs Expo Router
-
-Expo 50 introduced a native Expo router. We should try this out. Maybe we can remove the react-navigation-native dependency.
+- Preview builds are signed with a certificate that expires after a year, so rebuild when it lapses. Build/preview help: https://docs.expo.dev/build/setup/ · https://docs.expo.dev/build/internal-distribution/

@@ -97,3 +97,13 @@ Bad:
 - Prefer clarity over cleverness
 - Reuse existing patterns before introducing new ones
 - Keep the codebase predictable and easy to reason about
+
+## Build & Preview
+
+Builds run from a cloud workspace. For the full procedure, see `README.md` → "Build & preview" and "Building from the cloud (no Mac)", and the `cloud-ios-build` skill for the headless runbook. Invariants:
+
+- Two app slots via separate bundle IDs (`app.config.js` switches on `EAS_BUILD_PROFILE`): `development` → `.dev` (dev client, Metro over a tunnel, hot reload); `preview` → base id (standalone, JS baked in). Always export `EAS_BUILD_PROFILE` matching the profile you pass to `eas build`.
+- Authenticate Apple with an **App Store Connect API Key** (`EXPO_ASC_*` + `EXPO_APPLE_TEAM_*`), never Apple ID + password (blocked from cloud IPs). Never commit the `.p8`.
+- App secrets live in EAS (preview/production). The dev client reads `EXPO_PUBLIC_*` from `.env.local` (template `.env.local.example`) via Metro at runtime — the API URL must be reachable from the phone.
+- New bundle IDs need a one-time `eas credentials:configure-build` (TTY prompts need `expect` headless).
+- Fresh checkout: runtime secrets are already in EAS; restore `.env.local`, `EXPO_TOKEN`, and the ASC `.p8`+IDs from a password manager, then run `scripts/check-env.sh`.
