@@ -44,7 +44,7 @@ Build commands are in `README.md` → "Building from the cloud". Headless specif
 
 ## Metro + tunnel
 
-Start commands are in `README.md` → "Dev client: Metro + tunnel". Before connecting the device, verify the tunnel returns 200:
+Start commands are in `README.md` → "Dev client: Metro + tunnel". **Before starting Metro, run `scripts/check-env.sh` and confirm `.env.local` exists** — without it, Metro serves a bundle with no `EXPO_PUBLIC_*` values and every API call is broken. Before connecting the device, verify the tunnel returns 200:
 
 ```
 curl -s -o /dev/null -w "%{http_code}" https://<tunnel-host>/manifest?platform=ios&dev=true

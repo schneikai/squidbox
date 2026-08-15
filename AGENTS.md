@@ -107,3 +107,7 @@ Builds run from a cloud workspace. For the full procedure, see `README.md` → "
 - App secrets live in EAS (preview/production). The dev client reads `EXPO_PUBLIC_*` from `.env.local` (template `.env.local.example`) via Metro at runtime — the API URL must be reachable from the phone.
 - New bundle IDs need a one-time `eas credentials:configure-build` (TTY prompts need `expect` headless).
 - Fresh checkout: runtime secrets are already in EAS; restore `.env.local`, `EXPO_TOKEN`, and the ASC `.p8`+IDs from a password manager, then run `scripts/check-env.sh`.
+
+## Dev client: always check env first
+
+Before starting Metro for the dev client, run `scripts/check-env.sh` and confirm `.env.local` exists and is filled in. Without it, Metro serves a bundle with no `EXPO_PUBLIC_*` values — the app loads but every API call is broken. `.env.local` is gitignored, so it doesn't survive a fresh checkout; restore it from `.env.local.example` + your password manager. "Start the dev client" means boot Metro + the tunnel (no build); only build the dev client when native code changes.
