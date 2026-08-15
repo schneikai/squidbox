@@ -111,3 +111,5 @@ Builds run from a cloud workspace. For the full procedure, see `README.md` → "
 ## Dev client: always check env first
 
 Before starting Metro for the dev client, run `scripts/check-env.sh` and confirm `.env.local` exists and is filled in. **If `.env.local` is missing, do NOT start Metro — stop and ask the user to provide the values** (API URL, login, OpenAI key, etc.), or to restore the file from their password manager. Without it, Metro serves a bundle with no `EXPO_PUBLIC_*` values and every API call is broken. `.env.local` is gitignored, so it doesn't survive a fresh checkout. "Start the dev client" means boot Metro + the tunnel (no build); only build the dev client when native code changes.
+
+When Metro + the tunnel are running, the only thing the user needs is the **tunnel URL** to open in the Squidbox Dev app (e.g. `https://anonymous-8081.exp.direct`). Surface that URL prominently at the end of the response — don't dump Metro/Expo startup logs, local localhost URLs, or other URLs the user can't use.
