@@ -110,6 +110,8 @@ NGROK_AUTHTOKEN=<token> node tunnel.js
 
 The tunnel uses a random subdomain (e.g. `https://abc-123.ngrok-free.dev`), so each session gets its own URL — no collision with other sessions. `NGROK_AUTHTOKEN` is read from `.env.local` (see `.env.local.example`).
 
+> **ERR_NGROK_334?** The ngrok free plan reuses one reserved domain. If a previous session didn't shut down cleanly, ngrok blocks with `ERR_NGROK_334`. `tunnel.js` retries automatically, but for a guaranteed fix, add `NGROK_API_KEY` (dashboard → API Keys) to `.env.local` — it lets `tunnel.js` force-kill stale endpoints before starting.
+
 Add `-c` to `expo start` to clear the cache (after changing `.env.local` or upgrading packages). Verify the tunnel before connecting: `curl -o /dev/null -w "%{http_code}" https://<tunnel-host>/manifest?platform=ios&dev=true`.
 
 > The full headless runbook (exact commands, the `expect`-driven credential setup, troubleshooting) is in the `cloud-ios-build` skill.
