@@ -5,18 +5,6 @@ set -u
 
 miss=0
 note() { printf '  - %s\n' "$1"; }
-
-echo "== dev client env (.env.local) =="
-if [ ! -f .env.local ]; then
-  miss=1
-  echo "MISSING .env.local"
-  note "cp .env.local.example .env.local  then fill values from your password manager / EAS"
-else
-  echo "ok: .env.local present"
-fi
-
-echo
-echo "== EAS build env (export before eas build) =="
 check_var() {
   local name="$1" hint="$2"
   if [ -z "${!name:-}" ]; then
@@ -27,6 +15,19 @@ check_var() {
     printf 'ok: %s set\n' "$name"
   fi
 }
+
+echo "== dev client env (.env.local) =="
+if [ ! -f .env.local ]; then
+  miss=1
+  echo "MISSING .env.local"
+  note "cp .env.local.example .env.local  then fill values from your password manager / EAS"
+else
+  echo "ok: .env.local present"
+  check_var NGROK_AUTHTOKEN "ngrok dashboard -> Your Authtoken (needed by tunnel.js for the dev client tunnel)"
+fi
+
+echo
+echo "== EAS build env (export before eas build) =="
 check_var EXPO_TOKEN          "expo.dev -> Settings -> Access tokens"
 check_var EAS_BUILD_PROFILE   "development | preview (matches the profile you pass to eas build)"
 check_var EXPO_ASC_API_KEY_PATH "path to the App Store Connect .p8 (needed only for credential setup/repair)"

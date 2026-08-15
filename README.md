@@ -105,8 +105,10 @@ The dev client loads JS from Metro at runtime. Start Metro and the tunnel, then 
 
 ```
 EXPO_PACKAGER_PROXY_URL=https://<tunnel-host> npx expo start --offline
-node tunnel.js
+NGROK_AUTHTOKEN=<token> node tunnel.js
 ```
+
+The tunnel uses a random subdomain (e.g. `https://abc-123.ngrok-free.dev`), so each session gets its own URL — no collision with other sessions. `NGROK_AUTHTOKEN` is read from `.env.local` (see `.env.local.example`).
 
 Add `-c` to `expo start` to clear the cache (after changing `.env.local` or upgrading packages). Verify the tunnel before connecting: `curl -o /dev/null -w "%{http_code}" https://<tunnel-host>/manifest?platform=ios&dev=true`.
 
