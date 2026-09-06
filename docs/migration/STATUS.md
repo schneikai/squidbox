@@ -9,7 +9,7 @@ Statuses: `not-started` · `in-progress` · `blocked-on-user` · `done`
 |-------|-------------|-----|--------|
 | 0  | Foundation — monorepo, move app, TS/shared scaffold | `phase-0-foundation.md` | done |
 | 1  | Backend skeleton — auth + S3 + multi-tenant schema (modern rewrite) | `phase-1-backend-skeleton.md` | done |
-| 2a | Sync backend slice (`assets` endpoints + tests) | `phase-2-sync-slice.md` (§2a) | not-started |
+| 2a | Sync backend slice (`assets` endpoints + tests) | `phase-2-sync-slice.md` (§2a) | done |
 | 2b | Sync client slice — expo-sqlite + worker + flag (native build) | `phase-2-sync-slice.md` (§2b) | not-started |
 | 3a | Sync Inspector + observability | `phase-3-collections-inspector.md` (§3a) | not-started |
 | 3b | albums/posts + sync triggers | `phase-3-collections-inspector.md` (§3b) | not-started |
@@ -18,13 +18,38 @@ Statuses: `not-started` · `in-progress` · `blocked-on-user` · `done`
 | 5b | Cleanup — delete old path, retire Rails | `phase-5-cutover.md` (§5b) | not-started |
 | 6  | Open registration — signup + hardening | `phase-6-open-registration.md` | not-started |
 
-**Next stage:** 2a — Sync backend slice (`assets` endpoints + tests)
+**Next stage:** 2b — Sync client slice (expo-sqlite + worker + flag; the one pre-cutover
+native rebuild). ⚠️ Needs a physical-device dev-client build — a real manual gate.
 
 ## Log
 
 _Newest first. The skill appends one entry per run: what it did, what's pending, any
 deviations from the plan._
 
+- **2026-09-06 — Stage 2a (Sync backend slice): done. App untouched.**
+  Built the generic sync engine for the `assets` collection, backend-only.
+  - **`packages/shared`:** `defineCollection` (now `{ name, schema, localOnly }`) + base-record
+    schema, the `assetCollection` descriptor (synced fields per sync-design §10; the three
+    is*Synced flags are synced, `syncError` local-only), a collection registry, and the
+    pull/push wire contracts (`contracts/sync.ts`). All Zod → shared FE/BE types.
+  - **`apps/server`:** Postgres `assets` table with composite PK `(user_id, id)` +
+    `(user_id, server_seq)` index; `server_seq` stamped by a `BEFORE INSERT/UPDATE` trigger
+    attached registry-driven in `migrate.ts` (idempotent) alongside the `change_seq` sequence.
+    `POST /api/v1/sync/pull` (per-collection fetch, global-merge, safe-watermark cursor, limit
+    clamp) and `POST /api/v1/sync/push` (per-user `pg_advisory_xact_lock`, atomic
+    `ON CONFLICT (user_id,id) … WHERE excluded.updated_at > …` strict-`>` LWW, future-ts clamp,
+    `user_id` from token, per-mutation results with `skipped-lww` returning `current`). Generic
+    over the registry (derives updatable columns from the descriptor).
+  - **Verified on the local stack:** `tsc` clean; **48 vitest tests** (`npm run test:db`),
+    incl. 8 DB-backed sync tests — pull window + tombstone delivery, LWW winner + `current`,
+    idempotent strict-`>` replay (equal ts = no-op, **no server_seq re-stamp**), same-row
+    multi-mutation ordering, concurrent pushes drop no rows (advisory lock), partial-push
+    rejection persists only valid rows, pagination loop, and **tenant isolation** (B never
+    sees A's rows; a colliding id lands in B's partition, A untouched). Mobile still exports —
+    **app untouched**. Plain `npm test` skips the DB tests; `npm run test:db` runs them.
+  - **Next (2b):** client SQLite + outbox + sync worker + `useNewSync` flag — the one
+    pre-cutover **native rebuild** (expo-sqlite + batched background modules), so it has a real
+    physical-device manual gate.
 - **2026-09-06 — Stage 1 (Backend skeleton): built as a modern rewrite; code complete, all
   headless tests green; blocked on the live DB+S3 smoke gate.** Also marked **Stage 0 `done`**
   (user's call: the EAS build "is not a blocker"; it stays a non-blocking follow-up in

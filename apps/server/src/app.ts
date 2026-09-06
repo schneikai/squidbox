@@ -4,6 +4,7 @@ import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod
 import { registerErrorHandler } from './plugins/errorHandler.js';
 import { authRoutes } from './auth/routes.js';
 import { assetRoutes } from './storage/routes.js';
+import { syncRoutes } from './sync/routes.js';
 
 // Strip a `token` query param so access tokens sent via ?token= (iOS background uploads)
 // never land in request logs.
@@ -43,6 +44,7 @@ export async function buildApp(opts: { logger?: FastifyServerOptions['logger'] }
     async (api) => {
       await authRoutes(api);
       await assetRoutes(api);
+      await syncRoutes(api);
     },
     { prefix: '/api/v1' }
   );

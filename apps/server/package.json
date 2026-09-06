@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:db": "TEST_DATABASE_URL=postgres://squidbox:squidbox@localhost:5432/squidbox vitest run",
     "compose:up": "docker compose up -d",
     "compose:down": "docker compose down",
     "compose:reset": "docker compose down -v",

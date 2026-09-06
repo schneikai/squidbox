@@ -1,5 +1,17 @@
 import { sql } from 'drizzle-orm';
-import { pgTable, uuid, text, timestamp, index } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  text,
+  timestamp,
+  index,
+  bigint,
+  integer,
+  boolean,
+  jsonb,
+  doublePrecision,
+  primaryKey,
+} from 'drizzle-orm/pg-core';
 
 // Users. id is a uuid (was an integer in Rails; the app treats it opaquely, so this is a
 // safe, forward-looking change that also matches the multi-tenant sync model where every
@@ -36,6 +48,47 @@ export const refreshTokens = pgTable(
 
 export type User = typeof users.$inferSelect;
 export type RefreshToken = typeof refreshTokens.$inferSelect;
+
+// --- Syncable collections (Phase 2+) ---
+// `assets` — asset metadata (sync-design §10). Composite PK (user_id, id): id is
+// client-generated, so a plain-id PK would let a colliding uuid touch another tenant's row
+// (§2a). server_seq is stamped by a BEFORE INSERT/UPDATE trigger (created in migrate.ts).
+// Timestamps are epoch-ms numbers (client's logical clock), stored as bigint.
+export const assets = pgTable(
+  'assets',
+  {
+    id: uuid('id').notNull(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+    deletedAt: bigint('deleted_at', { mode: 'number' }),
+    serverSeq: bigint('server_seq', { mode: 'number' }), // set by trigger
+    mediaLibraryAssetId: text('media_library_asset_id').notNull(),
+    mediaType: text('media_type').notNull(), // 'photo' | 'video' (validated via Zod)
+    width: integer('width').notNull(),
+    height: integer('height').notNull(),
+    fileSize: bigint('file_size', { mode: 'number' }).notNull(),
+    duration: doublePrecision('duration'),
+    filename: text('filename').notNull(),
+    thumbnailFilename: text('thumbnail_filename').notNull(),
+    isFavorite: boolean('is_favorite').notNull(),
+    notes: text('notes'),
+    postHistory: jsonb('post_history').$type<string[]>().notNull(),
+    lastPostedAt: bigint('last_posted_at', { mode: 'number' }),
+    oldFileId: text('old_file_id'),
+    isFileSynced: boolean('is_file_synced').notNull(),
+    isThumbnailSynced: boolean('is_thumbnail_synced').notNull(),
+    isSynced: boolean('is_synced').notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.id] }),
+    byUserSeq: index('assets_user_seq_idx').on(t.userId, t.serverSeq),
+  })
+);
+
+export type AssetRow = typeof assets.$inferSelect;
 
 // Global monotonic sequence stamped onto every syncable row by a BEFORE INSERT/UPDATE trigger
 // (used from Phase 2). Created here so the sequence exists before any syncable table. Raw SQL
