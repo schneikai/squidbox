@@ -3,7 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { and, eq } from 'drizzle-orm';
 import pg from 'pg';
+import { collectionNames } from '@squidbox/shared';
 import * as schema from '../src/db/schema.js';
+import { serverCollections } from '../src/sync/collections.js';
 import { push } from '../src/sync/push.js';
 import { pull } from '../src/sync/pull.js';
 
@@ -67,12 +69,17 @@ d('sync engine (Postgres)', () => {
       ])
       .onConflictDoNothing();
   });
-  afterAll(async () => {
+  async function clearAll() {
+    await db.delete(schema.posts);
+    await db.delete(schema.albums);
     await db.delete(schema.assets);
+  }
+  afterAll(async () => {
+    await clearAll();
     await pool.end();
   });
   beforeEach(async () => {
-    await db.delete(schema.assets);
+    await clearAll();
   });
 
   it('pull window + tombstone delivery', async () => {
@@ -185,5 +192,67 @@ d('sync engine (Postgres)', () => {
       const bPage = await pull(db, USER_B, { cursor: 0 });
       expect(bPage.changes.assets.records[0]).toMatchObject({ id: shared.id, notes: 'B-data', updatedAt: 9999 });
     });
+  });
+
+  // The "add a collection" recipe's silent failure modes (sync-design §9): a forgotten
+  // server_seq trigger (rows never pulled) and a plain-id PK (cross-tenant collision). Assert
+  // both — plus a round-trip and tenant isolation — for EVERY registered collection.
+  describe('collection registry guard', () => {
+    const base = () => ({ id: randomUUID(), createdAt: 1000, updatedAt: 1000, deletedAt: null });
+    const sample: Record<string, () => Record<string, unknown>> = {
+      assets: () => assetRecord(),
+      albums: () => ({
+        ...base(),
+        name: 'A',
+        assets: [],
+        isFavorite: false,
+        archivedAt: null,
+        postHistory: [],
+        lastPostedAt: null,
+        showInPostSuggestionsAfter: null,
+        oldCollectionName: null,
+        notes: null,
+        sortOrder: null,
+        smartAlbumType: null,
+      }),
+      posts: () => ({
+        ...base(),
+        text: 'hi',
+        assetRefs: [],
+        isFavorite: false,
+        postedAt: null,
+        rePostId: null,
+        isIgnoredForRepost: false,
+        suggestRepostAt: 1000,
+        hasBeenReposted: false,
+      }),
+    };
+
+    for (const name of collectionNames) {
+      it(`${name}: registered, trigger + composite PK, round-trips, tenant-isolated`, async () => {
+        expect(serverCollections[name]).toBeTruthy();
+
+        const trig = await pool.query('SELECT 1 FROM pg_trigger WHERE tgname = $1', [`${name}_server_seq`]);
+        expect(trig.rowCount).toBe(1);
+
+        const pk = await pool.query(
+          `SELECT a.attname FROM pg_index i
+             JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+            WHERE i.indrelid = $1::regclass AND i.indisprimary`,
+          [name],
+        );
+        expect(pk.rows.map((r: { attname: string }) => r.attname).sort()).toEqual(['id', 'user_id']);
+
+        const rec = sample[name]();
+        const res = await push(db, USER_A, [{ collection: name, record: rec }]);
+        expect(res[0].status).toBe('applied');
+
+        const aPage = await pull(db, USER_A, { cursor: 0 });
+        expect(aPage.changes[name].records.some((r: any) => r.id === rec.id)).toBe(true);
+
+        const bPage = await pull(db, USER_B, { cursor: 0 });
+        expect(bPage.changes[name]?.records.some((r: any) => r.id === rec.id) ?? false).toBe(false);
+      });
+    }
   });
 });

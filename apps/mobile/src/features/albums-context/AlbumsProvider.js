@@ -2,85 +2,63 @@ import { useMemo } from 'react';
 
 import AlbumsContext from './AlbumsContext';
 
+import { getDb, schema } from '@/sync/db/client';
+import { toModernRecord, toModernChanges } from '@/sync/legacyBase';
+import { makeRepository } from '@/sync/repository';
+import { useLiveCollectionMap } from '@/sync/useCollection';
+import { requestSync } from '@/sync/worker';
 import albumSchema from '@/utils/albums/albumSchema';
-import loadAlbumsAsync from '@/utils/albums/loadAlbumsAsync';
-import useLoadAndUpdateData from '@/utils/local-data/useLoadAndUpdateData';
-import addAsync from '@/utils/state/addAsync';
-import deleteAsync from '@/utils/state/deleteAsync';
-import getModelsById from '@/utils/state/getModelsById';
-import updateAsync from '@/utils/state/updateAsync';
-import updateManyAsync from '@/utils/state/updateManyAsync';
+
+// SQLite-backed albums store. Same provider API; writes go through the generic repository +
+// sync worker. The DB is migrated by AssetsProvider (which wraps this). Legacy album objects
+// are normalized via the yup schema (defaults) then mapped to the modern shape (deletedAt).
+const repo = makeRepository('albums', schema.albums);
 
 export default function AlbumsProvider({ children }) {
-  const {
-    data: albums,
-    setData: setAlbums,
-    initializeData,
-  } = useLoadAndUpdateData({ localDataFilename: 'albums.json' });
+  const albums = useLiveCollectionMap(schema.albums);
 
-  async function updateAlbums(ids, updates) {
-    updateAsync({
-      models: getModelsById(ids, albums),
-      updates,
-      schema: albumSchema,
-      setState: setAlbums,
-    });
-  }
-
-  const value = useMemo(
-    () => ({
+  const value = useMemo(() => {
+    const db = getDb();
+    function updateAlbums(ids, updates) {
+      for (const id of ids) repo.update(db, id, toModernChanges(updates));
+      requestSync();
+    }
+    return {
       albums,
-      loadAlbumsAsync: async () => {
-        const albums = await loadAlbumsAsync();
-        initializeData(albums);
-      },
+      loadAlbumsAsync: async () => {},
       addAlbum: async (data) => {
-        return await addAsync({
-          data,
-          schema: albumSchema,
-          setState: setAlbums,
-        });
+        const rec = repo.create(db, toModernRecord(albumSchema.cast(data)));
+        requestSync();
+        return rec;
       },
-      updateAlbum: async (id, updates) => {
-        await updateAlbums([id], updates);
-      },
-      updateAlbums: async (ids, updates) => {
-        await updateAlbums(ids, updates);
-      },
+      updateAlbum: async (id, updates) => updateAlbums([id], updates),
+      updateAlbums: async (ids, updates) => updateAlbums(ids, updates),
       updateManyAlbums: async (updatesById) => {
-        await updateManyAsync({ updatesById, setState: setAlbums });
+        for (const [id, updates] of Object.entries(updatesById)) repo.update(db, id, toModernChanges(updates));
+        requestSync();
       },
-      toggleFavoriteAlbum: async (album) => {
-        const isFavorite = !album.isFavorite;
-        await updateAlbums([album.id], { isFavorite });
-      },
+      toggleFavoriteAlbum: async (album) => updateAlbums([album.id], { isFavorite: !album.isFavorite }),
       addAssetsToAlbum: async (album, assetsOrAssetIds) => {
-        const assetIds = assetsOrAssetIds.map((assetOrAssetId) =>
-          typeof assetOrAssetId === 'string' ? assetOrAssetId : assetOrAssetId.id,
-        );
-        const updatedAssets = [...new Set([...album.assets, ...assetIds])];
-        await updateAlbums([album.id], { assets: updatedAssets });
+        const assetIds = assetsOrAssetIds.map((a) => (typeof a === 'string' ? a : a.id));
+        updateAlbums([album.id], { assets: [...new Set([...album.assets, ...assetIds])] });
       },
       removeAssetsFromAlbum: async (album, assetsOrAssetIds) => {
-        const assetIds = assetsOrAssetIds.map((assetOrAssetId) =>
-          typeof assetOrAssetId === 'string' ? assetOrAssetId : assetOrAssetId.id,
-        );
-        const updatedAssets = album.assets.filter((assetId) => !assetIds.includes(assetId));
-        await updateAlbums([album.id], { assets: updatedAssets });
+        const assetIds = assetsOrAssetIds.map((a) => (typeof a === 'string' ? a : a.id));
+        updateAlbums([album.id], { assets: album.assets.filter((id) => !assetIds.includes(id)) });
       },
       reorderAlbumAssets: async (album, orderedAssetIds) => {
-        const updatedAssets = [...new Set(orderedAssetIds)];
-        await updateAlbums([album.id], { assets: updatedAssets, sortOrder: 'custom' });
+        updateAlbums([album.id], { assets: [...new Set(orderedAssetIds)], sortOrder: 'custom' });
       },
       setAlbumDeleted: async (album) => {
-        await updateAlbums([album.id], { isDeleted: true });
+        repo.remove(db, [album.id]);
+        requestSync();
       },
       deleteAlbumAsync: async (album) => {
-        await deleteAsync({ ids: [album.id], setState: setAlbums });
+        repo.remove(db, [album.id]);
+        requestSync();
       },
-    }),
-    [albums],
-  );
+    };
+  }, [albums]);
 
   return <AlbumsContext.Provider value={value}>{children}</AlbumsContext.Provider>;
 }

@@ -1,4 +1,4 @@
-import type { AssetRecord, PushMutation, PushResult } from '@squidbox/shared';
+import type { PushMutation, PushResult } from '@squidbox/shared';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import type { SyncTransport } from './transport';
@@ -68,15 +68,16 @@ async function applyPushResult(db: SyncDb, result: PushResult, pushedUpdatedAt: 
   const plan = planPushOutcome({ status: result.status, pushedUpdatedAt, currentOutboxUpdatedAt });
   let note: string | null = null;
 
-  if (plan.adoptCurrent && result.current && result.collection === 'assets') {
-    await applyAssetRecord(db, result.current as unknown as AssetRecord);
+  if (plan.adoptCurrent && result.current) {
+    await applyRecord(db, result.collection, result.current as Record<string, unknown>);
     // Conflict/rebase visibility (sync-design §13): a local change lost LWW and was overwritten.
     note = `${result.collection} ${result.id}: local change overwritten by server`;
   }
   if (plan.clearOutbox) await clearOutboxRow(db, result.collection, result.id);
+  // syncError is an assets-only local field.
   if (plan.clearError && result.collection === 'assets') await setSyncError(db, result.id, null);
-  if (plan.flagRejected && result.collection === 'assets') {
-    await setSyncError(db, result.id, result.reason ?? 'rejected');
+  if (plan.flagRejected) {
+    if (result.collection === 'assets') await setSyncError(db, result.id, result.reason ?? 'rejected');
     note = `${result.collection} ${result.id}: rejected (${result.reason ?? 'unknown'})`;
   }
   return note;
@@ -89,7 +90,10 @@ async function pullPhase(db: SyncDb, transport: SyncTransport): Promise<number> 
   let pulled = 0;
   while (hasMore) {
     const page = await transport.pull({ cursor, limit: PULL_LIMIT });
-    pulled += await applyPage(db, page.changes.assets?.records ?? []);
+    // Apply every registered collection's changes to its local table.
+    for (const [name, table] of Object.entries(clientCollectionTables)) {
+      pulled += await applyPage(db, name, table, page.changes[name]?.records ?? []);
+    }
     cursor = page.cursor;
     await setCursor(db, cursor);
     hasMore = page.hasMore;
@@ -101,17 +105,23 @@ async function pullPhase(db: SyncDb, transport: SyncTransport): Promise<number> 
 // Outbox-guarded apply (sync-design §5): apply an incoming record only if it has no pending
 // local mutation. Never timestamp-compare against committed local state. One transaction/page.
 // Returns the number of records actually applied.
-async function applyPage(db: SyncDb, records: Array<Record<string, unknown>>): Promise<number> {
+async function applyPage(
+  db: SyncDb,
+  collection: string,
+  table: (typeof clientCollectionTables)[string],
+  records: Array<Record<string, unknown>>,
+): Promise<number> {
   if (records.length === 0) return 0;
-  const pending = await pendingRecordIds(db, 'assets');
+  const pending = await pendingRecordIds(db, collection);
   let applied = 0;
   db.transaction((tx) => {
     for (const record of records) {
       if (pending.has(String(record.id))) continue; // local edit will re-assert via push
+      const values = collection === 'assets' ? { ...record, syncError: null } : record;
       (tx as unknown as SyncDb)
-        .insert(schema.assets)
-        .values({ ...(record as AssetRecord), syncError: null })
-        .onConflictDoUpdate({ target: schema.assets.id, set: record as AssetRecord })
+        .insert(table)
+        .values(values as any)
+        .onConflictDoUpdate({ target: (table as any).id, set: record })
         .run();
       applied += 1;
     }
@@ -119,11 +129,14 @@ async function applyPage(db: SyncDb, records: Array<Record<string, unknown>>): P
   return applied;
 }
 
-async function applyAssetRecord(db: SyncDb, record: AssetRecord): Promise<void> {
+async function applyRecord(db: SyncDb, collection: string, record: Record<string, unknown>): Promise<void> {
+  const table = clientCollectionTables[collection];
+  if (!table) return;
+  const values = collection === 'assets' ? { ...record, syncError: null } : record;
   await db
-    .insert(schema.assets)
-    .values({ ...record, syncError: null })
-    .onConflictDoUpdate({ target: schema.assets.id, set: record })
+    .insert(table)
+    .values(values as any)
+    .onConflictDoUpdate({ target: (table as any).id, set: record })
     .run();
 }
 

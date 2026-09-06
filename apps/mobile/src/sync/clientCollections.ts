@@ -5,6 +5,8 @@ import * as schema from './db/schema';
 // iterate this, so albums/posts (3b) appear with no rework once added here.
 export const clientCollectionTables: Record<string, SQLiteTable> = {
   assets: schema.assets,
+  albums: schema.albums,
+  posts: schema.posts,
 };
 
 export const clientCollectionNames = Object.keys(clientCollectionTables);

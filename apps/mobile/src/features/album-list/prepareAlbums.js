@@ -9,7 +9,7 @@ export default function prepareAlbums({
   showArchivedAlbums = false,
 }) {
   let matchedAlbums = albums.filter((album) => {
-    if (album.isDeleted) return false;
+    if (album.deletedAt) return false;
     if (!showSmartAlbums && album.smartAlbumType) return false;
     if (!showArchivedAlbums && album.archivedAt) return false;
     if (filterFn && !filterFn(album)) return false;

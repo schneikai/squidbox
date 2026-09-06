@@ -48,6 +48,7 @@ import PostsProvider from '@/features/posts-context/PostsProvider';
 import RootNavigator from '@/navigators/RootNavigator';
 import { colors } from '@/styles/designTokens';
 import useInitializeLocalData from '@/utils/local-data/useInitializeLocalData';
+import useSyncTriggers from '@/sync/useSyncTriggers';
 
 // eslint-disable-next-line import/order
 import { defineCollection } from '@squidbox/shared';
@@ -93,6 +94,9 @@ function AppComponent() {
   const initializeLocalDataAsync = useInitializeLocalData();
   const { initializeCloudAsync } = useCloud();
   const [appIsReady, setAppIsReady] = useState(false);
+
+  // Foreground + interval sync triggers (on-mutation is kicked from the providers).
+  useSyncTriggers();
 
   useEffect(() => {
     async function prepare() {

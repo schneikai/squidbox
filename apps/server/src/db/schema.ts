@@ -90,6 +90,64 @@ export const assets = pgTable(
 
 export type AssetRow = typeof assets.$inferSelect;
 
+// Shared base columns for a syncable table (composite PK + server_seq trigger applied in
+// migrate.ts; timestamps are epoch-ms bigints).
+function syncableBase() {
+  return {
+    id: uuid('id').notNull(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+    deletedAt: bigint('deleted_at', { mode: 'number' }),
+    serverSeq: bigint('server_seq', { mode: 'number' }),
+  };
+}
+
+export const albums = pgTable(
+  'albums',
+  {
+    ...syncableBase(),
+    name: text('name').notNull(),
+    assets: jsonb('assets').$type<string[]>().notNull(),
+    isFavorite: boolean('is_favorite').notNull(),
+    archivedAt: bigint('archived_at', { mode: 'number' }),
+    postHistory: jsonb('post_history').$type<string[]>().notNull(),
+    lastPostedAt: bigint('last_posted_at', { mode: 'number' }),
+    showInPostSuggestionsAfter: bigint('show_in_post_suggestions_after', { mode: 'number' }),
+    oldCollectionName: text('old_collection_name'),
+    notes: text('notes'),
+    sortOrder: text('sort_order'),
+    smartAlbumType: text('smart_album_type'),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.id] }),
+    byUserSeq: index('albums_user_seq_idx').on(t.userId, t.serverSeq),
+  })
+);
+export type AlbumRow = typeof albums.$inferSelect;
+
+export const posts = pgTable(
+  'posts',
+  {
+    ...syncableBase(),
+    text: text('text').notNull(),
+    assetRefs: jsonb('asset_refs').$type<{ id: string; assetId: string }[]>().notNull(),
+    isFavorite: boolean('is_favorite').notNull(),
+    postedAt: bigint('posted_at', { mode: 'number' }),
+    rePostId: text('re_post_id'),
+    isIgnoredForRepost: boolean('is_ignored_for_repost').notNull(),
+    suggestRepostAt: bigint('suggest_repost_at', { mode: 'number' }).notNull(),
+    hasBeenReposted: boolean('has_been_reposted').notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.id] }),
+    byUserSeq: index('posts_user_seq_idx').on(t.userId, t.serverSeq),
+  })
+);
+export type PostRow = typeof posts.$inferSelect;
+
 // Global monotonic sequence stamped onto every syncable row by a BEFORE INSERT/UPDATE trigger
 // (used from Phase 2). Created here so the sequence exists before any syncable table. Raw SQL
 // because Drizzle has no first-class sequence DDL we rely on across versions.

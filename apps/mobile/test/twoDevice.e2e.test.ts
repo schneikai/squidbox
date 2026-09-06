@@ -1,13 +1,38 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { drizzle as pgDrizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import type { SyncTransport } from '../src/sync/transport';
 import type { SyncDb } from '../src/sync/db/types';
 import * as repo from '../src/sync/assetsRepository';
+import { makeRepository } from '../src/sync/repository';
+import * as clientSchema from '../src/sync/db/schema';
 import { runSyncOnce } from '../src/sync/worker';
 import { makeTestDb } from './helpers/testDb';
 import { makeAssetRecord } from './helpers/factory';
+
+const albumRepo = makeRepository('albums', clientSchema.albums);
+function albumRecord(over: Record<string, unknown> = {}) {
+  return {
+    id: randomUUID(),
+    createdAt: 1000,
+    updatedAt: 1000,
+    deletedAt: null,
+    name: 'Album',
+    assets: [],
+    isFavorite: false,
+    archivedAt: null,
+    postHistory: [],
+    lastPostedAt: null,
+    showInPostSuggestionsAfter: null,
+    oldCollectionName: null,
+    notes: null,
+    sortOrder: null,
+    smartAlbumType: null,
+    ...over,
+  };
+}
 // Real server engine (against docker Postgres) — the other side of the round-trip.
 import * as serverSchema from '../../server/src/db/schema.js';
 import { push as serverPush } from '../../server/src/sync/push.js';
@@ -41,12 +66,17 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
       .values({ id: USER, email: 'twodevice@test.local', passwordDigest: 'x', storageBucket: null })
       .onConflictDoNothing();
   });
-  afterAll(async () => {
+  async function clearServer() {
+    await pgDb.delete(serverSchema.posts).where(eq(serverSchema.posts.userId, USER));
+    await pgDb.delete(serverSchema.albums).where(eq(serverSchema.albums.userId, USER));
     await pgDb.delete(serverSchema.assets).where(eq(serverSchema.assets.userId, USER));
+  }
+  afterAll(async () => {
+    await clearServer();
     await pool.end();
   });
   beforeEach(async () => {
-    await pgDb.delete(serverSchema.assets).where(eq(serverSchema.assets.userId, USER));
+    await clearServer();
     deviceA = makeTestDb();
     deviceB = makeTestDb();
   });
@@ -80,6 +110,15 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
     expect(a.notes).toBe(b.notes); // converged (byte-identical winner)
     expect(['edited-on-A', 'edited-on-B']).toContain(a.notes);
     expect(a.updatedAt).toBe(b.updatedAt);
+  });
+
+  it('propagates a non-asset collection (albums) A → B via the generic engine', async () => {
+    const album = albumRecord({ name: 'Trip' });
+    albumRepo.create(deviceA, album);
+    await runSyncOnce(deviceA, transport); // A pushes the album
+    await runSyncOnce(deviceB, transport); // B pulls it
+    const rows = await deviceB.select().from(clientSchema.albums).where(eq(clientSchema.albums.id, album.id));
+    expect(rows[0]).toMatchObject({ id: album.id, name: 'Trip' });
   });
 
   it('propagates a tombstone from A to B', async () => {

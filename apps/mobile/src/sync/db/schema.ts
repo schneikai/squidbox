@@ -31,6 +31,43 @@ export const assets = sqliteTable('assets', {
 });
 export type AssetRow = typeof assets.$inferSelect;
 
+// albums — mirrors @squidbox/shared albumCollection. Ordered `assets` is JSON. No local-only.
+export const albums = sqliteTable('albums', {
+  id: text('id').primaryKey(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  deletedAt: integer('deleted_at'),
+  name: text('name').notNull(),
+  assets: text('assets', { mode: 'json' }).$type<string[]>().notNull(),
+  isFavorite: integer('is_favorite', { mode: 'boolean' }).notNull(),
+  archivedAt: integer('archived_at'),
+  postHistory: text('post_history', { mode: 'json' }).$type<string[]>().notNull(),
+  lastPostedAt: integer('last_posted_at'),
+  showInPostSuggestionsAfter: integer('show_in_post_suggestions_after'),
+  oldCollectionName: text('old_collection_name'),
+  notes: text('notes'),
+  sortOrder: text('sort_order', { enum: ['custom'] }),
+  smartAlbumType: text('smart_album_type', { enum: ['FAVORITES', 'DELETED'] }),
+});
+export type AlbumRow = typeof albums.$inferSelect;
+
+// posts — mirrors @squidbox/shared postCollection. Ordered `assetRefs` is JSON. No local-only.
+export const posts = sqliteTable('posts', {
+  id: text('id').primaryKey(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  deletedAt: integer('deleted_at'),
+  text: text('text').notNull(),
+  assetRefs: text('asset_refs', { mode: 'json' }).$type<{ id: string; assetId: string }[]>().notNull(),
+  isFavorite: integer('is_favorite', { mode: 'boolean' }).notNull(),
+  postedAt: integer('posted_at'),
+  rePostId: text('re_post_id'),
+  isIgnoredForRepost: integer('is_ignored_for_repost', { mode: 'boolean' }).notNull(),
+  suggestRepostAt: integer('suggest_repost_at').notNull(),
+  hasBeenReposted: integer('has_been_reposted', { mode: 'boolean' }).notNull(),
+});
+export type PostRow = typeof posts.$inferSelect;
+
 // key/value store for the pull cursor + sync status (all local-only).
 export const syncMeta = sqliteTable('sync_meta', {
   key: text('key').primaryKey(),

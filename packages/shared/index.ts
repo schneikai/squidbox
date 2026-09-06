@@ -11,6 +11,8 @@ export { z };
 // Collection descriptors + registry (the sync engine's source of truth).
 export * from './collections/define';
 export * from './collections/asset';
+export * from './collections/album';
+export * from './collections/post';
 export * from './collections/registry';
 
 // Wire contracts shared between the mobile app and the new server.

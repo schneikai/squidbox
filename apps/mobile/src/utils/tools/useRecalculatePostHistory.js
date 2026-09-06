@@ -24,7 +24,7 @@ export default function useRecalculatePostHistory() {
     const albumHistory = {};
 
     const sortedPosts = Object.values(posts)
-      .filter((post) => !post.isDeleted)
+      .filter((post) => !post.deletedAt)
       .sort((a, b) => (a.postedAt ?? 0) - (b.postedAt ?? 0));
 
     for (const post of sortedPosts) {

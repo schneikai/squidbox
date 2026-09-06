@@ -7,7 +7,7 @@ export default function preparePosts({ posts, albums, sortFn, filterFn, searchTe
   const searchValue = matched ? matched[2] : null; // asset or album id
 
   let matchedPosts = posts.filter((post) => {
-    if (filterDeleted && post.isDeleted) return false;
+    if (filterDeleted && post.deletedAt) return false;
     if (filterFn && !filterFn(post)) return false;
 
     // If an assetId is specified in the searchText, only show posts that reference that asset
