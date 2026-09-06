@@ -11,22 +11,31 @@ Statuses: `not-started` · `in-progress` · `blocked-on-user` · `done`
 | 1  | Backend skeleton — auth + S3 + multi-tenant schema (modern rewrite) | `phase-1-backend-skeleton.md` | done |
 | 2a | Sync backend slice (`assets` endpoints + tests) | `phase-2-sync-slice.md` (§2a) | done |
 | 2b | Sync client slice — SQLite + worker (clean rewrite, no flag; native build) | `phase-2-sync-slice.md` (§2b) | blocked-on-user |
-| 3a | Sync Inspector + observability | `phase-3-collections-inspector.md` (§3a) | not-started |
+| 3a | Sync Inspector + observability | `phase-3-collections-inspector.md` (§3a) | done |
 | 3b | albums/posts + sync triggers | `phase-3-collections-inspector.md` (§3b) | not-started |
 | 4  | Converter + parallel run | `phase-4-converter-parallel.md` | not-started |
 | 5a | Cutover — deploy + flip default | `phase-5-cutover.md` (§5a) | not-started |
 | 5b | Cleanup — delete old path, retire Rails | `phase-5-cutover.md` (§5b) | not-started |
 | 6  | Open registration — signup + hardening | `phase-6-open-registration.md` | not-started |
 
-**Next stage:** 3a — Sync Inspector + observability (JS-only; builds on the tested engine).
-⚠️ 2b's device gate (fresh dev-client build + two-device check) is outstanding — tracked in
-`/todo.md`; it validates the native expo-sqlite path (headless tests use better-sqlite3).
+**Next stage:** 3b — albums + posts collections + sync triggers (another vertical-slice-sized
+stage: descriptors + server/client tables + repositories + provider rewires + album/post screen
+shape sweep + post-history logic + foreground/on-mutation triggers; background-task module
+deferred to a device-gated follow-up). ⚠️ 2b device gate still outstanding (`/todo.md`).
 
 ## Log
 
 _Newest first. The skill appends one entry per run: what it did, what's pending, any
 deviations from the plan._
 
+- **2026-09-06 — Stage 3a (Sync Inspector + observability): done.** `sync_log` ring buffer +
+  conflict/rebase notes written by the worker (in `finally`, so errors are logged); dev ops
+  `clearOutbox` + `fullResync` (registry-driven wipe + repull); backend user_id-tagged push/pull
+  structured logs. App `SyncInspector` (Settings→Developer): status + Sync now / Full resync /
+  Clear outbox + per-collection stats + outbox + sync log; client collection registry. +5
+  observability tests (mobile 29, server 48 all pass; typechecks clean; app bundles). No native
+  rebuild (JS-only). Adapted from the doc's flag-gated checkpoints (flag removed per the
+  clean-rewrite direction).
 - **2026-09-06 — Direction change + Stage 2b started (clean rewrite, no flag).** User dropped
   the "works after every stage" requirement and the `useNewSync`/parallel-run model: the app is
   **rewritten directly** onto the new stack (old build + backups are the external safety net),
