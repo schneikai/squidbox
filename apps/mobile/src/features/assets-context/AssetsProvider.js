@@ -1,84 +1,80 @@
+import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import { useMemo } from 'react';
 
 import AssetsContext from './AssetsContext';
 
-import deleteAssetFilesAsync from '@/features/cloud/assets/deleteAssetFilesAsync';
-import assetSchema from '@/utils/assets/assetSchema';
-import loadAssetsAsync from '@/utils/assets/loadAssetsAsync';
-import useLoadAndUpdateData from '@/utils/local-data/useLoadAndUpdateData';
-import addAsync from '@/utils/state/addAsync';
-import deleteAsync from '@/utils/state/deleteAsync';
-import getModelsById from '@/utils/state/getModelsById';
-import updateAsync from '@/utils/state/updateAsync';
-import updateManyAsync from '@/utils/state/updateManyAsync';
+import { getDb } from '@/sync/db/client';
+import migrations from '@/sync/db/migrations/migrations';
+import * as repo from '@/sync/assetsRepository';
+import { toAssetRecord, toAssetChanges } from '@/sync/legacyAsset';
+import { useLiveAssetsMap } from '@/sync/useAssetsQuery';
+import { requestSync } from '@/sync/worker';
 
+// Modern asset store: SQLite (the source of truth) + the sync engine, exposed through the same
+// provider API the app already consumes (an id-keyed `assets` map + methods). Reads are reactive
+// via useLiveQuery; writes go through the transactional repository (row + outbox) and then kick
+// the sync worker. No JSON blobs, no useNewSync flag — this replaces the old path outright.
 export default function AssetsProvider({ children }) {
-  const {
-    data: assets,
-    setData: setAssets,
-    initializeData,
-  } = useLoadAndUpdateData({ localDataFilename: 'assets.json' });
+  const { success, error } = useMigrations(getDb(), migrations);
+  if (error) throw error; // fail loudly in dev — the DB must migrate before use
+  if (!success) return null; // brief: first-launch migration
+  return <AssetsData>{children}</AssetsData>;
+}
 
-  async function updateAssets(ids, updates) {
-    await updateAsync({
-      models: getModelsById(ids, assets),
-      updates,
-      schema: assetSchema,
-      setState: setAssets,
-    });
-  }
-
-  // TODO: We need to update AssetsProvier, AlbumsProvider and PostsProvider
-  // and rename all methods to [methodName]Async to indicate that they are async.
-  // All code where these methods are used need to be updated as well.
-  // I would also like to update all methods to use the object instead of just the id.
-  // Right now we sometimes use id and sometimes the object. This is confusing.
+function AssetsData({ children }) {
+  const assets = useLiveAssetsMap();
 
   const value = useMemo(
     () => ({
       assets,
-      loadAssetsAsync: async () => {
-        const assets = await loadAssetsAsync();
-        initializeData(assets);
-      },
+      // SQLite + the live query hydrate automatically; kept for API compatibility.
+      loadAssetsAsync: async () => {},
       addAssetAsync: async (data) => {
-        return await addAsync({
-          data,
-          schema: assetSchema,
-          setState: setAssets,
-        });
+        const record = await repo.createAsset(getDb(), toAssetRecord(data));
+        requestSync();
+        return record;
       },
       addAssetsAsync: async (data) => {
-        return await addAsync({
-          data,
-          schema: assetSchema,
-          setState: setAssets,
-        });
+        const list = Array.isArray(data) ? data : [data];
+        const out = [];
+        for (const item of list) out.push(await repo.createAsset(getDb(), toAssetRecord(item)));
+        requestSync();
+        return out;
       },
       updateAsset: async (id, updates) => {
-        await updateAssets([id], updates);
+        await repo.updateAsset(getDb(), id, toAssetChanges(updates));
+        requestSync();
       },
       updateAssets: async (ids, updates) => {
-        await updateAssets(ids, updates);
+        for (const id of ids) await repo.updateAsset(getDb(), id, toAssetChanges(updates));
+        requestSync();
       },
       updateManyAssets: async (updatesById) => {
-        await updateManyAsync({ updatesById, setState: setAssets });
+        for (const [id, updates] of Object.entries(updatesById)) {
+          await repo.updateAsset(getDb(), id, toAssetChanges(updates));
+        }
+        requestSync();
       },
       toggleFavoriteAsset: async (asset) => {
-        const isFavorite = !asset.isFavorite;
-        await updateAssets([asset.id], { isFavorite });
+        await repo.toggleFavorite(getDb(), asset.id);
+        requestSync();
       },
       setAssetsDeleted: async (assetIds) => {
-        await updateAssets(assetIds, { isDeleted: true });
+        await repo.deleteAssets(getDb(), assetIds);
+        requestSync();
       },
       restoreDeletedAssets: async (assetIds) => {
-        await updateAssets(assetIds, { isDeleted: false });
+        for (const id of assetIds) await repo.updateAsset(getDb(), id, { deletedAt: null });
+        requestSync();
       },
       deleteAssetsAsync: async (assetsToDelete) => {
-        // TODO: If we are dealing with a cloud asset here (isSynced) we need to
-        // add a check if cloud is authorized and if there is internet connection.
-        await deleteAssetFilesAsync(assetsToDelete);
-        await deleteAsync({ ids: assetsToDelete.map((asset) => asset.id), setState: setAssets });
+        // Tombstone the metadata; it syncs as a delete. TODO(2b polish): also delete the S3
+        // binaries via the new backend before tombstoning (sync-design §7a).
+        await repo.deleteAssets(
+          getDb(),
+          assetsToDelete.map((asset) => asset.id),
+        );
+        requestSync();
       },
     }),
     [assets],

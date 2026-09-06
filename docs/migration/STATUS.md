@@ -56,12 +56,19 @@ deviations from the plan._
     docker Postgres: create propagation, concurrent-conflict convergence, tombstone). `npm test`
     (mobile) runs pure+engine; `npm run test:e2e` adds the two-device e2e; `npm run
     typecheck:sync` is strict-clean.
-  - **PENDING — 2b part 2 (app integration, next):** a modern `AssetsProvider` (runs migrations
-    via `useMigrations`, exposes a live id-keyed map + methods backed by the repository, kicks
-    `requestSync` after writes), swap it into `App.js`, **repoint auth at the new backend**
-    (base URL + `/user`→`/me`, refresh shape), update asset screens for the modern shape
-    (`isDeleted`→`deletedAt`, `mediaType 'image'`→`'photo'`), sync-status UI + "Sync now". Then
-    the **device gate**: fresh dev-client build (runtimeVersion 1.0.0) on a physical device.
+  - **2b part 2a done: provider + auth wired (bundles).** Rewrote `AssetsProvider` to be
+    SQLite-backed: `useMigrations` gate → reactive `useLiveAssetsMap` + methods delegating to the
+    repository and kicking `requestSync`. A legacy↔modern adapter (`sync/legacyAsset.ts`) lets
+    existing screens/creation keep producing the old shape while the store runs modern. Auth
+    repointed at the new backend: runtime base-URL override (`apiBaseUrl.js`, dev setting for a
+    LAN IP/tunnel), `getUser` `/user`→`/me`, `logout` now sends `{refreshToken}` (login/refresh
+    already matched). Full app **bundles** (2387 modules; expo-sqlite + drizzle + inlined `.sql`
+    migrations all resolve).
+  - **PENDING — 2b part 2b (next):** screen-shape sweep (reads still reference legacy
+    `isDeleted`/`mediaType 'image'`; the live map now returns the modern shape) + a small
+    sync-status UI + "Sync now" dev control. Then the **device gate**: fresh dev-client build
+    (runtimeVersion 1.0.0) on a physical device + real two-device check. (The headless
+    two-device e2e already covers the engine; the device test covers native SQLite + real UI.)
 - **2026-09-06 — Stage 2a (Sync backend slice): done. App untouched.**
   Built the generic sync engine for the `assets` collection, backend-only.
   - **`packages/shared`:** `defineCollection` (now `{ name, schema, localOnly }`) + base-record

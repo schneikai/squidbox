@@ -1,6 +1,7 @@
 import apiWithAuthentication from '../apiWithAuthentication';
 
 export default async function getUserAsync() {
-  const { data } = await apiWithAuthentication.get('user');
+  // New backend: GET /me → { user: { id, email } }.
+  const { data } = await apiWithAuthentication.get('me');
   return data;
 }
