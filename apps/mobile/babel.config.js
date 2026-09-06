@@ -9,6 +9,11 @@ module.exports = function (api) {
       [
         'module-resolver',
         {
+          // Anchor `@` to this package dir. module-resolver resolves relative aliases
+          // against process.cwd() by default; under a monorepo a tool may run babel with
+          // cwd = repo root, which would break `@`. `cwd: 'packagejson'` pins it to the
+          // nearest package.json (apps/mobile).
+          cwd: 'packagejson',
           alias: {
             '@': './src',
             // src: './src',

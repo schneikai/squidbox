@@ -100,6 +100,8 @@ Bad:
 
 ## Build & Preview
 
+**Monorepo:** the Expo app lives in `apps/mobile/`. Run all app commands (`npx expo start`, `node tunnel.js`, `scripts/check-env.sh`, `eas build`) and read the env files (`.env.local`, `.secrets`) from `apps/mobile/`. `npm install` runs once at the repo root (npm workspaces).
+
 Builds run from a cloud workspace. For the full procedure, see `README.md` → "Build & preview" and "Building from the cloud (no Mac)", and the `cloud-ios-build` skill for the headless runbook. Invariants:
 
 - Two app slots via separate bundle IDs (`app.config.js` switches on `EAS_BUILD_PROFILE`): `development` → `.dev` (dev client, Metro over a tunnel, hot reload); `preview` → base id (standalone, JS baked in). Always export `EAS_BUILD_PROFILE` matching the profile you pass to `eas build`.

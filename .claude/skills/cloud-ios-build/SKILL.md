@@ -7,6 +7,8 @@ description: Build and preview the Squidbox iOS app from a cloud workspace (no M
 
 Build and preview the Squidbox iOS app from a cloud workspace. Authenticate Apple with an App Store Connect API Key — no Mac, no Apple ID password, no 2FA (those are blocked from cloud IPs). For an overview of profiles and env, see `README.md` → "Build & preview". This skill covers the headless specifics.
 
+**Monorepo:** the app lives in `apps/mobile/`. Run every command in this skill (`eas ...`, `expo start`, `node tunnel.js`, `scripts/check-env.sh`, `cp .env.local.example .env.local`) from `apps/mobile/`. `npm install` runs once at the repo root.
+
 ## One-time, per workspace
 
 - `AuthKey_<KEY_ID>.p8` on disk (gitignored via `*.p8`; never commit, never print contents).

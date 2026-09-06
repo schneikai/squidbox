@@ -1,0 +1,29 @@
+# EAS uploads the git ROOT as the mobile build context. When this file exists, EAS uses
+# it INSTEAD of .gitignore for upload filtering — so it must re-list everything .gitignore
+# excludes (secrets, node_modules, build artifacts) or those would ship in the build
+# context, AND exclude the parts of the monorepo the mobile build doesn't need.
+#
+# NOTE: keep packages/shared uploaded — apps/mobile depends on it and `npm ci` needs it.
+
+# --- mirror of .gitignore (must be kept in sync) ---
+node_modules/
+.expo/
+dist/
+npm-debug.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+.DS_Store
+.metro-health-check*
+.env.local
+.secrets
+
+# --- monorepo parts the mobile build doesn't need ---
+apps/server/
+docs/
+.claude/
+.vscode/

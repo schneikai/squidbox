@@ -49,6 +49,17 @@ import RootNavigator from '@/navigators/RootNavigator';
 import { colors } from '@/styles/designTokens';
 import useInitializeLocalData from '@/utils/local-data/useInitializeLocalData';
 
+// eslint-disable-next-line import/order
+import { defineCollection } from '@squidbox/shared';
+
+// Phase 0 monorepo-wiring probe: import a runtime VALUE from the workspace package
+// @squidbox/shared and touch it, so Metro must actually resolve the package in the running
+// bundle. A type-only import would be erased and prove nothing. Remove once the shared
+// package has real consumers (sync descriptors, Phase 2+).
+if (__DEV__) {
+  console.log('[phase0] @squidbox/shared wired:', typeof defineCollection === 'function');
+}
+
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 

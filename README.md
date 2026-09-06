@@ -2,6 +2,12 @@
 
 A React Native app for managing photos and videos in the cloud. Like Apple Photos, but files live in the cloud, not on the device — so large photo and video shoots are accessible from your phone without using up its storage. Personal project, backed by a Rails API.
 
+> **Monorepo layout (since Phase 0 of the backend migration).** The Expo app now lives in
+> `apps/mobile/`. **Run every app command from `apps/mobile/`** — `npx expo start`,
+> `node tunnel.js`, `scripts/check-env.sh`, `eas build`, and the `.env.local` / `.secrets`
+> files all live there. `npm install` runs once at the repo root (npm workspaces). The
+> command blocks below are unchanged except for the working directory.
+
 # Prerequisites
 
 Builds and previews run from a cloud workspace (no Mac) using EAS Build and an App Store Connect API Key. You need:

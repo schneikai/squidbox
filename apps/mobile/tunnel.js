@@ -13,7 +13,13 @@ if (!token) {
   process.exit(1);
 }
 
-const bin = join(__dirname, 'node_modules', 'ngrok', 'bin', 'ngrok');
+// Resolve the ngrok binary regardless of where the `ngrok` package is installed. Under npm
+// workspaces it hoists to the ROOT node_modules, so the old hard-coded
+// apps/mobile/node_modules/ngrok/bin/ngrok path no longer exists. We can't
+// require.resolve('ngrok/bin/ngrok') directly — ngrok's package.json "exports" only exposes
+// "." and "./download", so the bin subpath (and package.json) are blocked. Resolve the main
+// entry instead (allowed by exports) and derive the package root from it.
+const bin = join(require.resolve('ngrok'), '..', 'bin', 'ngrok');
 const configDir = join(tmpdir(), 'ngrok-v3-config');
 mkdirSync(configDir, { recursive: true });
 writeFileSync(join(configDir, 'ngrok.yml'), 'version: 3\n');

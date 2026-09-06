@@ -40,16 +40,32 @@ The app builds and runs exactly as before, now from `apps/mobile`:
    `apps/mobile/`. Keep `.env.local` handling there.
 3. **Fix the app entry point (hoisting bug).** `main: "node_modules/expo/AppEntry.js"` is a
    literal path; with workspaces `expo` hoists to the **root** `node_modules`, so that path
-   won't exist under `apps/mobile`. Add `apps/mobile/index.js` with `import 'expo/AppEntry';`
-   and set `"main": "index.js"` (Metro resolves `expo` via `nodeModulesPaths`).
+   won't exist under `apps/mobile`. Set `"main": "index.js"` and add `apps/mobile/index.js`.
+   **Do NOT** just `import 'expo/AppEntry'` there — `expo/AppEntry.js` internally does
+   `import App from '../../App'` **relative to its own location**, so once `expo` is hoisted
+   to the root that resolves to the repo root (`/App`), not `apps/mobile/App.js`, and the
+   bundle fails with "Unable to resolve module ../../App". Instead register the root
+   component directly (the standard Expo monorepo entry), so `./App` is resolved relative to
+   `index.js` and stays correct under hoisting:
+   ```js
+   import { registerRootComponent } from 'expo';
+   import App from './App';
+   registerRootComponent(App);
+   ```
+   (Deviation found during Phase 0 execution — the original `import 'expo/AppEntry'` recipe
+   does not survive hoisting; verified via a headless `expo export` bundle.)
 4. **Pin the `@/*` alias to the app dir (hoisting bug).** `babel-plugin-module-resolver`
    resolves `'@': './src'` relative to `process.cwd()`. If any tool runs babel with cwd =
    repo root, `@` breaks. Set `{ cwd: 'packagejson', alias: { '@': './src' } }` (or
    `cwd: __dirname`) so it always anchors to `apps/mobile`.
 5. **Fix `tunnel.js` ngrok path (hoisting bug).** It hard-codes
    `apps/mobile/node_modules/ngrok/bin/ngrok`, but `ngrok` hoists to root. Resolve
-   dynamically via `require.resolve('ngrok/bin/ngrok')` (respects hoisting). Also update
-   `.env.local`/Metro cwd assumptions in `tunnel.js` and `scripts/check-env.sh`.
+   dynamically — but **not** via `require.resolve('ngrok/bin/ngrok')`: ngrok's `package.json`
+   `exports` only exposes `.` and `./download`, so the bin subpath (and `package.json`) are
+   blocked (`ERR_PACKAGE_PATH_NOT_EXPORTED`). Resolve the main entry (allowed by exports) and
+   derive the package dir: `join(require.resolve('ngrok'), '..', 'bin', 'ngrok')`. (Deviation
+   found during Phase 0 execution.) `scripts/check-env.sh` needs no path edits — it reads
+   `.env.local`/`.env.local.example` cwd-relative and is now run from `apps/mobile`.
 6. **Update Metro for monorepo.** In `apps/mobile/metro.config.js`, after
    `getSentryExpoConfig(__dirname)`, set `config.watchFolders = [workspaceRoot]`,
    `config.resolver.nodeModulesPaths = [projectNodeModules, rootNodeModules]`, and keep
