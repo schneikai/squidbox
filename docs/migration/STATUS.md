@@ -42,12 +42,26 @@ deviations from the plan._
     `current`; outbox-guarded apply), sync API client, and reactive `useLiveQuery` hooks.
     Verified: scoped `tsc` strict clean (drizzle needs strict — expo base doesn't set it, so
     `tsconfig.synccheck.json` enables it for `src/sync`); base app still bundles.
-  - **PENDING — 2b part 2 (integration, next):** a modern `AssetsProvider` (runs migrations via
-    `useMigrations`, exposes a live id-keyed map + methods backed by the repository), swap it into
-    `App.js`, **repoint auth at the new backend** (base URL + `/user`→`/me`, refresh shape),
-    update asset screens for the modern shape (`isDeleted`→`deletedAt`, `mediaType 'image'`→
-    `'photo'`), and a small sync-status UI + "Sync now". Then the **device gate**: fresh
-    dev-client build (runtimeVersion 1.0.0) on a physical device + two-device sync test.
+  - **2b part 1b done + committed: DI refactor, review fixes, full engine test coverage.**
+    `/code-review` on the sync code found 5 real bugs — all fixed: skipped-lww outbox never
+    cleared (→ pure `planPushOutcome` with a supersession check), no push chunking (→ batch of
+    500), stale `syncError` never reset, cursor duplicated in the status blob, and `syncError`
+    leaking into the create push payload. Also fixed a latent correctness bug the tests forced
+    out: drizzle SQLite transactions are **synchronous**, so the async transaction callbacks
+    were non-atomic — rewrote them to sync (`.run()/.get()/.all()`).
+    Made the engine **dependency-injected** (`db` + `SyncTransport`) so it runs off-device:
+    added **24 vitest tests** — pure logic (clock/push-planner/chunk), **real-SQLite** via
+    better-sqlite3 (repository, outbox coalescing, push-result handling, outbox-guarded apply),
+    and a **two-device e2e** (two better-sqlite3 devices ↔ the real server push/pull against
+    docker Postgres: create propagation, concurrent-conflict convergence, tombstone). `npm test`
+    (mobile) runs pure+engine; `npm run test:e2e` adds the two-device e2e; `npm run
+    typecheck:sync` is strict-clean.
+  - **PENDING — 2b part 2 (app integration, next):** a modern `AssetsProvider` (runs migrations
+    via `useMigrations`, exposes a live id-keyed map + methods backed by the repository, kicks
+    `requestSync` after writes), swap it into `App.js`, **repoint auth at the new backend**
+    (base URL + `/user`→`/me`, refresh shape), update asset screens for the modern shape
+    (`isDeleted`→`deletedAt`, `mediaType 'image'`→`'photo'`), sync-status UI + "Sync now". Then
+    the **device gate**: fresh dev-client build (runtimeVersion 1.0.0) on a physical device.
 - **2026-09-06 — Stage 2a (Sync backend slice): done. App untouched.**
   Built the generic sync engine for the `assets` collection, backend-only.
   - **`packages/shared`:** `defineCollection` (now `{ name, schema, localOnly }`) + base-record

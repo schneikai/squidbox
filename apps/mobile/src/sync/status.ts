@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
-import { getDb, schema } from './db/client';
+import * as schema from './db/schema';
+import type { SyncDb } from './db/types';
 
 // sync_meta helpers: the pull cursor + a small status blob (surfaced by the Inspector in 3a).
 const CURSOR_KEY = 'cursor';
@@ -14,31 +15,34 @@ export interface SyncStatus {
   cursor: number;
 }
 
-async function getMeta(key: string): Promise<string | null> {
-  const [row] = await getDb().select().from(schema.syncMeta).where(eq(schema.syncMeta.key, key));
+async function getMeta(db: SyncDb, key: string): Promise<string | null> {
+  const [row] = await db.select().from(schema.syncMeta).where(eq(schema.syncMeta.key, key));
   return row?.value ?? null;
 }
 
-async function setMeta(key: string, value: string): Promise<void> {
-  await getDb()
+async function setMeta(db: SyncDb, key: string, value: string): Promise<void> {
+  await db
     .insert(schema.syncMeta)
     .values({ key, value })
     .onConflictDoUpdate({ target: schema.syncMeta.key, set: { value } });
 }
 
-export async function getCursor(): Promise<number> {
-  return Number((await getMeta(CURSOR_KEY)) ?? 0);
+export async function getCursor(db: SyncDb): Promise<number> {
+  return Number((await getMeta(db, CURSOR_KEY)) ?? 0);
 }
-export async function setCursor(cursor: number): Promise<void> {
-  await setMeta(CURSOR_KEY, String(cursor));
+export async function setCursor(db: SyncDb, cursor: number): Promise<void> {
+  await setMeta(db, CURSOR_KEY, String(cursor));
 }
 
-export async function getStatus(): Promise<SyncStatus> {
-  const raw = await getMeta(STATUS_KEY);
-  const base: SyncStatus = { phase: 'idle', cursor: await getCursor() };
-  return raw ? { ...base, ...(JSON.parse(raw) as Partial<SyncStatus>) } : base;
+export async function getStatus(db: SyncDb): Promise<SyncStatus> {
+  const raw = await getMeta(db, STATUS_KEY);
+  const blob = raw ? (JSON.parse(raw) as Partial<SyncStatus>) : {};
+  // cursor is authoritative in CURSOR_KEY; never let the (possibly stale) status blob shadow it.
+  return { phase: 'idle', ...blob, cursor: await getCursor(db) };
 }
-export async function patchStatus(patch: Partial<SyncStatus>): Promise<void> {
-  const current = await getStatus();
-  await setMeta(STATUS_KEY, JSON.stringify({ ...current, ...patch }));
+export async function patchStatus(db: SyncDb, patch: Partial<SyncStatus>): Promise<void> {
+  const current = await getStatus(db);
+  // Persist everything EXCEPT cursor (single-sourced in CURSOR_KEY) to avoid divergence.
+  const { cursor: _cursor, ...persist } = { ...current, ...patch };
+  await setMeta(db, STATUS_KEY, JSON.stringify(persist));
 }

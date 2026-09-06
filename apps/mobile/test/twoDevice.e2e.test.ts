@@ -1,0 +1,96 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { eq } from 'drizzle-orm';
+import { drizzle as pgDrizzle } from 'drizzle-orm/node-postgres';
+import pg from 'pg';
+import type { SyncTransport } from '../src/sync/transport';
+import type { SyncDb } from '../src/sync/db/types';
+import * as repo from '../src/sync/assetsRepository';
+import { runSyncOnce } from '../src/sync/worker';
+import { makeTestDb } from './helpers/testDb';
+import { makeAssetRecord } from './helpers/factory';
+// Real server engine (against docker Postgres) — the other side of the round-trip.
+import * as serverSchema from '../../server/src/db/schema.js';
+import { push as serverPush } from '../../server/src/sync/push.js';
+import { pull as serverPull } from '../../server/src/sync/pull.js';
+
+// Headless two-device end-to-end: two better-sqlite3 "devices" + the real server sync engine
+// on one Postgres user partition. Run with `npm run test:e2e` (docker stack up); skipped
+// otherwise.
+const TEST_URL = process.env.TEST_DATABASE_URL;
+const d = TEST_URL ? describe : describe.skip;
+
+const USER = '33333333-3333-3333-3333-333333333333';
+
+d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
+  let pool: pg.Pool;
+  let pgDb: ReturnType<typeof pgDrizzle>;
+  let deviceA: SyncDb;
+  let deviceB: SyncDb;
+
+  // Both devices are the SAME user (multi-device sync for one account).
+  const transport: SyncTransport = {
+    push: async (req) => ({ results: await serverPush(pgDb as any, USER, req.mutations) }),
+    pull: async (req) => serverPull(pgDb as any, USER, { cursor: req.cursor, limit: req.limit }),
+  };
+
+  beforeAll(async () => {
+    pool = new pg.Pool({ connectionString: TEST_URL });
+    pgDb = pgDrizzle(pool, { schema: serverSchema });
+    await pgDb
+      .insert(serverSchema.users)
+      .values({ id: USER, email: 'twodevice@test.local', passwordDigest: 'x', storageBucket: null })
+      .onConflictDoNothing();
+  });
+  afterAll(async () => {
+    await pgDb.delete(serverSchema.assets).where(eq(serverSchema.assets.userId, USER));
+    await pool.end();
+  });
+  beforeEach(async () => {
+    await pgDb.delete(serverSchema.assets).where(eq(serverSchema.assets.userId, USER));
+    deviceA = makeTestDb();
+    deviceB = makeTestDb();
+  });
+
+  it('propagates a create from A to B', async () => {
+    const rec = await repo.createAsset(deviceA, makeAssetRecord({ filename: 'from-a.jpg' }));
+    await runSyncOnce(deviceA, transport); // A pushes
+    await runSyncOnce(deviceB, transport); // B pulls
+    const onB = (await repo.loadAssetsMap(deviceB))[rec.id];
+    expect(onB).toMatchObject({ id: rec.id, filename: 'from-a.jpg' });
+  });
+
+  it('converges under a concurrent conflicting edit (whole-record LWW)', async () => {
+    // Both devices start with the same synced asset.
+    const rec = await repo.createAsset(deviceA, makeAssetRecord({ notes: 'orig' }));
+    await runSyncOnce(deviceA, transport);
+    await runSyncOnce(deviceB, transport);
+
+    // Concurrent offline edits to the same record.
+    await repo.updateAsset(deviceA, rec.id, { notes: 'edited-on-A' });
+    await repo.updateAsset(deviceB, rec.id, { notes: 'edited-on-B' });
+
+    // Drain both a couple of times so push/adopt/pull settle.
+    await runSyncOnce(deviceA, transport);
+    await runSyncOnce(deviceB, transport);
+    await runSyncOnce(deviceA, transport);
+    await runSyncOnce(deviceB, transport);
+
+    const a = (await repo.loadAssetsMap(deviceA))[rec.id];
+    const b = (await repo.loadAssetsMap(deviceB))[rec.id];
+    expect(a.notes).toBe(b.notes); // converged (byte-identical winner)
+    expect(['edited-on-A', 'edited-on-B']).toContain(a.notes);
+    expect(a.updatedAt).toBe(b.updatedAt);
+  });
+
+  it('propagates a tombstone from A to B', async () => {
+    const rec = await repo.createAsset(deviceA, makeAssetRecord());
+    await runSyncOnce(deviceA, transport);
+    await runSyncOnce(deviceB, transport);
+    expect((await repo.loadAssetsMap(deviceB))[rec.id]).toBeDefined();
+
+    await repo.deleteAssets(deviceA, [rec.id]);
+    await runSyncOnce(deviceA, transport); // push tombstone
+    await runSyncOnce(deviceB, transport); // pull tombstone
+    expect((await repo.loadAssetsMap(deviceB))[rec.id]).toBeUndefined();
+  });
+});
