@@ -16,18 +16,23 @@ Statuses: `not-started` · `in-progress` · `blocked-on-user` · `done`
 | 4  | Converter + parallel run | `phase-4-converter-parallel.md` | deferred (user) |
 | 5a | Cutover — deploy backend | `phase-5-cutover.md` (§5a) | needs-user (deploy) |
 | 5b | Cleanup — delete old path, retire Rails | `phase-5-cutover.md` (§5b) | needs-user |
-| 6  | Open registration — signup + hardening | `phase-6-open-registration.md` | not-started |
+| 6  | Open registration — signup + hardening | `phase-6-open-registration.md` | not-needed (private build) |
 
-**Next stage:** 6 — Open registration (signup endpoint + app screen + per-user quota); the only
-remaining codeable stage. Phase 4 (converter) is deferred per the clean-rewrite direction
-(fresh login re-syncs). Phase 5 (deploy `apps/server` + retire Rails) needs the user's infra.
-⚠️ Device gate (native expo-sqlite; validates 2b+3b on a real device) still outstanding — `/todo.md`.
+**Next stage:** none codeable — the migration is code-complete. Remaining is all user-side:
+the device gate (native expo-sqlite validation of 2b+3b — `/todo.md`) and Phase 5 (deploy
+`apps/server` + point the app at it + retire Rails). Phase 4 (converter) deferred (fresh login
+re-syncs). Phase 6 (signup/quota) not needed — the app is a private single-user build.
 
 ## Log
 
 _Newest first. The skill appends one entry per run: what it did, what's pending, any
 deviations from the plan._
 
+- **2026-09-06 — Phase 6 marked not-needed (private build).** User: the app is a private
+  single-user build, so open registration + per-user quota aren't needed now. A partial Phase 6
+  (signup endpoint + quota) was built and then reverted (uncommitted, wiped) — the codebase is
+  back at the clean 3b state. If the app is ever opened up, Phase 6's plan doc still stands.
+  Migration is code-complete; only user-side gates remain (device build, Phase 5 deploy).
 - **2026-09-06 — Stage 3b (albums + posts + triggers): done. Sync migration engine complete for
   all 3 collections.** Shared album/post descriptors + registry; server tables + triggers
   (registry-driven) + a registry guard test (table/trigger/composite-PK/round-trip/isolation for
