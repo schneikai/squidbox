@@ -12,22 +12,35 @@ Statuses: `not-started` · `in-progress` · `blocked-on-user` · `done`
 | 2a | Sync backend slice (`assets` endpoints + tests) | `phase-2-sync-slice.md` (§2a) | done |
 | 2b | Sync client slice — SQLite + worker (clean rewrite, no flag; native build) | `phase-2-sync-slice.md` (§2b) | blocked-on-user |
 | 3a | Sync Inspector + observability | `phase-3-collections-inspector.md` (§3a) | done |
-| 3b | albums/posts + sync triggers | `phase-3-collections-inspector.md` (§3b) | not-started |
-| 4  | Converter + parallel run | `phase-4-converter-parallel.md` | not-started |
-| 5a | Cutover — deploy + flip default | `phase-5-cutover.md` (§5a) | not-started |
-| 5b | Cleanup — delete old path, retire Rails | `phase-5-cutover.md` (§5b) | not-started |
+| 3b | albums/posts + sync triggers | `phase-3-collections-inspector.md` (§3b) | done |
+| 4  | Converter + parallel run | `phase-4-converter-parallel.md` | deferred (user) |
+| 5a | Cutover — deploy backend | `phase-5-cutover.md` (§5a) | needs-user (deploy) |
+| 5b | Cleanup — delete old path, retire Rails | `phase-5-cutover.md` (§5b) | needs-user |
 | 6  | Open registration — signup + hardening | `phase-6-open-registration.md` | not-started |
 
-**Next stage:** 3b — albums + posts collections + sync triggers (another vertical-slice-sized
-stage: descriptors + server/client tables + repositories + provider rewires + album/post screen
-shape sweep + post-history logic + foreground/on-mutation triggers; background-task module
-deferred to a device-gated follow-up). ⚠️ 2b device gate still outstanding (`/todo.md`).
+**Next stage:** 6 — Open registration (signup endpoint + app screen + per-user quota); the only
+remaining codeable stage. Phase 4 (converter) is deferred per the clean-rewrite direction
+(fresh login re-syncs). Phase 5 (deploy `apps/server` + retire Rails) needs the user's infra.
+⚠️ Device gate (native expo-sqlite; validates 2b+3b on a real device) still outstanding — `/todo.md`.
 
 ## Log
 
 _Newest first. The skill appends one entry per run: what it did, what's pending, any
 deviations from the plan._
 
+- **2026-09-06 — Stage 3b (albums + posts + triggers): done. Sync migration engine complete for
+  all 3 collections.** Shared album/post descriptors + registry; server tables + triggers
+  (registry-driven) + a registry guard test (table/trigger/composite-PK/round-trip/isolation for
+  every collection). Client tables + a generic repository + generic legacyBase adapter +
+  generic live-map; the worker's pull-apply/push-adopt are now collection-generic (were
+  asset-hardcoded). Albums/PostsProviders rewired to SQLite (API + post-history preserved);
+  album/post readers swept to `deletedAt`. Triggers: foreground + interval (`useSyncTriggers`) +
+  on-mutation. Background-task module deferred to a device follow-up. Tests: mobile 30 (added a
+  two-device **album** e2e proving the generic non-asset path), server 51 (3-collection guard);
+  typechecks + bundle clean.
+  - **Remaining:** Phase 6 (signup) — codeable, next. Phase 4 (converter) — deferred by the user
+    (fresh login re-syncs). Phase 5 (deploy + retire Rails) — needs the user's infra/secrets.
+    Device gate (2b+3b native expo-sqlite validation) — user, tracked in `/todo.md`.
 - **2026-09-06 — Stage 3a (Sync Inspector + observability): done.** `sync_log` ring buffer +
   conflict/rebase notes written by the worker (in `finally`, so errors are logged); dev ops
   `clearOutbox` + `fullResync` (registry-driven wipe + repull); backend user_id-tagged push/pull
