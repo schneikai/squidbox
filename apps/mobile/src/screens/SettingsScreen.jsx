@@ -16,7 +16,7 @@ import confirmLogoutAsync from '@/features/cloud/confirmLogoutAsync';
 import useCloud from '@/features/cloud/useCloud';
 import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
-import SyncStatusControl from '@/features/sync-status/SyncStatusControl';
+import SyncInspector from '@/features/sync-status/SyncInspector';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, radii, spacing, typography } from '@/styles/designTokens';
 import deleteLocalDataAsync from '@/utils/local-data/deleteLocalDataAsync';
@@ -329,7 +329,7 @@ export default function SettingsScreen() {
             </Section>
 
             <ScreenSectionHeader title="Sync engine (dev)" />
-            <SyncStatusControl />
+            <SyncInspector />
           </>
         )}
       </DetailScrollView>

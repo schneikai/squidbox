@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, lt, sql } from 'drizzle-orm';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 
@@ -45,4 +45,37 @@ export async function patchStatus(db: SyncDb, patch: Partial<SyncStatus>): Promi
   // Persist everything EXCEPT cursor (single-sourced in CURSOR_KEY) to avoid divergence.
   const { cursor: _cursor, ...persist } = { ...current, ...patch };
   await setMeta(db, STATUS_KEY, JSON.stringify(persist));
+}
+
+const SYNC_LOG_MAX = 100;
+
+export interface SyncLogEntry {
+  ranAt: number;
+  pushed: number;
+  pulled: number;
+  durationMs: number;
+  error?: string | null;
+  notes?: string | null;
+}
+
+// Append a run to the sync_log ring buffer, trimming to the most recent SYNC_LOG_MAX rows.
+export async function appendSyncLog(db: SyncDb, entry: SyncLogEntry): Promise<void> {
+  await db.insert(schema.syncLog).values({
+    ranAt: entry.ranAt,
+    pushed: entry.pushed,
+    pulled: entry.pulled,
+    durationMs: entry.durationMs,
+    error: entry.error ?? null,
+    notes: entry.notes ?? null,
+  });
+  // Trim: keep only the newest SYNC_LOG_MAX by id.
+  const cutoff = await db
+    .select({ id: schema.syncLog.id })
+    .from(schema.syncLog)
+    .orderBy(sql`${schema.syncLog.id} desc`)
+    .limit(1)
+    .offset(SYNC_LOG_MAX);
+  if (cutoff[0]) {
+    await db.delete(schema.syncLog).where(lt(schema.syncLog.id, cutoff[0].id + 1));
+  }
 }

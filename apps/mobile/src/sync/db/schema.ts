@@ -55,3 +55,16 @@ export const outbox = sqliteTable(
   (t) => ({ oneRowPerRecord: uniqueIndex('outbox_collection_record_idx').on(t.collection, t.recordId) })
 );
 export type OutboxRow = typeof outbox.$inferSelect;
+
+// Ring-buffer of recent sync runs (last ~100) for the Inspector: counts, duration, errors, and
+// conflict/rebase notes (e.g. "assets <id>: local change overwritten by server"). Local-only.
+export const syncLog = sqliteTable('sync_log', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  ranAt: integer('ran_at').notNull(),
+  pushed: integer('pushed').notNull().default(0),
+  pulled: integer('pulled').notNull().default(0),
+  durationMs: integer('duration_ms').notNull().default(0),
+  error: text('error'),
+  notes: text('notes'),
+});
+export type SyncLogRow = typeof syncLog.$inferSelect;
