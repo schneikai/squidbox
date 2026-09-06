@@ -24,3 +24,7 @@ export function defineCollection<S extends z.ZodTypeAny>(
 }
 
 export { z };
+
+// Wire contracts shared between the mobile app and the new server.
+export * from './contracts/auth';
+export * from './contracts/assets';

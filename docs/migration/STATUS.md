@@ -7,8 +7,8 @@ Statuses: `not-started` · `in-progress` · `blocked-on-user` · `done`
 
 | Stage | Description | Doc | Status |
 |-------|-------------|-----|--------|
-| 0  | Foundation — monorepo, move app, TS/shared scaffold | `phase-0-foundation.md` | blocked-on-user |
-| 1  | Backend skeleton — auth + S3 parity + multi-tenant schema | `phase-1-backend-skeleton.md` | not-started |
+| 0  | Foundation — monorepo, move app, TS/shared scaffold | `phase-0-foundation.md` | done |
+| 1  | Backend skeleton — auth + S3 + multi-tenant schema (modern rewrite) | `phase-1-backend-skeleton.md` | done |
 | 2a | Sync backend slice (`assets` endpoints + tests) | `phase-2-sync-slice.md` (§2a) | not-started |
 | 2b | Sync client slice — expo-sqlite + worker + flag (native build) | `phase-2-sync-slice.md` (§2b) | not-started |
 | 3a | Sync Inspector + observability | `phase-3-collections-inspector.md` (§3a) | not-started |
@@ -18,12 +18,58 @@ Statuses: `not-started` · `in-progress` · `blocked-on-user` · `done`
 | 5b | Cleanup — delete old path, retire Rails | `phase-5-cutover.md` (§5b) | not-started |
 | 6  | Open registration — signup + hardening | `phase-6-open-registration.md` | not-started |
 
-**Next stage:** 0 (only the EAS dev-client build gate remains — tracked in `/todo.md`) → then 1
+**Next stage:** 2a — Sync backend slice (`assets` endpoints + tests)
 
 ## Log
 
 _Newest first. The skill appends one entry per run: what it did, what's pending, any
 deviations from the plan._
+
+- **2026-09-06 — Stage 1 (Backend skeleton): built as a modern rewrite; code complete, all
+  headless tests green; blocked on the live DB+S3 smoke gate.** Also marked **Stage 0 `done`**
+  (user's call: the EAS build "is not a blocker"; it stays a non-blocking follow-up in
+  `/todo.md`).
+  - **Direction change (user-directed, docs updated).** This migration is now a **modern 2026
+    rewrite**, not a byte-parity port. Because app+server are collocated, the app's API client
+    will be updated to match a modern contract at wiring time (Phase 2b) rather than freezing
+    the wire format. Updated `migration/README.md` (new "Direction" section) and
+    `phase-1-backend-skeleton.md` (modernization section). Modern choices: single error
+    envelope `{ error: { code, message } }`, `Authorization: Bearer`, RESTful shapes, uuid ids,
+    `GET /me`.
+  - **Built `apps/server`** (Fastify 5 + TS/ESM + Drizzle + Postgres + zod type provider):
+    config (zod-validated env), Drizzle schema (`users` uuid PK, per-device `refresh_tokens`
+    table, `change_seq` sequence) + generated migration, JWT (HS256, `{user_id,exp}`, shared
+    Rails secret), bcryptjs passwords (Rails-digest compatible), refresh-token issue/rotate/
+    revoke, Bearer auth (+`?token=` on upload only), per-user storage resolver (legacy bucket
+    vs shared+`u/<id>/` prefix), S3 service, asset routes, rate limiting, log redaction,
+    `/up`, seed + smoke scripts. Contracts (zod + inferred TS types) live in
+    `packages/shared/contracts` — the shared FE/BE source of truth (user asked for this).
+  - **Upload architecture — investigated & corrected mid-build.** Initially planned
+    direct-to-S3 presigned uploads; the user flagged, and `apps/mobile/src/obsolete-code`
+    confirmed, that Expo can't split large files for client-side multipart (comments: "Upload
+    crashes on large files", "crashes on files larger than 2GB!") and a single S3 PUT caps at
+    5 GB. So uploads stay **server-proxied streaming** with server-side multipart via
+    `@aws-sdk/lib-storage`; downloads are direct presigned GETs. Documented in the contract +
+    both plan docs.
+  - **Verified headlessly (green):** `tsc` clean (server + shared); **40 vitest tests pass**
+    (jwt incl. alg:none/expiry/tamper, bcrypt incl. imported-digest, refresh rotation,
+    storage resolver + tenant isolation, presign/expiry rules, error envelope, and route-level
+    auth + asset tests with DB/S3 mocked incl. 401s, validation, `?token=`, per-user namespace);
+    Drizzle migration generates cleanly.
+  - **Local dev stack added + Docker installed (user request).** `apps/server/docker-compose.yml`
+    runs Postgres + MinIO (S3-compatible, buckets auto-created); `.env.docker` + `npm run
+    local:setup` bring it up. Installed a headless Docker runtime on this machine for local dev
+    (`colima` + `docker` + `docker-compose` via Homebrew; `~/.docker/config.json` points at the
+    compose plugin). S3 client gained optional `S3_ENDPOINT`/`S3_FORCE_PATH_STYLE` (unset ⇒ AWS);
+    made `@squidbox/shared` `"type": "module"` so its named exports resolve under Node+tsx (Vite
+    had masked this) — re-verified the mobile bundle still exports fine.
+  - **VERIFIED end-to-end on the local stack (Stage 1 checklist complete):**
+    `npm run smoke` ⇒ **SMOKE: PASS** (login, /me, small upload+download+verify, >210 MB
+    streaming upload with server-side multipart = 220,200,960 bytes verified, delete).
+    `npm run verify:isolation` ⇒ **ISOLATION: PASS** (two devices hold independent refresh
+    tokens, rotated token rejected; fixture user works in its own namespace; user B gets 404 for
+    user A's object and B's delete leaves A's object intact). Plus `tsc` clean + 40 vitest tests.
+    **Stage 1 = done.**
 
 - **2026-09-06 — Stage 0: dev-client gate PASSED on device; committed; one gate left.**
   Restored `apps/mobile/.env.local` and booted Metro + ngrok tunnel from the new layout.

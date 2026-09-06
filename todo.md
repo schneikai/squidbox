@@ -3,29 +3,20 @@
 Tasks that need a device, secrets, or a deploy and are therefore tracked here instead of
 blocking a migration stage's code work. Remove an item once it's verified.
 
-## [ ] Stage 0 — Fresh EAS dev-client build from the new `apps/mobile/` layout
+## [x] Stage 1 — Live DB + S3 smoke + isolation (DONE 2026-09-06)
 
-**Why:** Phase 0's verification checklist requires one fresh dev-client build to confirm EAS
-builds correctly from the moved monorepo layout (root lockfile + `.easignore`). All other
-Stage 0 gates pass (npm install, Metro+tunnel serve the bundle, on-device login/browse/upload
-against Rails, `@squidbox/shared` resolves). This is the **last** item before Stage 0 → `done`.
+Verified on the local Docker stack (Postgres + MinIO): `npm run smoke` ⇒ SMOKE: PASS and
+`npm run verify:isolation` ⇒ ISOLATION: PASS (two-device refresh + cross-tenant isolation).
+Re-run locally anytime with `cp .env.docker .env && npm run local:setup && npm run smoke &&
+npm run verify:isolation`.
 
-**Blocked on:** not on the device right now; also needs EAS/Apple secrets that aren't set in
-this environment (`EXPO_TOKEN`, `EXPO_ASC_API_KEY_PATH`, `EXPO_ASC_KEY_ID`,
-`EXPO_ASC_ISSUER_ID`, `EXPO_APPLE_TEAM_ID`, `EXPO_APPLE_TEAM_TYPE`, the `.p8`).
+## [ ] Stage 0 — Fresh EAS dev-client build from `apps/mobile/` (non-blocking)
 
-**How (run from `apps/mobile/`):**
+Per the user, this is **not a blocker** (Stage 0 is marked done — the dev client already runs
+the new monorepo layout over Metro, verified on device). Kept as a routine follow-up: run one
+fresh EAS dev-client build from `apps/mobile/` to confirm EAS builds from the moved layout.
+
 ```
-scripts/check-env.sh                 # confirm EAS build env is set
-eas build --profile development --platform ios --non-interactive
+eas build --profile development --platform ios --non-interactive   # from apps/mobile/
 ```
-Full runbook: the `cloud-ios-build` skill.
-
-**Done when:**
-- [ ] EAS build succeeds from `apps/mobile/` (no lockfile/context/`.easignore` errors).
-- [ ] The resulting dev client installs and launches on a physical device.
-- [ ] Then: update `docs/migration/STATUS.md` — set Stage 0 to `done`, `Next stage: 1`.
-
-**Note:** no native modules were added and `runtimeVersion` was NOT bumped in Phase 0, so
-this build is expected to behave identically to the previous dev client — it only proves the
-new layout builds.
+No native modules changed and `runtimeVersion` was not bumped, so it should behave identically.

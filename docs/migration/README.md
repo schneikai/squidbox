@@ -6,6 +6,33 @@ incrementally. Target is **isolated multi-tenant**: each user's private data syn
 that user's own devices only — no cross-user sharing ("just me now, open later"; see
 sync-design §2a). Sync engine design lives in [`../sync-design.md`](../sync-design.md).
 
+## Direction: this is a modernization rewrite (2026-09-06)
+
+Decided with the user: the new backend is a **modern 2026 rewrite**, not a like-for-like
+port of the Rails API. Because the app and server are **collocated in this monorepo**, the
+app's API client is updated to match a modern contract rather than freezing the contract to
+preserve old Rails wire quirks. Concretely:
+
+- **Modern API contract.** Clean, consistent JSON: a single error envelope
+  `{ error: { code, message } }`; standard `Authorization: Bearer <token>` auth; RESTful
+  shapes, resource paths and status codes; camelCase; uuid ids. Contracts are Zod schemas in
+  `packages/shared`, shared by both sides.
+- **The app changes to match, at wiring time.** Each phase still leaves the running app
+  working (flag-gated), but the app's `cloud-api` client is updated to the modern contract
+  when the app is pointed at the new backend (Phase 2b) — not held byte-compatible with
+  Rails. "Parity" language in the phase docs is superseded by this section; it now means
+  "functionally equivalent," not "byte-identical."
+- **Real constraints are still honored (they are not quirks).** Uploads remain
+  **server-proxied streaming** with server-side multipart, because Expo/RN cannot split large
+  files for client-side S3 multipart (direct-to-S3 was tried and abandoned — see
+  `apps/mobile/src/obsolete-code` and phase-1). Downloads are direct-to-S3 presigned GETs.
+  JWT stays HS256 signed with the shared Rails `secret_key_base` so existing access tokens
+  validate at cutover.
+- **Scope unchanged.** The modernization is about *how* the API looks, not *what* the
+  migration delivers: multi-tenant schema, the sync engine, phasing, the feature flag, and
+  fix-forward all stand. Per-phase docs carry the specifics; where a doc says "byte-parity,"
+  read it against this section.
+
 ## Prime directive: every phase is a usable checkpoint
 
 At the end of **every** phase, `apps/mobile` **builds and runs** with existing behavior

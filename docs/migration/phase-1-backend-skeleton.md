@@ -1,4 +1,45 @@
-# Phase 1 — Backend skeleton (auth + S3 asset parity)
+# Phase 1 — Backend skeleton (auth + S3 assets)
+
+## Modernization decision (2026-09-06 — supersedes the byte-parity premise below)
+
+The user re-scoped this migration as a **modernization rewrite**: the API may be modernized
+where it makes sense, and — because the app and server are collocated in this monorepo — the
+**app's API client will be updated to match** (rather than the server bending to preserve
+old Rails wire quirks). Consequences, applied throughout this phase:
+
+- **Contract is modernized, not byte-compatible with Rails.** Clean, consistent JSON:
+  a single error envelope `{ error: { code, message } }` (no more `error` vs `errors`
+  split), standard `Authorization: Bearer <token>` auth (no lenient `?token=`/bare-token
+  extraction), RESTful shapes and status codes, camelCase, uuid user ids. Contracts live as
+  Zod schemas in `packages/shared`.
+- **App stays on Rails this phase (unchanged).** The phased safety is intact: nothing in
+  `apps/mobile` changes here. The app's `cloud-api` client is updated to the modern contract
+  **when the app is wired to the new backend (Phase 2b)** — the natural moment, since the
+  client must change to switch backends anyway.
+- **Downloads go direct-to-S3 via presigned GET URLs** (a plain GET streams fine on Expo).
+- **Uploads stay server-proxied streaming** — NOT direct-to-S3. This was investigated:
+  direct-to-S3 presigned upload was tried and **abandoned** because Expo/React Native cannot
+  split large files for client-side S3 multipart, and single-PUT presigned uploads crash on
+  large files (see `apps/mobile/src/obsolete-code/cloudFileUtils.js`
+  `// KS: Upload crashes on large files` and `cloud-file-utils/fileUtils.js`
+  `// TODO: This crashes on files larger than 2GB!`; `getInfoAsync`/md5 also crash >2GB).
+  A single S3 PUT is also capped at **5 GB**, so larger objects *require* multipart (up to
+  5 TB) — which the client can't orchestrate. The client can only stream the whole file as
+  **one** binary PUT (`FileSystem.createUploadTask`, `BINARY_CONTENT`); the **server** is what
+  splits it into S3 multipart parts. So the server
+  keeps proxying uploads, using `@aws-sdk/lib-storage` `Upload` to auto-multipart the incoming
+  stream (replaces the hand-rolled create/upload_part/complete). The upload route also still
+  accepts the access token via `?token=` (redacted in logs) because iOS can drop the
+  `Authorization` header on background upload tasks (`NSURLSessionUploadTask` limitation —
+  see `uploadFileAsync.js`); all other routes are `Authorization: Bearer` only.
+- **Unchanged by this decision:** the multi-tenant schema/storage work (uuid `user_id`,
+  composite PKs later, per-device `refresh_tokens` table, per-user storage resolver, shared
+  bucket + `u/<user_id>/` prefix, `change_seq` sequence), JWT still HS256 signed with the
+  shared Rails `secret_key_base` (existing *access* tokens still validate; refresh → forced
+  re-login at cutover), and "no signup until Phase 6".
+
+The parity spec below is retained for reference (it documents the legacy behavior we are
+deliberately moving away from); where it conflicts with this section, this section wins.
 
 ## Objective
 
