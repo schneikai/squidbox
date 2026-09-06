@@ -10,7 +10,7 @@ Statuses: `not-started` · `in-progress` · `blocked-on-user` · `done`
 | 0  | Foundation — monorepo, move app, TS/shared scaffold | `phase-0-foundation.md` | done |
 | 1  | Backend skeleton — auth + S3 + multi-tenant schema (modern rewrite) | `phase-1-backend-skeleton.md` | done |
 | 2a | Sync backend slice (`assets` endpoints + tests) | `phase-2-sync-slice.md` (§2a) | done |
-| 2b | Sync client slice — SQLite + worker (clean rewrite, no flag; native build) | `phase-2-sync-slice.md` (§2b) | in-progress |
+| 2b | Sync client slice — SQLite + worker (clean rewrite, no flag; native build) | `phase-2-sync-slice.md` (§2b) | blocked-on-user |
 | 3a | Sync Inspector + observability | `phase-3-collections-inspector.md` (§3a) | not-started |
 | 3b | albums/posts + sync triggers | `phase-3-collections-inspector.md` (§3b) | not-started |
 | 4  | Converter + parallel run | `phase-4-converter-parallel.md` | not-started |
@@ -18,9 +18,9 @@ Statuses: `not-started` · `in-progress` · `blocked-on-user` · `done`
 | 5b | Cleanup — delete old path, retire Rails | `phase-5-cutover.md` (§5b) | not-started |
 | 6  | Open registration — signup + hardening | `phase-6-open-registration.md` | not-started |
 
-**Next stage:** finish 2b — app integration (modern AssetsProvider on SQLite, auth → new
-backend, screen updates for the modern asset shape, sync-status UI), then the device build +
-two-device test. ⚠️ Real manual gate: physical-device dev-client build (runtimeVersion bumped).
+**Next stage:** 3a — Sync Inspector + observability (JS-only; builds on the tested engine).
+⚠️ 2b's device gate (fresh dev-client build + two-device check) is outstanding — tracked in
+`/todo.md`; it validates the native expo-sqlite path (headless tests use better-sqlite3).
 
 ## Log
 
@@ -64,11 +64,16 @@ deviations from the plan._
     LAN IP/tunnel), `getUser` `/user`→`/me`, `logout` now sends `{refreshToken}` (login/refresh
     already matched). Full app **bundles** (2387 modules; expo-sqlite + drizzle + inlined `.sql`
     migrations all resolve).
-  - **PENDING — 2b part 2b (next):** screen-shape sweep (reads still reference legacy
-    `isDeleted`/`mediaType 'image'`; the live map now returns the modern shape) + a small
-    sync-status UI + "Sync now" dev control. Then the **device gate**: fresh dev-client build
-    (runtimeVersion 1.0.0) on a physical device + real two-device check. (The headless
-    two-device e2e already covers the engine; the device test covers native SQLite + real UI.)
+  - **2b part 2b done: screen sweep + sync-status UI.** Asset reads modernized
+    (`mediaType 'image'`→`'photo'` via the `MEDIA_TYPES` constant; asset `isDeleted`→`deletedAt`
+    in the asset readers, album/post `isDeleted` left legacy). Live map keeps tombstones so the
+    "Deleted" album still works. Added `useSyncStatus` + `SyncStatusControl` ("Sync now") in
+    Settings→Developer. typecheck:sync clean, mobile tests pass, app bundles.
+  - **2b is code-complete.** Remaining is the **device gate only** (tracked in `/todo.md`):
+    fresh dev-client build (runtimeVersion 1.0.0) on a physical device + a real two-device
+    check. This validates the native **expo-sqlite** path — the headless engine tests use
+    better-sqlite3, so device behavior of the real native module is the one thing not yet
+    exercised. Set 2b `done` once that passes. 3a (Inspector, JS-only) can proceed meanwhile.
 - **2026-09-06 — Stage 2a (Sync backend slice): done. App untouched.**
   Built the generic sync engine for the `assets` collection, backend-only.
   - **`packages/shared`:** `defineCollection` (now `{ name, schema, localOnly }`) + base-record
