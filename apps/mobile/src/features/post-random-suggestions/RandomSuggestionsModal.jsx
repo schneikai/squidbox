@@ -68,7 +68,7 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
 
   // --- Asset pool ---
   const assetPool = useMemo(() => {
-    let pool = Object.values(assets ?? {}).filter((a) => !a.isDeleted);
+    let pool = Object.values(assets ?? {}).filter((a) => !a.deletedAt);
     if (onlyFavorites) pool = pool.filter((a) => a.isFavorite);
     const typed = pool.filter((a) => {
       const isVideo = !!a.duration;

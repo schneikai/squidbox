@@ -12,14 +12,14 @@ export default function getAlbumAssets(album, assets) {
 
   const uniqueAssetIds = [...new Set(album.assets)];
   const albumAssets = uniqueAssetIds.map((assetId) => assets[assetId]).filter(Boolean);
-  const filterFn = (asset) => !asset.isDeleted;
+  const filterFn = (asset) => !asset.deletedAt;
   return albumAssets.filter(filterFn);
 }
 
 function getFavoriteAssets(assets) {
-  return Object.values(assets).filter((asset) => asset.isFavorite && !asset.isDeleted);
+  return Object.values(assets).filter((asset) => asset.isFavorite && !asset.deletedAt);
 }
 
 function getDeletedAssets(assets) {
-  return Object.values(assets).filter((asset) => asset.isDeleted);
+  return Object.values(assets).filter((asset) => asset.deletedAt != null);
 }

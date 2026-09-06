@@ -35,7 +35,7 @@ export default function AssetScreen({ route, navigation }) {
   useEffect(() => {
     let updatedAsset = assets[asset.id];
 
-    if (updatedAsset.isDeleted) {
+    if (updatedAsset.deletedAt) {
       const assetIndex = assetIds.findIndex((x) => x === asset.id);
       const newAssetId = assetIds[assetIndex + 1] || assetIds[assetIndex - 1];
       setAssetIds((prev) => prev.filter((x) => x !== asset.id));

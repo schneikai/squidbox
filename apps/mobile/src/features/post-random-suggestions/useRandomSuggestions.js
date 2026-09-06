@@ -25,7 +25,7 @@ export default function useRandomSuggestions({ recentPostTexts }) {
   const [isLoading, setIsLoading] = useState(false);
 
   const { favoriteAssets, nonFavoriteAssets } = useMemo(() => {
-    const assetList = Object.values(assets ?? {}).filter((a) => !a.isDeleted);
+    const assetList = Object.values(assets ?? {}).filter((a) => !a.deletedAt);
     return {
       favoriteAssets: assetList.filter((a) => a.isFavorite),
       nonFavoriteAssets: assetList.filter((a) => !a.isFavorite),

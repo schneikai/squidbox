@@ -16,6 +16,7 @@ import confirmLogoutAsync from '@/features/cloud/confirmLogoutAsync';
 import useCloud from '@/features/cloud/useCloud';
 import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
+import SyncStatusControl from '@/features/sync-status/SyncStatusControl';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, radii, spacing, typography } from '@/styles/designTokens';
 import deleteLocalDataAsync from '@/utils/local-data/deleteLocalDataAsync';
@@ -326,6 +327,9 @@ export default function SettingsScreen() {
               <Row label="API URL" value={API_BASE_URL} />
               <Row label="Check API" onPress={handleCheckApi} chevron />
             </Section>
+
+            <ScreenSectionHeader title="Sync engine (dev)" />
+            <SyncStatusControl />
           </>
         )}
       </DetailScrollView>
