@@ -10,7 +10,7 @@ Statuses: `not-started` · `in-progress` · `blocked-on-user` · `done`
 | 0  | Foundation — monorepo, move app, TS/shared scaffold | `phase-0-foundation.md` | done |
 | 1  | Backend skeleton — auth + S3 + multi-tenant schema (modern rewrite) | `phase-1-backend-skeleton.md` | done |
 | 2a | Sync backend slice (`assets` endpoints + tests) | `phase-2-sync-slice.md` (§2a) | done |
-| 2b | Sync client slice — expo-sqlite + worker + flag (native build) | `phase-2-sync-slice.md` (§2b) | not-started |
+| 2b | Sync client slice — SQLite + worker (clean rewrite, no flag; native build) | `phase-2-sync-slice.md` (§2b) | in-progress |
 | 3a | Sync Inspector + observability | `phase-3-collections-inspector.md` (§3a) | not-started |
 | 3b | albums/posts + sync triggers | `phase-3-collections-inspector.md` (§3b) | not-started |
 | 4  | Converter + parallel run | `phase-4-converter-parallel.md` | not-started |
@@ -18,14 +18,36 @@ Statuses: `not-started` · `in-progress` · `blocked-on-user` · `done`
 | 5b | Cleanup — delete old path, retire Rails | `phase-5-cutover.md` (§5b) | not-started |
 | 6  | Open registration — signup + hardening | `phase-6-open-registration.md` | not-started |
 
-**Next stage:** 2b — Sync client slice (expo-sqlite + worker + flag; the one pre-cutover
-native rebuild). ⚠️ Needs a physical-device dev-client build — a real manual gate.
+**Next stage:** finish 2b — app integration (modern AssetsProvider on SQLite, auth → new
+backend, screen updates for the modern asset shape, sync-status UI), then the device build +
+two-device test. ⚠️ Real manual gate: physical-device dev-client build (runtimeVersion bumped).
 
 ## Log
 
 _Newest first. The skill appends one entry per run: what it did, what's pending, any
 deviations from the plan._
 
+- **2026-09-06 — Direction change + Stage 2b started (clean rewrite, no flag).** User dropped
+  the "works after every stage" requirement and the `useNewSync`/parallel-run model: the app is
+  **rewritten directly** onto the new stack (old build + backups are the external safety net),
+  data migration is deferred (fresh login re-sync or a later converter), auth points at the new
+  backend, goal is "nice, clean, modern." Recorded in migration/README ("Clean-rewrite
+  direction", supersedes the prime directive + flag conventions) and phase-2 §2b. Also chose to
+  modernize the app's **data-consumption** layer (SQLite + reactive `useLiveQuery` hooks), not
+  just storage. Background-task modules deferred to 3b.
+  - **2b part 1 done + committed (`baa4654`): the client sync engine.** expo-sqlite + Drizzle
+    (runtimeVersion bumped, `.sql` bundling via babel-inline-import + metro sourceExt); SQLite
+    schema (assets/sync_meta/outbox) + generated migrations; cursor/status, coalesced outbox,
+    assets repository (monotonic `updatedAt`), single-flight push→pull worker (skipped-lww adopts
+    `current`; outbox-guarded apply), sync API client, and reactive `useLiveQuery` hooks.
+    Verified: scoped `tsc` strict clean (drizzle needs strict — expo base doesn't set it, so
+    `tsconfig.synccheck.json` enables it for `src/sync`); base app still bundles.
+  - **PENDING — 2b part 2 (integration, next):** a modern `AssetsProvider` (runs migrations via
+    `useMigrations`, exposes a live id-keyed map + methods backed by the repository), swap it into
+    `App.js`, **repoint auth at the new backend** (base URL + `/user`→`/me`, refresh shape),
+    update asset screens for the modern shape (`isDeleted`→`deletedAt`, `mediaType 'image'`→
+    `'photo'`), and a small sync-status UI + "Sync now". Then the **device gate**: fresh
+    dev-client build (runtimeVersion 1.0.0) on a physical device + two-device sync test.
 - **2026-09-06 — Stage 2a (Sync backend slice): done. App untouched.**
   Built the generic sync engine for the `assets` collection, backend-only.
   - **`packages/shared`:** `defineCollection` (now `{ name, schema, localOnly }`) + base-record
