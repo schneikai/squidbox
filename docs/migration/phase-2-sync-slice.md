@@ -53,6 +53,18 @@ records** only; binary files continue via the existing S3 flow.
 
 ## Phase 2b — client sync slice (native rebuild)
 
+> **Clean-rewrite update (2026-09-06 — see migration/README "Clean-rewrite direction").** The
+> `useNewSync` flag and the parallel old asset path are **dropped**. 2b now **directly replaces**
+> the asset data layer with the modern SQLite + sync stack; the app need not stay functional
+> mid-migration (the user's old build/backup is the safety net). So: step 6's "behavior-preserving
+> boundary + flag" becomes a straight replacement of the asset store; steps 9–11's flag-gating and
+> lazy-only-on-flag-on become "SQLite is the asset source of truth, initialized at startup"; no
+> old-path fallback. Auth points at the new backend. The existing-data converter is deferred
+> (fresh login re-syncs, or a later one-off import). Keep the modern design (SQLite + Drizzle +
+> `useLiveQuery` reactive typed hooks + outbox + single-flight worker) and the per-record
+> monotonic `updatedAt`. Native rebuild + two-device test still apply. Albums/posts stay on the
+> legacy local path until 3b (their cloud backup is paused — acceptable per the new direction).
+
 6. **Repository boundary first (own PR, behavior-preserving).** Extract the existing asset
    data source behind a repository interface with **no behavior change** and the flag still
    off. This is a pure refactor of the default path; land it before any new-sync code.

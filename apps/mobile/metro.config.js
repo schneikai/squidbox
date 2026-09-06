@@ -22,4 +22,8 @@ config.resolver.nodeModulesPaths = [
 // and for @squidbox/shared to resolve via its "main"/"react-native" entry.
 config.resolver.unstable_enablePackageExports = false;
 
+// Let Metro treat bundled Drizzle migration files (.sql) as source, so babel-plugin-inline-import
+// can inline them (see babel.config.js). Used by the on-device SQLite migrator.
+config.resolver.sourceExts = [...config.resolver.sourceExts, 'sql'];
+
 module.exports = config;

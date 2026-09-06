@@ -28,12 +28,34 @@ preserve old Rails wire quirks. Concretely:
   `apps/mobile/src/obsolete-code` and phase-1). Downloads are direct-to-S3 presigned GETs.
   JWT stays HS256 signed with the shared Rails `secret_key_base` so existing access tokens
   validate at cutover.
-- **Scope unchanged.** The modernization is about *how* the API looks, not *what* the
-  migration delivers: multi-tenant schema, the sync engine, phasing, the feature flag, and
-  fix-forward all stand. Per-phase docs carry the specifics; where a doc says "byte-parity,"
-  read it against this section.
+- **What still stands:** the multi-tenant schema, the sync engine, and the modern contract.
 
-## Prime directive: every phase is a usable checkpoint
+### Clean-rewrite direction (2026-09-06 — supersedes the flag + parallel-run + "every phase ships" model below)
+
+The user clarified the real constraints, which removes most of the original safety
+scaffolding:
+
+- **No "usable checkpoint after every phase."** The app may be **non-functional mid-migration**
+  — that's acceptable. The user's **existing production build + existing backups keep running**
+  as the safety net (external to this repo), so we don't need a shippable app at each stage.
+- **No `useNewSync` flag, no parallel run, no dual data paths.** The app is **rewritten
+  directly** onto the new stack (SQLite source of truth + the new backend). The old
+  Rails/JSON-blob path is **removed**, not kept behind a flag.
+- **No data-migration burden now.** The converter is **deferred/optional**: the user will
+  either run a one-off import later, or simply install the new app fresh, log in, and let it
+  **sync everything from scratch**. Don't block stages on migrating existing data.
+- **Auth points at the new backend** (no Rails/new-backend token reconciliation needed).
+- **Goal: nice, clean, modern.** Prefer the modern design over preserving legacy behavior.
+
+Consequences for the phase docs: the **Prime directive** and the **feature-flag / parallel-run
+/ fix-forward-via-flag** conventions below are **superseded** — read them as historical. Phase
+2b becomes a direct clean cutover of the asset data layer (no flag); Phase 5's "flip the flag"
+cutover collapses (there's nothing to flip); Phase 4's converter becomes an optional later
+convenience. The **per-domain slice order still holds** for engineering sanity (assets in 2b,
+albums/posts in 3b) — validate the sync engine on one collection before scaling — just without
+the flag/parallel machinery.
+
+## Prime directive (SUPERSEDED — see clean-rewrite direction above)
 
 At the end of **every** phase, `apps/mobile` **builds and runs** with existing behavior
 intact. New functionality lands behind a feature flag that defaults **off** until Phase 5

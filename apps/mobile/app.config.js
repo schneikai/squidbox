@@ -3,6 +3,9 @@ const baseConfig = {
     name: "Squidbox",
     slug: "squidbox",
     version: "0.0.1",
+    // Bumped for the expo-sqlite native module (Phase 2b) so a stale OTA bundle can never be
+    // delivered to a binary lacking the module. Bump again when native modules change.
+    runtimeVersion: "1.0.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
@@ -37,6 +40,7 @@ const baseConfig = {
     },
     plugins: [
       "expo-secure-store",
+      "expo-sqlite",
       [
         "@sentry/react-native/expo",
         {
