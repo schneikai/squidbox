@@ -18,6 +18,7 @@
     "db:migrate": "node --env-file=.env --import tsx src/db/migrate.ts",
     "db:seed": "node --env-file=.env --import tsx src/db/seed.ts",
     "db:setup": "npm run db:migrate && npm run db:seed",
+    "convert:legacy": "node --env-file=.env --import tsx scripts/convert-legacy.ts",
     "smoke": "node --env-file=.env --import tsx scripts/smoke.ts",
     "verify:isolation": "node --env-file=.env --import tsx scripts/isolation.ts",
     "local:setup": "npm run compose:up && sleep 5 && npm run db:setup"
