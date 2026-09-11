@@ -1,7 +1,13 @@
 import type { PgTable } from 'drizzle-orm/pg-core';
 import type { z } from 'zod';
-import { assetCollection, albumCollection, postCollection } from '@squidbox/shared';
-import { assets, albums, posts } from '../db/schema.js';
+import {
+  assetCollection,
+  albumCollection,
+  postCollection,
+  albumAssetCollection,
+  postAssetCollection,
+} from '@squidbox/shared';
+import { assets, albums, posts, albumAssets, postAssets } from '../db/schema.js';
 
 // Server-side view of a syncable collection: its Drizzle table + the shared Zod schema, plus
 // the set of columns to update on an LWW upsert (all synced fields except the PK `id` and the
@@ -26,6 +32,8 @@ export const serverCollections: Record<string, ServerCollection> = {
   assets: serverCollection('assets', assets, assetCollection.schema),
   albums: serverCollection('albums', albums, albumCollection.schema),
   posts: serverCollection('posts', posts, postCollection.schema),
+  album_assets: serverCollection('album_assets', albumAssets, albumAssetCollection.schema),
+  post_assets: serverCollection('post_assets', postAssets, postAssetCollection.schema),
 };
 
 // Strip server-only columns (user_id, server_seq) to produce the client-facing record.

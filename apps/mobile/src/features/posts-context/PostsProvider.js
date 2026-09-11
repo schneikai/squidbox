@@ -3,42 +3,57 @@ import { useMemo } from 'react';
 import PostsContext from './PostsContext';
 
 import { getDb, schema } from '@/sync/db/client';
+import { assetRefsByPost } from '@/sync/derive';
+import { makeEdgeRepository } from '@/sync/edgesRepository';
 import { toModernRecord, toModernChanges } from '@/sync/legacyBase';
 import { makeRepository } from '@/sync/repository';
-import { useLiveCollectionMap } from '@/sync/useCollection';
+import { useLiveCollectionMap, useLiveCollectionRows } from '@/sync/useCollection';
 import { requestSync } from '@/sync/worker';
 import postSchema from '@/utils/posts/postSchema';
-import useUpdatePostHistory from '@/utils/posts/useUpdatePostHistory';
 
-// SQLite-backed posts store (same API + post-history side effects). DB migrated by AssetsProvider.
+// SQLite-backed posts store. Asset references live in the post_assets edge collection; `assetRefs`
+// is synthesized here so consumers keep the old shape. postHistory is now derived (no side effects).
 const repo = makeRepository('posts', schema.posts);
+const edges = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
 
 export default function PostsProvider({ children }) {
-  const posts = useLiveCollectionMap(schema.posts);
-  const { addPostHistoryAsync, removePostHistoryAsync } = useUpdatePostHistory({ getPosts: () => posts });
+  const postRows = useLiveCollectionMap(schema.posts);
+  const postEdges = useLiveCollectionRows(schema.postAssets);
+
+  const posts = useMemo(() => {
+    const refsByPost = assetRefsByPost(postEdges);
+    const out = {};
+    for (const [id, row] of Object.entries(postRows)) out[id] = { ...row, assetRefs: refsByPost[id] ?? [] };
+    return out;
+  }, [postRows, postEdges]);
 
   const value = useMemo(() => {
     const db = getDb();
-    function updatePosts(ids, updates) {
-      for (const id of ids) repo.update(db, id, toModernChanges(updates));
-      requestSync();
-    }
     return {
       posts,
       loadPostsAsync: async () => {},
       addPost: async (data) => {
-        const post = repo.create(db, toModernRecord(postSchema.cast(data)));
+        const casted = postSchema.cast(data);
+        const refs = casted.assetRefs ?? [];
+        const post = repo.create(db, toModernRecord(casted)); // `assetRefs` stripped by toModernRecord
+        edges.createFromRefs(db, post.id, refs);
         requestSync();
-        await addPostHistoryAsync(post);
-        return post;
+        return { ...post, assetRefs: refs };
       },
-      updatePost: async (id, updates) => updatePosts([id], updates),
-      toggleFavoritePost: async (post) => updatePosts([post.id], { isFavorite: !post.isFavorite }),
+      updatePost: async (id, updates) => {
+        if ('assetRefs' in updates) edges.setRefs(db, id, updates.assetRefs ?? []);
+        repo.update(db, id, toModernChanges(updates)); // `assetRefs` stripped by toModernChanges
+        requestSync();
+      },
+      toggleFavoritePost: async (post) => {
+        repo.update(db, post.id, { isFavorite: !post.isFavorite });
+        requestSync();
+      },
       deletePost: async (id) => {
         const post = posts[id];
         if (!post) throw new Error(`Post ${id} not found.`);
-        await removePostHistoryAsync(post);
         repo.remove(db, [id]);
+        edges.tombstoneParent(db, id);
         requestSync();
       },
     };

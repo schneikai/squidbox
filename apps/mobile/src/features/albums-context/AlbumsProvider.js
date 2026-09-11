@@ -3,19 +3,42 @@ import { useMemo } from 'react';
 import AlbumsContext from './AlbumsContext';
 
 import { getDb, schema } from '@/sync/db/client';
+import { makeEdgeRepository } from '@/sync/edgesRepository';
+import { orderedAssetsByAlbum, deriveAlbumPostHistory } from '@/sync/derive';
 import { toModernRecord, toModernChanges } from '@/sync/legacyBase';
 import { makeRepository } from '@/sync/repository';
-import { useLiveCollectionMap } from '@/sync/useCollection';
+import { useLiveCollectionMap, useLiveCollectionRows } from '@/sync/useCollection';
 import { requestSync } from '@/sync/worker';
 import albumSchema from '@/utils/albums/albumSchema';
+import getNewItemId from '@/utils/getNewItemId';
 
-// SQLite-backed albums store. Same provider API; writes go through the generic repository +
-// sync worker. The DB is migrated by AssetsProvider (which wraps this). Legacy album objects
-// are normalized via the yup schema (defaults) then mapped to the modern shape (deletedAt).
+// SQLite-backed albums store. Membership lives in the album_assets edge collection (add/remove/
+// reorder are independent edge writes that don't clobber across devices); `assets`, `postHistory`
+// and `lastPostedAt` are synthesized/derived here so consumers keep seeing the old record shape.
 const repo = makeRepository('albums', schema.albums);
+const edges = makeEdgeRepository('album_assets', schema.albumAssets, 'albumId');
 
 export default function AlbumsProvider({ children }) {
-  const albums = useLiveCollectionMap(schema.albums);
+  const albumRows = useLiveCollectionMap(schema.albums);
+  const albumEdges = useLiveCollectionRows(schema.albumAssets);
+  const postEdges = useLiveCollectionRows(schema.postAssets);
+  const posts = useLiveCollectionMap(schema.posts);
+
+  // Synthesize the ordered `assets` array + derived post history onto each album record.
+  const albums = useMemo(() => {
+    const assetsByAlbum = orderedAssetsByAlbum(albumEdges);
+    const { historyById, lastPostedAtById } = deriveAlbumPostHistory(posts, postEdges, albumEdges);
+    const out = {};
+    for (const [id, row] of Object.entries(albumRows)) {
+      out[id] = {
+        ...row,
+        assets: assetsByAlbum[id] ?? [],
+        postHistory: historyById[id] ?? [],
+        lastPostedAt: lastPostedAtById[id] ?? null,
+      };
+    }
+    return out;
+  }, [albumRows, albumEdges, postEdges, posts]);
 
   const value = useMemo(() => {
     const db = getDb();
@@ -27,7 +50,10 @@ export default function AlbumsProvider({ children }) {
       albums,
       loadAlbumsAsync: async () => {},
       addAlbum: async (data) => {
-        const rec = repo.create(db, toModernRecord(albumSchema.cast(data)));
+        const casted = albumSchema.cast(data);
+        const assetIds = casted.assets ?? [];
+        const rec = repo.create(db, toModernRecord(casted)); // `assets` stripped by toModernRecord
+        if (assetIds.length) edges.add(db, rec.id, assetIds, getNewItemId);
         requestSync();
         return rec;
       },
@@ -40,21 +66,27 @@ export default function AlbumsProvider({ children }) {
       toggleFavoriteAlbum: async (album) => updateAlbums([album.id], { isFavorite: !album.isFavorite }),
       addAssetsToAlbum: async (album, assetsOrAssetIds) => {
         const assetIds = assetsOrAssetIds.map((a) => (typeof a === 'string' ? a : a.id));
-        updateAlbums([album.id], { assets: [...new Set([...album.assets, ...assetIds])] });
+        edges.add(db, album.id, assetIds, getNewItemId);
+        requestSync();
       },
       removeAssetsFromAlbum: async (album, assetsOrAssetIds) => {
         const assetIds = assetsOrAssetIds.map((a) => (typeof a === 'string' ? a : a.id));
-        updateAlbums([album.id], { assets: album.assets.filter((id) => !assetIds.includes(id)) });
+        edges.remove(db, album.id, assetIds);
+        requestSync();
       },
       reorderAlbumAssets: async (album, orderedAssetIds) => {
-        updateAlbums([album.id], { assets: [...new Set(orderedAssetIds)], sortOrder: 'custom' });
+        edges.reorder(db, album.id, orderedAssetIds);
+        repo.update(db, album.id, { sortOrder: 'custom' });
+        requestSync();
       },
       setAlbumDeleted: async (album) => {
         repo.remove(db, [album.id]);
+        edges.tombstoneParent(db, album.id);
         requestSync();
       },
       deleteAlbumAsync: async (album) => {
         repo.remove(db, [album.id]);
+        edges.tombstoneParent(db, album.id);
         requestSync();
       },
     };

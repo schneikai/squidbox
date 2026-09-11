@@ -54,6 +54,8 @@ export type RefreshToken = typeof refreshTokens.$inferSelect;
 // client-generated, so a plain-id PK would let a colliding uuid touch another tenant's row
 // (§2a). server_seq is stamped by a BEFORE INSERT/UPDATE trigger (created in migrate.ts).
 // Timestamps are epoch-ms numbers (client's logical clock), stored as bigint.
+// id is a canonical uuid: the client mints ids (getNewItemId = uuid.v4()) and legacy rows were
+// canonicalized to uuids during the one-time import (convert/remap.ts).
 export const assets = pgTable(
   'assets',
   {
@@ -75,8 +77,6 @@ export const assets = pgTable(
     thumbnailFilename: text('thumbnail_filename').notNull(),
     isFavorite: boolean('is_favorite').notNull(),
     notes: text('notes'),
-    postHistory: jsonb('post_history').$type<string[]>().notNull(),
-    lastPostedAt: bigint('last_posted_at', { mode: 'number' }),
     oldFileId: text('old_file_id'),
     isFileSynced: boolean('is_file_synced').notNull(),
     isThumbnailSynced: boolean('is_thumbnail_synced').notNull(),
@@ -94,7 +94,7 @@ export type AssetRow = typeof assets.$inferSelect;
 // migrate.ts; timestamps are epoch-ms bigints).
 function syncableBase() {
   return {
-    id: uuid('id').notNull(),
+    id: uuid('id').notNull(), // canonical uuid (see assets.id note)
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
@@ -110,11 +110,8 @@ export const albums = pgTable(
   {
     ...syncableBase(),
     name: text('name').notNull(),
-    assets: jsonb('assets').$type<string[]>().notNull(),
     isFavorite: boolean('is_favorite').notNull(),
     archivedAt: bigint('archived_at', { mode: 'number' }),
-    postHistory: jsonb('post_history').$type<string[]>().notNull(),
-    lastPostedAt: bigint('last_posted_at', { mode: 'number' }),
     showInPostSuggestionsAfter: bigint('show_in_post_suggestions_after', { mode: 'number' }),
     oldCollectionName: text('old_collection_name'),
     notes: text('notes'),
@@ -133,7 +130,6 @@ export const posts = pgTable(
   {
     ...syncableBase(),
     text: text('text').notNull(),
-    assetRefs: jsonb('asset_refs').$type<{ id: string; assetId: string }[]>().notNull(),
     isFavorite: boolean('is_favorite').notNull(),
     postedAt: bigint('posted_at', { mode: 'number' }),
     rePostId: text('re_post_id'),
@@ -147,6 +143,42 @@ export const posts = pgTable(
   })
 );
 export type PostRow = typeof posts.$inferSelect;
+
+// --- Junction collections (membership as first-class syncable edges) ---
+// One row per (album, asset) / (post, asset). `position` is a fractional-index order key. Same
+// syncableBase (composite PK + server_seq trigger) as every other collection, so add/remove/reorder
+// ride the existing LWW engine as independent edge writes. byParent index powers the read path.
+export const albumAssets = pgTable(
+  'album_assets',
+  {
+    ...syncableBase(),
+    albumId: uuid('album_id').notNull(),
+    assetId: uuid('asset_id').notNull(),
+    position: text('position').notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.id] }),
+    byUserSeq: index('album_assets_user_seq_idx').on(t.userId, t.serverSeq),
+    byAlbum: index('album_assets_album_idx').on(t.userId, t.albumId),
+  })
+);
+export type AlbumAssetRow = typeof albumAssets.$inferSelect;
+
+export const postAssets = pgTable(
+  'post_assets',
+  {
+    ...syncableBase(),
+    postId: uuid('post_id').notNull(),
+    assetId: uuid('asset_id').notNull(),
+    position: text('position').notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.id] }),
+    byUserSeq: index('post_assets_user_seq_idx').on(t.userId, t.serverSeq),
+    byPost: index('post_assets_post_idx').on(t.userId, t.postId),
+  })
+);
+export type PostAssetRow = typeof postAssets.$inferSelect;
 
 // Global monotonic sequence stamped onto every syncable row by a BEFORE INSERT/UPDATE trigger
 // (used from Phase 2). Created here so the sequence exists before any syncable table. Raw SQL

@@ -3,11 +3,13 @@ import { useMemo } from 'react';
 
 import AssetsContext from './AssetsContext';
 
-import { getDb } from '@/sync/db/client';
+import { getDb, schema } from '@/sync/db/client';
 import migrations from '@/sync/db/migrations/migrations';
 import * as repo from '@/sync/assetsRepository';
+import { deriveAssetPostHistory } from '@/sync/derive';
 import { toAssetRecord, toAssetChanges } from '@/sync/legacyAsset';
 import { useLiveAssetsMap } from '@/sync/useAssetsQuery';
+import { useLiveCollectionMap, useLiveCollectionRows } from '@/sync/useCollection';
 import { requestSync } from '@/sync/worker';
 
 // Modern asset store: SQLite (the source of truth) + the sync engine, exposed through the same
@@ -22,7 +24,19 @@ export default function AssetsProvider({ children }) {
 }
 
 function AssetsData({ children }) {
-  const assets = useLiveAssetsMap();
+  const assetRows = useLiveAssetsMap();
+  const postEdges = useLiveCollectionRows(schema.postAssets);
+  const posts = useLiveCollectionMap(schema.posts);
+
+  // Derive postHistory/lastPostedAt (posts referencing each asset) onto the record shape.
+  const assets = useMemo(() => {
+    const { historyById, lastPostedAtById } = deriveAssetPostHistory(posts, postEdges);
+    const out = {};
+    for (const [id, row] of Object.entries(assetRows)) {
+      out[id] = { ...row, postHistory: historyById[id] ?? [], lastPostedAt: lastPostedAtById[id] ?? null };
+    }
+    return out;
+  }, [assetRows, posts, postEdges]);
 
   const value = useMemo(
     () => ({

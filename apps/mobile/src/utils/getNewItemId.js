@@ -1,9 +1,8 @@
 import uuid from 'react-native-uuid';
 
-// TODO: Since we allow syncing data of different accounts it would
-// probably a good idea to prefix the id with the account id to
-// avoid generating duplicated ids.
-
+// Canonical uuid v4. (Historically this stripped the dashes, producing 32-char hex ids; the
+// backend now uses a real `uuid` column and legacy ids were canonicalized on import, so new ids
+// are standard dashed uuids too.)
 export default function getNewItemId() {
-  return uuid.v4().replace(/-/g, '');
+  return uuid.v4();
 }

@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import pg from 'pg';
-import { collectionNames } from '@squidbox/shared';
+import { collectionNames, keyBetween } from '@squidbox/shared';
 import * as schema from '../src/db/schema.js';
 import { serverCollections } from '../src/sync/collections.js';
 import { push } from '../src/sync/push.js';
@@ -38,8 +38,6 @@ function assetRecord(over: Record<string, unknown> = {}) {
     thumbnailFilename: 't.jpg',
     isFavorite: false,
     notes: null as string | null,
-    postHistory: [] as string[],
-    lastPostedAt: null as number | null,
     oldFileId: null as string | null,
     isFileSynced: true,
     isThumbnailSynced: true,
@@ -70,9 +68,14 @@ d('sync engine (Postgres)', () => {
       .onConflictDoNothing();
   });
   async function clearAll() {
-    await db.delete(schema.posts);
-    await db.delete(schema.albums);
-    await db.delete(schema.assets);
+    // Scope deletes to THIS test's users — vitest runs test files in parallel against the same
+    // Postgres, so an unscoped delete would wipe other files' rows mid-test (a real race).
+    const users = [USER_A, USER_B];
+    await db.delete(schema.albumAssets).where(inArray(schema.albumAssets.userId, users));
+    await db.delete(schema.postAssets).where(inArray(schema.postAssets.userId, users));
+    await db.delete(schema.posts).where(inArray(schema.posts.userId, users));
+    await db.delete(schema.albums).where(inArray(schema.albums.userId, users));
+    await db.delete(schema.assets).where(inArray(schema.assets.userId, users));
   }
   afterAll(async () => {
     await clearAll();
@@ -101,6 +104,37 @@ d('sync engine (Postgres)', () => {
     const afterDelete = await pull(db, USER_A, { cursor: page.cursor });
     expect(afterDelete.changes.assets.records).toHaveLength(1);
     expect(afterDelete.changes.assets.records[0]).toMatchObject({ id: r1.id, deletedAt: 2000 });
+  });
+
+  it('album_assets: a concurrent add and reorder both survive (no membership loss)', async () => {
+    const albumId = randomUUID();
+    const [a1, a2, a3, a4] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+    const edge = (assetId: string, position: string, over: Record<string, unknown> = {}) => ({
+      collection: 'album_assets',
+      record: { id: randomUUID(), createdAt: 1000, updatedAt: 1000, deletedAt: null, albumId, assetId, position, ...over },
+    });
+
+    // Initial membership [a1, a2, a3].
+    const e1 = edge(a1, 'a');
+    const e2 = edge(a2, 'b');
+    const e3 = edge(a3, 'c');
+    await push(db, USER_A, [e1, e2, e3]);
+
+    // Device A adds a4 (new edge row). Device B reorders a3 to the front (updates only e3.position).
+    // These touch DIFFERENT rows, so whole-record LWW can't clobber either.
+    const e4 = edge(a4, keyBetween('c', null), { updatedAt: 1100 });
+    await push(db, USER_A, [e4]);
+    await push(db, USER_A, [{ ...e3, record: { ...e3.record, position: keyBetween(null, 'a'), updatedAt: 1200 } }]);
+
+    const page = await pull(db, USER_A, { cursor: 0 });
+    const edges = page.changes.album_assets.records as any[];
+    const byAsset = Object.fromEntries(edges.map((e) => [e.assetId, e]));
+    expect(edges).toHaveLength(4); // a4 add survived
+    expect(byAsset[a4]).toBeTruthy();
+    // a3 moved to the front (its new position sorts before a1's).
+    expect(byAsset[a3].position < byAsset[a1].position).toBe(true);
+    const order = edges.sort((x, y) => (x.position < y.position ? -1 : 1)).map((e) => e.assetId);
+    expect(order).toEqual([a3, a1, a2, a4]);
   });
 
   it('LWW: newer wins, older is skipped with the winning current', async () => {
@@ -204,11 +238,8 @@ d('sync engine (Postgres)', () => {
       albums: () => ({
         ...base(),
         name: 'A',
-        assets: [],
         isFavorite: false,
         archivedAt: null,
-        postHistory: [],
-        lastPostedAt: null,
         showInPostSuggestionsAfter: null,
         oldCollectionName: null,
         notes: null,
@@ -218,7 +249,6 @@ d('sync engine (Postgres)', () => {
       posts: () => ({
         ...base(),
         text: 'hi',
-        assetRefs: [],
         isFavorite: false,
         postedAt: null,
         rePostId: null,
@@ -226,6 +256,8 @@ d('sync engine (Postgres)', () => {
         suggestRepostAt: 1000,
         hasBeenReposted: false,
       }),
+      album_assets: () => ({ ...base(), albumId: randomUUID(), assetId: randomUUID(), position: 'a0' }),
+      post_assets: () => ({ ...base(), postId: randomUUID(), assetId: randomUUID(), position: 'a0' }),
     };
 
     for (const name of collectionNames) {

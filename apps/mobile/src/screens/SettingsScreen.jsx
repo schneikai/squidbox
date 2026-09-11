@@ -20,7 +20,6 @@ import SyncInspector from '@/features/sync-status/SyncInspector';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, radii, spacing, typography } from '@/styles/designTokens';
 import deleteLocalDataAsync from '@/utils/local-data/deleteLocalDataAsync';
-import useRecalculatePostHistory from '@/utils/tools/useRecalculatePostHistory';
 import useResortAlbumsByName from '@/utils/tools/useResortAlbumsByName';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/api\/v1\/?$/, '');
@@ -91,7 +90,6 @@ export default function SettingsScreen() {
   const [isLoggingOut, startLogoutTransition] = useTransition();
 
   const { showBlocking, hide } = useProgressOverlay();
-  const recalculatePostHistoryAsync = useRecalculatePostHistory();
   const resortAlbumsByNameAsync = useResortAlbumsByName();
 
   useFocusEffect(
@@ -162,30 +160,6 @@ export default function SettingsScreen() {
       if (!confirmed) return;
       await logoutAsync();
     });
-  }
-
-  function handleRecalculatePostHistory() {
-    Alert.alert(
-      'Recalculate last posted?',
-      'Rebuilds post history and "last posted" for all albums and assets from your posts.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Recalculate',
-          onPress: async () => {
-            try {
-              showBlocking();
-              await recalculatePostHistoryAsync();
-              Alert.alert('Done!');
-            } catch (error) {
-              Alert.alert('Failed', error.message);
-            } finally {
-              hide();
-            }
-          },
-        },
-      ],
-    );
   }
 
   function handleResortAlbums() {
@@ -318,7 +292,6 @@ export default function SettingsScreen() {
 
             <ScreenSectionHeader title="Data" />
             <Section>
-              <Row label="Recalculate last posted" onPress={handleRecalculatePostHistory} chevron />
               <Row label="Sort albums by name" onPress={handleResortAlbums} chevron />
             </Section>
 

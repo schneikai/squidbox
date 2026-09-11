@@ -11,3 +11,9 @@ export function useLiveCollectionMap(table: SQLiteTable): Record<string, any> {
   for (const row of (data as any[]) ?? []) map[row.id] = row;
   return map;
 }
+
+// Reactive array of a table's rows (used for edge tables, which are grouped/joined not id-keyed).
+export function useLiveCollectionRows(table: SQLiteTable): any[] {
+  const { data } = useLiveQuery(getDb().select().from(table));
+  return (data as any[]) ?? [];
+}

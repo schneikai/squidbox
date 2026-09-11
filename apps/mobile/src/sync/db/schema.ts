@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { sqliteTable, text, integer, real, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 // Client (SQLite) mirror of the shared asset collection descriptor. Synced fields match
 // @squidbox/shared assetCollection.schema; syncError is the local-only field. Booleans are
@@ -20,8 +20,7 @@ export const assets = sqliteTable('assets', {
   thumbnailFilename: text('thumbnail_filename').notNull(),
   isFavorite: integer('is_favorite', { mode: 'boolean' }).notNull(),
   notes: text('notes'),
-  postHistory: text('post_history', { mode: 'json' }).$type<string[]>().notNull(),
-  lastPostedAt: integer('last_posted_at'),
+  // postHistory / lastPostedAt are derived on-device (see sync/derive.ts), not stored/synced.
   oldFileId: text('old_file_id'),
   isFileSynced: integer('is_file_synced', { mode: 'boolean' }).notNull(),
   isThumbnailSynced: integer('is_thumbnail_synced', { mode: 'boolean' }).notNull(),
@@ -31,18 +30,16 @@ export const assets = sqliteTable('assets', {
 });
 export type AssetRow = typeof assets.$inferSelect;
 
-// albums — mirrors @squidbox/shared albumCollection. Ordered `assets` is JSON. No local-only.
+// albums — mirrors @squidbox/shared albumCollection. Membership is in `album_assets` edges;
+// postHistory/lastPostedAt are derived (sync/derive.ts). No local-only.
 export const albums = sqliteTable('albums', {
   id: text('id').primaryKey(),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
   deletedAt: integer('deleted_at'),
   name: text('name').notNull(),
-  assets: text('assets', { mode: 'json' }).$type<string[]>().notNull(),
   isFavorite: integer('is_favorite', { mode: 'boolean' }).notNull(),
   archivedAt: integer('archived_at'),
-  postHistory: text('post_history', { mode: 'json' }).$type<string[]>().notNull(),
-  lastPostedAt: integer('last_posted_at'),
   showInPostSuggestionsAfter: integer('show_in_post_suggestions_after'),
   oldCollectionName: text('old_collection_name'),
   notes: text('notes'),
@@ -51,14 +48,13 @@ export const albums = sqliteTable('albums', {
 });
 export type AlbumRow = typeof albums.$inferSelect;
 
-// posts — mirrors @squidbox/shared postCollection. Ordered `assetRefs` is JSON. No local-only.
+// posts — mirrors @squidbox/shared postCollection. Asset references are in `post_assets` edges.
 export const posts = sqliteTable('posts', {
   id: text('id').primaryKey(),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
   deletedAt: integer('deleted_at'),
   text: text('text').notNull(),
-  assetRefs: text('asset_refs', { mode: 'json' }).$type<{ id: string; assetId: string }[]>().notNull(),
   isFavorite: integer('is_favorite', { mode: 'boolean' }).notNull(),
   postedAt: integer('posted_at'),
   rePostId: text('re_post_id'),
@@ -67,6 +63,38 @@ export const posts = sqliteTable('posts', {
   hasBeenReposted: integer('has_been_reposted', { mode: 'boolean' }).notNull(),
 });
 export type PostRow = typeof posts.$inferSelect;
+
+// Junction collections (mirror @squidbox/shared album_assets / post_assets). One row per
+// membership; `position` is a fractional-index order key. byParent index powers the read path.
+export const albumAssets = sqliteTable(
+  'album_assets',
+  {
+    id: text('id').primaryKey(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+    deletedAt: integer('deleted_at'),
+    albumId: text('album_id').notNull(),
+    assetId: text('asset_id').notNull(),
+    position: text('position').notNull(),
+  },
+  (t) => ({ byAlbum: index('album_assets_album_idx').on(t.albumId) }),
+);
+export type AlbumAssetRow = typeof albumAssets.$inferSelect;
+
+export const postAssets = sqliteTable(
+  'post_assets',
+  {
+    id: text('id').primaryKey(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+    deletedAt: integer('deleted_at'),
+    postId: text('post_id').notNull(),
+    assetId: text('asset_id').notNull(),
+    position: text('position').notNull(),
+  },
+  (t) => ({ byPost: index('post_assets_post_idx').on(t.postId) }),
+);
+export type PostAssetRow = typeof postAssets.$inferSelect;
 
 // key/value store for the pull cursor + sync status (all local-only).
 export const syncMeta = sqliteTable('sync_meta', {

@@ -7,6 +7,8 @@ import type { SyncTransport } from '../src/sync/transport';
 import type { SyncDb } from '../src/sync/db/types';
 import * as repo from '../src/sync/assetsRepository';
 import { makeRepository } from '../src/sync/repository';
+import { makeEdgeRepository } from '../src/sync/edgesRepository';
+import { orderedAssetsByAlbum } from '../src/sync/derive';
 import * as clientSchema from '../src/sync/db/schema';
 import { runSyncOnce } from '../src/sync/worker';
 import { makeTestDb } from './helpers/testDb';
@@ -67,6 +69,8 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
       .onConflictDoNothing();
   });
   async function clearServer() {
+    await pgDb.delete(serverSchema.albumAssets).where(eq(serverSchema.albumAssets.userId, USER));
+    await pgDb.delete(serverSchema.postAssets).where(eq(serverSchema.postAssets.userId, USER));
     await pgDb.delete(serverSchema.posts).where(eq(serverSchema.posts.userId, USER));
     await pgDb.delete(serverSchema.albums).where(eq(serverSchema.albums.userId, USER));
     await pgDb.delete(serverSchema.assets).where(eq(serverSchema.assets.userId, USER));
@@ -119,6 +123,36 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
     await runSyncOnce(deviceB, transport); // B pulls it
     const rows = await deviceB.select().from(clientSchema.albums).where(eq(clientSchema.albums.id, album.id));
     expect(rows[0]).toMatchObject({ id: album.id, name: 'Trip' });
+  });
+
+  it('album membership: a concurrent add (A) and reorder (B) BOTH survive', async () => {
+    const albumEdges = makeEdgeRepository('album_assets', clientSchema.albumAssets, 'albumId');
+    const newId = () => randomUUID();
+    const albumId = randomUUID();
+    const [a1, a2, a3, a4] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+
+    // A creates the album with [a1, a2, a3] and both devices sync up.
+    albumRepo.create(deviceA, albumRecord({ id: albumId, name: 'Trip' }));
+    albumEdges.add(deviceA, albumId, [a1, a2, a3], newId);
+    await runSyncOnce(deviceA, transport);
+    await runSyncOnce(deviceB, transport);
+
+    // Offline: A adds a4 (new edge row); B reorders a3 to the front (rewrites positions).
+    albumEdges.add(deviceA, albumId, [a4], newId);
+    albumEdges.reorder(deviceB, albumId, [a3, a1, a2]);
+
+    // Drain until both settle.
+    for (let i = 0; i < 2; i++) {
+      await runSyncOnce(deviceA, transport);
+      await runSyncOnce(deviceB, transport);
+    }
+
+    const orderA = orderedAssetsByAlbum(await deviceA.select().from(clientSchema.albumAssets))[albumId];
+    const orderB = orderedAssetsByAlbum(await deviceB.select().from(clientSchema.albumAssets))[albumId];
+    expect(orderA).toEqual(orderB); // converged
+    expect(orderA).toContain(a4); // A's add survived B's reorder
+    expect(orderA.indexOf(a3)).toBeLessThan(orderA.indexOf(a1)); // B's reorder survived A's add
+    expect(new Set(orderA)).toEqual(new Set([a1, a2, a3, a4]));
   });
 
   it('propagates a tombstone from A to B', async () => {

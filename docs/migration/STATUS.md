@@ -13,15 +13,36 @@ Statuses: `not-started` · `in-progress` · `blocked-on-user` · `done`
 | 2b | Sync client slice — SQLite + worker (clean rewrite, no flag; native build) | `phase-2-sync-slice.md` (§2b) | blocked-on-user |
 | 3a | Sync Inspector + observability | `phase-3-collections-inspector.md` (§3a) | done |
 | 3b | albums/posts + sync triggers | `phase-3-collections-inspector.md` (§3b) | done |
-| 4  | Converter + parallel run | `phase-4-converter-parallel.md` | deferred (user) |
+| 4  | Converter — import real S3 backup (runbook: `legacy-import.md`, skill: `/legacy-import`) | `phase-4-converter-parallel.md` | done (validated on real data) |
 | 5a | Cutover — deploy backend | `phase-5-cutover.md` (§5a) | needs-user (deploy) |
 | 5b | Cleanup — delete old path, retire Rails | `phase-5-cutover.md` (§5b) | needs-user |
 | 6  | Open registration — signup + hardening | `phase-6-open-registration.md` | not-needed (private build) |
 
 **Next stage:** none codeable — the migration is code-complete. Remaining is all user-side:
 the device gate (native expo-sqlite validation of 2b+3b — `/todo.md`) and Phase 5 (deploy
-`apps/server` + point the app at it + retire Rails). Phase 4 (converter) deferred (fresh login
-re-syncs). Phase 6 (signup/quota) not needed — the app is a private single-user build.
+`apps/server` + point the app at it + retire Rails). Phase 4 (converter) BUILT + validated
+against real S3 data (see Log). Phase 6 (signup/quota) not needed — private single-user build.
+
+## Known limitations (revisit before go-live)
+
+- **Whole-record LWW membership loss — BEING FIXED via edge collections** (`edge-collections.md`).
+  Membership (`album.assets`, `post.assetRefs`) is promoted to `album_assets` / `post_assets`
+  junction collections (ordered by fractional-index `position`), so add/remove/reorder are
+  independent edge writes that compose across devices — no more silent loss. `postHistory` /
+  `lastPostedAt` are removed from synced state and derived on-device (they're a recomputable cache).
+  - **Slice 1 (backend): DONE** — shared descriptors + fractional index, server tables + migration
+    (`0003`), converter emits edges, 63 tests pass, real re-import validated (14837 album + 1117 post
+    edges, all resolve, idempotent).
+  - **Slice 2 (client): CODE-COMPLETE (device gate to validate on real expo-sqlite)** — SQLite edge
+    tables + migration `0003`; `edgesRepository` (add/remove/reorder/setRefs via keyBetween, tombstone
+    on delete); `derive.ts` synthesizes `album.assets`/`post.assetRefs` + derives postHistory/lastPostedAt
+    so the ~78 consumers are unchanged; Albums/Posts/Assets providers rewired; legacy adapters strip
+    dropped fields. 39 mobile tests pass incl. a **two-device add-vs-reorder e2e** (client SQLite ↔
+    server Postgres) proving both survive. Obsolete postHistory-maintenance hooks are now no-ops
+    (writes stripped) — safe to delete later.
+- **Scalar-field concurrent edits still whole-record LWW** (e.g. rename vs favorite on the same
+  album). Separate, additive fix deferred: per-field merge or ancestor-based 3-way merge. Not
+  blocking; edges don't preclude it.
 
 ## Log
 

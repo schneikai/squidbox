@@ -64,11 +64,11 @@ d('legacy converter (server-side)', () => {
       .onConflictDoNothing();
   });
   afterAll(async () => {
-    for (const t of [schema.posts, schema.albums, schema.assets]) await db.delete(t).where(eq((t as any).userId, USER));
+    for (const t of [schema.postAssets, schema.albumAssets, schema.posts, schema.albums, schema.assets]) await db.delete(t).where(eq((t as any).userId, USER));
     await pool.end();
   });
   beforeEach(async () => {
-    for (const t of [schema.posts, schema.albums, schema.assets]) await db.delete(t).where(eq((t as any).userId, USER));
+    for (const t of [schema.postAssets, schema.albumAssets, schema.posts, schema.albums, schema.assets]) await db.delete(t).where(eq((t as any).userId, USER));
   });
 
   it('imports all three collections with legacy→modern mapping', async () => {
@@ -85,8 +85,23 @@ d('legacy converter (server-side)', () => {
     expect(a1.deletedAt).toBeNull();
     expect(a2.mediaType).toBe('video');
     expect(a2.deletedAt).toBe(2000); // isDeleted → deletedAt tombstone
-    expect(page.changes.albums.records[0]).toMatchObject({ id: AL1, name: 'Trip', assets: [A1] });
+
+    // Parents no longer carry membership arrays.
+    expect(page.changes.albums.records[0]).toMatchObject({ id: AL1, name: 'Trip' });
+    expect(page.changes.albums.records[0]).not.toHaveProperty('assets');
     expect(page.changes.posts.records[0]).toMatchObject({ id: P1, text: 'hi' });
+    expect(page.changes.posts.records[0]).not.toHaveProperty('assetRefs');
+
+    // Membership is now junction edges with a fractional position.
+    const albumEdges = page.changes.album_assets.records as any[];
+    expect(albumEdges).toHaveLength(1);
+    expect(albumEdges[0]).toMatchObject({ albumId: AL1, assetId: A1 });
+    expect(albumEdges[0].position).toBeTruthy();
+
+    const postEdges = page.changes.post_assets.records as any[];
+    expect(postEdges).toHaveLength(1);
+    expect(postEdges[0]).toMatchObject({ postId: P1, assetId: A1 });
+    expect(postEdges[0].position).toBeTruthy();
   });
 
   it('is idempotent (re-run is a no-op via LWW)', async () => {

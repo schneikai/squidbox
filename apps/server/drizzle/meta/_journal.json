@@ -22,6 +22,13 @@
       "when": 1788715866276,
       "tag": "0002_breezy_caretaker",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788763580229,
+      "tag": "0003_flimsy_penance",
+      "breakpoints": true
     }
   ]
 }

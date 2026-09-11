@@ -4,7 +4,7 @@ import { z } from 'zod';
 // writer-set epoch-ms clocks; `deletedAt` non-null = tombstone. `user_id`/`server_seq` are
 // server-only and never part of the client record schema.
 export const baseRecordSchema = z.object({
-  id: z.string(),
+  id: z.string().uuid(),
   createdAt: z.number(),
   updatedAt: z.number(),
   deletedAt: z.number().nullable(),

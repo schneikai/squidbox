@@ -18,8 +18,7 @@ export const assetCollection = defineCollection({
     thumbnailFilename: z.string(),
     isFavorite: z.boolean(),
     notes: z.string().nullable(),
-    postHistory: z.array(z.string()),
-    lastPostedAt: z.number().nullable(),
+    // postHistory / lastPostedAt are derived on-device from posts + membership (not synced).
     oldFileId: z.string().nullable(),
     isFileSynced: z.boolean(),
     isThumbnailSynced: z.boolean(),

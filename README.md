@@ -8,6 +8,10 @@ A React Native app for managing photos and videos in the cloud. Like Apple Photo
 > files all live there. `npm install` runs once at the repo root (npm workspaces). The
 > command blocks below are unchanged except for the working directory.
 
+> **Migrating the backend?** Status + next steps live in `docs/migration/STATUS.md`. To import the
+> old Rails S3 library into the new backend, see `docs/migration/legacy-import.md` (or run the
+> `/legacy-import` skill).
+
 # Prerequisites
 
 Builds and previews run from a cloud workspace (no Mac) using EAS Build and an App Store Connect API Key. You need:
