@@ -1,6 +1,6 @@
 ---
 name: deploy-server
-description: Deploy the Squidbox backend (apps/server) to Fly.io with a Neon Postgres DB — first-time setup (app + Neon DB + secrets + seed + optional import) and routine one-command deploys, driven via the fly + neonctl CLIs. Use when the user asks to deploy, set up hosting, ship the server, push a backend change, or run migrations in production.
+description: Deploy the Squidbox backend (apps/server) to Fly.io with a Neon Postgres DB — first-time setup (app + Neon DB + secrets + seed) and routine one-command deploys, driven via the fly + neonctl CLIs. Use when the user asks to deploy, set up hosting, ship the server, push a backend change, or run migrations in production. (Loading the legacy library is a separate one-time step — see the legacy-import skill.)
 ---
 
 # Deploy server (Fly.io + Neon)
