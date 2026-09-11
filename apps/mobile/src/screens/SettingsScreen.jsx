@@ -73,7 +73,7 @@ function Row({ label, value, onPress, destructive, chevron, children }) {
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
-  const { isAuthenticated, user, logoutAsync, loadDataAndSaveLocalAsync, backupDataAsync } = useCloud();
+  const { isAuthenticated, user, logoutAsync } = useCloud();
   const {
     unsyncedAssets,
     assetsWithSyncErrors,
@@ -113,42 +113,6 @@ export default function SettingsScreen() {
         onPress: async () => {
           await deleteLocalDataAsync();
           Alert.alert('Done! Please restart the app.');
-        },
-      },
-    ]);
-  }
-
-  async function handleLoadFromCloud() {
-    Alert.alert('Load from cloud?', 'This will overwrite all local data.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Load',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteLocalDataAsync();
-            await loadDataAndSaveLocalAsync();
-            Alert.alert('Done! Reload the app to see changes.');
-          } catch (error) {
-            Alert.alert('Failed', error.message);
-          }
-        },
-      },
-    ]);
-  }
-
-  async function handleBackupToCloud() {
-    Alert.alert('Backup to cloud?', '', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Backup',
-        onPress: async () => {
-          try {
-            await backupDataAsync();
-            Alert.alert('Done!');
-          } catch (error) {
-            Alert.alert('Failed', error.message);
-          }
         },
       },
     ]);
@@ -271,8 +235,6 @@ export default function SettingsScreen() {
               )}
 
               {unsyncedAssets.length > 0 && !isSyncing && <Row label="Sync now" onPress={() => syncNow()} chevron />}
-              <Row label="Backup to cloud" onPress={handleBackupToCloud} chevron />
-              <Row label="Load from cloud" onPress={handleLoadFromCloud} destructive chevron />
               <Row label="Delete local data" onPress={handleDeleteLocalData} destructive chevron />
             </Section>
           </>

@@ -5,8 +5,6 @@ import downloadAssetFileAsync from './assets/downloadAssetFileAsync';
 import preloadAssetThumbnailsAsync from './assets/preloadAssetThumbnailsAsync';
 import uploadAssetFileAsync from './assets/uploadAssetFileAsync';
 import uploadAssetThumbnailAsync from './assets/uploadAssetThumbnailAsync';
-import backupDataAsync from './data/backupDataAsync';
-import loadDataAndSaveLocalAsync from './data/loadDataAndSaveLocalAsync';
 import initializeCloudAsyncFn from './initializeCloudAsync';
 
 import { CLEAR_DATA_BETWEEN_LOGINS } from '@/constants';
@@ -58,10 +56,8 @@ export default function CloudProvider({ children }) {
       loginAsync: async (email, password) => {
         try {
           const user = await apiLoginAsync(email, password);
-          if (CLEAR_DATA_BETWEEN_LOGINS) {
-            await deleteLocalDataAsync();
-            await loadDataAndSaveLocalAsync();
-          }
+          // The sync engine (src/sync) pulls all data after login; the old JSON snapshot load is gone.
+          if (CLEAR_DATA_BETWEEN_LOGINS) await deleteLocalDataAsync();
           await updateUserAuthenticationStatusAsync(user);
         } catch (error) {
           await updateUserAuthenticationStatusAsync(null);
@@ -75,8 +71,6 @@ export default function CloudProvider({ children }) {
           await updateUserAuthenticationStatusAsync(null);
         }
       },
-      loadDataAndSaveLocalAsync,
-      backupDataAsync,
       preloadAssetThumbnailsAsync,
       uploadAssetFileAsync,
       uploadAssetThumbnailAsync,
