@@ -3,12 +3,12 @@ import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import type { SyncTransport } from './transport';
 import { pendingRecordIds, clearOutboxRow, getOutboxUpdatedAt } from './outbox';
-import { getCursor, setCursor, patchStatus, appendSyncLog } from './status';
+import { getCursor, setCursor, patchStatus, appendSyncLog, markFirstSyncDone } from './status';
 import { setSyncError } from './assetsRepository';
 import { planPushOutcome, chunk } from './pushPlan';
 import { clientCollectionTables } from './clientCollections';
 
-const PULL_LIMIT = 500;
+const PULL_LIMIT = 1000; // server/contract cap; larger pages = fewer reactive storms on bulk pull
 const PUSH_BATCH = 500; // server caps pushRequest mutations at 500
 
 // ── DI core: one push→pull pass against an injected db + transport, recording a sync_log entry
@@ -98,6 +98,8 @@ async function pullPhase(db: SyncDb, transport: SyncTransport): Promise<number> 
     await setCursor(db, cursor);
     hasMore = page.hasMore;
   }
+  // The initial full pull has drained — the app can leave the "Setting up…" gate.
+  await markFirstSyncDone(db);
   await patchStatus(db, { phase: 'idle', lastPullAt: Date.now() });
   return pulled;
 }

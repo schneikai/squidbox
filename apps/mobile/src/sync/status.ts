@@ -5,6 +5,7 @@ import type { SyncDb } from './db/types';
 // sync_meta helpers: the pull cursor + a small status blob (surfaced by the Inspector in 3a).
 const CURSOR_KEY = 'cursor';
 const STATUS_KEY = 'status';
+const FIRST_SYNC_KEY = 'firstSyncDone'; // '1' once the initial full pull has drained
 
 export type SyncPhase = 'idle' | 'pushing' | 'pulling' | 'error';
 export interface SyncStatus {
@@ -29,6 +30,16 @@ async function setMeta(db: SyncDb, key: string, value: string): Promise<void> {
 
 export async function getCursor(db: SyncDb): Promise<number> {
   return Number((await getMeta(db, CURSOR_KEY)) ?? 0);
+}
+
+// First-sync flag: the initial full pull (the big one after first login) has fully drained. Used to
+// gate the app behind a "Setting up your library…" screen and to skip the whole-library derivation
+// while that bulk load runs.
+export async function markFirstSyncDone(db: SyncDb): Promise<void> {
+  await setMeta(db, FIRST_SYNC_KEY, '1');
+}
+export async function isFirstSyncDone(db: SyncDb): Promise<boolean> {
+  return (await getMeta(db, FIRST_SYNC_KEY)) === '1';
 }
 export async function setCursor(db: SyncDb, cursor: number): Promise<void> {
   await setMeta(db, CURSOR_KEY, String(cursor));

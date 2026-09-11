@@ -8,6 +8,7 @@ import { makeEdgeRepository } from '@/sync/edgesRepository';
 import { toModernRecord, toModernChanges } from '@/sync/legacyBase';
 import { makeRepository } from '@/sync/repository';
 import { useLiveCollectionMap, useLiveCollectionRows } from '@/sync/useCollection';
+import { useFirstSyncPending } from '@/sync/useSyncStatus';
 import { requestSync } from '@/sync/worker';
 import postSchema from '@/utils/posts/postSchema';
 
@@ -17,15 +18,18 @@ const repo = makeRepository('posts', schema.posts);
 const edges = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
 
 export default function PostsProvider({ children }) {
-  const postRows = useLiveCollectionMap(schema.posts);
-  const postEdges = useLiveCollectionRows(schema.postAssets);
+  const firstSyncPending = useFirstSyncPending();
+  // Pause the heavy full-table reads during the initial bulk sync (UI is gated behind FirstSyncScreen).
+  const postRows = useLiveCollectionMap(schema.posts, firstSyncPending);
+  const postEdges = useLiveCollectionRows(schema.postAssets, firstSyncPending);
 
   const posts = useMemo(() => {
+    if (firstSyncPending) return postRows;
     const refsByPost = assetRefsByPost(postEdges);
     const out = {};
     for (const [id, row] of Object.entries(postRows)) out[id] = { ...row, assetRefs: refsByPost[id] ?? [] };
     return out;
-  }, [postRows, postEdges]);
+  }, [postRows, postEdges, firstSyncPending]);
 
   const value = useMemo(() => {
     const db = getDb();

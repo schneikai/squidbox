@@ -29,3 +29,12 @@ export function useSyncStatus(): LiveSyncStatus {
     lastError: status.lastError ?? null,
   };
 }
+
+// True while the INITIAL full pull is running (after first login, before it has drained). Drives
+// the "Setting up your library…" gate and lets the providers skip whole-library derivation until
+// the bulk load is done. cursor>0 (a sync has started) + firstSyncDone unset (not finished).
+export function useFirstSyncPending(): boolean {
+  const { data: meta } = useLiveQuery(getDb().select().from(schema.syncMeta));
+  const byKey = Object.fromEntries((meta ?? []).map((r) => [r.key, r.value]));
+  return Number(byKey.cursor ?? 0) > 0 && byKey.firstSyncDone !== '1';
+}

@@ -45,9 +45,11 @@ import CloudProvider from '@/features/cloud/CloudProvider';
 import useCloud from '@/features/cloud/useCloud';
 import CloudSyncProvider from '@/features/cloud-sync/CloudSyncProvider';
 import PostsProvider from '@/features/posts-context/PostsProvider';
+import FirstSyncScreen from '@/features/sync-status/FirstSyncScreen';
 import RootNavigator from '@/navigators/RootNavigator';
 import { colors } from '@/styles/designTokens';
 import useInitializeLocalData from '@/utils/local-data/useInitializeLocalData';
+import { useFirstSyncPending } from '@/sync/useSyncStatus';
 import useSyncTriggers from '@/sync/useSyncTriggers';
 
 // eslint-disable-next-line import/order
@@ -98,6 +100,10 @@ function AppComponent() {
   // Foreground + interval sync triggers (on-mutation is kicked from the providers).
   useSyncTriggers();
 
+  // While the first full library pull runs, show a dedicated setup screen instead of the main app.
+  // This keeps the heavy asset grids unmounted so the bulk sync isn't competing with the UI.
+  const firstSyncPending = useFirstSyncPending();
+
   useEffect(() => {
     async function prepare() {
       // TODO: I had a try/catch here but the problem with this is
@@ -117,6 +123,7 @@ function AppComponent() {
   }, []);
 
   if (!appIsReady) return null;
+  if (firstSyncPending) return <FirstSyncScreen />;
 
   return (
     <AssetThumbnailLoaderProvider>

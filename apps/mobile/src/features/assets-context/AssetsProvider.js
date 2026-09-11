@@ -10,6 +10,7 @@ import { deriveAssetPostHistory } from '@/sync/derive';
 import { toAssetRecord, toAssetChanges } from '@/sync/legacyAsset';
 import { useLiveAssetsMap } from '@/sync/useAssetsQuery';
 import { useLiveCollectionMap, useLiveCollectionRows } from '@/sync/useCollection';
+import { useFirstSyncPending } from '@/sync/useSyncStatus';
 import { requestSync } from '@/sync/worker';
 
 // Modern asset store: SQLite (the source of truth) + the sync engine, exposed through the same
@@ -24,19 +25,24 @@ export default function AssetsProvider({ children }) {
 }
 
 function AssetsData({ children }) {
-  const assetRows = useLiveAssetsMap();
-  const postEdges = useLiveCollectionRows(schema.postAssets);
-  const posts = useLiveCollectionMap(schema.posts);
+  const firstSyncPending = useFirstSyncPending();
+  // Pause the heavy full-table reads during the initial bulk sync (UI is gated behind FirstSyncScreen).
+  const assetRows = useLiveAssetsMap(firstSyncPending);
+  const postEdges = useLiveCollectionRows(schema.postAssets, firstSyncPending);
+  const posts = useLiveCollectionMap(schema.posts, firstSyncPending);
 
-  // Derive postHistory/lastPostedAt (posts referencing each asset) onto the record shape.
+  // Derive postHistory/lastPostedAt (posts referencing each asset) onto the record shape. Skipped
+  // during the initial bulk pull (the UI is gated behind FirstSyncScreen, so nothing reads it) to
+  // avoid recomputing over the whole library on every applied page.
   const assets = useMemo(() => {
+    if (firstSyncPending) return assetRows;
     const { historyById, lastPostedAtById } = deriveAssetPostHistory(posts, postEdges);
     const out = {};
     for (const [id, row] of Object.entries(assetRows)) {
       out[id] = { ...row, postHistory: historyById[id] ?? [], lastPostedAt: lastPostedAtById[id] ?? null };
     }
     return out;
-  }, [assetRows, posts, postEdges]);
+  }, [assetRows, posts, postEdges, firstSyncPending]);
 
   const value = useMemo(
     () => ({

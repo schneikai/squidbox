@@ -43,6 +43,18 @@ against real S3 data (see Log). Phase 6 (signup/quota) not needed — private si
 - **Scalar-field concurrent edits still whole-record LWW** (e.g. rename vs favorite on the same
   album). Separate, additive fix deferred: per-field merge or ancestor-based 3-way merge. Not
   blocking; edges don't preclude it.
+- **First-full-sync is slow + the app feels frozen** (observed on-device, Expo Go, ~32k records).
+  Root cause: the reactive postHistory/edge derivation (`sync/derive.ts` via the providers)
+  recomputes over the WHOLE library on every applied pull page → ~30s stalls per page, unresponsive
+  UI. Follow-ups:
+  1. **Perf (root cause):** memoize/incrementalize the derivation, or pause reactive derivation
+     while a bulk sync is active; have the worker yield to the UI between pages.
+  2. **First-sync UX:** a "Setting up your library… (N pulled)" banner driven by the existing sync
+     status (`patchStatus` phase + `appendSyncLog` pulled counts) so the initial pull reads as
+     intentional, not stuck. Show it only when the local DB started empty (first sync).
+  3. **Guard heavy work:** soft-block/telegraph heavy actions until the first sync completes.
+  Also fix (surfaced same session): a failed token refresh/logout (stale/incompatible session)
+  should silently drop to the login screen, not red-screen (uncaught 400 from `/auth/refresh`).
 
 ## Log
 
