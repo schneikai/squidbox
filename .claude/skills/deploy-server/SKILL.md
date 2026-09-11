@@ -14,13 +14,24 @@ source, runs via tsx). Fly region `lhr` (London) is closest to the S3 bucket in 
 which is above the fly.toml dir):
 `fly deploy . --config apps/server/fly.toml --dockerfile apps/server/Dockerfile`
 
+## How this skill decides: setup vs deploy (ONE idempotent skill)
+
+Run it anytime — it detects what already exists and does only the missing steps, then always
+deploys. No separate "setup" vs "deploy" skill to choose.
+
+- App exists?  `fly status --app <app>` → errors ⇒ do step 1 (create app).
+- Neon project exists?  `neonctl projects list --org-id <org>` → none ⇒ do step 2.
+- Secrets set?  `fly secrets list --app <app>` → missing keys ⇒ do step 3.
+- User seeded? only seed (step 6) on first setup.
+- Always finish with the deploy (step 4) — that's the routine case on its own.
+
 ## Prerequisites (CLIs — installable + drivable by the agent)
 
 - `brew install flyctl` and `brew install neonctl`.
 - Auth (each opens a browser once — the human step): `fly auth login`, and `neonctl me`
   (running any neonctl command triggers the browser auth). Tell the user when to approve it.
 
-## First-time setup (agent-driven)
+## Setup steps (each is skipped if already present — see "How this skill decides")
 
 1. **Fly app:** `fly apps create <app> --org personal` (name is globally unique; update `app=` in fly.toml).
 2. **Neon project** (get the org id from `neonctl orgs list`):
