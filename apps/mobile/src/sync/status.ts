@@ -2,7 +2,7 @@ import { eq, lt, sql } from 'drizzle-orm';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 
-// sync_meta helpers: the pull cursor + a small status blob (surfaced by the Inspector in 3a).
+// sync_meta helpers: the pull cursor + a small status blob (surfaced by the Inspector).
 const CURSOR_KEY = 'cursor';
 const STATUS_KEY = 'status';
 const FIRST_SYNC_KEY = 'firstSyncDone'; // '1' once the initial full pull has drained

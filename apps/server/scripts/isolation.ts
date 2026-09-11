@@ -1,5 +1,5 @@
 /**
- * Multi-tenant + multi-device verification (Phase 1 checklist). Requires the local stack
+ * Multi-tenant + multi-device verification. Requires the local stack
  * (or real DB+S3) and both seeded users. Boots the server in-process and asserts:
  *   - two devices hold refresh tokens simultaneously; rotating one doesn't kill the other,
  *     and a rotated token can't be reused;

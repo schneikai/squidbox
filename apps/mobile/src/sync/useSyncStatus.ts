@@ -2,7 +2,7 @@ import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { getDb, schema } from './db/client';
 import type { SyncPhase } from './status';
 
-// Reactive sync status for the dev status surface (seed of the Phase 3a Inspector): the phase +
+// Reactive sync status for the dev status surface + Inspector: the phase +
 // pending outbox count, live from SQLite.
 export interface LiveSyncStatus {
   phase: SyncPhase;

@@ -2,11 +2,12 @@ import { getDb, closeDb } from './client.js';
 import { users } from './schema.js';
 import { hashPassword } from '../auth/passwords.js';
 
-// Seeds the two users the migration needs:
+// Seeds the two users the backend needs (this is a private build with no signup endpoint —
+// accounts are provisioned here):
 //  1. The existing account (keeps its legacy per-user bucket). Provide either a bcrypt digest
 //     imported from Rails (SEED_USER_PASSWORD_DIGEST) or a plaintext SEED_USER_PASSWORD.
 //  2. An isolated fixture user (shared bucket + prefix, storageBucket = null) for the
-//     multi-tenant isolation checks. No signup endpoint exists until Phase 6 — this is a seed.
+//     multi-tenant isolation checks.
 const env = process.env;
 const db = getDb();
 

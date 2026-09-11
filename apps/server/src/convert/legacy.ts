@@ -3,13 +3,13 @@ import type { Db } from '../db/client.js';
 import { push } from '../sync/push.js';
 import { uuidv5 } from './uuidv5.js';
 
-// One-shot legacy JSON → new backend importer (Phase 4, server-side variant). Each legacy file
-// is a map { [id]: entity } (yup shape). We map old → modern and feed the records through the
-// normal push() path, so they're Zod-validated, LWW-upserted, and server_seq-stamped exactly
-// like a client push — then the user's device pulls everything down on first login.
+// One-shot server-side legacy JSON → new backend importer. Each legacy file is a map
+// { [id]: entity } (yup shape). We map old → modern and feed the records through the normal
+// push() path, so they're Zod-validated, LWW-upserted, and server_seq-stamped exactly like a
+// client push — then the user's device pulls everything down on first login.
 //
 // Deviation from sync-design §11 (which ran the converter on one device): running it in the
-// backend fits the clean-rewrite (no device converter UI) and reuses the tested engine.
+// backend needs no device converter UI and reuses the tested engine.
 
 type AnyRecord = Record<string, any>;
 

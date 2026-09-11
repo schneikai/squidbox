@@ -3,8 +3,8 @@ import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { getDb, schema } from './db/client';
 import type { AssetRow, OutboxRow, SyncLogRow } from './db/schema';
 
-// Reactive data for the Sync Inspector. Kept as concrete per-table live queries (assets today;
-// albums/posts added in 3b) plus outbox/log which are already collection-generic.
+// Reactive data for the Sync Inspector. Kept as concrete per-table live queries (assets, albums,
+// posts) plus outbox/log which are already collection-generic.
 
 export interface CollectionStats {
   name: string;

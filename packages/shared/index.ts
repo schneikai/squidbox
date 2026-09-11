@@ -18,7 +18,7 @@ export * from './collections/postAsset';
 export * from './collections/registry';
 export * from './fractionalIndex';
 
-// Wire contracts shared between the mobile app and the new server.
+// Wire contracts shared between the mobile app and the server.
 export * from './contracts/auth';
 export * from './contracts/assets';
 export * from './contracts/sync';

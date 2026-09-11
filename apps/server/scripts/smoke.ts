@@ -1,5 +1,5 @@
 /**
- * End-to-end smoke test — the Phase 1 manual gate. Requires a real Postgres (migrated +
+ * End-to-end smoke test. Requires a real Postgres (migrated +
  * seeded) and real AWS/S3 credentials in the environment (.env). Boots the server in-process
  * on an ephemeral port and drives the full flow with fetch:
  *   login → /me → small upload → download+verify → >210 MB streaming upload → verify → delete.

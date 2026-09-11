@@ -5,7 +5,7 @@ import { useCollectionStats, useOutboxRows, useSyncLogRows } from '@/sync/useIns
 import { requestSync, runFullResync, runClearOutbox } from '@/sync/worker';
 
 // The Sync Inspector (dev) — replacement for "looking at the JSON files" (sync-design §13).
-// Registry-driven collection stats (assets today; albums/posts appear in 3b), outbox, sync log
+// Registry-driven collection stats (assets, albums, posts), outbox, sync log
 // with conflict/rebase notes, and the Sync now / Full resync / Clear outbox actions.
 export default function SyncInspector() {
   const { phase, pendingCount, cursor, lastPullAt, lastError } = useSyncStatus();

@@ -21,7 +21,8 @@ export const users = pgTable('users', {
   email: text('email').notNull().unique(),
   passwordDigest: text('password_digest').notNull(),
   // Legacy per-user bucket for the existing account; NULL ⇒ shared bucket + per-user prefix
-  // (the storage resolver decides). New users (Phase 6 signup) get NULL.
+  // (the storage resolver decides). Users without a legacy bucket (e.g. the seeded fixture
+  // user) get NULL.
   storageBucket: text('storage_bucket'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -49,7 +50,7 @@ export const refreshTokens = pgTable(
 export type User = typeof users.$inferSelect;
 export type RefreshToken = typeof refreshTokens.$inferSelect;
 
-// --- Syncable collections (Phase 2+) ---
+// --- Syncable collections ---
 // `assets` — asset metadata (sync-design §10). Composite PK (user_id, id): id is
 // client-generated, so a plain-id PK would let a colliding uuid touch another tenant's row
 // (§2a). server_seq is stamped by a BEFORE INSERT/UPDATE trigger (created in migrate.ts).
@@ -180,7 +181,7 @@ export const postAssets = pgTable(
 );
 export type PostAssetRow = typeof postAssets.$inferSelect;
 
-// Global monotonic sequence stamped onto every syncable row by a BEFORE INSERT/UPDATE trigger
-// (used from Phase 2). Created here so the sequence exists before any syncable table. Raw SQL
+// Global monotonic sequence stamped onto every syncable row by a BEFORE INSERT/UPDATE trigger.
+// Created here so the sequence exists before any syncable table. Raw SQL
 // because Drizzle has no first-class sequence DDL we rely on across versions.
 export const CREATE_CHANGE_SEQ = sql`CREATE SEQUENCE IF NOT EXISTS change_seq`;

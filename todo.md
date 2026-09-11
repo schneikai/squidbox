@@ -1,40 +1,29 @@
-# TODO — deferred manual gates
+# TODO — remaining user-side items
 
-Tasks that need a device, secrets, or a deploy and are therefore tracked here instead of
-blocking a migration stage's code work. Remove an item once it's verified.
+The Rails→TypeScript + multi-device-sync migration is **complete and deployed** (see
+`docs/migration/STATUS.md`). No code work remains — only these user-side steps that need a
+device, a real deploy check, or infra/secrets access. Remove an item once it's done.
 
-## [x] Stage 1 — Live DB + S3 smoke + isolation (DONE 2026-09-06)
+## [ ] Build a real Dev Client
 
-Verified on the local Docker stack (Postgres + MinIO): `npm run smoke` ⇒ SMOKE: PASS and
-`npm run verify:isolation` ⇒ ISOLATION: PASS (two-device refresh + cross-tenant isolation).
-Re-run locally anytime with `cp .env.docker .env && npm run local:setup && npm run smoke &&
-npm run verify:isolation`.
+"Squidbox Dev" needs a rebuild to include the `expo-sqlite` native module (added during the sync
+migration; `runtimeVersion` was bumped). Build it via the **`/cloud-ios-build`** skill (choose **Dev
+Client**), then install it on a physical device and confirm the app launches (SQLite migrates) and
+the initial library sync completes.
 
-## [ ] Stage 2b — Device gate: native expo-sqlite + two-device check
+## [ ] Test a photo upload
 
-**Why:** 2b's sync engine is heavily tested headlessly (24 tests incl. a two-device e2e), but
-those use **better-sqlite3**. The real device uses the native **expo-sqlite** module, which is
-only exercised on a physical device. This is the one unverified path.
+Against the deployed backend (`squidbox-server` on Fly.io), take/upload a photo and confirm the
+file lands in S3 and the asset syncs. Server-proxied streaming upload path
+(`assets/upload/*`) — the one flow best confirmed on a real device.
 
-**How:**
-1. Fresh dev-client build (native module added; `runtimeVersion` is now `1.0.0`), from
-   `apps/mobile`: `eas build --profile development --platform ios --non-interactive`.
-2. Run `apps/server` reachable from the phone (LAN IP or tunnel); in the app, set the
-   new-backend base URL (dev setting / `apiBaseUrl`) to that address, e.g.
-   `http://<LAN-IP>:3100/api/v1`.
-3. Log in (new backend), create/favorite/delete an asset, tap Settings→Developer→"Sync now".
-4. On a second device signed into the same account, confirm the change appears after a sync.
+## [ ] Retire the old Rails droplet
 
-**Done when:** the app launches on device (SQLite migrates), a create/edit/delete round-trips
-A→B, and Settings shows sync status advancing. Then set Stage 2b `done` in STATUS.md.
+Once the new backend is confirmed working end-to-end, decommission the old DigitalOcean Rails
+droplet (the legacy library has already been imported — see `/legacy-import`).
 
-## [ ] Stage 0 — Fresh EAS dev-client build from `apps/mobile/` (non-blocking)
+## [ ] Rotate the AWS keys
 
-Per the user, this is **not a blocker** (Stage 0 is marked done — the dev client already runs
-the new monorepo layout over Metro, verified on device). Kept as a routine follow-up: run one
-fresh EAS dev-client build from `apps/mobile/` to confirm EAS builds from the moved layout.
-
-```
-eas build --profile development --platform ios --non-interactive   # from apps/mobile/
-```
-No native modules changed and `runtimeVersion` was not bumped, so it should behave identically.
+Rotate any AWS access keys that were pasted into terminals/chats during deploy + legacy import —
+treat them as exposed.
+</content>

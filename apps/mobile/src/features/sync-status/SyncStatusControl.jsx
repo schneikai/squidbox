@@ -3,8 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSyncStatus } from '@/sync/useSyncStatus';
 import { requestSync } from '@/sync/worker';
 
-// Minimal dev status surface for the new (metadata) sync engine + a manual "Sync now". This is
-// the seed of the Phase 3a Sync Inspector; keep it simple for now.
+// Minimal dev status surface for the metadata sync engine + a manual "Sync now"; keep it simple.
 export default function SyncStatusControl() {
   const { phase, pendingCount, cursor, lastPullAt, lastError } = useSyncStatus();
 

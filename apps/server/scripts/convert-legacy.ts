@@ -1,5 +1,5 @@
 /**
- * One-shot legacy import (Phase 4, server-side). Downloads the old JSON backups from S3
+ * One-shot server-side legacy import. Downloads the old JSON backups from S3
  * (assets.json / albums.json / posts.json in the user's storage bucket — the same keys the
  * Rails data-backup wrote), maps them old→modern, and imports for one user via the sync push
  * path. The user's device then pulls everything on first login. Idempotent (LWW) — safe to re-run.

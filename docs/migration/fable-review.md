@@ -1,5 +1,9 @@
 # Independent architecture review (Fable)
 
+> Historical record — a pre-build review of the migration plan. Its findings were folded into the
+> design; the migration is now complete and deployed (see [`STATUS.md`](./STATUS.md)). Kept for
+> the reasoning behind the foundational decisions.
+
 Reviewed: `docs/sync-design.md`, `docs/migration/README.md`, `phase-0` … `phase-5`.
 Grounded against the actual app source (`src/features/*`, `src/utils/cloud-api/*`,
 the yup schemas in `src/utils/`, `CloudSyncProvider.js`, `uploadFileAsync.js`) and the Rails

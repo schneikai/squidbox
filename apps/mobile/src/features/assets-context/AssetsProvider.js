@@ -16,7 +16,7 @@ import { requestSync } from '@/sync/worker';
 // Modern asset store: SQLite (the source of truth) + the sync engine, exposed through the same
 // provider API the app already consumes (an id-keyed `assets` map + methods). Reads are reactive
 // via useLiveQuery; writes go through the transactional repository (row + outbox) and then kick
-// the sync worker. No JSON blobs, no useNewSync flag — this replaces the old path outright.
+// the sync worker. SQLite + the sync engine are the only path — no JSON blobs.
 export default function AssetsProvider({ children }) {
   const { success, error } = useMigrations(getDb(), migrations);
   if (error) throw error; // fail loudly in dev — the DB must migrate before use
@@ -88,7 +88,7 @@ function AssetsData({ children }) {
         requestSync();
       },
       deleteAssetsAsync: async (assetsToDelete) => {
-        // Tombstone the metadata; it syncs as a delete. TODO(2b polish): also delete the S3
+        // Tombstone the metadata; it syncs as a delete. TODO: also delete the S3
         // binaries via the new backend before tombstoning (sync-design §7a).
         await repo.deleteAssets(
           getDb(),

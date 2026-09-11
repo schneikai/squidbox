@@ -5,6 +5,18 @@ backup/restore. Goal: transparent multi-device sync (Apple-Photos-like) that is
 **easy to extend with new collections**, runs in Expo without ejecting, and shares
 its contract between app and backend via Zod.
 
+> **Status: built + deployed.** This engine is live (see
+> [`migration/STATUS.md`](./migration/STATUS.md)). It remains the design bible, but two things
+> below are **superseded by the shipped implementation** and flagged inline:
+> - Ordered **membership** (`album.assets`, `post.assetRefs`) is no longer JSON arrays on the
+>   parent record — it's **edge collections** (`album_assets` / `post_assets`). See
+>   [`migration/edge-collections.md`](./migration/edge-collections.md). This affects §7 (ordered
+>   relations), §9–§10 (descriptors/collections).
+> - `postHistory` / `lastPostedAt` are **no longer synced fields** — they're derived on-device
+>   (a recomputable cache; see edge-collections.md).
+> - The one-shot converter (§11) shipped as a **server-side** importer; the maintained runbook is
+>   [`migration/legacy-import.md`](./migration/legacy-import.md).
+
 Scope assumptions:
 
 - **Isolated multi-tenant**: multiple users, but each user's data is fully private and
@@ -333,12 +345,14 @@ need no dedup.
   is a future upgrade if needed.)
 - **Deletes:** a delete is just an update that sets `deleted_at`. Delete-vs-edit is
   resolved by the same LWW: a newer edit beats an older delete (undelete), and vice versa.
-- **Ordered relations** (`album.assets`, `post.assetRefs`): stored as JSON columns, so they
-  move atomically with the record under LWW. The known cost: reordering an album on one
-  device while adding to it on another *offline* → one wholesale wins. Rare for one
-  person's own devices;
-  the fix (join tables + fractional-index positions) is a localized future upgrade because
-  sync is collection-generic.
+- **Ordered relations** (`album.assets`, `post.assetRefs`): ~~stored as JSON columns, so they
+  move atomically with the record under LWW~~ **— SUPERSEDED.** This "join tables +
+  fractional-index positions" upgrade was **built**: membership is now the `album_assets` /
+  `post_assets` **edge collections** (deterministic ids + fractional-index `position`), so
+  add/remove/reorder are independent edge writes that compose across devices — no more wholesale
+  loss. See [`migration/edge-collections.md`](./migration/edge-collections.md). (The design note
+  that this was a "localized future upgrade because sync is collection-generic" proved correct —
+  it needed no protocol change.)
 - **Clock skew:** the client sets `updated_at`. The server **clamps** any `updated_at` in
   the *future* to server-now. Clamping means the stored value can differ from the sender's
   local copy — harmless *only because* the client apply rule (§5) is outbox-guarded rather
@@ -500,6 +514,12 @@ second user's pull does **not**. New collections are then covered automatically.
 Mapped from the current yup schemas. `isDeleted: true` → `deletedAt = updatedAt`;
 `createdAt`/`updatedAt` are already epoch numbers.
 
+> **Superseded fields (as shipped):** the ordered membership arrays — `albums.assets` and
+> `posts.assetRefs` — are **removed from the parent records** and live in the `album_assets` /
+> `post_assets` edge collections (§7 note; `edge-collections.md`). `postHistory` and
+> `lastPostedAt` (on both `assets` and `albums`) are **removed from synced state** and derived
+> on-device. The §9 descriptor example still lists them for illustration.
+
 **assets** — synced: `mediaLibraryAssetId, mediaType, width, height, fileSize, duration,
 filename, thumbnailFilename, isFavorite, notes, postHistory, lastPostedAt, oldFileId,
 isFileSynced, isThumbnailSynced, isSynced, createdAt, updatedAt, deletedAt` (the three
@@ -520,7 +540,14 @@ sync; the UI already tolerates dangling ids (they are plain string arrays).
 
 ---
 
-## 11. One-shot data converter (client button)
+## 11. One-shot data converter
+
+> **SUPERSEDED by what shipped.** The converter was built as a **server-side** importer, not a
+> client dev button: it reads the old JSON backups straight from S3, canonicalizes ids to
+> deterministic uuid v5, maps to the modern schema (incl. emitting membership **edges**), and
+> upserts through the sync `push()` path. It's **idempotent** and has already run against the real
+> library. Maintained runbook: [`migration/legacy-import.md`](./migration/legacy-import.md) (skill
+> `/legacy-import`). The original client-button sketch below is kept for design context.
 
 The app already downloads the old JSON files (`assets.json`, `albums.json`, `posts.json`)
 locally; each is a map `{ [id]: entity }`. The converter, behind a dev toggle:
