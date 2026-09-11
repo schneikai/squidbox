@@ -1,76 +1,96 @@
 ---
 name: cloud-ios-build
-description: Build and preview the Squidbox iOS app from a cloud workspace (no Mac) using an App Store Connect API Key. Use when the user asks to build, preview, or set up a dev client for iOS, or to iterate on the app from the cloud.
+description: Build the Squidbox iOS app from the cloud (no Mac needed) via EAS + an App Store Connect API Key. Builds either the App (preview/release) or the Dev Client. Use when the user asks to build, rebuild, preview, ship, or set up a dev client / release build for iOS. The skill ASKS which one to build — the user never types eas flags or profiles.
 ---
 
 # Cloud iOS Build (no Mac)
 
-Build and preview the Squidbox iOS app from a cloud workspace. Authenticate Apple with an App Store Connect API Key — no Mac, no Apple ID password, no 2FA (those are blocked from cloud IPs). For an overview of profiles and env, see `README.md` → "Build & preview". This skill covers the headless specifics.
+Build the Squidbox iOS app with EAS. Apple auth uses an **App Store Connect API Key** — no Mac,
+no Apple ID password, no 2FA (those are blocked from cloud IPs). The AGENT runs all commands; the
+user only answers "which build?" and supplies secrets. **Run every command from `apps/mobile/`.**
 
-**Monorepo:** the app lives in `apps/mobile/`. Run every command in this skill (`eas ...`, `expo start`, `node tunnel.js`, `scripts/check-env.sh`, `cp .env.local.example .env.local`) from `apps/mobile/`. `npm install` runs once at the repo root.
+## STEP 0 — Ask what to build (always do this first)
 
-## One-time, per workspace
+Use AskUserQuestion:
+- **App** — the preview/release build. Bundle `com.schneikai.squidbox`, name "Squidbox", EAS profile
+  `preview`, self-contained (JS baked in). `EXPO_PUBLIC_*` come from **EAS secrets** at build time.
+- **Dev Client** — the development build. Bundle `com.schneikai.squidbox.dev`, name "Squidbox (Dev)",
+  EAS profile `development`, loads JS live from Metro over the ngrok tunnel (hot reload).
+  `EXPO_PUBLIC_*` come from **`.env.local`** at runtime.
 
-- `AuthKey_<KEY_ID>.p8` on disk (gitignored via `*.p8`; never commit, never print contents).
-- `EXPO_TOKEN` (expo.dev → Settings → Access tokens).
-- Apple Team ID, ASC Key ID, ASC Issuer ID — from App Store Connect / developer.apple.com.
-- `expect` installed for TTY-driven credential prompts (`apt-get install -y expect`).
+Then follow the matching path below. (Both share the one-time credential setup.)
 
-Routine builds reuse stored credentials, so the `.p8` is only needed for the one-time credential setup below (or repair).
+## Prerequisites (one-time per machine; ask the user for these)
 
-## Fresh checkout
+- `eas-cli`: `npm i -g eas-cli` (or use `npx eas-cli`). `expect`: `brew install expect` (for the
+  TTY-driven credential prompts on first build).
+- **`EXPO_TOKEN`** — expo.dev → Account Settings → Access Tokens.
+- **App Store Connect API key** on disk as `AuthKey_<KEY_ID>.p8` (gitignored via `*.p8`; never print
+  its contents) + **`EXPO_ASC_KEY_ID`**, **`EXPO_ASC_ISSUER_ID`** (App Store Connect → Users and
+  Access → Integrations), **`EXPO_APPLE_TEAM_ID`** (developer.apple.com → Membership),
+  **`EXPO_APPLE_TEAM_TYPE=INDIVIDUAL`**.
 
-Runtime app secrets are already in EAS — no action. Restore the non-committed secrets from a password manager:
-
-1. `cp .env.local.example .env.local` and fill values (API URL must be reachable from the phone, not localhost).
-2. Set `EXPO_TOKEN`.
-3. Restore the `.p8` and set `EXPO_ASC_*` + `EXPO_APPLE_TEAM_*`.
-4. Run `scripts/check-env.sh` to verify.
-
-## Env vars (set before every build)
-
+Export before building:
 ```
-EXPO_TOKEN, EAS_BUILD_PROFILE,
+EXPO_TOKEN, EAS_BUILD_PROFILE, CI=1,
 EXPO_ASC_API_KEY_PATH, EXPO_ASC_KEY_ID, EXPO_ASC_ISSUER_ID,
-EXPO_APPLE_TEAM_ID, EXPO_APPLE_TEAM_TYPE=INDIVIDUAL, CI=1
+EXPO_APPLE_TEAM_ID, EXPO_APPLE_TEAM_TYPE=INDIVIDUAL
 ```
+Verify with `scripts/check-env.sh`. Routine rebuilds reuse stored credentials, so the `.p8` + ASC
+IDs are only needed for the FIRST build on each bundle id (or to repair credentials).
 
-The dev client reads `EXPO_PUBLIC_*` from `.env.local` via Metro at runtime (not from EAS). Point it at a reachable API; until the API-in-cloud work lands, use the same reachable API the preview build uses.
+## First build on a bundle id (either path)
 
-## Dev client build
-
-Build commands are in `README.md` → "Building from the cloud". Headless specifics:
-
-- First time on a new bundle id, run `eas credentials:configure-build -p ios -e development`. Its TTY prompts need `expect` in a headless shell. Answer: reuse the distribution certificate (Y), select provisioned devices (defaults fine), generate a new ad-hoc provisioning profile (Y). The existing distribution certificate is reused; only a new profile is created for the `.dev` bundle id.
-- Install from the EAS build page (Internal Distribution → Install), then trust the dev certificate in Settings → General → VPN & Device Management.
-
-## Metro + tunnel
-
-Start commands are in `README.md` → "Dev client: Metro + tunnel". **Before starting Metro, run `scripts/check-env.sh` and confirm `.env.local` exists. If it's missing, do NOT start Metro — stop and ask the user for the values.** Without it, Metro serves a bundle with no `EXPO_PUBLIC_*` values and every API call is broken. Before connecting the device, verify the tunnel returns 200:
-
+Native modules need signing set up once per bundle id. Its prompts need `expect` in a headless shell:
 ```
-curl -s -o /dev/null -w "%{http_code}" https://<tunnel-host>/manifest?platform=ios&dev=true
-curl -s -o /dev/null -w "%{http_code}" "https://<tunnel-host>/node_modules/expo/AppEntry.bundle?platform=ios&dev=true"
+eas credentials:configure-build -p ios -e <development|preview>
 ```
+Answer: reuse the distribution certificate (Y), select provisioned devices (defaults fine), generate
+a new ad-hoc provisioning profile (Y). (Reuses the existing cert; only mints a profile for the bundle id.)
 
-## Watch a build
+## Path A — Dev Client
 
-```
-eas build:view <build-id>
-```
+1. `EXPO_PUBLIC_API_URL` in `apps/mobile/.env.local` must be reachable from the phone — currently the
+   live backend: `https://squidbox-server.fly.dev/api/v1`. (Dev client reads this at runtime.)
+2. Build: `EAS_BUILD_PROFILE=development eas build -p ios -e development` (agent runs it).
+3. Install on the phone from the EAS build page → **Internal Distribution → Install**; trust the dev
+   cert in **Settings → General → VPN & Device Management**.
+4. Start Metro + tunnel so the dev client can load JS (agent runs both, from `apps/mobile/`):
+   ```
+   NGROK_AUTHTOKEN=<from .env.local> node tunnel.js        # prints TUNNEL_URL=https://<host>
+   EXPO_PACKAGER_PROXY_URL=https://<host> npx expo start --offline   # dev-client mode (no --go)
+   ```
+   Verify the tunnel serves Metro: `curl -s -o /dev/null -w "%{http_code}" https://<host>/status` → 200.
+   Then open **Squidbox (Dev)** and point it at the tunnel URL.
+5. After a native-module change, rebuild (steps 2–3). JS-only changes just hot-reload over the tunnel.
 
-Internal distribution installs via the EAS dashboard Install button — no TestFlight / `eas submit`. Don't run `eas submit` on `development`/`preview` internal builds.
+## Path B — App (preview/release)
+
+1. The preview build BAKES `EXPO_PUBLIC_*` from **EAS secrets**. Ensure they point at the live backend:
+   `eas secret:list` → `EXPO_PUBLIC_API_URL` must be `https://squidbox-server.fly.dev/api/v1`
+   (update via `eas secret:push --scope project --env-file .secrets [--force]`, editing `.secrets`).
+   Also confirm `EXPO_PUBLIC_OPENAI_API_KEY`, `SENTRY_AUTH_TOKEN` exist.
+2. Build: `EAS_BUILD_PROFILE=preview eas build -p ios -e preview` (agent runs it).
+3. Install from the EAS build page → **Internal Distribution → Install**. Self-contained — no Metro/tunnel.
+4. Do NOT run `eas submit` on `development`/`preview` (those are internal builds, not TestFlight).
+
+## Watch / manage
+
+`eas build:list --platform ios --limit 5` · `eas build:view <build-id>` · logs at the EAS build page.
 
 ## Troubleshooting
 
-- **"Invalid username and password combination"** (Apple auth) → Apple ID + 2FA is blocked from the cloud IP. Use the ASC API Key (`EXPO_ASC_*`). Never attempt Apple ID password auth from a cloud shell.
-- **"Failed to set up credentials / non-interactive mode"** (new bundle id) → run `eas credentials:configure-build` via `expect`.
-- **Wrong bundle id / dev client overwrites preview** → `EAS_BUILD_PROFILE` wasn't exported; the config fell back to the default bundle id. Confirm it matches the profile passed to `eas build`.
-- **2FA code prompt / `eas go`** → only with Apple ID auth, which is blocked from cloud. Use the API key + a real dev client build instead.
+- **"Invalid username and password combination"** → Apple ID + 2FA is blocked from cloud IPs. Use the
+  ASC API Key (`EXPO_ASC_*`); never attempt Apple ID password auth from a cloud shell.
+- **"Failed to set up credentials / non-interactive mode"** (new bundle id) → run
+  `eas credentials:configure-build` via `expect`.
+- **Dev client overwrites the App (or vice-versa)** → `EAS_BUILD_PROFILE` wasn't exported, so
+  app.config.js fell back to the default bundle id. Confirm it matches the profile passed to `eas build`.
 
 ## Security
 
-- Never print or commit the `.p8` contents, Apple password, Expo token, or any secret — reference env var names, not values.
-- Revocable: ASC key at App Store Connect → Integrations → Team Keys; Expo token at expo.dev → Settings → Access tokens.
-- After a session where credentials were shared in chat, advise the user to rotate the Apple ID password and any leaked keys/tokens. Keep the ASC key if builds still run from the cloud.
-- Scrub local log/expect files that may have captured credentials after use (`rm -f *.log *.exp /tmp/2fa_code.txt`).
+- Never print or commit the `.p8` contents, Apple password, `EXPO_TOKEN`, or any secret — reference
+  env-var NAMES, not values.
+- Revocable: ASC key at App Store Connect → Integrations → Team Keys; Expo token at expo.dev → Access
+  Tokens. After a session where credentials were shared in chat, advise rotating them.
+- Scrub local log/expect files that may have captured credentials (`rm -f *.log *.exp /tmp/2fa_code.txt`).
