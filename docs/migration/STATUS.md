@@ -14,7 +14,7 @@ Statuses: `not-started` · `in-progress` · `blocked-on-user` · `done`
 | 3a | Sync Inspector + observability | `phase-3-collections-inspector.md` (§3a) | done |
 | 3b | albums/posts + sync triggers | `phase-3-collections-inspector.md` (§3b) | done |
 | 4  | Converter — import real S3 backup (runbook: `legacy-import.md`, skill: `/legacy-import`) | `phase-4-converter-parallel.md` | done (validated on real data) |
-| 5a | Cutover — deploy backend | `phase-5-cutover.md` (§5a) | needs-user (deploy) |
+| 5a | Cutover — deploy backend (Fly.io: `apps/server/{Dockerfile,fly.toml}`, skill `/deploy-server`) | `phase-5-cutover.md` (§5a) | scaffolded (image validated locally); needs-user `fly deploy` |
 | 5b | Cleanup — delete old path, retire Rails | `phase-5-cutover.md` (§5b) | needs-user |
 | 6  | Open registration — signup + hardening | `phase-6-open-registration.md` | not-needed (private build) |
 

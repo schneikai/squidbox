@@ -7,6 +7,10 @@
   "scripts": {
     "dev": "node --env-file=.env --watch --import tsx src/index.ts",
     "start": "node --env-file=.env --import tsx src/index.ts",
+    "start:prod": "node --import tsx src/index.ts",
+    "migrate:prod": "node --import tsx src/db/migrate.ts",
+    "seed:prod": "node --import tsx src/db/seed.ts",
+    "convert:prod": "node --import tsx scripts/convert-legacy.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -35,6 +39,7 @@
     "fastify-type-provider-zod": "^4.0.2",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.13.1",
+    "tsx": "^4.19.2",
     "zod": "^3.24.1"
   },
   "devDependencies": {
@@ -43,7 +48,6 @@
     "@types/node": "^22.10.5",
     "@types/pg": "^8.11.10",
     "drizzle-kit": "^0.30.1",
-    "tsx": "^4.19.2",
     "typescript": "^5.6.0",
     "vitest": "^2.1.8"
   }

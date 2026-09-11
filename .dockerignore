@@ -1,0 +1,14 @@
+# Keep the build context small + never ship local state. Mobile SOURCE is excluded (only its
+# package.json is needed, and the Dockerfile copies that explicitly); node_modules are reinstalled.
+**/node_modules
+.git
+apps/mobile/src
+apps/mobile/ios
+apps/mobile/android
+apps/mobile/assets
+apps/mobile/test
+**/.env
+**/.env.*
+**/*.log
+**/dist
+docs
