@@ -5,8 +5,9 @@
 app = "squidbox-server"
 primary_region = "lhr"
 
-[build]
-  dockerfile = "apps/server/Dockerfile"
+# NOTE: no [build] dockerfile here — the build CONTEXT must be the repo root (for packages/shared),
+# which fly.toml can't express when it lives in apps/. Deploy from the repo root with:
+#   fly deploy . --config apps/server/fly.toml --dockerfile apps/server/Dockerfile
 
 [env]
   PORT = "3100"

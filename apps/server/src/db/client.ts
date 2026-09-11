@@ -9,7 +9,14 @@ let dbInstance: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
 export function getPool(): pg.Pool {
   if (!pool) {
-    pool = new pg.Pool({ connectionString: loadConfig().DATABASE_URL });
+    const url = loadConfig().DATABASE_URL;
+    // Managed Postgres (Neon, etc.) requires TLS; local docker/Fly-internal don't. Enable SSL when
+    // the URL asks for it or points at a known managed host.
+    const needsSsl = /[?&]sslmode=require/i.test(url) || /\.neon\.tech|\.flympg\.net/i.test(url);
+    pool = new pg.Pool({
+      connectionString: url,
+      ...(needsSsl ? { ssl: { rejectUnauthorized: false } } : {}),
+    });
   }
   return pool;
 }
