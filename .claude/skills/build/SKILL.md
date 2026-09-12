@@ -76,7 +76,12 @@ a new ad-hoc provisioning profile (Y). (Reuses the existing cert; only mints a p
 
 ## Watch / manage
 
-`eas build:list --platform ios --limit 5` · `eas build:view <build-id>` · logs at the EAS build page.
+Build with `--no-wait` (returns a build id immediately), then poll status in the background. iOS
+builds here usually finish in well under 10 minutes, so **poll every ~5 minutes** — no need for a
+tight loop. Stop when status is `FINISHED`/`ERRORED`/`CANCELED`, then fetch the install URL.
+
+`eas build:list --platform ios --limit 5` · `eas build:view <build-id>` (add `--json` to parse
+`.status`) · logs at the EAS build page.
 
 ## Troubleshooting
 
