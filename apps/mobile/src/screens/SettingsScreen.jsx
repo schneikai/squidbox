@@ -1,90 +1,30 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useCallback, useState, useTransition } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 
 import DetailScrollView from '@/components/DetailScrollView';
-import Icon from '@/components/Icon';
 import LoginForm from '@/components/LoginForm';
 import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
-import { SCREEN_PADDING } from '@/constants';
+import { Row, Section } from '@/components/settings-list/SettingsList';
 import { MODEL_STORAGE_KEY, DEFAULT_MODEL } from '@/features/ai-suggestions/aiSuggestionsStorage';
 import confirmLogoutAsync from '@/features/cloud/confirmLogoutAsync';
 import useCloud from '@/features/cloud/useCloud';
-import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
-import SyncInspector from '@/features/sync-status/SyncInspector';
-import actionButtonStyles from '@/styles/actionButtonStyles';
-import { colors, radii, spacing, typography } from '@/styles/designTokens';
-import deleteLocalDataAsync from '@/utils/local-data/deleteLocalDataAsync';
+import { colors } from '@/styles/designTokens';
+import { useSyncStatus } from '@/sync/useSyncStatus';
 import useResortAlbumsByName from '@/utils/tools/useResortAlbumsByName';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/api\/v1\/?$/, '');
 
-// ─── Reusable iOS-style building blocks ────────────────────────────────────
-
-function Section({ children }) {
-  const kids = Array.isArray(children) ? children.filter(Boolean) : [children].filter(Boolean);
-  return (
-    <View style={styles.section}>
-      {kids.map((child, i) => (
-        <View key={i}>
-          {child}
-          {i < kids.length - 1 && <View style={actionButtonStyles.listDivider} />}
-        </View>
-      ))}
-    </View>
-  );
-}
-
-function Row({ label, value, onPress, destructive, chevron, children }) {
-  const content = (
-    <View style={styles.row}>
-      <Text style={[styles.rowLabel, destructive && styles.rowLabelDestructive]}>{label}</Text>
-      <View style={styles.rowRight}>
-        {value ? <Text style={styles.rowValue}>{value}</Text> : null}
-        {children}
-        {chevron && (
-          <Icon
-            name="chevron-right"
-            size={spacing.iconSizeSmall}
-            color={colors.textTertiary}
-            style={{ marginLeft: 4 }}
-          />
-        )}
-      </View>
-    </View>
-  );
-
-  if (onPress) {
-    return (
-      <TouchableOpacity onPress={onPress} activeOpacity={0.6}>
-        {content}
-      </TouchableOpacity>
-    );
-  }
-  return content;
-}
-
-// ─── Main screen ────────────────────────────────────────────────────────────
-
 export default function SettingsScreen() {
   const navigation = useNavigation();
   const { isAuthenticated, user, logoutAsync } = useCloud();
-  const {
-    unsyncedAssets,
-    assetsWithSyncErrors,
-    isSyncing,
-    syncMessage,
-    syncProgressMessage,
-    syncSpeedMessage,
-    syncNow,
-  } = useCloudSync();
-  const [showSyncDetails, setShowSyncDetails] = useState(false);
-  const [showErrorModal, setShowErrorModal] = useState(false);
+  const { unsyncedAssets, assetsWithSyncErrors, isSyncing, syncMessage } = useCloudSync();
+  const { phase, pendingCount, lastError } = useSyncStatus();
 
   const [aiModel, setAiModel] = useState(DEFAULT_MODEL);
   const [isLoggingOut, startLogoutTransition] = useTransition();
@@ -103,20 +43,6 @@ export default function SettingsScreen() {
       loadAiSettings();
     }, []),
   );
-
-  async function handleDeleteLocalData() {
-    Alert.alert('Delete local data', 'This cannot be undone. Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteLocalDataAsync();
-          Alert.alert('Done! Please restart the app.');
-        },
-      },
-    ]);
-  }
 
   function handleLogout() {
     startLogoutTransition(async () => {
@@ -163,22 +89,21 @@ export default function SettingsScreen() {
     }
   }
 
-  const hasSyncDetails = isSyncing || assetsWithSyncErrors.length > 0;
-
-  function handleSyncStatusPress() {
-    if (assetsWithSyncErrors.length > 0) {
-      setShowErrorModal(true);
-    } else if (isSyncing) {
-      setShowSyncDetails((v) => !v);
-    }
-  }
-
-  function syncStatusText() {
-    if (isSyncing) return syncMessage ?? 'Syncing…';
+  // Backup = uploading full-res photo files to the cloud (manual). Library sync = the metadata
+  // engine (automatic). Each is one tappable status row → its own detail screen.
+  function backupStatusText() {
+    if (isSyncing) return syncMessage ?? 'Backing up…';
     if (assetsWithSyncErrors.length > 0)
       return `${assetsWithSyncErrors.length} error${assetsWithSyncErrors.length > 1 ? 's' : ''}`;
-    if (unsyncedAssets.length > 0) return `${unsyncedAssets.length} unsynced`;
-    return 'All synced';
+    if (unsyncedAssets.length > 0) return `${unsyncedAssets.length} not backed up`;
+    return 'All backed up';
+  }
+
+  function librarySyncStatusText() {
+    if (lastError) return 'Error';
+    if (phase === 'pushing' || phase === 'pulling') return 'Syncing…';
+    if (pendingCount > 0) return `${pendingCount} pending`;
+    return 'Up to date';
   }
 
   return (
@@ -200,52 +125,22 @@ export default function SettingsScreen() {
               </Row>
             </Section>
 
-            <ScreenSectionHeader title="Cloud Sync" />
+            <ScreenSectionHeader title="Backup & Sync" />
             <Section>
-              <>
-                <Row
-                  label="Status"
-                  value={syncStatusText()}
-                  onPress={hasSyncDetails ? handleSyncStatusPress : undefined}
-                  chevron={hasSyncDetails}
-                />
-
-                {showSyncDetails && isSyncing && (
-                  <View style={styles.syncDetailPanel}>
-                    {syncProgressMessage && (
-                      <Text style={styles.syncDetailLine}>
-                        {syncProgressMessage.sent} / {syncProgressMessage.total}
-                        {'  '}
-                        <Text style={styles.syncDetailBold}>{syncProgressMessage.percent}</Text>
-                      </Text>
-                    )}
-                    {syncSpeedMessage && (
-                      <Text style={styles.syncDetailLine}>
-                        {syncSpeedMessage.now}
-                        {'  '}
-                        <Text style={styles.syncDetailMuted}>avg {syncSpeedMessage.avg}</Text>
-                      </Text>
-                    )}
-                  </View>
-                )}
-              </>
-
-              {showErrorModal && (
-                <SyncErrorViewer assetsWithSyncErrors={assetsWithSyncErrors} close={() => setShowErrorModal(false)} />
-              )}
-
-              {unsyncedAssets.length > 0 && !isSyncing && <Row label="Sync now" onPress={() => syncNow()} chevron />}
-              <Row label="Delete local data" onPress={handleDeleteLocalData} destructive chevron />
+              <Row
+                label="Photo backup"
+                value={backupStatusText()}
+                onPress={() => navigation.navigate('BackupScreen')}
+                chevron
+              />
+              <Row
+                label="Library sync"
+                value={librarySyncStatusText()}
+                onPress={() => navigation.navigate('SyncScreen')}
+                chevron
+              />
             </Section>
-          </>
-        ) : (
-          <View style={styles.loginWrapper}>
-            <LoginForm />
-          </View>
-        )}
 
-        {isAuthenticated && (
-          <>
             <ScreenSectionHeader title="AI Caption Suggestions" />
             <Section>
               <Row label="Model" value={aiModel} />
@@ -262,10 +157,11 @@ export default function SettingsScreen() {
               <Row label="API URL" value={API_BASE_URL} />
               <Row label="Check API" onPress={handleCheckApi} chevron />
             </Section>
-
-            <ScreenSectionHeader title="Sync engine (dev)" />
-            <SyncInspector />
           </>
+        ) : (
+          <View style={styles.loginWrapper}>
+            <LoginForm />
+          </View>
         )}
       </DetailScrollView>
     </Page>
@@ -273,68 +169,5 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  section: {
-    backgroundColor: colors.glassSurface,
-    borderRadius: radii.card,
-    marginBottom: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 4,
-  },
-
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: spacing.iconButtonSize,
-    paddingHorizontal: SCREEN_PADDING,
-    paddingVertical: 16,
-  },
-  rowLabel: {
-    flex: 1,
-    fontSize: typography.base,
-    color: colors.text,
-  },
-  rowLabelDestructive: {
-    color: colors.danger,
-  },
-  rowRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexShrink: 1,
-    marginLeft: 8,
-  },
-  rowValue: {
-    fontSize: typography.base,
-    color: colors.textSecondary,
-    textAlign: 'right',
-    flexShrink: 1,
-  },
-
-  syncDetailPanel: {
-    backgroundColor: colors.glassSurface,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.glassBorder,
-    paddingHorizontal: SCREEN_PADDING,
-    paddingTop: 0,
-    paddingBottom: 15,
-    gap: 4,
-  },
-  syncDetailLine: {
-    fontSize: typography.sm,
-    color: colors.text,
-    lineHeight: 18,
-  },
-  syncDetailBold: {
-    fontWeight: '600',
-    color: colors.text,
-  },
-  syncDetailMuted: {
-    color: colors.textSecondary,
-  },
-
-  loginWrapper: {
-    paddingTop: 8,
-  },
+  loginWrapper: { paddingTop: 8 },
 });
