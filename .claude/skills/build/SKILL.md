@@ -83,6 +83,16 @@ tight loop. Stop when status is `FINISHED`/`ERRORED`/`CANCELED`, then fetch the 
 `eas build:list --platform ios --limit 5` · `eas build:view <build-id>` (add `--json` to parse
 `.status`) · logs at the EAS build page.
 
+**Install QR.** `--no-wait` skips EAS's own QR, so render one for the build page (scan with the
+iPhone camera → opens the page → tap Install; EAS has no direct-install QR for internal builds):
+```bash
+node -e 'require("qrcode-terminal").generate("https://expo.dev/accounts/<acct>/projects/squidbox/builds/<build-id>",{small:true},c=>process.stdout.write(c))'
+```
+If `qrcode-terminal` isn't resolvable, install it to a temp prefix first:
+`npm install qrcode-terminal --no-save --prefix /tmp/qrtool` and require
+`/tmp/qrtool/node_modules/qrcode-terminal`. Show the QR in a fenced block and also paste the plain
+URL (terminals may squish the blocks).
+
 ## Troubleshooting
 
 - **"Invalid username and password combination"** → Apple ID + 2FA is blocked from cloud IPs. Use the
