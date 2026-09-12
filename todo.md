@@ -26,4 +26,19 @@ droplet (the legacy library has already been imported — see `/legacy-import`).
 
 Rotate any AWS access keys that were pasted into terminals/chats during deploy + legacy import —
 treat them as exposed.
+
+## [ ] Thumbnail background backfill (deferred enhancement + decision)
+
+Thumbnails now load **lazily** — only cells scrolled into view download (bounded queue in
+`AssetThumbnailLoaderProvider`). This is safe and fast, but a thumbnail you've never scrolled to
+won't be on-disk, so it'd be blank if viewed **offline**. To close that gap, add a low-priority
+**background backfill**: after the first sync completes and the app is idle, trickle through all
+missing thumbnails using the same concurrency cap, always yielding to on-screen (priority)
+requests. The queue is already built to take this as a second tier.
+
+Decision needed first (data/battery tradeoff for a ~14k-thumbnail library):
+- **Wi-Fi only** (recommended) — full offline coverage without burning cellular data (needs a
+  network-type check).
+- **Any network** — fastest coverage, but uses mobile data.
+- **Leave lazy-only** — accept the rare offline gap.
 </content>
