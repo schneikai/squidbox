@@ -1,4 +1,5 @@
 import { eq, lt, sql } from 'drizzle-orm';
+
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 
@@ -37,6 +38,11 @@ export async function getCursor(db: SyncDb): Promise<number> {
 // while that bulk load runs.
 export async function markFirstSyncDone(db: SyncDb): Promise<void> {
   await setMeta(db, FIRST_SYNC_KEY, '1');
+}
+// Clear the flag so the "Setting up your library…" gate shows again for the next full pull. Used by
+// fullResync (a full re-pull is, semantically, another first sync).
+export async function clearFirstSyncDone(db: SyncDb): Promise<void> {
+  await setMeta(db, FIRST_SYNC_KEY, '0');
 }
 export async function isFirstSyncDone(db: SyncDb): Promise<boolean> {
   return (await getMeta(db, FIRST_SYNC_KEY)) === '1';

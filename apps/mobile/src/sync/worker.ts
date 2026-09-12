@@ -1,12 +1,13 @@
 import type { PushMutation, PushResult } from '@squidbox/shared';
+
+import { setSyncError } from './assetsRepository';
+import { clientCollectionTables } from './clientCollections';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
-import type { SyncTransport } from './transport';
 import { pendingRecordIds, clearOutboxRow, getOutboxUpdatedAt } from './outbox';
-import { getCursor, setCursor, patchStatus, appendSyncLog, markFirstSyncDone } from './status';
-import { setSyncError } from './assetsRepository';
 import { planPushOutcome, chunk } from './pushPlan';
-import { clientCollectionTables } from './clientCollections';
+import { getCursor, setCursor, patchStatus, appendSyncLog, markFirstSyncDone, clearFirstSyncDone } from './status';
+import type { SyncTransport } from './transport';
 
 const PULL_LIMIT = 1000; // server/contract cap; larger pages = fewer reactive storms on bulk pull
 const PUSH_BATCH = 500; // server caps pushRequest mutations at 500
@@ -111,7 +112,7 @@ async function applyPage(
   db: SyncDb,
   collection: string,
   table: (typeof clientCollectionTables)[string],
-  records: Array<Record<string, unknown>>,
+  records: Record<string, unknown>[],
 ): Promise<number> {
   if (records.length === 0) return 0;
   const pending = await pendingRecordIds(db, collection);
@@ -160,6 +161,8 @@ export async function fullResync(db: SyncDb, transport: SyncTransport): Promise<
     }
   });
   await setCursor(db, 0);
+  // A full re-pull is another "first sync" — show the setup gate again while it drains.
+  await clearFirstSyncDone(db);
   await runSyncOnce(db, transport);
 }
 

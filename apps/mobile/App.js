@@ -48,9 +48,9 @@ import PostsProvider from '@/features/posts-context/PostsProvider';
 import FirstSyncScreen from '@/features/sync-status/FirstSyncScreen';
 import RootNavigator from '@/navigators/RootNavigator';
 import { colors } from '@/styles/designTokens';
-import useInitializeLocalData from '@/utils/local-data/useInitializeLocalData';
-import { useFirstSyncPending } from '@/sync/useSyncStatus';
+import { useFirstSyncDone } from '@/sync/useSyncStatus';
 import useSyncTriggers from '@/sync/useSyncTriggers';
+import useInitializeLocalData from '@/utils/local-data/useInitializeLocalData';
 
 // eslint-disable-next-line import/order
 import { defineCollection } from '@squidbox/shared';
@@ -94,7 +94,7 @@ export default Sentry.wrap(App);
 
 function AppComponent() {
   const initializeLocalDataAsync = useInitializeLocalData();
-  const { initializeCloudAsync } = useCloud();
+  const { initializeCloudAsync, isAuthenticated } = useCloud();
   const [appIsReady, setAppIsReady] = useState(false);
 
   // Foreground + interval sync triggers (on-mutation is kicked from the providers).
@@ -102,7 +102,11 @@ function AppComponent() {
 
   // While the first full library pull runs, show a dedicated setup screen instead of the main app.
   // This keeps the heavy asset grids unmounted so the bulk sync isn't competing with the UI.
-  const firstSyncPending = useFirstSyncPending();
+  // Gate on "logged in AND the initial pull hasn't finished" — NOT on the cursor, so the screen is
+  // up from the instant we log in (through the first page + any transient auth/network error) and
+  // never leaves a silent empty library. Pre-login it stays hidden (nothing to sync yet).
+  const firstSyncDone = useFirstSyncDone();
+  const firstSyncPending = isAuthenticated && !firstSyncDone;
 
   useEffect(() => {
     async function prepare() {
