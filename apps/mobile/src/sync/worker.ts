@@ -177,9 +177,23 @@ export function requestSync(): void {
 
 // Bound Inspector actions (production db + HTTP transport).
 export async function runFullResync(): Promise<void> {
+  // Wait out any in-flight sync so the wipe + cursor reset can't race a concurrent pull (which
+  // left the setup screen spinning on stale state). Then hold the single-flight for the whole
+  // resync, and surface failures as phase:'error' so the setup screen shows retry instead of a
+  // silent spinner.
+  while (running) await new Promise((resolve) => setTimeout(resolve, 50));
+  running = true;
   const { getDb } = await import('./db/client');
   const { httpTransport } = await import('./transport');
-  await fullResync(getDb(), httpTransport);
+  const db = getDb();
+  try {
+    await fullResync(db, httpTransport);
+    await patchStatus(db, { phase: 'idle', lastError: null });
+  } catch (err) {
+    await patchStatus(db, { phase: 'error', lastError: err instanceof Error ? err.message : String(err) });
+  } finally {
+    running = false;
+  }
 }
 export async function runClearOutbox(): Promise<void> {
   const { getDb } = await import('./db/client');

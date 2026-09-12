@@ -1,53 +1,53 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 
 import AssetThumbnailLoaderContext from './AssetThumbnailLoaderContext';
 
-import useAssets from '@/features/assets-context/useAssets';
 import useCloud from '@/features/cloud/useCloud';
 
-// TODO: If we have more that a few assets, we should show a banner
-// here that assets are downloading and it can take some time to complete.
-
-// TODO: Right now we always use file system checks to see if a thumbnail
-// exists. Have to see how stressing this is for the device if we have a lot
-// of assets. Maybe we can keep a list of preloaded thumbnails in memory
-// and check that first before checking the file system.
+// Lazy, bounded thumbnail loader. Screens (see AssetImage) call loadThumbnail(asset) for the cells
+// that scroll into view; each cell already checks the disk first and only asks for what's missing.
+// We download those in small batches behind a hard concurrency cap, so even a large library
+// (10k+ assets) can never fan out into thousands of parallel S3 downloads — that used to stall the
+// device and crash the app. Nothing is preloaded up front; we only fetch what a screen requests.
+const BATCH_SIZE = 12; // thumbnails presigned + fetched per drain (one presign call per batch)
+const MAX_ACTIVE_BATCHES = 2; // hard cap on batches in flight at once
 
 export default function AssetThumbnailLoaderProvider({ children }) {
-  const { assets } = useAssets();
-  const [priorityAssets, setPriorityAssets] = useState([]);
   const { isAuthenticated, preloadAssetThumbnailsAsync } = useCloud();
 
-  // Preload all thumbnails
-  useEffect(() => {
+  // Queue + bookkeeping live in refs, not state, so requesting a thumbnail never re-renders the
+  // whole subtree (a grid can enqueue hundreds of cells while scrolling).
+  const queueRef = useRef([]); // assets waiting to load (a stack — newest-visible drained first)
+  const trackedRef = useRef(new Set()); // thumbnailFilenames queued or in flight (dedupe)
+  const activeBatchesRef = useRef(0);
+
+  const pump = useCallback(() => {
     if (!isAuthenticated) return;
-    preloadAssetThumbnailsAsync(Object.values(assets).reverse());
-  }, [isAuthenticated]);
+    while (activeBatchesRef.current < MAX_ACTIVE_BATCHES && queueRef.current.length > 0) {
+      const batch = queueRef.current.splice(-BATCH_SIZE).reverse(); // newest-requested first
+      activeBatchesRef.current += 1;
+      Promise.resolve(preloadAssetThumbnailsAsync(batch))
+        .catch(() => {}) // best-effort — AssetImage re-requests the next time the cell is shown
+        .finally(() => {
+          for (const asset of batch) trackedRef.current.delete(asset.thumbnailFilename);
+          activeBatchesRef.current -= 1;
+          pump(); // drain whatever queued while this batch ran
+        });
+    }
+  }, [isAuthenticated, preloadAssetThumbnailsAsync]);
 
-  // Preload thumbnails for assets that are in the priority list
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!isAuthenticated || priorityAssets.length === 0) return;
-      const assetsToLoad = [...priorityAssets];
-      preloadAssetThumbnailsAsync(assetsToLoad);
-      setPriorityAssets((priorityAssets) =>
-        priorityAssets.filter((asset) => !assetsToLoad.some((assetToLoad) => assetToLoad.id === asset.id)),
-      );
-    }, 1000);
+  const loadThumbnail = useCallback(
+    (asset) => {
+      const key = asset?.thumbnailFilename;
+      if (!key || trackedRef.current.has(key)) return; // no key, or already queued/in flight
+      trackedRef.current.add(key);
+      queueRef.current.push(asset);
+      pump();
+    },
+    [pump],
+  );
 
-    return () => clearInterval(interval);
-  }, [priorityAssets, isAuthenticated]);
-
-  function loadThumbnail(asset) {
-    setPriorityAssets((priorityAssets) => {
-      if (priorityAssets.some((priorityAsset) => priorityAsset.id === asset.id)) {
-        return priorityAssets;
-      }
-      return [...priorityAssets, asset];
-    });
-  }
-
-  const value = useMemo(() => ({ loadThumbnail }), []);
+  const value = useMemo(() => ({ loadThumbnail }), [loadThumbnail]);
 
   return <AssetThumbnailLoaderContext.Provider value={value}>{children}</AssetThumbnailLoaderContext.Provider>;
 }
