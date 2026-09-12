@@ -1,5 +1,5 @@
 ---
-name: cloud-ios-build
+name: build
 description: Build the Squidbox iOS app from the cloud (no Mac needed) via EAS + an App Store Connect API Key. Builds either the App (preview/release) or the Dev Client. Use when the user asks to build, rebuild, preview, ship, or set up a dev client / release build for iOS. The skill ASKS which one to build — the user never types eas flags or profiles.
 ---
 

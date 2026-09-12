@@ -25,7 +25,7 @@ end state and the known limitations; the phase-by-phase planning archive lives i
   from cloud" feature was removed.
 - **First-sync UX** — a "Setting up your library…" gate on the initial bulk pull, with reactive
   queries paused during the initial pull so the UI doesn't stall.
-- iOS builds via **`/cloud-ios-build`** (asks App vs Dev Client).
+- iOS builds via **`/build`** (asks App vs Dev Client).
 
 ## Remaining (user-side only — no code left)
 

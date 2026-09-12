@@ -7,7 +7,7 @@ device, a real deploy check, or infra/secrets access. Remove an item once it's d
 ## [ ] Build a real Dev Client
 
 "Squidbox Dev" needs a rebuild to include the `expo-sqlite` native module (added during the sync
-migration; `runtimeVersion` was bumped). Build it via the **`/cloud-ios-build`** skill (choose **Dev
+migration; `runtimeVersion` was bumped). Build it via the **`/build`** skill (choose **Dev
 Client**), then install it on a physical device and confirm the app launches (SQLite migrates) and
 the initial library sync completes.
 

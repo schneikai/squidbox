@@ -26,7 +26,7 @@ Common operations are driven by skills rather than memorized commands:
 |---|---|
 | `/deploy-server` | Deploy the backend (Fly.io + Neon). First-time setup and routine one-command deploys; idempotent. |
 | `/legacy-import` | One-time import of the old Rails S3 JSON library (assets/albums/posts) into the backend — download, canonicalize ids to uuids, map to the modern schema, upsert via sync push, verify. |
-| `/cloud-ios-build` | Build the iOS app from the cloud (no Mac) via EAS. Asks whether to build the **App** (preview/release) or the **Dev Client**, then runs `eas` itself — no flags or profiles to remember. |
+| `/build` | Build the iOS app from the cloud (no Mac) via EAS. Asks whether to build the **App** (preview/release) or the **Dev Client**, then runs `eas` itself — no flags or profiles to remember. |
 
 Status and next steps for the migration are tracked in `docs/migration/STATUS.md`.
 
@@ -69,7 +69,7 @@ On a fresh checkout, runtime secrets are already in EAS. Restore the rest from y
 
 ## Building the iOS app
 
-Run `/cloud-ios-build` — it asks what to build and drives EAS for you (no flags or profiles to type). The two build types install as **separate apps** (different bundle IDs), so both can coexist on the phone:
+Run `/build` — it asks what to build and drives EAS for you (no flags or profiles to type). The two build types install as **separate apps** (different bundle IDs), so both can coexist on the phone:
 
 | | Dev client | Preview / release build |
 |---|---|---|
@@ -81,11 +81,11 @@ Run `/cloud-ios-build` — it asks what to build and drives EAS for you (no flag
 
 The bundle ID is chosen in `app.config.js` from `EAS_BUILD_PROFILE`, which is why the two don't overwrite each other. Builds are distributed via [Internal Distribution](https://docs.expo.dev/build/internal-distribution/) (no App Store). Install from the EAS build page (Internal Distribution → Install), then trust the dev certificate in Settings → General → VPN & Device Management.
 
-Cloud builds authenticate to Apple with an **App Store Connect API Key** (`.p8`) — no Mac, no Apple ID password, no 2FA (Apple ID + 2FA is blocked from cloud/datacenter IPs). The full runbook, credential setup, and env vars are in the `cloud-ios-build` skill.
+Cloud builds authenticate to Apple with an **App Store Connect API Key** (`.p8`) — no Mac, no Apple ID password, no 2FA (Apple ID + 2FA is blocked from cloud/datacenter IPs). The full runbook, credential setup, and env vars are in the `build` skill.
 
 ### Dev client: Metro + tunnel
 
-The dev client loads JS from Metro at runtime over an ngrok tunnel. `/cloud-ios-build` sets this up, but the low-level commands are:
+The dev client loads JS from Metro at runtime over an ngrok tunnel. `/build` sets this up, but the low-level commands are:
 
 ```
 EXPO_PACKAGER_PROXY_URL=https://<tunnel-host> npx expo start --offline

@@ -61,7 +61,7 @@ deploys. No separate "setup" vs "deploy" skill to choose.
    `fly scale count 1 --app <app> --yes`
 6. **Seed:** `fly ssh console --app <app> -C "npm run seed:prod"`
 7. **Point the app at it:** set `EXPO_PUBLIC_API_URL=https://<app>.fly.dev/api/v1` in
-   `apps/mobile/.env.local`, then rebuild the dev client (`/cloud-ios-build`).
+   `apps/mobile/.env.local`, then rebuild the dev client (`/build`).
 
 > Loading the existing Rails library is a separate **one-time, pre-launch** step — not part of
 > deploy. Use the **`/legacy-import`** skill (`npm run convert:prod` on the app).

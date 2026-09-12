@@ -1,6 +1,6 @@
 ---
 name: migrate
-description: HISTORICAL — the Squidbox Rails→TypeScript + multi-device-sync migration is complete and deployed. This skill drove the phased migration, which is finished; it no longer has a "next stage" to run. For status see docs/migration/STATUS.md; for the live workflows use /deploy-server, /legacy-import, and /cloud-ios-build.
+description: HISTORICAL — the Squidbox Rails→TypeScript + multi-device-sync migration is complete and deployed. This skill drove the phased migration, which is finished; it no longer has a "next stage" to run. For status see docs/migration/STATUS.md; for the live workflows use /deploy-server, /legacy-import, and /build.
 ---
 
 # Squidbox migration runner (historical — migration complete)
@@ -18,7 +18,7 @@ If invoked, orient the user instead:
 2. Point the user at the maintained workflows for anything ongoing:
    - **`/deploy-server`** — deploy the backend / run migrations in production.
    - **`/legacy-import`** — re-import the Rails library (idempotent; already done for prod).
-   - **`/cloud-ios-build`** — build the iOS App or Dev Client.
+   - **`/build`** — build the iOS App or Dev Client.
 3. For design/history background: `docs/sync-design.md` (engine design),
    `docs/migration/edge-collections.md` (membership model), `docs/migration/README.md` (phase
    archive).
