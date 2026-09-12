@@ -49,7 +49,6 @@ export default function AlbumsProvider({ children }) {
     }
     return {
       albums,
-      loadAlbumsAsync: async () => {},
       addAlbum: async (data) => {
         const casted = albumSchema.cast(data);
         const assetIds = casted.assets ?? [];

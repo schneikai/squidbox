@@ -1,8 +1,8 @@
 import deleteAssetFileAsync from './files/deleteAssetFileAsync';
 import deleteAssetThumbnailAsync from './thumbnails/deleteAssetThumbnailAsync';
 
-// Delete asset file and thumbnail from device.
-// To delete cloud files, use src/features/cloud/assets/deleteAssetFilesAsync
+// Delete asset file and thumbnail from device. (Cloud/S3 deletion is handled separately by the
+// sync/asset flows, not here.)
 export default async function deleteAssetFilesAndThumbnailsAsync(assetOrAssets) {
   const assets = Array.isArray(assetOrAssets) ? assetOrAssets : [assetOrAssets];
 

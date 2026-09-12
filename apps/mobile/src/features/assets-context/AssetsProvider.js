@@ -33,8 +33,6 @@ export default function AssetsProvider({ children }) {
   const value = useMemo(
     () => ({
       assets,
-      // SQLite + the live query hydrate automatically; kept for API compatibility.
-      loadAssetsAsync: async () => {},
       addAssetAsync: async (data) => {
         const record = await repo.createAsset(getDb(), toAssetRecord(data));
         requestSync();

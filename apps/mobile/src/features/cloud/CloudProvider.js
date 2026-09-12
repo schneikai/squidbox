@@ -7,12 +7,10 @@ import uploadAssetFileAsync from './assets/uploadAssetFileAsync';
 import uploadAssetThumbnailAsync from './assets/uploadAssetThumbnailAsync';
 import initializeCloudAsyncFn from './initializeCloudAsync';
 
-import { CLEAR_DATA_BETWEEN_LOGINS } from '@/constants';
 import setUserAsync from '@/features/cloud/user/setUserAsync';
 import { requestSync, runResetSyncForUser } from '@/sync/worker';
 import apiLoginAsync from '@/utils/cloud-api/authentication/loginAsync';
 import apiLogoutAsync from '@/utils/cloud-api/authentication/logoutAsync';
-import deleteLocalDataAsync from '@/utils/local-data/deleteLocalDataAsync';
 
 export default function CloudProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -29,16 +27,8 @@ export default function CloudProvider({ children }) {
     } else {
       setIsAuthenticated(false);
       setUser(null);
-
-      // TODO: It is very important that we add code to keep unsynced
-      // local data on the device when logging out or it will be lost forever.
-      // Logout can happen if the user explicitly logs out and in that case
-      // we can warn about the loss of data but the logout might also
-      // happen unintentionally if api tokens have expired or there was
-      // some other problem during cloud initialization.
-
-      // If there is no user we need to delete all local data.
-      if (CLEAR_DATA_BETWEEN_LOGINS) await deleteLocalDataAsync();
+      // Logout keeps the local library intact (it's the same user's data on their device); it's only
+      // wiped when a DIFFERENT account signs in — see runResetSyncForUser below.
     }
     await setUserAsync(user);
 
@@ -65,8 +55,8 @@ export default function CloudProvider({ children }) {
       loginAsync: async (email, password) => {
         try {
           const user = await apiLoginAsync(email, password);
-          // The sync engine (src/sync) pulls all data after login; the old JSON snapshot load is gone.
-          if (CLEAR_DATA_BETWEEN_LOGINS) await deleteLocalDataAsync();
+          // The sync engine (src/sync) pulls all data after login; a different account triggers a
+          // local reset via updateUserAuthenticationStatusAsync → runResetSyncForUser.
           await updateUserAuthenticationStatusAsync(user);
         } catch (error) {
           await updateUserAuthenticationStatusAsync(null);

@@ -32,7 +32,6 @@ export default function PostsProvider({ children }) {
     const db = getDb();
     return {
       posts,
-      loadPostsAsync: async () => {},
       addPost: async (data) => {
         const casted = postSchema.cast(data);
         const refs = casted.assetRefs ?? [];

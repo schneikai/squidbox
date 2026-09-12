@@ -13,7 +13,7 @@ import { useSyncStatus } from '@/sync/useSyncStatus';
 import { requestSync, runClearOutbox, runFullResync } from '@/sync/worker';
 
 // Library-sync detail (the metadata engine). Records/edges sync automatically in the background;
-// this is the inspector + manual controls. Replaces "looking at the JSON files" (sync-design §13).
+// this is the inspector + manual controls (sync-design §13).
 export default function SyncScreen() {
   const navigation = useNavigation();
   const { phase, pendingCount, cursor, lastPullAt, lastError } = useSyncStatus();
