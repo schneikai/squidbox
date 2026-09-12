@@ -1,17 +1,15 @@
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import DetailScrollView from '@/components/DetailScrollView';
 import Page from '@/components/Page';
-import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
 import { colors, typography } from '@/styles/designTokens';
-import deleteLocalDataAsync from '@/utils/local-data/deleteLocalDataAsync';
 
 // Photo backup detail. Uploads the full-res originals to the cloud (S3, via the server). This is a
 // manual, resumable action — completed files are marked and skipped on the next run — and only makes
@@ -35,20 +33,6 @@ export default function BackupScreen() {
       return `${assetsWithSyncErrors.length} error${assetsWithSyncErrors.length > 1 ? 's' : ''}`;
     if (unsyncedAssets.length > 0) return `${unsyncedAssets.length} not backed up`;
     return 'All backed up';
-  }
-
-  function confirmDeleteLocalData() {
-    Alert.alert('Delete local data', 'This cannot be undone. Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteLocalDataAsync();
-          Alert.alert('Done! Please restart the app.');
-        },
-      },
-    ]);
   }
 
   return (
@@ -92,11 +76,6 @@ export default function BackupScreen() {
               chevron
             />
           )}
-        </Section>
-
-        <ScreenSectionHeader title="Storage" />
-        <Section>
-          <Row label="Delete local data" onPress={confirmDeleteLocalData} destructive chevron />
         </Section>
 
         {showErrors && (

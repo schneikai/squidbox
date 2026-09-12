@@ -7,6 +7,7 @@ import type { SyncDb } from './db/types';
 const CURSOR_KEY = 'cursor';
 const STATUS_KEY = 'status';
 const FIRST_SYNC_KEY = 'firstSyncDone'; // '1' once the initial full pull has drained
+const LAST_USER_KEY = 'lastSyncUserId'; // whose data currently lives in the local DB
 
 export type SyncPhase = 'idle' | 'pushing' | 'pulling' | 'error';
 export interface SyncStatus {
@@ -43,6 +44,15 @@ export async function markFirstSyncDone(db: SyncDb): Promise<void> {
 // fullResync (a full re-pull is, semantically, another first sync).
 export async function clearFirstSyncDone(db: SyncDb): Promise<void> {
   await setMeta(db, FIRST_SYNC_KEY, '0');
+}
+
+// The user whose data currently lives in the local DB. Used to detect an account switch on login
+// (a different user must start from a clean local slate — see resetSyncForUser in worker.ts).
+export async function getLastSyncUser(db: SyncDb): Promise<string | null> {
+  return getMeta(db, LAST_USER_KEY);
+}
+export async function setLastSyncUser(db: SyncDb, userId: string): Promise<void> {
+  await setMeta(db, LAST_USER_KEY, userId);
 }
 export async function isFirstSyncDone(db: SyncDb): Promise<boolean> {
   return (await getMeta(db, FIRST_SYNC_KEY)) === '1';

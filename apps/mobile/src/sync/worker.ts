@@ -6,7 +6,16 @@ import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { pendingRecordIds, clearOutboxRow, getOutboxUpdatedAt } from './outbox';
 import { planPushOutcome, chunk } from './pushPlan';
-import { getCursor, setCursor, patchStatus, appendSyncLog, markFirstSyncDone, clearFirstSyncDone } from './status';
+import {
+  getCursor,
+  setCursor,
+  patchStatus,
+  appendSyncLog,
+  markFirstSyncDone,
+  clearFirstSyncDone,
+  getLastSyncUser,
+  setLastSyncUser,
+} from './status';
 import type { SyncTransport } from './transport';
 
 const PULL_LIMIT = 1000; // server/contract cap; larger pages = fewer reactive storms on bulk pull
@@ -166,6 +175,28 @@ export async function fullResync(db: SyncDb, transport: SyncTransport): Promise<
   await runSyncOnce(db, transport);
 }
 
+// Wipe all local sync state (collection tables + outbox + cursor + first-sync flag) WITHOUT pulling.
+// The account-switch reset: the new user must start from a clean local slate before their pull.
+export async function resetLocalSync(db: SyncDb): Promise<void> {
+  db.transaction((tx) => {
+    for (const table of Object.values(clientCollectionTables)) (tx as unknown as SyncDb).delete(table).run();
+    (tx as unknown as SyncDb).delete(schema.outbox).run();
+  });
+  await setCursor(db, 0);
+  await clearFirstSyncDone(db);
+}
+
+// Reset local sync state iff a DIFFERENT user is signing in (the local DB holds the previous user's
+// data + their cursor, which would leak/corrupt for the new account — see sync-design). Records the
+// current user either way. Returns true if it wiped. Call on login, before requestSync().
+export async function resetSyncForUser(db: SyncDb, userId: string): Promise<boolean> {
+  const last = await getLastSyncUser(db);
+  const changed = last !== null && last !== userId;
+  if (changed) await resetLocalSync(db);
+  await setLastSyncUser(db, userId);
+  return changed;
+}
+
 // ── Production wrapper: single-flight + trailing re-run, bound to the real device DB + HTTP
 // transport. Call requestSync() after a local write (from the provider) or on foreground/interval.
 let running = false;
@@ -198,6 +229,10 @@ export async function runFullResync(): Promise<void> {
 export async function runClearOutbox(): Promise<void> {
   const { getDb } = await import('./db/client');
   await clearOutbox(getDb());
+}
+export async function runResetSyncForUser(userId: string): Promise<boolean> {
+  const { getDb } = await import('./db/client');
+  return resetSyncForUser(getDb(), userId);
 }
 
 export async function runSync(): Promise<void> {

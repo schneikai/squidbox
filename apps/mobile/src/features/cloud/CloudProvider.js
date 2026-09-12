@@ -9,7 +9,7 @@ import initializeCloudAsyncFn from './initializeCloudAsync';
 
 import { CLEAR_DATA_BETWEEN_LOGINS } from '@/constants';
 import setUserAsync from '@/features/cloud/user/setUserAsync';
-import { requestSync } from '@/sync/worker';
+import { requestSync, runResetSyncForUser } from '@/sync/worker';
 import apiLoginAsync from '@/utils/cloud-api/authentication/loginAsync';
 import apiLogoutAsync from '@/utils/cloud-api/authentication/logoutAsync';
 import deleteLocalDataAsync from '@/utils/local-data/deleteLocalDataAsync';
@@ -42,10 +42,16 @@ export default function CloudProvider({ children }) {
     }
     await setUserAsync(user);
 
-    // Kick the sync engine the moment we're authenticated (fresh login OR a restored session), so
-    // the first pull starts immediately instead of waiting up to one interval (~30s). Without this
-    // the app looks stuck after login — the setup screen sits at 0 until the interval fires.
-    if (user) requestSync();
+    if (user) {
+      // If a DIFFERENT account is signing in, wipe the previous user's local data + cursor first, so
+      // the new user does a clean first-sync instead of inheriting a stale slate. No-op for the same
+      // user (the common case) — their data + cursor stay and sync just resumes.
+      await runResetSyncForUser(user.id);
+      // Kick the sync engine the moment we're authenticated (fresh login OR a restored session), so
+      // the first pull starts immediately instead of waiting up to one interval (~30s). Without this
+      // the app looks stuck after login — the setup screen sits at 0 until the interval fires.
+      requestSync();
+    }
   }
 
   const value = useMemo(
