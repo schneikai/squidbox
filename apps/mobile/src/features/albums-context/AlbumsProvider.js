@@ -3,12 +3,11 @@ import { useMemo } from 'react';
 import AlbumsContext from './AlbumsContext';
 
 import { getDb, schema } from '@/sync/db/client';
-import { makeEdgeRepository } from '@/sync/edgesRepository';
 import { orderedAssetsByAlbum, deriveAlbumPostHistory } from '@/sync/derive';
+import { makeEdgeRepository } from '@/sync/edgesRepository';
 import { toModernRecord, toModernChanges } from '@/sync/legacyBase';
 import { makeRepository } from '@/sync/repository';
 import { useLiveCollectionMap, useLiveCollectionRows } from '@/sync/useCollection';
-import { useFirstSyncPending } from '@/sync/useSyncStatus';
 import { requestSync } from '@/sync/worker';
 import albumSchema from '@/utils/albums/albumSchema';
 import getNewItemId from '@/utils/getNewItemId';
@@ -16,22 +15,18 @@ import getNewItemId from '@/utils/getNewItemId';
 // SQLite-backed albums store. Membership lives in the album_assets edge collection (add/remove/
 // reorder are independent edge writes that don't clobber across devices); `assets`, `postHistory`
 // and `lastPostedAt` are synthesized/derived here so consumers keep seeing the old record shape.
+// Only mounted after the initial pull finishes (see AppGate), so it always reads the full library.
 const repo = makeRepository('albums', schema.albums);
 const edges = makeEdgeRepository('album_assets', schema.albumAssets, 'albumId');
 
 export default function AlbumsProvider({ children }) {
-  const firstSyncPending = useFirstSyncPending();
-  // Pause the heavy full-table reads during the initial bulk sync (UI is gated behind FirstSyncScreen).
-  const albumRows = useLiveCollectionMap(schema.albums, firstSyncPending);
-  const albumEdges = useLiveCollectionRows(schema.albumAssets, firstSyncPending);
-  const postEdges = useLiveCollectionRows(schema.postAssets, firstSyncPending);
-  const posts = useLiveCollectionMap(schema.posts, firstSyncPending);
+  const albumRows = useLiveCollectionMap(schema.albums);
+  const albumEdges = useLiveCollectionRows(schema.albumAssets);
+  const postEdges = useLiveCollectionRows(schema.postAssets);
+  const posts = useLiveCollectionMap(schema.posts);
 
-  // Synthesize the ordered `assets` array + derived post history onto each album record. Skipped
-  // during the initial bulk pull (UI gated behind FirstSyncScreen) to avoid whole-library recompute
-  // on every applied page.
+  // Synthesize the ordered `assets` array + derived post history onto each album record.
   const albums = useMemo(() => {
-    if (firstSyncPending) return albumRows;
     const assetsByAlbum = orderedAssetsByAlbum(albumEdges);
     const { historyById, lastPostedAtById } = deriveAlbumPostHistory(posts, postEdges, albumEdges);
     const out = {};
@@ -44,7 +39,7 @@ export default function AlbumsProvider({ children }) {
       };
     }
     return out;
-  }, [albumRows, albumEdges, postEdges, posts, firstSyncPending]);
+  }, [albumRows, albumEdges, postEdges, posts]);
 
   const value = useMemo(() => {
     const db = getDb();

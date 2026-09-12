@@ -13,12 +13,10 @@ import { requestSync } from '@/sync/worker';
 import apiLoginAsync from '@/utils/cloud-api/authentication/loginAsync';
 import apiLogoutAsync from '@/utils/cloud-api/authentication/logoutAsync';
 import deleteLocalDataAsync from '@/utils/local-data/deleteLocalDataAsync';
-import useInitializeLocalData from '@/utils/local-data/useInitializeLocalData';
 
 export default function CloudProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
-  const initializeLocalDataAsync = useInitializeLocalData();
 
   async function updateUserAuthenticationStatusAsync(user) {
     // We need to make sure user is present before setting isAuthenticated
@@ -42,7 +40,6 @@ export default function CloudProvider({ children }) {
       // If there is no user we need to delete all local data.
       if (CLEAR_DATA_BETWEEN_LOGINS) await deleteLocalDataAsync();
     }
-    await initializeLocalDataAsync();
     await setUserAsync(user);
 
     // Kick the sync engine the moment we're authenticated (fresh login OR a restored session), so

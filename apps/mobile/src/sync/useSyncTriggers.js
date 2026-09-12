@@ -6,7 +6,7 @@ import { requestSync } from './worker';
 // Primary sync triggers (sync-design §8): on app foreground and on a plain in-app interval
 // while foregrounded, plus on-mutation (providers call requestSync after each write). This is
 // ordinary JS — the opportunistic background top-up (expo-background-task) is a later,
-// device-gated addition. Mounted once from AppComponent (after the DB has migrated).
+// device-gated addition. Mounted once from AppInit (after the DB has migrated).
 const INTERVAL_MS = 30_000;
 
 export default function useSyncTriggers() {

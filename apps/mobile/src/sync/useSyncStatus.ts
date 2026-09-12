@@ -31,21 +31,11 @@ export function useSyncStatus(): LiveSyncStatus {
   };
 }
 
-// PERF pause signal for the providers: skip the heavy full-table reads + whole-library derivation
-// while the initial bulk pull is streaming pages in (cursor>0 = a page has landed, firstSyncDone
-// unset = not finished). This is a pure optimization — the UI is gated behind FirstSyncScreen — so
-// being slightly early/late is harmless. NOTE: the *gate* itself must NOT use this (it would leave
-// a hole before the first page / on an auth error); the gate is auth-aware (see App.js).
-export function useFirstSyncPending(): boolean {
-  const { data: meta } = useLiveQuery(getDb().select().from(schema.syncMeta));
-  const byKey = Object.fromEntries((meta ?? []).map((r) => [r.key, r.value]));
-  return Number(byKey.cursor ?? 0) > 0 && byKey.firstSyncDone !== '1';
-}
-
 // True once the initial full pull has fully drained (firstSyncDone === '1'), live. Combined with
-// "is the user authenticated" in App.js, this drives the "Setting up your library…" gate: it shows
-// from the moment we're logged in until the whole library has landed — including the very first
-// page and any ret/auth errors along the way (so there's never a silent empty screen).
+// "is the user authenticated" in App.js (see AppGate), this drives the "Setting up your library…"
+// gate: it shows from the moment we're logged in until the whole library has landed — including the
+// very first page and any transient/auth errors along the way (so there's never a silent empty
+// screen), and pre-login it stays off.
 export function useFirstSyncDone(): boolean {
   const { data: meta } = useLiveQuery(getDb().select().from(schema.syncMeta));
   const byKey = Object.fromEntries((meta ?? []).map((r) => [r.key, r.value]));

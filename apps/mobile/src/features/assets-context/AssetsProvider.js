@@ -1,48 +1,34 @@
-import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import { useMemo } from 'react';
 
 import AssetsContext from './AssetsContext';
 
-import { getDb, schema } from '@/sync/db/client';
-import migrations from '@/sync/db/migrations/migrations';
 import * as repo from '@/sync/assetsRepository';
+import { getDb, schema } from '@/sync/db/client';
 import { deriveAssetPostHistory } from '@/sync/derive';
 import { toAssetRecord, toAssetChanges } from '@/sync/legacyAsset';
 import { useLiveAssetsMap } from '@/sync/useAssetsQuery';
 import { useLiveCollectionMap, useLiveCollectionRows } from '@/sync/useCollection';
-import { useFirstSyncPending } from '@/sync/useSyncStatus';
 import { requestSync } from '@/sync/worker';
 
 // Modern asset store: SQLite (the source of truth) + the sync engine, exposed through the same
 // provider API the app already consumes (an id-keyed `assets` map + methods). Reads are reactive
 // via useLiveQuery; writes go through the transactional repository (row + outbox) and then kick
-// the sync worker. SQLite + the sync engine are the only path — no JSON blobs.
+// the sync worker. SQLite + the sync engine are the only path — no JSON blobs. This provider is only
+// mounted after the initial pull finishes (see AppGate), so it always reads the full library.
 export default function AssetsProvider({ children }) {
-  const { success, error } = useMigrations(getDb(), migrations);
-  if (error) throw error; // fail loudly in dev — the DB must migrate before use
-  if (!success) return null; // brief: first-launch migration
-  return <AssetsData>{children}</AssetsData>;
-}
+  const assetRows = useLiveAssetsMap();
+  const postEdges = useLiveCollectionRows(schema.postAssets);
+  const posts = useLiveCollectionMap(schema.posts);
 
-function AssetsData({ children }) {
-  const firstSyncPending = useFirstSyncPending();
-  // Pause the heavy full-table reads during the initial bulk sync (UI is gated behind FirstSyncScreen).
-  const assetRows = useLiveAssetsMap(firstSyncPending);
-  const postEdges = useLiveCollectionRows(schema.postAssets, firstSyncPending);
-  const posts = useLiveCollectionMap(schema.posts, firstSyncPending);
-
-  // Derive postHistory/lastPostedAt (posts referencing each asset) onto the record shape. Skipped
-  // during the initial bulk pull (the UI is gated behind FirstSyncScreen, so nothing reads it) to
-  // avoid recomputing over the whole library on every applied page.
+  // Derive postHistory/lastPostedAt (posts referencing each asset) onto the record shape.
   const assets = useMemo(() => {
-    if (firstSyncPending) return assetRows;
     const { historyById, lastPostedAtById } = deriveAssetPostHistory(posts, postEdges);
     const out = {};
     for (const [id, row] of Object.entries(assetRows)) {
       out[id] = { ...row, postHistory: historyById[id] ?? [], lastPostedAt: lastPostedAtById[id] ?? null };
     }
     return out;
-  }, [assetRows, posts, postEdges, firstSyncPending]);
+  }, [assetRows, posts, postEdges]);
 
   const value = useMemo(
     () => ({

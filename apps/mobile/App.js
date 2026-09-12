@@ -48,9 +48,13 @@ import PostsProvider from '@/features/posts-context/PostsProvider';
 import FirstSyncScreen from '@/features/sync-status/FirstSyncScreen';
 import RootNavigator from '@/navigators/RootNavigator';
 import { colors } from '@/styles/designTokens';
+import { getDb } from '@/sync/db/client';
+import migrations from '@/sync/db/migrations/migrations';
 import { useFirstSyncDone } from '@/sync/useSyncStatus';
 import useSyncTriggers from '@/sync/useSyncTriggers';
-import useInitializeLocalData from '@/utils/local-data/useInitializeLocalData';
+
+// eslint-disable-next-line import/order
+import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 
 // eslint-disable-next-line import/order
 import { defineCollection } from '@squidbox/shared';
@@ -72,17 +76,13 @@ const App = () => {
       <SafeAreaProvider>
         <ProgressOverlayProvider>
           <AppSettingsProvider>
-            <AssetsProvider>
-              <AlbumsProvider>
-                <PostsProvider>
-                  <CloudProvider>
-                    <CloudSyncProvider>
-                      <AppComponent />
-                    </CloudSyncProvider>
-                  </CloudProvider>
-                </PostsProvider>
-              </AlbumsProvider>
-            </AssetsProvider>
+            <CloudProvider>
+              <MigrationGate>
+                <AppInit>
+                  <AppGate />
+                </AppInit>
+              </MigrationGate>
+            </CloudProvider>
           </AppSettingsProvider>
         </ProgressOverlayProvider>
       </SafeAreaProvider>
@@ -90,45 +90,68 @@ const App = () => {
   );
 };
 
-export default Sentry.wrap(App);
-
-function AppComponent() {
-  const initializeLocalDataAsync = useInitializeLocalData();
-  const { initializeCloudAsync, isAuthenticated } = useCloud();
+// One-time app init: restore the cloud session + hide the splash, and mount the foreground/interval
+// sync triggers. Lives ABOVE the gate so it runs exactly once and keeps the sync running whether the
+// setup screen or the main app is showing. Renders nothing until ready.
+function AppInit({ children }) {
+  const { initializeCloudAsync } = useCloud();
   const [appIsReady, setAppIsReady] = useState(false);
 
-  // Foreground + interval sync triggers (on-mutation is kicked from the providers).
+  // Foreground + interval sync triggers (on-mutation is kicked from the providers). Mounted here so
+  // the sync keeps running while the setup screen shows, before the data providers exist.
   useSyncTriggers();
-
-  // While the first full library pull runs, show a dedicated setup screen instead of the main app.
-  // This keeps the heavy asset grids unmounted so the bulk sync isn't competing with the UI.
-  // Gate on "logged in AND the initial pull hasn't finished" — NOT on the cursor, so the screen is
-  // up from the instant we log in (through the first page + any transient auth/network error) and
-  // never leaves a silent empty library. Pre-login it stays hidden (nothing to sync yet).
-  const firstSyncDone = useFirstSyncDone();
-  const firstSyncPending = isAuthenticated && !firstSyncDone;
 
   useEffect(() => {
     async function prepare() {
-      // TODO: I had a try/catch here but the problem with this is
-      // that if we only alert the error message here and it is something
-      // very general it is impossible to find out where the error
-      // actually happened. We would need to have a stack trace to make
-      // debugging easier. Have to do some research on how to do this.
-      // The error was in a assetMigration1701510971477.js file and the error
-      // was just "TypeError: Cannot read property 'split' of undefined".
-      await initializeLocalDataAsync();
+      // TODO: a bare try/catch here swallows the stack trace, making failures (e.g. a migration
+      // "Cannot read property 'split' of undefined") impossible to locate. Needs a real error path.
       await initializeCloudAsync();
       setAppIsReady(true);
       await SplashScreen.hideAsync();
     }
-
     prepare();
   }, []);
 
   if (!appIsReady) return null;
-  if (firstSyncPending) return <FirstSyncScreen />;
+  return children;
+}
 
+// DB migrations run once, above everything that queries SQLite (including the firstSyncDone probe
+// in AppGate). Renders nothing until the schema is ready.
+function MigrationGate({ children }) {
+  const { success, error } = useMigrations(getDb(), migrations);
+  if (error) throw error; // fail loudly in dev — the DB must migrate before use
+  if (!success) return null; // brief: first-launch migration
+  return children;
+}
+
+// The one gate: while the initial library pull runs, show the setup screen and DON'T mount the data
+// providers, so nothing heavy competes with the bulk pull. The moment it finishes, the providers
+// mount for the first time and read the complete library in a single clean pass — no paused
+// queries, no remount tricks. Gate on "logged in AND the initial pull hasn't finished" (not the
+// cursor), so it's up from the instant we log in through any transient error; pre-login it's off.
+function AppGate() {
+  const { isAuthenticated } = useCloud();
+  const firstSyncDone = useFirstSyncDone();
+
+  if (isAuthenticated && !firstSyncDone) return <FirstSyncScreen />;
+
+  return (
+    <AssetsProvider>
+      <AlbumsProvider>
+        <PostsProvider>
+          <CloudSyncProvider>
+            <MainApp />
+          </CloudSyncProvider>
+        </PostsProvider>
+      </AlbumsProvider>
+    </AssetsProvider>
+  );
+}
+
+export default Sentry.wrap(App);
+
+function MainApp() {
   return (
     <AssetThumbnailLoaderProvider>
       <NavigationContainer>
