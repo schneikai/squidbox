@@ -67,19 +67,8 @@ export default function SyncScreen() {
         <Section>
           <Row label="Status" value={statusText()} />
           <Row label="Last synced" value={relativeTime(lastPullAt)} />
-        </Section>
-
-        <Section>
           <Row label="Sync now" onPress={() => requestSync()} chevron />
         </Section>
-
-        <ScreenSectionHeader title="Troubleshooting" />
-        <Section>
-          <Row label="Rebuild from server" onPress={confirmFullResync} destructive chevron />
-        </Section>
-        <SectionFooter>
-          Rebuild your local library from the server if something looks wrong. Your photos are safe.
-        </SectionFooter>
 
         <ScreenSectionHeader title="Developer" />
         <Section>
@@ -88,9 +77,6 @@ export default function SyncScreen() {
           {stats.map((s) => (
             <Row key={s.name} label={s.name} value={`${s.records} · ${s.pending} pending · ${s.tombstones} tomb`} />
           ))}
-        </Section>
-        <Section>
-          <Row label="Clear outbox" value={`${outbox.length}`} onPress={confirmClearOutbox} destructive chevron />
         </Section>
 
         <ScreenSectionHeader title="Sync log" />
@@ -108,6 +94,16 @@ export default function SyncScreen() {
             ))
           )}
         </LogBlock>
+
+        <ScreenSectionHeader title="Troubleshooting" />
+        <Section>
+          <Row label="Rebuild from server" onPress={confirmFullResync} destructive chevron />
+          <Row label="Clear outbox" value={`${outbox.length}`} onPress={confirmClearOutbox} destructive chevron />
+        </Section>
+        <SectionFooter>
+          Rebuild your library from the server if something looks wrong — your photos are safe. Only clear the outbox if a
+          sync stays stuck.
+        </SectionFooter>
       </DetailScrollView>
     </Page>
   );
