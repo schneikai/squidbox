@@ -134,6 +134,9 @@ function AppGate() {
   const { isAuthenticated } = useCloud();
   const firstSyncDone = useFirstSyncDone();
 
+  // firstSyncDone is undefined until sync_meta has been read once. Render nothing until it's known,
+  // otherwise the setup screen flashes for a frame on every launch for an already-synced user.
+  if (firstSyncDone === undefined) return null;
   if (isAuthenticated && !firstSyncDone) return <FirstSyncScreen />;
 
   return (

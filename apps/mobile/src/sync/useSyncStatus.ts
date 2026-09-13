@@ -36,8 +36,12 @@ export function useSyncStatus(): LiveSyncStatus {
 // gate: it shows from the moment we're logged in until the whole library has landed — including the
 // very first page and any transient/auth errors along the way (so there's never a silent empty
 // screen), and pre-login it stays off.
-export function useFirstSyncDone(): boolean {
-  const { data: meta } = useLiveQuery(getDb().select().from(schema.syncMeta));
+// Returns `undefined` until sync_meta has actually been read once (a live query yields [] on its
+// first render, before it resolves). Callers MUST treat undefined as "unknown" and not gate on it,
+// otherwise the setup screen flashes for a frame on every launch for an already-synced user.
+export function useFirstSyncDone(): boolean | undefined {
+  const { data: meta, updatedAt } = useLiveQuery(getDb().select().from(schema.syncMeta));
+  if (updatedAt === undefined) return undefined; // not loaded yet
   const byKey = Object.fromEntries((meta ?? []).map((r) => [r.key, r.value]));
   return byKey.firstSyncDone === '1';
 }
