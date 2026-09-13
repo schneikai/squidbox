@@ -19,7 +19,7 @@ import { ActionSheetProvider } from '@expo/react-native-action-sheet';
 import { NavigationContainer } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SplashScreen from 'expo-splash-screen';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 // eslint-disable-next-line import/no-duplicates
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -107,8 +107,9 @@ function AppInit({ children }) {
       // "Cannot read property 'split' of undefined") impossible to locate. Needs a real error path.
       await initializeCloudAsync();
       setAppIsReady(true);
-      // NOTE: the splash is hidden later, by AppGate, once it knows which screen to show — so the
-      // native splash covers init AND the firstSyncDone read (no blank/flash in between).
+      // Hide the splash on a BOUNDED trigger (init done) — never couple it to the reactive gate/
+      // provider chain, or a production build that stalls there gets stuck on the splash forever.
+      await SplashScreen.hideAsync();
     }
     prepare();
   }, []);
@@ -135,35 +136,23 @@ function AppGate() {
   const { isAuthenticated } = useCloud();
   const firstSyncDone = useFirstSyncDone();
 
-  // Hide the native splash only once the first real screen has laid out — so the splash covers init
-  // AND the firstSyncDone read, with no blank frame or setup-screen flash in between.
-  const onLayout = useCallback(() => {
-    SplashScreen.hideAsync().catch(() => {});
-  }, []);
-
-  // firstSyncDone is undefined until sync_meta has been read once; keep the splash up (return null)
-  // until the flag is known, so we never gate on a not-yet-loaded value.
+  // firstSyncDone is undefined until sync_meta has been read once (a live query yields [] on its
+  // first render). Render nothing for that brief moment so we never gate on a not-yet-loaded value
+  // and flash the setup screen. The splash is already hidden by AppInit, so this is at most a
+  // sub-second blank, never a stuck screen.
   if (firstSyncDone === undefined) return null;
-
-  const content =
-    isAuthenticated && !firstSyncDone ? (
-      <FirstSyncScreen />
-    ) : (
-      <AssetsProvider>
-        <AlbumsProvider>
-          <PostsProvider>
-            <CloudSyncProvider>
-              <MainApp />
-            </CloudSyncProvider>
-          </PostsProvider>
-        </AlbumsProvider>
-      </AssetsProvider>
-    );
+  if (isAuthenticated && !firstSyncDone) return <FirstSyncScreen />;
 
   return (
-    <View style={styles.root} onLayout={onLayout}>
-      {content}
-    </View>
+    <AssetsProvider>
+      <AlbumsProvider>
+        <PostsProvider>
+          <CloudSyncProvider>
+            <MainApp />
+          </CloudSyncProvider>
+        </PostsProvider>
+      </AlbumsProvider>
+    </AssetsProvider>
   );
 }
 
