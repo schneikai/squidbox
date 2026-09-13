@@ -10,7 +10,8 @@ const config = getSentryExpoConfig(projectRoot);
 
 // --- Monorepo (npm workspaces) support, per Expo's "Work with monorepos" guide. ---
 // Watch the whole workspace so changes in packages/* (e.g. @squidbox/shared) hot-reload.
-config.watchFolders = [workspaceRoot];
+// Append (don't replace) so Expo's default watchFolders are preserved (expo-doctor checks this).
+config.watchFolders = [...(config.watchFolders ?? []), workspaceRoot];
 // Resolve modules from the app first, then the hoisted root node_modules.
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),

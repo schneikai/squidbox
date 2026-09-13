@@ -41,4 +41,20 @@ Decision needed first (data/battery tradeoff for a ~14k-thumbnail library):
   network-type check).
 - **Any network** — fastest coverage, but uses mobile data.
 - **Leave lazy-only** — accept the rare offline gap.
+
+## [ ] Align expo SDK 55 dependency patch versions (deferred)
+
+`expo-doctor` flags ~18 `expo-*` / `react-native` packages a few patch versions behind SDK 55's
+expected pins (e.g. expo 55.0.6 vs ~55.0.31). Benign — the app builds and runs fine on the current
+pins. Do NOT `expo install --fix` casually: in this npm-workspaces monorepo it left duplicate native
+modules (two copies of expo/react-native — one hoisted at the workspace root, one under
+apps/mobile) and `npm dedupe` fails with an ERESOLVE knot across `@expo/{metro-runtime,log-box,
+dom-webview}`. Needs a deliberate clean upgrade (likely a from-scratch reinstall of the whole
+workspace, or npm `overrides`), then a dev-client rebuild — best done as its own pass, not mid-ship.
+
+Related decision when doing it: `@sentry/react-native` is pinned to **8.x** but SDK 55's doctor
+expects ~7.11 (a breaking major). 8.x works; either keep it (add to `expo.install.exclude`) or move
+to 7.x deliberately.
+
+The Metro-config doctor warning (watchFolders not extending Expo defaults) is already fixed.
 </content>
