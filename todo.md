@@ -42,19 +42,16 @@ Decision needed first (data/battery tradeoff for a ~14k-thumbnail library):
 - **Any network** — fastest coverage, but uses mobile data.
 - **Leave lazy-only** — accept the rare offline gap.
 
-## [ ] Align expo SDK 55 dependency patch versions (deferred)
+## Monorepo dependency hygiene (reference — expo-doctor is 20/20 as of the SDK-55 alignment)
 
-`expo-doctor` flags ~18 `expo-*` / `react-native` packages a few patch versions behind SDK 55's
-expected pins (e.g. expo 55.0.6 vs ~55.0.31). Benign — the app builds and runs fine on the current
-pins. Do NOT `expo install --fix` casually: in this npm-workspaces monorepo it left duplicate native
-modules (two copies of expo/react-native — one hoisted at the workspace root, one under
-apps/mobile) and `npm dedupe` fails with an ERESOLVE knot across `@expo/{metro-runtime,log-box,
-dom-webview}`. Needs a deliberate clean upgrade (likely a from-scratch reinstall of the whole
-workspace, or npm `overrides`), then a dev-client rebuild — best done as its own pass, not mid-ship.
+If `expo-doctor` ever flags version drift again, do NOT run `expo install --fix` (or any
+`npm install`) from `apps/mobile/` — in this npm-workspaces monorepo that half-bumps only the app
+and leaves old versions hoisted at the workspace root (duplicate native modules), which then won't
+dedupe. Instead: set the target versions in `apps/mobile/package.json`, then do ONE clean root
+install — `rm -rf node_modules apps/*/node_modules packages/*/node_modules package-lock.json && npm
+install` from the repo root — which resolves to a single coherent tree. Then rebuild the dev client.
 
-Related decision when doing it: `@sentry/react-native` is pinned to **8.x** but SDK 55's doctor
-expects ~7.11 (a breaking major). 8.x works; either keep it (add to `expo.install.exclude`) or move
-to 7.x deliberately.
-
-The Metro-config doctor warning (watchFolders not extending Expo defaults) is already fixed.
+`@sentry/react-native` is intentionally pinned to **8.x** (see `expo.install.exclude` in
+apps/mobile/package.json): 8.x has the React 19 / New Architecture support SDK 55 needs; Expo's
+doctor pin to ~7.11 is stale and re-breaks the build (it was bumped to 8.x in a1ae366).
 </content>
