@@ -22,6 +22,11 @@ export function Section({ children }) {
   );
 }
 
+// iOS-style small gray explanatory text shown BELOW a grouped section.
+export function SectionFooter({ children }) {
+  return <Text style={styles.footer}>{children}</Text>;
+}
+
 export function Row({ label, value, onPress, destructive, chevron, children }) {
   const content = (
     <View style={styles.row}>
@@ -88,5 +93,13 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'right',
     flexShrink: 1,
+  },
+  footer: {
+    fontSize: typography.sm,
+    color: colors.textTertiary,
+    marginTop: 8,
+    marginLeft: 4,
+    marginRight: 4,
+    lineHeight: 18,
   },
 });

@@ -4,12 +4,28 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import DetailScrollView from '@/components/DetailScrollView';
 import Page from '@/components/Page';
+import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
-import { Row, Section } from '@/components/settings-list/SettingsList';
+import { LogBlock, LogLine } from '@/components/settings-list/LogBlock';
+import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
 import { colors, typography } from '@/styles/designTokens';
+import relativeTime from '@/utils/relativeTime';
+
+// Placeholder backup-run history — backup doesn't record runs yet (see BackupScreen "Backup log").
+// This is sample data so we can see the layout; wire to a real log table when we add one.
+const BACKUP_LOG_SAMPLE = [
+  { id: 3, ranAt: Date.now() - 4 * 60 * 1000, primary: '↑ 12 photos · 234 MB · 42s' },
+  {
+    id: 2,
+    ranAt: Date.now() - 3 * 3600 * 1000,
+    primary: '↑ 3 photos · 51 MB · 9s',
+    secondary: '1 skipped (already backed up)',
+  },
+  { id: 1, ranAt: Date.now() - 26 * 3600 * 1000, primary: '↑ 0 photos · 2s', error: '2 failed — network error' },
+];
 
 // Photo backup detail. Uploads the full-res originals to the cloud (S3, via the server). This is a
 // manual, resumable action — completed files are marked and skipped on the next run — and only makes
@@ -77,6 +93,19 @@ export default function BackupScreen() {
             />
           )}
         </Section>
+
+        <ScreenSectionHeader title="Backup log" />
+        <LogBlock>
+          {BACKUP_LOG_SAMPLE.map((e) => (
+            <LogLine
+              key={e.id}
+              primary={`${relativeTime(e.ranAt)} · ${e.primary}`}
+              secondary={e.secondary}
+              error={e.error}
+            />
+          ))}
+        </LogBlock>
+        <SectionFooter>Sample data — backup runs aren’t recorded yet.</SectionFooter>
 
         {showErrors && (
           <SyncErrorViewer assetsWithSyncErrors={assetsWithSyncErrors} close={() => setShowErrors(false)} />
