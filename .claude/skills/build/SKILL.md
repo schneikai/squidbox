@@ -66,13 +66,38 @@ a new ad-hoc provisioning profile (Y). (Reuses the existing cert; only mints a p
 
 ## Path B — App (preview/release)
 
-1. The preview build BAKES `EXPO_PUBLIC_*` from **EAS secrets**. Ensure they point at the live backend:
-   `eas secret:list` → `EXPO_PUBLIC_API_URL` must be `https://squidbox-server.fly.dev/api/v1`
-   (update via `eas secret:push --scope project --env-file .secrets [--force]`, editing `.secrets`).
-   Also confirm `EXPO_PUBLIC_OPENAI_API_KEY`, `SENTRY_AUTH_TOKEN` exist.
+The preview build BAKES `EXPO_PUBLIC_*` into the JS bundle at build time from **EAS environment
+variables** (NOT `.env.local` — that's dev-client only). See "Env vars & secrets (how baking works)"
+below; the gotchas there are load-bearing.
+
+1. Confirm the baked env is correct for the live backend:
+   `eas env:list --environment preview` → `EXPO_PUBLIC_API_URL` must be the Fly URL
+   (`https://squidbox-server.fly.dev/api/v1`), and `EXPO_PUBLIC_OPENAI_API_KEY` + `SENTRY_AUTH_TOKEN`
+   should exist. If the URL is stale/wrong, fix the VALUE (keep its visibility):
+   `eas env:set --name EXPO_PUBLIC_API_URL --value <fly-url> --visibility secret --environment development --environment preview --environment production`
 2. Build: `EAS_BUILD_PROFILE=preview eas build -p ios -e preview` (agent runs it).
 3. Install from the EAS build page → **Internal Distribution → Install**. Self-contained — no Metro/tunnel.
 4. Do NOT run `eas submit` on `development`/`preview` (those are internal builds, not TestFlight).
+
+## Env vars & secrets (how baking works) — READ if a build "can't reach the server"
+
+Hard-won facts (SDK 55 / current EAS CLI):
+- **`environment` per profile is REQUIRED.** eas.json's build profiles set `"environment"`
+  (development/preview/production). Without it, EAS injects **none** of the stored env vars → the app
+  builds with `EXPO_PUBLIC_API_URL` undefined → every request fails locally → "Can't reach server"
+  and **nothing hits the backend logs**.
+- **EAS server vars OVERRIDE eas.json `env`** for the same name. Setting `EXPO_PUBLIC_API_URL` in
+  eas.json `env` is silently ignored if a server var of that name exists — fix the server var instead.
+- **`secret`-visibility `EXPO_PUBLIC_*` vars DO inline** into the JS bundle here (despite Expo docs
+  implying otherwise). So a stale `secret` value gets baked. You can't flip a `secret` → `plaintext`
+  (`eas env:set` errors); update its value in place with `--visibility secret`, or delete + recreate.
+- A `secret` value can't be read back. To verify what actually baked, download the .ipa and grep:
+  `unzip -o app.ipa -d x && strings x/Payload/*.app/main.jsbundle | grep -oE "https://[a-z0-9.-]+/api/v1"`.
+- Classic failure we hit: the app logged in fine (old Rails backend still up) but sync failed —
+  because the baked `EXPO_PUBLIC_API_URL` was the **stale Rails URL** from an old `eas secret` push,
+  not the Fly URL. Login worked; `/sync/*` didn't exist there.
+- `EXPO_PUBLIC_OPENAI_API_KEY` is baked into the binary regardless (that's what `EXPO_PUBLIC_` means);
+  keeping it `secret` only hides it from logs/UI, not from the shipped app.
 
 ## Watch / manage
 
