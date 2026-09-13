@@ -12,16 +12,10 @@
     },
     "preview": {
       "distribution": "internal",
-      "environment": "preview",
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://squidbox-server.fly.dev/api/v1"
-      }
+      "environment": "preview"
     },
     "production": {
-      "environment": "production",
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://squidbox-server.fly.dev/api/v1"
-      }
+      "environment": "production"
     }
   },
   "submit": {
