@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import useCloud from '@/features/cloud/useCloud';
 import { colors } from '@/styles/designTokens';
 import { getDb, schema } from '@/sync/db/client';
 import { useSyncStatus } from '@/sync/useSyncStatus';
@@ -29,6 +30,7 @@ export default function FirstSyncScreen() {
   const albums = useCount(schema.albums);
   const posts = useCount(schema.posts);
   const { phase, lastError } = useSyncStatus();
+  const { logoutAsync } = useCloud();
 
   const hasError = phase === 'error' && !!lastError;
   const started = assets + albums + posts > 0;
@@ -64,6 +66,9 @@ export default function FirstSyncScreen() {
             ) : null}
             <Pressable style={styles.retry} onPress={() => requestSync()} hitSlop={8}>
               <Text style={styles.retryText}>Try again</Text>
+            </Pressable>
+            <Pressable style={styles.signout} onPress={() => logoutAsync()} hitSlop={8}>
+              <Text style={styles.signoutText}>Sign out</Text>
             </Pressable>
           </>
         ) : (
@@ -103,4 +108,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
   retryText: { fontSize: 16, fontWeight: '600' },
+  signout: { marginTop: 4, paddingHorizontal: 24, paddingVertical: 10 },
+  signoutText: { fontSize: 15, opacity: 0.6 },
 });
