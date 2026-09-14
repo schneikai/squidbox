@@ -129,9 +129,10 @@ function AppInit({ children }) {
   const { initializeCloudAsync } = useCloud();
   const [appIsReady, setAppIsReady] = useState(false);
 
-  // Foreground + interval sync triggers (on-mutation is kicked from the providers). Mounted here so
-  // the sync keeps running while the setup screen shows, before the data providers exist.
-  useSyncTriggers();
+  // Foreground + interval sync triggers, gated on init being DONE — starting the heavy first-sync
+  // before init finishes starves init's awaited DB work and strands the splash (see useSyncTriggers).
+  // initializeCloud's own post-login requestSync starts the first pull once init completes.
+  useSyncTriggers(appIsReady);
 
   useEffect(() => {
     let revealed = false;
