@@ -52,7 +52,7 @@ import { getDb } from '@/sync/db/client';
 import migrations from '@/sync/db/migrations/migrations';
 import { useFirstSyncDone } from '@/sync/useSyncStatus';
 import useSyncTriggers from '@/sync/useSyncTriggers';
-import { enableSync } from '@/sync/worker';
+import { enableSync, requestSync } from '@/sync/worker';
 
 // eslint-disable-next-line import/order
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
@@ -127,13 +127,17 @@ const App = () => {
 // sync triggers. Lives ABOVE the gate so it runs exactly once and keeps the sync running whether the
 // setup screen or the main app is showing. Renders nothing until ready.
 function AppInit({ children }) {
-  const { initializeCloudAsync } = useCloud();
+  const { initializeCloudAsync, isAuthenticated } = useCloud();
   const [appIsReady, setAppIsReady] = useState(false);
 
-  // Foreground + interval sync triggers. The launch pull is kicked by enableSync() below (once init
-  // is done); requestSync() is a no-op until then, so the sync can't start before init and starve
-  // its DB work (which would strand the splash).
+  // Foreground + interval sync triggers. requestSync() is a no-op until enableSync() runs (in reveal
+  // below), so the sync can't start before init and starve its DB work (which would strand the splash).
   useSyncTriggers();
+
+  // Kick the launch pull once init is done AND there's a session — never on a logged-out launch.
+  useEffect(() => {
+    if (appIsReady && isAuthenticated) requestSync();
+  }, [appIsReady, isAuthenticated]);
 
   useEffect(() => {
     let revealed = false;

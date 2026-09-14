@@ -201,11 +201,11 @@ let running = false;
 let rerun = false;
 let syncEnabled = false;
 
-// Turn syncing on once app init has finished, and kick the first pass. Every requestSync() caller
-// (post-login, on-mutation, foreground/interval) is a no-op until this runs — one gate, not several.
+// Turn syncing on once app init has finished. Every requestSync() caller (post-login, on-mutation,
+// foreground/interval) is a no-op until this runs — one gate, not several. The launch pull itself is
+// kicked by App.js once init is done AND a session exists (so a logged-out launch never syncs).
 export function enableSync(): void {
   syncEnabled = true;
-  void runSync();
 }
 
 export function requestSync(): void {
@@ -241,8 +241,16 @@ export async function runClearOutbox(): Promise<void> {
   await clearOutbox(getDb());
 }
 export async function runResetSyncForUser(userId: string): Promise<boolean> {
-  const { getDb } = await import('./db/client');
-  return resetSyncForUser(getDb(), userId);
+  // Hold the single-flight so an in-flight sync can't race the wipe (which would let the previous
+  // user's pages + cursor + firstSyncDone land under the new account). Same guard as runFullResync.
+  while (running) await new Promise((resolve) => setTimeout(resolve, 50));
+  running = true;
+  try {
+    const { getDb } = await import('./db/client');
+    return await resetSyncForUser(getDb(), userId);
+  } finally {
+    running = false;
+  }
 }
 
 export async function runSync(): Promise<void> {

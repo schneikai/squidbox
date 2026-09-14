@@ -17,31 +17,25 @@ export default function CloudProvider({ children }) {
   const [user, setUser] = useState(null);
 
   async function updateUserAuthenticationStatusAsync(user) {
-    // We need to make sure user is present before setting isAuthenticated
-    // and isAuthenticated must be unset before unsetting user.
-    // Otherwise we get "cannot read property 'XY' of null" error when
-    // trying to access user on the UI.
+    // isAuthenticated must be present before we set it, and unset before we null the user, or the UI
+    // reads a null user. On sign-in, wipe the local slate for a DIFFERENT account BEFORE exposing the
+    // session, so the gate never renders the previous user's library under the new user (no-op for
+    // the same user; holds the sync single-flight so no in-flight pull races the wipe).
     if (user) {
+      await runResetSyncForUser(user.id);
       setUser(user);
       setIsAuthenticated(true);
     } else {
       setIsAuthenticated(false);
       setUser(null);
       // Logout keeps the local library intact (it's the same user's data on their device); it's only
-      // wiped when a DIFFERENT account signs in — see runResetSyncForUser below.
+      // wiped when a DIFFERENT account signs in — see runResetSyncForUser above.
     }
     await setUserAsync(user);
 
-    if (user) {
-      // If a DIFFERENT account is signing in, wipe the previous user's local data + cursor first, so
-      // the new user does a clean first-sync instead of inheriting a stale slate. No-op for the same
-      // user (the common case) — their data + cursor stay and sync just resumes.
-      await runResetSyncForUser(user.id);
-      // Kick the sync engine the moment we're authenticated (fresh login OR a restored session), so
-      // the first pull starts immediately instead of waiting up to one interval (~30s). Without this
-      // the app looks stuck after login — the setup screen sits at 0 until the interval fires.
-      requestSync();
-    }
+    // Kick a mid-session sign-in immediately (cold start's launch pull is handled in App.js once init
+    // finishes). No-op until sync is enabled, so this never fires before init.
+    if (user) requestSync();
   }
 
   const value = useMemo(
