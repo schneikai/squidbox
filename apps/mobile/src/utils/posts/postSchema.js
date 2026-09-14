@@ -17,7 +17,11 @@ const postSchema = Yup.object()
     updatedAt: Yup.number().default(getTimestamp),
     rePostId: Yup.string().nullable().default(null), // Id of the post that this post is a repost of.
     isIgnoredForRepost: Yup.boolean().default(false),
-    suggestRepostAt: Yup.number().default((obj) => obj.createdAt),
+    // Yup calls a .default(fn) resolver with NO arguments, so `(obj) => obj.createdAt` always
+    // resolved to undefined → suggestRepostAt landed as null and the posts.suggest_repost_at NOT
+    // NULL column rejected every new post. Use the same standalone resolver as createdAt (a repost
+    // is suggested from creation time by default); this is guaranteed non-null.
+    suggestRepostAt: Yup.number().default(getTimestamp),
     hasBeenReposted: Yup.boolean().default(false),
   })
   .test('textOrAssetRefs', 'Either text or assets must be present', function (value) {
