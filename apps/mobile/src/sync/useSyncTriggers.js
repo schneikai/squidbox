@@ -8,17 +8,13 @@ import { requestSync } from './worker';
 // ordinary JS — the opportunistic background top-up (expo-background-task) is a later,
 // device-gated addition.
 //
-// `enabled` gates the triggers on app-init being DONE. Critical: if the heavy first-sync starts on
-// mount, it competes with init's awaited DB work (the account-switch reset), starves it, and init
-// never returns → the splash never lifts (only happens when a big first-sync is in flight; an
-// already-synced device pulls 0 rows and never contends). So the sync must not start until init has
-// finished — after that, initializeCloud's own post-login requestSync kicks it off cleanly.
+// The LAUNCH pull is not fired here — enableSync() (worker) kicks it once init finishes. requestSync()
+// is a no-op until then, so the sync can't start before init and starve its DB work (which would
+// strand the splash). That gate lives in the worker so every requestSync caller is covered at once.
 const INTERVAL_MS = 30_000;
 
-export default function useSyncTriggers(enabled) {
+export default function useSyncTriggers() {
   useEffect(() => {
-    if (!enabled) return undefined;
-    requestSync(); // initial catch-up, once init is done
     const interval = setInterval(() => {
       if (AppState.currentState === 'active') requestSync();
     }, INTERVAL_MS);
@@ -29,5 +25,5 @@ export default function useSyncTriggers(enabled) {
       clearInterval(interval);
       sub.remove();
     };
-  }, [enabled]);
+  }, []);
 }

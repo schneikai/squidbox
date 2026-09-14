@@ -3,6 +3,11 @@ import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { getDb, schema } from './db/client';
 import type { SyncPhase } from './status';
 
+// sync_meta rows → a { key: value } lookup.
+function metaByKey(meta: { key: string; value: string | null }[] | undefined): Record<string, string | null> {
+  return Object.fromEntries((meta ?? []).map((r) => [r.key, r.value]));
+}
+
 // Reactive sync status for the dev status surface + Inspector: the phase +
 // pending outbox count, live from SQLite.
 export interface LiveSyncStatus {
@@ -18,7 +23,7 @@ export function useSyncStatus(): LiveSyncStatus {
   const { data: meta } = useLiveQuery(getDb().select().from(schema.syncMeta));
   const { data: outbox } = useLiveQuery(getDb().select().from(schema.outbox));
 
-  const byKey = Object.fromEntries((meta ?? []).map((r) => [r.key, r.value]));
+  const byKey = metaByKey(meta);
   const status = byKey.status ? JSON.parse(byKey.status) : {};
 
   return {
@@ -42,6 +47,5 @@ export function useSyncStatus(): LiveSyncStatus {
 export function useFirstSyncDone(): boolean | undefined {
   const { data: meta, updatedAt } = useLiveQuery(getDb().select().from(schema.syncMeta));
   if (updatedAt === undefined) return undefined; // not loaded yet
-  const byKey = Object.fromEntries((meta ?? []).map((r) => [r.key, r.value]));
-  return byKey.firstSyncDone === '1';
+  return metaByKey(meta).firstSyncDone === '1';
 }

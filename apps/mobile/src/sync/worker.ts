@@ -164,23 +164,19 @@ export async function clearOutbox(db: SyncDb): Promise<void> {
  * before calling (pending edits are re-pushed, but this rebuilds local state from the server).
  */
 export async function fullResync(db: SyncDb, transport: SyncTransport): Promise<void> {
-  db.transaction((tx) => {
-    for (const table of Object.values(clientCollectionTables)) {
-      (tx as unknown as SyncDb).delete(table).run();
-    }
-  });
-  await setCursor(db, 0);
-  // A full re-pull is another "first sync" — show the setup gate again while it drains.
-  await clearFirstSyncDone(db);
+  // Keep the outbox so pending local edits are re-pushed; a full re-pull is another "first sync".
+  await resetLocalSync(db, { keepOutbox: true });
   await runSyncOnce(db, transport);
 }
 
-// Wipe all local sync state (collection tables + outbox + cursor + first-sync flag) WITHOUT pulling.
-// The account-switch reset: the new user must start from a clean local slate before their pull.
-export async function resetLocalSync(db: SyncDb): Promise<void> {
+// The one "wipe local sync state" primitive: clear every collection table (+ the outbox unless
+// keepOutbox), reset the cursor, and clear the first-sync flag so the next pull starts fresh and the
+// setup gate shows again. Backs both the account-switch reset (full wipe) and fullResync (keeps the
+// outbox to re-push pending edits).
+export async function resetLocalSync(db: SyncDb, { keepOutbox = false } = {}): Promise<void> {
   db.transaction((tx) => {
     for (const table of Object.values(clientCollectionTables)) (tx as unknown as SyncDb).delete(table).run();
-    (tx as unknown as SyncDb).delete(schema.outbox).run();
+    if (!keepOutbox) (tx as unknown as SyncDb).delete(schema.outbox).run();
   });
   await setCursor(db, 0);
   await clearFirstSyncDone(db);
@@ -198,33 +194,47 @@ export async function resetSyncForUser(db: SyncDb, userId: string): Promise<bool
 }
 
 // ── Production wrapper: single-flight + trailing re-run, bound to the real device DB + HTTP
-// transport. Call requestSync() after a local write (from the provider) or on foreground/interval.
+// transport. Sync stays OFF until app init finishes (enableSync) so the first pull can't contend
+// with init's DB work and strand the splash. After that, requestSync() is called after a local
+// write (from a provider) or on foreground/interval.
 let running = false;
 let rerun = false;
+let syncEnabled = false;
 
-export function requestSync(): void {
+// Turn syncing on once app init has finished, and kick the first pass. Every requestSync() caller
+// (post-login, on-mutation, foreground/interval) is a no-op until this runs — one gate, not several.
+export function enableSync(): void {
+  syncEnabled = true;
   void runSync();
 }
 
-// Bound Inspector actions (production db + HTTP transport).
-export async function runFullResync(): Promise<void> {
-  // Wait out any in-flight sync so the wipe + cursor reset can't race a concurrent pull (which
-  // left the setup screen spinning on stale state). Then hold the single-flight for the whole
-  // resync, and surface failures as phase:'error' so the setup screen shows retry instead of a
-  // silent spinner.
-  while (running) await new Promise((resolve) => setTimeout(resolve, 50));
+export function requestSync(): void {
+  if (syncEnabled) void runSync();
+}
+
+// Shared run scaffold: hold the single-flight, resolve the real db + transport, and record the run's
+// terminal status (idle on success, error on throw). Callers apply their own entry guard first.
+async function withSyncRun(work: (db: SyncDb, transport: SyncTransport) => Promise<void>): Promise<void> {
   running = true;
   const { getDb } = await import('./db/client');
   const { httpTransport } = await import('./transport');
   const db = getDb();
   try {
-    await fullResync(db, httpTransport);
+    await work(db, httpTransport);
     await patchStatus(db, { phase: 'idle', lastError: null });
   } catch (err) {
     await patchStatus(db, { phase: 'error', lastError: err instanceof Error ? err.message : String(err) });
   } finally {
     running = false;
   }
+}
+
+// Bound Inspector actions (production db + HTTP transport).
+export async function runFullResync(): Promise<void> {
+  // Wait out any in-flight sync so the wipe + cursor reset can't race a concurrent pull, then hold
+  // the single-flight for the whole resync (failures surface as phase:'error').
+  while (running) await new Promise((resolve) => setTimeout(resolve, 50));
+  await withSyncRun((db, transport) => fullResync(db, transport));
 }
 export async function runClearOutbox(): Promise<void> {
   const { getDb } = await import('./db/client');
@@ -240,19 +250,10 @@ export async function runSync(): Promise<void> {
     rerun = true;
     return;
   }
-  running = true;
-  const { getDb } = await import('./db/client');
-  const { httpTransport } = await import('./transport');
-  const db = getDb();
-  try {
+  await withSyncRun(async (db, transport) => {
     do {
       rerun = false;
-      await runSyncOnce(db, httpTransport);
+      await runSyncOnce(db, transport);
     } while (rerun);
-    await patchStatus(db, { phase: 'idle', lastError: null });
-  } catch (err) {
-    await patchStatus(db, { phase: 'error', lastError: err instanceof Error ? err.message : String(err) });
-  } finally {
-    running = false;
-  }
+  });
 }

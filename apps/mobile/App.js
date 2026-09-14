@@ -52,6 +52,7 @@ import { getDb } from '@/sync/db/client';
 import migrations from '@/sync/db/migrations/migrations';
 import { useFirstSyncDone } from '@/sync/useSyncStatus';
 import useSyncTriggers from '@/sync/useSyncTriggers';
+import { enableSync } from '@/sync/worker';
 
 // eslint-disable-next-line import/order
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
@@ -129,10 +130,10 @@ function AppInit({ children }) {
   const { initializeCloudAsync } = useCloud();
   const [appIsReady, setAppIsReady] = useState(false);
 
-  // Foreground + interval sync triggers, gated on init being DONE — starting the heavy first-sync
-  // before init finishes starves init's awaited DB work and strands the splash (see useSyncTriggers).
-  // initializeCloud's own post-login requestSync starts the first pull once init completes.
-  useSyncTriggers(appIsReady);
+  // Foreground + interval sync triggers. The launch pull is kicked by enableSync() below (once init
+  // is done); requestSync() is a no-op until then, so the sync can't start before init and starve
+  // its DB work (which would strand the splash).
+  useSyncTriggers();
 
   useEffect(() => {
     let revealed = false;
@@ -142,6 +143,7 @@ function AppInit({ children }) {
       if (revealed) return;
       revealed = true;
       setAppIsReady(true);
+      enableSync(); // init done → allow syncing and kick the first pull (never before, see worker)
       SplashScreen.hideAsync().catch(() => {}); // no-op if already hidden
     };
 

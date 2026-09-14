@@ -5,10 +5,10 @@ import { getAccessTokenAsync, clearTokensAsync } from '@/utils/cloud-api/apiToke
 import getApiUserAsync from '@/utils/cloud-api/user/getUserAsync';
 
 export default async function initializeCloudAsync() {
-  // We need api token and user data to initialize the cloud state.
-  // This is necessary since we store them separately (SecureStore for tokens, AsyncStorage for user data).
-  const token = await getAccessTokenAsync();
-  let user = await getUserAsync();
+  // Token + user are stored separately (SecureStore vs AsyncStorage) and independent — read them in
+  // parallel; this is on the splash-blocking init path.
+  const [token, storedUser] = await Promise.all([getAccessTokenAsync(), getUserAsync()]);
+  let user = storedUser;
 
   if (token && !user) {
     user = await handleMissingUser();
