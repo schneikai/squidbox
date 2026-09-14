@@ -11,7 +11,9 @@ export default async function downloadAssetFileAsync(asset, onProgress) {
 }
 
 async function downloadWithProgress(filename, downloadUrl, onProgress) {
-  createCacheDirectoryAsync();
+  // Must finish before the download starts — createDownloadResumable does NOT create parent dirs, so
+  // on a fresh install / cleared cache the first download would reject before any progress fires.
+  await createCacheDirectoryAsync();
   const fileUri = `${CACHE_DIRECTORY}/${filename}`;
 
   // We throttle the progress updates because the frequent rerendering slows down the download.
