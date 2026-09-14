@@ -45,7 +45,10 @@ export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot
 
   return (
     <View
-      style={[styles.container, { top: insets.top + 8 }]}
+      // Inside a modal sheet the top safe-area inset is ~0, so insets.top + 8 would leave the pills
+      // hugging the sheet's top edge. Floor the offset at floatingBarBottom so it matches ModalHeader's
+      // top gap in sheets, while full screens (large insets.top) keep insets.top + 8 unchanged.
+      style={[styles.container, { top: Math.max(insets.top + 8, spacing.floatingBarBottom) }]}
       pointerEvents="box-none"
       onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
     >
