@@ -6,6 +6,7 @@ import refreshAccessTokenAsync from './authentication/refreshAccessTokenAsync';
 
 const apiWithAuthentication = axios.create({
   baseURL: process.env.EXPO_PUBLIC_API_URL,
+  timeout: 15000, // fail fast on an unreachable backend instead of hanging (e.g. during startup sync)
 });
 
 // Add access token to request headers (+ resolve the runtime base URL)

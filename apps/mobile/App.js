@@ -19,8 +19,8 @@ import { ActionSheetProvider } from '@expo/react-native-action-sheet';
 import { NavigationContainer } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SplashScreen from 'expo-splash-screen';
-import { useState, useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useState, useEffect, Component } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 // eslint-disable-next-line import/no-duplicates
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Menu, MenuProvider } from 'react-native-popup-menu';
@@ -70,21 +70,53 @@ if (__DEV__) {
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
+// Catches render-time throws during boot (e.g. a failed DB migration) that would otherwise unmount
+// the tree to a blank root behind the still-visible native splash — a silent dead-end in a release
+// build. Lifts the splash and shows a recoverable message instead.
+class BootErrorBoundary extends Component {
+  state = { error: null };
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error) {
+    Sentry.captureException(error);
+    SplashScreen.hideAsync().catch(() => {}); // never leave the splash up on a crash
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <View style={styles.bootError}>
+          <Text style={styles.bootErrorTitle}>Something went wrong</Text>
+          <Text style={styles.bootErrorText}>
+            Please close and reopen the app. If it keeps happening, reinstall.
+          </Text>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const App = () => {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <ProgressOverlayProvider>
-          <AppSettingsProvider>
-            <CloudProvider>
-              <MigrationGate>
-                <AppInit>
-                  <AppGate />
-                </AppInit>
-              </MigrationGate>
-            </CloudProvider>
-          </AppSettingsProvider>
-        </ProgressOverlayProvider>
+        <BootErrorBoundary>
+          <ProgressOverlayProvider>
+            <AppSettingsProvider>
+              <CloudProvider>
+                <MigrationGate>
+                  <AppInit>
+                    <AppGate />
+                  </AppInit>
+                </MigrationGate>
+              </CloudProvider>
+            </AppSettingsProvider>
+          </ProgressOverlayProvider>
+        </BootErrorBoundary>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
@@ -102,16 +134,33 @@ function AppInit({ children }) {
   useSyncTriggers();
 
   useEffect(() => {
-    async function prepare() {
-      // TODO: a bare try/catch here swallows the stack trace, making failures (e.g. a migration
-      // "Cannot read property 'split' of undefined") impossible to locate. Needs a real error path.
-      await initializeCloudAsync();
+    let revealed = false;
+    // The splash's ONLY exit. Idempotent. Always runs — even if init throws or hangs — so a release
+    // build (no redbox) can never get stranded on the native splash.
+    const reveal = () => {
+      if (revealed) return;
+      revealed = true;
       setAppIsReady(true);
-      // Hide the splash on a BOUNDED trigger (init done) — never couple it to the reactive gate/
-      // provider chain, or a production build that stalls there gets stuck on the splash forever.
-      await SplashScreen.hideAsync();
+      SplashScreen.hideAsync().catch(() => {}); // no-op if already hidden
+    };
+
+    async function prepare() {
+      try {
+        await initializeCloudAsync();
+      } catch (error) {
+        // Never let an init failure strand the splash. Report it and boot anyway — the login/gate
+        // flow can recover (e.g. show the login screen) instead of an invisible dead splash.
+        Sentry.captureException(error);
+      } finally {
+        reveal();
+      }
     }
     prepare();
+
+    // Watchdog: if init HANGS (e.g. an unreachable API with no request timeout), lift the splash
+    // anyway after a bound so the user is never stuck. Init keeps running and updates state later.
+    const watchdog = setTimeout(reveal, 8000);
+    return () => clearTimeout(watchdog);
   }, []);
 
   if (!appIsReady) return null;
@@ -190,4 +239,13 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
+  bootError: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    gap: 10,
+  },
+  bootErrorTitle: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
+  bootErrorText: { fontSize: 15, opacity: 0.7, textAlign: 'center', lineHeight: 20 },
 });

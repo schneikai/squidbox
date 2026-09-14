@@ -4,6 +4,7 @@ import { getApiBaseUrlAsync } from './apiBaseUrl';
 
 const api = axios.create({
   baseURL: process.env.EXPO_PUBLIC_API_URL,
+  timeout: 15000, // so an unreachable/misconfigured backend fails fast instead of hanging (e.g. init)
 });
 
 // Resolve the base URL per-request so a runtime override (dev setting) takes effect.
