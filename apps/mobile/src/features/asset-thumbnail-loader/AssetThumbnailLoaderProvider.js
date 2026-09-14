@@ -1,8 +1,14 @@
+import * as Sentry from '@sentry/react-native';
 import { useCallback, useMemo, useRef } from 'react';
 
 import AssetThumbnailLoaderContext from './AssetThumbnailLoaderContext';
 
 import useCloud from '@/features/cloud/useCloud';
+
+// Report the first handful of thumbnail failures per session, then go quiet — enough to diagnose a
+// systemic problem (e.g. missing S3 objects, auth) without flooding Sentry during a launch storm.
+let reportedFailures = 0;
+const MAX_REPORTED_FAILURES = 5;
 
 // Lazy, bounded thumbnail loader. Screens (see AssetImage) call loadThumbnail(asset) for the cells
 // that scroll into view; each cell already checks the disk first and only asks for what's missing.
@@ -27,7 +33,14 @@ export default function AssetThumbnailLoaderProvider({ children }) {
       const batch = queueRef.current.splice(-BATCH_SIZE).reverse(); // newest-requested first
       activeBatchesRef.current += 1;
       Promise.resolve(preloadAssetThumbnailsAsync(batch))
-        .catch(() => {}) // best-effort — AssetImage re-requests the next time the cell is shown
+        .catch((err) => {
+          // Best-effort — the key is freed below so a still-visible cell retries on its next poll.
+          // Surface the reason (was silently swallowed) so a systemic failure is diagnosable.
+          if (reportedFailures < MAX_REPORTED_FAILURES) {
+            reportedFailures += 1;
+            Sentry.captureException(err);
+          }
+        })
         .finally(() => {
           for (const asset of batch) trackedRef.current.delete(asset.thumbnailFilename);
           activeBatchesRef.current -= 1;

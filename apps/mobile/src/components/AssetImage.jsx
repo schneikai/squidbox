@@ -29,13 +29,19 @@ export default function AssetImage({ asset = {}, contentFit, placeholderColor = 
     if (!asset.thumbnailFilename) return;
 
     const interval = setInterval(async () => {
-      if (thumbnailUri || (await hasThumbnailAsync(asset.thumbnailFilename))) {
+      if (await hasThumbnailAsync(asset.thumbnailFilename)) {
         setThumbnailUri(getAssetThumbnailUri(asset.thumbnailFilename));
         clearInterval(interval);
+      } else {
+        // Still not on disk: the first request may have failed (a network hiccup during the
+        // launch-sync storm, a transient 401/403). loadThumbnail dedupes in-flight requests, so
+        // re-asking while a download is still queued is a no-op; once an attempt has failed (its key
+        // is freed) this re-enqueues it. Durable retry — a blank cell heals instead of staying blank.
+        loadThumbnail(asset);
       }
     }, 2000);
     return () => clearInterval(interval);
-  }, [asset.thumbnailFilename, asset.isThumbnailSynced]);
+  }, [asset.thumbnailFilename, asset.isThumbnailSynced, loadThumbnail]);
 
   if (!asset.thumbnailFilename) return null;
 

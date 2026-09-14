@@ -47,6 +47,7 @@ import CloudSyncProvider from '@/features/cloud-sync/CloudSyncProvider';
 import PostsProvider from '@/features/posts-context/PostsProvider';
 import FirstSyncScreen from '@/features/sync-status/FirstSyncScreen';
 import RootNavigator from '@/navigators/RootNavigator';
+import { navigationRef, flushPendingNavigation } from '@/navigators/navigationRef';
 import { colors } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import migrations from '@/sync/db/migrations/migrations';
@@ -217,7 +218,7 @@ export default Sentry.wrap(App);
 function MainApp() {
   return (
     <AssetThumbnailLoaderProvider>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef} onReady={flushPendingNavigation}>
         <ActionSheetProvider>
           <MenuProvider>
             <AssetPickerProvider>

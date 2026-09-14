@@ -29,16 +29,18 @@ export default async function preloadAssetThumbnailsAsync(assets) {
 async function preloadBatch(assets) {
   const thumbnailFilenames = assets.map((asset) => asset.thumbnailFilename);
 
-  try {
-    const presignedUrls = await getAssetFileDownloadUrlsAsync(thumbnailFilenames);
+  const presignedUrls = await getAssetFileDownloadUrlsAsync(thumbnailFilenames);
 
-    for (const [thumbnailFilename, presignedUrl] of presignedUrls) {
-      const fileUri = getAssetThumbnailUri(thumbnailFilename);
-      await FileSystem.downloadAsync(presignedUrl, fileUri);
+  for (const [thumbnailFilename, presignedUrl] of presignedUrls) {
+    const fileUri = getAssetThumbnailUri(thumbnailFilename);
+    const { status } = await FileSystem.downloadAsync(presignedUrl, fileUri);
+    // A presigned GET that 403/404s does NOT throw — downloadAsync writes the S3 error XML to the
+    // file and returns non-200. That poisons the cache: hasThumbnailAsync then sees a file and
+    // reports the thumbnail "present", so the grid shows a broken image forever with no retry.
+    // Delete the bad file and throw so the caller can surface the error and the cell can retry.
+    if (status !== 200) {
+      await FileSystem.deleteAsync(fileUri, { idempotent: true });
+      throw new Error(`Thumbnail download failed (HTTP ${status}) for ${thumbnailFilename}`);
     }
-  } catch (e) {
-    // TODO: Error handling like this is useless for debugging since it
-    // is missing the stack trace.
-    console.log(`Failed to load asset thumbnails! Error: ${e.message}`);
   }
 }

@@ -1,4 +1,4 @@
-import { useNavigationState, useNavigation } from '@react-navigation/native';
+import { useNavigationState } from '@react-navigation/native';
 import { useEffect } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming, interpolate } from 'react-native-reanimated';
@@ -10,6 +10,7 @@ import { getActiveTabName, isDetailScreenActive } from './navStateHelpers';
 
 import GradientButton from '@/components/GradientButton';
 import Icon from '@/components/Icon';
+import { navigateToTab } from '@/navigators/navigationRef';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, spacing } from '@/styles/designTokens';
 
@@ -23,7 +24,6 @@ const MAIN_TABS = NAV_ITEMS.map((item) => item.tab);
 
 export default function FloatingNavigationBar() {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
   const { isNavBarHidden, isSearchActive, isSelectMode, resetScroll } = useFloatingBars();
 
   const activeTab = useNavigationState((s) => getActiveTabName(s));
@@ -54,7 +54,9 @@ export default function FloatingNavigationBar() {
 
   function handleNavigate(tab) {
     resetScroll();
-    navigation.navigate('MainTab', { screen: tab });
+    // Goes through the container ref (see navigationRef.js): honored immediately when ready, and
+    // remembered + flushed if the container is still mounting (first-sync gate flip).
+    navigateToTab(tab);
   }
 
   return (
