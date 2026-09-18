@@ -1,0 +1,66 @@
+name: db-backup
+
+# Automated off-site backup of the production Neon Postgres DB to S3.
+# Runs on GitHub's cron (nothing to trigger by hand) and can also be run manually.
+# Rolling retention is handled by an S3 lifecycle rule on the db-backups/ prefix
+# (see docs/ops/db-backup.md) — this workflow only writes new dumps.
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # daily at 03:00 UTC
+  workflow_dispatch: {} # allow a manual run from the Actions tab
+
+# Never run two backups at once; a slow run shouldn't overlap the next schedule.
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Install PostgreSQL 17 client
+        # pg_dump must be >= the server's major version. Neon runs PG 17, and the
+        # ubuntu-latest bundled client can lag, so install from the PGDG apt repo.
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+          pg_dump --version
+
+      - name: Dump database
+        env:
+          # Neon connection string (pooled or direct both work for pg_dump).
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          ts="$(date -u +%Y%m%dT%H%M%SZ)"
+          out="squidbox-${ts}.dump"
+          # -Fc = compressed custom format (restore with pg_restore).
+          pg_dump "$DATABASE_URL" -Fc -f "$out"
+          size=$(stat -c%s "$out")
+          echo "Dumped $out ($size bytes)"
+          # Sanity gate: a valid custom-format dump of a non-empty schema is never this small.
+          # Fail loudly rather than silently uploading a broken/empty backup.
+          if [ "$size" -lt 1024 ]; then
+            echo "::error::Dump is suspiciously small ($size bytes) — aborting upload."
+            exit 1
+          fi
+          echo "DUMP=$out" >> "$GITHUB_ENV"
+
+      - name: Upload to S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: eu-west-1
+          BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+        run: |
+          set -euo pipefail
+          aws s3 cp "$DUMP" "s3://${BUCKET}/db-backups/${DUMP}" --only-show-errors
+          echo "Uploaded s3://${BUCKET}/db-backups/${DUMP}"
