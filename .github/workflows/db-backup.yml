@@ -28,10 +28,11 @@ jobs:
           set -euo pipefail
           ts="$(date -u +%Y%m%dT%H%M%SZ)"
           out="squidbox-${ts}.dump"
-          # pg_dump must be >= the server's major version. Neon runs PG 17, so run pg_dump from the
-          # official postgres:17 image (pinned, no apt/gpg setup). The URL is passed via env into the
-          # container (never as an argv), and -Fc (compressed custom format) is written to stdout.
-          docker run --rm -e DATABASE_URL="$DATABASE_URL" postgres:17-alpine \
+          # pg_dump must be >= the server's major version. Neon runs PG 18, so run pg_dump from the
+          # official postgres:18 image (pinned, no apt/gpg setup). Bump this tag if Neon upgrades its
+          # major version. The URL is passed via env into the container (never as an argv), and -Fc
+          # (compressed custom format) is written to stdout.
+          docker run --rm -e DATABASE_URL="$DATABASE_URL" postgres:18-alpine \
             sh -c 'pg_dump "$DATABASE_URL" -Fc' > "$out"
           size=$(stat -c%s "$out")
           echo "Dumped $out ($size bytes)"

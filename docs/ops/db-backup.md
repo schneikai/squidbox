@@ -63,6 +63,6 @@ it's instant and non-destructive.
 
 ## Notes
 
-- `pg_dump` must be **≥** the server's major version; the workflow installs the PG 17 client to
-  match Neon. Bump it if Neon upgrades its major version.
+- `pg_dump` must be **≥** the server's major version; the workflow runs `pg_dump` from the
+  `postgres:18` Docker image to match Neon (PG 18). Bump the image tag if Neon upgrades its major version.
 - The dump is custom-format (`-Fc`); restore with `pg_restore`, not `psql`.
