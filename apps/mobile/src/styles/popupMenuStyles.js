@@ -9,11 +9,13 @@ export default {
   // Passed to <MenuOptions customStyles={...}>. Background is transparent — BlurPopoverRenderer
   // provides the surface. Everything that affects the menu's SIZE lives here, because the library
   // measures the options with this style before BlurPopoverRenderer draws them; sizing styles on
-  // the renderer alone make the measured box smaller than the drawn one.
+  // the renderer alone make the measured box smaller than the drawn one. The width is fixed (not
+  // sized to content), so labels are laid out at their final width in one pass and a label that
+  // still wraps is measured with all its lines.
   menuOptions: {
     optionsContainer: {
       backgroundColor: 'transparent',
-      minWidth: 200, // fits ~6 chars label + icon; expands with content
+      width: spacing.popoverWidth,
       paddingVertical: spacing.barPaddingY,
       borderWidth: 1,
       borderColor: colors.darkModalBorder,

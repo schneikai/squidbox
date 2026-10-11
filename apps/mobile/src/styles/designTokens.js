@@ -15,6 +15,9 @@ const SCALE_FACTOR = SCREEN_WIDTH / BASE_WIDTH;
  */
 export const scale = (size, min = 0.85, max = 1.15) => Math.round(size * Math.min(Math.max(SCALE_FACTOR, min), max));
 
+// Horizontal gutter between floating UI (bars, popovers) and the screen edges.
+const SIDE_GUTTER = scale(16);
+
 export const colors = {
   gradientStart: '#7C3AED',
   gradientEnd: '#4F46E5',
@@ -85,7 +88,7 @@ export const radii = {
 };
 
 export const spacing = {
-  floatingBarSide: scale(16),
+  floatingBarSide: SIDE_GUTTER,
   floatingBarBottom: scale(16),
   iconButtonSize: scale(44), // 44pt baseline (Apple HIG minimum tap target), scales with screen
   iconSize: scale(20), // standard icon inside a button (~45% of button size)
@@ -104,6 +107,9 @@ export const spacing = {
 
   // Gap between a trigger button and the popover that opens from it
   popoverGap: 25,
+  // Fixed popover menu width: fits the longest labels on one line, never wider than the screen
+  // minus the side gutters.
+  popoverWidth: Math.min(scale(260), SCREEN_WIDTH - 2 * SIDE_GUTTER),
 };
 
 export const typography = {
