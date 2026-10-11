@@ -1,264 +1,181 @@
 # Sync Design
 
-Design for the generic, collection-based sync engine that replaces the JSON-blob
-backup/restore. Goal: transparent multi-device sync (Apple-Photos-like) that is
-**easy to extend with new collections**, runs in Expo without ejecting, and shares
-its contract between app and backend via Zod.
+Squidbox syncs a user's library metadata across that user's devices with a small,
+collection-based sync engine. The app keeps a full local copy in SQLite and talks to a Postgres
+backend through two endpoints, pull and push. App and server share one contract, defined with
+Zod in `packages/shared`.
 
-> **Status: built + deployed.** This engine is live (see
-> [`migration/STATUS.md`](./migration/STATUS.md)). It remains the design bible, but two things
-> below are **superseded by the shipped implementation** and flagged inline:
-> - Ordered **membership** (`album.assets`, `post.assetRefs`) is no longer JSON arrays on the
->   parent record — it's **edge collections** (`album_assets` / `post_assets`). See
->   [`migration/edge-collections.md`](./migration/edge-collections.md). This affects §7 (ordered
->   relations), §9–§10 (descriptors/collections).
-> - `postHistory` / `lastPostedAt` are **no longer synced fields** — they're derived on-device
->   (a recomputable cache; see edge-collections.md).
-> - The one-shot converter (§11) shipped as a **server-side** importer; the maintained runbook is
->   [`migration/legacy-import.md`](./migration/legacy-import.md).
+Scope:
 
-Scope assumptions:
+- **Isolated multi-tenant.** Many users, but each user's data is private and syncs only across
+  that user's own devices. There is no sharing or co-editing between users. Conflicts can only
+  happen between one person's devices, which is why whole-record last-write-wins is enough
+  (§7). The isolation rules are in §2a.
+- **Metadata only.** Photo and video files live in S3 and are not part of sync. Only their
+  metadata records sync. Downloads use presigned S3 GET URLs; uploads stream through the server
+  (`packages/shared/contracts/assets.ts`). How file deletion relates to tombstones is in §7a.
 
-- **Isolated multi-tenant**: multiple users, but each user's data is fully private and
-  syncs only across **that user's own devices** — no sharing or co-editing between users
-  ("just me now, open later"). Conflicts therefore only ever occur among one user's own
-  devices, which is what lets us use whole-record last-write-wins instead of CRDTs — every
-  LWW/conflict argument in this doc is **per-user** and unaffected by how many users exist.
-  See §2a for the isolation invariant.
-- Photos/videos ("asset files") already live in S3 and are **not** part of metadata
-  sync — only their metadata records sync. Files move via the existing presigned
-  upload/download flow. (Binary lifecycle vs tombstones: §7a.)
-
-**Build vs adopt.** Off-the-shelf local-first stacks were considered (WatermelonDB,
-PowerSync, ElectricSQL, Replicache/Zero, Turso embedded replicas). All were rejected for
-this project: each still requires writing the server write path and/or adds a third-party
-sync service between the app and Postgres, which directly conflicts with the "good
-visibility into sync" and "keep it simple to operate" constraints; several have immature or
-native-module-heavy Expo/RN stories. At this scale (each device fully replicates one
-user's own data) the protocol below is small enough to own (~hundreds of lines), and
-owning it is what makes the Sync Inspector (§13) possible. Reconsider adoption if
-requirements ever grow to **cross-user sharing/co-editing**, partial replication (a
-user's data too big to fully sync), or per-field merge — see the review doc
-(`migration/fable-review.md`).
+**Why a custom engine.** Off-the-shelf local-first stacks (WatermelonDB, PowerSync, ElectricSQL,
+Replicache/Zero, Turso embedded replicas) each need a server write path anyway or add a
+third-party sync service between the app and Postgres. Each device fully replicates one user's
+data, so the protocol stays small enough to own, and owning it is what makes the Sync Inspector
+(§13) possible. Cross-user sharing, partial replication or per-field merge would be reasons to
+revisit this.
 
 ---
 
 ## 1. Core model
 
-Everything synced is a **record** in a **collection**. A collection is defined once by a
-**descriptor**. The sync engine (change tracking, pull/push, outbox, apply, reactivity)
-is collection-agnostic and dispatches by collection name. Adding a collection is a small
-recipe (§9), not new plumbing.
+Everything synced is a **record** in a **collection**. Each collection is defined once by a
+**descriptor** (§9). The engine (change tracking, pull, push, outbox, apply) does not know about
+specific collections; it iterates the registry and dispatches by collection name. Adding a
+collection is a short recipe (§9).
 
-The three initial collections — `assets`, `albums`, `posts` — are just the first
-registered collections.
+The registered collections are `assets`, `albums`, `posts`, `album_assets` and `post_assets`
+(§10).
 
 ---
 
 ## 2. Record shape (base columns)
 
-Every synced row, in both Postgres (server) and SQLite (client), carries:
+Every synced record, on server and client, carries:
 
-| Column       | Type            | Who sets it | Purpose |
-|--------------|-----------------|-------------|---------|
-| `id`         | string (uuid)   | **client**  | Record id. Client-generated so offline creates work. **Server PK is composite `(user_id, id)`** — see §2a. |
-| `created_at` | number (epoch ms) | writer    | Creation time. |
-| `updated_at` | number (epoch ms) | writer    | Logical clock for last-write-wins. |
-| `deleted_at` | number \| null  | writer      | Tombstone. Non-null = deleted. |
-| …domain fields… | per collection | writer   | The actual data. |
+| Field       | Type              | Set by     | Purpose |
+|-------------|-------------------|------------|---------|
+| `id`        | uuid string       | **client** | Record id. Client-generated so offline creates work. The server PK is `(user_id, id)` (§2a). |
+| `createdAt` | number (epoch ms) | writer     | Creation time. |
+| `updatedAt` | number (epoch ms) | writer     | Logical clock for last-write-wins. |
+| `deletedAt` | number \| null    | writer     | Tombstone. Non-null means deleted. |
+| domain fields | per collection  | writer     | The actual data. |
 
-Server-only columns (never sent by the client; returned on pull):
+`baseRecordSchema` in `packages/shared/collections/define.ts` defines these.
+
+Server-only columns, never accepted from the client and stripped from pull and push responses
+(`toWireRecord`):
 
 | Column       | Type   | Purpose |
 |--------------|--------|---------|
-| `user_id`    | uuid   | Owner scope. Always set from the auth token, never trusted from the client. |
-| `server_seq` | bigint | Per-write monotonic sequence. The pull cursor basis. |
+| `user_id`    | uuid   | Owner. Always taken from the auth token. |
+| `server_seq` | bigint | Per-write monotonic sequence. The pull cursor is based on it (§3). |
 
-Client-only columns (local SQLite, **never synced**) — see §4.
+Client-only fields live only in local SQLite and are never synced (§4).
 
 ---
 
 ## 2a. Multi-tenant isolation (invariant)
 
-Isolation is the one property that must hold under "open to others later." State it once,
-enforce it everywhere:
-
-- **Every syncable table carries `user_id`**, always set server-side from the auth token —
-  never read from the request body (§2).
-- **Server primary key is composite `(user_id, id)`** — `id` is *client*-generated, so a
-  plain `id` PK would make `INSERT … ON CONFLICT (id)` land one user's push on **another
-  user's row** if ids ever collide (malicious reuse of a known uuid, or an actual
-  collision). With `(user_id, id)` the same push harmlessly creates/updates a row in the
-  pusher's own partition. The push upsert conflict target is `(user_id, id)` accordingly
-  (§6). Client-side SQLite holds only this user's data, so `id` alone remains the local PK.
-- **Every query is scoped**: pull filters `WHERE user_id = <token user>` (§5); push writes
-  only rows whose `user_id` = token user; there is no endpoint that accepts a foreign
-  `user_id`.
-- **The advisory lock is per-user** (§3), so tenants never serialize each other — a busy
-  user cannot stall another user's push.
-- **Cursors are per-device state** (client-side `sync_meta`), inherently per-user.
-- **No cross-user references exist in the data model** — album→asset and post→asset ids
-  point only within the same user's partition.
-- **S3 keys are namespaced per user** (shared bucket + per-user key prefix for new users;
-  legacy per-user bucket for the existing account — see phase-1). The server always derives
-  the bucket/prefix from the authenticated user and prepends the prefix to the
-  client-supplied file key; presigned URLs are only ever generated inside the requester's
-  namespace.
-
-Per-user write volume and data size are unchanged from the single-user analysis (one
-person's photo library metadata), so every "low volume" argument below reads **per user**.
+- **Every syncable table has `user_id`**, set on the server from the auth token. A `user_id` in
+  the request body is never used.
+- **The server primary key is `(user_id, id)`.** Ids are client-generated, so a plain `id` PK
+  would let a colliding uuid (reused on purpose or by accident) update another user's row. With
+  the composite key the same push lands in the pusher's own partition. The push upsert uses
+  `(user_id, id)` as its conflict target (§6). Local SQLite holds one user's data, so `id` alone
+  is the local PK.
+- **Every query is scoped.** Pull filters by the token's `user_id` (§5); push writes only with
+  the token's `user_id`. No endpoint accepts a foreign `user_id`.
+- **The advisory lock is per user** (§3), so one user's pushes never wait on another user's.
+- **The cursor is per-device state** in the client's `sync_meta` table.
+- **There are no cross-user references.** Album and post edges point only at the same user's
+  assets.
+- **S3 keys are namespaced per user.** `resolveStorage` (`apps/server/src/storage/resolver.ts`)
+  picks the location from the authenticated user: a user with a `storage_bucket` uses that bucket
+  with no prefix; everyone else uses the shared bucket under `u/<user_id>/`. The server prepends
+  the prefix to the bare file key the client sends and rejects keys that try to escape it.
 
 ---
 
-## 3. Change tracking & cursor
+## 3. Change tracking and cursor
 
-The server stamps every insert/update/delete with a monotonically increasing
-`server_seq` from a single global Postgres sequence:
+The server stamps every insert and update with `server_seq` from one global Postgres sequence,
+`change_seq`. A `BEFORE INSERT OR UPDATE` trigger (`<collection>_server_seq`, function
+`set_server_seq`) does it, so cursoring needs no per-collection code. `apps/server/src/db/migrate.ts`
+creates the sequence and attaches the trigger to every registered collection on each migrate.
 
-```sql
-CREATE SEQUENCE change_seq;
--- BEFORE INSERT OR UPDATE trigger on every syncable table:
-NEW.server_seq := nextval('change_seq');
-```
+The client stores one `cursor`: the highest safe `server_seq` it has pulled. Pull selects rows
+with `server_seq > cursor` (§5). A sequence is used instead of timestamps because timestamps
+collide within a millisecond and suffer clock skew. The sequence is global, so one user's seqs
+have gaps, which is harmless.
 
-A **DB trigger** does this, so every collection gets cursoring automatically — no
-per-collection code (supports the "easy to add collections" goal).
+**Commit visibility.** `nextval` is assigned when a statement runs, but the row becomes visible
+only at commit, and the two orders can differ. If transaction A takes seq 100 and B takes 101
+and commits first, a pull could advance the cursor to 101 and never see 100. To prevent this,
+every push transaction first takes a per-user advisory lock:
+`pg_advisory_xact_lock(hashtextextended(user_id::text, 0))`. Within one user's partition,
+`server_seq` order then equals commit order, so the last seq a pull returns is a safe watermark.
+Other users' commits can't hide or reorder this user's rows, and users never wait on each other.
 
-The client stores a single `cursor` = the highest **safe** `server_seq` it has pulled
-(see the commit-visibility rule below). Pull is:
-
-```sql
-SELECT * FROM <table>
-WHERE user_id = ? AND server_seq > :cursor
-ORDER BY server_seq
-```
-
-Why a sequence, not a timestamp cursor: timestamps collide within a millisecond and
-suffer clock skew. A monotonic integer avoids that. A global sequence shared by all users
-is fine — since pull filters by `user_id`, each user's rows are still strictly increasing
-(just non-contiguous, and increasingly sparse as other users write — which is harmless).
-
-**Commit-visibility hazard (must handle).** `nextval('change_seq')` is assigned at
-statement time, but a row becomes visible to a pull only at **commit** — and assignment
-order ≠ commit order. If txn A takes seq 100 (uncommitted) while txn B takes 101 and
-commits first, a pull can see 101, advance the cursor to 101, then **never** deliver row
-100 once A commits. A naive `max(server_seq)` high-watermark silently drops changes under
-concurrent writes (two devices pushing at once, or overlapping push transactions).
-
-Chosen mitigation for this low-write-volume-per-user app: **serialize writes per user
-with a Postgres advisory lock** (`pg_advisory_xact_lock(hashtextextended(user_id::text, 0))`
-— the lock takes a `bigint`, so hash the uuid) around each push transaction so, **within
-each user's partition**, `server_seq` order == commit order, making the max *included* seq
-a safe watermark. This argument is fully per-user: pull filters by `user_id`, the lock is
-per-user, and other tenants' interleaved commits can neither hide nor reorder this user's
-rows — so multi-tenancy neither weakens the watermark nor makes users contend (a user's
-push only ever waits on that user's other devices). (Higher-
-throughput alternative if ever needed: derive the watermark from transaction visibility via
-`pg_snapshot_xmin(pg_current_snapshot())` rather than `max(seq)`.) The cursor is therefore
-"safe," not merely "the max seq seen."
-
-**Invariant: every write to a syncable table goes through the push path** (or, for rare
-server-side maintenance scripts, manually takes the same advisory lock and writes via
-UPDATE so the trigger stamps `server_seq`). A write that bypasses the lock re-opens the
-commit-visibility hazard; a write that bypasses the trigger is invisible to pulls. Add this
-to code review muscle memory alongside the no-hard-DELETE rule (§7).
-
-> Storage engine decision (settled): **Postgres.** A single-writer server store (SQLite +
-> Litestream) was considered — it would eliminate this hazard class — but it serializes
-> *all* users behind one writer, which conflicts with the isolated-multi-tenant
-> "open to others later" goal. Postgres with the per-user advisory lock gives the same
-> safety per tenant while tenants stay independent.
+**Invariant: every write to a syncable table goes through `push()`.** The legacy importer (§11)
+does too. A write that skips the lock reopens the visibility gap; a write that skips the trigger
+is never pulled. Together with "no hard deletes" (§7), this is a code-review rule.
 
 ---
 
 ## 4. Local-only vs synced fields
 
-Be precise about what each flag means — getting this wrong breaks multi-device:
+- `isFileSynced`, `isThumbnailSynced` and `isSynced` are **synced** fields. They are global facts
+  ("the file is in S3"), not per-device state. After uploading a file, the uploading device
+  deletes its local copy (`CloudSyncProvider`). If the flags were local-only, a second device
+  would treat every asset as unuploaded and try to upload files it doesn't have. The cost: they
+  ride whole-record LWW, so a concurrent offline edit on another device can briefly revert a
+  flag. That only re-queues an upload to the same S3 key.
+- `syncError` (this device's last upload error) is **local-only**. It is the only local-only
+  field and lives on `assets`.
+- Whether a file is cached on this device is not a field. It is read from the filesystem.
 
-- `isFileSynced`, `isThumbnailSynced`, `isSynced` are **global facts** ("the binary/
-  thumbnail exists in S3"), not per-device state. That is their meaning today: they travel
-  in the JSON blob, and the uploading device **deletes its local copy of the file after
-  upload** (`CloudSyncProvider` → `deleteAssetFileAsync`). If these were made local-only
-  and defaulted to `false`, a second device pulling metadata would queue *every* asset for
-  upload (`getUnsyncedAssets` filters on `!isSynced`) and fail on all of them, because the
-  files no longer exist locally anywhere. **So these three flags are synced fields.**
-  The known cost: they ride whole-record LWW, so a concurrent offline metadata edit on
-  another device can briefly revert a freshly-set flag — that only re-queues an idempotent
-  upload to the same S3 key, which is wasteful but self-healing (and the upload path must
-  in any case skip queued assets whose local file is absent).
-- `syncError` — this device's last upload error — **is** per-device and stays local-only.
-- Local *cache* presence ("do I have the file on this device") is not a flag at all today;
-  it is inferred from the filesystem. Keep it that way.
-
-Local-only fields live only in local SQLite and are excluded from pull/push payloads. A new
-device pulls asset **metadata** (including the true `isFileSynced` state), then lazily
-downloads the actual files via the existing presigned-URL flow.
-
-The collection descriptor marks which fields are `localOnly`.
+The descriptor's `localOnly` lists local-only fields. They are stripped before an outbox row is
+written (`assetsRepository.ts`). A new device pulls metadata, including the real flag values,
+and downloads files on demand.
 
 ---
 
 ## 5. Pull protocol
 
-> Endpoint paths in §5–§6 omit the `/api/v1` prefix the server mounts them under
-> (i.e. `/api/v1/sync/pull`, `/api/v1/sync/push`).
+Paths in §5 and §6 are relative to `/api/v1` (so `/api/v1/sync/pull` and `/api/v1/sync/push`).
+Both require authentication.
 
 `POST /sync/pull`
 
-Request:
 ```jsonc
-{ "cursor": 0, "limit": 500 }   // cursor 0 = first/full sync
-```
+// request
+{ "cursor": 0, "limit": 1000 }   // cursor 0 = full sync; limit defaults to 500, max 1000
 
-Response:
-```jsonc
+// response
 {
   "changes": {
-    "assets": { "records": [ { /* full row incl deletedAt */ } ] },
-    "albums": { "records": [ /* … */ ] },
-    "posts":  { "records": [ /* … */ ] }
+    "assets":       { "records": [ /* full rows, incl. deletedAt */ ] },
+    "albums":       { "records": [] },
+    "posts":        { "records": [] },
+    "album_assets": { "records": [] },
+    "post_assets":  { "records": [] }
   },
-  "cursor": 1234,        // new high-water mark (max server_seq returned)
-  "hasMore": false       // true if limit was hit; client loops until false
+  "cursor": 1234,    // server_seq of the last included row
+  "hasMore": false   // client loops until false
 }
 ```
 
-Server: for each registered collection, select **up to `limit`** rows with
-`server_seq > cursor` ordered by `server_seq`; global-merge the per-collection lists by
-`server_seq`, cut at `limit`, and set the response `cursor` = the `server_seq` of the last
-**included** row (not `max` across all collections). Fetching `limit` from *each*
-collection before the cut guarantees no row is skipped when a page truncates. Clamp the
-client-supplied `limit` server-side. The single global sequence makes seqs unique across
-collections, so there are no cross-collection ties. Tombstones (rows with `deleted_at`)
-flow through like any change.
+Server (`apps/server/src/sync/pull.ts`): for each collection, select up to `limit` rows with
+`server_seq > cursor`, ordered by `server_seq`. Merge all lists by `server_seq`, cut at `limit`,
+and return the `server_seq` of the last included row as the new cursor. Fetching `limit` per
+collection before the cut means no row is skipped. `hasMore` is true if the merged list was cut
+or any collection hit `limit`. Seqs are unique across collections, so there are no ties.
+Tombstones flow like any other change.
 
-Client apply (**server-authoritative, guarded by the outbox — not a timestamp
-comparison**): apply the incoming row **iff the record has no pending outbox mutation**;
-skip it if one exists (the pending push will re-assert the local edit, and the push
-response arbitrates — see the `skipped-lww` `current` mechanism in §6). If `deleted_at` is
-set, tombstone locally under the same rule. Apply each pull page **in a single SQLite
-transaction**, then persist the new `cursor` in the same transaction.
+Client apply (`apps/mobile/src/sync/worker.ts`) is **server-authoritative and outbox-guarded**:
+an incoming record is applied only if that record has no pending outbox row. If it has one, the
+record is skipped; the pending push re-asserts the local edit and the push result settles it
+(§6). Each collection's records in a page are applied in one SQLite transaction as an upsert by
+`id`, then the cursor is saved. Re-applying a page is harmless.
 
-Do **not** compare `incoming.updated_at` against the *committed* local row. That
-comparison is subtly wrong: the server clamps future timestamps (§7), so a device with a
-fast clock would hold a local `updated_at` higher than anything the server ever returns —
-including the clamped echo of its own write — and would then refuse every later legitimate
-edit from other devices, diverging permanently. The outbox is the sole marker of "local
-state the server hasn't seen"; committed local state is by construction never newer than
-what pull returns.
+The client never compares an incoming `updatedAt` with the committed local row. The server
+clamps future timestamps (§7), so a device with a fast clock would hold local timestamps higher
+than anything the server returns and would reject later edits from other devices forever. The
+outbox is the only marker of "local state the server hasn't seen".
 
-(One benign race to know about: a pull that was already in flight when a push landed can
-deliver a pre-push snapshot and briefly revert the pushed edit locally; the next pull
-re-delivers the correct row since its `server_seq` is above that response's cursor.
-Serializing the sync worker — one run at a time, push then pull, §8 — makes this window
-irrelevant in practice.)
+The worker runs push before pull and never runs two syncs at once (§8). This avoids a pull that
+started before a push from briefly reverting the pushed edit.
 
-**Tombstone retention:** keep tombstoned rows indefinitely (per-user data volume is tiny —
-metadata rows for one person's library; this stays true per tenant no matter how many
-tenants exist) so late-syncing devices learn of deletes. If a cursor is ever too old to
-trust, fall back to a full resync (`cursor = 0`). Revisit only if some future tenant's
-tombstone count measurably hurts their own full-resync time — retention policy would then
-be per-user data, not a protocol change.
+**Tombstone retention.** Tombstones are kept forever. Nothing purges them, so any stored cursor
+stays valid and late devices always learn about deletes. Per-user data is small.
 
 ---
 
@@ -266,187 +183,170 @@ be per-user data, not a protocol change.
 
 `POST /sync/push`
 
-Request — each mutation is a **whole-record upsert** of synced fields (not field-level
-deltas):
+Each mutation is a **whole-record upsert** of the synced fields, not a field delta. A request
+holds at most 500 mutations; the client splits its outbox into batches of 500.
+
 ```jsonc
+// request
 {
   "mutations": [
-    { "collection": "assets", "record": { "id": "…", "updatedAt": 1699, "deletedAt": null, /* …fields… */ } },
-    { "collection": "albums", "record": { "id": "…", "updatedAt": 1700, "deletedAt": 1700, /* delete */ } }
+    { "collection": "assets", "record": { "id": "…", "updatedAt": 1699, "deletedAt": null /* … */ } },
+    { "collection": "albums", "record": { "id": "…", "updatedAt": 1700, "deletedAt": 1700 /* delete */ } }
   ]
 }
-```
 
-Server, in one transaction (take `pg_advisory_xact_lock(hashtextextended(user_id::text, 0))`
-first, per §3):
-1. For each mutation, validate `record` against the collection's Zod schema.
-2. Apply LWW as a **single atomic statement** (no select-then-write TOCTOU race):
-   `INSERT … ON CONFLICT (user_id, id) DO UPDATE SET … WHERE excluded.updated_at > <table>.updated_at`.
-   The conflict target is the **composite PK `(user_id, id)`** (§2a) — conflicting on `id`
-   alone would let a colliding uuid update another user's row. Use strict `>`: because the
-   §3 trigger re-stamps `server_seq` on *every* UPDATE, an equal-timestamp replay must
-   **not** satisfy the WHERE — with `>` it doesn't, so the replay is a true no-op (no
-   re-stamp, no sync amplification). Trade-off: two genuinely distinct edits sharing the
-   same millisecond resolve to the first applied; the later is dropped (and the loser
-   learns via `skipped-lww` + `current`, below). Same-device collisions — the common way to
-   hit this — are eliminated by the client's per-record monotonic `updated_at` rule
-   (below); cross-device same-ms collisions remain vanishingly rare within one user's
-   device set (users never conflict with each other, §2a). Always set `user_id` from the
-   token; ignore any client-provided owner.
-3. Record each mutation's outcome: `applied` | `skipped-lww` (+ the winning `current`
-   record, see below) | `rejected` (+reason).
-
-Response — a **per-mutation result array**, so the client knows exactly what landed:
-```jsonc
+// response: one result per mutation
 {
   "results": [
-    { "id": "…", "status": "applied" },
-    { "id": "…", "status": "skipped-lww", "current": { /* the server's winning record */ } },
-    { "id": "…", "status": "rejected", "reason": "schema:…" }
+    { "id": "…", "collection": "assets", "status": "applied" },
+    { "id": "…", "collection": "albums", "status": "skipped-lww", "current": { /* server's record */ } },
+    { "id": "…", "collection": "posts",  "status": "rejected", "reason": "schema:…" }
   ]
 }
 ```
 
-`skipped-lww` **must include the server's current record** (`current`). This is not a
-nicety — without it the losing device can diverge permanently: the winning row's
-`server_seq` was typically already delivered by an earlier pull and *skipped* on apply
-(because this record then had a pending outbox mutation, §5), and a pull from the stored
-cursor will **not** re-deliver it. On `skipped-lww` the client clears the outbox row and
-overwrites the local record with `current` — unless the user has since made an even newer
-pending mutation for that record, in which case leave it and let the next push arbitrate.
+Server (`apps/server/src/sync/push.ts`), in one transaction that first takes the per-user
+advisory lock (§3), for each mutation:
 
-The client clears `applied` rows, handles `skipped-lww` as above, and **keeps + flags**
-`rejected` ones — never a blanket "clear all on HTTP 200," which silently loses a rejected
-edit. It then runs a **pull** from its stored cursor.
+1. Reject an unknown collection (`unknown-collection`) or a record that fails the collection's
+   Zod schema (`schema:<paths>`).
+2. Clamp a future `updatedAt` to server time (§7).
+3. Upsert in one atomic statement:
+   `INSERT … ON CONFLICT (user_id, id) DO UPDATE SET … WHERE excluded.updated_at > <table>.updated_at`.
+   `user_id` comes from the token.
+4. If a row came back, the result is `applied`. Otherwise the mutation lost LWW and the result is
+   `skipped-lww` with the server's current record as `current`.
 
-**Per-record monotonic `updated_at` (client rule).** When writing locally, set
-`updated_at = max(Date.now(), previous.updated_at + 1)`. Without this, two edits to the
-same record within one millisecond on the *same* device produce equal timestamps, and the
-strict-`>` LWW silently drops the second on push (easy to hit with programmatic bulk
-updates, not just fast taps). The bump also keeps a slightly-behind clock from losing to
-this device's own earlier writes. Optionally, **coalesce the outbox** to one pending row
-per record (latest whole-record payload wins) — pushes shrink and per-record "pending"
-state stays trivially queryable.
+The comparison is strict `>`. The trigger re-stamps `server_seq` on every UPDATE, so an equal
+timestamp must not count as newer; with `>` a replay is a true no-op and pushes can be retried
+without dedup. Two different edits in the same millisecond keep the first one applied. The
+client's monotonic clock (below) rules this out on one device.
 
-Do **not** return a cursor from push for the client to adopt — because of the
-commit-visibility rule (§3), the client must advance its cursor only via pull.
+`skipped-lww` must carry `current`. The winning row was usually already delivered by an earlier
+pull and skipped on apply (the record had a pending outbox row, §5), and a pull from the stored
+cursor won't deliver it again. Without `current` the losing device would never converge.
 
-**Idempotency:** atomic upsert keyed by `(user_id, id)` with strict `>` LWW is safe to
-replay — an equal/older `updated_at` is a genuine no-op (no `server_seq` bump). Retries
-need no dedup.
+Client handling of each result (`planPushOutcome` in `apps/mobile/src/sync/pushPlan.ts`):
+
+- `applied` or `skipped-lww` for a record edited again during the push (the outbox row's
+  `updatedAt` is now newer than the pushed one): keep the row and do nothing; the next push
+  settles it.
+- `applied`: delete the outbox row and clear `syncError`.
+- `skipped-lww`: write `current` to the local table, delete the outbox row, and log a conflict
+  note (§13).
+- `rejected`: keep the outbox row, set `syncError` on assets, and log the reason. A rejected
+  edit is never silently dropped.
+
+Push returns no cursor. The cursor only moves through pull (§3).
+
+**Monotonic `updatedAt`.** Local writes set `updatedAt = max(now, previous + 1)`
+(`nextUpdatedAt` in `apps/mobile/src/sync/clock.ts`). Without it, two edits to one record in the
+same millisecond would tie and the second would be dropped. It also keeps a slightly-behind clock
+from losing to this device's own earlier write.
+
+**Outbox coalescing.** The outbox holds at most one row per `(collection, record_id)`; a newer
+write replaces the payload (`enqueueMutation` in `apps/mobile/src/sync/outbox.ts`).
 
 ---
 
 ## 7. Conflict resolution
 
-- **Granularity:** whole-record last-write-wins by `updated_at`. Simpler than per-field,
-  acceptable because conflicts only arise between one person's own devices (§2a) — this
-  holds at any tenant count, since tenants never touch each other's rows. (Per-field merge
-  is a future upgrade if needed.)
-- **Deletes:** a delete is just an update that sets `deleted_at`. Delete-vs-edit is
-  resolved by the same LWW: a newer edit beats an older delete (undelete), and vice versa.
-- **Ordered relations** (`album.assets`, `post.assetRefs`): ~~stored as JSON columns, so they
-  move atomically with the record under LWW~~ **— SUPERSEDED.** This "join tables +
-  fractional-index positions" upgrade was **built**: membership is now the `album_assets` /
-  `post_assets` **edge collections** (deterministic ids + fractional-index `position`), so
-  add/remove/reorder are independent edge writes that compose across devices — no more wholesale
-  loss. See [`migration/edge-collections.md`](./migration/edge-collections.md). (The design note
-  that this was a "localized future upgrade because sync is collection-generic" proved correct —
-  it needed no protocol change.)
-- **Clock skew:** the client sets `updated_at`. The server **clamps** any `updated_at` in
-  the *future* to server-now. Clamping means the stored value can differ from the sender's
-  local copy — harmless *only because* the client apply rule (§5) is outbox-guarded rather
-  than timestamp-compared: the clamped echo comes back on the next pull and is adopted.
-  Remaining asymmetry: a device whose clock is *behind* writes legitimately-new edits with
-  a small `updated_at` that can lose push-side LWW until it catches up (the per-record
-  monotonic bump in §6 covers the common same-device case) — an accepted limitation, since
-  a skewed clock can only hurt that user's own convergence, never another tenant's.
-  (Future hardening: a server receipt timestamp as tiebreaker, or reject writes skewed
-  beyond a bound.)
-- **No hard deletes (invariant):** every delete is an UPDATE that sets `deleted_at`, so the
-  trigger stamps a new `server_seq` and the tombstone propagates. A real SQL `DELETE` gets
-  no `server_seq` and is invisible to other devices — forbid it (no DELETE grant / enforce
-  by convention + review). Note the current app *does* hard-delete
-  (`deleteAssetsAsync` removes the record from state); on the new path that operation
-  becomes "set `deleted_at`" at the repository boundary.
+- **Granularity:** whole-record last-write-wins by `updatedAt`. Conflicts only arise between one
+  person's devices (§2a). The cost for scalar fields is in §14.
+- **Deletes** are updates that set `deletedAt`, resolved by the same LWW. A newer edit beats an
+  older delete (undelete) and the other way round. Restoring a deleted asset clears `deletedAt`.
+- **Membership** (which assets are in an album or post, and their order) is stored as separate
+  edge records in `album_assets` and `post_assets` (§10), not as arrays on the parent. Add,
+  remove and reorder each write their own edge rows, so concurrent membership changes on two
+  devices compose instead of one overwriting the other.
+  - `position` is a fractional-index string key (`packages/shared/fractionalIndex.ts`). Edges
+    sort by plain string comparison. Adding appends with `keyBetween(last, null)`. Reordering
+    (and saving a post's asset list) assigns `initialKeys(n)` across the list and rewrites only
+    the edges whose key changed.
+  - Removing tombstones the edge. Deleting an album or post tombstones its edges too
+    (`tombstoneParent`). Deleting an asset does not touch its edges; readers skip ids that
+    don't resolve.
+  - The app gives new edges random ids, so two offline devices adding the same asset can create
+    two edges. The read path shows the asset once (§8), and removal tombstones every live edge
+    for that asset.
+  - Two concurrent reorders of the same list resolve edge by edge, so the result can mix both
+    orders.
+- **Clock skew:** the server clamps a future `updatedAt` to server time. The stored value can
+  then differ from the sender's copy, which is harmless because apply is outbox-guarded (§5): the
+  clamped record comes back on the next pull and replaces the local one. A device whose clock is
+  behind can lose LWW with genuinely new edits until its clock catches up. That only affects its
+  own user.
+- **No hard deletes (invariant):** a SQL `DELETE` gets no `server_seq` and other devices never
+  see it. Every repository delete sets `deletedAt` instead.
 
 ---
 
 ## 7a. Binary files and tombstones
 
-Metadata sync doesn't move binaries, but deletes couple the two — spell it out:
-
-- **S3 deletion stays the deleting device's job**, synchronous with the delete action,
-  exactly as today (`deleteAssetFilesAsync` before tombstoning the record). If the S3
-  delete fails (offline), surface the error as today and let the user retry; the tombstone
-  still syncs. Worst case is an orphaned S3 object — storage waste, not corruption. A
-  server-side GC that removes S3 objects for tombstoned assets is an optional future
-  cleanup; never required for correctness.
-- **Applying an asset tombstone from pull** must also delete this device's local file and
-  thumbnail copies (the per-device analog of what the deleting device did locally).
-- **The upload queue must skip assets whose local file is missing** (regardless of flags,
-  §4) — a queued upload for a file this device doesn't have can only fail.
+- Deleting an asset tombstones its record, and it shows up in the Deleted album. The app never
+  deletes the asset's S3 file or thumbnail; `POST /assets/delete` exists but the app does not call
+  it. "Delete permanently" in the Deleted album (`deleteAssetsAsync`) only tombstones the records
+  again, so those assets stay in the Deleted album and their files stay in S3.
+- Applying an asset tombstone from pull does not delete this device's local file or thumbnail.
+  Not implemented.
+- The upload queue (`getUnsyncedAssets`) selects assets that are not `isSynced`, not deleted and
+  have no `syncError`. It does not check that the local file exists; a missing file fails the
+  upload and sets `syncError`.
 
 ---
 
 ## 8. Client architecture
 
-Local store: **expo-sqlite + Drizzle** (first-party module — zero eject/plugin risk).
+Local store: **expo-sqlite + Drizzle**. The database is opened with
+`openDatabaseSync(name, { enableChangeListener: true })`, which `useLiveQuery` needs to react to
+writes. SQLite migrations live in `apps/mobile/src/sync/db/migrations` and run in `MigrationGate`
+(`App.js`) before anything queries the database.
 
-Tables:
-- One table per collection (synced fields + local-only fields).
-- `sync_meta(key, value)` — holds the `cursor`.
-- `outbox(id, collection, record_id, op, payload_json, updated_at, created_at)` — the
-  mutation queue (optionally coalesced to one row per record, §6).
+Tables (`apps/mobile/src/sync/db/schema.ts`):
 
-**Reactivity: keep the provider model, SQLite underneath.** The whole app already consumes
-each collection as an in-memory map from a context provider (`useAssets()` etc. — dozens
-of consumers, plus cross-collection selectors like `getUnsyncedAssets` that operate on
-in-memory arrays). Rewiring every consumer to per-screen Drizzle `useLiveQuery` would be a
-second, app-wide refactor stacked on top of the sync migration. So the default here is the
-smaller change: **keep the providers' public API (in-memory map + methods) and make SQLite
-the durable system of record beneath them** — structurally the same memory+persistence
-split the app has today with JSON files, just with SQLite + an outbox instead of a blob.
+- One table per collection: synced fields plus local-only fields.
+- `sync_meta(key, value)`: `cursor`, `status`, `firstSyncDone`, `lastSyncUserId`.
+- `outbox(id, collection, record_id, op, payload, updated_at, created_at)`: pending mutations,
+  one row per record. `op` is `delete` when the payload has `deletedAt`, otherwise `upsert`.
+- `sync_log`: recent sync runs (§13).
 
-- **Hydrate:** on flag-on start, load the collection tables into the providers' maps
-  (replaces `readLocalDataAsync`). This is what the app already does with JSON; the data
-  fits in memory today and will tomorrow.
-- **Write path** (a local edit): one repository function per collection does — in a single
-  SQLite transaction — (1) upsert the row with the monotonic `updated_at` (§6), (2)
-  enqueue/coalesce the outbox row; then (3) update the in-memory map (UI re-renders as
-  today), and (4) kick the sync worker (debounced). All provider methods route through it,
-  so memory and SQLite cannot drift.
-- **Pull apply:** the worker applies a page transactionally to SQLite (§5), then pushes the
-  same changes into the in-memory maps — that is the "edit it here, it updates there" feel.
+**Reads.** The data providers (`AssetsProvider`, `AlbumsProvider`, `PostsProvider`) read their
+tables with `useLiveQuery` and expose id-keyed maps and methods to the screens. They rebuild the record shapes the UI expects from edges and posts (`derive.ts`):
 
-`useLiveQuery` remains available as an *incremental* upgrade for individual screens (and
-for the Sync Inspector, where querying SQLite directly is natural). If/when it is used:
-the DB must be opened with `openDatabaseSync(name, { enableChangeListener: true })` —
-`useLiveQuery` does **not** react to writes without this flag (a silent "why isn't the UI
-updating" trap) — and pull pages must stay batched in transactions so a 500-row apply
-doesn't trigger 500 re-queries.
+- `album.assets`: live edges sorted by `position`, one per asset.
+- `post.assetRefs`: the same, as `{ id, assetId }` with the edge id.
+- `postHistory` and `lastPostedAt` on assets: the non-deleted posts that reference the asset,
+  ordered by `postedAt`; `lastPostedAt` is the last one's.
+- `postHistory` and `lastPostedAt` on albums: posts that reference any asset in the album.
 
-**Sync worker** (drain + reconcile — **single-flight**: one run at a time, push then pull,
-never two concurrent runs; cf. the in-flight-pull race in §5):
-1. `POST /sync/push` with pending outbox mutations → clear `applied`; apply `current` +
-   clear for `skipped-lww`; keep + flag `rejected` (§6).
-2. `POST /sync/pull` from the stored cursor → apply changes (outbox-guarded, §5) →
-   advance cursor.
+`postHistory` and `lastPostedAt` are never stored or synced. Posts are independent records, so
+deriving the history loses nothing, while syncing it as a list would drop entries under LWW.
 
-**Triggers for the worker (primary path = foreground + on-mutation):**
-- After each mutation (debounced) — the main way changes propagate.
-- On app foreground, and on a plain in-app interval while foregrounded (`AppState` +
-  `setInterval` — ordinary JS, *not* `expo-background-task`).
-- Opportunistically in the background via `expo-background-task` + `expo-task-manager`. On
-  iOS this is `BGTaskScheduler`: **~15 min minimum, frequently deferred by the OS, and it
-  does not run on the simulator** — a best-effort top-up, never the primary channel.
-- *Optional later:* an APNs silent push from the backend on write → near-instant pull.
-  Deferred; requires the backend to send pushes.
+**Writes.** Each provider method calls a repository (`assetsRepository.ts`, `repository.ts`,
+`edgesRepository.ts`). In one synchronous SQLite transaction it writes the row with the
+monotonic `updatedAt` (§6) and enqueues the outbox row. The provider then calls `requestSync()`.
+Live queries pick up the change.
 
-**Initial sync / new device:** `cursor = 0` → paginated full pull. Files download lazily.
+**Sync worker** (`apps/mobile/src/sync/worker.ts`). One run is push, then pull:
 
-**Session gating and exclusivity (as built).** The worker is one single-flight queue
-(`src/sync/singleFlight.ts`). `requestSync()` coalesces into one trailing run, and
+1. Push all outbox rows in batches of 500 and handle each result (§6).
+2. Pull from the stored cursor until `hasMore` is false, applying each page (§5). Then set
+   `firstSyncDone`.
+
+Each run writes a `sync_log` entry and updates `status`. A failed run sets `phase: 'error'` with
+`lastError`; the next trigger retries.
+
+**Triggers:**
+
+- After each local write (`requestSync()` from the providers).
+- When the app comes to the foreground, and every 30 seconds while it is in the foreground
+  (`useSyncTriggers.js`).
+- When sync becomes active (app ready and signed in).
+
+Background sync (`expo-background-task`) and server push notifications are not implemented.
+
+**Session gating and exclusivity.** The worker is one single-flight queue
+(`apps/mobile/src/sync/singleFlight.ts`). `requestSync()` coalesces into one trailing run, and
 `withSyncPaused(work)` waits for the running sync and holds new ones until `work` is done. Sync is
 active only while the app has finished init AND someone is signed in (`setSyncActive`, driven
 from one effect in `App.js`); every trigger above is a no-op otherwise.
@@ -462,195 +362,174 @@ refreshes once for all concurrent callers (`refreshAccessTokenAsync`). Only a se
 (400/401/403) ends the session; network errors keep it. A rejected session clears the tokens,
 signs the app out and asks the user to sign in again, which also stops sync.
 
+**First sync.** A new device or account starts at `cursor = 0` and pulls everything. While
+signed in and `firstSyncDone` is not set, `AppGate` (`App.js`) shows `FirstSyncScreen` and does
+not mount the data providers, so nothing competes with the bulk pull. The providers mount once
+the pull has drained. Files download on demand.
+
 ---
 
-## 9. Collection descriptor (the generic abstraction)
+## 9. Collection descriptor
 
-Defined once in `packages/shared`, the single source of truth:
+Each collection is defined once in `packages/shared/collections/`:
 
 ```ts
 // packages/shared/collections/asset.ts
 export const assetCollection = defineCollection({
   name: 'assets',
-  schema: z.object({                 // synced fields (incl. base columns)
-    id: z.string(),
-    createdAt: z.number(),
-    updatedAt: z.number(),
-    deletedAt: z.number().nullable(),
+  schema: baseRecordSchema.extend({ // synced fields; base columns come from baseRecordSchema
     mediaLibraryAssetId: z.string(),
     mediaType: z.enum(['photo', 'video']),
-    width: z.number(),
-    height: z.number(),
-    fileSize: z.number(),
-    duration: z.number().nullable(),
-    filename: z.string(),
-    thumbnailFilename: z.string(),
-    isFavorite: z.boolean(),
-    notes: z.string().nullable(),
-    postHistory: z.array(z.string()),
-    lastPostedAt: z.number().nullable(),
-    oldFileId: z.string().nullable(),
-    isFileSynced: z.boolean(),        // global "binary is in S3" facts — synced (§4)
+    // …
+    isFileSynced: z.boolean(),      // global "file is in S3" facts, synced (§4)
     isThumbnailSynced: z.boolean(),
     isSynced: z.boolean(),
   }),
-  localOnly: {                        // client-only, never synced
+  localOnly: {
     syncError: z.string().nullable(), // this device's last upload error (§4)
   },
 });
 ```
 
-The descriptor drives: Zod validation on push, inferred TS types on both sides, and the
-registry the pull/push endpoints iterate. The Postgres and SQLite Drizzle tables are
-declared per-dialect but derived from the same field list (a thin manual mapping — not
-worth auto-generating).
+The descriptor drives Zod validation on push, the inferred TypeScript types on both sides, and
+the registry (`registry.ts`) that the server's pull, push and migrate iterate. The Postgres and
+SQLite tables are declared by hand per dialect from the same field list.
 
-### Recipe to add a collection later
-1. Add a descriptor (name + Zod schema + `localOnly`) in `packages/shared`.
-2. Register it in the collection registry.
-3. Generate a Postgres migration — **including attaching the `BEFORE INSERT OR UPDATE`
-   `server_seq` trigger to the new table** (without it, rows get a null `server_seq` and are
-   never pulled) — and a SQLite migration (Drizzle Kit).
+### Adding a collection
 
-Everything else — cursoring (trigger), pull/push, outbox, apply, reactivity, conflict
-handling — works unchanged. The two migrations are the only irreducible per-collection
-cost.
+1. Add a descriptor in `packages/shared/collections/` and add it to `collections` and
+   `CollectionName` in `registry.ts`.
+2. Server: add the table in `apps/server/src/db/schema.ts` with `syncableBase()`, a composite
+   `(user_id, id)` primary key and a `(user_id, server_seq)` index. Add it to `serverCollections`
+   in `apps/server/src/sync/collections.ts`. Generate the Drizzle migration. `migrate.ts`
+   attaches the `server_seq` trigger.
+3. Client: add the table in `apps/mobile/src/sync/db/schema.ts` and to `clientCollectionTables`
+   in `clientCollections.ts`, and generate the SQLite migration.
+4. Add a sample record to the registry guard test.
 
-**Guard rail:** the forgotten trigger is the recipe's one silent failure mode (rows sync
-*to* the server but never *from* it). Add a registry-driven backend test that iterates
-every registered collection and asserts (a) its Postgres table exists, (b) the
-`server_seq` trigger is attached (query `pg_trigger`), (c) the primary key is the
-composite `(user_id, id)` (§2a — a plain-`id` PK on a new table silently re-opens the
-cross-tenant collision hole), and (d) a round-trip insert-then-pull returns the row and a
-second user's pull does **not**. New collections are then covered automatically.
+Pull, push, outbox, apply and conflict handling then work unchanged.
 
----
-
-## 10. The three initial collections
-
-Mapped from the current yup schemas. `isDeleted: true` → `deletedAt = updatedAt`;
-`createdAt`/`updatedAt` are already epoch numbers.
-
-> **Superseded fields (as shipped):** the ordered membership arrays — `albums.assets` and
-> `posts.assetRefs` — are **removed from the parent records** and live in the `album_assets` /
-> `post_assets` edge collections (§7 note; `edge-collections.md`). `postHistory` and
-> `lastPostedAt` (on both `assets` and `albums`) are **removed from synced state** and derived
-> on-device. The §9 descriptor example still lists them for illustration.
-
-**assets** — synced: `mediaLibraryAssetId, mediaType, width, height, fileSize, duration,
-filename, thumbnailFilename, isFavorite, notes, postHistory, lastPostedAt, oldFileId,
-isFileSynced, isThumbnailSynced, isSynced, createdAt, updatedAt, deletedAt` (the three
-`is*Synced` flags are global "binary exists in S3" facts — see §4). local-only:
-`syncError`.
-
-**albums** — synced: `name, assets` (JSON array of asset ids, ordered), `isFavorite,
-archivedAt, postHistory, lastPostedAt, showInPostSuggestionsAfter, oldCollectionName,
-notes, sortOrder` (null|'custom'), `smartAlbumType, createdAt, updatedAt, deletedAt`.
-local-only: none.
-
-**posts** — synced: `text, assetRefs` (JSON array of `{id, assetId}`), `isFavorite,
-postedAt, rePostId, isIgnoredForRepost, suggestRepostAt, hasBeenReposted, createdAt,
-updatedAt, deletedAt`. local-only: none.
-
-Cross-collection references (album→asset ids, post→asset ids) are **not** FK-enforced in
-sync; the UI already tolerates dangling ids (they are plain string arrays).
+**Guard rail.** The "collection registry guard" in `apps/server/test/sync.test.ts` runs for every
+registered collection. It checks that the server collection exists, the `server_seq` trigger is
+attached (`pg_trigger`), the primary key is `(user_id, id)`, a pushed record comes back on pull,
+and another user's pull does not see it.
 
 ---
 
-## 11. One-shot data converter
+## 10. Collections
 
-> **SUPERSEDED by what shipped.** The converter was built as a **server-side** importer, not a
-> client dev button: it reads the old JSON backups straight from S3, canonicalizes ids to
-> deterministic uuid v5, maps to the modern schema (incl. emitting membership **edges**), and
-> upserts through the sync `push()` path. It's **idempotent** and has already run against the real
-> library. Maintained runbook: [`migration/legacy-import.md`](./migration/legacy-import.md) (skill
-> `/legacy-import`). The original client-button sketch below is kept for design context.
+Timestamps are epoch-ms numbers. Booleans are integers in SQLite.
 
-The app already downloads the old JSON files (`assets.json`, `albums.json`, `posts.json`)
-locally; each is a map `{ [id]: entity }`. The converter, behind a dev toggle:
+**assets** (asset metadata). Synced: `mediaLibraryAssetId`, `mediaType` (`photo` | `video`),
+`width`, `height`, `fileSize`, `duration`, `filename`, `thumbnailFilename`, `isFavorite`,
+`notes`, `oldFileId`, `isFileSynced`, `isThumbnailSynced`, `isSynced`, plus the base columns.
+Local-only: `syncError`.
 
-1. Read the three local JSON maps.
-2. For each entity, map old fields → new record (`isDeleted` → `deletedAt`; the
-   `is*Synced` flags carry over as synced fields per §4 — do **not** reset them; only
-   `syncError` resets as local-only).
-3. Insert into local SQLite + enqueue outbox.
-4. Normal push uploads metadata to the new backend. Asset **files** stay in S3 under their
-   existing `filename` keys — untouched.
+**albums**. Synced: `name`, `isFavorite`, `archivedAt`, `showInPostSuggestionsAfter`,
+`oldCollectionName`, `notes`, `sortOrder` (null | `custom`), `smartAlbumType`
+(null | `FAVORITES` | `DELETED`), plus the base columns. Reordering an album sets `sortOrder` to
+`custom`.
 
-Throwaway code: hardcode your data's assumptions, no validation polish, delete after one
-run.
+**posts**. Synced: `text`, `isFavorite`, `postedAt`, `rePostId`, `isIgnoredForRepost`,
+`suggestRepostAt`, `hasBeenReposted`, plus the base columns.
 
----
+**album_assets** (album membership). Synced: `albumId`, `assetId`, `position`, plus the base
+columns. One record per album and asset.
 
-## 12. Open decisions (recommended defaults)
+**post_assets** (assets in a post). Synced: `postId`, `assetId`, `position`, plus the base
+columns. The edge id is the `assetRefs[].id` the UI sees.
 
-| Decision | Recommendation |
-|----------|----------------|
-| Push shape: whole-record vs field-level deltas | **Whole-record** (simpler, idempotent). |
-| Tombstone retention | **Keep indefinitely**; full-resync fallback if cursor too old. |
-| Cross-device push latency | **Foreground + on-mutation (debounced)** as the primary path; background is opportunistic (iOS `BGTaskScheduler` ~15 min, OS-throttled, no simulator); APNs push later. |
-| Cursor mechanism | **Global `change_seq` sequence** stamped by a trigger. |
-| Conflict granularity | **Whole-record LWW**; per-field / join-table ordering as future upgrades. |
-| Client apply rule | **Outbox-guarded, server-authoritative** (§5) — never timestamp-compare against committed local state. |
-| `skipped-lww` handling | Push response **returns the winning record** (`current`); client adopts it (§6). |
-| Client reactivity | **Keep provider in-memory maps, SQLite as system of record** (§8); `useLiveQuery` per-screen later. |
-| Asset file flags | **Synced** (global S3 facts); only `syncError` is local-only (§4). |
-| Tenancy | **Isolated multi-tenant** (§2a): composite `(user_id, id)` PK, per-user advisory lock, all queries token-scoped, per-user S3 namespace. No cross-user sharing — ever adding it is a redesign trigger (see build-vs-adopt note). |
+Edges have a parent index on both sides (`album_assets_album_idx`, `post_assets_post_idx`).
+References between collections are not enforced with foreign keys; the UI tolerates ids that
+don't resolve.
+
+Derived on-device, not synced: `album.assets`, `post.assetRefs`, and `postHistory` /
+`lastPostedAt` on assets and albums (§8).
 
 ---
 
-## 13. Observability & the Sync Inspector
+## 11. Legacy importer
 
-Today you can open the JSON files to see all data and its sync state. After moving to
-local SQLite that affordance is gone, so the engine must **expose** equivalent (richer)
-introspection, and the app renders it in a **Sync Inspector** dev screen. The engine part
-is designed in here; the screen is app work (Phase 3a — deliberately right after the first
-collection works, so the tool exists before the scale-out it debugs). All of this is
-local-only — none of
-it syncs.
+Libraries from the old app are imported on the server, not on a device. The importer
+(`apps/server/scripts/convert-legacy.ts`, logic in `apps/server/src/convert/`) reads the old JSON
+backups (`assets.json`, `albums.json`, `posts.json`) from the user's S3 location. It converts old
+ids to deterministic uuid v5 ids, maps records to the current schema (`isDeleted` becomes
+`deletedAt`; the `is*Synced` flags carry over), and turns album `assets` and post `assetRefs`
+arrays into `album_assets` / `post_assets` edges with `initialKeys` positions. Everything is
+written through `push()`, so it is validated, LWW-upserted and `server_seq`-stamped like a client
+push. The import is idempotent and safe to re-run. Asset files stay at their existing S3 keys.
 
-### Engine-exposed state (build the engine to surface these)
+Runbook: [`legacy-import.md`](./legacy-import.md), or the `/legacy-import` skill.
 
-- **Sync status** — in `sync_meta`, observable via `useLiveQuery`:
-  `{ phase: 'idle' | 'pushing' | 'pulling' | 'error', lastPushAt, lastPullAt, lastError, cursor }`.
-- **Outbox is queryable** — overall and per-collection pending counts, and each pending
-  mutation (`collection, record_id, op, updated_at, attempts, lastError`).
-- **Per-record dirty state** — a record is "pending" if it has an outbox row. Surface this
-  (via a join, or a `dirty` boolean column the worker maintains) so lists can show a
-  per-item "not yet synced" badge — the record-level analog of the old per-file flags.
-- **Binary file state** — keep surfacing the per-asset file flags (`isFileSynced`,
-  `isThumbnailSynced` — synced global facts per §4) plus this device's local-only
-  `syncError`, so you can see which files/thumbnails are in the cloud and what failed here.
-- **Sync log** — a small ring-buffer table `sync_log(ranAt, pushed, pulled, durationMs,
-  error, notes)` holding the last ~K runs. **Conflict/rebase visibility** lives here: when a
-  local change loses LWW (a `skipped-lww` push result whose `current` record replaces the
-  local edit, §6), the worker writes a note (e.g. "album <id>: local change overwritten by
-  server"), so an override is never silent.
+---
 
-### App-side Sync Inspector (dev/settings screen, Phase 3a)
+## 12. Key choices
 
-- **Header:** status (idle/syncing/error), last sync time, cursor, total pending count.
-  Actions: **Sync now**, **Full resync**, **Clear outbox** (dev-only). Define **Full
-  resync = wipe local collection tables + repull from `cursor = 0`** — merely resetting
-  the cursor without wiping leaves local orphans (e.g. records created locally whose
-  outbox rows were cleared) that pull can never remove. Warn before wiping if the outbox
-  is non-empty (pending edits would be lost), and note **Clear outbox** can strand
-  never-pushed local records until the next full resync.
-- **Per collection:** record count, pending count, tombstone count; tap to **browse raw
-  records** with search — the direct replacement for "opening the JSON file".
-- **Outbox:** list of pending mutations with op, age, attempts, and any error.
-- **Log:** recent sync runs, errors, and conflict/rebase notices.
-- **Files:** per-asset file/thumbnail upload state from the local-only flags.
+- Push sends whole records, not field deltas.
+- The cursor is a global `change_seq` stamped by a trigger, made safe by a per-user advisory
+  lock (§3).
+- Conflicts resolve by whole-record LWW (§7); membership is edge records (§10).
+- Pull apply is outbox-guarded and server-authoritative (§5).
+- `skipped-lww` returns the winning record, and the client adopts it (§6).
+- Tombstones are kept forever (§5).
+- Asset file flags are synced; only `syncError` is local-only (§4).
+- Sync runs in the foreground and on each local write (§8).
+- Users are isolated; there is no cross-user sharing (§2a).
 
-### Backend observability
-The Inspector is client-side; the backend needs its own minimal logging so issues are
-diagnosable server-side: structured logs on push/pull (**tagged with `user_id`** — with
-multiple tenants, untagged logs are undebuggable), mutation counts, `applied` vs
-`skipped-lww` vs `rejected`, the safe-watermark value, S3 upload/abort outcomes, and the
-`/up` health check.
+---
 
-### Design impact
-Small and additive: one `sync_log` table, the `sync_status` fields in `sync_meta`, and an
-optional per-row `dirty` column. No change to the pull/push protocol.
-</content>
-</invoke>
+## 13. Observability and the Sync Inspector
+
+All sync state is local to the device and none of it syncs.
+
+### Engine state
+
+- **Status** in `sync_meta.status`: `{ phase: 'idle' | 'pushing' | 'pulling' | 'error',
+  lastPushAt, lastPullAt, lastError }`. The cursor is stored separately under `cursor`.
+  `useSyncStatus` exposes both, plus the pending count, as live queries.
+- **Outbox.** A record is pending if it has an outbox row. Pending counts are queried from the
+  outbox overall and per collection.
+- **File state.** `isFileSynced` and `isThumbnailSynced` (synced) and this device's `syncError`
+  (local-only) on each asset.
+- **Sync log.** `sync_log(ran_at, pushed, pulled, duration_ms, error, notes)` keeps the last 100
+  runs. When a local change loses LWW, the run's notes say so
+  (`albums <id>: local change overwritten by server`), so an override is never silent. Rejected
+  mutations are noted with their reason.
+
+### Sync Inspector
+
+The "Library sync" screen (`apps/mobile/src/screens/SyncScreen.jsx`) shows:
+
+- **Status:** current status, last sync time, and **Sync now**.
+- **Developer:** cursor, pending count, and records / pending / tombstones for `assets`,
+  `albums` and `posts`.
+- **Sync log:** the last 30 runs with counts, duration, notes and errors.
+- **Troubleshooting:**
+  - **Rebuild from server** (`fullResync`): keeps the outbox, wipes the collection tables, resets
+    the cursor and the first-sync flag, then pushes pending edits and pulls everything from
+    `cursor = 0`. Wiping, not just resetting the cursor, removes local records the server doesn't
+    have.
+  - **Clear outbox**: discards pending edits. This can leave never-pushed records only on this
+    device.
+
+Both actions run with sync paused.
+
+### Backend
+
+Push and pull write structured logs tagged with `userId` (`apps/server/src/sync/routes.ts`).
+Pull logs the from and to cursor, record count and `hasMore`. Push logs the mutation count and
+the applied / skipped-lww / rejected tally. `GET /up` is the health check.
+
+---
+
+## 14. Known limitations
+
+- **Scalar fields use whole-record LWW.** Concurrent edits to different fields of the same record
+  (for example renaming an album on one device while favoriting it on another) keep only one
+  writer's version. Membership doesn't have this problem because it is separate edge records. A
+  per-field merge would be an additive change.
+- **Derivation is a full recompute.** `derive.ts` rebuilds ordered membership, `postHistory`
+  and `lastPostedAt` from all live rows whenever any of its input tables change. The providers
+  mount only after the initial pull (`AppGate`), so the first sync isn't slowed by it.
+  Incremental derivation is an option if it ever feels slow.
+- File cleanup on delete is not implemented (§7a).
