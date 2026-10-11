@@ -21,13 +21,17 @@ and thumbnail. See `docs/sync-design.md` §7a.
 A file upload that is in flight while another account signs in can retry with the new session
 and leave an orphaned file in that account's storage. Rare and harmless to metadata.
 
-### [ ] Keyboard pops up when switching main screens (confirm the fix)
+### [ ] Rework search to behave like iOS
 
-After opening and closing search, switching to another main screen brought the keyboard back up.
-Likely cause, now fixed: every mounted main tab focused its search input when search opened, even
-hidden ones (`FloatingActionsBar` now only activates search on the focused tab). Confirm on a device,
-then remove this entry.
-
+The keyboard still pops up after switching tabs and after navigating back, and the ✕ (clear first,
+close second) feels odd. Causes in the code: focus is driven by an effect on "search is active" with
+a 300ms timer, so the input refocuses whenever a bar re-renders with search active (gating it on the
+focused tab made search collapse when leaving a screen and refocus on return); search state is
+shared by all tabs (`FloatingBarsProvider`); lists don't dismiss the keyboard on scroll. iOS pattern
+(WWDC26 session 292): focus only on tap; a Clear button inside the field while it has text; a
+separate Cancel that leaves search and hides the keyboard; scrolling hides the keyboard but keeps
+the query; coming back to a screen keeps its query without reopening the keyboard; search state
+per screen; a descriptive placeholder instead of "Search…".
 ### [ ] Post suggestions skip a caption after loading more
 
 When the next batch of captions finishes loading, the view jumps past the first newly loaded one.
