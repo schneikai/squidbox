@@ -14,21 +14,31 @@ import { AppError } from '../errors.js';
 import { fullKey, type StorageLocation } from './resolver.js';
 
 let client: S3Client | null = null;
+let presignClient: S3Client | null = null;
+
+function createClient(endpoint: string | undefined): S3Client {
+  const cfg = loadConfig();
+  return new S3Client({
+    region: cfg.AWS_REGION,
+    credentials: {
+      accessKeyId: cfg.AWS_ACCESS_KEY_ID,
+      secretAccessKey: cfg.AWS_SECRET_ACCESS_KEY,
+    },
+    // Local dev: talk to MinIO/LocalStack (path-style). Unset in prod ⇒ real AWS.
+    ...(endpoint ? { endpoint, forcePathStyle: cfg.S3_FORCE_PATH_STYLE } : {}),
+  });
+}
 
 function s3(): S3Client {
-  if (!client) {
-    const cfg = loadConfig();
-    client = new S3Client({
-      region: cfg.AWS_REGION,
-      credentials: {
-        accessKeyId: cfg.AWS_ACCESS_KEY_ID,
-        secretAccessKey: cfg.AWS_SECRET_ACCESS_KEY,
-      },
-      // Local dev: talk to MinIO/LocalStack (path-style). Unset in prod ⇒ real AWS.
-      ...(cfg.S3_ENDPOINT ? { endpoint: cfg.S3_ENDPOINT, forcePathStyle: cfg.S3_FORCE_PATH_STYLE } : {}),
-    });
-  }
+  client ??= createClient(loadConfig().S3_ENDPOINT);
   return client;
+}
+
+// Presigned URLs embed the endpoint host, so they are signed for the address the app will call.
+function s3Presign(): S3Client {
+  const cfg = loadConfig();
+  presignClient ??= createClient(cfg.S3_PUBLIC_ENDPOINT ?? cfg.S3_ENDPOINT);
+  return presignClient;
 }
 
 export function presignedDownloadUrl(
@@ -37,7 +47,7 @@ export function presignedDownloadUrl(
   expiresIn: number
 ): Promise<string> {
   const cmd = new GetObjectCommand({ Bucket: loc.bucket, Key: fullKey(loc, fileKey) });
-  return getSignedUrl(s3(), cmd, { expiresIn });
+  return getSignedUrl(s3Presign(), cmd, { expiresIn });
 }
 
 /**

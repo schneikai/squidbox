@@ -44,6 +44,22 @@ MinIO console: http://localhost:9001 (minioadmin / minioadmin). Tear down with
 
 `npm test` needs none of this — the unit + route tests mock the DB and S3.
 
+### Mock data and the phone dev client
+
+`npm run seed:mock` fills the local account (SEED_USER_EMAIL) with stock photos, albums and posts.
+Re-running resets it to exactly that set. It refuses to run against a non-local API.
+
+To use the local backend from the dev client on a phone, Metro forwards API and storage traffic
+through its own tunnel (see `apps/mobile/scripts/localBackendProxy.js`):
+
+1. Start Metro with `npx expo start --tunnel --dev-client` and note the tunnel URL.
+2. Here in `.env`: `S3_PUBLIC_ENDPOINT=<tunnel URL>`, then `npm run dev`.
+3. In `apps/mobile/.env.local`: `EXPO_PUBLIC_API_URL=<tunnel URL>/api/v1` and
+   `LOCAL_BACKEND_URL=http://localhost:3100`, then restart Metro.
+
+`--env-file` never overrides variables already in the shell. If your shell exports AWS
+credentials, start the server with `env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY npm run dev`.
+
 ## Setup (against real Postgres + AWS)
 
 ```

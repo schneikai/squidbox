@@ -10,6 +10,7 @@
     "start:prod": "node --import tsx src/index.ts",
     "migrate:prod": "node --import tsx src/db/migrate.ts",
     "seed:prod": "node --import tsx src/db/seed.ts",
+    "seed:mock": "NODE_USE_ENV_PROXY=1 NODE_NO_WARNINGS=1 node --env-file=.env --import tsx scripts/seed-mock.ts",
     "convert:prod": "node --import tsx scripts/convert-legacy.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

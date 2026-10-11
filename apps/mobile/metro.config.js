@@ -3,6 +3,8 @@
 const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 const path = require('path');
 
+const createLocalBackendProxy = require('./scripts/localBackendProxy');
+
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, '../..');
 
@@ -26,5 +28,19 @@ config.resolver.unstable_enablePackageExports = false;
 // Let Metro treat bundled Drizzle migration files (.sql) as source, so babel-plugin-inline-import
 // can inline them (see babel.config.js). Used by the on-device SQLite migrator.
 config.resolver.sourceExts = [...config.resolver.sourceExts, 'sql'];
+
+// Dev only: with LOCAL_BACKEND_URL set (see .env.local.example), Metro also serves a local
+// backend so the phone reaches it through Metro's tunnel.
+if (process.env.LOCAL_BACKEND_URL) {
+  const proxy = createLocalBackendProxy({
+    backendUrl: process.env.LOCAL_BACKEND_URL,
+    storageUrl: process.env.LOCAL_STORAGE_URL ?? 'http://localhost:9000',
+  });
+  const enhanceMiddleware = config.server.enhanceMiddleware;
+  config.server.enhanceMiddleware = (middleware, server) => {
+    const metroMiddleware = enhanceMiddleware ? enhanceMiddleware(middleware, server) : middleware;
+    return (req, res, next) => proxy(req, res, () => metroMiddleware(req, res, next));
+  };
+}
 
 module.exports = config;

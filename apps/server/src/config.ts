@@ -16,6 +16,9 @@ const envSchema = z.object({
   S3_SHARED_BUCKET: z.string().min(1, 'S3_SHARED_BUCKET is required'),
   // Local dev only: point S3 at a MinIO/LocalStack endpoint (path-style). Leave unset for AWS.
   S3_ENDPOINT: z.string().url().optional(),
+  // Local dev only: public address of that endpoint, used to sign download URLs that a phone can
+  // reach (e.g. through a tunnel). Defaults to S3_ENDPOINT.
+  S3_PUBLIC_ENDPOINT: z.string().url().optional(),
   S3_FORCE_PATH_STYLE: z
     .enum(['true', 'false'])
     .default('false')
