@@ -15,15 +15,16 @@ Use AskUserQuestion:
 - **App** — the preview/release build. Bundle `com.schneikai.squidbox`, name "Squidbox", EAS profile
   `preview`, self-contained (JS baked in). `EXPO_PUBLIC_*` come from **EAS secrets** at build time.
 - **Dev Client** — the development build. Bundle `com.schneikai.squidbox.dev`, name "Squidbox (Dev)",
-  EAS profile `development`, loads JS live from Metro over the ngrok tunnel (hot reload).
-  `EXPO_PUBLIC_*` come from **`.env.local`** at runtime.
+  EAS profile `development`, loads JS live from Metro over a tunnel (hot reload). Its icon is the
+  dark DEV variant (`assets/icon-dev.png`, set in app.config.js). `EXPO_PUBLIC_*` come from
+  **`.env.local`** at runtime.
 
 Then follow the matching path below. (Both share the one-time credential setup.)
 
 ## Prerequisites (one-time per machine; ask the user for these)
 
-- `eas-cli`: `npm i -g eas-cli` (or use `npx eas-cli`). `expect`: `brew install expect` (for the
-  TTY-driven credential prompts on first build).
+- `eas-cli`: `npm i -g eas-cli` (or use `npx eas-cli`). A prompt driver for the TTY-driven
+  credential prompts: `brew install expect`, or `pip install pexpect` in a Linux cloud shell.
 - **`EXPO_TOKEN`** — expo.dev → Account Settings → Access Tokens.
 - **App Store Connect API key** on disk as `AuthKey_<KEY_ID>.p8` (gitignored via `*.p8`; never print
   its contents) + **`EXPO_ASC_KEY_ID`**, **`EXPO_ASC_ISSUER_ID`** (App Store Connect → Users and
@@ -37,21 +38,36 @@ EXPO_ASC_API_KEY_PATH, EXPO_ASC_KEY_ID, EXPO_ASC_ISSUER_ID,
 EXPO_APPLE_TEAM_ID, EXPO_APPLE_TEAM_TYPE=INDIVIDUAL
 ```
 Verify with `scripts/check-env.sh`. Routine rebuilds reuse stored credentials, so the `.p8` + ASC
-IDs are only needed for the FIRST build on each bundle id (or to repair credentials).
+IDs are only needed for the FIRST build on each bundle id, or to renew or repair credentials.
 
-## First build on a bundle id (either path)
+## First build on a bundle id, or expired signing (either path)
 
-Native modules need signing set up once per bundle id. Its prompts need `expect` in a headless shell:
+Signing is set up once per bundle id and renewed when it expires. The distribution certificate and
+both ad hoc profiles currently run until **Oct 10, 2027**; an installed app stops opening ("is no
+longer available") once its profile expires. Non-interactive mode refuses to fix expired
+credentials, so run this step INTERACTIVELY through the prompt driver, with `CI` unset and without
+`--non-interactive`:
 ```
-eas credentials:configure-build -p ios -e <development|preview>
+EAS_BUILD_PROFILE=<profile> eas credentials:configure-build -p ios -e <development|preview>
 ```
-Answer: reuse the distribution certificate (Y), select provisioned devices (defaults fine), generate
-a new ad-hoc provisioning profile (Y). (Reuses the existing cert; only mints a profile for the bundle id.)
+Answer yes to reusing or regenerating the distribution certificate and to a new ad hoc profile, and
+press Enter at device selection (all registered devices). With the `EXPO_ASC_*` vars set, the CLI
+uses the API key. Abort only on a real prompt (a line starting with `?`) asking for an Apple ID or
+password; an info line mentioning "username/password" cookies is not a prompt.
+
+Alternatively, `eas build ... --non-interactive --refresh-ad-hoc-provisioning-profile` regenerates
+just the profile during a build. That flag only works together with `--non-interactive`.
+
+**Re-signing instead of rebuilding.** `eas build:resign -p ios -e <profile> --source-profile <profile>
+--id <build-id>` re-signs an existing internal build with fresh credentials, without rebuilding.
+EAS deletes build artifacts about 14 days after a build (`expirationDate` in
+`eas build:list --json`), so it only works within that window; after that, rebuild.
 
 ## Path A — Dev Client
 
-1. `EXPO_PUBLIC_API_URL` in `apps/mobile/.env.local` must be reachable from the phone — currently the
-   live backend: `https://squidbox-server.fly.dev/api/v1`. (Dev client reads this at runtime.)
+1. `EXPO_PUBLIC_API_URL` in `apps/mobile/.env.local` must be reachable from the phone: the live
+   backend `https://squidbox-server.fly.dev/api/v1`, or the local backend with mock data through
+   Metro's tunnel (README → "Local backend with mock data"). The dev client reads it at runtime.
 2. Build: `EAS_BUILD_PROFILE=development eas build -p ios -e development` (agent runs it).
 3. Install on the phone from the EAS build page → **Internal Distribution → Install**; trust the dev
    cert in **Settings → General → VPN & Device Management**.
@@ -128,8 +144,11 @@ URL (terminals may squish the blocks).
 
 - **"Invalid username and password combination"** → Apple ID + 2FA is blocked from cloud IPs. Use the
   ASC API Key (`EXPO_ASC_*`); never attempt Apple ID password auth from a cloud shell.
-- **"Failed to set up credentials / non-interactive mode"** (new bundle id) → run
-  `eas credentials:configure-build` via `expect`.
+- **"Failed to set up credentials / non-interactive mode"** (new bundle id) or **"Provisioning profile
+  is not configured correctly. Run this command again in interactive mode"** (expired signing) → run
+  `eas credentials:configure-build` interactively via the prompt driver (see above).
+- **"Failed to resign build, because it has expired"** → the build artifact is past its ~14-day
+  retention. Rebuild instead.
 - **Dev client overwrites the App (or vice-versa)** → `EAS_BUILD_PROFILE` wasn't exported, so
   app.config.js fell back to the default bundle id. Confirm it matches the profile passed to `eas build`.
 

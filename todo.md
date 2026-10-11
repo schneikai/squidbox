@@ -4,13 +4,6 @@ The Rails→TypeScript + multi-device-sync migration is **complete and deployed*
 `docs/migration/STATUS.md`). No code work remains — only these user-side steps that need a
 device, a real deploy check, or infra/secrets access. Remove an item once it's done.
 
-## [ ] Build a real Dev Client
-
-"Squidbox Dev" needs a rebuild to include the `expo-sqlite` native module (added during the sync
-migration; `runtimeVersion` was bumped). Build it via the **`/build`** skill (choose **Dev
-Client**), then install it on a physical device and confirm the app launches (SQLite migrates) and
-the initial library sync completes.
-
 ## [ ] Test a photo upload
 
 Against the deployed backend (`squidbox-server` on Fly.io), take/upload a photo and confirm the
@@ -22,10 +15,23 @@ file lands in S3 and the asset syncs. Server-proxied streaming upload path
 Once the new backend is confirmed working end-to-end, decommission the old DigitalOcean Rails
 droplet (the legacy library has already been imported — see `/legacy-import`).
 
-## [ ] Rotate the AWS keys
+## [ ] Rotate credentials shared in chats
 
-Rotate any AWS access keys that were pasted into terminals/chats during deploy + legacy import —
-treat them as exposed.
+Treat these as exposed and rotate them:
+- AWS access keys pasted during deploy + legacy import.
+- From the October 2026 build sessions: the Expo access token, the App Store Connect API key, the
+  ngrok authtoken, the OpenAI API key, the Docker Hub password, and the Squidbox account password.
+  Update `.env.local`, the password manager, and EAS (`EXPO_PUBLIC_OPENAI_API_KEY`) afterwards.
+
+## [ ] Renew iOS signing before Oct 10, 2027
+
+The distribution certificate and both ad hoc profiles expire then, and installed apps stop opening.
+Renew them via the **`/build`** skill (see "expired signing" there) a few weeks ahead.
+
+## [ ] Check the photo detail view on a device
+
+A slight crop of photos in the detail view was reported earlier. Confirm or rule it out. Pinch is a
+peek that springs back; zooming in place (focal point, panning) is a possible enhancement.
 
 ## [ ] Thumbnail background backfill (deferred enhancement + decision)
 

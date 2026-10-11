@@ -445,6 +445,23 @@ never two concurrent runs; cf. the in-flight-pull race in §5):
 
 **Initial sync / new device:** `cursor = 0` → paginated full pull. Files download lazily.
 
+**Session gating and exclusivity (as built).** The worker is one single-flight queue
+(`src/sync/singleFlight.ts`). `requestSync()` coalesces into one trailing run, and
+`withSyncPaused(work)` waits for the running sync and holds new ones until `work` is done. Sync is
+active only while the app has finished init AND someone is signed in (`setSyncActive`, driven
+from one effect in `App.js`); every trigger above is a no-op otherwise.
+
+**Signing in and account switches.** Sign-in runs inside `withSyncPaused`, from before the session
+tokens change until `resetSyncForUser` is done. If a DIFFERENT account signs in, that wipes the
+collection tables, the outbox, the cursor and the first-sync flag. Without the pause, an in-flight
+sync could push the previous account's outbox with the new session. Signing out keeps the local
+library (it's the same user's data on their device).
+
+**Expired sessions.** Access tokens live 24h; refresh tokens rotate on every refresh, so the app
+refreshes once for all concurrent callers (`refreshAccessTokenAsync`). Only a server rejection
+(400/401/403) ends the session; network errors keep it. A rejected session clears the tokens,
+signs the app out and asks the user to sign in again, which also stops sync.
+
 ---
 
 ## 9. Collection descriptor (the generic abstraction)

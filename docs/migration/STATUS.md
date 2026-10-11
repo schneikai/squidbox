@@ -23,19 +23,13 @@ end state and the known limitations; the phase-by-phase planning archive lives i
   worker, Sync Inspector (Settings→Developer). File-transfer clients moved to the new backend
   (`assets/download-urls`, `assets/upload/*`, `assets/delete`); the legacy JSON "Backup / Load
   from cloud" feature was removed.
-- **First-sync UX** — a "Setting up your library…" gate on the initial bulk pull, with reactive
-  queries paused during the initial pull so the UI doesn't stall.
+- **First-sync UX** — a "Setting up your library…" gate on the initial bulk pull. The data
+  providers mount only after it finishes, so nothing competes with the bulk pull.
 - iOS builds via **`/build`** (asks App vs Dev Client).
 
 ## Remaining (user-side only — no code left)
 
-Tracked in [`/todo.md`](../../todo.md):
-
-- Build a real **Dev Client** — "Squidbox Dev" needs a rebuild to include the `expo-sqlite`
-  native module.
-- **Test a photo upload** end-to-end against the deployed backend.
-- **Retire the old DigitalOcean Rails droplet.**
-- **Rotate the AWS keys** that were pasted into terminals/chats during setup/import.
+Tracked in [`/todo.md`](../../todo.md).
 
 ## Known limitations (current)
 

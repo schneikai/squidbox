@@ -16,6 +16,8 @@ check_var() {
   fi
 }
 
+has_env_local_var() { grep -qE "^$1=.+" .env.local; }
+
 echo "== dev client env (.env.local) =="
 if [ ! -f .env.local ]; then
   miss=1
@@ -23,7 +25,18 @@ if [ ! -f .env.local ]; then
   note "cp .env.local.example .env.local  then fill values from your password manager / EAS"
 else
   echo "ok: .env.local present"
-  check_var NGROK_AUTHTOKEN "ngrok dashboard -> Your Authtoken (needed by tunnel.js for the dev client tunnel)"
+  if has_env_local_var EXPO_PUBLIC_API_URL; then
+    echo "ok: EXPO_PUBLIC_API_URL set"
+  else
+    miss=1
+    echo "MISSING EXPO_PUBLIC_API_URL in .env.local"
+    note "an API URL the phone can reach: the live backend, or the local backend through Metro's tunnel"
+  fi
+  if has_env_local_var NGROK_AUTHTOKEN; then
+    echo "ok: NGROK_AUTHTOKEN set"
+  else
+    echo "note: NGROK_AUTHTOKEN not set (only tunnel.js needs it; Expo's tunnel doesn't)"
+  fi
 fi
 
 echo
@@ -50,8 +63,8 @@ fi
 
 echo
 echo "== app secrets in EAS (preview/production builds) =="
-echo "Run: eas secret:list  -> confirm EXPO_PUBLIC_API_URL, EXPO_PUBLIC_OPENAI_API_KEY, SENTRY_AUTH_TOKEN exist."
-echo "Push/update via: eas secret:push --scope project --env-file .secrets [--force]"
+echo "Run: eas env:list --environment preview  -> confirm EXPO_PUBLIC_API_URL, EXPO_PUBLIC_OPENAI_API_KEY, SENTRY_AUTH_TOKEN exist."
+echo "Set/update via: eas env:set --name <NAME> --value <value> --visibility secret --environment preview --environment production"
 
 echo
 if [ "$miss" -eq 1 ]; then

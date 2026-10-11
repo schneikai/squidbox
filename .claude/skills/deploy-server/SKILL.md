@@ -60,8 +60,9 @@ deploys. No separate "setup" vs "deploy" skill to choose.
 5. **Scale to 1 machine** (Fly defaults to 2 for HA — unneeded for one user, halves cost):
    `fly scale count 1 --app <app> --yes`
 6. **Seed:** `fly ssh console --app <app> -C "npm run seed:prod"`
-7. **Point the app at it:** set `EXPO_PUBLIC_API_URL=https://<app>.fly.dev/api/v1` in
-   `apps/mobile/.env.local`, then rebuild the dev client (`/build`).
+7. **Point the app at it:** for the dev client, set `EXPO_PUBLIC_API_URL=https://<app>.fly.dev/api/v1`
+   in `apps/mobile/.env.local` and restart Metro with `-c` (it's read at runtime, no rebuild). For the
+   preview app, update the EAS environment variable and rebuild (see the `build` skill, Path B).
 
 > Loading the existing Rails library is a separate **one-time, pre-launch** step — not part of
 > deploy. Use the **`/legacy-import`** skill (`npm run convert:prod` on the app).

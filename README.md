@@ -9,7 +9,7 @@ npm workspaces. `npm install` runs once at the repo root.
 | Package | What it is |
 |---|---|
 | `apps/mobile` | Expo React Native app (SDK 55). Run app commands (`npx expo start`, `node tunnel.js`, `scripts/check-env.sh`) from here; the `.env.local` / `.secrets` files live here too. |
-| `apps/server` | Backend: Fastify + TypeScript + Drizzle + Postgres, with AWS S3 for file storage. |
+| `apps/server` | Backend: Fastify + TypeScript + Drizzle + Postgres, with AWS S3 for file storage. Runs locally against Docker (Postgres + MinIO), see [Local backend with mock data](#local-backend-with-mock-data). |
 | `packages/shared` | Zod wire contracts + sync collection descriptors shared by app and server. |
 
 The backend was migrated from Rails to TypeScript; that migration is complete and deployed. The server lives in `apps/server` and is deployed on **Fly.io** (app `squidbox-server`, region `lhr`) with **Neon Postgres** + **AWS S3** (eu-west-1). API base: `https://squidbox-server.fly.dev/api/v1`.
@@ -39,31 +39,18 @@ Two gitignored env files in `apps/mobile/`, each for a different audience:
 | `.env.local` | Metro, at runtime | Supplies `EXPO_PUBLIC_*` to the **dev client** over the tunnel. Copy from `.env.local.example`. |
 | `.secrets` | you, once | Upload bundle to push **preview/release** secrets to EAS. Not read at runtime. |
 
-`.env.local` (template in `.env.local.example`):
+`.env.local` holds `EXPO_PUBLIC_API_URL`, `NGROK_AUTHTOKEN`, optional login prefill, Sentry debug, the OpenAI key, and optionally `LOCAL_BACKEND_URL`. Each variable is explained in `.env.local.example`.
+
+`EXPO_PUBLIC_API_URL` must be reachable **from the phone** (not `localhost`). Use either the deployed backend at `https://squidbox-server.fly.dev/api/v1`, or the local backend through Metro's tunnel (see [Local backend with mock data](#local-backend-with-mock-data)). Restart Metro with `-c` after changing it.
+
+`.secrets` lists the values the **preview/production** builds need (`EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_OPENAI_API_KEY`, `SENTRY_AUTH_TOKEN`). They are stored as EAS environment variables:
 
 ```
-EXPO_PUBLIC_API_URL=https://squidbox-server.fly.dev/api/v1
-EXPO_PUBLIC_LOGIN_FORM_EMAIL=user@example.com
-EXPO_PUBLIC_LOGIN_FORM_PASSWORD=password
-EXPO_PUBLIC_SENTRY_DEBUG=true
-EXPO_PUBLIC_OPENAI_API_KEY=<openai-key>
+eas env:list --environment preview
+eas env:set --name <NAME> --value <value> --visibility secret --environment preview --environment production
 ```
 
-`EXPO_PUBLIC_API_URL` must be reachable **from the phone** (not `localhost`). The deployed backend at `https://squidbox-server.fly.dev/api/v1` satisfies this.
-
-`.secrets` (push to EAS):
-
-```
-EXPO_PUBLIC_API_URL=<api-url>
-SENTRY_AUTH_TOKEN=<sentry-token>
-```
-
-Manage EAS secrets:
-
-```
-eas secret:push --scope project --env-file .secrets   # add (--force to update)
-eas secret:list                                       # list
-```
+The `build` skill explains how these get baked into the app and the pitfalls around them.
 
 On a fresh checkout, runtime secrets are already in EAS. Restore the rest from your password manager (`.env.local`, `EXPO_TOKEN`, and the App Store Connect `.p8` + IDs), then run `scripts/check-env.sh` to verify.
 
@@ -76,6 +63,7 @@ Run `/build` — it asks what to build and drives EAS for you (no flags or profi
 | Profile | `development` | `preview` / `production` |
 | Bundle ID | `com.schneikai.squidbox.dev` | `com.schneikai.squidbox` |
 | App name | Squidbox (Dev) | Squidbox |
+| Icon | dark, with a yellow DEV band (`assets/icon-dev.png`) | the regular icon |
 | JS bundle | served by Metro over a tunnel (hot reload); reads `EXPO_PUBLIC_*` from `apps/mobile/.env.local` | baked in at build time from EAS secrets |
 | Use for | fast iteration | testing / shipping a stable snapshot |
 
@@ -85,18 +73,54 @@ Cloud builds authenticate to Apple with an **App Store Connect API Key** (`.p8`)
 
 ### Dev client: Metro + tunnel
 
-The dev client loads JS from Metro at runtime over an ngrok tunnel. `/build` sets this up, but the low-level commands are:
+The dev client loads JS from Metro at runtime over a tunnel. Run `scripts/check-env.sh` first: without `.env.local`, Metro serves a bundle with no `EXPO_PUBLIC_*` values. There are two ways to open the tunnel, both from `apps/mobile/`.
+
+**Your own ngrok account** (`tunnel.js`, needs `NGROK_AUTHTOKEN` in `.env.local`):
 
 ```
-EXPO_PACKAGER_PROXY_URL=https://<tunnel-host> npx expo start --offline
-NGROK_AUTHTOKEN=<token> node tunnel.js
+NGROK_AUTHTOKEN=<token> node tunnel.js                               # prints TUNNEL_URL=https://<host>
+EXPO_PACKAGER_PROXY_URL=https://<host> npx expo start --offline
 ```
 
-The tunnel uses a random subdomain (e.g. `https://abc-123.ngrok-free.dev`), so each session gets its own URL. `NGROK_AUTHTOKEN` is read from `.env.local`.
+The free ngrok plan has one static domain per account. If a previous session didn't shut down cleanly, ngrok blocks with `ERR_NGROK_334`. `tunnel.js` retries automatically, and with `NGROK_API_KEY` (dashboard → API Keys) in `.env.local` it force-kills stale endpoints first.
 
-> **ERR_NGROK_334?** The ngrok free plan reuses one reserved domain. If a previous session didn't shut down cleanly, ngrok blocks with `ERR_NGROK_334`. `tunnel.js` retries automatically; for a guaranteed fix, add `NGROK_API_KEY` (dashboard → API Keys) to `.env.local` so `tunnel.js` can force-kill stale endpoints before starting.
+**Expo's tunnel** (no ngrok account). Use this in the cloud workspace: its traffic goes through a proxy, and the free ngrok plan refuses to run behind one.
 
-Add `-c` to `expo start` to clear the cache (after changing `.env.local` or upgrading packages).
+```
+npm install -g @expo/ngrok@^4.1.0                                    # once
+http_proxy=$HTTPS_PROXY npx expo start --tunnel --dev-client         # https://<id>-anonymous-8081.exp.direct
+```
+
+The Expo tunnel URL stays the same across restarts of the same checkout. Open the URL in Squidbox (Dev) via "Enter URL manually". Add `-c` to `expo start` to clear the cache after changing `.env.local` or upgrading packages.
+
+### Local backend with mock data
+
+The dev client can run against a local backend filled with stock photos, albums and posts, so testing never touches your real library. Metro forwards API and file requests to the local stack, so the phone needs only Metro's tunnel.
+
+One-time setup (needs Docker):
+
+1. In `apps/server/`: `cp .env.docker .env`, then `npm run local:setup` (Postgres + MinIO,
+   migrations, local accounts).
+2. Start Metro with a tunnel (see above) and note its URL. Expo's tunnel keeps the same URL for this
+   checkout.
+3. In `apps/server/.env`, set `S3_PUBLIC_ENDPOINT=<tunnel URL>`. Run `npm run dev`, then
+   `npm run seed:mock`.
+4. In `apps/mobile/.env.local`, set:
+   ```
+   EXPO_PUBLIC_API_URL=<tunnel URL>/api/v1
+   LOCAL_BACKEND_URL=http://localhost:3100
+   EXPO_PUBLIC_LOGIN_FORM_EMAIL=me@example.com
+   EXPO_PUBLIC_LOGIN_FORM_PASSWORD=<SEED_USER_PASSWORD from apps/server/.env>
+   ```
+5. Restart Metro with `-c`, reload the dev client and sign in.
+
+Later sessions: start Metro with its tunnel and `npm run dev` in `apps/server/`. If the tunnel URL
+changed, update it in both env files. `npm run seed:mock` resets the account to exactly the mock set
+at any time.
+
+To go back to your real library, point `EXPO_PUBLIC_API_URL` at the live backend again, remove `LOCAL_BACKEND_URL`, restart Metro and sign in with your account. Signing in as a different account wipes the device's local data first, so the two libraries never mix.
+
+If Docker pulls fail, or the server can't reach MinIO, see `apps/server/README.md` → "Local development".
 
 ## Deploying the backend
 
@@ -112,4 +136,6 @@ Sentry handles error tracking. Configure it for your own account:
 
 ## Caveats
 
-- Preview builds are signed with a certificate that expires after a year, so rebuild when it lapses. Build/preview help: https://docs.expo.dev/build/setup/ · https://docs.expo.dev/build/internal-distribution/
+- **Signing expires yearly.** The distribution certificate and the ad hoc provisioning profiles of both apps are valid until **Oct 10, 2027**. An installed app stops opening when its profile expires. The `build` skill covers renewing them.
+- **Build downloads expire after 14 days.** EAS deletes internal build artifacts after about two weeks. `eas build:resign` only works within that window, after that you need a new build.
+- Build/preview help: https://docs.expo.dev/build/setup/ · https://docs.expo.dev/build/internal-distribution/

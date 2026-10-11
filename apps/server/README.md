@@ -1,11 +1,10 @@
 # @squidbox/server
 
-The modern (2026) TypeScript backend — Fastify + Drizzle + Postgres + S3. Replaces the legacy
-Rails API. Phase 1 delivers **auth** (JWT access + per-device refresh tokens) and the **S3
-asset layer** (presigned GET downloads, server-proxied streaming uploads with server-side
-multipart, batch delete), multi-tenant-ready. Sync endpoints arrive in Phase 2.
-
-Not wired into the app yet — the app still talks to Rails until Phase 2b.
+The TypeScript backend: Fastify + Drizzle + Postgres + S3. It replaced the legacy Rails API and is
+deployed on Fly.io (see the `/deploy-server` skill). It serves **auth** (JWT access tokens plus
+per-device refresh tokens that rotate on every refresh), the **S3 asset layer** (presigned GET
+downloads, server-proxied streaming uploads with server-side multipart, batch delete), and **sync**
+(`/sync/pull`, `/sync/push`). Everything is scoped per user.
 
 ## Design notes
 
@@ -16,8 +15,9 @@ Not wired into the app yet — the app still talks to Rails until Phase 2b.
   Bearer`, RESTful shapes, uuid ids. See `docs/migration/phase-1-backend-skeleton.md`.
 - **Uploads are server-proxied streaming** (not direct-to-S3): Expo can't split large files
   for client-side multipart and a single S3 PUT caps at 5 GB. The client streams one binary
-  PUT; the server multiparts it via `@aws-sdk/lib-storage`. The upload route also accepts
-  `?token=` (redacted in logs) for iOS background uploads. Downloads are direct presigned GETs.
+  PUT; the server multiparts it via `@aws-sdk/lib-storage`. The upload route has its own
+  pass-through body parser, so the stream reaches S3 untouched whatever its content type. It also
+  accepts `?token=` (redacted in logs) for iOS background uploads. Downloads are direct presigned GETs.
 - **Multi-tenant isolation:** every S3 key is `keyPrefix + fileKey` derived from the auth
   token (per-user storage resolver); a client can't reach another tenant's objects.
 
@@ -39,6 +39,9 @@ npm run dev                  # run the server against the local stack (http://lo
 First time only, if you don't have Docker: `brew install colima docker docker-compose` then
 `colima start` (headless Docker runtime for macOS; local dev only).
 
+MinIO comes from Chainguard's free images, since `minio/minio` is no longer published. If Docker
+Hub answers pulls with 429 (anonymous rate limit, common on shared cloud IPs), run `docker login`.
+
 MinIO console: http://localhost:9001 (minioadmin / minioadmin). Tear down with
 `npm run compose:down` (keep data) or `npm run compose:reset` (wipe volumes).
 
@@ -46,16 +49,13 @@ MinIO console: http://localhost:9001 (minioadmin / minioadmin). Tear down with
 
 ### Mock data and the phone dev client
 
-`npm run seed:mock` fills the local account (SEED_USER_EMAIL) with stock photos, albums and posts.
-Re-running resets it to exactly that set. It refuses to run against a non-local API.
+`npm run seed:mock` fills the local account (SEED_USER_EMAIL) with stock photos from picsum.photos,
+albums (including Favorites and Deleted) and posts. Ids are deterministic, so re-running resets the
+account to exactly that set. It refuses to run against a non-local API.
 
-To use the local backend from the dev client on a phone, Metro forwards API and storage traffic
-through its own tunnel (see `apps/mobile/scripts/localBackendProxy.js`):
-
-1. Start Metro with `npx expo start --tunnel --dev-client` and note the tunnel URL.
-2. Here in `.env`: `S3_PUBLIC_ENDPOINT=<tunnel URL>`, then `npm run dev`.
-3. In `apps/mobile/.env.local`: `EXPO_PUBLIC_API_URL=<tunnel URL>/api/v1` and
-   `LOCAL_BACKEND_URL=http://localhost:3100`, then restart Metro.
+`S3_PUBLIC_ENDPOINT` makes the server sign download URLs for a public address (Metro's tunnel) while
+it still talks to MinIO on localhost. The full phone setup is in the root README under
+"Local backend with mock data".
 
 `--env-file` never overrides variables already in the shell. If your shell exports AWS
 credentials, start the server with `env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY npm run dev`.
@@ -63,7 +63,7 @@ credentials, start the server with `env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCES
 ## Setup (against real Postgres + AWS)
 
 ```
-cp .env.example .env      # fill JWT_SECRET (Rails secret_key_base), DATABASE_URL, AWS_*, S3_SHARED_BUCKET
+cp .env.example .env      # fill JWT_SECRET (random secret), DATABASE_URL, AWS_*, S3_SHARED_BUCKET
 npm install               # from the repo ROOT (workspaces)
 npm run db:generate -w @squidbox/server    # generate SQL migrations from the Drizzle schema
 npm run db:migrate  -w @squidbox/server    # apply migrations + create the change_seq sequence

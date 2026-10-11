@@ -102,12 +102,13 @@ Bad:
 
 **Monorepo:** the Expo app lives in `apps/mobile/`. Run all app commands (`npx expo start`, `node tunnel.js`, `scripts/check-env.sh`, `eas build`) and read the env files (`.env.local`, `.secrets`) from `apps/mobile/`. `npm install` runs once at the repo root (npm workspaces).
 
-Builds run from a cloud workspace. For the full procedure, see `README.md` → "Build & preview" and "Building from the cloud (no Mac)", and the `build` skill for the headless runbook. Invariants:
+Builds run from a cloud workspace. For the full procedure, see `README.md` → "Building the iOS app", "Dev client: Metro + tunnel" and "Local backend with mock data", and the `build` skill for the headless runbook. Invariants:
 
 - Two app slots via separate bundle IDs (`app.config.js` switches on `EAS_BUILD_PROFILE`): `development` → `.dev` (dev client, Metro over a tunnel, hot reload); `preview` → base id (standalone, JS baked in). Always export `EAS_BUILD_PROFILE` matching the profile you pass to `eas build`.
 - Authenticate Apple with an **App Store Connect API Key** (`EXPO_ASC_*` + `EXPO_APPLE_TEAM_*`), never Apple ID + password (blocked from cloud IPs). Never commit the `.p8`.
-- App secrets live in EAS (preview/production). The dev client reads `EXPO_PUBLIC_*` from `.env.local` (template `.env.local.example`) via Metro at runtime — the API URL must be reachable from the phone.
-- New bundle IDs need a one-time `eas credentials:configure-build` (TTY prompts need `expect` headless).
+- App secrets live in EAS (preview/production). The dev client reads `EXPO_PUBLIC_*` from `.env.local` (template `.env.local.example`) via Metro at runtime — the API URL must be reachable from the phone: the live backend, or the local backend with mock data through Metro's tunnel.
+- New bundle IDs, and expired certificates or profiles, need `eas credentials:configure-build` run interactively (TTY prompts need `expect`/`pexpect` headless, `CI` unset). `eas build:resign` only works within ~14 days of a build, before EAS deletes the artifact.
+- In the cloud workspace, open the dev-client tunnel with Expo's tunnel (`http_proxy=$HTTPS_PROXY npx expo start --tunnel --dev-client`). The free ngrok plan behind `tunnel.js` refuses to run behind the workspace proxy.
 - Fresh checkout: runtime secrets are already in EAS; restore `.env.local`, `EXPO_TOKEN`, and the ASC `.p8`+IDs from a password manager, then run `scripts/check-env.sh`.
 
 ## Dev client: always check env first
