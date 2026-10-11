@@ -62,6 +62,12 @@ a new ad-hoc provisioning profile (Y). (Reuses the existing cert; only mints a p
    ```
    Verify the tunnel serves Metro: `curl -s -o /dev/null -w "%{http_code}" https://<host>/status` → 200.
    Then open **Squidbox (Dev)** and point it at the tunnel URL.
+   If `tunnel.js` fails with "Running the agent with an http/s proxy is a Pay-as-you-go feature"
+   (the workspace routes traffic through a proxy), use Expo's own tunnel instead. It needs
+   `npm install -g @expo/ngrok@^4.1.0` once, and the proxy exported for ngrok:
+   ```
+   http_proxy=$HTTPS_PROXY npx expo start --tunnel --dev-client   # URL: https://<id>-anonymous-8081.exp.direct
+   ```
 5. After a native-module change, rebuild (steps 2–3). JS-only changes just hot-reload over the tunnel.
 
 ## Path B — App (preview/release)

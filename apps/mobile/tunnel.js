@@ -1,8 +1,7 @@
-const { spawn, execSync } = require('child_process');
+const { spawn, execFileSync } = require('child_process');
 const { join } = require('path');
 const { writeFileSync, mkdirSync } = require('fs');
 const { tmpdir } = require('os');
-const http = require('http');
 const https = require('https');
 
 const PORT = process.env.METRO_PORT || 8081;
@@ -33,8 +32,10 @@ const MAX_RETRIES = 6;
 const RETRY_DELAY_MS = 15000;
 let urlFound = false;
 
+// Kill an ngrok agent left over from a previous run. Anchored on this binary's path so it can't
+// match unrelated processes whose command line merely mentions "ngrok http".
 function killStale() {
-  try { execSync('pkill -f "ngrok http" 2>/dev/null || true'); } catch {}
+  try { execFileSync('pkill', ['-f', `^${bin} http `]); } catch {}
 }
 
 // Stop active ngrok endpoints via the REST API (needs API key, not authtoken)
@@ -86,47 +87,45 @@ function startTunnel(attempt) {
     ], { stdio: ['ignore', 'pipe', 'pipe'] });
 
     let got334 = false;
-    const deadline = Date.now() + 20000;
+    let output = '';
 
-    function checkErr(data) {
-      if (data.toString().includes('ERR_NGROK_334')) got334 = true;
+    // Read the URL from THIS agent's log. ngrok's local API (127.0.0.1:4040) belongs to whichever
+    // agent started first, e.g. Expo's own tunnel, so polling it can report the wrong URL.
+    function onOutput(data) {
+      output += data.toString();
+      if (output.includes('ERR_NGROK_334')) got334 = true;
+      const match = !urlFound && output.match(/msg="started tunnel".*?\burl=(\S+)/);
+      if (match) {
+        urlFound = true;
+        clearTimeout(timeout);
+        console.log('TUNNEL_URL=' + match[1]);
+      }
     }
-    proc.stdout.on('data', checkErr);
-    proc.stderr.on('data', checkErr);
+    proc.stdout.on('data', onOutput);
+    proc.stderr.on('data', onOutput);
+
+    const timeout = setTimeout(() => {
+      console.error('TUNNEL_ERR=timed out waiting for tunnel URL');
+      proc.kill();
+      process.exit(1);
+    }, 20000);
 
     proc.on('exit', () => {
+      clearTimeout(timeout);
       if (urlFound) return;
       if (got334 && attempt < MAX_RETRIES) {
         setTimeout(() => startTunnel(attempt + 1), RETRY_DELAY_MS);
-      } else {
-        console.error('TUNNEL_ERR=ngrok exited unexpectedly');
-        process.exit(1);
+        return;
       }
+      console.error('TUNNEL_ERR=ngrok exited: ' + (lastNgrokError(output) || 'no error reported'));
+      process.exit(1);
     });
-
-    function poll() {
-      http.get('http://127.0.0.1:4040/api/tunnels', (res) => {
-        let body = '';
-        res.on('data', (chunk) => body += chunk);
-        res.on('end', () => {
-          try {
-            const tunnels = JSON.parse(body).tunnels;
-            const url = tunnels && tunnels[0] && tunnels[0].public_url;
-            if (url) { urlFound = true; console.log('TUNNEL_URL=' + url); return; }
-          } catch {}
-          if (!got334 && Date.now() < deadline) setTimeout(poll, 500);
-          else if (!urlFound && !got334) {
-            console.error('TUNNEL_ERR=timed out waiting for tunnel URL');
-            proc.kill();
-            process.exit(1);
-          }
-        });
-      }).on('error', () => {
-        if (!got334 && Date.now() < deadline) setTimeout(poll, 500);
-      });
-    }
-    setTimeout(poll, 1000);
   });
+}
+
+function lastNgrokError(log) {
+  const errors = [...log.matchAll(/\berr="?([^"\n]+)"?/g)].map((m) => m[1]).filter((e) => e !== 'nil');
+  return errors[errors.length - 1];
 }
 
 startTunnel(1);
