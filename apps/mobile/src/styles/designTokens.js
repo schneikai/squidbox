@@ -107,9 +107,9 @@ export const spacing = {
 
   // Gap between a trigger button and the popover that opens from it
   popoverGap: 25,
-  // Fixed popover menu width: fits the longest labels on one line, never wider than the screen
+  // Fixed popover menu width: fits typical labels on one line, never wider than the screen
   // minus the side gutters.
-  popoverWidth: Math.min(scale(260), SCREEN_WIDTH - 2 * SIDE_GUTTER),
+  popoverWidth: Math.min(scale(230), SCREEN_WIDTH - 2 * SIDE_GUTTER),
 };
 
 export const typography = {
