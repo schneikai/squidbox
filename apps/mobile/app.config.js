@@ -62,6 +62,7 @@ const baseConfig = {
 // EAS_BUILD_PROFILE env var when evaluating this config during a build.
 if (process.env.EAS_BUILD_PROFILE === "development") {
   baseConfig.expo.name = "Squidbox (Dev)";
+  baseConfig.expo.icon = "./assets/icon-dev.png";
   baseConfig.expo.ios = {
     ...baseConfig.expo.ios,
     bundleIdentifier: "com.schneikai.squidbox.dev"
