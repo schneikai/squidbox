@@ -19,8 +19,9 @@ services:
       timeout: 5s
       retries: 10
 
+  # minio/minio is no longer published on Docker Hub; Chainguard's image is the same server.
   minio:
-    image: minio/minio
+    image: cgr.dev/chainguard/minio:latest
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -31,25 +32,17 @@ services:
       - '9001:9001' # web console (http://localhost:9001, minioadmin/minioadmin)
     volumes:
       - miniodata:/data
-    healthcheck:
-      test: ['CMD', 'mc', 'ready', 'local']
-      interval: 5s
-      timeout: 5s
-      retries: 10
 
   # One-shot: create the shared bucket + the legacy bucket for the seeded existing user.
+  # The image has no shell, so it retries via restart until MinIO accepts connections.
   createbuckets:
-    image: minio/mc
+    image: cgr.dev/chainguard/minio-client:latest
     depends_on:
-      minio:
-        condition: service_started
-    entrypoint: >
-      /bin/sh -c "
-      until mc alias set local http://minio:9000 minioadmin minioadmin; do sleep 1; done;
-      mc mb -p local/squidbox-shared;
-      mc mb -p local/squidbox-legacy;
-      echo 'buckets ready';
-      "
+      - minio
+    restart: on-failure
+    environment:
+      MC_HOST_local: http://minioadmin:minioadmin@minio:9000
+    command: ['mb', '--ignore-existing', 'local/squidbox-shared', 'local/squidbox-legacy']
 
 volumes:
   pgdata:
