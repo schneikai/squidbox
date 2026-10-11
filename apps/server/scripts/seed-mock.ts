@@ -27,6 +27,7 @@ const password = process.env.SEED_USER_PASSWORD;
 const DAY = 24 * 60 * 60 * 1000;
 const FULL_SIZE = 2048;
 const THUMBNAIL_SIZE = 1000; // matches the app's createImageThumbnail
+// Albums, posts and DELETED_PHOTOS refer to photos by their index in this list.
 const PICSUM_IDS = [
   10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 25, 27, 28, 29, 36, 37, 39, 42, 43, 49, 50, 53, 54, 57, 58, 63,
   64, 65,

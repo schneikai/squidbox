@@ -2,9 +2,9 @@ import jwt from 'jsonwebtoken';
 import { loadConfig } from '../config.js';
 import { AppError } from '../errors.js';
 
-// Access token: HS256, payload exactly { user_id, exp }, signed with the shared Rails
-// secret_key_base. Keeping HS256 + the same secret means existing Rails-issued access tokens
-// still validate at cutover (refresh tokens are handled separately via the per-device table).
+// Access token: HS256, payload exactly { user_id, exp }, signed with JWT_SECRET (a random secret;
+// the Rails cutover is done and every device signed in fresh). Refresh tokens live in the
+// per-device table, see tokens.ts.
 export const ACCESS_TOKEN_TTL_SECONDS = 24 * 60 * 60; // 24h
 
 interface AccessTokenPayload {
