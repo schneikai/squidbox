@@ -21,15 +21,6 @@ and thumbnail. See `docs/sync-design.md` §7a.
 A file upload that is in flight while another account signs in can retry with the new session
 and leave an orphaned file in that account's storage. Rare and harmless to metadata.
 
-### [ ] Post suggestions skip a caption after loading more
-
-When the next batch of captions finishes loading, the view jumps past the first newly loaded one.
-
-### [ ] Caption on the post suggestion screen isn't keyboard-avoiding
-
-Tapping the caption opens the keyboard, which covers the view. Decide whether it should be editable
-there at all.
-
 ### [ ] AI chat corrections misbehave
 
 Asking for corrections sometimes returns a single post instead of variations, and replies sometimes
@@ -95,9 +86,7 @@ An action to regenerate an asset's thumbnail. The video thumbnail in album 197 i
 - **Asset detail background:** a blurred background in the asset's colors.
 - **Toolbar:** no outer pill when it holds a single button. Consider moving the settings button
   into the toolbar, in a color other than the primary purple.
-- **Post detail header:** a line break between date and time, or drop the time.
 - **Albums list:** a better layout for name, asset count and last posted.
-- **Circular progress:** a larger circle and smaller percentage text (`ProgressRing`).
 
 ## Code quality
 

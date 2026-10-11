@@ -9,12 +9,13 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 
-import { colors, typography } from '@/styles/designTokens';
+import { colors, scale, typography } from '@/styles/designTokens';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-const SIZE = 120;
-const STROKE_WIDTH = 10;
+// A large ring with a small label keeps the progress itself the focus.
+const SIZE = scale(160);
+const STROKE_WIDTH = scale(10);
 const RADIUS = (SIZE - STROKE_WIDTH) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 // Tween just long enough to bridge the gap between throttled progress updates
@@ -93,8 +94,8 @@ const styles = StyleSheet.create({
   },
   value: {
     color: colors.textInverse,
-    fontSize: typography.xl,
-    fontWeight: '700',
+    fontSize: typography.base,
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
 });

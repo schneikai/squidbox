@@ -1,4 +1,3 @@
-import moment from 'moment';
 import { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,6 +14,7 @@ import getAssetPagerState from '@/features/asset-detail/getAssetPagerState';
 import useAssets from '@/features/assets-context/useAssets';
 import { radii, scale, spacing } from '@/styles/designTokens';
 import { MEDIA_TYPES } from '@/utils/assets/constants';
+import formatDetailHeaderDate from '@/utils/date-time/formatDetailHeaderDate';
 
 export default function AssetScreen({ route, navigation }) {
   const { assets, setAssetsDeleted } = useAssets();
@@ -27,23 +27,15 @@ export default function AssetScreen({ route, navigation }) {
     [route.params.assetIds, assets, selectedAssetId],
   );
   const asset = assets[currentAssetId];
+  const headerDate = asset ? formatDetailHeaderDate(asset.createdAt) : null;
 
   const headerTopOffset = insets.top + spacing.contentPaddingTop;
 
   return (
     <Page>
       <FloatingDetailHeader
-        title={
-          asset
-            ? moment(asset.createdAt).calendar(null, {
-                lastWeek: 'dddd',
-                lastDay: '[Yesterday]',
-                sameDay: '[Today]',
-                sameElse: 'DD. MMM YYYY',
-              })
-            : ''
-        }
-        subtitle={asset ? moment(asset.createdAt).format('LT') : ''}
+        title={headerDate?.title ?? ''}
+        subtitle={headerDate?.subtitle ?? ''}
         onBack={() => navigation.goBack()}
         menuSlot={asset && <MoreAction asset={asset} navigation={navigation} />}
       />

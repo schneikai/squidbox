@@ -28,7 +28,7 @@ import {
 } from '@/features/ai-suggestions/aiSuggestionsStorage';
 import sendAiMessageAsync from '@/features/ai-suggestions/sendAiMessageAsync';
 import useAssets from '@/features/assets-context/useAssets';
-import { colors, radii, scale } from '@/styles/designTokens';
+import { colors, radii, scale, typography } from '@/styles/designTokens';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
 const TWEET_BATCH_SIZE = 10;
@@ -86,12 +86,11 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
   // --- Text pool ---
   const [textPool, setTextPool] = useState([]);
   const [textIndex, setTextIndex] = useState(0);
-  const [editableText, setEditableText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (visible && textPool.length === 0) {
-      fetchTextBatch();
+      fetchTextBatch().then(setTextPool);
     }
     if (visible) {
       AsyncStorage.getItem(MODEL_STORAGE_KEY).then((m) => {
@@ -104,6 +103,7 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
     }
   }, [visible]);
 
+  // Fetches one batch of captions. Callers decide where the batch goes.
   async function fetchTextBatch() {
     setIsLoading(true);
     try {
@@ -116,16 +116,12 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
       const model = storedModel ?? DEFAULT_MODEL;
       const systemPrompt = storedSystemPrompt ?? DEFAULT_SYSTEM_PROMPT;
       const fullPrompt = `${BATCH_INSTRUCTION}\n\n${stylePrompt}`;
-      const tweets = await sendAiMessageAsync(
+      return await sendAiMessageAsync(
         [{ role: 'user', content: fullPrompt }],
         recentPostTexts,
         model,
         systemPrompt || null,
       );
-      setTextPool(tweets);
-      setTextIndex(0);
-      setEditableText(tweets[0] ?? '');
-      return tweets;
     } catch (e) {
       console.warn('Failed to fetch text suggestions:', e.message);
       return [];
@@ -177,30 +173,19 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
   // --- Text navigation ---
   const currentText = textPool[textIndex] ?? null;
 
-  useEffect(() => {
-    setEditableText(currentText ?? '');
-  }, [textIndex]);
-
-  function handleTextEdit(value) {
-    setEditableText(value);
-    setTextPool((prev) => {
-      const updated = [...prev];
-      updated[textIndex] = value;
-      return updated;
-    });
-  }
-
   function navigateText(direction) {
-    if (textPool.length === 0) return;
+    if (isLoading) return;
+    if (textPool.length === 0) {
+      fetchTextBatch().then(setTextPool); // the first batch failed: retry
+      return;
+    }
     if (direction === 'next' && textIndex === textPool.length - 1) {
+      // Past the last caption: append the next batch and move to its first caption.
+      const firstNewIndex = textPool.length;
       fetchTextBatch().then((newTweets) => {
-        if (newTweets.length > 0) {
-          setTextPool((prev) => {
-            const appended = [...prev, ...newTweets];
-            animateTransition(textOpacity, textTranslateX, 'next', () => setTextIndex(prev.length));
-            return appended;
-          });
-        }
+        if (newTweets.length === 0) return;
+        setTextPool((prev) => [...prev, ...newTweets]);
+        animateTransition(textOpacity, textTranslateX, 'next', () => setTextIndex(firstNewIndex));
       });
       return;
     }
@@ -237,7 +222,7 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
 
   // --- Confirm ---
   function handleConfirm() {
-    onConfirm(currentAsset, editableText || null);
+    onConfirm(currentAsset, currentText);
     onClose();
   }
 
@@ -272,7 +257,7 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
                   <MenuOption label={selectedModel} icon="cpu" onPress={() => modelPickerRef.current?.open()} />
                   <MenuOption label="Edit Prompt" icon="pencil" onPress={openEditPrompt} isLast />
                 </IconMenuButton>
-                <GradientPillButton label="Use" onPress={handleConfirm} disabled={!currentAsset && !editableText} />
+                <GradientPillButton label="Use" onPress={handleConfirm} disabled={!currentAsset && !currentText} />
               </View>
             }
           />
@@ -338,12 +323,10 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
               {isLoading ? (
                 <ActivityIndicator size="small" color={colors.textTertiary} style={styles.captionSpinner} />
               ) : (
-                <Textarea
-                  value={editableText}
-                  onChangeText={handleTextEdit}
-                  placeholder="Generating captions…"
-                  style={styles.captionInput}
-                />
+                // Read-only: "Use" opens the post editor, where the caption can be edited.
+                <Text style={[styles.captionText, !currentText && styles.captionPlaceholder]}>
+                  {currentText ?? 'No captions yet. Swipe to try again.'}
+                </Text>
               )}
             </Animated.View>
             {textPool.length > 1 && (
@@ -503,8 +486,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
   },
-  captionInput: {
-    flex: 1,
+  captionText: {
+    fontSize: typography.input,
+    color: colors.text,
+  },
+  captionPlaceholder: {
+    color: colors.textTertiary,
   },
   captionSpinner: {
     flex: 1,
