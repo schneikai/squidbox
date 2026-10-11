@@ -98,6 +98,16 @@ Bad:
 - Reuse existing patterns before introducing new ones
 - Keep the codebase predictable and easy to reason about
 
+## TODO list
+
+`todo.md` is the single list of open work, ideas, and steps only the owner can do. Keep it current:
+
+- Add an entry when you discover a bug, a weakness or missing piece you don't fix right away.
+- Add an entry when the owner defers something or mentions an idea.
+- Remove an entry when it's done, in the same commit as the work.
+
+Keep entries short: what's wrong or wanted, where in the code, and why it matters.
+
 ## Build & Preview
 
 **Monorepo:** the Expo app lives in `apps/mobile/`. Run all app commands (`npx expo start`, `node tunnel.js`, `scripts/check-env.sh`, `eas build`) and read the env files (`.env.local`, `.secrets`) from `apps/mobile/`. `npm install` runs once at the repo root (npm workspaces).

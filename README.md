@@ -28,7 +28,7 @@ Common operations are driven by skills rather than memorized commands:
 | `/legacy-import` | Import a user's old app backups (assets/albums/posts JSON in S3) into the backend: canonicalize ids to uuids, map to the current schema, upsert via sync push, verify. |
 | `/build` | Build the iOS app from the cloud (no Mac) via EAS. Asks whether to build the **App** (preview/release) or the **Dev Client**, then runs `eas` itself — no flags or profiles to remember. |
 
-The sync engine is described in `docs/sync-design.md`. Open user-side tasks are in `todo.md`.
+The sync engine is described in `docs/sync-design.md`. Open work and ideas are in `todo.md`.
 
 ## Environment & secrets
 
@@ -125,6 +125,12 @@ If Docker pulls fail, or the server can't reach MinIO, see `apps/server/README.m
 ## Deploying the backend
 
 Run `/deploy-server`. It handles first-time setup (Fly app + Neon DB + secrets + seed) and routine deploys (build, migrate, release) via the `fly` and `neonctl` CLIs. To import a user's old backups, run `/legacy-import`.
+
+## Dependencies
+
+If `expo-doctor` flags version drift, do NOT run `expo install --fix` (or any `npm install`) from `apps/mobile/`. In this npm-workspaces monorepo that bumps only the app and leaves old versions hoisted at the workspace root, which gives duplicate native modules that won't dedupe. Instead, set the target versions in `apps/mobile/package.json`, then do ONE clean install from the repo root (`rm -rf node_modules apps/*/node_modules packages/*/node_modules package-lock.json && npm install`), then rebuild the dev client.
+
+`@sentry/react-native` is pinned to **8.x** on purpose (see `expo.install.exclude` in `apps/mobile/package.json`): 8.x supports React 19 and the New Architecture that SDK 55 needs, while expo-doctor still suggests ~7.11, which breaks the build.
 
 ## Sentry
 
