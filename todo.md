@@ -21,30 +21,17 @@ and thumbnail. See `docs/sync-design.md` §7a.
 A file upload that is in flight while another account signs in can retry with the new session
 and leave an orphaned file in that account's storage. Rare and harmless to metadata.
 
-### [ ] New photos show up seconds after the picker closes
-
-After picking photos and videos, the picker closes and nothing happens for a few seconds, then the
-assets appear. `useAddAssetsFromCameraRoll` only shows the progress overlay after
-`pickImageFromMediaLibrary` returns, which waits for the native picker to export the files. Show
-feedback as soon as the picker closes.
-
 ### [ ] Select mode breaks in an album opened from a post
 
 Open a post, go to its album and tap select: drag-to-select starts the back-swipe gesture and
 navigates back instead.
 
-### [ ] Popover menus are cut off at the bottom
+### [ ] Keyboard pops up when switching main screens (confirm the fix)
 
-The "…" menu on the post detail screen is cut off, with the delete button right at the edge. At
-least one other menu has the same problem (location unknown).
-
-### [ ] Keyboard pops up when switching main screens
-
-After opening and closing search, switching to another main screen brings the keyboard back up.
-
-### [ ] Search bar ✕ closes the search
-
-Tapping ✕ should only clear the input, not close the search.
+After opening and closing search, switching to another main screen brought the keyboard back up.
+Likely cause, now fixed: every mounted main tab focused its search input when search opened, even
+hidden ones (`FloatingActionsBar` now only activates search on the focused tab). Confirm on a device,
+then remove this entry.
 
 ### [ ] Post suggestions skip a caption after loading more
 

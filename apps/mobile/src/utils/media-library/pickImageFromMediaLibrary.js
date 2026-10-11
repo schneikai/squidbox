@@ -5,7 +5,8 @@ import * as ImagePicker from 'expo-image-picker';
 import askForMediaLibraryPermissionViaSettings from './askForMediaLibraryPermissionViaSettings';
 import getMediaLibraryPermissionAsync from './getMediaLibraryPermissionAsync';
 
-export default async function pickImageFromMediaLibrary() {
+// `onOpen` runs right before the picker opens (only when permission is granted).
+export default async function pickImageFromMediaLibrary({ onOpen } = {}) {
   const hasPermission = await getMediaLibraryPermissionAsync();
 
   if (!hasPermission) {
@@ -13,6 +14,7 @@ export default async function pickImageFromMediaLibrary() {
     return;
   }
 
+  if (onOpen) onOpen();
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images', 'videos'],
     allowsMultipleSelection: true,

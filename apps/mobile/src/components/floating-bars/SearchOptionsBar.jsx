@@ -27,7 +27,7 @@ import { colors, scale, spacing, typography } from '@/styles/designTokens';
  *   isSearchActive   – boolean
  *   searchText       – string
  *   onOpenSearch     – () => void
- *   onCloseSearch    – () => void
+ *   onCloseSearch    – () => void  (✕ clears the text first; closes when it's empty)
  *   onChangeSearch   – (text: string) => void
  *   onOpenOptions    – () => void
  *   hasActiveState   – boolean  (options button highlighted when sort/filter active)
@@ -56,9 +56,18 @@ export default function SearchOptionsBar({
 
   useEffect(() => {
     expandProgress.value = withTiming(isSearchActive ? 1 : 0, { duration: 280 });
-    if (isSearchActive) setTimeout(() => inputRef.current?.focus(), 300);
-    else inputRef.current?.blur();
+    if (!isSearchActive) {
+      inputRef.current?.blur();
+      return;
+    }
+    const focusTimer = setTimeout(() => inputRef.current?.focus(), 300);
+    return () => clearTimeout(focusTimer);
   }, [isSearchActive]);
+
+  function handleClear() {
+    if (searchText) onChangeSearch('');
+    else onCloseSearch();
+  }
 
   const containerStyle = useAnimatedStyle(() => ({
     width: interpolate(expandProgress.value, [0, 1], [spacing.iconButtonSize * 2 + 20, maxWidth], Extrapolation.CLAMP),
@@ -115,7 +124,7 @@ export default function SearchOptionsBar({
             returnKeyType="search"
           />
           <Pressable
-            onPress={onCloseSearch}
+            onPress={handleClear}
             style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
           >
             <Icon name="close" color={colors.iconInactive} />

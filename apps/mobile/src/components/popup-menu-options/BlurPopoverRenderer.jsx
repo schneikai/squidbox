@@ -115,14 +115,12 @@ export default class BlurPopoverRenderer extends React.Component {
 BlurPopoverRenderer.computePosition = computePosition;
 
 const styles = StyleSheet.create({
+  // Size-affecting styles (min width, padding, border) come from popupMenuStyles.menuOptions so the
+  // library measures the same box that is drawn here.
   container: {
     position: 'absolute',
-    minWidth: 200, // fits ~6 chars label + icon; expands with content
     borderRadius: radii.modal,
-    borderWidth: 1,
-    borderColor: colors.darkModalBorder,
     overflow: 'hidden',
-    paddingVertical: spacing.barPaddingY,
     ...shadows.floating,
   },
   overlay: {
