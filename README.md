@@ -12,7 +12,7 @@ npm workspaces. `npm install` runs once at the repo root.
 | `apps/server` | Backend: Fastify + TypeScript + Drizzle + Postgres, with AWS S3 for file storage. Runs locally against Docker (Postgres + MinIO), see [Local backend with mock data](#local-backend-with-mock-data). |
 | `packages/shared` | Zod wire contracts + sync collection descriptors shared by app and server. |
 
-The backend was migrated from Rails to TypeScript; that migration is complete and deployed. The server lives in `apps/server` and is deployed on **Fly.io** (app `squidbox-server`, region `lhr`) with **Neon Postgres** + **AWS S3** (eu-west-1). API base: `https://squidbox-server.fly.dev/api/v1`.
+The backend lives in `apps/server` and runs on **Fly.io** (app `squidbox-server`, region `lhr`) with **Neon Postgres** + **AWS S3** (eu-west-1). API base: `https://squidbox-server.fly.dev/api/v1`.
 
 ## Multi-device sync
 
@@ -25,10 +25,10 @@ Common operations are driven by skills rather than memorized commands:
 | Skill | What it does |
 |---|---|
 | `/deploy-server` | Deploy the backend (Fly.io + Neon). First-time setup and routine one-command deploys; idempotent. |
-| `/legacy-import` | One-time import of the old Rails S3 JSON library (assets/albums/posts) into the backend — download, canonicalize ids to uuids, map to the modern schema, upsert via sync push, verify. |
+| `/legacy-import` | Import a user's old app backups (assets/albums/posts JSON in S3) into the backend: canonicalize ids to uuids, map to the current schema, upsert via sync push, verify. |
 | `/build` | Build the iOS app from the cloud (no Mac) via EAS. Asks whether to build the **App** (preview/release) or the **Dev Client**, then runs `eas` itself — no flags or profiles to remember. |
 
-Status and next steps for the migration are tracked in `docs/migration/STATUS.md`.
+The sync engine is described in `docs/sync-design.md`. Open user-side tasks are in `todo.md`.
 
 ## Environment & secrets
 
@@ -124,7 +124,7 @@ If Docker pulls fail, or the server can't reach MinIO, see `apps/server/README.m
 
 ## Deploying the backend
 
-Run `/deploy-server`. It handles first-time setup (Fly app + Neon DB + secrets + seed) and routine deploys (build, migrate, release) via the `fly` and `neonctl` CLIs. To seed the backend with the old library, run `/legacy-import` (a separate one-time step).
+Run `/deploy-server`. It handles first-time setup (Fly app + Neon DB + secrets + seed) and routine deploys (build, migrate, release) via the `fly` and `neonctl` CLIs. To import a user's old backups, run `/legacy-import`.
 
 ## Sentry
 

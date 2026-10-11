@@ -1,6 +1,6 @@
 ---
 name: deploy-server
-description: Deploy the Squidbox backend (apps/server) to Fly.io with a Neon Postgres DB — first-time setup (app + Neon DB + secrets + seed) and routine one-command deploys, driven via the fly + neonctl CLIs. Use when the user asks to deploy, set up hosting, ship the server, push a backend change, or run migrations in production. (Loading the legacy library is a separate one-time step — see the legacy-import skill.)
+description: Deploy the Squidbox backend (apps/server) to Fly.io with a Neon Postgres DB — first-time setup (app + Neon DB + secrets + seed) and routine one-command deploys, driven via the fly + neonctl CLIs. Use when the user asks to deploy, set up hosting, ship the server, push a backend change, or run migrations in production. (Importing a user's old backups is separate — see the legacy-import skill.)
 ---
 
 # Deploy server (Fly.io + Neon)
@@ -40,8 +40,8 @@ deploys. No separate "setup" vs "deploy" skill to choose.
    (pooled/pgbouncer breaks advisory locks + migrations — do NOT use `--pooled`).
 3. **Secrets** — set all at once. Pull the DB URL from neonctl (never echo it), generate JWT + login
    password, and read AWS creds from `apps/server/.env` (avoids credential literals in the command,
-   which the sandbox blocks). `JWT_SECRET` is just a random secret — it does NOT need to match Rails
-   (this is a fresh build; the user logs in anew). `SEED_USER_PASSWORD` is the app login password.
+   which the sandbox blocks). `JWT_SECRET` is a random secret;
+   changing it signs every device out. `SEED_USER_PASSWORD` is the app login password.
    ```bash
    AWS_KEY=$(grep '^AWS_ACCESS_KEY_ID=' apps/server/.env | cut -d= -f2-)
    AWS_SEC=$(grep '^AWS_SECRET_ACCESS_KEY=' apps/server/.env | cut -d= -f2-)
@@ -64,8 +64,8 @@ deploys. No separate "setup" vs "deploy" skill to choose.
    in `apps/mobile/.env.local` and restart Metro with `-c` (it's read at runtime, no rebuild). For the
    preview app, update the EAS environment variable and rebuild (see the `build` skill, Path B).
 
-> Loading the existing Rails library is a separate **one-time, pre-launch** step — not part of
-> deploy. Use the **`/legacy-import`** skill (`npm run convert:prod` on the app).
+> Importing a user's old backups is separate from deploying. Use the **`/legacy-import`** skill
+> (`npm run convert:prod` on the app).
 
 ## Routine deploy
 

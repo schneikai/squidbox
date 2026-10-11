@@ -4,9 +4,8 @@ import type { Db } from '../db/client.js';
 import { refreshTokens } from '../db/schema.js';
 import { AppError } from '../errors.js';
 
-// Per-device refresh tokens (table, not Rails' single overwritten column) so every device can
-// hold its own valid refresh token — rotation replaces only the token that was presented, so
-// device A refreshing never logs out device B.
+// Per-device refresh tokens: every device holds its own valid refresh token, and rotation replaces
+// only the token that was presented, so device A refreshing never logs out device B.
 export const REFRESH_TOKEN_TTL_MS = 365 * 24 * 60 * 60 * 1000; // 1 year
 
 function newRefreshToken(): string {

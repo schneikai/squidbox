@@ -1,10 +1,14 @@
 # @squidbox/server
 
-The TypeScript backend: Fastify + Drizzle + Postgres + S3. It replaced the legacy Rails API and is
-deployed on Fly.io (see the `/deploy-server` skill). It serves **auth** (JWT access tokens plus
-per-device refresh tokens that rotate on every refresh), the **S3 asset layer** (presigned GET
-downloads, server-proxied streaming uploads with server-side multipart, batch delete), and **sync**
-(`/sync/pull`, `/sync/push`). Everything is scoped per user.
+The TypeScript backend: Fastify + Drizzle + Postgres + S3, deployed on Fly.io (see the
+`/deploy-server` skill). It serves:
+
+- **Auth:** JWT access tokens plus per-device refresh tokens that rotate on every refresh.
+- **Files:** presigned GET downloads, server-proxied streaming uploads with server-side multipart,
+  and batch delete.
+- **Sync:** `/sync/pull` and `/sync/push`.
+
+Everything is scoped per user.
 
 ## Design notes
 
@@ -12,7 +16,7 @@ downloads, server-proxied streaming uploads with server-side multipart, batch de
   live in `packages/shared` (`contracts/auth.ts`, `contracts/assets.ts`) and are imported by
   both server and app — one source of truth for the frontend and backend.
 - **Modern API:** single error envelope `{ error: { code, message } }`, `Authorization:
-  Bearer`, RESTful shapes, uuid ids. See `docs/migration/phase-1-backend-skeleton.md`.
+  Bearer`, RESTful shapes, uuid ids.
 - **Uploads are server-proxied streaming** (not direct-to-S3): Expo can't split large files
   for client-side multipart and a single S3 PUT caps at 5 GB. The client streams one binary
   PUT; the server multiparts it via `@aws-sdk/lib-storage`. The upload route has its own
@@ -39,7 +43,7 @@ npm run dev                  # run the server against the local stack (http://lo
 First time only, if you don't have Docker: `brew install colima docker docker-compose` then
 `colima start` (headless Docker runtime for macOS; local dev only).
 
-MinIO comes from Chainguard's free images, since `minio/minio` is no longer published. If Docker
+MinIO comes from Chainguard's free images, because `minio/minio` isn't published on Docker Hub. If Docker
 Hub answers pulls with 429 (anonymous rate limit, common on shared cloud IPs), run `docker login`.
 
 MinIO console: http://localhost:9001 (minioadmin / minioadmin). Tear down with

@@ -1,7 +1,7 @@
 /**
  * One-shot server-side legacy import. Downloads the old JSON backups from S3
- * (assets.json / albums.json / posts.json in the user's storage bucket — the same keys the
- * Rails data-backup wrote), maps them old→modern, and imports for one user via the sync push
+ * (assets.json / albums.json / posts.json in the user's storage bucket, written by the old app's
+ * backup feature), maps them old→modern, and imports for one user via the sync push
  * path. The user's device then pulls everything on first login. Idempotent (LWW) — safe to re-run.
  *
  * Run from apps/server, with .env pointed at the TARGET backend (its Postgres + the AWS creds

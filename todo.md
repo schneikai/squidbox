@@ -1,8 +1,7 @@
 # TODO — remaining user-side items
 
-The Rails→TypeScript + multi-device-sync migration is **complete and deployed** (see
-`docs/migration/STATUS.md`). No code work remains — only these user-side steps that need a
-device, a real deploy check, or infra/secrets access. Remove an item once it's done.
+User-side steps that need a device, a real deploy check, or infra/secrets access. Remove an item
+once it's done.
 
 ## [ ] Test a photo upload
 
@@ -12,13 +11,13 @@ file lands in S3 and the asset syncs. Server-proxied streaming upload path
 
 ## [ ] Retire the old Rails droplet
 
-Once the new backend is confirmed working end-to-end, decommission the old DigitalOcean Rails
-droplet (the legacy library has already been imported — see `/legacy-import`).
+The old Rails server still runs on a DigitalOcean droplet. Its library is already in the backend.
+Decommission the droplet once the photo upload test above passes.
 
 ## [ ] Rotate credentials shared in chats
 
 Treat these as exposed and rotate them:
-- AWS access keys pasted during deploy + legacy import.
+- AWS access keys used for deploying and the legacy import.
 - From the October 2026 build sessions: the Expo access token, the App Store Connect API key, the
   ngrok authtoken, the OpenAI API key, the Docker Hub password, and the Squidbox account password.
   Update `.env.local`, the password manager, and EAS (`EXPO_PUBLIC_OPENAI_API_KEY`) afterwards.
@@ -30,7 +29,7 @@ Renew them via the **`/build`** skill (see "expired signing" there) a few weeks 
 
 ## [ ] Check the photo detail view on a device
 
-A slight crop of photos in the detail view was reported earlier. Confirm or rule it out. Pinch is a
+Photos in the detail view may be slightly cropped. Confirm or rule it out. Pinch is a
 peek that springs back; zooming in place (focal point, panning) is a possible enhancement.
 
 ## [ ] Thumbnail background backfill (deferred enhancement + decision)
@@ -48,7 +47,7 @@ Decision needed first (data/battery tradeoff for a ~14k-thumbnail library):
 - **Any network** — fastest coverage, but uses mobile data.
 - **Leave lazy-only** — accept the rare offline gap.
 
-## Monorepo dependency hygiene (reference — expo-doctor is 20/20 as of the SDK-55 alignment)
+## Monorepo dependency hygiene (reference)
 
 If `expo-doctor` ever flags version drift again, do NOT run `expo install --fix` (or any
 `npm install`) from `apps/mobile/` — in this npm-workspaces monorepo that half-bumps only the app
@@ -59,5 +58,5 @@ install` from the repo root — which resolves to a single coherent tree. Then r
 
 `@sentry/react-native` is intentionally pinned to **8.x** (see `expo.install.exclude` in
 apps/mobile/package.json): 8.x has the React 19 / New Architecture support SDK 55 needs; Expo's
-doctor pin to ~7.11 is stale and re-breaks the build (it was bumped to 8.x in a1ae366).
+doctor pin to ~7.11 is stale and re-breaks the build.
 </content>

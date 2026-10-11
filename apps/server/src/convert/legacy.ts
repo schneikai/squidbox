@@ -7,9 +7,6 @@ import { uuidv5 } from './uuidv5.js';
 // { [id]: entity } (yup shape). We map old → modern and feed the records through the normal
 // push() path, so they're Zod-validated, LWW-upserted, and server_seq-stamped exactly like a
 // client push — then the user's device pulls everything down on first login.
-//
-// Deviation from sync-design §11 (which ran the converter on one device): running it in the
-// backend needs no device converter UI and reuses the tested engine.
 
 type AnyRecord = Record<string, any>;
 

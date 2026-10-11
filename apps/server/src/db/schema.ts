@@ -13,9 +13,7 @@ import {
   primaryKey,
 } from 'drizzle-orm/pg-core';
 
-// Users. id is a uuid (was an integer in Rails; the app treats it opaquely, so this is a
-// safe, forward-looking change that also matches the multi-tenant sync model where every
-// syncable row is scoped by a uuid user_id).
+// Users. id is a uuid; every syncable row is scoped by it (multi-tenant sync model).
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   email: text('email').notNull().unique(),
@@ -28,9 +26,8 @@ export const users = pgTable('users', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-// Per-device refresh tokens (deliberate deviation from Rails' single-slot column, so multiple
-// devices can each hold a valid refresh token — the whole point of multi-device sync). The
-// wire contract is unchanged: rotation replaces only the presented token.
+// Per-device refresh tokens: each device holds its own valid token, and rotation replaces only
+// the presented one.
 export const refreshTokens = pgTable(
   'refresh_tokens',
   {

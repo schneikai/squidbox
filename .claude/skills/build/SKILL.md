@@ -103,7 +103,7 @@ below; the gotchas there are load-bearing.
 
 ## Env vars & secrets (how baking works) — READ if a build "can't reach the server"
 
-Hard-won facts (SDK 55 / current EAS CLI):
+Facts (SDK 55, current EAS CLI):
 - **`environment` per profile is REQUIRED.** eas.json's build profiles set `"environment"`
   (development/preview/production). Without it, EAS injects **none** of the stored env vars → the app
   builds with `EXPO_PUBLIC_API_URL` undefined → every request fails locally → "Can't reach server"
@@ -115,9 +115,8 @@ Hard-won facts (SDK 55 / current EAS CLI):
   (`eas env:set` errors); update its value in place with `--visibility secret`, or delete + recreate.
 - A `secret` value can't be read back. To verify what actually baked, download the .ipa and grep:
   `unzip -o app.ipa -d x && strings x/Payload/*.app/main.jsbundle | grep -oE "https://[a-z0-9.-]+/api/v1"`.
-- Classic failure we hit: the app logged in fine (old Rails backend still up) but sync failed —
-  because the baked `EXPO_PUBLIC_API_URL` was the **stale Rails URL** from an old `eas secret` push,
-  not the Fly URL. Login worked; `/sync/*` didn't exist there.
+- Typical symptom of a wrong baked URL: login works but sync fails, because the URL points at a
+  server without `/sync/*`. Check the baked value as above.
 - `EXPO_PUBLIC_OPENAI_API_KEY` is baked into the binary regardless (that's what `EXPO_PUBLIC_` means);
   keeping it `secret` only hides it from logs/UI, not from the shipped app.
 

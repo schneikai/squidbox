@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { baseRecordSchema, defineCollection } from './define';
 
-// `albums` collection (sync-design §10). Membership moved to the `album_assets` junction
-// collection; `postHistory`/`lastPostedAt` are derived on-device from posts + membership (not
-// synced). Legacy `isDeleted` → modern `deletedAt` tombstone.
+// `albums` collection (sync-design §10). Membership lives in the `album_assets` edge collection;
+// `postHistory`/`lastPostedAt` are derived on-device from posts + membership (not synced).
+// Deletion is a `deletedAt` tombstone.
 export const albumCollection = defineCollection({
   name: 'albums',
   schema: baseRecordSchema.extend({

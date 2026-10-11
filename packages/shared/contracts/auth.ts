@@ -1,10 +1,8 @@
-// Auth wire contract — the request/response shapes the mobile app depends on.
-// These match what the (now-legacy) Rails API returned via olive_branch (camelCase).
-// The server MUST keep these byte-compatible so the app can be pointed at it unchanged.
+// Auth wire contract — the request/response shapes shared by the app and the server (camelCase).
 import { z } from 'zod';
 
 export const apiUserSchema = z.object({
-  id: z.string(), // uuid (was an integer in Rails; the app stores it opaquely)
+  id: z.string(), // uuid; the app treats it as opaque
   email: z.string(),
 });
 export type ApiUser = z.infer<typeof apiUserSchema>;
@@ -27,7 +25,7 @@ export const refreshRequestSchema = z.object({
 });
 export type RefreshRequest = z.infer<typeof refreshRequestSchema>;
 
-// Note: refresh returns NO user (parity with Rails).
+// Refresh returns tokens only, no user.
 export const refreshResponseSchema = z.object({
   accessToken: z.string(),
   refreshToken: z.string(),

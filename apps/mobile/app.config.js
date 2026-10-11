@@ -3,8 +3,8 @@ const baseConfig = {
     name: 'Squidbox',
     slug: 'squidbox',
     version: '0.0.1',
-    // Bumped for the expo-sqlite native module (Phase 2b) so a stale OTA bundle can never be
-    // delivered to a binary lacking the module. Bump again when native modules change.
+    // Bump whenever native modules change, so an OTA bundle is never delivered to a binary that
+    // lacks a module it needs.
     runtimeVersion: '1.0.0',
     orientation: 'portrait',
     icon: './assets/icon.png',

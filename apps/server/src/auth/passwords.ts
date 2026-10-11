@@ -1,7 +1,6 @@
 import bcrypt from 'bcryptjs';
 
-// bcryptjs is hash-compatible with Rails' bcrypt digests, so existing password_digest values
-// import and verify unchanged (no forced password reset at cutover).
+// bcryptjs verifies standard bcrypt digests ($2a$/$2b$), including imported password_digest values.
 const BCRYPT_ROUNDS = 12;
 
 export function hashPassword(plain: string): Promise<string> {
