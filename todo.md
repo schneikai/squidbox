@@ -3,7 +3,135 @@
 Open work, ideas, and steps only the owner can do. Add an entry whenever you discover a problem,
 when the owner defers something, or when an idea comes up. Remove an entry once it's done.
 
-## Code
+## Bugs
+
+### [ ] Make "Delete permanently" actually delete
+
+In the Deleted album, "Delete permanently" (`deleteAssetsAsync`) only tombstones the assets again.
+They stay in the Deleted album, and their files stay in S3. It should delete the S3 file and
+thumbnail through `POST /assets/delete` and remove the records for good.
+
+### [ ] Remove local files when a delete arrives through sync
+
+When another device deletes an asset, this device applies the tombstone but keeps its local file
+and thumbnail. See `docs/sync-design.md` §7a.
+
+### [ ] Uploads during an account switch
+
+A file upload that is in flight while another account signs in can retry with the new session
+and leave an orphaned file in that account's storage. Rare and harmless to metadata.
+
+### [ ] New photos show up seconds after the picker closes
+
+After picking photos and videos, the picker closes and nothing happens for a few seconds, then the
+assets appear. `useAddAssetsFromCameraRoll` only shows the progress overlay after
+`pickImageFromMediaLibrary` returns, which waits for the native picker to export the files. Show
+feedback as soon as the picker closes.
+
+### [ ] Select mode breaks in an album opened from a post
+
+Open a post, go to its album and tap select: drag-to-select starts the back-swipe gesture and
+navigates back instead.
+
+### [ ] Popover menus are cut off at the bottom
+
+The "…" menu on the post detail screen is cut off, with the delete button right at the edge. At
+least one other menu has the same problem (location unknown).
+
+### [ ] Keyboard pops up when switching main screens
+
+After opening and closing search, switching to another main screen brings the keyboard back up.
+
+### [ ] Search bar ✕ closes the search
+
+Tapping ✕ should only clear the input, not close the search.
+
+### [ ] Post suggestions skip a caption after loading more
+
+When the next batch of captions finishes loading, the view jumps past the first newly loaded one.
+
+### [ ] Caption on the post suggestion screen isn't keyboard-avoiding
+
+Tapping the caption opens the keyboard, which covers the view. Decide whether it should be editable
+there at all.
+
+### [ ] AI chat corrections misbehave
+
+Asking for corrections sometimes returns a single post instead of variations, and replies sometimes
+contain raw markup such as JS array notation.
+
+### [ ] Drag-select in the system photo picker moves the screen sideways
+
+In the system picker (camera roll), tap-and-drag to select makes the whole screen move left and
+right. The picker is native, so check what the app can influence through its options.
+
+### [ ] Album cover uses the album's last asset
+
+`useGetAlbumThumbnailAssetAndAssetCount` takes the last id in the album's list. It should be the
+first asset in the album's sort order. Apple Photos uses the first photo by default and lets you
+pick another as the key photo.
+
+## Features
+
+### [ ] Video playback
+
+Videos don't play: the detail screen shows only the duration (`VideoControls`). `expo-video` is
+already installed.
+
+### [ ] Asset details on swipe up
+
+On the asset detail screen, swipe up (as in Apple Photos) to see details: the albums the asset
+belongs to and when it was last posted.
+
+### [ ] Zoom like Apple Photos
+
+Pinch currently springs back and always scales from the center (`AssetItem`). Zoom should center
+on the pinch or tap point, stay zoomed and allow panning, with the pager locked while zoomed. The
+fullscreen view on the asset detail screen needs the same.
+
+### [ ] Quick view in albums with custom sort
+
+The long-press quick view is off while drag-to-reorder is enabled (`AlbumAssetsView`). A
+long-press held still for about a second could open the quick view, while moving starts the
+reorder.
+
+### [ ] Post suggestions: show and open where an asset was posted
+
+Show when the asset and its album were last posted, and allow going to the album (or to the asset
+detail screen on tap).
+
+### [ ] Save posts for later / drafts
+
+Keep a generated caption without posting it now, for example as a draft post. Posts without a
+`postedAt` already exist and sort separately, so drafts can build on that.
+
+### [ ] More AI tools
+
+- Generate a few PPV message texts from a post.
+- Quoted RTs, a follow-up tweet with the OF address, and other predefined prompts, for example as
+  buttons after a reply.
+- Suggest @ mentions from the album's posts, or more generally from the post history.
+
+### [ ] Asset selector in the new design
+
+The Squidbox asset selector (for example "add asset → from Squidbox" when editing a post) still uses
+the old design. It should work like the asset and album screens, with search and filter.
+
+### [ ] Recreate thumbnails
+
+An action to regenerate an asset's thumbnail. The video thumbnail in album 197 is broken.
+
+## Design
+
+- **Popover menus:** white instead of dark (`BlurPopoverRenderer`), with an open/close animation.
+- **Asset detail background:** a blurred background in the asset's colors.
+- **Toolbar:** no outer pill when it holds a single button. Consider moving the settings button
+  into the toolbar, in a color other than the primary purple.
+- **Post detail header:** a line break between date and time, or drop the time.
+- **Albums list:** a better layout for name, asset count and last posted.
+- **Circular progress:** a larger circle and smaller percentage text (`ProgressRing`).
+
+## Code quality
 
 ### [ ] Find unused code with knip
 
@@ -32,31 +160,13 @@ example jest-expo with React Native Testing Library) and cover the key screens f
 detail pager, login and sign-out, and the library grid. Consider end-to-end tests (for example
 Maestro) for the main flows later.
 
-### [ ] Make "Delete permanently" actually delete
-
-In the Deleted album, "Delete permanently" (`deleteAssetsAsync`) only tombstones the assets again.
-They stay in the Deleted album, and their files stay in S3. It should delete the S3 file and
-thumbnail through `POST /assets/delete` and remove the records for good.
-
-### [ ] Remove local files when a delete arrives through sync
-
-When another device deletes an asset, this device applies the tombstone but keeps its local file
-and thumbnail. See `docs/sync-design.md` §7a.
-
 ### [ ] Move off Node 20
 
 Node 20 reached end of life in April 2026. `mise.toml` pins 20.19.4 and the server image uses
 `node:20-slim`. Move both to the current LTS and run the tests.
 
-### [ ] Uploads during an account switch
-
-A file upload that is in flight while another account signs in can retry with the new session
-and leave an orphaned file in that account's storage. Rare and harmless to metadata.
-
 ## Ideas
 
-- **Pinch zoom in place.** Pinch on a photo is a peek that springs back. Zooming in place needs a
-  focal point, panning, and locking the pager while zoomed.
 - **Background sync.** Sync runs only while the app is open. A background task or a silent push
   from the backend could keep the library fresh.
 - **Thumbnail backfill.** Thumbnails load lazily, so one you never scrolled to is blank offline.
