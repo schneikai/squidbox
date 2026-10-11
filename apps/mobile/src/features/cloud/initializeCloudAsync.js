@@ -33,6 +33,6 @@ async function handleMissingUser() {
     console.log(`Error getting API user in initializeCloudAsync. Error: ${error.message}`);
   }
 
-  clearTokensAsync();
+  await clearTokensAsync();
   return null;
 }

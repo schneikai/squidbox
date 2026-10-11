@@ -10,7 +10,7 @@ import getUnsyncedAssets from '@/utils/assets/queries/getUnsyncedAssets';
 import fileSizeToHumanReadable from '@/utils/fileSizeToHumanReadable';
 
 export default function CloudSyncProvider({ children }) {
-  const { assets, updateAsset } = useAssets();
+  const { assets, updateAsset, setAssetsSyncError } = useAssets();
   const { isAuthenticated, uploadAssetFileAsync, uploadAssetThumbnailAsync } = useCloud();
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState(null);
@@ -109,7 +109,7 @@ export default function CloudSyncProvider({ children }) {
       } catch (error) {
         // We do not raise the error and instead continue syncing the other assets.
         // Sync errors are then shown in the UI with a button to retry.
-        await updateAsset(asset.id, { syncError: error.message });
+        await setAssetsSyncError([asset.id], error.message);
       }
     }
 

@@ -2,6 +2,6 @@ import { use } from 'react';
 
 import CloudSyncContext from './CloudSyncContext';
 
-export default function useCloud() {
+export default function useCloudSync() {
   return use(CloudSyncContext);
 }

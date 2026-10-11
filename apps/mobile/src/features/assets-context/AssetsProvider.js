@@ -59,6 +59,10 @@ export default function AssetsProvider({ children }) {
         }
         requestSync();
       },
+      // Local-only marker for failed file uploads (never synced); null clears it for a retry.
+      setAssetsSyncError: async (assetIds, error) => {
+        for (const id of assetIds) await repo.setSyncError(getDb(), id, error);
+      },
       toggleFavoriteAsset: async (asset) => {
         await repo.toggleFavorite(getDb(), asset.id);
         requestSync();

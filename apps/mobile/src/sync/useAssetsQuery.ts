@@ -1,5 +1,5 @@
-import type { AssetRecord } from '@squidbox/shared';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
+import { useMemo } from 'react';
 
 import { getDb, schema } from './db/client';
 import type { AssetRow } from './db/schema';
@@ -20,13 +20,9 @@ export function useLiveAssets(): AssetRow[] {
   return data ?? [];
 }
 
-/** Live id-keyed map of all assets (matches the shape existing screens consume). */
-export function useLiveAssetsMap(): Record<string, AssetRecord> {
+/** Live id-keyed map of all assets (matches the shape existing screens consume), including the
+ * local-only syncError that the sync error UI reads. Rebuilt only when the rows change. */
+export function useLiveAssetsMap(): Record<string, AssetRow> {
   const rows = useLiveAssets();
-  const map: Record<string, AssetRecord> = {};
-  for (const row of rows) {
-    const { syncError: _s, ...record } = row;
-    map[row.id] = record as unknown as AssetRecord;
-  }
-  return map;
+  return useMemo(() => Object.fromEntries(rows.map((row) => [row.id, row])), [rows]);
 }

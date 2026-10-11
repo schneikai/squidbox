@@ -237,7 +237,6 @@ async function withSyncRun(work: (db: SyncDb, transport: SyncTransport) => Promi
 export function runFullResync(): Promise<void> {
   return syncFlight.exclusive(() => withSyncRun(fullResync));
 }
-export async function runClearOutbox(): Promise<void> {
-  const { getDb } = await import('./db/client');
-  await clearOutbox(getDb());
+export function runClearOutbox(): Promise<void> {
+  return withSyncPaused(clearOutbox);
 }

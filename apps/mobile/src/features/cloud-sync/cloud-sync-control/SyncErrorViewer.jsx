@@ -10,7 +10,7 @@ import { colors, radii, scale } from '@/styles/designTokens';
 
 export default function SyncErrorViewer({ assetsWithSyncErrors, close }) {
   const { bottom } = useSafeAreaInsets();
-  const { updateAssets } = useAssets();
+  const { setAssetsSyncError } = useAssets();
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => {
     scrollY.value = e.contentOffset.y;
@@ -18,7 +18,7 @@ export default function SyncErrorViewer({ assetsWithSyncErrors, close }) {
 
   async function handleRetry() {
     const assetIds = assetsWithSyncErrors.map((asset) => asset.id);
-    await updateAssets(assetIds, { syncError: null });
+    await setAssetsSyncError(assetIds, null);
     close();
   }
 
