@@ -26,6 +26,11 @@ export const assetSortOptions = {
   custom: () => 0,
 };
 
+// The comparator for a sort order key, falling back to newest first for unknown keys.
+export function getAssetSortFunction(sortOrder) {
+  return assetSortOptions[sortOrder] ?? assetSortOptions['createdAt:desc'];
+}
+
 export default function useSortAssetsAction({ afterSort } = {}) {
   const { sortOrder, sortFunction, sort } = useSort(assetSortOptions, 'createdAt:desc', { afterSort });
   return { sortOrder, sortFunction, sortAssets: sort };

@@ -12,7 +12,7 @@ export default function MenuOption({ label, icon, onPress, isLast = false, dange
         <Icon
           name={icon}
           size={spacing.menuIconSize}
-          color={danger ? colors.danger : active ? colors.accent : colors.darkModalTextDim}
+          color={danger ? colors.danger : active ? colors.accent : colors.menuTextDim}
           style={popupMenuStyles.menuOptionIcon}
         />
       )}

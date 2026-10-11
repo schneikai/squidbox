@@ -25,7 +25,7 @@ export default function DownloadSelectionMenuOption({ getSelectedAssets }) {
       <Icon
         name="download"
         size={spacing.menuIconSize}
-        color={colors.darkModalTextDim}
+        color={colors.menuTextDim}
         style={popupMenuStyles.menuOptionIcon}
       />
     </MenuOption>

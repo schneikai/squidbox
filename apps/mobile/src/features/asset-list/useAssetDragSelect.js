@@ -1,4 +1,5 @@
-import { useMemo, useRef } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import { useEffect, useMemo, useRef } from 'react';
 import { Gesture } from 'react-native-gesture-handler';
 
 import gridIndexAtPoint from './gridIndexAtPoint';
@@ -31,7 +32,15 @@ export default function useAssetDragSelect({
   selectedIdsRef,
   selectAssets,
 }) {
+  const navigation = useNavigation();
   const containerHeightRef = useRef(0);
+
+  // A drag can start in the grid's first column, where iOS's swipe-back gesture also starts. Turn
+  // swipe-back off while drag-select is on, so the drag selects instead of leaving the screen.
+  useEffect(() => {
+    navigation.setOptions({ gestureEnabled: !enabled });
+  }, [navigation, enabled]);
+
   const baseSelectedRef = useRef([]);
   const anchorIndexRef = useRef(-1);
   const currentIndexRef = useRef(-1);

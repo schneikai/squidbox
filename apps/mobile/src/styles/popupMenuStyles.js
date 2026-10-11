@@ -18,7 +18,7 @@ export default {
       width: spacing.popoverWidth,
       paddingVertical: spacing.barPaddingY,
       borderWidth: 1,
-      borderColor: colors.darkModalBorder,
+      borderColor: colors.menuBorder,
     },
   },
 
@@ -29,7 +29,7 @@ export default {
     paddingHorizontal: spacing.menuRowH,
     paddingVertical: spacing.menuRowV,
     borderBottomWidth: 1,
-    borderBottomColor: colors.darkModalBorder,
+    borderBottomColor: colors.menuBorder,
   },
   menuOptionLast: {
     borderBottomWidth: 0,
@@ -43,7 +43,7 @@ export default {
     flexShrink: 1,
     fontSize: spacing.menuFontSize,
     fontWeight: '500',
-    color: colors.darkModalText,
+    color: colors.menuText,
   },
   menuOptionTextDanger: {
     color: colors.danger,

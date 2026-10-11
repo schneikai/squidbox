@@ -16,12 +16,7 @@ export default function CreatePostSelectionMenuOption({ getSelectedAssets }) {
   return (
     <MenuOption onSelect={handleSelect} customStyles={{ optionWrapper: popupMenuStyles.menuOption }}>
       <Text style={popupMenuStyles.menuOptionText}>Create Post</Text>
-      <Icon
-        name="edit"
-        size={spacing.menuIconSize}
-        color={colors.darkModalTextDim}
-        style={popupMenuStyles.menuOptionIcon}
-      />
+      <Icon name="edit" size={spacing.menuIconSize} color={colors.menuTextDim} style={popupMenuStyles.menuOptionIcon} />
     </MenuOption>
   );
 }

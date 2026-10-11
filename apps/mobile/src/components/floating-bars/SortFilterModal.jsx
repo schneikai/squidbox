@@ -113,7 +113,7 @@ export default function SortFilterModal({
           },
         ]}
       >
-        <BlurView intensity={70} tint="dark" style={StyleSheet.absoluteFill} />
+        <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
         <View style={[StyleSheet.absoluteFill, styles.overlay]} />
 
         {!showFilterPanel ? (
@@ -153,7 +153,7 @@ export default function SortFilterModal({
               <Icon
                 name="chevron-right"
                 size={spacing.menuIconSize}
-                color={colors.darkModalTextDim}
+                color={colors.menuTextDim}
                 style={styles.rowIcon}
               />
             </Pressable>
@@ -167,7 +167,7 @@ export default function SortFilterModal({
                 <Icon
                   name="close-circle"
                   size={spacing.menuIconSize}
-                  color={colors.darkModalTextDim}
+                  color={colors.menuTextDim}
                   style={styles.rowLeadIcon}
                 />
                 <Text style={styles.rowLabel}>Clear filter</Text>
@@ -185,7 +185,7 @@ export default function SortFilterModal({
                   <Icon
                     name={thumbnailStyle === 'cover' ? 'expand' : 'grid'}
                     size={spacing.menuIconSize}
-                    color={colors.darkModalTextDim}
+                    color={colors.menuTextDim}
                     style={styles.rowLeadIcon}
                   />
                   <Text style={styles.rowLabel}>
@@ -202,7 +202,7 @@ export default function SortFilterModal({
               onPress={() => setShowFilterPanel(false)}
               style={({ pressed }) => [styles.row, styles.backRow, pressed && styles.rowPressed]}
             >
-              <Icon name="chevron-left" size={spacing.menuIconSize} color={colors.darkModalTextDim} />
+              <Icon name="chevron-left" size={spacing.menuIconSize} color={colors.menuTextDim} />
               <Text style={[styles.rowLabel, styles.backLabel]}>Filter</Text>
             </Pressable>
 
@@ -219,7 +219,7 @@ export default function SortFilterModal({
                   <Icon
                     name={option.icon}
                     size={spacing.menuIconSize}
-                    color={colors.darkModalTextDim}
+                    color={colors.menuTextDim}
                     style={styles.rowLeadIcon}
                   />
                   <Text style={styles.rowLabel}>{option.label}</Text>
@@ -240,13 +240,13 @@ const styles = StyleSheet.create({
     width: 220,
     borderRadius: radii.modal,
     borderWidth: 1,
-    borderColor: colors.darkModalBorder,
+    borderColor: colors.menuBorder,
     paddingVertical: spacing.barPaddingY,
     overflow: 'hidden',
     ...shadows.floating,
   },
   overlay: {
-    backgroundColor: colors.darkModalOverlay,
+    backgroundColor: colors.menuOverlay,
   },
   row: {
     flexDirection: 'row',
@@ -255,12 +255,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.menuRowV,
   },
   rowPressed: {
-    backgroundColor: colors.darkModalHover,
+    backgroundColor: colors.menuHover,
   },
   rowLabel: {
     flex: 1,
     fontSize: spacing.menuFontSize,
-    color: colors.darkModalText,
+    color: colors.menuText,
   },
   rowIcon: {
     marginLeft: 8,
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: colors.darkModalBorder,
+    backgroundColor: colors.menuBorder,
     marginVertical: 4,
     marginHorizontal: 10,
   },

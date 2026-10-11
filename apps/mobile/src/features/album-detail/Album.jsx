@@ -21,7 +21,7 @@ import MoreAction from '@/features/album-detail/actions/MoreAction';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useAppSettings from '@/features/app-settings/useAppSettings';
 import useFilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/useFilterAssetsAction';
-import { assetSortOptions } from '@/features/asset-list/actions/sort-assets-action/useSortAssetsAction';
+import { getAssetSortFunction } from '@/features/asset-list/actions/sort-assets-action/useSortAssetsAction';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import prepareAssets from '@/features/asset-list/prepareAssets';
 import useAssetList from '@/features/asset-list/useAssetList';
@@ -32,6 +32,7 @@ import useScreenPadding from '@/hooks/useScreenPadding';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, scale, spacing, typography } from '@/styles/designTokens';
 import getAlbumAssets from '@/utils/albums/getAlbumAssets';
+import getAlbumSortOrder from '@/utils/albums/getAlbumSortOrder';
 import isSmartAlbum from '@/utils/albums/isSmartAlbum';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
@@ -75,12 +76,10 @@ export default function Album({ album }) {
   const { listRef, listScrollTop } = useAssetList();
   const { isSelectMode, selectedAssetIds, toggleSelectMode, toggleSelectAsset, selectAssets } =
     useToggleSelectAssetsAction();
-  // Sort resolution: an album on custom order shows its own manual order; every
-  // other album follows the shared global sort. A per-session override lets the
-  // active album react immediately to sort/reorder changes.
+  // A per-session override lets the open album react immediately to sort/reorder changes.
   const [sessionSortOrder, setSessionSortOrder] = useState(null);
-  const sortOrder = sessionSortOrder ?? (album.sortOrder === 'custom' ? 'custom' : albumSortOrder);
-  const sortFunction = assetSortOptions[sortOrder] ?? assetSortOptions['createdAt:desc'];
+  const sortOrder = sessionSortOrder ?? getAlbumSortOrder(album, albumSortOrder);
+  const sortFunction = getAssetSortFunction(sortOrder);
   const { activeFilter, matchFilter, toggleFilter } = useFilterAssetsAction({ afterFilter: listScrollTop });
   const { asset: quickViewAsset, open: openAssetQuickView, close: closeAssetQuickView } = useAssetQuickViewModal();
   const [activeTab, setActiveTab] = useState('Assets');

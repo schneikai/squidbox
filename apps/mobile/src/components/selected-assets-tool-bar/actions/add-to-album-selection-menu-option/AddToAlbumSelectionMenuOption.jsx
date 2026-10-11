@@ -19,7 +19,7 @@ export default function AddToAlbumSelectionMenuOption({ getSelectedAssets }) {
       <Icon
         name="library"
         size={spacing.menuIconSize}
-        color={colors.darkModalTextDim}
+        color={colors.menuTextDim}
         style={popupMenuStyles.menuOptionIcon}
       />
     </MenuOption>

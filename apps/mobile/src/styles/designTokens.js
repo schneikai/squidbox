@@ -26,11 +26,11 @@ export const colors = {
   glassSurface: 'rgba(255,255,255,0.95)',
   glassBorder: 'rgba(0,0,0,0.08)',
 
-  darkModal: 'rgba(17,17,17,0.95)',
-  darkModalOverlay: 'rgba(10,10,10,0.55)', // tint layer on top of BlurView
-  darkModalBorder: 'rgba(255,255,255,0.10)',
-  darkModalText: 'rgba(255,255,255,0.95)',
-  darkModalTextDim: 'rgba(255,255,255,0.55)',
+  // Popover menus and the sort/filter panel: a light frosted surface.
+  menuOverlay: 'rgba(255,255,255,0.72)', // tint layer on top of the light BlurView
+  menuBorder: 'rgba(0,0,0,0.08)',
+  menuText: '#111827',
+  menuTextDim: '#6B7280',
 
   accent: '#7C3AED',
   accentLight: 'rgba(124,58,237,0.12)',
@@ -50,7 +50,7 @@ export const colors = {
 
   // Interactive states
   pressedBg: 'rgba(0,0,0,0.06)', // subtle press overlay on light surfaces
-  darkModalHover: 'rgba(255,255,255,0.08)', // highlighted row on dark modal surfaces
+  menuHover: 'rgba(0,0,0,0.05)', // highlighted row on menu surfaces
 
   // Generic overlays for thumbnail badges etc.
   overlayDark: 'rgba(0,0,0,0.35)',

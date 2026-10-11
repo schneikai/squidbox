@@ -21,11 +21,6 @@ and thumbnail. See `docs/sync-design.md` §7a.
 A file upload that is in flight while another account signs in can retry with the new session
 and leave an orphaned file in that account's storage. Rare and harmless to metadata.
 
-### [ ] Select mode breaks in an album opened from a post
-
-Open a post, go to its album and tap select: drag-to-select starts the back-swipe gesture and
-navigates back instead.
-
 ### [ ] Keyboard pops up when switching main screens (confirm the fix)
 
 After opening and closing search, switching to another main screen brought the keyboard back up.
@@ -51,12 +46,6 @@ contain raw markup such as JS array notation.
 
 In the system picker (camera roll), tap-and-drag to select makes the whole screen move left and
 right. The picker is native, so check what the app can influence through its options.
-
-### [ ] Album cover uses the album's last asset
-
-`useGetAlbumThumbnailAssetAndAssetCount` takes the last id in the album's list. It should be the
-first asset in the album's sort order. Apple Photos uses the first photo by default and lets you
-pick another as the key photo.
 
 ## Features
 
@@ -110,7 +99,6 @@ An action to regenerate an asset's thumbnail. The video thumbnail in album 197 i
 
 ## Design
 
-- **Popover menus:** white instead of dark (`BlurPopoverRenderer`), with an open/close animation.
 - **Asset detail background:** a blurred background in the asset's colors.
 - **Toolbar:** no outer pill when it holds a single button. Consider moving the settings button
   into the toolbar, in a color other than the primary purple.

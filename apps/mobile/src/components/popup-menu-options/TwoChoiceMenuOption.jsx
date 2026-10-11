@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
   },
   btnText: {
     fontSize: scale(18),
-    color: colors.darkModalTextDim,
+    color: colors.menuTextDim,
   },
   btnTextActive: {
     color: colors.accent,

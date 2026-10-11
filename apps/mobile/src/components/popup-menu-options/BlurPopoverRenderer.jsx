@@ -8,8 +8,9 @@ import { colors, radii, shadows, spacing } from '@/styles/designTokens';
  * Custom react-native-popup-menu renderer.
  *
  * Positions the menu below the trigger (flips above when there is insufficient
- * space) with a small gap, using BlurView + a dark overlay for the frosted-glass
- * appearance that matches FloatingFilterModal.
+ * space) with a small gap, using BlurView + a light overlay for the frosted-glass
+ * appearance that matches the sort/filter panel. It opens by growing out of the
+ * trigger's corner with a soft spring and shrinks back into it on close.
  *
  * The renderer interface requires:
  *   - render()  — must apply the computed position to the outermost View
@@ -36,7 +37,8 @@ function axisPosition(oDim, wDim, tPos, tDim) {
   return pos;
 }
 
-function computePosition(layouts, isRTL) {
+// Where the menu goes, and which side of the trigger it is anchored to.
+function computePlacement(layouts) {
   const { windowLayout, triggerLayout, optionsLayout } = layouts;
   const { x: wX, y: wY, width: wWidth, height: wHeight } = windowLayout;
   const { x: tX, y: tY, height: tHeight, width: tWidth } = triggerLayout;
@@ -52,10 +54,23 @@ function computePosition(layouts, isRTL) {
   // Vertical — open below trigger, flip above when there is no room
   const belowTop = tY - wY + tHeight + spacing.popoverGap;
   const aboveTop = tY - wY - oHeight - spacing.popoverGap;
-  const top = belowTop + oHeight <= wHeight ? belowTop : Math.max(0, aboveTop);
+  const opensBelow = belowTop + oHeight <= wHeight;
+  const top = opensBelow ? belowTop : Math.max(0, aboveTop);
 
+  return { top, left, isRightAligned, opensBelow };
+}
+
+function computePosition(layouts, isRTL) {
+  const { top, left } = computePlacement(layouts);
   const start = isRTL ? 'right' : 'left';
   return { top, [start]: left };
+}
+
+// The menu's corner nearest the trigger, so it grows out of (and shrinks back into) the button.
+function transformOriginFor({ isRightAligned, opensBelow }, isRTL) {
+  const vertical = opensBelow ? 'top' : 'bottom';
+  const alignedToEnd = isRightAligned !== isRTL;
+  return `${vertical} ${alignedToEnd ? 'right' : 'left'}`;
 }
 
 export default class BlurPopoverRenderer extends React.Component {
@@ -65,10 +80,11 @@ export default class BlurPopoverRenderer extends React.Component {
   }
 
   componentDidMount() {
-    Animated.timing(this.state.anim, {
+    Animated.spring(this.state.anim, {
       toValue: 1,
-      duration: 180,
-      easing: Easing.out(Easing.cubic),
+      damping: 18,
+      stiffness: 260,
+      mass: 0.8,
       useNativeDriver: true,
     }).start();
   }
@@ -77,7 +93,7 @@ export default class BlurPopoverRenderer extends React.Component {
     return new Promise((resolve) => {
       Animated.timing(this.state.anim, {
         toValue: 0,
-        duration: 130,
+        duration: 140,
         easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
       }).start(resolve);
@@ -91,20 +107,14 @@ export default class BlurPopoverRenderer extends React.Component {
     const position = computePosition(layouts, I18nManager.isRTL);
 
     const animatedStyle = {
-      opacity: this.state.anim,
-      transform: [
-        {
-          scale: this.state.anim.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0.96, 1],
-          }),
-        },
-      ],
+      opacity: this.state.anim.interpolate({ inputRange: [0, 0.4], outputRange: [0, 1], extrapolate: 'clamp' }),
+      transformOrigin: transformOriginFor(computePlacement(layouts), I18nManager.isRTL),
+      transform: [{ scale: this.state.anim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }],
     };
 
     return (
       <Animated.View {...other} style={[styles.container, style, position, animatedStyle]}>
-        <BlurView intensity={70} tint="dark" style={StyleSheet.absoluteFill} />
+        <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
         <View style={[StyleSheet.absoluteFill, styles.overlay]} />
         {children}
       </Animated.View>
@@ -124,6 +134,6 @@ const styles = StyleSheet.create({
     ...shadows.floating,
   },
   overlay: {
-    backgroundColor: colors.darkModalOverlay,
+    backgroundColor: colors.menuOverlay,
   },
 });
