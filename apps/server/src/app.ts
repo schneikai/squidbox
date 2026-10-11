@@ -24,15 +24,11 @@ export async function buildApp(opts: { logger?: FastifyServerOptions['logger'] }
       },
     },
     // We stream large uploads through request.raw; the body is never buffered by Fastify.
-    bodyLimit: 1024 * 1024, // JSON routes only (uploads bypass this via the raw parser below)
+    bodyLimit: 1024 * 1024, // JSON routes only (the upload route streams; see storage/routes.ts)
   });
 
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
-
-  // Pass raw binary bodies (uploads) straight through as a stream instead of buffering them.
-  // JSON keeps its built-in parser; this only catches other content types.
-  app.addContentTypeParser('*', (_request, payload, done) => done(null, payload));
 
   await app.register(rateLimit, { global: false });
 

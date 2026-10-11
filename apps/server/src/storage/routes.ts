@@ -62,25 +62,32 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
 
   // PUT /assets/upload/*  — server-proxied streaming upload (server does S3 multipart).
   // Raw binary body (no JSON schema). Token via Bearer OR ?token= (iOS background-upload).
-  app.route({
-    method: 'PUT',
-    url: '/assets/upload/*',
-    preHandler: authenticate({ allowQueryToken: true }),
-    handler: async (request, reply) => {
-      const userId = requireUserId(request);
-      const fileKey = (request.params as Record<string, string>)['*'];
-      if (!fileKey) throw new AppError(400, 'validation_error', 'Missing file key');
-      const loc = await storageFor(request);
-      const contentType = request.headers['content-type'];
+  // Registered in its own scope whose only body parser passes the stream through untouched, so no
+  // built-in parser (JSON, text) can consume an upload before it reaches S3.
+  await app.register(async (uploads) => {
+    uploads.removeAllContentTypeParsers();
+    uploads.addContentTypeParser('*', (_request, payload, done) => done(null, payload));
 
-      acquireUploadSlot(userId);
-      try {
-        await uploadStream(loc, fileKey, request.raw, contentType);
-      } finally {
-        releaseUploadSlot(userId);
-      }
-      return reply.code(200).send({ key: fileKey });
-    },
+    uploads.route({
+      method: 'PUT',
+      url: '/assets/upload/*',
+      preHandler: authenticate({ allowQueryToken: true }),
+      handler: async (request, reply) => {
+        const userId = requireUserId(request);
+        const fileKey = (request.params as Record<string, string>)['*'];
+        if (!fileKey) throw new AppError(400, 'validation_error', 'Missing file key');
+        const loc = await storageFor(request);
+        const contentType = request.headers['content-type'];
+
+        acquireUploadSlot(userId);
+        try {
+          await uploadStream(loc, fileKey, request.raw, contentType);
+        } finally {
+          releaseUploadSlot(userId);
+        }
+        return reply.code(200).send({ key: fileKey });
+      },
+    });
   });
 
   // POST /assets/delete — batch delete.

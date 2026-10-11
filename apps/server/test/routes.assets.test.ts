@@ -108,6 +108,21 @@ describe('PUT /api/v1/assets/upload/*', () => {
     );
   });
 
+  it.each(['text/plain', 'application/json', 'image/jpeg'])('streams the full body for %s uploads', async (type) => {
+    let received = '';
+    vi.mocked(uploadStream).mockImplementation(async (_loc, _key, body) => {
+      for await (const chunk of body) received += chunk;
+    });
+    const res = await (await buildApp({ logger: false })).inject({
+      method: 'PUT',
+      url: '/api/v1/assets/upload/note.txt',
+      headers: { ...auth, 'content-type': type },
+      payload: '{"hello":"world"}',
+    });
+    expect(res.statusCode).toBe(200);
+    expect(received).toBe('{"hello":"world"}');
+  });
+
   it('accepts the token via ?token= (iOS background-upload path)', async () => {
     vi.mocked(uploadStream).mockResolvedValue();
     const res = await (await buildApp({ logger: false })).inject({
