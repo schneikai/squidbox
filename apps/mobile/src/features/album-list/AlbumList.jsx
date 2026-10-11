@@ -29,6 +29,7 @@ export default function AlbumList({
 
   return (
     <Animated.FlatList
+      keyboardDismissMode="on-drag"
       ref={listRef}
       data={albumIds}
       numColumns={numColumns}

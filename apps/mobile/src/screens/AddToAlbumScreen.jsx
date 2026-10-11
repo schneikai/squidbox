@@ -17,6 +17,7 @@ import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-actio
 import prepareAlbums from '@/features/album-list/prepareAlbums';
 import useAlbumList from '@/features/album-list/useAlbumList';
 import useAlbums from '@/features/albums-context/useAlbums';
+import useSearchMode from '@/hooks/useSearchMode';
 import { colors, spacing } from '@/styles/designTokens';
 
 const FILTER_OPTIONS = [
@@ -39,23 +40,14 @@ export default function AddToAlbumScreen({ route, navigation }) {
   const { listRef, listScrollTop } = useAlbumList();
   const { sortOrder, sortFunction, sortAlbums } = useSortAlbumsAction({ afterSort: listScrollTop });
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterSort: listScrollTop });
-  const { searchText, setSearchText } = useSearchAlbumsAction();
+  const { searchBar, query: searchText } = useSearchMode(useSearchAlbumsAction());
 
-  const [isSearchActive, setIsSearchActive] = useState(false);
   const [isSortFilterOpen, setIsSortFilterOpen] = useState(false);
   const expandProgress = useSharedValue(0);
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => {
     scrollY.value = e.contentOffset.y;
   });
-
-  function openSearch() {
-    setIsSearchActive(true);
-  }
-  function closeSearch() {
-    setIsSearchActive(false);
-    setSearchText('');
-  }
 
   const albumIds = useMemo(
     () =>
@@ -116,12 +108,8 @@ export default function AddToAlbumScreen({ route, navigation }) {
       />
 
       <SearchOptionsBar
+        {...searchBar}
         expandProgress={expandProgress}
-        isSearchActive={isSearchActive}
-        searchText={searchText}
-        onOpenSearch={openSearch}
-        onCloseSearch={closeSearch}
-        onChangeSearch={setSearchText}
         onOpenOptions={() => setIsSortFilterOpen(true)}
         hasActiveState={hasActiveOptions}
         placeholder="Search albums…"

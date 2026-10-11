@@ -53,6 +53,7 @@ export default function AssetList({
 
   const list = (
     <Animated.FlatList
+      keyboardDismissMode="on-drag"
       data={assetIds}
       numColumns={numColumns}
       renderItem={({ item: assetId }) => {

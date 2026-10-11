@@ -9,11 +9,13 @@ import AlbumList from '@/features/album-list/AlbumList';
 import AlbumListItem from '@/features/album-list/AlbumListItem';
 import AlbumListItemWithEditMode from '@/features/album-list/AlbumListItemWithEditMode';
 import useFilterAlbumsAction from '@/features/album-list/actions/filter-albums-action/useFilterAlbumsAction';
+import useSearchAlbumsAction from '@/features/album-list/actions/search-albums-action/useSearchAlbumsAction';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
 import prepareAlbums from '@/features/album-list/prepareAlbums';
 import useAlbumList from '@/features/album-list/useAlbumList';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import useSearchMode from '@/hooks/useSearchMode';
 
 export default function AlbumsScreen({ navigation }) {
   const { albums, toggleFavoriteAlbum, addAlbum } = useAlbums();
@@ -23,7 +25,8 @@ export default function AlbumsScreen({ navigation }) {
   const { sortOrder, sortFunction, sortAlbums } = useSortAlbumsAction({ afterSort: listScrollTop });
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterFilter: listScrollTop });
 
-  const { registerScreenOptions, searchText } = useFloatingBars();
+  const { registerScreenOptions } = useFloatingBars();
+  const { searchBar, query: searchText } = useSearchMode(useSearchAlbumsAction());
   const scrollHandler = useFloatingBarScrollHandler();
 
   const albumIds = useMemo(
@@ -89,7 +92,7 @@ export default function AlbumsScreen({ navigation }) {
           </AlbumListItemWithEditMode>
         )}
       />
-      <FloatingActionsBar hasActiveState={hasActiveOptions} />
+      <FloatingActionsBar search={searchBar} placeholder="Search albums…" hasActiveState={hasActiveOptions} />
     </View>
   );
 }

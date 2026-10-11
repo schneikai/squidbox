@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useEffect, useRef } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -17,7 +18,13 @@ import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, scale, spacing, typography } from '@/styles/designTokens';
 
 /**
- * Reusable bottom-left floating search + options bar.
+ * Reusable bottom-left floating search + options bar, following the iOS search pattern:
+ *   • Tapping search opens the field and brings up the keyboard (focus only ever follows a tap).
+ *   • The clear button inside the field empties the query.
+ *   • ✕ next to the field is Cancel: it leaves search, clears the query and hides the keyboard.
+ *   • Scrolling the list hides the keyboard but keeps the query (lists use keyboardDismissMode).
+ *   • Leaving the screen hides the keyboard; coming back keeps the query without reopening it.
+ * Screens get these props as `searchBar` from `useSearchMode`.
  *
  * The parent owns `expandProgress` (a Reanimated shared value) so it can
  * animate sibling elements (e.g. a segment pill on the right) in sync.
@@ -27,7 +34,7 @@ import { colors, scale, spacing, typography } from '@/styles/designTokens';
  *   isSearchActive   – boolean
  *   searchText       – string
  *   onOpenSearch     – () => void
- *   onCloseSearch    – () => void  (✕ clears the text first; closes when it's empty)
+ *   onCloseSearch    – () => void  (Cancel: leave search and clear the query)
  *   onChangeSearch   – (text: string) => void
  *   onOpenOptions    – () => void
  *   hasActiveState   – boolean  (options button highlighted when sort/filter active)
@@ -56,17 +63,20 @@ export default function SearchOptionsBar({
 
   useEffect(() => {
     expandProgress.value = withTiming(isSearchActive ? 1 : 0, { duration: 280 });
-    if (!isSearchActive) {
-      inputRef.current?.blur();
-      return;
-    }
-    const focusTimer = setTimeout(() => inputRef.current?.focus(), 300);
-    return () => clearTimeout(focusTimer);
   }, [isSearchActive]);
 
-  function handleClear() {
-    if (searchText) onChangeSearch('');
-    else onCloseSearch();
+  // Never leave the input focused on a screen that isn't visible: iOS would bring the keyboard back
+  // when the screen shows again.
+  useFocusEffect(useCallback(() => () => inputRef.current?.blur(), []));
+
+  function handleOpen() {
+    onOpenSearch();
+    inputRef.current?.focus();
+  }
+
+  function handleCancel() {
+    inputRef.current?.blur();
+    onCloseSearch();
   }
 
   const containerStyle = useAnimatedStyle(() => ({
@@ -93,7 +103,8 @@ export default function SearchOptionsBar({
       <FloatingPill style={styles.pill}>
         {/* Search icon — always visible */}
         <Pressable
-          onPress={onOpenSearch}
+          onPress={handleOpen}
+          accessibilityLabel="Search"
           style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
         >
           <Icon name="search" color={colors.iconInactive} />
@@ -122,9 +133,11 @@ export default function SearchOptionsBar({
             placeholder={placeholder}
             style={styles.input}
             returnKeyType="search"
+            clearButtonMode="always"
           />
           <Pressable
-            onPress={handleClear}
+            onPress={handleCancel}
+            accessibilityLabel="Cancel search"
             style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
           >
             <Icon name="close" color={colors.iconInactive} />

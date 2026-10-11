@@ -108,6 +108,7 @@ export default function SortableAssetGrid({
       <View style={{ flex: 1 }} onLayout={onLayout}>
         <Animated.ScrollView
           ref={scrollRef}
+          keyboardDismissMode="on-drag"
           contentContainerStyle={contentContainerStyle}
           onScroll={scrollHandler}
           scrollEventThrottle={16}

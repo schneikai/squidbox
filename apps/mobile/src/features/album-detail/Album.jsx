@@ -29,6 +29,8 @@ import useAssets from '@/features/assets-context/useAssets';
 import preparePosts from '@/features/post-list/preparePosts';
 import usePosts from '@/features/posts-context/usePosts';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import useSearch from '@/hooks/useSearch';
+import useSearchMode from '@/hooks/useSearchMode';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, scale, spacing, typography } from '@/styles/designTokens';
 import getAlbumAssets from '@/utils/albums/getAlbumAssets';
@@ -84,18 +86,9 @@ export default function Album({ album }) {
   const { asset: quickViewAsset, open: openAssetQuickView, close: closeAssetQuickView } = useAssetQuickViewModal();
   const [activeTab, setActiveTab] = useState('Assets');
   const [isSortFilterOpen, setIsSortFilterOpen] = useState(false);
-  const [isSearchActive, setIsSearchActive] = useState(false);
-  const [searchText, setSearchText] = useState('');
+  const { searchBar, query: searchText } = useSearchMode(useSearch());
   const { width: screenWidth } = useWindowDimensions();
   const expandProgress = useSharedValue(0);
-
-  function openSearch() {
-    setIsSearchActive(true);
-  }
-  function closeSearch() {
-    setIsSearchActive(false);
-    setSearchText('');
-  }
 
   const assetIds = useMemo(
     () =>
@@ -305,12 +298,8 @@ export default function Album({ album }) {
       {/* Floating search + options bar — bottom left (assets tab only, hidden in select mode) */}
       {activeTab === 'Assets' && !isSelectMode && (
         <SearchOptionsBar
+          {...searchBar}
           expandProgress={expandProgress}
-          isSearchActive={isSearchActive}
-          searchText={searchText}
-          onOpenSearch={openSearch}
-          onCloseSearch={closeSearch}
-          onChangeSearch={setSearchText}
           onOpenOptions={() => setIsSortFilterOpen(true)}
           hasActiveState={activeFilter.length > 0 || !sortOrder.startsWith('createdAt')}
           placeholder="Search notes…"

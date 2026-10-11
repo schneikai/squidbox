@@ -17,6 +17,7 @@ export default function PostList({
 
   return (
     <Animated.FlatList
+      keyboardDismissMode="on-drag"
       data={postIds}
       renderItem={({ item: postId, index }) => {
         if (postId === 'FirstListEntryComponent') return FirstListEntryComponent;

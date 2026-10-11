@@ -1,20 +1,10 @@
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 
 /**
- * Generic search hook. Manages searchText with React's useTransition for
- * non-blocking updates. Returns { searchText, setSearchText, clearSearch }.
+ * A screen's search text. Plain state on purpose: it controls a text input, and React can't drive a
+ * text input from a transition. Filter with `useSearchMode`'s deferred `query` to keep typing smooth.
  */
 export default function useSearch(initialText = '') {
-  const [searchText, setSearchTextState] = useState(initialText);
-  const [, startTransition] = useTransition();
-
-  function setSearchText(text) {
-    startTransition(() => setSearchTextState(text));
-  }
-
-  function clearSearch() {
-    startTransition(() => setSearchTextState(''));
-  }
-
-  return { searchText, setSearchText, clearSearch };
+  const [searchText, setSearchText] = useState(initialText);
+  return { searchText, setSearchText };
 }

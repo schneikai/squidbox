@@ -18,6 +18,8 @@ import useAssetList from '@/features/asset-list/useAssetList';
 import useAddAssetsFromCameraRoll from '@/features/assets-context/useAddAssetsFromCameraRoll';
 import useAssets from '@/features/assets-context/useAssets';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import useSearch from '@/hooks/useSearch';
+import useSearchMode from '@/hooks/useSearchMode';
 
 export default function AssetsScreen({ route }) {
   const navigation = useNavigation();
@@ -37,9 +39,9 @@ export default function AssetsScreen({ route }) {
     exitSelectMode,
     registerScreenOptions,
     screenOptionsRef,
-    searchText,
     scrollY,
   } = useFloatingBars();
+  const { searchBar, query: searchText } = useSearchMode(useSearch());
 
   const scrollHandler = useFloatingBarScrollHandler();
 
@@ -189,7 +191,7 @@ export default function AssetsScreen({ route }) {
           </SuperPressable>
         )}
       />
-      <FloatingActionsBar hasActiveState={hasActiveOptions} />
+      <FloatingActionsBar search={searchBar} placeholder="Search notes…" hasActiveState={hasActiveOptions} />
     </View>
   );
 }

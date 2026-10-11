@@ -13,21 +13,9 @@ const TAB_TO_OPTIONS_KEY = {
 
 export default function FloatingBarsProvider({ children }) {
   // ── Search ────────────────────────────────────────────────────────────────
+  // Each main screen owns its search (see useSearchMode). The visible one reports whether its search
+  // bar is open, so the navigation bar can make room for it.
   const [isSearchActive, setIsSearchActive] = useState(false);
-  const [searchText, setSearchTextState] = useState('');
-
-  function openSearch() {
-    setIsSearchActive(true);
-  }
-
-  function closeSearch() {
-    setIsSearchActive(false);
-    setSearchTextState('');
-  }
-
-  function setSearchText(text) {
-    setSearchTextState(text);
-  }
 
   // ── Filter modal ──────────────────────────────────────────────────────────
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
@@ -92,10 +80,7 @@ export default function FloatingBarsProvider({ children }) {
   const value = {
     // Search
     isSearchActive,
-    searchText,
-    openSearch,
-    closeSearch,
-    setSearchText,
+    setIsSearchActive,
 
     // Filter modal
     isFilterModalOpen,

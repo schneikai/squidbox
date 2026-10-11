@@ -17,6 +17,7 @@ import preparePosts from '@/features/post-list/preparePosts';
 import usePostList from '@/features/post-list/usePostList';
 import usePosts from '@/features/posts-context/usePosts';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import useSearchMode from '@/hooks/useSearchMode';
 
 export default function PostsScreen() {
   const navigation = useNavigation();
@@ -28,16 +29,12 @@ export default function PostsScreen() {
   const { sortOrder, sortFunction, sortPosts } = useSortPostsAction({ afterSort: listScrollTop });
   const { activeFilter, toggleFilter, matchFilter } = useFilterPostsAction({ afterFilter: listScrollTop });
 
-  // Posts search uses persisted AppSettings query
-  const { searchText: postsSearchText, setSearchText: setPersistentSearch } = useSearchPostsAction();
+  // The posts query lives in AppSettings, so other screens can open Posts filtered (e.g. "Show
+  // posts" on an asset). The search bar shows it, so it can always be seen and cleared.
+  const { searchBar, query: postsSearchText } = useSearchMode(useSearchPostsAction());
 
-  const { registerScreenOptions, searchText: globalSearchText } = useFloatingBars();
+  const { registerScreenOptions } = useFloatingBars();
   const scrollHandler = useFloatingBarScrollHandler();
-
-  // Sync global search bar input to persisted posts query
-  useEffect(() => {
-    setPersistentSearch(globalSearchText);
-  }, [globalSearchText]);
 
   const postIds = useMemo(
     () =>
@@ -84,7 +81,7 @@ export default function PostsScreen() {
           </SuperPressable>
         )}
       />
-      <FloatingActionsBar hasActiveState={hasActiveOptions} />
+      <FloatingActionsBar search={searchBar} placeholder="Search posts…" hasActiveState={hasActiveOptions} />
     </View>
   );
 }
