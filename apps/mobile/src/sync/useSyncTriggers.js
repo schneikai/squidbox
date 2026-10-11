@@ -8,9 +8,9 @@ import { requestSync } from './worker';
 // ordinary JS — the opportunistic background top-up (expo-background-task) is a later,
 // device-gated addition.
 //
-// The LAUNCH pull is not fired here — enableSync() (worker) kicks it once init finishes. requestSync()
-// is a no-op until then, so the sync can't start before init and starve its DB work (which would
-// strand the splash). That gate lives in the worker so every requestSync caller is covered at once.
+// The LAUNCH pull is not fired here: App.js activates sync (setSyncActive) once init is done and
+// someone is signed in, which kicks it. requestSync() is a no-op while inactive. That gate lives in
+// the worker so every requestSync caller is covered at once.
 const INTERVAL_MS = 30_000;
 
 export default function useSyncTriggers() {

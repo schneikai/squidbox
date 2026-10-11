@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert } from 'react-native';
 
 import CloudContext from './CloudContext';
 import downloadAssetFileAsync from './assets/downloadAssetFileAsync';
@@ -8,52 +9,64 @@ import uploadAssetThumbnailAsync from './assets/uploadAssetThumbnailAsync';
 import initializeCloudAsyncFn from './initializeCloudAsync';
 
 import setUserAsync from '@/features/cloud/user/setUserAsync';
-import { requestSync, runResetSyncForUser } from '@/sync/worker';
+import { navigateToTab } from '@/navigators/navigationRef';
+import { resetSyncForUser, withSyncPaused } from '@/sync/worker';
 import apiLoginAsync from '@/utils/cloud-api/authentication/loginAsync';
 import apiLogoutAsync from '@/utils/cloud-api/authentication/logoutAsync';
+import { onSessionExpired } from '@/utils/cloud-api/sessionExpiry';
 
 export default function CloudProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
 
-  async function updateUserAuthenticationStatusAsync(user) {
-    // isAuthenticated must be present before we set it, and unset before we null the user, or the UI
-    // reads a null user. On sign-in, wipe the local slate for a DIFFERENT account BEFORE exposing the
-    // session, so the gate never renders the previous user's library under the new user (no-op for
-    // the same user; holds the sync single-flight so no in-flight pull races the wipe).
-    if (user) {
-      await runResetSyncForUser(user.id);
-      setUser(user);
-      setIsAuthenticated(true);
-    } else {
-      setIsAuthenticated(false);
-      setUser(null);
-      // Logout keeps the local library intact (it's the same user's data on their device); it's only
-      // wiped when a DIFFERENT account signs in — see runResetSyncForUser above.
-    }
-    await setUserAsync(user);
+  useEffect(
+    () =>
+      onSessionExpired(async () => {
+        await endSessionAsync();
+        Alert.alert('Signed out', 'Your session has expired. Please sign in again.', [
+          { text: 'Later', style: 'cancel' },
+          { text: 'Sign in', onPress: () => navigateToTab('SettingsTab') },
+        ]);
+      }),
+    [],
+  );
 
-    // Kick a mid-session sign-in immediately (cold start's launch pull is handled in App.js once init
-    // finishes). No-op until sync is enabled, so this never fires before init.
-    if (user) requestSync();
+  // Sign in as the user `authenticate` resolves to, or sign out if it resolves to null. Syncing stays
+  // paused from before the session tokens change until the local data belongs to that user: a
+  // DIFFERENT account wipes the local slate first. So no in-flight sync can push the previous
+  // account's pending changes with the new session, and the gate never shows the previous library.
+  async function startSessionAsync(authenticate) {
+    const signedInUser = await withSyncPaused(async (db) => {
+      const authenticatedUser = await authenticate();
+      if (authenticatedUser) await resetSyncForUser(db, authenticatedUser.id);
+      return authenticatedUser;
+    });
+    if (!signedInUser) return endSessionAsync();
+
+    // Set the user before isAuthenticated (and unset in reverse), or the UI reads a null user.
+    setUser(signedInUser);
+    setIsAuthenticated(true);
+    await setUserAsync(signedInUser);
+  }
+
+  // Signing out keeps the local library (it's this user's data on their device). It's only wiped
+  // when a DIFFERENT account signs in, see startSessionAsync.
+  async function endSessionAsync() {
+    setIsAuthenticated(false);
+    setUser(null);
+    await setUserAsync(null);
   }
 
   const value = useMemo(
     () => ({
       isAuthenticated,
       user,
-      initializeCloudAsync: async () => {
-        const user = await initializeCloudAsyncFn();
-        await updateUserAuthenticationStatusAsync(user);
-      },
+      initializeCloudAsync: () => startSessionAsync(initializeCloudAsyncFn),
       loginAsync: async (email, password) => {
         try {
-          const user = await apiLoginAsync(email, password);
-          // The sync engine (src/sync) pulls all data after login; a different account triggers a
-          // local reset via updateUserAuthenticationStatusAsync → runResetSyncForUser.
-          await updateUserAuthenticationStatusAsync(user);
+          await startSessionAsync(() => apiLoginAsync(email, password));
         } catch (error) {
-          await updateUserAuthenticationStatusAsync(null);
+          await endSessionAsync();
           throw error;
         }
       },
@@ -61,7 +74,7 @@ export default function CloudProvider({ children }) {
         try {
           await apiLogoutAsync();
         } finally {
-          await updateUserAuthenticationStatusAsync(null);
+          await endSessionAsync();
         }
       },
       preloadAssetThumbnailsAsync,

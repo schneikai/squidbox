@@ -6,6 +6,7 @@ import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { pendingRecordIds, clearOutboxRow, getOutboxUpdatedAt } from './outbox';
 import { planPushOutcome, chunk } from './pushPlan';
+import { createSingleFlight } from './singleFlight';
 import {
   getCursor,
   setCursor,
@@ -193,29 +194,34 @@ export async function resetSyncForUser(db: SyncDb, userId: string): Promise<bool
   return changed;
 }
 
-// ── Production wrapper: single-flight + trailing re-run, bound to the real device DB + HTTP
-// transport. Sync stays OFF until app init finishes (enableSync) so the first pull can't contend
-// with init's DB work and strand the splash. After that, requestSync() is called after a local
-// write (from a provider) or on foreground/interval.
-let running = false;
-let rerun = false;
-let syncEnabled = false;
+// ── Production wrapper: one sync at a time (see singleFlight), bound to the real device DB + HTTP
+// transport. Syncing is only active once app init has finished AND someone is signed in; App.js
+// drives that through setSyncActive. requestSync() is called after a local write (from a provider)
+// or on foreground/interval, and is a no-op while inactive.
+const syncFlight = createSingleFlight(() => withSyncRun(runSyncOnce));
+let syncActive = false;
 
-// Turn syncing on once app init has finished. Every requestSync() caller (post-login, on-mutation,
-// foreground/interval) is a no-op until this runs — one gate, not several. The launch pull itself is
-// kicked by App.js once init is done AND a session exists (so a logged-out launch never syncs).
-export function enableSync(): void {
-  syncEnabled = true;
+export function setSyncActive(active: boolean): void {
+  syncActive = active;
+  if (active) syncFlight.request();
 }
 
 export function requestSync(): void {
-  if (syncEnabled) void runSync();
+  if (syncActive) syncFlight.request();
 }
 
-// Shared run scaffold: hold the single-flight, resolve the real db + transport, and record the run's
-// terminal status (idle on success, error on throw). Callers apply their own entry guard first.
+// Run `work` with syncing paused: waits for an in-flight sync and starts no new one until `work`
+// finishes. Use it for anything that must not interleave with a sync, like switching accounts.
+export function withSyncPaused<T>(work: (db: SyncDb) => Promise<T>): Promise<T> {
+  return syncFlight.exclusive(async () => {
+    const { getDb } = await import('./db/client');
+    return work(getDb());
+  });
+}
+
+// Resolve the real db + transport and record the run's terminal status (idle on success, error on
+// throw). Callers run it through syncFlight so it never overlaps another sync.
 async function withSyncRun(work: (db: SyncDb, transport: SyncTransport) => Promise<void>): Promise<void> {
-  running = true;
   const { getDb } = await import('./db/client');
   const { httpTransport } = await import('./transport');
   const db = getDb();
@@ -224,44 +230,14 @@ async function withSyncRun(work: (db: SyncDb, transport: SyncTransport) => Promi
     await patchStatus(db, { phase: 'idle', lastError: null });
   } catch (err) {
     await patchStatus(db, { phase: 'error', lastError: err instanceof Error ? err.message : String(err) });
-  } finally {
-    running = false;
   }
 }
 
 // Bound Inspector actions (production db + HTTP transport).
-export async function runFullResync(): Promise<void> {
-  // Wait out any in-flight sync so the wipe + cursor reset can't race a concurrent pull, then hold
-  // the single-flight for the whole resync (failures surface as phase:'error').
-  while (running) await new Promise((resolve) => setTimeout(resolve, 50));
-  await withSyncRun((db, transport) => fullResync(db, transport));
+export function runFullResync(): Promise<void> {
+  return syncFlight.exclusive(() => withSyncRun(fullResync));
 }
 export async function runClearOutbox(): Promise<void> {
   const { getDb } = await import('./db/client');
   await clearOutbox(getDb());
-}
-export async function runResetSyncForUser(userId: string): Promise<boolean> {
-  // Hold the single-flight so an in-flight sync can't race the wipe (which would let the previous
-  // user's pages + cursor + firstSyncDone land under the new account). Same guard as runFullResync.
-  while (running) await new Promise((resolve) => setTimeout(resolve, 50));
-  running = true;
-  try {
-    const { getDb } = await import('./db/client');
-    return await resetSyncForUser(getDb(), userId);
-  } finally {
-    running = false;
-  }
-}
-
-export async function runSync(): Promise<void> {
-  if (running) {
-    rerun = true;
-    return;
-  }
-  await withSyncRun(async (db, transport) => {
-    do {
-      rerun = false;
-      await runSyncOnce(db, transport);
-    } while (rerun);
-  });
 }

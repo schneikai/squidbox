@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 import { getApiBaseUrlAsync } from './apiBaseUrl';
-import { getAccessTokenAsync, getRefreshTokenAsync } from './apiTokenStore';
+import { getAccessTokenAsync } from './apiTokenStore';
 import refreshAccessTokenAsync from './authentication/refreshAccessTokenAsync';
 
 const apiWithAuthentication = axios.create({
@@ -32,18 +32,14 @@ apiWithAuthentication.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     if (error?.response?.status === 401 && originalRequest && !originalRequest._retry) {
+      originalRequest._retry = true;
       try {
-        const refreshToken = await getRefreshTokenAsync();
-        const newAccessToken = await refreshAccessTokenAsync(refreshToken);
-        if (newAccessToken) {
-          originalRequest._retry = true;
-          originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
-          return apiWithAuthentication(originalRequest);
-        }
+        const newAccessToken = await refreshAccessTokenAsync();
+        originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+        return apiWithAuthentication(originalRequest);
       } catch {
-        // Refresh failed (e.g. a stale/incompatible session). refreshAccessTokenAsync already
-        // cleared the tokens; swallow the refresh error and reject with the ORIGINAL 401 so callers
-        // see a clean auth failure — not the refresh endpoint's confusing 400.
+        // Refresh failed. Reject with the ORIGINAL 401 so callers see a clean auth failure, not the
+        // refresh endpoint's error. A rejected session is reported through sessionExpiry.
       }
     }
     return Promise.reject(error);
