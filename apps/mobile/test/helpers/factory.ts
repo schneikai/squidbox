@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto';
 import type { AssetRecord } from '@squidbox/shared';
+import { randomUUID } from 'node:crypto';
 
 export function makeAssetRecord(over: Partial<AssetRecord> = {}): AssetRecord {
   return {

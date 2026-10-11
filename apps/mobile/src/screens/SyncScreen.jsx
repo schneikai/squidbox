@@ -101,8 +101,8 @@ export default function SyncScreen() {
           <Row label="Clear outbox" value={`${outbox.length}`} onPress={confirmClearOutbox} destructive chevron />
         </Section>
         <SectionFooter>
-          Rebuild your library from the server if something looks wrong — your photos are safe. Only clear the outbox if a
-          sync stays stuck.
+          Rebuild your library from the server if something looks wrong — your photos are safe. Only clear the outbox if
+          a sync stays stuck.
         </SectionFooter>
       </DetailScrollView>
     </Page>

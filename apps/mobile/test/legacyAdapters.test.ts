@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { toModernRecord, toModernChanges } from '../src/sync/legacyBase';
+
 import { toAssetRecord, toAssetChanges } from '../src/sync/legacyAsset';
+import { toModernRecord, toModernChanges } from '../src/sync/legacyBase';
 
 // The edge/derive redesign removed `assets`, `assetRefs`, `postHistory`, `lastPostedAt` columns.
 // The legacy adapters must strip them so a legacy-shaped write can't try to insert a dead column.
@@ -23,7 +24,12 @@ describe('legacy adapters strip dropped fields', () => {
   });
 
   it('toModernChanges drops assetRefs/postHistory/lastPostedAt', () => {
-    const out = toModernChanges({ text: 'hi', assetRefs: [{ id: 'r', assetId: 'a' }], postHistory: ['p'], lastPostedAt: 9 });
+    const out = toModernChanges({
+      text: 'hi',
+      assetRefs: [{ id: 'r', assetId: 'a' }],
+      postHistory: ['p'],
+      lastPostedAt: 9,
+    });
     expect(out).toEqual({ text: 'hi' });
   });
 

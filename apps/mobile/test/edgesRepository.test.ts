@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { makeEdgeRepository } from '../src/sync/edgesRepository';
-import { orderedAssetsByAlbum } from '../src/sync/derive';
+import { describe, it, expect, beforeEach } from 'vitest';
+
+import { makeTestDb } from './helpers/testDb';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
-import { makeTestDb } from './helpers/testDb';
+import { orderedAssetsByAlbum } from '../src/sync/derive';
+import { makeEdgeRepository } from '../src/sync/edgesRepository';
 
 describe('edgesRepository (album_assets)', () => {
   const edges = makeEdgeRepository('album_assets', schema.albumAssets, 'albumId');

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import { planPushOutcome, chunk } from '../src/sync/pushPlan';
 
 describe('planPushOutcome', () => {
@@ -30,10 +31,12 @@ describe('planPushOutcome', () => {
   });
 
   it('skipped-lww + superseded → keep, do NOT adopt (local is newer)', () => {
-    expect(planPushOutcome({ status: 'skipped-lww', pushedUpdatedAt: 100, currentOutboxUpdatedAt: 200 })).toMatchObject({
-      clearOutbox: false,
-      adoptCurrent: false,
-    });
+    expect(planPushOutcome({ status: 'skipped-lww', pushedUpdatedAt: 100, currentOutboxUpdatedAt: 200 })).toMatchObject(
+      {
+        clearOutbox: false,
+        adoptCurrent: false,
+      },
+    );
   });
 
   it('rejected → keep outbox and flag, regardless of supersession', () => {
@@ -46,7 +49,9 @@ describe('planPushOutcome', () => {
   });
 
   it('treats a cleared outbox row (null) as not superseded', () => {
-    expect(planPushOutcome({ status: 'applied', pushedUpdatedAt: 100, currentOutboxUpdatedAt: null }).clearOutbox).toBe(true);
+    expect(planPushOutcome({ status: 'applied', pushedUpdatedAt: 100, currentOutboxUpdatedAt: null }).clearOutbox).toBe(
+      true,
+    );
   });
 });
 

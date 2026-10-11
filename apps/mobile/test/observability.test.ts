@@ -1,13 +1,14 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { desc } from 'drizzle-orm';
 import type { PushRequest, PushResponse, PullResponse } from '@squidbox/shared';
+import { desc } from 'drizzle-orm';
+import { describe, it, expect, beforeEach } from 'vitest';
+
+import { makeAssetRecord } from './helpers/factory';
+import { makeTestDb } from './helpers/testDb';
+import * as repo from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import type { SyncTransport } from '../src/sync/transport';
-import * as repo from '../src/sync/assetsRepository';
 import { runSyncOnce, clearOutbox, fullResync } from '../src/sync/worker';
-import { makeTestDb } from './helpers/testDb';
-import { makeAssetRecord } from './helpers/factory';
 
 let db: SyncDb;
 beforeEach(() => {
@@ -16,7 +17,11 @@ beforeEach(() => {
 
 const appliedTransport = (): SyncTransport => ({
   push: async (req: PushRequest): Promise<PushResponse> => ({
-    results: req.mutations.map((m) => ({ id: String((m.record as any).id), collection: m.collection, status: 'applied' as const })),
+    results: req.mutations.map((m) => ({
+      id: String((m.record as any).id),
+      collection: m.collection,
+      status: 'applied' as const,
+    })),
   }),
   pull: async (): Promise<PullResponse> => ({ changes: { assets: { records: [] } }, cursor: 0, hasMore: false }),
 });
@@ -79,9 +84,17 @@ describe('dev operations', () => {
     const server = makeAssetRecord({ notes: 'from-server' });
     await fullResync(db, {
       push: async (req) => ({
-        results: req.mutations.map((m) => ({ id: String((m.record as any).id), collection: m.collection, status: 'applied' as const })),
+        results: req.mutations.map((m) => ({
+          id: String((m.record as any).id),
+          collection: m.collection,
+          status: 'applied' as const,
+        })),
       }),
-      pull: async () => ({ changes: { assets: { records: [server as unknown as Record<string, unknown>] } }, cursor: 12, hasMore: false }),
+      pull: async () => ({
+        changes: { assets: { records: [server as unknown as Record<string, unknown>] } },
+        cursor: 12,
+        hasMore: false,
+      }),
     });
     const map = await repo.loadAssetsMap(db);
     expect(map[server.id]).toBeTruthy(); // repulled

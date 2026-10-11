@@ -1,8 +1,8 @@
 const { spawn, execFileSync } = require('child_process');
-const { join } = require('path');
 const { writeFileSync, mkdirSync } = require('fs');
-const { tmpdir } = require('os');
 const https = require('https');
+const { tmpdir } = require('os');
+const { join } = require('path');
 
 const PORT = process.env.METRO_PORT || 8081;
 const token = process.env.NGROK_AUTHTOKEN;
@@ -35,35 +35,57 @@ let urlFound = false;
 // Kill an ngrok agent left over from a previous run. Anchored on this binary's path so it can't
 // match unrelated processes whose command line merely mentions "ngrok http".
 function killStale() {
-  try { execFileSync('pkill', ['-f', `^${bin} http `]); } catch {}
+  try {
+    execFileSync('pkill', ['-f', `^${bin} http `]);
+  } catch {}
 }
 
 // Stop active ngrok endpoints via the REST API (needs API key, not authtoken)
 function killRemoteEndpoints() {
   return new Promise((resolve) => {
-    if (!apiKey) { resolve(); return; }
-    const req = https.request('https://api.ngrok.com/endpoints', {
-      headers: { 'Authorization': `Bearer ${apiKey}`, 'Ngrok-Version': '2' },
-    }, (res) => {
-      let body = '';
-      res.on('data', (c) => body += c);
-      res.on('end', () => {
-        try {
-          const data = JSON.parse(body);
-          const endpoints = data.endpoints || [];
-          if (endpoints.length === 0) { resolve(); return; }
-          let pending = endpoints.length;
-          endpoints.forEach((ep) => {
-            const delReq = https.request(`https://api.ngrok.com/endpoints/${ep.id}`, {
-              method: 'DELETE',
-              headers: { 'Authorization': `Bearer ${apiKey}`, 'Ngrok-Version': '2' },
-            }, () => { if (--pending === 0) resolve(); });
-            delReq.on('error', () => { if (--pending === 0) resolve(); });
-            delReq.end();
-          });
-        } catch { resolve(); }
-      });
-    });
+    if (!apiKey) {
+      resolve();
+      return;
+    }
+    const req = https.request(
+      'https://api.ngrok.com/endpoints',
+      {
+        headers: { Authorization: `Bearer ${apiKey}`, 'Ngrok-Version': '2' },
+      },
+      (res) => {
+        let body = '';
+        res.on('data', (c) => (body += c));
+        res.on('end', () => {
+          try {
+            const data = JSON.parse(body);
+            const endpoints = data.endpoints || [];
+            if (endpoints.length === 0) {
+              resolve();
+              return;
+            }
+            let pending = endpoints.length;
+            endpoints.forEach((ep) => {
+              const delReq = https.request(
+                `https://api.ngrok.com/endpoints/${ep.id}`,
+                {
+                  method: 'DELETE',
+                  headers: { Authorization: `Bearer ${apiKey}`, 'Ngrok-Version': '2' },
+                },
+                () => {
+                  if (--pending === 0) resolve();
+                },
+              );
+              delReq.on('error', () => {
+                if (--pending === 0) resolve();
+              });
+              delReq.end();
+            });
+          } catch {
+            resolve();
+          }
+        });
+      },
+    );
     req.on('error', () => resolve());
     req.end();
   });
@@ -71,7 +93,11 @@ function killRemoteEndpoints() {
 
 function startTunnel(attempt) {
   if (attempt > MAX_RETRIES) {
-    console.error('TUNNEL_ERR=could not start tunnel after ' + MAX_RETRIES + ' retries. The reserved domain may still be held by a stale session. Create an NGROK_API_KEY (dashboard -> API Keys) so tunnel.js can force-kill stale endpoints.');
+    console.error(
+      'TUNNEL_ERR=could not start tunnel after ' +
+        MAX_RETRIES +
+        ' retries. The reserved domain may still be held by a stale session. Create an NGROK_API_KEY (dashboard -> API Keys) so tunnel.js can force-kill stale endpoints.',
+    );
     process.exit(1);
   }
 
@@ -79,12 +105,9 @@ function startTunnel(attempt) {
   if (attempt > 1) console.error('TUNNEL_RETRY=attempt ' + attempt + ' (waiting for stale session to clear)');
 
   killRemoteEndpoints().then(() => {
-    const proc = spawn(bin, [
-      'http', PORT,
-      `--authtoken=${token}`,
-      `--config=${configPath}`,
-      '--log=stdout',
-    ], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const proc = spawn(bin, ['http', PORT, `--authtoken=${token}`, `--config=${configPath}`, '--log=stdout'], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
 
     let got334 = false;
     let output = '';

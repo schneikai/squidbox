@@ -23,7 +23,9 @@ export interface PostLite {
 // Live edges (deletedAt null), sorted by fractional position, deduped by assetId (a concurrent
 // add on two offline devices can leave two edge rows for one asset; render it once).
 function liveOrdered<E extends EdgeLite>(edges: E[]): E[] {
-  const live = edges.filter((e) => e.deletedAt == null).sort((a, b) => (a.position < b.position ? -1 : a.position > b.position ? 1 : 0));
+  const live = edges
+    .filter((e) => e.deletedAt == null)
+    .sort((a, b) => (a.position < b.position ? -1 : a.position > b.position ? 1 : 0));
   const seen = new Set<string>();
   const out: E[] = [];
   for (const e of live) {
@@ -70,7 +72,7 @@ function historyFrom(postIdsById: Record<string, string[]>, postsById: Record<st
       .filter((p): p is PostLite => !!p && p.deletedAt == null)
       .sort((a, b) => (a.postedAt ?? 0) - (b.postedAt ?? 0));
     historyById[id] = ordered.map((p) => p.id);
-    lastPostedAtById[id] = ordered.length ? ordered[ordered.length - 1].postedAt ?? null : null;
+    lastPostedAtById[id] = ordered.length ? (ordered[ordered.length - 1].postedAt ?? null) : null;
   }
   return { historyById, lastPostedAtById };
 }

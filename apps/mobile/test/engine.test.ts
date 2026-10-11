@@ -1,14 +1,15 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { eq } from 'drizzle-orm';
 import type { PullResponse, PushRequest, PushResponse } from '@squidbox/shared';
+import { eq } from 'drizzle-orm';
+import { describe, it, expect, beforeEach } from 'vitest';
+
+import { makeAssetRecord } from './helpers/factory';
+import { makeTestDb } from './helpers/testDb';
+import * as repo from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
-import type { SyncTransport } from '../src/sync/transport';
-import * as repo from '../src/sync/assetsRepository';
-import { runSyncOnce } from '../src/sync/worker';
 import { getCursor } from '../src/sync/status';
-import { makeTestDb } from './helpers/testDb';
-import { makeAssetRecord } from './helpers/factory';
+import type { SyncTransport } from '../src/sync/transport';
+import { runSyncOnce } from '../src/sync/worker';
 
 let db: SyncDb;
 beforeEach(() => {
@@ -22,7 +23,11 @@ const assetRow = (id: string) => db.select().from(schema.assets).where(eq(schema
 function transport(over: Partial<SyncTransport> = {}): SyncTransport {
   return {
     push: async (req: PushRequest): Promise<PushResponse> => ({
-      results: req.mutations.map((m) => ({ id: String((m.record as any).id), collection: m.collection, status: 'applied' as const })),
+      results: req.mutations.map((m) => ({
+        id: String((m.record as any).id),
+        collection: m.collection,
+        status: 'applied' as const,
+      })),
     }),
     pull: async (): Promise<PullResponse> => ({ changes: { assets: { records: [] } }, cursor: 0, hasMore: false }),
     ...over,
@@ -135,7 +140,12 @@ describe('worker pull', () => {
       transport({
         // push rejected → outbox row stays pending for rec.id
         push: async (req) => ({
-          results: req.mutations.map((m) => ({ id: String((m.record as any).id), collection: m.collection, status: 'rejected' as const, reason: 'x' })),
+          results: req.mutations.map((m) => ({
+            id: String((m.record as any).id),
+            collection: m.collection,
+            status: 'rejected' as const,
+            reason: 'x',
+          })),
         }),
         pull: async () => ({
           changes: { assets: { records: [stale as unknown as Record<string, unknown>] } },

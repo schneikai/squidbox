@@ -1,10 +1,11 @@
-import { eq, inArray, isNull } from 'drizzle-orm';
 import type { AssetRecord } from '@squidbox/shared';
+import { eq, inArray, isNull } from 'drizzle-orm';
+
+import { nextUpdatedAt } from './clock';
 import * as schema from './db/schema';
 import type { AssetRow } from './db/schema';
 import type { SyncDb } from './db/types';
 import { enqueueMutation } from './outbox';
-import { nextUpdatedAt } from './clock';
 
 const COLLECTION = 'assets';
 

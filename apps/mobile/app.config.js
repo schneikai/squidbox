@@ -1,71 +1,69 @@
 const baseConfig = {
   expo: {
-    name: "Squidbox",
-    slug: "squidbox",
-    version: "0.0.1",
+    name: 'Squidbox',
+    slug: 'squidbox',
+    version: '0.0.1',
     // Bumped for the expo-sqlite native module (Phase 2b) so a stale OTA bundle can never be
     // delivered to a binary lacking the module. Bump again when native modules change.
-    runtimeVersion: "1.0.0",
-    orientation: "portrait",
-    icon: "./assets/icon.png",
-    userInterfaceStyle: "light",
+    runtimeVersion: '1.0.0',
+    orientation: 'portrait',
+    icon: './assets/icon.png',
+    userInterfaceStyle: 'light',
     splash: {
-      image: "./assets/splash.png",
-      resizeMode: "contain",
-      backgroundColor: "#B1F1FF"
+      image: './assets/splash.png',
+      resizeMode: 'contain',
+      backgroundColor: '#B1F1FF',
     },
-    assetBundlePatterns: [
-      "**/*"
-    ],
+    assetBundlePatterns: ['**/*'],
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.schneikai.squidbox",
+      bundleIdentifier: 'com.schneikai.squidbox',
       config: {
-        usesNonExemptEncryption: false
-      }
+        usesNonExemptEncryption: false,
+      },
     },
     android: {
       adaptiveIcon: {
-        foregroundImage: "./assets/adaptive-icon.png",
-        backgroundColor: "#B1F1FF"
-      }
+        foregroundImage: './assets/adaptive-icon.png',
+        backgroundColor: '#B1F1FF',
+      },
     },
     web: {
-      favicon: "./assets/favicon.png"
+      favicon: './assets/favicon.png',
     },
     extra: {
       eas: {
-        projectId: "e74016a5-b902-4dca-9c35-f1ef376c4f52"
-      }
+        projectId: 'e74016a5-b902-4dca-9c35-f1ef376c4f52',
+      },
     },
     plugins: [
-      "expo-secure-store",
-      "expo-sqlite",
+      'expo-secure-store',
+      'expo-sqlite',
       [
-        "@sentry/react-native/expo",
+        '@sentry/react-native/expo',
         {
-          "url": "https://sentry.io/",
-          "project": "squidbox-app",
-          "organization": "squidbox"
-        }
+          url: 'https://sentry.io/',
+          project: 'squidbox-app',
+          organization: 'squidbox',
+        },
       ],
-      "@react-native-community/datetimepicker",
-      "@sentry/react-native",
-      "expo-image",
-      "expo-video"
-    ]
-  }
+      '@react-native-community/datetimepicker',
+      '@sentry/react-native',
+      'expo-image',
+      'expo-video',
+    ],
+  },
 };
 
 // Use a separate app slot for the dev client so it doesn't overwrite the
 // preview/production build on the device. EAS passes the profile via the
 // EAS_BUILD_PROFILE env var when evaluating this config during a build.
-if (process.env.EAS_BUILD_PROFILE === "development") {
-  baseConfig.expo.name = "Squidbox (Dev)";
-  baseConfig.expo.icon = "./assets/icon-dev.png";
+if (process.env.EAS_BUILD_PROFILE === 'development') {
+  baseConfig.expo.name = 'Squidbox (Dev)';
+  baseConfig.expo.icon = './assets/icon-dev.png';
   baseConfig.expo.ios = {
     ...baseConfig.expo.ios,
-    bundleIdentifier: "com.schneikai.squidbox.dev"
+    bundleIdentifier: 'com.schneikai.squidbox.dev',
   };
 }
 

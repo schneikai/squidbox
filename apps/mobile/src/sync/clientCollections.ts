@@ -1,4 +1,5 @@
 import { SQLiteTable } from 'drizzle-orm/sqlite-core';
+
 import * as schema from './db/schema';
 
 // Client-side registry: collection name → its local SQLite table. The Inspector and full-resync

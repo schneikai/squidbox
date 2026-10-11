@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic over any collection's table */
 import { eq, inArray } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
+
+import { nextUpdatedAt } from './clock';
 import type { SyncDb } from './db/types';
 import { enqueueMutation } from './outbox';
-import { nextUpdatedAt } from './clock';
 
 // Generic repository for a syncable collection with NO local-only fields (albums, posts). Assets
 // keep their own repository because syncError must be stripped from the wire payload. All writes

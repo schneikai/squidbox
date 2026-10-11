@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import {
   orderedAssetsByAlbum,
   assetRefsByPost,
@@ -22,7 +23,12 @@ describe('derive (edge → record-shape projections)', () => {
       { id: 'r2', postId: 'P', assetId: 'a2', position: 'b', deletedAt: null },
       { id: 'r1', postId: 'P', assetId: 'a1', position: 'a', deletedAt: null },
     ];
-    expect(assetRefsByPost(edges)).toEqual({ P: [{ id: 'r1', assetId: 'a1' }, { id: 'r2', assetId: 'a2' }] });
+    expect(assetRefsByPost(edges)).toEqual({
+      P: [
+        { id: 'r1', assetId: 'a1' },
+        { id: 'r2', assetId: 'a2' },
+      ],
+    });
   });
 
   it('deriveAssetPostHistory: posts referencing an asset, ordered by postedAt; skips deleted posts', () => {

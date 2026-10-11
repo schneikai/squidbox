@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic over any edge table */
+import { keyBetween, initialKeys } from '@squidbox/shared';
 import { and, eq, isNull } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
-import { keyBetween, initialKeys } from '@squidbox/shared';
+
+import { nextUpdatedAt } from './clock';
 import type { SyncDb } from './db/types';
 import { enqueueMutation } from './outbox';
-import { nextUpdatedAt } from './clock';
 
 // Repository for a junction/edge collection (album_assets, post_assets). add / remove / reorder
 // are independent edge writes (row + coalesced outbox), so concurrent membership edits on two
@@ -18,7 +19,12 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
   const byPosition = (a: any, b: any) => (a.position < b.position ? -1 : a.position > b.position ? 1 : 0);
 
   function liveSorted(tx: any, parentId: string): any[] {
-    return tx.select().from(table).where(and(eq(parentCol, parentId), isNull(t.deletedAt))).all().sort(byPosition);
+    return tx
+      .select()
+      .from(table)
+      .where(and(eq(parentCol, parentId), isNull(t.deletedAt)))
+      .all()
+      .sort(byPosition);
   }
   // Canonical edge per assetId (dedupe a rare double-add), keyed for reorder/existence checks.
   function canonicalByAsset(edges: any[]): Map<string, any> {

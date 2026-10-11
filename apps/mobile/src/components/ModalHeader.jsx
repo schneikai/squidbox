@@ -43,7 +43,7 @@ export default function ModalHeader({ leftSlot, rightSlot, centerSlot, centerSty
         {centerSlot}
       </Animated.Text>
     ) : (
-      centerSlot ?? null
+      (centerSlot ?? null)
     );
 
   return (

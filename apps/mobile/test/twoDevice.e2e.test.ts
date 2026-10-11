@@ -1,18 +1,23 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { drizzle as pgDrizzle } from 'drizzle-orm/node-postgres';
+import { randomUUID } from 'node:crypto';
 import pg from 'pg';
-import type { SyncTransport } from '../src/sync/transport';
-import type { SyncDb } from '../src/sync/db/types';
-import * as repo from '../src/sync/assetsRepository';
-import { makeRepository } from '../src/sync/repository';
-import { makeEdgeRepository } from '../src/sync/edgesRepository';
-import { orderedAssetsByAlbum } from '../src/sync/derive';
-import * as clientSchema from '../src/sync/db/schema';
-import { runSyncOnce } from '../src/sync/worker';
-import { makeTestDb } from './helpers/testDb';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+
 import { makeAssetRecord } from './helpers/factory';
+import { makeTestDb } from './helpers/testDb';
+// Real server engine (against docker Postgres) — the other side of the round-trip.
+import * as serverSchema from '../../server/src/db/schema.js';
+import { pull as serverPull } from '../../server/src/sync/pull.js';
+import { push as serverPush } from '../../server/src/sync/push.js';
+import * as repo from '../src/sync/assetsRepository';
+import * as clientSchema from '../src/sync/db/schema';
+import type { SyncDb } from '../src/sync/db/types';
+import { orderedAssetsByAlbum } from '../src/sync/derive';
+import { makeEdgeRepository } from '../src/sync/edgesRepository';
+import { makeRepository } from '../src/sync/repository';
+import type { SyncTransport } from '../src/sync/transport';
+import { runSyncOnce } from '../src/sync/worker';
 
 const albumRepo = makeRepository('albums', clientSchema.albums);
 function albumRecord(over: Record<string, unknown> = {}) {
@@ -35,10 +40,6 @@ function albumRecord(over: Record<string, unknown> = {}) {
     ...over,
   };
 }
-// Real server engine (against docker Postgres) — the other side of the round-trip.
-import * as serverSchema from '../../server/src/db/schema.js';
-import { push as serverPush } from '../../server/src/sync/push.js';
-import { pull as serverPull } from '../../server/src/sync/pull.js';
 
 // Headless two-device end-to-end: two better-sqlite3 "devices" + the real server sync engine
 // on one Postgres user partition. Run with `npm run test:e2e` (docker stack up); skipped

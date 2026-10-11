@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+
+import { makeAssetRecord } from './helpers/factory';
+import { makeTestDb } from './helpers/testDb';
+import * as repo from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
-import * as repo from '../src/sync/assetsRepository';
-import { resetSyncForUser } from '../src/sync/worker';
 import { setCursor, getCursor, markFirstSyncDone, isFirstSyncDone, getLastSyncUser } from '../src/sync/status';
-import { makeTestDb } from './helpers/testDb';
-import { makeAssetRecord } from './helpers/factory';
+import { resetSyncForUser } from '../src/sync/worker';
 
 // The local DB is a single, un-scoped store: it holds whatever user last synced, plus their cursor.
 // On login, resetSyncForUser wipes it iff a DIFFERENT account signs in, so the new user does a clean

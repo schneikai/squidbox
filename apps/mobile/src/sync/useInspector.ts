@@ -1,5 +1,6 @@
 import { desc } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
+
 import { getDb, schema } from './db/client';
 import type { AssetRow, OutboxRow, SyncLogRow } from './db/schema';
 
@@ -24,7 +25,7 @@ export function useCollectionStats(): CollectionStats[] {
     pendingByCollection.set(o.collection, (pendingByCollection.get(o.collection) ?? 0) + 1);
   }
 
-  const stat = (name: string, rows: Array<{ deletedAt: number | null }>): CollectionStats => ({
+  const stat = (name: string, rows: { deletedAt: number | null }[]): CollectionStats => ({
     name,
     records: rows.filter((r) => r.deletedAt == null).length,
     tombstones: rows.filter((r) => r.deletedAt != null).length,
@@ -33,8 +34,8 @@ export function useCollectionStats(): CollectionStats[] {
 
   return [
     stat('assets', (assets as AssetRow[]) ?? []),
-    stat('albums', (albums as Array<{ deletedAt: number | null }>) ?? []),
-    stat('posts', (posts as Array<{ deletedAt: number | null }>) ?? []),
+    stat('albums', (albums as { deletedAt: number | null }[]) ?? []),
+    stat('posts', (posts as { deletedAt: number | null }[]) ?? []),
   ];
 }
 

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import { nextUpdatedAt } from '../src/sync/clock';
 
 describe('nextUpdatedAt (per-record monotonic clock)', () => {

@@ -1,40 +1,19 @@
-/* eslint-disable import/first */
-
-// Must be at the top of the file according to https://reactnavigation.org/docs/stack-navigator/
-// eslint-disable-next-line import/no-duplicates
-import 'react-native-gesture-handler';
-
-// eslint-disable-next-line import/order
-import * as Sentry from '@sentry/react-native';
-
-Sentry.init({
-  dsn: 'https://768b883ed2b06fea89a6978b62a36798@o4506870940106752.ingest.us.sentry.io/4506871127605248',
-  // If `true`, Sentry will try to print out useful debugging information if something goes wrong with
-  // sending the event. Set it to `false` in production
-  debug: process.env.EXPO_PUBLIC_SENTRY_DEBUG === 'true',
-  enableInExpoDevelopment: false,
-});
-
 import { ActionSheetProvider } from '@expo/react-native-action-sheet';
 import { NavigationContainer } from '@react-navigation/native';
+import * as Sentry from '@sentry/react-native';
+import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SplashScreen from 'expo-splash-screen';
 import { useState, useEffect, Component } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-// eslint-disable-next-line import/no-duplicates
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Menu, MenuProvider } from 'react-native-popup-menu';
-
-// Must be imported here so the setDefaultRenderer call below runs before other imports; order rule disabled.
-// eslint-disable-next-line import/order
-import BlurPopoverRenderer from '@/components/popup-menu-options/BlurPopoverRenderer';
-
-Menu.setDefaultRenderer(BlurPopoverRenderer);
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import FloatingBarsProvider from '@/components/floating-bars/FloatingBarsProvider';
 import FloatingFilterModal from '@/components/floating-bars/FloatingFilterModal';
 import FloatingNavigationBar from '@/components/floating-bars/FloatingNavigationBar';
+import BlurPopoverRenderer from '@/components/popup-menu-options/BlurPopoverRenderer';
 import ProgressOverlayProvider from '@/components/progress-overlay/ProgressOverlayProvider';
 import AlbumsProvider from '@/features/albums-context/AlbumsProvider';
 import AppSettingsProvider from '@/features/app-settings/AppSettingsProvider';
@@ -55,20 +34,13 @@ import { useFirstSyncDone } from '@/sync/useSyncStatus';
 import useSyncTriggers from '@/sync/useSyncTriggers';
 import { setSyncActive } from '@/sync/worker';
 
-// eslint-disable-next-line import/order
-import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
-
-// eslint-disable-next-line import/order
-import { defineCollection } from '@squidbox/shared';
-
-// Phase 0 monorepo-wiring probe: import a runtime VALUE from the workspace package
-// @squidbox/shared and touch it, so Metro must actually resolve the package in the running
-// bundle. A type-only import would be erased and prove nothing. Remove once the shared
-// package has real consumers (sync descriptors, Phase 2+).
-if (__DEV__) {
-  console.log('[phase0] @squidbox/shared wired:', typeof defineCollection === 'function');
-}
-
+// Module setup. Imports are hoisted, so this runs once every import above has loaded.
+Sentry.init({
+  dsn: 'https://768b883ed2b06fea89a6978b62a36798@o4506870940106752.ingest.us.sentry.io/4506871127605248',
+  // Verbose Sentry logging, for debugging event delivery. Off unless enabled in .env.local.
+  debug: process.env.EXPO_PUBLIC_SENTRY_DEBUG === 'true',
+});
+Menu.setDefaultRenderer(BlurPopoverRenderer);
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
@@ -92,9 +64,7 @@ class BootErrorBoundary extends Component {
       return (
         <View style={styles.bootError}>
           <Text style={styles.bootErrorTitle}>Something went wrong</Text>
-          <Text style={styles.bootErrorText}>
-            Please close and reopen the app. If it keeps happening, reinstall.
-          </Text>
+          <Text style={styles.bootErrorText}>Please close and reopen the app. If it keeps happening, reinstall.</Text>
         </View>
       );
     }

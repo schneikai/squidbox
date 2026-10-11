@@ -9,8 +9,7 @@ type AnyAsset = Record<string, any>;
 
 export function toAssetRecord(input: AnyAsset): AssetRecord {
   const now = Date.now();
-  const deletedAt =
-    input.deletedAt !== undefined ? input.deletedAt : input.isDeleted ? input.updatedAt ?? now : null;
+  const deletedAt = input.deletedAt !== undefined ? input.deletedAt : input.isDeleted ? (input.updatedAt ?? now) : null;
   return {
     id: input.id,
     createdAt: input.createdAt ?? now,

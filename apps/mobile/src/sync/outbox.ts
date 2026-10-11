@@ -1,4 +1,5 @@
 import { and, eq } from 'drizzle-orm';
+
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 
@@ -12,7 +13,13 @@ export function enqueueMutation(
 ): void {
   const op = record.deletedAt != null ? 'delete' : 'upsert';
   tx.insert(schema.outbox)
-    .values({ collection, recordId: record.id, op, payload: record as Record<string, unknown>, updatedAt: record.updatedAt })
+    .values({
+      collection,
+      recordId: record.id,
+      op,
+      payload: record as Record<string, unknown>,
+      updatedAt: record.updatedAt,
+    })
     .onConflictDoUpdate({
       target: [schema.outbox.collection, schema.outbox.recordId],
       set: { op, payload: record as Record<string, unknown>, updatedAt: record.updatedAt },
@@ -29,11 +36,7 @@ export async function pendingRecordIds(db: SyncDb, collection: string): Promise<
 }
 
 /** Current outbox row's updatedAt for a record, or null if none pending. */
-export async function getOutboxUpdatedAt(
-  db: SyncDb,
-  collection: string,
-  recordId: string,
-): Promise<number | null> {
+export async function getOutboxUpdatedAt(db: SyncDb, collection: string, recordId: string): Promise<number | null> {
   const [row] = await db
     .select({ updatedAt: schema.outbox.updatedAt })
     .from(schema.outbox)

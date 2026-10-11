@@ -117,7 +117,7 @@ export const outbox = sqliteTable(
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
   },
-  (t) => ({ oneRowPerRecord: uniqueIndex('outbox_collection_record_idx').on(t.collection, t.recordId) })
+  (t) => ({ oneRowPerRecord: uniqueIndex('outbox_collection_record_idx').on(t.collection, t.recordId) }),
 );
 export type OutboxRow = typeof outbox.$inferSelect;
 
