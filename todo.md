@@ -38,10 +38,10 @@ In the Deleted album, "Delete permanently" (`deleteAssetsAsync`) only tombstones
 They stay in the Deleted album, and their files stay in S3. It should delete the S3 file and
 thumbnail through `POST /assets/delete` and remove the records for good.
 
-### [ ] Clean up files after deletes
+### [ ] Remove local files when a delete arrives through sync
 
-The app never deletes an asset's S3 file or thumbnail, and a delete that arrives through sync
-leaves this device's local file and thumbnail in place. See `docs/sync-design.md` §7a.
+When another device deletes an asset, this device applies the tombstone but keeps its local file
+and thumbnail. See `docs/sync-design.md` §7a.
 
 ### [ ] Move off Node 20
 
