@@ -21,7 +21,8 @@ import { colors, scale, spacing, typography } from '@/styles/designTokens';
  * Reusable bottom-left floating search + options bar, following the iOS search pattern:
  *   • Tapping search opens the field and brings up the keyboard (focus only ever follows a tap).
  *   • The clear button inside the field empties the query.
- *   • ✕ next to the field is Cancel: it leaves search, clears the query and hides the keyboard.
+ *   • A separate round ✕ next to the field is Cancel: it leaves search, clears the query and hides
+ *     the keyboard. The sort/filter button shows only while search is closed (as in Photos).
  *   • Scrolling the list hides the keyboard but keeps the query (lists use keyboardDismissMode).
  *   • Leaving the screen hides the keyboard; coming back keeps the query without reopening it.
  * Screens get these props as `searchBar` from `useSearchMode`.
@@ -98,6 +99,12 @@ export default function SearchOptionsBar({
     overflow: 'hidden',
   }));
 
+  // The Cancel button grows in next to the field (like Photos), taking its width from the field.
+  const cancelStyle = useAnimatedStyle(() => ({
+    width: interpolate(expandProgress.value, [0.4, 1], [0, CANCEL_SLOT_WIDTH], Extrapolation.CLAMP),
+    opacity: interpolate(expandProgress.value, [0.5, 1], [0, 1], Extrapolation.CLAMP),
+  }));
+
   return (
     <Animated.View style={[styles.container, { left }, containerStyle]}>
       <FloatingPill style={styles.pill}>
@@ -114,6 +121,7 @@ export default function SearchOptionsBar({
         <Animated.View style={collapsedStyle}>
           <Pressable
             onPress={onOpenOptions}
+            accessibilityLabel="Sort and filter"
             style={({ pressed }) => [
               actionButtonStyles.pillButton,
               hasActiveState && actionButtonStyles.buttonWarning,
@@ -124,7 +132,7 @@ export default function SearchOptionsBar({
           </Pressable>
         </Animated.View>
 
-        {/* Expanded: text input + close + options */}
+        {/* Expanded: the field, with the native clear button inside */}
         <Animated.View style={[styles.expandedRow, expandedStyle]}>
           <AppTextInput
             ref={inputRef}
@@ -135,6 +143,12 @@ export default function SearchOptionsBar({
             returnKeyType="search"
             clearButtonMode="always"
           />
+        </Animated.View>
+      </FloatingPill>
+
+      {/* Cancel: a separate round button next to the field */}
+      <Animated.View style={[styles.cancelSlot, cancelStyle]} pointerEvents={isSearchActive ? 'auto' : 'none'}>
+        <FloatingPill style={styles.cancelPill}>
           <Pressable
             onPress={handleCancel}
             accessibilityLabel="Cancel search"
@@ -142,29 +156,33 @@ export default function SearchOptionsBar({
           >
             <Icon name="close" color={colors.iconInactive} />
           </Pressable>
-          <Pressable
-            onPress={onOpenOptions}
-            style={({ pressed }) => [
-              actionButtonStyles.pillButton,
-              hasActiveState && actionButtonStyles.buttonWarning,
-              pressed && { backgroundColor: colors.pressedBg },
-            ]}
-          >
-            <Icon name="options" color={hasActiveState ? colors.accent : colors.iconInactive} />
-          </Pressable>
-        </Animated.View>
-      </FloatingPill>
+        </FloatingPill>
+      </Animated.View>
     </Animated.View>
   );
 }
+
+const PILL_GAP = 8; // same gap as between the header's pills
+const CANCEL_PILL_WIDTH = spacing.iconButtonSize + spacing.barPaddingY * 2;
+const CANCEL_SLOT_WIDTH = CANCEL_PILL_WIDTH + PILL_GAP;
 
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     zIndex: 100,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   pill: {
     flex: 1,
+  },
+  cancelSlot: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  cancelPill: {
+    width: CANCEL_PILL_WIDTH,
+    flexShrink: 0,
   },
   expandedRow: {
     flexDirection: 'row',
