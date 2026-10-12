@@ -12,6 +12,8 @@ import useAssets from '@/features/assets-context/useAssets';
 export default function AssetPager({ assetIds, currentAssetId, onChangeAssetId, onTapAsset }) {
   const { assets } = useAssets();
   const { width: pageWidth } = useWindowDimensions();
+  // Pages take the pager's height explicitly: native stretches list items to it, the web doesn't.
+  const [pageHeight, setPageHeight] = useState(0);
   const listRef = useRef(null);
   const currentIndex = assetIds.indexOf(currentAssetId);
   const [initialScrollIndex] = useState(Math.max(currentIndex, 0));
@@ -39,7 +41,7 @@ export default function AssetPager({ assetIds, currentAssetId, onChangeAssetId, 
       data={assetIds}
       keyExtractor={(assetId) => assetId}
       renderItem={({ item: assetId }) => (
-        <AssetItem asset={assets[assetId]} style={{ width: pageWidth }} onTap={onTapAsset} />
+        <AssetItem asset={assets[assetId]} style={{ width: pageWidth, height: pageHeight }} onTap={onTapAsset} />
       )}
       getItemLayout={(_, index) => ({ length: pageWidth, offset: pageWidth * index, index })}
       initialScrollIndex={initialScrollIndex}
@@ -49,6 +51,7 @@ export default function AssetPager({ assetIds, currentAssetId, onChangeAssetId, 
       showsHorizontalScrollIndicator={false}
       onScrollEndDrag={handleScrollEnd}
       onMomentumScrollEnd={handleScrollEnd}
+      onLayout={(event) => setPageHeight(event.nativeEvent.layout.height)}
     />
   );
 }

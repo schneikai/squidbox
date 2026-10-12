@@ -110,6 +110,18 @@ To go back to your real library, start Metro normally and sign in with your acco
 
 If Docker pulls fail, or the server can't reach MinIO, see `apps/server/README.md` → "Local development".
 
+### Web preview
+
+There is no iOS Simulator outside macOS, so UI changes can also be checked in the app's web build, at iPhone 15 Pro Max size, against the local backend. With `npm run dev:local` running, from `apps/mobile/`:
+
+```
+npm run web:preview -- shot.png      # signs in, opens the library, saves a screenshot, prints console errors
+```
+
+Scripts can drive it through `openWebPreview()` and `settleAsync()` in `scripts/webPreview.mjs` (Playwright): tap, type, navigate and take screenshots. Outside the cloud workspace, run `npx playwright install chromium` once.
+
+The web build is a preview, not a target. Platform files (`*.web.js`) stand in for what the browser lacks: tokens live in `localStorage`, and thumbnails load straight from their signed URLs. The camera roll, uploads, file downloads and native gestures don't work there, so confirm those on a device. expo-sqlite needs a cross-origin isolated page, which the preview script sets up, plus a patch for an upstream bug in its web worker (`patches/`, applied by `postinstall`).
+
 ## Deploying the backend
 
 Run `/deploy-server`. It handles first-time setup (Fly app + Neon DB + secrets + seed) and routine deploys (build, migrate, release) via the `fly` and `neonctl` CLIs. To import a user's old backups, run `/legacy-import`.

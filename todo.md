@@ -117,6 +117,22 @@ example jest-expo with React Native Testing Library) and cover the key screens f
 detail pager, login and sign-out, and the library grid. Consider end-to-end tests (for example
 Maestro) for the main flows later.
 
+### [ ] Web preview gaps
+
+The web preview (README → "Web preview") can't add photos from the camera roll, upload, download
+files or pinch. Web versions exist only for tokens and thumbnails. Extend them if testing those
+flows in the browser becomes worth it.
+
+### [ ] Drop the expo-sqlite patch
+
+`patches/expo-sqlite+55.0.20.patch` fixes the web worker's result length (results over 255 bytes
+broke). Remove it once expo/expo#44148 (or #51330) ships in the SDK we use.
+
+### [ ] Sentry receives events from development
+
+`Sentry.init` in `App.js` is always on, so the dev client and the web preview report into the
+production project. Consider `enabled: !__DEV__`.
+
 ### [ ] One animation library
 
 Animations use both React Native's `Animated` and Reanimated. Move the `Animated` ones

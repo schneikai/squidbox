@@ -1,5 +1,6 @@
 import { drizzle } from 'drizzle-orm/expo-sqlite';
-import { openDatabaseSync } from 'expo-sqlite';
+import { openDatabaseAsync, openDatabaseSync } from 'expo-sqlite';
+import { Platform } from 'react-native';
 
 import * as schema from './schema';
 
@@ -14,6 +15,15 @@ let dbInstance: ReturnType<typeof drizzle<typeof schema>> | null = null;
 export function getSqlite() {
   if (!sqlite) sqlite = openDatabaseSync(DB_NAME, { enableChangeListener: true });
   return sqlite;
+}
+
+// Web: expo-sqlite's sync calls busy-wait only briefly for its worker (expo/expo#36392), so the very
+// first one times out while the worker is still loading. Opening the database asynchronously once
+// loads the worker, wasm and storage up front. A no-op on native.
+export async function prepareDatabaseAsync() {
+  if (Platform.OS !== 'web' || sqlite) return;
+  const warmup = await openDatabaseAsync(DB_NAME);
+  await warmup.closeAsync();
 }
 
 export function getDb() {

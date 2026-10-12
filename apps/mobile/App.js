@@ -28,7 +28,7 @@ import FirstSyncScreen from '@/features/sync-status/FirstSyncScreen';
 import RootNavigator from '@/navigators/RootNavigator';
 import { navigationRef, flushPendingNavigation } from '@/navigators/navigationRef';
 import { colors } from '@/styles/designTokens';
-import { getDb } from '@/sync/db/client';
+import { getDb, prepareDatabaseAsync } from '@/sync/db/client';
 import migrations from '@/sync/db/migrations/migrations';
 import { useFirstSyncDone } from '@/sync/useSyncStatus';
 import useSyncTriggers from '@/sync/useSyncTriggers';
@@ -80,11 +80,11 @@ const App = () => {
           <ProgressOverlayProvider>
             <AppSettingsProvider>
               <CloudProvider>
-                <MigrationGate>
+                <DatabaseGate>
                   <AppInit>
                     <AppGate />
                   </AppInit>
-                </MigrationGate>
+                </DatabaseGate>
               </CloudProvider>
             </AppSettingsProvider>
           </ProgressOverlayProvider>
@@ -144,8 +144,21 @@ function AppInit({ children }) {
   return children;
 }
 
-// DB migrations run once, above everything that queries SQLite (including the firstSyncDone probe
-// in AppGate). Renders nothing until the schema is ready.
+// The database is prepared and migrated once, above everything that queries SQLite (including the
+// firstSyncDone probe in AppGate). Renders nothing until the schema is ready.
+function DatabaseGate({ children }) {
+  const [isPrepared, setIsPrepared] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    prepareDatabaseAsync().then(() => setIsPrepared(true), setError);
+  }, []);
+
+  if (error) throw error;
+  if (!isPrepared) return null;
+  return <MigrationGate>{children}</MigrationGate>;
+}
+
 function MigrationGate({ children }) {
   const { success, error } = useMigrations(getDb(), migrations);
   if (error) throw error; // fail loudly in dev — the DB must migrate before use

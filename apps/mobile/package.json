@@ -15,6 +15,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "web:preview": "node scripts/webPreview.mjs",
     "lint": "eslint .",
     "typecheck:sync": "tsc -p tsconfig.synccheck.json --noEmit",
     "test": "vitest run",
@@ -80,6 +81,7 @@
     "better-sqlite3": "^11.10.0",
     "drizzle-kit": "^0.30.6",
     "eslint-config-universe": "^12.0.0",
+    "playwright": "1.56.1",
     "typescript": "^5.6.0",
     "vitest": "^2.1.9"
   },
