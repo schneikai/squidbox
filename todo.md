@@ -121,14 +121,13 @@ Maestro) for the main flows later.
 
 The providers still load whole tables (assets, album edges, posts) into memory on every launch,
 so startup grows with the library (~5.8 s to the first grid at 50k on web). Plan, reviewed and
-ready to build: `docs/paged-reads-plan.md`. It needs the owner's call on its three decisions
-(reorder only in custom sort, a 5,000 select-all cap, the "first 500" fallback) before step 3.
+ready to build: `docs/paged-reads-plan.md`.
 
 ### [ ] Check a 50,000-asset library on a device
 
 The data layer was tuned on the web preview (`npm run seed:mock -- --assets 50000`): a favorite
 toggle costs ~0.2 s of main-thread work there, a pull of 1,000 remote changes ~0.3 s, and the first
-sync ~3 min (web storage is slow; the change-log triggers add ~50% to inserts). Measure the same on
+sync ~40 s (web storage is slow; the change-log triggers double the write cost). Measure the same on
 an iPhone with the dev client.
 
 ### [ ] Web preview gaps
