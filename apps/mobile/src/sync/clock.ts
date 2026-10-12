@@ -4,3 +4,14 @@
 export function nextUpdatedAt(prev: number | undefined, now: number = Date.now()): number {
   return prev != null && now <= prev ? prev + 1 : now;
 }
+
+/** `prev` with `changes`, as its next version. */
+export function nextVersion<T extends { updatedAt: number }>(prev: T, changes: Partial<T> = {}): T {
+  return { ...prev, ...changes, updatedAt: nextUpdatedAt(prev.updatedAt) };
+}
+
+/** `prev` as a tombstone (sync-design §2). */
+export function tombstone<T extends { updatedAt: number; deletedAt: number | null }>(prev: T): T {
+  const ts = nextUpdatedAt(prev.updatedAt);
+  return { ...prev, updatedAt: ts, deletedAt: ts };
+}

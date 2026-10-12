@@ -2,7 +2,6 @@
 import { and, eq, getTableColumns, getTableName, gt, inArray, max } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
-import { clientCollectionNames } from './clientCollections';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { chunk } from './pushPlan';
@@ -15,18 +14,17 @@ export interface LiveRows {
 const FETCH_BATCH = 1000;
 
 /**
- * The current rows of `table`. With the previous result, a synced table only fetches the rows that
- * changed since then, from its change log (row_changes, kept by triggers), so unchanged rows keep
- * their objects and a write to one of 50,000 assets costs one row. Other tables are small and are
- * read whole. Returns `previous` itself when nothing changed. Runs as one transaction, so no
- * write can land between reading the changes and the rows.
+ * The current rows of a synced collection's `table`. With the previous result, it only fetches the
+ * rows that changed since then, from the change log (row_changes, kept by triggers), so unchanged
+ * rows keep their objects and a write to one of 50,000 assets costs one row. Returns `previous`
+ * itself when nothing changed. Runs as one transaction, so no write can land between reading the
+ * changes and the rows.
  */
 export function readLiveRows(db: SyncDb, table: SQLiteTable, previous?: LiveRows): Promise<LiveRows> {
   const name = getTableName(table);
   return db.transaction(async (tx) => {
     const latest = await latestVersion(tx, name);
-    if (!previous || !clientCollectionNames.includes(name))
-      return { rows: await tx.select().from(table), version: latest };
+    if (!previous) return { rows: await tx.select().from(table), version: latest };
     if (latest === previous.version) return previous;
 
     const changes = await tx
@@ -42,17 +40,16 @@ export function readLiveRows(db: SyncDb, table: SQLiteTable, previous?: LiveRows
     }
 
     // One pass: changed rows replace their old objects, changed ids that are gone were deleted, and
-    // fetched rows that weren't there before are new.
+    // the fetched rows left over are new.
     const rows: any[] = [];
-    const replaced = new Set<string>();
     for (const row of previous.rows) {
       if (!changedIds.has(row.id)) rows.push(row);
       else if (fetched.has(row.id)) {
         rows.push(fetched.get(row.id));
-        replaced.add(row.id);
+        fetched.delete(row.id);
       }
     }
-    for (const [rowId, row] of fetched) if (!replaced.has(rowId)) rows.push(row);
+    rows.push(...fetched.values());
     return { rows, version: latest };
   });
 }

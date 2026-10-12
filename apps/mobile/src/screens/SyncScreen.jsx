@@ -7,7 +7,7 @@ import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { LogBlock, LogEmpty, LogLine } from '@/components/settings-list/LogBlock';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import { useCollectionStats, useOutboxRows, useSyncLogRows } from '@/sync/useInspector';
+import { useCollectionStats, useSyncLogRows } from '@/sync/useInspector';
 import { useSyncStatus } from '@/sync/useSyncStatus';
 import { requestSync, runClearOutbox, runFullResync } from '@/sync/worker';
 import relativeTime from '@/utils/relativeTime';
@@ -18,7 +18,6 @@ export default function SyncScreen() {
   const navigation = useNavigation();
   const { phase, pendingCount, cursor, lastPullAt, lastError } = useSyncStatus();
   const stats = useCollectionStats();
-  const outbox = useOutboxRows();
   const log = useSyncLogRows();
 
   function statusText() {
@@ -98,7 +97,7 @@ export default function SyncScreen() {
         <ScreenSectionHeader title="Troubleshooting" />
         <Section>
           <Row label="Rebuild from server" onPress={confirmFullResync} destructive chevron />
-          <Row label="Clear outbox" value={`${outbox.length}`} onPress={confirmClearOutbox} destructive chevron />
+          <Row label="Clear outbox" value={`${pendingCount}`} onPress={confirmClearOutbox} destructive chevron />
         </Section>
         <SectionFooter>
           Rebuild your library from the server if something looks wrong — your photos are safe. Only clear the outbox if

@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
@@ -53,5 +54,9 @@ describe('driver (createDb)', () => {
   it('does not notify for reads', async () => {
     await db.select().from(schema.assets);
     expect(changes).toEqual([]);
+  });
+
+  it('refuses a write it cannot attribute to a table, which live reads would miss', async () => {
+    await expect(db.run(sql`update assets set notes = 'x'`)).rejects.toThrow(/Untracked write/);
   });
 });

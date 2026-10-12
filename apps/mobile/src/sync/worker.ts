@@ -1,6 +1,4 @@
 import type { PushMutation, PushResult } from '@squidbox/shared';
-import { getTableColumns, sql } from 'drizzle-orm';
-import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
 import { setSyncError } from './assetsRepository';
 import { clientCollectionTables } from './clientCollections';
@@ -20,10 +18,10 @@ import {
   setLastSyncUser,
 } from './status';
 import type { SyncTransport } from './transport';
+import { upsertRows } from './upsertRows';
 
 const PULL_LIMIT = 1000; // server/contract cap; larger pages = fewer reactive storms on bulk pull
 const PUSH_BATCH = 500; // server caps pushRequest mutations at 500
-const UPSERT_BATCH = 500; // rows per INSERT; ~20 columns each stays far below SQLite's 32766 variables
 // Records per apply transaction. Each transaction writes every database page it touches once more
 // (the rollback journal), and with random ids a transaction touches most index pages, so a few big
 // transactions are much faster than one per page: on web, a 50k first sync drops from ~3 min to ~40 s.
@@ -71,11 +69,13 @@ async function pushPhase(db: SyncDb, transport: SyncTransport): Promise<{ pushed
   for (const batch of chunk(rows, PUSH_BATCH)) {
     const mutations: PushMutation[] = batch.map((r) => ({ collection: r.collection, record: r.payload }));
     const { results } = await transport.push({ mutations });
-    for (const result of results) {
-      pushed += 1;
-      const note = await applyPushResult(db, result, pushedUpdatedAt.get(`${result.collection}:${result.id}`) ?? 0);
-      if (note) notes.push(note);
-    }
+    await db.transaction(async (tx) => {
+      for (const result of results) {
+        pushed += 1;
+        const note = await applyPushResult(tx, result, pushedUpdatedAt.get(`${result.collection}:${result.id}`) ?? 0);
+        if (note) notes.push(note);
+      }
+    });
   }
   await patchStatus(db, { lastPushAt: Date.now() });
   return { pushed, notes };
@@ -141,7 +141,7 @@ async function applyChanges(
       if (changes[name].length === 0) continue;
       const pending = await pendingRecordIds(tx, name);
       const incoming = changes[name].filter((record) => !pending.has(String(record.id))); // local edits re-assert via push
-      for (const batch of chunk(incoming, UPSERT_BATCH)) await upsertRecords(tx, name, table, batch);
+      await upsertRows(tx, name, table, incoming);
       applied += incoming.length;
     }
     await setCursor(tx, cursor);
@@ -151,27 +151,7 @@ async function applyChanges(
 
 async function applyRecord(db: SyncDb, collection: string, record: Record<string, unknown>): Promise<void> {
   const table = clientCollectionTables[collection];
-  if (table) await upsertRecords(db, collection, table, [record]);
-}
-
-// One multi-row upsert of server records. A conflicting row takes every synced column from the
-// incoming one (`excluded`); the local-only syncError of assets is reset on insert and kept on update.
-async function upsertRecords(
-  db: SyncDb,
-  collection: string,
-  table: SQLiteTable,
-  records: Record<string, unknown>[],
-): Promise<void> {
-  const values = collection === 'assets' ? records.map((record) => ({ ...record, syncError: null })) : records;
-  await db
-    .insert(table)
-    .values(values as any)
-    .onConflictDoUpdate({ target: (table as any).id, set: syncedColumnsFromIncoming(table) });
-}
-
-function syncedColumnsFromIncoming(table: SQLiteTable) {
-  const synced = Object.entries(getTableColumns(table)).filter(([key]) => key !== 'syncError');
-  return Object.fromEntries(synced.map(([key, column]) => [key, sql.raw(`excluded."${column.name}"`)]));
+  if (table) await upsertRows(db, collection, table, [record]);
 }
 
 // ── Dev/Inspector operations ────────────────────────────────────────────────

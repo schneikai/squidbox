@@ -1,12 +1,10 @@
-import { sql } from 'drizzle-orm';
+import { count, desc, sql } from 'drizzle-orm';
 
 import { getDb } from './db/client';
-import type { OutboxRow, SyncLogRow } from './db/schema';
 import * as schema from './db/schema';
 import { useLiveQuery } from './useLiveQuery';
-import { useLiveTable } from './useLiveTable';
 
-// Reactive data for the Sync Inspector: record counts in SQL, plus the small outbox and log tables.
+// Reactive data for the Sync Inspector, counted and ordered in SQL.
 
 export interface CollectionStats {
   name: string;
@@ -16,16 +14,23 @@ export interface CollectionStats {
 }
 
 const SYNC_LOG_SHOWN = 30;
+const NO_ROWS: never[] = [];
 
 export function useCollectionStats(): CollectionStats[] {
   const assets = useTombstoneCounts(schema.assets);
   const albums = useTombstoneCounts(schema.albums);
   const posts = useTombstoneCounts(schema.posts);
-  const outbox = useLiveTable<OutboxRow>(schema.outbox) ?? [];
+  const pending =
+    useLiveQuery(
+      () =>
+        getDb()
+          .select({ collection: schema.outbox.collection, count: count() })
+          .from(schema.outbox)
+          .groupBy(schema.outbox.collection),
+      [schema.outbox],
+    ) ?? NO_ROWS;
 
-  const pendingByCollection = new Map<string, number>();
-  for (const o of outbox) pendingByCollection.set(o.collection, (pendingByCollection.get(o.collection) ?? 0) + 1);
-
+  const pendingByCollection = new Map(pending.map((row) => [row.collection, row.count]));
   const stat = (name: string, counts: { records: number; tombstones: number }): CollectionStats => ({
     name,
     ...counts,
@@ -35,7 +40,7 @@ export function useCollectionStats(): CollectionStats[] {
   return [stat('assets', assets), stat('albums', albums), stat('posts', posts)];
 }
 
-// Live (non-tombstoned) and tombstoned row counts of a collection, counted in SQL.
+// Live (non-tombstoned) and tombstoned row counts of a collection.
 function useTombstoneCounts(table: typeof schema.assets | typeof schema.albums | typeof schema.posts) {
   const [row] =
     useLiveQuery(
@@ -47,16 +52,15 @@ function useTombstoneCounts(table: typeof schema.assets | typeof schema.albums |
           })
           .from(table),
       [table],
-    ) ?? [];
+    ) ?? NO_ROWS;
   return { records: Number(row?.records ?? 0), tombstones: Number(row?.tombstones ?? 0) };
 }
 
-export function useOutboxRows(): OutboxRow[] {
-  return useLiveTable<OutboxRow>(schema.outbox) ?? [];
-}
-
-// The log is a ring buffer of at most 100 rows (status.ts), so reading all of it is cheap.
-export function useSyncLogRows(): SyncLogRow[] {
-  const rows = useLiveTable<SyncLogRow>(schema.syncLog) ?? [];
-  return [...rows].sort((a, b) => b.id - a.id).slice(0, SYNC_LOG_SHOWN);
+export function useSyncLogRows(): schema.SyncLogRow[] {
+  return (
+    useLiveQuery(
+      () => getDb().select().from(schema.syncLog).orderBy(desc(schema.syncLog.id)).limit(SYNC_LOG_SHOWN),
+      [schema.syncLog],
+    ) ?? NO_ROWS
+  );
 }

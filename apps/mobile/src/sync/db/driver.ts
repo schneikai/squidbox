@@ -8,6 +8,9 @@ type TablesChangedListener = (tables: Set<string>) => void;
 // Statements drizzle generates for writes start like `insert into "assets"`, `update "assets"` or
 // `delete from "assets"`.
 const WRITTEN_TABLE = /^\s*(?:insert\s+into|update|delete\s+from)\s+"([^"]+)"/i;
+// Any other write (raw SQL with an unquoted table, REPLACE, INSERT OR …) would change a table without
+// telling live reads, so it is refused.
+const ANY_WRITE = /^\s*(?:insert|update|delete|replace)\b/i;
 
 /**
  * An async drizzle database on top of `execute`, the same on every platform. All access runs
@@ -36,9 +39,10 @@ export function createDb(execute: Execute) {
     return unit;
   }
 
-  const executeTracked: Execute = (sql, params, method) => {
+  const executeTracked: Execute = async (sql, params, method) => {
     const table = WRITTEN_TABLE.exec(sql)?.[1];
     if (table) written?.add(table);
+    else if (ANY_WRITE.test(sql)) throw new Error(`Untracked write (see WRITTEN_TABLE): ${sql.slice(0, 80)}`);
     return execute(sql, params, method);
   };
 

@@ -1,15 +1,14 @@
 import { count } from 'drizzle-orm';
 
 import { getDb } from './db/client';
-import type { SyncMetaRow } from './db/schema';
 import * as schema from './db/schema';
 import type { SyncPhase } from './status';
 import { useLiveQuery } from './useLiveQuery';
-import { useLiveTable } from './useLiveTable';
 
-// sync_meta rows → a { key: value } lookup.
-function metaByKey(meta: SyncMetaRow[] | undefined): Record<string, string | null> {
-  return Object.fromEntries((meta ?? []).map((r) => [r.key, r.value]));
+// sync_meta as a { key: value } lookup, live; undefined until read once.
+function useSyncMeta(): Record<string, string | null> | undefined {
+  const meta = useLiveQuery(() => getDb().select().from(schema.syncMeta), [schema.syncMeta]);
+  return meta && Object.fromEntries(meta.map((row) => [row.key, row.value]));
 }
 
 // Reactive sync status for the dev status surface + Inspector: the phase +
@@ -24,10 +23,9 @@ export interface LiveSyncStatus {
 }
 
 export function useSyncStatus(): LiveSyncStatus {
-  const meta = useLiveTable<SyncMetaRow>(schema.syncMeta);
+  const byKey = useSyncMeta() ?? {};
   const [pending] = useLiveQuery(() => getDb().select({ count: count() }).from(schema.outbox), [schema.outbox]) ?? [];
 
-  const byKey = metaByKey(meta);
   const status = byKey.status ? JSON.parse(byKey.status) : {};
 
   return {
@@ -49,7 +47,6 @@ export function useSyncStatus(): LiveSyncStatus {
 // and not gate on it, otherwise the setup screen flashes for a frame on every launch for an
 // already-synced user.
 export function useFirstSyncDone(): boolean | undefined {
-  const meta = useLiveTable<SyncMetaRow>(schema.syncMeta);
-  if (meta === undefined) return undefined;
-  return metaByKey(meta).firstSyncDone === '1';
+  const meta = useSyncMeta();
+  return meta && meta.firstSyncDone === '1';
 }

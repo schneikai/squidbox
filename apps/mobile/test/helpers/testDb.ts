@@ -14,7 +14,7 @@ export function makeTestDb(): AppDb {
 
 export interface Work {
   statements: number;
-  transactions: number;
+  commits: number; // transactions plus writes outside one: each is a disk sync and a live-read refresh
   rowsRead: number;
   fullScans: string[]; // query-plan lines like "SCAN assets"
 }
@@ -36,7 +36,7 @@ export function makeMeasuredTestDb(): { db: AppDb; measure(run: () => Promise<un
     const selects = log.filter((entry) => /^\s*select/i.test(entry.sql));
     return {
       statements: log.length,
-      transactions: log.filter((entry) => /^\s*begin/i.test(entry.sql)).length,
+      commits: countCommits(log.map((entry) => entry.sql)),
       rowsRead: selects.reduce((sum, entry) => sum + entry.rows, 0),
       fullScans: selects.flatMap(({ sql, params }) =>
         (sqlite.prepare(`explain query plan ${sql}`).all(...params) as { detail: string }[])
@@ -47,6 +47,19 @@ export function makeMeasuredTestDb(): { db: AppDb; measure(run: () => Promise<un
   }
 
   return { db, measure };
+}
+
+function countCommits(statements: string[]): number {
+  let commits = 0;
+  let inTransaction = false;
+  for (const sql of statements) {
+    if (/^\s*begin/i.test(sql)) {
+      inTransaction = true;
+      commits += 1;
+    } else if (/^\s*(commit|rollback)/i.test(sql)) inTransaction = false;
+    else if (!inTransaction && /^\s*(insert|update|delete)/i.test(sql)) commits += 1;
+  }
+  return commits;
 }
 
 function openMigrated(): Database.Database {

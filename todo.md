@@ -130,6 +130,14 @@ toggle costs ~0.2 s of main-thread work there, a pull of 1,000 remote changes ~0
 sync ~40 s (web storage is slow; the change-log triggers double the write cost). Measure the same on
 an iPhone with the dev client.
 
+### [ ] Smaller data-layer costs
+
+Measured as worth little today, so left open: the driver notifies live reads even when a write
+changed no rows (`db/driver.ts`; expo's `changes` would tell); every statement is prepared and
+finalized again (`db/expoExecutor.ts`; a statement cache saves two native calls each); the pull
+fetches the next pages only after applying the last batch (`worker.ts` `pullPhase`; prefetching one
+page overlaps network and writes).
+
 ### [ ] Web preview gaps
 
 The web preview (README → "Web preview") can't add photos from the camera roll, upload, download

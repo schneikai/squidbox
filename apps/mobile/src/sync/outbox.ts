@@ -1,30 +1,44 @@
-import { and, eq } from 'drizzle-orm';
+import { collectionsByName } from '@squidbox/shared';
+import { and, eq, sql } from 'drizzle-orm';
 
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
+import { chunk } from './pushPlan';
 
-// Enqueue a whole-record mutation, coalesced to one row per (collection, recordId): the latest
-// payload wins (sync-design §6). `op` is 'delete' when the record is tombstoned, else 'upsert'.
-// Called inside the transaction that writes the record (see the repositories).
-export async function enqueueMutation(
+const BATCH = 500;
+
+// Enqueue whole-record mutations, coalesced to one row per (collection, recordId): the latest
+// payload wins (sync-design §6). `op` is 'delete' for a tombstone, else 'upsert'. The payload leaves
+// out the collection's local-only fields. Called inside the transaction that writes the records.
+export async function enqueueMutations(
   tx: SyncDb,
   collection: string,
-  record: { id: string; updatedAt: number; deletedAt?: number | null },
+  records: { id: string; updatedAt: number; deletedAt?: number | null }[],
 ): Promise<void> {
-  const op = record.deletedAt != null ? 'delete' : 'upsert';
-  await tx
-    .insert(schema.outbox)
-    .values({
-      collection,
-      recordId: record.id,
-      op,
-      payload: record as Record<string, unknown>,
-      updatedAt: record.updatedAt,
-    })
-    .onConflictDoUpdate({
-      target: [schema.outbox.collection, schema.outbox.recordId],
-      set: { op, payload: record as Record<string, unknown>, updatedAt: record.updatedAt },
-    });
+  const localOnly = Object.keys(collectionsByName[collection]?.localOnly ?? {});
+  for (const batch of chunk(records, BATCH)) {
+    await tx
+      .insert(schema.outbox)
+      .values(
+        batch.map((record) => ({
+          collection,
+          recordId: record.id,
+          op: record.deletedAt != null ? ('delete' as const) : ('upsert' as const),
+          payload: withoutKeys(record, localOnly),
+          updatedAt: record.updatedAt,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: [schema.outbox.collection, schema.outbox.recordId],
+        set: { op: sql`excluded."op"`, payload: sql`excluded."payload"`, updatedAt: sql`excluded."updated_at"` },
+      });
+  }
+}
+
+function withoutKeys(record: object, keys: string[]): Record<string, unknown> {
+  const copy: Record<string, unknown> = { ...record };
+  for (const key of keys) delete copy[key];
+  return copy;
 }
 
 export async function pendingRecordIds(db: SyncDb, collection: string): Promise<Set<string>> {

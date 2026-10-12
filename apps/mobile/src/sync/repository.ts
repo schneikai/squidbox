@@ -1,52 +1,61 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic over any collection's table */
-import { eq, inArray } from 'drizzle-orm';
+import { inArray } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
-import { nextUpdatedAt } from './clock';
+import { nextVersion, tombstone } from './clock';
 import type { SyncDb } from './db/types';
-import { enqueueMutation } from './outbox';
+import { chunk } from './pushPlan';
+import { saveRecords } from './saveRecords';
 
-// Generic repository for a syncable collection with NO local-only fields (albums, posts). Assets
-// keep their own repository because syncError must be stripped from the wire payload. Every write
-// is one transaction (row + coalesced outbox) with the monotonic clock.
-export function makeRepository(collection: string, table: SQLiteTable) {
-  const t = table as any;
+type SyncRecord = { id: string; updatedAt: number; deletedAt: number | null } & Record<string, any>;
 
-  /** Patch records, by id, in one transaction. */
-  async function updateMany(db: SyncDb, changesById: Record<string, Record<string, any>>): Promise<void> {
+const READ_BATCH = 500;
+
+// Repository for a syncable collection (assets, albums, posts). Every write is one transaction that
+// stores the records and their coalesced outbox rows, with the monotonic clock.
+export function makeRepository<R extends SyncRecord = SyncRecord>(collection: string, table: SQLiteTable) {
+  async function readByIds(tx: SyncDb, ids: string[]): Promise<R[]> {
+    const rows: R[] = [];
+    for (const batch of chunk(ids, READ_BATCH)) {
+      const found = await tx
+        .select()
+        .from(table)
+        .where(inArray((table as any).id, batch));
+      rows.push(...(found as R[]));
+    }
+    return rows;
+  }
+
+  async function createMany(db: SyncDb, records: R[]): Promise<R[]> {
+    const rows = records.map((record) => nextVersion(record));
+    await db.transaction((tx) => saveRecords(tx, collection, table, rows));
+    return rows;
+  }
+
+  /** Patch records, by id. Ids without a row are skipped. */
+  async function updateMany(db: SyncDb, changesById: Record<string, Partial<R>>): Promise<void> {
     await db.transaction(async (tx) => {
-      for (const [id, changes] of Object.entries(changesById)) {
-        const prev = await (tx as any).select().from(table).where(eq(t.id, id)).get();
-        if (!prev) continue;
-        const next = { ...prev, ...changes, updatedAt: nextUpdatedAt(prev.updatedAt) };
-        await (tx as any).update(table).set(next).where(eq(t.id, id));
-        await enqueueMutation(tx as SyncDb, collection, next);
-      }
+      const rows = (await readByIds(tx, Object.keys(changesById))).map((prev) =>
+        nextVersion(prev, changesById[prev.id]),
+      );
+      await saveRecords(tx, collection, table, rows);
     });
   }
 
   return {
-    async create(db: SyncDb, record: Record<string, any>): Promise<Record<string, any>> {
-      const row = { ...record, updatedAt: nextUpdatedAt(record.updatedAt) };
-      await db.transaction(async (tx) => {
-        await (tx as any).insert(table).values(row);
-        await enqueueMutation(tx as SyncDb, collection, row as any);
-      });
-      return row;
+    createMany,
+    async create(db: SyncDb, record: R): Promise<R> {
+      const [created] = await createMany(db, [record]);
+      return created!;
     },
     updateMany,
-    update(db: SyncDb, id: string, changes: Record<string, any>): Promise<void> {
-      return updateMany(db, { [id]: changes });
+    update(db: SyncDb, id: string, changes: Partial<R>): Promise<void> {
+      return updateMany(db, { [id]: changes } as Record<string, Partial<R>>);
     },
+    /** Tombstone records, by id. */
     async remove(db: SyncDb, ids: string[]): Promise<void> {
       await db.transaction(async (tx) => {
-        const rows = await (tx as any).select().from(table).where(inArray(t.id, ids));
-        for (const prev of rows) {
-          const ts = nextUpdatedAt(prev.updatedAt);
-          const next = { ...prev, updatedAt: ts, deletedAt: ts };
-          await (tx as any).update(table).set(next).where(eq(t.id, prev.id));
-          await enqueueMutation(tx as SyncDb, collection, next);
-        }
+        await saveRecords(tx, collection, table, (await readByIds(tx, ids)).map(tombstone));
       });
     },
   };

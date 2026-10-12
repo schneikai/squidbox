@@ -247,7 +247,8 @@ same millisecond would tie and the second would be dropped. It also keeps a slig
 from losing to this device's own earlier write.
 
 **Outbox coalescing.** The outbox holds at most one row per `(collection, record_id)`; a newer
-write replaces the payload (`enqueueMutation` in `apps/mobile/src/sync/outbox.ts`).
+write replaces the payload (`enqueueMutations` in `apps/mobile/src/sync/outbox.ts`). The payload
+leaves out the collection's local-only fields (`localOnly` in its shared descriptor).
 
 ---
 
@@ -346,9 +347,11 @@ write touched:
 deriving the history loses nothing, while syncing it as a list would drop entries under LWW.
 
 **Writes.** Each provider method calls a repository (`assetsRepository.ts`, `repository.ts`,
-`edgesRepository.ts`). In one transaction it writes the row with the monotonic `updatedAt` (§6)
-and enqueues the outbox row. The provider then calls `requestSync()`. Live reads pick up the
-change.
+`edgesRepository.ts`). In one transaction it gives the records their next `updatedAt` (§6) and
+stores them with their outbox rows through `saveRecords`, a few statements per 500 records. The
+provider then calls `requestSync()`. Live reads pick up the change. Push results are applied in one
+transaction per batch. The driver refuses a write whose table it can't tell, since live reads would
+miss it.
 
 **Sync worker** (`apps/mobile/src/sync/worker.ts`). One run is push, then pull:
 

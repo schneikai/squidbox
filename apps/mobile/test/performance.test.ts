@@ -9,7 +9,7 @@ import { readLiveRows } from '../src/sync/readLiveRows';
 import type { SyncTransport } from '../src/sync/transport';
 import { runSyncOnce } from '../src/sync/worker';
 
-// Guards for what keeps a 50,000-asset library fast. They count work (statements, transactions,
+// Guards for what keeps a 50,000-asset library fast. They count work (statements, commits,
 // rows read, full table scans) instead of timing it, so they are exact and don't flake: a change
 // that makes a hot path grow with the library fails here.
 
@@ -42,7 +42,7 @@ describe('performance at library scale', () => {
     const empty = await measure(() => runSyncOnce(db, pullTransport([])));
     const first = await measure(() => runSyncOnce(db, pullTransport(makeAssets(12_000))));
     // 12 pages: 5 + 5 + 2, one transaction each, instead of one per page.
-    expect(first.transactions - empty.transactions).toBe(2);
+    expect(first.commits - empty.commits).toBe(2);
   });
 
   it('a first sync never scans the big tables', async () => {
@@ -77,6 +77,35 @@ describe('performance at library scale', () => {
     const work = await measure(() => readLiveRows(db, schema.assets, before));
     expect(work.rowsRead).toBeLessThan(PAGE * 2 + 10); // the change-log ids and the rows, not 10,000
     expect(work.fullScans.filter(isBigTableScan)).toEqual([]);
+  });
+
+  it('a bulk write costs a few statements per 500 records, not several per record', async () => {
+    const { db, measure, assets } = await syncedLibrary(2_000);
+    const ids = assets.map((asset) => asset.id);
+    const favorite = await measure(() =>
+      repo.updateAssets(db, Object.fromEntries(ids.map((id) => [id, { isFavorite: true }]))),
+    );
+    const remove = await measure(() => repo.deleteAssets(db, ids));
+    // per 500: read, upsert, outbox; plus BEGIN/COMMIT
+    expect(favorite.statements).toBeLessThanOrEqual(2 + 3 * 4);
+    expect(remove.statements).toBeLessThanOrEqual(2 + 3 * 4);
+  });
+
+  it('push results are applied in one transaction per batch of 500', async () => {
+    const { db, measure, assets } = await syncedLibrary(1_000);
+    await repo.updateAssets(db, Object.fromEntries(assets.map((asset) => [asset.id, { notes: 'edited' }])));
+    const transport: SyncTransport = {
+      push: async ({ mutations }) => ({
+        results: mutations.map((m) => ({
+          id: String((m.record as { id: string }).id),
+          collection: m.collection,
+          status: 'applied' as const,
+        })),
+      }),
+      pull: async ({ cursor }) => ({ changes: {}, cursor, hasMore: false }),
+    };
+    const work = await measure(() => runSyncOnce(db, transport));
+    expect(work.commits).toBeLessThanOrEqual(10); // one per push batch plus status and log writes, not one or more per result
   });
 });
 

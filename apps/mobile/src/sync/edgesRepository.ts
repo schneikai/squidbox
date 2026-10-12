@@ -3,21 +3,21 @@ import { keyBetween, initialKeys } from '@squidbox/shared';
 import { and, eq, isNull } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
-import { nextUpdatedAt } from './clock';
+import { nextUpdatedAt, nextVersion, tombstone } from './clock';
 import type { SyncDb } from './db/types';
-import { enqueueMutation } from './outbox';
+import { saveRecords } from './saveRecords';
 
 // Repository for a junction/edge collection (album_assets, post_assets). add / remove / reorder
 // are independent edge writes (row + coalesced outbox), so concurrent membership edits on two
 // devices compose instead of clobbering. `position` is a fractional-index order key; a reorder
-// only rewrites the edges whose position actually changed. Every write is one transaction. `newId` is injected (the app passes getNewItemId; tests pass a stub) to keep this
-// module headless-testable.
+// only rewrites the edges whose position actually changed. Every write is one transaction. `newId`
+// is injected (the app passes getNewItemId; tests pass a stub) to keep this module headless-testable.
 export function makeEdgeRepository(collection: string, table: SQLiteTable, parentField: 'albumId' | 'postId') {
   const t = table as any;
   const parentCol = t[parentField];
   const byPosition = (a: any, b: any) => (a.position < b.position ? -1 : a.position > b.position ? 1 : 0);
 
-  async function liveSorted(tx: any, parentId: string): Promise<any[]> {
+  async function liveSorted(tx: SyncDb, parentId: string): Promise<any[]> {
     const rows = await tx
       .select()
       .from(table)
@@ -30,6 +30,18 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
     for (const e of edges) if (!m.has(e.assetId)) m.set(e.assetId, e);
     return m;
   }
+  function newEdge(id: string, parentId: string, assetId: string, position: string, now: number) {
+    return {
+      id,
+      createdAt: now,
+      updatedAt: nextUpdatedAt(undefined),
+      deletedAt: null,
+      [parentField]: parentId,
+      assetId,
+      position,
+    };
+  }
+  const save = (tx: SyncDb, edges: any[]) => saveRecords(tx, collection, table, edges);
 
   return {
     /** Append assetIds not already present, each after the current last (fractional position). */
@@ -39,45 +51,24 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
         const existing = new Set(live.map((e) => e.assetId));
         let last: string | null = live.length ? live[live.length - 1].position : null;
         const now = Date.now();
+        const added = [];
         for (const assetId of assetIds) {
           if (existing.has(assetId)) continue;
           last = keyBetween(last, null);
-          const row = {
-            id: newId(),
-            createdAt: now,
-            updatedAt: nextUpdatedAt(undefined),
-            deletedAt: null,
-            [parentField]: parentId,
-            assetId,
-            position: last,
-          };
-          await (tx as any).insert(table).values(row);
-          await enqueueMutation(tx as SyncDb, collection, row as any);
+          added.push(newEdge(newId(), parentId, assetId, last, now));
           existing.add(assetId);
         }
+        await save(tx, added);
       });
     },
 
     /** Create edges for a fully-specified ordered ref list (post creation: ids come from the editor). */
     async createFromRefs(db: SyncDb, parentId: string, refs: { id: string; assetId: string }[]): Promise<void> {
       if (refs.length === 0) return;
-      await db.transaction(async (tx) => {
-        const keys = initialKeys(refs.length);
-        const now = Date.now();
-        for (const [i, ref] of refs.entries()) {
-          const row = {
-            id: ref.id,
-            createdAt: now,
-            updatedAt: nextUpdatedAt(undefined),
-            deletedAt: null,
-            [parentField]: parentId,
-            assetId: ref.assetId,
-            position: keys[i],
-          };
-          await (tx as any).insert(table).values(row);
-          await enqueueMutation(tx as SyncDb, collection, row as any);
-        }
-      });
+      const keys = initialKeys(refs.length);
+      const now = Date.now();
+      const edges = refs.map((ref, i) => newEdge(ref.id, parentId, ref.assetId, keys[i]!, now));
+      await db.transaction((tx) => save(tx, edges));
     },
 
     /**
@@ -92,35 +83,15 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
         const targetIds = new Set(refs.map((r) => r.id));
         const keys = initialKeys(refs.length);
         const now = Date.now();
-        for (const e of live) {
-          if (targetIds.has(e.id)) continue;
-          const ts = nextUpdatedAt(e.updatedAt);
-          const next = { ...e, updatedAt: ts, deletedAt: ts };
-          await (tx as any).update(table).set(next).where(eq(t.id, e.id));
-          await enqueueMutation(tx as SyncDb, collection, next);
-        }
+        const changed = live.filter((e) => !targetIds.has(e.id)).map(tombstone);
         for (const [i, ref] of refs.entries()) {
           const existing = liveById.get(ref.id);
-          if (existing) {
-            if (existing.position === keys[i] && existing.assetId === ref.assetId) continue;
-            const ts = nextUpdatedAt(existing.updatedAt);
-            const next = { ...existing, assetId: ref.assetId, position: keys[i], updatedAt: ts };
-            await (tx as any).update(table).set(next).where(eq(t.id, ref.id));
-            await enqueueMutation(tx as SyncDb, collection, next);
-          } else {
-            const row = {
-              id: ref.id,
-              createdAt: now,
-              updatedAt: nextUpdatedAt(undefined),
-              deletedAt: null,
-              [parentField]: parentId,
-              assetId: ref.assetId,
-              position: keys[i],
-            };
-            await (tx as any).insert(table).values(row);
-            await enqueueMutation(tx as SyncDb, collection, row as any);
+          if (!existing) changed.push(newEdge(ref.id, parentId, ref.assetId, keys[i]!, now));
+          else if (existing.position !== keys[i] || existing.assetId !== ref.assetId) {
+            changed.push(nextVersion(existing, { assetId: ref.assetId, position: keys[i] }));
           }
         }
+        await save(tx, changed);
       });
     },
 
@@ -128,13 +99,8 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
     async remove(db: SyncDb, parentId: string, assetIds: string[]): Promise<void> {
       const set = new Set(assetIds);
       await db.transaction(async (tx) => {
-        for (const e of await liveSorted(tx, parentId)) {
-          if (!set.has(e.assetId)) continue;
-          const ts = nextUpdatedAt(e.updatedAt);
-          const next = { ...e, updatedAt: ts, deletedAt: ts };
-          await (tx as any).update(table).set(next).where(eq(t.id, e.id));
-          await enqueueMutation(tx as SyncDb, collection, next);
-        }
+        const live = await liveSorted(tx, parentId);
+        await save(tx, live.filter((e) => set.has(e.assetId)).map(tombstone));
       });
     },
 
@@ -143,27 +109,18 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
       await db.transaction(async (tx) => {
         const canonical = canonicalByAsset(await liveSorted(tx, parentId));
         const keys = initialKeys(orderedAssetIds.length);
+        const moved = [];
         for (const [i, assetId] of orderedAssetIds.entries()) {
           const e = canonical.get(assetId);
-          if (!e || e.position === keys[i]) continue;
-          const ts = nextUpdatedAt(e.updatedAt);
-          const next = { ...e, position: keys[i], updatedAt: ts };
-          await (tx as any).update(table).set(next).where(eq(t.id, e.id));
-          await enqueueMutation(tx as SyncDb, collection, next);
+          if (e && e.position !== keys[i]) moved.push(nextVersion(e, { position: keys[i] }));
         }
+        await save(tx, moved);
       });
     },
 
     /** Tombstone all live edges for a parent (its album/post was deleted). */
     async tombstoneParent(db: SyncDb, parentId: string): Promise<void> {
-      await db.transaction(async (tx) => {
-        for (const e of await liveSorted(tx, parentId)) {
-          const ts = nextUpdatedAt(e.updatedAt);
-          const next = { ...e, updatedAt: ts, deletedAt: ts };
-          await (tx as any).update(table).set(next).where(eq(t.id, e.id));
-          await enqueueMutation(tx as SyncDb, collection, next);
-        }
-      });
+      await db.transaction(async (tx) => save(tx, (await liveSorted(tx, parentId)).map(tombstone)));
     },
   };
 }
