@@ -1,5 +1,5 @@
 import type { AssetRecord } from '@squidbox/shared';
-import { eq, inArray, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import { nextUpdatedAt } from './clock';
 import * as schema from './db/schema';
@@ -27,28 +27,24 @@ export async function loadAssetsMap(db: SyncDb): Promise<Record<string, AssetRec
   return map;
 }
 
-// SQLite transactions on drizzle (expo-sqlite + better-sqlite3) are SYNCHRONOUS: the callback
-// must not be async, and queries execute via .run()/.get()/.all(). An async callback would
-// commit before its awaits resolve (non-atomic). All row+outbox writes below use this pattern.
-
 /** Create a new asset (full synced record). Row + outbox in one transaction. */
 export async function createAsset(db: SyncDb, record: AssetRecord): Promise<AssetRecord> {
   const row: AssetRow = { ...record, updatedAt: nextUpdatedAt(record.updatedAt), syncError: null };
-  db.transaction((tx) => {
-    tx.insert(schema.assets).values(row).run();
-    enqueueMutation(tx as unknown as SyncDb, COLLECTION, stripLocal(row));
+  await db.transaction(async (tx) => {
+    await tx.insert(schema.assets).values(row);
+    await enqueueMutation(tx, COLLECTION, stripLocal(row));
   });
   return toRecord(row);
 }
 
 /** Patch synced fields of one asset (reads prev for the monotonic clock). */
 export async function updateAsset(db: SyncDb, id: string, changes: Partial<AssetRecord>): Promise<void> {
-  db.transaction((tx) => {
-    const prev = tx.select().from(schema.assets).where(eq(schema.assets.id, id)).get();
+  await db.transaction(async (tx) => {
+    const prev = await tx.select().from(schema.assets).where(eq(schema.assets.id, id)).get();
     if (!prev) return;
     const next: AssetRow = { ...prev, ...changes, updatedAt: nextUpdatedAt(prev.updatedAt) };
-    tx.update(schema.assets).set(next).where(eq(schema.assets.id, id)).run();
-    enqueueMutation(tx as unknown as SyncDb, COLLECTION, stripLocal(next));
+    await tx.update(schema.assets).set(next).where(eq(schema.assets.id, id));
+    await enqueueMutation(tx, COLLECTION, stripLocal(next));
   });
 }
 
@@ -59,18 +55,21 @@ export async function toggleFavorite(db: SyncDb, id: string): Promise<void> {
 
 /** Soft-delete (tombstone): set deletedAt. Binary/thumbnail cleanup is the caller's job. */
 export async function deleteAssets(db: SyncDb, ids: string[]): Promise<void> {
-  db.transaction((tx) => {
-    const rows = tx.select().from(schema.assets).where(inArray(schema.assets.id, ids)).all();
+  await db.transaction(async (tx) => {
+    const rows = await tx.select().from(schema.assets).where(inArray(schema.assets.id, ids));
     for (const prev of rows) {
       const ts = nextUpdatedAt(prev.updatedAt);
       const next: AssetRow = { ...prev, updatedAt: ts, deletedAt: ts };
-      tx.update(schema.assets).set(next).where(eq(schema.assets.id, prev.id)).run();
-      enqueueMutation(tx as unknown as SyncDb, COLLECTION, stripLocal(next));
+      await tx.update(schema.assets).set(next).where(eq(schema.assets.id, prev.id));
+      await enqueueMutation(tx, COLLECTION, stripLocal(next));
     }
   });
 }
 
-/** Local-only sync-error marker (never synced). */
+/** Local-only sync-error marker (never synced). Writes only when it changes. */
 export async function setSyncError(db: SyncDb, id: string, error: string | null): Promise<void> {
-  await db.update(schema.assets).set({ syncError: error }).where(eq(schema.assets.id, id));
+  await db
+    .update(schema.assets)
+    .set({ syncError: error })
+    .where(and(eq(schema.assets.id, id), sql`${schema.assets.syncError} is not ${error}`));
 }

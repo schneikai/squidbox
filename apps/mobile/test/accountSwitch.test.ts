@@ -23,14 +23,14 @@ describe('account-switch reset (resetSyncForUser)', () => {
     await markFirstSyncDone(db);
   }
 
-  const assets = () => db.select().from(schema.assets).all();
-  const outbox = () => db.select().from(schema.outbox).all();
+  const assets = () => db.select().from(schema.assets);
+  const outbox = () => db.select().from(schema.outbox);
 
   it('first login (no prior user): records the user, does NOT wipe', async () => {
     await seed();
     const wiped = await resetSyncForUser(db, 'user-A');
     expect(wiped).toBe(false);
-    expect(assets()).toHaveLength(1);
+    expect(await assets()).toHaveLength(1);
     expect(await getCursor(db)).toBe(42);
     expect(await isFirstSyncDone(db)).toBe(true);
     expect(await getLastSyncUser(db)).toBe('user-A');
@@ -41,7 +41,7 @@ describe('account-switch reset (resetSyncForUser)', () => {
     await resetSyncForUser(db, 'user-A'); // record A
     const wiped = await resetSyncForUser(db, 'user-A');
     expect(wiped).toBe(false);
-    expect(assets()).toHaveLength(1);
+    expect(await assets()).toHaveLength(1);
     expect(await getCursor(db)).toBe(42);
     expect(await isFirstSyncDone(db)).toBe(true);
   });
@@ -49,12 +49,12 @@ describe('account-switch reset (resetSyncForUser)', () => {
   it('different user signs in: wipes tables + outbox + cursor + first-sync, records new user', async () => {
     await seed();
     await resetSyncForUser(db, 'user-A');
-    expect(outbox().length).toBeGreaterThan(0);
+    expect((await outbox()).length).toBeGreaterThan(0);
 
     const wiped = await resetSyncForUser(db, 'user-B');
     expect(wiped).toBe(true);
-    expect(assets()).toHaveLength(0);
-    expect(outbox()).toHaveLength(0);
+    expect(await assets()).toHaveLength(0);
+    expect(await outbox()).toHaveLength(0);
     expect(await getCursor(db)).toBe(0);
     expect(await isFirstSyncDone(db)).toBe(false);
     expect(await getLastSyncUser(db)).toBe('user-B');

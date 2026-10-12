@@ -1,4 +1,6 @@
 import type { PushMutation, PushResult } from '@squidbox/shared';
+import { getTableColumns, sql } from 'drizzle-orm';
+import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
 import { setSyncError } from './assetsRepository';
 import { clientCollectionTables } from './clientCollections';
@@ -21,6 +23,7 @@ import type { SyncTransport } from './transport';
 
 const PULL_LIMIT = 1000; // server/contract cap; larger pages = fewer reactive storms on bulk pull
 const PUSH_BATCH = 500; // server caps pushRequest mutations at 500
+const UPSERT_BATCH = 500; // rows per INSERT; ~20 columns each stays far below SQLite's 32766 variables
 
 // ── DI core: one push→pull pass against an injected db + transport, recording a sync_log entry
 // (counts, duration, conflict notes, error). Testable off-device (better-sqlite3 + an in-process
@@ -121,36 +124,41 @@ async function pullPhase(db: SyncDb, transport: SyncTransport): Promise<number> 
 async function applyPage(
   db: SyncDb,
   collection: string,
-  table: (typeof clientCollectionTables)[string],
+  table: SQLiteTable,
   records: Record<string, unknown>[],
 ): Promise<number> {
   if (records.length === 0) return 0;
   const pending = await pendingRecordIds(db, collection);
-  let applied = 0;
-  db.transaction((tx) => {
-    for (const record of records) {
-      if (pending.has(String(record.id))) continue; // local edit will re-assert via push
-      const values = collection === 'assets' ? { ...record, syncError: null } : record;
-      (tx as unknown as SyncDb)
-        .insert(table)
-        .values(values as any)
-        .onConflictDoUpdate({ target: (table as any).id, set: record })
-        .run();
-      applied += 1;
-    }
+  const incoming = records.filter((record) => !pending.has(String(record.id))); // local edits re-assert via push
+  await db.transaction(async (tx) => {
+    for (const batch of chunk(incoming, UPSERT_BATCH)) await upsertRecords(tx, collection, table, batch);
   });
-  return applied;
+  return incoming.length;
 }
 
 async function applyRecord(db: SyncDb, collection: string, record: Record<string, unknown>): Promise<void> {
   const table = clientCollectionTables[collection];
-  if (!table) return;
-  const values = collection === 'assets' ? { ...record, syncError: null } : record;
+  if (table) await upsertRecords(db, collection, table, [record]);
+}
+
+// One multi-row upsert of server records. A conflicting row takes every synced column from the
+// incoming one (`excluded`); the local-only syncError of assets is reset on insert and kept on update.
+async function upsertRecords(
+  db: SyncDb,
+  collection: string,
+  table: SQLiteTable,
+  records: Record<string, unknown>[],
+): Promise<void> {
+  const values = collection === 'assets' ? records.map((record) => ({ ...record, syncError: null })) : records;
   await db
     .insert(table)
     .values(values as any)
-    .onConflictDoUpdate({ target: (table as any).id, set: record })
-    .run();
+    .onConflictDoUpdate({ target: (table as any).id, set: syncedColumnsFromIncoming(table) });
+}
+
+function syncedColumnsFromIncoming(table: SQLiteTable) {
+  const synced = Object.entries(getTableColumns(table)).filter(([key]) => key !== 'syncError');
+  return Object.fromEntries(synced.map(([key, column]) => [key, sql.raw(`excluded."${column.name}"`)]));
 }
 
 // ── Dev/Inspector operations ────────────────────────────────────────────────
@@ -175,9 +183,9 @@ export async function fullResync(db: SyncDb, transport: SyncTransport): Promise<
 // setup gate shows again. Backs both the account-switch reset (full wipe) and fullResync (keeps the
 // outbox to re-push pending edits).
 export async function resetLocalSync(db: SyncDb, { keepOutbox = false } = {}): Promise<void> {
-  db.transaction((tx) => {
-    for (const table of Object.values(clientCollectionTables)) (tx as unknown as SyncDb).delete(table).run();
-    if (!keepOutbox) (tx as unknown as SyncDb).delete(schema.outbox).run();
+  await db.transaction(async (tx) => {
+    for (const table of Object.values(clientCollectionTables)) await tx.delete(table);
+    if (!keepOutbox) await tx.delete(schema.outbox);
   });
   await setCursor(db, 0);
   await clearFirstSyncDone(db);

@@ -1,24 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic over any collection's table */
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import { useMemo } from 'react';
 
-import { getDb } from './db/client';
+import { useLiveTable } from './useLiveTable';
 
-// Generic reactive id-keyed map for a collection's SQLite table (includes tombstoned rows;
-// screens filter by deletedAt). Used by the albums/posts providers, which only mount after the
-// initial pull finishes (see AppGate), so there's no bulk-load storm to guard against.
-function useLiveRows(table: SQLiteTable): any[] {
-  const { data } = useLiveQuery(getDb().select().from(table));
-  return (data as any[]) ?? [];
-}
+const NO_ROWS: any[] = [];
 
+// Live id-keyed map of a collection's rows, including tombstoned ones (screens filter by deletedAt,
+// which keeps features like the "Deleted" album). The providers only mount after the initial pull
+// (see AppGate), so they never watch the bulk load.
 export function useLiveCollectionMap(table: SQLiteTable): Record<string, any> {
-  const rows = useLiveRows(table);
+  const rows = useLiveCollectionRows(table);
   return useMemo(() => Object.fromEntries(rows.map((row) => [row.id, row])), [rows]);
 }
 
-// Reactive array of a table's rows (used for edge tables, which are grouped/joined not id-keyed).
+// Live array of a table's rows (edge tables are grouped and joined, not looked up by id).
 export function useLiveCollectionRows(table: SQLiteTable): any[] {
-  return useLiveRows(table);
+  return useLiveTable<any>(table) ?? NO_ROWS;
 }

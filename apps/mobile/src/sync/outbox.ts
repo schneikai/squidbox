@@ -5,14 +5,15 @@ import type { SyncDb } from './db/types';
 
 // Enqueue a whole-record mutation, coalesced to one row per (collection, recordId): the latest
 // payload wins (sync-design §6). `op` is 'delete' when the record is tombstoned, else 'upsert'.
-// SYNCHRONOUS (.run()) — always called inside a sync SQLite transaction (see the repository).
-export function enqueueMutation(
+// Called inside the transaction that writes the record (see the repositories).
+export async function enqueueMutation(
   tx: SyncDb,
   collection: string,
   record: { id: string; updatedAt: number; deletedAt?: number | null },
-): void {
+): Promise<void> {
   const op = record.deletedAt != null ? 'delete' : 'upsert';
-  tx.insert(schema.outbox)
+  await tx
+    .insert(schema.outbox)
     .values({
       collection,
       recordId: record.id,
@@ -23,8 +24,7 @@ export function enqueueMutation(
     .onConflictDoUpdate({
       target: [schema.outbox.collection, schema.outbox.recordId],
       set: { op, payload: record as Record<string, unknown>, updatedAt: record.updatedAt },
-    })
-    .run();
+    });
 }
 
 export async function pendingRecordIds(db: SyncDb, collection: string): Promise<Set<string>> {

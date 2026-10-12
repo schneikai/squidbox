@@ -163,8 +163,8 @@ Tombstones flow like any other change.
 Client apply (`apps/mobile/src/sync/worker.ts`) is **server-authoritative and outbox-guarded**:
 an incoming record is applied only if that record has no pending outbox row. If it has one, the
 record is skipped; the pending push re-asserts the local edit and the push result settles it
-(§6). Each collection's records in a page are applied in one SQLite transaction as an upsert by
-`id`, then the cursor is saved. Re-applying a page is harmless.
+(§6). Each collection's records in a page are applied in one SQLite transaction as multi-row
+upserts by `id`, then the cursor is saved. Re-applying a page is harmless.
 
 The client never compares an incoming `updatedAt` with the committed local row. The server
 clamps future timestamps (§7), so a device with a fast clock would hold local timestamps higher
@@ -297,10 +297,19 @@ write replaces the payload (`enqueueMutation` in `apps/mobile/src/sync/outbox.ts
 
 ## 8. Client architecture
 
-Local store: **expo-sqlite + Drizzle**. The database is opened with
-`openDatabaseSync(name, { enableChangeListener: true })`, which `useLiveQuery` needs to react to
-writes. SQLite migrations live in `apps/mobile/src/sync/db/migrations` and run in `MigrationGate`
-(`App.js`) before anything queries the database.
+Local store: **expo-sqlite + Drizzle**, accessed only through expo-sqlite's async API, the same
+on iOS and web. `createDb` (`apps/mobile/src/sync/db/driver.ts`) puts Drizzle's async driver
+(`sqlite-proxy`) on top of `expoExecutor.ts`; the tests put the same driver on better-sqlite3.
+
+- **One queue.** Every statement runs through one queue, and a transaction holds it from BEGIN to
+  COMMIT. So nothing interleaves with a transaction on the shared connection, and the
+  "read previous row, write row + outbox" steps stay atomic without locks at call sites. Inside a
+  transaction callback, code uses its `tx`; using `db` there would wait for the transaction itself.
+- **Change notifications.** After each committed statement or transaction, the driver notifies
+  listeners once with the tables it wrote. A rolled-back transaction notifies nothing.
+
+The database is opened in `DatabaseGate` (`App.js`). SQLite migrations live in
+`apps/mobile/src/sync/db/migrations` and run in `MigrationGate` before anything queries it.
 
 Tables (`apps/mobile/src/sync/db/schema.ts`):
 
@@ -309,9 +318,21 @@ Tables (`apps/mobile/src/sync/db/schema.ts`):
 - `outbox(id, collection, record_id, op, payload, updated_at, created_at)`: pending mutations,
   one row per record. `op` is `delete` when the payload has `deletedAt`, otherwise `upsert`.
 - `sync_log`: recent sync runs (§13).
+- `row_changes(table_name, row_id, version)`: a change log that triggers on every synced table
+  keep current. Each insert, update or delete records the row with a version that rises per
+  table.
 
-**Reads.** The data providers (`AssetsProvider`, `AlbumsProvider`, `PostsProvider`) read their
-tables with `useLiveQuery` and expose id-keyed maps and methods to the screens. They rebuild the record shapes the UI expects from edges and posts (`derive.ts`):
+**Reads.** `useLiveTable` shares one live read per table across all components. It loads the
+table once, then after each notification for it fetches only the rows changed since its last
+version (`readLiveRows.ts`, via `row_changes`). Unchanged rows keep their objects, so a write to
+one of 50,000 assets reads one row. `useLiveQuery` re-runs other queries (counts) on a
+notification for their tables.
+
+The data providers (`AssetsProvider`, `AlbumsProvider`, `PostsProvider`) expose id-keyed records
+and methods to the screens. They rebuild the record shapes the UI expects from edges and posts
+(`derive.ts`), through `deriveRecords.ts`, which keeps every record's object while its row and
+derived values are unchanged. Memoized grid cells therefore re-render only for the records a
+write touched:
 
 - `album.assets`: live edges sorted by `position`, one per asset.
 - `post.assetRefs`: the same, as `{ id, assetId }` with the edge id.
@@ -323,9 +344,9 @@ tables with `useLiveQuery` and expose id-keyed maps and methods to the screens. 
 deriving the history loses nothing, while syncing it as a list would drop entries under LWW.
 
 **Writes.** Each provider method calls a repository (`assetsRepository.ts`, `repository.ts`,
-`edgesRepository.ts`). In one synchronous SQLite transaction it writes the row with the
-monotonic `updatedAt` (§6) and enqueues the outbox row. The provider then calls `requestSync()`.
-Live queries pick up the change.
+`edgesRepository.ts`). In one transaction it writes the row with the monotonic `updatedAt` (§6)
+and enqueues the outbox row. The provider then calls `requestSync()`. Live reads pick up the
+change.
 
 **Sync worker** (`apps/mobile/src/sync/worker.ts`). One run is push, then pull:
 

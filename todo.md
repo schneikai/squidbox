@@ -117,16 +117,18 @@ example jest-expo with React Native Testing Library) and cover the key screens f
 detail pager, login and sign-out, and the library grid. Consider end-to-end tests (for example
 Maestro) for the main flows later.
 
+### [ ] Check a 50,000-asset library on a device
+
+The data layer was tuned on the web preview (`npm run seed:mock -- --assets 50000`): a favorite
+toggle costs ~0.2 s of main-thread work there, a pull of 1,000 remote changes ~0.3 s, and the first
+sync ~3 min (web storage is slow; the change-log triggers add ~50% to inserts). Measure the same on
+an iPhone with the dev client.
+
 ### [ ] Web preview gaps
 
 The web preview (README → "Web preview") can't add photos from the camera roll, upload, download
 files or pinch. Web versions exist only for tokens and thumbnails. Extend them if testing those
 flows in the browser becomes worth it.
-
-### [ ] Drop the expo-sqlite patch
-
-`patches/expo-sqlite+55.0.20.patch` fixes the web worker's result length (results over 255 bytes
-broke). Remove it once expo/expo#44148 (or #51330) ships in the SDK we use.
 
 ### [ ] Sentry receives events from development
 

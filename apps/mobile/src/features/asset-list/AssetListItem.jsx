@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import { Defs, RadialGradient, Rect, Stop, Svg } from 'react-native-svg';
 
@@ -7,7 +8,10 @@ import { colors, scale, typography } from '@/styles/designTokens';
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
-export default function AssetListItem({ asset, isSelected, isSelectMode, showLastPostedAt }) {
+// Memoized: providers keep unchanged assets as the same objects, so a write re-renders only its cells.
+export default memo(AssetListItem);
+
+function AssetListItem({ asset, isSelected, isSelectMode, showLastPostedAt }) {
   const { lastPostedAt, duration, isFavorite, isSynced, notes } = asset;
   return (
     <View style={styles.container}>

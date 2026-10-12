@@ -29,25 +29,19 @@ config.resolver.unstable_enablePackageExports = false;
 // can inline them (see babel.config.js). Used by the on-device SQLite migrator.
 config.resolver.sourceExts = [...config.resolver.sourceExts, 'sql'];
 
-// Web: expo-sqlite runs on wasm and needs SharedArrayBuffer, which browsers only allow on
-// cross-origin isolated pages (Expo's expo-sqlite web setup).
+// Web: expo-sqlite runs SQLite as wasm. (Its synchronous API would also need cross-origin
+// isolation headers; the app only uses the async API.)
 config.resolver.assetExts = [...config.resolver.assetExts, 'wasm'];
 
 // Dev only: under `npm run dev:local`, Metro also serves the local backend so the phone reaches it
 // through Metro's tunnel.
-const localBackendProxy = process.env.EXPO_PUBLIC_LOCAL_BACKEND
-  ? createLocalBackendProxy({ backendUrl: 'http://localhost:3100', storageUrl: 'http://localhost:9000' })
-  : null;
-
-const enhanceMiddleware = config.server.enhanceMiddleware;
-config.server.enhanceMiddleware = (middleware, server) => {
-  const metroMiddleware = enhanceMiddleware ? enhanceMiddleware(middleware, server) : middleware;
-  return (req, res, next) => {
-    res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
-    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-    if (!localBackendProxy) return metroMiddleware(req, res, next);
-    localBackendProxy(req, res, () => metroMiddleware(req, res, next));
+if (process.env.EXPO_PUBLIC_LOCAL_BACKEND) {
+  const proxy = createLocalBackendProxy({ backendUrl: 'http://localhost:3100', storageUrl: 'http://localhost:9000' });
+  const enhanceMiddleware = config.server.enhanceMiddleware;
+  config.server.enhanceMiddleware = (middleware, server) => {
+    const metroMiddleware = enhanceMiddleware ? enhanceMiddleware(middleware, server) : middleware;
+    return (req, res, next) => proxy(req, res, () => metroMiddleware(req, res, next));
   };
-};
+}
 
 module.exports = config;

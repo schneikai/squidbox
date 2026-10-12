@@ -8,6 +8,7 @@
  *
  *   npm run dev:local                    # start
  *   npm run dev:local -- --reset-data    # also reset the account to exactly the mock data set
+ *   npm run dev:local -- --web           # no tunnel: only for the web preview on this machine
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { copyFileSync, createWriteStream, existsSync, readFileSync } from 'node:fs';
@@ -21,12 +22,15 @@ const MOBILE_DIR = `${ROOT}apps/mobile`;
 const SERVER_ENV = `${SERVER_DIR}/.env`;
 const SERVER_URL = 'http://localhost:3100';
 const SERVER_LOG = `${tmpdir()}/squidbox-server.log`;
+const METRO_URL = 'http://localhost:8081';
 const NGROK_API = 'http://127.0.0.1:4040/api/tunnels';
-// Expo's shared ngrok account occasionally runs out of agent sessions; a later attempt gets one.
-const TUNNEL_BUSY = /simultaneous ngrok agent sessions/;
+// Expo's shared ngrok account fails now and then (out of agent sessions, dropped connections); a
+// later attempt gets through. Expo ends every tunnel error with this hint.
+const TUNNEL_FAILED = /Check the Ngrok status page/;
 const TUNNEL_ATTEMPTS = 20;
 
 const resetData = process.argv.includes('--reset-data');
+const webOnly = process.argv.includes('--web');
 const children = new Set();
 
 process.on('SIGINT', () => shutdown(0));
@@ -52,10 +56,10 @@ await waitFor(
 run('docker', ['compose', 'wait', 'createbuckets'], SERVER_DIR);
 run('npm', ['run', 'db:setup', '--silent'], SERVER_DIR, backendEnv());
 
-const tunnelUrl = await startMetro();
+const publicUrl = webOnly ? await startMetroLocally() : await startMetroWithTunnel();
 
 log('Starting the API server');
-const server = start('npm', ['run', 'dev', '--silent'], SERVER_DIR, backendEnv({ S3_PUBLIC_ENDPOINT: tunnelUrl }));
+const server = start('npm', ['run', 'dev', '--silent'], SERVER_DIR, backendEnv({ S3_PUBLIC_ENDPOINT: publicUrl }));
 const serverLog = createWriteStream(SERVER_LOG);
 server.stdout.pipe(serverLog);
 server.stderr.pipe(serverLog);
@@ -68,23 +72,37 @@ if (resetData) {
 }
 
 console.log(`
-  Open in Squidbox (Dev):  ${tunnelUrl}
+  ${webOnly ? 'Web preview:            ' : 'Open in Squidbox (Dev): '} ${publicUrl}
   Sign in as:              ${serverEnv.SEED_USER_EMAIL} (prefilled)
   Server log:              ${SERVER_LOG}
 `);
 
-async function startMetro() {
+function startMetro(args) {
+  return start('npx', ['expo', 'start', '--dev-client', '--port', '8081', '--clear', ...args], MOBILE_DIR, {
+    ...withoutKeys(process.env, (key) => key === 'CI'), // CI makes Expo skip file watching
+    ...proxyEnv(),
+    EXPO_NO_TELEMETRY: '1',
+    EXPO_PUBLIC_LOCAL_BACKEND: 'true',
+    // In development, .env.local wins over these; leave the login prefill out of it.
+    EXPO_PUBLIC_LOGIN_FORM_EMAIL: serverEnv.SEED_USER_EMAIL,
+    EXPO_PUBLIC_LOGIN_FORM_PASSWORD: serverEnv.SEED_USER_PASSWORD,
+  });
+}
+
+async function startMetroLocally() {
+  log('Starting Metro');
+  const metro = startMetro([]);
+  metro.stdout.pipe(process.stdout);
+  metro.stderr.pipe(process.stderr);
+  superviseExit(metro);
+  await waitFor('Metro', async () => (await fetch(`${METRO_URL}/status`).catch(() => null))?.ok);
+  return METRO_URL;
+}
+
+async function startMetroWithTunnel() {
   for (let attempt = 1; attempt <= TUNNEL_ATTEMPTS; attempt++) {
-    log(attempt === 1 ? 'Starting Metro with a tunnel' : `Tunnel busy, retrying (${attempt}/${TUNNEL_ATTEMPTS})`);
-    const metro = start('npx', ['expo', 'start', '--tunnel', '--dev-client', '--port', '8081', '--clear'], MOBILE_DIR, {
-      ...withoutKeys(process.env, (key) => key === 'CI'), // CI makes Expo skip file watching
-      ...proxyEnv(),
-      EXPO_NO_TELEMETRY: '1',
-      EXPO_PUBLIC_LOCAL_BACKEND: 'true',
-      // In development, .env.local wins over these; leave the login prefill out of it.
-      EXPO_PUBLIC_LOGIN_FORM_EMAIL: serverEnv.SEED_USER_EMAIL,
-      EXPO_PUBLIC_LOGIN_FORM_PASSWORD: serverEnv.SEED_USER_PASSWORD,
-    });
+    log(attempt === 1 ? 'Starting Metro with a tunnel' : `Tunnel failed, retrying (${attempt}/${TUNNEL_ATTEMPTS})`);
+    const metro = startMetro(['--tunnel']);
     let output = '';
     metro.stdout.on('data', (chunk) => (output += chunk));
     metro.stderr.on('data', (chunk) => (output += chunk));
@@ -98,13 +116,13 @@ async function startMetro() {
       return url;
     }
     children.delete(metro);
-    if (!TUNNEL_BUSY.test(output)) {
+    if (!TUNNEL_FAILED.test(output)) {
       process.stderr.write(output);
       fail('Metro exited before the tunnel was ready');
     }
     await sleep(5000);
   }
-  fail('No ngrok session became free; try again in a few minutes');
+  fail("Expo's tunnel kept failing; try again in a few minutes, or use --web for the web preview");
 }
 
 async function pollTunnelUrl(metro) {

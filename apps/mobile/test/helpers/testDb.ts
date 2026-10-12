@@ -1,19 +1,29 @@
 import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
+import { readMigrationFiles } from 'drizzle-orm/migrator';
 import { fileURLToPath } from 'node:url';
 
-import * as schema from '../../src/sync/db/schema';
-import type { SyncDb } from '../../src/sync/db/types';
+import { createDb, type AppDb, type Execute } from '../../src/sync/db/driver';
 
-// An in-memory SQLite "device" for tests: better-sqlite3 + the SAME Drizzle schema and the SAME
-// generated migrations the app ships. Same SQLite dialect as expo-sqlite, so it exercises the
-// real upserts/outbox/transactions off-device.
+// An in-memory SQLite "device" for tests: better-sqlite3 behind the app's own driver (createDb, so
+// the same queue and transactions), with the same generated migrations the app ships.
 const migrationsFolder = fileURLToPath(new URL('../../src/sync/db/migrations', import.meta.url));
 
-export function makeTestDb(): SyncDb {
+export function makeTestDb(): AppDb {
   const sqlite = new Database(':memory:');
-  const db = drizzle(sqlite, { schema });
-  migrate(db, { migrationsFolder });
-  return db as unknown as SyncDb;
+  for (const migration of readMigrationFiles({ migrationsFolder })) {
+    for (const statement of migration.sql) sqlite.exec(statement);
+  }
+  return createDb(betterSqliteExecutor(sqlite));
+}
+
+function betterSqliteExecutor(sqlite: Database.Database): Execute {
+  return async (sql, params, method) => {
+    const statement = sqlite.prepare(sql);
+    if (method === 'run') {
+      statement.run(...params);
+      return { rows: [] };
+    }
+    const rows = statement.raw().all(...params);
+    return { rows: method === 'get' ? (rows[0] as unknown[]) : rows };
+  };
 }

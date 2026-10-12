@@ -16,7 +16,7 @@ beforeEach(() => {
   db = makeTestDb();
 });
 
-const outboxRows = () => db.select().from(schema.outbox).all();
+const outboxRows = () => db.select().from(schema.outbox);
 const assetRow = (id: string) => db.select().from(schema.assets).where(eq(schema.assets.id, id)).get();
 
 // Configurable fake transport.

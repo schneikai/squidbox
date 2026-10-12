@@ -28,7 +28,7 @@ import FirstSyncScreen from '@/features/sync-status/FirstSyncScreen';
 import RootNavigator from '@/navigators/RootNavigator';
 import { navigationRef, flushPendingNavigation } from '@/navigators/navigationRef';
 import { colors } from '@/styles/designTokens';
-import { getDb, prepareDatabaseAsync } from '@/sync/db/client';
+import { getDb, openDatabase } from '@/sync/db/client';
 import migrations from '@/sync/db/migrations/migrations';
 import { useFirstSyncDone } from '@/sync/useSyncStatus';
 import useSyncTriggers from '@/sync/useSyncTriggers';
@@ -144,18 +144,18 @@ function AppInit({ children }) {
   return children;
 }
 
-// The database is prepared and migrated once, above everything that queries SQLite (including the
+// The database is opened and migrated once, above everything that queries SQLite (including the
 // firstSyncDone probe in AppGate). Renders nothing until the schema is ready.
 function DatabaseGate({ children }) {
-  const [isPrepared, setIsPrepared] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    prepareDatabaseAsync().then(() => setIsPrepared(true), setError);
+    openDatabase().then(() => setIsOpen(true), setError);
   }, []);
 
   if (error) throw error;
-  if (!isPrepared) return null;
+  if (!isOpen) return null;
   return <MigrationGate>{children}</MigrationGate>;
 }
 

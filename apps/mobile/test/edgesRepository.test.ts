@@ -29,34 +29,34 @@ describe('edgesRepository (album_assets)', () => {
   }
 
   it('add appends in order, skips duplicates, and enqueues one outbox row per edge', async () => {
-    edges.add(db, AL, ['a', 'b', 'c'], newId);
+    await edges.add(db, AL, ['a', 'b', 'c'], newId);
     expect(await order()).toEqual(['a', 'b', 'c']);
     expect(await outboxCount()).toBe(3);
 
-    edges.add(db, AL, ['b', 'd'], newId); // b already present → only d added
+    await edges.add(db, AL, ['b', 'd'], newId); // b already present → only d added
     expect(await order()).toEqual(['a', 'b', 'c', 'd']);
     expect(await outboxCount()).toBe(4);
   });
 
   it('reorder rewrites positions to match the given order', async () => {
-    edges.add(db, AL, ['a', 'b', 'c'], newId);
-    edges.reorder(db, AL, ['c', 'a', 'b']);
+    await edges.add(db, AL, ['a', 'b', 'c'], newId);
+    await edges.reorder(db, AL, ['c', 'a', 'b']);
     expect(await order()).toEqual(['c', 'a', 'b']);
   });
 
   it('remove tombstones the edge (dropped from the ordered read)', async () => {
-    edges.add(db, AL, ['a', 'b', 'c'], newId);
-    edges.remove(db, AL, ['b']);
+    await edges.add(db, AL, ['a', 'b', 'c'], newId);
+    await edges.remove(db, AL, ['b']);
     expect(await order()).toEqual(['a', 'c']);
     // Re-adding b creates a fresh live edge again.
-    edges.add(db, AL, ['b'], newId);
+    await edges.add(db, AL, ['b'], newId);
     expect(await order()).toEqual(['a', 'c', 'b']);
   });
 
   it('tombstoneParent tombstones every live edge for the parent (album/post deleted)', async () => {
-    edges.add(db, AL, ['a', 'b', 'c'], newId);
-    edges.add(db, 'album-2', ['x'], newId); // a different album is untouched
-    edges.tombstoneParent(db, AL);
+    await edges.add(db, AL, ['a', 'b', 'c'], newId);
+    await edges.add(db, 'album-2', ['x'], newId); // a different album is untouched
+    await edges.tombstoneParent(db, AL);
     expect(await order()).toEqual([]); // AL has no live edges
     const rows = await db.select().from(schema.albumAssets);
     expect(rows.filter((r) => r.albumId === AL).every((r) => r.deletedAt != null)).toBe(true);

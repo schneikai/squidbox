@@ -1,11 +1,9 @@
-import { desc } from 'drizzle-orm';
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
-
-import { getDb, schema } from './db/client';
 import type { AssetRow, OutboxRow, SyncLogRow } from './db/schema';
+import * as schema from './db/schema';
+import { useLiveTable } from './useLiveTable';
 
-// Reactive data for the Sync Inspector. Kept as concrete per-table live queries (assets, albums,
-// posts) plus outbox/log which are already collection-generic.
+// Reactive data for the Sync Inspector. The tables are the same shared live reads the providers use,
+// so opening the Inspector loads nothing extra.
 
 export interface CollectionStats {
   name: string;
@@ -14,16 +12,16 @@ export interface CollectionStats {
   pending: number;
 }
 
+const SYNC_LOG_SHOWN = 30;
+
 export function useCollectionStats(): CollectionStats[] {
-  const { data: assets } = useLiveQuery(getDb().select().from(schema.assets));
-  const { data: albums } = useLiveQuery(getDb().select().from(schema.albums));
-  const { data: posts } = useLiveQuery(getDb().select().from(schema.posts));
-  const { data: outbox } = useLiveQuery(getDb().select().from(schema.outbox));
+  const assets = useLiveTable<AssetRow>(schema.assets) ?? [];
+  const albums = useLiveTable<{ deletedAt: number | null }>(schema.albums) ?? [];
+  const posts = useLiveTable<{ deletedAt: number | null }>(schema.posts) ?? [];
+  const outbox = useLiveTable<OutboxRow>(schema.outbox) ?? [];
 
   const pendingByCollection = new Map<string, number>();
-  for (const o of (outbox as OutboxRow[]) ?? []) {
-    pendingByCollection.set(o.collection, (pendingByCollection.get(o.collection) ?? 0) + 1);
-  }
+  for (const o of outbox) pendingByCollection.set(o.collection, (pendingByCollection.get(o.collection) ?? 0) + 1);
 
   const stat = (name: string, rows: { deletedAt: number | null }[]): CollectionStats => ({
     name,
@@ -32,19 +30,15 @@ export function useCollectionStats(): CollectionStats[] {
     pending: pendingByCollection.get(name) ?? 0,
   });
 
-  return [
-    stat('assets', (assets as AssetRow[]) ?? []),
-    stat('albums', (albums as { deletedAt: number | null }[]) ?? []),
-    stat('posts', (posts as { deletedAt: number | null }[]) ?? []),
-  ];
+  return [stat('assets', assets), stat('albums', albums), stat('posts', posts)];
 }
 
 export function useOutboxRows(): OutboxRow[] {
-  const { data } = useLiveQuery(getDb().select().from(schema.outbox));
-  return (data as OutboxRow[]) ?? [];
+  return useLiveTable<OutboxRow>(schema.outbox) ?? [];
 }
 
+// The log is a ring buffer of at most 100 rows (status.ts), so reading all of it is cheap.
 export function useSyncLogRows(): SyncLogRow[] {
-  const { data } = useLiveQuery(getDb().select().from(schema.syncLog).orderBy(desc(schema.syncLog.id)).limit(30));
-  return (data as SyncLogRow[]) ?? [];
+  const rows = useLiveTable<SyncLogRow>(schema.syncLog) ?? [];
+  return [...rows].sort((a, b) => b.id - a.id).slice(0, SYNC_LOG_SHOWN);
 }

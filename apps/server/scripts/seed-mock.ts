@@ -4,6 +4,8 @@
  * resets the account to exactly this set: ids are deterministic and anything else is tombstoned.
  *
  * Run: npm run seed:mock   (from apps/server, with the local stack and `npm run dev` running)
+ *      npm run seed:mock -- --assets 50000   (pad the library to that size, for performance tests:
+ *                                              the extra assets reuse the 30 photos' files)
  * Logs in as SEED_USER_EMAIL / SEED_USER_PASSWORD and refuses any non-local API URL.
  */
 import { createHash } from 'node:crypto';
@@ -33,6 +35,8 @@ const PICSUM_IDS = [
   64, 65,
 ];
 const DELETED_PHOTOS = [28, 29];
+const assetsFlag = process.argv.indexOf('--assets');
+const ASSET_COUNT = assetsFlag === -1 ? PICSUM_IDS.length : Number(process.argv[assetsFlag + 1]);
 
 const ALBUMS: { name: string; photos?: number[]; smartAlbumType?: 'FAVORITES' | 'DELETED' }[] = [
   { name: 'Favorites', smartAlbumType: 'FAVORITES' },
@@ -67,6 +71,7 @@ for (const [index, picsumId] of PICSUM_IDS.entries()) {
   console.log(`Uploaded photo ${index + 1}/${PICSUM_IDS.length}`);
 }
 const assetAt = (index: number) => assets[index]!;
+for (let index = assets.length; index < ASSET_COUNT; index++) assets.push(paddingAsset(index));
 
 const albums: AlbumRecord[] = ALBUMS.map((album, index) => ({
   ...baseRecord(`album:${index}`, now - (ALBUMS.length - index) * DAY),
@@ -162,6 +167,18 @@ async function createPhotoAsset(index: number, picsumId: number): Promise<AssetR
     isFileSynced: true,
     isThumbnailSynced: true,
     isSynced: true,
+  };
+}
+
+// A copy of one of the real photos under its own id, spread back in time behind them.
+function paddingAsset(index: number): AssetRecord {
+  const photo = assetAt(index % PICSUM_IDS.length);
+  return {
+    ...photo,
+    ...baseRecord(`asset:padding:${index}`, now - index * 60 * 60 * 1000),
+    mediaLibraryAssetId: `mock-padding-${index}`,
+    isFavorite: index % 9 === 0,
+    notes: null,
   };
 }
 

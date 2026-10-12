@@ -9,12 +9,10 @@
   "scripts": {
     "mobile": "npm run --workspace apps/mobile start",
     "dev:local": "node scripts/dev-local.mjs",
-    "lint": "npm run --workspace apps/mobile lint",
-    "postinstall": "patch-package"
+    "lint": "npm run --workspace apps/mobile lint"
   },
   "devDependencies": {
     "eslint": "^8.53.0",
-    "patch-package": "^8.0.1",
     "prettier": "^3.1.0",
     "typescript": "^5.6.0"
   },

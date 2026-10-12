@@ -101,6 +101,7 @@ export const syncMeta = sqliteTable('sync_meta', {
   key: text('key').primaryKey(),
   value: text('value'),
 });
+export type SyncMetaRow = typeof syncMeta.$inferSelect;
 
 // Outbox: pending local mutations to push. Coalesced to one row per (collection, recordId)
 // — the latest whole-record payload wins (sync-design §6).
@@ -133,3 +134,19 @@ export const syncLog = sqliteTable('sync_log', {
   notes: text('notes'),
 });
 export type SyncLogRow = typeof syncLog.$inferSelect;
+
+// Local change log for live reads: triggers on every synced table (migration 0004) record each
+// inserted, updated or deleted row with a version that rises per table, so a live read fetches
+// only the rows that changed since its last version (see readLiveRows) instead of the whole table.
+export const rowChanges = sqliteTable(
+  'row_changes',
+  {
+    tableName: text('table_name').notNull(),
+    rowId: text('row_id').notNull(),
+    version: integer('version').notNull(),
+  },
+  (t) => ({
+    onePerRow: uniqueIndex('row_changes_table_row_idx').on(t.tableName, t.rowId),
+    byTableVersion: index('row_changes_table_version_idx').on(t.tableName, t.version),
+  }),
+);

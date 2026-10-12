@@ -29,6 +29,13 @@
       "when": 1788764164764,
       "tag": "0003_dizzy_falcon",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791801895958,
+      "tag": "0004_row_changes",
+      "breakpoints": true
     }
   ]
 }

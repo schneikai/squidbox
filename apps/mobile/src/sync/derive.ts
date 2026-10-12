@@ -1,6 +1,6 @@
 // Pure projections that reconstruct the record shapes the app UI expects from the junction-edge
 // tables — so the ~78 consumers of `album.assets` / `post.assetRefs` / `postHistory` don't change.
-// No DB access here (testable): providers pass in live rows from useLiveQuery.
+// No DB access here (testable): providers pass in live rows (useLiveTable).
 
 export interface EdgeLite {
   id: string;

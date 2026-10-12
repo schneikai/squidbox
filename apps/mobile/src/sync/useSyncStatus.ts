@@ -1,10 +1,10 @@
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
-
-import { getDb, schema } from './db/client';
+import type { OutboxRow, SyncMetaRow } from './db/schema';
+import * as schema from './db/schema';
 import type { SyncPhase } from './status';
+import { useLiveTable } from './useLiveTable';
 
 // sync_meta rows → a { key: value } lookup.
-function metaByKey(meta: { key: string; value: string | null }[] | undefined): Record<string, string | null> {
+function metaByKey(meta: SyncMetaRow[] | undefined): Record<string, string | null> {
   return Object.fromEntries((meta ?? []).map((r) => [r.key, r.value]));
 }
 
@@ -20,8 +20,8 @@ export interface LiveSyncStatus {
 }
 
 export function useSyncStatus(): LiveSyncStatus {
-  const { data: meta } = useLiveQuery(getDb().select().from(schema.syncMeta));
-  const { data: outbox } = useLiveQuery(getDb().select().from(schema.outbox));
+  const meta = useLiveTable<SyncMetaRow>(schema.syncMeta);
+  const outbox = useLiveTable<OutboxRow>(schema.outbox);
 
   const byKey = metaByKey(meta);
   const status = byKey.status ? JSON.parse(byKey.status) : {};
@@ -41,11 +41,11 @@ export function useSyncStatus(): LiveSyncStatus {
 // gate: it shows from the moment we're logged in until the whole library has landed — including the
 // very first page and any transient/auth errors along the way (so there's never a silent empty
 // screen), and pre-login it stays off.
-// Returns `undefined` until sync_meta has actually been read once (a live query yields [] on its
-// first render, before it resolves). Callers MUST treat undefined as "unknown" and not gate on it,
-// otherwise the setup screen flashes for a frame on every launch for an already-synced user.
+// Returns `undefined` until sync_meta has been read once. Callers MUST treat undefined as "unknown"
+// and not gate on it, otherwise the setup screen flashes for a frame on every launch for an
+// already-synced user.
 export function useFirstSyncDone(): boolean | undefined {
-  const { data: meta, updatedAt } = useLiveQuery(getDb().select().from(schema.syncMeta));
-  if (updatedAt === undefined) return undefined; // not loaded yet
+  const meta = useLiveTable<SyncMetaRow>(schema.syncMeta);
+  if (meta === undefined) return undefined;
   return metaByKey(meta).firstSyncDone === '1';
 }

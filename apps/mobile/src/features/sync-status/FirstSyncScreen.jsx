@@ -1,5 +1,4 @@
 import { sql } from 'drizzle-orm';
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -7,6 +6,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import useCloud from '@/features/cloud/useCloud';
 import { colors } from '@/styles/designTokens';
 import { getDb, schema } from '@/sync/db/client';
+import { useLiveQuery } from '@/sync/useLiveQuery';
 import { useSyncStatus } from '@/sync/useSyncStatus';
 import { requestSync } from '@/sync/worker';
 
@@ -15,12 +15,14 @@ import { requestSync } from '@/sync/worker';
 // grids unmounted during the bulk load so the sync isn't fighting the UI. Uses COUNT(*) (cheap,
 // live) rather than loading rows.
 function useCount(table) {
-  const { data } = useLiveQuery(
-    getDb()
-      .select({ n: sql`count(*)` })
-      .from(table),
+  const rows = useLiveQuery(
+    () =>
+      getDb()
+        .select({ n: sql`count(*)` })
+        .from(table),
+    [table],
   );
-  return Number(data?.[0]?.n ?? 0);
+  return Number(rows?.[0]?.n ?? 0);
 }
 
 const RETRY_MS = 5_000;

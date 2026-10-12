@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 /**
  * Generic filter hook.
@@ -8,10 +8,11 @@ import { useState } from 'react';
 export default function useFilter(matchFn, { afterFilter } = {}) {
   const [activeFilter, setActiveFilter] = useState([]);
 
-  function matchFilter(item) {
-    if (activeFilter.length === 0) return true;
-    return matchFn(item, activeFilter);
-  }
+  // Stable until the filter changes, so lists that filter with it only recompute then.
+  const matchFilter = useCallback(
+    (item) => activeFilter.length === 0 || matchFn(item, activeFilter),
+    [matchFn, activeFilter],
+  );
 
   function toggleFilter(filter) {
     if (filter === 'all') {

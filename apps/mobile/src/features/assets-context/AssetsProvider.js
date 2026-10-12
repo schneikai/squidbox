@@ -6,29 +6,28 @@ import * as repo from '@/sync/assetsRepository';
 import { getDb, schema } from '@/sync/db/client';
 import { deriveAssetPostHistory } from '@/sync/derive';
 import { toAssetRecord, toAssetChanges } from '@/sync/legacyAsset';
-import { useLiveAssetsMap } from '@/sync/useAssetsQuery';
 import { useLiveCollectionMap, useLiveCollectionRows } from '@/sync/useCollection';
+import { useDerivedRecords } from '@/sync/useDerivedRecords';
 import { requestSync } from '@/sync/worker';
 
 // Modern asset store: SQLite (the source of truth) + the sync engine, exposed through the same
 // provider API the app already consumes (an id-keyed `assets` map + methods). Reads are reactive
-// via useLiveQuery; writes go through the transactional repository (row + outbox) and then kick
+// via the shared live tables (useLiveTable); writes go through the transactional repository (row + outbox) and then kick
 // the sync worker. SQLite + the sync engine are the only path — no JSON blobs. This provider is only
 // mounted after the initial pull finishes (see AppGate), so it always reads the full library.
+const NO_POSTS = [];
+
 export default function AssetsProvider({ children }) {
-  const assetRows = useLiveAssetsMap();
+  const assetRows = useLiveCollectionRows(schema.assets);
   const postEdges = useLiveCollectionRows(schema.postAssets);
   const posts = useLiveCollectionMap(schema.posts);
 
   // Derive postHistory/lastPostedAt (posts referencing each asset) onto the record shape.
-  const assets = useMemo(() => {
+  const postHistoryOf = useMemo(() => {
     const { historyById, lastPostedAtById } = deriveAssetPostHistory(posts, postEdges);
-    const out = {};
-    for (const [id, row] of Object.entries(assetRows)) {
-      out[id] = { ...row, postHistory: historyById[id] ?? [], lastPostedAt: lastPostedAtById[id] ?? null };
-    }
-    return out;
-  }, [assetRows, posts, postEdges]);
+    return (row) => ({ postHistory: historyById[row.id] ?? NO_POSTS, lastPostedAt: lastPostedAtById[row.id] ?? null });
+  }, [posts, postEdges]);
+  const assets = useDerivedRecords(assetRows, postHistoryOf);
 
   const value = useMemo(
     () => ({
