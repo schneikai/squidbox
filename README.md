@@ -104,7 +104,7 @@ npm run dev:local -- --reset-data    # start and reset the account to exactly th
 
 It starts Postgres + MinIO, applies migrations and creates the local accounts, starts Metro with Expo's tunnel, then the API server, and prints the tunnel URL to open in Squidbox (Dev). The login form is prefilled with the local account, unless `.env.local` sets its own prefill. Ctrl+C stops Metro and the server; the Docker stack keeps running.
 
-Metro serves the API and file storage through its own tunnel (`apps/mobile/scripts/localBackendProxy.js`), and the app sends its API calls to the dev server it loaded from. So no env file holds the tunnel URL, and `.env.local` stays pointed at the live backend. On the first run, `apps/server/.env` is created from `.env.docker`.
+Metro serves the API and file storage through its own tunnel (`apps/mobile/scripts/localBackendProxy.js`), and the script sets `EXPO_PUBLIC_LOCAL_BACKEND`, which makes the app send its API calls to the dev server it loaded from (`Constants.expoConfig.hostUri`). So no env file holds the tunnel URL, and `.env.local` stays pointed at the live backend. On the first run, `apps/server/.env` is created from `.env.docker`.
 
 To go back to your real library, start Metro normally and sign in with your account. Signing in as a different account wipes the device's local data first, so the two libraries never mix.
 

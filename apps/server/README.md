@@ -62,7 +62,8 @@ it still talks to MinIO on localhost. `npm run dev:local` at the repo root sets 
 whole phone setup; see the root README under "Local backend with mock data".
 
 `--env-file` never overrides variables already in the shell. If your shell exports AWS
-credentials, start the server with `env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY npm run dev`.
+credentials, start the server with `env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY npm run dev`
+(`npm run dev:local` does this for you).
 
 ## Setup (against real Postgres + AWS)
 
