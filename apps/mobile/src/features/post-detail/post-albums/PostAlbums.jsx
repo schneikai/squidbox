@@ -3,6 +3,7 @@ import { ScrollView, View, StyleSheet, Dimensions } from 'react-native';
 
 import PostAlbum from './PostAlbum';
 
+import useAlbumCovers from '@/features/album-list/useAlbumCovers';
 import useAlbums from '@/features/albums-context/useAlbums';
 import getAlbumsByAssetIds from '@/utils/albums/queries/getAlbumsByAssetIds';
 
@@ -11,6 +12,7 @@ const itemWidth = screenWidth / 2.7;
 
 export default function PostAlbums({ post }) {
   const { albums } = useAlbums();
+  const covers = useAlbumCovers();
 
   const postAlbums = useMemo(() => {
     if (!post) return [];
@@ -22,7 +24,7 @@ export default function PostAlbums({ post }) {
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.container}>
       {postAlbums.map((album, index) => (
         <View key={index} style={[styles.itemContainer, { width: itemWidth }]}>
-          <PostAlbum album={album} size={itemWidth} />
+          <PostAlbum album={album} cover={covers[album.id]} size={itemWidth} />
         </View>
       ))}
     </ScrollView>

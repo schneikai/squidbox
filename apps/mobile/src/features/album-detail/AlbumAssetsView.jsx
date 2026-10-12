@@ -1,4 +1,7 @@
+import { useMemo } from 'react';
+
 import SuperPressable from '@/components/SuperPressable';
+import AssetList from '@/features/asset-list/AssetList';
 import AssetListItem from '@/features/asset-list/AssetListItem';
 import SortableAssetGrid from '@/features/asset-list/SortableAssetGrid';
 
@@ -15,15 +18,19 @@ export default function AlbumAssetsView({
   paddingTop,
   paddingBottom,
   selectAssets,
+  canReorder,
   reorderEnabled,
   onReorder,
 }) {
   // Long-press has three mutually exclusive behaviors: drag-select (select mode),
   // drag-reorder (reorder enabled), or the quick-view peek (everything else).
   const canQuickViewPeek = !isSelectMode && !reorderEnabled;
+  const selectedIds = useMemo(() => new Set(selectedAssetIds), [selectedAssetIds]);
+  // Albums that can't be reordered (smart albums, which can hold thousands) use the virtualized list.
+  const Grid = canReorder ? SortableAssetGrid : AssetList;
 
   return (
-    <SortableAssetGrid
+    <Grid
       listRef={listRef}
       assetIds={assetIds}
       contentContainerStyle={{ paddingTop, paddingBottom }}
@@ -43,7 +50,7 @@ export default function AlbumAssetsView({
           <AssetListItem
             asset={asset}
             isSelectMode={isSelectMode}
-            isSelected={selectedAssetIds.includes(asset.id)}
+            isSelected={selectedIds.has(asset.id)}
             showLastPostedAt={sortOrder.includes('lastPostedAt')}
           />
         </SuperPressable>

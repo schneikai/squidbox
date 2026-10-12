@@ -10,7 +10,8 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import { SCREEN_PADDING } from '@/constants';
 import AssetPager from '@/features/asset-detail/AssetPager';
 import MoreAction from '@/features/asset-detail/actions/MoreAction';
-import getAssetPagerState from '@/features/asset-detail/getAssetPagerState';
+import getCurrentAssetId from '@/features/asset-detail/getCurrentAssetId';
+import getVisibleAssetIds from '@/features/asset-detail/getVisibleAssetIds';
 import useAssets from '@/features/assets-context/useAssets';
 import { radii, scale, spacing } from '@/styles/designTokens';
 import { MEDIA_TYPES } from '@/utils/assets/constants';
@@ -22,10 +23,10 @@ export default function AssetScreen({ route, navigation }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const insets = useSafeAreaInsets();
 
-  const { visibleAssetIds, currentAssetId } = useMemo(
-    () => getAssetPagerState({ assetIds: route.params.assetIds, assets, selectedAssetId }),
-    [route.params.assetIds, assets, selectedAssetId],
-  );
+  const { assetIds } = route.params;
+  // Separate so a swipe (a new selectedAssetId) doesn't refilter every asset or re-render the pager.
+  const visibleAssetIds = useMemo(() => getVisibleAssetIds(assetIds, assets), [assetIds, assets]);
+  const currentAssetId = getCurrentAssetId({ assetIds, assets, selectedAssetId, visibleAssetIds });
   const asset = assets[currentAssetId];
   const headerDate = asset ? formatDetailHeaderDate(asset.createdAt) : null;
 

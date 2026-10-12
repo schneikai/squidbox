@@ -5,6 +5,7 @@ export default function preparePosts({ posts, albums, sortFn, filterFn, searchTe
   const matched = searchText?.match(/(asset|album):([^\s]+)/i);
   const searchKey = matched ? matched[1] : null; // 'asset' or 'album'
   const searchValue = matched ? matched[2] : null; // asset or album id
+  const albumAssetIds = searchKey === 'album' && albums[searchValue] ? new Set(albums[searchValue].assets) : null;
 
   let matchedPosts = posts.filter((post) => {
     if (filterDeleted && post.deletedAt) return false;
@@ -17,8 +18,7 @@ export default function preparePosts({ posts, albums, sortFn, filterFn, searchTe
 
     // If an albumId is specified in the searchText, only show posts that reference assets from that album
     if (searchKey === 'album' && searchValue) {
-      const album = albums[searchValue];
-      if (!album || !post.assetRefs.some((ref) => album.assets.includes(ref.assetId))) return false;
+      if (!albumAssetIds || !post.assetRefs.some((ref) => albumAssetIds.has(ref.assetId))) return false;
     }
 
     // If searchText is provided but doesn't specify an asset, filter by post text

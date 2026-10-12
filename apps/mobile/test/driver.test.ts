@@ -33,6 +33,13 @@ describe('driver (createDb)', () => {
     expect(changes).toEqual([['assets', 'outbox']]);
   });
 
+  it('commits a bulk update as one unit', async () => {
+    const [a, b] = await repo.createAssets(db, [makeAssetRecord(), makeAssetRecord()]);
+    changes = [];
+    await repo.updateAssets(db, { [a!.id]: { isFavorite: true }, [b!.id]: { isFavorite: true } });
+    expect(changes).toEqual([['assets', 'outbox']]);
+  });
+
   it('discards a rolled-back transaction without notifying', async () => {
     const failing = db.transaction(async (tx) => {
       await tx.insert(schema.assets).values({ ...makeAssetRecord({ filename: 'gone.jpg' }), syncError: null });

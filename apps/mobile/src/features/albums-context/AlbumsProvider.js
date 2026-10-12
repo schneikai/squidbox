@@ -48,7 +48,8 @@ export default function AlbumsProvider({ children }) {
       requestSync();
     }
     async function updateAlbums(ids, updates) {
-      for (const id of ids) await repo.update(db, id, toModernChanges(updates));
+      const changes = toModernChanges(updates);
+      await repo.updateMany(db, Object.fromEntries(ids.map((id) => [id, changes])));
       requestSync();
     }
     return {
@@ -64,7 +65,8 @@ export default function AlbumsProvider({ children }) {
       updateAlbum: async (id, updates) => updateAlbums([id], updates),
       updateAlbums: async (ids, updates) => updateAlbums(ids, updates),
       updateManyAlbums: async (updatesById) => {
-        for (const [id, updates] of Object.entries(updatesById)) await repo.update(db, id, toModernChanges(updates));
+        const changesById = Object.entries(updatesById).map(([id, updates]) => [id, toModernChanges(updates)]);
+        await repo.updateMany(db, Object.fromEntries(changesById));
         requestSync();
       },
       toggleFavoriteAlbum: async (album) => updateAlbums([album.id], { isFavorite: !album.isFavorite }),

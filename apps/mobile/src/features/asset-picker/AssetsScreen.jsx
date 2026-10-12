@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 
 import AssetQuickViewModal, { useAssetQuickViewModal } from '@/components/AssetQuickViewModal';
 import PickerHeader from '@/components/PickerHeader';
@@ -17,20 +17,18 @@ import useAssets from '@/features/assets-context/useAssets';
 export default function AssetsScreen() {
   const { assets, toggleFavoriteAsset } = useAssets();
   const { toggleSelectAsset, isAssetSelected } = useAssetPicker();
-  const [assetIds, setAssetIds] = useState();
   const { listRef, listScrollTop } = useAssetList();
   const { sortOrder, sortFunction, sortAssets } = useSortAssetsAction({ afterSort: listScrollTop });
   const { activeFilter, toggleFilter, matchFilter } = useFilterAssetsAction({ afterFilter: listScrollTop });
   const { asset: quickViewAsset, open: openAssetQuickView, close: closeAssetQuickView } = useAssetQuickViewModal();
 
-  useEffect(() => {
-    const assetIds = prepareAssets({
-      assets: Object.values(assets),
-      sortFn: sortFunction,
-      filterFn: matchFilter,
-    }).map((asset) => asset.id);
-    setAssetIds(assetIds);
-  }, [assets, sortOrder, activeFilter]);
+  const assetIds = useMemo(
+    () =>
+      prepareAssets({ assets: Object.values(assets), sortFn: sortFunction, filterFn: matchFilter }).map(
+        (asset) => asset.id,
+      ),
+    [assets, sortFunction, matchFilter],
+  );
 
   return (
     <>

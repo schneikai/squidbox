@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, PanResponder, ActivityIndicator } from 'react-native';
 import { MenuProvider } from 'react-native-popup-menu';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
@@ -34,6 +34,7 @@ import formatVideoDuration from '@/utils/formatVideoDuration';
 const TWEET_BATCH_SIZE = 10;
 const BATCH_INSTRUCTION = `Generate exactly ${TWEET_BATCH_SIZE} tweets and return them as a raw JSON array of strings. Nothing else.`;
 const SWIPE_THRESHOLD = 50;
+const NO_ASSET_IDS = [];
 // Swapping cards is a quick fade-through: the old one exits, the new one enters at the fast duration.
 const SWAP_IN = { ...motion.enter, duration: motion.duration.fast };
 
@@ -68,22 +69,19 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
   const [showVideos, setShowVideos] = useState(true);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
 
-  // --- Asset pool ---
-  const assetPool = useMemo(() => {
-    let pool = Object.values(assets ?? {}).filter((a) => !a.deletedAt);
-    if (onlyFavorites) pool = pool.filter((a) => a.isFavorite);
-    const typed = pool.filter((a) => {
-      const isVideo = !!a.duration;
-      return (showImages && !isVideo) || (showVideos && isVideo);
-    });
-    return [...typed].sort(() => Math.random() - 0.5);
-  }, [assets, showImages, showVideos, onlyFavorites]);
-
+  // --- Asset pool: shuffled ids, drawn when the modal opens or a filter changes (not on every
+  // library write); the card shows the live asset for its id. ---
+  const assetsRef = useRef(assets);
+  assetsRef.current = assets;
+  const [assetPool, setAssetPool] = useState(NO_ASSET_IDS);
   const [assetIndex, setAssetIndex] = useState(0);
 
   useEffect(() => {
+    setAssetPool(
+      visible ? shuffledAssetIds(assetsRef.current, { showImages, showVideos, onlyFavorites }) : NO_ASSET_IDS,
+    );
     setAssetIndex(0);
-  }, [assetPool]);
+  }, [visible, showImages, showVideos, onlyFavorites]);
 
   // --- Text pool ---
   const [textPool, setTextPool] = useState([]);
@@ -161,7 +159,7 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
   }
 
   // --- Asset navigation ---
-  const currentAsset = assetPool[assetIndex] ?? null;
+  const currentAsset = assets[assetPool[assetIndex]] ?? null;
 
   function navigateAsset(direction) {
     if (assetPool.length <= 1) return;
@@ -524,3 +522,18 @@ const styles = StyleSheet.create({
     padding: SCREEN_PADDING,
   },
 });
+
+// Ids of the live assets that match the filters, in random order (Fisher–Yates).
+function shuffledAssetIds(assets, { showImages, showVideos, onlyFavorites }) {
+  const ids = [];
+  for (const asset of Object.values(assets)) {
+    if (asset.deletedAt || (onlyFavorites && !asset.isFavorite)) continue;
+    const isVideo = !!asset.duration;
+    if ((showImages && !isVideo) || (showVideos && isVideo)) ids.push(asset.id);
+  }
+  for (let i = ids.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+  }
+  return ids;
+}

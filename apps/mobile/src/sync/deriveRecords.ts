@@ -19,15 +19,18 @@ export function deriveRecords(rows: any[], extrasOf: (row: any) => Extras, previ
 
   const records: Record<string, any> = {};
   const cache: DerivedRecords['cache'] = new Map();
+  let isUnchanged = previous !== undefined && rows.length === previous.cache.size;
   for (const row of rows) {
     const extras = extrasOf(row);
     const before = previous?.cache.get(row.id);
     const isSame = before && before.row === row && haveSameValues(before.extras, extras);
     const record = isSame ? before.record : { ...row, ...extras };
+    if (!isSame) isUnchanged = false;
     records[row.id] = record;
     cache.set(row.id, { row, extras, record });
   }
-  return { records, cache, extrasOf };
+  // New derived inputs (say, a post changed) that left every record as it was keep the whole map.
+  return { records: isUnchanged ? previous!.records : records, cache, extrasOf };
 }
 
 // The derived inputs are unchanged, so only rows that are new objects need a new record.
@@ -54,6 +57,19 @@ function updateChangedRows(rows: any[], previous: DerivedRecords): DerivedRecord
   return { records, cache, extrasOf: previous.extrasOf };
 }
 
+// Derived values are rebuilt whenever their inputs change, so compare them by content: arrays of ids
+// (postHistory, album.assets) or of small plain objects (post.assetRefs).
 function haveSameValues(a: Extras, b: Extras): boolean {
-  return Object.keys(b).every((key) => a[key] === b[key]);
+  return Object.keys(b).every((key) => a[key] === b[key] || isSameArray(a[key], b[key]));
+}
+
+function isSameArray(a: unknown, b: unknown): boolean {
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+  return a.every((item, index) => item === b[index] || isSamePlainObject(item, b[index]));
+}
+
+function isSamePlainObject(a: any, b: any): boolean {
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((key) => a[key] === b[key]);
 }

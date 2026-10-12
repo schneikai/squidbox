@@ -26,8 +26,6 @@ import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-se
 import prepareAssets from '@/features/asset-list/prepareAssets';
 import useAssetList from '@/features/asset-list/useAssetList';
 import useAssets from '@/features/assets-context/useAssets';
-import preparePosts from '@/features/post-list/preparePosts';
-import usePosts from '@/features/posts-context/usePosts';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useSearch from '@/hooks/useSearch';
 import useSearchMode from '@/hooks/useSearchMode';
@@ -37,6 +35,7 @@ import getAlbumAssets from '@/utils/albums/getAlbumAssets';
 import getAlbumSortOrder from '@/utils/albums/getAlbumSortOrder';
 import isSmartAlbum from '@/utils/albums/isSmartAlbum';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
+import getAssetsByIds from '@/utils/assets/queries/getAssetsByIds';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 import pluralizeText from '@/utils/pluralizeText';
 
@@ -62,7 +61,6 @@ export default function Album({ album }) {
   const { assets, toggleFavoriteAsset, setAssetsDeleted } = useAssets();
   const { removeAssetsFromAlbum, reorderAlbumAssets, updateAlbum } = useAlbums();
   const { albumSortOrder, setAlbumSortOrder } = useAppSettings();
-  const { posts } = usePosts();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
@@ -101,16 +99,8 @@ export default function Album({ album }) {
     [album, assets, sortFunction, matchFilter, searchText],
   );
 
-  const postIds = useMemo(
-    () =>
-      preparePosts({
-        posts: Object.values(posts),
-        albums: { [album.id]: album },
-        searchText: `album:${album.id}`,
-        sortFn: (a, b) => b.postedAt - a.postedAt,
-      }).map((post) => post.id),
-    [posts, album],
-  );
+  // postHistory is the album's non-deleted posts, oldest first (derived in AlbumsProvider).
+  const postIds = useMemo(() => [...album.postHistory].reverse(), [album.postHistory]);
 
   const hasSelection = selectedAssetIds.length > 0;
   const hasSubHeader = !!album.archivedAt || !!album.notes;
@@ -156,7 +146,7 @@ export default function Album({ album }) {
 
   function getSelectedAssets() {
     const ids = selectedAssetIds.length > 0 ? selectedAssetIds : assetIds;
-    return Object.values(assets).filter((a) => ids.includes(a.id));
+    return getAssetsByIds(assets, ids);
   }
 
   function onPressAsset(asset) {
@@ -278,6 +268,7 @@ export default function Album({ album }) {
             paddingTop={hasSubHeader ? 0 : paddingTop}
             paddingBottom={paddingBottom}
             selectAssets={selectAssets}
+            canReorder={!isSmartAlbum(album)}
             reorderEnabled={reorderEnabled}
             onReorder={handleReorder}
           />

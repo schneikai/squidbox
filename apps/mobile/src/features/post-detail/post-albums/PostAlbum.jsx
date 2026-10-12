@@ -1,22 +1,12 @@
 import { useNavigation } from '@react-navigation/native';
-import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
 import AssetImage from '@/components/AssetImage';
-import useGetAlbumThumbnailAssetAndAssetCount from '@/features/album-list/useGetAlbumThumbnailAssetAndAssetCount';
 import { colors, scale } from '@/styles/designTokens';
 
-export default function PostAlbum({ album, size }) {
-  const getAlbumThumbnailAssetAndAssetCount = useGetAlbumThumbnailAssetAndAssetCount();
-  const [thumbnailAsset, setThumbnailAsset] = useState(null);
-  const [numberOfAssets, setNumberOfAssets] = useState(0);
+export default function PostAlbum({ album, cover, size }) {
   const navigation = useNavigation();
-
-  useEffect(() => {
-    const { thumbnailAsset, numberOfAssets } = getAlbumThumbnailAssetAndAssetCount(album);
-    setThumbnailAsset(thumbnailAsset);
-    setNumberOfAssets(numberOfAssets);
-  }, [album]);
+  const { thumbnailAsset, numberOfAssets } = cover ?? {};
 
   async function handlePress() {
     navigation.navigate('AlbumScreen', { albumId: album.id });

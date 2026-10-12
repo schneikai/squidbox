@@ -20,6 +20,7 @@ import useAssets from '@/features/assets-context/useAssets';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useSearch from '@/hooks/useSearch';
 import useSearchMode from '@/hooks/useSearchMode';
+import getAssetsByIds from '@/utils/assets/queries/getAssetsByIds';
 
 export default function AssetsScreen({ route }) {
   const navigation = useNavigation();
@@ -66,6 +67,8 @@ export default function AssetsScreen({ route }) {
   // ── Action handlers wired into FloatingHeader via context ─────────────────
   // Keep a ref that's always current so registered callbacks never go stale,
   // even if the user taps a button before the next useEffect fires.
+  const selectedIds = useMemo(() => new Set(selectedAssetIds), [selectedAssetIds]);
+
   const handlersRef = useRef({});
   handlersRef.current = { selectedAssetIds, assetIds, assets };
 
@@ -118,7 +121,7 @@ export default function AssetsScreen({ route }) {
   function getSelectedAssets() {
     const { selectedAssetIds: ids, assetIds: all, assets: allAssets } = handlersRef.current;
     const resolvedIds = ids.length > 0 ? ids : all.slice(0, 500);
-    return Object.values(allAssets).filter((a) => resolvedIds.includes(a.id));
+    return getAssetsByIds(allAssets, resolvedIds);
   }
 
   // Register this screen's options with the floating bars context.
@@ -185,7 +188,7 @@ export default function AssetsScreen({ route }) {
             <AssetListItem
               asset={asset}
               isSelectMode={isSelectMode}
-              isSelected={selectedAssetIds.includes(asset.id)}
+              isSelected={selectedIds.has(asset.id)}
               showLastPostedAt={sortOrder.includes('lastPostedAt')}
             />
           </SuperPressable>

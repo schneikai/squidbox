@@ -12,7 +12,6 @@ export default function AppSettingsProvider({ children }) {
   const defaultAlbumSortOrder = 'createdAt:desc';
   const [thumbnailStyle, setThumbnailStyle] = useState(defaultThumbnailStyle);
   const [albumSortOrder, setAlbumSortOrder] = useState(defaultAlbumSortOrder);
-  const [postsQuery, setPostsQuery] = useState('');
 
   useEffect(() => {
     async function loadSettings() {
@@ -57,10 +56,8 @@ export default function AppSettingsProvider({ children }) {
       setThumbnailStyle,
       albumSortOrder,
       setAlbumSortOrder,
-      postsQuery,
-      setPostsQuery,
     }),
-    [thumbnailStyle, albumSortOrder, postsQuery],
+    [thumbnailStyle, albumSortOrder],
   );
 
   return <AppSettingsContext.Provider value={value}>{children}</AppSettingsContext.Provider>;

@@ -39,28 +39,27 @@ export default function AssetsProvider({ children }) {
       },
       addAssetsAsync: async (data) => {
         const list = Array.isArray(data) ? data : [data];
-        const out = [];
-        for (const item of list) out.push(await repo.createAsset(getDb(), toAssetRecord(item)));
+        const records = await repo.createAssets(getDb(), list.map(toAssetRecord));
         requestSync();
-        return out;
+        return records;
       },
       updateAsset: async (id, updates) => {
         await repo.updateAsset(getDb(), id, toAssetChanges(updates));
         requestSync();
       },
       updateAssets: async (ids, updates) => {
-        for (const id of ids) await repo.updateAsset(getDb(), id, toAssetChanges(updates));
+        const changes = toAssetChanges(updates);
+        await repo.updateAssets(getDb(), Object.fromEntries(ids.map((id) => [id, changes])));
         requestSync();
       },
       updateManyAssets: async (updatesById) => {
-        for (const [id, updates] of Object.entries(updatesById)) {
-          await repo.updateAsset(getDb(), id, toAssetChanges(updates));
-        }
+        const changesById = Object.entries(updatesById).map(([id, updates]) => [id, toAssetChanges(updates)]);
+        await repo.updateAssets(getDb(), Object.fromEntries(changesById));
         requestSync();
       },
       // Local-only marker for failed file uploads (never synced); null clears it for a retry.
       setAssetsSyncError: async (assetIds, error) => {
-        for (const id of assetIds) await repo.setSyncError(getDb(), id, error);
+        await repo.setSyncError(getDb(), assetIds, error);
       },
       toggleFavoriteAsset: async (asset) => {
         await repo.toggleFavorite(getDb(), asset.id);
@@ -71,7 +70,7 @@ export default function AssetsProvider({ children }) {
         requestSync();
       },
       restoreDeletedAssets: async (assetIds) => {
-        for (const id of assetIds) await repo.updateAsset(getDb(), id, { deletedAt: null });
+        await repo.updateAssets(getDb(), Object.fromEntries(assetIds.map((id) => [id, { deletedAt: null }])));
         requestSync();
       },
       deleteAssetsAsync: async (assetsToDelete) => {

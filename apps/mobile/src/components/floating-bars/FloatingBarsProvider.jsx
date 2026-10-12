@@ -1,5 +1,5 @@
 import { useNavigationState } from '@react-navigation/native';
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { useSharedValue } from 'react-native-reanimated';
 
 import FloatingBarsContext from './FloatingBarsContext';
@@ -32,35 +32,33 @@ export default function FloatingBarsProvider({ children }) {
 
   const activeTabName = useNavigationState(getActiveTabName);
 
-  function openFilterModal() {
+  const openFilterModal = useCallback(() => {
     const key = TAB_TO_OPTIONS_KEY[activeTabName] ?? 'assets';
     setFilterModalData({ ...screenOptionsRef.current[key] });
     setIsFilterModalOpen(true);
-  }
+  }, [activeTabName]);
 
-  function closeFilterModal() {
-    setIsFilterModalOpen(false);
-  }
+  const closeFilterModal = useCallback(() => setIsFilterModalOpen(false), []);
 
   // ── Select mode (assets screen only) ─────────────────────────────────────
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedAssetIds, setSelectedAssetIds] = useState([]);
 
-  function toggleSelectMode() {
+  const toggleSelectMode = useCallback(() => {
     setIsSelectMode((prev) => {
       if (prev) setSelectedAssetIds([]);
       return !prev;
     });
-  }
+  }, []);
 
-  function exitSelectMode() {
+  const exitSelectMode = useCallback(() => {
     setIsSelectMode(false);
     setSelectedAssetIds([]);
-  }
+  }, []);
 
-  function toggleSelectAsset(assetId) {
+  const toggleSelectAsset = useCallback((assetId) => {
     setSelectedAssetIds((prev) => (prev.includes(assetId) ? prev.filter((id) => id !== assetId) : [...prev, assetId]));
-  }
+  }, []);
 
   // Stable identity so the drag-select gesture isn't rebuilt mid-drag when the
   // selection changes and re-renders this provider.
@@ -72,39 +70,60 @@ export default function FloatingBarsProvider({ children }) {
   const scrollY = useSharedValue(0);
   const isNavBarHidden = useSharedValue(0); // 0 = visible, 1 = hidden
 
-  function resetScroll() {
+  const resetScroll = useCallback(() => {
     scrollY.value = 0;
     isNavBarHidden.value = 0;
-  }
+  }, [scrollY, isNavBarHidden]);
 
-  const value = {
-    // Search
-    isSearchActive,
-    setIsSearchActive,
+  // Memoized: the provider sits above the screens and re-renders with navigation and app-level
+  // updates, which must not re-render every screen that uses the floating bars.
+  const value = useMemo(
+    () => ({
+      // Search
+      isSearchActive,
+      setIsSearchActive,
 
-    // Filter modal
-    isFilterModalOpen,
-    filterModalData,
-    openFilterModal,
-    closeFilterModal,
+      // Filter modal
+      isFilterModalOpen,
+      filterModalData,
+      openFilterModal,
+      closeFilterModal,
 
-    // Screen options registration
-    registerScreenOptions,
-    screenOptionsRef,
+      // Screen options registration
+      registerScreenOptions,
+      screenOptionsRef,
 
-    // Select mode
-    isSelectMode,
-    selectedAssetIds,
-    toggleSelectMode,
-    exitSelectMode,
-    toggleSelectAsset,
-    selectAssets,
+      // Select mode
+      isSelectMode,
+      selectedAssetIds,
+      toggleSelectMode,
+      exitSelectMode,
+      toggleSelectAsset,
+      selectAssets,
 
-    // Scroll animation values (passed to animated components)
-    scrollY,
-    isNavBarHidden,
-    resetScroll,
-  };
+      // Scroll animation values (passed to animated components)
+      scrollY,
+      isNavBarHidden,
+      resetScroll,
+    }),
+    [
+      isSearchActive,
+      isFilterModalOpen,
+      filterModalData,
+      openFilterModal,
+      closeFilterModal,
+      registerScreenOptions,
+      isSelectMode,
+      selectedAssetIds,
+      toggleSelectMode,
+      exitSelectMode,
+      toggleSelectAsset,
+      selectAssets,
+      scrollY,
+      isNavBarHidden,
+      resetScroll,
+    ],
+  );
 
   return <FloatingBarsContext value={value}>{children}</FloatingBarsContext>;
 }

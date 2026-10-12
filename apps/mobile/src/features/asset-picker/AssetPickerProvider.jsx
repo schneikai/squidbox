@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 
 import AssetPickerContext from '@/features/asset-picker/AssetPickerContext';
 
@@ -45,33 +45,36 @@ export default function AssetPickerProvider({ children }) {
     cleanUpAndClose();
   }, [cleanUpAndClose]);
 
-  const toggleSelectAsset = useCallback(
-    (asset) => {
-      setSelectedAssets((selectedAssets) => {
-        if (isAssetSelected(asset)) {
-          return selectedAssets.filter((selectedAsset) => selectedAsset !== asset);
-        }
-        return [...selectedAssets, asset];
-      });
-    },
-    [isAssetSelected],
+  const toggleSelectAsset = useCallback((asset) => {
+    setSelectedAssets((current) =>
+      current.some((selected) => selected.id === asset.id)
+        ? current.filter((selected) => selected.id !== asset.id)
+        : [...current, asset],
+    );
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      openAssetPicker,
+      toggleSelectAsset,
+      selectedAssets,
+      setSelectedAssets,
+      isAssetSelected,
+      albumScreenProps,
+      setAlbumScreenProps,
+      onConfirmSelection,
+      onCancelSelection,
+    }),
+    [
+      openAssetPicker,
+      toggleSelectAsset,
+      selectedAssets,
+      isAssetSelected,
+      albumScreenProps,
+      onConfirmSelection,
+      onCancelSelection,
+    ],
   );
 
-  return (
-    <AssetPickerContext.Provider
-      value={{
-        openAssetPicker,
-        toggleSelectAsset,
-        selectedAssets,
-        setSelectedAssets,
-        isAssetSelected,
-        albumScreenProps,
-        setAlbumScreenProps,
-        onConfirmSelection,
-        onCancelSelection,
-      }}
-    >
-      {children}
-    </AssetPickerContext.Provider>
-  );
+  return <AssetPickerContext.Provider value={value}>{children}</AssetPickerContext.Provider>;
 }

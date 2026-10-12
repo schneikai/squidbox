@@ -22,12 +22,10 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
 
   const [isDeleting, startDeleteTransition] = useTransition();
   const { isSelectMode, selectedAssetIds, toggleSelectMode, toggleSelectAsset } = useToggleSelectAssetsAction();
+  const selectedIds = useMemo(() => new Set(selectedAssetIds), [selectedAssetIds]);
 
   const assetIds = useMemo(
-    () =>
-      prepareAssets({ assets: getAlbumAssets(album, Object.values(assets)), filterDeleted: false }).map(
-        (asset) => asset.id,
-      ),
+    () => prepareAssets({ assets: getAlbumAssets(album, assets), filterDeleted: false }).map((asset) => asset.id),
     [album, assets],
   );
 
@@ -119,7 +117,7 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
           if (isSelectMode) {
             return (
               <Pressable style={{ flex: 1 }} onPress={() => toggleSelectAsset(asset.id)}>
-                <AssetListItem asset={asset} isSelected={selectedAssetIds.includes(asset.id)} />
+                <AssetListItem asset={asset} isSelected={selectedIds.has(asset.id)} />
               </Pressable>
             );
           }

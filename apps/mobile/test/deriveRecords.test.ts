@@ -39,4 +39,10 @@ describe('deriveRecords', () => {
     const first = deriveRecords([a, b], extrasOf);
     expect(Object.keys(deriveRecords([a], extrasOf, first).records)).toEqual(['a']);
   });
+
+  it('keeps records whose derived arrays were rebuilt with the same content', () => {
+    const first = deriveRecords([a], () => ({ postHistory: ['p1'], assetRefs: [{ id: 'e1', assetId: 'a' }] }));
+    const second = deriveRecords([a], () => ({ postHistory: ['p1'], assetRefs: [{ id: 'e1', assetId: 'a' }] }), first);
+    expect(second.records).toBe(first.records);
+  });
 });

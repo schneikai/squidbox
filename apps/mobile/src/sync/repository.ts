@@ -11,6 +11,20 @@ import { enqueueMutation } from './outbox';
 // is one transaction (row + coalesced outbox) with the monotonic clock.
 export function makeRepository(collection: string, table: SQLiteTable) {
   const t = table as any;
+
+  /** Patch records, by id, in one transaction. */
+  async function updateMany(db: SyncDb, changesById: Record<string, Record<string, any>>): Promise<void> {
+    await db.transaction(async (tx) => {
+      for (const [id, changes] of Object.entries(changesById)) {
+        const prev = await (tx as any).select().from(table).where(eq(t.id, id)).get();
+        if (!prev) continue;
+        const next = { ...prev, ...changes, updatedAt: nextUpdatedAt(prev.updatedAt) };
+        await (tx as any).update(table).set(next).where(eq(t.id, id));
+        await enqueueMutation(tx as SyncDb, collection, next);
+      }
+    });
+  }
+
   return {
     async create(db: SyncDb, record: Record<string, any>): Promise<Record<string, any>> {
       const row = { ...record, updatedAt: nextUpdatedAt(record.updatedAt) };
@@ -20,14 +34,9 @@ export function makeRepository(collection: string, table: SQLiteTable) {
       });
       return row;
     },
-    async update(db: SyncDb, id: string, changes: Record<string, any>): Promise<void> {
-      await db.transaction(async (tx) => {
-        const prev = await (tx as any).select().from(table).where(eq(t.id, id)).get();
-        if (!prev) return;
-        const next = { ...prev, ...changes, updatedAt: nextUpdatedAt(prev.updatedAt) };
-        await (tx as any).update(table).set(next).where(eq(t.id, id));
-        await enqueueMutation(tx as SyncDb, collection, next);
-      });
+    updateMany,
+    update(db: SyncDb, id: string, changes: Record<string, any>): Promise<void> {
+      return updateMany(db, { [id]: changes });
     },
     async remove(db: SyncDb, ids: string[]): Promise<void> {
       await db.transaction(async (tx) => {

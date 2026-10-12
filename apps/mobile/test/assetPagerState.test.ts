@@ -1,12 +1,23 @@
 import { describe, it, expect } from 'vitest';
 
-import getAssetPagerState from '../src/features/asset-detail/getAssetPagerState';
+import getCurrentAssetId from '../src/features/asset-detail/getCurrentAssetId';
+import getVisibleAssetIds from '../src/features/asset-detail/getVisibleAssetIds';
+
+type Args = {
+  assetIds: string[];
+  assets: Record<string, { id: string; deletedAt: number | null }>;
+  selectedAssetId: string;
+};
+function getAssetPagerState({ assetIds, assets, selectedAssetId }: Args) {
+  const visibleAssetIds = getVisibleAssetIds(assetIds, assets);
+  return { visibleAssetIds, currentAssetId: getCurrentAssetId({ assetIds, assets, selectedAssetId, visibleAssetIds }) };
+}
 
 const live = (id: string) => ({ id, deletedAt: null });
 const deleted = (id: string) => ({ id, deletedAt: 1 });
 const byId = (...assets: { id: string }[]) => Object.fromEntries(assets.map((a) => [a.id, a]));
 
-describe('getAssetPagerState', () => {
+describe('asset pager state (getVisibleAssetIds + getCurrentAssetId)', () => {
   const assetIds = ['a', 'b', 'c', 'd'];
 
   it('keeps the selected asset current while it is visible', () => {

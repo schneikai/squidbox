@@ -38,7 +38,7 @@ describe('readLiveRows', () => {
   it('picks up the local-only syncError, which changes without updatedAt', async () => {
     const a = await repo.createAsset(db, makeAssetRecord({ filename: 'a.jpg' }));
     const first = await readLiveRows(db, schema.assets);
-    await repo.setSyncError(db, a.id, 'upload failed');
+    await repo.setSyncError(db, [a.id], 'upload failed');
     const second = await readLiveRows(db, schema.assets, first);
     expect(second.rows[0].syncError).toBe('upload failed');
   });

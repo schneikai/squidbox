@@ -2,6 +2,7 @@ import { Children, cloneElement } from 'react';
 
 import PopupMenu from '@/components/popup-menu-options/PopupMenu';
 import useAssets from '@/features/assets-context/useAssets';
+import getAssetsByIds from '@/utils/assets/queries/getAssetsByIds';
 
 const allAssetsLimit = 500;
 
@@ -12,7 +13,7 @@ export default function SelectionActionsMenu({ selectedAssetIds, allAssetIds, ch
     selectedAssetIds.length > 0 || allAssetIds.length > allAssetsLimit ? selectedAssetIds : allAssetIds;
 
   function getSelectedAssets() {
-    return Object.values(assets).filter((asset) => resolvedIds.includes(asset.id));
+    return getAssetsByIds(assets, resolvedIds);
   }
 
   const childrenWithProps = Children.map(children, (child) =>

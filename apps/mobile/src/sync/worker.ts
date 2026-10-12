@@ -89,9 +89,9 @@ async function applyPushResult(db: SyncDb, result: PushResult, pushedUpdatedAt: 
   }
   if (plan.clearOutbox) await clearOutboxRow(db, result.collection, result.id);
   // syncError is an assets-only local field.
-  if (plan.clearError && result.collection === 'assets') await setSyncError(db, result.id, null);
+  if (plan.clearError && result.collection === 'assets') await setSyncError(db, [result.id], null);
   if (plan.flagRejected) {
-    if (result.collection === 'assets') await setSyncError(db, result.id, result.reason ?? 'rejected');
+    if (result.collection === 'assets') await setSyncError(db, [result.id], result.reason ?? 'rejected');
     note = `${result.collection} ${result.id}: rejected (${result.reason ?? 'unknown'})`;
   }
   return note;

@@ -3,11 +3,11 @@ import { Alert } from 'react-native';
 
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import PopupMenu from '@/components/popup-menu-options/PopupMenu';
-import useAppSettings from '@/features/app-settings/useAppSettings';
+import usePostsQuery from '@/features/post-list/posts-query/usePostsQuery';
 import getAssetFileDownloadUrlAsync from '@/utils/cloud-api/assets/getAssetFileDownloadUrlAsync';
 
 export default function MoreAction({ asset, navigation }) {
-  const { setPostsQuery } = useAppSettings();
+  const { setPostsQuery } = usePostsQuery();
 
   function handleAddToAlbum() {
     navigation.navigate('AddToAlbumModal', { assetIds: [asset.id] });

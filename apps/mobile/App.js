@@ -4,7 +4,7 @@ import * as Sentry from '@sentry/react-native';
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SplashScreen from 'expo-splash-screen';
-import { useState, useEffect, Component } from 'react';
+import { useState, useEffect, Component, memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Menu, MenuProvider } from 'react-native-popup-menu';
@@ -23,6 +23,7 @@ import AssetsProvider from '@/features/assets-context/AssetsProvider';
 import CloudProvider from '@/features/cloud/CloudProvider';
 import useCloud from '@/features/cloud/useCloud';
 import CloudSyncProvider from '@/features/cloud-sync/CloudSyncProvider';
+import PostsQueryProvider from '@/features/post-list/posts-query/PostsQueryProvider';
 import PostsProvider from '@/features/posts-context/PostsProvider';
 import FirstSyncScreen from '@/features/sync-status/FirstSyncScreen';
 import RootNavigator from '@/navigators/RootNavigator';
@@ -187,7 +188,9 @@ function AppGate() {
       <AlbumsProvider>
         <PostsProvider>
           <CloudSyncProvider>
-            <MainApp />
+            <PostsQueryProvider>
+              <MainApp />
+            </PostsQueryProvider>
           </CloudSyncProvider>
         </PostsProvider>
       </AlbumsProvider>
@@ -197,7 +200,9 @@ function AppGate() {
 
 export default Sentry.wrap(App);
 
-function MainApp() {
+// Memoized: AppGate re-renders on every sync_meta write (sync status, cursor), which must not
+// re-render the whole app below it.
+const MainApp = memo(function MainApp() {
   return (
     <AssetThumbnailLoaderProvider>
       <NavigationContainer ref={navigationRef} onReady={flushPendingNavigation}>
@@ -223,7 +228,7 @@ function MainApp() {
       </NavigationContainer>
     </AssetThumbnailLoaderProvider>
   );
-}
+});
 
 const styles = StyleSheet.create({
   root: {

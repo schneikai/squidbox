@@ -1,7 +1,7 @@
 import { useWindowDimensions } from 'react-native';
 import Animated from 'react-native-reanimated';
 
-import useGetAlbumThumbnailAssetAndAssetCount from './useGetAlbumThumbnailAssetAndAssetCount';
+import useAlbumCovers from './useAlbumCovers';
 
 import { SCREEN_PADDING } from '@/constants';
 import useAlbums from '@/features/albums-context/useAlbums';
@@ -15,7 +15,7 @@ export default function AlbumList({
   onScroll,
 }) {
   const { albums } = useAlbums();
-  const getAlbumThumbnailAssetAndAssetCount = useGetAlbumThumbnailAssetAndAssetCount();
+  const covers = useAlbumCovers();
 
   // I use window width and num of columns to calculate the width of each album
   // in the view. We also use columnWrapperStyle to get even margins left, right
@@ -42,7 +42,7 @@ export default function AlbumList({
         const album = albums[albumId];
         if (!album) return null;
 
-        const { thumbnailAsset, numberOfAssets } = getAlbumThumbnailAssetAndAssetCount(album);
+        const { thumbnailAsset, numberOfAssets } = covers[albumId];
 
         return renderItem({ album, thumbnailAsset, numberOfAssets, elementWidth });
       }}

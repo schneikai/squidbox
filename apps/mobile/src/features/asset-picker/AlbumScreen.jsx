@@ -1,5 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import AssetQuickViewModal, { useAssetQuickViewModal } from '@/components/AssetQuickViewModal';
 import PickerHeader from '@/components/PickerHeader';
@@ -15,6 +15,7 @@ import prepareAssets from '@/features/asset-list/prepareAssets';
 import useAssetList from '@/features/asset-list/useAssetList';
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';
 import useAssets from '@/features/assets-context/useAssets';
+import getAlbumAssets from '@/utils/albums/getAlbumAssets';
 
 export default function AlbumScreen({ route, navigation }) {
   const { albumId } = route.params;
@@ -22,9 +23,8 @@ export default function AlbumScreen({ route, navigation }) {
   const { albums } = useAlbums();
 
   const { toggleSelectAsset, isAssetSelected, setAlbumScreenProps } = useAssetPicker();
-  const [album] = useState(albums[albumId]);
+  const album = albums[albumId];
 
-  const [assetIds, setAssetIds] = useState();
   const { listRef, listScrollTop } = useAssetList();
   const { sortOrder, sortFunction, sortAssets } = useSortAssetsAction({ afterSort: listScrollTop });
   const { activeFilter, toggleFilter, matchFilter } = useFilterAssetsAction({ afterFilter: listScrollTop });
@@ -39,13 +39,17 @@ export default function AlbumScreen({ route, navigation }) {
     }, [navigation]),
   );
 
-  useEffect(() => {
-    const albumAssets = album.assets.map((assetId) => assets[assetId]);
-    const assetIds = prepareAssets({ assets: albumAssets, sortFn: sortFunction, filterFn: matchFilter }).map(
-      (asset) => asset.id,
-    );
-    setAssetIds(assetIds);
-  }, [album, assets, sortOrder, activeFilter]);
+  const assetIds = useMemo(
+    () =>
+      prepareAssets({
+        assets: album ? getAlbumAssets(album, assets) : [],
+        sortFn: sortFunction,
+        filterFn: matchFilter,
+      }).map((asset) => asset.id),
+    [album, assets, sortFunction, matchFilter],
+  );
+
+  if (!album) return null;
 
   return (
     <>

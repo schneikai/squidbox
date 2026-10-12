@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 
 import PostImage from './PostImage';
@@ -11,15 +11,9 @@ import { colors, scale, typography } from '@/styles/designTokens';
 import isPresent from '@/utils/isPresent';
 import assetRefsToPostAssets from '@/utils/posts/assetRefsToPostAssets';
 
-// import { getPostAssetsWithAssets } from '@/utils/postUtils';
-
 export default function PostListItem({ text, assetRefs, isFavorite, postedAt, suggestRepostAt }) {
   const { assets } = useAssets();
-  const [postAssets, setPostAssets] = useState([]);
-
-  useEffect(() => {
-    setPostAssets(assetRefsToPostAssets(assetRefs, assets));
-  }, [assetRefs]);
+  const postAssets = useMemo(() => assetRefsToPostAssets(assetRefs, assets), [assetRefs, assets]);
 
   return (
     <View style={styles.container}>

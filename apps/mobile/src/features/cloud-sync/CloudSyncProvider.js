@@ -99,13 +99,9 @@ export default function CloudSyncProvider({ children }) {
           await deleteAssetFileAsync(asset.filename);
         }
 
-        if (!asset.isThumbnailSynced) {
-          await uploadAssetThumbnailAsync(asset);
-          await updateAsset(asset.id, { isThumbnailSynced: true });
-          // We keep the local thumbnail because it is used in the app.
-        }
-
-        await updateAsset(asset.id, { isSynced: true });
+        // We keep the local thumbnail because it is used in the app.
+        if (!asset.isThumbnailSynced) await uploadAssetThumbnailAsync(asset);
+        await updateAsset(asset.id, { isThumbnailSynced: true, isSynced: true });
       } catch (error) {
         // We do not raise the error and instead continue syncing the other assets.
         // Sync errors are then shown in the UI with a button to retry.

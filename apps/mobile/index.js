@@ -6,7 +6,13 @@
 // Must be the entry file's first import (React Navigation: gesture handler setup).
 import 'react-native-gesture-handler';
 import { registerRootComponent } from 'expo';
+import { enableFreeze } from 'react-native-screens';
 
 import App from './App';
+
+// Screens that aren't visible (other tabs, screens under a pushed one) don't re-render; they
+// catch up once when they come back. Without this, every write to the library re-sorts and
+// re-renders screens nobody sees. Makes `freezeOnBlur` the default for all navigators.
+enableFreeze(true);
 
 registerRootComponent(App);
