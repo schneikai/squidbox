@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "mobile": "npm run --workspace apps/mobile start",
+    "dev:local": "node scripts/dev-local.mjs",
     "lint": "npm run --workspace apps/mobile lint"
   },
   "devDependencies": {

@@ -16,9 +16,10 @@ import useCloud from '@/features/cloud/useCloud';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
 import { colors } from '@/styles/designTokens';
 import { useSyncStatus } from '@/sync/useSyncStatus';
+import { API_BASE_URL } from '@/utils/cloud-api/apiBaseUrl';
 import useResortAlbumsByName from '@/utils/tools/useResortAlbumsByName';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/api\/v1\/?$/, '');
+const SERVER_URL = API_BASE_URL?.replace(/\/api\/v1\/?$/, '');
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
@@ -78,14 +79,14 @@ export default function SettingsScreen() {
 
   async function handleCheckApi() {
     try {
-      const response = await fetch(`${API_BASE_URL}/up`);
+      const response = await fetch(`${SERVER_URL}/up`);
       if (response.ok) {
-        Alert.alert('API reachable', API_BASE_URL);
+        Alert.alert('API reachable', SERVER_URL);
       } else {
-        Alert.alert('API error', `Status: ${response.status}\n${API_BASE_URL}`);
+        Alert.alert('API error', `Status: ${response.status}\n${SERVER_URL}`);
       }
     } catch (error) {
-      Alert.alert('API unreachable', `${error.message}\n${API_BASE_URL}`);
+      Alert.alert('API unreachable', `${error.message}\n${SERVER_URL}`);
     }
   }
 
@@ -154,7 +155,7 @@ export default function SettingsScreen() {
 
             <ScreenSectionHeader title="Developer" />
             <Section>
-              <Row label="API URL" value={API_BASE_URL} />
+              <Row label="API URL" value={SERVER_URL} />
               <Row label="Check API" onPress={handleCheckApi} chevron />
             </Section>
           </>

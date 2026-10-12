@@ -1,5 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
+import { API_BASE_URL } from '@/utils/cloud-api/apiBaseUrl';
 import { getAccessTokenAsync } from '@/utils/cloud-api/apiTokenStore';
 import refreshAccessTokenAsync from '@/utils/cloud-api/authentication/refreshAccessTokenAsync';
 
@@ -24,9 +25,7 @@ async function doUploadAsync(filename, fileUri, accessToken, onProgress) {
   // Token is passed as a query param because iOS can silently drop Authorization
   // headers on background upload tasks (NSURLSessionUploadTask limitation).
   // The API's authenticate_request supports both header and ?token= param.
-  const uploadUrl = `${process.env.EXPO_PUBLIC_API_URL}/assets/upload/${encodeURIComponent(
-    filename,
-  )}?token=${accessToken}`;
+  const uploadUrl = `${API_BASE_URL}/assets/upload/${encodeURIComponent(filename)}?token=${accessToken}`;
 
   // TODO: We could return the uploadTask.cancelAsync() method from this function
   // to allow to cancel the upload if needed.

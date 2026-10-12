@@ -39,9 +39,9 @@ Two gitignored env files in `apps/mobile/`, each for a different audience:
 | `.env.local` | Metro, at runtime | Supplies `EXPO_PUBLIC_*` to the **dev client** over the tunnel. Copy from `.env.local.example`. |
 | `.secrets` | you, once | Upload bundle to push **preview/release** secrets to EAS. Not read at runtime. |
 
-`.env.local` holds `EXPO_PUBLIC_API_URL`, `NGROK_AUTHTOKEN`, optional login prefill, Sentry debug, the OpenAI key, and optionally `LOCAL_BACKEND_URL`. Each variable is explained in `.env.local.example`.
+`.env.local` holds `EXPO_PUBLIC_API_URL`, `NGROK_AUTHTOKEN`, optional login prefill, Sentry debug and the OpenAI key. Each variable is explained in `.env.local.example`.
 
-`EXPO_PUBLIC_API_URL` must be reachable **from the phone** (not `localhost`). Use either the deployed backend at `https://squidbox-server.fly.dev/api/v1`, or the local backend through Metro's tunnel (see [Local backend with mock data](#local-backend-with-mock-data)). Restart Metro with `-c` after changing it.
+`EXPO_PUBLIC_API_URL` is the deployed backend, `https://squidbox-server.fly.dev/api/v1`. `npm run dev:local` points the dev client at the local backend instead, without touching the file (see [Local backend with mock data](#local-backend-with-mock-data)). Restart Metro with `-c` after changing `.env.local`.
 
 `.secrets` lists the values the **preview/production** builds need (`EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_OPENAI_API_KEY`, `SENTRY_AUTH_TOKEN`). They are stored as EAS environment variables:
 
@@ -95,30 +95,18 @@ The Expo tunnel URL stays the same across restarts of the same checkout. Open th
 
 ### Local backend with mock data
 
-The dev client can run against a local backend filled with stock photos, albums and posts, so testing never touches your real library. Metro forwards API and file requests to the local stack, so the phone needs only Metro's tunnel.
+The dev client can run against a local backend filled with stock photos, albums and posts, so testing never touches your real library. One command starts everything, from the repo root (needs Docker and `.env.local`):
 
-One-time setup (needs Docker):
+```
+npm run dev:local                    # start
+npm run dev:local -- --reset-data    # start and reset the account to exactly the mock data set
+```
 
-1. In `apps/server/`: `cp .env.docker .env`, then `npm run local:setup` (Postgres + MinIO,
-   migrations, local accounts).
-2. Start Metro with a tunnel (see above) and note its URL. Expo's tunnel keeps the same URL for this
-   checkout.
-3. In `apps/server/.env`, set `S3_PUBLIC_ENDPOINT=<tunnel URL>`. Run `npm run dev`, then
-   `npm run seed:mock`.
-4. In `apps/mobile/.env.local`, set:
-   ```
-   EXPO_PUBLIC_API_URL=<tunnel URL>/api/v1
-   LOCAL_BACKEND_URL=http://localhost:3100
-   EXPO_PUBLIC_LOGIN_FORM_EMAIL=me@example.com
-   EXPO_PUBLIC_LOGIN_FORM_PASSWORD=<SEED_USER_PASSWORD from apps/server/.env>
-   ```
-5. Restart Metro with `-c`, reload the dev client and sign in.
+It starts Postgres + MinIO, applies migrations and creates the local accounts, starts Metro with Expo's tunnel, then the API server, and prints the tunnel URL to open in Squidbox (Dev). The login form is prefilled with the local account, unless `.env.local` sets its own prefill. Ctrl+C stops Metro and the server; the Docker stack keeps running.
 
-Later sessions: start Metro with its tunnel and `npm run dev` in `apps/server/`. If the tunnel URL
-changed, update it in both env files. `npm run seed:mock` resets the account to exactly the mock set
-at any time.
+Metro serves the API and file storage through its own tunnel (`apps/mobile/scripts/localBackendProxy.js`), and the app sends its API calls to the dev server it loaded from. So no env file holds the tunnel URL, and `.env.local` stays pointed at the live backend. On the first run, `apps/server/.env` is created from `.env.docker`.
 
-To go back to your real library, point `EXPO_PUBLIC_API_URL` at the live backend again, remove `LOCAL_BACKEND_URL`, restart Metro and sign in with your account. Signing in as a different account wipes the device's local data first, so the two libraries never mix.
+To go back to your real library, start Metro normally and sign in with your account. Signing in as a different account wipes the device's local data first, so the two libraries never mix.
 
 If Docker pulls fail, or the server can't reach MinIO, see `apps/server/README.md` → "Local development".
 

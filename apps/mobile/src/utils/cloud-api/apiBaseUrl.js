@@ -1,21 +1,12 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { TurboModuleRegistry } from 'react-native';
 
-// Runtime-selectable API base URL. Defaults to the build-time EXPO_PUBLIC_API_URL, but a dev
-// setting can override it at runtime (e.g. point the dev client at your machine's LAN IP or an
-// apps/server tunnel) without a rebuild — EXPO_PUBLIC_* is inlined at build time and can't.
-const OVERRIDE_KEY = 'apiBaseUrlOverride';
+// `npm run dev:local` sets EXPO_PUBLIC_LOCAL_BACKEND: Metro then serves the local backend, so the API
+// lives on the dev server the bundle came from and the tunnel URL never has to be configured.
+export const API_BASE_URL = process.env.EXPO_PUBLIC_LOCAL_BACKEND
+  ? `${devServerOrigin()}/api/v1`
+  : process.env.EXPO_PUBLIC_API_URL;
 
-let cached; // undefined = not loaded yet; null = no override
-
-export async function getApiBaseUrlAsync() {
-  if (cached === undefined) {
-    cached = (await AsyncStorage.getItem(OVERRIDE_KEY)) || null;
-  }
-  return cached || process.env.EXPO_PUBLIC_API_URL;
-}
-
-export async function setApiBaseUrlAsync(url) {
-  cached = url || null;
-  if (url) await AsyncStorage.setItem(OVERRIDE_KEY, url);
-  else await AsyncStorage.removeItem(OVERRIDE_KEY);
+function devServerOrigin() {
+  const { scriptURL } = TurboModuleRegistry.getEnforcing('SourceCode').getConstants();
+  return scriptURL.match(/^https?:\/\/[^/]+/)[0];
 }

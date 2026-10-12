@@ -131,11 +131,10 @@ Node 20 reached end of life in April 2026. `mise.toml` pins 20.19.4 and the serv
   queue's concurrency cap. Decide first: Wi-Fi only (recommended), any network, or stay lazy.
 - **Mock videos.** `npm run seed:mock` creates photos only. Adding a few short videos would cover
   the video player and controls.
-- **Easier local backend switching.** Pointing the dev client at the local backend means editing
-  two env files and the tunnel URL by hand. A small script could switch between live and local.
 - **Server env precedence.** `node --env-file` never overrides variables already in the shell, so
-  exported AWS credentials silently win over `apps/server/.env`. Loading `.env` with override
-  semantics for local runs would remove the pitfall.
+  exported AWS credentials silently win over `apps/server/.env`. `npm run dev:local` strips them;
+  plain `npm run dev` in `apps/server` doesn't. Loading `.env` with override semantics for local
+  runs would remove the pitfall.
 
 ## Owner-side (needs a device, infra or secrets)
 

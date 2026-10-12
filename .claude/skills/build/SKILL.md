@@ -65,9 +65,9 @@ EAS deletes build artifacts about 14 days after a build (`expirationDate` in
 
 ## Path A — Dev Client
 
-1. `EXPO_PUBLIC_API_URL` in `apps/mobile/.env.local` must be reachable from the phone: the live
-   backend `https://squidbox-server.fly.dev/api/v1`, or the local backend with mock data through
-   Metro's tunnel (README → "Local backend with mock data"). The dev client reads it at runtime.
+1. `EXPO_PUBLIC_API_URL` in `apps/mobile/.env.local` is the live backend
+   `https://squidbox-server.fly.dev/api/v1`. For the local backend with mock data, run
+   `npm run dev:local` from the repo root instead of step 4 (README → "Local backend with mock data").
 2. Build: `EAS_BUILD_PROFILE=development eas build -p ios -e development` (agent runs it).
 3. Install on the phone from the EAS build page → **Internal Distribution → Install**; trust the dev
    cert in **Settings → General → VPN & Device Management**.

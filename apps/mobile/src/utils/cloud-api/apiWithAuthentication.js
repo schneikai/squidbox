@@ -1,18 +1,17 @@
 import axios from 'axios';
 
-import { getApiBaseUrlAsync } from './apiBaseUrl';
+import { API_BASE_URL } from './apiBaseUrl';
 import { getAccessTokenAsync } from './apiTokenStore';
 import refreshAccessTokenAsync from './authentication/refreshAccessTokenAsync';
 
 const apiWithAuthentication = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_URL,
+  baseURL: API_BASE_URL,
   timeout: 15000, // fail fast on an unreachable backend instead of hanging (e.g. during startup sync)
 });
 
-// Add access token to request headers (+ resolve the runtime base URL)
+// Add access token to request headers
 apiWithAuthentication.interceptors.request.use(
   async (config) => {
-    config.baseURL = await getApiBaseUrlAsync();
     if (!config.headers['Authorization']) {
       const accessToken = await getAccessTokenAsync();
       if (accessToken) {

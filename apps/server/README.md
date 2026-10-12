@@ -58,8 +58,8 @@ albums (including Favorites and Deleted) and posts. Ids are deterministic, so re
 account to exactly that set. It refuses to run against a non-local API.
 
 `S3_PUBLIC_ENDPOINT` makes the server sign download URLs for a public address (Metro's tunnel) while
-it still talks to MinIO on localhost. The full phone setup is in the root README under
-"Local backend with mock data".
+it still talks to MinIO on localhost. `npm run dev:local` at the repo root sets it and starts the
+whole phone setup; see the root README under "Local backend with mock data".
 
 `--env-file` never overrides variables already in the shell. If your shell exports AWS
 credentials, start the server with `env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY npm run dev`.

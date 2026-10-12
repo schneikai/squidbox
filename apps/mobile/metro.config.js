@@ -29,12 +29,12 @@ config.resolver.unstable_enablePackageExports = false;
 // can inline them (see babel.config.js). Used by the on-device SQLite migrator.
 config.resolver.sourceExts = [...config.resolver.sourceExts, 'sql'];
 
-// Dev only: with LOCAL_BACKEND_URL set (see .env.local.example), Metro also serves a local
-// backend so the phone reaches it through Metro's tunnel.
-if (process.env.LOCAL_BACKEND_URL) {
+// Dev only: under `npm run dev:local`, Metro also serves the local backend so the phone reaches it
+// through Metro's tunnel.
+if (process.env.EXPO_PUBLIC_LOCAL_BACKEND) {
   const proxy = createLocalBackendProxy({
-    backendUrl: process.env.LOCAL_BACKEND_URL,
-    storageUrl: process.env.LOCAL_STORAGE_URL ?? 'http://localhost:9000',
+    backendUrl: 'http://localhost:3100',
+    storageUrl: 'http://localhost:9000',
   });
   const enhanceMiddleware = config.server.enhanceMiddleware;
   config.server.enhanceMiddleware = (middleware, server) => {
