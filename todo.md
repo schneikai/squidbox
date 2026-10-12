@@ -117,6 +117,13 @@ example jest-expo with React Native Testing Library) and cover the key screens f
 detail pager, login and sign-out, and the library grid. Consider end-to-end tests (for example
 Maestro) for the main flows later.
 
+### [ ] Read lists page by page from SQLite
+
+The providers still load whole tables (assets, album edges, posts) into memory on every launch,
+so startup grows with the library (~5.8 s to the first grid at 50k on web). Plan, reviewed and
+ready to build: `docs/paged-reads-plan.md`. It needs the owner's call on its three decisions
+(reorder only in custom sort, a 5,000 select-all cap, the "first 500" fallback) before step 3.
+
 ### [ ] Check a 50,000-asset library on a device
 
 The data layer was tuned on the web preview (`npm run seed:mock -- --assets 50000`): a favorite
@@ -176,6 +183,7 @@ Decommission the droplet once the photo upload test passes.
 ### [ ] Rotate credentials shared in chats
 
 Treat these as exposed and rotate them:
+
 - AWS access keys used for deploying and the legacy import.
 - From the October 2026 build sessions: the Expo access token, the App Store Connect API key, the
   ngrok authtoken, the OpenAI API key, the Docker Hub password, and the Squidbox account password.
