@@ -163,8 +163,10 @@ Tombstones flow like any other change.
 Client apply (`apps/mobile/src/sync/worker.ts`) is **server-authoritative and outbox-guarded**:
 an incoming record is applied only if that record has no pending outbox row. If it has one, the
 record is skipped; the pending push re-asserts the local edit and the push result settles it
-(§6). Each collection's records in a page are applied in one SQLite transaction as multi-row
-upserts by `id`, then the cursor is saved. Re-applying a page is harmless.
+(§6). The client pulls pages until it holds about 5,000 records (or the server has no more), then
+applies them in one SQLite transaction, as multi-row upserts by `id`, together with the new cursor.
+Few big transactions matter on web, where every page a transaction touches is written again. A
+crash before the commit re-pulls those pages; re-applying them is harmless.
 
 The client never compares an incoming `updatedAt` with the committed local row. The server
 clamps future timestamps (§7), so a device with a fast clock would hold local timestamps higher
@@ -351,8 +353,8 @@ change.
 **Sync worker** (`apps/mobile/src/sync/worker.ts`). One run is push, then pull:
 
 1. Push all outbox rows in batches of 500 and handle each result (§6).
-2. Pull from the stored cursor until `hasMore` is false, applying each page (§5). Then set
-   `firstSyncDone`.
+2. Pull from the stored cursor until `hasMore` is false, applying the pages in batches of about
+   5,000 records (§5). Then set `firstSyncDone`.
 
 Each run writes a `sync_log` entry and updates `status`. A failed run sets `phase: 'error'` with
 `lastError`; the next trigger retries.

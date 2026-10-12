@@ -24,6 +24,10 @@ import type { SyncTransport } from './transport';
 const PULL_LIMIT = 1000; // server/contract cap; larger pages = fewer reactive storms on bulk pull
 const PUSH_BATCH = 500; // server caps pushRequest mutations at 500
 const UPSERT_BATCH = 500; // rows per INSERT; ~20 columns each stays far below SQLite's 32766 variables
+// Records per apply transaction. Each transaction writes every database page it touches once more
+// (the rollback journal), and with random ids a transaction touches most index pages, so a few big
+// transactions are much faster than one per page: on web, a 50k first sync drops from ~3 min to ~40 s.
+const APPLY_BATCH = 5000;
 
 // ── DI core: one push→pull pass against an injected db + transport, recording a sync_log entry
 // (counts, duration, conflict notes, error). Testable off-device (better-sqlite3 + an in-process
@@ -103,14 +107,19 @@ async function pullPhase(db: SyncDb, transport: SyncTransport): Promise<number> 
   let hasMore = true;
   let pulled = 0;
   while (hasMore) {
-    const page = await transport.pull({ cursor, limit: PULL_LIMIT });
-    // Apply every registered collection's changes to its local table.
-    for (const [name, table] of Object.entries(clientCollectionTables)) {
-      pulled += await applyPage(db, name, table, page.changes[name]?.records ?? []);
-    }
-    cursor = page.cursor;
-    await setCursor(db, cursor);
-    hasMore = page.hasMore;
+    const changes: Record<string, Record<string, unknown>[]> = {};
+    let buffered = 0;
+    do {
+      const page = await transport.pull({ cursor, limit: PULL_LIMIT });
+      for (const name of Object.keys(clientCollectionTables)) {
+        const records = page.changes[name]?.records ?? [];
+        (changes[name] ??= []).push(...records);
+        buffered += records.length;
+      }
+      cursor = page.cursor;
+      hasMore = page.hasMore;
+    } while (hasMore && buffered < APPLY_BATCH);
+    pulled += await applyChanges(db, changes, cursor);
   }
   // The initial full pull has drained — the app can leave the "Setting up…" gate.
   await markFirstSyncDone(db);
@@ -119,21 +128,25 @@ async function pullPhase(db: SyncDb, transport: SyncTransport): Promise<number> 
 }
 
 // Outbox-guarded apply (sync-design §5): apply an incoming record only if it has no pending
-// local mutation. Never timestamp-compare against committed local state. One transaction/page.
-// Returns the number of records actually applied.
-async function applyPage(
+// local mutation. Never timestamp-compare against committed local state. The records of several
+// pages and their cursor commit in one transaction. Returns the number of records actually applied.
+async function applyChanges(
   db: SyncDb,
-  collection: string,
-  table: SQLiteTable,
-  records: Record<string, unknown>[],
+  changes: Record<string, Record<string, unknown>[]>,
+  cursor: number,
 ): Promise<number> {
-  if (records.length === 0) return 0;
-  const pending = await pendingRecordIds(db, collection);
-  const incoming = records.filter((record) => !pending.has(String(record.id))); // local edits re-assert via push
-  await db.transaction(async (tx) => {
-    for (const batch of chunk(incoming, UPSERT_BATCH)) await upsertRecords(tx, collection, table, batch);
+  return db.transaction(async (tx) => {
+    let applied = 0;
+    for (const [name, table] of Object.entries(clientCollectionTables)) {
+      if (changes[name].length === 0) continue;
+      const pending = await pendingRecordIds(tx, name);
+      const incoming = changes[name].filter((record) => !pending.has(String(record.id))); // local edits re-assert via push
+      for (const batch of chunk(incoming, UPSERT_BATCH)) await upsertRecords(tx, name, table, batch);
+      applied += incoming.length;
+    }
+    await setCursor(tx, cursor);
+    return applied;
   });
-  return incoming.length;
 }
 
 async function applyRecord(db: SyncDb, collection: string, record: Record<string, unknown>): Promise<void> {

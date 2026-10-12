@@ -11,7 +11,12 @@ let opening: Promise<AppDb> | null = null;
 
 // Opened once at launch (DatabaseGate in App.js), before anything reads or writes.
 export function openDatabase(): Promise<AppDb> {
-  opening ??= openDatabaseAsync(DB_NAME).then((sqlite) => (db = createDb(expoExecutor(sqlite))));
+  opening ??= openDatabaseAsync(DB_NAME).then(async (sqlite) => {
+    // Up to 64 MB of page cache (allocated on demand), so big transactions don't spill pages to the
+    // journal mid-way. The default 2 MB triples the time of a large sync on web.
+    await sqlite.execAsync('PRAGMA cache_size = -65536');
+    return (db = createDb(expoExecutor(sqlite)));
+  });
   return opening;
 }
 
