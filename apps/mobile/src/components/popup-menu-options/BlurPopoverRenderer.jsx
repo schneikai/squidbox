@@ -1,8 +1,8 @@
 import { BlurView } from 'expo-blur';
 import React from 'react';
-import { Animated, Easing, I18nManager, StyleSheet, View } from 'react-native';
+import { Animated, I18nManager, StyleSheet, View } from 'react-native';
 
-import { colors, radii, shadows, spacing } from '@/styles/designTokens';
+import { colors, motion, radii, shadows, spacing } from '@/styles/designTokens';
 
 /**
  * Custom react-native-popup-menu renderer.
@@ -80,23 +80,12 @@ export default class BlurPopoverRenderer extends React.Component {
   }
 
   componentDidMount() {
-    Animated.spring(this.state.anim, {
-      toValue: 1,
-      damping: 18,
-      stiffness: 260,
-      mass: 0.8,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(this.state.anim, { toValue: 1, ...motion.spring, useNativeDriver: true }).start();
   }
 
   close() {
     return new Promise((resolve) => {
-      Animated.timing(this.state.anim, {
-        toValue: 0,
-        duration: 140,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }).start(resolve);
+      Animated.timing(this.state.anim, { toValue: 0, ...motion.exit, useNativeDriver: true }).start(resolve);
     });
   }
 

@@ -11,7 +11,7 @@ import GradientButton from '@/components/GradientButton';
 import Icon from '@/components/Icon';
 import useCloud from '@/features/cloud/useCloud';
 import actionButtonStyles from '@/styles/actionButtonStyles';
-import { colors, shadows, spacing, typography } from '@/styles/designTokens';
+import { colors, motion, shadows, spacing, typography } from '@/styles/designTokens';
 
 export default function FloatingHeader({
   title,
@@ -34,23 +34,23 @@ export default function FloatingHeader({
     const scrollOpacity = interpolate(scrollY.value, [0, 60], [1, 0], Extrapolation.CLAMP);
     const scrollY_ = interpolate(scrollY.value, [0, 60], [0, -8], Extrapolation.CLAMP);
     return {
-      opacity: withTiming(isSelectMode ? 0 : scrollOpacity, { duration: 200 }),
-      transform: [{ translateY: scrollY_ }, { translateX: withTiming(isSelectMode ? -24 : 0, { duration: 200 }) }],
+      opacity: withTiming(isSelectMode ? 0 : scrollOpacity, motion.move),
+      transform: [{ translateY: scrollY_ }, { translateX: withTiming(isSelectMode ? -24 : 0, motion.move) }],
       pointerEvents: isSelectMode ? 'none' : 'auto',
     };
   });
 
   // Normal controls (avatar + action pill) fade out in select mode
   const normalStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(isSelectMode ? 0 : 1, { duration: 200 }),
-    transform: [{ translateX: withTiming(isSelectMode ? 30 : 0, { duration: 200 }) }],
+    opacity: withTiming(isSelectMode ? 0 : 1, motion.move),
+    transform: [{ translateX: withTiming(isSelectMode ? 30 : 0, motion.move) }],
     pointerEvents: isSelectMode ? 'none' : 'auto',
   }));
 
   // Select pill slides in from right in select mode
   const selectPillStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(isSelectMode ? 1 : 0, { duration: 200 }),
-    transform: [{ translateX: withTiming(isSelectMode ? 0 : 30, { duration: 200 }) }],
+    opacity: withTiming(isSelectMode ? 1 : 0, motion.move),
+    transform: [{ translateX: withTiming(isSelectMode ? 0 : 30, motion.move) }],
     pointerEvents: isSelectMode ? 'auto' : 'none',
   }));
 

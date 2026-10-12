@@ -28,12 +28,14 @@ import {
 } from '@/features/ai-suggestions/aiSuggestionsStorage';
 import sendAiMessageAsync from '@/features/ai-suggestions/sendAiMessageAsync';
 import useAssets from '@/features/assets-context/useAssets';
-import { colors, radii, scale, typography } from '@/styles/designTokens';
+import { colors, motion, radii, scale, typography } from '@/styles/designTokens';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
 const TWEET_BATCH_SIZE = 10;
 const BATCH_INSTRUCTION = `Generate exactly ${TWEET_BATCH_SIZE} tweets and return them as a raw JSON array of strings. Nothing else.`;
 const SWIPE_THRESHOLD = 50;
+// Swapping cards is a quick fade-through: the old one exits, the new one enters at the fast duration.
+const SWAP_IN = { ...motion.enter, duration: motion.duration.fast };
 
 export default function RandomSuggestionsModal({ visible, onClose, onConfirm, recentPostTexts = [] }) {
   const { assets } = useAssets();
@@ -148,12 +150,12 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
 
   function animateTransition(opacityVal, translateVal, direction, callback) {
     const outX = direction === 'next' ? -40 : 40;
-    opacityVal.value = withTiming(0, { duration: 100 }, (finished) => {
+    opacityVal.value = withTiming(0, motion.exit, (finished) => {
       if (finished) {
         runOnJS(callback)();
         translateVal.value = -outX;
-        opacityVal.value = withTiming(1, { duration: 150 });
-        translateVal.value = withTiming(0, { duration: 150 });
+        opacityVal.value = withTiming(1, SWAP_IN);
+        translateVal.value = withTiming(0, SWAP_IN);
       }
     });
   }

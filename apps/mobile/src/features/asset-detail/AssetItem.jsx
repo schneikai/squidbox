@@ -7,6 +7,7 @@ import { Animated, Pressable } from 'react-native';
 import { PinchGestureHandler, State } from 'react-native-gesture-handler';
 
 import AssetImage from '@/components/AssetImage';
+import { motion } from '@/styles/designTokens';
 
 export default function AssetItem({ asset, style, onTap }) {
   const pinchScale = useRef(new Animated.Value(1)).current;
@@ -17,7 +18,7 @@ export default function AssetItem({ asset, style, onTap }) {
 
   function handlePinchStateChange(event) {
     if (event.nativeEvent.oldState !== State.ACTIVE) return;
-    Animated.spring(pinchScale, { toValue: 1, useNativeDriver: true }).start();
+    Animated.spring(pinchScale, { toValue: 1, ...motion.spring, useNativeDriver: true }).start();
   }
 
   return (

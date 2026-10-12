@@ -12,7 +12,7 @@ import GradientButton from '@/components/GradientButton';
 import Icon from '@/components/Icon';
 import { navigateToTab } from '@/navigators/navigationRef';
 import actionButtonStyles from '@/styles/actionButtonStyles';
-import { colors, spacing } from '@/styles/designTokens';
+import { colors, motion, spacing } from '@/styles/designTokens';
 
 const NAV_ITEMS = [
   { tab: 'AssetsTab', icon: 'grid' },
@@ -35,7 +35,7 @@ export default function FloatingNavigationBar() {
   // Toggle-driven: search / select / depth — animated both ways via shared value
   const contextHidden = useSharedValue(hideBar ? 1 : 0);
   useEffect(() => {
-    contextHidden.value = withTiming(hideBar ? 1 : 0, { duration: 250 });
+    contextHidden.value = withTiming(hideBar ? 1 : 0, hideBar ? motion.exit : motion.enter);
   }, [hideBar]);
 
   const navBarStyle = useAnimatedStyle(() => {

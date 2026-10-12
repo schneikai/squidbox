@@ -7,7 +7,7 @@ import FloatingPill from './FloatingPill';
 
 import Icon from '@/components/Icon';
 import actionButtonStyles from '@/styles/actionButtonStyles';
-import { colors, scale, spacing } from '@/styles/designTokens';
+import { colors, motion, scale, spacing } from '@/styles/designTokens';
 
 /**
  * Three-part floating header for detail screens, mirroring the main screen
@@ -39,8 +39,8 @@ export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot
   }, [containerWidth, leftWidth, rightWidth]);
 
   const leftStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(isSelectMode ? 0 : 1, { duration: 200 }),
-    transform: [{ translateX: withTiming(isSelectMode ? -24 : 0, { duration: 200 }) }],
+    opacity: withTiming(isSelectMode ? 0 : 1, motion.move),
+    transform: [{ translateX: withTiming(isSelectMode ? -24 : 0, motion.move) }],
   }));
 
   return (

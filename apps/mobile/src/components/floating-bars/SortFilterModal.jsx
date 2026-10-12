@@ -7,11 +7,11 @@
 // Would require adding sub-panel navigation support to the popup-menu renderer.
 import { BlurView } from 'expo-blur';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Icon from '@/components/Icon';
 import useAppSettings from '@/features/app-settings/useAppSettings';
-import { colors, radii, shadows, spacing } from '@/styles/designTokens';
+import { colors, motion, radii, shadows, spacing } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
 const DEFAULT_SORT_OPTIONS = [
@@ -54,8 +54,7 @@ export default function SortFilterModal({
   useEffect(() => {
     Animated.timing(anim, {
       toValue: visible ? 1 : 0,
-      duration: visible ? 180 : 130,
-      easing: visible ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
+      ...(visible ? motion.enter : motion.exit),
       useNativeDriver: true,
     }).start();
   }, [visible]);

@@ -9,7 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 
-import { colors, scale, typography } from '@/styles/designTokens';
+import { colors, motion, scale, typography } from '@/styles/designTokens';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -18,16 +18,13 @@ const SIZE = scale(160);
 const STROKE_WIDTH = scale(10);
 const RADIUS = (SIZE - STROKE_WIDTH) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-// Tween just long enough to bridge the gap between throttled progress updates
-// so the ring and number move smoothly instead of jumping between chunks.
-const TWEEN_DURATION = 300;
-
 export default function ProgressRing({ value }) {
   const animatedValue = useSharedValue(0);
   const [displayValue, setDisplayValue] = useState(0);
 
   useEffect(() => {
-    animatedValue.value = withTiming(clamp(value), { duration: TWEEN_DURATION });
+    // Bridges the gap between throttled progress updates, so the ring doesn't jump between chunks.
+    animatedValue.value = withTiming(clamp(value), motion.move);
   }, [value, animatedValue]);
 
   useAnimatedReaction(

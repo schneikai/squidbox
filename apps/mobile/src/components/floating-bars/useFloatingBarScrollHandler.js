@@ -2,6 +2,8 @@ import { useAnimatedScrollHandler, withTiming } from 'react-native-reanimated';
 
 import { useFloatingBars } from './FloatingBarsContext';
 
+import { motion } from '@/styles/designTokens';
+
 const DIRECTION_THRESHOLD = 6;
 const TOP_REVEAL_Y = 24;
 
@@ -20,7 +22,7 @@ export default function useFloatingBarScrollHandler() {
 
       // Always reveal near the top regardless of direction
       if (y <= TOP_REVEAL_Y) {
-        isNavBarHidden.value = withTiming(0, { duration: 160 });
+        isNavBarHidden.value = withTiming(0, motion.enter);
         return;
       }
 
@@ -30,9 +32,9 @@ export default function useFloatingBarScrollHandler() {
 
       const dy = y - (ctx.prevY ?? y);
       if (dy > DIRECTION_THRESHOLD) {
-        isNavBarHidden.value = withTiming(1, { duration: 160 });
+        isNavBarHidden.value = withTiming(1, motion.exit);
       } else if (dy < -DIRECTION_THRESHOLD) {
-        isNavBarHidden.value = withTiming(0, { duration: 160 });
+        isNavBarHidden.value = withTiming(0, motion.enter);
       }
       ctx.prevY = y;
     },

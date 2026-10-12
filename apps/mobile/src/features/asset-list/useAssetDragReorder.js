@@ -4,6 +4,8 @@ import { withSpring } from 'react-native-reanimated';
 
 import gridIndexAtPoint from './gridIndexAtPoint';
 
+import { motion } from '@/styles/designTokens';
+
 // Apple Photos-style drag-to-reorder for the album asset grid.
 //
 // A touch-and-hold lifts the cell under the finger (it pops: scales up + shadow)
@@ -24,7 +26,6 @@ const LONG_PRESS_MS = 150;
 const EDGE_ZONE = 90;
 const MAX_SCROLL_STEP = 16;
 const SCROLL_TICK_MS = 16;
-const SPRING = { damping: 20, stiffness: 220, mass: 0.6 };
 
 export default function useAssetDragReorder({
   enabled,
@@ -131,9 +132,9 @@ export default function useAssetDragReorder({
     const slot = activeIndexRef.current;
     if (slot === -1) return;
     const { x, y } = handlers.current.slotToXY(slot);
-    activeScale.value = withSpring(1, SPRING);
-    activeX.value = withSpring(x, SPRING);
-    activeY.value = withSpring(y, SPRING, (finished) => {
+    activeScale.value = withSpring(1, motion.spring);
+    activeX.value = withSpring(x, motion.spring);
+    activeY.value = withSpring(y, motion.spring, (finished) => {
       'worklet';
       if (finished) activeId.value = null;
     });
@@ -171,7 +172,7 @@ export default function useAssetDragReorder({
 
           activeX.value = slotX;
           activeY.value = slotY;
-          activeScale.value = withSpring(1.08, SPRING);
+          activeScale.value = withSpring(1.08, motion.spring);
           activeId.value = orderRef.current[index];
           handlers.current.ensureAutoScroll();
         })

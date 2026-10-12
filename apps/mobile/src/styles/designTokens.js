@@ -1,4 +1,5 @@
 import { Dimensions } from 'react-native';
+import { Easing } from 'react-native-reanimated';
 
 const BASE_WIDTH = 390; // iPhone 14 Pro — design baseline
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -128,3 +129,25 @@ export const glass = {
   borderColor: colors.glassBorder,
   borderWidth: 1,
 };
+
+const durations = { fast: 150, base: 250 };
+
+// Motion: a small fixed set, so every transition in the app feels alike. Reanimated's easings are
+// worklets, so they also run in React Native's Animated.
+export const motion = {
+  duration: durations,
+  enter: { duration: durations.base, easing: Easing.out(Easing.cubic) }, // appears, decelerating into place
+  exit: { duration: durations.fast, easing: Easing.in(Easing.cubic) }, // leaves, shorter and accelerating away
+  move: { duration: durations.base, easing: Easing.inOut(Easing.cubic) }, // changes while staying on screen
+  spring: springConfig({ duration: 0.3, bounce: 0.15 }), // anything that grows, follows a finger or settles
+};
+
+// Apple's spring model (WWDC23 "Animate with springs"): perceptual duration in seconds and bounce
+// (0 = none), as the physics values both Animated.spring and Reanimated's withSpring take.
+function springConfig({ duration, bounce }) {
+  return {
+    mass: 1,
+    stiffness: ((2 * Math.PI) / duration) ** 2,
+    damping: (4 * Math.PI * (1 - bounce)) / duration,
+  };
+}

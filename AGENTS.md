@@ -61,6 +61,7 @@ The codebase follows a modular, component-driven architecture with an emphasis o
   - parents define layout
 - Do not use low-level primitives (e.g. raw TextInput, menu primitives) directly in features if a project component exists
 - Keep UI abstractions simple — avoid over-generalization
+- Animate with the `motion` tokens in `styles/designTokens.js` (`enter`, `exit`, `move`, `spring`), not ad-hoc durations, easings or spring values
 
 ## Naming
 

@@ -117,6 +117,12 @@ example jest-expo with React Native Testing Library) and cover the key screens f
 detail pager, login and sign-out, and the library grid. Consider end-to-end tests (for example
 Maestro) for the main flows later.
 
+### [ ] One animation library
+
+Animations use both React Native's `Animated` and Reanimated. Move the `Animated` ones
+(`BlurPopoverRenderer`, `SortFilterModal`, `MainTabNavigator`, `AssetImage`, `AiChatModal`;
+`AssetItem` goes with the zoom rework) to Reanimated, so everything runs on the UI thread with one API.
+
 ### [ ] Move off Node 20
 
 Node 20 reached end of life in April 2026. `mise.toml` pins 20.19.4 and the server image uses

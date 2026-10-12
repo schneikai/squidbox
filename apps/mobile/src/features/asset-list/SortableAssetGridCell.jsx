@@ -1,6 +1,6 @@
 import Animated, { useAnimatedReaction, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
-const SPRING = { damping: 20, stiffness: 220, mass: 0.6 };
+import { motion } from '@/styles/designTokens';
 
 // One absolutely-positioned cell in the sortable grid. Rests at its slot via
 // springs driven by the shared `positions` map; while it is the lifted cell it
@@ -28,8 +28,8 @@ export default function SortableAssetGridCell({
       if (slot == null || slot === prev) return;
       const x = (slot % numColumns) * itemSize;
       const y = Math.floor(slot / numColumns) * itemSize;
-      translateX.value = withSpring(x, SPRING);
-      translateY.value = withSpring(y, SPRING);
+      translateX.value = withSpring(x, motion.spring);
+      translateY.value = withSpring(y, motion.spring);
     },
   );
 

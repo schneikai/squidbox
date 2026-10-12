@@ -15,7 +15,7 @@ import FloatingPill from './FloatingPill';
 import Icon from '@/components/Icon';
 import AppTextInput from '@/components/TextInput';
 import actionButtonStyles from '@/styles/actionButtonStyles';
-import { colors, scale, spacing, typography } from '@/styles/designTokens';
+import { colors, motion, scale, spacing, typography } from '@/styles/designTokens';
 
 /**
  * Reusable bottom-left floating search + options bar, following the iOS search pattern:
@@ -63,7 +63,7 @@ export default function SearchOptionsBar({
   const { bottom: bottomInset } = useSafeAreaInsets();
 
   useEffect(() => {
-    expandProgress.value = withTiming(isSearchActive ? 1 : 0, { duration: 280 });
+    expandProgress.value = withTiming(isSearchActive ? 1 : 0, motion.move);
   }, [isSearchActive]);
 
   // Never leave the input focused on a screen that isn't visible: iOS would bring the keyboard back

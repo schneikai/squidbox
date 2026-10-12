@@ -1,12 +1,13 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useRef } from 'react';
-import { Animated, Easing } from 'react-native';
+import { Animated } from 'react-native';
 
 import AlbumNavigator from '@/navigators/AlbumNavigator';
 import AssetNavigator from '@/navigators/AssetNavigator';
 import PostNavigator from '@/navigators/PostNavigator';
 import SettingsNavigator from '@/navigators/SettingsNavigator';
+import { motion } from '@/styles/designTokens';
 
 // Shared ref so every tab instance can read the previously-active tab index
 // and derive the slide direction without needing a context.
@@ -40,14 +41,12 @@ function AnimatedTab({ children, tabIndex }) {
       Animated.parallel([
         Animated.timing(opacity, {
           toValue: 1,
-          duration: 240,
-          easing: Easing.out(Easing.cubic),
+          ...motion.enter,
           useNativeDriver: true,
         }),
         Animated.timing(translateX, {
           toValue: 0,
-          duration: 240,
-          easing: Easing.out(Easing.cubic),
+          ...motion.enter,
           useNativeDriver: true,
         }),
       ]).start();
