@@ -179,9 +179,9 @@ export async function resetLocalSync(db: SyncDb, { keepOutbox = false } = {}): P
   await db.transaction(async (tx) => {
     for (const table of Object.values(clientCollectionTables)) await tx.delete(table);
     if (!keepOutbox) await tx.delete(schema.outbox);
+    await setCursor(tx, 0);
+    await clearFirstSyncDone(tx);
   });
-  await setCursor(db, 0);
-  await clearFirstSyncDone(db);
 }
 
 // Reset local sync state iff a DIFFERENT user is signing in (the local DB holds the previous user's

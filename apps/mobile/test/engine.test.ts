@@ -55,6 +55,12 @@ describe('repository (real SQLite)', () => {
     expect(await outboxRows()).toHaveLength(1); // coalesced
   });
 
+  it('two toggles in flight together leave the favorite as it was', async () => {
+    const rec = await repo.createAsset(db, makeAssetRecord({ isFavorite: false }));
+    await Promise.all([repo.toggleFavorite(db, rec.id), repo.toggleFavorite(db, rec.id)]);
+    expect((await assetRow(rec.id))?.isFavorite).toBe(false);
+  });
+
   it('deleteAssets tombstones (excluded from the live map) and enqueues a delete', async () => {
     const rec = await repo.createAsset(db, makeAssetRecord());
     await repo.deleteAssets(db, [rec.id]);

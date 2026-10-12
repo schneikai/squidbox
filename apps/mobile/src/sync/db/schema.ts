@@ -101,7 +101,6 @@ export const syncMeta = sqliteTable('sync_meta', {
   key: text('key').primaryKey(),
   value: text('value'),
 });
-export type SyncMetaRow = typeof syncMeta.$inferSelect;
 
 // Outbox: pending local mutations to push. Coalesced to one row per (collection, recordId)
 // — the latest whole-record payload wins (sync-design §6).
@@ -120,7 +119,6 @@ export const outbox = sqliteTable(
   },
   (t) => ({ oneRowPerRecord: uniqueIndex('outbox_collection_record_idx').on(t.collection, t.recordId) }),
 );
-export type OutboxRow = typeof outbox.$inferSelect;
 
 // Ring-buffer of recent sync runs (last ~100) for the Inspector: counts, duration, errors, and
 // conflict/rebase notes (e.g. "assets <id>: local change overwritten by server"). Local-only.

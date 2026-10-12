@@ -1,10 +1,12 @@
 import type { AssetRecord } from '@squidbox/shared';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 
+import { nextVersion } from './clock';
 import * as schema from './db/schema';
 import type { AssetRow } from './db/schema';
 import type { SyncDb } from './db/types';
 import { makeRepository } from './repository';
+import { saveRecords } from './saveRecords';
 
 const repository = makeRepository<AssetRecord>('assets', schema.assets);
 
@@ -32,9 +34,12 @@ export const updateAsset = repository.update;
 /** Soft-delete (tombstone): set deletedAt. Binary/thumbnail cleanup is the caller's job. */
 export const deleteAssets = repository.remove;
 
+// Reads and writes in one transaction, so two quick toggles can't both flip the same old value.
 export async function toggleFavorite(db: SyncDb, id: string): Promise<void> {
-  const row = await db.select().from(schema.assets).where(eq(schema.assets.id, id)).get();
-  if (row) await updateAsset(db, id, { isFavorite: !row.isFavorite });
+  await db.transaction(async (tx) => {
+    const row = await tx.select().from(schema.assets).where(eq(schema.assets.id, id)).get();
+    if (row) await saveRecords(tx, 'assets', schema.assets, [nextVersion(row, { isFavorite: !row.isFavorite })]);
+  });
 }
 
 /** Local-only sync-error marker (never synced), for some assets. Writes only where it changes. */
