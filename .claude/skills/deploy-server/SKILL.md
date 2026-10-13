@@ -72,6 +72,28 @@ deploys. No separate "setup" vs "deploy" skill to choose.
 From the repo root: `fly deploy . --config apps/server/fly.toml --dockerfile apps/server/Dockerfile`
 Migrations run automatically. Verify: `curl https://<app>.fly.dev/up` → `{"status":"ok"}`.
 
+### From the cloud workspace (behind the agent proxy)
+
+The plain deploy fails there: Fly's remote (Depot) builder speaks gRPC, which the proxy doesn't
+carry; Docker Hub rate-limits the shared IP; and build containers neither reach the proxy nor trust
+its CA. Build the image locally instead and deploy it:
+
+1. Install the CLI: `curl -L https://fly.io/install.sh | sh` (then `~/.fly/bin/flyctl`). Log in with
+   `BROWSER=echo flyctl auth login` in the background; the user approves the printed URL, and
+   if they do it on another machine, finish with `flyctl auth login --code <code they paste>`.
+2. Base image from Google's Docker Hub mirror:
+   `docker pull mirror.gcr.io/library/node:20-slim && docker tag mirror.gcr.io/library/node:20-slim node:20-slim`
+3. Copy the Dockerfile to the scratchpad so that only `npm install` trusts the proxy CA (the final
+   image carries no proxy settings), then build with the host network:
+   ```bash
+   sed 's|^RUN npm pkg delete|ARG HTTPS_PROXY\nRUN --mount=type=bind,from=ccr,source=ca-bundle.crt,target=/tmp/ca.crt export NODE_EXTRA_CA_CERTS=/tmp/ca.crt https_proxy=$HTTPS_PROXY \&\& npm pkg delete|' \
+     apps/server/Dockerfile > "$SCRATCH/Dockerfile.deploy"
+   docker buildx build --network host --build-context ccr=/root/.ccr --build-arg HTTPS_PROXY="$HTTPS_PROXY" \
+     -f "$SCRATCH/Dockerfile.deploy" -t squidbox-server:$(git rev-parse --short HEAD) --load .
+   ```
+4. `SSL_CERT_FILE=/root/.ccr/ca-bundle.crt flyctl deploy --config apps/server/fly.toml --image squidbox-server:<sha> --local-only`
+   (the AAAA "DNS verification failed" warning there is the workspace resolver, not the app).
+
 ## Notes / gotchas
 
 - **Always-on:** `auto_stop_machines = false` — don't enable auto-stop; it would kill in-flight
