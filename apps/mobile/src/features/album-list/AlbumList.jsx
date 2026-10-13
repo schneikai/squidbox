@@ -15,7 +15,7 @@ export default function AlbumList({
   onScroll,
 }) {
   const { albums } = useAlbums();
-  const covers = useAlbumCovers();
+  const covers = useAlbumCovers(albumIds);
 
   // I use window width and num of columns to calculate the width of each album
   // in the view. We also use columnWrapperStyle to get even margins left, right

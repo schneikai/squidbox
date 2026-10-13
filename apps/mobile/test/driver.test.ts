@@ -56,6 +56,12 @@ describe('driver (createDb)', () => {
     expect(changes).toEqual([]);
   });
 
+  it("accepts drizzle-kit's backtick-quoted migration writes", async () => {
+    await db.run(sql.raw('CREATE TABLE `__new_things` (`id` text PRIMARY KEY)'));
+    await db.run(sql.raw("INSERT INTO `__new_things`(`id`) VALUES ('a')"));
+    expect(changes).toContainEqual(['__new_things']);
+  });
+
   it('refuses a write it cannot attribute to a table, which live reads would miss', async () => {
     await expect(db.run(sql`update assets set notes = 'x'`)).rejects.toThrow(/Untracked write/);
   });

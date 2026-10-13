@@ -7,16 +7,16 @@ import useAssets from '@/features/assets-context/useAssets';
 import getAlbumAssets from '@/utils/albums/getAlbumAssets';
 import getAlbumSortOrder from '@/utils/albums/getAlbumSortOrder';
 
-// Every album's cover (the asset it shows first, in the album screen's order) and asset count,
-// computed once when albums or assets change instead of in each album cell on every render.
-export default function useAlbumCovers() {
+// The cover (the asset it shows first, in the album screen's order) and asset count of each of
+// these albums, computed once when they or the assets change instead of in each cell on every render.
+export default function useAlbumCovers(albumIds) {
   const { albums } = useAlbums();
   const { assets } = useAssets();
   const { albumSortOrder } = useAppSettings();
 
   return useMemo(() => {
     const covers = {};
-    for (const album of Object.values(albums)) {
+    for (const album of albumIds.map((id) => albums[id]).filter(Boolean)) {
       const albumAssets = getAlbumAssets(album, assets);
       const sortFunction = getAssetSortFunction(getAlbumSortOrder(album, albumSortOrder));
       const thumbnailAsset = albumAssets.reduce(
@@ -26,5 +26,5 @@ export default function useAlbumCovers() {
       covers[album.id] = { thumbnailAsset, numberOfAssets: albumAssets.length };
     }
     return covers;
-  }, [albums, assets, albumSortOrder]);
+  }, [albumIds, albums, assets, albumSortOrder]);
 }

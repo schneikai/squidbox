@@ -44,13 +44,6 @@ export default function AlbumsProvider({ children }) {
   // `tx` become savepoints), so readers never see half of it.
   const value = useMemo(() => {
     const db = getDb();
-    async function deleteAlbum(id) {
-      await db.transaction(async (tx) => {
-        await repo.remove(tx, [id]);
-        await edges.tombstoneParent(tx, id);
-      });
-      requestSync();
-    }
     async function updateAlbum(id, updates) {
       await repo.update(db, id, toModernChanges(updates));
       requestSync();
@@ -95,7 +88,13 @@ export default function AlbumsProvider({ children }) {
         });
         requestSync();
       },
-      setAlbumDeleted: async (album) => deleteAlbum(album.id),
+      setAlbumDeleted: async (album) => {
+        await db.transaction(async (tx) => {
+          await repo.remove(tx, [album.id]);
+          await edges.tombstoneParent(tx, album.id);
+        });
+        requestSync();
+      },
     };
   }, [albums]);
 

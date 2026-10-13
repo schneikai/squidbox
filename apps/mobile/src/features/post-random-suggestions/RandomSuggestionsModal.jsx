@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, PanResponder, ActivityIndicator } from 'react-native';
 import { MenuProvider } from 'react-native-popup-menu';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
@@ -160,14 +160,14 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
   }
 
   // --- Asset navigation ---
-  const currentAsset = assets[assetPool[assetIndex]] ?? null;
+  // Assets deleted while the modal is open (e.g. by a sync) drop out of the pool.
+  const livePool = useMemo(() => assetPool.filter((id) => assets[id] && !assets[id].deletedAt), [assetPool, assets]);
+  const currentAsset = assets[livePool[assetIndex % livePool.length]] ?? null;
 
   function navigateAsset(direction) {
-    if (assetPool.length <= 1) return;
+    if (livePool.length <= 1) return;
     const newIndex =
-      direction === 'next'
-        ? (assetIndex + 1) % assetPool.length
-        : (assetIndex - 1 + assetPool.length) % assetPool.length;
+      direction === 'next' ? (assetIndex + 1) % livePool.length : (assetIndex - 1 + livePool.length) % livePool.length;
     animateTransition(mediaOpacity, mediaTranslateX, direction, () => setAssetIndex(newIndex));
   }
 
@@ -289,7 +289,7 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
               )}
             </Animated.View>
 
-            {assetPool.length > 1 && (
+            {livePool.length > 1 && (
               <>
                 <TouchableOpacity
                   style={[styles.arrowButton, styles.arrowLeft]}

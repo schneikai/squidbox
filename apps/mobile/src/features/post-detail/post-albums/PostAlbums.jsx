@@ -12,13 +12,13 @@ const itemWidth = screenWidth / 2.7;
 
 export default function PostAlbums({ post }) {
   const { albums } = useAlbums();
-  const covers = useAlbumCovers();
-
   const postAlbums = useMemo(() => {
     if (!post) return [];
     const assetIds = post.assetRefs.map((assetRef) => assetRef.assetId);
     return getAlbumsByAssetIds(assetIds, albums);
   }, [post, albums]);
+  const postAlbumIds = useMemo(() => postAlbums.map((album) => album.id), [postAlbums]);
+  const covers = useAlbumCovers(postAlbumIds);
 
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.container}>

@@ -12,7 +12,8 @@ const conflictSets = new Map<string, Record<string, unknown>>();
  * Insert whole records of a collection, or update them by id, a statement per 500. An update takes
  * the synced columns the records carry; columns they leave out (e.g. one the server doesn't know
  * yet) and local-only columns (e.g. syncError of assets) keep their value. A new row gets them from
- * the record or null.
+ * the record or null. SQLite checks NOT NULL before the conflict, so a record missing a NOT NULL
+ * column fails even as an update: give new synced columns a default or ship them on the server first.
  */
 export async function upsertRows(
   db: SyncDb,

@@ -6,8 +6,8 @@ export type Execute = AsyncRemoteCallback;
 type TablesChangedListener = (tables: Set<string>) => void;
 
 // Statements drizzle generates for writes start like `insert into "assets"`, `update "assets"` or
-// `delete from "assets"`.
-const WRITTEN_TABLE = /^\s*(?:insert\s+into|update|delete\s+from)\s+"([^"]+)"/i;
+// `delete from "assets"`; drizzle-kit's migrations quote with backticks (`INSERT INTO \`__new_assets\``).
+const WRITTEN_TABLE = /^\s*(?:insert\s+into|update|delete\s+from)\s+["`]([^"`]+)["`]/i;
 // Any other write (raw SQL with an unquoted table, REPLACE, INSERT OR …) would change a table without
 // telling live reads, so it is refused.
 const ANY_WRITE = /^\s*(?:insert|update|delete|replace)\b/i;

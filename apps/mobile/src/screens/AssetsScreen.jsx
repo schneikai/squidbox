@@ -21,6 +21,7 @@ import useScreenPadding from '@/hooks/useScreenPadding';
 import useSearch from '@/hooks/useSearch';
 import useSearchMode from '@/hooks/useSearchMode';
 import getAssetsByIds from '@/utils/assets/queries/getAssetsByIds';
+import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 
 export default function AssetsScreen({ route }) {
   const navigation = useNavigation();
@@ -40,7 +41,6 @@ export default function AssetsScreen({ route }) {
     selectAssets,
     exitSelectMode,
     registerScreenOptions,
-    screenOptionsRef,
     scrollY,
   } = useFloatingBars();
   const { searchBar, query: searchText } = useSearchMode(useSearch());
@@ -49,6 +49,11 @@ export default function AssetsScreen({ route }) {
 
   const { show, hide, updateProgress } = useProgressOverlay();
   const addAssetsFromCameraRollAsync = useAddAssetsFromCameraRoll({
+    onStart: show,
+    onProgress: updateProgress,
+    onFinish: hide,
+  });
+  const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary({
     onStart: show,
     onProgress: updateProgress,
     onFinish: hide,
@@ -77,9 +82,8 @@ export default function AssetsScreen({ route }) {
     selectAssets(selectedAssetIds.length === assetIds.length ? [] : assetIds);
   }
 
-  function handleDownload() {
-    const selected = getSelectedAssets();
-    screenOptionsRef.current._downloadSelected?.(selected);
+  async function handleDownload() {
+    await saveAssetsToMediaLibraryAsync(getSelectedAssets());
   }
 
   function handleAddToAlbum() {

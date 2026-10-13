@@ -101,7 +101,7 @@ async function applyPushResults(
     const cleared: string[] = [];
     const settled: string[] = [];
     const errors = new Map<string, string[]>(); // syncError → record ids
-    const flag = (id: string, error: string) => errors.set(error, [...(errors.get(error) ?? []), id]);
+    const flag = (id: string, error: string) => (errors.get(error) ?? errors.set(error, []).get(error)!).push(id);
 
     for (const result of group) {
       const plan = planPushOutcome({
@@ -140,7 +140,8 @@ async function applyPushResults(
 
 function groupByCollection(results: PushResult[]): Map<string, PushResult[]> {
   const groups = new Map<string, PushResult[]>();
-  for (const result of results) groups.set(result.collection, [...(groups.get(result.collection) ?? []), result]);
+  for (const result of results)
+    (groups.get(result.collection) ?? groups.set(result.collection, []).get(result.collection)!).push(result);
   return groups;
 }
 
