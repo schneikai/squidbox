@@ -90,11 +90,20 @@ An action to regenerate an asset's thumbnail. The video thumbnail in album 197 i
 
 ## Code quality
 
-### [ ] Find unused code with knip
+### [ ] Scan the whole app for duplication
 
-Add [knip](https://knip.dev) for the whole workspace (`apps/mobile`, `apps/server`,
-`packages/shared`) and remove what it reports. Run it in CI afterwards. `apps/mobile/src/obsolete-code`
-is a deliberate "drawer for old stuff"; decide whether to keep it before knip flags it.
+Each look at the asset grids found more copies: the same hooks wired the same way per screen,
+private copies of components (`PillButton` twice), hand-styled buttons next to the component that
+does it, two screens that were one. Go through `apps/mobile/src` feature by feature (screens,
+providers, utils, styles) and merge what repeats into the existing components and hooks, per
+AGENTS.md. A copy-paste detector such as [jscpd](https://github.com/kucherenko/jscpd) finds the
+literal copies; the near-copies need reading.
+
+### [ ] Run lint, tests and knip in CI
+
+The only workflow is `db-backup.yml`; nothing checks a push. A GitHub Actions job running
+`npm run lint`, the mobile and server tests and `npm run knip` would catch regressions before they
+land. `src/obsolete-code` stays out of knip on purpose (a kept drawer of old code).
 
 ### [ ] Rewrite the app in TypeScript
 
