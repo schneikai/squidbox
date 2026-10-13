@@ -16,9 +16,9 @@ export default function EditPostScreen({ route, navigation }) {
     postedAt: post?.postedAt,
   });
 
-  function handleUpdatePost() {
+  async function handleUpdatePost() {
     try {
-      updatePost(postId, postData);
+      await updatePost(postId, postData);
       navigation.goBack();
     } catch (error) {
       Alert.alert('Failed to update post!', error.message);

@@ -8,6 +8,7 @@ import 'react-native-gesture-handler';
 import { registerRootComponent } from 'expo';
 import { enableFreeze } from 'react-native-screens';
 
+import './src/polyfills/browserDialogs';
 import App from './App';
 
 // Screens that aren't visible (other tabs, screens under a pushed one) don't re-render; they

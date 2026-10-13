@@ -22,6 +22,7 @@ export default function PickerAssetGrid({ album, label }) {
   const { activeFilter, toggleFilter, matchFilter } = useFilterAssetsAction({ afterFilter: listScrollTop });
   const { renderCell, quickViewModal } = useAssetCells({
     onPress: (asset) => toggleSelectAsset(asset.id),
+    isSelectMode: true, // the picker always selects
     isAssetSelected,
     showLastPostedAt: sortOrder.includes('lastPostedAt'),
   });

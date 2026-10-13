@@ -35,6 +35,7 @@ import shuffle from '@/utils/shuffle';
 const TWEET_BATCH_SIZE = 10;
 const BATCH_INSTRUCTION = `Generate exactly ${TWEET_BATCH_SIZE} tweets and return them as a raw JSON array of strings. Nothing else.`;
 const SWIPE_THRESHOLD = 50;
+const PROMPT_FOCUS_DELAY_MS = 100;
 const NO_ASSET_IDS = [];
 // Swapping cards is a quick fade-through: the old one exits, the new one enters at the fast duration.
 const SWAP_IN = { ...motion.enter, duration: motion.duration.fast };
@@ -44,6 +45,7 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
 
   // --- Ellipsis menu ---
   const modelPickerRef = useRef(null);
+  const promptInputRef = useRef(null);
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
 
   // --- Prompt editor ---
@@ -62,7 +64,7 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
     setShowEditPrompt(false);
     setTextPool([]);
     setTextIndex(0);
-    fetchTextBatch();
+    fetchTextBatch().then(setTextPool);
   }
 
   // --- Filter state (type: exclusive All/Images/Videos; favorites: additive) ---
@@ -355,6 +357,9 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
         animationType="slide"
         presentationStyle="pageSheet"
         onRequestClose={() => setShowEditPrompt(false)}
+        // Focus shortly after showing, not with autoFocus: on web the sheets' focus traps hand over in
+        // effects after this one paints, and until then the outer sheet takes focus back.
+        onShow={() => setTimeout(() => promptInputRef.current?.focus(), PROMPT_FOCUS_DELAY_MS)}
       >
         <View style={styles.promptContainer}>
           <ModalHeader
@@ -367,7 +372,7 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
               value={editablePrompt}
               onChangeText={setEditablePrompt}
               placeholder="Describe the style of posts to generate…"
-              autoFocus
+              ref={promptInputRef}
               style={styles.promptInput}
             />
           </View>

@@ -12,6 +12,9 @@ export default function AssetImage({ asset = {}, contentFit, placeholderColor = 
   const { loadThumbnail } = useAssetThumbnailLoader();
   const { thumbnailStyle } = useAppSettings();
 
+  // A different asset must not keep showing the previous one's picture until its own is found.
+  useEffect(() => setThumbnailUri(null), [asset.thumbnailFilename]);
+
   useEffect(() => {
     const filename = asset.thumbnailFilename;
     if (!filename) return;

@@ -32,7 +32,8 @@ export async function openWebPreview({ signedIn = true, production = false } = {
   if (production) await page.route(/\.bundle\?/, serveProductionBundle);
 
   await page.goto(APP_URL);
-  await page.getByText('Library').first().waitFor({ timeout: 180_000 });
+  // Exact: "Setting up your library" (the first-sync screen) must not count as the Library tab.
+  await page.getByText('Library', { exact: true }).first().waitFor({ timeout: 600_000 });
   return { page, errors, close: () => browser.close() };
 }
 

@@ -45,6 +45,8 @@ right. The picker is native, so check what the app can influence through its opt
 Touch gestures map poorly to a mouse: long press to peek, double tap to favorite and drag-select
 are awkward with a pointer. When the input is a mouse, offer pointer-native triggers instead, for
 example right click (context menu) to peek, hover affordances, and shift/cmd-click to select.
+Related: on web a drag-select doesn't cancel the cell's press, so the cell it started on toggles
+again after release (`SuperPressable` with `useAssetDragSelect`); natively the pan cancels it.
 
 ### [ ] Video playback
 

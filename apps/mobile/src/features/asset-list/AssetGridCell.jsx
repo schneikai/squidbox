@@ -25,9 +25,6 @@ function AssetGridCell({
       onLongPress={onLongPress && (() => onLongPress(asset))}
       onLongPressOut={onLongPressOut && (() => onLongPressOut(asset))}
       style={{ flex: 1 }}
-      // Not focusable by a click (web): opening the peek moves focus into its modal, and losing focus
-      // would end the long press at once, closing the peek. No effect on native.
-      tabIndex={null}
     >
       <AssetListItem
         asset={asset}

@@ -91,9 +91,11 @@ export default function SortableAssetGrid({
     onReorder,
   });
 
+  // Compose only what can run: on web, a disabled gesture inside Exclusive still makes the other
+  // wait for it, so reordering would never start.
   const gesture = useMemo(
-    () => Gesture.Exclusive(dragSelect.gesture, dragReorder.gesture),
-    [dragSelect.gesture, dragReorder.gesture],
+    () => (dragSelectEnabled ? Gesture.Exclusive(dragSelect.gesture, dragReorder.gesture) : dragReorder.gesture),
+    [dragSelectEnabled, dragSelect.gesture, dragReorder.gesture],
   );
   const contentContainerStyle = useMemo(() => ({ paddingTop, paddingBottom }), [paddingTop, paddingBottom]);
 

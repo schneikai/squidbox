@@ -78,6 +78,7 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
 
   const { renderCell } = useAssetCells({
     onPress: isSelectMode ? (asset) => toggleSelectAsset(asset.id) : undefined,
+    isSelectMode,
     isAssetSelected,
     canPeek: false,
   });

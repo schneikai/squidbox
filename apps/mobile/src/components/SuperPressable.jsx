@@ -38,8 +38,19 @@ export default function SuperPressable({ onPress, onDoublePress, onLongPress, on
     }
   }
 
+  // With a hold gesture, not focusable by a click (web): react-native-web ends a press when its element
+  // loses focus, and what a hold opens (a Modal) takes focus. Keyboards can't long-press anyway. No
+  // effect on native.
+  const tabIndex = onLongPress ? null : undefined;
+
   return (
-    <Pressable onPress={handlePress} onLongPress={handleLongPress} onPressOut={handlePressOut} {...props}>
+    <Pressable
+      onPress={handlePress}
+      onLongPress={handleLongPress}
+      onPressOut={handlePressOut}
+      tabIndex={tabIndex}
+      {...props}
+    >
       {children}
     </Pressable>
   );
