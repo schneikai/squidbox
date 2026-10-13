@@ -1,4 +1,4 @@
-import { eq, lt, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
@@ -15,7 +15,6 @@ export interface SyncStatus {
   lastPushAt?: number;
   lastPullAt?: number;
   lastError?: string | null;
-  cursor: number;
 }
 
 async function getMeta(db: SyncDb, key: string): Promise<string | null> {
@@ -38,7 +37,7 @@ export async function getCursor(db: SyncDb): Promise<number> {
 // gate the app behind a "Setting up your library…" screen and to skip the whole-library derivation
 // while that bulk load runs.
 export async function markFirstSyncDone(db: SyncDb): Promise<void> {
-  await setMeta(db, FIRST_SYNC_KEY, '1');
+  if (!(await isFirstSyncDone(db))) await setMeta(db, FIRST_SYNC_KEY, '1');
 }
 // Clear the flag so the "Setting up your library…" gate shows again for the next full pull. Used by
 // fullResync (a full re-pull is, semantically, another first sync).
@@ -61,17 +60,11 @@ export async function setCursor(db: SyncDb, cursor: number): Promise<void> {
   await setMeta(db, CURSOR_KEY, String(cursor));
 }
 
-export async function getStatus(db: SyncDb): Promise<SyncStatus> {
-  const raw = await getMeta(db, STATUS_KEY);
-  const blob = raw ? (JSON.parse(raw) as Partial<SyncStatus>) : {};
-  // cursor is authoritative in CURSOR_KEY; never let the (possibly stale) status blob shadow it.
-  return { phase: 'idle', ...blob, cursor: await getCursor(db) };
-}
+// Writes only when the status changes, so an idle sync pass doesn't wake every status reader.
 export async function patchStatus(db: SyncDb, patch: Partial<SyncStatus>): Promise<void> {
-  const current = await getStatus(db);
-  // Persist everything EXCEPT cursor (single-sourced in CURSOR_KEY) to avoid divergence.
-  const { cursor: _cursor, ...persist } = { ...current, ...patch };
-  await setMeta(db, STATUS_KEY, JSON.stringify(persist));
+  const raw = await getMeta(db, STATUS_KEY);
+  const next = JSON.stringify({ phase: 'idle', ...(raw ? JSON.parse(raw) : {}), ...patch });
+  if (next !== raw) await setMeta(db, STATUS_KEY, next);
 }
 
 const SYNC_LOG_MAX = 100;
@@ -96,13 +89,9 @@ export async function appendSyncLog(db: SyncDb, entry: SyncLogEntry): Promise<vo
     notes: entry.notes ?? null,
   });
   // Trim: keep only the newest SYNC_LOG_MAX by id.
-  const cutoff = await db
-    .select({ id: schema.syncLog.id })
-    .from(schema.syncLog)
-    .orderBy(sql`${schema.syncLog.id} desc`)
-    .limit(1)
-    .offset(SYNC_LOG_MAX);
-  if (cutoff[0]) {
-    await db.delete(schema.syncLog).where(lt(schema.syncLog.id, cutoff[0].id + 1));
-  }
+  await db
+    .delete(schema.syncLog)
+    .where(
+      sql`${schema.syncLog.id} <= (select id from ${schema.syncLog} order by id desc limit 1 offset ${SYNC_LOG_MAX})`,
+    );
 }

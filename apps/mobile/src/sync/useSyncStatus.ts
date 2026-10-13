@@ -2,7 +2,7 @@ import { count } from 'drizzle-orm';
 
 import { getDb } from './db/client';
 import * as schema from './db/schema';
-import type { SyncPhase } from './status';
+import { isFirstSyncDone, type SyncPhase } from './status';
 import { useLiveQuery } from './useLiveQuery';
 
 // sync_meta as a { key: value } lookup, live; undefined until read once.
@@ -46,7 +46,7 @@ export function useSyncStatus(): LiveSyncStatus {
 // Returns `undefined` until sync_meta has been read once. Callers MUST treat undefined as "unknown"
 // and not gate on it, otherwise the setup screen flashes for a frame on every launch for an
 // already-synced user.
+// A boolean, so the many other sync_meta writes (status, cursor) don't re-render its callers.
 export function useFirstSyncDone(): boolean | undefined {
-  const meta = useSyncMeta();
-  return meta && meta.firstSyncDone === '1';
+  return useLiveQuery(() => isFirstSyncDone(getDb()), [schema.syncMeta]);
 }

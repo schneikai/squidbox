@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
+import { loadAssetsMap } from './helpers/loadAssetsMap';
 import { makeTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
@@ -37,7 +38,7 @@ function transport(over: Partial<SyncTransport> = {}): SyncTransport {
 describe('repository (real SQLite)', () => {
   it('createAsset writes the row and one outbox row; loadAssetsMap returns it', async () => {
     const rec = await repo.createAsset(db, makeAssetRecord({ filename: 'x.jpg' }));
-    const map = await repo.loadAssetsMap(db);
+    const map = await loadAssetsMap(db);
     expect(map[rec.id]).toMatchObject({ id: rec.id, filename: 'x.jpg' });
     const ob = await outboxRows();
     expect(ob).toHaveLength(1);
@@ -64,7 +65,7 @@ describe('repository (real SQLite)', () => {
   it('deleteAssets tombstones (excluded from the live map) and enqueues a delete', async () => {
     const rec = await repo.createAsset(db, makeAssetRecord());
     await repo.deleteAssets(db, [rec.id]);
-    expect((await repo.loadAssetsMap(db))[rec.id]).toBeUndefined();
+    expect((await loadAssetsMap(db))[rec.id]).toBeUndefined();
     const row = await assetRow(rec.id);
     expect(row?.deletedAt).not.toBeNull();
     const ob = await outboxRows();
@@ -158,7 +159,7 @@ describe('worker pull', () => {
         }),
       }),
     );
-    expect((await repo.loadAssetsMap(db))[incoming.id]).toMatchObject({ filename: 'pulled.jpg' });
+    expect((await loadAssetsMap(db))[incoming.id]).toMatchObject({ filename: 'pulled.jpg' });
     expect(await getCursor(db)).toBe(42);
   });
 
@@ -185,5 +186,22 @@ describe('worker pull', () => {
       }),
     );
     expect((await assetRow(rec.id))?.notes).toBe('local'); // local edit preserved
+  });
+
+  it('keeps a local column the incoming record does not carry', async () => {
+    const rec = await repo.createAsset(db, makeAssetRecord({ notes: 'mine' }));
+    await runSyncOnce(db, transport()); // pushed and settled
+    const { notes: _notes, ...withoutNotes } = makeAssetRecord({
+      id: rec.id,
+      filename: 'renamed.jpg',
+      updatedAt: 9000,
+    });
+    await runSyncOnce(
+      db,
+      transport({
+        pull: async () => ({ changes: { assets: { records: [withoutNotes] } }, cursor: 1, hasMore: false }),
+      }),
+    );
+    expect(await assetRow(rec.id)).toMatchObject({ filename: 'renamed.jpg', notes: 'mine' });
   });
 });

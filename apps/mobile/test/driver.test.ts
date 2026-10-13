@@ -59,4 +59,14 @@ describe('driver (createDb)', () => {
   it('refuses a write it cannot attribute to a table, which live reads would miss', async () => {
     await expect(db.run(sql`update assets set notes = 'x'`)).rejects.toThrow(/Untracked write/);
   });
+
+  it('commits repository writes made inside a transaction once, as savepoints', async () => {
+    const [a] = await repo.createAssets(db, [makeAssetRecord()]);
+    changes = [];
+    await db.transaction(async (tx) => {
+      await repo.updateAsset(tx, a!.id, { notes: 'one' });
+      await repo.toggleFavorite(tx, a!.id);
+    });
+    expect(changes).toEqual([['assets', 'outbox']]);
+  });
 });

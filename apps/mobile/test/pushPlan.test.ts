@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
-import { planPushOutcome, chunk } from '../src/sync/pushPlan';
+import { chunk } from '../src/sync/chunk';
+import { planPushOutcome } from '../src/sync/pushPlan';
 
 describe('planPushOutcome', () => {
   it('applied + not superseded → clear outbox and clear error', () => {

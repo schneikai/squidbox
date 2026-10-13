@@ -3,6 +3,7 @@ import { desc } from 'drizzle-orm';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
+import { loadAssetsMap } from './helpers/loadAssetsMap';
 import { makeTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
@@ -96,7 +97,7 @@ describe('dev operations', () => {
         hasMore: false,
       }),
     });
-    const map = await repo.loadAssetsMap(db);
+    const map = await loadAssetsMap(db);
     expect(map[server.id]).toBeTruthy(); // repulled
     expect(map[local.id]).toBeUndefined(); // wiped, not returned by the server pull
   });

@@ -200,8 +200,7 @@ function AppGate() {
 
 export default Sentry.wrap(App);
 
-// Memoized: AppGate re-renders on every sync_meta write (sync status, cursor), which must not
-// re-render the whole app below it.
+// Memoized: a change of AppGate's cloud state must not re-render the whole app below it.
 const MainApp = memo(function MainApp() {
   return (
     <AssetThumbnailLoaderProvider>

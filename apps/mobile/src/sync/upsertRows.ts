@@ -1,19 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic over any collection's table */
-import { collectionsByName } from '@squidbox/shared';
-import { getTableColumns, sql } from 'drizzle-orm';
+import { getTableColumns, getTableName, sql } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
+import { chunk, SQL_BATCH } from './chunk';
 import type { SyncDb } from './db/types';
-import { chunk } from './pushPlan';
+import { localOnlyKeys } from './localOnlyKeys';
 
-const BATCH = 500; // rows per INSERT; ~20 columns each stays far below SQLite's 32,766 variables
-
-const conflictSets = new Map<SQLiteTable, Record<string, unknown>>();
+const conflictSets = new Map<string, Record<string, unknown>>();
 
 /**
  * Insert whole records of a collection, or update them by id, a statement per 500. An update takes
- * every synced column from the record; local-only columns (e.g. syncError of assets) keep their
- * value, and a new row gets them from the record or null.
+ * the synced columns the records carry; columns they leave out (e.g. one the server doesn't know
+ * yet) and local-only columns (e.g. syncError of assets) keep their value. A new row gets them from
+ * the record or null.
  */
 export async function upsertRows(
   db: SyncDb,
@@ -21,26 +20,28 @@ export async function upsertRows(
   table: SQLiteTable,
   rows: Record<string, unknown>[],
 ): Promise<void> {
-  const set = conflictSet(collection, table);
-  for (const batch of chunk(rows, BATCH)) {
+  for (const batch of chunk(rows, SQL_BATCH)) {
     await db
       .insert(table)
       .values(batch as any)
-      .onConflictDoUpdate({ target: (table as any).id, set });
+      .onConflictDoUpdate({ target: (table as any).id, set: conflictSet(collection, table, keysOfAll(batch)) });
   }
 }
 
-// Heads-up: the update takes every synced column, so a column missing from an incoming record is set
-// to null (or its default), wiping the local value. Today the server always sends whole rows. It
-// matters if app and server versions drift, e.g. an app release adds a synced column the server
-// doesn't have yet. Ship new synced columns on the server first (docs/sync-design.md §5).
-function conflictSet(collection: string, table: SQLiteTable): Record<string, unknown> {
-  let set = conflictSets.get(table);
+function keysOfAll(rows: Record<string, unknown>[]): string[] {
+  return Object.keys(rows[0]!).filter((key) => rows.every((row) => row[key] !== undefined));
+}
+
+// Cached per table and key set: records of a collection almost always carry the same keys.
+function conflictSet(collection: string, table: SQLiteTable, keys: string[]): Record<string, unknown> {
+  const signature = `${getTableName(table)}:${keys.join(',')}`;
+  let set = conflictSets.get(signature);
   if (!set) {
-    const localOnly = new Set(Object.keys(collectionsByName[collection]?.localOnly ?? {}));
-    const synced = Object.entries(getTableColumns(table)).filter(([key]) => !localOnly.has(key));
-    set = Object.fromEntries(synced.map(([key, column]) => [key, sql.raw(`excluded."${column.name}"`)]));
-    conflictSets.set(table, set);
+    const columns = getTableColumns(table);
+    const localOnly = localOnlyKeys(collection);
+    const synced = keys.filter((key) => key in columns && !localOnly.has(key));
+    set = Object.fromEntries(synced.map((key) => [key, sql.raw(`excluded."${columns[key]!.name}"`)]));
+    conflictSets.set(signature, set);
   }
   return set;
 }

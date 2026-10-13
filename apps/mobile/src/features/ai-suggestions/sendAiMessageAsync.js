@@ -1,3 +1,5 @@
+import shuffle from '@/utils/shuffle';
+
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 
 // How many past posts to include as style reference on each generation. A random
@@ -10,21 +12,6 @@ export { DEFAULT_MODEL } from './aiSuggestionsStorage';
 
 const FORMAT_INSTRUCTION =
   'Always respond with a raw JSON array of strings and nothing else. Example: ["text one", "text two"]';
-
-/**
- * Returns up to `size` randomly-selected items from `items` (Fisher–Yates).
- * Does not mutate the input.
- */
-function sampleRandom(items, size) {
-  if (items.length <= size) return [...items];
-
-  const pool = [...items];
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-  return pool.slice(0, size);
-}
 
 function buildSystemPrompt(referencePosts, customSystemPrompt) {
   const parts = [];
@@ -101,7 +88,7 @@ export default async function sendAiMessageAsync(messages, referencePostPool, mo
     throw new Error('OpenAI API key not configured. Set EXPO_PUBLIC_OPENAI_API_KEY in .env.local.');
   }
 
-  const referencePosts = sampleRandom(referencePostPool ?? [], REFERENCE_SAMPLE_SIZE);
+  const referencePosts = shuffle(referencePostPool ?? []).slice(0, REFERENCE_SAMPLE_SIZE);
   const systemPrompt = buildSystemPrompt(referencePosts, customSystemPrompt);
   const messagesPayload = systemPrompt ? [{ role: 'system', content: systemPrompt }, ...messages] : messages;
 

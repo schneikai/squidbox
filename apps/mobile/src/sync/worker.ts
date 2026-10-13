@@ -1,11 +1,12 @@
 import type { PushMutation, PushResult } from '@squidbox/shared';
+import { gt } from 'drizzle-orm';
 
 import { setSyncError } from './assetsRepository';
 import { clientCollectionTables } from './clientCollections';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
-import { pendingRecordIds, clearOutboxRow, getOutboxUpdatedAt } from './outbox';
-import { planPushOutcome, chunk } from './pushPlan';
+import { clearOutboxRows, outboxUpdatedAts, pendingRecordIds } from './outbox';
+import { planPushOutcome } from './pushPlan';
 import { createSingleFlight } from './singleFlight';
 import {
   getCursor,
@@ -20,7 +21,7 @@ import {
 import type { SyncTransport } from './transport';
 import { upsertRows } from './upsertRows';
 
-const PULL_LIMIT = 1000; // server/contract cap; larger pages = fewer reactive storms on bulk pull
+const PULL_LIMIT = 1000; // server/contract cap
 const PUSH_BATCH = 500; // server caps pushRequest mutations at 500
 // Records per apply transaction. Each transaction writes every database page it touches once more
 // (the rollback journal), and with random ids a transaction touches most index pages, so a few big
@@ -57,58 +58,90 @@ export async function runSyncOnce(db: SyncDb, transport: SyncTransport): Promise
 }
 
 async function pushPhase(db: SyncDb, transport: SyncTransport): Promise<{ pushed: number; notes: string[] }> {
-  const rows = await db.select().from(schema.outbox);
-  if (rows.length === 0) return { pushed: 0, notes: [] };
-  await patchStatus(db, { phase: 'pushing' });
-
-  const pushedUpdatedAt = new Map<string, number>();
-  for (const r of rows) pushedUpdatedAt.set(`${r.collection}:${r.recordId}`, r.updatedAt);
-
   let pushed = 0;
   const notes: string[] = [];
-  for (const batch of chunk(rows, PUSH_BATCH)) {
-    const mutations: PushMutation[] = batch.map((r) => ({ collection: r.collection, record: r.payload }));
+  let lastId = 0;
+  for (;;) {
+    const batch = await db
+      .select()
+      .from(schema.outbox)
+      .where(gt(schema.outbox.id, lastId))
+      .orderBy(schema.outbox.id)
+      .limit(PUSH_BATCH);
+    if (batch.length === 0) break;
+    if (pushed === 0) await patchStatus(db, { phase: 'pushing' });
+    lastId = batch[batch.length - 1]!.id;
+
+    const mutations: PushMutation[] = batch.map((row) => ({ collection: row.collection, record: row.payload }));
     const { results } = await transport.push({ mutations });
-    await db.transaction(async (tx) => {
-      for (const result of results) {
-        pushed += 1;
-        const pushedAt = pushedUpdatedAt.get(`${result.collection}:${result.id}`) ?? 0;
-        // Each result in its own savepoint: one that can't be applied (e.g. a malformed record from
-        // the server) keeps its outbox row and is flagged, instead of rolling back the batch and
-        // stalling every later sync.
-        try {
-          const note = await tx.transaction((savepoint) => applyPushResult(savepoint, result, pushedAt));
-          if (note) notes.push(note);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          if (result.collection === 'assets') await setSyncError(tx, [result.id], message);
-          notes.push(`${result.collection} ${result.id}: push result not applied (${message})`);
-        }
-      }
-    });
+    const pushedUpdatedAt = new Map(batch.map((row) => [`${row.collection}:${row.recordId}`, row.updatedAt]));
+    notes.push(...(await db.transaction((tx) => applyPushResults(tx, results, pushedUpdatedAt))));
+    pushed += results.length;
   }
-  await patchStatus(db, { lastPushAt: Date.now() });
+  if (pushed > 0) await patchStatus(db, { lastPushAt: Date.now() });
   return { pushed, notes };
 }
 
-async function applyPushResult(db: SyncDb, result: PushResult, pushedUpdatedAt: number): Promise<string | null> {
-  const currentOutboxUpdatedAt = await getOutboxUpdatedAt(db, result.collection, result.id);
-  const plan = planPushOutcome({ status: result.status, pushedUpdatedAt, currentOutboxUpdatedAt });
-  let note: string | null = null;
+// Settle a batch's push results (sync-design §6), a few statements per collection. Adopting the
+// server's record is the one step that can fail on bad data, so each runs in its own savepoint: a
+// failure keeps that record's outbox row and flags it, instead of rolling back the batch and
+// stalling every later sync. Returns the notes for the sync log.
+async function applyPushResults(
+  tx: SyncDb,
+  results: PushResult[],
+  pushedUpdatedAt: Map<string, number>,
+): Promise<string[]> {
+  const notes: string[] = [];
+  for (const [collection, group] of groupByCollection(results)) {
+    const current = await outboxUpdatedAts(
+      tx,
+      collection,
+      group.map((result) => result.id),
+    );
+    const cleared: string[] = [];
+    const settled: string[] = [];
+    const errors = new Map<string, string[]>(); // syncError → record ids
+    const flag = (id: string, error: string) => errors.set(error, [...(errors.get(error) ?? []), id]);
 
-  if (plan.adoptCurrent && result.current) {
-    await applyRecord(db, result.collection, result.current as Record<string, unknown>);
-    // Conflict/rebase visibility (sync-design §13): a local change lost LWW and was overwritten.
-    note = `${result.collection} ${result.id}: local change overwritten by server`;
+    for (const result of group) {
+      const plan = planPushOutcome({
+        status: result.status,
+        pushedUpdatedAt: pushedUpdatedAt.get(`${collection}:${result.id}`) ?? 0,
+        currentOutboxUpdatedAt: current.get(result.id) ?? null,
+      });
+      if (plan.adoptCurrent && result.current) {
+        try {
+          await tx.transaction((savepoint) => applyRecord(savepoint, collection, result.current!));
+          // Conflict/rebase visibility (sync-design §13): a local change lost LWW and was overwritten.
+          notes.push(`${collection} ${result.id}: local change overwritten by server`);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          flag(result.id, message);
+          notes.push(`${collection} ${result.id}: push result not applied (${message})`);
+          continue;
+        }
+      }
+      if (plan.clearOutbox) cleared.push(result.id);
+      if (plan.clearError) settled.push(result.id);
+      if (plan.flagRejected) {
+        flag(result.id, result.reason ?? 'rejected');
+        notes.push(`${collection} ${result.id}: rejected (${result.reason ?? 'unknown'})`);
+      }
+    }
+
+    await clearOutboxRows(tx, collection, cleared);
+    // syncError is an assets-only local field; other collections' failures show in the sync log.
+    if (collection !== 'assets') continue;
+    await setSyncError(tx, settled, null);
+    for (const [error, ids] of errors) await setSyncError(tx, ids, error);
   }
-  if (plan.clearOutbox) await clearOutboxRow(db, result.collection, result.id);
-  // syncError is an assets-only local field.
-  if (plan.clearError && result.collection === 'assets') await setSyncError(db, [result.id], null);
-  if (plan.flagRejected) {
-    if (result.collection === 'assets') await setSyncError(db, [result.id], result.reason ?? 'rejected');
-    note = `${result.collection} ${result.id}: rejected (${result.reason ?? 'unknown'})`;
-  }
-  return note;
+  return notes;
+}
+
+function groupByCollection(results: PushResult[]): Map<string, PushResult[]> {
+  const groups = new Map<string, PushResult[]>();
+  for (const result of results) groups.set(result.collection, [...(groups.get(result.collection) ?? []), result]);
+  return groups;
 }
 
 async function pullPhase(db: SyncDb, transport: SyncTransport): Promise<number> {
@@ -118,6 +151,7 @@ async function pullPhase(db: SyncDb, transport: SyncTransport): Promise<number> 
   let pulled = 0;
   while (hasMore) {
     const changes: Record<string, Record<string, unknown>[]> = {};
+    const previousCursor = cursor;
     let buffered = 0;
     do {
       const page = await transport.pull({ cursor, limit: PULL_LIMIT });
@@ -129,7 +163,7 @@ async function pullPhase(db: SyncDb, transport: SyncTransport): Promise<number> 
       cursor = page.cursor;
       hasMore = page.hasMore;
     } while (hasMore && buffered < APPLY_BATCH);
-    pulled += await applyChanges(db, changes, cursor);
+    if (buffered > 0 || cursor !== previousCursor) pulled += await applyChanges(db, changes, cursor);
   }
   // The initial full pull has drained — the app can leave the "Setting up…" gate.
   await markFirstSyncDone(db);

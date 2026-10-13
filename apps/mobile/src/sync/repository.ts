@@ -37,6 +37,18 @@ export function makeRepository<R extends SyncRecord = SyncRecord>(collection: st
     update(db: SyncDb, id: string, changes: Partial<R>): Promise<void> {
       return updateMany(db, { [id]: changes } as Record<string, Partial<R>>);
     },
+    /** The same patch for several records. */
+    updateAll(db: SyncDb, ids: string[], changes: Partial<R>): Promise<void> {
+      return updateMany(db, Object.fromEntries(ids.map((id) => [id, changes])) as Record<string, Partial<R>>);
+    },
+    /** Flip a boolean field, read inside the write's transaction so two quick toggles can't both flip the same value. */
+    async toggle(db: SyncDb, id: string, field: keyof R & string): Promise<void> {
+      await db.transaction(async (tx) => {
+        const [prev] = await readByIds<R>(tx, table, [id]);
+        if (prev)
+          await saveRecords(tx, collection, table, [nextVersion(prev, { [field]: !prev[field] } as Partial<R>)]);
+      });
+    },
     /** Tombstone records, by id. */
     async remove(db: SyncDb, ids: string[]): Promise<void> {
       await db.transaction(async (tx) => {

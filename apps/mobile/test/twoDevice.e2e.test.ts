@@ -5,6 +5,7 @@ import pg from 'pg';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
+import { loadAssetsMap } from './helpers/loadAssetsMap';
 import { makeTestDb } from './helpers/testDb';
 // Real server engine (against docker Postgres) — the other side of the round-trip.
 import * as serverSchema from '../../server/src/db/schema.js';
@@ -90,7 +91,7 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
     const rec = await repo.createAsset(deviceA, makeAssetRecord({ filename: 'from-a.jpg' }));
     await runSyncOnce(deviceA, transport); // A pushes
     await runSyncOnce(deviceB, transport); // B pulls
-    const onB = (await repo.loadAssetsMap(deviceB))[rec.id];
+    const onB = (await loadAssetsMap(deviceB))[rec.id];
     expect(onB).toMatchObject({ id: rec.id, filename: 'from-a.jpg' });
   });
 
@@ -110,8 +111,8 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
     await runSyncOnce(deviceA, transport);
     await runSyncOnce(deviceB, transport);
 
-    const a = (await repo.loadAssetsMap(deviceA))[rec.id];
-    const b = (await repo.loadAssetsMap(deviceB))[rec.id];
+    const a = (await loadAssetsMap(deviceA))[rec.id];
+    const b = (await loadAssetsMap(deviceB))[rec.id];
     expect(a.notes).toBe(b.notes); // converged (byte-identical winner)
     expect(['edited-on-A', 'edited-on-B']).toContain(a.notes);
     expect(a.updatedAt).toBe(b.updatedAt);
@@ -160,11 +161,11 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
     const rec = await repo.createAsset(deviceA, makeAssetRecord());
     await runSyncOnce(deviceA, transport);
     await runSyncOnce(deviceB, transport);
-    expect((await repo.loadAssetsMap(deviceB))[rec.id]).toBeDefined();
+    expect((await loadAssetsMap(deviceB))[rec.id]).toBeDefined();
 
     await repo.deleteAssets(deviceA, [rec.id]);
     await runSyncOnce(deviceA, transport); // push tombstone
     await runSyncOnce(deviceB, transport); // pull tombstone
-    expect((await repo.loadAssetsMap(deviceB))[rec.id]).toBeUndefined();
+    expect((await loadAssetsMap(deviceB))[rec.id]).toBeUndefined();
   });
 });

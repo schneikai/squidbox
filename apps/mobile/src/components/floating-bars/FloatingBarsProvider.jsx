@@ -5,6 +5,8 @@ import { useSharedValue } from 'react-native-reanimated';
 import FloatingBarsContext from './FloatingBarsContext';
 import { getActiveTabName } from './navStateHelpers';
 
+import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
+
 const TAB_TO_OPTIONS_KEY = {
   AssetsTab: 'assets',
   AlbumsTab: 'albums',
@@ -41,30 +43,7 @@ export default function FloatingBarsProvider({ children }) {
   const closeFilterModal = useCallback(() => setIsFilterModalOpen(false), []);
 
   // ── Select mode (assets screen only) ─────────────────────────────────────
-  const [isSelectMode, setIsSelectMode] = useState(false);
-  const [selectedAssetIds, setSelectedAssetIds] = useState([]);
-
-  const toggleSelectMode = useCallback(() => {
-    setIsSelectMode((prev) => {
-      if (prev) setSelectedAssetIds([]);
-      return !prev;
-    });
-  }, []);
-
-  const exitSelectMode = useCallback(() => {
-    setIsSelectMode(false);
-    setSelectedAssetIds([]);
-  }, []);
-
-  const toggleSelectAsset = useCallback((assetId) => {
-    setSelectedAssetIds((prev) => (prev.includes(assetId) ? prev.filter((id) => id !== assetId) : [...prev, assetId]));
-  }, []);
-
-  // Stable identity so the drag-select gesture isn't rebuilt mid-drag when the
-  // selection changes and re-renders this provider.
-  const selectAssets = useCallback((assetIds) => {
-    setSelectedAssetIds(assetIds);
-  }, []);
+  const selection = useToggleSelectAssetsAction();
 
   // ── Scroll-driven visibility (Reanimated shared values) ───────────────────
   const scrollY = useSharedValue(0);
@@ -94,12 +73,7 @@ export default function FloatingBarsProvider({ children }) {
       screenOptionsRef,
 
       // Select mode
-      isSelectMode,
-      selectedAssetIds,
-      toggleSelectMode,
-      exitSelectMode,
-      toggleSelectAsset,
-      selectAssets,
+      ...selection,
 
       // Scroll animation values (passed to animated components)
       scrollY,
@@ -113,12 +87,7 @@ export default function FloatingBarsProvider({ children }) {
       openFilterModal,
       closeFilterModal,
       registerScreenOptions,
-      isSelectMode,
-      selectedAssetIds,
-      toggleSelectMode,
-      exitSelectMode,
-      toggleSelectAsset,
-      selectAssets,
+      selection,
       scrollY,
       isNavBarHidden,
       resetScroll,

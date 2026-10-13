@@ -74,7 +74,7 @@ export default function Album({ album }) {
   });
 
   const { listRef, listScrollTop } = useAssetList();
-  const { isSelectMode, selectedAssetIds, toggleSelectMode, toggleSelectAsset, selectAssets } =
+  const { isSelectMode, selectedAssetIds, isAssetSelected, toggleSelectMode, toggleSelectAsset, selectAssets } =
     useToggleSelectAssetsAction();
   // A per-session override lets the open album react immediately to sort/reorder changes.
   const [sessionSortOrder, setSessionSortOrder] = useState(null);
@@ -104,16 +104,15 @@ export default function Album({ album }) {
 
   const hasSelection = selectedAssetIds.length > 0;
   const hasSubHeader = !!album.archivedAt || !!album.notes;
+  const isSmart = isSmartAlbum(album);
 
   // Drag-to-reorder only makes sense on the full, unfiltered album order and has
   // nowhere to persist for smart albums, so it stays off otherwise.
   const reorderEnabled =
-    activeTab === 'Assets' && !isSelectMode && !isSmartAlbum(album) && activeFilter.length === 0 && !searchText.trim();
+    activeTab === 'Assets' && !isSelectMode && !isSmart && activeFilter.length === 0 && !searchText.trim();
 
   // Smart albums (Favorites/Deleted) have no stored order, so hide "Custom".
-  const sortOptions = isSmartAlbum(album)
-    ? ASSET_SORT_OPTIONS.filter((option) => option.key !== 'custom')
-    : ASSET_SORT_OPTIONS;
+  const sortOptions = isSmart ? ASSET_SORT_OPTIONS.filter((option) => option.key !== 'custom') : ASSET_SORT_OPTIONS;
 
   function handleSort(order) {
     if (order === 'custom') {
@@ -145,8 +144,7 @@ export default function Album({ album }) {
       : pluralizeText('1 Asset', '%{count} Assets', assetIds.length);
 
   function getSelectedAssets() {
-    const ids = selectedAssetIds.length > 0 ? selectedAssetIds : assetIds;
-    return getAssetsByIds(assets, ids);
+    return getAssetsByIds(assets, selectedAssetIds);
   }
 
   function onPressAsset(asset) {
@@ -166,13 +164,11 @@ export default function Album({ album }) {
   }
 
   function handleAddToAlbum() {
-    const ids = selectedAssetIds.length > 0 ? selectedAssetIds : assetIds;
-    navigation.navigate('AddToAlbumModal', { assetIds: ids });
+    navigation.navigate('AddToAlbumModal', { assetIds: selectedAssetIds });
     toggleSelectMode();
   }
 
   function handleCreatePost() {
-    if (!hasSelection) return;
     navigation.navigate('AddEditPostModal', { assetIds: selectedAssetIds });
     toggleSelectMode();
   }
@@ -218,7 +214,7 @@ export default function Album({ album }) {
               <PillButton iconName="download" onPress={handleDownload} disabled={!hasSelection} />
               <PillButton iconName="library" onPress={handleAddToAlbum} disabled={!hasSelection} />
               <PillButton iconName="share" onPress={handleCreatePost} disabled={!hasSelection} />
-              {!isSmartAlbum(album) && (
+              {!isSmart && (
                 <PillButton iconName="trash" onPress={handleDeleteFromAlbum} disabled={!hasSelection} danger />
               )}
               <View style={actionButtonStyles.pillSeparator} />
@@ -229,7 +225,7 @@ export default function Album({ album }) {
           ) : (
             // Normal toolbar
             <>
-              {!isSmartAlbum(album) && <AddAssetAction album={album} />}
+              {!isSmart && <AddAssetAction album={album} />}
               <MoreAction album={album} afterDelete={() => navigation.goBack()} onSelect={toggleSelectMode} />
             </>
           )
@@ -237,7 +233,7 @@ export default function Album({ album }) {
       />
 
       {/* Sub-header — only shown when there's an archived badge or notes */}
-      {(!!album.archivedAt || !!album.notes) && (
+      {hasSubHeader && (
         <View style={[styles.subHeader, { marginTop: paddingTop }]}>
           {!!album.archivedAt && <Text style={styles.archivedBadge}>Archived</Text>}
           {!!album.notes && (
@@ -259,6 +255,7 @@ export default function Album({ album }) {
             assetIds={assetIds}
             isSelectMode={isSelectMode}
             selectedAssetIds={selectedAssetIds}
+            isAssetSelected={isAssetSelected}
             onPressAsset={onPressAsset}
             toggleFavoriteAsset={toggleFavoriteAsset}
             openAssetQuickView={openAssetQuickView}
@@ -268,7 +265,7 @@ export default function Album({ album }) {
             paddingTop={hasSubHeader ? 0 : paddingTop}
             paddingBottom={paddingBottom}
             selectAssets={selectAssets}
-            canReorder={!isSmartAlbum(album)}
+            canReorder={!isSmart}
             reorderEnabled={reorderEnabled}
             onReorder={handleReorder}
           />

@@ -30,6 +30,7 @@ import sendAiMessageAsync from '@/features/ai-suggestions/sendAiMessageAsync';
 import useAssets from '@/features/assets-context/useAssets';
 import { colors, motion, radii, scale, typography } from '@/styles/designTokens';
 import formatVideoDuration from '@/utils/formatVideoDuration';
+import shuffle from '@/utils/shuffle';
 
 const TWEET_BATCH_SIZE = 10;
 const BATCH_INSTRUCTION = `Generate exactly ${TWEET_BATCH_SIZE} tweets and return them as a raw JSON array of strings. Nothing else.`;
@@ -523,7 +524,7 @@ const styles = StyleSheet.create({
   },
 });
 
-// Ids of the live assets that match the filters, in random order (Fisher–Yates).
+// Ids of the live assets that match the filters, in random order.
 function shuffledAssetIds(assets, { showImages, showVideos, onlyFavorites }) {
   const ids = [];
   for (const asset of Object.values(assets)) {
@@ -531,9 +532,5 @@ function shuffledAssetIds(assets, { showImages, showVideos, onlyFavorites }) {
     const isVideo = !!asset.duration;
     if ((showImages && !isVideo) || (showVideos && isVideo)) ids.push(asset.id);
   }
-  for (let i = ids.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [ids[i], ids[j]] = [ids[j], ids[i]];
-  }
-  return ids;
+  return shuffle(ids);
 }

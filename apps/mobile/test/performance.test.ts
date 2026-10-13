@@ -5,6 +5,7 @@ import { makeAssetRecord } from './helpers/factory';
 import { makeMeasuredTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
+import { makeEdgeRepository } from '../src/sync/edgesRepository';
 import { readLiveRows } from '../src/sync/readLiveRows';
 import type { SyncTransport } from '../src/sync/transport';
 import { runSyncOnce } from '../src/sync/worker';
@@ -106,6 +107,32 @@ describe('performance at library scale', () => {
     };
     const work = await measure(() => runSyncOnce(db, transport));
     expect(work.commits).toBeLessThanOrEqual(10); // one per push batch plus status and log writes, not one or more per result
+  });
+
+  it('adding to or removing from a big album reads only the edges it touches', async () => {
+    const { db, measure } = makeMeasuredTestDb();
+    const albums = makeEdgeRepository('album_assets', schema.albumAssets, 'albumId');
+    let n = 0;
+    const newId = () => `edge-${++n}`;
+    await albums.add(
+      db,
+      'album-1',
+      Array.from({ length: 3_000 }, (_, i) => `asset-${i}`),
+      newId,
+    );
+    const add = await measure(() => albums.add(db, 'album-1', ['new-asset'], newId));
+    const remove = await measure(() => albums.remove(db, 'album-1', ['asset-7']));
+    expect(add.rowsRead).toBeLessThan(10);
+    expect(remove.rowsRead).toBeLessThan(10);
+  });
+
+  it('an idle sync pass leaves the sync state untouched except its status', async () => {
+    const { db, assets } = await syncedLibrary(10);
+    const written: string[][] = [];
+    db.onTablesChanged((tables) => written.push([...tables]));
+    await runSyncOnce(db, pullTransport(assets.slice(0, 0), assets.length));
+    const metaWrites = written.filter((tables) => tables.includes('sync_meta')).length;
+    expect(metaWrites).toBeLessThanOrEqual(2); // phase pulling → idle
   });
 });
 

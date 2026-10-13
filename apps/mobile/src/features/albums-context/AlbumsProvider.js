@@ -40,16 +40,19 @@ export default function AlbumsProvider({ children }) {
   }, [albumEdges, postEdges, posts]);
   const albums = useDerivedRecords(albumRows, albumExtrasOf);
 
+  // A user action that writes the album and its edges commits once (repository transactions inside
+  // `tx` become savepoints), so readers never see half of it.
   const value = useMemo(() => {
     const db = getDb();
     async function deleteAlbum(id) {
-      await repo.remove(db, [id]);
-      await edges.tombstoneParent(db, id);
+      await db.transaction(async (tx) => {
+        await repo.remove(tx, [id]);
+        await edges.tombstoneParent(tx, id);
+      });
       requestSync();
     }
-    async function updateAlbums(ids, updates) {
-      const changes = toModernChanges(updates);
-      await repo.updateMany(db, Object.fromEntries(ids.map((id) => [id, changes])));
+    async function updateAlbum(id, updates) {
+      await repo.update(db, id, toModernChanges(updates));
       requestSync();
     }
     return {
@@ -57,19 +60,24 @@ export default function AlbumsProvider({ children }) {
       addAlbum: async (data) => {
         const casted = albumSchema.cast(data);
         const assetIds = casted.assets ?? [];
-        const rec = await repo.create(db, toModernRecord(casted)); // `assets` stripped by toModernRecord
-        if (assetIds.length) await edges.add(db, rec.id, assetIds, getNewItemId);
+        const rec = await db.transaction(async (tx) => {
+          const created = await repo.create(tx, toModernRecord(casted)); // `assets` stripped by toModernRecord
+          if (assetIds.length) await edges.add(tx, created.id, assetIds, getNewItemId);
+          return created;
+        });
         requestSync();
         return rec;
       },
-      updateAlbum: async (id, updates) => updateAlbums([id], updates),
-      updateAlbums: async (ids, updates) => updateAlbums(ids, updates),
+      updateAlbum,
       updateManyAlbums: async (updatesById) => {
         const changesById = Object.entries(updatesById).map(([id, updates]) => [id, toModernChanges(updates)]);
         await repo.updateMany(db, Object.fromEntries(changesById));
         requestSync();
       },
-      toggleFavoriteAlbum: async (album) => updateAlbums([album.id], { isFavorite: !album.isFavorite }),
+      toggleFavoriteAlbum: async (album) => {
+        await repo.toggle(db, album.id, 'isFavorite');
+        requestSync();
+      },
       addAssetsToAlbum: async (album, assetsOrAssetIds) => {
         const assetIds = assetsOrAssetIds.map((a) => (typeof a === 'string' ? a : a.id));
         await edges.add(db, album.id, assetIds, getNewItemId);
@@ -81,12 +89,13 @@ export default function AlbumsProvider({ children }) {
         requestSync();
       },
       reorderAlbumAssets: async (album, orderedAssetIds) => {
-        await edges.reorder(db, album.id, orderedAssetIds);
-        await repo.update(db, album.id, { sortOrder: 'custom' });
+        await db.transaction(async (tx) => {
+          await edges.reorder(tx, album.id, orderedAssetIds);
+          await repo.update(tx, album.id, { sortOrder: 'custom' });
+        });
         requestSync();
       },
       setAlbumDeleted: async (album) => deleteAlbum(album.id),
-      deleteAlbumAsync: async (album) => deleteAlbum(album.id),
     };
   }, [albums]);
 

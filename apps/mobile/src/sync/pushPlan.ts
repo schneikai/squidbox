@@ -42,11 +42,3 @@ export function planPushOutcome(params: {
   // skipped-lww, not superseded
   return { clearOutbox: true, adoptCurrent: true, flagRejected: false, clearError: true };
 }
-
-/** Split an array into chunks of at most `size` (push batching — server caps at 500/req). */
-export function chunk<T>(items: T[], size: number): T[][] {
-  if (size <= 0) throw new Error('chunk size must be > 0');
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
-  return out;
-}

@@ -138,6 +138,17 @@ finalized again (`db/expoExecutor.ts`; a statement cache saves two native calls 
 fetches the next pages only after applying the last batch (`worker.ts` `pullPhase`; prefetching one
 page overlaps network and writes).
 
+### [ ] Push failures of albums and posts only show in the sync log
+
+A rejected or unappliable push result flags assets with `syncError` (shown in the sync error
+viewer), but albums, posts and their edges have no such field (`worker.ts` `applyPushResults`).
+Their outbox rows retry on every sync and the failure is only visible in the Sync Inspector's log.
+
+### [ ] Start cloud init while the database opens
+
+`AppInit` sits inside `DatabaseGate` (`App.js`), so the splash waits for opening and migrating the
+database, then for `initializeCloudAsync`. Running both at once would shorten launch a little.
+
 ### [ ] Web preview gaps
 
 The web preview (README → "Web preview") can't add photos from the camera roll, upload, download

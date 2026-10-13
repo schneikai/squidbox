@@ -1,11 +1,9 @@
-import { collectionsByName } from '@squidbox/shared';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 
+import { chunk, SQL_BATCH } from './chunk';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
-import { chunk } from './pushPlan';
-
-const BATCH = 500;
+import { localOnlyKeys } from './localOnlyKeys';
 
 // Enqueue whole-record mutations, coalesced to one row per (collection, recordId): the latest
 // payload wins (sync-design §6). `op` is 'delete' for a tombstone, else 'upsert'. The payload leaves
@@ -15,8 +13,8 @@ export async function enqueueMutations(
   collection: string,
   records: { id: string; updatedAt: number; deletedAt?: number | null }[],
 ): Promise<void> {
-  const localOnly = Object.keys(collectionsByName[collection]?.localOnly ?? {});
-  for (const batch of chunk(records, BATCH)) {
+  const localOnly = localOnlyKeys(collection);
+  for (const batch of chunk(records, SQL_BATCH)) {
     await tx
       .insert(schema.outbox)
       .values(
@@ -35,7 +33,7 @@ export async function enqueueMutations(
   }
 }
 
-function withoutKeys(record: object, keys: string[]): Record<string, unknown> {
+function withoutKeys(record: object, keys: Set<string>): Record<string, unknown> {
   const copy: Record<string, unknown> = { ...record };
   for (const key of keys) delete copy[key];
   return copy;
@@ -49,17 +47,27 @@ export async function pendingRecordIds(db: SyncDb, collection: string): Promise<
   return new Set(rows.map((r) => r.recordId));
 }
 
-/** Current outbox row's updatedAt for a record, or null if none pending. */
-export async function getOutboxUpdatedAt(db: SyncDb, collection: string, recordId: string): Promise<number | null> {
-  const [row] = await db
-    .select({ updatedAt: schema.outbox.updatedAt })
-    .from(schema.outbox)
-    .where(and(eq(schema.outbox.collection, collection), eq(schema.outbox.recordId, recordId)));
-  return row?.updatedAt ?? null;
+/** The outbox rows' updatedAt of these records, by record id; records without a pending row are left out. */
+export async function outboxUpdatedAts(
+  db: SyncDb,
+  collection: string,
+  recordIds: string[],
+): Promise<Map<string, number>> {
+  const updatedAts = new Map<string, number>();
+  for (const batch of chunk(recordIds, SQL_BATCH)) {
+    const rows = await db
+      .select({ recordId: schema.outbox.recordId, updatedAt: schema.outbox.updatedAt })
+      .from(schema.outbox)
+      .where(and(eq(schema.outbox.collection, collection), inArray(schema.outbox.recordId, batch)));
+    for (const row of rows) updatedAts.set(row.recordId, row.updatedAt);
+  }
+  return updatedAts;
 }
 
-export async function clearOutboxRow(db: SyncDb, collection: string, recordId: string): Promise<void> {
-  await db
-    .delete(schema.outbox)
-    .where(and(eq(schema.outbox.collection, collection), eq(schema.outbox.recordId, recordId)));
+export async function clearOutboxRows(db: SyncDb, collection: string, recordIds: string[]): Promise<void> {
+  for (const batch of chunk(recordIds, SQL_BATCH)) {
+    await db
+      .delete(schema.outbox)
+      .where(and(eq(schema.outbox.collection, collection), inArray(schema.outbox.recordId, batch)));
+  }
 }

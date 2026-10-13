@@ -2,9 +2,9 @@
 import { and, eq, getTableColumns, getTableName, gt, inArray, max } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
+import { chunk } from './chunk';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
-import { chunk } from './pushPlan';
 
 export interface LiveRows {
   rows: any[];

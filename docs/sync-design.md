@@ -166,9 +166,9 @@ record is skipped; the pending push re-asserts the local edit and the push resul
 (§6). The client pulls pages until it holds about 5,000 records (or the server has no more), then
 applies them in one SQLite transaction, as multi-row upserts by `id`, together with the new cursor.
 Few big transactions matter on web, where every page a transaction touches is written again. A
-crash before the commit re-pulls those pages; re-applying them is harmless. An update takes every
-synced column from the incoming record, so a column the server doesn't send is cleared locally:
-ship a new synced column on the server before the app (`apps/mobile/src/sync/upsertRows.ts`).
+crash before the commit re-pulls those pages; re-applying them is harmless. An update takes only
+the synced columns the incoming record carries (`apps/mobile/src/sync/upsertRows.ts`), so a column
+the server doesn't send yet keeps its local value.
 
 The client never compares an incoming `updatedAt` with the committed local row. The server
 clamps future timestamps (§7), so a device with a fast clock would hold local timestamps higher

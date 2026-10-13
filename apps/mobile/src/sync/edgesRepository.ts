@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic over any edge table */
 import { keyBetween, initialKeys } from '@squidbox/shared';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull, max } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
-import { nextUpdatedAt, nextVersion, tombstone } from './clock';
+import { chunk, SQL_BATCH } from './chunk';
+import { nextVersion, tombstone } from './clock';
 import type { SyncDb } from './db/types';
 import { readByIds } from './readByIds';
 import { saveRecords } from './saveRecords';
@@ -16,14 +17,26 @@ import { saveRecords } from './saveRecords';
 export function makeEdgeRepository(collection: string, table: SQLiteTable, parentField: 'albumId' | 'postId') {
   const t = table as any;
   const parentCol = t[parentField];
-  const byPosition = (a: any, b: any) => (a.position < b.position ? -1 : a.position > b.position ? 1 : 0);
 
   async function liveSorted(tx: SyncDb, parentId: string): Promise<any[]> {
-    const rows = await tx
+    return tx
       .select()
       .from(table)
-      .where(and(eq(parentCol, parentId), isNull(t.deletedAt)));
-    return rows.sort(byPosition);
+      .where(and(eq(parentCol, parentId), isNull(t.deletedAt)))
+      .orderBy(t.position);
+  }
+  // The parent's live edges to these assets.
+  async function liveTo(tx: SyncDb, parentId: string, assetIds: string[]): Promise<any[]> {
+    const edges = [];
+    for (const batch of chunk(assetIds, SQL_BATCH)) {
+      edges.push(
+        ...(await tx
+          .select()
+          .from(table)
+          .where(and(eq(parentCol, parentId), inArray(t.assetId, batch), isNull(t.deletedAt)))),
+      );
+    }
+    return edges;
   }
   // Canonical edge per assetId (dedupe a rare double-add), keyed for reorder/existence checks.
   function canonicalByAsset(edges: any[]): Map<string, any> {
@@ -32,15 +45,7 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
     return m;
   }
   function newEdge(id: string, parentId: string, assetId: string, position: string, now: number) {
-    return {
-      id,
-      createdAt: now,
-      updatedAt: nextUpdatedAt(undefined),
-      deletedAt: null,
-      [parentField]: parentId,
-      assetId,
-      position,
-    };
+    return { id, createdAt: now, updatedAt: now, deletedAt: null, [parentField]: parentId, assetId, position };
   }
   const save = (tx: SyncDb, edges: any[]) => saveRecords(tx, collection, table, edges);
 
@@ -48,15 +53,18 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
     /** Append assetIds not already present, each after the current last (fractional position). */
     async add(db: SyncDb, parentId: string, assetIds: string[], newId: () => string): Promise<void> {
       await db.transaction(async (tx) => {
-        const live = await liveSorted(tx, parentId);
-        const existing = new Set(live.map((e) => e.assetId));
-        let last: string | null = live.length ? live[live.length - 1].position : null;
+        const existing = new Set((await liveTo(tx, parentId, assetIds)).map((e) => e.assetId));
+        const [{ last }] = await tx
+          .select({ last: max(t.position) })
+          .from(table)
+          .where(and(eq(parentCol, parentId), isNull(t.deletedAt)));
+        let position: string | null = last ?? null;
         const now = Date.now();
         const added = [];
         for (const assetId of assetIds) {
           if (existing.has(assetId)) continue;
-          last = keyBetween(last, null);
-          added.push(newEdge(newId(), parentId, assetId, last, now));
+          position = keyBetween(position, null);
+          added.push(newEdge(newId(), parentId, assetId, position, now));
           existing.add(assetId);
         }
         await save(tx, added);
@@ -105,11 +113,7 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
 
     /** Tombstone every live edge for (parentId, assetId ∈ set). */
     async remove(db: SyncDb, parentId: string, assetIds: string[]): Promise<void> {
-      const set = new Set(assetIds);
-      await db.transaction(async (tx) => {
-        const live = await liveSorted(tx, parentId);
-        await save(tx, live.filter((e) => set.has(e.assetId)).map(tombstone));
-      });
+      await db.transaction(async (tx) => save(tx, (await liveTo(tx, parentId, assetIds)).map(tombstone)));
     },
 
     /** Reassign positions to match `orderedAssetIds`; only rewrites edges whose position changed. */
@@ -128,7 +132,13 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
 
     /** Tombstone all live edges for a parent (its album/post was deleted). */
     async tombstoneParent(db: SyncDb, parentId: string): Promise<void> {
-      await db.transaction(async (tx) => save(tx, (await liveSorted(tx, parentId)).map(tombstone)));
+      await db.transaction(async (tx) => {
+        const live: any[] = await tx
+          .select()
+          .from(table)
+          .where(and(eq(parentCol, parentId), isNull(t.deletedAt)));
+        await save(tx, live.map(tombstone));
+      });
     },
   };
 }

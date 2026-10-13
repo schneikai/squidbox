@@ -26,7 +26,7 @@ export default function AssetScreen({ route, navigation }) {
   const { assetIds } = route.params;
   // Separate so a swipe (a new selectedAssetId) doesn't refilter every asset or re-render the pager.
   const visibleAssetIds = useMemo(() => getVisibleAssetIds(assetIds, assets), [assetIds, assets]);
-  const currentAssetId = getCurrentAssetId({ assetIds, assets, selectedAssetId, visibleAssetIds });
+  const currentAssetId = getCurrentAssetId({ assetIds, assets, selectedAssetId });
   const asset = assets[currentAssetId];
   const headerDate = asset ? formatDetailHeaderDate(asset.createdAt) : null;
 

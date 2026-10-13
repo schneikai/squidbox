@@ -30,6 +30,8 @@ export default function PostsProvider({ children }) {
   }, [postEdges]);
   const posts = useDerivedRecords(postRows, assetRefsOf);
 
+  // A user action that writes the post and its edges commits once (repository transactions inside
+  // `tx` become savepoints), so readers never see half of it.
   const value = useMemo(() => {
     const db = getDb();
     return {
@@ -37,25 +39,31 @@ export default function PostsProvider({ children }) {
       addPost: async (data) => {
         const casted = postSchema.cast(data);
         const refs = casted.assetRefs ?? [];
-        const post = await repo.create(db, toModernRecord(casted)); // `assetRefs` stripped by toModernRecord
-        await edges.createFromRefs(db, post.id, refs);
+        const post = await db.transaction(async (tx) => {
+          const created = await repo.create(tx, toModernRecord(casted)); // `assetRefs` stripped by toModernRecord
+          await edges.createFromRefs(tx, created.id, refs);
+          return created;
+        });
         requestSync();
         return { ...post, assetRefs: refs };
       },
       updatePost: async (id, updates) => {
-        if ('assetRefs' in updates) await edges.setRefs(db, id, updates.assetRefs ?? []);
-        await repo.update(db, id, toModernChanges(updates)); // `assetRefs` stripped by toModernChanges
+        await db.transaction(async (tx) => {
+          if ('assetRefs' in updates) await edges.setRefs(tx, id, updates.assetRefs ?? []);
+          await repo.update(tx, id, toModernChanges(updates)); // `assetRefs` stripped by toModernChanges
+        });
         requestSync();
       },
       toggleFavoritePost: async (post) => {
-        await repo.update(db, post.id, { isFavorite: !post.isFavorite });
+        await repo.toggle(db, post.id, 'isFavorite');
         requestSync();
       },
       deletePost: async (id) => {
-        const post = posts[id];
-        if (!post) throw new Error(`Post ${id} not found.`);
-        await repo.remove(db, [id]);
-        await edges.tombstoneParent(db, id);
+        if (!posts[id]) throw new Error(`Post ${id} not found.`);
+        await db.transaction(async (tx) => {
+          await repo.remove(tx, [id]);
+          await edges.tombstoneParent(tx, id);
+        });
         requestSync();
       },
     };

@@ -10,11 +10,8 @@ import { useLiveCollectionMap, useLiveCollectionRows } from '@/sync/useCollectio
 import { useDerivedRecords } from '@/sync/useDerivedRecords';
 import { requestSync } from '@/sync/worker';
 
-// Modern asset store: SQLite (the source of truth) + the sync engine, exposed through the same
-// provider API the app already consumes (an id-keyed `assets` map + methods). Reads are reactive
-// via the shared live tables (useLiveTable); writes go through the transactional repository (row + outbox) and then kick
-// the sync worker. SQLite + the sync engine are the only path — no JSON blobs. This provider is only
-// mounted after the initial pull finishes (see AppGate), so it always reads the full library.
+// Assets from SQLite with their derived post history; writes go through the repository and then
+// start a sync. Only mounted after the initial pull finishes (see AppGate).
 const NO_POSTS = [];
 
 export default function AssetsProvider({ children }) {
@@ -32,11 +29,6 @@ export default function AssetsProvider({ children }) {
   const value = useMemo(
     () => ({
       assets,
-      addAssetAsync: async (data) => {
-        const record = await repo.createAsset(getDb(), toAssetRecord(data));
-        requestSync();
-        return record;
-      },
       addAssetsAsync: async (data) => {
         const list = Array.isArray(data) ? data : [data];
         const records = await repo.createAssets(getDb(), list.map(toAssetRecord));
@@ -45,16 +37,6 @@ export default function AssetsProvider({ children }) {
       },
       updateAsset: async (id, updates) => {
         await repo.updateAsset(getDb(), id, toAssetChanges(updates));
-        requestSync();
-      },
-      updateAssets: async (ids, updates) => {
-        const changes = toAssetChanges(updates);
-        await repo.updateAssets(getDb(), Object.fromEntries(ids.map((id) => [id, changes])));
-        requestSync();
-      },
-      updateManyAssets: async (updatesById) => {
-        const changesById = Object.entries(updatesById).map(([id, updates]) => [id, toAssetChanges(updates)]);
-        await repo.updateAssets(getDb(), Object.fromEntries(changesById));
         requestSync();
       },
       // Local-only marker for failed file uploads (never synced); null clears it for a retry.
@@ -70,7 +52,7 @@ export default function AssetsProvider({ children }) {
         requestSync();
       },
       restoreDeletedAssets: async (assetIds) => {
-        await repo.updateAssets(getDb(), Object.fromEntries(assetIds.map((id) => [id, { deletedAt: null }])));
+        await repo.updateAllAssets(getDb(), assetIds, { deletedAt: null });
         requestSync();
       },
       deleteAssetsAsync: async (assetsToDelete) => {

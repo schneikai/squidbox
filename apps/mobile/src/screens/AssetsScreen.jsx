@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Alert, View } from 'react-native';
 
 import AssetQuickViewModal, { useAssetQuickViewModal } from '@/components/AssetQuickViewModal';
@@ -35,6 +35,7 @@ export default function AssetsScreen({ route }) {
   const {
     isSelectMode,
     selectedAssetIds,
+    isAssetSelected,
     toggleSelectAsset,
     selectAssets,
     exitSelectMode,
@@ -64,14 +65,6 @@ export default function AssetsScreen({ route }) {
     [assets, sortFunction, matchFilter, searchText],
   );
 
-  // ── Action handlers wired into FloatingHeader via context ─────────────────
-  // Keep a ref that's always current so registered callbacks never go stale,
-  // even if the user taps a button before the next useEffect fires.
-  const selectedIds = useMemo(() => new Set(selectedAssetIds), [selectedAssetIds]);
-
-  const handlersRef = useRef({});
-  handlersRef.current = { selectedAssetIds, assetIds, assets };
-
   async function handleAdd() {
     try {
       await addAssetsFromCameraRollAsync();
@@ -81,8 +74,7 @@ export default function AssetsScreen({ route }) {
   }
 
   function handleSelectAll() {
-    const { selectedAssetIds: ids, assetIds: all } = handlersRef.current;
-    selectAssets(ids.length === all.length ? [] : all);
+    selectAssets(selectedAssetIds.length === assetIds.length ? [] : assetIds);
   }
 
   function handleDownload() {
@@ -91,15 +83,12 @@ export default function AssetsScreen({ route }) {
   }
 
   function handleAddToAlbum() {
-    const { selectedAssetIds: ids, assetIds: all } = handlersRef.current;
-    navigation.navigate('AddToAlbumModal', { assetIds: ids.length > 0 ? ids : all.slice(0, 500) });
+    navigation.navigate('AddToAlbumModal', { assetIds: selectedAssetIds });
     exitSelectMode();
   }
 
   function handlePost() {
-    const { selectedAssetIds: ids } = handlersRef.current;
-    if (ids.length === 0) return;
-    navigation.navigate('AddEditPostModal', { assetIds: ids });
+    navigation.navigate('AddEditPostModal', { assetIds: selectedAssetIds });
     exitSelectMode();
   }
 
@@ -119,14 +108,10 @@ export default function AssetsScreen({ route }) {
   }
 
   function getSelectedAssets() {
-    const { selectedAssetIds: ids, assetIds: all, assets: allAssets } = handlersRef.current;
-    const resolvedIds = ids.length > 0 ? ids : all.slice(0, 500);
-    return getAssetsByIds(allAssets, resolvedIds);
+    return getAssetsByIds(assets, selectedAssetIds);
   }
 
   // Register this screen's options with the floating bars context.
-  // Callbacks delegate through handlersRef so they always read the latest
-  // selectedAssetIds without needing it as a dependency here.
   useEffect(() => {
     registerScreenOptions('assets', {
       sortOrder,
@@ -188,7 +173,7 @@ export default function AssetsScreen({ route }) {
             <AssetListItem
               asset={asset}
               isSelectMode={isSelectMode}
-              isSelected={selectedIds.has(asset.id)}
+              isSelected={isAssetSelected(asset.id)}
               showLastPostedAt={sortOrder.includes('lastPostedAt')}
             />
           </SuperPressable>

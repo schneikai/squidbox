@@ -1,8 +1,9 @@
-import { count, desc, sql } from 'drizzle-orm';
+import { count, desc } from 'drizzle-orm';
 
 import { getDb } from './db/client';
 import * as schema from './db/schema';
 import { useLiveQuery } from './useLiveQuery';
+import { useRecordCounts } from './useRecordCounts';
 
 // Reactive data for the Sync Inspector, counted and ordered in SQL.
 
@@ -17,9 +18,9 @@ const SYNC_LOG_SHOWN = 30;
 const NO_ROWS: never[] = [];
 
 export function useCollectionStats(): CollectionStats[] {
-  const assets = useTombstoneCounts(schema.assets);
-  const albums = useTombstoneCounts(schema.albums);
-  const posts = useTombstoneCounts(schema.posts);
+  const assets = useRecordCounts(schema.assets);
+  const albums = useRecordCounts(schema.albums);
+  const posts = useRecordCounts(schema.posts);
   const pending =
     useLiveQuery(
       () =>
@@ -38,22 +39,6 @@ export function useCollectionStats(): CollectionStats[] {
   });
 
   return [stat('assets', assets), stat('albums', albums), stat('posts', posts)];
-}
-
-// Live (non-tombstoned) and tombstoned row counts of a collection.
-function useTombstoneCounts(table: typeof schema.assets | typeof schema.albums | typeof schema.posts) {
-  const [row] =
-    useLiveQuery(
-      () =>
-        getDb()
-          .select({
-            records: sql<number>`count(*) filter (where ${table.deletedAt} is null)`,
-            tombstones: sql<number>`count(*) filter (where ${table.deletedAt} is not null)`,
-          })
-          .from(table),
-      [table],
-    ) ?? NO_ROWS;
-  return { records: Number(row?.records ?? 0), tombstones: Number(row?.tombstones ?? 0) };
 }
 
 export function useSyncLogRows(): schema.SyncLogRow[] {
