@@ -66,7 +66,6 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
     onChange({ text: newText, assetRefs: newAssetRefs, postedAt });
   }
 
-
   // One save at a time: a second tap while the first is still writing would save the post twice.
   async function handleSave() {
     setIsSaving(true);

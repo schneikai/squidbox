@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedRef, useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
@@ -16,7 +16,8 @@ import useAssets from '@/features/assets-context/useAssets';
 export default function SortableAssetGrid({
   assetIds,
   renderListItem,
-  contentContainerStyle,
+  paddingTop = 0,
+  paddingBottom = 0,
   listRef,
   selectedAssetIds,
   selectAssets,
@@ -28,7 +29,6 @@ export default function SortableAssetGrid({
   const numColumns = 3;
   const window = useWindowDimensions();
   const itemSize = window.width / numColumns;
-  const paddingTop = contentContainerStyle?.paddingTop ?? 0;
 
   const scrollRef = useAnimatedRef();
   const scrollY = useSharedValue(0);
@@ -91,9 +91,14 @@ export default function SortableAssetGrid({
     onReorder,
   });
 
+  const gesture = useMemo(
+    () => Gesture.Exclusive(dragSelect.gesture, dragReorder.gesture),
+    [dragSelect.gesture, dragReorder.gesture],
+  );
+  const contentContainerStyle = useMemo(() => ({ paddingTop, paddingBottom }), [paddingTop, paddingBottom]);
+
   if (!assetIds) return null;
 
-  const gesture = Gesture.Exclusive(dragSelect.gesture, dragReorder.gesture);
   const rows = Math.ceil(assetIds.length / numColumns);
   const gridHeight = rows * itemSize;
 
@@ -120,7 +125,8 @@ export default function SortableAssetGrid({
               return (
                 <SortableAssetGridCell
                   key={assetId}
-                  id={assetId}
+                  asset={asset}
+                  renderCell={renderListItem}
                   initialSlot={index}
                   itemSize={itemSize}
                   numColumns={numColumns}
@@ -129,9 +135,7 @@ export default function SortableAssetGrid({
                   activeX={activeX}
                   activeY={activeY}
                   activeScale={activeScale}
-                >
-                  {renderListItem(asset)}
-                </SortableAssetGridCell>
+                />
               );
             })}
           </View>

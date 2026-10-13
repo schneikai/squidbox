@@ -9,6 +9,7 @@ import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay
 import AssetList from '@/features/asset-list/AssetList';
 import useFilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/useFilterAssetsAction';
 import useSortAssetsAction from '@/features/asset-list/actions/sort-assets-action/useSortAssetsAction';
+import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import prepareAssets from '@/features/asset-list/prepareAssets';
 import useAssetCells from '@/features/asset-list/useAssetCells';
 import useAssetList from '@/features/asset-list/useAssetList';
@@ -18,6 +19,7 @@ import useAssets from '@/features/assets-context/useAssets';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useSearch from '@/hooks/useSearch';
 import useSearchMode from '@/hooks/useSearchMode';
+import pluralizeText from '@/utils/pluralizeText';
 
 export default function AssetsScreen({ route }) {
   const { assets, setAssetsDeleted } = useAssets();
@@ -27,16 +29,11 @@ export default function AssetsScreen({ route }) {
   const { sortOrder, sortFunction, sortAssets } = useSortAssetsAction({ afterSort: listScrollTop });
   const { activeFilter, toggleFilter, matchFilter } = useFilterAssetsAction({ afterFilter: listScrollTop });
 
-  const floatingBars = useFloatingBars();
-  const {
-    isSelectMode,
-    selectedAssetIds,
-    isAssetSelected,
-    selectAssets,
-    exitSelectMode,
-    registerScreenOptions,
-    scrollY,
-  } = floatingBars;
+  const { registerScreenOptions, setIsSelectMode, scrollY } = useFloatingBars();
+  const selection = useToggleSelectAssetsAction();
+  const { isSelectMode, selectedAssetIds, isAssetSelected, selectAssets, exitSelectMode } = selection;
+  // The floating bars only need to know whether select mode is on (the navigation bar hides).
+  useEffect(() => setIsSelectMode(isSelectMode), [isSelectMode]);
   const { searchBar, query: searchText } = useSearchMode(useSearch());
 
   const scrollHandler = useFloatingBarScrollHandler();
@@ -59,7 +56,7 @@ export default function AssetsScreen({ route }) {
     [assets, sortFunction, matchFilter, searchText],
   );
 
-  const actions = useAssetSelectionActions(floatingBars, assetIds);
+  const actions = useAssetSelectionActions(selection, assetIds);
 
   async function handleAdd() {
     try {
@@ -70,14 +67,13 @@ export default function AssetsScreen({ route }) {
   }
 
   function handleDelete() {
-    const selected = actions.getSelectedAssets();
-    Alert.alert(`Delete ${selected.length} item${selected.length !== 1 ? 's' : ''}?`, '', [
+    Alert.alert(pluralizeText('Delete 1 item?', 'Delete %{count} items?', selectedAssetIds.length), '', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
         onPress: () => {
-          setAssetsDeleted(selected.map((a) => a.id));
+          setAssetsDeleted(selectedAssetIds);
           exitSelectMode();
         },
       },
@@ -106,7 +102,6 @@ export default function AssetsScreen({ route }) {
     isSelectMode,
     isAssetSelected,
     showLastPostedAt: sortOrder.includes('lastPostedAt'),
-    canPeek: !isSelectMode,
   });
 
   const hasActiveOptions = activeFilter.length > 0 || sortOrder !== 'createdAt:desc';
@@ -115,20 +110,17 @@ export default function AssetsScreen({ route }) {
     <View style={{ flex: 1 }}>
       <FloatingHeader
         title="Library"
-        isAssetsTab
         onAdd={handleAdd}
-        onSelectAll={actions.toggleSelectAll}
-        allSelected={actions.allSelected}
-        onDownload={actions.downloadSelected}
-        onAddToAlbum={actions.addSelectedToAlbum}
-        onPost={actions.postSelected}
+        selection={selection}
+        selectionActions={actions}
         onDelete={handleDelete}
       />
       {quickViewModal}
       <AssetList
         listRef={listRef}
         assetIds={assetIds}
-        contentContainerStyle={{ paddingTop, paddingBottom }}
+        paddingTop={paddingTop}
+        paddingBottom={paddingBottom}
         onScroll={scrollHandler}
         scrollY={scrollY}
         dragSelectEnabled={isSelectMode}

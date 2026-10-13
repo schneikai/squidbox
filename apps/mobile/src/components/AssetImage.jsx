@@ -13,34 +13,33 @@ export default function AssetImage({ asset = {}, contentFit, placeholderColor = 
   const { thumbnailStyle } = useAppSettings();
 
   useEffect(() => {
-    if (!asset.thumbnailFilename) return;
+    const filename = asset.thumbnailFilename;
+    if (!filename) return;
+    let isCancelled = false;
+    let interval;
 
-    async function checkAssetThumbnail() {
-      if (await hasThumbnailAsync(asset.thumbnailFilename)) {
-        setThumbnailUri(getAssetThumbnailUri(asset.thumbnailFilename));
-      } else {
-        loadThumbnail(asset);
-      }
+    async function showIfOnDisk() {
+      if (!(await hasThumbnailAsync(filename))) return false;
+      if (!isCancelled) setThumbnailUri(getAssetThumbnailUri(filename));
+      return true;
     }
-    checkAssetThumbnail();
-  }, [asset.thumbnailFilename, asset.isThumbnailSynced]);
 
-  useEffect(() => {
-    if (!asset.thumbnailFilename) return;
+    (async () => {
+      if ((await showIfOnDisk()) || isCancelled) return;
+      loadThumbnail(asset);
+      // Poll until the download lands. A failed request (a network hiccup during the launch-sync
+      // storm, a transient 401/403) frees its key, so asking again re-enqueues it, while
+      // loadThumbnail dedupes requests still in flight: a blank cell heals instead of staying blank.
+      interval = setInterval(async () => {
+        if (await showIfOnDisk()) clearInterval(interval);
+        else loadThumbnail(asset);
+      }, 2000);
+    })();
 
-    const interval = setInterval(async () => {
-      if (await hasThumbnailAsync(asset.thumbnailFilename)) {
-        setThumbnailUri(getAssetThumbnailUri(asset.thumbnailFilename));
-        clearInterval(interval);
-      } else {
-        // Still not on disk: the first request may have failed (a network hiccup during the
-        // launch-sync storm, a transient 401/403). loadThumbnail dedupes in-flight requests, so
-        // re-asking while a download is still queued is a no-op; once an attempt has failed (its key
-        // is freed) this re-enqueues it. Durable retry — a blank cell heals instead of staying blank.
-        loadThumbnail(asset);
-      }
-    }, 2000);
-    return () => clearInterval(interval);
+    return () => {
+      isCancelled = true;
+      clearInterval(interval);
+    };
   }, [asset.thumbnailFilename, asset.isThumbnailSynced, loadThumbnail]);
 
   if (!asset.thumbnailFilename) return null;

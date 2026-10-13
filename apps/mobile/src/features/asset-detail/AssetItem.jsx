@@ -2,19 +2,27 @@
 // staying zoomed while the pager is locked) is not implemented yet. A slight crop of the image was
 // also reported and still needs checking on a device.
 
-import { useRef } from 'react';
+import { memo, useState } from 'react';
 import { Animated, Pressable } from 'react-native';
 import { PinchGestureHandler, State } from 'react-native-gesture-handler';
 
 import AssetImage from '@/components/AssetImage';
 import { motion } from '@/styles/designTokens';
 
-export default function AssetItem({ asset, style, onTap }) {
-  const pinchScale = useRef(new Animated.Value(1)).current;
-  // Pinching in never shrinks the image below its fitted size.
-  const scale = pinchScale.interpolate({ inputRange: [1, 2], outputRange: [1, 2], extrapolateLeft: 'clamp' });
+// Memoized: the pager re-renders on every swipe, its pages shouldn't.
+export default memo(AssetItem);
 
-  const onPinchGestureEvent = Animated.event([{ nativeEvent: { scale: pinchScale } }], { useNativeDriver: true });
+function AssetItem({ asset, style, onTap }) {
+  // Created once: a new native event would make the pinch handler reattach it on every render.
+  const [{ pinchScale, scale, onPinchGestureEvent }] = useState(() => {
+    const value = new Animated.Value(1);
+    return {
+      pinchScale: value,
+      // Pinching in never shrinks the image below its fitted size.
+      scale: value.interpolate({ inputRange: [1, 2], outputRange: [1, 2], extrapolateLeft: 'clamp' }),
+      onPinchGestureEvent: Animated.event([{ nativeEvent: { scale: value } }], { useNativeDriver: true }),
+    };
+  });
 
   function handlePinchStateChange(event) {
     if (event.nativeEvent.oldState !== State.ACTIVE) return;

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, PanResponder, ActivityIndicator } from 'react-native';
 import { MenuProvider } from 'react-native-popup-menu';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
@@ -160,14 +160,15 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
   }
 
   // --- Asset navigation ---
-  // Assets deleted while the modal is open (e.g. by a sync) drop out of the pool.
-  const livePool = useMemo(() => assetPool.filter((id) => assets[id] && !assets[id].deletedAt), [assetPool, assets]);
-  const currentAsset = assets[livePool[assetIndex % livePool.length]] ?? null;
+  // Assets deleted while the modal is open (e.g. by a sync) are skipped, not shown.
+  const currentIndex = findLiveIndex(assetPool, assets, assetIndex, 1);
+  const currentAsset = currentIndex >= 0 ? assets[assetPool[currentIndex]] : null;
+  const hasOtherAssets = currentIndex >= 0 && findLiveIndex(assetPool, assets, currentIndex + 1, 1) !== currentIndex;
 
   function navigateAsset(direction) {
-    if (livePool.length <= 1) return;
-    const newIndex =
-      direction === 'next' ? (assetIndex + 1) % livePool.length : (assetIndex - 1 + livePool.length) % livePool.length;
+    if (!hasOtherAssets) return;
+    const step = direction === 'next' ? 1 : -1;
+    const newIndex = findLiveIndex(assetPool, assets, currentIndex + step, step);
     animateTransition(mediaOpacity, mediaTranslateX, direction, () => setAssetIndex(newIndex));
   }
 
@@ -289,7 +290,7 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
               )}
             </Animated.View>
 
-            {livePool.length > 1 && (
+            {hasOtherAssets && (
               <>
                 <TouchableOpacity
                   style={[styles.arrowButton, styles.arrowLeft]}
@@ -523,6 +524,17 @@ const styles = StyleSheet.create({
     padding: SCREEN_PADDING,
   },
 });
+
+// The index of the first live asset in `pool` from `start`, walking by `step` and wrapping around; -1
+// when none is left.
+function findLiveIndex(pool, assets, start, step) {
+  for (let i = 0; i < pool.length; i++) {
+    const index = (((start + i * step) % pool.length) + pool.length) % pool.length;
+    const asset = assets[pool[index]];
+    if (asset && !asset.deletedAt) return index;
+  }
+  return -1;
+}
 
 // Ids of the live assets that match the filters, in random order.
 function shuffledAssetIds(assets, { showImages, showVideos, onlyFavorites }) {

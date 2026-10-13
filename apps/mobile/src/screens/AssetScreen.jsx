@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -24,13 +24,14 @@ export default function AssetScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
 
   const { assetIds } = route.params;
-  // Separate so a swipe (a new selectedAssetId) doesn't refilter every asset or re-render the pager.
+  // Separate so a swipe (a new selectedAssetId) doesn't refilter every asset.
   const visibleAssetIds = useMemo(() => getVisibleAssetIds(assetIds, assets), [assetIds, assets]);
   const currentAssetId = getCurrentAssetId({ assetIds, assets, selectedAssetId });
   const asset = assets[currentAssetId];
   const headerDate = asset ? formatDetailHeaderDate(asset.createdAt) : null;
 
   const headerTopOffset = insets.top + spacing.contentPaddingTop;
+  const openFullscreen = useCallback(() => setIsFullscreen(true), []);
 
   return (
     <Page>
@@ -55,7 +56,7 @@ export default function AssetScreen({ route, navigation }) {
         assetIds={visibleAssetIds}
         currentAssetId={currentAssetId}
         onChangeAssetId={setSelectedAssetId}
-        onTapAsset={() => setIsFullscreen(true)}
+        onTapAsset={openFullscreen}
       />
 
       {asset && asset.mediaType === MEDIA_TYPES.VIDEO && <VideoControls asset={asset} />}

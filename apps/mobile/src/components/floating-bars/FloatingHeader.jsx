@@ -9,25 +9,19 @@ import FloatingPill from './FloatingPill';
 
 import GradientButton from '@/components/GradientButton';
 import Icon from '@/components/Icon';
-import PillButton from '@/components/PillButton';
+import IconButton from '@/components/IconButton';
+import SelectionActions from '@/features/asset-list/SelectionActions';
 import useCloud from '@/features/cloud/useCloud';
 import { colors, motion, shadows, spacing, typography } from '@/styles/designTokens';
 
-export default function FloatingHeader({
-  title,
-  isAssetsTab = false,
-  onAdd,
-  onSelectAll,
-  allSelected = false,
-  onDownload,
-  onAddToAlbum,
-  onPost,
-  onDelete,
-}) {
+// The main screens' header. A screen with select mode passes its `selection`
+// (useToggleSelectAssetsAction), the `selectionActions` (useAssetSelectionActions) and `onDelete`.
+export default function FloatingHeader({ title, onAdd, selection, selectionActions, onDelete }) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { isAuthenticated } = useCloud();
-  const { scrollY, isSelectMode, selectedAssetIds, toggleSelectMode, exitSelectMode } = useFloatingBars();
+  const { scrollY } = useFloatingBars();
+  const isSelectMode = selection?.isSelectMode ?? false;
 
   // ── Animated styles (must be called before any conditional return) ─────────
   const titleStyle = useAnimatedStyle(() => {
@@ -54,8 +48,6 @@ export default function FloatingHeader({
     pointerEvents: isSelectMode ? 'auto' : 'none',
   }));
 
-  const hasSelection = selectedAssetIds.length > 0;
-
   function handleSettings() {
     navigation.navigate('SettingsTab');
   }
@@ -69,7 +61,7 @@ export default function FloatingHeader({
       <Animated.View style={[styles.rightGroup, normalStyle]}>
         {/* Action pill: select toggle + add */}
         <FloatingPill>
-          {isAssetsTab && <PillButton iconName="check-circle" onPress={toggleSelectMode} />}
+          {selection && <IconButton icon="check-circle" onPress={selection.toggleSelectMode} />}
           <GradientButton onPress={onAdd} style={styles.addButton}>
             <Icon name="add" color={colors.textInverse} />
           </GradientButton>
@@ -97,18 +89,11 @@ export default function FloatingHeader({
         </Pressable>
       </Animated.View>
 
-      {/* Select mode pill (assets only) */}
-      {isAssetsTab && (
+      {/* Select mode pill */}
+      {selection && (
         <Animated.View style={[styles.pillWrapper, selectPillStyle]}>
           <FloatingPill>
-            <PillButton iconName="checkbox" onPress={onSelectAll} active={allSelected} />
-            <PillButton iconName="download" onPress={onDownload} disabled={!hasSelection} />
-            <PillButton iconName="library" onPress={onAddToAlbum} disabled={!hasSelection} />
-            <PillButton iconName="share" onPress={onPost} disabled={!hasSelection} />
-            <PillButton iconName="trash" onPress={onDelete} disabled={!hasSelection} danger />
-            <GradientButton onPress={exitSelectMode} style={styles.addButton}>
-              <Icon name="close" color={colors.textInverse} />
-            </GradientButton>
+            <SelectionActions actions={selectionActions} onDelete={onDelete} onClose={selection.exitSelectMode} />
           </FloatingPill>
         </Animated.View>
       )}

@@ -2,13 +2,13 @@ import { useCallback, useRef, useState } from 'react';
 
 import AssetGridCell from './AssetGridCell';
 
-import AssetQuickViewModal, { useAssetQuickViewModal } from '@/components/AssetQuickViewModal';
+import AssetQuickViewModal from '@/components/AssetQuickViewModal';
 import useAssets from '@/features/assets-context/useAssets';
 
 /**
  * Everything an asset grid needs for its cells: `renderCell` (its `renderListItem`) and the
- * `quickViewModal` to render next to it. Cells favorite on double tap and peek on long press unless
- * turned off. The handlers reach the cells through a ref, so they keep their identity across renders
+ * `quickViewModal` to render next to it. Cells favorite on double tap (not deleted assets) and peek on
+ * long press (not in select mode, or with `canPeek` off). The handlers reach the cells through a ref, so they keep their identity across renders
  * and the memoized cells skip re-rendering unless their own asset, selection or display props change.
  */
 export default function useAssetCells({
@@ -16,19 +16,18 @@ export default function useAssetCells({
   isSelectMode = false,
   isAssetSelected,
   showLastPostedAt = false,
-  canFavorite = true,
   canPeek = true,
 }) {
   const { toggleFavoriteAsset } = useAssets();
-  const { asset: peekedAsset, open: peek, close: closePeek } = useAssetQuickViewModal();
+  const quickViewRef = useRef(null);
 
   const handlersRef = useRef();
-  handlersRef.current = { onPress, onDoublePress: toggleFavoriteAsset, onLongPress: peek, onLongPressOut: closePeek };
+  handlersRef.current = { onPress, onDoublePress: toggleFavoriteAsset };
   const [stable] = useState(() => ({
     onPress: (asset) => handlersRef.current.onPress(asset),
     onDoublePress: (asset) => handlersRef.current.onDoublePress(asset),
-    onLongPress: (asset) => handlersRef.current.onLongPress(asset),
-    onLongPressOut: (asset) => handlersRef.current.onLongPressOut(asset),
+    onLongPress: (asset) => quickViewRef.current?.open(asset),
+    onLongPressOut: () => quickViewRef.current?.close(),
   }));
   const hasPress = !!onPress;
 
@@ -40,13 +39,13 @@ export default function useAssetCells({
         isSelected={isAssetSelected ? isAssetSelected(asset.id) : false}
         showLastPostedAt={showLastPostedAt}
         onPress={hasPress ? stable.onPress : undefined}
-        onDoublePress={canFavorite ? stable.onDoublePress : undefined}
-        onLongPress={canPeek ? stable.onLongPress : undefined}
+        onDoublePress={asset.deletedAt ? undefined : stable.onDoublePress}
+        onLongPress={canPeek && !isSelectMode ? stable.onLongPress : undefined}
         onLongPressOut={stable.onLongPressOut}
       />
     ),
-    [isSelectMode, isAssetSelected, showLastPostedAt, hasPress, canFavorite, canPeek, stable],
+    [isSelectMode, isAssetSelected, showLastPostedAt, hasPress, canPeek, stable],
   );
 
-  return { renderCell, quickViewModal: <AssetQuickViewModal asset={peekedAsset} isVisible={!!peekedAsset} /> };
+  return { renderCell, quickViewModal: <AssetQuickViewModal ref={quickViewRef} /> };
 }

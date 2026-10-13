@@ -13,21 +13,20 @@ export default function AlbumAssetsView({
   paddingTop,
   paddingBottom,
   selectAssets,
-  canReorder,
+  isSortable,
   reorderEnabled,
   onReorder,
 }) {
-  // Long-press has three mutually exclusive behaviors: drag-select (select mode),
-  // drag-reorder (reorder enabled), or the quick-view peek (everything else).
-  const canQuickViewPeek = !isSelectMode && !reorderEnabled;
-  // Albums that can't be reordered (smart albums, which can hold thousands) use the virtualized list.
-  const Grid = canReorder ? SortableAssetGrid : AssetList;
+  // Regular albums can be reordered by dragging; smart albums (Favorites, Deleted) have no stored
+  // order and use the virtualized list.
+  const Grid = isSortable ? SortableAssetGrid : AssetList;
   const { renderCell, quickViewModal } = useAssetCells({
     onPress: onPressAsset,
     isSelectMode,
     isAssetSelected,
     showLastPostedAt: sortOrder.includes('lastPostedAt'),
-    canPeek: canQuickViewPeek,
+    // Long-press drags when reordering (and drag-selects in select mode), so it can't also peek.
+    canPeek: !reorderEnabled,
   });
 
   return (
@@ -36,7 +35,8 @@ export default function AlbumAssetsView({
       <Grid
         listRef={listRef}
         assetIds={assetIds}
-        contentContainerStyle={{ paddingTop, paddingBottom }}
+        paddingTop={paddingTop}
+        paddingBottom={paddingBottom}
         dragSelectEnabled={isSelectMode}
         reorderEnabled={reorderEnabled}
         onReorder={onReorder}

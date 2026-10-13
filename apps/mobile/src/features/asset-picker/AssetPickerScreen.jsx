@@ -7,7 +7,7 @@ import AssetPickerStackNavigator from '@/features/asset-picker/AssetPickerStackN
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';
 
 export default function AssetPickerScreen({ navigation }) {
-  const { selectedAssets, albumScreenProps, onConfirmSelection, onCancelSelection } = useAssetPicker();
+  const { selectedAssetIds, albumScreenProps, onConfirmSelection, onCancelSelection } = useAssetPicker();
   const [activeNavigationItem, setActiveNavigationItem] = useState('Assets');
 
   const confirmSelection = useCallback(() => {
@@ -32,7 +32,7 @@ export default function AssetPickerScreen({ navigation }) {
     if (albumScreenProps?.navigation) {
       navigation.setOptions({
         headerLeft: () => <Button onPress={() => albumScreenProps.navigation.goBack()} title="Back" />,
-        headerRight: () => <AddAssetsButton selectedAssets={selectedAssets} onPress={confirmSelection} />,
+        headerRight: () => <AddAssetsButton count={selectedAssetIds.length} onPress={confirmSelection} />,
         headerTitle: albumScreenProps.album.name,
       });
       return;
@@ -40,7 +40,7 @@ export default function AssetPickerScreen({ navigation }) {
 
     navigation.setOptions({
       headerLeft: () => <Button onPress={cancelSelection} title="Cancel" />,
-      headerRight: () => <AddAssetsButton selectedAssets={selectedAssets} onPress={confirmSelection} />,
+      headerRight: () => <AddAssetsButton count={selectedAssetIds.length} onPress={confirmSelection} />,
       headerTitle: () => (
         <SegmentedControl
           activeButtonLabel={activeNavigationItem}
@@ -51,7 +51,7 @@ export default function AssetPickerScreen({ navigation }) {
         />
       ),
     });
-  }, [navigation, selectedAssets, albumScreenProps, activeNavigationItem]);
+  }, [navigation, selectedAssetIds, albumScreenProps, activeNavigationItem]);
 
   return <AssetPickerStackNavigator />;
 }

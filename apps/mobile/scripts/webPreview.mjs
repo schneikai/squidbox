@@ -36,11 +36,13 @@ export async function openWebPreview({ signedIn = true, production = false } = {
   return { page, errors, close: () => browser.close() };
 }
 
+const SETTLE_MAX_ROUNDS = 10;
+
 // Waits until the screen has loaded its data and thumbnails: grid cells look for their thumbnail
 // every 2 s (AssetImage), so wait in rounds of that length until no new image shows up.
-export async function settleAsync(page, { maxRounds = 10 } = {}) {
+export async function settleAsync(page) {
   let imageCount = -1;
-  for (let round = 0; round < maxRounds; round++) {
+  for (let round = 0; round < SETTLE_MAX_ROUNDS; round++) {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2500);
     await page.waitForFunction(() => [...document.images].every((image) => image.complete));

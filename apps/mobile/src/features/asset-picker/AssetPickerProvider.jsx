@@ -1,11 +1,17 @@
 import { useNavigation } from '@react-navigation/native';
 import { useState, useCallback, useMemo, useRef } from 'react';
 
+import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import AssetPickerContext from '@/features/asset-picker/AssetPickerContext';
+import useAssets from '@/features/assets-context/useAssets';
+import getAssetsByIds from '@/utils/assets/queries/getAssetsByIds';
 
 export default function AssetPickerProvider({ children }) {
   const navigation = useNavigation();
-  const [selectedAssets, setSelectedAssets] = useState([]);
+  const { assets } = useAssets();
+  const assetsRef = useRef(assets);
+  assetsRef.current = assets; // read on confirm, so a library write doesn't change the context value
+  const { selectedAssetIds, isAssetSelected, toggleSelectAsset, selectAssets } = useToggleSelectAssetsAction();
   // All AssetPicker screens use the same header that is created in AssetPickerScreen.
   // When we are inside a album tho we need to show the album name in the header
   // and a back button. These props are set in AlbumScreen onFocus and used in
@@ -13,14 +19,11 @@ export default function AssetPickerProvider({ children }) {
   const [albumScreenProps, setAlbumScreenProps] = useState(null);
   const onClosePromiseResolveRef = useRef();
 
-  const selectedIds = useMemo(() => new Set(selectedAssets.map((asset) => asset.id)), [selectedAssets]);
-  const isAssetSelected = useCallback((assetId) => selectedIds.has(assetId), [selectedIds]);
-
   const cleanUpAndClose = useCallback(() => {
-    setSelectedAssets([]);
+    selectAssets([]);
     onClosePromiseResolveRef.current = null;
     setAlbumScreenProps(null);
-  }, []);
+  }, [selectAssets]);
 
   // openAssetPicker works like the build-in image picker and returns
   // a promise that resolves with the selected assets.
@@ -32,29 +35,20 @@ export default function AssetPickerProvider({ children }) {
   }, [navigation]);
 
   const onConfirmSelection = useCallback(() => {
-    onClosePromiseResolveRef.current({ canceled: false, assets: selectedAssets });
+    onClosePromiseResolveRef.current({ canceled: false, assets: getAssetsByIds(assetsRef.current, selectedAssetIds) });
     cleanUpAndClose();
-  }, [selectedAssets, cleanUpAndClose]);
+  }, [selectedAssetIds, cleanUpAndClose]);
 
   const onCancelSelection = useCallback(() => {
     onClosePromiseResolveRef.current({ canceled: true, assets: [] });
     cleanUpAndClose();
   }, [cleanUpAndClose]);
 
-  const toggleSelectAsset = useCallback((asset) => {
-    setSelectedAssets((current) =>
-      current.some((selected) => selected.id === asset.id)
-        ? current.filter((selected) => selected.id !== asset.id)
-        : [...current, asset],
-    );
-  }, []);
-
   const value = useMemo(
     () => ({
       openAssetPicker,
       toggleSelectAsset,
-      selectedAssets,
-      setSelectedAssets,
+      selectedAssetIds,
       isAssetSelected,
       albumScreenProps,
       setAlbumScreenProps,
@@ -64,7 +58,7 @@ export default function AssetPickerProvider({ children }) {
     [
       openAssetPicker,
       toggleSelectAsset,
-      selectedAssets,
+      selectedAssetIds,
       isAssetSelected,
       albumScreenProps,
       onConfirmSelection,

@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
@@ -7,12 +7,17 @@ import useAssetDragSelect from './useAssetDragSelect';
 
 import useAssets from '@/features/assets-context/useAssets';
 
+// Constant props, so FlatList's own memo isn't defeated on every render of the screen.
+const keyExtractor = (assetId) => assetId;
+const STICKY_HEADER = [0];
+
 export default function AssetList({
   assetIds,
   ListHeaderComponent,
   renderListItem,
   listRef,
-  contentContainerStyle,
+  paddingTop = 0,
+  paddingBottom = 0,
   onScroll,
   scrollY,
   dragSelectEnabled = false,
@@ -42,7 +47,7 @@ export default function AssetList({
     assetIds: assetIds ?? [],
     numColumns,
     itemSize: listItemWidth,
-    paddingTop: contentContainerStyle?.paddingTop ?? 0,
+    paddingTop,
     listRef,
     scrollY: effectiveScrollY,
     selectedIdsRef,
@@ -58,6 +63,8 @@ export default function AssetList({
     [assets, listItemWidth, renderListItem],
   );
 
+  const contentContainerStyle = useMemo(() => ({ paddingTop, paddingBottom }), [paddingTop, paddingBottom]);
+
   if (!assetIds) return null;
 
   const list = (
@@ -66,9 +73,9 @@ export default function AssetList({
       data={assetIds}
       numColumns={numColumns}
       renderItem={renderItem}
-      keyExtractor={(assetId) => assetId}
+      keyExtractor={keyExtractor}
       ListHeaderComponent={ListHeaderComponent}
-      stickyHeaderIndices={ListHeaderComponent ? [0] : undefined}
+      stickyHeaderIndices={ListHeaderComponent ? STICKY_HEADER : undefined}
       contentContainerStyle={contentContainerStyle}
       ref={listRef}
       onScroll={effectiveOnScroll}

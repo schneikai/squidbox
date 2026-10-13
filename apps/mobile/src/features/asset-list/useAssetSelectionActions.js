@@ -6,7 +6,7 @@ import getAssetsByIds from '@/utils/assets/queries/getAssetsByIds';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 
 // What an asset grid with select mode does with a tap and with the selection. `selection` comes from
-// useToggleSelectAssetsAction (or the floating bars, which use it); `assetIds` are the ids shown.
+// useToggleSelectAssetsAction; `assetIds` are the ids shown.
 export default function useAssetSelectionActions(selection, assetIds) {
   const { isSelectMode, selectedAssetIds, toggleSelectAsset, selectAssets, exitSelectMode } = selection;
   const navigation = useNavigation();
@@ -22,15 +22,18 @@ export default function useAssetSelectionActions(selection, assetIds) {
     return getAssetsByIds(assets, selectedAssetIds);
   }
 
+  const allSelected = assetIds.length > 0 && selectedAssetIds.length === assetIds.length;
+
   return {
-    allSelected: assetIds.length > 0 && selectedAssetIds.length === assetIds.length,
+    hasSelection: selectedAssetIds.length > 0,
+    allSelected,
     getSelectedAssets,
     openAsset(asset) {
       if (isSelectMode) toggleSelectAsset(asset.id);
       else navigation.navigate('AssetScreen', { assetId: asset.id, assetIds });
     },
     toggleSelectAll() {
-      selectAssets(selectedAssetIds.length === assetIds.length ? [] : assetIds);
+      selectAssets(allSelected ? [] : assetIds);
     },
     async downloadSelected() {
       await saveAssetsToMediaLibraryAsync(getSelectedAssets());

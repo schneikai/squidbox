@@ -5,8 +5,6 @@ import { useSharedValue } from 'react-native-reanimated';
 import FloatingBarsContext from './FloatingBarsContext';
 import { getActiveTabName } from './navStateHelpers';
 
-import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
-
 const TAB_TO_OPTIONS_KEY = {
   AssetsTab: 'assets',
   AlbumsTab: 'albums',
@@ -32,18 +30,21 @@ export default function FloatingBarsProvider({ children }) {
     screenOptionsRef.current[tab] = options;
   }, []);
 
-  const activeTabName = useNavigationState(getActiveTabName);
+  // Read through a ref, so openFilterModal (and the context value) stays the same across tab switches.
+  const activeTabNameRef = useRef();
+  activeTabNameRef.current = useNavigationState(getActiveTabName);
 
   const openFilterModal = useCallback(() => {
-    const key = TAB_TO_OPTIONS_KEY[activeTabName] ?? 'assets';
+    const key = TAB_TO_OPTIONS_KEY[activeTabNameRef.current] ?? 'assets';
     setFilterModalData({ ...screenOptionsRef.current[key] });
     setIsFilterModalOpen(true);
-  }, [activeTabName]);
+  }, []);
 
   const closeFilterModal = useCallback(() => setIsFilterModalOpen(false), []);
 
-  // ── Select mode (assets screen only) ─────────────────────────────────────
-  const selection = useToggleSelectAssetsAction();
+  // ── Select mode: the Library screen owns its selection and reports only whether it's on, so a
+  // selection change doesn't re-render every floating bar ─────────────────────────────────────
+  const [isSelectMode, setIsSelectMode] = useState(false);
 
   // ── Scroll-driven visibility (Reanimated shared values) ───────────────────
   const scrollY = useSharedValue(0);
@@ -70,10 +71,10 @@ export default function FloatingBarsProvider({ children }) {
 
       // Screen options registration
       registerScreenOptions,
-      screenOptionsRef,
 
       // Select mode
-      ...selection,
+      isSelectMode,
+      setIsSelectMode,
 
       // Scroll animation values (passed to animated components)
       scrollY,
@@ -87,7 +88,7 @@ export default function FloatingBarsProvider({ children }) {
       openFilterModal,
       closeFilterModal,
       registerScreenOptions,
-      selection,
+      isSelectMode,
       scrollY,
       isNavBarHidden,
       resetScroll,

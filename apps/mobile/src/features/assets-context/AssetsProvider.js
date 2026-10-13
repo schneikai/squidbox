@@ -29,8 +29,7 @@ export default function AssetsProvider({ children }) {
   const value = useMemo(
     () => ({
       assets,
-      addAssetsAsync: async (data) => {
-        const list = Array.isArray(data) ? data : [data];
+      addAssetsAsync: async (list) => {
         const records = await repo.createAssets(getDb(), list.map(toAssetRecord));
         requestSync();
         return records;
@@ -55,13 +54,10 @@ export default function AssetsProvider({ children }) {
         await repo.updateAllAssets(getDb(), assetIds, { deletedAt: null });
         requestSync();
       },
-      deleteAssetsAsync: async (assetsToDelete) => {
+      deleteAssetsAsync: async (assetIds) => {
         // Tombstone the metadata; it syncs as a delete. TODO: also delete the S3
         // binaries via the new backend before tombstoning (sync-design §7a).
-        await repo.deleteAssets(
-          getDb(),
-          assetsToDelete.map((asset) => asset.id),
-        );
+        await repo.deleteAssets(getDb(), assetIds);
         requestSync();
       },
     }),

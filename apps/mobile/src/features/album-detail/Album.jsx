@@ -8,7 +8,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import GradientButton from '@/components/GradientButton';
 import Icon from '@/components/Icon';
 import Page from '@/components/Page';
-import PillButton from '@/components/PillButton';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 import SearchOptionsBar from '@/components/floating-bars/SearchOptionsBar';
@@ -19,6 +18,7 @@ import AddAssetAction from '@/features/album-detail/actions/AddAssetAction';
 import MoreAction from '@/features/album-detail/actions/MoreAction';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useAppSettings from '@/features/app-settings/useAppSettings';
+import SelectionActions from '@/features/asset-list/SelectionActions';
 import useFilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/useFilterAssetsAction';
 import { getAssetSortFunction } from '@/features/asset-list/actions/sort-assets-action/useSortAssetsAction';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
@@ -66,7 +66,7 @@ export default function Album({ album }) {
 
   const { listRef, listScrollTop } = useAssetList();
   const selection = useToggleSelectAssetsAction();
-  const { isSelectMode, selectedAssetIds, isAssetSelected, toggleSelectMode, selectAssets } = selection;
+  const { isSelectMode, selectedAssetIds, isAssetSelected, toggleSelectMode, exitSelectMode, selectAssets } = selection;
   // A per-session override lets the open album react immediately to sort/reorder changes.
   const [sessionSortOrder, setSessionSortOrder] = useState(null);
   const sortOrder = sessionSortOrder ?? getAlbumSortOrder(album, albumSortOrder);
@@ -93,7 +93,6 @@ export default function Album({ album }) {
   const postIds = useMemo(() => [...album.postHistory].reverse(), [album.postHistory]);
 
   const actions = useAssetSelectionActions(selection, assetIds);
-  const hasSelection = selectedAssetIds.length > 0;
   const hasSubHeader = !!album.archivedAt || !!album.notes;
   const isSmart = isSmartAlbum(album);
 
@@ -142,14 +141,11 @@ export default function Album({ album }) {
         cancelButtonIndex: 2,
         title: `${getAssetCountInfo(selected).toLowerCase()} selected`,
       },
-      async (index) => {
-        if (index === 0) {
-          removeAssetsFromAlbum(album, selected);
-          toggleSelectMode();
-        } else if (index === 1) {
-          setAssetsDeleted(selected.map((a) => a.id));
-          toggleSelectMode();
-        }
+      (index) => {
+        if (index === 2) return;
+        if (index === 0) removeAssetsFromAlbum(album, selected);
+        else setAssetsDeleted(selectedAssetIds);
+        exitSelectMode();
       },
     );
   }
@@ -163,20 +159,11 @@ export default function Album({ album }) {
         isSelectMode={isSelectMode}
         menuSlot={
           isSelectMode ? (
-            // Selection toolbar — mirrors the main screen's select pill
-            <>
-              <PillButton iconName="checkbox" onPress={actions.toggleSelectAll} active={actions.allSelected} />
-              <PillButton iconName="download" onPress={actions.downloadSelected} disabled={!hasSelection} />
-              <PillButton iconName="library" onPress={actions.addSelectedToAlbum} disabled={!hasSelection} />
-              <PillButton iconName="share" onPress={actions.postSelected} disabled={!hasSelection} />
-              {!isSmart && (
-                <PillButton iconName="trash" onPress={handleDeleteFromAlbum} disabled={!hasSelection} danger />
-              )}
-              <View style={actionButtonStyles.pillSeparator} />
-              <GradientButton onPress={toggleSelectMode} style={styles.closeButton}>
-                <Icon name="close" color={colors.textInverse} />
-              </GradientButton>
-            </>
+            <SelectionActions
+              actions={actions}
+              onDelete={isSmart ? undefined : handleDeleteFromAlbum}
+              onClose={exitSelectMode}
+            />
           ) : (
             // Normal toolbar
             <>
@@ -217,7 +204,7 @@ export default function Album({ album }) {
             paddingTop={hasSubHeader ? 0 : paddingTop}
             paddingBottom={paddingBottom}
             selectAssets={selectAssets}
-            canReorder={!isSmart}
+            isSortable={!isSmart}
             reorderEnabled={reorderEnabled}
             onReorder={handleReorder}
           />
@@ -330,11 +317,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-  },
-
-  // ── Selection toolbar ────────────────────────────────────────────────────
-  closeButton: {
-    marginLeft: 2,
   },
 
   // ── Floating segment pill ─────────────────────────────────────────────────

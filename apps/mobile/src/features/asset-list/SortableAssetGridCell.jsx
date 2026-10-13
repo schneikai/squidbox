@@ -1,12 +1,17 @@
+import { memo } from 'react';
 import Animated, { useAnimatedReaction, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { motion } from '@/styles/designTokens';
 
 // One absolutely-positioned cell in the sortable grid. Rests at its slot via
 // springs driven by the shared `positions` map; while it is the lifted cell it
-// follows the shared active translate/scale values instead.
-export default function SortableAssetGridCell({
-  id,
+// follows the shared active translate/scale values instead. Memoized: the grid
+// isn't virtualized, so every cell would otherwise re-render with the screen.
+export default memo(SortableAssetGridCell);
+
+function SortableAssetGridCell({
+  asset,
+  renderCell,
   initialSlot,
   itemSize,
   numColumns,
@@ -15,8 +20,8 @@ export default function SortableAssetGridCell({
   activeX,
   activeY,
   activeScale,
-  children,
 }) {
+  const id = asset.id;
   const translateX = useSharedValue((initialSlot % numColumns) * itemSize);
   const translateY = useSharedValue(Math.floor(initialSlot / numColumns) * itemSize);
 
@@ -63,7 +68,7 @@ export default function SortableAssetGridCell({
         style,
       ]}
     >
-      {children}
+      {renderCell(asset)}
     </Animated.View>
   );
 }

@@ -1,32 +1,19 @@
 import { BlurView } from 'expo-blur';
-import { useState } from 'react';
+import { useImperativeHandle, useState } from 'react';
 import { Modal, StyleSheet } from 'react-native';
 
 import AssetImage from '@/components/AssetImage';
 
-export function useAssetQuickViewModal() {
+// Opened through `ref` (`open(asset)`, `close()`), so a peek re-renders only this modal, not the
+// screen behind it.
+export default function AssetQuickViewModal({ ref }) {
   const [asset, setAsset] = useState(null);
+  useImperativeHandle(ref, () => ({ open: setAsset, close: () => setAsset(null) }), []);
 
-  function open(asset) {
-    setAsset(asset);
-  }
-
-  function close() {
-    setAsset(null);
-  }
-
-  return {
-    asset,
-    open,
-    close,
-  };
-}
-
-export default function AssetQuickViewModal({ asset, isVisible }) {
-  if (!asset) return;
+  if (!asset) return null;
 
   return (
-    <Modal animationType="fade" transparent visible={isVisible}>
+    <Modal animationType="fade" transparent visible>
       <BlurView intensity={20} style={styles.container}>
         <AssetImage asset={asset} contentFit="contain" placeholderColor="transparent" />
       </BlurView>
