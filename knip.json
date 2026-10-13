@@ -1,0 +1,21 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "ignoreExportsUsedInFile": true,
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.mjs"]
+    },
+    "apps/mobile": {
+      "entry": ["metro.config.js", "tunnel.js", "scripts/*.{js,mjs}", "src/**/*.web.{js,ts}"],
+      "ignore": ["src/obsolete-code/**"],
+      "ignoreDependencies": ["react-dom", "@babel/core", "expo-updates", "expo-system-ui"],
+      "ignoreUnresolved": ["babel-preset-expo"]
+    },
+    "apps/server": {
+      "entry": ["src/db/{migrate,seed}.ts", "scripts/*.ts"],
+      "ignoreBinaries": ["sleep"]
+    },
+    "packages/shared": {}
+  },
+  "ignoreDependencies": ["prettier"]
+}

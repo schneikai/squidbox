@@ -9,10 +9,12 @@
   "scripts": {
     "mobile": "npm run --workspace apps/mobile start",
     "dev:local": "node scripts/dev-local.mjs",
-    "lint": "npm run --workspace apps/mobile lint"
+    "lint": "npm run --workspace apps/mobile lint",
+    "knip": "knip"
   },
   "devDependencies": {
     "eslint": "^8.53.0",
+    "knip": "^5.88.1",
     "prettier": "^3.1.0",
     "typescript": "^5.6.0"
   },

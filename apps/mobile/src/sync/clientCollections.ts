@@ -11,5 +11,3 @@ export const clientCollectionTables: Record<string, SQLiteTable> = {
   album_assets: schema.albumAssets,
   post_assets: schema.postAssets,
 };
-
-export const clientCollectionNames = Object.keys(clientCollectionTables);

@@ -48,4 +48,3 @@ export async function buildApp(opts: { logger?: FastifyServerOptions['logger'] }
   return app;
 }
 
-export type App = Awaited<ReturnType<typeof buildApp>>;

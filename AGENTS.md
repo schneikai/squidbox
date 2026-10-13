@@ -80,7 +80,7 @@ Bad:
 
 ## Code Quality
 
-- Avoid dead code and unused styles
+- Avoid dead code and unused styles. `npm run knip` (repo root) finds unused files, exports and dependencies; run it before committing and keep it clean. Add to `knip.json` only files Expo or Metro load by convention, not code that is merely unused
 - Keep files concise and focused
 - Prefer consistency over personal style preferences
 - Refactor when patterns become clear — not before

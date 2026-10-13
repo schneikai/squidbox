@@ -3,8 +3,6 @@ import {
   S3Client,
   GetObjectCommand,
   DeleteObjectCommand,
-  HeadObjectCommand,
-  CopyObjectCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Upload } from '@aws-sdk/lib-storage';
@@ -100,40 +98,5 @@ export async function deleteObject(loc: StorageLocation, fileKey: string): Promi
     await s3().send(new DeleteObjectCommand({ Bucket: loc.bucket, Key: fullKey(loc, fileKey) }));
   } catch (err) {
     throw AppError.s3(err instanceof Error ? err.message : 'Delete failed');
-  }
-}
-
-export async function headObject(
-  loc: StorageLocation,
-  fileKey: string
-): Promise<{ exists: boolean; contentLength?: number; etag?: string }> {
-  try {
-    const res = await s3().send(
-      new HeadObjectCommand({ Bucket: loc.bucket, Key: fullKey(loc, fileKey) })
-    );
-    return { exists: true, contentLength: res.ContentLength, etag: res.ETag };
-  } catch (err) {
-    if (err && typeof err === 'object' && 'name' in err && err.name === 'NotFound') {
-      return { exists: false };
-    }
-    throw AppError.s3(err instanceof Error ? err.message : 'Head failed');
-  }
-}
-
-// copy+delete; CopySource must be URI-encoded for aws-sdk v3 or keys with special chars fail.
-export async function moveObject(loc: StorageLocation, fromKey: string, toKey: string): Promise<void> {
-  const from = fullKey(loc, fromKey);
-  const to = fullKey(loc, toKey);
-  try {
-    await s3().send(
-      new CopyObjectCommand({
-        Bucket: loc.bucket,
-        CopySource: encodeURIComponent(`${loc.bucket}/${from}`),
-        Key: to,
-      })
-    );
-    await s3().send(new DeleteObjectCommand({ Bucket: loc.bucket, Key: from }));
-  } catch (err) {
-    throw AppError.s3(err instanceof Error ? err.message : 'Move failed');
   }
 }

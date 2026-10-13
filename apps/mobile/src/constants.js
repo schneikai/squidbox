@@ -1,4 +1,4 @@
-export const APP_NAME = 'Squidbox';
+const APP_NAME = 'Squidbox';
 export const SCREEN_PADDING = 16;
 export const MEDIA_LIBRARY_ALBUM_NAME = APP_NAME;
 
