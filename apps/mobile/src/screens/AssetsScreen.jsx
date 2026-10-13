@@ -3,17 +3,16 @@ import { useEffect, useMemo } from 'react';
 import { Alert, View } from 'react-native';
 
 import AssetQuickViewModal, { useAssetQuickViewModal } from '@/components/AssetQuickViewModal';
-import SuperPressable from '@/components/SuperPressable';
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
 import { useFloatingBars } from '@/components/floating-bars/FloatingBarsContext';
 import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import AssetList from '@/features/asset-list/AssetList';
-import AssetListItem from '@/features/asset-list/AssetListItem';
 import useFilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/useFilterAssetsAction';
 import useSortAssetsAction from '@/features/asset-list/actions/sort-assets-action/useSortAssetsAction';
 import prepareAssets from '@/features/asset-list/prepareAssets';
+import useAssetCells from '@/features/asset-list/useAssetCells';
 import useAssetList from '@/features/asset-list/useAssetList';
 import useAddAssetsFromCameraRoll from '@/features/assets-context/useAddAssetsFromCameraRoll';
 import useAssets from '@/features/assets-context/useAssets';
@@ -140,6 +139,16 @@ export default function AssetsScreen({ route }) {
     }
   }
 
+  const renderCell = useAssetCells({
+    isSelectMode,
+    isAssetSelected,
+    showLastPostedAt: sortOrder.includes('lastPostedAt'),
+    onPress: onPressAsset,
+    onDoublePress: toggleFavoriteAsset,
+    onLongPress: (asset) => !isSelectMode && openAssetQuickView(asset),
+    onLongPressOut: closeAssetQuickView,
+  });
+
   const hasActiveOptions = activeFilter.length > 0 || sortOrder !== 'createdAt:desc';
   const allSelected = assetIds.length > 0 && selectedAssetIds.length === assetIds.length;
 
@@ -166,22 +175,7 @@ export default function AssetsScreen({ route }) {
         dragSelectEnabled={isSelectMode}
         selectedAssetIds={selectedAssetIds}
         selectAssets={selectAssets}
-        renderListItem={(asset) => (
-          <SuperPressable
-            onPress={() => onPressAsset(asset)}
-            onDoublePress={() => toggleFavoriteAsset(asset)}
-            onLongPress={() => (isSelectMode ? undefined : openAssetQuickView(asset))}
-            onLongPressOut={() => closeAssetQuickView()}
-            style={{ flex: 1 }}
-          >
-            <AssetListItem
-              asset={asset}
-              isSelectMode={isSelectMode}
-              isSelected={isAssetSelected(asset.id)}
-              showLastPostedAt={sortOrder.includes('lastPostedAt')}
-            />
-          </SuperPressable>
-        )}
+        renderListItem={renderCell}
       />
       <FloatingActionsBar search={searchBar} placeholder="Search notes…" hasActiveState={hasActiveOptions} />
     </View>

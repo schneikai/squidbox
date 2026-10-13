@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
@@ -49,6 +49,15 @@ export default function AssetList({
     selectAssets,
   });
 
+  const renderItem = useCallback(
+    ({ item: assetId }) => {
+      const asset = assets[assetId];
+      if (!asset) return null;
+      return <View style={{ width: listItemWidth, height: listItemWidth, padding: 1 }}>{renderListItem(asset)}</View>;
+    },
+    [assets, listItemWidth, renderListItem],
+  );
+
   if (!assetIds) return null;
 
   const list = (
@@ -56,11 +65,7 @@ export default function AssetList({
       keyboardDismissMode="on-drag"
       data={assetIds}
       numColumns={numColumns}
-      renderItem={({ item: assetId }) => {
-        const asset = assets[assetId];
-        if (!asset) return null;
-        return <View style={{ width: listItemWidth, height: listItemWidth, padding: 1 }}>{renderListItem(asset)}</View>;
-      }}
+      renderItem={renderItem}
       keyExtractor={(assetId) => assetId}
       ListHeaderComponent={ListHeaderComponent}
       stickyHeaderIndices={ListHeaderComponent ? [0] : undefined}

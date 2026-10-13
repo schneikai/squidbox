@@ -6,9 +6,9 @@ import Icon from '@/components/Icon';
 import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import AssetList from '@/features/asset-list/AssetList';
-import AssetListItem from '@/features/asset-list/AssetListItem';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import prepareAssets from '@/features/asset-list/prepareAssets';
+import useAssetCells from '@/features/asset-list/useAssetCells';
 import useAssets from '@/features/assets-context/useAssets';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import actionButtonStyles from '@/styles/actionButtonStyles';
@@ -78,6 +78,11 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
     ]);
   }
 
+  const renderCell = useAssetCells({
+    isAssetSelected,
+    onPress: isSelectMode ? (asset) => toggleSelectAsset(asset.id) : undefined,
+  });
+
   return (
     <Page>
       <FloatingDetailHeader
@@ -112,17 +117,7 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
       <AssetList
         assetIds={assetIds}
         contentContainerStyle={{ paddingTop, paddingBottom }}
-        renderListItem={(asset) => {
-          if (!asset) return null;
-          if (isSelectMode) {
-            return (
-              <Pressable style={{ flex: 1 }} onPress={() => toggleSelectAsset(asset.id)}>
-                <AssetListItem asset={asset} isSelected={isAssetSelected(asset.id)} />
-              </Pressable>
-            );
-          }
-          return <AssetListItem asset={asset} />;
-        }}
+        renderListItem={renderCell}
       />
     </Page>
   );

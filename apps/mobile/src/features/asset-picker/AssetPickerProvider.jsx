@@ -13,12 +13,8 @@ export default function AssetPickerProvider({ children }) {
   const [albumScreenProps, setAlbumScreenProps] = useState(null);
   const onClosePromiseResolveRef = useRef();
 
-  const isAssetSelected = useCallback(
-    (asset) => {
-      return selectedAssets.find((selectedAsset) => selectedAsset.id === asset.id);
-    },
-    [selectedAssets],
-  );
+  const selectedIds = useMemo(() => new Set(selectedAssets.map((asset) => asset.id)), [selectedAssets]);
+  const isAssetSelected = useCallback((assetId) => selectedIds.has(assetId), [selectedIds]);
 
   const cleanUpAndClose = useCallback(() => {
     setSelectedAssets([]);

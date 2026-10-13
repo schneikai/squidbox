@@ -1,7 +1,6 @@
-import SuperPressable from '@/components/SuperPressable';
 import AssetList from '@/features/asset-list/AssetList';
-import AssetListItem from '@/features/asset-list/AssetListItem';
 import SortableAssetGrid from '@/features/asset-list/SortableAssetGrid';
+import useAssetCells from '@/features/asset-list/useAssetCells';
 
 export default function AlbumAssetsView({
   assetIds,
@@ -26,6 +25,15 @@ export default function AlbumAssetsView({
   const canQuickViewPeek = !isSelectMode && !reorderEnabled;
   // Albums that can't be reordered (smart albums, which can hold thousands) use the virtualized list.
   const Grid = canReorder ? SortableAssetGrid : AssetList;
+  const renderCell = useAssetCells({
+    isSelectMode,
+    isAssetSelected,
+    showLastPostedAt: sortOrder.includes('lastPostedAt'),
+    onPress: onPressAsset,
+    onDoublePress: toggleFavoriteAsset,
+    onLongPress: (asset) => canQuickViewPeek && openAssetQuickView(asset),
+    onLongPressOut: closeAssetQuickView,
+  });
 
   return (
     <Grid
@@ -37,22 +45,7 @@ export default function AlbumAssetsView({
       onReorder={onReorder}
       selectedAssetIds={selectedAssetIds}
       selectAssets={selectAssets}
-      renderListItem={(asset) => (
-        <SuperPressable
-          onPress={() => onPressAsset(asset)}
-          onDoublePress={() => toggleFavoriteAsset(asset)}
-          onLongPress={() => (canQuickViewPeek ? openAssetQuickView(asset) : undefined)}
-          onLongPressOut={() => closeAssetQuickView()}
-          style={{ flex: 1 }}
-        >
-          <AssetListItem
-            asset={asset}
-            isSelectMode={isSelectMode}
-            isSelected={isAssetSelected(asset.id)}
-            showLastPostedAt={sortOrder.includes('lastPostedAt')}
-          />
-        </SuperPressable>
-      )}
+      renderListItem={renderCell}
     />
   );
 }

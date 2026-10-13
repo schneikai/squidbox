@@ -149,6 +149,12 @@ Their outbox rows retry on every sync and the failure is only visible in the Syn
 `AppInit` sits inside `DatabaseGate` (`App.js`), so the splash waits for opening and migrating the
 database, then for `initializeCloudAsync`. Running both at once would shorten launch a little.
 
+### [ ] Upload a photo's file and thumbnail at once
+
+The upload loop (`CloudSyncProvider.js`) uploads the file, then the thumbnail, and writes the
+asset twice (`isFileSynced`, then the rest). Uploading both at once (`Promise.allSettled`) and
+writing the flags in one `updateAsset` halves the waits and the writes per photo.
+
 ### [ ] Web preview gaps
 
 The web preview (README → "Web preview") can't add photos from the camera roll, upload, download

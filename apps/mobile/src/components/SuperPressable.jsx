@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { Pressable } from 'react-native';
 
-// A pressable componnet that supports double press and long press
+// A pressable that also supports double press and long press. Every handler is optional.
 
 export default function SuperPressable({ onPress, onDoublePress, onLongPress, onLongPressOut, children, ...props }) {
   const lastPressRef = useRef(0);
@@ -9,6 +9,7 @@ export default function SuperPressable({ onPress, onDoublePress, onLongPress, on
   const isLongPressRef = useRef(false);
 
   function handlePress() {
+    if (!onDoublePress) return onPress?.(); // no need to wait for a second tap
     const now = Date.now();
     const DOUBLE_PRESS_DELAY = 300;
 
@@ -17,7 +18,7 @@ export default function SuperPressable({ onPress, onDoublePress, onLongPress, on
       onDoublePress();
     } else {
       timeoutIdRef.current = setTimeout(() => {
-        onPress();
+        onPress?.();
       }, DOUBLE_PRESS_DELAY);
     }
 
@@ -26,13 +27,13 @@ export default function SuperPressable({ onPress, onDoublePress, onLongPress, on
 
   function handleLongPress() {
     clearTimeout(timeoutIdRef.current);
-    onLongPress();
+    onLongPress?.();
     isLongPressRef.current = true;
   }
 
   function handlePressOut() {
     if (isLongPressRef.current) {
-      onLongPressOut();
+      onLongPressOut?.();
       isLongPressRef.current = false;
     }
   }

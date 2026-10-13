@@ -3,15 +3,14 @@ import { useCallback, useMemo } from 'react';
 
 import AssetQuickViewModal, { useAssetQuickViewModal } from '@/components/AssetQuickViewModal';
 import PickerHeader from '@/components/PickerHeader';
-import SuperPressable from '@/components/SuperPressable';
 import useAlbums from '@/features/albums-context/useAlbums';
 import AssetList from '@/features/asset-list/AssetList';
-import AssetListItem from '@/features/asset-list/AssetListItem';
 import FilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/FilterAssetsAction';
 import useFilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/useFilterAssetsAction';
 import SortAssetsAction from '@/features/asset-list/actions/sort-assets-action/SortAssetsAction';
 import useSortAssetsAction from '@/features/asset-list/actions/sort-assets-action/useSortAssetsAction';
 import prepareAssets from '@/features/asset-list/prepareAssets';
+import useAssetCells from '@/features/asset-list/useAssetCells';
 import useAssetList from '@/features/asset-list/useAssetList';
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';
 import useAssets from '@/features/assets-context/useAssets';
@@ -49,6 +48,15 @@ export default function AlbumScreen({ route, navigation }) {
     [album, assets, sortFunction, matchFilter],
   );
 
+  const renderCell = useAssetCells({
+    isAssetSelected,
+    showLastPostedAt: sortOrder.includes('lastPostedAt'),
+    onPress: toggleSelectAsset,
+    onDoublePress: toggleFavoriteAsset,
+    onLongPress: openAssetQuickView,
+    onLongPressOut: closeAssetQuickView,
+  });
+
   if (!album) return null;
 
   return (
@@ -57,21 +65,7 @@ export default function AlbumScreen({ route, navigation }) {
       <AssetList
         listRef={listRef}
         assetIds={assetIds}
-        renderListItem={(asset) => (
-          <SuperPressable
-            onPress={() => toggleSelectAsset(asset)}
-            onDoublePress={() => toggleFavoriteAsset(asset)}
-            onLongPress={() => openAssetQuickView(asset)}
-            onLongPressOut={() => closeAssetQuickView()}
-            style={{ flex: 1 }}
-          >
-            <AssetListItem
-              asset={asset}
-              isSelected={isAssetSelected(asset)}
-              showLastPostedAt={sortOrder.includes('lastPostedAt')}
-            />
-          </SuperPressable>
-        )}
+        renderListItem={renderCell}
         ListHeaderComponent={
           <PickerHeader label={album.name}>
             <SortAssetsAction sortOrder={sortOrder} onPress={sortAssets} />
