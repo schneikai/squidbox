@@ -166,7 +166,9 @@ record is skipped; the pending push re-asserts the local edit and the push resul
 (§6). The client pulls pages until it holds about 5,000 records (or the server has no more), then
 applies them in one SQLite transaction, as multi-row upserts by `id`, together with the new cursor.
 Few big transactions matter on web, where every page a transaction touches is written again. A
-crash before the commit re-pulls those pages; re-applying them is harmless.
+crash before the commit re-pulls those pages; re-applying them is harmless. An update takes every
+synced column from the incoming record, so a column the server doesn't send is cleared locally:
+ship a new synced column on the server before the app (`apps/mobile/src/sync/upsertRows.ts`).
 
 The client never compares an incoming `updatedAt` with the committed local row. The server
 clamps future timestamps (§7), so a device with a fast clock would hold local timestamps higher
@@ -238,6 +240,9 @@ Client handling of each result (`planPushOutcome` in `apps/mobile/src/sync/pushP
   note (§13).
 - `rejected`: keep the outbox row, set `syncError` on assets, and log the reason. A rejected
   edit is never silently dropped.
+- A result that can't be applied (e.g. a malformed `current`) is handled like `rejected`: it runs
+  in its own savepoint inside the batch's transaction, so it rolls back alone, keeps its outbox row
+  and gets `syncError` and a log note, while the rest of the batch and the pull go on.
 
 Push returns no cursor. The cursor only moves through pull (§3).
 

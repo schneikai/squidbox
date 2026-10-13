@@ -72,8 +72,18 @@ async function pushPhase(db: SyncDb, transport: SyncTransport): Promise<{ pushed
     await db.transaction(async (tx) => {
       for (const result of results) {
         pushed += 1;
-        const note = await applyPushResult(tx, result, pushedUpdatedAt.get(`${result.collection}:${result.id}`) ?? 0);
-        if (note) notes.push(note);
+        const pushedAt = pushedUpdatedAt.get(`${result.collection}:${result.id}`) ?? 0;
+        // Each result in its own savepoint: one that can't be applied (e.g. a malformed record from
+        // the server) keeps its outbox row and is flagged, instead of rolling back the batch and
+        // stalling every later sync.
+        try {
+          const note = await tx.transaction((savepoint) => applyPushResult(savepoint, result, pushedAt));
+          if (note) notes.push(note);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          if (result.collection === 'assets') await setSyncError(tx, [result.id], message);
+          notes.push(`${result.collection} ${result.id}: push result not applied (${message})`);
+        }
       }
     });
   }

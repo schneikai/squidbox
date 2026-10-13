@@ -119,6 +119,30 @@ describe('worker push', () => {
     expect(await outboxRows()).toHaveLength(1); // not silently dropped
     expect((await assetRow(rec.id))?.syncError).toBe('schema:boom');
   });
+
+  it('a push result that cannot be applied is flagged alone; the rest of the batch and the pull go on', async () => {
+    const bad = await repo.createAsset(db, makeAssetRecord());
+    const good = await repo.createAsset(db, makeAssetRecord());
+    await runSyncOnce(
+      db,
+      transport({
+        push: async () => ({
+          results: [
+            // A malformed `current` (missing required columns) can't be stored.
+            { id: bad.id, collection: 'assets', status: 'skipped-lww' as const, current: { id: bad.id } },
+            { id: good.id, collection: 'assets', status: 'applied' as const },
+          ],
+        }),
+        pull: async () => ({ changes: { assets: { records: [] } }, cursor: 9, hasMore: false }),
+      }),
+    );
+    expect((await outboxRows()).map((row) => row.recordId)).toEqual([bad.id]); // kept for the next push
+    expect((await assetRow(bad.id))?.syncError).toBeTruthy();
+    expect((await assetRow(good.id))?.syncError).toBeNull();
+    expect(await getCursor(db)).toBe(9);
+    const [log] = await db.select().from(schema.syncLog);
+    expect(log?.notes).toContain(`assets ${bad.id}: push result not applied`);
+  });
 });
 
 describe('worker pull', () => {

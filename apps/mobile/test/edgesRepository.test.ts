@@ -65,12 +65,12 @@ describe('edgesRepository (album_assets)', () => {
 
   it('setRefs reconciles to exactly the target list (add + remove + reorder in one)', async () => {
     const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
-    posts.createFromRefs(db, 'post-1', [
+    await posts.createFromRefs(db, 'post-1', [
       { id: 'r1', assetId: 'a1' },
       { id: 'r2', assetId: 'a2' },
     ]);
     // Drop r1, keep r2, add r3 — and put r3 first.
-    posts.setRefs(db, 'post-1', [
+    await posts.setRefs(db, 'post-1', [
       { id: 'r3', assetId: 'a3' },
       { id: 'r2', assetId: 'a2' },
     ]);
@@ -78,5 +78,21 @@ describe('edgesRepository (album_assets)', () => {
     const live = rows.filter((r) => r.deletedAt == null).sort((a, b) => (a.position < b.position ? -1 : 1));
     expect(live.map((r) => r.assetId)).toEqual(['a3', 'a2']);
     expect(rows.find((r) => r.id === 'r1')?.deletedAt).toBeTruthy(); // r1 tombstoned
+  });
+
+  it('setRefs restores an edge removed meanwhile as its next version, even if that removal looks newer', async () => {
+    const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
+    await posts.createFromRefs(db, 'post-1', [{ id: 'r1', assetId: 'a1' }]);
+    // Another device removed r1, with a clock ahead of ours.
+    const removedAt = Date.now() + 60_000;
+    await db
+      .update(schema.postAssets)
+      .set({ deletedAt: removedAt, updatedAt: removedAt })
+      .where(eq(schema.postAssets.id, 'r1'));
+
+    await posts.setRefs(db, 'post-1', [{ id: 'r1', assetId: 'a1' }]);
+    const r1 = (await db.select().from(schema.postAssets).where(eq(schema.postAssets.id, 'r1')))[0]!;
+    expect(r1.deletedAt).toBeNull();
+    expect(r1.updatedAt).toBeGreaterThan(removedAt); // wins LWW against the removal
   });
 });

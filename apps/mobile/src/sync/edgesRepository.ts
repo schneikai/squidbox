@@ -5,6 +5,7 @@ import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
 import { nextUpdatedAt, nextVersion, tombstone } from './clock';
 import type { SyncDb } from './db/types';
+import { readByIds } from './readByIds';
 import { saveRecords } from './saveRecords';
 
 // Repository for a junction/edge collection (album_assets, post_assets). add / remove / reorder
@@ -83,13 +84,20 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
         const targetIds = new Set(refs.map((r) => r.id));
         const keys = initialKeys(refs.length);
         const now = Date.now();
+        // A ref can name an edge that was removed meanwhile (e.g. on another device): it is restored as
+        // that edge's next version, so the clock still moves forward.
+        const removedIds = refs.map((r) => r.id).filter((id) => !liveById.has(id));
+        const removedById = new Map((await readByIds(tx, table, removedIds)).map((e) => [e.id, e]));
         const changed = live.filter((e) => !targetIds.has(e.id)).map(tombstone);
         for (const [i, ref] of refs.entries()) {
           const existing = liveById.get(ref.id);
-          if (!existing) changed.push(newEdge(ref.id, parentId, ref.assetId, keys[i]!, now));
-          else if (existing.position !== keys[i] || existing.assetId !== ref.assetId) {
+          const removed = removedById.get(ref.id);
+          if (existing) {
+            if (existing.position === keys[i] && existing.assetId === ref.assetId) continue;
             changed.push(nextVersion(existing, { assetId: ref.assetId, position: keys[i] }));
-          }
+          } else if (removed) {
+            changed.push(nextVersion(removed, { deletedAt: null, assetId: ref.assetId, position: keys[i] }));
+          } else changed.push(newEdge(ref.id, parentId, ref.assetId, keys[i]!, now));
         }
         await save(tx, changed);
       });

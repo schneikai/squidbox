@@ -30,6 +30,10 @@ export async function upsertRows(
   }
 }
 
+// Heads-up: the update takes every synced column, so a column missing from an incoming record is set
+// to null (or its default), wiping the local value. Today the server always sends whole rows. It
+// matters if app and server versions drift, e.g. an app release adds a synced column the server
+// doesn't have yet. Ship new synced columns on the server first (docs/sync-design.md §5).
 function conflictSet(collection: string, table: SQLiteTable): Record<string, unknown> {
   let set = conflictSets.get(table);
   if (!set) {
