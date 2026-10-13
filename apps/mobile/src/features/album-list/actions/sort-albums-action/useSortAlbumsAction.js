@@ -1,6 +1,11 @@
+import sortAlbumsByCustomOrder from './sortAlbumsByCustomOrder';
+
 import useSort from '@/hooks/useSort';
 
+const DEFAULT_SORT_ORDER = 'custom';
+
 const sortOptions = {
+  custom: sortAlbumsByCustomOrder,
   'name:asc': (a, b) => a.name.localeCompare(b.name),
   'name:desc': (a, b) => b.name.localeCompare(a.name),
   'createdAt:asc': (a, b) => {
@@ -26,6 +31,6 @@ const sortOptions = {
 };
 
 export default function useSortAlbumsAction({ afterSort } = {}) {
-  const { sortOrder, sortFunction, sort } = useSort(sortOptions, 'createdAt:desc', { afterSort });
-  return { sortOrder, sortFunction, sortAlbums: sort };
+  const { sortOrder, sortFunction, sort } = useSort(sortOptions, DEFAULT_SORT_ORDER, { afterSort });
+  return { sortOrder, sortFunction, sortAlbums: sort, isDefaultSortOrder: sortOrder === DEFAULT_SORT_ORDER };
 }

@@ -10,6 +10,7 @@ import AlbumListItem from '@/features/album-list/AlbumListItem';
 import AlbumListItemWithEditMode from '@/features/album-list/AlbumListItemWithEditMode';
 import useFilterAlbumsAction from '@/features/album-list/actions/filter-albums-action/useFilterAlbumsAction';
 import useSearchAlbumsAction from '@/features/album-list/actions/search-albums-action/useSearchAlbumsAction';
+import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
 import prepareAlbums from '@/features/album-list/prepareAlbums';
 import useAlbumList from '@/features/album-list/useAlbumList';
@@ -22,7 +23,7 @@ export default function AlbumsScreen({ navigation }) {
   const { paddingTop, paddingBottom } = useScreenPadding('main');
 
   const { listRef, listScrollTop } = useAlbumList();
-  const { sortOrder, sortFunction, sortAlbums } = useSortAlbumsAction({ afterSort: listScrollTop });
+  const { sortOrder, sortFunction, sortAlbums, isDefaultSortOrder } = useSortAlbumsAction({ afterSort: listScrollTop });
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterFilter: listScrollTop });
 
   const { registerScreenOptions } = useFloatingBars();
@@ -50,11 +51,7 @@ export default function AlbumsScreen({ navigation }) {
   useEffect(() => {
     registerScreenOptions('albums', {
       sortOrder,
-      sortOptions: [
-        { key: 'name', label: 'Name' },
-        { key: 'createdAt', label: 'Created At' },
-        { key: 'lastPostedAt', label: 'Last Posted At' },
-      ],
+      sortOptions: albumSortOptions,
       activeFilter,
       filterOptions: [
         { key: 'all', label: 'All Albums', icon: 'apps-outline' },
@@ -66,7 +63,7 @@ export default function AlbumsScreen({ navigation }) {
     });
   }, [sortOrder, activeFilter]);
 
-  const hasActiveOptions = activeFilter.length > 0 || sortOrder !== 'createdAt:desc';
+  const hasActiveOptions = activeFilter.length > 0 || !isDefaultSortOrder;
 
   return (
     <View style={{ flex: 1 }}>

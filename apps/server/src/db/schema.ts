@@ -115,6 +115,7 @@ export const albums = pgTable(
     notes: text('notes'),
     sortOrder: text('sort_order'),
     smartAlbumType: text('smart_album_type'),
+    position: text('position'),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.id] }),

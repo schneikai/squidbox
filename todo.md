@@ -5,13 +5,6 @@ when the owner defers something, or when an idea comes up. Remove an entry once 
 
 ## Bugs
 
-### [ ] "Resort albums by name" is undone by the next sync
-
-The tool (`useResortAlbumsByName.js`) reorders albums by rewriting their `createdAt`, but the server
-treats `createdAt` as immutable (`updatableColumns` in `apps/server/src/sync/collections.ts`): the
-push reports applied, and the next pull brings the old dates back. Decide: give albums a real sort
-field, or let the server accept `createdAt` changes.
-
 ### [ ] Make "Delete permanently" actually delete
 
 In the Deleted album, "Delete permanently" (`deleteAssetsAsync`) only tombstones the assets again.
@@ -39,6 +32,12 @@ In the system picker (camera roll), tap-and-drag to select makes the whole scree
 right. The picker is native, so check what the app can influence through its options.
 
 ## Features
+
+### [ ] Drag to reorder albums
+
+The albums list has a synced custom order (`albums.position`, the default sort), but the only way to
+set it is the "Sort albums by name" tool in Settings. Dragging albums in the list, like photos in an
+album (`SortableAssetGrid`, `edges.reorder`), would write the same positions.
 
 ### [ ] Mouse-friendly triggers on web
 

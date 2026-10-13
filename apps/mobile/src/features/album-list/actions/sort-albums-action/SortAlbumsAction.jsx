@@ -1,3 +1,4 @@
+import MenuOption from '@/components/popup-menu-options/MenuOption';
 import PopupMenu from '@/components/popup-menu-options/PopupMenu';
 import TwoChoiceMenuOption from '@/components/popup-menu-options/TwoChoiceMenuOption';
 import popupMenuStyles from '@/styles/popupMenuStyles';
@@ -5,6 +6,7 @@ import popupMenuStyles from '@/styles/popupMenuStyles';
 export default function SortAlbumsAction({ onPress, sortOrder }) {
   return (
     <PopupMenu icon="sort">
+      <MenuOption label="Custom" onPress={() => onPress('custom')} active={sortOrder === 'custom'} />
       <TwoChoiceMenuOption
         label="Name"
         onPressOptionA={() => onPress('name:asc')}

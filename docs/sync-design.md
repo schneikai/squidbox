@@ -217,7 +217,9 @@ advisory lock (§3), for each mutation:
 2. Clamp a future `updatedAt` to server time (§7).
 3. Upsert in one atomic statement:
    `INSERT … ON CONFLICT (user_id, id) DO UPDATE SET … WHERE excluded.updated_at > <table>.updated_at`.
-   `user_id` comes from the token.
+   `user_id` comes from the token. The update sets only the columns the record carries, so an
+   optional column an older app doesn't send (e.g. `albums.position`) keeps its stored value. A new
+   synced column is therefore added as optional, and the server ships before the app.
 4. If a row came back, the result is `applied`. Otherwise the mutation lost LWW and the result is
    `skipped-lww` with the server's current record as `current`.
 
@@ -458,8 +460,9 @@ Local-only: `syncError`.
 
 **albums**. Synced: `name`, `isFavorite`, `archivedAt`, `showInPostSuggestionsAfter`,
 `oldCollectionName`, `notes`, `sortOrder` (null | `custom`), `smartAlbumType`
-(null | `FAVORITES` | `DELETED`), plus the base columns. Reordering an album sets `sortOrder` to
-`custom`.
+(null | `FAVORITES` | `DELETED`), `position` (optional, null | fractional-index key), plus the base
+columns. Reordering an album's photos sets its `sortOrder` to `custom`. `position` is the album's
+place in the albums list's custom order; albums without one come first, newest first.
 
 **posts**. Synced: `text`, `isFavorite`, `postedAt`, `rePostId`, `isIgnoredForRepost`,
 `suggestRepostAt`, `hasBeenReposted`, plus the base columns.

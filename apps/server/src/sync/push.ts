@@ -42,10 +42,11 @@ export async function push(db: Db, userId: string, mutations: PushMutation[]): P
       const updatedAt = record.updatedAt > now ? now : record.updatedAt; // clamp future
       const table = col.table as any;
 
-      // Build the DO UPDATE SET from excluded.* for every updatable column.
+      // DO UPDATE SET from excluded.* for the updatable columns the record carries: an optional
+      // column an older client doesn't send keeps its stored value.
       const set: Record<string, SQL> = {};
       for (const key of col.updateColumns) {
-        set[key] = sql`excluded.${sql.identifier(table[key].name)}`;
+        if (key in record) set[key] = sql`excluded.${sql.identifier(table[key].name)}`;
       }
 
       const inserted = await tx

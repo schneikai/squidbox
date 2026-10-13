@@ -15,6 +15,10 @@ export const albumCollection = defineCollection({
     notes: z.string().nullable(),
     sortOrder: z.enum(['custom']).nullable(),
     smartAlbumType: z.enum(['FAVORITES', 'DELETED']).nullable(),
+    // Place in the albums list's custom order: a fractional-index key (fractionalIndex.ts), null for
+    // albums never placed. Optional because older app versions don't send it; the server then
+    // leaves the stored value alone.
+    position: z.string().nullable().optional(),
   }),
 });
 

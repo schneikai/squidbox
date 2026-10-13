@@ -1,37 +1,35 @@
+import { initialKeys } from '@squidbox/shared';
+
+import sortAlbumsByCustomOrder from '@/features/album-list/actions/sort-albums-action/sortAlbumsByCustomOrder';
 import useAlbums from '@/features/albums-context/useAlbums';
 
 /**
- * Reorders albums with a numeric name from highest to lowest (e.g. 230, 220,
- * 210) so the list looks like the numbered shot albums were uploaded in
- * sequence. Albums without a numeric name keep their exact position.
+ * Reorders albums with a numeric name from highest to lowest (e.g. 230, 220, 210) so the list looks
+ * like the numbered shot albums were uploaded in sequence. Albums without a numeric name keep their
+ * exact position.
  *
- * The albums list is sorted by createdAt (newest first), so we only shuffle the
- * createdAt values among the numeric albums' existing slots. Non-numeric albums
- * are never touched.
+ * Works on the albums' custom order (their synced `position`): the numeric albums swap into each
+ * other's slots, then every album gets a position in that order. Returns the number of numeric albums.
  */
 export default function useResortAlbumsByName() {
   const { albums, updateManyAlbums } = useAlbums();
 
   async function resortAlbumsByNameAsync() {
-    const realAlbums = Object.values(albums).filter((album) => !album.smartAlbumType);
+    const currentOrder = Object.values(albums)
+      .filter((album) => !album.deletedAt)
+      .sort(sortAlbumsByCustomOrder);
 
-    // Current display order: newest createdAt first.
-    const currentOrder = [...realAlbums].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+    // Highest number first, into the numeric albums' slots in the current order.
+    const numericDesc = currentOrder
+      .filter((album) => isNumericName(album.name))
+      .sort((a, b) => numericName(b.name) - numericName(a.name));
+    let next = 0;
+    const newOrder = currentOrder.map((album) => (isNumericName(album.name) ? numericDesc[next++] : album));
 
-    const numericAlbums = currentOrder.filter((album) => isNumericName(album.name));
-    const slotCreatedAts = numericAlbums.map((album) => album.createdAt);
+    const positions = initialKeys(newOrder.length);
+    await updateManyAlbums(Object.fromEntries(newOrder.map((album, i) => [album.id, { position: positions[i] }])));
 
-    // Highest number first so it lands in the newest (top) slot.
-    const sortedDesc = [...numericAlbums].sort((a, b) => numericName(b.name) - numericName(a.name));
-
-    const updates = {};
-    sortedDesc.forEach((album, index) => {
-      updates[album.id] = { createdAt: slotCreatedAts[index] };
-    });
-
-    await updateManyAlbums(updates);
-
-    return sortedDesc.length;
+    return numericDesc.length;
   }
 
   return resortAlbumsByNameAsync;

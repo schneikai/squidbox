@@ -85,6 +85,35 @@ d('sync engine (Postgres)', () => {
     await clearAll();
   });
 
+  it('an update without an optional column keeps its stored value (older clients)', async () => {
+    const album = {
+      id: randomUUID(),
+      createdAt: 1000,
+      updatedAt: 1000,
+      deletedAt: null,
+      name: 'Shots',
+      isFavorite: false,
+      archivedAt: null,
+      showInPostSuggestionsAfter: null,
+      oldCollectionName: null,
+      notes: null,
+      sortOrder: null,
+      smartAlbumType: null,
+      position: 'a0',
+    };
+    const stored = async () =>
+      (await db.select().from(schema.albums).where(and(eq(schema.albums.userId, USER_A), eq(schema.albums.id, album.id))))[0];
+    await push(db as any, USER_A, [{ collection: 'albums', record: album }]);
+
+    const { position: _position, ...withoutPosition } = album; // what an app without `position` sends
+    const renamed = { ...withoutPosition, name: 'Renamed', updatedAt: 2000 };
+    await push(db as any, USER_A, [{ collection: 'albums', record: renamed }]);
+    expect(await stored()).toMatchObject({ name: 'Renamed', position: 'a0' });
+
+    await push(db as any, USER_A, [{ collection: 'albums', record: { ...album, position: null, updatedAt: 3000 } }]);
+    expect((await stored())?.position).toBeNull();
+  });
+
   it('pull window + tombstone delivery', async () => {
     const r1 = assetRecord();
     const r2 = assetRecord();

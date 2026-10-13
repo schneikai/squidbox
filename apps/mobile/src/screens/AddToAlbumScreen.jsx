@@ -13,6 +13,7 @@ import AlbumList from '@/features/album-list/AlbumList';
 import AlbumListItem from '@/features/album-list/AlbumListItem';
 import useFilterAlbumsAction from '@/features/album-list/actions/filter-albums-action/useFilterAlbumsAction';
 import useSearchAlbumsAction from '@/features/album-list/actions/search-albums-action/useSearchAlbumsAction';
+import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
 import prepareAlbums from '@/features/album-list/prepareAlbums';
 import useAlbumList from '@/features/album-list/useAlbumList';
@@ -26,19 +27,13 @@ const FILTER_OPTIONS = [
   { key: 'archived', label: 'Archived', icon: 'archive' },
 ];
 
-const SORT_OPTIONS = [
-  { key: 'name', label: 'Name' },
-  { key: 'createdAt', label: 'Created At' },
-  { key: 'lastPostedAt', label: 'Last Posted At' },
-];
-
 export default function AddToAlbumScreen({ route, navigation }) {
   const { albums, addAlbum, addAssetsToAlbum } = useAlbums();
   const { bottom } = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
 
   const { listRef, listScrollTop } = useAlbumList();
-  const { sortOrder, sortFunction, sortAlbums } = useSortAlbumsAction({ afterSort: listScrollTop });
+  const { sortOrder, sortFunction, sortAlbums, isDefaultSortOrder } = useSortAlbumsAction({ afterSort: listScrollTop });
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterSort: listScrollTop });
   const { searchBar, query: searchText } = useSearchMode(useSearchAlbumsAction());
 
@@ -72,7 +67,7 @@ export default function AddToAlbumScreen({ route, navigation }) {
     });
   }
 
-  const hasActiveOptions = activeFilter.length > 0 || !sortOrder.startsWith('createdAt');
+  const hasActiveOptions = activeFilter.length > 0 || !isDefaultSortOrder;
 
   return (
     <View style={{ flex: 1 }}>
@@ -122,7 +117,7 @@ export default function AddToAlbumScreen({ route, navigation }) {
         visible={isSortFilterOpen}
         onClose={() => setIsSortFilterOpen(false)}
         sortOrder={sortOrder}
-        sortOptions={SORT_OPTIONS}
+        sortOptions={albumSortOptions}
         activeFilter={activeFilter}
         filterOptions={FILTER_OPTIONS}
         onSort={sortAlbums}

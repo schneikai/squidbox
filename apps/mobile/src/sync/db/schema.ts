@@ -45,6 +45,7 @@ export const albums = sqliteTable('albums', {
   notes: text('notes'),
   sortOrder: text('sort_order', { enum: ['custom'] }),
   smartAlbumType: text('smart_album_type', { enum: ['FAVORITES', 'DELETED'] }),
+  position: text('position'),
 });
 export type AlbumRow = typeof albums.$inferSelect;
 
