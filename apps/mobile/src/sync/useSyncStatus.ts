@@ -2,14 +2,8 @@ import { count } from 'drizzle-orm';
 
 import { getDb } from './db/client';
 import * as schema from './db/schema';
-import { isFirstSyncDone, type SyncPhase } from './status';
+import { getCursor, getStatus, isFirstSyncDone, type SyncPhase } from './status';
 import { useLiveQuery } from './useLiveQuery';
-
-// sync_meta as a { key: value } lookup, live; undefined until read once.
-function useSyncMeta(): Record<string, string | null> | undefined {
-  const meta = useLiveQuery(() => getDb().select().from(schema.syncMeta), [schema.syncMeta]);
-  return meta && Object.fromEntries(meta.map((row) => [row.key, row.value]));
-}
 
 // Reactive sync status for the dev status surface + Inspector: the phase +
 // pending outbox count, live from SQLite.
@@ -23,18 +17,17 @@ export interface LiveSyncStatus {
 }
 
 export function useSyncStatus(): LiveSyncStatus {
-  const byKey = useSyncMeta() ?? {};
-  const [pending] = useLiveQuery(() => getDb().select({ count: count() }).from(schema.outbox), [schema.outbox]) ?? [];
-
-  const status = byKey.status ? JSON.parse(byKey.status) : {};
+  const db = getDb();
+  const meta = useLiveQuery(async () => ({ ...(await getStatus(db)), cursor: await getCursor(db) }), [schema.syncMeta]);
+  const [pending] = useLiveQuery(() => db.select({ count: count() }).from(schema.outbox), [schema.outbox]) ?? [];
 
   return {
-    phase: status.phase ?? 'idle',
+    phase: meta?.phase ?? 'idle',
     pendingCount: pending?.count ?? 0,
-    cursor: Number(byKey.cursor ?? 0),
-    lastPushAt: status.lastPushAt,
-    lastPullAt: status.lastPullAt,
-    lastError: status.lastError ?? null,
+    cursor: meta?.cursor ?? 0,
+    lastPushAt: meta?.lastPushAt,
+    lastPullAt: meta?.lastPullAt,
+    lastError: meta?.lastError ?? null,
   };
 }
 

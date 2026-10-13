@@ -101,7 +101,7 @@ async function applyPushResults(
     const cleared: string[] = [];
     const settled: string[] = [];
     const errors = new Map<string, string[]>(); // syncError → record ids
-    const flag = (id: string, error: string) => (errors.get(error) ?? errors.set(error, []).get(error)!).push(id);
+    const flag = (id: string, error: string) => pushTo(errors, error, id);
 
     for (const result of group) {
       const plan = planPushOutcome({
@@ -143,6 +143,12 @@ function groupByCollection(results: PushResult[]): Map<string, PushResult[]> {
   for (const result of results)
     (groups.get(result.collection) ?? groups.set(result.collection, []).get(result.collection)!).push(result);
   return groups;
+}
+
+function pushTo<K, V>(lists: Map<K, V[]>, key: K, value: V): void {
+  const list = lists.get(key);
+  if (list) list.push(value);
+  else lists.set(key, [value]);
 }
 
 async function pullPhase(db: SyncDb, transport: SyncTransport): Promise<number> {
@@ -213,6 +219,14 @@ export async function clearOutbox(db: SyncDb): Promise<void> {
 export async function fullResync(db: SyncDb, transport: SyncTransport): Promise<void> {
   // Keep the outbox so pending local edits are re-pushed; a full re-pull is another "first sync".
   await resetLocalSync(db, { keepOutbox: true });
+  // Put the pending edits back: the pull skips records with an outbox row, so one the server keeps
+  // rejecting would otherwise vanish from the app.
+  await db.transaction(async (tx) => {
+    for (const row of await tx.select().from(schema.outbox)) {
+      const table = clientCollectionTables[row.collection];
+      if (table) await upsertRows(tx, row.collection, table, [row.payload]);
+    }
+  });
   await runSyncOnce(db, transport);
 }
 

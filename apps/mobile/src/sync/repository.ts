@@ -13,7 +13,7 @@ type SyncRecord = { id: string; updatedAt: number; deletedAt: number | null } & 
 export function makeRepository<R extends SyncRecord = SyncRecord>(collection: string, table: SQLiteTable) {
   async function createMany(db: SyncDb, records: R[]): Promise<R[]> {
     const rows = records.map((record) => nextVersion(record));
-    await db.transaction((tx) => saveRecords(tx, collection, table, rows));
+    await db.transaction((tx) => saveRecords(tx, collection, table, rows, { isNew: true }));
     return rows;
   }
 

@@ -80,7 +80,7 @@ describe('dev operations', () => {
     expect(await db.select().from(schema.outbox)).toHaveLength(0);
   });
 
-  it('fullResync wipes local tables and repulls from the server', async () => {
+  it('fullResync wipes local tables, keeps pending edits and repulls from the server', async () => {
     const local = await repo.createAsset(db, makeAssetRecord({ notes: 'local-only' }));
     const server = makeAssetRecord({ notes: 'from-server' });
     await fullResync(db, {
@@ -99,6 +99,22 @@ describe('dev operations', () => {
     });
     const map = await loadAssetsMap(db);
     expect(map[server.id]).toBeTruthy(); // repulled
-    expect(map[local.id]).toBeUndefined(); // wiped, not returned by the server pull
+    expect(map[local.id]).toMatchObject({ notes: 'local-only' }); // pending edit kept, then pushed
+  });
+
+  it('fullResync keeps showing a pending edit the server keeps rejecting', async () => {
+    const local = await repo.createAsset(db, makeAssetRecord({ notes: 'rejected' }));
+    await fullResync(db, {
+      push: async (req) => ({
+        results: req.mutations.map((m) => ({
+          id: String((m.record as any).id),
+          collection: m.collection,
+          status: 'rejected' as const,
+          reason: 'schema:boom',
+        })),
+      }),
+      pull: async () => ({ changes: { assets: { records: [] } }, cursor: 3, hasMore: false }),
+    });
+    expect((await loadAssetsMap(db))[local.id]).toMatchObject({ notes: 'rejected' });
   });
 });

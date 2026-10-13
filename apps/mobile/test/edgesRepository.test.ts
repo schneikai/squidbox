@@ -95,4 +95,13 @@ describe('edgesRepository (album_assets)', () => {
     expect(r1.deletedAt).toBeNull();
     expect(r1.updatedAt).toBeGreaterThan(removedAt); // wins LWW against the removal
   });
+
+  it('creating edges with ids that already exist fails instead of moving them to another post', async () => {
+    const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
+    const refs = [{ id: 'r1', assetId: 'a1' }];
+    await posts.createFromRefs(db, 'post-1', refs);
+    await expect(posts.createFromRefs(db, 'post-2', refs)).rejects.toThrow();
+    const rows = await db.select().from(schema.postAssets);
+    expect(rows.map((r) => r.postId)).toEqual(['post-1']);
+  });
 });

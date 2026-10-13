@@ -22,7 +22,9 @@ async function getMeta(db: SyncDb, key: string): Promise<string | null> {
   return row?.value ?? null;
 }
 
+// Writes only when the value changes, so an idle sync pass doesn't wake every sync_meta reader.
 async function setMeta(db: SyncDb, key: string, value: string): Promise<void> {
+  if ((await getMeta(db, key)) === value) return;
   await db
     .insert(schema.syncMeta)
     .values({ key, value })
@@ -37,7 +39,7 @@ export async function getCursor(db: SyncDb): Promise<number> {
 // gate the app behind a "Setting up your library…" screen and to skip the whole-library derivation
 // while that bulk load runs.
 export async function markFirstSyncDone(db: SyncDb): Promise<void> {
-  if (!(await isFirstSyncDone(db))) await setMeta(db, FIRST_SYNC_KEY, '1');
+  await setMeta(db, FIRST_SYNC_KEY, '1');
 }
 // Clear the flag so the "Setting up your library…" gate shows again for the next full pull. Used by
 // fullResync (a full re-pull is, semantically, another first sync).
@@ -60,11 +62,13 @@ export async function setCursor(db: SyncDb, cursor: number): Promise<void> {
   await setMeta(db, CURSOR_KEY, String(cursor));
 }
 
-// Writes only when the status changes, so an idle sync pass doesn't wake every status reader.
 export async function patchStatus(db: SyncDb, patch: Partial<SyncStatus>): Promise<void> {
+  await setMeta(db, STATUS_KEY, JSON.stringify({ ...(await getStatus(db)), ...patch }));
+}
+
+export async function getStatus(db: SyncDb): Promise<SyncStatus> {
   const raw = await getMeta(db, STATUS_KEY);
-  const next = JSON.stringify({ phase: 'idle', ...(raw ? JSON.parse(raw) : {}), ...patch });
-  if (next !== raw) await setMeta(db, STATUS_KEY, next);
+  return { phase: 'idle', ...(raw ? (JSON.parse(raw) as Partial<SyncStatus>) : {}) };
 }
 
 const SYNC_LOG_MAX = 100;
@@ -80,18 +84,19 @@ export interface SyncLogEntry {
 
 // Append a run to the sync_log ring buffer, trimming to the most recent SYNC_LOG_MAX rows.
 export async function appendSyncLog(db: SyncDb, entry: SyncLogEntry): Promise<void> {
-  await db.insert(schema.syncLog).values({
-    ranAt: entry.ranAt,
-    pushed: entry.pushed,
-    pulled: entry.pulled,
-    durationMs: entry.durationMs,
-    error: entry.error ?? null,
-    notes: entry.notes ?? null,
+  await db.transaction(async (tx) => {
+    await tx.insert(schema.syncLog).values({
+      ranAt: entry.ranAt,
+      pushed: entry.pushed,
+      pulled: entry.pulled,
+      durationMs: entry.durationMs,
+      error: entry.error ?? null,
+      notes: entry.notes ?? null,
+    });
+    await tx
+      .delete(schema.syncLog)
+      .where(
+        sql`${schema.syncLog.id} <= (select id from ${schema.syncLog} order by id desc limit 1 offset ${SYNC_LOG_MAX})`,
+      );
   });
-  // Trim: keep only the newest SYNC_LOG_MAX by id.
-  await db
-    .delete(schema.syncLog)
-    .where(
-      sql`${schema.syncLog.id} <= (select id from ${schema.syncLog} order by id desc limit 1 offset ${SYNC_LOG_MAX})`,
-    );
 }

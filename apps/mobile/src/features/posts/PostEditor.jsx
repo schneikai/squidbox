@@ -20,6 +20,7 @@ import getNewItemId from '@/utils/getNewItemId';
 
 export default function PostEditor({ post, onChange, navigation, onSave, canSave, title = 'Post' }) {
   const scrollY = useSharedValue(0);
+  const [isSaving, setIsSaving] = useState(false);
   const onScroll = useAnimatedScrollHandler((e) => {
     scrollY.value = e.contentOffset.y;
   });
@@ -65,6 +66,16 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
     onChange({ text: newText, assetRefs: newAssetRefs, postedAt });
   }
 
+
+  // One save at a time: a second tap while the first is still writing would save the post twice.
+  async function handleSave() {
+    setIsSaving(true);
+    try {
+      await onSave();
+    } finally {
+      setIsSaving(false);
+    }
+  }
   return (
     <ModalSheet>
       <ModalHeader
@@ -77,7 +88,7 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
               onPress={() => setShowRandomSuggestions(true)}
               accessibilityLabel="AI suggestions"
             />
-            {onSave && <GradientPillButton label="Save" onPress={onSave} disabled={!canSave} />}
+            {onSave && <GradientPillButton label="Save" onPress={handleSave} disabled={!canSave || isSaving} />}
           </>
         }
       />

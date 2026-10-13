@@ -47,7 +47,8 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
   function newEdge(id: string, parentId: string, assetId: string, position: string, now: number) {
     return { id, createdAt: now, updatedAt: now, deletedAt: null, [parentField]: parentId, assetId, position };
   }
-  const save = (tx: SyncDb, edges: any[]) => saveRecords(tx, collection, table, edges);
+  const save = (tx: SyncDb, edges: any[], options?: { isNew: boolean }) =>
+    saveRecords(tx, collection, table, edges, options);
 
   return {
     /** Append assetIds not already present, each after the current last (fractional position). */
@@ -67,7 +68,7 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
           added.push(newEdge(newId(), parentId, assetId, position, now));
           existing.add(assetId);
         }
-        await save(tx, added);
+        await save(tx, added, { isNew: true });
       });
     },
 
@@ -77,7 +78,7 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
       const keys = initialKeys(refs.length);
       const now = Date.now();
       const edges = refs.map((ref, i) => newEdge(ref.id, parentId, ref.assetId, keys[i]!, now));
-      await db.transaction((tx) => save(tx, edges));
+      await db.transaction((tx) => save(tx, edges, { isNew: true }));
     },
 
     /**
@@ -132,13 +133,7 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
 
     /** Tombstone all live edges for a parent (its album/post was deleted). */
     async tombstoneParent(db: SyncDb, parentId: string): Promise<void> {
-      await db.transaction(async (tx) => {
-        const live: any[] = await tx
-          .select()
-          .from(table)
-          .where(and(eq(parentCol, parentId), isNull(t.deletedAt)));
-        await save(tx, live.map(tombstone));
-      });
+      await db.transaction(async (tx) => save(tx, (await liveSorted(tx, parentId)).map(tombstone)));
     },
   };
 }
