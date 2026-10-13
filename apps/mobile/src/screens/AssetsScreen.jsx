@@ -1,8 +1,6 @@
-import { useNavigation } from '@react-navigation/native';
 import { useEffect, useMemo } from 'react';
 import { Alert, View } from 'react-native';
 
-import AssetQuickViewModal, { useAssetQuickViewModal } from '@/components/AssetQuickViewModal';
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
 import { useFloatingBars } from '@/components/floating-bars/FloatingBarsContext';
 import FloatingHeader from '@/components/floating-bars/FloatingHeader';
@@ -14,45 +12,37 @@ import useSortAssetsAction from '@/features/asset-list/actions/sort-assets-actio
 import prepareAssets from '@/features/asset-list/prepareAssets';
 import useAssetCells from '@/features/asset-list/useAssetCells';
 import useAssetList from '@/features/asset-list/useAssetList';
+import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
 import useAddAssetsFromCameraRoll from '@/features/assets-context/useAddAssetsFromCameraRoll';
 import useAssets from '@/features/assets-context/useAssets';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useSearch from '@/hooks/useSearch';
 import useSearchMode from '@/hooks/useSearchMode';
-import getAssetsByIds from '@/utils/assets/queries/getAssetsByIds';
-import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 
 export default function AssetsScreen({ route }) {
-  const navigation = useNavigation();
-  const { assets, toggleFavoriteAsset, setAssetsDeleted } = useAssets();
+  const { assets, setAssetsDeleted } = useAssets();
   const { paddingTop, paddingBottom } = useScreenPadding('main');
 
   const { listRef, listScrollTop } = useAssetList();
   const { sortOrder, sortFunction, sortAssets } = useSortAssetsAction({ afterSort: listScrollTop });
   const { activeFilter, toggleFilter, matchFilter } = useFilterAssetsAction({ afterFilter: listScrollTop });
-  const { asset: quickViewAsset, open: openAssetQuickView, close: closeAssetQuickView } = useAssetQuickViewModal();
 
+  const floatingBars = useFloatingBars();
   const {
     isSelectMode,
     selectedAssetIds,
     isAssetSelected,
-    toggleSelectAsset,
     selectAssets,
     exitSelectMode,
     registerScreenOptions,
     scrollY,
-  } = useFloatingBars();
+  } = floatingBars;
   const { searchBar, query: searchText } = useSearchMode(useSearch());
 
   const scrollHandler = useFloatingBarScrollHandler();
 
   const { show, hide, updateProgress } = useProgressOverlay();
   const addAssetsFromCameraRollAsync = useAddAssetsFromCameraRoll({
-    onStart: show,
-    onProgress: updateProgress,
-    onFinish: hide,
-  });
-  const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary({
     onStart: show,
     onProgress: updateProgress,
     onFinish: hide,
@@ -69,6 +59,8 @@ export default function AssetsScreen({ route }) {
     [assets, sortFunction, matchFilter, searchText],
   );
 
+  const actions = useAssetSelectionActions(floatingBars, assetIds);
+
   async function handleAdd() {
     try {
       await addAssetsFromCameraRollAsync();
@@ -77,26 +69,8 @@ export default function AssetsScreen({ route }) {
     }
   }
 
-  function handleSelectAll() {
-    selectAssets(selectedAssetIds.length === assetIds.length ? [] : assetIds);
-  }
-
-  async function handleDownload() {
-    await saveAssetsToMediaLibraryAsync(getSelectedAssets());
-  }
-
-  function handleAddToAlbum() {
-    navigation.navigate('AddToAlbumModal', { assetIds: selectedAssetIds });
-    exitSelectMode();
-  }
-
-  function handlePost() {
-    navigation.navigate('AddEditPostModal', { assetIds: selectedAssetIds });
-    exitSelectMode();
-  }
-
   function handleDelete() {
-    const selected = getSelectedAssets();
+    const selected = actions.getSelectedAssets();
     Alert.alert(`Delete ${selected.length} item${selected.length !== 1 ? 's' : ''}?`, '', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -108,10 +82,6 @@ export default function AssetsScreen({ route }) {
         },
       },
     ]);
-  }
-
-  function getSelectedAssets() {
-    return getAssetsByIds(assets, selectedAssetIds);
   }
 
   // Register this screen's options with the floating bars context.
@@ -131,26 +101,15 @@ export default function AssetsScreen({ route }) {
     });
   }, [sortOrder, activeFilter]);
 
-  function onPressAsset(asset) {
-    if (isSelectMode) {
-      toggleSelectAsset(asset.id);
-    } else {
-      navigation.navigate('AssetScreen', { assetId: asset.id, assetIds });
-    }
-  }
-
-  const renderCell = useAssetCells({
+  const { renderCell, quickViewModal } = useAssetCells({
+    onPress: actions.openAsset,
     isSelectMode,
     isAssetSelected,
     showLastPostedAt: sortOrder.includes('lastPostedAt'),
-    onPress: onPressAsset,
-    onDoublePress: toggleFavoriteAsset,
-    onLongPress: (asset) => !isSelectMode && openAssetQuickView(asset),
-    onLongPressOut: closeAssetQuickView,
+    canPeek: !isSelectMode,
   });
 
   const hasActiveOptions = activeFilter.length > 0 || sortOrder !== 'createdAt:desc';
-  const allSelected = assetIds.length > 0 && selectedAssetIds.length === assetIds.length;
 
   return (
     <View style={{ flex: 1 }}>
@@ -158,14 +117,14 @@ export default function AssetsScreen({ route }) {
         title="Library"
         isAssetsTab
         onAdd={handleAdd}
-        onSelectAll={handleSelectAll}
-        allSelected={allSelected}
-        onDownload={handleDownload}
-        onAddToAlbum={handleAddToAlbum}
-        onPost={handlePost}
+        onSelectAll={actions.toggleSelectAll}
+        allSelected={actions.allSelected}
+        onDownload={actions.downloadSelected}
+        onAddToAlbum={actions.addSelectedToAlbum}
+        onPost={actions.postSelected}
         onDelete={handleDelete}
       />
-      <AssetQuickViewModal asset={quickViewAsset} isVisible={!!quickViewAsset} />
+      {quickViewModal}
       <AssetList
         listRef={listRef}
         assetIds={assetIds}

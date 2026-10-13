@@ -9,8 +9,8 @@ import FloatingPill from './FloatingPill';
 
 import GradientButton from '@/components/GradientButton';
 import Icon from '@/components/Icon';
+import PillButton from '@/components/PillButton';
 import useCloud from '@/features/cloud/useCloud';
-import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, motion, shadows, spacing, typography } from '@/styles/designTokens';
 
 export default function FloatingHeader({
@@ -116,22 +116,6 @@ export default function FloatingHeader({
   );
 }
 
-function PillButton({ iconName, onPress, disabled, danger, active }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={({ pressed }) => [
-        actionButtonStyles.pillButton,
-        pressed && { backgroundColor: colors.pressedBg },
-        disabled && styles.pillButtonDisabled,
-      ]}
-    >
-      <Icon name={iconName} color={active ? colors.accent : danger ? colors.danger : colors.text} />
-    </Pressable>
-  );
-}
-
 const AVATAR_SIZE = 40;
 
 const styles = StyleSheet.create({
@@ -191,8 +175,5 @@ const styles = StyleSheet.create({
   // ── Pill internals ────────────────────────────────────────────────────────
   addButton: {
     marginLeft: 2,
-  },
-  pillButtonDisabled: {
-    opacity: 0.35,
   },
 });

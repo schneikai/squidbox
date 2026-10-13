@@ -1,9 +1,9 @@
 import { useNavigation } from '@react-navigation/native';
 import { useMemo, useTransition } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
-import Icon from '@/components/Icon';
 import Page from '@/components/Page';
+import PillButton from '@/components/PillButton';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import AssetList from '@/features/asset-list/AssetList';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
@@ -11,8 +11,6 @@ import prepareAssets from '@/features/asset-list/prepareAssets';
 import useAssetCells from '@/features/asset-list/useAssetCells';
 import useAssets from '@/features/assets-context/useAssets';
 import useScreenPadding from '@/hooks/useScreenPadding';
-import actionButtonStyles from '@/styles/actionButtonStyles';
-import { colors } from '@/styles/designTokens';
 import getAlbumAssets from '@/utils/albums/getAlbumAssets';
 
 export default function AlbumScreenComponentForDeletedAssets({ album }) {
@@ -78,9 +76,11 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
     ]);
   }
 
-  const renderCell = useAssetCells({
-    isAssetSelected,
+  const { renderCell } = useAssetCells({
     onPress: isSelectMode ? (asset) => toggleSelectAsset(asset.id) : undefined,
+    isAssetSelected,
+    canFavorite: false,
+    canPeek: false,
   });
 
   return (
@@ -90,27 +90,9 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
         onBack={() => navigation.goBack()}
         menuSlot={
           <View style={styles.menuRow}>
-            <Pressable
-              onPress={handleRestoreAssets}
-              style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
-              hitSlop={4}
-            >
-              <Icon name="undo" color={colors.text} />
-            </Pressable>
-            <Pressable
-              onPress={toggleSelectMode}
-              style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
-              hitSlop={4}
-            >
-              <Icon name="checkbox" color={colors.text} />
-            </Pressable>
-            <Pressable
-              onPress={handleDeleteAssets}
-              style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
-              hitSlop={4}
-            >
-              <Icon name="trash" color={colors.danger} />
-            </Pressable>
+            <PillButton iconName="undo" onPress={handleRestoreAssets} />
+            <PillButton iconName="checkbox" onPress={toggleSelectMode} />
+            <PillButton iconName="trash" onPress={handleDeleteAssets} danger />
           </View>
         }
       />

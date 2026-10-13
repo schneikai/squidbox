@@ -5,15 +5,14 @@ import { Text, StyleSheet, View, Pressable, TouchableOpacity, useWindowDimension
 import Animated, { useSharedValue, useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import AssetQuickViewModal, { useAssetQuickViewModal } from '@/components/AssetQuickViewModal';
 import GradientButton from '@/components/GradientButton';
 import Icon from '@/components/Icon';
 import Page from '@/components/Page';
+import PillButton from '@/components/PillButton';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 import SearchOptionsBar from '@/components/floating-bars/SearchOptionsBar';
 import SortFilterModal from '@/components/floating-bars/SortFilterModal';
-import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import AlbumAssetsView from '@/features/album-detail/AlbumAssetsView';
 import AlbumPostsView from '@/features/album-detail/AlbumPostsView';
 import AddAssetAction from '@/features/album-detail/actions/AddAssetAction';
@@ -25,6 +24,7 @@ import { getAssetSortFunction } from '@/features/asset-list/actions/sort-assets-
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import prepareAssets from '@/features/asset-list/prepareAssets';
 import useAssetList from '@/features/asset-list/useAssetList';
+import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
 import useAssets from '@/features/assets-context/useAssets';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useSearch from '@/hooks/useSearch';
@@ -35,8 +35,6 @@ import getAlbumAssets from '@/utils/albums/getAlbumAssets';
 import getAlbumSortOrder from '@/utils/albums/getAlbumSortOrder';
 import isSmartAlbum from '@/utils/albums/isSmartAlbum';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
-import getAssetsByIds from '@/utils/assets/queries/getAssetsByIds';
-import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 import pluralizeText from '@/utils/pluralizeText';
 
 const TABS = [
@@ -58,7 +56,7 @@ const ASSET_SORT_OPTIONS = [
 ];
 
 export default function Album({ album }) {
-  const { assets, toggleFavoriteAsset, setAssetsDeleted } = useAssets();
+  const { assets, setAssetsDeleted } = useAssets();
   const { removeAssetsFromAlbum, reorderAlbumAssets, updateAlbum } = useAlbums();
   const { albumSortOrder, setAlbumSortOrder } = useAppSettings();
   const navigation = useNavigation();
@@ -66,22 +64,14 @@ export default function Album({ album }) {
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
   const { showActionSheetWithOptions } = useActionSheet();
 
-  const { show, hide, updateProgress } = useProgressOverlay();
-  const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary({
-    onStart: show,
-    onProgress: updateProgress,
-    onFinish: hide,
-  });
-
   const { listRef, listScrollTop } = useAssetList();
-  const { isSelectMode, selectedAssetIds, isAssetSelected, toggleSelectMode, toggleSelectAsset, selectAssets } =
-    useToggleSelectAssetsAction();
+  const selection = useToggleSelectAssetsAction();
+  const { isSelectMode, selectedAssetIds, isAssetSelected, toggleSelectMode, selectAssets } = selection;
   // A per-session override lets the open album react immediately to sort/reorder changes.
   const [sessionSortOrder, setSessionSortOrder] = useState(null);
   const sortOrder = sessionSortOrder ?? getAlbumSortOrder(album, albumSortOrder);
   const sortFunction = getAssetSortFunction(sortOrder);
   const { activeFilter, matchFilter, toggleFilter } = useFilterAssetsAction({ afterFilter: listScrollTop });
-  const { asset: quickViewAsset, open: openAssetQuickView, close: closeAssetQuickView } = useAssetQuickViewModal();
   const [activeTab, setActiveTab] = useState('Assets');
   const [isSortFilterOpen, setIsSortFilterOpen] = useState(false);
   const { searchBar, query: searchText } = useSearchMode(useSearch());
@@ -102,6 +92,7 @@ export default function Album({ album }) {
   // postHistory is the album's non-deleted posts, oldest first (derived in AlbumsProvider).
   const postIds = useMemo(() => [...album.postHistory].reverse(), [album.postHistory]);
 
+  const actions = useAssetSelectionActions(selection, assetIds);
   const hasSelection = selectedAssetIds.length > 0;
   const hasSubHeader = !!album.archivedAt || !!album.notes;
   const isSmart = isSmartAlbum(album);
@@ -143,38 +134,8 @@ export default function Album({ album }) {
       ? pluralizeText('1 Post', '%{count} Posts', postIds.length)
       : pluralizeText('1 Asset', '%{count} Assets', assetIds.length);
 
-  function getSelectedAssets() {
-    return getAssetsByIds(assets, selectedAssetIds);
-  }
-
-  function onPressAsset(asset) {
-    if (isSelectMode) {
-      toggleSelectAsset(asset.id);
-    } else {
-      navigation.navigate('AssetScreen', { assetId: asset.id, assetIds });
-    }
-  }
-
-  async function handleDownload() {
-    await saveAssetsToMediaLibraryAsync(getSelectedAssets());
-  }
-
-  function handleSelectAll() {
-    selectAssets(selectedAssetIds.length === assetIds.length ? [] : assetIds);
-  }
-
-  function handleAddToAlbum() {
-    navigation.navigate('AddToAlbumModal', { assetIds: selectedAssetIds });
-    toggleSelectMode();
-  }
-
-  function handleCreatePost() {
-    navigation.navigate('AddEditPostModal', { assetIds: selectedAssetIds });
-    toggleSelectMode();
-  }
-
   function handleDeleteFromAlbum() {
-    const selected = getSelectedAssets();
+    const selected = actions.getSelectedAssets();
     showActionSheetWithOptions(
       {
         options: ['Remove from album', 'Delete', 'Cancel'],
@@ -195,8 +156,6 @@ export default function Album({ album }) {
 
   return (
     <Page>
-      <AssetQuickViewModal asset={quickViewAsset} isVisible={!!quickViewAsset} />
-
       <FloatingDetailHeader
         title={album.name}
         subtitle={headerSubtitle}
@@ -206,14 +165,10 @@ export default function Album({ album }) {
           isSelectMode ? (
             // Selection toolbar — mirrors the main screen's select pill
             <>
-              <PillButton
-                iconName="checkbox"
-                onPress={handleSelectAll}
-                active={selectedAssetIds.length === assetIds.length && assetIds.length > 0}
-              />
-              <PillButton iconName="download" onPress={handleDownload} disabled={!hasSelection} />
-              <PillButton iconName="library" onPress={handleAddToAlbum} disabled={!hasSelection} />
-              <PillButton iconName="share" onPress={handleCreatePost} disabled={!hasSelection} />
+              <PillButton iconName="checkbox" onPress={actions.toggleSelectAll} active={actions.allSelected} />
+              <PillButton iconName="download" onPress={actions.downloadSelected} disabled={!hasSelection} />
+              <PillButton iconName="library" onPress={actions.addSelectedToAlbum} disabled={!hasSelection} />
+              <PillButton iconName="share" onPress={actions.postSelected} disabled={!hasSelection} />
               {!isSmart && (
                 <PillButton iconName="trash" onPress={handleDeleteFromAlbum} disabled={!hasSelection} danger />
               )}
@@ -256,10 +211,7 @@ export default function Album({ album }) {
             isSelectMode={isSelectMode}
             selectedAssetIds={selectedAssetIds}
             isAssetSelected={isAssetSelected}
-            onPressAsset={onPressAsset}
-            toggleFavoriteAsset={toggleFavoriteAsset}
-            openAssetQuickView={openAssetQuickView}
-            closeAssetQuickView={closeAssetQuickView}
+            onPressAsset={actions.openAsset}
             sortOrder={sortOrder}
             listRef={listRef}
             paddingTop={hasSubHeader ? 0 : paddingTop}
@@ -336,22 +288,6 @@ function SegmentPill({ tabs, activeTab, onTabPress, expandProgress, bottom }) {
   );
 }
 
-function PillButton({ iconName, onPress, disabled, danger, active }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={({ pressed }) => [
-        actionButtonStyles.pillButton,
-        pressed && { backgroundColor: colors.pressedBg },
-        disabled && styles.pillButtonDisabled,
-      ]}
-    >
-      <Icon name={iconName} color={active ? colors.accent : danger ? colors.danger : colors.text} />
-    </Pressable>
-  );
-}
-
 function SegmentButton({ tab, isActive, onPress }) {
   if (isActive) {
     return (
@@ -397,9 +333,6 @@ const styles = StyleSheet.create({
   },
 
   // ── Selection toolbar ────────────────────────────────────────────────────
-  pillButtonDisabled: {
-    opacity: 0.35,
-  },
   closeButton: {
     marginLeft: 2,
   },

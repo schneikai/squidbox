@@ -8,9 +8,6 @@ export default function AlbumAssetsView({
   selectedAssetIds,
   isAssetSelected,
   onPressAsset,
-  toggleFavoriteAsset,
-  openAssetQuickView,
-  closeAssetQuickView,
   sortOrder,
   listRef,
   paddingTop,
@@ -25,27 +22,28 @@ export default function AlbumAssetsView({
   const canQuickViewPeek = !isSelectMode && !reorderEnabled;
   // Albums that can't be reordered (smart albums, which can hold thousands) use the virtualized list.
   const Grid = canReorder ? SortableAssetGrid : AssetList;
-  const renderCell = useAssetCells({
+  const { renderCell, quickViewModal } = useAssetCells({
+    onPress: onPressAsset,
     isSelectMode,
     isAssetSelected,
     showLastPostedAt: sortOrder.includes('lastPostedAt'),
-    onPress: onPressAsset,
-    onDoublePress: toggleFavoriteAsset,
-    onLongPress: (asset) => canQuickViewPeek && openAssetQuickView(asset),
-    onLongPressOut: closeAssetQuickView,
+    canPeek: canQuickViewPeek,
   });
 
   return (
-    <Grid
-      listRef={listRef}
-      assetIds={assetIds}
-      contentContainerStyle={{ paddingTop, paddingBottom }}
-      dragSelectEnabled={isSelectMode}
-      reorderEnabled={reorderEnabled}
-      onReorder={onReorder}
-      selectedAssetIds={selectedAssetIds}
-      selectAssets={selectAssets}
-      renderListItem={renderCell}
-    />
+    <>
+      {quickViewModal}
+      <Grid
+        listRef={listRef}
+        assetIds={assetIds}
+        contentContainerStyle={{ paddingTop, paddingBottom }}
+        dragSelectEnabled={isSelectMode}
+        reorderEnabled={reorderEnabled}
+        onReorder={onReorder}
+        selectedAssetIds={selectedAssetIds}
+        selectAssets={selectAssets}
+        renderListItem={renderCell}
+      />
+    </>
   );
 }
