@@ -40,6 +40,12 @@ right. The picker is native, so check what the app can influence through its opt
 
 ## Features
 
+### [ ] Mouse-friendly triggers on web
+
+Touch gestures map poorly to a mouse: long press to peek, double tap to favorite and drag-select
+are awkward with a pointer. When the input is a mouse, offer pointer-native triggers instead, for
+example right click (context menu) to peek, hover affordances, and shift/cmd-click to select.
+
 ### [ ] Video playback
 
 Videos don't play: the detail screen shows only the duration (`VideoControls`). `expo-video` is
