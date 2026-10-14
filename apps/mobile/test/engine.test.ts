@@ -6,6 +6,7 @@ import { makeAssetRecord } from './helpers/factory';
 import { loadAssetsMap } from './helpers/loadAssetsMap';
 import { makeTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
+import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { getCursor } from '../src/sync/status';
@@ -79,6 +80,14 @@ describe('worker push', () => {
     await repo.createAsset(db, makeAssetRecord());
     await runSyncOnce(db, transport());
     expect(await outboxRows()).toHaveLength(0);
+  });
+
+  it('an applied push changes no asset row, so live reads of assets are not re-run', async () => {
+    await repo.createAsset(db, makeAssetRecord());
+    const changed: string[] = [];
+    (db as AppDb).onTablesChanged((tables) => changed.push(...tables));
+    await runSyncOnce(db, transport());
+    expect(changed).not.toContain('assets');
   });
 
   it('adopts the server current on skipped-lww and clears the outbox', async () => {

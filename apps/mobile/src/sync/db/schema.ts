@@ -5,29 +5,51 @@ import { sqliteTable, text, integer, real, index, uniqueIndex } from 'drizzle-or
 // @squidbox/shared assetCollection.schema; syncError is the local-only field. Booleans are
 // integers (mode:'boolean'); postHistory is JSON text. Local PK is `id` alone — this device
 // only ever holds one user's data (the server uses composite (user_id, id)).
-export const assets = sqliteTable('assets', {
-  id: text('id').primaryKey(),
-  createdAt: integer('created_at').notNull(),
-  updatedAt: integer('updated_at').notNull(),
-  deletedAt: integer('deleted_at'),
-  mediaLibraryAssetId: text('media_library_asset_id').notNull(),
-  mediaType: text('media_type', { enum: ['photo', 'video'] }).notNull(),
-  width: integer('width').notNull(),
-  height: integer('height').notNull(),
-  fileSize: integer('file_size').notNull(),
-  duration: real('duration'),
-  filename: text('filename').notNull(),
-  thumbnailFilename: text('thumbnail_filename').notNull(),
-  isFavorite: integer('is_favorite', { mode: 'boolean' }).notNull(),
-  notes: text('notes'),
-  // postHistory / lastPostedAt are derived on-device (see sync/derive.ts), not stored/synced.
-  oldFileId: text('old_file_id'),
-  isFileSynced: integer('is_file_synced', { mode: 'boolean' }).notNull(),
-  isThumbnailSynced: integer('is_thumbnail_synced', { mode: 'boolean' }).notNull(),
-  isSynced: integer('is_synced', { mode: 'boolean' }).notNull(),
-  // local-only (never synced)
-  syncError: text('sync_error'),
-});
+export const assets = sqliteTable(
+  'assets',
+  {
+    id: text('id').primaryKey(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+    deletedAt: integer('deleted_at'),
+    mediaLibraryAssetId: text('media_library_asset_id').notNull(),
+    mediaType: text('media_type', { enum: ['photo', 'video'] }).notNull(),
+    width: integer('width').notNull(),
+    height: integer('height').notNull(),
+    fileSize: integer('file_size').notNull(),
+    duration: real('duration'),
+    filename: text('filename').notNull(),
+    thumbnailFilename: text('thumbnail_filename').notNull(),
+    isFavorite: integer('is_favorite', { mode: 'boolean' }).notNull(),
+    notes: text('notes'),
+    // postHistory / lastPostedAt are derived on-device (see sync/derive.ts), not stored/synced.
+    oldFileId: text('old_file_id'),
+    isFileSynced: integer('is_file_synced', { mode: 'boolean' }).notNull(),
+    isThumbnailSynced: integer('is_thumbnail_synced', { mode: 'boolean' }).notNull(),
+    isSynced: integer('is_synced', { mode: 'boolean' }).notNull(),
+    // local-only (never synced)
+    syncError: text('sync_error'),
+  },
+  // Partial indexes for the screens' reads (docs/paged-reads-plan.md §2). A query uses one only when
+  // its WHERE implies the index's, so keep the predicates in step with the queries.
+  (t) => ({
+    live: index('assets_live_created_idx')
+      .on(t.createdAt, t.id, t.isFavorite, t.mediaType)
+      .where(sql`${t.deletedAt} is null`),
+    deleted: index('assets_deleted_idx')
+      .on(t.deletedAt, t.id)
+      .where(sql`${t.deletedAt} is not null`),
+    unsynced: index('assets_unsynced_idx')
+      .on(t.id)
+      .where(sql`${t.isSynced} = 0 and ${t.deletedAt} is null and ${t.syncError} is null`),
+    syncError: index('assets_sync_error_idx')
+      .on(t.id)
+      .where(sql`${t.syncError} is not null and ${t.deletedAt} is null`),
+    notes: index('assets_notes_idx')
+      .on(t.id, t.notes)
+      .where(sql`${t.notes} is not null and ${t.deletedAt} is null`),
+  }),
+);
 export type AssetRow = typeof assets.$inferSelect;
 
 // albums — mirrors @squidbox/shared albumCollection. Membership is in `album_assets` edges;
@@ -50,23 +72,31 @@ export const albums = sqliteTable('albums', {
 export type AlbumRow = typeof albums.$inferSelect;
 
 // posts — mirrors @squidbox/shared postCollection. Asset references are in `post_assets` edges.
-export const posts = sqliteTable('posts', {
-  id: text('id').primaryKey(),
-  createdAt: integer('created_at').notNull(),
-  updatedAt: integer('updated_at').notNull(),
-  deletedAt: integer('deleted_at'),
-  text: text('text').notNull(),
-  isFavorite: integer('is_favorite', { mode: 'boolean' }).notNull(),
-  postedAt: integer('posted_at'),
-  rePostId: text('re_post_id'),
-  isIgnoredForRepost: integer('is_ignored_for_repost', { mode: 'boolean' }).notNull(),
-  suggestRepostAt: integer('suggest_repost_at').notNull(),
-  hasBeenReposted: integer('has_been_reposted', { mode: 'boolean' }).notNull(),
-});
+export const posts = sqliteTable(
+  'posts',
+  {
+    id: text('id').primaryKey(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+    deletedAt: integer('deleted_at'),
+    text: text('text').notNull(),
+    isFavorite: integer('is_favorite', { mode: 'boolean' }).notNull(),
+    postedAt: integer('posted_at'),
+    rePostId: text('re_post_id'),
+    isIgnoredForRepost: integer('is_ignored_for_repost', { mode: 'boolean' }).notNull(),
+    suggestRepostAt: integer('suggest_repost_at').notNull(),
+    hasBeenReposted: integer('has_been_reposted', { mode: 'boolean' }).notNull(),
+  },
+  (t) => ({
+    live: index('posts_live_posted_idx')
+      .on(t.postedAt, t.id)
+      .where(sql`${t.deletedAt} is null`),
+  }),
+);
 export type PostRow = typeof posts.$inferSelect;
 
 // Junction collections (mirror @squidbox/shared album_assets / post_assets). One row per
-// membership; `position` is a fractional-index order key. byParent index powers the read path.
+// membership; `position` is a fractional-index order key.
 export const albumAssets = sqliteTable(
   'album_assets',
   {
@@ -78,7 +108,14 @@ export const albumAssets = sqliteTable(
     assetId: text('asset_id').notNull(),
     position: text('position').notNull(),
   },
-  (t) => ({ byAlbum: index('album_assets_album_idx').on(t.albumId) }),
+  (t) => ({
+    byAlbum: index('album_assets_album_position_idx')
+      .on(t.albumId, t.position, t.assetId)
+      .where(sql`${t.deletedAt} is null`),
+    byAsset: index('album_assets_asset_idx')
+      .on(t.assetId, t.albumId)
+      .where(sql`${t.deletedAt} is null`),
+  }),
 );
 export type AlbumAssetRow = typeof albumAssets.$inferSelect;
 
@@ -93,7 +130,12 @@ export const postAssets = sqliteTable(
     assetId: text('asset_id').notNull(),
     position: text('position').notNull(),
   },
-  (t) => ({ byPost: index('post_assets_post_idx').on(t.postId) }),
+  (t) => ({
+    byPost: index('post_assets_post_idx').on(t.postId),
+    byAsset: index('post_assets_asset_idx')
+      .on(t.assetId, t.postId)
+      .where(sql`${t.deletedAt} is null`),
+  }),
 );
 export type PostAssetRow = typeof postAssets.$inferSelect;
 

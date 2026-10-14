@@ -74,8 +74,7 @@ function betterSqliteExecutor(sqlite: Database.Database): Execute {
   return async (sql, params, method) => {
     const statement = sqlite.prepare(sql);
     if (method === 'run') {
-      statement.run(...params);
-      return { rows: [] };
+      return { rows: [], changes: statement.run(...params).changes };
     }
     const rows = statement.raw().all(...params);
     return { rows: method === 'get' ? (rows[0] as unknown[]) : rows };

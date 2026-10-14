@@ -178,8 +178,7 @@ an iPhone with the dev client.
 
 ### [ ] Smaller data-layer costs
 
-Measured as worth little today, so left open: the driver notifies live reads even when a write
-changed no rows (`db/driver.ts`; expo's `changes` would tell); every statement is prepared and
+Measured as worth little today, so left open: every statement is prepared and
 finalized again (`db/expoExecutor.ts`; a statement cache saves two native calls each); the pull
 fetches the next pages only after applying the last batch (`worker.ts` `pullPhase`; prefetching one
 page overlaps network and writes).

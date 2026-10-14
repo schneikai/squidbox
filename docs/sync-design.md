@@ -316,7 +316,8 @@ on iOS and web. `createDb` (`apps/mobile/src/sync/db/driver.ts`) puts Drizzle's 
   "read previous row, write row + outbox" steps stay atomic without locks at call sites. Inside a
   transaction callback, code uses its `tx`; using `db` there would wait for the transaction itself.
 - **Change notifications.** After each committed statement or transaction, the driver notifies
-  listeners once with the tables it wrote. A rolled-back transaction notifies nothing.
+  listeners once with the tables it changed. A write that changed no rows and a rolled-back
+  transaction notify nothing.
 
 The database is opened in `DatabaseGate` (`App.js`). SQLite migrations live in
 `apps/mobile/src/sync/db/migrations` and run in `MigrationGate` before anything queries it.

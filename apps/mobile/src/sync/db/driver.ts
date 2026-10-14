@@ -2,7 +2,10 @@ import { drizzle, type AsyncRemoteCallback } from 'drizzle-orm/sqlite-proxy';
 
 import * as schema from './schema';
 
-export type Execute = AsyncRemoteCallback;
+// `changes` (rows a `run` changed) lets a write that matched nothing skip notifying live reads.
+export type Execute = (
+  ...args: Parameters<AsyncRemoteCallback>
+) => Promise<Awaited<ReturnType<AsyncRemoteCallback>> & { changes?: number }>;
 type TablesChangedListener = (tables: Set<string>) => void;
 
 // Statements drizzle generates for writes start like `insert into "assets"`, `update "assets"` or
@@ -19,7 +22,8 @@ const ANY_WRITE = /^\s*(?:insert|update|delete|replace)\b/i;
  * `db` there would wait for the transaction itself and never finish.
  *
  * Instead of SQLite's per-row change events, listeners get one notification per committed unit of
- * work (a statement or a whole transaction) with the tables it wrote.
+ * work (a statement or a whole transaction) with the tables it changed; a write that changed no rows
+ * (an update whose WHERE matched nothing) doesn't count.
  */
 export function createDb(execute: Execute) {
   let tail: Promise<unknown> = Promise.resolve();
@@ -41,9 +45,10 @@ export function createDb(execute: Execute) {
 
   const executeTracked: Execute = async (sql, params, method) => {
     const table = WRITTEN_TABLE.exec(sql)?.[1];
-    if (table) written?.add(table);
-    else if (ANY_WRITE.test(sql)) throw new Error(`Untracked write (see WRITTEN_TABLE): ${sql.slice(0, 80)}`);
-    return execute(sql, params, method);
+    if (!table && ANY_WRITE.test(sql)) throw new Error(`Untracked write (see WRITTEN_TABLE): ${sql.slice(0, 80)}`);
+    const result = await execute(sql, params, method);
+    if (table && result.changes !== 0) written?.add(table);
+    return result;
   };
 
   const inner = drizzle(executeTracked, { schema });

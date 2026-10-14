@@ -51,6 +51,13 @@ describe('driver (createDb)', () => {
     expect(changes).toEqual([]);
   });
 
+  it('does not notify for a write that changed no rows', async () => {
+    const [a] = await repo.createAssets(db, [makeAssetRecord()]);
+    changes = [];
+    await repo.setSyncError(db, [a!.id], null); // already null: the update matches nothing
+    expect(changes).toEqual([]);
+  });
+
   it('does not notify for reads', async () => {
     await db.select().from(schema.assets);
     expect(changes).toEqual([]);

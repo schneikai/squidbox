@@ -9,7 +9,7 @@ export function expoExecutor(sqlite: SQLiteDatabase): Execute {
     const statement = await sqlite.prepareAsync(sql);
     try {
       const result = await statement.executeForRawResultAsync(params as SQLiteBindValue[]);
-      if (method === 'run') return { rows: [] };
+      if (method === 'run') return { rows: [], changes: result.changes };
       if (method === 'get') return { rows: ((await result.getFirstAsync()) ?? undefined) as unknown as unknown[] };
       return { rows: await result.getAllAsync() };
     } finally {

@@ -1,7 +1,7 @@
 /* eslint-env node, browser */
 /**
- * Measures the web preview's release bundle: reload → first grid cell, idle JS heap, and the
- * main-thread script time of a favorite toggle. Needs `npm run dev:local -- --web` running; for a
+ * Measures the web preview's release bundle: the first sync of a fresh browser → first grid cell,
+ * reload → first grid cell, idle JS heap, and the main-thread script time of a favorite toggle. Needs `npm run dev:local -- --web` running; for a
  * large library, first run `npm run seed:mock -- --assets 50000` in apps/server.
  *
  *   npm run web:measure
@@ -12,12 +12,14 @@ const RELOADS = 3;
 const TOGGLES = 3;
 const WINDOW_MS = 3000;
 
+const syncStart = Date.now();
 const { page, errors, close } = await openWebPreview({ production: true });
 const cdp = await page.context().newCDPSession(page);
 await cdp.send('Performance.enable');
 const cells = page.getByTestId('asset-cell');
 const firstCell = () => cells.first().waitFor({ timeout: 600_000 });
 await firstCell();
+console.log(`first sync → first cell: ${((Date.now() - syncStart) / 1000).toFixed(1)} s`);
 
 for (let i = 0; i < RELOADS; i++) {
   const start = Date.now();
