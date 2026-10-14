@@ -16,7 +16,8 @@ export interface Work {
   statements: number;
   commits: number; // transactions plus writes outside one: each is a disk sync and a live-read refresh
   rowsRead: number;
-  fullScans: string[]; // query-plan lines like "SCAN assets"
+  plans: string[]; // every query-plan line of the reads, like "SCAN assets USING INDEX assets_live_created_idx"
+  fullScans: string[]; // the "SCAN …" lines among them
 }
 
 /** A test db that also counts the work behind each call of `measure`. */
@@ -34,15 +35,15 @@ export function makeMeasuredTestDb(): { db: AppDb; measure(run: () => Promise<un
     log = [];
     await run();
     const selects = log.filter((entry) => /^\s*select/i.test(entry.sql));
+    const plans = selects.flatMap(({ sql, params }) =>
+      (sqlite.prepare(`explain query plan ${sql}`).all(...params) as { detail: string }[]).map((step) => step.detail),
+    );
     return {
       statements: log.length,
       commits: countCommits(log.map((entry) => entry.sql)),
       rowsRead: selects.reduce((sum, entry) => sum + entry.rows, 0),
-      fullScans: selects.flatMap(({ sql, params }) =>
-        (sqlite.prepare(`explain query plan ${sql}`).all(...params) as { detail: string }[])
-          .map((step) => step.detail)
-          .filter((detail) => detail.startsWith('SCAN ')),
-      ),
+      plans,
+      fullScans: plans.filter((detail) => detail.startsWith('SCAN ')),
     };
   }
 

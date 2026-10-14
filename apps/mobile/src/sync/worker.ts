@@ -23,10 +23,11 @@ import { upsertRows } from './upsertRows';
 
 const PULL_LIMIT = 1000; // server/contract cap
 const PUSH_BATCH = 500; // server caps pushRequest mutations at 500
-// Records per apply transaction. Each transaction writes every database page it touches once more
-// (the rollback journal), and with random ids a transaction touches most index pages, so a few big
-// transactions are much faster than one per page: on web, a 50k first sync drops from ~3 min to ~40 s.
-const APPLY_BATCH = 5000;
+// Records per apply transaction (and per bulk-action transaction, see writeInBatches). Each
+// transaction writes every database page it touches once more (the rollback journal), and with random
+// ids a transaction touches most index pages, so a few big transactions are much faster than one per
+// page: on web, a 50k first sync drops from ~3 min to ~40 s.
+export const APPLY_BATCH = 5000;
 
 // ── DI core: one push→pull pass against an injected db + transport, recording a sync_log entry
 // (counts, duration, conflict notes, error). Testable off-device (better-sqlite3 + an in-process

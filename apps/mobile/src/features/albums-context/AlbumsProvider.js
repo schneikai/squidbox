@@ -10,6 +10,7 @@ import { makeRepository } from '@/sync/repository';
 import { useLiveCollectionMap, useLiveCollectionRows } from '@/sync/useCollection';
 import { useDerivedRecords } from '@/sync/useDerivedRecords';
 import { requestSync } from '@/sync/worker';
+import { writeInBatches } from '@/sync/writeInBatches';
 import albumSchema from '@/utils/albums/albumSchema';
 import getNewItemId from '@/utils/getNewItemId';
 
@@ -71,14 +72,15 @@ export default function AlbumsProvider({ children }) {
         await repo.toggle(db, album.id, 'isFavorite');
         requestSync();
       },
-      addAssetsToAlbum: async (album, assetsOrAssetIds) => {
+      // Both take the batch options of writeInBatches ({ onProgress, isCancelled }).
+      addAssetsToAlbum: async (album, assetsOrAssetIds, batchOptions) => {
         const assetIds = assetsOrAssetIds.map((a) => (typeof a === 'string' ? a : a.id));
-        await edges.add(db, album.id, assetIds, getNewItemId);
+        await writeInBatches(assetIds, (ids) => edges.add(db, album.id, ids, getNewItemId), batchOptions);
         requestSync();
       },
-      removeAssetsFromAlbum: async (album, assetsOrAssetIds) => {
+      removeAssetsFromAlbum: async (album, assetsOrAssetIds, batchOptions) => {
         const assetIds = assetsOrAssetIds.map((a) => (typeof a === 'string' ? a : a.id));
-        await edges.remove(db, album.id, assetIds);
+        await writeInBatches(assetIds, (ids) => edges.remove(db, album.id, ids), batchOptions);
         requestSync();
       },
       reorderAlbumAssets: async (album, orderedAssetIds) => {

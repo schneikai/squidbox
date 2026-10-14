@@ -9,6 +9,7 @@ import { toAssetRecord, toAssetChanges } from '@/sync/legacyAsset';
 import { useLiveCollectionMap, useLiveCollectionRows } from '@/sync/useCollection';
 import { useDerivedRecords } from '@/sync/useDerivedRecords';
 import { requestSync } from '@/sync/worker';
+import { writeInBatches } from '@/sync/writeInBatches';
 
 // Assets from SQLite with their derived post history; writes go through the repository and then
 // start a sync. Only mounted after the initial pull finishes (see AppGate).
@@ -39,25 +40,26 @@ export default function AssetsProvider({ children }) {
         requestSync();
       },
       // Local-only marker for failed file uploads (never synced); null clears it for a retry.
-      setAssetsSyncError: async (assetIds, error) => {
-        await repo.setSyncError(getDb(), assetIds, error);
+      setAssetsSyncError: async (assetIds, error, batchOptions) => {
+        await writeInBatches(assetIds, (ids) => repo.setSyncError(getDb(), ids, error), batchOptions);
       },
       toggleFavoriteAsset: async (asset) => {
         await repo.toggleFavorite(getDb(), asset.id);
         requestSync();
       },
-      setAssetsDeleted: async (assetIds) => {
-        await repo.deleteAssets(getDb(), assetIds);
+      // The bulk methods take the batch options of writeInBatches ({ onProgress, isCancelled }).
+      setAssetsDeleted: async (assetIds, batchOptions) => {
+        await writeInBatches(assetIds, (ids) => repo.deleteAssets(getDb(), ids), batchOptions);
         requestSync();
       },
-      restoreDeletedAssets: async (assetIds) => {
-        await repo.updateAllAssets(getDb(), assetIds, { deletedAt: null });
+      restoreDeletedAssets: async (assetIds, batchOptions) => {
+        await writeInBatches(assetIds, (ids) => repo.updateAllAssets(getDb(), ids, { deletedAt: null }), batchOptions);
         requestSync();
       },
-      deleteAssetsAsync: async (assetIds) => {
+      deleteAssetsAsync: async (assetIds, batchOptions) => {
         // Tombstone the metadata; it syncs as a delete. TODO: also delete the S3
         // binaries via the new backend before tombstoning (sync-design §7a).
-        await repo.deleteAssets(getDb(), assetIds);
+        await writeInBatches(assetIds, (ids) => repo.deleteAssets(getDb(), ids), batchOptions);
         requestSync();
       },
     }),

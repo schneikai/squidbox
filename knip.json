@@ -8,7 +8,7 @@
     "apps/mobile": {
       "entry": ["metro.config.js", "tunnel.js", "scripts/*.{js,mjs}", "src/**/*.web.{js,ts}"],
       "ignore": ["src/obsolete-code/**"],
-      "ignoreDependencies": ["react-dom", "@babel/core", "expo-updates", "expo-system-ui"],
+      "ignoreDependencies": ["@babel/core", "expo-updates", "expo-system-ui"],
       "ignoreUnresolved": ["babel-preset-expo"]
     },
     "apps/server": {
