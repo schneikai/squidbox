@@ -25,6 +25,7 @@ function AssetGridCell({
       onLongPress={onLongPress && (() => onLongPress(asset))}
       onLongPressOut={onLongPressOut && (() => onLongPressOut(asset))}
       style={{ flex: 1 }}
+      testID="asset-cell"
     >
       <AssetListItem
         asset={asset}

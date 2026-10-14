@@ -164,8 +164,10 @@ Maestro) for the main flows later.
 ### [ ] Read lists page by page from SQLite
 
 The providers still load whole tables (assets, album edges, posts) into memory on every launch,
-so startup grows with the library (~5.8 s to the first grid at 50k on web). Plan, reviewed and
-ready to build: `docs/paged-reads-plan.md`.
+so startup grows with the library. Plan, reviewed and ready to build: `docs/paged-reads-plan.md`.
+Baseline at 50k, web preview release bundle in the cloud workspace (`npm run web:measure`):
+reload → first cell 4.2–4.6 s, idle JS heap 51.8 MB, favorite toggle ≈ 455 ms of script.
+A native baseline (`DatabaseGate` → first cell on a phone) is still to take.
 
 ### [ ] Check a 50,000-asset library on a device
 

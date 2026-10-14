@@ -16,6 +16,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "web:preview": "node scripts/webPreview.mjs",
+    "web:measure": "node scripts/measurePerformance.mjs",
     "lint": "eslint .",
     "typecheck:sync": "tsc -p tsconfig.synccheck.json --noEmit",
     "test": "vitest run",

@@ -31,7 +31,8 @@ export async function openWebPreview({ signedIn = true, production = false } = {
   page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
   if (production) await page.route(/\.bundle\?/, serveProductionBundle);
 
-  await page.goto(APP_URL);
+  // Metro builds the bundle on the first request, which can take minutes (a release bundle more so).
+  await page.goto(APP_URL, { timeout: 600_000 });
   // Exact: "Setting up your library" (the first-sync screen) must not count as the Library tab.
   await page.getByText('Library', { exact: true }).first().waitFor({ timeout: 600_000 });
   return { page, errors, close: () => browser.close() };
