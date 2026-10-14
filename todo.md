@@ -35,7 +35,7 @@ right. The picker is native, so check what the app can influence through its opt
 
 In Add to Album and the picker's albums list, the "Archived" filter shows an empty list:
 `prepareAlbums` hides archived albums unless `showArchivedAlbums` is passed, which only
-`AlbumsScreen` does. The paged-reads plan's album query fixes it.
+`AlbumsScreen` does. Albums keep their JS filtering under the paged-reads plan, so it stays.
 
 ### [ ] Album screen crashes on an unknown album id
 
@@ -187,6 +187,12 @@ page overlaps network and writes).
 A rejected or unappliable push result flags assets with `syncError` (shown in the sync error
 viewer), but albums, posts and their edges have no such field (`worker.ts` `applyPushResults`).
 Their outbox rows retry on every sync and the failure is only visible in the Sync Inspector's log.
+
+### [ ] Measure WAL on iOS
+
+`db/client.ts` sets no journal mode (expo-sqlite sets none either). With one connection and the
+FIFO queue, WAL adds no read concurrency, so take it only if a measured write-latency win on a
+device justifies an iOS-only setting (web's OPFS storage measured slower with WAL).
 
 ### [ ] Start cloud init while the database opens
 
