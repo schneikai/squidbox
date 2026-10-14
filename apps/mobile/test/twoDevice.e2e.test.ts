@@ -5,7 +5,7 @@ import pg from 'pg';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 
 import { albumOrder } from './helpers/albumOrder';
-import { makeAssetRecord } from './helpers/factory';
+import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { readLiveAsset } from './helpers/readLiveAsset';
 import { makeTestDb } from './helpers/testDb';
 // Real server engine (against docker Postgres) — the other side of the round-trip.
@@ -21,25 +21,6 @@ import type { SyncTransport } from '../src/sync/transport';
 import { runSyncOnce } from '../src/sync/worker';
 
 const albumRepo = makeRepository('albums', clientSchema.albums);
-function albumRecord(over: Record<string, unknown> = {}) {
-  return {
-    id: randomUUID(),
-    createdAt: 1000,
-    updatedAt: 1000,
-    deletedAt: null,
-    name: 'Album',
-    assets: [],
-    isFavorite: false,
-    archivedAt: null,
-    lastPostedAt: null,
-    showInPostSuggestionsAfter: null,
-    oldCollectionName: null,
-    notes: null,
-    sortOrder: null,
-    smartAlbumType: null,
-    ...over,
-  };
-}
 
 // Headless two-device end-to-end: two better-sqlite3 "devices" + the real server sync engine
 // on one Postgres user partition. Run with `npm run test:e2e` (docker stack up); skipped
@@ -118,7 +99,7 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
   });
 
   it('propagates a non-asset collection (albums) A → B via the generic engine', async () => {
-    const album = albumRecord({ name: 'Trip' });
+    const album = makeAlbumRecord({ createdAt: 1000, updatedAt: 1000, name: 'Trip' });
     await albumRepo.create(deviceA, album);
     await runSyncOnce(deviceA, transport); // A pushes the album
     await runSyncOnce(deviceB, transport); // B pulls it
@@ -133,7 +114,7 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
     const [a1, a2, a3, a4] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
 
     // A creates the album with [a1, a2, a3] and both devices sync up.
-    await albumRepo.create(deviceA, albumRecord({ id: albumId, name: 'Trip' }));
+    await albumRepo.create(deviceA, makeAlbumRecord({ createdAt: 1000, updatedAt: 1000, id: albumId, name: 'Trip' }));
     await albumEdges.add(deviceA, albumId, [a1, a2, a3], newId);
     await runSyncOnce(deviceA, transport);
     await runSyncOnce(deviceB, transport);

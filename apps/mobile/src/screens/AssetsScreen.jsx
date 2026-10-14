@@ -28,20 +28,15 @@ export default function AssetsScreen({ route }) {
   const { paddingTop, paddingBottom } = useScreenPadding('main');
 
   const { listRef, listScrollTop } = useAssetList();
-  // A new sort, filter or search starts from the top, at the first page again.
-  const restart = () => {
-    reset();
-    listScrollTop();
-  };
-  const { sortOrder, sortAssets } = useSortAssetsAction({ afterSort: restart });
-  const { activeFilter, toggleFilter } = useFilterAssetsAction({ afterFilter: restart });
+  const { sortOrder, sortAssets } = useSortAssetsAction({ afterSort: listScrollTop });
+  const { activeFilter, toggleFilter } = useFilterAssetsAction({ afterFilter: listScrollTop });
 
   const { registerScreenOptions, setIsSelectMode, scrollY } = useFloatingBars();
   const selection = useToggleSelectAssetsAction();
   const { isSelectMode, selectedAssetIds, isAssetSelected, selectAssets, exitSelectMode } = selection;
   // The floating bars only need to know whether select mode is on (the navigation bar hides).
   useEffect(() => setIsSelectMode(isSelectMode), [isSelectMode]);
-  const { searchBar, query: searchText } = useSearchMode(useSearch({ afterChange: () => reset() }));
+  const { searchBar, query: searchText } = useSearchMode(useSearch());
 
   const scrollHandler = useFloatingBarScrollHandler();
 
@@ -54,7 +49,7 @@ export default function AssetsScreen({ route }) {
   });
 
   const query = assetQuery({ scope: 'library', sort: sortOrder, filter: activeFilter, search: searchText });
-  const { rows, count, loadMore, reset } = usePagedQuery(query, [query.descriptor], 150);
+  const { rows, count, loadMore } = usePagedQuery(query, 150);
 
   const actions = useAssetSelectionActions(selection, query, count);
 

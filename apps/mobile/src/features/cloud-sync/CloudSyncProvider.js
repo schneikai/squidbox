@@ -11,6 +11,14 @@ import deleteAssetFileAsync from '@/utils/assets/files/deleteAssetFileAsync';
 import fileSizeToHumanReadable from '@/utils/fileSizeToHumanReadable';
 
 const UPLOAD_BATCH = 50;
+const NO_COUNTS = { unsyncedCount: 0, syncErrorCount: 0 };
+
+function readBackupCounts(db) {
+  return db.transaction(async (tx) => ({
+    unsyncedCount: await countUnsynced(tx),
+    syncErrorCount: await countSyncErrors(tx),
+  }));
+}
 
 export default function CloudSyncProvider({ children }) {
   const { updateAsset, setAssetsSyncError } = useAssets();
@@ -21,10 +29,12 @@ export default function CloudSyncProvider({ children }) {
   const [syncSpeedMessage, setSyncSpeedMessage] = useState(null);
 
   // Live counts (0 while signed out: backup needs the cloud), each covered by a partial index.
-  const unsyncedCount =
-    useLiveQuery((db) => (isAuthenticated ? countUnsynced(db) : 0), [schema.assets], [isAuthenticated]) ?? 0;
-  const syncErrorCount =
-    useLiveQuery((db) => (isAuthenticated ? countSyncErrors(db) : 0), [schema.assets], [isAuthenticated]) ?? 0;
+  const { unsyncedCount, syncErrorCount } =
+    useLiveQuery(
+      async (db) => (isAuthenticated ? readBackupCounts(db) : NO_COUNTS),
+      [schema.assets],
+      [isAuthenticated],
+    ) ?? NO_COUNTS;
 
   // Since state is not updated immediately I use this ref to make sure
   // that the sync function is not running multiple times at the same time.

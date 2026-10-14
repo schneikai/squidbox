@@ -1,10 +1,11 @@
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import type { AppDb } from './db/driver';
 import { useLiveQuery } from './useLiveQuery';
 
 export interface PagedQuery<R> {
+  descriptor?: unknown; // what the query shows, as a plain object: a change starts at the first page
   read(db: AppDb, options: { limit: number }): Promise<{ rows: R[]; count: number }>;
   tables: SQLiteTable[];
 }
@@ -33,28 +34,33 @@ export function hasMore<R>(result: PagedResult<R> | undefined, limit: number): b
 
 /**
  * A live read of the first `limit` rows and the exact count of a query, where `loadMore` grows the
- * limit and `reset` returns it to `pageSize`. The offset is always 0: the first page, a load-more and
- * the refresh after a write are the same read, so the database decides the order and nothing is
- * appended. The limit never resets by itself; the screen calls `reset` where it scrolls to the top.
+ * limit. The offset is always 0: the first page, a load-more and the refresh after a write are the
+ * same read, so the database decides the order and nothing is appended. A new descriptor (a sort,
+ * filter or search) starts again at `pageSize`, in the same render, so nothing is read at the old
+ * depth; `keepLimit()` right before a descriptor change keeps the depth across it instead.
  */
-export function usePagedQuery<R>(query: PagedQuery<R>, deps: unknown[], pageSize: number) {
-  const [limit, setLimit] = useState(pageSize);
+export function usePagedQuery<R>(query: PagedQuery<R>, pageSize: number) {
+  const key = JSON.stringify(query.descriptor);
+  const [page, setPage] = useState({ key, limit: pageSize, keep: false });
+  let limit = page.limit;
+  if (page.key !== key) {
+    limit = page.keep ? page.limit : pageSize;
+    setPage({ key, limit, keep: false });
+  }
   const result = useLiveQuery<PagedResult<R>>(
     async (db) => ({ ...(await query.read(db, { limit })), limit }),
     query.tables,
-    [...deps, limit],
+    [key, limit],
   );
-  const canLoadMore = hasMore(result, limit);
 
-  return {
-    rows: result?.rows,
-    count: result?.count,
-    hasMore: canLoadMore,
-    loadMore() {
-      if (canLoadMore) setLimit(nextLimit(limit));
-    },
-    reset() {
-      setLimit(pageSize);
-    },
-  };
+  // Stable, so a scroll handler can hold it: it reads the latest state through the ref.
+  const latest = useRef({ key, limit, canLoadMore: false });
+  latest.current = { key, limit, canLoadMore: hasMore(result, limit) };
+  const loadMore = useCallback(() => {
+    const { key: current, limit: loaded, canLoadMore } = latest.current;
+    if (canLoadMore) setPage({ key: current, limit: nextLimit(loaded), keep: false });
+  }, []);
+  const keepLimit = useCallback(() => setPage((current) => ({ ...current, keep: true })), []);
+
+  return { rows: result?.rows, count: result?.count, loadMore, keepLimit };
 }

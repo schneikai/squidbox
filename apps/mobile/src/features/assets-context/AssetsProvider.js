@@ -22,9 +22,12 @@ export default function AssetsProvider({ children }) {
         await repo.updateAsset(getDb(), id, toAssetChanges(updates));
         requestSync();
       },
-      // Local-only marker for failed file uploads (never synced); null clears it for a retry.
-      setAssetsSyncError: async (assetIds, error, batchOptions) => {
-        await writeInBatches(assetIds, (ids) => repo.setSyncError(getDb(), ids, error), batchOptions);
+      // Local-only marker for failed file uploads (never synced); clearing them all retries every upload.
+      setAssetsSyncError: async (assetIds, error) => {
+        await repo.setSyncError(getDb(), assetIds, error);
+      },
+      clearSyncErrors: async () => {
+        await repo.clearSyncErrors(getDb());
       },
       toggleFavoriteAsset: async (asset) => {
         await repo.toggleFavorite(getDb(), asset.id);

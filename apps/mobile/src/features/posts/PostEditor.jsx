@@ -15,16 +15,9 @@ import AiChatModal from '@/features/ai-suggestions/AiChatModal';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import RandomSuggestionsModal from '@/features/post-random-suggestions/RandomSuggestionsModal';
 import { colors } from '@/styles/designTokens';
-import { schema } from '@/sync/db/client';
-import { readPostTexts } from '@/sync/postsRepository';
-import { useLiveQuery } from '@/sync/useLiveQuery';
 import buildPostAsset from '@/utils/posts/buildPostAsset';
-import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
 
-const NO_TEXTS = [];
-
-// Edits a post seeded from `post` ({ text, postAssets, postedAt }); every change is reported as
-// { text, assetRefs, postedAt }, what the posts store takes.
+// Edits a post seeded from `post` ({ text, postAssets, postedAt }); every change is reported the same way.
 export default function PostEditor({ post, onChange, navigation, onSave, canSave, title = 'Post' }) {
   const scrollY = useSharedValue(0);
   const [isSaving, setIsSaving] = useState(false);
@@ -36,11 +29,9 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
   const [postedAt, setPostedAt] = useState(post.postedAt);
   const [showAiChat, setShowAiChat] = useState(false);
   const [showRandomSuggestions, setShowRandomSuggestions] = useState(false);
-  const recentPostTexts = useLiveQuery(readPostTexts, [schema.posts]) ?? NO_TEXTS;
 
   function emit(changes) {
-    const next = { text, postAssets, postedAt, ...changes };
-    onChange({ text: next.text, assetRefs: postAssetsToAssetRefs(next.postAssets), postedAt: next.postedAt });
+    onChange({ text, postAssets, postedAt, ...changes });
   }
 
   function handleTextChange(newText) {
@@ -128,7 +119,6 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
         visible={showAiChat}
         onClose={() => setShowAiChat(false)}
         onSelect={(suggestion) => handleTextChange(suggestion)}
-        recentPostTexts={recentPostTexts}
         existingText={text}
       />
 
@@ -136,7 +126,6 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
         visible={showRandomSuggestions}
         onClose={() => setShowRandomSuggestions(false)}
         onConfirm={handleSuggestionConfirm}
-        recentPostTexts={recentPostTexts}
       />
     </ModalSheet>
   );

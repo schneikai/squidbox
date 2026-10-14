@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -12,7 +12,6 @@ import AssetItem from '@/features/asset-detail/AssetItem';
 import AssetPager from '@/features/asset-detail/AssetPager';
 import MoreAction from '@/features/asset-detail/actions/MoreAction';
 import getCurrentAssetId from '@/features/asset-detail/getCurrentAssetId';
-import getVisibleAssetIds from '@/features/asset-detail/getVisibleAssetIds';
 import assetQuery from '@/features/asset-list/assetQuery';
 import useAssets from '@/features/assets-context/useAssets';
 import { radii, scale, spacing } from '@/styles/designTokens';
@@ -38,25 +37,6 @@ export default function AssetScreen({ route, navigation }) {
   const [center, setCenter] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const insets = useSafeAreaInsets();
-  // Ids the window found deleted or missing; they stay out as the window moves on, so a remotely
-  // deleted asset can't reappear.
-  const droppedIds = useRef(new Set());
-
-  useEffect(() => {
-    let isCancelled = false;
-    assetQuery(query)
-      .ids(getDb())
-      .then((ids) => {
-        if (isCancelled) return;
-        // The tapped asset stays, first, if it left the scope between the tap and the snapshot.
-        const snapshot = ids.includes(tappedAssetId) ? ids : [tappedAssetId, ...ids];
-        setAssetIds(snapshot);
-        setCenter(snapshot.indexOf(tappedAssetId));
-      });
-    return () => {
-      isCancelled = true;
-    };
-  }, [query, tappedAssetId]);
 
   const snapshot = assetIds ?? [tappedAssetId];
   const windowStart = Math.max(0, center - WINDOW);
@@ -67,16 +47,43 @@ export default function AssetScreen({ route, navigation }) {
     [schema.assets],
     [windowIds],
   );
-
-  const { assetsById, visibleAssetIds } = useMemo(() => {
-    const byId = new Map(windowData?.rows.filter((row) => !row.deletedAt).map((row) => [row.id, row]));
-    for (const assetId of windowData?.ids ?? []) if (!byId.has(assetId)) droppedIds.current.add(assetId);
-    return { assetsById: byId, visibleAssetIds: getVisibleAssetIds(snapshot, droppedIds.current) };
-  }, [windowData, snapshot]);
-  const currentAssetId = getCurrentAssetId({ assetIds: snapshot, droppedIds: droppedIds.current, selectedAssetId });
-  const currentIndex = snapshot.indexOf(currentAssetId);
-  const asset = assetsById.get(currentAssetId);
+  const assetsById = useMemo(
+    () => new Map(windowData?.rows.filter((row) => !row.deletedAt).map((row) => [row.id, row])),
+    [windowData],
+  );
+  const currentIndex = snapshot.indexOf(selectedAssetId);
+  const asset = assetsById.get(selectedAssetId);
   const headerDate = asset ? formatDetailHeaderDate(asset.createdAt) : null;
+
+  // Taken once the tapped asset's row has landed, so the database reads that row first and the asset
+  // paints before the whole scope's ids are read.
+  const hasWindow = !!windowData;
+  useEffect(() => {
+    if (!hasWindow) return;
+    let isCancelled = false;
+    assetQuery(query)
+      .ids(getDb())
+      .then((ids) => {
+        if (isCancelled) return;
+        // The tapped asset stays, first, if it left the scope between the tap and the snapshot.
+        const ordered = ids.includes(tappedAssetId) ? ids : [tappedAssetId, ...ids];
+        setAssetIds(ordered);
+        setCenter(ordered.indexOf(tappedAssetId));
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [query, tappedAssetId, hasWindow]);
+
+  // Ids the window finds deleted or missing leave the snapshot for good, so a remotely deleted asset
+  // can't reappear as the window moves on; the next asset takes over from a dropped current one.
+  useEffect(() => {
+    if (!assetIds || !windowData) return;
+    const droppedIds = new Set(windowData.ids.filter((assetId) => !assetsById.has(assetId)));
+    if (droppedIds.size === 0) return;
+    setSelectedAssetId(getCurrentAssetId({ assetIds, droppedIds, selectedAssetId }));
+    setAssetIds(assetIds.filter((assetId) => !droppedIds.has(assetId)));
+  }, [windowData]);
 
   // Recenter once the current asset leaves the middle third of the window.
   useEffect(() => {
@@ -111,9 +118,9 @@ export default function AssetScreen({ route, navigation }) {
 
       {assetIds ? (
         <AssetPager
-          assetIds={visibleAssetIds}
+          assetIds={assetIds}
           assetsById={assetsById}
-          currentAssetId={currentAssetId}
+          currentAssetId={selectedAssetId}
           onChangeAssetId={setSelectedAssetId}
           onTapAsset={openFullscreen}
         />

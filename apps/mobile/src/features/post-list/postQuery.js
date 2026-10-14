@@ -1,14 +1,13 @@
 import { and, asc, count, desc, eq, getTableColumns, isNull, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 
+import { inJson, liveAlbumAssetIds, matchingIds } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import { isCanonicalEdge } from '@/sync/edgeSql';
 import { readByIds } from '@/sync/readByIds';
 
 const p = alias(schema.posts, 'p');
 const e = alias(schema.postAssets, 'e');
-
-const inJson = (column, values) => sql`${column} in (select value from json_each(${JSON.stringify(values)}))`;
 
 /**
  * What a post list shows, as SQL: `read(db, { limit })` → `{ rows, count }` from one transaction,
@@ -37,10 +36,10 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
     if (scope === 'ignored') return eq(p.isIgnoredForRepost, true);
     if (scope.postId) return eq(p.id, scope.postId);
     if (scope.assetId) {
-      return sql`${p.id} in (select ${schema.postAssets.postId} from ${schema.postAssets} where ${schema.postAssets.assetId} = ${scope.assetId} and ${schema.postAssets.deletedAt} is null)`;
+      return sql`${p.id} in (select post_id from post_assets where asset_id = ${scope.assetId} and deleted_at is null)`;
     }
     if (scope.albumId) {
-      return sql`${p.id} in (select ${schema.postAssets.postId} from ${schema.postAssets} where ${schema.postAssets.deletedAt} is null and ${schema.postAssets.assetId} in (select ${schema.albumAssets.assetId} from ${schema.albumAssets} where ${schema.albumAssets.albumId} = ${scope.albumId} and ${schema.albumAssets.deletedAt} is null))`;
+      return sql`${p.id} in (select post_id from post_assets where asset_id in ${liveAlbumAssetIds(scope.albumId)} and deleted_at is null)`;
     }
     return undefined;
   })();
@@ -51,12 +50,10 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
     return [direction(p.postedAt), direction(p.id)];
   })();
 
-  // The search runs in JS (SQLite's LIKE and lower() fold ASCII only and read % and _ as wildcards)
-  // over every live post's text, once per read for rows and count alike; SQL takes the ids.
+  // The search runs over every live post's text, once per read for rows and count alike.
   async function matchedIds(tx) {
     if (!searchText) return null;
-    const posts = await tx.select({ id: p.id, text: p.text }).from(p).where(isNull(p.deletedAt));
-    return posts.filter((post) => post.text.toLowerCase().includes(searchText)).map((post) => post.id);
+    return matchingIds(await tx.select({ id: p.id, text: p.text }).from(p).where(isNull(p.deletedAt)), searchText);
   }
   const where = (ids) => and(isNull(p.deletedAt), scopeCondition, favorites, ids ? inJson(p.id, ids) : undefined);
 

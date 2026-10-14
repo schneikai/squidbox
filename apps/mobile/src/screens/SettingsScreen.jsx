@@ -13,6 +13,7 @@ import { Row, Section } from '@/components/settings-list/SettingsList';
 import { MODEL_STORAGE_KEY, DEFAULT_MODEL } from '@/features/ai-suggestions/aiSuggestionsStorage';
 import confirmLogoutAsync from '@/features/cloud/confirmLogoutAsync';
 import useCloud from '@/features/cloud/useCloud';
+import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
 import { colors } from '@/styles/designTokens';
 import { useSyncStatus } from '@/sync/useSyncStatus';
@@ -24,7 +25,7 @@ const SERVER_URL = API_BASE_URL?.replace(/\/api\/v1\/?$/, '');
 export default function SettingsScreen() {
   const navigation = useNavigation();
   const { isAuthenticated, user, logoutAsync } = useCloud();
-  const { unsyncedCount, syncErrorCount, isSyncing, syncMessage } = useCloudSync();
+  const cloudSync = useCloudSync();
   const { phase, pendingCount, lastError } = useSyncStatus();
 
   const [aiModel, setAiModel] = useState(DEFAULT_MODEL);
@@ -92,13 +93,6 @@ export default function SettingsScreen() {
 
   // Backup = uploading full-res photo files to the cloud (manual). Library sync = the metadata
   // engine (automatic). Each is one tappable status row → its own detail screen.
-  function backupStatusText() {
-    if (isSyncing) return syncMessage ?? 'Backing up…';
-    if (syncErrorCount > 0) return `${syncErrorCount} error${syncErrorCount > 1 ? 's' : ''}`;
-    if (unsyncedCount > 0) return `${unsyncedCount} not backed up`;
-    return 'All backed up';
-  }
-
   function librarySyncStatusText() {
     if (lastError) return 'Error';
     if (phase === 'pushing' || phase === 'pulling') return 'Syncing…';
@@ -129,7 +123,7 @@ export default function SettingsScreen() {
             <Section>
               <Row
                 label="Photo backup"
-                value={backupStatusText()}
+                value={getBackupStatusText(cloudSync)}
                 onPress={() => navigation.navigate('BackupScreen')}
                 chevron
               />

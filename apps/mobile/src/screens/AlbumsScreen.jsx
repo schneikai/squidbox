@@ -12,18 +12,15 @@ import useFilterAlbumsAction from '@/features/album-list/actions/filter-albums-a
 import useSearchAlbumsAction from '@/features/album-list/actions/search-albums-action/useSearchAlbumsAction';
 import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
-import albumQuery from '@/features/album-list/albumQuery';
 import prepareAlbums from '@/features/album-list/prepareAlbums';
 import useAlbumList from '@/features/album-list/useAlbumList';
+import useAlbumRows from '@/features/album-list/useAlbumRows';
 import useAlbums from '@/features/albums-context/useAlbums';
-import useAppSettings from '@/features/app-settings/useAppSettings';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useSearchMode from '@/hooks/useSearchMode';
-import { useLiveQuery } from '@/sync/useLiveQuery';
 
 export default function AlbumsScreen({ navigation }) {
   const { toggleFavoriteAlbum, addAlbum } = useAlbums();
-  const { albumSortOrder } = useAppSettings();
   const { paddingTop, paddingBottom } = useScreenPadding('main');
 
   const { listRef, listScrollTop } = useAlbumList();
@@ -34,8 +31,7 @@ export default function AlbumsScreen({ navigation }) {
   const { searchBar, query: searchText } = useSearchMode(useSearchAlbumsAction());
   const scrollHandler = useFloatingBarScrollHandler();
 
-  const query = albumQuery({ scope: 'all', assetSort: albumSortOrder });
-  const rows = useLiveQuery(query.page, query.tables, [query.descriptor]);
+  const rows = useAlbumRows('all');
   const albums = prepareAlbums({
     albums: rows ?? [],
     sortFn: sortFunction,

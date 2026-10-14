@@ -26,7 +26,7 @@ export default function IgnoredPostsScreen({ navigation }) {
     scrollY.value = e.contentOffset.y;
   });
 
-  const { rows, count, loadMore } = usePagedQuery(ignored, [], 20);
+  const { rows, count, loadMore } = usePagedQuery(ignored, 20);
 
   async function handleRestore(post) {
     await updatePost(post.id, { isIgnoredForRepost: false });

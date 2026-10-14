@@ -1,25 +1,14 @@
+import type { PostRecord } from '@squidbox/shared';
 import { describe, it, expect } from 'vitest';
 
+import { makePostRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
 import * as schema from '../src/sync/db/schema';
 import { readNewestRepostDate, readPostTexts } from '../src/sync/postsRepository';
 import { makeRepository } from '../src/sync/repository';
 
 const posts = makeRepository('posts', schema.posts);
-const post = (id: string, over: Record<string, unknown>) => ({
-  id,
-  createdAt: Number(id.slice(1)),
-  updatedAt: 1,
-  deletedAt: null,
-  text: '',
-  isFavorite: false,
-  postedAt: null,
-  rePostId: null,
-  isIgnoredForRepost: false,
-  suggestRepostAt: 0,
-  hasBeenReposted: false,
-  ...over,
-});
+const post = (id: string, over: Partial<PostRecord>) => makePostRecord({ id, createdAt: Number(id.slice(1)), ...over });
 
 describe('postsRepository', () => {
   it('reads the non-empty texts of the non-deleted posts, newest first', async () => {

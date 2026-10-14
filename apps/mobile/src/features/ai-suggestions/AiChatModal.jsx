@@ -41,8 +41,10 @@ import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import Textarea from '@/components/Textarea';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { colors, radii, scale } from '@/styles/designTokens';
+import { getDb } from '@/sync/db/client';
+import { readPostTexts } from '@/sync/postsRepository';
 
-export default function AiChatModal({ visible, onClose, onSelect, recentPostTexts, existingText }) {
+export default function AiChatModal({ visible, onClose, onSelect, existingText }) {
   const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
@@ -53,6 +55,7 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
   const [includeReference, setIncludeReference] = useState(true);
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
   const [showReferencePosts, setShowReferencePosts] = useState(false);
+  const [recentPostTexts, setRecentPostTexts] = useState([]);
   const flatListRef = useRef(null);
   const copiedKeyTimerRef = useRef(null);
   const keyboardHeightAnim = useRef(new Animated.Value(0)).current;
@@ -66,6 +69,7 @@ export default function AiChatModal({ visible, onClose, onSelect, recentPostText
   useEffect(() => {
     if (visible) {
       loadSettings();
+      readPostTexts(getDb()).then(setRecentPostTexts);
     }
   }, [visible]);
 

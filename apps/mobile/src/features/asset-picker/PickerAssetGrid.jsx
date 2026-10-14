@@ -15,13 +15,8 @@ import getAlbumAssetScope from '@/utils/albums/getAlbumAssetScope';
 export default function PickerAssetGrid({ album, label }) {
   const { toggleSelectAsset, isAssetSelected } = useAssetPicker();
   const { listRef, listScrollTop } = useAssetList();
-  // A new sort or filter starts from the top, at the first page again.
-  const restart = () => {
-    reset();
-    listScrollTop();
-  };
-  const { sortOrder, sortAssets } = useSortAssetsAction({ afterSort: restart });
-  const { activeFilter, toggleFilter } = useFilterAssetsAction({ afterFilter: restart });
+  const { sortOrder, sortAssets } = useSortAssetsAction({ afterSort: listScrollTop });
+  const { activeFilter, toggleFilter } = useFilterAssetsAction({ afterFilter: listScrollTop });
   const { renderCell, quickViewModal } = useAssetCells({
     onPress: (asset) => toggleSelectAsset(asset.id),
     isSelectMode: true, // the picker always selects
@@ -34,7 +29,7 @@ export default function PickerAssetGrid({ album, label }) {
     sort: sortOrder,
     filter: activeFilter,
   });
-  const { rows, loadMore, reset } = usePagedQuery(query, [query.descriptor], 150);
+  const { rows, loadMore } = usePagedQuery(query, 150);
 
   return (
     <>

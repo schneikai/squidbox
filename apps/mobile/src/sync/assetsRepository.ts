@@ -1,6 +1,7 @@
 import type { AssetRecord } from '@squidbox/shared';
-import { and, asc, count, eq, gt, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, asc, count, eq, gt, inArray, isNotNull, isNull, sql, type SQL } from 'drizzle-orm';
 
+import { inJson } from './assetSql';
 import { chunk, SQL_BATCH } from './chunk';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
@@ -22,16 +23,18 @@ export const deleteAssets = repository.remove;
 
 export const toggleFavorite = (db: SyncDb, id: string) => repository.toggle(db, id, 'isFavorite');
 
-/** Local-only sync-error marker (never synced), for some assets. Writes only where it changes. */
+// The local-only sync-error marker (never synced) of the assets matching `where`, written only where
+// it changes.
+function writeSyncError(db: SyncDb, where: SQL, error: string | null) {
+  return db
+    .update(schema.assets)
+    .set({ syncError: error })
+    .where(and(where, sql`${schema.assets.syncError} is not ${error}`));
+}
+
+/** Sets the sync error of some assets; null clears it. */
 export async function setSyncError(db: SyncDb, ids: string[], error: string | null): Promise<void> {
-  await db.transaction(async (tx) => {
-    for (const batch of chunk(ids, SQL_BATCH)) {
-      await tx
-        .update(schema.assets)
-        .set({ syncError: error })
-        .where(and(inArray(schema.assets.id, batch), sql`${schema.assets.syncError} is not ${error}`));
-    }
-  });
+  for (const batch of chunk(ids, SQL_BATCH)) await writeSyncError(db, inArray(schema.assets.id, batch), error);
 }
 
 /** How many of these assets are photos and how many videos, in one statement (for a sheet title). */
@@ -39,7 +42,7 @@ export async function countByMediaType(db: SyncDb, ids: string[]): Promise<{ pho
   const groups = await db
     .select({ mediaType: schema.assets.mediaType, count: count() })
     .from(schema.assets)
-    .where(sql`${schema.assets.id} in (select value from json_each(${JSON.stringify(ids)}))`)
+    .where(inJson(schema.assets.id, ids))
     .groupBy(schema.assets.mediaType);
   const counts = { photo: 0, video: 0 };
   for (const group of groups) counts[group.mediaType] = group.count;
@@ -79,8 +82,13 @@ export async function countSyncErrors(db: SyncDb): Promise<number> {
 /** The assets whose upload failed, by id, with their count (a paged read, like the query builders'). */
 export async function readSyncErrors(db: SyncDb, { limit }: { limit: number }) {
   return db.transaction(async (tx) => {
-    const [row] = await tx.select({ count: count() }).from(schema.assets).where(failed);
+    const total = await countSyncErrors(tx);
     const rows = await tx.select().from(schema.assets).where(failed).orderBy(asc(schema.assets.id)).limit(limit);
-    return { rows, count: row?.count ?? 0 };
+    return { rows, count: total };
   });
+}
+
+/** Clears the sync error of every live asset, in one statement, so each failed upload is tried again. */
+export async function clearSyncErrors(db: SyncDb): Promise<void> {
+  await writeSyncError(db, isNull(schema.assets.deletedAt), null);
 }

@@ -17,13 +17,11 @@ import RandomSuggestionsModal from '@/features/post-random-suggestions/RandomSug
 import usePosts from '@/features/posts-context/usePosts';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, radii, scale, typography } from '@/styles/designTokens';
-import { getDb, schema } from '@/sync/db/client';
-import { readNewestRepostDate, readPostTexts } from '@/sync/postsRepository';
-import { useLiveQuery } from '@/sync/useLiveQuery';
+import { getDb } from '@/sync/db/client';
+import { readNewestRepostDate } from '@/sync/postsRepository';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
 const candidates = postQuery({ scope: 'repostCandidates', sort: 'suggestRepostAt:asc' });
-const NO_TEXTS = [];
 
 export default function CreatePostScreen({ navigation }) {
   const { updatePost } = usePosts();
@@ -34,8 +32,7 @@ export default function CreatePostScreen({ navigation }) {
   });
   const [showRandomSuggestions, setShowRandomSuggestions] = useState(false);
 
-  const recentPostTexts = useLiveQuery(readPostTexts, [schema.posts]) ?? NO_TEXTS;
-  const { rows, count, loadMore } = usePagedQuery(candidates, [], 20);
+  const { rows, count, loadMore } = usePagedQuery(candidates, 20);
 
   // If there's nothing to repost, skip this screen entirely
   useEffect(() => {
@@ -136,7 +133,6 @@ export default function CreatePostScreen({ navigation }) {
         visible={showRandomSuggestions}
         onClose={() => setShowRandomSuggestions(false)}
         onConfirm={handleSuggestionConfirm}
-        recentPostTexts={recentPostTexts}
       />
     </ModalSheet>
   );

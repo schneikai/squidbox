@@ -10,6 +10,7 @@ import { LogBlock, LogEmpty } from '@/components/settings-list/LogBlock';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
+import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
 import { colors, typography } from '@/styles/designTokens';
 
@@ -18,16 +19,9 @@ import { colors, typography } from '@/styles/designTokens';
 // progress while the app is open (iOS suspends uploads in the background).
 export default function BackupScreen() {
   const navigation = useNavigation();
-  const { isSyncing, syncMessage, syncProgressMessage, syncSpeedMessage, unsyncedCount, syncErrorCount, syncNow } =
-    useCloudSync();
+  const cloudSync = useCloudSync();
+  const { isSyncing, syncProgressMessage, syncSpeedMessage, unsyncedCount, syncErrorCount, syncNow } = cloudSync;
   const [showErrors, setShowErrors] = useState(false);
-
-  function statusText() {
-    if (isSyncing) return syncMessage ?? 'Backing up…';
-    if (syncErrorCount > 0) return `${syncErrorCount} error${syncErrorCount > 1 ? 's' : ''}`;
-    if (unsyncedCount > 0) return `${unsyncedCount} not backed up`;
-    return 'All backed up';
-  }
 
   return (
     <Page>
@@ -39,7 +33,7 @@ export default function BackupScreen() {
         </Text>
 
         <Section>
-          <Row label="Status" value={statusText()} />
+          <Row label="Status" value={getBackupStatusText(cloudSync)} />
 
           {isSyncing && (
             <View style={styles.panel}>

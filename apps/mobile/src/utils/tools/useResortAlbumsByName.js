@@ -1,9 +1,9 @@
 import { initialKeys } from '@squidbox/shared';
+import { isNull } from 'drizzle-orm';
 
 import sortAlbumsByCustomOrder from '@/features/album-list/actions/sort-albums-action/sortAlbumsByCustomOrder';
-import albumQuery from '@/features/album-list/albumQuery';
 import useAlbums from '@/features/albums-context/useAlbums';
-import { getDb } from '@/sync/db/client';
+import { getDb, schema } from '@/sync/db/client';
 
 /**
  * Reorders albums with a numeric name from highest to lowest (e.g. 230, 220, 210) so the list looks
@@ -17,7 +17,9 @@ export default function useResortAlbumsByName() {
   const { updateManyAlbums } = useAlbums();
 
   async function resortAlbumsByNameAsync() {
-    const currentOrder = (await albumQuery({ scope: 'all' }).page(getDb())).sort(sortAlbumsByCustomOrder);
+    const currentOrder = (await getDb().select().from(schema.albums).where(isNull(schema.albums.deletedAt))).sort(
+      sortAlbumsByCustomOrder,
+    );
 
     // Highest number first, into the numeric albums' slots in the current order.
     const numericDesc = currentOrder

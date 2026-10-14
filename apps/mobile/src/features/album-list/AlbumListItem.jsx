@@ -11,7 +11,7 @@ export default function AlbumListItem({ album, elementWidth }) {
   return (
     <View style={[styles.album, { width: elementWidth }]}>
       <View style={[styles.imageContainer, { height: elementWidth }]}>
-        <AssetImage asset={album.cover ?? undefined} />
+        <AssetImage asset={album.cover} />
         <View style={styles.indicators}>
           <FavoriteAlbumIndicator isFavorite={album.isFavorite} />
         </View>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedRef, useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
@@ -11,8 +11,6 @@ import useAssetDragSelect from './useAssetDragSelect';
 // (library / all-assets view), every cell is absolutely positioned so it can be dragged and
 // reflowed for Apple Photos-style reordering. It renders every loaded row, so memory is what was
 // scrolled to; `loadMore` reads the next page when the end comes near.
-const FREEZE_TIMEOUT_MS = 1000;
-
 export default function SortableAssetGrid({
   rows,
   loadMore,
@@ -32,11 +30,17 @@ export default function SortableAssetGrid({
 
   const scrollRef = useAnimatedRef();
   const scrollY = useSharedValue(0);
+  // Within two screens of the end: the next page, once per content height (a no-op once everything
+  // is loaded), not on every scroll frame.
+  const loadMoreAtHeight = useSharedValue(-1);
   const scrollHandler = useAnimatedScrollHandler((event) => {
     scrollY.value = event.contentOffset.y;
-    // Within two screens of the end: the next page (a no-op once everything is loaded).
     const { contentOffset, layoutMeasurement, contentSize } = event;
-    if (contentOffset.y + layoutMeasurement.height * 3 >= contentSize.height) runOnJS(loadMore)();
+    const isNearEnd = contentOffset.y + layoutMeasurement.height * 3 >= contentSize.height;
+    if (isNearEnd && loadMoreAtHeight.value !== contentSize.height) {
+      loadMoreAtHeight.value = contentSize.height;
+      runOnJS(loadMore)();
+    }
   });
 
   // Reorder animation state (shared with the cells + the reorder gesture hook).
@@ -46,45 +50,29 @@ export default function SortableAssetGrid({
   const activeY = useSharedValue(0);
   const activeScale = useSharedValue(1);
 
-  // The slots follow the rows, except from a drag's start until the first rows update after its
-  // write landed: the write's promise resolves before the re-read is even queued, so the rows at that
-  // moment are still the old order and would spring the cells back and forward again. A load-more or
-  // a refresh during the drag can't spring them back either. If no update comes (a no-op write), a
-  // timeout lifts the freeze and applies the latest rows.
-  const rowsRef = useRef(rows);
-  rowsRef.current = rows;
-  const isDraggingRef = useRef(false);
-  const awaitingRowsRef = useRef(false);
-  const freezeTimeoutRef = useRef(null);
-
-  function applySlots() {
-    const slots = {};
-    (rowsRef.current ?? []).forEach((asset, index) => {
-      slots[asset.id] = index;
-    });
-    positions.value = slots;
-  }
+  // The slots follow the rows, with a dropped cell's move applied until the rows show it: the write's
+  // re-read lands after the drop, and the rows until then would spring the cells back and forward
+  // again. While a drag runs, the gesture owns the slots; rows arriving meanwhile apply after it.
+  const [isDragging, setIsDragging] = useState(false);
+  const [pendingMove, setPendingMove] = useState(null);
+  if (pendingMove && isMoveSettled(rows, pendingMove)) setPendingMove(null);
+  const slots = useMemo(() => getSlots(rows, pendingMove), [rows, pendingMove]);
   useEffect(() => {
-    if (isDraggingRef.current) return;
-    awaitingRowsRef.current = false;
-    clearTimeout(freezeTimeoutRef.current);
-    applySlots();
-  }, [rows]);
-  useEffect(() => () => clearTimeout(freezeTimeoutRef.current), []);
+    if (!isDragging) positions.value = slots;
+  }, [slots, isDragging]);
 
   function handleDragStart() {
-    isDraggingRef.current = true;
+    setIsDragging(true);
   }
   async function handleDragEnd(change) {
+    setIsDragging(false);
+    if (!change) return;
+    setPendingMove(change);
     try {
-      if (change) await onReorder(change);
-    } finally {
-      isDraggingRef.current = false;
-      awaitingRowsRef.current = true;
-      freezeTimeoutRef.current = setTimeout(() => {
-        if (awaitingRowsRef.current) applySlots();
-        awaitingRowsRef.current = false;
-      }, FREEZE_TIMEOUT_MS);
+      await onReorder(change);
+    } catch (error) {
+      setPendingMove(null);
+      throw error;
     }
   }
 
@@ -158,12 +146,12 @@ export default function SortableAssetGrid({
           scrollEventThrottle={16}
         >
           <View style={{ height: gridHeight }}>
-            {rows.map((asset, index) => (
+            {rows.map((asset) => (
               <SortableAssetGridCell
                 key={asset.id}
                 asset={asset}
                 renderCell={renderListItem}
-                initialSlot={index}
+                initialSlot={slots[asset.id]}
                 itemSize={itemSize}
                 numColumns={numColumns}
                 positions={positions}
@@ -178,4 +166,22 @@ export default function SortableAssetGrid({
       </View>
     </GestureDetector>
   );
+}
+
+// Each loaded asset's slot: its row's index, with `move` ({ assetId, afterId }) applied.
+function getSlots(rows, move) {
+  const ids = (rows ?? []).map((asset) => asset.id);
+  const from = move ? ids.indexOf(move.assetId) : -1;
+  if (from !== -1) {
+    ids.splice(from, 1);
+    ids.splice(move.afterId === null ? 0 : ids.indexOf(move.afterId) + 1, 0, move.assetId);
+  }
+  return Object.fromEntries(ids.map((id, slot) => [id, slot]));
+}
+
+// Whether the rows already show `move`, or can't anymore (an asset of it left the grid).
+function isMoveSettled(rows, { assetId, afterId }) {
+  const index = rows.findIndex((asset) => asset.id === assetId);
+  if (index === -1 || (afterId !== null && !rows.some((asset) => asset.id === afterId))) return true;
+  return afterId === null ? index === 0 : rows[index - 1].id === afterId;
 }

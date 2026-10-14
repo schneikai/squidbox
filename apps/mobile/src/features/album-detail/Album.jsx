@@ -26,7 +26,6 @@ import assetQuery from '@/features/asset-list/assetQuery';
 import useAssetList from '@/features/asset-list/useAssetList';
 import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
 import useAssets from '@/features/assets-context/useAssets';
-import postQuery from '@/features/post-list/postQuery';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useSearch from '@/hooks/useSearch';
 import useSearchMode from '@/hooks/useSearchMode';
@@ -75,15 +74,11 @@ export default function Album({ album }) {
   // A per-session override lets the open album react immediately to sort/reorder changes.
   const [sessionSortOrder, setSessionSortOrder] = useState(null);
   const sortOrder = sessionSortOrder ?? getAlbumSortOrder(album, albumSortOrder);
-  // A new sort, filter or search starts from the top, at the first page again.
-  const restart = () => {
-    reset();
-    listScrollTop();
-  };
-  const { activeFilter, toggleFilter } = useFilterAssetsAction({ afterFilter: restart });
+  const { activeFilter, toggleFilter } = useFilterAssetsAction({ afterFilter: listScrollTop });
   const [activeTab, setActiveTab] = useState('Assets');
+  const [postCount, setPostCount] = useState();
   const [isSortFilterOpen, setIsSortFilterOpen] = useState(false);
-  const { searchBar, query: searchText } = useSearchMode(useSearch({ afterChange: () => reset() }));
+  const { searchBar, query: searchText } = useSearchMode(useSearch());
   const { width: screenWidth } = useWindowDimensions();
   const expandProgress = useSharedValue(0);
 
@@ -93,9 +88,7 @@ export default function Album({ album }) {
     filter: activeFilter,
     search: searchText,
   });
-  const { rows, count, loadMore, reset } = usePagedQuery(query, [query.descriptor], 150);
-
-  const posts = usePagedQuery(postQuery({ scope: { albumId: album.id }, sort: 'postedAt:desc' }), [album.id], 20);
+  const { rows, count, loadMore, keepLimit } = usePagedQuery(query, 150);
 
   const actions = useAssetSelectionActions(selection, query, count);
   const hasSubHeader = !!album.archivedAt || !!album.notes;
@@ -120,19 +113,22 @@ export default function Album({ album }) {
       updateAlbum(album.id, { sortOrder: null });
     }
     setSessionSortOrder(order);
-    restart();
+    listScrollTop();
   }
 
   // A drag under any sort adopts the order on screen and switches the album to Custom, like
   // Reminders; the loaded grid keeps its depth, so no scroll-to-top.
   function handleReorder(change) {
-    setSessionSortOrder('custom');
+    if (sortOrder !== 'custom') {
+      keepLimit();
+      setSessionSortOrder('custom');
+    }
     return reorderAlbumAssets(album, { ...change, sort: sortOrder });
   }
 
   const headerSubtitle =
     activeTab === 'Posts'
-      ? pluralizeText('1 Post', '%{count} Posts', posts.count ?? 0)
+      ? pluralizeText('1 Post', '%{count} Posts', postCount ?? 0)
       : pluralizeText('1 Asset', '%{count} Assets', count ?? 0);
 
   async function handleDeleteFromAlbum() {
@@ -216,8 +212,8 @@ export default function Album({ album }) {
           />
         ) : (
           <AlbumPostsView
-            rows={posts.rows}
-            loadMore={posts.loadMore}
+            albumId={album.id}
+            onCount={setPostCount}
             paddingTop={hasSubHeader ? 0 : paddingTop}
             paddingBottom={paddingBottom}
           />

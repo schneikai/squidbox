@@ -44,22 +44,21 @@ describe('assetsRepository', () => {
     expect(errors.rows.map((a) => a.syncError)).toEqual(['failed']);
   });
 
-  it('sets the sync error of many assets in one transaction', async () => {
+  it('clears every sync error of the live assets in one statement', async () => {
     const { db, measure } = makeMeasuredTestDb();
-    const assets = await repo.createAssets(
-      db,
-      Array.from({ length: 1_200 }, () => makeAssetRecord()),
-    );
+    await repo.createAssets(db, [
+      makeAssetRecord({ id: 'a1' }),
+      makeAssetRecord({ id: 'a2' }),
+      makeAssetRecord({ id: 'a3', deletedAt: 1 }),
+    ]);
+    await repo.setSyncError(db, ['a1', 'a2', 'a3'], 'upload failed');
     const notifications: string[][] = [];
     db.onTablesChanged((tables) => notifications.push([...tables]));
-    const work = await measure(() =>
-      repo.setSyncError(
-        db,
-        assets.map((asset) => asset.id),
-        'upload failed',
-      ),
-    );
-    expect(work.commits).toBe(1);
+    const work = await measure(() => repo.clearSyncErrors(db));
+    expect(work.statements).toBe(1);
     expect(notifications).toEqual([['assets']]);
+    expect(await repo.countSyncErrors(db)).toBe(0);
+    await repo.updateAssets(db, { a3: { deletedAt: null } });
+    expect(await repo.countSyncErrors(db)).toBe(1); // a deleted asset keeps its error
   });
 });

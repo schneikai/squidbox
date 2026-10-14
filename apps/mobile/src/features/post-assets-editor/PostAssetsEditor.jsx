@@ -7,6 +7,7 @@ import useAssetPickerHandler from './useAssetPickerHandler';
 
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import { colors, scale } from '@/styles/designTokens';
+import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
 
@@ -28,9 +29,7 @@ export default function PostAssetsEditor({ postAssets, onChange }) {
     height: width - LIST_VERTICAL_PADDING * 2,
   };
 
-  const counts = { photo: 0, video: 0 };
-  for (const { asset } of postAssets) counts[asset.mediaType] += 1;
-  const assetCountInfo = getAssetCountInfo(counts);
+  const assetCountInfo = getAssetCountInfo(countMediaTypes(postAssets.map((postAsset) => postAsset.asset)));
 
   function addPostAssets(assets) {
     onChange([...postAssets, ...buildPostAssets(assets)]);

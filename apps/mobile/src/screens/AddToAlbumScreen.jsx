@@ -16,14 +16,12 @@ import useFilterAlbumsAction from '@/features/album-list/actions/filter-albums-a
 import useSearchAlbumsAction from '@/features/album-list/actions/search-albums-action/useSearchAlbumsAction';
 import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
-import albumQuery from '@/features/album-list/albumQuery';
 import prepareAlbums from '@/features/album-list/prepareAlbums';
 import useAlbumList from '@/features/album-list/useAlbumList';
+import useAlbumRows from '@/features/album-list/useAlbumRows';
 import useAlbums from '@/features/albums-context/useAlbums';
-import useAppSettings from '@/features/app-settings/useAppSettings';
 import useSearchMode from '@/hooks/useSearchMode';
 import { colors, spacing } from '@/styles/designTokens';
-import { useLiveQuery } from '@/sync/useLiveQuery';
 
 const FILTER_OPTIONS = [
   { key: 'all', label: 'All Albums', icon: 'apps' },
@@ -33,14 +31,13 @@ const FILTER_OPTIONS = [
 
 export default function AddToAlbumScreen({ route, navigation }) {
   const { addAlbum, addAssetsToAlbum } = useAlbums();
-  const { albumSortOrder } = useAppSettings();
   const runWithProgress = useRunWithProgress();
   const { bottom } = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
 
   const { listRef, listScrollTop } = useAlbumList();
   const { sortOrder, sortFunction, sortAlbums, isDefaultSortOrder } = useSortAlbumsAction({ afterSort: listScrollTop });
-  const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterSort: listScrollTop });
+  const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterFilter: listScrollTop });
   const { searchBar, query: searchText } = useSearchMode(useSearchAlbumsAction());
 
   const [isSortFilterOpen, setIsSortFilterOpen] = useState(false);
@@ -50,8 +47,7 @@ export default function AddToAlbumScreen({ route, navigation }) {
     scrollY.value = e.contentOffset.y;
   });
 
-  const query = albumQuery({ scope: 'all', assetSort: albumSortOrder });
-  const rows = useLiveQuery(query.page, query.tables, [query.descriptor]);
+  const rows = useAlbumRows('all');
   const albums = prepareAlbums({
     albums: rows ?? [],
     sortFn: sortFunction,

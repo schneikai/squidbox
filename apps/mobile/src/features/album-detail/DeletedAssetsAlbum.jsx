@@ -26,7 +26,7 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
 
   const { isSelectMode, selectedAssetIds, isAssetSelected, toggleSelectMode, exitSelectMode, toggleSelectAsset } =
     useToggleSelectAssetsAction();
-  const { rows, count, loadMore } = usePagedQuery(query, [], 150);
+  const { rows, count, loadMore } = usePagedQuery(query, 150);
 
   // Select mode acts on the selection, otherwise on every deleted asset.
   const targetCount = isSelectMode ? selectedAssetIds.length : (count ?? 0);

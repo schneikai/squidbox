@@ -26,16 +26,14 @@ export function watchQuery<T>(
 ): Watch {
   const names = new Set(tables.map((table) => getTableName(table)));
   let isEnabled = false;
-  let isDue = true;
+  let isOwed = true; // a read is owed: the watch is new, or a watched table changed since a read began
   let isLoading = false;
-  let isStale = false;
   let isStopped = false;
 
   async function load() {
     isLoading = true;
-    do {
-      isStale = false;
-      isDue = false;
+    while (isOwed && isEnabled && !isStopped) {
+      isOwed = false;
       try {
         const result: T = reuseRows(previous, await read(db));
         if (isStopped) return;
@@ -44,15 +42,17 @@ export function watchQuery<T>(
       } catch (error) {
         console.error('Live query failed', error);
       }
-    } while (isStale && isEnabled && !isStopped);
+    }
     isLoading = false;
-    if (isStale) isDue = true;
+  }
+
+  function readIfOwed() {
+    if (isOwed && isEnabled && !isLoading && !isStopped) load();
   }
 
   function reload() {
-    if (!isEnabled) isDue = true;
-    else if (isLoading) isStale = true;
-    else load();
+    isOwed = true;
+    readIfOwed();
   }
 
   const stopWatching = db.onTablesChanged((changed) => [...changed].some((name) => names.has(name)) && reload());
@@ -64,7 +64,7 @@ export function watchQuery<T>(
     },
     setEnabled(enabled) {
       isEnabled = enabled;
-      if (enabled && isDue) reload();
+      readIfOwed();
     },
   };
 }

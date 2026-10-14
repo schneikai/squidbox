@@ -25,23 +25,18 @@ export default function PostsScreen() {
   const { paddingTop, paddingBottom } = useScreenPadding('main');
 
   const { listRef, listScrollTop } = usePostList();
-  // A new sort, filter or search starts from the top, at the first page again.
-  const restart = () => {
-    reset();
-    listScrollTop();
-  };
-  const { sortOrder, sortPosts } = useSortPostsAction({ afterSort: restart });
-  const { activeFilter, toggleFilter } = useFilterPostsAction({ afterFilter: restart });
+  const { sortOrder, sortPosts } = useSortPostsAction({ afterSort: listScrollTop });
+  const { activeFilter, toggleFilter } = useFilterPostsAction({ afterFilter: listScrollTop });
 
   // The posts query lives in its own context, so other screens can open Posts filtered (e.g. "Show
   // posts" on an asset). The search bar shows it, so it can always be seen and cleared.
-  const { searchBar, query: postsSearchText } = useSearchMode(useSearchPostsAction({ afterChange: () => reset() }));
+  const { searchBar, query: postsSearchText } = useSearchMode(useSearchPostsAction());
 
   const { registerScreenOptions } = useFloatingBars();
   const scrollHandler = useFloatingBarScrollHandler();
 
   const query = postQuery({ scope: 'all', sort: sortOrder, filter: activeFilter, search: postsSearchText });
-  const { rows, loadMore, reset } = usePagedQuery(query, [query.descriptor], 20);
+  const { rows, loadMore } = usePagedQuery(query, 20);
 
   function handleAdd() {
     navigation.navigate('CreatePostModal');

@@ -36,8 +36,7 @@ export async function getCursor(db: SyncDb): Promise<number> {
 }
 
 // First-sync flag: the initial full pull (the big one after first login) has fully drained. Used to
-// gate the app behind a "Setting up your library…" screen and to skip the whole-library derivation
-// while that bulk load runs.
+// gate the app behind a "Setting up your library…" screen while that bulk load runs.
 export async function markFirstSyncDone(db: SyncDb): Promise<void> {
   await setMeta(db, FIRST_SYNC_KEY, '1');
 }

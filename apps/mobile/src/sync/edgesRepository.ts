@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic over any edge table */
 import { keyBetween, initialKeys } from '@squidbox/shared';
-import { and, eq, inArray, isNull, max, ne, sql } from 'drizzle-orm';
+import { and, eq, isNull, max, ne, sql } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
-import { chunk, SQL_BATCH } from './chunk';
+import { inJson } from './assetSql';
 import { nextVersion, tombstone } from './clock';
 import type { SyncDb } from './db/types';
 import { readByIds } from './readByIds';
@@ -27,18 +27,13 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
       .where(and(eq(parentCol, parentId), isNull(t.deletedAt)))
       .orderBy(t.position, t.id);
   }
-  // The parent's live edges to these assets.
+  // The parent's live edges to these assets, in canonical order.
   async function liveTo(tx: SyncDb, parentId: string, assetIds: string[]): Promise<any[]> {
-    const edges = [];
-    for (const batch of chunk(assetIds, SQL_BATCH)) {
-      edges.push(
-        ...(await tx
-          .select()
-          .from(table)
-          .where(and(eq(parentCol, parentId), inArray(t.assetId, batch), isNull(t.deletedAt)))),
-      );
-    }
-    return edges;
+    return tx
+      .select()
+      .from(table)
+      .where(and(eq(parentCol, parentId), inJson(t.assetId, assetIds), isNull(t.deletedAt)))
+      .orderBy(t.position, t.id);
   }
   // The canonical edge per assetId, the first of `edges` (in canonical order), and the duplicates a
   // concurrent add on two offline devices left behind, which a reorder or move tombstones: left at
@@ -57,8 +52,6 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
   }
   const save = (tx: SyncDb, edges: any[], options?: { isNew: boolean }) =>
     saveRecords(tx, collection, table, edges, options);
-  const byPositionId = (a: any, b: any) =>
-    a.position < b.position || (a.position === b.position && a.id < b.id) ? -1 : 1;
 
   /**
    * Reassign positions to match `orderedAssetIds`, with the parent's other live edges (assets not
@@ -90,10 +83,10 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
    */
   async function move(db: SyncDb, parentId: string, assetId: string, afterId: string | null): Promise<void> {
     await db.transaction(async (tx) => {
-      const { canonical, duplicates } = canonicalByAsset((await liveTo(tx, parentId, [assetId])).sort(byPositionId));
+      const { canonical, duplicates } = canonicalByAsset(await liveTo(tx, parentId, [assetId]));
       const moved = canonical.get(assetId);
       if (!moved) return;
-      const after = afterId === null ? null : (await liveTo(tx, parentId, [afterId])).sort(byPositionId)[0];
+      const after = afterId === null ? null : (await liveTo(tx, parentId, [afterId]))[0];
       if (afterId !== null && !after) return;
       const others = and(eq(parentCol, parentId), isNull(t.deletedAt), ne(t.assetId, assetId));
       const [next] = await tx

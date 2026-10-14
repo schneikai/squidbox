@@ -1,7 +1,7 @@
 import type { AssetRecord } from '@squidbox/shared';
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { makeAssetRecord } from './helpers/factory';
+import { createPost, makeAssetRecord } from './helpers/factory';
 import { makeMeasuredTestDb } from './helpers/testDb';
 import assetQuery from '../src/features/asset-list/assetQuery';
 import * as repo from '../src/sync/assetsRepository';
@@ -13,8 +13,6 @@ import { makeRepository } from '../src/sync/repository';
 type Descriptor = Parameters<typeof assetQuery>[0];
 
 const albumEdges = makeEdgeRepository('album_assets', schema.albumAssets, 'albumId');
-const postEdges = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
-const posts = makeRepository('posts', schema.posts);
 const AL = 'album-1';
 
 let db: AppDb;
@@ -31,27 +29,6 @@ function createAssets(overrides: Partial<AssetRecord>[]): Promise<AssetRecord[]>
   return repo.createAssets(
     db,
     overrides.map((over, i) => makeAssetRecord({ id: `asset-${i}`, createdAt: 1000 + i, ...over })),
-  );
-}
-
-async function createPost(id: string, postedAt: number | null, assetIds: string[], deletedAt: number | null = null) {
-  await posts.create(db, {
-    id,
-    createdAt: 1,
-    updatedAt: 1,
-    deletedAt,
-    text: '',
-    isFavorite: false,
-    postedAt,
-    rePostId: null,
-    isIgnoredForRepost: false,
-    suggestRepostAt: 0,
-    hasBeenReposted: false,
-  });
-  await postEdges.createFromRefs(
-    db,
-    id,
-    assetIds.map((assetId) => ({ id: newId(), assetId })),
   );
 }
 
@@ -74,11 +51,11 @@ describe('assetQuery', () => {
 
   it('sorts by lastPostedAt with never-posted assets in date order, as the comparators did', async () => {
     await createAssets([{}, {}, {}, {}]);
-    await createPost('p1', 10, ['asset-0']);
-    await createPost('p2', 30, ['asset-0']);
-    await createPost('p3', 20, ['asset-1']);
-    await createPost('p4', 99, ['asset-2'], 5); // deleted: doesn't count
-    await createPost('p5', null, ['asset-3']); // unposted: doesn't count
+    await createPost(db, { id: 'p1', postedAt: 10 }, ['asset-0']);
+    await createPost(db, { id: 'p2', postedAt: 30 }, ['asset-0']);
+    await createPost(db, { id: 'p3', postedAt: 20 }, ['asset-1']);
+    await createPost(db, { id: 'p4', postedAt: 99, deletedAt: 5 }, ['asset-2']); // deleted: doesn't count
+    await createPost(db, { id: 'p5', postedAt: null }, ['asset-3']); // unposted: doesn't count
 
     const desc = assetQuery({ scope: 'library', sort: 'lastPostedAt:desc' });
     const { rows } = await desc.read(db, { limit: 10 });
@@ -167,7 +144,7 @@ describe('assetQuery', () => {
       {},
     ]);
     await albumEdges.add(db, AL, ['asset-0', 'asset-1', 'asset-2'], newId);
-    await createPost('p1', 10, ['asset-1']);
+    await createPost(db, { id: 'p1', postedAt: 10 }, ['asset-1']);
     const descriptors: Descriptor[] = [
       { scope: 'library' },
       { scope: 'library', filter: ['favorites'] },

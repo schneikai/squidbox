@@ -1,8 +1,8 @@
-import type { AssetRecord, PullResponse } from '@squidbox/shared';
+import type { AlbumRecord, AssetRecord, PullResponse } from '@squidbox/shared';
 import { initialKeys } from '@squidbox/shared';
 import { describe, it, expect } from 'vitest';
 
-import { makeAssetRecord } from './helpers/factory';
+import { makeAlbumRecord, makeAssetRecord, makePostRecord } from './helpers/factory';
 import { makeMeasuredTestDb, type Work } from './helpers/testDb';
 import albumQuery from '../src/features/album-list/albumQuery';
 import assetQuery from '../src/features/asset-list/assetQuery';
@@ -214,36 +214,9 @@ describe('plan guard', () => {
       AL,
       assets.slice(0, 10).map((asset, i) => ({ id: `edge-${keys[i]}`, assetId: asset.id })),
     );
-    await makeRepository('posts', schema.posts).create(db, {
-      id: 'post-1',
-      createdAt: 1,
-      updatedAt: 1,
-      deletedAt: null,
-      text: '',
-      isFavorite: false,
-      postedAt: 5,
-      rePostId: null,
-      isIgnoredForRepost: false,
-      suggestRepostAt: 0,
-      hasBeenReposted: false,
-    });
+    await makeRepository('posts', schema.posts).create(db, makePostRecord({ id: 'post-1', postedAt: 5 }));
     await postEdges.createFromRefs(db, 'post-1', [{ id: 'pe-1', assetId: assets[1].id }]);
-    const album = (id: string, over: Record<string, unknown> = {}) => ({
-      id,
-      name: id,
-      createdAt: 1,
-      updatedAt: 1,
-      deletedAt: null,
-      isFavorite: false,
-      archivedAt: null,
-      showInPostSuggestionsAfter: null,
-      oldCollectionName: null,
-      notes: null,
-      sortOrder: null,
-      smartAlbumType: null,
-      position: null,
-      ...over,
-    });
+    const album = (id: string, over: Partial<AlbumRecord> = {}) => makeAlbumRecord({ id, name: id, ...over });
     await makeRepository('albums', schema.albums).createMany(db, [
       album(AL),
       album('custom', { sortOrder: 'custom' }),
@@ -318,23 +291,20 @@ describe('plan guard', () => {
   it('reads the album stats through one index per branch, never scanning the assets', async () => {
     const { measure, db } = await library();
     const work = await measure(() => albumQuery({ scope: 'all', assetSort: 'lastPostedAt:desc' }).page(db));
-    expect(work.fullScans.filter((line) => line !== 'SCAN al')).toEqual(
+    expect(work.fullScans.filter((line) => line !== 'SCAN al' && !line.startsWith('SCAN json_each'))).toEqual(
       Array(2).fill('SCAN a USING INDEX assets_live_created_idx'), // the Favorites count and cover: an ordered walk, once each
     );
     expect(work.plans).toContain('SEARCH a USING COVERING INDEX assets_deleted_idx (deleted_at>?)');
     expect(work.plans).toContain('SEARCH e USING INDEX album_assets_album_position_idx (album_id=?)');
     expect(work.plans).toContain('SEARCH album_assets USING INDEX album_assets_album_position_idx (album_id=?)');
     expect(work.plans).toContain('SEARCH pe USING INDEX post_assets_asset_idx (asset_id=?)');
-    expect(work.plans).toContain('USE TEMP B-TREE FOR count(DISTINCT)');
+    expectCanonicalEdgeProbe(work); // the custom cover
   });
 
   it('reads posts by postedAt through their index, their edges through the asset probe', async () => {
     const { measure, db } = await library();
     const work = await measure(() => postQuery({ scope: 'all' }).read(db, { limit: 20 }));
-    const unindexed = work.plans.filter(
-      (line) => line.startsWith('SCAN ') && !/USING (COVERING )?INDEX/.test(line) && !line.startsWith('SCAN json_each'),
-    );
-    expect(unindexed).toEqual([]);
+    expect(unindexedScans(work)).toEqual([]);
     expect(work.plans.filter((line) => line === 'USE TEMP B-TREE FOR ORDER BY')).toEqual([]);
     expect(work.plans).toContain('SCAN p USING INDEX posts_live_posted_idx');
     expect(work.plans).toContain('SEARCH e USING INDEX post_assets_post_idx (post_id=?)');
@@ -367,11 +337,15 @@ function isBigTableScan(detail: string): boolean {
   return /^SCAN (assets|albums|album_assets|posts|post_assets)\b/.test(detail);
 }
 
+// The table scans without an index; a list of ids passed as JSON (json_each) is the input, not a table.
+function unindexedScans(work: Work): string[] {
+  return work.fullScans.filter((line) => !/USING (COVERING )?INDEX/.test(line) && !line.startsWith('SCAN json_each'));
+}
+
 // Every table is walked through an index (an ordered walk prints as SCAN … USING INDEX) and nothing
 // sorts the scope; a temp B-tree for the `id` tie-break alone is fine.
 function expectIndexedPlan(work: Work, context = ''): void {
-  const unindexed = work.plans.filter((line) => line.startsWith('SCAN ') && !/USING (COVERING )?INDEX/.test(line));
-  expect(unindexed, context).toEqual([]);
+  expect(unindexedScans(work), context).toEqual([]);
   expect(
     work.plans.filter((line) => /TEMP B-TREE FOR (RIGHT PART OF )?ORDER BY/.test(line)),
     context,

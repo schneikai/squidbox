@@ -2,19 +2,14 @@ import { ScrollView, View, StyleSheet, Dimensions } from 'react-native';
 
 import PostAlbum from './PostAlbum';
 
-import albumQuery from '@/features/album-list/albumQuery';
-import useAppSettings from '@/features/app-settings/useAppSettings';
-import { useLiveQuery } from '@/sync/useLiveQuery';
+import useAlbumRows from '@/features/album-list/useAlbumRows';
 
 const screenWidth = Dimensions.get('window').width;
 const itemWidth = screenWidth / 2.7;
 
 // The albums holding any of the post's assets.
 export default function PostAlbums({ post }) {
-  const { albumSortOrder } = useAppSettings();
-  const assetIds = post.postAssets.map((postAsset) => postAsset.asset.id);
-  const query = albumQuery({ scope: { assetIds }, assetSort: albumSortOrder });
-  const albums = useLiveQuery(query.page, query.tables, [query.descriptor]) ?? [];
+  const albums = useAlbumRows({ assetIds: post.postAssets.map((postAsset) => postAsset.asset.id) }) ?? [];
 
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.container}>

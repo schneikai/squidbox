@@ -55,8 +55,7 @@ export default function AlbumsProvider({ children }) {
         await writeInBatches(assetIds, (ids) => edges.add(db, album.id, ids, getNewItemId), batchOptions);
         requestSync();
       },
-      removeAssetsFromAlbum: async (album, assetsOrAssetIds, batchOptions) => {
-        const assetIds = assetsOrAssetIds.map((a) => (typeof a === 'string' ? a : a.id));
+      removeAssetsFromAlbum: async (album, assetIds, batchOptions) => {
         await writeInBatches(assetIds, (ids) => edges.remove(db, album.id, ids), batchOptions);
         requestSync();
       },

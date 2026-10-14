@@ -1,6 +1,7 @@
+import type { PostRecord } from '@squidbox/shared';
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { makeAssetRecord } from './helpers/factory';
+import { createPost as createPostRecord, makeAssetRecord } from './helpers/factory';
 import { makeMeasuredTestDb } from './helpers/testDb';
 import postQuery from '../src/features/post-list/postQuery';
 import * as repo from '../src/sync/assetsRepository';
@@ -25,26 +26,10 @@ beforeEach(() => {
   n = 0;
 });
 
-async function createPost(id: string, over: Record<string, unknown> = {}, assetIds: string[] = []) {
-  await posts.create(db, {
-    id,
-    createdAt: Number(id.replace(/\D/g, '')) || 1,
-    updatedAt: Number(id.replace(/\D/g, '')) || 1,
-    deletedAt: null,
-    text: '',
-    isFavorite: false,
-    postedAt: null,
-    rePostId: null,
-    isIgnoredForRepost: false,
-    suggestRepostAt: 0,
-    hasBeenReposted: false,
-    ...over,
-  });
-  await postEdges.createFromRefs(
-    db,
-    id,
-    assetIds.map((assetId) => ({ id: newId(), assetId })),
-  );
+// Posts are created in id order: p1 first.
+function createPost(id: string, over: Partial<PostRecord> = {}, assetIds: string[] = []) {
+  const time = Number(id.replace(/\D/g, '')) || 1;
+  return createPostRecord(db, { id, createdAt: time, updatedAt: time, ...over }, assetIds, newId);
 }
 const ids = async (descriptor: Descriptor, limit = 100) =>
   (await postQuery(descriptor).read(db, { limit })).rows.map((row) => row.id);

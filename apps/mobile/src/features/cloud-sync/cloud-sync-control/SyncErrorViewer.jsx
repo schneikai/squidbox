@@ -5,30 +5,26 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
-import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
 import useAssets from '@/features/assets-context/useAssets';
 import { colors, radii, scale } from '@/styles/designTokens';
 import { readSyncErrors } from '@/sync/assetsRepository';
-import { getDb, schema } from '@/sync/db/client';
+import { schema } from '@/sync/db/client';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
 const errorsQuery = { read: readSyncErrors, tables: [schema.assets] };
 
 export default function SyncErrorViewer({ close }) {
   const { bottom } = useSafeAreaInsets();
-  const { setAssetsSyncError } = useAssets();
-  const runWithProgress = useRunWithProgress();
+  const { clearSyncErrors } = useAssets();
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => {
     scrollY.value = e.contentOffset.y;
   });
-  const { rows, count, loadMore } = usePagedQuery(errorsQuery, [], 50);
+  const { rows, count, loadMore } = usePagedQuery(errorsQuery, 50);
 
   // Clears every error, not just the loaded page, so each failed upload is retried.
   async function handleRetry() {
-    const { rows: failed } = await readSyncErrors(getDb(), { limit: count });
-    const assetIds = failed.map((asset) => asset.id);
-    await runWithProgress((batchOptions) => setAssetsSyncError(assetIds, null, batchOptions));
+    await clearSyncErrors();
     close();
   }
 

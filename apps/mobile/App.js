@@ -167,11 +167,11 @@ function MigrationGate({ children }) {
   return children;
 }
 
-// The one gate: while the initial library pull runs, show the setup screen and DON'T mount the data
-// providers, so nothing heavy competes with the bulk pull. The moment it finishes, the providers
-// mount for the first time and read the complete library in a single clean pass — no paused
-// queries, no remount tricks. Gate on "logged in AND the initial pull hasn't finished" (not the
-// cursor), so it's up from the instant we log in through any transient error; pre-login it's off.
+// The one gate: while the initial library pull runs, show the setup screen and DON'T mount the app,
+// so no screen's live reads re-run on every batch of the bulk pull. The moment it finishes, the app
+// mounts and each screen reads its first page. Gate on "logged in AND the initial pull hasn't
+// finished" (not the cursor), so it's up from the instant we log in through any transient error;
+// pre-login it's off.
 function AppGate() {
   const { isAuthenticated } = useCloud();
   const firstSyncDone = useFirstSyncDone();

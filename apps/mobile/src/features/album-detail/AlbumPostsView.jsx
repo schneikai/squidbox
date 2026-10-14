@@ -1,11 +1,18 @@
 import { useNavigation } from '@react-navigation/native';
+import { useEffect } from 'react';
 
 import SuperPressable from '@/components/SuperPressable';
 import PostList from '@/features/post-list/PostList';
 import PostListItem from '@/features/post-list/PostListItem';
+import postQuery from '@/features/post-list/postQuery';
+import { usePagedQuery } from '@/sync/usePagedQuery';
 
-export default function AlbumPostsView({ rows, loadMore, paddingTop, paddingBottom }) {
+// The album's posts, read only while this tab shows; `onCount` gets their count for the header.
+export default function AlbumPostsView({ albumId, onCount, paddingTop, paddingBottom }) {
   const navigation = useNavigation();
+  const { rows, count, loadMore } = usePagedQuery(postQuery({ scope: { albumId }, sort: 'postedAt:desc' }), 20);
+
+  useEffect(() => onCount(count), [count]);
 
   return (
     <PostList

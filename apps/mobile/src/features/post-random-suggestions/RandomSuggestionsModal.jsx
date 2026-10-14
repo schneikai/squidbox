@@ -30,6 +30,7 @@ import sendAiMessageAsync from '@/features/ai-suggestions/sendAiMessageAsync';
 import assetQuery from '@/features/asset-list/assetQuery';
 import { colors, motion, radii, scale, typography } from '@/styles/designTokens';
 import { getDb, schema } from '@/sync/db/client';
+import { readPostTexts } from '@/sync/postsRepository';
 import { readByIds } from '@/sync/readByIds';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import { MEDIA_TYPES } from '@/utils/assets/constants';
@@ -45,7 +46,7 @@ const NO_ROWS = [];
 // Swapping cards is a quick fade-through: the old one exits, the new one enters at the fast duration.
 const SWAP_IN = { ...motion.enter, duration: motion.duration.fast };
 
-export default function RandomSuggestionsModal({ visible, onClose, onConfirm, recentPostTexts = [] }) {
+export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) {
   // --- Ellipsis menu ---
   const modelPickerRef = useRef(null);
   const promptInputRef = useRef(null);
@@ -85,9 +86,8 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
     filter: poolFilter({ showImages, showVideos, onlyFavorites }),
   });
 
-  async function drawPool() {
-    const { rows } = await pool.read(getDb(), { limit: POOL_SIZE });
-    return rows.map((asset) => asset.id);
+  function drawPool() {
+    return pool.ids(getDb(), { limit: POOL_SIZE });
   }
 
   useEffect(() => {
@@ -130,10 +130,11 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
   async function fetchTextBatch() {
     setIsLoading(true);
     try {
-      const [storedPrompt, storedModel, storedSystemPrompt] = await Promise.all([
+      const [storedPrompt, storedModel, storedSystemPrompt, recentPostTexts] = await Promise.all([
         AsyncStorage.getItem(RANDOM_TWEETS_PROMPT_STORAGE_KEY),
         AsyncStorage.getItem(MODEL_STORAGE_KEY),
         AsyncStorage.getItem(SYSTEM_PROMPT_STORAGE_KEY),
+        readPostTexts(getDb()),
       ]);
       const stylePrompt = (storedPrompt ?? DEFAULT_RANDOM_TWEETS_PROMPT).trim();
       const model = storedModel ?? DEFAULT_MODEL;
