@@ -5,14 +5,15 @@ import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native
 
 import useAssetDragSelect from './useAssetDragSelect';
 
-import useAssets from '@/features/assets-context/useAssets';
-
 // Constant props, so FlatList's own memo isn't defeated on every render of the screen.
-const keyExtractor = (assetId) => assetId;
+const keyExtractor = (asset) => asset.id;
 const STICKY_HEADER = [0];
 
+// The virtualized asset grid: `rows` are the loaded assets of a paged query, `loadMore` reads the
+// next page when the end comes near.
 export default function AssetList({
-  assetIds,
+  rows,
+  loadMore,
   ListHeaderComponent,
   renderListItem,
   listRef,
@@ -24,7 +25,6 @@ export default function AssetList({
   selectedAssetIds,
   selectAssets,
 }) {
-  const { assets } = useAssets();
   const numColumns = 3;
   const window = useWindowDimensions();
   const listItemWidth = window.width / numColumns;
@@ -44,7 +44,7 @@ export default function AssetList({
 
   const { gesture, onContainerLayout } = useAssetDragSelect({
     enabled: dragSelectEnabled,
-    assetIds: assetIds ?? [],
+    rows,
     numColumns,
     itemSize: listItemWidth,
     paddingTop,
@@ -55,28 +55,29 @@ export default function AssetList({
   });
 
   const renderItem = useCallback(
-    ({ item: assetId }) => {
-      const asset = assets[assetId];
-      if (!asset) return null;
-      return <View style={{ width: listItemWidth, height: listItemWidth, padding: 1 }}>{renderListItem(asset)}</View>;
-    },
-    [assets, listItemWidth, renderListItem],
+    ({ item: asset }) => (
+      <View style={{ width: listItemWidth, height: listItemWidth, padding: 1 }}>{renderListItem(asset)}</View>
+    ),
+    [listItemWidth, renderListItem],
   );
 
   const contentContainerStyle = useMemo(() => ({ paddingTop, paddingBottom }), [paddingTop, paddingBottom]);
 
-  if (!assetIds) return null;
+  if (!rows) return null;
 
   const list = (
     <Animated.FlatList
       keyboardDismissMode="on-drag"
-      data={assetIds}
+      data={rows}
       numColumns={numColumns}
       renderItem={renderItem}
       keyExtractor={keyExtractor}
       ListHeaderComponent={ListHeaderComponent}
       stickyHeaderIndices={ListHeaderComponent ? STICKY_HEADER : undefined}
       contentContainerStyle={contentContainerStyle}
+      initialNumToRender={30}
+      onEndReached={loadMore}
+      onEndReachedThreshold={2}
       ref={listRef}
       onScroll={effectiveOnScroll}
       scrollEventThrottle={16}

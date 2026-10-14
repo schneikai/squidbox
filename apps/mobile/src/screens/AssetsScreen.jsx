@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { Alert, View } from 'react-native';
 
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
@@ -6,11 +6,12 @@ import { useFloatingBars } from '@/components/floating-bars/FloatingBarsContext'
 import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
+import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
 import AssetList from '@/features/asset-list/AssetList';
 import useFilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/useFilterAssetsAction';
 import useSortAssetsAction from '@/features/asset-list/actions/sort-assets-action/useSortAssetsAction';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
-import prepareAssets from '@/features/asset-list/prepareAssets';
+import assetQuery from '@/features/asset-list/assetQuery';
 import useAssetCells from '@/features/asset-list/useAssetCells';
 import useAssetList from '@/features/asset-list/useAssetList';
 import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
@@ -19,44 +20,43 @@ import useAssets from '@/features/assets-context/useAssets';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useSearch from '@/hooks/useSearch';
 import useSearchMode from '@/hooks/useSearchMode';
+import { usePagedQuery } from '@/sync/usePagedQuery';
 import pluralizeText from '@/utils/pluralizeText';
 
 export default function AssetsScreen({ route }) {
-  const { assets, setAssetsDeleted } = useAssets();
+  const { setAssetsDeleted } = useAssets();
   const { paddingTop, paddingBottom } = useScreenPadding('main');
 
   const { listRef, listScrollTop } = useAssetList();
-  const { sortOrder, sortFunction, sortAssets } = useSortAssetsAction({ afterSort: listScrollTop });
-  const { activeFilter, toggleFilter, matchFilter } = useFilterAssetsAction({ afterFilter: listScrollTop });
+  // A new sort, filter or search starts from the top, at the first page again.
+  const restart = () => {
+    reset();
+    listScrollTop();
+  };
+  const { sortOrder, sortAssets } = useSortAssetsAction({ afterSort: restart });
+  const { activeFilter, toggleFilter } = useFilterAssetsAction({ afterFilter: restart });
 
   const { registerScreenOptions, setIsSelectMode, scrollY } = useFloatingBars();
   const selection = useToggleSelectAssetsAction();
   const { isSelectMode, selectedAssetIds, isAssetSelected, selectAssets, exitSelectMode } = selection;
   // The floating bars only need to know whether select mode is on (the navigation bar hides).
   useEffect(() => setIsSelectMode(isSelectMode), [isSelectMode]);
-  const { searchBar, query: searchText } = useSearchMode(useSearch());
+  const { searchBar, query: searchText } = useSearchMode(useSearch({ afterChange: () => reset() }));
 
   const scrollHandler = useFloatingBarScrollHandler();
 
   const { show, hide, updateProgress } = useProgressOverlay();
+  const runWithProgress = useRunWithProgress();
   const addAssetsFromCameraRollAsync = useAddAssetsFromCameraRoll({
     onStart: show,
     onProgress: updateProgress,
     onFinish: hide,
   });
 
-  const assetIds = useMemo(
-    () =>
-      prepareAssets({
-        assets: Object.values(assets),
-        sortFn: sortFunction,
-        filterFn: matchFilter,
-        searchText,
-      }).map((asset) => asset.id),
-    [assets, sortFunction, matchFilter, searchText],
-  );
+  const query = assetQuery({ scope: 'library', sort: sortOrder, filter: activeFilter, search: searchText });
+  const { rows, count, loadMore, reset } = usePagedQuery(query, [query.descriptor], 150);
 
-  const actions = useAssetSelectionActions(selection, assetIds);
+  const actions = useAssetSelectionActions(selection, query, count);
 
   async function handleAdd() {
     try {
@@ -73,8 +73,8 @@ export default function AssetsScreen({ route }) {
         text: 'Delete',
         style: 'destructive',
         onPress: () => {
-          setAssetsDeleted(selectedAssetIds);
           exitSelectMode();
+          runWithProgress((batchOptions) => setAssetsDeleted(selectedAssetIds, batchOptions));
         },
       },
     ]);
@@ -118,7 +118,8 @@ export default function AssetsScreen({ route }) {
       {quickViewModal}
       <AssetList
         listRef={listRef}
-        assetIds={assetIds}
+        rows={rows}
+        loadMore={loadMore}
         paddingTop={paddingTop}
         paddingBottom={paddingBottom}
         onScroll={scrollHandler}

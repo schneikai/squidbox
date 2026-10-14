@@ -36,8 +36,9 @@ export default function PostAssetsEditor({ assetRefs, onChange, getRandomAsset, 
   };
 
   useEffect(() => {
-    const assetCountInfo = getAssetCountInfo(postAssets.map((postAsset) => postAsset.asset));
-    setAssetCountInfo(assetCountInfo);
+    const counts = { photo: 0, video: 0 };
+    for (const { asset } of postAssets) counts[asset.mediaType] += 1;
+    setAssetCountInfo(getAssetCountInfo(counts));
     onChange(postAssetsToAssetRefs(postAssets));
   }, [postAssets]);
 

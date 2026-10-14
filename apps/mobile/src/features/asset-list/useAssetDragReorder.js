@@ -11,7 +11,7 @@ import { motion } from '@/styles/designTokens';
 // A touch-and-hold lifts the cell under the finger (it pops: scales up + shadow)
 // and it follows the finger. As the finger crosses into another cell's slot the
 // remaining cells reflow to make room via springs. On release the lifted cell
-// settles into its new slot and the new order is committed.
+// settles into its new slot and the move is committed as the row it was dropped after.
 //
 // Positions are driven by shared values owned by the grid:
 //   positions  – { [assetId]: slotIndex }  (drives each resting cell)
@@ -29,7 +29,7 @@ const SCROLL_TICK_MS = 16;
 
 export default function useAssetDragReorder({
   enabled,
-  assetIds,
+  rows,
   numColumns,
   itemSize,
   paddingTop,
@@ -40,7 +40,8 @@ export default function useAssetDragReorder({
   activeX,
   activeY,
   activeScale,
-  onReorder,
+  onDragStart,
+  onDragEnd,
 }) {
   const containerHeightRef = useRef(0);
   const orderRef = useRef([]);
@@ -49,7 +50,13 @@ export default function useAssetDragReorder({
   const lastPointRef = useRef({ x: 0, y: 0 });
   const autoScrollTimerRef = useRef(null);
 
+  // Rows and callbacks are read through the handlers, so a rows update or a new callback doesn't
+  // rebuild the gesture mid-drag.
   const handlers = useRef({});
+  handlers.current.rows = rows ?? [];
+  handlers.current.onDragStart = onDragStart;
+  handlers.current.onDragEnd = onDragEnd;
+  const startIndexRef = useRef(-1);
 
   handlers.current.slotToXY = (slot) => ({
     x: (slot % numColumns) * itemSize,
@@ -128,6 +135,8 @@ export default function useAssetDragReorder({
     autoScrollTimerRef.current = setInterval(handlers.current.tickAutoScroll, SCROLL_TICK_MS);
   };
 
+  // Settles the lifted cell and reports the drop: the moved asset and the loaded row above its new
+  // slot (`null` at the top), or `null` when it landed where it started.
   handlers.current.settleAndCommit = () => {
     const slot = activeIndexRef.current;
     if (slot === -1) return;
@@ -138,7 +147,9 @@ export default function useAssetDragReorder({
       'worklet';
       if (finished) activeId.value = null;
     });
-    onReorder?.([...orderRef.current]);
+    const order = orderRef.current;
+    const change = slot === startIndexRef.current ? null : { assetId: order[slot], afterId: order[slot - 1] ?? null };
+    handlers.current.onDragEnd?.(change);
   };
 
   const gesture = useMemo(
@@ -149,7 +160,7 @@ export default function useAssetDragReorder({
         .runOnJS(true)
         .onStart((e) => {
           lastPointRef.current = { x: e.x, y: e.y };
-          orderRef.current = [...assetIds];
+          orderRef.current = handlers.current.rows.map((asset) => asset.id);
           const index = gridIndexAtPoint({
             x: e.x,
             y: e.y,
@@ -164,6 +175,8 @@ export default function useAssetDragReorder({
             return;
           }
           activeIndexRef.current = index;
+          startIndexRef.current = index;
+          handlers.current.onDragStart?.();
 
           const { x: slotX, y: slotY } = handlers.current.slotToXY(index);
           const contentX = e.x;
@@ -190,7 +203,7 @@ export default function useAssetDragReorder({
           }
           activeIndexRef.current = -1;
         }),
-    [enabled, assetIds, numColumns, itemSize, paddingTop, listRef, scrollY, onReorder],
+    [enabled, numColumns, itemSize, paddingTop, listRef, scrollY],
   );
 
   function onContainerLayout(height) {

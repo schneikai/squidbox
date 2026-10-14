@@ -23,7 +23,7 @@ const SCROLL_TICK_MS = 16;
 
 export default function useAssetDragSelect({
   enabled,
-  assetIds,
+  rows,
   numColumns,
   itemSize,
   paddingTop,
@@ -48,7 +48,10 @@ export default function useAssetDragSelect({
   const lastPointRef = useRef({ x: 0, y: 0 });
   const autoScrollTimerRef = useRef(null);
 
+  // The rows are read through the handlers (not the gesture's deps): a page loading mid-drag, e.g.
+  // from the auto-scroll, must not rebuild the gesture. Indices past the loaded rows select nothing.
   const handlers = useRef({});
+  handlers.current.rows = rows ?? [];
 
   handlers.current.indexAtPoint = (x, y) =>
     gridIndexAtPoint({
@@ -58,7 +61,7 @@ export default function useAssetDragSelect({
       paddingTop,
       itemSize,
       numColumns,
-      count: assetIds.length,
+      count: handlers.current.rows.length,
     });
 
   handlers.current.applyRange = (currentIndex) => {
@@ -69,7 +72,7 @@ export default function useAssetDragSelect({
     const hi = Math.max(anchor, currentIndex);
     const set = new Set(baseSelectedRef.current);
     for (let i = lo; i <= hi; i++) {
-      const id = assetIds[i];
+      const id = handlers.current.rows[i]?.id;
       if (!id) continue;
       if (intentRef.current) set.add(id);
       else set.delete(id);
@@ -128,7 +131,7 @@ export default function useAssetDragSelect({
           baseSelectedRef.current = selectedIdsRef.current ?? [];
           anchorIndexRef.current = index;
           currentIndexRef.current = index;
-          intentRef.current = !baseSelectedRef.current.includes(assetIds[index]);
+          intentRef.current = !baseSelectedRef.current.includes(handlers.current.rows[index].id);
           handlers.current.applyRange(index);
           handlers.current.ensureAutoScroll();
         })
@@ -141,7 +144,7 @@ export default function useAssetDragSelect({
           anchorIndexRef.current = -1;
           currentIndexRef.current = -1;
         }),
-    [enabled, assetIds, selectedIdsRef, selectAssets],
+    [enabled, selectedIdsRef, selectAssets],
   );
 
   function onContainerLayout(height) {

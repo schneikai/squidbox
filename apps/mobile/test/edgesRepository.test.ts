@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import { makeTestDb } from './helpers/testDb';
@@ -6,6 +6,7 @@ import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { orderedAssetsByAlbum } from '../src/sync/derive';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
+import { makeRepository } from '../src/sync/repository';
 
 describe('edgesRepository (album_assets)', () => {
   const edges = makeEdgeRepository('album_assets', schema.albumAssets, 'albumId');
@@ -23,6 +24,19 @@ describe('edgesRepository (album_assets)', () => {
     const rows = await db.select().from(schema.albumAssets);
     return orderedAssetsByAlbum(rows as any)[AL] ?? [];
   }
+  // The album's live edges in canonical order, one per asset, with their keys.
+  async function liveEdges(): Promise<{ assetId: string; position: string; id: string }[]> {
+    const rows = await db
+      .select()
+      .from(schema.albumAssets)
+      .where(and(eq(schema.albumAssets.albumId, AL), isNull(schema.albumAssets.deletedAt)))
+      .orderBy(schema.albumAssets.position, schema.albumAssets.id);
+    return rows;
+  }
+  function edge(id: string, assetId: string, position: string) {
+    return { id, createdAt: 1, updatedAt: 1, deletedAt: null, albumId: AL, assetId, position };
+  }
+  const albumEdgeRows = makeRepository('album_assets', schema.albumAssets);
   async function outboxCount(): Promise<number> {
     const rows = await db.select().from(schema.outbox).where(eq(schema.outbox.collection, 'album_assets'));
     return rows.length;
@@ -42,6 +56,84 @@ describe('edgesRepository (album_assets)', () => {
     await edges.add(db, AL, ['a', 'b', 'c'], newId);
     await edges.reorder(db, AL, ['c', 'a', 'b']);
     expect(await order()).toEqual(['c', 'a', 'b']);
+  });
+
+  it('reorder keeps the edges it was not given after the given order, and tombstones duplicates', async () => {
+    await edges.add(db, AL, ['a', 'b', 'c', 'd'], newId);
+    await albumEdgeRows.createMany(db, [edge('dup-b', 'b', 'z')]); // a second, later edge for b
+    expect((await liveEdges()).map((e) => e.assetId)).toEqual(['a', 'b', 'c', 'd', 'b']);
+    await edges.reorder(db, AL, ['c', 'a']); // the grid showed only c and a (b and d are, say, soft-deleted)
+    const live = await liveEdges();
+    expect(live.map((e) => e.assetId)).toEqual(['c', 'a', 'b', 'd']);
+    expect(live.map((e) => e.id)).not.toContain('dup-b');
+  });
+
+  it('move writes one position between the row dropped after and the next live edge', async () => {
+    await edges.add(db, AL, ['a', 'b', 'c', 'd'], newId);
+    const before = await liveEdges();
+    await edges.move(db, AL, 'd', 'a');
+    const after = await liveEdges();
+    expect(after.map((e) => e.assetId)).toEqual(['a', 'd', 'b', 'c']);
+    // Only d's edge changed.
+    expect(after.filter((e) => e.assetId !== 'd')).toEqual(before.filter((e) => e.assetId !== 'd'));
+
+    await edges.move(db, AL, 'c', null); // to the front
+    expect((await liveEdges()).map((e) => e.assetId)).toEqual(['c', 'a', 'd', 'b']);
+    await edges.move(db, AL, 'a', 'b'); // to the end
+    expect((await liveEdges()).map((e) => e.assetId)).toEqual(['c', 'd', 'b', 'a']);
+  });
+
+  it('move resolves the neighbors by (position, id) and tombstones duplicates of the moved asset', async () => {
+    // Two offline devices appended b and c with the same key; a also has a duplicate edge.
+    await albumEdgeRows.createMany(db, [
+      edge('e-a', 'a', '1'),
+      edge('e-b', 'b', '5'),
+      edge('e-c', 'c', '5'),
+      edge('e-d', 'd', '9'),
+      edge('e-a2', 'a', '7'),
+    ]);
+    expect((await liveEdges()).map((e) => e.assetId)).toEqual(['a', 'b', 'c', 'a', 'd']);
+    // (a) the row dropped after is b's earliest edge; (b) the next edge is c, by (position, id),
+    // not d: a plain `position > ?` would skip c.
+    await edges.move(db, AL, 'a', 'b');
+    const live = await liveEdges();
+    expect(live.map((e) => e.assetId)).toEqual(['b', 'a', 'c', 'd']);
+    expect(live.map((e) => e.id)).not.toContain('e-a2');
+  });
+
+  it('move rewrites the whole order when the two neighbor keys are equal', async () => {
+    await albumEdgeRows.createMany(db, [
+      edge('e-a', 'a', '1'),
+      edge('e-b', 'b', '5'),
+      edge('e-c', 'c', '5'),
+      edge('e-d', 'd', '9'),
+    ]);
+    await edges.move(db, AL, 'd', 'b'); // between b ('5') and c ('5'): no key fits
+    const live = await liveEdges();
+    expect(live.map((e) => e.assetId)).toEqual(['a', 'b', 'd', 'c']);
+    expect(new Set(live.map((e) => e.position)).size).toBe(4);
+  });
+
+  it('the equal-key fallback writes each asset once when the album holds a duplicate edge', async () => {
+    await albumEdgeRows.createMany(db, [
+      edge('e-a', 'a', '1'),
+      edge('e-b', 'b', '5'),
+      edge('e-c', 'c', '5'),
+      edge('e-a2', 'a', '7'), // a's duplicate, from a concurrent add on another device
+      edge('e-d', 'd', '9'),
+    ]);
+    await edges.move(db, AL, 'd', 'b');
+    const live = await liveEdges();
+    expect(live.map((e) => e.assetId)).toEqual(['a', 'b', 'd', 'c']);
+    expect(new Set(live.map((e) => e.position)).size).toBe(4);
+  });
+
+  it('move does nothing for an asset or a target that left the album meanwhile', async () => {
+    await edges.add(db, AL, ['a', 'b'], newId);
+    await edges.move(db, AL, 'gone', 'a');
+    await edges.move(db, AL, 'b', 'gone');
+    expect((await liveEdges()).map((e) => e.assetId)).toEqual(['a', 'b']);
+    expect(await outboxCount()).toBe(2);
   });
 
   it('remove tombstones the edge (dropped from the ordered read)', async () => {

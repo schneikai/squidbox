@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 
 import AlbumsContext from './AlbumsContext';
 
+import assetQuery from '@/features/asset-list/assetQuery';
 import { getDb, schema } from '@/sync/db/client';
 import { orderedAssetsByAlbum, deriveAlbumPostHistory } from '@/sync/derive';
 import { makeEdgeRepository } from '@/sync/edgesRepository';
@@ -83,10 +84,15 @@ export default function AlbumsProvider({ children }) {
         await writeInBatches(assetIds, (ids) => edges.remove(db, album.id, ids), batchOptions);
         requestSync();
       },
-      reorderAlbumAssets: async (album, orderedAssetIds) => {
+      // A drag under a date sort adopts the order on screen (`sort`) and puts the album on custom
+      // order; from then on each drag is one edge write. `afterId: null` drops at the front.
+      reorderAlbumAssets: async (album, { assetId, afterId, sort }) => {
         await db.transaction(async (tx) => {
-          await edges.reorder(tx, album.id, orderedAssetIds);
-          await repo.update(tx, album.id, { sortOrder: 'custom' });
+          if (sort !== 'custom') {
+            await edges.reorder(tx, album.id, await assetQuery({ scope: { albumId: album.id }, sort }).ids(tx));
+          }
+          await edges.move(tx, album.id, assetId, afterId);
+          if (album.sortOrder !== 'custom') await repo.update(tx, album.id, { sortOrder: 'custom' });
         });
         requestSync();
       },

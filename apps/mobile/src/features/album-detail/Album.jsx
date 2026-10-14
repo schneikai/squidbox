@@ -1,6 +1,6 @@
 import { useActionSheet } from '@expo/react-native-action-sheet';
 import { useNavigation } from '@react-navigation/native';
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Text, StyleSheet, View, Pressable, TouchableOpacity, useWindowDimensions } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,6 +12,7 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 import SearchOptionsBar from '@/components/floating-bars/SearchOptionsBar';
 import SortFilterModal from '@/components/floating-bars/SortFilterModal';
+import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
 import AlbumAssetsView from '@/features/album-detail/AlbumAssetsView';
 import AlbumPostsView from '@/features/album-detail/AlbumPostsView';
 import AddAssetAction from '@/features/album-detail/actions/AddAssetAction';
@@ -20,9 +21,8 @@ import useAlbums from '@/features/albums-context/useAlbums';
 import useAppSettings from '@/features/app-settings/useAppSettings';
 import SelectionActions from '@/features/asset-list/SelectionActions';
 import useFilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/useFilterAssetsAction';
-import { getAssetSortFunction } from '@/features/asset-list/actions/sort-assets-action/useSortAssetsAction';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
-import prepareAssets from '@/features/asset-list/prepareAssets';
+import assetQuery from '@/features/asset-list/assetQuery';
 import useAssetList from '@/features/asset-list/useAssetList';
 import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
 import useAssets from '@/features/assets-context/useAssets';
@@ -31,7 +31,10 @@ import useSearch from '@/hooks/useSearch';
 import useSearchMode from '@/hooks/useSearchMode';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, scale, spacing, typography } from '@/styles/designTokens';
-import getAlbumAssets from '@/utils/albums/getAlbumAssets';
+import { countByMediaType } from '@/sync/assetsRepository';
+import { getDb } from '@/sync/db/client';
+import { usePagedQuery } from '@/sync/usePagedQuery';
+import getAlbumAssetScope from '@/utils/albums/getAlbumAssetScope';
 import getAlbumSortOrder from '@/utils/albums/getAlbumSortOrder';
 import isSmartAlbum from '@/utils/albums/isSmartAlbum';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
@@ -56,7 +59,7 @@ const ASSET_SORT_OPTIONS = [
 ];
 
 export default function Album({ album }) {
-  const { assets, setAssetsDeleted } = useAssets();
+  const { setAssetsDeleted } = useAssets();
   const { removeAssetsFromAlbum, reorderAlbumAssets, updateAlbum } = useAlbums();
   const { albumSortOrder, setAlbumSortOrder } = useAppSettings();
   const navigation = useNavigation();
@@ -65,34 +68,36 @@ export default function Album({ album }) {
   const { showActionSheetWithOptions } = useActionSheet();
 
   const { listRef, listScrollTop } = useAssetList();
+  const runWithProgress = useRunWithProgress();
   const selection = useToggleSelectAssetsAction();
   const { isSelectMode, selectedAssetIds, isAssetSelected, toggleSelectMode, exitSelectMode, selectAssets } = selection;
   // A per-session override lets the open album react immediately to sort/reorder changes.
   const [sessionSortOrder, setSessionSortOrder] = useState(null);
   const sortOrder = sessionSortOrder ?? getAlbumSortOrder(album, albumSortOrder);
-  const sortFunction = getAssetSortFunction(sortOrder);
-  const { activeFilter, matchFilter, toggleFilter } = useFilterAssetsAction({ afterFilter: listScrollTop });
+  // A new sort, filter or search starts from the top, at the first page again.
+  const restart = () => {
+    reset();
+    listScrollTop();
+  };
+  const { activeFilter, toggleFilter } = useFilterAssetsAction({ afterFilter: restart });
   const [activeTab, setActiveTab] = useState('Assets');
   const [isSortFilterOpen, setIsSortFilterOpen] = useState(false);
-  const { searchBar, query: searchText } = useSearchMode(useSearch());
+  const { searchBar, query: searchText } = useSearchMode(useSearch({ afterChange: () => reset() }));
   const { width: screenWidth } = useWindowDimensions();
   const expandProgress = useSharedValue(0);
 
-  const assetIds = useMemo(
-    () =>
-      prepareAssets({
-        assets: getAlbumAssets(album, assets),
-        sortFn: sortFunction,
-        filterFn: matchFilter,
-        searchText,
-      }).map((asset) => asset.id),
-    [album, assets, sortFunction, matchFilter, searchText],
-  );
+  const query = assetQuery({
+    scope: getAlbumAssetScope(album),
+    sort: sortOrder,
+    filter: activeFilter,
+    search: searchText,
+  });
+  const { rows, count, loadMore, reset } = usePagedQuery(query, [query.descriptor], 150);
 
   // postHistory is the album's non-deleted posts, oldest first (derived in AlbumsProvider).
   const postIds = useMemo(() => [...album.postHistory].reverse(), [album.postHistory]);
 
-  const actions = useAssetSelectionActions(selection, assetIds);
+  const actions = useAssetSelectionActions(selection, query, count);
   const hasSubHeader = !!album.archivedAt || !!album.notes;
   const isSmart = isSmartAlbum(album);
 
@@ -115,37 +120,37 @@ export default function Album({ album }) {
       updateAlbum(album.id, { sortOrder: null });
     }
     setSessionSortOrder(order);
-    listScrollTop();
+    restart();
   }
 
-  function handleReorder(newVisibleOrder) {
-    // Preserve any ids not in the visible set (deleted / duplicated) by appending
-    // them after the new order, deduped. reorderAlbumAssets also flags the album
-    // as custom-sorted.
-    const merged = [...new Set([...newVisibleOrder, ...album.assets])];
-    reorderAlbumAssets(album, merged);
-    // Reflect the manual order immediately without the usual scroll-to-top.
+  // A drag under any sort adopts the order on screen and switches the album to Custom, like
+  // Reminders; the loaded grid keeps its depth, so no scroll-to-top.
+  function handleReorder(change) {
     setSessionSortOrder('custom');
+    return reorderAlbumAssets(album, { ...change, sort: sortOrder });
   }
 
   const headerSubtitle =
     activeTab === 'Posts'
       ? pluralizeText('1 Post', '%{count} Posts', postIds.length)
-      : pluralizeText('1 Asset', '%{count} Assets', assetIds.length);
+      : pluralizeText('1 Asset', '%{count} Assets', count ?? 0);
 
-  function handleDeleteFromAlbum() {
-    const selected = actions.getSelectedAssets();
+  async function handleDeleteFromAlbum() {
+    const counts = await countByMediaType(getDb(), selectedAssetIds);
     showActionSheetWithOptions(
       {
         options: ['Remove from album', 'Delete', 'Cancel'],
         cancelButtonIndex: 2,
-        title: `${getAssetCountInfo(selected).toLowerCase()} selected`,
+        title: `${getAssetCountInfo(counts).toLowerCase()} selected`,
       },
       (index) => {
         if (index === 2) return;
-        if (index === 0) removeAssetsFromAlbum(album, selected);
-        else setAssetsDeleted(selectedAssetIds);
         exitSelectMode();
+        runWithProgress((batchOptions) =>
+          index === 0
+            ? removeAssetsFromAlbum(album, selectedAssetIds, batchOptions)
+            : setAssetsDeleted(selectedAssetIds, batchOptions),
+        );
       },
     );
   }
@@ -194,7 +199,8 @@ export default function Album({ album }) {
       <View style={styles.content}>
         {activeTab === 'Assets' ? (
           <AlbumAssetsView
-            assetIds={assetIds}
+            rows={rows}
+            loadMore={loadMore}
             isSelectMode={isSelectMode}
             selectedAssetIds={selectedAssetIds}
             isAssetSelected={isAssetSelected}

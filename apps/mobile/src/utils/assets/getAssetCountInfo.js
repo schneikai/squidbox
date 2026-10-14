@@ -1,12 +1,10 @@
-import arrayUnique from '@/utils/arrayUnique';
+import { MEDIA_TYPES } from '@/utils/assets/constants';
 import humanizeMediaType from '@/utils/assets/humanizeMediaType';
 
-export default function getAssetCountInfo(assets) {
-  const mediaTypes = arrayUnique(assets.map((asset) => asset.mediaType));
-
-  if (mediaTypes.length === 1) {
-    return `${assets.length} ${humanizeMediaType(mediaTypes[0], assets.length)}`;
-  }
-
-  return `${assets.length} Assets`;
+/** "3 Images", "1 Video" or "5 Assets", from counts per media type ({ photo, video }). */
+export default function getAssetCountInfo(counts) {
+  const total = counts.photo + counts.video;
+  if (counts.photo === total) return `${total} ${humanizeMediaType(MEDIA_TYPES.IMAGE, total)}`;
+  if (counts.video === total) return `${total} ${humanizeMediaType(MEDIA_TYPES.VIDEO, total)}`;
+  return `${total} Assets`;
 }

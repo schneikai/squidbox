@@ -1,76 +1,80 @@
 import { useNavigation } from '@react-navigation/native';
-import { useMemo, useTransition } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import IconButton from '@/components/IconButton';
 import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
+import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
 import AssetList from '@/features/asset-list/AssetList';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
-import prepareAssets from '@/features/asset-list/prepareAssets';
+import assetQuery from '@/features/asset-list/assetQuery';
 import useAssetCells from '@/features/asset-list/useAssetCells';
 import useAssets from '@/features/assets-context/useAssets';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import { colors } from '@/styles/designTokens';
-import getAlbumAssets from '@/utils/albums/getAlbumAssets';
+import { getDb } from '@/sync/db/client';
+import { usePagedQuery } from '@/sync/usePagedQuery';
+import pluralizeText from '@/utils/pluralizeText';
+
+const query = assetQuery({ scope: 'deleted' });
 
 export default function AlbumScreenComponentForDeletedAssets({ album }) {
-  const { assets, restoreDeletedAssets, deleteAssetsAsync } = useAssets();
+  const { restoreDeletedAssets, deleteAssetsAsync } = useAssets();
   const navigation = useNavigation();
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
+  const runWithProgress = useRunWithProgress();
 
-  const [isDeleting, startDeleteTransition] = useTransition();
   const { isSelectMode, selectedAssetIds, isAssetSelected, toggleSelectMode, exitSelectMode, toggleSelectAsset } =
     useToggleSelectAssetsAction();
-
-  const assetIds = useMemo(
-    () => prepareAssets({ assets: getAlbumAssets(album, assets), filterDeleted: false }).map((asset) => asset.id),
-    [album, assets],
-  );
+  const { rows, count, loadMore } = usePagedQuery(query, [], 150);
 
   // Select mode acts on the selection, otherwise on every deleted asset.
-  const targetIds = isSelectMode ? selectedAssetIds : assetIds;
+  const targetCount = isSelectMode ? selectedAssetIds.length : (count ?? 0);
+  const targetIds = () => (isSelectMode ? selectedAssetIds : query.ids(getDb()));
 
   function handleRestoreAssets() {
     const message = isSelectMode
-      ? 'Are you sure you want to restore the selected deleted assets?'
-      : 'Are you sure you want to restore all deleted assets?';
+      ? pluralizeText('Restore the selected asset?', 'Restore the %{count} selected assets?', targetCount)
+      : pluralizeText('Restore the deleted asset?', 'Restore all %{count} deleted assets?', targetCount);
 
     Alert.alert(isSelectMode ? 'Restore selected' : 'Restore all', message, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Restore',
-        onPress: () => {
-          restoreDeletedAssets(targetIds);
+        onPress: async () => {
+          const ids = await targetIds();
           exitSelectMode();
+          runWithProgress((batchOptions) => restoreDeletedAssets(ids, batchOptions));
         },
       },
     ]);
   }
 
   function handleDeleteAssets() {
-    if (isDeleting) {
-      Alert.alert('Deleting assets', 'Please wait until the current deletion is finished.');
-      return;
-    }
-
     const message = isSelectMode
-      ? 'Are you sure you want to permanently delete the selected assets?'
-      : 'Are you sure you want to permanently delete all deleted assets?';
+      ? pluralizeText(
+          'Permanently delete the selected asset?',
+          'Permanently delete the %{count} selected assets?',
+          targetCount,
+        )
+      : pluralizeText(
+          'Permanently delete the deleted asset?',
+          'Permanently delete all %{count} deleted assets?',
+          targetCount,
+        );
 
     Alert.alert(isSelectMode ? 'Delete selected' : 'Delete all', message, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
-        onPress: () => {
-          startDeleteTransition(async () => {
-            try {
-              await deleteAssetsAsync(targetIds);
-              exitSelectMode();
-            } catch (error) {
-              Alert.alert('Failed to delete assets!', error.message);
-            }
-          });
+        onPress: async () => {
+          const ids = await targetIds();
+          exitSelectMode();
+          try {
+            await runWithProgress((batchOptions) => deleteAssetsAsync(ids, batchOptions));
+          } catch (error) {
+            Alert.alert('Failed to delete assets!', error.message);
+          }
         },
       },
     ]);
@@ -97,7 +101,8 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
         }
       />
       <AssetList
-        assetIds={assetIds}
+        rows={rows}
+        loadMore={loadMore}
         paddingTop={paddingTop}
         paddingBottom={paddingBottom}
         renderListItem={renderCell}

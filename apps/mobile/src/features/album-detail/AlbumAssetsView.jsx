@@ -3,7 +3,8 @@ import SortableAssetGrid from '@/features/asset-list/SortableAssetGrid';
 import useAssetCells from '@/features/asset-list/useAssetCells';
 
 export default function AlbumAssetsView({
-  assetIds,
+  rows,
+  loadMore,
   isSelectMode,
   selectedAssetIds,
   isAssetSelected,
@@ -34,7 +35,8 @@ export default function AlbumAssetsView({
       {quickViewModal}
       <Grid
         listRef={listRef}
-        assetIds={assetIds}
+        rows={rows}
+        loadMore={loadMore}
         paddingTop={paddingTop}
         paddingBottom={paddingBottom}
         dragSelectEnabled={isSelectMode}

@@ -1,16 +1,15 @@
 import { useNavigation } from '@react-navigation/native';
 
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
-import useAssets from '@/features/assets-context/useAssets';
-import getAssetsByIds from '@/utils/assets/queries/getAssetsByIds';
+import { getDb, schema } from '@/sync/db/client';
+import { readByIds } from '@/sync/readByIds';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 
 // What an asset grid with select mode does with a tap and with the selection. `selection` comes from
-// useToggleSelectAssetsAction; `assetIds` are the ids shown.
-export default function useAssetSelectionActions(selection, assetIds) {
+// useToggleSelectAssetsAction; `query` is the grid's assetQuery and `count` how many assets it shows.
+export default function useAssetSelectionActions(selection, query, count) {
   const { isSelectMode, selectedAssetIds, toggleSelectAsset, selectAssets, exitSelectMode } = selection;
   const navigation = useNavigation();
-  const { assets } = useAssets();
   const { show, hide, updateProgress } = useProgressOverlay();
   const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary({
     onStart: show,
@@ -18,25 +17,21 @@ export default function useAssetSelectionActions(selection, assetIds) {
     onFinish: hide,
   });
 
-  function getSelectedAssets() {
-    return getAssetsByIds(assets, selectedAssetIds);
-  }
-
-  const allSelected = assetIds.length > 0 && selectedAssetIds.length === assetIds.length;
+  const allSelected = count > 0 && selectedAssetIds.length === count;
 
   return {
     hasSelection: selectedAssetIds.length > 0,
     allSelected,
-    getSelectedAssets,
     openAsset(asset) {
       if (isSelectMode) toggleSelectAsset(asset.id);
-      else navigation.navigate('AssetScreen', { assetId: asset.id, assetIds });
+      else navigation.navigate('AssetScreen', { assetId: asset.id, query: query.descriptor });
     },
-    toggleSelectAll() {
-      selectAssets(allSelected ? [] : assetIds);
+    // Exactly what the grid shows, however many: the count and the selection always agree.
+    async toggleSelectAll() {
+      selectAssets(allSelected ? [] : await query.ids(getDb()));
     },
     async downloadSelected() {
-      await saveAssetsToMediaLibraryAsync(getSelectedAssets());
+      await saveAssetsToMediaLibraryAsync(await readByIds(getDb(), schema.assets, selectedAssetIds));
     },
     addSelectedToAlbum() {
       navigation.navigate('AddToAlbumModal', { assetIds: selectedAssetIds });
