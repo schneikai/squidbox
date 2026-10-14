@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
 import { makeMeasuredTestDb, type Work } from './helpers/testDb';
+import albumQuery from '../src/features/album-list/albumQuery';
 import assetQuery from '../src/features/asset-list/assetQuery';
 import * as repo from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
@@ -255,6 +256,28 @@ describe('plan guard', () => {
       hasBeenReposted: false,
     });
     await postEdges.createFromRefs(db, 'post-1', [{ id: 'pe-1', assetId: assets[1].id }]);
+    const album = (id: string, over: Record<string, unknown> = {}) => ({
+      id,
+      name: id,
+      createdAt: 1,
+      updatedAt: 1,
+      deletedAt: null,
+      isFavorite: false,
+      archivedAt: null,
+      showInPostSuggestionsAfter: null,
+      oldCollectionName: null,
+      notes: null,
+      sortOrder: null,
+      smartAlbumType: null,
+      position: null,
+      ...over,
+    });
+    await makeRepository('albums', schema.albums).createMany(db, [
+      album(AL),
+      album('custom', { sortOrder: 'custom' }),
+      album('favorites', { smartAlbumType: 'FAVORITES' }),
+      album('deleted', { smartAlbumType: 'DELETED' }),
+    ]);
     // Both the page and the ids read of a descriptor, as one plan.
     const plansOf = async (descriptor: Parameters<typeof assetQuery>[0]) => {
       const q = assetQuery(descriptor);
@@ -264,7 +287,7 @@ describe('plan guard', () => {
       });
       return work;
     };
-    return { plansOf };
+    return { plansOf, measure, db };
   }
 
   it('walks an index in order for the date, custom and deleted reads, with and without filters', async () => {
@@ -318,6 +341,19 @@ describe('plan guard', () => {
     expect(work.plans).toContain('SCAN json_each VIRTUAL TABLE INDEX 1:');
     expect(work.plans).toContain('SEARCH a USING INDEX sqlite_autoindex_assets_1 (id=?)');
     expect(work.plans).toContain('USE TEMP B-TREE FOR ORDER BY');
+  });
+
+  it('reads the album stats through one index per branch, never scanning the assets', async () => {
+    const { measure, db } = await library();
+    const work = await measure(() => albumQuery({ scope: 'all', assetSort: 'lastPostedAt:desc' }).page(db));
+    expect(work.fullScans.filter((line) => line !== 'SCAN al')).toEqual(
+      Array(2).fill('SCAN a USING INDEX assets_live_created_idx'), // the Favorites count and cover: an ordered walk, once each
+    );
+    expect(work.plans).toContain('SEARCH a USING COVERING INDEX assets_deleted_idx (deleted_at>?)');
+    expect(work.plans).toContain('SEARCH e USING INDEX album_assets_album_position_idx (album_id=?)');
+    expect(work.plans).toContain('SEARCH album_assets USING INDEX album_assets_album_position_idx (album_id=?)');
+    expect(work.plans).toContain('SEARCH pe USING INDEX post_assets_asset_idx (asset_id=?)');
+    expect(work.plans).toContain('USE TEMP B-TREE FOR count(DISTINCT)');
   });
 
   it('draws a random sample with one full index walk', async () => {

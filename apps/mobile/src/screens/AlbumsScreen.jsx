@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { Alert, View } from 'react-native';
 
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
@@ -12,14 +12,18 @@ import useFilterAlbumsAction from '@/features/album-list/actions/filter-albums-a
 import useSearchAlbumsAction from '@/features/album-list/actions/search-albums-action/useSearchAlbumsAction';
 import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
+import albumQuery from '@/features/album-list/albumQuery';
 import prepareAlbums from '@/features/album-list/prepareAlbums';
 import useAlbumList from '@/features/album-list/useAlbumList';
 import useAlbums from '@/features/albums-context/useAlbums';
+import useAppSettings from '@/features/app-settings/useAppSettings';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useSearchMode from '@/hooks/useSearchMode';
+import { useLiveQuery } from '@/sync/useLiveQuery';
 
 export default function AlbumsScreen({ navigation }) {
-  const { albums, toggleFavoriteAlbum, addAlbum } = useAlbums();
+  const { toggleFavoriteAlbum, addAlbum } = useAlbums();
+  const { albumSortOrder } = useAppSettings();
   const { paddingTop, paddingBottom } = useScreenPadding('main');
 
   const { listRef, listScrollTop } = useAlbumList();
@@ -30,17 +34,15 @@ export default function AlbumsScreen({ navigation }) {
   const { searchBar, query: searchText } = useSearchMode(useSearchAlbumsAction());
   const scrollHandler = useFloatingBarScrollHandler();
 
-  const albumIds = useMemo(
-    () =>
-      prepareAlbums({
-        albums: Object.values(albums),
-        sortFn: sortFunction,
-        filterFn: matchFilter,
-        showArchivedAlbums: activeFilter.includes('archived'),
-        searchText,
-      }).map((album) => album.id),
-    [albums, sortFunction, matchFilter, activeFilter, searchText],
-  );
+  const query = albumQuery({ scope: 'all', assetSort: albumSortOrder });
+  const rows = useLiveQuery(query.page, query.tables, [query.descriptor]);
+  const albums = prepareAlbums({
+    albums: rows ?? [],
+    sortFn: sortFunction,
+    filterFn: matchFilter,
+    showArchivedAlbums: activeFilter.includes('archived'),
+    searchText,
+  });
 
   function handleAdd() {
     Alert.prompt('Album name', undefined, (name) => {
@@ -70,10 +72,10 @@ export default function AlbumsScreen({ navigation }) {
       <FloatingHeader title="Albums" onAdd={handleAdd} />
       <AlbumList
         listRef={listRef}
-        albumIds={albumIds}
+        albums={albums}
         contentContainerStyle={{ paddingTop, paddingBottom }}
         onScroll={scrollHandler}
-        renderItem={({ album, thumbnailAsset, numberOfAssets, elementWidth }) => (
+        renderItem={({ album, elementWidth }) => (
           <AlbumListItemWithEditMode
             isEditMode={false}
             singleTap={() => navigation.navigate('AlbumScreen', { albumId: album.id })}
@@ -81,8 +83,6 @@ export default function AlbumsScreen({ navigation }) {
           >
             <AlbumListItem
               album={album}
-              thumbnailAsset={thumbnailAsset}
-              numberOfAssets={numberOfAssets}
               elementWidth={elementWidth}
               showLastPostedAt={sortOrder.includes('lastPostedAt')}
             />

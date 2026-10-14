@@ -1,22 +1,19 @@
 import { useWindowDimensions } from 'react-native';
 import Animated from 'react-native-reanimated';
 
-import useAlbumCovers from './useAlbumCovers';
-
 import { SCREEN_PADDING } from '@/constants';
-import useAlbums from '@/features/albums-context/useAlbums';
 
+const keyExtractor = (album) => album.id;
+
+// The two-column album grid; `albums` are albumQuery rows (with their cover and stats).
 export default function AlbumList({
-  albumIds,
+  albums,
   renderItem,
   ListHeaderComponent,
   listRef,
   contentContainerStyle,
   onScroll,
 }) {
-  const { albums } = useAlbums();
-  const covers = useAlbumCovers(albumIds);
-
   // I use window width and num of columns to calculate the width of each album
   // in the view. We also use columnWrapperStyle to get even margins left, right
   // and between the items without having the margins doubled where they touch.
@@ -31,22 +28,15 @@ export default function AlbumList({
     <Animated.FlatList
       keyboardDismissMode="on-drag"
       ref={listRef}
-      data={albumIds}
+      data={albums}
       numColumns={numColumns}
       columnWrapperStyle={{
         marginHorizontal: SCREEN_PADDING,
         marginTop: SCREEN_PADDING,
         justifyContent: 'space-between',
       }}
-      renderItem={({ item: albumId }) => {
-        const album = albums[albumId];
-        if (!album) return null;
-
-        const { thumbnailAsset, numberOfAssets } = covers[albumId];
-
-        return renderItem({ album, thumbnailAsset, numberOfAssets, elementWidth });
-      }}
-      keyExtractor={(albumId) => albumId}
+      renderItem={({ item: album }) => renderItem({ album, elementWidth })}
+      keyExtractor={keyExtractor}
       ListHeaderComponent={ListHeaderComponent}
       stickyHeaderIndices={ListHeaderComponent ? [0] : undefined}
       contentContainerStyle={contentContainerStyle}

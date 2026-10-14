@@ -52,6 +52,8 @@ const ASSET_FILTER_OPTIONS = [
   { key: 'videos', label: 'Videos', icon: 'video' },
 ];
 
+const NO_POSTS = [];
+
 const ASSET_SORT_OPTIONS = [
   { key: 'custom', label: 'Custom', directional: false },
   { key: 'createdAt', label: 'Created At' },
@@ -60,7 +62,7 @@ const ASSET_SORT_OPTIONS = [
 
 export default function Album({ album }) {
   const { setAssetsDeleted } = useAssets();
-  const { removeAssetsFromAlbum, reorderAlbumAssets, updateAlbum } = useAlbums();
+  const { albums, removeAssetsFromAlbum, reorderAlbumAssets, updateAlbum } = useAlbums();
   const { albumSortOrder, setAlbumSortOrder } = useAppSettings();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -94,8 +96,10 @@ export default function Album({ album }) {
   });
   const { rows, count, loadMore, reset } = usePagedQuery(query, [query.descriptor], 150);
 
-  // postHistory is the album's non-deleted posts, oldest first (derived in AlbumsProvider).
-  const postIds = useMemo(() => [...album.postHistory].reverse(), [album.postHistory]);
+  // The posts tab still reads the album's derived postHistory (non-deleted posts, oldest first) from
+  // the albums map, until postQuery replaces it.
+  const postHistory = albums[album.id]?.postHistory ?? NO_POSTS;
+  const postIds = useMemo(() => [...postHistory].reverse(), [postHistory]);
 
   const actions = useAssetSelectionActions(selection, query, count);
   const hasSubHeader = !!album.archivedAt || !!album.notes;

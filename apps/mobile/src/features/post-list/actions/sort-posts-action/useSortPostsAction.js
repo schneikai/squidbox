@@ -14,6 +14,6 @@ const sortOptions = {
 };
 
 export default function useSortPostsAction({ afterSort } = {}) {
-  const { sortOrder, sortFunction, sort } = useSort(sortOptions, 'postedAt:desc', { afterSort });
-  return { sortOrder, sortFunction, sortPosts: sort };
+  const { sortOrder, sort } = useSort('postedAt:desc', { afterSort });
+  return { sortOrder, sortFunction: sortOptions[sortOrder], sortPosts: sort };
 }

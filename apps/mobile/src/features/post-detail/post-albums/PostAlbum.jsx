@@ -4,25 +4,25 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import AssetImage from '@/components/AssetImage';
 import { colors, scale } from '@/styles/designTokens';
 
-export default function PostAlbum({ album, cover, size }) {
+// `album` is an albumQuery row: it carries its cover and stats.
+export default function PostAlbum({ album, size }) {
   const navigation = useNavigation();
-  const { thumbnailAsset, numberOfAssets } = cover ?? {};
 
   async function handlePress() {
     navigation.navigate('AlbumScreen', { albumId: album.id });
   }
 
-  if (!thumbnailAsset) return null;
+  if (!album.cover) return null;
 
   return (
     <TouchableOpacity onPress={handlePress}>
       <View style={{ height: size }}>
-        <AssetImage asset={thumbnailAsset} />
+        <AssetImage asset={album.cover} />
       </View>
       <View style={styles.footer}>
         <View>
           <Text style={styles.albumName}>{album.name}</Text>
-          <Text style={styles.numberOfAssets}>{numberOfAssets} Assets</Text>
+          <Text style={styles.numberOfAssets}>{album.assetCount} Assets</Text>
         </View>
       </View>
     </TouchableOpacity>

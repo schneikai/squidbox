@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Alert, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,17 +9,21 @@ import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import SearchOptionsBar from '@/components/floating-bars/SearchOptionsBar';
 import SortFilterModal from '@/components/floating-bars/SortFilterModal';
+import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
 import AlbumList from '@/features/album-list/AlbumList';
 import AlbumListItem from '@/features/album-list/AlbumListItem';
 import useFilterAlbumsAction from '@/features/album-list/actions/filter-albums-action/useFilterAlbumsAction';
 import useSearchAlbumsAction from '@/features/album-list/actions/search-albums-action/useSearchAlbumsAction';
 import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
+import albumQuery from '@/features/album-list/albumQuery';
 import prepareAlbums from '@/features/album-list/prepareAlbums';
 import useAlbumList from '@/features/album-list/useAlbumList';
 import useAlbums from '@/features/albums-context/useAlbums';
+import useAppSettings from '@/features/app-settings/useAppSettings';
 import useSearchMode from '@/hooks/useSearchMode';
 import { colors, spacing } from '@/styles/designTokens';
+import { useLiveQuery } from '@/sync/useLiveQuery';
 
 const FILTER_OPTIONS = [
   { key: 'all', label: 'All Albums', icon: 'apps' },
@@ -28,7 +32,9 @@ const FILTER_OPTIONS = [
 ];
 
 export default function AddToAlbumScreen({ route, navigation }) {
-  const { albums, addAlbum, addAssetsToAlbum } = useAlbums();
+  const { addAlbum, addAssetsToAlbum } = useAlbums();
+  const { albumSortOrder } = useAppSettings();
+  const runWithProgress = useRunWithProgress();
   const { bottom } = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
 
@@ -44,20 +50,18 @@ export default function AddToAlbumScreen({ route, navigation }) {
     scrollY.value = e.contentOffset.y;
   });
 
-  const albumIds = useMemo(
-    () =>
-      prepareAlbums({
-        albums: Object.values(albums),
-        sortFn: sortFunction,
-        filterFn: matchFilter,
-        searchText,
-        showSmartAlbums: false,
-      }).map((album) => album.id),
-    [albums, sortFunction, matchFilter, activeFilter, searchText],
-  );
+  const query = albumQuery({ scope: 'all', assetSort: albumSortOrder });
+  const rows = useLiveQuery(query.page, query.tables, [query.descriptor]);
+  const albums = prepareAlbums({
+    albums: rows ?? [],
+    sortFn: sortFunction,
+    filterFn: matchFilter,
+    searchText,
+    showSmartAlbums: false,
+  });
 
-  function handleAddAssetsToAlbum(album) {
-    addAssetsToAlbum(album, route.params.assetIds);
+  async function handleAddAssetsToAlbum(album) {
+    await runWithProgress((batchOptions) => addAssetsToAlbum(album, route.params.assetIds, batchOptions));
     navigation.goBack();
   }
 
@@ -84,20 +88,15 @@ export default function AddToAlbumScreen({ route, navigation }) {
 
       <AlbumList
         listRef={listRef}
-        albumIds={albumIds}
+        albums={albums}
         contentContainerStyle={{
           paddingTop: MODAL_HEADER_HEIGHT,
           paddingBottom: bottom + spacing.iconButtonSize + spacing.floatingBarBottom * 2 + 16,
         }}
         onScroll={onScroll}
-        renderItem={({ album, thumbnailAsset, numberOfAssets, elementWidth }) => (
+        renderItem={({ album, elementWidth }) => (
           <TouchableOpacity onPress={() => handleAddAssetsToAlbum(album)}>
-            <AlbumListItem
-              album={album}
-              thumbnailAsset={thumbnailAsset}
-              numberOfAssets={numberOfAssets}
-              elementWidth={elementWidth}
-            />
+            <AlbumListItem album={album} elementWidth={elementWidth} />
           </TouchableOpacity>
         )}
       />

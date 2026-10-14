@@ -1,7 +1,9 @@
 import { initialKeys } from '@squidbox/shared';
 
 import sortAlbumsByCustomOrder from '@/features/album-list/actions/sort-albums-action/sortAlbumsByCustomOrder';
+import albumQuery from '@/features/album-list/albumQuery';
 import useAlbums from '@/features/albums-context/useAlbums';
+import { getDb } from '@/sync/db/client';
 
 /**
  * Reorders albums with a numeric name from highest to lowest (e.g. 230, 220, 210) so the list looks
@@ -12,12 +14,10 @@ import useAlbums from '@/features/albums-context/useAlbums';
  * other's slots, then every album gets a position in that order. Returns the number of numeric albums.
  */
 export default function useResortAlbumsByName() {
-  const { albums, updateManyAlbums } = useAlbums();
+  const { updateManyAlbums } = useAlbums();
 
   async function resortAlbumsByNameAsync() {
-    const currentOrder = Object.values(albums)
-      .filter((album) => !album.deletedAt)
-      .sort(sortAlbumsByCustomOrder);
+    const currentOrder = (await albumQuery({ scope: 'all' }).page(getDb())).sort(sortAlbumsByCustomOrder);
 
     // Highest number first, into the numeric albums' slots in the current order.
     const numericDesc = currentOrder

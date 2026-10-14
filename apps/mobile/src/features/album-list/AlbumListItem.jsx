@@ -6,11 +6,12 @@ import AlbumLastPostedAt from '@/features/album-list/AlbumLastPostedAt';
 import { colors, scale } from '@/styles/designTokens';
 import pluralizeText from '@/utils/pluralizeText';
 
-export default function AlbumListItem({ album, thumbnailAsset, numberOfAssets, elementWidth }) {
+// `album` is an albumQuery row: it carries its cover and stats.
+export default function AlbumListItem({ album, elementWidth }) {
   return (
     <View style={[styles.album, { width: elementWidth }]}>
       <View style={[styles.imageContainer, { height: elementWidth }]}>
-        <AssetImage asset={thumbnailAsset} />
+        <AssetImage asset={album.cover ?? undefined} />
         <View style={styles.indicators}>
           <FavoriteAlbumIndicator isFavorite={album.isFavorite} />
         </View>
@@ -26,7 +27,7 @@ export default function AlbumListItem({ album, thumbnailAsset, numberOfAssets, e
       </Text>
       <View style={styles.metaRow}>
         <Text style={[styles.albumInfo, styles.metaCount]} numberOfLines={1}>
-          {pluralizeText('1 Asset', '%{count} Assets', numberOfAssets)}
+          {pluralizeText('1 Asset', '%{count} Assets', album.assetCount)}
         </Text>
         <AlbumLastPostedAt album={album} style={[styles.albumInfo, styles.metaPosted]} numberOfLines={1} />
       </View>

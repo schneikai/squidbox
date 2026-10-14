@@ -1,30 +1,26 @@
-import { useMemo } from 'react';
 import { ScrollView, View, StyleSheet, Dimensions } from 'react-native';
 
 import PostAlbum from './PostAlbum';
 
-import useAlbumCovers from '@/features/album-list/useAlbumCovers';
-import useAlbums from '@/features/albums-context/useAlbums';
-import getAlbumsByAssetIds from '@/utils/albums/queries/getAlbumsByAssetIds';
+import albumQuery from '@/features/album-list/albumQuery';
+import useAppSettings from '@/features/app-settings/useAppSettings';
+import { useLiveQuery } from '@/sync/useLiveQuery';
 
 const screenWidth = Dimensions.get('window').width;
 const itemWidth = screenWidth / 2.7;
 
+// The albums holding any of the post's assets.
 export default function PostAlbums({ post }) {
-  const { albums } = useAlbums();
-  const postAlbums = useMemo(() => {
-    if (!post) return [];
-    const assetIds = post.assetRefs.map((assetRef) => assetRef.assetId);
-    return getAlbumsByAssetIds(assetIds, albums);
-  }, [post, albums]);
-  const postAlbumIds = useMemo(() => postAlbums.map((album) => album.id), [postAlbums]);
-  const covers = useAlbumCovers(postAlbumIds);
+  const { albumSortOrder } = useAppSettings();
+  const assetIds = post?.assetRefs.map((assetRef) => assetRef.assetId) ?? [];
+  const query = albumQuery({ scope: { assetIds }, assetSort: albumSortOrder });
+  const albums = useLiveQuery(query.page, query.tables, [query.descriptor]) ?? [];
 
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.container}>
-      {postAlbums.map((album, index) => (
-        <View key={index} style={[styles.itemContainer, { width: itemWidth }]}>
-          <PostAlbum album={album} cover={covers[album.id]} size={itemWidth} />
+      {albums.map((album) => (
+        <View key={album.id} style={[styles.itemContainer, { width: itemWidth }]}>
+          <PostAlbum album={album} size={itemWidth} />
         </View>
       ))}
     </ScrollView>

@@ -1,14 +1,16 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
 
-import useAlbums from '@/features/albums-context/useAlbums';
 import PickerAssetGrid from '@/features/asset-picker/PickerAssetGrid';
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';
+import { schema } from '@/sync/db/client';
+import { readByIds } from '@/sync/readByIds';
+import { useLiveQuery } from '@/sync/useLiveQuery';
 
 export default function AlbumScreen({ route, navigation }) {
-  const { albums } = useAlbums();
   const { setAlbumScreenProps } = useAssetPicker();
-  const album = albums[route.params.albumId];
+  const { albumId } = route.params;
+  const [album] = useLiveQuery((db) => readByIds(db, schema.albums, [albumId]), [schema.albums], [albumId]) ?? [];
 
   useFocusEffect(
     useCallback(() => {
@@ -16,10 +18,10 @@ export default function AlbumScreen({ route, navigation }) {
       return () => {
         setAlbumScreenProps(null);
       };
-    }, [navigation]),
+    }, [navigation, album]),
   );
 
-  if (!album) return null;
+  if (!album || album.deletedAt) return null;
 
   return <PickerAssetGrid album={album} label={album.name} />;
 }

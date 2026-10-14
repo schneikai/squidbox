@@ -31,6 +31,11 @@ const sortOptions = {
 };
 
 export default function useSortAlbumsAction({ afterSort } = {}) {
-  const { sortOrder, sortFunction, sort } = useSort(sortOptions, DEFAULT_SORT_ORDER, { afterSort });
-  return { sortOrder, sortFunction, sortAlbums: sort, isDefaultSortOrder: sortOrder === DEFAULT_SORT_ORDER };
+  const { sortOrder, sort } = useSort(DEFAULT_SORT_ORDER, { afterSort });
+  return {
+    sortOrder,
+    sortFunction: sortOptions[sortOrder],
+    sortAlbums: sort,
+    isDefaultSortOrder: sortOrder === DEFAULT_SORT_ORDER,
+  };
 }
