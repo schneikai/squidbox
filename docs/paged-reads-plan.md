@@ -1,6 +1,6 @@
 # Plan: per-screen, SQL-backed, paged reads for Squidbox (50k+ assets)
 
-**Status: implemented** (steps 0–8, commits c97f640 … the step 7–8 commit). Web preview at 50k, release bundle: reload → first cell 4.2–4.6 s → 2.2–2.3 s, idle JS heap 51.8 → 21.6 MB, favorite toggle ≈ 455 → 30–45 ms of script, first sync 40 → 27 s. Kept as the design record; open work lives in `todo.md`.
+**Status: implemented** (steps 0–8, commits c97f640 … 26219c3). Web preview at 50k, release bundle: reload → first cell 4.2–4.6 s → 2.2–2.3 s, idle JS heap 51.8 → 21.6 MB, favorite toggle ≈ 455 → 30–45 ms of script, first sync 40 → 27 s. Kept as the design record; open work lives in `todo.md`.
 
 Goal: startup time and memory stay flat as the library grows (target 50,000+ assets, iOS first; the web preview behaves the same). Criteria: SIMPLE, ROBUST, CLEAN, DRY — one data-access pattern everywhere, no caches or derived-state machinery. **[trade]** marks a little performance given up for simplicity.
 
