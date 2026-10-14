@@ -1,43 +1,52 @@
 import { useState } from 'react';
 import { Alert } from 'react-native';
 
+import postQuery from '@/features/post-list/postQuery';
 import PostEditor from '@/features/posts/PostEditor';
 import usePosts from '@/features/posts-context/usePosts';
+import { schema } from '@/sync/db/client';
+import { readByIds } from '@/sync/readByIds';
+import { useLiveQuery } from '@/sync/useLiveQuery';
 import getTimestamp from '@/utils/date-time/getTimestamp';
-import getNewItemId from '@/utils/getNewItemId';
+import buildPostAssets from '@/utils/posts/buildPostAssets';
+import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
 import postSchema from '@/utils/posts/postSchema';
 
+// A new post, seeded from the route: the assets to post (`assetIds`), a text, or the post to repost
+// (`rePostId`: its text and assets, as fresh post assets).
 export default function AddPostScreen({ route, navigation }) {
   const { rePostId, assetIds, text: prefilledText } = route.params ?? {};
-  const { posts, addPost, updatePost } = usePosts();
-  let rePost = null;
-  const initialPostData = {
-    text: prefilledText ?? '',
-    assetRefs: [],
-    postedAt: getTimestamp(),
-  };
+  const { addPost, updatePost } = usePosts();
+  const [postData, setPostData] = useState(null);
 
-  if (rePostId) {
-    rePost = posts[rePostId];
-    if (rePost) {
-      initialPostData.text = rePost.text;
-      initialPostData.assetRefs = assetIdsToAssetRefs(rePost.assetRefs.map((assetRef) => assetRef.assetId));
-    }
-  } else if (assetIds) {
-    initialPostData.assetRefs = assetIdsToAssetRefs(assetIds);
-  }
+  const seed = useLiveQuery(
+    async (db) => {
+      if (rePostId) {
+        const [rePost] = (await postQuery({ scope: { postId: rePostId } }).read(db, { limit: 1 })).rows;
+        const assets = rePost?.postAssets.map((postAsset) => postAsset.asset) ?? [];
+        return { text: rePost?.text ?? '', postAssets: buildPostAssets(assets) };
+      }
+      const assets = assetIds ? await readByIds(db, schema.assets, assetIds) : [];
+      return { text: prefilledText ?? '', postAssets: buildPostAssets(assets) };
+    },
+    [schema.posts, schema.postAssets, schema.assets],
+    [rePostId, assetIds, prefilledText],
+  );
 
-  const [postData, setPostData] = useState(initialPostData);
+  if (!seed) return null;
+
+  const initialPost = { ...seed, postedAt: getTimestamp() };
+  const post = postData ?? { ...initialPost, assetRefs: postAssetsToAssetRefs(initialPost.postAssets) };
 
   async function handleAddPost() {
-    const addPostData = { ...postData };
-    if (rePost) addPostData.rePostId = rePost.id;
-
     try {
-      await addPost(addPostData);
-      if (rePost) {
-        await updatePost(rePost.id, { hasBeenReposted: true });
-      }
+      await addPost({
+        text: post.text,
+        assetRefs: post.assetRefs,
+        postedAt: post.postedAt,
+        rePostId: rePostId ?? null,
+      });
+      if (rePostId) await updatePost(rePostId, { hasBeenReposted: true });
       navigation.popToTop();
     } catch (error) {
       Alert.alert('Failed to create post!', error.message);
@@ -46,21 +55,17 @@ export default function AddPostScreen({ route, navigation }) {
 
   function canAddPost() {
     try {
-      postSchema.validateSync(postData);
+      postSchema.validateSync(post);
       return true;
     } catch (_e) {
       return false;
     }
   }
 
-  function assetIdsToAssetRefs(assetIds) {
-    return assetIds.map((assetId) => ({ id: getNewItemId(), assetId }));
-  }
-
   return (
     <PostEditor
-      post={postData}
-      onChange={(postData) => setPostData(postData)}
+      post={initialPost}
+      onChange={setPostData}
       navigation={navigation}
       onSave={handleAddPost}
       canSave={canAddPost()}

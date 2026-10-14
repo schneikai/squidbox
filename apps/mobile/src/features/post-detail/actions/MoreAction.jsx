@@ -4,14 +4,11 @@ import { Alert } from 'react-native';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import PopupMenu from '@/components/popup-menu-options/PopupMenu';
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
-import useAssets from '@/features/assets-context/useAssets';
 import usePosts from '@/features/posts-context/usePosts';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
-import assetRefsToPostAssets from '@/utils/posts/assetRefsToPostAssets';
 
 export default function MoreAction({ post, afterDelete }) {
   const { deletePost } = usePosts();
-  const { assets } = useAssets();
   const navigation = useNavigation();
   const { show, hide, updateProgress } = useProgressOverlay();
   const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary({
@@ -47,8 +44,7 @@ export default function MoreAction({ post, afterDelete }) {
   }
 
   async function handleDownloadAssets() {
-    const postAssets = assetRefsToPostAssets(post.assetRefs, assets);
-    await saveAssetsToMediaLibraryAsync(postAssets.map((postAsset) => postAsset.asset));
+    await saveAssetsToMediaLibraryAsync(post.postAssets.map((postAsset) => postAsset.asset));
   }
 
   return (

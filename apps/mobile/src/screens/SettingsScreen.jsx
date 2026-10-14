@@ -24,7 +24,7 @@ const SERVER_URL = API_BASE_URL?.replace(/\/api\/v1\/?$/, '');
 export default function SettingsScreen() {
   const navigation = useNavigation();
   const { isAuthenticated, user, logoutAsync } = useCloud();
-  const { unsyncedAssets, assetsWithSyncErrors, isSyncing, syncMessage } = useCloudSync();
+  const { unsyncedCount, syncErrorCount, isSyncing, syncMessage } = useCloudSync();
   const { phase, pendingCount, lastError } = useSyncStatus();
 
   const [aiModel, setAiModel] = useState(DEFAULT_MODEL);
@@ -94,9 +94,8 @@ export default function SettingsScreen() {
   // engine (automatic). Each is one tappable status row → its own detail screen.
   function backupStatusText() {
     if (isSyncing) return syncMessage ?? 'Backing up…';
-    if (assetsWithSyncErrors.length > 0)
-      return `${assetsWithSyncErrors.length} error${assetsWithSyncErrors.length > 1 ? 's' : ''}`;
-    if (unsyncedAssets.length > 0) return `${unsyncedAssets.length} not backed up`;
+    if (syncErrorCount > 0) return `${syncErrorCount} error${syncErrorCount > 1 ? 's' : ''}`;
+    if (unsyncedCount > 0) return `${unsyncedCount} not backed up`;
     return 'All backed up';
   }
 

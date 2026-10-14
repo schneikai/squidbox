@@ -1,18 +1,13 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, useWindowDimensions, Text } from 'react-native';
 
 import AssetImage from '@/components/AssetImage';
-import useAssets from '@/features/assets-context/useAssets';
-import assetRefsToPostAssets from '@/utils/posts/assetRefsToPostAssets';
 
-export default function PostAssets({ assetRefs }) {
-  const { assets } = useAssets();
-
+// `postAssets` are a post's [{ id, asset }], as postQuery reads them.
+export default function PostAssets({ postAssets }) {
   const scrollViewRef = useRef();
   const [currentPage, setCurrentPage] = useState(0);
   const { width: screenWidth } = useWindowDimensions();
-
-  const postAssets = useMemo(() => assetRefsToPostAssets(assetRefs, assets), [assetRefs, assets]);
 
   const handleScroll = (event) => {
     const contentOffsetX = event.nativeEvent.contentOffset.x;

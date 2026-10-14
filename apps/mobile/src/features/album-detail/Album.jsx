@@ -1,6 +1,6 @@
 import { useActionSheet } from '@expo/react-native-action-sheet';
 import { useNavigation } from '@react-navigation/native';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Text, StyleSheet, View, Pressable, TouchableOpacity, useWindowDimensions } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,6 +26,7 @@ import assetQuery from '@/features/asset-list/assetQuery';
 import useAssetList from '@/features/asset-list/useAssetList';
 import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
 import useAssets from '@/features/assets-context/useAssets';
+import postQuery from '@/features/post-list/postQuery';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useSearch from '@/hooks/useSearch';
 import useSearchMode from '@/hooks/useSearchMode';
@@ -52,8 +53,6 @@ const ASSET_FILTER_OPTIONS = [
   { key: 'videos', label: 'Videos', icon: 'video' },
 ];
 
-const NO_POSTS = [];
-
 const ASSET_SORT_OPTIONS = [
   { key: 'custom', label: 'Custom', directional: false },
   { key: 'createdAt', label: 'Created At' },
@@ -62,7 +61,7 @@ const ASSET_SORT_OPTIONS = [
 
 export default function Album({ album }) {
   const { setAssetsDeleted } = useAssets();
-  const { albums, removeAssetsFromAlbum, reorderAlbumAssets, updateAlbum } = useAlbums();
+  const { removeAssetsFromAlbum, reorderAlbumAssets, updateAlbum } = useAlbums();
   const { albumSortOrder, setAlbumSortOrder } = useAppSettings();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -96,10 +95,7 @@ export default function Album({ album }) {
   });
   const { rows, count, loadMore, reset } = usePagedQuery(query, [query.descriptor], 150);
 
-  // The posts tab still reads the album's derived postHistory (non-deleted posts, oldest first) from
-  // the albums map, until postQuery replaces it.
-  const postHistory = albums[album.id]?.postHistory ?? NO_POSTS;
-  const postIds = useMemo(() => [...postHistory].reverse(), [postHistory]);
+  const posts = usePagedQuery(postQuery({ scope: { albumId: album.id }, sort: 'postedAt:desc' }), [album.id], 20);
 
   const actions = useAssetSelectionActions(selection, query, count);
   const hasSubHeader = !!album.archivedAt || !!album.notes;
@@ -136,7 +132,7 @@ export default function Album({ album }) {
 
   const headerSubtitle =
     activeTab === 'Posts'
-      ? pluralizeText('1 Post', '%{count} Posts', postIds.length)
+      ? pluralizeText('1 Post', '%{count} Posts', posts.count ?? 0)
       : pluralizeText('1 Asset', '%{count} Assets', count ?? 0);
 
   async function handleDeleteFromAlbum() {
@@ -219,7 +215,12 @@ export default function Album({ album }) {
             onReorder={handleReorder}
           />
         ) : (
-          <AlbumPostsView postIds={postIds} paddingTop={hasSubHeader ? 0 : paddingTop} paddingBottom={paddingBottom} />
+          <AlbumPostsView
+            rows={posts.rows}
+            loadMore={posts.loadMore}
+            paddingTop={hasSubHeader ? 0 : paddingTop}
+            paddingBottom={paddingBottom}
+          />
         )}
       </View>
 

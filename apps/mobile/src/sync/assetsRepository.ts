@@ -1,5 +1,5 @@
 import type { AssetRecord } from '@squidbox/shared';
-import { and, count, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, eq, gt, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 
 import { chunk, SQL_BATCH } from './chunk';
 import * as schema from './db/schema';
@@ -44,4 +44,43 @@ export async function countByMediaType(db: SyncDb, ids: string[]): Promise<{ pho
   const counts = { photo: 0, video: 0 };
   for (const group of groups) counts[group.mediaType] = group.count;
   return counts;
+}
+
+const unsynced = and(
+  eq(schema.assets.isSynced, false),
+  isNull(schema.assets.deletedAt),
+  isNull(schema.assets.syncError),
+);
+const failed = and(isNotNull(schema.assets.syncError), isNull(schema.assets.deletedAt));
+
+/**
+ * The next assets to upload, by id after `afterId` (the key-walk of one backup run: each asset is
+ * tried once whatever the run writes meanwhile).
+ */
+export async function readUnsynced(db: SyncDb, { afterId, limit }: { afterId: string | null; limit: number }) {
+  return db
+    .select()
+    .from(schema.assets)
+    .where(afterId === null ? unsynced : and(unsynced, gt(schema.assets.id, afterId)))
+    .orderBy(asc(schema.assets.id))
+    .limit(limit);
+}
+
+export async function countUnsynced(db: SyncDb): Promise<number> {
+  const [row] = await db.select({ count: count() }).from(schema.assets).where(unsynced);
+  return row?.count ?? 0;
+}
+
+export async function countSyncErrors(db: SyncDb): Promise<number> {
+  const [row] = await db.select({ count: count() }).from(schema.assets).where(failed);
+  return row?.count ?? 0;
+}
+
+/** The assets whose upload failed, by id, with their count (a paged read, like the query builders'). */
+export async function readSyncErrors(db: SyncDb, { limit }: { limit: number }) {
+  return db.transaction(async (tx) => {
+    const [row] = await tx.select({ count: count() }).from(schema.assets).where(failed);
+    const rows = await tx.select().from(schema.assets).where(failed).orderBy(asc(schema.assets.id)).limit(limit);
+    return { rows, count: row?.count ?? 0 };
+  });
 }

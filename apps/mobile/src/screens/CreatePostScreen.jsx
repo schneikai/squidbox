@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,14 +12,21 @@ import SuperPressable from '@/components/SuperPressable';
 import { SCREEN_PADDING } from '@/constants';
 import PostList from '@/features/post-list/PostList';
 import PostListItem from '@/features/post-list/PostListItem';
-import preparePosts from '@/features/post-list/preparePosts';
+import postQuery from '@/features/post-list/postQuery';
 import RandomSuggestionsModal from '@/features/post-random-suggestions/RandomSuggestionsModal';
 import usePosts from '@/features/posts-context/usePosts';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, radii, scale, typography } from '@/styles/designTokens';
+import { getDb, schema } from '@/sync/db/client';
+import { readNewestRepostDate, readPostTexts } from '@/sync/postsRepository';
+import { useLiveQuery } from '@/sync/useLiveQuery';
+import { usePagedQuery } from '@/sync/usePagedQuery';
+
+const candidates = postQuery({ scope: 'repostCandidates', sort: 'suggestRepostAt:asc' });
+const NO_TEXTS = [];
 
 export default function CreatePostScreen({ navigation }) {
-  const { posts, updatePost } = usePosts();
+  const { updatePost } = usePosts();
   const { bottom } = useSafeAreaInsets();
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => {
@@ -27,31 +34,15 @@ export default function CreatePostScreen({ navigation }) {
   });
   const [showRandomSuggestions, setShowRandomSuggestions] = useState(false);
 
-  const recentPostTexts = useMemo(
-    () =>
-      Object.values(posts ?? {})
-        .filter((p) => p.text?.trim())
-        .sort((a, b) => b.createdAt - a.createdAt)
-        .map((p) => p.text.trim()),
-    [posts],
-  );
-
-  const postIds = useMemo(
-    () =>
-      preparePosts({
-        posts: Object.values(posts),
-        sortFn: (a, b) => (a.suggestRepostAt || a.postedAt || 0) - (b.suggestRepostAt || b.postedAt || 0),
-        filterFn: (post) => !post.isIgnoredForRepost && !post.hasBeenReposted,
-      }).map((post) => post.id),
-    [posts],
-  );
+  const recentPostTexts = useLiveQuery(readPostTexts, [schema.posts]) ?? NO_TEXTS;
+  const { rows, count, loadMore } = usePagedQuery(candidates, [], 20);
 
   // If there's nothing to repost, skip this screen entirely
   useEffect(() => {
-    if (postIds.length === 0) {
+    if (count === 0) {
       navigation.replace('AddEditPostModal');
     }
-  }, [postIds.length]);
+  }, [count]);
 
   function handleCreateNewPost() {
     navigation.navigate('AddEditPostModal');
@@ -69,8 +60,7 @@ export default function CreatePostScreen({ navigation }) {
   }
 
   async function handlePostpone(post) {
-    const allPosts = Object.values(posts);
-    const newestDate = allPosts.reduce((max, p) => Math.max(max, p.suggestRepostAt || p.postedAt || 0), 0);
+    const newestDate = await readNewestRepostDate(getDb());
     const from = post.suggestRepostAt || Date.now();
     const suggestRepostAt = from + Math.random() * (newestDate - from);
     await updatePost(post.id, { suggestRepostAt });
@@ -89,7 +79,8 @@ export default function CreatePostScreen({ navigation }) {
       />
 
       <PostList
-        postIds={postIds}
+        rows={rows}
+        loadMore={loadMore}
         contentContainerStyle={{ paddingTop: MODAL_HEADER_HEIGHT, paddingBottom: bottom + 16 }}
         onScroll={onScroll}
         FirstListEntryComponent={
@@ -131,7 +122,7 @@ export default function CreatePostScreen({ navigation }) {
         renderListItem={(post) => {
           return (
             <SuperPressable onPress={() => navigation.navigate('PostScreen', { postId: post.id })} style={{ flex: 1 }}>
-              <PostListItem {...post} />
+              <PostListItem post={post} />
               <PostActions
                 onRepost={() => handleRepost(post)}
                 onPostpone={() => handlePostpone(post)}

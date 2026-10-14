@@ -3,14 +3,11 @@ import { useState, useCallback, useMemo, useRef } from 'react';
 
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import AssetPickerContext from '@/features/asset-picker/AssetPickerContext';
-import useAssets from '@/features/assets-context/useAssets';
-import getAssetsByIds from '@/utils/assets/queries/getAssetsByIds';
+import { getDb, schema } from '@/sync/db/client';
+import { readByIds } from '@/sync/readByIds';
 
 export default function AssetPickerProvider({ children }) {
   const navigation = useNavigation();
-  const { assets } = useAssets();
-  const assetsRef = useRef(assets);
-  assetsRef.current = assets; // read on confirm, so a library write doesn't change the context value
   const { selectedAssetIds, isAssetSelected, toggleSelectAsset, selectAssets } = useToggleSelectAssetsAction();
   // All AssetPicker screens use the same header that is created in AssetPickerScreen.
   // When we are inside a album tho we need to show the album name in the header
@@ -34,8 +31,9 @@ export default function AssetPickerProvider({ children }) {
     });
   }, [navigation]);
 
-  const onConfirmSelection = useCallback(() => {
-    onClosePromiseResolveRef.current({ canceled: false, assets: getAssetsByIds(assetsRef.current, selectedAssetIds) });
+  const onConfirmSelection = useCallback(async () => {
+    const assets = await readByIds(getDb(), schema.assets, selectedAssetIds);
+    onClosePromiseResolveRef.current({ canceled: false, assets });
     cleanUpAndClose();
   }, [selectedAssetIds, cleanUpAndClose]);
 

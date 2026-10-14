@@ -42,10 +42,10 @@ In Add to Album and the picker's albums list, the "Archived" filter shows an emp
 `AlbumListItem` ignores its `showLastPostedAt` prop, so every album row shows "Posted …" whether
 or not the screen asks for it. Decide whether rows should show it only when sorted by last posted.
 
-### [ ] Random suggestions treat a video without a duration as a photo
+### [ ] Drafts show "Posted NaN years ago"
 
-`RandomSuggestionsModal` tells videos from photos by `duration`; the rest of the app uses
-`mediaType`. A video with no duration lands in the photo pool.
+`PostPostedAt` formats a missing `postedAt` as "Posted NaN years ago" for posts that were never
+posted (drafts). It should say nothing, or "Not posted yet".
 
 ## Features
 

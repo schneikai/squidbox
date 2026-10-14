@@ -15,7 +15,7 @@ export default function Post({ post, contentPaddingTop = 0 }) {
 
   return (
     <ScrollView contentContainerStyle={{ paddingTop: contentPaddingTop }}>
-      <PostAssets assetRefs={post.assetRefs} />
+      <PostAssets postAssets={post.postAssets} />
 
       <View style={styles.container}>
         <TouchableOpacity onPress={handleCopyToClipboard}>

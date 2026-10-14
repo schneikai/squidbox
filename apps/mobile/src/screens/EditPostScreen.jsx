@@ -1,24 +1,29 @@
 import { useState } from 'react';
 import { Alert } from 'react-native';
 
+import usePost from '@/features/post-detail/usePost';
 import PostEditor from '@/features/posts/PostEditor';
 import usePosts from '@/features/posts-context/usePosts';
+import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
 import postSchema from '@/utils/posts/postSchema';
 
 export default function EditPostScreen({ route, navigation }) {
   const { postId } = route.params;
-  const { posts, updatePost } = usePosts();
+  const { updatePost } = usePosts();
+  const post = usePost(postId);
+  const [postData, setPostData] = useState(null);
 
-  const post = posts[postId];
-  const [postData, setPostData] = useState({
-    text: post?.text,
-    assetRefs: post?.assetRefs,
-    postedAt: post?.postedAt,
-  });
+  if (!post) return null;
+
+  const data = postData ?? {
+    text: post.text,
+    assetRefs: postAssetsToAssetRefs(post.postAssets),
+    postedAt: post.postedAt,
+  };
 
   async function handleUpdatePost() {
     try {
-      await updatePost(postId, postData);
+      await updatePost(postId, data);
       navigation.goBack();
     } catch (error) {
       Alert.alert('Failed to update post!', error.message);
@@ -27,7 +32,7 @@ export default function EditPostScreen({ route, navigation }) {
 
   function canUpdatePost() {
     try {
-      postSchema.validateSync(postData);
+      postSchema.validateSync(data);
       return true;
     } catch (_e) {
       return false;
@@ -36,8 +41,8 @@ export default function EditPostScreen({ route, navigation }) {
 
   return (
     <PostEditor
-      post={postData}
-      onChange={(postData) => setPostData(postData)}
+      post={post}
+      onChange={setPostData}
       navigation={navigation}
       onSave={handleUpdatePost}
       canSave={canUpdatePost()}

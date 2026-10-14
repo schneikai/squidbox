@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 
@@ -14,10 +14,17 @@ import { SCREEN_PADDING } from '@/constants';
 import AiChatModal from '@/features/ai-suggestions/AiChatModal';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import RandomSuggestionsModal from '@/features/post-random-suggestions/RandomSuggestionsModal';
-import usePosts from '@/features/posts-context/usePosts';
 import { colors } from '@/styles/designTokens';
-import getNewItemId from '@/utils/getNewItemId';
+import { schema } from '@/sync/db/client';
+import { readPostTexts } from '@/sync/postsRepository';
+import { useLiveQuery } from '@/sync/useLiveQuery';
+import buildPostAsset from '@/utils/posts/buildPostAsset';
+import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
 
+const NO_TEXTS = [];
+
+// Edits a post seeded from `post` ({ text, postAssets, postedAt }); every change is reported as
+// { text, assetRefs, postedAt }, what the posts store takes.
 export default function PostEditor({ post, onChange, navigation, onSave, canSave, title = 'Post' }) {
   const scrollY = useSharedValue(0);
   const [isSaving, setIsSaving] = useState(false);
@@ -25,45 +32,40 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
     scrollY.value = e.contentOffset.y;
   });
   const [text, setText] = useState(post.text);
-  const [assetRefs, setAssetRefs] = useState(post.assetRefs);
+  const [postAssets, setPostAssets] = useState(post.postAssets);
   const [postedAt, setPostedAt] = useState(post.postedAt);
   const [showAiChat, setShowAiChat] = useState(false);
   const [showRandomSuggestions, setShowRandomSuggestions] = useState(false);
+  const recentPostTexts = useLiveQuery(readPostTexts, [schema.posts]) ?? NO_TEXTS;
 
-  const { posts } = usePosts();
-
-  const recentPostTexts = useMemo(
-    () =>
-      Object.values(posts ?? {})
-        .filter((p) => p.text?.trim())
-        .sort((a, b) => b.createdAt - a.createdAt)
-        .map((p) => p.text.trim()),
-    [posts],
-  );
+  function emit(changes) {
+    const next = { text, postAssets, postedAt, ...changes };
+    onChange({ text: next.text, assetRefs: postAssetsToAssetRefs(next.postAssets), postedAt: next.postedAt });
+  }
 
   function handleTextChange(newText) {
     setText(newText);
-    onChange({ text: newText, assetRefs, postedAt });
+    emit({ text: newText });
   }
 
-  function handleAssetRefsChange(newAssetRefs) {
-    setAssetRefs(newAssetRefs);
-    onChange({ text, assetRefs: newAssetRefs, postedAt });
+  function handlePostAssetsChange(newPostAssets) {
+    setPostAssets(newPostAssets);
+    emit({ postAssets: newPostAssets });
   }
 
   function handlePostedAtChange(newPostedAt) {
     setPostedAt(newPostedAt);
-    onChange({ text, assetRefs, postedAt: newPostedAt });
+    emit({ postedAt: newPostedAt });
   }
 
   function handleSuggestionConfirm(asset, suggestionText) {
     // Apply both changes in a single onChange so the second update doesn't
     // overwrite the first with a stale value from this render's closure.
-    const newAssetRefs = asset ? [{ id: getNewItemId(), assetId: asset.id }] : assetRefs;
+    const newPostAssets = asset ? [buildPostAsset(asset)] : postAssets;
     const newText = suggestionText || text;
-    setAssetRefs(newAssetRefs);
+    setPostAssets(newPostAssets);
     setText(newText);
-    onChange({ text: newText, assetRefs: newAssetRefs, postedAt });
+    emit({ text: newText, postAssets: newPostAssets });
   }
 
   // One save at a time: a second tap while the first is still writing would save the post twice.
@@ -98,7 +100,7 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
         contentContainerStyle={styles.scrollContent}
       >
         <Card style={styles.mediaCard}>
-          <PostAssetsEditor assetRefs={assetRefs} onChange={handleAssetRefsChange} />
+          <PostAssetsEditor postAssets={postAssets} onChange={handlePostAssetsChange} />
         </Card>
 
         <Card style={styles.textCard}>

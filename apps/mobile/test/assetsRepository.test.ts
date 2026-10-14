@@ -21,6 +21,29 @@ describe('assetsRepository', () => {
     expect(await repo.countByMediaType(db, [])).toEqual({ photo: 0, video: 0 });
   });
 
+  it('walks the unsynced assets by id and counts them, and the failed ones, through the partial indexes', async () => {
+    const { db, measure } = makeMeasuredTestDb();
+    await repo.createAssets(
+      db,
+      Array.from({ length: 7 }, (_, i) =>
+        makeAssetRecord({ id: `a${i}`, isSynced: i % 2 === 1, deletedAt: i === 6 ? 1 : null }),
+      ),
+    );
+    await repo.setSyncError(db, ['a4'], 'failed');
+    let work = await measure(async () => expect(await repo.countUnsynced(db)).toBe(2)); // a0, a2
+    expect(work.plans[0]).toMatch(/assets_unsynced_idx/);
+    const first = await repo.readUnsynced(db, { afterId: null, limit: 1 });
+    expect(first.map((a) => a.id)).toEqual(['a0']);
+    work = await measure(async () =>
+      expect((await repo.readUnsynced(db, { afterId: 'a0', limit: 50 })).map((a) => a.id)).toEqual(['a2']),
+    );
+    expect(work.plans[0]).toMatch(/assets_unsynced_idx/);
+    expect(await repo.countSyncErrors(db)).toBe(1);
+    const errors = await repo.readSyncErrors(db, { limit: 10 });
+    expect(errors.count).toBe(1);
+    expect(errors.rows.map((a) => a.syncError)).toEqual(['failed']);
+  });
+
   it('sets the sync error of many assets in one transaction', async () => {
     const { db, measure } = makeMeasuredTestDb();
     const assets = await repo.createAssets(

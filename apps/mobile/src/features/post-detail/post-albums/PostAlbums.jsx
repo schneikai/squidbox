@@ -12,7 +12,7 @@ const itemWidth = screenWidth / 2.7;
 // The albums holding any of the post's assets.
 export default function PostAlbums({ post }) {
   const { albumSortOrder } = useAppSettings();
-  const assetIds = post?.assetRefs.map((assetRef) => assetRef.assetId) ?? [];
+  const assetIds = post.postAssets.map((postAsset) => postAsset.asset.id);
   const query = albumQuery({ scope: { assetIds }, assetSort: albumSortOrder });
   const albums = useLiveQuery(query.page, query.tables, [query.descriptor]) ?? [];
 

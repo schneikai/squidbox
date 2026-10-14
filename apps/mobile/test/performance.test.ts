@@ -6,6 +6,7 @@ import { makeAssetRecord } from './helpers/factory';
 import { makeMeasuredTestDb, type Work } from './helpers/testDb';
 import albumQuery from '../src/features/album-list/albumQuery';
 import assetQuery from '../src/features/asset-list/assetQuery';
+import postQuery from '../src/features/post-list/postQuery';
 import * as repo from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
@@ -354,6 +355,32 @@ describe('plan guard', () => {
     expect(work.plans).toContain('SEARCH album_assets USING INDEX album_assets_album_position_idx (album_id=?)');
     expect(work.plans).toContain('SEARCH pe USING INDEX post_assets_asset_idx (asset_id=?)');
     expect(work.plans).toContain('USE TEMP B-TREE FOR count(DISTINCT)');
+  });
+
+  it('reads posts by postedAt through their index, their edges through the asset probe', async () => {
+    const { measure, db } = await library();
+    const work = await measure(() => postQuery({ scope: 'all' }).read(db, { limit: 20 }));
+    const unindexed = work.plans.filter(
+      (line) => line.startsWith('SCAN ') && !/USING (COVERING )?INDEX/.test(line) && !line.startsWith('SCAN json_each'),
+    );
+    expect(unindexed).toEqual([]);
+    expect(work.plans.filter((line) => line === 'USE TEMP B-TREE FOR ORDER BY')).toEqual([]);
+    expect(work.plans).toContain('SCAN p USING INDEX posts_live_posted_idx');
+    expect(work.plans).toContain('SEARCH e USING INDEX post_assets_post_idx (post_id=?)');
+    expect(work.plans).toContain('SEARCH x USING INDEX post_assets_asset_idx (asset_id=? AND post_id=?)');
+    expect(work.plans).toContain('SEARCH assets USING INDEX sqlite_autoindex_assets_1 (id=?)');
+  });
+
+  it('sorts the repost candidates and the ignored posts in a temp B-tree, posts being few', async () => {
+    const { measure, db } = await library();
+    for (const descriptor of [
+      { scope: 'repostCandidates', sort: 'suggestRepostAt:asc' },
+      { scope: 'ignored', sort: 'updatedAt:desc' },
+    ] as Parameters<typeof postQuery>[0][]) {
+      const work = await measure(() => postQuery(descriptor).read(db, { limit: 20 }));
+      expect(work.plans, JSON.stringify(descriptor)).toContain('SCAN p USING INDEX posts_live_posted_idx');
+      expect(work.plans, JSON.stringify(descriptor)).toContain('USE TEMP B-TREE FOR ORDER BY');
+    }
   });
 
   it('draws a random sample with one full index walk', async () => {

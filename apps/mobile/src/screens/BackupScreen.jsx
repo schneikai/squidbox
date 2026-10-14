@@ -18,22 +18,14 @@ import { colors, typography } from '@/styles/designTokens';
 // progress while the app is open (iOS suspends uploads in the background).
 export default function BackupScreen() {
   const navigation = useNavigation();
-  const {
-    isSyncing,
-    syncMessage,
-    syncProgressMessage,
-    syncSpeedMessage,
-    unsyncedAssets,
-    assetsWithSyncErrors,
-    syncNow,
-  } = useCloudSync();
+  const { isSyncing, syncMessage, syncProgressMessage, syncSpeedMessage, unsyncedCount, syncErrorCount, syncNow } =
+    useCloudSync();
   const [showErrors, setShowErrors] = useState(false);
 
   function statusText() {
     if (isSyncing) return syncMessage ?? 'Backing up…';
-    if (assetsWithSyncErrors.length > 0)
-      return `${assetsWithSyncErrors.length} error${assetsWithSyncErrors.length > 1 ? 's' : ''}`;
-    if (unsyncedAssets.length > 0) return `${unsyncedAssets.length} not backed up`;
+    if (syncErrorCount > 0) return `${syncErrorCount} error${syncErrorCount > 1 ? 's' : ''}`;
+    if (unsyncedCount > 0) return `${unsyncedCount} not backed up`;
     return 'All backed up';
   }
 
@@ -69,14 +61,9 @@ export default function BackupScreen() {
             </View>
           )}
 
-          {unsyncedAssets.length > 0 && !isSyncing && <Row label="Back up now" onPress={() => syncNow()} chevron />}
-          {assetsWithSyncErrors.length > 0 && (
-            <Row
-              label="View errors"
-              value={`${assetsWithSyncErrors.length}`}
-              onPress={() => setShowErrors(true)}
-              chevron
-            />
+          {unsyncedCount > 0 && !isSyncing && <Row label="Back up now" onPress={() => syncNow()} chevron />}
+          {syncErrorCount > 0 && (
+            <Row label="View errors" value={`${syncErrorCount}`} onPress={() => setShowErrors(true)} chevron />
           )}
         </Section>
 
@@ -85,9 +72,7 @@ export default function BackupScreen() {
           <LogEmpty text="No runs yet" />
         </LogBlock>
 
-        {showErrors && (
-          <SyncErrorViewer assetsWithSyncErrors={assetsWithSyncErrors} close={() => setShowErrors(false)} />
-        )}
+        {showErrors && <SyncErrorViewer close={() => setShowErrors(false)} />}
       </DetailScrollView>
     </Page>
   );

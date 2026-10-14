@@ -1,18 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 
-/**
- * Generic filter hook.
- * matchFn(item, activeFilter) should return true if the item passes the filter.
- * Returns { activeFilter, matchFilter, toggleFilter }.
- */
-export default function useFilter(matchFn, { afterFilter } = {}) {
+/** A screen's active filter keys. Returns { activeFilter, toggleFilter }; `afterFilter` runs on every change. */
+export default function useFilter({ afterFilter } = {}) {
   const [activeFilter, setActiveFilter] = useState([]);
-
-  // Stable until the filter changes, so lists that filter with it only recompute then.
-  const matchFilter = useCallback(
-    (item) => activeFilter.length === 0 || matchFn(item, activeFilter),
-    [matchFn, activeFilter],
-  );
 
   function toggleFilter(filter) {
     if (filter === 'all') {
@@ -26,5 +16,5 @@ export default function useFilter(matchFn, { afterFilter } = {}) {
     if (afterFilter) afterFilter();
   }
 
-  return { activeFilter, matchFilter, toggleFilter };
+  return { activeFilter, toggleFilter };
 }

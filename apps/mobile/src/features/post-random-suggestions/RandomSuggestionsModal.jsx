@@ -27,22 +27,25 @@ import {
   DEFAULT_SYSTEM_PROMPT,
 } from '@/features/ai-suggestions/aiSuggestionsStorage';
 import sendAiMessageAsync from '@/features/ai-suggestions/sendAiMessageAsync';
-import useAssets from '@/features/assets-context/useAssets';
+import assetQuery from '@/features/asset-list/assetQuery';
 import { colors, motion, radii, scale, typography } from '@/styles/designTokens';
+import { getDb, schema } from '@/sync/db/client';
+import { readByIds } from '@/sync/readByIds';
+import { useLiveQuery } from '@/sync/useLiveQuery';
+import { MEDIA_TYPES } from '@/utils/assets/constants';
 import formatVideoDuration from '@/utils/formatVideoDuration';
-import shuffle from '@/utils/shuffle';
 
 const TWEET_BATCH_SIZE = 10;
 const BATCH_INSTRUCTION = `Generate exactly ${TWEET_BATCH_SIZE} tweets and return them as a raw JSON array of strings. Nothing else.`;
 const SWIPE_THRESHOLD = 50;
 const PROMPT_FOCUS_DELAY_MS = 100;
+const POOL_SIZE = 50;
 const NO_ASSET_IDS = [];
+const NO_ROWS = [];
 // Swapping cards is a quick fade-through: the old one exits, the new one enters at the fast duration.
 const SWAP_IN = { ...motion.enter, duration: motion.duration.fast };
 
 export default function RandomSuggestionsModal({ visible, onClose, onConfirm, recentPostTexts = [] }) {
-  const { assets } = useAssets();
-
   // --- Ellipsis menu ---
   const modelPickerRef = useRef(null);
   const promptInputRef = useRef(null);
@@ -72,19 +75,36 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
   const [showVideos, setShowVideos] = useState(true);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
 
-  // --- Asset pool: shuffled ids, drawn when the modal opens or a filter changes (not on every
-  // library write); the card shows the live asset for its id. ---
-  const assetsRef = useRef(assets);
-  assetsRef.current = assets;
+  // --- Asset pool: a random draw of ids when the modal opens or a filter changes, refilled past
+  // its end (not on every library write); the card shows the live asset for its id. ---
   const [assetPool, setAssetPool] = useState(NO_ASSET_IDS);
   const [assetIndex, setAssetIndex] = useState(0);
+  const pool = assetQuery({
+    scope: 'library',
+    sort: 'random',
+    filter: poolFilter({ showImages, showVideos, onlyFavorites }),
+  });
+
+  async function drawPool() {
+    const { rows } = await pool.read(getDb(), { limit: POOL_SIZE });
+    return rows.map((asset) => asset.id);
+  }
 
   useEffect(() => {
-    setAssetPool(
-      visible ? shuffledAssetIds(assetsRef.current, { showImages, showVideos, onlyFavorites }) : NO_ASSET_IDS,
-    );
+    let isCancelled = false;
+    if (visible) drawPool().then((ids) => !isCancelled && setAssetPool(ids));
+    else setAssetPool(NO_ASSET_IDS);
     setAssetIndex(0);
+    return () => {
+      isCancelled = true;
+    };
   }, [visible, showImages, showVideos, onlyFavorites]);
+
+  const assets = new Map(
+    (useLiveQuery((db) => readByIds(db, schema.assets, assetPool), [schema.assets], [assetPool]) ?? NO_ROWS).map(
+      (asset) => [asset.id, asset],
+    ),
+  );
 
   // --- Text pool ---
   const [textPool, setTextPool] = useState([]);
@@ -164,12 +184,22 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
   // --- Asset navigation ---
   // Assets deleted while the modal is open (e.g. by a sync) are skipped, not shown.
   const currentIndex = findLiveIndex(assetPool, assets, assetIndex, 1);
-  const currentAsset = currentIndex >= 0 ? assets[assetPool[currentIndex]] : null;
+  const currentAsset = currentIndex >= 0 ? assets.get(assetPool[currentIndex]) : null;
   const hasOtherAssets = currentIndex >= 0 && findLiveIndex(assetPool, assets, currentIndex + 1, 1) !== currentIndex;
 
   function navigateAsset(direction) {
     if (!hasOtherAssets) return;
     const step = direction === 'next' ? 1 : -1;
+    if (direction === 'next' && findLiveIndex(assetPool, assets, currentIndex + 1, 1) <= currentIndex) {
+      // Past the last one: a fresh draw.
+      drawPool().then((ids) =>
+        animateTransition(mediaOpacity, mediaTranslateX, direction, () => {
+          setAssetPool(ids);
+          setAssetIndex(0);
+        }),
+      );
+      return;
+    }
     const newIndex = findLiveIndex(assetPool, assets, currentIndex + step, step);
     animateTransition(mediaOpacity, mediaTranslateX, direction, () => setAssetIndex(newIndex));
   }
@@ -280,12 +310,14 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm, re
               {currentAsset ? (
                 <>
                   <AssetImage asset={currentAsset} contentFit="contain" placeholderColor="transparent" />
-                  {currentAsset.duration ? (
+                  {currentAsset.mediaType === MEDIA_TYPES.VIDEO && (
                     <View style={styles.videoBadge}>
                       <Icon name="video" size={scale(11)} color={colors.textInverse} />
-                      <Text style={styles.videoBadgeText}>{formatVideoDuration(currentAsset.duration)}</Text>
+                      {!!currentAsset.duration && (
+                        <Text style={styles.videoBadgeText}>{formatVideoDuration(currentAsset.duration)}</Text>
+                      )}
                     </View>
-                  ) : null}
+                  )}
                 </>
               ) : (
                 <EmptyState icon="images" title="No media matches these filters" style={{ flex: 1 }} />
@@ -535,19 +567,17 @@ const styles = StyleSheet.create({
 function findLiveIndex(pool, assets, start, step) {
   for (let i = 0; i < pool.length; i++) {
     const index = (((start + i * step) % pool.length) + pool.length) % pool.length;
-    const asset = assets[pool[index]];
+    const asset = assets.get(pool[index]);
     if (asset && !asset.deletedAt) return index;
   }
   return -1;
 }
 
-// Ids of the live assets that match the filters, in random order.
-function shuffledAssetIds(assets, { showImages, showVideos, onlyFavorites }) {
-  const ids = [];
-  for (const asset of Object.values(assets)) {
-    if (asset.deletedAt || (onlyFavorites && !asset.isFavorite)) continue;
-    const isVideo = !!asset.duration;
-    if ((showImages && !isVideo) || (showVideos && isVideo)) ids.push(asset.id);
-  }
-  return shuffle(ids);
+// The asset filter keys for the pool: images or videos by media type (All: neither), plus favorites.
+function poolFilter({ showImages, showVideos, onlyFavorites }) {
+  const filter = [];
+  if (showImages && !showVideos) filter.push('images');
+  if (showVideos && !showImages) filter.push('videos');
+  if (onlyFavorites) filter.push('favorites');
+  return filter;
 }

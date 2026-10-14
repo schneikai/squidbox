@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import DraggableFlatList from 'react-native-draggable-flatlist';
 
@@ -7,20 +6,14 @@ import PostAsset from './PostAsset';
 import useAssetPickerHandler from './useAssetPickerHandler';
 
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
-import useAssets from '@/features/assets-context/useAssets';
 import { colors, scale } from '@/styles/designTokens';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
-import assetRefsToPostAssets from '@/utils/posts/assetRefsToPostAssets';
-import buildPostAsset from '@/utils/posts/buildPostAsset';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
-import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
 
 const LIST_VERTICAL_PADDING = 80;
 
-export default function PostAssetsEditor({ assetRefs, onChange, getRandomAsset, randomizeRef }) {
-  const { assets } = useAssets();
-  const [postAssets, setPostAssets] = useState(assetRefsToPostAssets(assetRefs, assets));
-  const [assetCountInfo, setAssetCountInfo] = useState('');
+// The post's assets ([{ id, asset }]) as an orderable strip; `onChange` gets the new list.
+export default function PostAssetsEditor({ postAssets, onChange }) {
   const { width } = useWindowDimensions();
   const { show, hide, updateProgress } = useProgressOverlay();
   const handleAddAssets = useAssetPickerHandler({
@@ -35,29 +28,17 @@ export default function PostAssetsEditor({ assetRefs, onChange, getRandomAsset, 
     height: width - LIST_VERTICAL_PADDING * 2,
   };
 
-  useEffect(() => {
-    const counts = { photo: 0, video: 0 };
-    for (const { asset } of postAssets) counts[asset.mediaType] += 1;
-    setAssetCountInfo(getAssetCountInfo(counts));
-    onChange(postAssetsToAssetRefs(postAssets));
-  }, [postAssets]);
+  const counts = { photo: 0, video: 0 };
+  for (const { asset } of postAssets) counts[asset.mediaType] += 1;
+  const assetCountInfo = getAssetCountInfo(counts);
 
   function addPostAssets(assets) {
-    setPostAssets((postAssets) => [...postAssets, ...buildPostAssets(assets)]);
+    onChange([...postAssets, ...buildPostAssets(assets)]);
   }
 
   function deletePostAsset(postAsset) {
-    setPostAssets((postAssets) => postAssets.filter((x) => x.id !== postAsset.id));
+    onChange(postAssets.filter((x) => x.id !== postAsset.id));
   }
-
-  function handleRandomizeAsset() {
-    const asset = getRandomAsset?.();
-    if (asset) setPostAssets([buildPostAsset(asset)]);
-  }
-
-  useEffect(() => {
-    if (randomizeRef) randomizeRef.current = handleRandomizeAsset;
-  });
 
   return (
     <View style={[styles.container, { width, height: width }]}>
@@ -65,7 +46,7 @@ export default function PostAssetsEditor({ assetRefs, onChange, getRandomAsset, 
         data={postAssets}
         horizontal
         showsHorizontalScrollIndicator={false}
-        onDragEnd={({ data }) => setPostAssets(data)}
+        onDragEnd={({ data }) => onChange(data)}
         keyExtractor={(postAsset) => postAsset.id}
         renderItem={({ item: postAsset, drag, isActive }) => (
           <PostAsset

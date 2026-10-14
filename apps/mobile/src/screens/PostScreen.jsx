@@ -2,14 +2,12 @@ import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import Post from '@/features/post-detail/Post';
 import MoreAction from '@/features/post-detail/actions/MoreAction';
-import usePosts from '@/features/posts-context/usePosts';
+import usePost from '@/features/post-detail/usePost';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import formatDetailHeaderDate from '@/utils/date-time/formatDetailHeaderDate';
 
 export default function PostScreen({ route, navigation }) {
-  const { postId } = route.params;
-  const { posts } = usePosts();
-  const post = posts[postId] ?? null;
+  const post = usePost(route.params.postId);
   const { paddingTop } = useScreenPadding('detail');
 
   if (!post) return null;
