@@ -31,6 +31,27 @@ contain raw markup such as JS array notation.
 In the system picker (camera roll), tap-and-drag to select makes the whole screen move left and
 right. The picker is native, so check what the app can influence through its options.
 
+### [ ] "Archived" album filter shows nothing outside the Albums tab
+
+In Add to Album and the picker's albums list, the "Archived" filter shows an empty list:
+`prepareAlbums` hides archived albums unless `showArchivedAlbums` is passed, which only
+`AlbumsScreen` does. The paged-reads plan's album query fixes it.
+
+### [ ] Album screen crashes on an unknown album id
+
+`screens/AlbumScreen.jsx` calls `isDeletedAssetsAlbum(album)` before checking that the album
+exists, so a stale link to a deleted album crashes. The paged-reads plan's loading gate covers it.
+
+### [ ] "Posted …" shows on every album row
+
+`AlbumListItem` ignores its `showLastPostedAt` prop, so every album row shows "Posted …" whether
+or not the screen asks for it. Decide whether rows should show it only when sorted by last posted.
+
+### [ ] Random suggestions treat a video without a duration as a photo
+
+`RandomSuggestionsModal` tells videos from photos by `duration`; the rest of the app uses
+`mediaType`. A video with no duration lands in the photo pool.
+
 ## Features
 
 ### [ ] Drag to reorder albums
