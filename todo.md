@@ -210,7 +210,9 @@ writing the flags in one `updateAsset` halves the waits and the writes per photo
 
 The web preview (README → "Web preview") can't add photos from the camera roll, upload, download
 files or pinch. Web versions exist only for tokens and thumbnails. Extend them if testing those
-flows in the browser becomes worth it.
+flows in the browser becomes worth it. The photo viewer also doesn't follow a scroll on web:
+react-native-web's ScrollView never fires `onMomentumScrollEnd`/`onScrollEndDrag`, so
+`AssetPager` never learns the new page (header, actions and notes stay on the first photo).
 
 ### [ ] Sentry receives events from development
 

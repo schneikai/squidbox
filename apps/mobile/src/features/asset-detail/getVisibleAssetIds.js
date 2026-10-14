@@ -1,4 +1,4 @@
-/** The pager's assets: `assetIds` without missing or deleted assets, in order. */
-export default function getVisibleAssetIds(assetIds, assets) {
-  return assetIds.filter((assetId) => assets[assetId] && !assets[assetId].deletedAt);
+/** The pager's assets: `assetIds` without the ones that dropped out (deleted or missing), in order. */
+export default function getVisibleAssetIds(assetIds, droppedIds) {
+  return assetIds.filter((assetId) => !droppedIds.has(assetId));
 }

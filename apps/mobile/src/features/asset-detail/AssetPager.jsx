@@ -3,19 +3,17 @@ import { FlatList, useWindowDimensions } from 'react-native';
 
 import AssetItem from './AssetItem';
 
-import useAssets from '@/features/assets-context/useAssets';
-
 const keyExtractor = (assetId) => assetId;
 
 /**
  * Horizontally paged, controlled list of assets: it shows `currentAssetId` and reports the page
- * the user settles on through `onChangeAssetId`. Memoized with stable list props, so a swipe
- * re-renders the pager but not its pages.
+ * the user settles on through `onChangeAssetId`. `assetsById` holds the rows around the current one
+ * (the screen's window); a page outside it is blank, never visible with paging. Memoized with
+ * stable list props, so a swipe re-renders the pager but not its pages.
  */
 export default memo(AssetPager);
 
-function AssetPager({ assetIds, currentAssetId, onChangeAssetId, onTapAsset }) {
-  const { assets } = useAssets();
+function AssetPager({ assetIds, assetsById, currentAssetId, onChangeAssetId, onTapAsset }) {
   const { width: pageWidth } = useWindowDimensions();
   // Pages take the pager's height explicitly: native stretches list items to it, the web doesn't.
   const [pageHeight, setPageHeight] = useState(0);
@@ -44,8 +42,8 @@ function AssetPager({ assetIds, currentAssetId, onChangeAssetId, onTapAsset }) {
   );
   const pageStyle = useMemo(() => ({ width: pageWidth, height: pageHeight }), [pageWidth, pageHeight]);
   const renderItem = useCallback(
-    ({ item: assetId }) => <AssetItem asset={assets[assetId]} style={pageStyle} onTap={onTapAsset} />,
-    [assets, pageStyle, onTapAsset],
+    ({ item: assetId }) => <AssetItem asset={assetsById.get(assetId)} style={pageStyle} onTap={onTapAsset} />,
+    [assetsById, pageStyle, onTapAsset],
   );
   const getItemLayout = useCallback(
     (_, index) => ({ length: pageWidth, offset: pageWidth * index, index }),
