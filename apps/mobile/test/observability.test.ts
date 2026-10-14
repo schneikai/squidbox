@@ -3,7 +3,7 @@ import { desc } from 'drizzle-orm';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
-import { loadAssetsMap } from './helpers/loadAssetsMap';
+import { readLiveAsset } from './helpers/readLiveAsset';
 import { makeTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
@@ -97,9 +97,8 @@ describe('dev operations', () => {
         hasMore: false,
       }),
     });
-    const map = await loadAssetsMap(db);
-    expect(map[server.id]).toBeTruthy(); // repulled
-    expect(map[local.id]).toMatchObject({ notes: 'local-only' }); // pending edit kept, then pushed
+    expect(await readLiveAsset(db, server.id)).toBeTruthy(); // repulled
+    expect(await readLiveAsset(db, local.id)).toMatchObject({ notes: 'local-only' }); // pending edit kept, then pushed
   });
 
   it('fullResync keeps showing a pending edit the server keeps rejecting', async () => {
@@ -115,6 +114,6 @@ describe('dev operations', () => {
       }),
       pull: async () => ({ changes: { assets: { records: [] } }, cursor: 3, hasMore: false }),
     });
-    expect((await loadAssetsMap(db))[local.id]).toMatchObject({ notes: 'rejected' });
+    expect(await readLiveAsset(db, local.id)).toMatchObject({ notes: 'rejected' });
   });
 });

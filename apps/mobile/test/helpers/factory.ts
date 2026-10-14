@@ -17,8 +17,6 @@ export function makeAssetRecord(over: Partial<AssetRecord> = {}): AssetRecord {
     thumbnailFilename: 't.jpg',
     isFavorite: false,
     notes: null,
-    postHistory: [],
-    lastPostedAt: null,
     oldFileId: null,
     isFileSynced: true,
     isThumbnailSynced: true,

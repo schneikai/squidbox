@@ -25,7 +25,6 @@ export function toAssetRecord(input: AnyAsset): AssetRecord {
     thumbnailFilename: input.thumbnailFilename,
     isFavorite: !!input.isFavorite,
     notes: input.notes ?? null,
-    // postHistory / lastPostedAt are derived on-device (sync/derive.ts), not stored.
     oldFileId: input.oldFileId ?? null,
     isFileSynced: !!input.isFileSynced,
     isThumbnailSynced: !!input.isThumbnailSynced,
@@ -42,7 +41,5 @@ export function toAssetChanges(changes: AnyAsset): Partial<AssetRecord> {
   }
   if (out.mediaType === 'image') out.mediaType = 'photo';
   delete out.syncError; // local-only; not a synced change here
-  delete out.postHistory; // derived on-device — not a stored column anymore
-  delete out.lastPostedAt;
   return out as Partial<AssetRecord>;
 }

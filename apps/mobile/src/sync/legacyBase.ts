@@ -2,10 +2,9 @@
 // Generic legacy↔modern base-field adapter for collections without domain-specific quirks
 // (albums, posts): maps the legacy `isDeleted` boolean to the modern `deletedAt` tombstone.
 // Assets use their own richer adapter (mediaType, syncError) in legacyAsset.ts.
-// Membership arrays (`assets`, `assetRefs`) and the derived `postHistory`/`lastPostedAt` are no
-// longer columns — they live in the album_assets/post_assets edge collections and derive.ts.
-// Strip them so a stray legacy-shaped write can't try to insert a non-existent column.
-function stripDerived({ assets, assetRefs, postHistory, lastPostedAt, ...rest }: Record<string, any>) {
+// Membership arrays (`assets`, `assetRefs`) are not columns — they live in the album_assets /
+// post_assets edge collections. Strip them so a legacy-shaped write can't try to insert them.
+function stripDerived({ assets, assetRefs, ...rest }: Record<string, any>) {
   return rest;
 }
 

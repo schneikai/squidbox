@@ -1,10 +1,10 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { describe, it, expect, beforeEach } from 'vitest';
 
+import { albumOrder } from './helpers/albumOrder';
 import { makeTestDb } from './helpers/testDb';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
-import { orderedAssetsByAlbum } from '../src/sync/derive';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
 import { makeRepository } from '../src/sync/repository';
 
@@ -21,8 +21,7 @@ describe('edgesRepository (album_assets)', () => {
   });
 
   async function order(): Promise<string[]> {
-    const rows = await db.select().from(schema.albumAssets);
-    return orderedAssetsByAlbum(rows as any)[AL] ?? [];
+    return albumOrder(await db.select().from(schema.albumAssets), AL);
   }
   // The album's live edges in canonical order, one per asset, with their keys.
   async function liveEdges(): Promise<{ assetId: string; position: string; id: string }[]> {
@@ -152,7 +151,7 @@ describe('edgesRepository (album_assets)', () => {
     expect(await order()).toEqual([]); // AL has no live edges
     const rows = await db.select().from(schema.albumAssets);
     expect(rows.filter((r) => r.albumId === AL).every((r) => r.deletedAt != null)).toBe(true);
-    expect(orderedAssetsByAlbum(rows as any)['album-2']).toEqual(['x']); // other album intact
+    expect(albumOrder(rows, 'album-2')).toEqual(['x']); // other album intact
   });
 
   it('setRefs reconciles to exactly the target list (add + remove + reorder in one)', async () => {

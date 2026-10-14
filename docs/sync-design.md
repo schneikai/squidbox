@@ -40,22 +40,22 @@ The registered collections are `assets`, `albums`, `posts`, `album_assets` and `
 
 Every synced record, on server and client, carries:
 
-| Field       | Type              | Set by     | Purpose |
-|-------------|-------------------|------------|---------|
-| `id`        | uuid string       | **client** | Record id. Client-generated so offline creates work. The server PK is `(user_id, id)` (§2a). |
-| `createdAt` | number (epoch ms) | writer     | Creation time. |
-| `updatedAt` | number (epoch ms) | writer     | Logical clock for last-write-wins. |
-| `deletedAt` | number \| null    | writer     | Tombstone. Non-null means deleted. |
-| domain fields | per collection  | writer     | The actual data. |
+| Field         | Type              | Set by     | Purpose                                                                                      |
+| ------------- | ----------------- | ---------- | -------------------------------------------------------------------------------------------- |
+| `id`          | uuid string       | **client** | Record id. Client-generated so offline creates work. The server PK is `(user_id, id)` (§2a). |
+| `createdAt`   | number (epoch ms) | writer     | Creation time.                                                                               |
+| `updatedAt`   | number (epoch ms) | writer     | Logical clock for last-write-wins.                                                           |
+| `deletedAt`   | number \| null    | writer     | Tombstone. Non-null means deleted.                                                           |
+| domain fields | per collection    | writer     | The actual data.                                                                             |
 
 `baseRecordSchema` in `packages/shared/collections/define.ts` defines these.
 
 Server-only columns, never accepted from the client and stripped from pull and push responses
 (`toWireRecord`):
 
-| Column       | Type   | Purpose |
-|--------------|--------|---------|
-| `user_id`    | uuid   | Owner. Always taken from the auth token. |
+| Column       | Type   | Purpose                                                            |
+| ------------ | ------ | ------------------------------------------------------------------ |
+| `user_id`    | uuid   | Owner. Always taken from the auth token.                           |
 | `server_seq` | bigint | Per-write monotonic sequence. The pull cursor is based on it (§3). |
 
 Client-only fields live only in local SQLite and are never synced (§4).
@@ -329,30 +329,19 @@ Tables (`apps/mobile/src/sync/db/schema.ts`):
 - `outbox(id, collection, record_id, op, payload, updated_at, created_at)`: pending mutations,
   one row per record. `op` is `delete` when the payload has `deletedAt`, otherwise `upsert`.
 - `sync_log`: recent sync runs (§13).
-- `row_changes(table_name, row_id, version)`: a change log that triggers on every synced table
-  keep current. Each insert, update or delete records the row with a version that rises per
-  table.
 
-**Reads.** `useLiveTable` shares one live read per table across all components. It loads the
-table once, then after each notification for it fetches only the rows changed since its last
-version (`readLiveRows.ts`, via `row_changes`). Unchanged rows keep their objects, so a write to
-one of 50,000 assets reads one row. `useLiveQuery` re-runs other queries (counts) on a
-notification for their tables.
+**Reads.** Nothing holds a whole table in memory. Each screen declares what it shows as a small
+query descriptor and reads it live (`docs/paged-reads-plan.md`): `watchQuery.ts` runs a read once
+and again after each committed write to the tables it watches, never overlapping, keeping the
+object of every row whose fields are unchanged; `useLiveQuery` wraps it for a screen and pauses it
+while the screen is blurred; `usePagedQuery` reads the first `limit` rows and the exact count of a
+query and grows the limit as the user scrolls. The query builders (`assetQuery`, `albumQuery`,
+`postQuery`) turn a descriptor into SQL with a stable order (every `ORDER BY` ends in `id`) over
+the partial indexes of migration 0006; album stats and `lastPostedAt` are computed in SQL per read,
+never stored or synced. Memoized grid cells re-render only for the rows a write touched.
 
-The data providers (`AssetsProvider`, `AlbumsProvider`, `PostsProvider`) expose id-keyed records
-and methods to the screens. They rebuild the record shapes the UI expects from edges and posts
-(`derive.ts`), through `deriveRecords.ts`, which keeps every record's object while its row and
-derived values are unchanged. Memoized grid cells therefore re-render only for the records a
-write touched:
-
-- `album.assets`: live edges sorted by `position`, one per asset.
-- `post.assetRefs`: the same, as `{ id, assetId }` with the edge id.
-- `postHistory` and `lastPostedAt` on assets: the non-deleted posts that reference the asset,
-  ordered by `postedAt`; `lastPostedAt` is the last one's.
-- `postHistory` and `lastPostedAt` on albums: posts that reference any asset in the album.
-
-`postHistory` and `lastPostedAt` are never stored or synced. Posts are independent records, so
-deriving the history loses nothing, while syncing it as a list would drop entries under LWW.
+The data providers (`AssetsProvider`, `AlbumsProvider`, `PostsProvider`) expose the write methods
+to the screens; membership lives in the edge collections and is read where needed.
 
 **Writes.** Each provider method calls a repository (`assetsRepository.ts`, `repository.ts`,
 `edgesRepository.ts`). In one transaction it gives the records their next `updatedAt` (§6) and
@@ -411,11 +400,12 @@ Each collection is defined once in `packages/shared/collections/`:
 // packages/shared/collections/asset.ts
 export const assetCollection = defineCollection({
   name: 'assets',
-  schema: baseRecordSchema.extend({ // synced fields; base columns come from baseRecordSchema
+  schema: baseRecordSchema.extend({
+    // synced fields; base columns come from baseRecordSchema
     mediaLibraryAssetId: z.string(),
     mediaType: z.enum(['photo', 'video']),
     // …
-    isFileSynced: z.boolean(),      // global "file is in S3" facts, synced (§4)
+    isFileSynced: z.boolean(), // global "file is in S3" facts, synced (§4)
     isThumbnailSynced: z.boolean(),
     isSynced: z.boolean(),
   }),
@@ -520,7 +510,7 @@ All sync state is local to the device and none of it syncs.
 ### Engine state
 
 - **Status** in `sync_meta.status`: `{ phase: 'idle' | 'pushing' | 'pulling' | 'error',
-  lastPushAt, lastPullAt, lastError }`. The cursor is stored separately under `cursor`.
+lastPushAt, lastPullAt, lastError }`. The cursor is stored separately under `cursor`.
   `useSyncStatus` exposes both, plus the pending count, as live queries.
 - **Outbox.** A record is pending if it has an outbox row. Pending counts are queried from the
   outbox overall and per collection.

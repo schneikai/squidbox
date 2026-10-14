@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
-import { loadAssetsMap } from './helpers/loadAssetsMap';
+import { readLiveAsset } from './helpers/readLiveAsset';
 import { makeTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
@@ -37,10 +37,9 @@ function transport(over: Partial<SyncTransport> = {}): SyncTransport {
 }
 
 describe('repository (real SQLite)', () => {
-  it('createAsset writes the row and one outbox row; loadAssetsMap returns it', async () => {
+  it('createAsset writes the row and one outbox row; the row reads back', async () => {
     const rec = await repo.createAsset(db, makeAssetRecord({ filename: 'x.jpg' }));
-    const map = await loadAssetsMap(db);
-    expect(map[rec.id]).toMatchObject({ id: rec.id, filename: 'x.jpg' });
+    expect(await readLiveAsset(db, rec.id)).toMatchObject({ id: rec.id, filename: 'x.jpg' });
     const ob = await outboxRows();
     expect(ob).toHaveLength(1);
     expect(ob[0]).toMatchObject({ collection: 'assets', recordId: rec.id, op: 'upsert' });
@@ -66,7 +65,7 @@ describe('repository (real SQLite)', () => {
   it('deleteAssets tombstones (excluded from the live map) and enqueues a delete', async () => {
     const rec = await repo.createAsset(db, makeAssetRecord());
     await repo.deleteAssets(db, [rec.id]);
-    expect((await loadAssetsMap(db))[rec.id]).toBeUndefined();
+    expect(await readLiveAsset(db, rec.id)).toBeUndefined();
     const row = await assetRow(rec.id);
     expect(row?.deletedAt).not.toBeNull();
     const ob = await outboxRows();
@@ -168,7 +167,7 @@ describe('worker pull', () => {
         }),
       }),
     );
-    expect((await loadAssetsMap(db))[incoming.id]).toMatchObject({ filename: 'pulled.jpg' });
+    expect(await readLiveAsset(db, incoming.id)).toMatchObject({ filename: 'pulled.jpg' });
     expect(await getCursor(db)).toBe(42);
   });
 

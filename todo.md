@@ -156,19 +156,11 @@ example jest-expo with React Native Testing Library) and cover the key screens f
 detail pager, login and sign-out, and the library grid. Consider end-to-end tests (for example
 Maestro) for the main flows later.
 
-### [ ] Read lists page by page from SQLite
-
-The providers still load whole tables (assets, album edges, posts) into memory on every launch,
-so startup grows with the library. Plan, reviewed and ready to build: `docs/paged-reads-plan.md`.
-Baseline at 50k, web preview release bundle in the cloud workspace (`npm run web:measure`):
-reload → first cell 4.2–4.6 s, idle JS heap 51.8 MB, favorite toggle ≈ 455 ms of script.
-A native baseline (`DatabaseGate` → first cell on a phone) is still to take.
-
 ### [ ] Check a 50,000-asset library on a device
 
 The data layer was tuned on the web preview (`npm run seed:mock -- --assets 50000`): a favorite
 toggle costs ~0.2 s of main-thread work there, a pull of 1,000 remote changes ~0.3 s, and the first
-sync ~40 s (web storage is slow; the change-log triggers double the write cost). Measure the same on
+sync ~40 s (web storage is slow). Measure the same on
 an iPhone with the dev client.
 
 ### [ ] Smaller data-layer costs

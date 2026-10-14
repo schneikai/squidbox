@@ -10,7 +10,6 @@ import postQuery from '../src/features/post-list/postQuery';
 import * as repo from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
-import { readLiveRows } from '../src/sync/readLiveRows';
 import { makeRepository } from '../src/sync/repository';
 import type { SyncTransport } from '../src/sync/transport';
 import { runSyncOnce } from '../src/sync/worker';
@@ -74,24 +73,6 @@ describe('performance at library scale', () => {
     expect(work.fullScans.filter(isBigTableScan)).toEqual([]);
   });
 
-  it('a favorite toggle and the live refresh after it cost the same at 1,000 and 10,000 assets', async () => {
-    const costs = [];
-    for (const count of [1_000, 10_000]) {
-      const { db, measure, assets } = await syncedLibrary(count);
-      const before = await readLiveRows(db, schema.assets);
-      const work = await measure(async () => {
-        await repo.toggleFavorite(db, assets[count / 2].id);
-        await readLiveRows(db, schema.assets, before);
-      });
-      expect(work.fullScans.filter(isBigTableScan)).toEqual([]);
-      costs.push(work);
-    }
-    const [small, large] = costs;
-    expect(large.statements).toBe(small.statements);
-    expect(large.rowsRead).toBe(small.rowsRead);
-    expect(large.rowsRead).toBeLessThan(10);
-  });
-
   it('a favorite toggle with the page re-read after it, and a load-more, read the same rows at 1,000 and 10,000 assets', async () => {
     const costs = [];
     for (const count of [1_000, 10_000]) {
@@ -136,16 +117,6 @@ describe('performance at library scale', () => {
     expect(large.statements).toBe(small.statements);
     expect(large.rowsRead).toBe(small.rowsRead);
     expect(large.rowsRead).toBeLessThanOrEqual(LIMIT + 1);
-  });
-
-  it('a pull of 1,000 remote changes refreshes the live rows by reading only those', async () => {
-    const { db, measure, assets } = await syncedLibrary(10_000);
-    const before = await readLiveRows(db, schema.assets);
-    const changed = assets.slice(0, PAGE).map((asset) => ({ ...asset, notes: 'edited', updatedAt: 2000 }));
-    await runSyncOnce(db, pullTransport(changed, assets.length));
-    const work = await measure(() => readLiveRows(db, schema.assets, before));
-    expect(work.rowsRead).toBeLessThan(PAGE * 2 + 10); // the change-log ids and the rows, not 10,000
-    expect(work.fullScans.filter(isBigTableScan)).toEqual([]);
   });
 
   it('a pull of 1,000 remote changes re-reads one page', async () => {
@@ -393,7 +364,7 @@ describe('plan guard', () => {
 
 // Small tables (outbox, sync_meta, sync_log) may be scanned.
 function isBigTableScan(detail: string): boolean {
-  return /^SCAN (assets|albums|album_assets|posts|post_assets|row_changes)\b/.test(detail);
+  return /^SCAN (assets|albums|album_assets|posts|post_assets)\b/.test(detail);
 }
 
 // Every table is walked through an index (an ordered walk prints as SCAN … USING INDEX) and nothing

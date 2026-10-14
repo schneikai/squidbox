@@ -4,44 +4,21 @@ import AlbumsContext from './AlbumsContext';
 
 import assetQuery from '@/features/asset-list/assetQuery';
 import { getDb, schema } from '@/sync/db/client';
-import { orderedAssetsByAlbum, deriveAlbumPostHistory } from '@/sync/derive';
 import { makeEdgeRepository } from '@/sync/edgesRepository';
 import { toModernRecord, toModernChanges } from '@/sync/legacyBase';
 import { makeRepository } from '@/sync/repository';
-import { useLiveCollectionMap, useLiveCollectionRows } from '@/sync/useCollection';
-import { useDerivedRecords } from '@/sync/useDerivedRecords';
 import { requestSync } from '@/sync/worker';
 import { writeInBatches } from '@/sync/writeInBatches';
 import albumSchema from '@/utils/albums/albumSchema';
 import getNewItemId from '@/utils/getNewItemId';
 
-// SQLite-backed albums store. Membership lives in the album_assets edge collection (add/remove/
-// reorder are independent edge writes that don't clobber across devices); `assets`, `postHistory`
-// and `lastPostedAt` are synthesized/derived here so consumers keep seeing the old record shape.
-// Only mounted after the initial pull finishes (see AppGate), so it always reads the full library.
+// The album writes. Membership lives in the album_assets edge collection (add/remove/reorder are
+// independent edge writes that don't clobber across devices). Screens read albums through their
+// own live queries (albumQuery, readByIds).
 const repo = makeRepository('albums', schema.albums);
 const edges = makeEdgeRepository('album_assets', schema.albumAssets, 'albumId');
 
-const NONE = [];
-
 export default function AlbumsProvider({ children }) {
-  const albumRows = useLiveCollectionRows(schema.albums);
-  const albumEdges = useLiveCollectionRows(schema.albumAssets);
-  const postEdges = useLiveCollectionRows(schema.postAssets);
-  const posts = useLiveCollectionMap(schema.posts);
-
-  // Synthesize the ordered `assets` array + derived post history onto each album record.
-  const albumExtrasOf = useMemo(() => {
-    const assetsByAlbum = orderedAssetsByAlbum(albumEdges);
-    const { historyById, lastPostedAtById } = deriveAlbumPostHistory(posts, postEdges, albumEdges);
-    return (row) => ({
-      assets: assetsByAlbum[row.id] ?? NONE,
-      postHistory: historyById[row.id] ?? NONE,
-      lastPostedAt: lastPostedAtById[row.id] ?? null,
-    });
-  }, [albumEdges, postEdges, posts]);
-  const albums = useDerivedRecords(albumRows, albumExtrasOf);
-
   // A user action that writes the album and its edges commits once (repository transactions inside
   // `tx` become savepoints), so readers never see half of it.
   const value = useMemo(() => {
@@ -51,7 +28,6 @@ export default function AlbumsProvider({ children }) {
       requestSync();
     }
     return {
-      albums,
       addAlbum: async (data) => {
         const casted = albumSchema.cast(data);
         const assetIds = casted.assets ?? [];
@@ -104,7 +80,7 @@ export default function AlbumsProvider({ children }) {
         requestSync();
       },
     };
-  }, [albums]);
+  }, []);
 
   return <AlbumsContext.Provider value={value}>{children}</AlbumsContext.Provider>;
 }

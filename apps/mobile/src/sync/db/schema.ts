@@ -3,8 +3,8 @@ import { sqliteTable, text, integer, real, index, uniqueIndex } from 'drizzle-or
 
 // Client (SQLite) mirror of the shared asset collection descriptor. Synced fields match
 // @squidbox/shared assetCollection.schema; syncError is the local-only field. Booleans are
-// integers (mode:'boolean'); postHistory is JSON text. Local PK is `id` alone — this device
-// only ever holds one user's data (the server uses composite (user_id, id)).
+// integers (mode:'boolean'). Local PK is `id` alone — this device only ever holds one user's data
+// (the server uses composite (user_id, id)).
 export const assets = sqliteTable(
   'assets',
   {
@@ -22,7 +22,7 @@ export const assets = sqliteTable(
     thumbnailFilename: text('thumbnail_filename').notNull(),
     isFavorite: integer('is_favorite', { mode: 'boolean' }).notNull(),
     notes: text('notes'),
-    // postHistory / lastPostedAt are derived on-device (see sync/derive.ts), not stored/synced.
+    // lastPostedAt is computed by the reads (assetQuery, albumQuery), not stored or synced.
     oldFileId: text('old_file_id'),
     isFileSynced: integer('is_file_synced', { mode: 'boolean' }).notNull(),
     isThumbnailSynced: integer('is_thumbnail_synced', { mode: 'boolean' }).notNull(),
@@ -53,7 +53,7 @@ export const assets = sqliteTable(
 export type AssetRow = typeof assets.$inferSelect;
 
 // albums — mirrors @squidbox/shared albumCollection. Membership is in `album_assets` edges;
-// postHistory/lastPostedAt are derived (sync/derive.ts). No local-only.
+// the stats (count, cover, lastPostedAt) are computed by albumQuery. No local-only.
 export const albums = sqliteTable('albums', {
   id: text('id').primaryKey(),
   createdAt: integer('created_at').notNull(),
@@ -175,19 +175,3 @@ export const syncLog = sqliteTable('sync_log', {
   notes: text('notes'),
 });
 export type SyncLogRow = typeof syncLog.$inferSelect;
-
-// Local change log for live reads: triggers on every synced table (migration 0004) record each
-// inserted, updated or deleted row with a version that rises per table, so a live read fetches
-// only the rows that changed since its last version (see readLiveRows) instead of the whole table.
-export const rowChanges = sqliteTable(
-  'row_changes',
-  {
-    tableName: text('table_name').notNull(),
-    rowId: text('row_id').notNull(),
-    version: integer('version').notNull(),
-  },
-  (t) => ({
-    onePerRow: uniqueIndex('row_changes_table_row_idx').on(t.tableName, t.rowId),
-    byTableVersion: index('row_changes_table_version_idx').on(t.tableName, t.version),
-  }),
-);

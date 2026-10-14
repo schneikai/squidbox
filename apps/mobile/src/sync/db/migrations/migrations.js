@@ -8,6 +8,7 @@ import m0003 from './0003_dizzy_falcon.sql';
 import m0004 from './0004_row_changes.sql';
 import m0005 from './0005_tearful_marauders.sql';
 import m0006 from './0006_query_indexes.sql';
+import m0007 from './0007_drop_row_changes.sql';
 
   export default {
     journal,
@@ -18,7 +19,8 @@ m0002,
 m0003,
 m0004,
 m0005,
-m0006
+m0006,
+m0007
     }
   }
   

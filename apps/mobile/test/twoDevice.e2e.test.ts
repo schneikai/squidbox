@@ -4,8 +4,9 @@ import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 
+import { albumOrder } from './helpers/albumOrder';
 import { makeAssetRecord } from './helpers/factory';
-import { loadAssetsMap } from './helpers/loadAssetsMap';
+import { readLiveAsset } from './helpers/readLiveAsset';
 import { makeTestDb } from './helpers/testDb';
 // Real server engine (against docker Postgres) — the other side of the round-trip.
 import * as serverSchema from '../../server/src/db/schema.js';
@@ -14,7 +15,6 @@ import { push as serverPush } from '../../server/src/sync/push.js';
 import * as repo from '../src/sync/assetsRepository';
 import * as clientSchema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
-import { orderedAssetsByAlbum } from '../src/sync/derive';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
 import { makeRepository } from '../src/sync/repository';
 import type { SyncTransport } from '../src/sync/transport';
@@ -31,7 +31,6 @@ function albumRecord(over: Record<string, unknown> = {}) {
     assets: [],
     isFavorite: false,
     archivedAt: null,
-    postHistory: [],
     lastPostedAt: null,
     showInPostSuggestionsAfter: null,
     oldCollectionName: null,
@@ -91,7 +90,7 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
     const rec = await repo.createAsset(deviceA, makeAssetRecord({ filename: 'from-a.jpg' }));
     await runSyncOnce(deviceA, transport); // A pushes
     await runSyncOnce(deviceB, transport); // B pulls
-    const onB = (await loadAssetsMap(deviceB))[rec.id];
+    const onB = await readLiveAsset(deviceB, rec.id);
     expect(onB).toMatchObject({ id: rec.id, filename: 'from-a.jpg' });
   });
 
@@ -111,8 +110,8 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
     await runSyncOnce(deviceA, transport);
     await runSyncOnce(deviceB, transport);
 
-    const a = (await loadAssetsMap(deviceA))[rec.id];
-    const b = (await loadAssetsMap(deviceB))[rec.id];
+    const a = await readLiveAsset(deviceA, rec.id);
+    const b = await readLiveAsset(deviceB, rec.id);
     expect(a.notes).toBe(b.notes); // converged (byte-identical winner)
     expect(['edited-on-A', 'edited-on-B']).toContain(a.notes);
     expect(a.updatedAt).toBe(b.updatedAt);
@@ -149,8 +148,8 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
       await runSyncOnce(deviceB, transport);
     }
 
-    const orderA = orderedAssetsByAlbum(await deviceA.select().from(clientSchema.albumAssets))[albumId];
-    const orderB = orderedAssetsByAlbum(await deviceB.select().from(clientSchema.albumAssets))[albumId];
+    const orderA = albumOrder(await deviceA.select().from(clientSchema.albumAssets), albumId);
+    const orderB = albumOrder(await deviceB.select().from(clientSchema.albumAssets), albumId);
     expect(orderA).toEqual(orderB); // converged
     expect(orderA).toContain(a4); // A's add survived B's reorder
     expect(orderA.indexOf(a3)).toBeLessThan(orderA.indexOf(a1)); // B's reorder survived A's add
@@ -161,11 +160,11 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
     const rec = await repo.createAsset(deviceA, makeAssetRecord());
     await runSyncOnce(deviceA, transport);
     await runSyncOnce(deviceB, transport);
-    expect((await loadAssetsMap(deviceB))[rec.id]).toBeDefined();
+    expect(await readLiveAsset(deviceB, rec.id)).toBeDefined();
 
     await repo.deleteAssets(deviceA, [rec.id]);
     await runSyncOnce(deviceA, transport); // push tombstone
     await runSyncOnce(deviceB, transport); // pull tombstone
-    expect((await loadAssetsMap(deviceB))[rec.id]).toBeUndefined();
+    expect(await readLiveAsset(deviceB, rec.id)).toBeUndefined();
   });
 });

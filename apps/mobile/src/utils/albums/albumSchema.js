@@ -15,8 +15,6 @@ const albumSchema = Yup.object()
     isDeleted: Yup.boolean().default(false),
     createdAt: Yup.number().default(getTimestamp),
     updatedAt: Yup.number().default(getTimestamp),
-    postHistory: Yup.array().of(Yup.string()).default([]),
-    lastPostedAt: Yup.number().nullable().default(null),
     showInPostSuggestionsAfter: Yup.number().nullable().default(null),
     oldCollectionName: Yup.string().nullable().default(null),
     notes: Yup.string().nullable().default(null),

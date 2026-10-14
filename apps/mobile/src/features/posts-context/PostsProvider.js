@@ -3,38 +3,22 @@ import { useMemo } from 'react';
 import PostsContext from './PostsContext';
 
 import { getDb, schema } from '@/sync/db/client';
-import { assetRefsByPost } from '@/sync/derive';
 import { makeEdgeRepository } from '@/sync/edgesRepository';
 import { toModernRecord, toModernChanges } from '@/sync/legacyBase';
 import * as repo from '@/sync/postsRepository';
-import { useLiveCollectionRows } from '@/sync/useCollection';
-import { useDerivedRecords } from '@/sync/useDerivedRecords';
 import { requestSync } from '@/sync/worker';
 import postSchema from '@/utils/posts/postSchema';
 
-// SQLite-backed posts store. Asset references live in the post_assets edge collection; `assetRefs`
-// is synthesized here so consumers keep the old shape. postHistory is now derived (no side effects).
-// Only mounted after the initial pull finishes (see AppGate), so it always reads the full library.
+// The post writes. Asset references live in the post_assets edge collection (`assetRefs` in, as the
+// editor emits them). Screens read posts through their own live queries (postQuery).
 const edges = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
 
-const NO_REFS = [];
-
 export default function PostsProvider({ children }) {
-  const postRows = useLiveCollectionRows(schema.posts);
-  const postEdges = useLiveCollectionRows(schema.postAssets);
-
-  const assetRefsOf = useMemo(() => {
-    const refsByPost = assetRefsByPost(postEdges);
-    return (row) => ({ assetRefs: refsByPost[row.id] ?? NO_REFS });
-  }, [postEdges]);
-  const posts = useDerivedRecords(postRows, assetRefsOf);
-
   // A user action that writes the post and its edges commits once (repository transactions inside
   // `tx` become savepoints), so readers never see half of it.
   const value = useMemo(() => {
     const db = getDb();
     return {
-      posts,
       addPost: async (data) => {
         const casted = postSchema.cast(data);
         const refs = casted.assetRefs ?? [];
@@ -58,7 +42,6 @@ export default function PostsProvider({ children }) {
         requestSync();
       },
       deletePost: async (id) => {
-        if (!posts[id]) throw new Error(`Post ${id} not found.`);
         await db.transaction(async (tx) => {
           await repo.deletePosts(tx, [id]);
           await edges.tombstoneParent(tx, id);
@@ -66,7 +49,7 @@ export default function PostsProvider({ children }) {
         requestSync();
       },
     };
-  }, [posts]);
+  }, []);
 
   return <PostsContext.Provider value={value}>{children}</PostsContext.Provider>;
 }
