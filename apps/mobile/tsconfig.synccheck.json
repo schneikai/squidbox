@@ -1,1 +1,5 @@
-{ "extends": "./tsconfig.json", "compilerOptions": { "strict": true }, "include": ["src/sync/**/*.ts"] }
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "strict": true },
+  "include": ["src/sync/**/*.ts", "src/library/**/*.ts"]
+}

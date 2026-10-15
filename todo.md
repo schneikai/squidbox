@@ -16,11 +16,6 @@ thumbnail through `POST /assets/delete` and remove the records for good.
 When another device deletes an asset, this device applies the tombstone but keeps its local file
 and thumbnail. See `docs/sync-design.md` §7a.
 
-### [ ] Uploads during an account switch
-
-A file upload that is in flight while another account signs in can retry with the new session
-and leave an orphaned file in that account's storage. Rare and harmless to metadata.
-
 ### [ ] AI chat corrections misbehave
 
 Asking for corrections sometimes returns a single post instead of variations, and replies sometimes
@@ -204,11 +199,6 @@ uploaded asset. Coalesce its re-reads to about one per second (`useAlbumRows` / 
 runs, so fast typing in a search queues one full read per keystroke and the last one waits behind
 them. Check the stopped flag when the read starts.
 
-### [ ] Start cloud init while the database opens
-
-`AppInit` sits inside `DatabaseGate` (`App.js`), so the splash waits for opening and migrating the
-database, then for `initializeCloudAsync`. Running both at once would shorten launch a little.
-
 ### [ ] Upload a photo's file and thumbnail at once
 
 The upload loop (`CloudSyncProvider.js`) uploads the file, then the thumbnail, and writes the
@@ -254,6 +244,15 @@ Node 20 reached end of life in April 2026. `mise.toml` pins 20.19.4 and the serv
   runs would remove the pitfall.
 
 ## Owner-side (needs a device, infra or secrets)
+
+### [ ] Check the library migration on the phone (step 4a of the library-ownership plan)
+
+The first launch after step 4a turns `squidbox.db` into the library `squidbox` without moving
+anything (`src/library/rebuildRegistry.ts`): on a signed-in phone every photo, album and post and
+the session must still be there; on a signed-out phone the library must show with the sign-in form.
+Note the time from splash to library (the open + migrate now runs alongside the cloud init). No
+downgrades past this build: an older build would open `squidbox.db` with its wipe-on-switch logic
+and knows nothing of `library-*.db`.
 
 ### [ ] Set the SERVER_ID secret, then deploy the server
 

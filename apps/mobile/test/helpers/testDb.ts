@@ -9,7 +9,10 @@ import { createDb, type AppDb, type Execute } from '../../src/sync/db/driver';
 const migrationsFolder = fileURLToPath(new URL('../../src/sync/db/migrations', import.meta.url));
 
 export function makeTestDb(): AppDb {
-  return createDb(betterSqliteExecutor(openMigrated()));
+  const sqlite = openMigrated();
+  return createDb(betterSqliteExecutor(sqlite), async () => {
+    sqlite.close();
+  });
 }
 
 export interface Work {

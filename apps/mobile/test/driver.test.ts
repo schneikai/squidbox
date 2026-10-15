@@ -82,4 +82,14 @@ describe('driver (createDb)', () => {
     });
     expect(changes).toEqual([['assets', 'outbox']]);
   });
+
+  it('close waits for the queued work and refuses what is queued after it', async () => {
+    const created = repo.createAsset(db, makeAssetRecord({ filename: 'before-close.jpg' }));
+    const closing = db.close();
+    const after = db.select().from(schema.assets);
+    await expect(created).resolves.toMatchObject({ filename: 'before-close.jpg' });
+    await expect(closing).resolves.toBeUndefined();
+    await expect(after).rejects.toThrow('The database is closed');
+    await expect(setCursor(db, 1)).rejects.toThrow('The database is closed');
+  });
 });

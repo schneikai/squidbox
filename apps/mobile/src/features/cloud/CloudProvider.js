@@ -8,6 +8,8 @@ import uploadAssetFileAsync from './assets/uploadAssetFileAsync';
 import uploadAssetThumbnailAsync from './assets/uploadAssetThumbnailAsync';
 import initializeCloudAsyncFn from './initializeCloudAsync';
 
+import { whenLibraryOpen } from '@/library/current';
+import useLibrary from '@/library/useLibrary';
 import { navigateToTab } from '@/navigators/navigationRef';
 import { resetSyncForUser, withSyncPaused } from '@/sync/worker';
 import { API_BASE_URL } from '@/utils/cloud-api/apiBaseUrl';
@@ -23,6 +25,7 @@ function isSessionAuthenticated(session) {
 }
 
 export default function CloudProvider({ children }) {
+  const { setOwnerAsync } = useLibrary();
   const [session, setSession] = useState(null);
 
   const isAuthenticated = isSessionAuthenticated(session);
@@ -43,11 +46,15 @@ export default function CloudProvider({ children }) {
   // Take the session `authenticate` resolves to. Syncing stays paused from before the session changes
   // until the local data belongs to that user: a DIFFERENT account wipes the local slate first. So no
   // in-flight sync can push the previous account's pending changes with the new session, and the gate
-  // never shows the previous library.
+  // never shows the previous library. The library then records that user as its owner.
   async function startSessionAsync(authenticate) {
+    await whenLibraryOpen();
     const nextSession = await withSyncPaused(async (db) => {
       const authenticated = await authenticate();
-      if (isSessionAuthenticated(authenticated)) await resetSyncForUser(db, authenticated.userId);
+      if (!isSessionAuthenticated(authenticated)) return authenticated;
+      const { serverId, userId, email } = authenticated;
+      await resetSyncForUser(db, { kind: 'account', serverId, userId, email });
+      await setOwnerAsync({ kind: 'account', serverId, userId, email });
       return authenticated;
     });
     setSession(nextSession);

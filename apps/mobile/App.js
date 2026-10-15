@@ -1,10 +1,9 @@
 import { ActionSheetProvider } from '@expo/react-native-action-sheet';
 import { NavigationContainer } from '@react-navigation/native';
 import * as Sentry from '@sentry/react-native';
-import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SplashScreen from 'expo-splash-screen';
-import { useState, useEffect, Component, memo } from 'react';
+import { useState, useEffect, Component, Fragment, memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Menu, MenuProvider } from 'react-native-popup-menu';
@@ -26,11 +25,11 @@ import CloudSyncProvider from '@/features/cloud-sync/CloudSyncProvider';
 import PostsQueryProvider from '@/features/post-list/posts-query/PostsQueryProvider';
 import PostsProvider from '@/features/posts-context/PostsProvider';
 import FirstSyncScreen from '@/features/sync-status/FirstSyncScreen';
+import LibraryProvider from '@/library/LibraryProvider';
+import useLibrary from '@/library/useLibrary';
 import RootNavigator from '@/navigators/RootNavigator';
 import { navigationRef, flushPendingNavigation } from '@/navigators/navigationRef';
 import { colors } from '@/styles/designTokens';
-import { getDb, openDatabase } from '@/sync/db/client';
-import migrations from '@/sync/db/migrations/migrations';
 import { useFirstSyncDone } from '@/sync/useSyncStatus';
 import useSyncTriggers from '@/sync/useSyncTriggers';
 import { setSyncActive } from '@/sync/worker';
@@ -80,13 +79,15 @@ const App = () => {
         <BootErrorBoundary>
           <ProgressOverlayProvider>
             <AppSettingsProvider>
-              <CloudProvider>
-                <DatabaseGate>
+              <LibraryProvider>
+                <CloudProvider>
                   <AppInit>
-                    <AppGate />
+                    <LibraryGate>
+                      <AppGate />
+                    </LibraryGate>
                   </AppInit>
-                </DatabaseGate>
-              </CloudProvider>
+                </CloudProvider>
+              </LibraryProvider>
             </AppSettingsProvider>
           </ProgressOverlayProvider>
         </BootErrorBoundary>
@@ -96,20 +97,23 @@ const App = () => {
 };
 
 // One-time app init: restore the cloud session + hide the splash, and mount the foreground/interval
-// sync triggers. Lives ABOVE the gate so it runs exactly once and keeps the sync running whether the
-// setup screen or the main app is showing. Renders nothing until ready.
+// sync triggers. Lives ABOVE the gates so it runs exactly once, alongside the library opening, and
+// keeps the sync running whether the setup screen or the main app is showing. Renders nothing until
+// ready.
 function AppInit({ children }) {
   const { initializeCloudAsync, isAuthenticated } = useCloud();
+  const { library } = useLibrary();
   const [appIsReady, setAppIsReady] = useState(false);
 
   // Foreground + interval sync triggers. They're no-ops while sync is inactive (below).
   useSyncTriggers();
 
-  // Sync only once init is done (so it can't starve init's DB work and strand the splash) AND
-  // someone is signed in. Activating kicks the launch pull; signing out or a rejected session stops it.
+  // Sync only once init is done (so it can't starve init's DB work and strand the splash), the
+  // library is open AND someone is signed in. Activating kicks the launch pull; signing out or a
+  // rejected session stops it.
   useEffect(() => {
-    setSyncActive(appIsReady && isAuthenticated);
-  }, [appIsReady, isAuthenticated]);
+    setSyncActive(appIsReady && isAuthenticated && library !== null);
+  }, [appIsReady, isAuthenticated, library]);
 
   useEffect(() => {
     let revealed = false;
@@ -145,26 +149,13 @@ function AppInit({ children }) {
   return children;
 }
 
-// The database is opened and migrated once, above everything that queries SQLite (including the
-// firstSyncDone probe in AppGate). Renders nothing until the schema is ready.
-function DatabaseGate({ children }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    openDatabase().then(() => setIsOpen(true), setError);
-  }, []);
-
-  if (error) throw error;
-  if (!isOpen) return null;
-  return <MigrationGate>{children}</MigrationGate>;
-}
-
-function MigrationGate({ children }) {
-  const { success, error } = useMigrations(getDb(), migrations);
-  if (error) throw error; // fail loudly in dev — the DB must migrate before use
-  if (!success) return null; // brief: first-launch migration
-  return children;
+// Everything that queries SQLite (including the firstSyncDone probe in AppGate) mounts under the
+// open library, keyed by it, so another library later means a fresh tree. Renders nothing while the
+// library opens and migrates (brief; longer on a first launch).
+function LibraryGate({ children }) {
+  const { library } = useLibrary();
+  if (!library) return null;
+  return <Fragment key={library.id}>{children}</Fragment>;
 }
 
 // The one gate: while the initial library pull runs, show the setup screen and DON'T mount the app,

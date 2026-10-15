@@ -17,9 +17,11 @@ import {
   clearFirstSyncDone,
   getLastSyncUser,
   setLastSyncUser,
+  setOwner,
 } from './status';
 import type { SyncTransport } from './transport';
 import { upsertRows } from './upsertRows';
+import type { AccountOwner } from '../library/owner';
 
 const PULL_LIMIT = 1000; // server/contract cap
 const PUSH_BATCH = 500; // server caps pushRequest mutations at 500
@@ -246,12 +248,14 @@ export async function resetLocalSync(db: SyncDb, { keepOutbox = false } = {}): P
 
 // Reset local sync state iff a DIFFERENT user is signing in (the local DB holds the previous user's
 // data + their cursor, which would leak/corrupt for the new account — see sync-design). Records the
-// current user either way. Returns true if it wiped. Call on login, before requestSync().
-export async function resetSyncForUser(db: SyncDb, userId: string): Promise<boolean> {
+// current user as the library's owner either way, so the library list never labels this data with
+// someone else. Returns true if it wiped. Call on login, before requestSync().
+export async function resetSyncForUser(db: SyncDb, owner: AccountOwner): Promise<boolean> {
   const last = await getLastSyncUser(db);
-  const changed = last !== null && last !== userId;
+  const changed = last !== null && last !== owner.userId;
   if (changed) await resetLocalSync(db);
-  await setLastSyncUser(db, userId);
+  await setLastSyncUser(db, owner.userId);
+  await setOwner(db, owner);
   return changed;
 }
 

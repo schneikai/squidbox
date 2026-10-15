@@ -1,28 +1,41 @@
+import { migrate } from 'drizzle-orm/expo-sqlite/migrator';
 import { openDatabaseAsync } from 'expo-sqlite';
 
 import { createDb, type AppDb } from './driver';
 import { expoExecutor } from './expoExecutor';
+import migrations from './migrations/migrations';
 import * as schema from './schema';
 
-const DB_NAME = 'squidbox.db';
-
 let db: AppDb | null = null;
-let opening: Promise<AppDb> | null = null;
 
-// Opened once at launch (DatabaseGate in App.js), before anything reads or writes.
-export function openDatabase(): Promise<AppDb> {
-  opening ??= openDatabaseAsync(DB_NAME).then(async (sqlite) => {
-    // Up to 64 MB of page cache (allocated on demand), so big transactions don't spill pages to the
-    // journal mid-way. The default 2 MB triples the time of a large sync on web.
-    await sqlite.execAsync('PRAGMA cache_size = -65536');
-    return (db = createDb(expoExecutor(sqlite)));
-  });
-  return opening;
+// Opens a database by name, migrated and ready to use; the caller closes it. Never touches the
+// open library: that is library/current.ts, the only caller that sets the database behind getDb().
+export async function openAppDb(dbName: string): Promise<AppDb> {
+  const sqlite = await openDatabaseAsync(dbName);
+  // Up to 64 MB of page cache (allocated on demand), so big transactions don't spill pages to the
+  // journal mid-way. The default 2 MB triples the time of a large sync on web.
+  await sqlite.execAsync('PRAGMA cache_size = -65536');
+  const appDb = createDb(expoExecutor(sqlite), () => sqlite.closeAsync());
+  try {
+    // drizzle's expo migrator runs the async dialect's migrate on the db's own session, which is
+    // what this sqlite-proxy db has; its signature just names the expo driver.
+    await migrate(appDb as unknown as Parameters<typeof migrate>[0], migrations);
+  } catch (error) {
+    await appDb.close().catch(() => {});
+    throw error;
+  }
+  return appDb;
 }
 
+// The open library's database (library/current.ts opens and closes it).
 export function getDb(): AppDb {
-  if (!db) throw new Error('The database is not open yet (see DatabaseGate in App.js).');
+  if (!db) throw new Error('No library is open (see LibraryGate in App.js).');
   return db;
+}
+
+// Called by library/current.ts only.
+export function setOpenDb(next: AppDb | null): void {
+  db = next;
 }
 
 export { schema };

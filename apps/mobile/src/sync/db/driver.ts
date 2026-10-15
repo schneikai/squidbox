@@ -25,13 +25,15 @@ const ANY_WRITE = /^\s*(?:insert|update|delete|replace)\b/i;
  * work (a statement or a whole transaction) with the tables it changed; a write that changed no rows
  * (an update whose WHERE matched nothing) doesn't count.
  */
-export function createDb(execute: Execute) {
+export function createDb(execute: Execute, close: () => Promise<void> = async () => {}) {
   let tail: Promise<unknown> = Promise.resolve();
   let written: Set<string> | null = null; // tables written by the unit that holds the queue
   let committedWrites = 0; // units that changed rows, so far
+  let closed = false;
   const listeners = new Set<TablesChangedListener>();
 
   function queue<T>(work: () => Promise<T>): Promise<T> {
+    if (closed) return Promise.reject(new Error('The database is closed'));
     const unit = tail.then(async () => {
       written = new Set();
       const result = await work();
@@ -71,6 +73,12 @@ export function createDb(execute: Execute) {
     onTablesChanged(listener: TablesChangedListener): () => void {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    /** Closes the connection once everything queued before has run; anything queued after rejects. */
+    close(): Promise<void> {
+      const closing = queue(close);
+      closed = true;
+      return closing;
     },
   });
 }

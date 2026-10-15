@@ -2,12 +2,14 @@ import { eq, sql } from 'drizzle-orm';
 
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
+import type { Owner } from '../library/owner';
 
 // sync_meta helpers: the pull cursor + a small status blob (surfaced by the Inspector).
 const CURSOR_KEY = 'cursor';
 const STATUS_KEY = 'status';
 const FIRST_SYNC_KEY = 'firstSyncDone'; // '1' once the initial full pull has drained
 const LAST_USER_KEY = 'lastSyncUserId'; // whose data currently lives in the local DB
+const OWNER_KEY = 'owner'; // whose library this database is (JSON), so the library list is rebuildable
 
 export type SyncPhase = 'idle' | 'pushing' | 'pulling' | 'error';
 export interface SyncStatus {
@@ -53,6 +55,14 @@ export async function getLastSyncUser(db: SyncDb): Promise<string | null> {
 }
 export async function setLastSyncUser(db: SyncDb, userId: string): Promise<void> {
   await setMeta(db, LAST_USER_KEY, userId);
+}
+// The library's owner, as stored in the database itself (library/registry.ts keeps the list).
+export async function getOwner(db: SyncDb): Promise<Owner | null> {
+  const raw = await getMeta(db, OWNER_KEY);
+  return raw ? (JSON.parse(raw) as Owner) : null;
+}
+export async function setOwner(db: SyncDb, owner: Owner): Promise<void> {
+  await setMeta(db, OWNER_KEY, JSON.stringify(owner));
 }
 export async function isFirstSyncDone(db: SyncDb): Promise<boolean> {
   return (await getMeta(db, FIRST_SYNC_KEY)) === '1';
