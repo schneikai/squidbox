@@ -1,6 +1,5 @@
 import { memo, useSyncExternalStore } from 'react';
-import { View, StyleSheet, Text } from 'react-native';
-import { Defs, RadialGradient, Rect, Stop, Svg } from 'react-native-svg';
+import { Image, View, StyleSheet, Text } from 'react-native';
 
 import AssetImage from '@/components/AssetImage';
 import Icon from '@/components/Icon';
@@ -53,30 +52,19 @@ function LastPostedAt({ lastPostedAt }) {
   return <Text style={styles.lastPostedAt}>{dateToTimeAgo(lastPostedAt)}</Text>;
 }
 
-const CORNER_POSITIONS = {
-  topLeft: { top: 0, left: 0, cx: '0%', cy: '0%' },
-  topRight: { top: 0, right: 0, cx: '100%', cy: '0%' },
-  bottomRight: { bottom: 0, right: 0, cx: '100%', cy: '100%' },
-  bottomLeft: { bottom: 0, left: 0, cx: '0%', cy: '100%' },
+// One pre-rendered radial fade (black at 60% in the top-left corner to transparent), flipped for the
+// other corners: an image per cell is far cheaper to mount than an SVG gradient, and every grid cell
+// shows one or more.
+const CORNER_GLOW = require('../../../assets/corner-glow.png');
+const CORNER_STYLES = {
+  topLeft: { top: 0, left: 0 },
+  topRight: { top: 0, right: 0, transform: [{ scaleX: -1 }] },
+  bottomRight: { bottom: 0, right: 0, transform: [{ scaleX: -1 }, { scaleY: -1 }] },
 };
 
-function CornerGlow({ corner = 'bottomRight', size = 80, opacity = 0.6 }) {
-  const { cx, cy, ...pos } = CORNER_POSITIONS[corner];
-  const id = `cornerGlow_${corner}`;
+function CornerGlow({ corner, size }) {
   return (
-    <Svg
-      style={[{ position: 'absolute', width: size, height: size }, pos]}
-      viewBox="0 0 100 100"
-      preserveAspectRatio="none"
-    >
-      <Defs>
-        <RadialGradient id={id} cx={cx} cy={cy} r="100%" fx={cx} fy={cy}>
-          <Stop offset="0%" stopColor="#000" stopOpacity={opacity} />
-          <Stop offset="100%" stopColor="#000" stopOpacity="0" />
-        </RadialGradient>
-      </Defs>
-      <Rect x="0" y="0" width="100" height="100" fill={`url(#${id})`} />
-    </Svg>
+    <Image source={CORNER_GLOW} style={[styles.cornerGlow, { width: size, height: size }, CORNER_STYLES[corner]]} />
   );
 }
 
@@ -120,6 +108,10 @@ function SelectIndicator({ isSelected }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+
+  cornerGlow: {
+    position: 'absolute',
   },
 
   videoDuration: {
