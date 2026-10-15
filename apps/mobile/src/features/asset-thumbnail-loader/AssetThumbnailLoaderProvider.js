@@ -60,7 +60,8 @@ export default function AssetThumbnailLoaderProvider({ children }) {
     [pump],
   );
 
-  const value = useMemo(() => ({ loadThumbnail }), [loadThumbnail]);
+  // Inactive while nobody is signed in: requests queue up and drain once the session is back.
+  const value = useMemo(() => ({ loadThumbnail, isActive: isAuthenticated }), [loadThumbnail, isAuthenticated]);
 
   return <AssetThumbnailLoaderContext.Provider value={value}>{children}</AssetThumbnailLoaderContext.Provider>;
 }

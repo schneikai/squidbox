@@ -23,6 +23,12 @@ export function isSessionAuthenticated(library: Library, session: Session | null
   return Boolean(session?.tokens) && session!.apiBaseUrl === apiBaseUrl && sessionMatches(library, session);
 }
 
+// The owner's session is there but the server rejected its tokens: the library stays open and
+// editable, nothing syncs until the owner signs in again.
+export function needsReauth(library: Library, session: Session | null): boolean {
+  return session !== null && session.tokens === null && sessionMatches(library, session);
+}
+
 // The identity a sync run of this library would have, or null when nothing may sync: the device
 // library, a signed-out, expired or unverified session, or a session for someone else.
 export function syncIdentity(library: Library, session: Session | null, apiBaseUrl: string): SyncIdentity | null {

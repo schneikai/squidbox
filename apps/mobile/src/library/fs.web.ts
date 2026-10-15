@@ -20,3 +20,11 @@ export async function listDatabaseNames(): Promise<string[]> {
 
 // Web keeps no files: thumbnails are presigned URLs (utils/assets/thumbnails/webThumbnailUrls.js).
 export async function createLibraryFolders(): Promise<void> {}
+
+export async function removeLibraryFolders(): Promise<void> {}
+
+// Web storage holds a fixed number of database files (library-ownership plan §1.8), and a new
+// library that fails to open has almost always hit it.
+export function createFailedMessage(): string {
+  return "This browser can't hold more libraries. Remove one under Libraries on this device.";
+}

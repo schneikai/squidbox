@@ -1,6 +1,6 @@
 import { readUnsyncedCounts } from './atRiskCount';
 import { closeLibrary, getLibrary, isLibraryOpen, openLibrary } from './current';
-import { createLibraryFolders } from './fs';
+import { createFailedMessage, createLibraryFolders } from './fs';
 import { libraryPaths } from './libraryPaths';
 import { getRegistry, updateLibrary, updateRegistry, type Library } from './registry';
 
@@ -32,6 +32,6 @@ export async function switchLibrary(target: Library): Promise<void> {
     await closeLibrary().catch(() => {});
     if (creating) await deleteAppDb(libraryPaths(target.id).dbName);
     if (previous) await openLibrary(previous);
-    throw error;
+    throw creating ? new Error(createFailedMessage(error)) : error;
   }
 }

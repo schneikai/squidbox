@@ -6,9 +6,12 @@ import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, radii, scale, spacing } from '@/styles/designTokens';
 import isBlank from '@/utils/isBlank';
 
-export default function LoginForm() {
-  const [email, setEmail] = useState(process.env.EXPO_PUBLIC_LOGIN_FORM_EMAIL);
+// `ownerEmail`: the account this library belongs to, pre-filled and kept until the user asks to sign
+// in as someone else (which opens that account's own library instead).
+export default function LoginForm({ ownerEmail }) {
+  const [email, setEmail] = useState(ownerEmail ?? process.env.EXPO_PUBLIC_LOGIN_FORM_EMAIL);
   const [password, setPassword] = useState(process.env.EXPO_PUBLIC_LOGIN_FORM_PASSWORD);
+  const [isOwnerEmail, setIsOwnerEmail] = useState(Boolean(ownerEmail));
   const { loginAsync } = useCloud();
   const [isPending, startTransition] = useTransition();
 
@@ -27,13 +30,19 @@ export default function LoginForm() {
     });
   }
 
+  function handleSomeoneElse() {
+    setIsOwnerEmail(false);
+    setEmail('');
+  }
+
   return (
     <>
       <View style={styles.section}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, isOwnerEmail && styles.inputLocked]}
           onChangeText={setEmail}
           value={email}
+          editable={!isOwnerEmail}
           placeholder="Email"
           placeholderTextColor={colors.textTertiary}
           keyboardType="email-address"
@@ -65,6 +74,12 @@ export default function LoginForm() {
           <Text style={styles.loginButtonText}>Sign In</Text>
         )}
       </TouchableOpacity>
+
+      {isOwnerEmail && (
+        <TouchableOpacity style={styles.link} onPress={handleSomeoneElse} hitSlop={8}>
+          <Text style={styles.linkText}>Sign in as someone else</Text>
+        </TouchableOpacity>
+      )}
     </>
   );
 }
@@ -82,6 +97,9 @@ const styles = StyleSheet.create({
     fontSize: scale(16),
     color: colors.text,
   },
+  inputLocked: {
+    color: colors.textSecondary,
+  },
   loginButton: {
     backgroundColor: colors.accent,
     borderRadius: radii.card,
@@ -96,5 +114,14 @@ const styles = StyleSheet.create({
     color: colors.textInverse,
     fontSize: scale(16),
     fontWeight: '600',
+  },
+  link: {
+    alignItems: 'center',
+    paddingVertical: 14,
+  },
+  linkText: {
+    color: colors.accent,
+    fontSize: scale(15),
+    fontWeight: '500',
   },
 });

@@ -8,9 +8,11 @@ import uploadAssetFileAsync from './assets/uploadAssetFileAsync';
 import uploadAssetThumbnailAsync from './assets/uploadAssetThumbnailAsync';
 import initializeCloudAsyncFn from './initializeCloudAsync';
 
-import { whenLibraryOpen } from '@/library/current';
+import { getLibrary, whenLibraryOpen } from '@/library/current';
+import deviceLabel from '@/library/deviceLabel';
+import { removeLibrary } from '@/library/removeLibrary';
 import { openLibraryForSession } from '@/library/sessionLibrary';
-import { isSessionAuthenticated } from '@/library/sessionMatches';
+import { isSessionAuthenticated, needsReauth as sessionNeedsReauth } from '@/library/sessionMatches';
 import useLibrary from '@/library/useLibrary';
 import { navigateToTab } from '@/navigators/navigationRef';
 import { withSyncPaused } from '@/sync/worker';
@@ -28,17 +30,24 @@ export default function CloudProvider({ children }) {
   const [session, setSession] = useState(null);
 
   const isAuthenticated = library !== null && isSessionAuthenticated(library, session, API_BASE_URL);
+  const needsReauth = library !== null && sessionNeedsReauth(library, session);
   const user = session?.userId ? { id: session.userId, email: session.email } : null;
 
-  // A rejected refresh dropped the tokens; the library stays open, nothing syncs until a sign-in.
+  // A rejected refresh dropped the tokens; the library stays open and editable, nothing syncs until
+  // its owner signs in again.
   useEffect(
     () =>
       onSessionExpired(async () => {
-        setSession(await getSessionAsync());
-        Alert.alert('Signed out', 'Your session has expired. Please sign in again.', [
-          { text: 'Later', style: 'cancel' },
-          { text: 'Sign in', onPress: () => navigateToTab('SettingsTab') },
-        ]);
+        const expired = await getSessionAsync();
+        setSession(expired);
+        Alert.alert(
+          'Sign in to keep syncing',
+          `Your session for ${expired?.email ?? 'your account'} ended. Your changes are saved on ${deviceLabel()} and will upload after you sign in.`,
+          [
+            { text: 'Not Now', style: 'cancel' },
+            { text: 'Sign In', onPress: () => navigateToTab('SettingsTab') },
+          ],
+        );
       }),
     [],
   );
@@ -56,27 +65,31 @@ export default function CloudProvider({ children }) {
     setSession(next);
   }
 
-  // Signing out clears the session and returns to this device's library (the account's stays on
-  // the device, parked), then revokes the refresh token as best effort, outside the paused section.
-  // If the device library won't open, the session stays as it was.
-  async function endSessionAsync() {
-    const previous = await withSyncPaused(async () => {
+  // Signing out clears the session and returns to this device's library; the account's stays on
+  // the device, parked, unless `remove` asks for it to go. Then the refresh token is revoked as
+  // best effort, outside the paused section. If the device library won't open, the session stays.
+  async function endSessionAsync({ remove = false } = {}) {
+    const { previous, parkedId } = await withSyncPaused(async () => {
       const current = await getSessionAsync();
+      const { id } = getLibrary();
       await setSessionAsync(null);
       await openLibraryForSession(null, current, switchLibrary);
       setSession(null);
-      return current;
+      return { previous: current, parkedId: id };
     });
+    if (remove) await removeLibrary(parkedId);
     if (previous?.tokens) await apiLogoutAsync(previous.tokens.refreshToken);
   }
 
   const value = useMemo(
     () => ({
       isAuthenticated,
+      needsReauth,
       user,
       initializeCloudAsync: () => startSessionAsync(initializeCloudAsyncFn),
       loginAsync: (email, password) => startSessionAsync(() => apiLoginAsync(email, password)),
-      logoutAsync: () => endSessionAsync().catch((error) => Alert.alert("Couldn't sign out", error.message)),
+      logoutAsync: (options) =>
+        endSessionAsync(options).catch((error) => Alert.alert("Couldn't sign out", error.message)),
       preloadAssetThumbnailsAsync,
       uploadAssetFileAsync,
       uploadAssetThumbnailAsync,

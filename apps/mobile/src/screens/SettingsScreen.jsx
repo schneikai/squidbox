@@ -11,28 +11,50 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import { MODEL_STORAGE_KEY, DEFAULT_MODEL } from '@/features/ai-suggestions/aiSuggestionsStorage';
-import confirmLogoutAsync from '@/features/cloud/confirmLogoutAsync';
 import useCloud from '@/features/cloud/useCloud';
+import useSignOutSheet from '@/features/cloud/useSignOutSheet';
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
 import useBackupCounts from '@/features/cloud-sync/useBackupCounts';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
+import { readUnsyncedCounts } from '@/library/atRiskCount';
+import deviceLabel from '@/library/deviceLabel';
+import libraryLabel from '@/library/libraryLabel';
+import { readParkedCounts, removeLibrary } from '@/library/removeLibrary';
+import unsyncedCountsText from '@/library/unsyncedCountsText';
+import useLibrary from '@/library/useLibrary';
+import useUnsyncedCounts from '@/library/useUnsyncedCounts';
 import { colors } from '@/styles/designTokens';
+import { getDb } from '@/sync/db/client';
 import { useSyncStatus } from '@/sync/useSyncStatus';
 import { SERVER_URL } from '@/utils/cloud-api/apiBaseUrl';
 import useResortAlbumsByName from '@/utils/tools/useResortAlbumsByName';
 
+// A parked library's row: what its snapshot says hadn't synced when it was closed.
+function parkedValue({ closed }) {
+  if (!closed) return null;
+  return [`${closed.pendingCount} pending`, `${closed.atRiskCount} at risk`].join(' · ');
+}
+
 export default function SettingsScreen() {
   const navigation = useNavigation();
-  const { isAuthenticated, user, logoutAsync } = useCloud();
+  const { isAuthenticated, needsReauth, user, logoutAsync } = useCloud();
+  const { library, libraries } = useLibrary();
   const cloudSync = useCloudSync();
   const backupCounts = useBackupCounts();
+  const unsynced = useUnsyncedCounts();
   const { phase, pendingCount, lastError } = useSyncStatus();
+  const confirmSignOutAsync = useSignOutSheet();
 
   const [aiModel, setAiModel] = useState(DEFAULT_MODEL);
   const [isLoggingOut, startLogoutTransition] = useTransition();
 
   const { showBlocking, hide } = useProgressOverlay();
   const resortAlbumsByNameAsync = useResortAlbumsByName();
+
+  // Every library but this device's own while it is parked and empty (nothing added while signed out).
+  const listedLibraries = libraries.filter(
+    (entry) => entry.id === library.id || entry.owner.kind === 'account' || (entry.closed?.pendingCount ?? 0) > 0,
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -46,12 +68,48 @@ export default function SettingsScreen() {
     }, []),
   );
 
+  // Counted fresh from the open library, not from any snapshot.
   function handleLogout() {
     startLogoutTransition(async () => {
-      const confirmed = await confirmLogoutAsync();
-      if (!confirmed) return;
-      await logoutAsync();
+      const choice = await confirmSignOutAsync(await readUnsyncedCounts(getDb()));
+      if (!choice) return;
+      await logoutAsync(choice);
     });
+  }
+
+  // A parked library is removed only after its own database was counted again (a crash can leave
+  // the snapshot stale); it opens on a second connection, never through the open library.
+  async function handleRemoveLibrary(parked) {
+    const label = libraryLabel(parked);
+    try {
+      showBlocking();
+      const text = unsyncedCountsText(await readParkedCounts(parked.id));
+      hide();
+      Alert.alert(
+        `Remove ${label}?`,
+        text ? `${text} haven't synced and will be lost.` : 'Everything in it is synced.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Remove',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                showBlocking();
+                await removeLibrary(parked.id);
+              } catch (error) {
+                Alert.alert("Couldn't remove", error.message);
+              } finally {
+                hide();
+              }
+            },
+          },
+        ],
+      );
+    } catch (error) {
+      hide();
+      Alert.alert("Couldn't open", error.message);
+    }
   }
 
   function handleResortAlbums() {
@@ -94,36 +152,53 @@ export default function SettingsScreen() {
   // Backup = uploading full-res photo files to the cloud (manual). Library sync = the metadata
   // engine (automatic). Each is one tappable status row → its own detail screen.
   function librarySyncStatusText() {
+    if (needsReauth) return pendingCount > 0 ? `${pendingCount} waiting for sign-in` : 'Up to date';
     if (lastError) return 'Error';
     if (phase === 'pushing' || phase === 'pulling') return 'Syncing…';
     if (pendingCount > 0) return `${pendingCount} pending`;
     return 'Up to date';
   }
 
+  function renderAccount() {
+    if (isAuthenticated) {
+      return (
+        <Section>
+          <Row label="Signed in as" value={user?.email} />
+          <Row label="Sign out" onPress={isLoggingOut ? undefined : handleLogout} destructive chevron={!isLoggingOut}>
+            {isLoggingOut && <ActivityIndicator size="small" color={colors.danger} />}
+          </Row>
+        </Section>
+      );
+    }
+    const waiting = unsyncedCountsText(unsynced);
+    return (
+      <>
+        {needsReauth && (
+          <Section>
+            <Row label="Sign in to sync" value={waiting ? `${waiting} waiting` : 'Everything synced'} />
+          </Section>
+        )}
+        <View style={styles.loginWrapper}>
+          <LoginForm ownerEmail={needsReauth ? user?.email : undefined} />
+        </View>
+      </>
+    );
+  }
+
   return (
     <Page>
       <FloatingDetailHeader title="Settings" onBack={() => navigation.goBack()} />
       <DetailScrollView>
-        {isAuthenticated ? (
-          <>
-            <ScreenSectionHeader title="Account" />
-            <Section>
-              <Row label="Signed in as" value={user?.email} />
-              <Row
-                label="Sign out"
-                onPress={isLoggingOut ? undefined : handleLogout}
-                destructive
-                chevron={!isLoggingOut}
-              >
-                {isLoggingOut && <ActivityIndicator size="small" color={colors.danger} />}
-              </Row>
-            </Section>
+        <ScreenSectionHeader title="Account" />
+        {renderAccount()}
 
+        {(isAuthenticated || needsReauth) && (
+          <>
             <ScreenSectionHeader title="Backup & Sync" />
             <Section>
               <Row
                 label="Photo backup"
-                value={getBackupStatusText({ ...cloudSync, ...backupCounts })}
+                value={getBackupStatusText({ ...cloudSync, ...backupCounts, needsReauth })}
                 onPress={() => navigation.navigate('BackupScreen')}
                 chevron
               />
@@ -134,34 +209,51 @@ export default function SettingsScreen() {
                 chevron
               />
             </Section>
-
-            <ScreenSectionHeader title="AI Caption Suggestions" />
-            <Section>
-              <Row label="Model" value={aiModel} />
-              <Row label="Prompts" onPress={() => navigation.navigate('AiPromptsScreen')} chevron />
-            </Section>
-
-            <ScreenSectionHeader title="Data" />
-            <Section>
-              <Row label="Sort albums by name" onPress={handleResortAlbums} chevron />
-            </Section>
-
-            <ScreenSectionHeader title="Developer" />
-            <Section>
-              <Row label="API URL" value={SERVER_URL} />
-              <Row label="Check API" onPress={handleCheckApi} chevron />
-            </Section>
           </>
-        ) : (
-          <View style={styles.loginWrapper}>
-            <LoginForm />
-          </View>
         )}
+
+        <ScreenSectionHeader title={`Libraries on ${deviceLabel()}`} />
+        <Section>
+          {listedLibraries.map((entry) =>
+            entry.id === library.id ? (
+              <Row
+                key={entry.id}
+                label={libraryLabel(entry)}
+                value={[unsyncedCountsText(unsynced), 'Open'].filter(Boolean).join(' · ')}
+              />
+            ) : (
+              <Row
+                key={entry.id}
+                label={libraryLabel(entry)}
+                value={parkedValue(entry)}
+                onPress={() => handleRemoveLibrary(entry)}
+                chevron
+              />
+            ),
+          )}
+        </Section>
+
+        <ScreenSectionHeader title="AI Caption Suggestions" />
+        <Section>
+          <Row label="Model" value={aiModel} />
+          <Row label="Prompts" onPress={() => navigation.navigate('AiPromptsScreen')} chevron />
+        </Section>
+
+        <ScreenSectionHeader title="Data" />
+        <Section>
+          <Row label="Sort albums by name" onPress={handleResortAlbums} chevron />
+        </Section>
+
+        <ScreenSectionHeader title="Developer" />
+        <Section>
+          <Row label="API URL" value={SERVER_URL} />
+          <Row label="Check API" onPress={handleCheckApi} chevron />
+        </Section>
       </DetailScrollView>
     </Page>
   );
 }
 
 const styles = StyleSheet.create({
-  loginWrapper: { paddingTop: 8 },
+  loginWrapper: { paddingTop: 8, marginBottom: 4 },
 });

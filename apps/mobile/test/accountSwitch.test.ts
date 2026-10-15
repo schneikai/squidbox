@@ -52,7 +52,11 @@ vi.mock('../src/utils/cloud-api/sessionStore', () => ({
   },
 }));
 vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({ API_BASE_URL: 'https://api.test/api/v1' }));
-vi.mock('../src/library/fs', () => ({ listDatabaseNames: async () => [], createLibraryFolders: async () => {} }));
+vi.mock('../src/library/fs', () => ({
+  listDatabaseNames: async () => [],
+  createLibraryFolders: async () => {},
+  createFailedMessage: (error: Error) => error.message,
+}));
 const ids = vi.hoisted(() => ({ n: 0 }));
 vi.mock('../src/utils/getNewItemId', () => ({ default: () => `id-${++ids.n}` }));
 

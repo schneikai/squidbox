@@ -7,12 +7,13 @@ import { motion } from '@/styles/designTokens';
 import getAssetThumbnailUri from '@/utils/assets/thumbnails/getAssetThumbnailUri';
 import hasThumbnailAsync from '@/utils/assets/thumbnails/hasThumbnailAsync';
 
-// contentFit: "cover" | "contain". The placeholder pulses until the picture has loaded, and
-// `overlay` (e.g. a cell's corner glows) shows only then.
+// contentFit: "cover" | "contain". The placeholder pulses until the picture has loaded (and holds
+// still while the loader can't fetch, i.e. nobody is signed in), and `overlay` (e.g. a cell's corner
+// glows) shows only then.
 export default function AssetImage({ asset = {}, contentFit, placeholderColor = 'lightgrey', overlay }) {
   const [thumbnailUri, setThumbnailUri] = useState(null);
   const [loadedUri, setLoadedUri] = useState(null);
-  const { loadThumbnail } = useAssetThumbnailLoader();
+  const { loadThumbnail, isActive } = useAssetThumbnailLoader();
   const { thumbnailStyle } = useAppSettings();
 
   // A different asset must not keep showing the previous one's picture until its own is found.
@@ -51,7 +52,7 @@ export default function AssetImage({ asset = {}, contentFit, placeholderColor = 
   if (!asset.thumbnailFilename) return null;
 
   if (!thumbnailUri) {
-    return <LoadingPlaceholder color={placeholderColor} />;
+    return <LoadingPlaceholder color={placeholderColor} still={!isActive} />;
   }
 
   const isLoaded = loadedUri === thumbnailUri;
@@ -70,11 +71,12 @@ export default function AssetImage({ asset = {}, contentFit, placeholderColor = 
 }
 
 // Each placeholder breathes at its own pace from its own starting point, so a screen of loading cells
-// doesn't pulse as one grey surface.
-function LoadingPlaceholder({ color, style }) {
+// doesn't pulse as one grey surface. A still one says nothing is coming.
+function LoadingPlaceholder({ color, style, still = false }) {
   const animatedValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (still) return undefined;
     const { duration, easing } = motion.pulse;
     const ownDuration = duration * (0.7 + Math.random() * 0.6);
     const half = (toValue) =>
@@ -85,7 +87,7 @@ function LoadingPlaceholder({ color, style }) {
     ]);
     animation.start();
     return () => animation.stop();
-  }, [animatedValue]);
+  }, [animatedValue, still]);
 
   const overlayOpacity = animatedValue.interpolate({
     inputRange: [0, 1],

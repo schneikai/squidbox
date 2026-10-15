@@ -205,6 +205,12 @@ The upload loop (`CloudSyncProvider.js`) uploads the file, then the thumbnail, a
 asset twice (`isFileSynced`, then the rest). Uploading both at once (`Promise.allSettled`) and
 writing the flags in one `updateAsset` halves the waits and the writes per photo.
 
+### [ ] Directory sizes in the Libraries list
+
+"Libraries on this iPhone" (`SettingsScreen.jsx`) shows each library's unsynced counts only. The
+plan (`docs/library-ownership-plan.md` §6, decision 10) would add each library's size on disk if
+`getInfoAsync(dir, { size: true })` measures fast at 10k files on a device; measure it before adding.
+
 ### [ ] Web preview gaps
 
 The web preview (README → "Web preview") can't add photos from the camera roll, upload, download
@@ -259,7 +265,12 @@ roll and backing it up must still work; the migrated library keeps `assetfiles/`
 library and the sign-in form under Settings; sign back in → "Opening <email>…", then the library
 is back at once, with no "Setting up your library" and every photo, album and post; a photo added
 while signed out stays in the device library (its merge into the account comes in step 6). Sign
-in as the fixture account on the local stack to see a second, empty account library.
+in as the fixture account on the local stack to see a second, empty account library. Step 5: the
+sign-out sheet (Keep / Remove with the fresh counts), "Libraries on this iPhone" with the parked
+library's counts and its Remove (recounted from its own database), and the expired-session state:
+with the account library open, revoke the phone's refresh token server-side (or set `tokens` to
+null in the stored session) → the red dot on the avatar, "Sign in to sync" with the waiting
+counts, the still (non-pulsing) placeholders, the pre-filled email and "Sign in as someone else".
 
 ### [ ] Set the SERVER_ID secret, then deploy the server
 

@@ -19,7 +19,7 @@ import { colors, motion, shadows, spacing, typography } from '@/styles/designTok
 export default function FloatingHeader({ title, onAdd, selection, selectionActions, onDelete }) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { isAuthenticated } = useCloud();
+  const { isAuthenticated, needsReauth } = useCloud();
   const { scrollY } = useFloatingBars();
   const isSelectMode = selection?.isSelectMode ?? false;
 
@@ -88,6 +88,8 @@ export default function FloatingHeader({ title, onAdd, selection, selectionActio
               <Icon name="user" size={spacing.iconSizeSmall} color={colors.textSecondary} />
             </View>
           )}
+          {/* The session ended: a sign-in is needed before anything syncs */}
+          {needsReauth && <View style={styles.avatarBadge} />}
         </Pressable>
       </Animated.View>
 
@@ -158,6 +160,17 @@ const styles = StyleSheet.create({
     borderColor: colors.glassBorder,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatarBadge: {
+    position: 'absolute',
+    top: -1,
+    right: -1,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.danger,
+    borderWidth: 2,
+    borderColor: colors.textInverse,
   },
   // ── Pill internals ────────────────────────────────────────────────────────
   addButton: {
