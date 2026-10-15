@@ -64,10 +64,11 @@ export function pageAfterResult<R>(page: Page, result: PagedResult<R> | undefine
  * filter or search) starts again at `pageSize`, in the same render, so nothing is read at the old
  * depth; `keepLimit(nextDescriptor)` right before switching to that descriptor keeps the depth.
  * `loadMore` is never lost: asked while a read is in flight or with nothing left, it waits and grows
- * the limit once the current result shows more rows (a new descriptor forgets it). `readAt` says how
- * fresh the rows are (see useLiveQueryState).
+ * the limit once the current result shows more rows (a new descriptor forgets it). With `withReadAt`,
+ * `readAt` says how fresh the rows are, updated on every read (see useLiveQueryState); without it the
+ * screen renders nothing for a re-read that returns the same rows.
  */
-export function usePagedQuery<R>(query: PagedQuery<R>, pageSize: number) {
+export function usePagedQuery<R>(query: PagedQuery<R>, pageSize: number, { withReadAt = false } = {}) {
   const key = JSON.stringify(query.descriptor);
   const [page, setPage] = useState<Page>({ key, limit: pageSize, keepFor: null, wantsMore: false });
   const current = pageForKey(page, key, pageSize);
@@ -76,6 +77,7 @@ export function usePagedQuery<R>(query: PagedQuery<R>, pageSize: number) {
     async (db) => ({ ...(await query.read(db, { limit })), limit, key }),
     query.tables,
     [key, limit],
+    { everyRead: withReadAt },
   );
   const next = pageAfterResult(current, result);
   if (next !== page) setPage(next);

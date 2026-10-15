@@ -235,4 +235,18 @@ describe('watchQuery', () => {
     expect(db.committedWrites()).toBe(writtenAt);
     watch.stop();
   });
+
+  it('with waitForWrite, first reads after a write (the caller holds the data already)', async () => {
+    const seen: Row[][] = [];
+    const watch = watchQuery(db, readAssets, [schema.assets], (rows) => seen.push(rows), undefined, {
+      waitForWrite: true,
+    });
+    watch.setEnabled(true);
+    await settle();
+    expect(seen).toEqual([]);
+    await repo.createAssets(db, [makeAssetRecord({ id: 'a' })]);
+    await settle();
+    expect(seen.map((rows) => rows.map((row) => row.id))).toEqual([['a']]);
+    watch.stop();
+  });
 });

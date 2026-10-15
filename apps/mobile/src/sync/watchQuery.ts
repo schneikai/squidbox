@@ -17,7 +17,8 @@ export interface Watch {
  * reads (see reuseRows), so memoized cells re-render only for rows a write touched; `previous` is the
  * data a replaced watch last delivered, so a new watch (a load-more, a changed query) reuses them too.
  * `onData` also gets `readAt`, the db's committed-write count when the read began (see
- * AppDb.committedWrites): every write counted by then shows in the data.
+ * AppDb.committedWrites): every write counted by then shows in the data. With `waitForWrite` the
+ * first read waits for a write, for a caller that already holds the current data.
  */
 export function watchQuery<T>(
   db: AppDb,
@@ -25,10 +26,11 @@ export function watchQuery<T>(
   tables: SQLiteTable[],
   onData: (data: T, readAt: number) => void,
   previous?: T,
+  { waitForWrite = false } = {},
 ): Watch {
   const names = new Set(tables.map((table) => getTableName(table)));
   let isEnabled = false;
-  let isOwed = true; // a read is owed: the watch is new, or a watched table changed since a read began
+  let isOwed = !waitForWrite; // a read is owed: the watch is new, or a watched table changed since a read began
   let isLoading = false;
   let isStopped = false;
 

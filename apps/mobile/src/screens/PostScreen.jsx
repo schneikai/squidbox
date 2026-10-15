@@ -3,12 +3,14 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import Post from '@/features/post-detail/Post';
 import MoreAction from '@/features/post-detail/actions/MoreAction';
 import usePost from '@/features/post-detail/usePost';
+import useCloseWhenGone from '@/hooks/useCloseWhenGone';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import formatDetailHeaderDate from '@/utils/date-time/formatDetailHeaderDate';
 
 export default function PostScreen({ route, navigation }) {
   const post = usePost(route.params.postId);
   const { paddingTop } = useScreenPadding('detail');
+  useCloseWhenGone(post, 'This post was deleted');
 
   if (!post) return null;
 

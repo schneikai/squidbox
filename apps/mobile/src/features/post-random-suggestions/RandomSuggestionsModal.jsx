@@ -56,14 +56,15 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
   const [showVideos, setShowVideos] = useState(true);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   // Asset pool: a random draw when the modal opens or a filter changes, refilled past its end (not on
-  // every library write). A draw is shown once its rows are read, so the card never goes blank; from
-  // then on the rows are re-read live, so an asset deleted meanwhile is skipped.
+  // every library write). A draw is shown once its rows are read, so the card never goes blank; after
+  // a write the rows are read again, so an asset deleted meanwhile is skipped.
   const [pool, setPool] = useState(NO_POOL);
   const [assetIndex, setAssetIndex] = useState(0);
   const livePool = useLiveQuery(
     async (db) => ({ draw: pool.ids.join(), rows: await readByIds(db, schema.assets, pool.ids) }),
     [schema.assets],
     [pool.ids],
+    { waitForWrite: true }, // the draw just read its rows
   );
   const [textPool, setTextPool] = useState([]);
   const [textIndex, setTextIndex] = useState(0);

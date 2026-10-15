@@ -1,25 +1,16 @@
-import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
 import readPost from '@/features/post-detail/readPost';
 import PostEditor from '@/features/posts/PostEditor';
 import usePosts from '@/features/posts-context/usePosts';
-import { getDb } from '@/sync/db/client';
+import useSeedOrClose from '@/hooks/useSeedOrClose';
 
 // Edits a post, seeded once from what it is when the screen opens; a post deleted meanwhile (e.g. by a
 // sync) closes the editor.
 export default function EditPostScreen({ route, navigation }) {
   const { postId } = route.params;
   const { updatePost } = usePosts();
-  const [post, setPost] = useState(null);
-
-  useEffect(() => {
-    readPost(getDb(), postId).then((found) => {
-      if (found) return setPost(found);
-      Alert.alert('This post was deleted');
-      navigation.goBack();
-    });
-  }, [postId]);
+  const post = useSeedOrClose((db) => readPost(db, postId), postId, 'This post was deleted');
 
   async function handleUpdatePost(data) {
     try {

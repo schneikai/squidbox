@@ -49,7 +49,7 @@ export default function AddToAlbumScreen({ route, navigation }) {
   const albums = usePreparedAlbums({ sortFn: sortFunction, filterFn: matchFilter, searchText, showSmartAlbums: false });
 
   async function handleAddAssetsToAlbum(album) {
-    // On a failure the screen stays, so the user can try again.
+    // After a failure or a Cancel the screen stays, so the user can go on (what was added stays).
     if (await runWithProgress((batchOptions) => addAssetsToAlbum(album, route.params.assetIds, batchOptions))) {
       navigation.goBack();
     }

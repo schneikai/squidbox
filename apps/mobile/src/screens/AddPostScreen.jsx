@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
 import readPost from '@/features/post-detail/readPost';
 import PostEditor from '@/features/posts/PostEditor';
 import usePosts from '@/features/posts-context/usePosts';
-import { getDb, schema } from '@/sync/db/client';
+import useSeedOrClose from '@/hooks/useSeedOrClose';
+import { schema } from '@/sync/db/client';
 import { readByIds } from '@/sync/readByIds';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
@@ -15,15 +15,7 @@ import buildPostAssets from '@/utils/posts/buildPostAssets';
 export default function AddPostScreen({ route, navigation }) {
   const { rePostId } = route.params ?? {};
   const { addPost, updatePost } = usePosts();
-  const [seed, setSeed] = useState(null);
-
-  useEffect(() => {
-    readSeed(getDb(), route.params ?? {}).then((found) => {
-      if (found) return setSeed(found);
-      Alert.alert('This post was deleted');
-      navigation.goBack();
-    });
-  }, [route.params]);
+  const seed = useSeedOrClose((db) => readSeed(db, route.params ?? {}), route.params, 'This post was deleted');
 
   async function handleAddPost(data) {
     try {

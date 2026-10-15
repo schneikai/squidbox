@@ -88,7 +88,7 @@ export default function Album({ album }) {
     filter: activeFilter,
     search: searchText,
   });
-  const { rows, count, readAt, loadMore, keepLimit } = usePagedQuery(query, 150);
+  const { rows, count, readAt, loadMore, keepLimit } = usePagedQuery(query, 150, { withReadAt: true });
 
   const actions = useAssetSelectionActions(selection, query, count);
   const hasSubHeader = !!album.archivedAt || !!album.notes;

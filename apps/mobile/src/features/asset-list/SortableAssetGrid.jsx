@@ -73,6 +73,7 @@ export default function SortableAssetGrid({
   const moves = landed.length === pendingMoves.length ? pendingMoves : landed;
   if (moves !== pendingMoves) setPendingMoves(moves);
   const ordered = rows && applyPendingMoves(rows, moves);
+  const initialSlots = useMemo(() => new Map(ordered?.map((asset, slot) => [asset.id, slot])), [ordered]);
   const orderedRef = useRef(ordered);
   orderedRef.current = ordered;
   useEffect(() => {
@@ -129,7 +130,6 @@ export default function SortableAssetGrid({
   const contentContainerStyle = useMemo(() => ({ paddingTop, paddingBottom }), [paddingTop, paddingBottom]);
 
   const gridHeight = Math.ceil((rows?.length ?? 0) / numColumns) * itemSize;
-  const initialSlots = new Map(ordered?.map((asset, slot) => [asset.id, slot]));
 
   // The slots go to the UI thread only when the order changed, not for every new rows array.
   function sendSlots(list) {

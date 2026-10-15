@@ -33,20 +33,34 @@ export default function AssetsProvider({ children }) {
         await repo.toggleFavorite(getDb(), asset.id);
         requestSync();
       },
-      // The bulk methods take the batch options of writeInBatches ({ onProgress, isCancelled }).
+      // The bulk methods take the batch options of writeInBatches ({ onProgress, isCancelled }), resolve
+      // to whether every batch was written, and push what committed even after a failure or a Cancel.
       setAssetsDeleted: async (assetIds, batchOptions) => {
-        await writeInBatches(assetIds, (ids) => repo.deleteAssets(getDb(), ids), batchOptions);
-        requestSync();
+        try {
+          return await writeInBatches(assetIds, (ids) => repo.deleteAssets(getDb(), ids), batchOptions);
+        } finally {
+          requestSync();
+        }
       },
       restoreDeletedAssets: async (assetIds, batchOptions) => {
-        await writeInBatches(assetIds, (ids) => repo.updateAllAssets(getDb(), ids, { deletedAt: null }), batchOptions);
-        requestSync();
+        try {
+          return await writeInBatches(
+            assetIds,
+            (ids) => repo.updateAllAssets(getDb(), ids, { deletedAt: null }),
+            batchOptions,
+          );
+        } finally {
+          requestSync();
+        }
       },
       deleteAssetsAsync: async (assetIds, batchOptions) => {
         // Tombstone the metadata; it syncs as a delete. TODO: also delete the S3
         // binaries via the new backend before tombstoning (sync-design §7a).
-        await writeInBatches(assetIds, (ids) => repo.deleteAssets(getDb(), ids), batchOptions);
-        requestSync();
+        try {
+          return await writeInBatches(assetIds, (ids) => repo.deleteAssets(getDb(), ids), batchOptions);
+        } finally {
+          requestSync();
+        }
       },
     }),
     [],
