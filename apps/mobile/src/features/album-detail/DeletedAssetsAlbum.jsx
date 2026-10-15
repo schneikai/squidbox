@@ -70,11 +70,7 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
         onPress: async () => {
           const ids = await targetIds();
           exitSelectMode();
-          try {
-            await runWithProgress((batchOptions) => deleteAssetsAsync(ids, batchOptions));
-          } catch (error) {
-            Alert.alert('Failed to delete assets!', error.message);
-          }
+          runWithProgress((batchOptions) => deleteAssetsAsync(ids, batchOptions));
         },
       },
     ]);

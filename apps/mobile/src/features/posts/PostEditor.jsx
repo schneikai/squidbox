@@ -21,7 +21,7 @@ import postSchema from '@/utils/posts/postSchema';
 
 // Edits a post seeded from `post` ({ text, postAssets, postedAt }) and holds the draft; Save hands
 // `onSave` the post the posts store takes ({ text, assetRefs, postedAt }), allowed once it is valid.
-export default function PostEditor({ post, navigation, onSave, title = 'Post' }) {
+export default function PostEditor({ post, navigation, onSave }) {
   const scrollY = useSharedValue(0);
   const [isSaving, setIsSaving] = useState(false);
   const onScroll = useAnimatedScrollHandler((e) => {

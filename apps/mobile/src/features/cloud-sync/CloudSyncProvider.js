@@ -5,13 +5,10 @@ import CloudSyncContext from './CloudSyncContext';
 import useAssets from '@/features/assets-context/useAssets';
 import useCloud from '@/features/cloud/useCloud';
 import { isUnsynced, readUnsyncedIds } from '@/sync/assetsRepository';
-import { chunk } from '@/sync/chunk';
 import { getDb, schema } from '@/sync/db/client';
-import { readByIdMap } from '@/sync/readByIds';
+import { readByIds } from '@/sync/readByIds';
 import deleteAssetFileAsync from '@/utils/assets/files/deleteAssetFileAsync';
 import fileSizeToHumanReadable from '@/utils/fileSizeToHumanReadable';
-
-const UPLOAD_BATCH = 50;
 
 export default function CloudSyncProvider({ children }) {
   const { updateAsset, setAssetsSyncError } = useAssets();
@@ -78,20 +75,16 @@ export default function CloudSyncProvider({ children }) {
     completedBytesRef.current = 0;
     setBackupError(null);
 
-    // The run backs up the assets unsynced at its start: their ids are read once and walked in
-    // batches, each row re-read so one that was synced, failed or deleted meanwhile is skipped. The
-    // total is exact; assets added meanwhile wait for the next run.
+    // The run backs up the assets unsynced at its start: their ids are read once, and each row is
+    // read again right before its upload, so one synced, failed or deleted meanwhile is skipped (its
+    // file isn't uploaded or removed). The total is exact; assets added meanwhile wait for the next run.
     try {
       const db = getDb();
       const ids = await readUnsyncedIds(db);
-      let index = 0;
-      for (const batch of chunk(ids, UPLOAD_BATCH)) {
-        const assets = await readByIdMap(db, schema.assets, batch);
-        for (const id of batch) {
-          setSyncMessage(`Syncing ${++index} of ${ids.length}`);
-          const asset = assets.get(id);
-          if (asset && isUnsynced(asset)) await uploadAsset(asset);
-        }
+      for (const [index, id] of ids.entries()) {
+        setSyncMessage(`Syncing ${index + 1} of ${ids.length}`);
+        const [asset] = await readByIds(db, schema.assets, [id]);
+        if (asset && isUnsynced(asset)) await uploadAsset(asset);
       }
     } catch (error) {
       // Not an upload (those are marked per asset): the run itself couldn't go on.

@@ -16,6 +16,9 @@ export default function PostList({
   onScroll,
 }) {
   const data = FirstListEntryComponent ? [FIRST_ENTRY, ...(rows ?? [])] : rows;
+  // More is asked for only once the first page landed: until then the list is just the first entry,
+  // and a load-more asked then would read a second page at once.
+  const onEndReached = rows ? loadMore : undefined;
 
   if (!data) return null;
 
@@ -28,7 +31,7 @@ export default function PostList({
       ListHeaderComponent={ListHeaderComponent}
       stickyHeaderIndices={ListHeaderComponent ? [0] : undefined}
       contentContainerStyle={contentContainerStyle}
-      onEndReached={loadMore}
+      onEndReached={onEndReached}
       onEndReachedThreshold={2}
       ref={listRef}
       onScroll={onScroll}

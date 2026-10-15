@@ -41,8 +41,7 @@ const BATCH_INSTRUCTION = `Generate exactly ${TWEET_BATCH_SIZE} tweets and retur
 const SWIPE_THRESHOLD = 50;
 const PROMPT_FOCUS_DELAY_MS = 100;
 const POOL_SIZE = 50;
-const NO_ASSET_IDS = [];
-const NO_ROWS = [];
+const NO_POOL = { ids: [], rows: [] };
 // Swapping cards is a quick fade-through: the old one exits, the new one enters at the fast duration.
 const SWAP_IN = { ...motion.enter, duration: motion.duration.fast };
 
@@ -56,19 +55,24 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
   const [showImages, setShowImages] = useState(true);
   const [showVideos, setShowVideos] = useState(true);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
-  // Asset pool: a random draw of ids when the modal opens or a filter changes, refilled past its end
-  // (not on every library write); the card shows the live asset for its id.
-  const [assetPool, setAssetPool] = useState(NO_ASSET_IDS);
+  // Asset pool: a random draw when the modal opens or a filter changes, refilled past its end (not on
+  // every library write). A draw is shown once its rows are read, so the card never goes blank; from
+  // then on the rows are re-read live, so an asset deleted meanwhile is skipped.
+  const [pool, setPool] = useState(NO_POOL);
   const [assetIndex, setAssetIndex] = useState(0);
-  const poolRows = useLiveQuery((db) => readByIds(db, schema.assets, assetPool), [schema.assets], [assetPool]);
+  const livePool = useLiveQuery(
+    async (db) => ({ draw: pool.ids.join(), rows: await readByIds(db, schema.assets, pool.ids) }),
+    [schema.assets],
+    [pool.ids],
+  );
   const [textPool, setTextPool] = useState([]);
   const [textIndex, setTextIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     let isCancelled = false;
-    if (visible) drawPool().then((ids) => !isCancelled && setAssetPool(ids));
-    else setAssetPool(NO_ASSET_IDS);
+    if (visible) drawPool().then((drawn) => !isCancelled && setPool(drawn));
+    else setPool(NO_POOL);
     setAssetIndex(0);
     return () => {
       isCancelled = true;
@@ -131,12 +135,14 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
     }),
   ).current.panHandlers;
 
-  const pool = assetQuery({
+  const poolQuery = assetQuery({
     scope: 'library',
     sort: 'random',
     filter: poolFilter({ showImages, showVideos, onlyFavorites }),
   });
-  const assets = new Map((poolRows ?? NO_ROWS).map((asset) => [asset.id, asset]));
+  const assetPool = pool.ids;
+  const rows = livePool?.draw === pool.ids.join() ? livePool.rows : pool.rows;
+  const assets = new Map(rows.map((asset) => [asset.id, asset]));
   // Assets deleted while the modal is open (e.g. by a sync) are skipped, not shown.
   const currentIndex = findLiveIndex(assetPool, assets, assetIndex, 1);
   const currentAsset = currentIndex >= 0 ? assets.get(assetPool[currentIndex]) : null;
@@ -159,8 +165,10 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
     fetchTextBatch().then(setTextPool);
   }
 
-  function drawPool() {
-    return pool.ids(getDb(), { limit: POOL_SIZE });
+  async function drawPool() {
+    const db = getDb();
+    const ids = await poolQuery.ids(db, { limit: POOL_SIZE });
+    return { ids, rows: await readByIds(db, schema.assets, ids) };
   }
 
   // Fetches one batch of captions. Callers decide where the batch goes.
@@ -208,9 +216,9 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
     const step = direction === 'next' ? 1 : -1;
     if (direction === 'next' && findLiveIndex(assetPool, assets, currentIndex + 1, 1) <= currentIndex) {
       // Past the last one: a fresh draw.
-      drawPool().then((ids) =>
+      drawPool().then((drawn) =>
         animateTransition(mediaOpacity, mediaTranslateX, direction, () => {
-          setAssetPool(ids);
+          setPool(drawn);
           setAssetIndex(0);
         }),
       );

@@ -64,6 +64,9 @@ export default function SortableAssetGrid({
   // drag lift the wrong cell. While a drag runs, the gesture owns the slots; rows arriving meanwhile
   // apply after it.
   const [pendingMoves, setPendingMoves] = useState(NO_MOVES);
+  // One reorder at a time: a drag waits until the previous drop's write has settled, so each drop is
+  // made on an order the database has (a failed first drop would leave the second on a guessed one).
+  const [isWriting, setIsWriting] = useState(false);
   const isDraggingRef = useRef(false);
   const sentOrderRef = useRef(null);
   const landed = dropLandedMoves(pendingMoves, rowsReadAt);
@@ -101,7 +104,7 @@ export default function SortableAssetGrid({
   });
 
   const dragReorder = useAssetDragReorder({
-    enabled: reorderEnabled,
+    enabled: reorderEnabled && !isWriting,
     rows: ordered,
     numColumns,
     itemSize,
@@ -149,6 +152,7 @@ export default function SortableAssetGrid({
     sendSlots(applyPendingMoves(orderedRef.current, change ? [change] : NO_MOVES));
     if (!change) return;
     setPendingMoves((current) => [...current, change]);
+    setIsWriting(true);
     try {
       await onReorder(change);
       const writtenAt = getDb().committedWrites();
@@ -157,6 +161,8 @@ export default function SortableAssetGrid({
       console.error('Reorder failed', error);
       setPendingMoves((current) => current.filter((move) => move !== change));
       Alert.alert("Couldn't move the photo", 'The drop was undone.');
+    } finally {
+      setIsWriting(false);
     }
   }
 

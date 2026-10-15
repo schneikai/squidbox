@@ -108,7 +108,7 @@ export default function Album({ album }) {
       updateAlbum(album.id, { sortOrder: 'custom' });
     } else {
       // Any date sort becomes the shared default and takes this album off custom
-      // (the manual order data in album.assets is kept for later).
+      // (its edge positions, the custom order, are kept for later).
       setAlbumSortOrder(order);
       updateAlbum(album.id, { sortOrder: null });
     }
