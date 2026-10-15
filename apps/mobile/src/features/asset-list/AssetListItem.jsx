@@ -66,7 +66,7 @@ function LastPostedAt({ lastPostedAt }) {
   return <Text style={styles.lastPostedAt}>{dateToTimeAgo(lastPostedAt)}</Text>;
 }
 
-// One pre-rendered radial fade (black at 45% in the top-left corner to transparent), flipped for the
+// One pre-rendered radial fade (black at 52% in the top-left corner to transparent), flipped for the
 // other corners: an image per cell is far cheaper to mount than an SVG gradient, and every grid cell
 // shows one or more.
 const CORNER_GLOW = require('../../../assets/corner-glow.png');

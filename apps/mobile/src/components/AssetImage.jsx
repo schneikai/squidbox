@@ -1,13 +1,14 @@
 import { useEffect, useState, useRef } from 'react';
-import { View, Image, Animated } from 'react-native';
+import { View, Image, Animated, StyleSheet } from 'react-native';
 
 import useAppSettings from '@/features/app-settings/useAppSettings';
 import useAssetThumbnailLoader from '@/features/asset-thumbnail-loader/useAssetThumbnailLoader';
+import { motion } from '@/styles/designTokens';
 import getAssetThumbnailUri from '@/utils/assets/thumbnails/getAssetThumbnailUri';
 import hasThumbnailAsync from '@/utils/assets/thumbnails/hasThumbnailAsync';
 
-// contentFit: "cover" | "contain". `overlay` (e.g. a cell's corner glows) shows once the picture has
-// loaded, never over the placeholder.
+// contentFit: "cover" | "contain". The placeholder pulses until the picture has loaded, and
+// `overlay` (e.g. a cell's corner glows) shows only then.
 export default function AssetImage({ asset = {}, contentFit, placeholderColor = 'lightgrey', overlay }) {
   const [thumbnailUri, setThumbnailUri] = useState(null);
   const [loadedUri, setLoadedUri] = useState(null);
@@ -53,6 +54,7 @@ export default function AssetImage({ asset = {}, contentFit, placeholderColor = 
     return <LoadingPlaceholder color={placeholderColor} />;
   }
 
+  const isLoaded = loadedUri === thumbnailUri;
   const styleProps = {
     flex: 1,
     resizeMode: contentFit || thumbnailStyle,
@@ -61,34 +63,28 @@ export default function AssetImage({ asset = {}, contentFit, placeholderColor = 
 
   return (
     <>
-      <Image
-        source={{ uri: thumbnailUri }}
-        style={styleProps}
-        onLoad={overlay ? () => setLoadedUri(thumbnailUri) : undefined}
-      />
-      {loadedUri === thumbnailUri && overlay}
+      <Image source={{ uri: thumbnailUri }} style={styleProps} onLoad={() => setLoadedUri(thumbnailUri)} />
+      {isLoaded ? overlay : <LoadingPlaceholder color={placeholderColor} style={StyleSheet.absoluteFill} />}
     </>
   );
 }
 
-function LoadingPlaceholder({ color }) {
+// Each placeholder breathes at its own pace from its own starting point, so a screen of loading cells
+// doesn't pulse as one grey surface.
+function LoadingPlaceholder({ color, style }) {
   const animatedValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(animatedValue, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(animatedValue, {
-          toValue: 0,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start();
+    const { duration, easing } = motion.pulse;
+    const ownDuration = duration * (0.7 + Math.random() * 0.6);
+    const half = (toValue) =>
+      Animated.timing(animatedValue, { toValue, duration: ownDuration, easing, useNativeDriver: true });
+    const animation = Animated.sequence([
+      Animated.delay(Math.random() * ownDuration * 2),
+      Animated.loop(Animated.sequence([half(1), half(0)])),
+    ]);
+    animation.start();
+    return () => animation.stop();
   }, [animatedValue]);
 
   const overlayOpacity = animatedValue.interpolate({
@@ -97,7 +93,7 @@ function LoadingPlaceholder({ color }) {
   });
 
   return (
-    <View style={{ flex: 1, backgroundColor: color }}>
+    <View style={[{ flex: 1, backgroundColor: color }, style]}>
       <Animated.View style={{ flex: 1, backgroundColor: 'white', opacity: overlayOpacity }} />
     </View>
   );

@@ -140,6 +140,7 @@ export const motion = {
   exit: { duration: durations.fast, easing: Easing.in(Easing.cubic) }, // leaves, shorter and accelerating away
   move: { duration: durations.base, easing: Easing.inOut(Easing.cubic) }, // changes while staying on screen
   spring: springConfig({ duration: 0.3, bounce: 0.15 }), // anything that grows, follows a finger or settles
+  pulse: { duration: 1000, easing: Easing.inOut(Easing.sin) }, // one half of a loading placeholder's breath
 };
 
 // Apple's spring model (WWDC23 "Animate with springs"): perceptual duration in seconds and bounce
