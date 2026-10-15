@@ -1,6 +1,7 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 import AssetGridCell from './AssetGridCell';
+import createSelectionStore from './createSelectionStore';
 
 import AssetQuickViewModal from '@/components/AssetQuickViewModal';
 import useAssets from '@/features/assets-context/useAssets';
@@ -22,29 +23,33 @@ export default function useAssetCells({
   const quickViewRef = useRef(null);
 
   const handlersRef = useRef();
-  handlersRef.current = { onPress, onDoublePress: toggleFavoriteAsset };
+  handlersRef.current = { onPress, onDoublePress: toggleFavoriteAsset, isSelectMode };
   const [stable] = useState(() => ({
     onPress: (asset) => handlersRef.current.onPress(asset),
     onDoublePress: (asset) => handlersRef.current.onDoublePress(asset),
-    onLongPress: (asset) => quickViewRef.current?.open(asset),
+    onLongPress: (asset) => !handlersRef.current.isSelectMode && quickViewRef.current?.open(asset),
     onLongPressOut: () => quickViewRef.current?.close(),
   }));
   const hasPress = !!onPress;
+
+  // Select mode reaches the cells through the store, so renderCell keeps its identity and a toggle
+  // re-renders only the selection overlays. Before paint, so the rings show in the same frame.
+  const [selection] = useState(createSelectionStore);
+  useLayoutEffect(() => selection.set({ isSelectMode, isAssetSelected }), [selection, isSelectMode, isAssetSelected]);
 
   const renderCell = useCallback(
     (asset) => (
       <AssetGridCell
         asset={asset}
-        isSelectMode={isSelectMode}
-        isSelected={isAssetSelected ? isAssetSelected(asset.id) : false}
+        selection={selection}
         showLastPostedAt={showLastPostedAt}
         onPress={hasPress ? stable.onPress : undefined}
         onDoublePress={asset.deletedAt ? undefined : stable.onDoublePress}
-        onLongPress={canPeek && !isSelectMode ? stable.onLongPress : undefined}
+        onLongPress={canPeek ? stable.onLongPress : undefined}
         onLongPressOut={stable.onLongPressOut}
       />
     ),
-    [isSelectMode, isAssetSelected, showLastPostedAt, hasPress, canPeek, stable],
+    [selection, showLastPostedAt, hasPress, canPeek, stable],
   );
 
   return { renderCell, quickViewModal: <AssetQuickViewModal ref={quickViewRef} /> };

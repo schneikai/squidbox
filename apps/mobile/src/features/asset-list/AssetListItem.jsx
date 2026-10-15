@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useSyncExternalStore } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import { Defs, RadialGradient, Rect, Stop, Svg } from 'react-native-svg';
 
@@ -11,7 +11,7 @@ import formatVideoDuration from '@/utils/formatVideoDuration';
 // Memoized: providers keep unchanged assets as the same objects, so a write re-renders only its cells.
 export default memo(AssetListItem);
 
-function AssetListItem({ asset, isSelected, isSelectMode, showLastPostedAt }) {
+function AssetListItem({ asset, selection, showLastPostedAt }) {
   const { lastPostedAt, duration, isFavorite, isSynced, notes } = asset;
   return (
     <View style={styles.container}>
@@ -28,9 +28,20 @@ function AssetListItem({ asset, isSelected, isSelectMode, showLastPostedAt }) {
       </View>
 
       {/* Top-left: selection indicator (empty ring or filled checkmark) */}
-      {isSelectMode && <CornerGlow corner="topLeft" size={60} />}
-      {isSelectMode && <SelectIndicator isSelected={isSelected} />}
+      {selection && <SelectionOverlay selection={selection} assetId={asset.id} />}
     </View>
+  );
+}
+
+function SelectionOverlay({ selection, assetId }) {
+  const state = useSyncExternalStore(selection.subscribe, () => selection.stateOf(assetId));
+  if (state === 'off') return null;
+
+  return (
+    <>
+      <CornerGlow corner="topLeft" size={60} />
+      <SelectIndicator isSelected={state === 'selected'} />
+    </>
   );
 }
 

@@ -75,7 +75,8 @@ export default function AssetList({
       ListHeaderComponent={ListHeaderComponent}
       stickyHeaderIndices={ListHeaderComponent ? STICKY_HEADER : undefined}
       contentContainerStyle={contentContainerStyle}
-      initialNumToRender={30}
+      // Grid rows, not cells: about a screen's worth. FlatList keeps these mounted at the top.
+      initialNumToRender={10}
       onEndReached={loadMore}
       onEndReachedThreshold={2}
       ref={listRef}
