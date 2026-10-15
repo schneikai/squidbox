@@ -34,12 +34,14 @@ function AssetListItem({ asset, selection, showLastPostedAt }) {
 
 function SelectionOverlay({ selection, assetId }) {
   const state = useSyncExternalStore(selection.subscribe, () => selection.stateOf(assetId));
-  if (state === 'off') return null;
+  const isOn = state !== 'off';
 
+  // The glow stays mounted while select mode is off, only hidden: an image appears a few frames after
+  // it mounts, so mounting it on the toggle would show the ring before its glow.
   return (
     <>
-      <CornerGlow corner="topLeft" size={60} />
-      <SelectIndicator isSelected={state === 'selected'} />
+      <CornerGlow corner="topLeft" size={60} isHidden={!isOn} />
+      {isOn && <SelectIndicator isSelected={state === 'selected'} />}
     </>
   );
 }
@@ -62,9 +64,12 @@ const CORNER_STYLES = {
   bottomRight: { bottom: 0, right: 0, transform: [{ scaleX: -1 }, { scaleY: -1 }] },
 };
 
-function CornerGlow({ corner, size }) {
+function CornerGlow({ corner, size, isHidden = false }) {
   return (
-    <Image source={CORNER_GLOW} style={[styles.cornerGlow, { width: size, height: size }, CORNER_STYLES[corner]]} />
+    <Image
+      source={CORNER_GLOW}
+      style={[styles.cornerGlow, { width: size, height: size }, CORNER_STYLES[corner], isHidden && styles.hidden]}
+    />
   );
 }
 
@@ -112,6 +117,9 @@ const styles = StyleSheet.create({
 
   cornerGlow: {
     position: 'absolute',
+  },
+  hidden: {
+    opacity: 0,
   },
 
   videoDuration: {
