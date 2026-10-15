@@ -23,11 +23,11 @@ Goal, decided by the owner: the app keeps one SQLite database and one set of fil
 type Owner = { kind: 'device' } | { kind: 'account'; serverId: string | null; userId: string; email: string };
 
 interface Library {
-  id: string;                 // registry key; names the db and folders of libraries created after the migration
+  id: string; // registry key; names the db and folders of libraries created after the migration
   owner: Owner;
-  dbName: string;             // 'squidbox.db' for the migrated library, `library-${id}.db` otherwise
-  filesDir: string;           // relative to documentDirectory: 'assetfiles/' | `libraries/${id}/files/`
-  thumbnailsDir: string;      // 'assetthumbnails/' | `libraries/${id}/thumbnails/`
+  dbName: string; // 'squidbox.db' for the migrated library, `library-${id}.db` otherwise
+  filesDir: string; // relative to documentDirectory: 'assetfiles/' | `libraries/${id}/files/`
+  thumbnailsDir: string; // 'assetthumbnails/' | `libraries/${id}/thumbnails/`
   createdAt: number;
   lastOpenedAt: number;
   closed?: { pendingCount: number; unsyncedCount: number; bytes: number; at: number }; // taken when it closed
@@ -151,7 +151,7 @@ After step 4 the app boots into the device library without any account, adds pho
 
 - **Web OPFS handles.** One open database costs two of the pool's six; a merge opens a second one (four). SQLite temp files during the big `INSERT` batches may need more: check in step 6's web run; if the pool overflows, the merge on web copies through the open connection with `ATTACH DATABASE` (the name is the VFS path on web; `defaultDatabaseDirectory/name` on iOS), which needs no second handle.
 - **Closing under load.** A read already in the driver queue when `close()` is queued still runs before it (the queue is FIFO), so nothing reads a closed connection; a statement queued after it rejects, which a stopped watch only logs (`watchQuery` catches). `driver.test` pins both.
-- **Shared native handles.** Both platforms share one handle per name: the library module is the only opener, and it never opens a name it hasn't closed (the merge opens a *different* name). iOS `deleteDatabaseAsync` throws while a database is open and when the file is missing: `removeLibrary` closes first and tolerates a missing file.
+- **Shared native handles.** Both platforms share one handle per name: the library module is the only opener, and it never opens a name it hasn't closed (the merge opens a _different_ name). iOS `deleteDatabaseAsync` throws while a database is open and when the file is missing: `removeLibrary` closes first and tolerates a missing file.
 - **The install migration on the owner's phone** runs once and moves nothing; a device check before the build goes out (step 4). The `/me` that resolves `serverId` can fail offline: the library then waits with `serverId: null`, and sync is gated on `isAuthenticated`, which the session's `serverId: null` satisfies only against the migrated library (the only one with a null); `findAccountLibrary(serverId, userId)` treats a null in the library as a match for its `userId` until resolved.
 - **Backup abort granularity.** An upload in flight is cancelled; the server may still complete a multipart upload it had already received. The file then exists in A's storage with the record not marked, and the next run uploads it again to the same key: harmless (sync-design §4's argument).
 - **Sessions bound to the base URL** cost one `/up` per changed dev tunnel; a production build never pays it.
