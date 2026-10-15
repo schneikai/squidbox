@@ -8,9 +8,8 @@ import useFilterAlbumsAction from '@/features/album-list/actions/filter-albums-a
 import useSearchAlbumsAction from '@/features/album-list/actions/search-albums-action/useSearchAlbumsAction';
 import SortAlbumsAction from '@/features/album-list/actions/sort-albums-action/SortAlbumsAction';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
-import prepareAlbums from '@/features/album-list/prepareAlbums';
 import useAlbumList from '@/features/album-list/useAlbumList';
-import useAlbumRows from '@/features/album-list/useAlbumRows';
+import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
 
 export default function AlbumsScreen({ navigation }) {
   const { listRef, listScrollTop } = useAlbumList();
@@ -18,8 +17,7 @@ export default function AlbumsScreen({ navigation }) {
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterFilter: listScrollTop });
   const { searchText } = useSearchAlbumsAction();
 
-  const rows = useAlbumRows('all');
-  const albums = prepareAlbums({ albums: rows ?? [], sortFn: sortFunction, filterFn: matchFilter, searchText });
+  const albums = usePreparedAlbums({ sortFn: sortFunction, filterFn: matchFilter, searchText });
 
   return (
     <AlbumList

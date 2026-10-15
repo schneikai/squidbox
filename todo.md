@@ -176,6 +176,14 @@ A rejected or unappliable push result flags assets with `syncError` (shown in th
 viewer), but albums, posts and their edges have no such field (`worker.ts` `applyPushResults`).
 Their outbox rows retry on every sync and the failure is only visible in the Sync Inspector's log.
 
+### [ ] The server answers an invalid push value with 500
+
+"Postpone" on a repost suggestion wrote a fractional `suggestRepostAt` (fixed in
+`CreatePostScreen.jsx`), and the server's bigint column made the whole push fail with HTTP 500
+instead of rejecting that one mutation. The push contract (`packages/shared`) should require
+integers for timestamps so a bad value is rejected per record. A phone that postponed a post
+before the fix keeps retrying it until the app update goes out.
+
 ### [ ] Measure WAL on iOS
 
 `db/client.ts` sets no journal mode (expo-sqlite sets none either). With one connection and the

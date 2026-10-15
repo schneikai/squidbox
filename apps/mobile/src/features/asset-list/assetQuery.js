@@ -1,7 +1,8 @@
-import { and, asc, count, desc, eq, getTableColumns, isNotNull, isNull } from 'drizzle-orm';
+import { and, count, eq, getTableColumns, isNotNull, isNull } from 'drizzle-orm';
 
-import { a, assetOrder, assetScopeWhere, e, inJson, lastPostedAt, matchingIds } from '@/sync/assetSql';
+import { a, assetOrder, assetScopeWhere, e, lastPostedAt, matchingIds, sortsByLastPostedAt } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
+import { inJson } from '@/sync/inJson';
 import { MEDIA_TYPES } from '@/utils/assets/constants';
 
 /**
@@ -19,7 +20,7 @@ import { MEDIA_TYPES } from '@/utils/assets/constants';
 export default function assetQuery({ scope = 'library', sort = 'createdAt:desc', filter = [], search = '' }) {
   const isCustom = sort === 'custom';
   if (isCustom && !scope.albumId) throw new Error('The custom sort needs an album scope');
-  const isByLastPosted = sort.startsWith('lastPostedAt');
+  const isByLastPosted = sortsByLastPostedAt(scope, sort);
 
   const tables = [schema.assets];
   if (scope.albumId) tables.push(schema.albumAssets);
@@ -49,17 +50,9 @@ export default function assetQuery({ scope = 'library', sort = 'createdAt:desc',
     return isCustom ? query.from(e).innerJoin(a, eq(a.id, e.assetId)) : query.from(a);
   }
 
-  // The lastPostedAt sort key is computed once per row in a derived table, and the outer order reads it.
   function ordered(tx, fields, ids) {
-    if (!isByLastPosted) return from(tx.select(fields)).where(where(ids)).orderBy(assetOrder(scope, sort));
-    const ranked = from(tx.select({ ...fields, lastPostedAt: lastPostedAt.as('last_posted_at') }))
-      .where(where(ids))
-      .as('ranked');
-    const direction = sort.endsWith(':asc') ? asc : desc;
-    return tx
-      .select()
-      .from(ranked)
-      .orderBy(direction(ranked.lastPostedAt), direction(ranked.createdAt), direction(ranked.id));
+    const selected = isByLastPosted ? { ...fields, lastPostedAt: lastPostedAt.as('last_posted_at') } : fields;
+    return from(tx.select(selected)).where(where(ids)).orderBy(assetOrder(scope, sort));
   }
 
   return {

@@ -111,6 +111,16 @@ describe('postQuery', () => {
     await createPost('p2', { suggestRepostAt: 10, updatedAt: 3 });
     await createPost('p3', { suggestRepostAt: 10, updatedAt: 2 });
     expect(await ids({ scope: 'repostCandidates', sort: 'suggestRepostAt:asc' })).toEqual(['p2', 'p3', 'p1']);
+    // An unset suggestion (0) falls back to the post date, then to 0.
+    await createPost('p4', { suggestRepostAt: 0, postedAt: 20 });
+    await createPost('p5', { suggestRepostAt: 0, postedAt: null });
+    expect(await ids({ scope: 'repostCandidates', sort: 'suggestRepostAt:asc' })).toEqual([
+      'p5',
+      'p2',
+      'p3',
+      'p4',
+      'p1',
+    ]);
     await posts.updateAll(db, ['p1', 'p2', 'p3'], { isIgnoredForRepost: true });
     const [first] = (await postQuery({ scope: 'ignored', sort: 'updatedAt:desc' }).read(db, { limit: 1 })).rows;
     expect(first.id).toBe('p3'); // ignored last

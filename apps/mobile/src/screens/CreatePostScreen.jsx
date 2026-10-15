@@ -59,7 +59,7 @@ export default function CreatePostScreen({ navigation }) {
   async function handlePostpone(post) {
     const newestDate = await readNewestRepostDate(getDb());
     const from = post.suggestRepostAt || Date.now();
-    const suggestRepostAt = from + Math.random() * (newestDate - from);
+    const suggestRepostAt = Math.round(from + Math.random() * (newestDate - from)); // the server stores whole ms
     await updatePost(post.id, { suggestRepostAt });
   }
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
-import postQuery from '@/features/post-list/postQuery';
+import readPost from '@/features/post-detail/readPost';
 import PostEditor from '@/features/posts/PostEditor';
 import usePosts from '@/features/posts-context/usePosts';
 import { getDb } from '@/sync/db/client';
@@ -15,14 +15,10 @@ export default function EditPostScreen({ route, navigation }) {
   const [post, setPost] = useState(null);
 
   useEffect(() => {
-    postQuery({ scope: { postId } })
-      .read(getDb(), { limit: 1 })
-      .then(({ rows }) => setPost(rows[0] ?? null));
+    readPost(getDb(), postId).then(setPost);
   }, [postId]);
 
-  if (!post) return null;
-
-  const data = { text: post.text, assetRefs: postAssetsToAssetRefs(post.postAssets), postedAt: post.postedAt };
+  const data = post && { text: post.text, assetRefs: postAssetsToAssetRefs(post.postAssets), postedAt: post.postedAt };
 
   async function handleUpdatePost() {
     try {
@@ -41,6 +37,8 @@ export default function EditPostScreen({ route, navigation }) {
       return false;
     }
   }
+
+  if (!post) return null;
 
   return (
     <PostEditor

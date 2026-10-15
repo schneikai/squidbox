@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
-import postQuery from '@/features/post-list/postQuery';
+import readPost from '@/features/post-detail/readPost';
 import PostEditor from '@/features/posts/PostEditor';
 import usePosts from '@/features/posts-context/usePosts';
 import { getDb, schema } from '@/sync/db/client';
@@ -11,8 +11,8 @@ import buildPostAssets from '@/utils/posts/buildPostAssets';
 import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
 import postSchema from '@/utils/posts/postSchema';
 
-// A new post, seeded once from the route: the assets to post (`assetIds`), a text, or the post to
-// repost (`rePostId`: its text and assets, as fresh post assets).
+// A new post, seeded once from the route: the assets to post (`assetIds`, in that order), a text, or
+// the post to repost (`rePostId`: its text and assets, as fresh post assets).
 export default function AddPostScreen({ route, navigation }) {
   const { rePostId } = route.params ?? {};
   const { addPost, updatePost } = usePosts();
@@ -22,9 +22,7 @@ export default function AddPostScreen({ route, navigation }) {
     readSeed(getDb(), route.params ?? {}).then(setPost);
   }, [route.params]);
 
-  if (!post) return null;
-
-  const data = { text: post.text, assetRefs: postAssetsToAssetRefs(post.postAssets), postedAt: post.postedAt };
+  const data = post && { text: post.text, assetRefs: postAssetsToAssetRefs(post.postAssets), postedAt: post.postedAt };
 
   async function handleAddPost() {
     try {
@@ -45,6 +43,8 @@ export default function AddPostScreen({ route, navigation }) {
     }
   }
 
+  if (!post) return null;
+
   return (
     <PostEditor post={post} onChange={setPost} navigation={navigation} onSave={handleAddPost} canSave={canAddPost()} />
   );
@@ -52,7 +52,7 @@ export default function AddPostScreen({ route, navigation }) {
 
 async function readSeed(db, { rePostId, assetIds, text }) {
   if (rePostId) {
-    const [rePost] = (await postQuery({ scope: { postId: rePostId } }).read(db, { limit: 1 })).rows;
+    const rePost = await readPost(db, rePostId);
     const assets = rePost?.postAssets.map((postAsset) => postAsset.asset) ?? [];
     return { text: rePost?.text ?? '', postAssets: buildPostAssets(assets), postedAt: getTimestamp() };
   }

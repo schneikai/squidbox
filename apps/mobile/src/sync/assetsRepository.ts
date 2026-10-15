@@ -1,10 +1,10 @@
 import type { AssetRecord } from '@squidbox/shared';
 import { and, asc, count, eq, gt, inArray, isNotNull, isNull, sql, type SQL } from 'drizzle-orm';
 
-import { inJson } from './assetSql';
 import { chunk, SQL_BATCH } from './chunk';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
+import { inJson } from './inJson';
 import { makeRepository } from './repository';
 
 const repository = makeRepository<AssetRecord>('assets', schema.assets);

@@ -83,8 +83,8 @@ export default function CloudSyncProvider({ children }) {
   }
 
   async function syncAssets() {
-    // Just making double sure that we don't start syncing multiple times
-    if (isSyncRunning.current) return;
+    // Backup needs the cloud. Just making double sure that we don't start syncing multiple times.
+    if (!isAuthenticated || isSyncRunning.current) return;
     isSyncRunning.current = true;
 
     setIsSyncing(true);
@@ -93,20 +93,22 @@ export default function CloudSyncProvider({ children }) {
 
     // The total is fixed at the start (the live count shrinks as uploads land) and the assets are
     // walked by id, so each is tried once however the run marks it.
-    const db = getDb();
-    const total = await countUnsynced(db);
-    let index = 0;
-    let afterId = null;
-    for (;;) {
-      const batch = await readUnsynced(db, { afterId, limit: UPLOAD_BATCH });
-      if (batch.length === 0) break;
-      afterId = batch[batch.length - 1].id;
-      for (const asset of batch) await uploadAsset(asset, ++index, total);
+    try {
+      const db = getDb();
+      const total = await countUnsynced(db);
+      let index = 0;
+      let afterId = null;
+      for (;;) {
+        const batch = await readUnsynced(db, { afterId, limit: UPLOAD_BATCH });
+        if (batch.length === 0) break;
+        afterId = batch[batch.length - 1].id;
+        for (const asset of batch) await uploadAsset(asset, ++index, total);
+      }
+    } finally {
+      setIsSyncing(false);
+      setSyncMessage(null);
+      isSyncRunning.current = false;
     }
-
-    setIsSyncing(false);
-    setSyncMessage(null);
-    isSyncRunning.current = false;
   }
 
   async function uploadAsset(asset, index, total) {
@@ -148,7 +150,7 @@ export default function CloudSyncProvider({ children }) {
       syncSpeedMessage,
       syncNow: syncAssets,
     }),
-    [unsyncedCount, syncErrorCount, isSyncing, syncMessage, syncProgressMessage, syncSpeedMessage],
+    [isAuthenticated, unsyncedCount, syncErrorCount, isSyncing, syncMessage, syncProgressMessage, syncSpeedMessage],
   );
 
   return <CloudSyncContext.Provider value={value}>{children}</CloudSyncContext.Provider>;

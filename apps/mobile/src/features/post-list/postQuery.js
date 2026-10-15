@@ -1,9 +1,11 @@
 import { and, asc, count, desc, eq, getTableColumns, isNull, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 
-import { inJson, liveAlbumAssetIds, matchingIds } from '@/sync/assetSql';
+import { liveAlbumAssetIds, matchingIds } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import { isCanonicalEdge } from '@/sync/edgeSql';
+import { inJson } from '@/sync/inJson';
+import { repostDate } from '@/sync/postsRepository';
 import { readByIds } from '@/sync/readByIds';
 
 const p = alias(schema.posts, 'p');
@@ -45,7 +47,7 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
   })();
   const favorites = filter.includes('favorites') ? eq(p.isFavorite, true) : undefined;
   const order = (() => {
-    if (sort === 'suggestRepostAt:asc') return [asc(p.suggestRepostAt), asc(p.id)];
+    if (sort === 'suggestRepostAt:asc') return [asc(repostDate(p)), asc(p.id)];
     if (sort === 'updatedAt:desc') return [desc(p.updatedAt), desc(p.id)];
     return [direction(p.postedAt), direction(p.id)];
   })();

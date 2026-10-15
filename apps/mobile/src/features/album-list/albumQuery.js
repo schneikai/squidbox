@@ -1,8 +1,9 @@
 import { and, getTableColumns, isNull, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 
-import { assetOrder, assetScopeWhere, inJson, liveAlbumAssetIds } from '@/sync/assetSql';
+import { assetOrder, assetScopeWhere, lastPostedAt, liveAlbumAssetIds, sortsByLastPostedAt } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
+import { inJson } from '@/sync/inJson';
 import { readByIds } from '@/sync/readByIds';
 
 const al = alias(schema.albums, 'al');
@@ -14,8 +15,12 @@ const al = alias(schema.albums, 'al');
 const thisAlbum = { albumId: sql.raw('al.id') };
 const from = (sort) => sql.raw(sort === 'custom' ? 'album_assets e join assets a on a.id = e.asset_id' : 'assets a');
 const countOf = (scope) => sql`(select count(*) from assets a where ${assetScopeWhere(scope, 'createdAt:desc')})`;
-const firstOf = (scope, sort) =>
-  sql`(select a.id from ${from(sort)} where ${assetScopeWhere(scope, sort)} order by ${assetOrder(scope, sort)} limit 1)`;
+// The first asset in the scope's order, as assetQuery reads it: with the `last_posted_at` column the
+// order may name, and one column left for the CASE.
+function firstOf(scope, sort) {
+  const key = sortsByLastPostedAt(scope, sort) ? sql`, ${lastPostedAt} as last_posted_at` : sql``;
+  return sql`(select id from (select a.id${key} from ${from(sort)} where ${assetScopeWhere(scope, sort)} order by ${assetOrder(scope, sort)} limit 1))`;
+}
 
 /**
  * The album list's rows, as SQL: `page(db)` → every non-deleted album with `assetCount`, `cover`
@@ -39,7 +44,7 @@ export default function albumQuery({ scope = 'all', assetSort = 'createdAt:desc'
     when al.sort_order = 'custom' then ${firstOf(thisAlbum, 'custom')}
     else ${firstOf(thisAlbum, assetSort)}
   end`;
-  const lastPostedAt = sql`case when al.smart_album_type is null then (select max(p.posted_at) from post_assets pe
+  const newestPostedAt = sql`case when al.smart_album_type is null then (select max(p.posted_at) from post_assets pe
     join posts p on p.id = pe.post_id and p.deleted_at is null
     where pe.asset_id in ${liveAlbumAssetIds(thisAlbum.albumId)} and pe.deleted_at is null) end`;
   const inScope =
@@ -53,7 +58,7 @@ export default function albumQuery({ scope = 'all', assetSort = 'createdAt:desc'
     page(db) {
       return db.transaction(async (tx) => {
         const rows = await tx
-          .select({ ...getTableColumns(al), assetCount, coverAssetId, lastPostedAt })
+          .select({ ...getTableColumns(al), assetCount, coverAssetId, lastPostedAt: newestPostedAt })
           .from(al)
           .where(and(isNull(al.deletedAt), inScope));
         const covers = new Map(

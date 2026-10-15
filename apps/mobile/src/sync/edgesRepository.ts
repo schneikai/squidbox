@@ -3,9 +3,9 @@ import { keyBetween, initialKeys } from '@squidbox/shared';
 import { and, eq, isNull, max, ne, sql } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
-import { inJson } from './assetSql';
 import { nextVersion, tombstone } from './clock';
 import type { SyncDb } from './db/types';
+import { inJson } from './inJson';
 import { readByIds } from './readByIds';
 import { saveRecords } from './saveRecords';
 

@@ -125,15 +125,15 @@ export default function SortableAssetGrid({
   );
   const contentContainerStyle = useMemo(() => ({ paddingTop, paddingBottom }), [paddingTop, paddingBottom]);
 
-  if (!rows) return null;
-
-  const gridHeight = Math.ceil(rows.length / numColumns) * itemSize;
+  const gridHeight = Math.ceil((rows?.length ?? 0) / numColumns) * itemSize;
 
   function onLayout(e) {
     const { height } = e.nativeEvent.layout;
     dragSelect.onContainerLayout(height);
     dragReorder.onContainerLayout(height);
   }
+
+  if (!rows) return null;
 
   return (
     <GestureDetector gesture={gesture}>

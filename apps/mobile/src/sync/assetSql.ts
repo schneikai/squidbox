@@ -1,4 +1,4 @@
-import { sql, type SQL, type SQLWrapper } from 'drizzle-orm';
+import { sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 
 import * as schema from './db/schema';
@@ -15,19 +15,21 @@ export const e = alias(schema.albumAssets, 'e');
 /** An asset scope: the library, a smart album, or an album by id (a value, or SQL naming a column). */
 export type AssetScope = 'library' | 'favorites' | 'deleted' | { albumId: string | SQL };
 
-/** `column` is one of `values`, passed as one JSON parameter (no limit on the number of SQL variables). */
-export function inJson(column: SQLWrapper, values: unknown[]): SQL {
-  return sql`${column} in (select value from json_each(${JSON.stringify(values)}))`;
-}
-
 /** The ids of an album's assets, through its live edges. */
 export function liveAlbumAssetIds(albumId: string | SQL): SQL {
   return sql`(select asset_id from album_assets where album_id = ${albumId} and deleted_at is null)`;
 }
 
 // When the asset was last posted: SQLite orders NULL (never posted) first ascending and last
-// descending, as the grid always did.
+// descending, as the grid always did. A read under a lastPostedAt sort selects it as
+// `last_posted_at`, and the order names that column, so SQLite runs the subquery once per row (an
+// identical expression in ORDER BY would run it again).
 export const lastPostedAt = sql`(select max(p.posted_at) from post_assets pe join posts p on p.id = pe.post_id where pe.asset_id = a.id and pe.deleted_at is null and p.deleted_at is null)`;
+
+/** Whether the scope's order reads `last_posted_at`, which the read then has to select. */
+export function sortsByLastPostedAt(scope: AssetScope, sort: string): boolean {
+  return scope !== 'deleted' && sort.startsWith('lastPostedAt');
+}
 
 /**
  * The assets of a scope. The custom order drives from the album's edges (`e`, joined to `a`) and
@@ -53,7 +55,7 @@ export function assetOrder(scope: AssetScope, sort: string): SQL {
   if (sort === 'random') return sql`random()`;
   const direction = sql.raw(sort.endsWith(':asc') ? 'asc' : 'desc');
   const byDate = sql`a.created_at ${direction}, a.id ${direction}`;
-  return sort.startsWith('lastPostedAt') ? sql`${lastPostedAt} ${direction}, ${byDate}` : byDate;
+  return sortsByLastPostedAt(scope, sort) ? sql`last_posted_at ${direction}, ${byDate}` : byDate;
 }
 
 /**

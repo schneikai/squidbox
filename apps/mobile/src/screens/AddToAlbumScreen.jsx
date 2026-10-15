@@ -16,9 +16,8 @@ import useFilterAlbumsAction from '@/features/album-list/actions/filter-albums-a
 import useSearchAlbumsAction from '@/features/album-list/actions/search-albums-action/useSearchAlbumsAction';
 import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
-import prepareAlbums from '@/features/album-list/prepareAlbums';
 import useAlbumList from '@/features/album-list/useAlbumList';
-import useAlbumRows from '@/features/album-list/useAlbumRows';
+import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useSearchMode from '@/hooks/useSearchMode';
 import { colors, spacing } from '@/styles/designTokens';
@@ -47,14 +46,7 @@ export default function AddToAlbumScreen({ route, navigation }) {
     scrollY.value = e.contentOffset.y;
   });
 
-  const rows = useAlbumRows('all');
-  const albums = prepareAlbums({
-    albums: rows ?? [],
-    sortFn: sortFunction,
-    filterFn: matchFilter,
-    searchText,
-    showSmartAlbums: false,
-  });
+  const albums = usePreparedAlbums({ sortFn: sortFunction, filterFn: matchFilter, searchText, showSmartAlbums: false });
 
   async function handleAddAssetsToAlbum(album) {
     await runWithProgress((batchOptions) => addAssetsToAlbum(album, route.params.assetIds, batchOptions));

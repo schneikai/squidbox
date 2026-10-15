@@ -12,9 +12,8 @@ import useFilterAlbumsAction from '@/features/album-list/actions/filter-albums-a
 import useSearchAlbumsAction from '@/features/album-list/actions/search-albums-action/useSearchAlbumsAction';
 import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
-import prepareAlbums from '@/features/album-list/prepareAlbums';
 import useAlbumList from '@/features/album-list/useAlbumList';
-import useAlbumRows from '@/features/album-list/useAlbumRows';
+import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useSearchMode from '@/hooks/useSearchMode';
@@ -31,9 +30,7 @@ export default function AlbumsScreen({ navigation }) {
   const { searchBar, query: searchText } = useSearchMode(useSearchAlbumsAction());
   const scrollHandler = useFloatingBarScrollHandler();
 
-  const rows = useAlbumRows('all');
-  const albums = prepareAlbums({
-    albums: rows ?? [],
+  const albums = usePreparedAlbums({
     sortFn: sortFunction,
     filterFn: matchFilter,
     showArchivedAlbums: activeFilter.includes('archived'),
