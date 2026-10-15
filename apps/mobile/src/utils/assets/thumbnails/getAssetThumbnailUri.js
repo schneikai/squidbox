@@ -1,5 +1,5 @@
-import { ASSET_THUMBNAIL_PATH } from './constants';
+import getAssetThumbnailsDirectory from './getAssetThumbnailsDirectory';
 
-export default function getAssetThumbnailUri(thumbnailFilename) {
-  return `${ASSET_THUMBNAIL_PATH}${thumbnailFilename}`;
+export default function getAssetThumbnailUri(thumbnailFilename, library) {
+  return `${getAssetThumbnailsDirectory(library)}${thumbnailFilename}`;
 }

@@ -1,7 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
-import { ASSET_FILE_PATH } from './constants';
+import getAssetFilesDirectory from './getAssetFilesDirectory';
 
-export default async function createAssetFileDirectory() {
-  return FileSystem.makeDirectoryAsync(ASSET_FILE_PATH, { intermediates: true });
+export default async function createAssetFileDirectory(library) {
+  return FileSystem.makeDirectoryAsync(getAssetFilesDirectory(library), { intermediates: true });
 }

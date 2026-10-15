@@ -252,7 +252,9 @@ anything (`src/library/rebuildRegistry.ts`): on a signed-in phone every photo, a
 the session must still be there; on a signed-out phone the library must show with the sign-in form.
 Note the time from splash to library (the open + migrate now runs alongside the cloud init). No
 downgrades past this build: an older build would open `squidbox.db` with its wipe-on-switch logic
-and knows nothing of `library-*.db`.
+and knows nothing of `library-*.db`. Step 4b (files per library): adding a photo from the camera
+roll and backing it up must still work; the migrated library keeps `assetfiles/` and
+`assetthumbnails/`, a fresh install writes under `libraries/<id>/`.
 
 ### [ ] Set the SERVER_ID secret, then deploy the server
 

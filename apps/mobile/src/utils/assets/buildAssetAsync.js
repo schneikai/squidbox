@@ -7,6 +7,7 @@ import getAssetFileUri from './files/getAssetFileUri';
 import getNewAssetId from './getNewAssetId';
 import createAssetThumbnail from './thumbnails/createAssetThumbnail';
 
+import { getLibrary } from '@/library/current';
 import getFileExtension from '@/utils/files/getFileExtension';
 
 export default async function buildAssetAsync(assetData = {}) {
@@ -19,10 +20,12 @@ export default async function buildAssetAsync(assetData = {}) {
 
   if (!newAsset.id) newAsset.id = getNewAssetId();
 
-  await createAssetFileDirectory();
+  // The file goes into the library that is open now, whatever happens before the record is saved.
+  const library = getLibrary();
+  await createAssetFileDirectory(library);
 
   newAsset.filename = `${newAsset.id}.${getFileExtension(sourceFileUri)}`;
-  const assetFileUri = getAssetFileUri(newAsset.filename);
+  const assetFileUri = getAssetFileUri(newAsset.filename, library);
 
   await FileSystem.moveAsync({
     from: sourceFileUri,
@@ -30,12 +33,12 @@ export default async function buildAssetAsync(assetData = {}) {
   });
 
   try {
-    newAsset.thumbnailFilename = await createAssetThumbnail(newAsset.id, assetFileUri, newAsset.mediaType);
+    newAsset.thumbnailFilename = await createAssetThumbnail(newAsset.id, assetFileUri, newAsset.mediaType, library);
 
     // Make sure the new asset is valid before returning it.
     assetSchema.validateSync(newAsset, { strict: true });
   } catch (e) {
-    await deleteAssetFilesAndThumbnailsAsync(newAsset);
+    await deleteAssetFilesAndThumbnailsAsync(newAsset, library);
     throw e;
   }
 

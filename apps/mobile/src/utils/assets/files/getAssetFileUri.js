@@ -1,5 +1,5 @@
-import { ASSET_FILE_PATH } from './constants';
+import getAssetFilesDirectory from './getAssetFilesDirectory';
 
-export default function getAssetFileUri(filename) {
-  return `${ASSET_FILE_PATH}${filename}`;
+export default function getAssetFileUri(filename, library) {
+  return `${getAssetFilesDirectory(library)}${filename}`;
 }
