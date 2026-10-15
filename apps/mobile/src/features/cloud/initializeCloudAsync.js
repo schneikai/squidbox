@@ -1,38 +1,57 @@
-import getUserAsync from './user/getUserAsync';
-import setUserAsync from './user/setUserAsync';
+import api from '@/utils/cloud-api/api';
+import { API_BASE_URL, SERVER_URL } from '@/utils/cloud-api/apiBaseUrl';
+import apiWithAuthentication from '@/utils/cloud-api/apiWithAuthentication';
+import { getSessionAsync, setSessionAsync } from '@/utils/cloud-api/sessionStore';
 
-import { getAccessTokenAsync, clearTokensAsync } from '@/utils/cloud-api/apiTokenStore';
-import getApiUserAsync from '@/utils/cloud-api/user/getUserAsync';
-
+// Resolves the stored session for this launch and returns it. A complete session obtained from the
+// current base URL is good as it is, offline included. A changed base URL (a new dev tunnel) must
+// first prove it is the session's server: its /up has to report the session's serverId, then the
+// session rebinds to it; another server's tokens are dropped. A session missing its owner (a
+// converted install) is filled from /me. Only the server's own "no" (401/403) drops tokens; a
+// network error leaves everything for the next launch.
 export default async function initializeCloudAsync() {
-  // Token + user are stored separately (SecureStore vs AsyncStorage) and independent — read them in
-  // parallel; this is on the splash-blocking init path.
-  const [token, storedUser] = await Promise.all([getAccessTokenAsync(), getUserAsync()]);
-  let user = storedUser;
+  let session = await getSessionAsync();
+  if (!session?.tokens) return session;
 
-  if (token && !user) {
-    user = await handleMissingUser();
-  } else if (!token && user) {
-    await setUserAsync(null);
-    user = null;
+  if (session.apiBaseUrl !== API_BASE_URL) {
+    const serverId = await fetchServerIdAsync();
+    if (serverId === undefined) return session;
+    if (serverId === null || serverId !== session.serverId) return dropTokensAsync(session);
+    session = { ...session, apiBaseUrl: API_BASE_URL };
+    await setSessionAsync(session);
   }
 
-  return user;
+  if (session.serverId && session.userId && session.email) return session;
+  return fillOwnerAsync(session);
 }
 
-// Try to get user from API. If successful, set and return user,
-// otherwise delete tokens and return null for user.
-async function handleMissingUser() {
+// The server's identity (null before its SERVER_ID deploy), or undefined when it can't be reached.
+async function fetchServerIdAsync() {
   try {
-    const apiUser = await getApiUserAsync();
-    if (apiUser) {
-      await setUserAsync(apiUser);
-      return apiUser;
-    }
-  } catch (error) {
-    console.log(`Error getting API user in initializeCloudAsync. Error: ${error.message}`);
+    const { data } = await api.get(`${SERVER_URL}/up`);
+    return data.serverId ?? null;
+  } catch {
+    return undefined;
   }
+}
 
-  await clearTokensAsync();
-  return null;
+async function fillOwnerAsync(session) {
+  try {
+    const {
+      data: { user, serverId },
+    } = await apiWithAuthentication.get('me');
+    const filled = { ...session, serverId: serverId ?? null, userId: user.id, email: user.email };
+    await setSessionAsync(filled);
+    return filled;
+  } catch (error) {
+    if ([401, 403].includes(error?.response?.status)) return dropTokensAsync(await getSessionAsync());
+    return session;
+  }
+}
+
+async function dropTokensAsync(session) {
+  if (!session?.tokens) return session;
+  const dropped = { ...session, tokens: null };
+  await setSessionAsync(dropped);
+  return dropped;
 }

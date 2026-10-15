@@ -8,6 +8,8 @@ import { isUnsynced, readUnsyncedIds } from '@/sync/assetsRepository';
 import { getDb, schema } from '@/sync/db/client';
 import { readByIds } from '@/sync/readByIds';
 import deleteAssetFileAsync from '@/utils/assets/files/deleteAssetFileAsync';
+import requireSessionAsync from '@/utils/cloud-api/requireSessionAsync';
+import { sessionIdentity } from '@/utils/cloud-api/sessionIdentity';
 import fileSizeToHumanReadable from '@/utils/fileSizeToHumanReadable';
 
 export default function CloudSyncProvider({ children }) {
@@ -78,13 +80,15 @@ export default function CloudSyncProvider({ children }) {
     // The run backs up the assets unsynced at its start: their ids are read once, and each row is
     // read again right before its upload, so one synced, failed or deleted meanwhile is skipped (its
     // file isn't uploaded or removed). The total is exact; assets added meanwhile wait for the next run.
+    // Every upload runs for the user signed in at the start, never for one who signs in meanwhile.
     try {
       const db = getDb();
+      const identity = sessionIdentity(await requireSessionAsync());
       const ids = await readUnsyncedIds(db);
       for (const [index, id] of ids.entries()) {
         setSyncMessage(`Syncing ${index + 1} of ${ids.length}`);
         const [asset] = await readByIds(db, schema.assets, [id]);
-        if (asset && isUnsynced(asset)) await uploadAsset(asset);
+        if (asset && isUnsynced(asset)) await uploadAsset(asset, identity);
       }
     } catch (error) {
       // Not an upload (those are marked per asset): the run itself couldn't go on.
@@ -97,13 +101,13 @@ export default function CloudSyncProvider({ children }) {
     }
   }
 
-  async function uploadAsset(asset) {
+  async function uploadAsset(asset, identity) {
     try {
       if (!asset.isFileSynced) {
         lastProgressRef.current = null;
         emaSpeedRef.current = 0;
         let fileTotalBytes = 0;
-        await uploadAssetFileAsync(asset, (progress) => {
+        await uploadAssetFileAsync(asset, identity, (progress) => {
           fileTotalBytes = progress.totalBytesExpectedToSend;
           updateSyncProgressMessage(progress);
         });
@@ -116,7 +120,7 @@ export default function CloudSyncProvider({ children }) {
       }
 
       // We keep the local thumbnail because it is used in the app.
-      if (!asset.isThumbnailSynced) await uploadAssetThumbnailAsync(asset);
+      if (!asset.isThumbnailSynced) await uploadAssetThumbnailAsync(asset, identity);
       await updateAsset(asset.id, { isThumbnailSynced: true, isSynced: true });
     } catch (error) {
       // We do not raise the error and instead continue syncing the other assets.

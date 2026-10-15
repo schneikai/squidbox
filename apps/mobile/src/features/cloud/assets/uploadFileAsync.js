@@ -1,18 +1,20 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
 import { API_BASE_URL } from '@/utils/cloud-api/apiBaseUrl';
-import { getAccessTokenAsync } from '@/utils/cloud-api/apiTokenStore';
 import refreshAccessTokenAsync from '@/utils/cloud-api/authentication/refreshAccessTokenAsync';
+import requireSessionAsync from '@/utils/cloud-api/requireSessionAsync';
 
 // Uploads a file to the API which proxies it to S3 synchronously.
 // The API only responds 200 after S3 confirms the upload, so no extra validation is needed.
-export default async function uploadFileAsync(filename, fileUri, onProgress = null) {
-  const accessToken = await getAccessTokenAsync();
-  const result = await doUploadAsync(filename, fileUri, accessToken, onProgress);
+// The access token is read fresh for `identity`, the user the upload runs for, and refused once
+// someone else is signed in (requireSessionAsync).
+export default async function uploadFileAsync(filename, fileUri, identity, onProgress = null) {
+  const { tokens } = await requireSessionAsync(identity);
+  const result = await doUploadAsync(filename, fileUri, tokens.accessToken, onProgress);
 
   if (result?.status === 401) {
     // Token expired mid-session — refresh and retry once.
-    const newAccessToken = await refreshAccessTokenAsync();
+    const newAccessToken = await refreshAccessTokenAsync(identity);
     const retryResult = await doUploadAsync(filename, fileUri, newAccessToken, onProgress);
     assertSuccess(retryResult);
     return;

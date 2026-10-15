@@ -18,10 +18,8 @@ import useBackupCounts from '@/features/cloud-sync/useBackupCounts';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
 import { colors } from '@/styles/designTokens';
 import { useSyncStatus } from '@/sync/useSyncStatus';
-import { API_BASE_URL } from '@/utils/cloud-api/apiBaseUrl';
+import { SERVER_URL } from '@/utils/cloud-api/apiBaseUrl';
 import useResortAlbumsByName from '@/utils/tools/useResortAlbumsByName';
-
-const SERVER_URL = API_BASE_URL?.replace(/\/api\/v1\/?$/, '');
 
 export default function SettingsScreen() {
   const navigation = useNavigation();

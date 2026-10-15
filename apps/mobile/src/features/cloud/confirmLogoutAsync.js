@@ -1,20 +1,13 @@
 import { Alert } from 'react-native';
 
 export default function confirmLogoutAsync() {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     Alert.alert(
-      'Confirm Logout',
-      'All data on this device is removed. Are you sure you want to continue?',
+      'Sign out?',
+      'Your library stays on this iPhone.',
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-          onPress: () => resolve(false),
-        },
-        {
-          text: 'Logout',
-          onPress: () => resolve(true),
-        },
+        { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Sign out', style: 'destructive', onPress: () => resolve(true) },
       ],
       { cancelable: false },
     );

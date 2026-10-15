@@ -23,7 +23,7 @@ const SERVER_ENV = new URL('../../server/.env', import.meta.url);
 export async function openWebPreview({ signedIn = true, production = false } = {}) {
   const browser = await chromium.launch(launchOptions());
   const context = await browser.newContext(devices['iPhone 15 Pro Max']);
-  if (signedIn) await context.addInitScript(storeTokens, await loginAsync());
+  if (signedIn) await context.addInitScript(storeSession, await loginAsync());
 
   const page = await context.newPage();
   const errors = [];
@@ -80,11 +80,22 @@ async function loginAsync() {
   return res.json();
 }
 
-// Runs in the page: the same keys the web token store (apiTokenStore.web.js) reads.
-function storeTokens({ accessToken, refreshToken }) {
+// Runs in the page before every navigation: seeds the session record the web session store
+// (sessionStore.js over secureStorage.web.js) reads, once per browser context. A later load must not
+// write it again: the app may have rotated the refresh token (the seeded one is then revoked) or a
+// test may have deleted the session on purpose. The API lives on the page's origin (apiBaseUrl.js).
+function storeSession({ accessToken, refreshToken, user, serverId }) {
   const { localStorage } = window;
-  localStorage.setItem('accessToken', accessToken);
-  localStorage.setItem('refreshToken', refreshToken);
+  if (localStorage.getItem('webPreviewSeeded')) return;
+  localStorage.setItem('webPreviewSeeded', '1');
+  const session = {
+    serverId,
+    userId: user.id,
+    email: user.email,
+    apiBaseUrl: 'http://localhost:8081/api/v1',
+    tokens: { accessToken, refreshToken },
+  };
+  localStorage.setItem('session', JSON.stringify(session));
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

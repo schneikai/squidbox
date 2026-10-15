@@ -70,6 +70,8 @@ export default function FloatingHeader({ title, onAdd, selection, selectionActio
         {/* Avatar / account bubble — separate, to the right of the action pill */}
         <Pressable
           onPress={handleSettings}
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
           style={({ pressed }) => [styles.avatarButton, pressed && styles.avatarPressed]}
         >
           {isAuthenticated ? (

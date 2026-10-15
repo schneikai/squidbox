@@ -2,7 +2,7 @@ import uploadFileAsync from './uploadFileAsync';
 
 import getAssetThumbnailUri from '@/utils/assets/thumbnails/getAssetThumbnailUri';
 
-export default async function uploadAssetThumbnailAsync(asset) {
+export default async function uploadAssetThumbnailAsync(asset, identity) {
   const thumbnailUri = getAssetThumbnailUri(asset.thumbnailFilename);
-  await uploadFileAsync(asset.thumbnailFilename, thumbnailUri);
+  await uploadFileAsync(asset.thumbnailFilename, thumbnailUri, identity);
 }

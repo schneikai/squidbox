@@ -8,6 +8,9 @@ export const API_BASE_URL = process.env.EXPO_PUBLIC_LOCAL_BACKEND
   ? `${devServerOrigin()}/api/v1`
   : process.env.EXPO_PUBLIC_API_URL;
 
+// The server's root, for what lives outside the API prefix (`/up`).
+export const SERVER_URL = API_BASE_URL?.replace(/\/api\/v1\/?$/, '');
+
 function devServerOrigin() {
   if (Platform.OS === 'web') return window.location.origin;
   return `https://${Constants.expoConfig.hostUri}`;

@@ -122,7 +122,7 @@ Scripts can drive it through `openWebPreview()` and `settleAsync()` in `scripts/
 
 `npm run dev:local -- --web` starts everything without Expo's tunnel, which is all the web preview needs and keeps it working when the tunnel is down. Add `--production` to `web:preview` to load Metro's release bundle, without React's development overhead, for performance checks; `npm run web:measure` times reload → first grid cell, the idle JS heap and a favorite toggle on it. For a large library, `npm run seed:mock -- --assets 50000` in `apps/server/` pads the mock account (the extra assets reuse the 30 photos' files).
 
-The web build is a preview, not a target. Platform files (`*.web.js`) stand in for what the browser lacks: tokens live in `localStorage`, and thumbnails load straight from their signed URLs. The camera roll, uploads, file downloads and native gestures don't work there, so confirm those on a device. The database works the same as on iOS: the app only uses expo-sqlite's async API (`docs/sync-design.md` §8).
+The web build is a preview, not a target. Platform files (`*.web.js`) stand in for what the browser lacks: the session record lives in `localStorage`, and thumbnails load straight from their signed URLs. The camera roll, uploads, file downloads and native gestures don't work there, so confirm those on a device. The database works the same as on iOS: the app only uses expo-sqlite's async API (`docs/sync-design.md` §8).
 
 ## Deploying the backend
 

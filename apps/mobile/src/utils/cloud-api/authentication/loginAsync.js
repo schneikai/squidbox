@@ -1,19 +1,20 @@
 import api from '../api';
-import { setAccessTokenAsync, setRefreshTokenAsync, clearTokensAsync } from '../apiTokenStore';
+import { API_BASE_URL } from '../apiBaseUrl';
+import { setSessionAsync } from '../sessionStore';
 
+// Signs in and stores the session the server answered with. A server without an identity yet
+// (before its SERVER_ID deploy) leaves serverId null until /me reports it.
 export default async function loginAsync(email, password) {
-  try {
-    const {
-      data: { accessToken, refreshToken, user },
-    } = await api.post('auth/login', {
-      email,
-      password,
-    });
-    await setAccessTokenAsync(accessToken);
-    await setRefreshTokenAsync(refreshToken);
-    return user;
-  } catch (error) {
-    await clearTokensAsync();
-    throw error;
-  }
+  const {
+    data: { accessToken, refreshToken, user, serverId },
+  } = await api.post('auth/login', { email, password });
+  const session = {
+    serverId: serverId ?? null,
+    userId: user.id,
+    email: user.email,
+    apiBaseUrl: API_BASE_URL,
+    tokens: { accessToken, refreshToken },
+  };
+  await setSessionAsync(session);
+  return session;
 }

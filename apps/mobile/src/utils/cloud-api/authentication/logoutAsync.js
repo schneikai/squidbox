@@ -1,14 +1,10 @@
-import { clearTokensAsync, getRefreshTokenAsync } from '../apiTokenStore';
-import apiWithAuthentication from '../apiWithAuthentication';
+import api from '../api';
 
-export default async function logoutAsync() {
-  // Always logout even if api communication fails.
-  // We also use this behavior in CloudProvider#logoutAsync
+// Revokes this device's refresh token, best effort: the session is already gone locally, and the
+// route needs no access token, so a failure (offline, a token the server no longer knows) changes
+// nothing for the user.
+export default async function logoutAsync(refreshToken) {
   try {
-    // New backend revokes THIS device's refresh token (per-device token table).
-    const refreshToken = await getRefreshTokenAsync();
-    await apiWithAuthentication.post('auth/logout', { refreshToken });
-  } finally {
-    await clearTokensAsync();
-  }
+    await api.post('auth/logout', { refreshToken });
+  } catch {}
 }
