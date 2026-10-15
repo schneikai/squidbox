@@ -8,20 +8,9 @@ import type { SyncDb } from './db/types';
 import { clearOutboxRows, outboxUpdatedAts, pendingRecordIds } from './outbox';
 import { planPushOutcome } from './pushPlan';
 import { createSingleFlight } from './singleFlight';
-import {
-  getCursor,
-  setCursor,
-  patchStatus,
-  appendSyncLog,
-  markFirstSyncDone,
-  clearFirstSyncDone,
-  getLastSyncUser,
-  setLastSyncUser,
-  setOwner,
-} from './status';
+import { getCursor, setCursor, patchStatus, appendSyncLog, markFirstSyncDone, clearFirstSyncDone } from './status';
 import type { SyncTransport } from './transport';
 import { upsertRows } from './upsertRows';
-import type { AccountOwner } from '../library/owner';
 
 const PULL_LIMIT = 1000; // server/contract cap
 const PUSH_BATCH = 500; // server caps pushRequest mutations at 500
@@ -31,20 +20,32 @@ const PUSH_BATCH = 500; // server caps pushRequest mutations at 500
 // page: on web, a 50k first sync drops from ~3 min to ~40 s.
 export const APPLY_BATCH = 5000;
 
+export interface SyncRunOptions {
+  // Asked between push batches and between applied pull batches: a true ends the run there, with
+  // everything so far committed (the cursor moves per applied batch, so the next run resumes).
+  shouldStop?: () => boolean;
+}
+
 // ── DI core: one push→pull pass against an injected db + transport, recording a sync_log entry
 // (counts, duration, conflict notes, error). Testable off-device (better-sqlite3 + an in-process
 // transport). No single-flight/looping here — that's the production wrapper below.
-export async function runSyncOnce(db: SyncDb, transport: SyncTransport): Promise<void> {
+export async function runSyncOnce(db: SyncDb, transport: SyncTransport, options: SyncRunOptions = {}): Promise<void> {
+  const shouldStop = options.shouldStop ?? (() => false);
   const ranAt = Date.now();
   let pushed = 0;
   let pulled = 0;
   const notes: string[] = [];
   let error: string | null = null;
   try {
-    const p = await pushPhase(db, transport);
+    const p = await pushPhase(db, transport, shouldStop);
     pushed = p.pushed;
     notes.push(...p.notes);
-    pulled = await pullPhase(db, transport);
+    if (p.stopped) notes.push('stopped during push');
+    else {
+      const pull = await pullPhase(db, transport, shouldStop);
+      pulled = pull.pulled;
+      if (pull.stopped) notes.push('stopped during pull');
+    }
   } catch (err) {
     error = err instanceof Error ? err.message : String(err);
     throw err;
@@ -60,11 +61,20 @@ export async function runSyncOnce(db: SyncDb, transport: SyncTransport): Promise
   }
 }
 
-async function pushPhase(db: SyncDb, transport: SyncTransport): Promise<{ pushed: number; notes: string[] }> {
+async function pushPhase(
+  db: SyncDb,
+  transport: SyncTransport,
+  shouldStop: () => boolean,
+): Promise<{ pushed: number; notes: string[]; stopped: boolean }> {
   let pushed = 0;
   const notes: string[] = [];
   let lastId = 0;
+  let stopped = false;
   for (;;) {
+    if (shouldStop()) {
+      stopped = true;
+      break;
+    }
     const batch = await db
       .select()
       .from(schema.outbox)
@@ -82,7 +92,7 @@ async function pushPhase(db: SyncDb, transport: SyncTransport): Promise<{ pushed
     pushed += results.length;
   }
   if (pushed > 0) await patchStatus(db, { lastPushAt: Date.now() });
-  return { pushed, notes };
+  return { pushed, notes, stopped };
 }
 
 // Settle a batch's push results (sync-design §6), a few statements per collection. Adopting the
@@ -154,12 +164,18 @@ function pushTo<K, V>(lists: Map<K, V[]>, key: K, value: V): void {
   else lists.set(key, [value]);
 }
 
-async function pullPhase(db: SyncDb, transport: SyncTransport): Promise<number> {
+// A stopped pull leaves the batches applied so far committed with their cursor.
+async function pullPhase(
+  db: SyncDb,
+  transport: SyncTransport,
+  shouldStop: () => boolean,
+): Promise<{ pulled: number; stopped: boolean }> {
   await patchStatus(db, { phase: 'pulling' });
   let cursor = await getCursor(db);
   let hasMore = true;
   let pulled = 0;
   while (hasMore) {
+    if (shouldStop()) return { pulled, stopped: true };
     const changes: Record<string, Record<string, unknown>[]> = {};
     const previousCursor = cursor;
     let buffered = 0;
@@ -178,7 +194,7 @@ async function pullPhase(db: SyncDb, transport: SyncTransport): Promise<number> 
   // The initial full pull has drained — the app can leave the "Setting up…" gate.
   await markFirstSyncDone(db);
   await patchStatus(db, { phase: 'idle', lastPullAt: Date.now() });
-  return pulled;
+  return { pulled, stopped: false };
 }
 
 // Outbox-guarded apply (sync-design §5): apply an incoming record only if it has no pending
@@ -235,8 +251,7 @@ export async function fullResync(db: SyncDb, transport: SyncTransport): Promise<
 
 // The one "wipe local sync state" primitive: clear every collection table (+ the outbox unless
 // keepOutbox), reset the cursor, and clear the first-sync flag so the next pull starts fresh and the
-// setup gate shows again. Backs both the account-switch reset (full wipe) and fullResync (keeps the
-// outbox to re-push pending edits).
+// setup gate shows again. Used by fullResync (keeps the outbox to re-push pending edits).
 export async function resetLocalSync(db: SyncDb, { keepOutbox = false } = {}): Promise<void> {
   await db.transaction(async (tx) => {
     for (const table of Object.values(clientCollectionTables)) await tx.delete(table);
@@ -246,25 +261,13 @@ export async function resetLocalSync(db: SyncDb, { keepOutbox = false } = {}): P
   });
 }
 
-// Reset local sync state iff a DIFFERENT user is signing in (the local DB holds the previous user's
-// data + their cursor, which would leak/corrupt for the new account — see sync-design). Records the
-// current user as the library's owner either way, so the library list never labels this data with
-// someone else. Returns true if it wiped. Call on login, before requestSync().
-export async function resetSyncForUser(db: SyncDb, owner: AccountOwner): Promise<boolean> {
-  const last = await getLastSyncUser(db);
-  const changed = last !== null && last !== owner.userId;
-  if (changed) await resetLocalSync(db);
-  await setLastSyncUser(db, owner.userId);
-  await setOwner(db, owner);
-  return changed;
-}
-
-// ── Production wrapper: one sync at a time (see singleFlight), bound to the real device DB + HTTP
-// transport. Syncing is only active once app init has finished AND someone is signed in; App.js
-// drives that through setSyncActive. requestSync() is called after a local write (from a provider)
-// or on foreground/interval, and is a no-op while inactive.
+// ── Production wrapper: one sync at a time (see singleFlight), bound to the open library and the
+// session it belongs to. Syncing is only active once app init has finished, the library is open AND
+// someone is signed in; App.js drives that through setSyncActive. requestSync() is called after a
+// local write (from a provider) or on foreground/interval, and is a no-op while inactive.
 const syncFlight = createSingleFlight(() => withSyncRun(runSyncOnce));
 let syncActive = false;
+let stopRequested = false;
 
 export function setSyncActive(active: boolean): void {
   syncActive = active;
@@ -275,33 +278,49 @@ export function requestSync(): void {
   if (syncActive) syncFlight.request();
 }
 
-// Run `work` with syncing paused: waits for an in-flight sync and starts no new one until `work`
-// finishes. Use it for anything that must not interleave with a sync, like switching accounts.
-export function withSyncPaused<T>(work: (db: SyncDb) => Promise<T>): Promise<T> {
+// Run `work` with syncing paused: asks a running sync to stop at its next batch, waits for it, and
+// starts no new one until `work` finishes. Use it for anything that must not interleave with a
+// sync, like changing the session or the open library.
+export function withSyncPaused<T>(work: () => Promise<T>): Promise<T> {
+  stopRequested = true;
   return syncFlight.exclusive(async () => {
-    const { getDb } = await import('./db/client');
-    return work(getDb());
+    stopRequested = false;
+    return work();
   });
 }
 
-// Resolve the real db + transport and record the run's terminal status (idle on success, error on
-// throw). Callers run it through syncFlight so it never overlaps another sync.
-async function withSyncRun(work: (db: SyncDb, transport: SyncTransport) => Promise<void>): Promise<void> {
+type SyncWork = (db: SyncDb, transport: SyncTransport, options: SyncRunOptions) => Promise<void>;
+
+// Bind a run to the library and session of its start: it runs only when the open library is the
+// signed-in account's, over a transport that reads the tokens fresh for that identity on every
+// request (so a mid-run refresh is picked up and another user's session is refused), and records
+// the run's terminal status (idle on success, error on throw). Callers run it through syncFlight so
+// it never overlaps another sync.
+async function withSyncRun(work: SyncWork): Promise<void> {
   const { getDb } = await import('./db/client');
   const { httpTransport } = await import('./transport');
+  const { syncIdentityAsync } = await import('../library/syncIdentityAsync');
+  const identity = await syncIdentityAsync();
+  if (!identity) return;
   const db = getDb();
   try {
-    await work(db, httpTransport);
+    await work(db, httpTransport(identity), { shouldStop: () => stopRequested });
     await patchStatus(db, { phase: 'idle', lastError: null });
   } catch (err) {
-    await patchStatus(db, { phase: 'error', lastError: err instanceof Error ? err.message : String(err) });
+    // A session that changed under the run ended it, like a stop request; that is not an error.
+    const { SessionChangedError } = await import('@/utils/cloud-api/requireSessionAsync');
+    if (err instanceof SessionChangedError) await patchStatus(db, { phase: 'idle' });
+    else await patchStatus(db, { phase: 'error', lastError: err instanceof Error ? err.message : String(err) });
   }
 }
 
-// Bound Inspector actions (production db + HTTP transport).
+// Bound Inspector actions (the open library + HTTP transport).
 export function runFullResync(): Promise<void> {
   return syncFlight.exclusive(() => withSyncRun(fullResync));
 }
 export function runClearOutbox(): Promise<void> {
-  return withSyncPaused(clearOutbox);
+  return withSyncPaused(async () => {
+    const { getDb } = await import('./db/client');
+    return clearOutbox(getDb());
+  });
 }

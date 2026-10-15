@@ -1,5 +1,5 @@
 import { migrate } from 'drizzle-orm/expo-sqlite/migrator';
-import { openDatabaseAsync } from 'expo-sqlite';
+import { deleteDatabaseAsync, openDatabaseAsync } from 'expo-sqlite';
 
 import { createDb, type AppDb } from './driver';
 import { expoExecutor } from './expoExecutor';
@@ -25,6 +25,11 @@ export async function openAppDb(dbName: string): Promise<AppDb> {
     throw error;
   }
   return appDb;
+}
+
+// Removes a database file that nothing has open. Tolerates a missing file (iOS throws on one).
+export async function deleteAppDb(dbName: string): Promise<void> {
+  await deleteDatabaseAsync(dbName).catch(() => {});
 }
 
 // The open library's database (library/current.ts opens and closes it).

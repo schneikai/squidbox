@@ -26,6 +26,7 @@ import PostsQueryProvider from '@/features/post-list/posts-query/PostsQueryProvi
 import PostsProvider from '@/features/posts-context/PostsProvider';
 import FirstSyncScreen from '@/features/sync-status/FirstSyncScreen';
 import LibraryProvider from '@/library/LibraryProvider';
+import SwitchingScreen from '@/library/SwitchingScreen';
 import useLibrary from '@/library/useLibrary';
 import RootNavigator from '@/navigators/RootNavigator';
 import { navigationRef, flushPendingNavigation } from '@/navigators/navigationRef';
@@ -150,10 +151,12 @@ function AppInit({ children }) {
 }
 
 // Everything that queries SQLite (including the firstSyncDone probe in AppGate) mounts under the
-// open library, keyed by it, so another library later means a fresh tree. Renders nothing while the
-// library opens and migrates (brief; longer on a first launch).
+// open library, keyed by it, so another library means a fresh tree. Renders nothing while the boot
+// library opens and migrates (brief; longer on a first launch), and the switching screen while one
+// library closes and another opens, so no screen reads across the switch.
 function LibraryGate({ children }) {
-  const { library } = useLibrary();
+  const { library, switching } = useLibrary();
+  if (switching) return <SwitchingScreen library={switching} />;
   if (!library) return null;
   return <Fragment key={library.id}>{children}</Fragment>;
 }

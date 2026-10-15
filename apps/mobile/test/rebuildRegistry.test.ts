@@ -1,8 +1,9 @@
+import { sql } from 'drizzle-orm';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { makeTestDb } from './helpers/testDb';
 import type { AppDb } from '../src/sync/db/driver';
-import { getOwner, setLastSyncUser, setOwner } from '../src/sync/status';
+import { getOwner, setOwner } from '../src/sync/status';
 
 type Session = {
   serverId: string | null;
@@ -23,6 +24,10 @@ vi.mock('../src/utils/cloud-api/sessionStore', () => ({
 }));
 
 const { rebuildRegistry } = await import('../src/library/rebuildRegistry');
+
+// What an install before libraries recorded at sign-in (nothing writes it any more).
+const setLastSyncUser = (db: AppDb, userId: string) =>
+  db.run(sql`insert into "sync_meta" ("key", "value") values ('lastSyncUserId', ${userId})`);
 
 // Databases by name: each test's "disk". A rebuild opens and closes them, so every open hands out a
 // fresh handle on the same (shared) store.

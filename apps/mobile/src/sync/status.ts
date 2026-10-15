@@ -8,7 +8,7 @@ import type { Owner } from '../library/owner';
 const CURSOR_KEY = 'cursor';
 const STATUS_KEY = 'status';
 const FIRST_SYNC_KEY = 'firstSyncDone'; // '1' once the initial full pull has drained
-const LAST_USER_KEY = 'lastSyncUserId'; // whose data currently lives in the local DB
+const LAST_USER_KEY = 'lastSyncUserId'; // retired: whose data the database held before libraries
 const OWNER_KEY = 'owner'; // whose library this database is (JSON), so the library list is rebuildable
 
 export type SyncPhase = 'idle' | 'pushing' | 'pulling' | 'error';
@@ -48,13 +48,10 @@ export async function clearFirstSyncDone(db: SyncDb): Promise<void> {
   await setMeta(db, FIRST_SYNC_KEY, '0');
 }
 
-// The user whose data currently lives in the local DB. Used to detect an account switch on login
-// (a different user must start from a clean local slate — see resetSyncForUser in worker.ts).
+// Whose data the database held before libraries recorded an owner. Read once, by the install
+// migration (library/rebuildRegistry.ts); nothing writes it any more.
 export async function getLastSyncUser(db: SyncDb): Promise<string | null> {
   return getMeta(db, LAST_USER_KEY);
-}
-export async function setLastSyncUser(db: SyncDb, userId: string): Promise<void> {
-  await setMeta(db, LAST_USER_KEY, userId);
 }
 // The library's owner, as stored in the database itself (library/registry.ts keeps the list).
 export async function getOwner(db: SyncDb): Promise<Owner | null> {

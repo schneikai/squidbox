@@ -9,28 +9,28 @@ import uploadAssetThumbnailAsync from './assets/uploadAssetThumbnailAsync';
 import initializeCloudAsyncFn from './initializeCloudAsync';
 
 import { whenLibraryOpen } from '@/library/current';
+import { openLibraryForSession } from '@/library/sessionLibrary';
+import { isSessionAuthenticated } from '@/library/sessionMatches';
 import useLibrary from '@/library/useLibrary';
 import { navigateToTab } from '@/navigators/navigationRef';
-import { resetSyncForUser, withSyncPaused } from '@/sync/worker';
+import { withSyncPaused } from '@/sync/worker';
 import { API_BASE_URL } from '@/utils/cloud-api/apiBaseUrl';
 import apiLoginAsync from '@/utils/cloud-api/authentication/loginAsync';
 import apiLogoutAsync from '@/utils/cloud-api/authentication/logoutAsync';
 import { onSessionExpired } from '@/utils/cloud-api/sessionExpiry';
 import { getSessionAsync, setSessionAsync } from '@/utils/cloud-api/sessionStore';
 
-// A session counts once it has tokens obtained from the current base URL (initializeCloudAsync
-// rebinds a session whose server proved to be the same).
-function isSessionAuthenticated(session) {
-  return Boolean(session?.tokens) && session.apiBaseUrl === API_BASE_URL;
-}
-
+// The session: who is signed in. It is also the open pointer of the libraries: a session opens its
+// owner's library, none opens this device's (library/sessionLibrary.ts). Every change of it runs
+// inside withSyncPaused together with the library switch it causes, so no sync run spans either.
 export default function CloudProvider({ children }) {
-  const { setOwnerAsync } = useLibrary();
+  const { library, switchLibrary } = useLibrary();
   const [session, setSession] = useState(null);
 
-  const isAuthenticated = isSessionAuthenticated(session);
+  const isAuthenticated = library !== null && isSessionAuthenticated(library, session, API_BASE_URL);
   const user = session?.userId ? { id: session.userId, email: session.email } : null;
 
+  // A rejected refresh dropped the tokens; the library stays open, nothing syncs until a sign-in.
   useEffect(
     () =>
       onSessionExpired(async () => {
@@ -43,31 +43,31 @@ export default function CloudProvider({ children }) {
     [],
   );
 
-  // Take the session `authenticate` resolves to. Syncing stays paused from before the session changes
-  // until the local data belongs to that user: a DIFFERENT account wipes the local slate first. So no
-  // in-flight sync can push the previous account's pending changes with the new session, and the gate
-  // never shows the previous library. The library then records that user as its owner.
+  // Take the session `authenticate` resolves to (the stored one, verified, at boot; a new one at
+  // sign-in) and open its library. A switch that fails puts the previous session back and throws.
   async function startSessionAsync(authenticate) {
     await whenLibraryOpen();
-    const nextSession = await withSyncPaused(async (db) => {
+    const next = await withSyncPaused(async () => {
+      const previous = await getSessionAsync();
       const authenticated = await authenticate();
-      if (!isSessionAuthenticated(authenticated)) return authenticated;
-      const { serverId, userId, email } = authenticated;
-      await resetSyncForUser(db, { kind: 'account', serverId, userId, email });
-      await setOwnerAsync({ kind: 'account', serverId, userId, email });
+      await openLibraryForSession(authenticated, previous, switchLibrary);
       return authenticated;
     });
-    setSession(nextSession);
+    setSession(next);
   }
 
-  // Signing out clears the session here first, then revokes its refresh token as best effort. The
-  // local library stays (it's this user's data on their device); it's only wiped when a DIFFERENT
-  // account signs in, see startSessionAsync.
+  // Signing out clears the session and returns to this device's library (the account's stays on
+  // the device, parked), then revokes the refresh token as best effort, outside the paused section.
+  // If the device library won't open, the session stays as it was.
   async function endSessionAsync() {
-    const current = await getSessionAsync();
-    await setSessionAsync(null);
-    setSession(null);
-    if (current?.tokens) await apiLogoutAsync(current.tokens.refreshToken);
+    const previous = await withSyncPaused(async () => {
+      const current = await getSessionAsync();
+      await setSessionAsync(null);
+      await openLibraryForSession(null, current, switchLibrary);
+      setSession(null);
+      return current;
+    });
+    if (previous?.tokens) await apiLogoutAsync(previous.tokens.refreshToken);
   }
 
   const value = useMemo(
@@ -76,13 +76,13 @@ export default function CloudProvider({ children }) {
       user,
       initializeCloudAsync: () => startSessionAsync(initializeCloudAsyncFn),
       loginAsync: (email, password) => startSessionAsync(() => apiLoginAsync(email, password)),
-      logoutAsync: endSessionAsync,
+      logoutAsync: () => endSessionAsync().catch((error) => Alert.alert("Couldn't sign out", error.message)),
       preloadAssetThumbnailsAsync,
       uploadAssetFileAsync,
       uploadAssetThumbnailAsync,
       downloadAssetFileAsync,
     }),
-    [session],
+    [session, library, switchLibrary],
   );
 
   return <CloudContext.Provider value={value}>{children}</CloudContext.Provider>;

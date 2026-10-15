@@ -17,12 +17,22 @@ export interface BackupUploads {
 
 export interface BackupRunOptions {
   uploads: BackupUploads;
-  // Aborted when the session changes: the run stops at its next step without marking anything.
-  signal: AbortSignal;
+  // Aborted when the session or the library changes (by the caller, or by stopBackup): the run
+  // stops at its next step without marking anything.
+  controller: AbortController;
   onProgress?(progress: { index: number; total: number }): void;
 }
 
 export type BackupOutcome = 'completed' | 'aborted';
+
+// The run in progress, if any: the library switch stops it and waits for it before closing.
+let running: { abort: () => void; done: Promise<unknown> } | null = null;
+
+export async function stopBackup(): Promise<void> {
+  if (!running) return;
+  running.abort();
+  await running.done;
+}
 
 /**
  * Backs up the assets with these ids, in order: upload the file and mark it, delete the local copy,
@@ -33,8 +43,19 @@ export type BackupOutcome = 'completed' | 'aborted';
  * the run no longer belongs to, and no syncError is written for the interrupted upload.
  */
 export async function runBackup(db: SyncDb, ids: string[], options: BackupRunOptions): Promise<BackupOutcome> {
+  const done = backupAssets(db, ids, options);
+  running = { abort: () => options.controller.abort(), done: done.catch(() => {}) };
+  try {
+    return await done;
+  } finally {
+    running = null;
+  }
+}
+
+async function backupAssets(db: SyncDb, ids: string[], options: BackupRunOptions): Promise<BackupOutcome> {
+  const { signal } = options.controller;
   for (const [index, id] of ids.entries()) {
-    if (options.signal.aborted) return 'aborted';
+    if (signal.aborted) return 'aborted';
     options.onProgress?.({ index, total: ids.length });
     const [asset] = await readByIds<BackupAsset>(db, schema.assets, [id]);
     if (!asset || !isUnsynced(asset)) continue;
@@ -43,7 +64,7 @@ export async function runBackup(db: SyncDb, ids: string[], options: BackupRunOpt
   return 'completed';
 }
 
-async function backupAsset(db: SyncDb, asset: BackupAsset, { uploads, signal }: BackupRunOptions) {
+async function backupAsset(db: SyncDb, asset: BackupAsset, { uploads, controller: { signal } }: BackupRunOptions) {
   try {
     if (!asset.isFileSynced) {
       await uploads.uploadFile(asset);

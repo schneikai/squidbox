@@ -61,9 +61,6 @@ export default function FirstSyncScreen() {
             <Pressable style={styles.retry} onPress={() => requestSync()} hitSlop={8}>
               <Text style={styles.retryText}>Try again</Text>
             </Pressable>
-            <Pressable style={styles.signout} onPress={() => logoutAsync()} hitSlop={8}>
-              <Text style={styles.signoutText}>Sign out</Text>
-            </Pressable>
           </>
         ) : (
           <>
@@ -82,6 +79,10 @@ export default function FirstSyncScreen() {
             <Text style={styles.hint}>Please keep the app open — it'll finish shortly.</Text>
           </>
         )}
+        {/* A sign-out stops the pull at its next batch (the pulled part stays in the parked library). */}
+        <Pressable style={styles.signout} onPress={() => logoutAsync()} hitSlop={8}>
+          <Text style={styles.signoutText}>Sign out</Text>
+        </Pressable>
       </View>
     </View>
   );

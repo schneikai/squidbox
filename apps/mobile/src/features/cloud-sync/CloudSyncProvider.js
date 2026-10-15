@@ -115,7 +115,7 @@ export default function CloudSyncProvider({ children }) {
       const ids = await readUnsyncedIds(db);
       await runBackup(db, ids, {
         uploads: uploadsFor(identity, library, controller.signal),
-        signal: controller.signal,
+        controller,
         onProgress: ({ index, total }) => setSyncMessage(`Syncing ${index + 1} of ${total}`),
       });
     } catch (error) {

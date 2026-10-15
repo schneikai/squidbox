@@ -21,6 +21,7 @@ const REGISTRY_KEY = 'libraries';
 
 let registry: Registry | null = null;
 let chain: Promise<unknown> = Promise.resolve();
+const listeners = new Set<(registry: Registry) => void>();
 
 export function getRegistry(): Registry {
   if (!registry) throw new Error('The library list is not loaded yet (see LibraryProvider).');
@@ -42,16 +43,47 @@ export function updateRegistry(change: (registry: Registry) => Registry): Promis
   const next = chain.then(async () => {
     registry = change(getRegistry());
     await AsyncStorage.setItem(REGISTRY_KEY, JSON.stringify(registry));
+    for (const listener of listeners) listener(registry);
     return registry;
   });
   chain = next.catch(() => {});
   return next;
 }
 
-export function setLibraryOwner(id: string, owner: Owner): Promise<Registry> {
+// Called after every stored change (LibraryProvider mirrors the list into React state).
+export function onRegistryChange(listener: (registry: Registry) => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+export function updateLibrary(id: string, change: (library: Library) => Library): Promise<Registry> {
   return updateRegistry(({ libraries }) => ({
-    libraries: libraries.map((library) => (library.id === id ? { ...library, owner } : library)),
+    libraries: libraries.map((library) => (library.id === id ? change(library) : library)),
   }));
+}
+
+export function setLibraryOwner(id: string, owner: Owner): Promise<Registry> {
+  return updateLibrary(id, (library) => ({ ...library, owner }));
+}
+
+// The account's library, or none yet. A library whose serverId is still null is the account's
+// until resolved (sessionMatches.ts has the same rule); a session without a userId (a converted
+// install before its first /me) can only mean the one such library.
+export function findAccountLibrary(
+  libraries: Library[],
+  serverId: string | null,
+  userId: string | null,
+): Library | undefined {
+  return libraries.find(({ owner }) => {
+    if (owner.kind !== 'account') return false;
+    if (userId === null) return owner.serverId === null;
+    if (owner.userId !== userId) return false;
+    return owner.serverId === serverId || owner.serverId === null || serverId === null;
+  });
+}
+
+export function deviceLibrary(libraries: Library[]): Library | undefined {
+  return libraries.find(({ owner }) => owner.kind === 'device');
 }
 
 function parseRegistry(raw: string): Registry | null {

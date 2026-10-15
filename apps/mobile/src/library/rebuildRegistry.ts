@@ -2,16 +2,12 @@ import { listDatabaseNames } from './fs';
 import { MIGRATED_LIBRARY_ID, libraryIdFromDbName } from './libraryPaths';
 import type { Owner } from './owner';
 import type { Library, Registry } from './registry';
+import type { Session } from './session';
 
 import type { AppDb } from '@/sync/db/driver';
 import { getLastSyncUser, getOwner, setOwner } from '@/sync/status';
 import { API_BASE_URL } from '@/utils/cloud-api/apiBaseUrl';
 import { getSessionAsync, setSessionAsync } from '@/utils/cloud-api/sessionStore';
-
-interface Session {
-  userId: string | null;
-  email: string | null;
-}
 
 // Recreates the library list from the databases on the device: each one's owner is stored inside
 // it. The install from before libraries (squidbox.db) has none yet and gets it from whose data it

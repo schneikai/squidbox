@@ -1,7 +1,6 @@
 import { useState, useTransition } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-import confirmLoginAsync from '@/features/cloud/confirmLoginAsync';
 import useCloud from '@/features/cloud/useCloud';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, radii, scale, spacing } from '@/styles/designTokens';
@@ -20,9 +19,6 @@ export default function LoginForm() {
     }
 
     startTransition(async () => {
-      const confirmed = await confirmLoginAsync();
-      if (!confirmed) return;
-
       try {
         await loginAsync(email, password);
       } catch (error) {

@@ -17,3 +17,6 @@ export async function listDatabaseNames(): Promise<string[]> {
   await deleteDatabaseAsync(dbName);
   return [];
 }
+
+// Web keeps no files: thumbnails are presigned URLs (utils/assets/thumbnails/webThumbnailUrls.js).
+export async function createLibraryFolders(): Promise<void> {}

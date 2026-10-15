@@ -48,7 +48,7 @@ describe('runBackup', () => {
 
     const outcome = await runBackup(db, [a.id], {
       uploads: uploads(),
-      signal: new AbortController().signal,
+      controller: new AbortController(),
       onProgress: ({ index }) => progress.push(index),
     });
 
@@ -75,7 +75,7 @@ describe('runBackup', () => {
           calls.push(`file ${asset.filename}`);
         },
       }),
-      signal: new AbortController().signal,
+      controller: new AbortController(),
     });
 
     expect(outcome).toBe('completed');
@@ -90,7 +90,7 @@ describe('runBackup', () => {
     const gone = await unsyncedAsset('gone.jpg');
     await repo.deleteAssets(db, [gone.id]);
 
-    expect(await runBackup(db, [a.id, gone.id], { uploads: uploads(), signal: new AbortController().signal })).toBe(
+    expect(await runBackup(db, [a.id, gone.id], { uploads: uploads(), controller: new AbortController() })).toBe(
       'completed',
     );
     expect(calls).toEqual([]);
@@ -108,7 +108,7 @@ describe('runBackup', () => {
           controller.abort(); // someone else signs in while the first file uploads
         },
       }),
-      signal: controller.signal,
+      controller,
     });
 
     expect(outcome).toBe('aborted');
@@ -129,7 +129,7 @@ describe('runBackup', () => {
           throw new Error('Upload cancelled');
         },
       }),
-      signal: controller.signal,
+      controller,
     });
 
     expect(outcome).toBe('aborted');
@@ -147,7 +147,7 @@ describe('runBackup', () => {
           controller.abort();
         },
       }),
-      signal: controller.signal,
+      controller,
     });
 
     expect(outcome).toBe('aborted');

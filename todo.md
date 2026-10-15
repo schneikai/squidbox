@@ -254,7 +254,12 @@ Note the time from splash to library (the open + migrate now runs alongside the 
 downgrades past this build: an older build would open `squidbox.db` with its wipe-on-switch logic
 and knows nothing of `library-*.db`. Step 4b (files per library): adding a photo from the camera
 roll and backing it up must still work; the migrated library keeps `assetfiles/` and
-`assetthumbnails/`, a fresh install writes under `libraries/<id>/`.
+`assetthumbnails/`, a fresh install writes under `libraries/<id>/`. Step 4c (the switch): sign out
+(the Alert says the library stays) → the app shows "Opening This iPhone…" briefly, then an empty
+library and the sign-in form under Settings; sign back in → "Opening <email>…", then the library
+is back at once, with no "Setting up your library" and every photo, album and post; a photo added
+while signed out stays in the device library (its merge into the account comes in step 6). Sign
+in as the fixture account on the local stack to see a second, empty account library.
 
 ### [ ] Set the SERVER_ID secret, then deploy the server
 
