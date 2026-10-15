@@ -62,6 +62,8 @@ are awkward with a pointer. When the input is a mouse, offer pointer-native trig
 example right click (context menu) to peek, hover affordances, and shift/cmd-click to select.
 Related: on web a drag-select doesn't cancel the cell's press, so the cell it started on toggles
 again after release (`SuperPressable` with `useAssetDragSelect`); natively the pan cancels it.
+The same happens after a drag reorder in an album: the drop also counts as a tap and opens the
+photo viewer (`SortableAssetGrid` with `useAssetDragReorder`).
 
 ### [ ] Video playback
 

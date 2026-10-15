@@ -4,6 +4,7 @@ import useAssetCells from '@/features/asset-list/useAssetCells';
 
 export default function AlbumAssetsView({
   rows,
+  count,
   loadMore,
   isSelectMode,
   selectedAssetIds,
@@ -36,6 +37,7 @@ export default function AlbumAssetsView({
       <Grid
         listRef={listRef}
         rows={rows}
+        count={count}
         loadMore={loadMore}
         paddingTop={paddingTop}
         paddingBottom={paddingBottom}

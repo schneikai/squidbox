@@ -26,11 +26,13 @@ describe('usePagedQuery', () => {
     expect(limits).toEqual([150, 300, 600, 1200, 2400, 4800, 7800, 10800, 13800]);
   });
 
-  it('has more only once the result read at the current limit shows a bigger count', () => {
-    expect(hasMore(undefined, 150)).toBe(false);
-    expect(hasMore({ rows: [], count: 500, limit: 150 }, 150)).toBe(true);
-    expect(hasMore({ rows: [], count: 150, limit: 150 }, 150)).toBe(false);
-    expect(hasMore({ rows: [], count: 500, limit: 150 }, 300)).toBe(false); // the load-more read is in flight
+  it('has more only once the result read for the current descriptor and limit shows a bigger count', () => {
+    const result = { rows: [], count: 500, limit: 150, key: 'a' };
+    expect(hasMore(undefined, 'a', 150)).toBe(false);
+    expect(hasMore(result, 'a', 150)).toBe(true);
+    expect(hasMore({ ...result, count: 150 }, 'a', 150)).toBe(false);
+    expect(hasMore(result, 'a', 300)).toBe(false); // the load-more read is in flight
+    expect(hasMore(result, 'b', 150)).toBe(false); // a new descriptor's first read is in flight
   });
 
   it('reads the first page with the count through the live query, keyed on the descriptor and the limit', async () => {
@@ -43,7 +45,7 @@ describe('usePagedQuery', () => {
     const [read, tables, deps] = liveQuery.mock.calls[0]!;
     expect(tables).toBe(query.tables);
     expect(deps).toEqual(['{"scope":"all"}', 150]);
-    expect(await read('db')).toEqual({ rows: ['a'], count: 500, limit: 150 }); // echoes the limit it read at
+    expect(await read('db')).toEqual({ rows: ['a'], count: 500, limit: 150, key: '{"scope":"all"}' }); // echoes what it read
     expect(query.read).toHaveBeenCalledWith('db', { limit: 150 });
   });
 

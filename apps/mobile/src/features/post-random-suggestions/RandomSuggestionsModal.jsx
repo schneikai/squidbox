@@ -47,14 +47,102 @@ const NO_ROWS = [];
 const SWAP_IN = { ...motion.enter, duration: motion.duration.fast };
 
 export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) {
-  // --- Ellipsis menu ---
   const modelPickerRef = useRef(null);
   const promptInputRef = useRef(null);
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
-
-  // --- Prompt editor ---
   const [showEditPrompt, setShowEditPrompt] = useState(false);
   const [editablePrompt, setEditablePrompt] = useState('');
+  // Filter state (type: exclusive All/Images/Videos; favorites: additive)
+  const [showImages, setShowImages] = useState(true);
+  const [showVideos, setShowVideos] = useState(true);
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
+  // Asset pool: a random draw of ids when the modal opens or a filter changes, refilled past its end
+  // (not on every library write); the card shows the live asset for its id.
+  const [assetPool, setAssetPool] = useState(NO_ASSET_IDS);
+  const [assetIndex, setAssetIndex] = useState(0);
+  const poolRows = useLiveQuery((db) => readByIds(db, schema.assets, assetPool), [schema.assets], [assetPool]);
+  const [textPool, setTextPool] = useState([]);
+  const [textIndex, setTextIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    let isCancelled = false;
+    if (visible) drawPool().then((ids) => !isCancelled && setAssetPool(ids));
+    else setAssetPool(NO_ASSET_IDS);
+    setAssetIndex(0);
+    return () => {
+      isCancelled = true;
+    };
+  }, [visible, showImages, showVideos, onlyFavorites]);
+
+  useEffect(() => {
+    if (visible && textPool.length === 0) {
+      fetchTextBatch().then(setTextPool);
+    }
+    if (visible) {
+      AsyncStorage.getItem(MODEL_STORAGE_KEY).then((m) => {
+        if (m) setSelectedModel(m);
+      });
+    }
+    if (!visible) {
+      setTextPool([]);
+      setTextIndex(0);
+    }
+  }, [visible]);
+
+  const mediaOpacity = useSharedValue(1);
+  const mediaTranslateX = useSharedValue(0);
+  const textOpacity = useSharedValue(1);
+  const textTranslateX = useSharedValue(0);
+
+  const mediaAnimStyle = useAnimatedStyle(() => ({
+    opacity: mediaOpacity.value,
+    transform: [{ translateX: mediaTranslateX.value }],
+  }));
+
+  const textAnimStyle = useAnimatedStyle(() => ({
+    opacity: textOpacity.value,
+    transform: [{ translateX: textTranslateX.value }],
+  }));
+
+  // Refs to avoid stale closures in PanResponder
+  const navigateAssetRef = useRef(navigateAsset);
+  const navigateTextRef = useRef(navigateText);
+  navigateAssetRef.current = navigateAsset;
+  navigateTextRef.current = navigateText;
+
+  const mediaPanHandlers = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 10 && Math.abs(gs.dx) > Math.abs(gs.dy),
+      onPanResponderRelease: (_, gs) => {
+        if (gs.dx < -SWIPE_THRESHOLD) navigateAssetRef.current('next');
+        else if (gs.dx > SWIPE_THRESHOLD) navigateAssetRef.current('prev');
+      },
+    }),
+  ).current.panHandlers;
+
+  const textPanHandlers = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 10 && Math.abs(gs.dx) > Math.abs(gs.dy),
+      onPanResponderRelease: (_, gs) => {
+        if (gs.dx < -SWIPE_THRESHOLD) navigateTextRef.current('next');
+        else if (gs.dx > SWIPE_THRESHOLD) navigateTextRef.current('prev');
+      },
+    }),
+  ).current.panHandlers;
+
+  const pool = assetQuery({
+    scope: 'library',
+    sort: 'random',
+    filter: poolFilter({ showImages, showVideos, onlyFavorites }),
+  });
+  const assets = new Map((poolRows ?? NO_ROWS).map((asset) => [asset.id, asset]));
+  // Assets deleted while the modal is open (e.g. by a sync) are skipped, not shown.
+  const currentIndex = findLiveIndex(assetPool, assets, assetIndex, 1);
+  const currentAsset = currentIndex >= 0 ? assets.get(assetPool[currentIndex]) : null;
+  const hasOtherAssets = currentIndex >= 0 && findLiveIndex(assetPool, assets, currentIndex + 1, 1) !== currentIndex;
+  const currentText = textPool[textIndex] ?? null;
+  const allTypesActive = showImages && showVideos;
 
   async function openEditPrompt() {
     const stored = await AsyncStorage.getItem(RANDOM_TWEETS_PROMPT_STORAGE_KEY);
@@ -71,60 +159,9 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
     fetchTextBatch().then(setTextPool);
   }
 
-  // --- Filter state (type: exclusive All/Images/Videos; favorites: additive) ---
-  const [showImages, setShowImages] = useState(true);
-  const [showVideos, setShowVideos] = useState(true);
-  const [onlyFavorites, setOnlyFavorites] = useState(false);
-
-  // --- Asset pool: a random draw of ids when the modal opens or a filter changes, refilled past
-  // its end (not on every library write); the card shows the live asset for its id. ---
-  const [assetPool, setAssetPool] = useState(NO_ASSET_IDS);
-  const [assetIndex, setAssetIndex] = useState(0);
-  const pool = assetQuery({
-    scope: 'library',
-    sort: 'random',
-    filter: poolFilter({ showImages, showVideos, onlyFavorites }),
-  });
-
   function drawPool() {
     return pool.ids(getDb(), { limit: POOL_SIZE });
   }
-
-  useEffect(() => {
-    let isCancelled = false;
-    if (visible) drawPool().then((ids) => !isCancelled && setAssetPool(ids));
-    else setAssetPool(NO_ASSET_IDS);
-    setAssetIndex(0);
-    return () => {
-      isCancelled = true;
-    };
-  }, [visible, showImages, showVideos, onlyFavorites]);
-
-  const assets = new Map(
-    (useLiveQuery((db) => readByIds(db, schema.assets, assetPool), [schema.assets], [assetPool]) ?? NO_ROWS).map(
-      (asset) => [asset.id, asset],
-    ),
-  );
-
-  // --- Text pool ---
-  const [textPool, setTextPool] = useState([]);
-  const [textIndex, setTextIndex] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    if (visible && textPool.length === 0) {
-      fetchTextBatch().then(setTextPool);
-    }
-    if (visible) {
-      AsyncStorage.getItem(MODEL_STORAGE_KEY).then((m) => {
-        if (m) setSelectedModel(m);
-      });
-    }
-    if (!visible) {
-      setTextPool([]);
-      setTextIndex(0);
-    }
-  }, [visible]);
 
   // Fetches one batch of captions. Callers decide where the batch goes.
   async function fetchTextBatch() {
@@ -154,22 +191,6 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
     }
   }
 
-  // --- Animations ---
-  const mediaOpacity = useSharedValue(1);
-  const mediaTranslateX = useSharedValue(0);
-  const textOpacity = useSharedValue(1);
-  const textTranslateX = useSharedValue(0);
-
-  const mediaAnimStyle = useAnimatedStyle(() => ({
-    opacity: mediaOpacity.value,
-    transform: [{ translateX: mediaTranslateX.value }],
-  }));
-
-  const textAnimStyle = useAnimatedStyle(() => ({
-    opacity: textOpacity.value,
-    transform: [{ translateX: textTranslateX.value }],
-  }));
-
   function animateTransition(opacityVal, translateVal, direction, callback) {
     const outX = direction === 'next' ? -40 : 40;
     opacityVal.value = withTiming(0, motion.exit, (finished) => {
@@ -181,12 +202,6 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
       }
     });
   }
-
-  // --- Asset navigation ---
-  // Assets deleted while the modal is open (e.g. by a sync) are skipped, not shown.
-  const currentIndex = findLiveIndex(assetPool, assets, assetIndex, 1);
-  const currentAsset = currentIndex >= 0 ? assets.get(assetPool[currentIndex]) : null;
-  const hasOtherAssets = currentIndex >= 0 && findLiveIndex(assetPool, assets, currentIndex + 1, 1) !== currentIndex;
 
   function navigateAsset(direction) {
     if (!hasOtherAssets) return;
@@ -204,9 +219,6 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
     const newIndex = findLiveIndex(assetPool, assets, currentIndex + step, step);
     animateTransition(mediaOpacity, mediaTranslateX, direction, () => setAssetIndex(newIndex));
   }
-
-  // --- Text navigation ---
-  const currentText = textPool[textIndex] ?? null;
 
   function navigateText(direction) {
     if (isLoading) return;
@@ -229,40 +241,10 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
     animateTransition(textOpacity, textTranslateX, direction, () => setTextIndex(newIndex));
   }
 
-  // Refs to avoid stale closures in PanResponder
-  const navigateAssetRef = useRef(navigateAsset);
-  const navigateTextRef = useRef(navigateText);
-  navigateAssetRef.current = navigateAsset;
-  navigateTextRef.current = navigateText;
-
-  const mediaPanHandlers = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 10 && Math.abs(gs.dx) > Math.abs(gs.dy),
-      onPanResponderRelease: (_, gs) => {
-        if (gs.dx < -SWIPE_THRESHOLD) navigateAssetRef.current('next');
-        else if (gs.dx > SWIPE_THRESHOLD) navigateAssetRef.current('prev');
-      },
-    }),
-  ).current.panHandlers;
-
-  const textPanHandlers = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 10 && Math.abs(gs.dx) > Math.abs(gs.dy),
-      onPanResponderRelease: (_, gs) => {
-        if (gs.dx < -SWIPE_THRESHOLD) navigateTextRef.current('next');
-        else if (gs.dx > SWIPE_THRESHOLD) navigateTextRef.current('prev');
-      },
-    }),
-  ).current.panHandlers;
-
-  // --- Confirm ---
   function handleConfirm() {
     onConfirm(currentAsset, currentText);
     onClose();
   }
-
-  // --- Filter helpers ---
-  const allTypesActive = showImages && showVideos;
 
   function handlePressAll() {
     setShowImages(true);

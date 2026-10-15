@@ -117,13 +117,22 @@ export default function Album({ album }) {
   }
 
   // A drag under any sort adopts the order on screen and switches the album to Custom, like
-  // Reminders; the loaded grid keeps its depth, so no scroll-to-top.
-  function handleReorder(change) {
-    if (sortOrder !== 'custom') {
+  // Reminders; the loaded grid keeps its depth, so no scroll-to-top. A failed write switches back.
+  async function handleReorder(change) {
+    const isSwitching = sortOrder !== 'custom';
+    if (isSwitching) {
       keepLimit();
       setSessionSortOrder('custom');
     }
-    return reorderAlbumAssets(album, { ...change, sort: sortOrder });
+    try {
+      await reorderAlbumAssets(album, { ...change, sort: sortOrder });
+    } catch (error) {
+      if (isSwitching) {
+        keepLimit();
+        setSessionSortOrder(sessionSortOrder);
+      }
+      throw error;
+    }
   }
 
   const headerSubtitle =
@@ -196,6 +205,7 @@ export default function Album({ album }) {
         {activeTab === 'Assets' ? (
           <AlbumAssetsView
             rows={rows}
+            count={count}
             loadMore={loadMore}
             isSelectMode={isSelectMode}
             selectedAssetIds={selectedAssetIds}

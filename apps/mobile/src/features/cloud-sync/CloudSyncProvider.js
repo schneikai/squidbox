@@ -27,6 +27,7 @@ export default function CloudSyncProvider({ children }) {
   const [syncMessage, setSyncMessage] = useState(null);
   const [syncProgressMessage, setSyncProgressMessage] = useState(null);
   const [syncSpeedMessage, setSyncSpeedMessage] = useState(null);
+  const [backupError, setBackupError] = useState(null);
 
   // Live counts (0 while signed out: backup needs the cloud), each covered by a partial index.
   const { unsyncedCount, syncErrorCount } =
@@ -90,20 +91,26 @@ export default function CloudSyncProvider({ children }) {
     setIsSyncing(true);
     sessionStartRef.current = Date.now();
     completedBytesRef.current = 0;
+    setBackupError(null);
 
-    // The total is fixed at the start (the live count shrinks as uploads land) and the assets are
-    // walked by id, so each is tried once however the run marks it.
+    // The total is fixed at the start (the live count shrinks as uploads land) and the walk by id
+    // stops after that many, so each asset is tried once however the run marks it and the progress
+    // never passes its total; anything added meanwhile waits for the next run.
     try {
       const db = getDb();
       const total = await countUnsynced(db);
       let index = 0;
       let afterId = null;
-      for (;;) {
-        const batch = await readUnsynced(db, { afterId, limit: UPLOAD_BATCH });
+      while (index < total) {
+        const batch = await readUnsynced(db, { afterId, limit: Math.min(UPLOAD_BATCH, total - index) });
         if (batch.length === 0) break;
         afterId = batch[batch.length - 1].id;
         for (const asset of batch) await uploadAsset(asset, ++index, total);
       }
+    } catch (error) {
+      // Not an upload (those are marked per asset): the run itself couldn't go on.
+      console.error('Backup failed', error);
+      setBackupError(error.message);
     } finally {
       setIsSyncing(false);
       setSyncMessage(null);
@@ -144,13 +151,23 @@ export default function CloudSyncProvider({ children }) {
     () => ({
       unsyncedCount,
       syncErrorCount,
+      backupError,
       isSyncing,
       syncMessage,
       syncProgressMessage,
       syncSpeedMessage,
       syncNow: syncAssets,
     }),
-    [isAuthenticated, unsyncedCount, syncErrorCount, isSyncing, syncMessage, syncProgressMessage, syncSpeedMessage],
+    [
+      isAuthenticated,
+      unsyncedCount,
+      syncErrorCount,
+      backupError,
+      isSyncing,
+      syncMessage,
+      syncProgressMessage,
+      syncSpeedMessage,
+    ],
   );
 
   return <CloudSyncContext.Provider value={value}>{children}</CloudSyncContext.Provider>;

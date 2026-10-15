@@ -14,6 +14,7 @@ export interface PagedResult<R> {
   rows: R[];
   count: number;
   limit: number; // the limit the rows were read at
+  key?: string; // the descriptor they were read for (see usePagedQuery)
 }
 
 // Each page doubles the limit until the step reaches 3,000 rows (150, 300, …, 4,800, 7,800, 10,800,
@@ -25,11 +26,12 @@ export function nextLimit(limit: number): number {
 }
 
 /**
- * Whether a bigger page would show more rows. While a load-more read is in flight the result's limit
- * lags the state's, so repeated onEndReached or onScroll calls are no-ops until it lands.
+ * Whether a bigger page would show more rows. Only the result read for this descriptor and limit can
+ * tell: while a load-more or a new descriptor's first read is in flight, the previous result is still
+ * shown, so repeated onEndReached or onScroll calls are no-ops until the new one lands.
  */
-export function hasMore<R>(result: PagedResult<R> | undefined, limit: number): boolean {
-  return !!result && result.limit === limit && result.count > limit;
+export function hasMore<R>(result: PagedResult<R> | undefined, key: string | undefined, limit: number): boolean {
+  return !!result && result.key === key && result.limit === limit && result.count > limit;
 }
 
 /**
@@ -48,14 +50,14 @@ export function usePagedQuery<R>(query: PagedQuery<R>, pageSize: number) {
     setPage({ key, limit, keep: false });
   }
   const result = useLiveQuery<PagedResult<R>>(
-    async (db) => ({ ...(await query.read(db, { limit })), limit }),
+    async (db) => ({ ...(await query.read(db, { limit })), limit, key }),
     query.tables,
     [key, limit],
   );
 
   // Stable, so a scroll handler can hold it: it reads the latest state through the ref.
   const latest = useRef({ key, limit, canLoadMore: false });
-  latest.current = { key, limit, canLoadMore: hasMore(result, limit) };
+  latest.current = { key, limit, canLoadMore: hasMore(result, key, limit) };
   const loadMore = useCallback(() => {
     const { key: current, limit: loaded, canLoadMore } = latest.current;
     if (canLoadMore) setPage({ key: current, limit: nextLimit(loaded), keep: false });

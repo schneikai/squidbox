@@ -12,7 +12,8 @@ const p = alias(schema.posts, 'p');
 const e = alias(schema.postAssets, 'e');
 
 /**
- * What a post list shows, as SQL: `read(db, { limit })` → `{ rows, count }` from one transaction,
+ * What a post list shows, as SQL: `read(db, { limit })` → `{ rows, count }` from one transaction
+ * (`withCount: false` skips the count, for a read of one post),
  * each row a post with `postAssets: [{ id, asset }]` (its live edges in order, one per asset, the
  * asset rows read by id so a deleted asset still shows); `tables` → what a live read watches.
  * An `asset:<id>` or `album:<id>` search becomes that scope, as the posts screen always read it.
@@ -87,10 +88,10 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
   return {
     descriptor,
     tables,
-    read(db, { limit }) {
+    read(db, { limit, withCount = true }) {
       return db.transaction(async (tx) => {
         const ids = await matchedIds(tx);
-        const [{ count: total }] = await tx.select({ count: count() }).from(p).where(where(ids));
+        const total = withCount ? (await tx.select({ count: count() }).from(p).where(where(ids)))[0].count : undefined;
         const posts = await tx
           .select(getTableColumns(p))
           .from(p)

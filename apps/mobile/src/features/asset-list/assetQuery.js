@@ -68,7 +68,7 @@ export default function assetQuery({ scope = 'library', sort = 'createdAt:desc',
     },
     ids(db, { limit } = {}) {
       return db.transaction(async (tx) => {
-        const query = ordered(tx, { id: a.id, createdAt: a.createdAt }, await matchedIds(tx));
+        const query = ordered(tx, { id: a.id }, await matchedIds(tx));
         const rows = await (limit === undefined ? query : query.limit(limit));
         return rows.map((row) => row.id);
       });

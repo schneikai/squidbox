@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 
 import { createPost as createPostRecord, makeAssetRecord } from './helpers/factory';
 import { makeMeasuredTestDb } from './helpers/testDb';
+import readPost from '../src/features/post-detail/readPost';
 import postQuery from '../src/features/post-list/postQuery';
 import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
@@ -79,6 +80,16 @@ describe('postQuery', () => {
     const work = await measure(() => postQuery({ scope: 'all' }).read(db, { limit: 20 }));
     expect(work.commits).toBe(1);
     expect(work.statements).toBe(2 + 4);
+  });
+
+  it('reads one post without the count', async () => {
+    await repo.createAssets(db, [makeAssetRecord({ id: 'a1' })]);
+    await createPost('p1', {}, ['a1']);
+    let post: { id: string } | null = null;
+    const work = await measure(async () => (post = await readPost(db, 'p1')));
+    expect(post!.id).toBe('p1');
+    expect(work.statements).toBe(2 + 3);
+    expect(await readPost(db, 'missing')).toBeNull();
   });
 
   it('scopes to an asset, an album, a post, the repost candidates and the ignored posts', async () => {
