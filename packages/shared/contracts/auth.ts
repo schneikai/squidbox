@@ -13,10 +13,12 @@ export const loginRequestSchema = z.object({
 });
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
 
+// serverId is the server's stable identity (SERVER_ID); the app binds the session to it.
 export const loginResponseSchema = z.object({
   accessToken: z.string(),
   refreshToken: z.string(),
   user: apiUserSchema,
+  serverId: z.string(),
 });
 export type LoginResponse = z.infer<typeof loginResponseSchema>;
 
@@ -34,5 +36,6 @@ export type RefreshResponse = z.infer<typeof refreshResponseSchema>;
 
 export const userResponseSchema = z.object({
   user: apiUserSchema,
+  serverId: z.string(),
 });
 export type UserResponse = z.infer<typeof userResponseSchema>;

@@ -27,7 +27,8 @@ export const users = pgTable('users', {
 });
 
 // Per-device refresh tokens: each device holds its own valid token, and rotation replaces only
-// the presented one.
+// the presented one. replaced_by names the successor a rotation issued; the rotated token stays
+// usable until that successor is first presented (auth/tokens.ts).
 export const refreshTokens = pgTable(
   'refresh_tokens',
   {
@@ -36,6 +37,7 @@ export const refreshTokens = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     token: text('token').notNull().unique(),
+    replacedBy: text('replaced_by'),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },

@@ -7,18 +7,14 @@ import {
   deleteAssetsResponseSchema,
   resolveExpiresIn,
 } from '@squidbox/shared';
-import { getDb } from '../db/client.js';
 import { loadConfig } from '../config.js';
 import { AppError } from '../errors.js';
-import { findUserById } from '../users.js';
-import { authenticate, requireUserId } from '../auth/authenticate.js';
+import { authenticate, requireUser } from '../auth/authenticate.js';
 import { resolveStorage, type StorageLocation } from './resolver.js';
 import { presignedDownloadUrl, uploadStream, deleteObject } from './s3.js';
 
-async function storageFor(request: FastifyRequest): Promise<StorageLocation> {
-  const user = await findUserById(getDb(), requireUserId(request));
-  if (!user) throw AppError.unauthorized();
-  return resolveStorage(user, loadConfig().S3_SHARED_BUCKET);
+function storageFor(request: FastifyRequest): StorageLocation {
+  return resolveStorage(requireUser(request), loadConfig().S3_SHARED_BUCKET);
 }
 
 // Simple per-user upload concurrency guard so one tenant's bulk upload can't starve others.
@@ -48,7 +44,7 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
     preHandler: authenticate(),
     schema: { body: downloadUrlsRequestSchema, response: { 200: downloadUrlsResponseSchema } },
     handler: async (request) => {
-      const loc = await storageFor(request);
+      const loc = storageFor(request);
       const expiresIn = resolveExpiresIn(request.body.expiresIn);
       const urls = await Promise.all(
         request.body.keys.map(async (key) => ({
@@ -73,10 +69,10 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
       url: '/assets/upload/*',
       preHandler: authenticate({ allowQueryToken: true }),
       handler: async (request, reply) => {
-        const userId = requireUserId(request);
+        const userId = requireUser(request).id;
         const fileKey = (request.params as Record<string, string>)['*'];
         if (!fileKey) throw new AppError(400, 'validation_error', 'Missing file key');
-        const loc = await storageFor(request);
+        const loc = storageFor(request);
         const contentType = request.headers['content-type'];
 
         acquireUploadSlot(userId);
@@ -97,7 +93,7 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
     preHandler: authenticate(),
     schema: { body: deleteAssetsRequestSchema, response: { 200: deleteAssetsResponseSchema } },
     handler: async (request) => {
-      const loc = await storageFor(request);
+      const loc = storageFor(request);
       await Promise.all(request.body.keys.map((key) => deleteObject(loc, key)));
       return { deleted: request.body.keys };
     },

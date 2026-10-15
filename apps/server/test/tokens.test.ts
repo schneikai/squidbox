@@ -1,61 +1,98 @@
-import { describe, it, expect } from 'vitest';
-import {
-  issueRefreshToken,
-  rotateRefreshToken,
-  revokeRefreshToken,
-  REFRESH_TOKEN_TTL_MS,
-} from '../src/auth/tokens.js';
-import type { Db } from '../src/db/client.js';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { eq } from 'drizzle-orm';
+import pg from 'pg';
+import * as schema from '../src/db/schema.js';
+import { issueRefreshToken, rotateRefreshToken, revokeRefreshToken, REFRESH_TOKEN_TTL_MS } from '../src/auth/tokens.js';
 
-// A minimal fake Drizzle db capturing writes, so token rotation logic is tested without PG.
-function fakeDb(deleteReturning: Array<{ userId: string }> = []) {
-  const inserted: Array<{ userId: string; token: string; expiresAt: Date }> = [];
-  let deleteWhereCalls = 0;
-  const insert = () => ({ values: async (v: any) => void inserted.push(v) });
-  const tx = {
-    insert,
-    delete: () => ({ where: () => ({ returning: async () => deleteReturning }) }),
-  };
-  const db = {
-    insert,
-    delete: () => ({
-      where: async () => {
-        deleteWhereCalls += 1;
-      },
-    }),
-    transaction: async (cb: (t: typeof tx) => unknown) => cb(tx),
-  } as unknown as Db;
-  return { db, inserted, deleteWhereCalls: () => deleteWhereCalls };
+// The rotation grace is a chain of conditional statements (replaced_by IS NULL, expires_at, the
+// self-join to the successor), so these tests run against a real Postgres: `npm run test:db`
+// (the docker-compose stack); plain `npm test` skips them.
+const TEST_URL = process.env.TEST_DATABASE_URL;
+const d = TEST_URL ? describe : describe.skip;
+
+const USER = '33333333-3333-3333-3333-333333333333';
+const NOW = 1_700_000_000_000;
+
+type Db = ReturnType<typeof drizzle<typeof schema>>;
+let pool: pg.Pool;
+let db: Db;
+
+async function rows() {
+  return db.select().from(schema.refreshTokens).where(eq(schema.refreshTokens.userId, USER));
+}
+async function tokens() {
+  return (await rows()).map((row) => row.token).sort();
 }
 
-describe('refresh tokens (per-device)', () => {
+d('refresh tokens (per-device, with rotation grace)', () => {
+  beforeAll(async () => {
+    pool = new pg.Pool({ connectionString: TEST_URL });
+    db = drizzle(pool, { schema });
+    await db
+      .insert(schema.users)
+      .values({ id: USER, email: 'tokens@test.local', passwordDigest: 'x', storageBucket: null })
+      .onConflictDoNothing();
+  });
+  beforeEach(async () => {
+    await db.delete(schema.refreshTokens).where(eq(schema.refreshTokens.userId, USER));
+  });
+  afterAll(async () => {
+    await db.delete(schema.refreshTokens).where(eq(schema.refreshTokens.userId, USER));
+    await pool.end();
+  });
+
   it('issues a random token with a 1-year expiry', async () => {
-    const { db, inserted } = fakeDb();
-    const now = 1_700_000_000_000;
-    const token = await issueRefreshToken(db, 'u1', now);
+    const token = await issueRefreshToken(db, USER, NOW);
     expect(token).toMatch(/^[0-9a-f]{64}$/);
-    expect(inserted).toHaveLength(1);
-    expect(inserted[0].userId).toBe('u1');
-    expect(inserted[0].expiresAt.getTime()).toBe(now + REFRESH_TOKEN_TTL_MS);
+    const [row] = await rows();
+    expect(row.token).toBe(token);
+    expect(row.replacedBy).toBeNull();
+    expect(row.expiresAt.getTime()).toBe(NOW + REFRESH_TOKEN_TTL_MS);
   });
 
-  it('rotate deletes the presented token and issues a new one for the same user', async () => {
-    const { db, inserted } = fakeDb([{ userId: 'u1' }]);
-    const result = await rotateRefreshToken(db, 'old-token');
-    expect(result.userId).toBe('u1');
-    expect(result.token).toMatch(/^[0-9a-f]{64}$/);
-    expect(result.token).not.toBe('old-token');
-    expect(inserted).toHaveLength(1); // the replacement token
+  it('rotate issues a successor and keeps the presented token until the successor is presented', async () => {
+    const first = await issueRefreshToken(db, USER, NOW);
+    const { userId, token: second } = await rotateRefreshToken(db, first, NOW);
+    expect(userId).toBe(USER);
+    expect(second).not.toBe(first);
+    expect(await tokens()).toEqual([first, second].sort());
+
+    // A lost response or a concurrent refresh presents the first token again: same successor.
+    const replay = await rotateRefreshToken(db, first, NOW);
+    expect(replay).toEqual({ userId: USER, token: second });
+    expect(await tokens()).toEqual([first, second].sort());
   });
 
-  it('rotate throws when the presented token is unknown/expired', async () => {
-    const { db } = fakeDb([]); // delete returns nothing
-    await expect(rotateRefreshToken(db, 'bad')).rejects.toThrow(/Invalid or expired/);
+  it('presenting the successor retires the predecessor', async () => {
+    const first = await issueRefreshToken(db, USER, NOW);
+    const { token: second } = await rotateRefreshToken(db, first, NOW);
+    const { token: third } = await rotateRefreshToken(db, second, NOW);
+    expect(await tokens()).toEqual([second, third].sort());
+    await expect(rotateRefreshToken(db, first, NOW)).rejects.toThrow(/Invalid or expired/);
   });
 
-  it('revoke deletes the presented token', async () => {
-    const { db, deleteWhereCalls } = fakeDb();
-    await revokeRefreshToken(db, 'some-token');
-    expect(deleteWhereCalls()).toBe(1);
+  it('an expired successor is not replayed', async () => {
+    const first = await issueRefreshToken(db, USER, NOW);
+    await rotateRefreshToken(db, first, NOW);
+    const later = NOW + REFRESH_TOKEN_TTL_MS + 1;
+    await expect(rotateRefreshToken(db, first, later)).rejects.toThrow(/Invalid or expired/);
+  });
+
+  it('rotate rejects an unknown or expired token', async () => {
+    await expect(rotateRefreshToken(db, 'unknown', NOW)).rejects.toThrow(/Invalid or expired/);
+    const token = await issueRefreshToken(db, USER, NOW);
+    await expect(rotateRefreshToken(db, token, NOW + REFRESH_TOKEN_TTL_MS)).rejects.toThrow(/Invalid or expired/);
+  });
+
+  it('revoke clears the presented token with its predecessor and successor, nothing else', async () => {
+    const other = await issueRefreshToken(db, USER, NOW);
+    const first = await issueRefreshToken(db, USER, NOW);
+    const { token: second } = await rotateRefreshToken(db, first, NOW);
+    const { token: third } = await rotateRefreshToken(db, second, NOW); // retires first
+    expect(await tokens()).toEqual([other, second, third].sort());
+
+    await revokeRefreshToken(db, second);
+    expect(await tokens()).toEqual([other]);
   });
 });

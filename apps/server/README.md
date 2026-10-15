@@ -3,7 +3,11 @@
 The TypeScript backend: Fastify + Drizzle + Postgres + S3, deployed on Fly.io (see the
 `/deploy-server` skill). It serves:
 
-- **Auth:** JWT access tokens plus per-device refresh tokens that rotate on every refresh.
+- **Auth:** JWT access tokens plus per-device refresh tokens that rotate on every refresh. A rotated
+  token stays valid until its successor is first presented, so a lost refresh response doesn't sign
+  the device out.
+- **Identity:** `SERVER_ID`, a fixed uuid per deployment, reported by `/up`, login and `/me`. The
+  app binds each session and its local library to it.
 - **Files:** presigned GET downloads, server-proxied streaming uploads with server-side multipart,
   and batch delete.
 - **Sync:** `/sync/pull` and `/sync/push`.
@@ -68,7 +72,7 @@ credentials, start the server with `env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCES
 ## Setup (against real Postgres + AWS)
 
 ```
-cp .env.example .env      # fill JWT_SECRET (random secret), DATABASE_URL, AWS_*, S3_SHARED_BUCKET
+cp .env.example .env      # fill JWT_SECRET (random secret), SERVER_ID (uuid), DATABASE_URL, AWS_*, S3_SHARED_BUCKET
 npm install               # from the repo ROOT (workspaces)
 npm run db:generate -w @squidbox/server    # generate SQL migrations from the Drizzle schema
 npm run db:migrate  -w @squidbox/server    # apply migrations + create the change_seq sequence
@@ -84,4 +88,4 @@ npm run smoke -w @squidbox/server   # end-to-end: login→upload(small+>210MB)�
 ```
 
 `.env` is loaded by your shell or Node's `--env-file`; e.g. `node --env-file=.env` or
-`tsx --env-file=.env src/index.ts`. Health check: `GET /up`.
+`tsx --env-file=.env src/index.ts`. Health check: `GET /up` → `{ "status": "ok", "serverId": "<uuid>" }`.

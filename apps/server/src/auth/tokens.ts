@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
-import { and, eq, gt } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNull, or } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import type { Db } from '../db/client.js';
 import { refreshTokens } from '../db/schema.js';
 import { AppError } from '../errors.js';
@@ -22,31 +23,71 @@ export async function issueRefreshToken(db: Db, userId: string, now = Date.now()
   return token;
 }
 
-// Validate + rotate atomically: delete the presented (valid, unexpired) token and issue a new
-// one for the same user. Throws invalid_token if the presented token is unknown/expired.
+// Validate + rotate atomically: mark the presented (valid, unexpired) token as replaced and issue
+// its successor for the same user. The presented token stays valid until the successor is first
+// presented, so a refresh whose response was lost, or two concurrent refreshes of one token, get
+// the same successor again instead of signing the device out. Presenting the successor retires
+// its predecessor. Throws invalid_token when the presented token is unknown, expired or retired.
 export async function rotateRefreshToken(
   db: Db,
   presented: string,
-  now = Date.now()
+  now = Date.now(),
 ): Promise<{ userId: string; token: string }> {
   return db.transaction(async (tx) => {
-    const [row] = await tx
-      .delete(refreshTokens)
-      .where(and(eq(refreshTokens.token, presented), gt(refreshTokens.expiresAt, new Date(now))))
-      .returning();
-    if (!row) throw AppError.invalidToken('Invalid or expired refresh token');
-
     const token = newRefreshToken();
-    await tx.insert(refreshTokens).values({
-      userId: row.userId,
-      token,
-      expiresAt: new Date(now + REFRESH_TOKEN_TTL_MS),
-    });
-    return { userId: row.userId, token };
+    const [rotated] = await tx
+      .update(refreshTokens)
+      .set({ replacedBy: token })
+      .where(
+        and(
+          eq(refreshTokens.token, presented),
+          isNull(refreshTokens.replacedBy),
+          gt(refreshTokens.expiresAt, new Date(now)),
+        ),
+      )
+      .returning({ userId: refreshTokens.userId });
+    if (rotated) {
+      await tx.insert(refreshTokens).values({
+        userId: rotated.userId,
+        token,
+        expiresAt: new Date(now + REFRESH_TOKEN_TTL_MS),
+      });
+      await tx.delete(refreshTokens).where(eq(refreshTokens.replacedBy, presented));
+      return { userId: rotated.userId, token };
+    }
+
+    // Already rotated: hand out its successor again while that one is still unpresented and valid.
+    const predecessor = alias(refreshTokens, 'predecessor');
+    const [successor] = await tx
+      .select({ userId: refreshTokens.userId, token: refreshTokens.token })
+      .from(refreshTokens)
+      .innerJoin(predecessor, eq(predecessor.replacedBy, refreshTokens.token))
+      .where(
+        and(
+          eq(predecessor.token, presented),
+          isNull(refreshTokens.replacedBy),
+          gt(refreshTokens.expiresAt, new Date(now)),
+        ),
+      );
+    if (!successor) throw AppError.invalidToken('Invalid or expired refresh token');
+    return successor;
   });
 }
 
-// Logout: revoke just this device's presented refresh token (if any).
+// Logout: revoke this device's presented refresh token together with its predecessor and
+// successor, so neither side of a rotation in flight survives.
 export async function revokeRefreshToken(db: Db, token: string): Promise<void> {
-  await db.delete(refreshTokens).where(eq(refreshTokens.token, token));
+  const successorOf = db
+    .select({ token: refreshTokens.replacedBy })
+    .from(refreshTokens)
+    .where(eq(refreshTokens.token, token));
+  await db
+    .delete(refreshTokens)
+    .where(
+      or(
+        eq(refreshTokens.token, token),
+        eq(refreshTokens.replacedBy, token),
+        inArray(refreshTokens.token, successorOf),
+      ),
+    );
 }

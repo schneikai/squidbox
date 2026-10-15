@@ -41,14 +41,16 @@ deploys. No separate "setup" vs "deploy" skill to choose.
 3. **Secrets** — set all at once. Pull the DB URL from neonctl (never echo it), generate JWT + login
    password, and read AWS creds from `apps/server/.env` (avoids credential literals in the command,
    which the sandbox blocks). `JWT_SECRET` is a random secret;
-   changing it signs every device out. `SEED_USER_PASSWORD` is the app login password.
+   changing it signs every device out. `SERVER_ID` is the server's stable identity (the app binds
+   each session and library to it): generate it once and never change it. `SEED_USER_PASSWORD` is
+   the app login password.
    ```bash
    AWS_KEY=$(grep '^AWS_ACCESS_KEY_ID=' apps/server/.env | cut -d= -f2-)
    AWS_SEC=$(grep '^AWS_SECRET_ACCESS_KEY=' apps/server/.env | cut -d= -f2-)
    DBURL=$(neonctl connection-string --project-id <id> --org-id <org>)
    PW=$(openssl rand -base64 18 | tr -dc 'A-Za-z0-9' | head -c 16)
    fly secrets set --app <app> \
-     DATABASE_URL="$DBURL" JWT_SECRET="$(openssl rand -hex 32)" \
+     DATABASE_URL="$DBURL" JWT_SECRET="$(openssl rand -hex 32)" SERVER_ID="$(uuidgen | tr A-Z a-z)" \
      AWS_REGION=eu-west-1 AWS_ACCESS_KEY_ID="$AWS_KEY" AWS_SECRET_ACCESS_KEY="$AWS_SEC" \
      S3_SHARED_BUCKET=squidbox-shared \
      SEED_USER_EMAIL=<email> SEED_USER_STORAGE_BUCKET=<bucket> SEED_USER_PASSWORD="$PW" \
@@ -70,7 +72,9 @@ deploys. No separate "setup" vs "deploy" skill to choose.
 ## Routine deploy
 
 From the repo root: `fly deploy . --config apps/server/fly.toml --dockerfile apps/server/Dockerfile`
-Migrations run automatically. Verify: `curl https://<app>.fly.dev/up` → `{"status":"ok"}`.
+Migrations run automatically. Verify: `curl https://<app>.fly.dev/up` → `{"status":"ok","serverId":"<uuid>"}`.
+`SERVER_ID` must be set as a secret before the deploy that first needs it; the server refuses to
+boot without it.
 
 ### From the cloud workspace (behind the agent proxy)
 

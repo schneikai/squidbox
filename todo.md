@@ -255,6 +255,13 @@ Node 20 reached end of life in April 2026. `mise.toml` pins 20.19.4 and the serv
 
 ## Owner-side (needs a device, infra or secrets)
 
+### [ ] Set the SERVER_ID secret, then deploy the server
+
+The server now refuses to boot without `SERVER_ID` (`apps/server/src/config.ts`), a fixed uuid that
+`/up`, login and `/me` report so the app can bind a session and its library to the server
+(`docs/library-ownership-plan.md` §2). Run `fly secrets set --app squidbox-server
+SERVER_ID="$(uuidgen | tr A-Z a-z)"` once, before the deploy (`/deploy-server`), and never change it.
+
 ### [ ] Test a photo upload
 
 Against the deployed backend (`squidbox-server` on Fly.io), take/upload a photo and confirm the

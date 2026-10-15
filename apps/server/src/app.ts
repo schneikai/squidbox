@@ -1,6 +1,7 @@
 import Fastify, { type FastifyServerOptions } from 'fastify';
 import rateLimit from '@fastify/rate-limit';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
+import { loadConfig } from './config.js';
 import { registerErrorHandler } from './plugins/errorHandler.js';
 import { authRoutes } from './auth/routes.js';
 import { assetRoutes } from './storage/routes.js';
@@ -34,7 +35,8 @@ export async function buildApp(opts: { logger?: FastifyServerOptions['logger'] }
 
   registerErrorHandler(app);
 
-  app.get('/up', async () => ({ status: 'ok' }));
+  const { SERVER_ID: serverId } = loadConfig();
+  app.get('/up', async () => ({ status: 'ok', serverId }));
 
   await app.register(
     async (api) => {

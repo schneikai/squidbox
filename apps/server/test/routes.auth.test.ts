@@ -20,6 +20,7 @@ import { verifyPassword } from '../src/auth/passwords.js';
 import { issueRefreshToken, rotateRefreshToken, revokeRefreshToken } from '../src/auth/tokens.js';
 
 const user = { id: 'u1', email: 'a@b.co', passwordDigest: 'digest', storageBucket: null };
+const serverId = process.env.SERVER_ID;
 
 async function app() {
   return buildApp({ logger: false });
@@ -30,7 +31,7 @@ beforeEach(() => {
 });
 
 describe('POST /api/v1/auth/login', () => {
-  it('returns tokens + user on valid credentials', async () => {
+  it('returns tokens, user and the server identity on valid credentials', async () => {
     vi.mocked(findUserByEmail).mockResolvedValue(user as any);
     vi.mocked(verifyPassword).mockResolvedValue(true);
     vi.mocked(issueRefreshToken).mockResolvedValue('refresh-1');
@@ -45,6 +46,7 @@ describe('POST /api/v1/auth/login', () => {
     const body = res.json();
     expect(body.refreshToken).toBe('refresh-1');
     expect(body.user).toEqual({ id: 'u1', email: 'a@b.co' });
+    expect(body.serverId).toBe(serverId);
     expect(typeof body.accessToken).toBe('string');
   });
 
@@ -129,7 +131,7 @@ describe('GET /api/v1/me', () => {
     expect(res.json().error.code).toBe('unauthorized');
   });
 
-  it('returns the user with a valid token', async () => {
+  it('returns the user and the server identity with a valid token', async () => {
     vi.mocked(findUserById).mockResolvedValue(user as any);
     const token = signAccessToken('u1');
     const res = await (await app()).inject({
@@ -138,6 +140,29 @@ describe('GET /api/v1/me', () => {
       headers: { authorization: `Bearer ${token}` },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ user: { id: 'u1', email: 'a@b.co' } });
+    expect(res.json()).toEqual({ user: { id: 'u1', email: 'a@b.co' }, serverId });
+  });
+});
+
+describe('a valid token for an unknown user', () => {
+  const headers = { authorization: `Bearer ${signAccessToken('gone')}` };
+
+  it('GET /me answers 401', async () => {
+    vi.mocked(findUserById).mockResolvedValue(undefined);
+    const res = await (await app()).inject({ method: 'GET', url: '/api/v1/me', headers });
+    expect(res.statusCode).toBe(401);
+    expect(res.json().error.code).toBe('unauthorized');
+  });
+
+  it('POST /sync/pull answers 401', async () => {
+    vi.mocked(findUserById).mockResolvedValue(undefined);
+    const res = await (await app()).inject({
+      method: 'POST',
+      url: '/api/v1/sync/pull',
+      headers,
+      payload: { cursor: 0 },
+    });
+    expect(res.statusCode).toBe(401);
+    expect(res.json().error.code).toBe('unauthorized');
   });
 });

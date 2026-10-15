@@ -7,6 +7,9 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 
   JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
+  // Stable identity of this deployment, reported by /up, login and /me so the app can bind a
+  // session and its library to the server it belongs to.
+  SERVER_ID: z.string({ required_error: 'SERVER_ID is required' }).uuid('SERVER_ID must be a uuid'),
 
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
 

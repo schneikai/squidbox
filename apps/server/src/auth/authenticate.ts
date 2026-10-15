@@ -1,11 +1,14 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import { getDb } from '../db/client.js';
+import type { User } from '../db/schema.js';
 import { AppError } from '../errors.js';
+import { findUserById } from '../users.js';
 import { verifyAccessToken } from './jwt.js';
 
-// request.userId is set by the authenticate preHandler on protected routes.
+// request.user is set by the authenticate preHandler on protected routes.
 declare module 'fastify' {
   interface FastifyRequest {
-    userId?: string;
+    user?: User;
   }
 }
 
@@ -17,7 +20,8 @@ function bearer(header: string | undefined): string | null {
 }
 
 /**
- * Auth preHandler factory. Standard `Authorization: Bearer <token>`.
+ * Auth preHandler factory. Standard `Authorization: Bearer <token>`. Loads the token's user once
+ * per request; a token for a user that no longer exists is refused like a bad token.
  *
  * `allowQueryToken` is enabled ONLY for the upload route: iOS can drop the Authorization
  * header on background upload tasks (NSURLSessionUploadTask), so the client passes the token
@@ -33,11 +37,13 @@ export function authenticate(opts: { allowQueryToken?: boolean } = {}) {
     if (!token) throw AppError.unauthorized('No authentication token provided');
 
     const { userId } = verifyAccessToken(token);
-    request.userId = userId;
+    const user = await findUserById(getDb(), userId);
+    if (!user) throw AppError.unauthorized('Unknown user');
+    request.user = user;
   };
 }
 
-export function requireUserId(request: FastifyRequest): string {
-  if (!request.userId) throw AppError.unauthorized();
-  return request.userId;
+export function requireUser(request: FastifyRequest): User {
+  if (!request.user) throw AppError.unauthorized();
+  return request.user;
 }

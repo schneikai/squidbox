@@ -2,7 +2,7 @@
  * Multi-tenant + multi-device verification. Requires the local stack
  * (or real DB+S3) and both seeded users. Boots the server in-process and asserts:
  *   - two devices hold refresh tokens simultaneously; rotating one doesn't kill the other,
- *     and a rotated token can't be reused;
+ *     a rotated token replays its successor until that one is presented, then it is rejected;
  *   - a second (fixture) user works end-to-end in its own namespace;
  *   - user B cannot read or delete user A's object (keys are always token-derived).
  *
@@ -88,10 +88,15 @@ try {
   const r2 = await refresh(dev2.refreshToken);
   check('device 2 refresh still works after device 1 rotated', r2.status === 200);
 
-  const reuseOld = await refresh(dev1.refreshToken);
-  check('device 1 old (rotated) refresh token is rejected', reuseOld.status === 401);
+  const replay = await refresh(dev1.refreshToken);
+  check(
+    'device 1 old (rotated) refresh token replays the same successor (lost-response grace)',
+    replay.status === 200 && (await json(replay))?.refreshToken === r1New,
+  );
   const r1NewOk = await refresh(r1New);
   check('device 1 new refresh token works', r1NewOk.status === 200);
+  const retired = await refresh(dev1.refreshToken);
+  check('device 1 old refresh token is rejected once its successor was presented', retired.status === 401);
 
   // --- Fixture user works end-to-end in its own namespace ---
   const bTokens = await login(B);

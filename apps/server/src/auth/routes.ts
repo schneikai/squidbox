@@ -7,17 +7,19 @@ import {
   refreshResponseSchema,
   userResponseSchema,
 } from '@squidbox/shared';
+import { loadConfig } from '../config.js';
 import { getDb } from '../db/client.js';
 import { AppError } from '../errors.js';
-import { findUserByEmail, findUserById, toApiUser } from '../users.js';
+import { findUserByEmail, toApiUser } from '../users.js';
 import { verifyPassword } from './passwords.js';
 import { signAccessToken } from './jwt.js';
 import { issueRefreshToken, rotateRefreshToken, revokeRefreshToken } from './tokens.js';
-import { authenticate, requireUserId } from './authenticate.js';
+import { authenticate, requireUser } from './authenticate.js';
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const db = getDb();
+  const { SERVER_ID: serverId } = loadConfig();
 
   // POST /auth/login
   r.route({
@@ -33,11 +35,11 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       }
       const accessToken = signAccessToken(user.id);
       const refreshToken = await issueRefreshToken(db, user.id);
-      return { accessToken, refreshToken, user: toApiUser(user) };
+      return { accessToken, refreshToken, user: toApiUser(user), serverId };
     },
   });
 
-  // POST /auth/refresh — rotates only the presented token (per-device).
+  // POST /auth/refresh — rotates only the presented token (per-device), with the grace of tokens.ts.
   r.route({
     method: 'POST',
     url: '/auth/refresh',
@@ -67,10 +69,6 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     url: '/me',
     preHandler: authenticate(),
     schema: { response: { 200: userResponseSchema } },
-    handler: async (request) => {
-      const user = await findUserById(db, requireUserId(request));
-      if (!user) throw AppError.notFound('User not found');
-      return { user: toApiUser(user) };
-    },
+    handler: async (request) => ({ user: toApiUser(requireUser(request)), serverId }),
   });
 }
