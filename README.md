@@ -106,7 +106,7 @@ It starts Postgres + MinIO, applies migrations and creates the local accounts, s
 
 Metro serves the API and file storage through its own tunnel (`apps/mobile/scripts/localBackendProxy.js`), and the script sets `EXPO_PUBLIC_LOCAL_BACKEND`, which makes the app send its API calls to the dev server it loaded from (`Constants.expoConfig.hostUri`). So no env file holds the tunnel URL, and `.env.local` stays pointed at the live backend. On the first run, `apps/server/.env` is created from `.env.docker`.
 
-To go back to your real library, start Metro normally and sign in with your account. Signing in as a different account wipes the device's local data first, so the two libraries never mix.
+To go back to your real library, start Metro normally and sign in with your account. Each account's library is its own database and file folders on the device (`docs/library-ownership-plan.md`): signing in as another account opens that account's library and parks the current one, listed under Settings → Libraries, so the two never mix.
 
 If Docker pulls fail, or the server can't reach MinIO, see `apps/server/README.md` → "Local development".
 
@@ -122,7 +122,7 @@ Scripts can drive it through `openWebPreview()` and `settleAsync()` in `scripts/
 
 `npm run dev:local -- --web` starts everything without Expo's tunnel, which is all the web preview needs and keeps it working when the tunnel is down. Add `--production` to `web:preview` to load Metro's release bundle, without React's development overhead, for performance checks; `npm run web:measure` times reload → first grid cell, the idle JS heap and a favorite toggle on it. For a large library, `npm run seed:mock -- --assets 50000` in `apps/server/` pads the mock account (the extra assets reuse the 30 photos' files).
 
-The web build is a preview, not a target. Platform files (`*.web.js`) stand in for what the browser lacks: the session record lives in `localStorage`, and thumbnails load straight from their signed URLs. The camera roll, uploads, file downloads and native gestures don't work there, so confirm those on a device. The database works the same as on iOS: the app only uses expo-sqlite's async API (`docs/sync-design.md` §8).
+The web build is a preview, not a target. Platform files (`*.web.js`) stand in for what the browser lacks: the session record and the library list live in `localStorage` (the preview script seeds the session once per browser context), and thumbnails load straight from their signed URLs. The camera roll, uploads, file downloads and native gestures don't work there, so confirm those on a device. The database works the same as on iOS: the app only uses expo-sqlite's async API (`docs/sync-design.md` §8). Web storage holds a fixed number of database files, so besides the open library about three parked ones fit; a fourth fails to open with an Alert, and removing a library under Settings → Libraries frees its slot.
 
 ## Deploying the backend
 

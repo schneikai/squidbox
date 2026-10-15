@@ -251,32 +251,29 @@ Node 20 reached end of life in April 2026. `mise.toml` pins 20.19.4 and the serv
 
 ## Owner-side (needs a device, infra or secrets)
 
-### [ ] Check the library migration on the phone (step 4a of the library-ownership plan)
+### [ ] Check the library-ownership release on the phone
 
-The first launch after step 4a turns `squidbox.db` into the library `squidbox` without moving
-anything (`src/library/rebuildRegistry.ts`): on a signed-in phone every photo, album and post and
-the session must still be there; on a signed-out phone the library must show with the sign-in form.
-Note the time from splash to library (the open + migrate now runs alongside the cloud init). No
-downgrades past this build: an older build would open `squidbox.db` with its wipe-on-switch logic
-and knows nothing of `library-*.db`. Step 4b (files per library): adding a photo from the camera
-roll and backing it up must still work; the migrated library keeps `assetfiles/` and
-`assetthumbnails/`, a fresh install writes under `libraries/<id>/`. Step 4c (the switch): sign out
-(the Alert says the library stays) → the app shows "Opening This iPhone…" briefly, then an empty
-library and the sign-in form under Settings; sign back in → "Opening <email>…", then the library
-is back at once, with no "Setting up your library" and every photo, album and post; a photo added
-while signed out stays in the device library (its merge into the account comes in step 6). Sign
-in as the fixture account on the local stack to see a second, empty account library. Step 5: the
-sign-out sheet (Keep / Remove with the fresh counts), "Libraries on this iPhone" with the parked
-library's counts and its Remove (recounted from its own database), and the expired-session state:
-with the account library open, revoke the phone's refresh token server-side (or set `tokens` to
-null in the stored session) → the red dot on the avatar, "Sign in to sync" with the waiting
-counts, the still (non-pulsing) placeholders, the pre-filled email and "Sign in as someone else".
-Step 6 (the merge): signed out, add two photos from the camera roll (one that is already in the
-account), an album with them and a post; sign in → after the first sync the dialog "Add 1 photo, 1
-album and 1 post from This iPhone to <email>?" with "1 photo is already in the account" → Add: the
-album and post show in the account, the new photo too with its thumbnail, "Back up now" uploads
-it, and "Libraries on this iPhone" no longer lists This iPhone. Then once more with Keep Separate:
-the device library stays listed with its counts.
+The first launch after `docs/library-ownership-plan.md` turns `squidbox.db` into the library
+`squidbox` without moving anything (`src/library/rebuildRegistry.ts`). No downgrades past that
+build: an older one would open `squidbox.db` with its wipe-on-switch logic and knows nothing of
+`library-*.db`. On the phone, confirm:
+
+- Migration: signed in, every photo, album and post and the session are still there; signed out,
+  the library shows with the sign-in form. Note the time from splash to library.
+- Files: adding a photo from the camera roll and backing it up still works (the migrated library
+  keeps `assetfiles/` and `assetthumbnails/`; a fresh install writes under `libraries/<id>/`).
+- The switch: sign out → "Opening This iPhone…", an empty library, the sign-in form; sign back in
+  → "Opening <email>…", the library is back at once, no "Setting up your library". A photo added
+  while signed out stays in the device library until the merge offer.
+- Sign-out sheet and Libraries: Keep / Remove with the fresh counts; "Libraries on this iPhone"
+  shows the parked library's counts and removes it after recounting its own database.
+- Expired session: revoke the phone's refresh token server-side (or set `tokens` to null in the
+  stored session) → the red dot on the avatar, "Sign in to sync" with the waiting counts, still
+  placeholders, the pre-filled email and "Sign in as someone else".
+- The merge: signed out, add two photos (one already in the account), an album with them and a
+  post; sign in → "Add 1 photo, 1 album and 1 post from This iPhone to <email>?" with "1 photo is
+  already in the account" → Add: all in the account, the new photo with its thumbnail, "Back up
+  now" uploads it, This iPhone leaves the list. Once more with Keep Separate: it stays listed.
 
 ### [ ] Set the SERVER_ID secret, then deploy the server
 

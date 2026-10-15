@@ -319,13 +319,18 @@ on iOS and web. `createDb` (`apps/mobile/src/sync/db/driver.ts`) puts Drizzle's 
   listeners once with the tables it changed. A write that changed no rows and a rolled-back
   transaction notify nothing.
 
-The database is opened in `DatabaseGate` (`App.js`). SQLite migrations live in
-`apps/mobile/src/sync/db/migrations` and run in `MigrationGate` before anything queries it.
+The app keeps one such database per **library** (`docs/library-ownership-plan.md`): the open
+library's database is behind `getDb()` (`sync/db/client.ts`), opened and migrated by
+`library/current.ts` when the library opens (`openAppDb` runs the SQLite migrations of
+`apps/mobile/src/sync/db/migrations`), and `LibraryGate` (`App.js`) mounts the app under it, keyed
+by the library, so nothing queries across a switch.
 
 Tables (`apps/mobile/src/sync/db/schema.ts`):
 
 - One table per collection: synced fields plus local-only fields.
-- `sync_meta(key, value)`: `cursor`, `status`, `firstSyncDone`, `lastSyncUserId`.
+- `sync_meta(key, value)`: `cursor`, `status`, `firstSyncDone`, `owner` (whose library this
+  database is, JSON, so the library list can be rebuilt from the databases). `lastSyncUserId` is
+  retired: read once by the install migration, never written.
 - `outbox(id, collection, record_id, op, payload, updated_at, created_at)`: pending mutations,
   one row per record. `op` is `delete` when the payload has `deletedAt`, otherwise `upsert`.
 - `sync_log`: recent sync runs (§13).
@@ -370,20 +375,34 @@ Background sync (`expo-background-task`) and server push notifications are not i
 
 **Session gating and exclusivity.** The worker is one single-flight queue
 (`apps/mobile/src/sync/singleFlight.ts`). `requestSync()` coalesces into one trailing run, and
-`withSyncPaused(work)` waits for the running sync and holds new ones until `work` is done. Sync is
-active only while the app has finished init AND someone is signed in (`setSyncActive`, driven
-from one effect in `App.js`); every trigger above is a no-op otherwise.
+`withSyncPaused(work)` asks the running sync to stop at its next batch (push batch or applied pull
+batch, so what ran is committed and the next run resumes), waits for it, and holds new ones until
+`work` is done. Sync is active only while the app has finished init, the library is open AND
+someone is signed in (`setSyncActive`, driven from one effect in `App.js`); every trigger above is
+a no-op otherwise. A run is bound to the identity it started with, `{ libraryId, serverId,
+userId }` (`library/sessionMatches.ts`): it runs only when the open library is the signed-in
+account's, and every request reads the tokens fresh from the stored session for that identity
+(`apiWithAuthentication`), so a mid-run refresh is picked up and another user's session is refused.
 
-**Signing in and account switches.** Sign-in runs inside `withSyncPaused`, from before the session
-tokens change until `resetSyncForUser` is done. If a DIFFERENT account signs in, that wipes the
-collection tables, the outbox, the cursor and the first-sync flag. Without the pause, an in-flight
-sync could push the previous account's outbox with the new session. Signing out keeps the local
-library (it's the same user's data on their device).
+**Libraries and the session.** A library (one database plus its file folders) belongs to this
+device or to an account on a server (`sync_meta.owner`, the list in `library/registry.ts`), and the
+stored session is the open pointer: no session opens the device library, a session its owner's
+(`library/sessionLibrary.ts`). Signing in or out changes the session and switches libraries inside
+one `withSyncPaused` section (`library/switchLibrary.ts`: the backup run stopped, the closing
+library's unsynced counts noted, its database closed, the next one opened), so no run spans a
+session or library change. Nothing is wiped: the account's library is parked on sign-out and
+reopens on the next sign-in with its cursor, outbox and first-sync flag; removing a library is an
+explicit choice (the sign-out sheet, or Settings → Libraries). After a sign-in, the device
+library's records can be added to the account once (`library/mergeLibrary.ts`: one transaction,
+every copied record with its outbox row, files moved after the commit, the source removed when
+nothing is left in it).
 
 **Expired sessions.** Access tokens live 24h; refresh tokens rotate on every refresh, so the app
-refreshes once for all concurrent callers (`refreshAccessTokenAsync`). Only a server rejection
-(400/401/403) ends the session; network errors keep it. A rejected session clears the tokens,
-signs the app out and asks the user to sign in again, which also stops sync.
+refreshes once for all concurrent callers (`refreshAccessTokenAsync`), and the server keeps a
+rotated token valid until its successor is first presented, so a lost response doesn't sign the
+device out. Only a server rejection (400/401/403) drops the tokens; network errors keep them. A
+rejected session keeps its owner and library: the library stays open and editable, writes queue
+in its outbox, nothing syncs, and Settings asks the owner to sign in again (`needsReauth`).
 
 **First sync.** A new device or account starts at `cursor = 0` and pulls everything. While
 signed in and `firstSyncDone` is not set, `AppGate` (`App.js`) shows `FirstSyncScreen` and does
