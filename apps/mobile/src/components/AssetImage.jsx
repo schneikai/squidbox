@@ -6,9 +6,11 @@ import useAssetThumbnailLoader from '@/features/asset-thumbnail-loader/useAssetT
 import getAssetThumbnailUri from '@/utils/assets/thumbnails/getAssetThumbnailUri';
 import hasThumbnailAsync from '@/utils/assets/thumbnails/hasThumbnailAsync';
 
-// contentFit: "cover" | "contain"
-export default function AssetImage({ asset = {}, contentFit, placeholderColor = 'lightgrey' }) {
+// contentFit: "cover" | "contain". `overlay` (e.g. a cell's corner glows) shows once the picture has
+// loaded, never over the placeholder.
+export default function AssetImage({ asset = {}, contentFit, placeholderColor = 'lightgrey', overlay }) {
   const [thumbnailUri, setThumbnailUri] = useState(null);
+  const [loadedUri, setLoadedUri] = useState(null);
   const { loadThumbnail } = useAssetThumbnailLoader();
   const { thumbnailStyle } = useAppSettings();
 
@@ -57,7 +59,16 @@ export default function AssetImage({ asset = {}, contentFit, placeholderColor = 
     backgroundColor: placeholderColor !== 'transparent' ? placeholderColor : undefined,
   };
 
-  return <Image source={{ uri: thumbnailUri }} style={styleProps} />;
+  return (
+    <>
+      <Image
+        source={{ uri: thumbnailUri }}
+        style={styleProps}
+        onLoad={overlay ? () => setLoadedUri(thumbnailUri) : undefined}
+      />
+      {loadedUri === thumbnailUri && overlay}
+    </>
+  );
 }
 
 function LoadingPlaceholder({ color }) {

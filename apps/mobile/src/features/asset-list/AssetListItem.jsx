@@ -12,14 +12,22 @@ export default memo(AssetListItem);
 
 function AssetListItem({ asset, selection, showLastPostedAt }) {
   const { lastPostedAt, duration, isFavorite, isSynced, notes } = asset;
+  // The glows darken the corners behind the indicators, so they only show over a loaded picture.
+  const glows = (
+    <>
+      <CornerGlow corner="topRight" size={80} />
+      {!!duration && <CornerGlow corner="bottomRight" size={80} />}
+      {selection && <SelectGlow selection={selection} assetId={asset.id} />}
+    </>
+  );
+
   return (
     <View style={styles.container}>
-      <AssetImage asset={asset} />
+      <AssetImage asset={asset} overlay={glows} />
       {showLastPostedAt && <LastPostedAt lastPostedAt={lastPostedAt} />}
       <VideoDuration duration={duration} />
 
       {/* Top-right: favorite / cloud / note indicators */}
-      <CornerGlow corner="topRight" size={80} />
       <View style={styles.indicators}>
         <FavoriteAssetIndicator isFavorite={isFavorite} />
         <CloudIndicator isSynced={isSynced} />
@@ -27,23 +35,27 @@ function AssetListItem({ asset, selection, showLastPostedAt }) {
       </View>
 
       {/* Top-left: selection indicator (empty ring or filled checkmark) */}
-      {selection && <SelectionOverlay selection={selection} assetId={asset.id} />}
+      {selection && <SelectRing selection={selection} assetId={asset.id} />}
     </View>
   );
 }
 
-function SelectionOverlay({ selection, assetId }) {
-  const state = useSyncExternalStore(selection.subscribe, () => selection.stateOf(assetId));
-  const isOn = state !== 'off';
+// Select mode reaches these two through the selection store, so a toggle re-renders only them.
+function useSelectionState(selection, assetId) {
+  return useSyncExternalStore(selection.subscribe, () => selection.stateOf(assetId));
+}
 
-  // The glow stays mounted while select mode is off, only hidden: an image appears a few frames after
-  // it mounts, so mounting it on the toggle would show the ring before its glow.
-  return (
-    <>
-      <CornerGlow corner="topLeft" size={60} isHidden={!isOn} />
-      {isOn && <SelectIndicator isSelected={state === 'selected'} />}
-    </>
-  );
+// Stays mounted while select mode is off, only hidden: an image appears a few frames after it mounts,
+// so mounting it on the toggle would show the ring before its glow.
+function SelectGlow({ selection, assetId }) {
+  const state = useSelectionState(selection, assetId);
+  return <CornerGlow corner="topLeft" size={60} isHidden={state === 'off'} />;
+}
+
+function SelectRing({ selection, assetId }) {
+  const state = useSelectionState(selection, assetId);
+  if (state === 'off') return null;
+  return <SelectIndicator isSelected={state === 'selected'} />;
 }
 
 function LastPostedAt({ lastPostedAt }) {
@@ -54,7 +66,7 @@ function LastPostedAt({ lastPostedAt }) {
   return <Text style={styles.lastPostedAt}>{dateToTimeAgo(lastPostedAt)}</Text>;
 }
 
-// One pre-rendered radial fade (black at 60% in the top-left corner to transparent), flipped for the
+// One pre-rendered radial fade (black at 45% in the top-left corner to transparent), flipped for the
 // other corners: an image per cell is far cheaper to mount than an SVG gradient, and every grid cell
 // shows one or more.
 const CORNER_GLOW = require('../../../assets/corner-glow.png');
@@ -76,12 +88,7 @@ function CornerGlow({ corner, size, isHidden = false }) {
 function VideoDuration({ duration }) {
   if (!duration) return null;
 
-  return (
-    <>
-      <CornerGlow corner="bottomRight" size={80} />
-      <Text style={styles.videoDuration}>{formatVideoDuration(duration)}</Text>
-    </>
-  );
+  return <Text style={styles.videoDuration}>{formatVideoDuration(duration)}</Text>;
 }
 
 function FavoriteAssetIndicator({ isFavorite }) {
