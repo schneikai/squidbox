@@ -1,14 +1,13 @@
 import { readUnsyncedCounts, type UnsyncedCounts } from './atRiskCount';
-import { getLibrary, isLibraryOpen } from './current';
+import { openLibraryId } from './current';
 import { removeLibraryFolders } from './fs';
-import { assertLibraryId, libraryPaths } from './libraryPaths';
+import { libraryPaths } from './libraryPaths';
 import { updateRegistry } from './registry';
 
 import { deleteAppDb, openAppDb } from '@/sync/db/client';
 
 function assertParked(id: string): void {
-  assertLibraryId(id);
-  if (isLibraryOpen() && getLibrary().id === id) throw new Error('The open library cannot be removed');
+  if (openLibraryId() === id) throw new Error('The open library cannot be removed');
 }
 
 // What a parked library would lose, counted from its own database right now (a crash can leave the
@@ -23,11 +22,11 @@ export async function readParkedCounts(id: string): Promise<UnsyncedCounts> {
   }
 }
 
-// Deletes a parked library: its database, its two folders and its entry. The paths come from the
-// id alone (libraryPaths), so nothing stored can name another path.
+// Deletes a parked library: its database, its folders and its entry. The paths come from the id
+// alone (libraryPaths asserts its shape), so nothing stored can name another path.
 export async function removeLibrary(id: string): Promise<void> {
-  assertParked(id);
   const paths = libraryPaths(id);
+  assertParked(id);
   await deleteAppDb(paths.dbName);
   await removeLibraryFolders(paths);
   await updateRegistry(({ libraries }) => ({ libraries: libraries.filter((library) => library.id !== id) }));

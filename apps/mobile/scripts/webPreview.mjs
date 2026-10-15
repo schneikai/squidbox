@@ -92,7 +92,7 @@ function storeSession({ accessToken, refreshToken, user, serverId }) {
     serverId,
     userId: user.id,
     email: user.email,
-    apiBaseUrl: 'http://localhost:8081/api/v1',
+    apiBaseUrl: `${window.location.origin}/api/v1`,
     tokens: { accessToken, refreshToken },
   };
   localStorage.setItem('session', JSON.stringify(session));

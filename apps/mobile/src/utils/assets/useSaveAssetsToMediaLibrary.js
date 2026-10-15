@@ -74,7 +74,7 @@ export default function useSaveAssetsToMediaLibrary({ onStart, onProgress, onFin
       return;
     }
 
-    const fileUri = await downloadAssetFileAsync(asset, onProgress);
+    const fileUri = await downloadAssetFileAsync(asset, library, onProgress);
     try {
       await copyToMediaLibraryAsync(fileUri);
     } finally {

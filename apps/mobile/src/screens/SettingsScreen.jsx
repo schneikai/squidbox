@@ -14,9 +14,7 @@ import { MODEL_STORAGE_KEY, DEFAULT_MODEL } from '@/features/ai-suggestions/aiSu
 import useCloud from '@/features/cloud/useCloud';
 import useSignOutSheet from '@/features/cloud/useSignOutSheet';
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
-import useBackupCounts from '@/features/cloud-sync/useBackupCounts';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
-import { readUnsyncedCounts } from '@/library/atRiskCount';
 import deviceLabel from '@/library/deviceLabel';
 import libraryLabel from '@/library/libraryLabel';
 import { readParkedCounts, removeLibrary } from '@/library/removeLibrary';
@@ -24,7 +22,6 @@ import unsyncedCountsText from '@/library/unsyncedCountsText';
 import useLibrary from '@/library/useLibrary';
 import useUnsyncedCounts from '@/library/useUnsyncedCounts';
 import { colors } from '@/styles/designTokens';
-import { getDb } from '@/sync/db/client';
 import { useSyncStatus } from '@/sync/useSyncStatus';
 import { SERVER_URL } from '@/utils/cloud-api/apiBaseUrl';
 import useResortAlbumsByName from '@/utils/tools/useResortAlbumsByName';
@@ -40,9 +37,8 @@ export default function SettingsScreen() {
   const { isAuthenticated, needsReauth, user, logoutAsync } = useCloud();
   const { library, libraries } = useLibrary();
   const cloudSync = useCloudSync();
-  const backupCounts = useBackupCounts();
-  const unsynced = useUnsyncedCounts();
-  const { phase, pendingCount, lastError } = useSyncStatus();
+  const unsynced = useUnsyncedCounts(); // the one live query behind every count on this screen
+  const { phase, lastError } = useSyncStatus();
   const confirmSignOutAsync = useSignOutSheet();
 
   const [aiModel, setAiModel] = useState(DEFAULT_MODEL);
@@ -68,13 +64,11 @@ export default function SettingsScreen() {
     }, []),
   );
 
-  // Counted fresh from the open library, not from any snapshot.
-  function handleLogout() {
-    startLogoutTransition(async () => {
-      const choice = await confirmSignOutAsync(await readUnsyncedCounts(getDb()));
-      if (!choice) return;
-      await logoutAsync(choice);
-    });
+  // The choice is asked outside the transition: a state update made inside its callback before the
+  // first await would be part of the pending transition and never render the sheet.
+  async function handleLogout() {
+    const choice = await confirmSignOutAsync(unsynced);
+    if (choice) startLogoutTransition(() => logoutAsync(choice));
   }
 
   // A parked library is removed only after its own database was counted again (a crash can leave
@@ -152,6 +146,7 @@ export default function SettingsScreen() {
   // Backup = uploading full-res photo files to the cloud (manual). Library sync = the metadata
   // engine (automatic). Each is one tappable status row → its own detail screen.
   function librarySyncStatusText() {
+    const { pendingCount } = unsynced;
     if (needsReauth) return pendingCount > 0 ? `${pendingCount} waiting for sign-in` : 'Up to date';
     if (lastError) return 'Error';
     if (phase === 'pushing' || phase === 'pulling') return 'Syncing…';
@@ -198,7 +193,7 @@ export default function SettingsScreen() {
             <Section>
               <Row
                 label="Photo backup"
-                value={getBackupStatusText({ ...cloudSync, ...backupCounts, needsReauth })}
+                value={getBackupStatusText({ ...cloudSync, ...unsynced, needsReauth })}
                 onPress={() => navigation.navigate('BackupScreen')}
                 chevron
               />

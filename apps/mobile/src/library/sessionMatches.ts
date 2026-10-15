@@ -1,20 +1,18 @@
 import type { Library } from './registry';
+import { sameAccount } from './sameAccount';
 import type { Session } from './session';
+
+import sessionIdentity from '@/utils/cloud-api/sessionIdentity';
 
 // What a sync run and every request of it belong to.
 export interface SyncIdentity {
-  libraryId: string;
   serverId: string | null;
   userId: string;
 }
 
-// Whether the session belongs to the library's owner. A null serverId on either side is one not
-// resolved yet (a converted install before its first /me), never a different server.
+// Whether the session belongs to the library's owner.
 export function sessionMatches(library: Library, session: Session | null): boolean {
-  const { owner } = library;
-  if (owner.kind !== 'account' || !session?.userId) return false;
-  if (owner.userId !== session.userId) return false;
-  return owner.serverId === session.serverId || owner.serverId === null || session.serverId === null;
+  return library.owner.kind === 'account' && session !== null && sameAccount(library.owner, session);
 }
 
 // Signed in for this library: the session has tokens obtained from the current base URL (a changed
@@ -32,6 +30,5 @@ export function needsReauth(library: Library, session: Session | null): boolean 
 // The identity a sync run of this library would have, or null when nothing may sync: the device
 // library, a signed-out, expired or unverified session, or a session for someone else.
 export function syncIdentity(library: Library, session: Session | null, apiBaseUrl: string): SyncIdentity | null {
-  if (!isSessionAuthenticated(library, session, apiBaseUrl)) return null;
-  return { libraryId: library.id, serverId: session!.serverId, userId: session!.userId! };
+  return isSessionAuthenticated(library, session, apiBaseUrl) ? (sessionIdentity(session) as SyncIdentity) : null;
 }

@@ -78,7 +78,8 @@ describe('planMerge + applyMerge', () => {
     await createPost(source, { text: 'hello' }, [a.id]);
 
     const plan = await planMerge(source, target, SRC);
-    expect(plan.counts).toEqual({ photos: 2, albums: 1, posts: 1, alreadyInAccount: 0, cloudOnly: 1 });
+    expect([plan.assets.length, plan.albums.length, plan.posts.length]).toEqual([2, 1, 1]);
+    expect(plan).toMatchObject({ alreadyInAccount: 0, cloudOnly: 1 });
     expect(plan.albumAssets.map((edge) => edge.assetId).sort()).toEqual([a.id, b.id].sort()); // not the deleted one
     expect(plan.nothingLeftToAdd).toBe(false);
 
@@ -93,7 +94,8 @@ describe('planMerge + applyMerge', () => {
     // Nothing left to add but the photo that lives elsewhere; the copied ones' files are still here.
     const again = await planMerge(source, target, SRC);
     expect(again.nothingLeftToAdd).toBe(true);
-    expect(again.counts).toMatchObject({ photos: 0, albums: 0, posts: 0, alreadyInAccount: 2, cloudOnly: 1 });
+    expect([again.assets.length, again.albums.length, again.posts.length]).toEqual([0, 0, 0]);
+    expect(again).toMatchObject({ alreadyInAccount: 2, cloudOnly: 1 });
     expect(again.sameIdAssets.map((asset) => asset.id).sort()).toEqual([a.id, b.id].sort());
   });
 
@@ -105,7 +107,7 @@ describe('planMerge + applyMerge', () => {
 
     const plan = await planMerge(source, target, SRC);
     expect(plan.assets).toEqual([]);
-    expect(plan.counts.alreadyInAccount).toBe(1);
+    expect(plan.alreadyInAccount).toBe(1);
     expect(plan.replays.map((row) => row.recordId)).toEqual([shared.id]);
     await applyMerge(target, plan);
     const [row] = await outbox(target);
@@ -139,7 +141,7 @@ describe('planMerge + applyMerge', () => {
     await albumEdges.add(source, album.id, [mine.id], newEdgeId);
 
     const plan = await planMerge(source, target, SRC);
-    expect(plan.counts).toMatchObject({ photos: 0, albums: 1, alreadyInAccount: 1 });
+    expect([plan.assets.length, plan.albums.length, plan.alreadyInAccount]).toEqual([0, 1, 1]);
     expect(plan.duplicates).toEqual([{ id: theirs.id, isFavorite: true, notes: 'theirs\nmine' }]);
     expect(plan.albumAssets.map((edge) => edge.assetId)).toEqual([theirs.id]);
     expect(plan.sameIdAssets).toEqual([]);
@@ -191,5 +193,50 @@ describe('planMerge + applyMerge', () => {
     expect(await moveMergedFiles(candidates, SRC, TGT)).toBe(0);
     expect([...files].sort()).toEqual(before);
     expect([a.id, b.id]).toHaveLength(2);
+  });
+
+  it("merges several source photos of one camera-roll item into the account's photo, once", async () => {
+    const theirs = await repo.createAsset(target, makeAssetRecord({ mediaLibraryAssetId: 'm-1', notes: null }));
+    await devicePhoto({ mediaLibraryAssetId: 'm-1', isFavorite: true, notes: 'first', filename: 'one.jpg' });
+    await devicePhoto({ mediaLibraryAssetId: 'm-1', isFavorite: false, notes: 'second', filename: 'two.jpg' });
+
+    const plan = await planMerge(source, target, SRC);
+    expect(plan.duplicates).toEqual([{ id: theirs.id, isFavorite: true, notes: 'first\nsecond' }]);
+    expect(plan.alreadyInAccount).toBe(2);
+    await applyMerge(target, plan);
+    const [row] = await target.select().from(schema.assets);
+    expect(row).toMatchObject({ isFavorite: true, notes: 'first\nsecond' });
+    expect((await planMerge(source, target, SRC)).nothingLeftToAdd).toBe(true);
+  });
+
+  it('a copied photo whose file is on the device is backed up to the account again', async () => {
+    const stale = await devicePhoto({
+      mediaLibraryAssetId: 'm-s',
+      filename: 's.jpg',
+      isFileSynced: true,
+      isThumbnailSynced: true,
+      isSynced: true,
+    });
+    const plan = await planMerge(source, target, SRC);
+    expect(plan.cloudOnly).toBe(0);
+    await applyMerge(target, plan);
+    const [row] = await target.select().from(schema.assets);
+    expect(row).toMatchObject({ id: stale.id, isFileSynced: false, isThumbnailSynced: false, isSynced: false });
+  });
+
+  it("replays an unpushed edit of an edge the target has, like a record's", async () => {
+    const a = await devicePhoto({ mediaLibraryAssetId: 'm-a' });
+    const album = await albums.create(source, makeAlbumRecord({ name: 'Trip' }));
+    await albumEdges.add(source, album.id, [a.id], newEdgeId);
+    await applyMerge(target, await planMerge(source, target, SRC)); // the edge is in the target now
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await albumEdges.remove(source, album.id, [a.id]); // removed on the device afterwards, not pushed
+
+    const plan = await planMerge(source, target, SRC);
+    expect(plan.replays.map((row) => row.collection)).toEqual(['album_assets']);
+    await applyMerge(target, plan);
+    const [row] = await outbox(target).then((rows) => rows.filter((r) => r.collection === 'album_assets'));
+    expect(row!.payload).toMatchObject({ deletedAt: expect.any(Number) });
+    expect((await planMerge(source, target, SRC)).nothingLeftToAdd).toBe(true);
   });
 });

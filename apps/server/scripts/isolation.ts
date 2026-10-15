@@ -2,7 +2,8 @@
  * Multi-tenant + multi-device verification. Requires the local stack
  * (or real DB+S3) and both seeded users. Boots the server in-process and asserts:
  *   - two devices hold refresh tokens simultaneously; rotating one doesn't kill the other,
- *     a rotated token replays its successor until that one is presented, then it is rejected;
+ *     a rotated token replays its successor (for a short while) until that one is presented, then
+ *     it is rejected;
  *   - a second (fixture) user works end-to-end in its own namespace;
  *   - user B cannot read or delete user A's object (keys are always token-derived).
  *

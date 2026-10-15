@@ -28,8 +28,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({ API_BASE_URL: 'https://api.test/api/v1' }));
 
 type Store = typeof import('../src/utils/cloud-api/sessionStore');
-let getSessionAsync: Store['getSessionAsync'];
-let setSessionAsync: Store['setSessionAsync'];
+let store: Store;
 
 const session = {
   serverId: 's1',
@@ -46,26 +45,63 @@ function legacyInstall({ user = true } = {}) {
 }
 
 describe('sessionStore', () => {
-  // The store probes the legacy keys once per process, so each test gets a fresh module.
+  // One in-memory copy per process: each test gets a fresh module.
   beforeEach(async () => {
     secure.clear();
     async.clear();
     log.length = 0;
     vi.resetModules();
-    ({ getSessionAsync, setSessionAsync } = await import('../src/utils/cloud-api/sessionStore'));
+    store = await import('../src/utils/cloud-api/sessionStore');
   });
 
-  it('round-trips the session record and deletes it for null', async () => {
-    await setSessionAsync(session);
-    expect(await getSessionAsync()).toEqual(session);
-    await setSessionAsync(null);
-    expect(await getSessionAsync()).toBeNull();
+  it('is unavailable before the boot loaded it', () => {
+    expect(() => store.getSession()).toThrow('not loaded');
+  });
+
+  it('loads the stored record, changes it through updateSession and writes through', async () => {
+    secure.set('session', JSON.stringify(session));
+    expect(await store.loadSessionAsync()).toEqual(session);
+    expect(store.getSession()).toEqual(session);
+
+    const seen: unknown[] = [];
+    store.onSessionChange((next) => seen.push(next));
+    await store.updateSession((current) => ({ ...current!, tokens: null }));
+    expect(store.getSession()).toEqual({ ...session, tokens: null });
+    expect(JSON.parse(secure.get('session')!)).toEqual({ ...session, tokens: null });
+    await store.updateSession(() => null);
+    expect(store.getSession()).toBeNull();
+    expect(secure.has('session')).toBe(false);
+    expect(seen).toEqual([{ ...session, tokens: null }, null]);
+  });
+
+  it('writes nothing when the change returns the same record', async () => {
+    secure.set('session', JSON.stringify(session));
+    await store.loadSessionAsync();
+    log.length = 0;
+    await store.updateSession((current) => current);
+    expect(log).toEqual([]);
+  });
+
+  it('serializes concurrent updates so none is lost', async () => {
+    secure.set('session', JSON.stringify(session));
+    await store.loadSessionAsync();
+    await Promise.all([
+      store.updateSession((current) => ({ ...current!, email: 'one' })),
+      store.updateSession((current) => ({ ...current!, serverId: 'two' })),
+    ]);
+    expect(store.getSession()).toMatchObject({ email: 'one', serverId: 'two' });
+    expect(JSON.parse(secure.get('session')!)).toMatchObject({ email: 'one', serverId: 'two' });
+  });
+
+  it('a fresh install has no session and nothing is deleted', async () => {
+    expect(await store.loadSessionAsync()).toBeNull();
+    expect(log).toEqual([]);
   });
 
   it('converts a legacy install with a stored user, new record first, then the old keys go', async () => {
     legacyInstall();
 
-    const converted = await getSessionAsync();
+    const converted = await store.loadSessionAsync();
 
     expect(converted).toEqual({
       serverId: null,
@@ -78,31 +114,26 @@ describe('sessionStore', () => {
     expect(log.slice(1).sort()).toEqual(['delete accessToken', 'delete refreshToken', 'remove user']);
     expect([...secure.keys()]).toEqual(['session']);
     expect(async.size).toBe(0);
-    expect(await getSessionAsync()).toEqual(converted);
   });
 
   it('converts a legacy install without a stored user: owner fields stay null for /me', async () => {
     legacyInstall({ user: false });
-
-    const converted = await getSessionAsync();
-
+    const converted = await store.loadSessionAsync();
     expect(converted).toMatchObject({ serverId: null, userId: null, email: null });
     expect(converted?.tokens).toEqual({ accessToken: 'old-access', refreshToken: 'old-refresh' });
   });
 
-  it('a legacy install that was signed out converts to no session and drops the stale user', async () => {
+  it('a legacy install that was signed out converts to no session and touches nothing', async () => {
     async.set('user', JSON.stringify({ id: 'u1', email: 'a@b.co' }));
-
-    expect(await getSessionAsync()).toBeNull();
-    expect(log).not.toContain('set session');
-    expect(async.size).toBe(0);
+    expect(await store.loadSessionAsync()).toBeNull();
+    expect(log).toEqual([]);
+    expect(async.has('user')).toBe(true);
   });
 
   it('an existing session record wins over legacy keys', async () => {
-    await setSessionAsync(session);
+    secure.set('session', JSON.stringify(session));
     legacyInstall();
-
-    expect(await getSessionAsync()).toEqual(session);
+    expect(await store.loadSessionAsync()).toEqual(session);
     expect(secure.get('accessToken')).toBe('old-access');
   });
 });

@@ -1,16 +1,12 @@
 import { AxiosError, AxiosHeaders, type AxiosRequestConfig } from 'axios';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import { sessionStoreMock } from './helpers/sessionStoreMock';
 import type { Session } from '../src/library/session';
 
 const store: { session: Session | null } = { session: null };
 vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({ API_BASE_URL: 'https://api.test/api/v1' }));
-vi.mock('../src/utils/cloud-api/sessionStore', () => ({
-  getSessionAsync: async () => store.session,
-  setSessionAsync: async (session: Session | null) => {
-    store.session = session;
-  },
-}));
+vi.mock('../src/utils/cloud-api/sessionStore', () => sessionStoreMock(store));
 // The refresh rotates the stored tokens, as the real one does after the server answered.
 vi.mock('../src/utils/cloud-api/authentication/refreshAccessTokenAsync', () => ({
   default: async () => {
@@ -20,7 +16,7 @@ vi.mock('../src/utils/cloud-api/authentication/refreshAccessTokenAsync', () => (
 }));
 
 const { default: apiWithAuthentication } = await import('../src/utils/cloud-api/apiWithAuthentication');
-const { SessionChangedError } = await import('../src/utils/cloud-api/requireSessionAsync');
+const { default: SessionChangedError } = await import('../src/utils/cloud-api/SessionChangedError');
 
 const sessionA = (accessToken: string): Session => ({
   serverId: 's1',
@@ -29,7 +25,7 @@ const sessionA = (accessToken: string): Session => ({
   apiBaseUrl: 'https://api.test/api/v1',
   tokens: { accessToken, refreshToken: 'refresh-1' },
 });
-const identityA = { libraryId: 'lib', serverId: 's1', userId: 'A' };
+const identityA = { serverId: 's1', userId: 'A' };
 
 // A fake network: records the bearer of each request and answers with `status`.
 function adapter(statuses: number[]) {
@@ -66,7 +62,7 @@ describe('apiWithAuthentication', () => {
 
   it('refuses a request for an identity the stored session no longer has', async () => {
     const { fn, bearers } = adapter([200]);
-    const identityB = { libraryId: 'lib', serverId: 's1', userId: 'B' };
+    const identityB = { serverId: 's1', userId: 'B' };
     await expect(apiWithAuthentication.post('sync/pull', {}, { identity: identityB, adapter: fn })).rejects.toThrow(
       SessionChangedError,
     );

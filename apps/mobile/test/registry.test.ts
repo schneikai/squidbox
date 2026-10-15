@@ -60,14 +60,19 @@ describe('registry', () => {
     expect(JSON.parse(storage.get('libraries')!)).toEqual(registry.getRegistry());
   });
 
-  it('setLibraryOwner changes one library', async () => {
+  it('updateLibrary changes one library, and writes nothing when the change changes nothing', async () => {
     await registry.loadRegistry(async () => ({ libraries: [device, { id: 'other', owner: { kind: 'device' } }] }));
     const owner = { kind: 'account' as const, serverId: 's1', userId: 'u1', email: 'a@b.co' };
-    const next = await registry.setLibraryOwner('dev-1', owner);
+    const next = await registry.updateLibrary('dev-1', (library) => ({ ...library, owner }));
     expect(next.libraries).toEqual([
       { id: 'dev-1', owner },
       { id: 'other', owner: { kind: 'device' } },
     ]);
+    storage.set('libraries', 'untouched');
+    await registry.updateLibrary('dev-1', (library) => library);
+    await registry.updateLibrary('missing', (library) => ({ ...library, owner }));
+    await registry.updateRegistry((current) => current);
+    expect(storage.get('libraries')).toBe('untouched');
   });
 
   it('getRegistry throws before the list is loaded', () => {

@@ -12,16 +12,17 @@ import { requestSync, withSyncPaused } from '@/sync/worker';
 import pluralizeText from '@/utils/pluralizeText';
 
 function offerText(plan, target) {
-  const { photos, albums, posts, alreadyInAccount, cloudOnly } = plan.counts;
+  const { alreadyInAccount, cloudOnly } = plan;
   const added = [
-    pluralizeText('1 photo', '%{count} photos', photos),
-    pluralizeText('1 album', '%{count} albums', albums),
-    pluralizeText('1 post', '%{count} posts', posts),
+    pluralizeText('1 photo', '%{count} photos', plan.assets.length),
+    pluralizeText('1 album', '%{count} albums', plan.albums.length),
+    pluralizeText('1 post', '%{count} posts', plan.posts.length),
   ];
   const title = `Add ${added[0]}, ${added[1]} and ${added[2]} from ${deviceLabel()} to ${target.owner.email}?`;
   const notes = [];
-  if (alreadyInAccount > 0)
+  if (alreadyInAccount > 0) {
     notes.push(`${pluralizeText('1 photo is', '%{count} photos are', alreadyInAccount)} already in the account.`);
+  }
   if (cloudOnly > 0) {
     notes.push(
       `${pluralizeText('1 photo is', '%{count} photos are', cloudOnly)} in another account's storage and ${cloudOnly === 1 ? 'stays' : 'stay'} here.`,
@@ -31,9 +32,10 @@ function offerText(plan, target) {
 }
 
 // After a sign-in, once the account library has pulled: offers what this device's library holds to
-// the account, once (library-ownership plan §1.5 (f)/(g)). Mounted with the app, so it runs only
-// after the first sync drained and duplicates can be seen.
-export default function useMergeOffer() {
+// the account, once (library-ownership plan §1.5 (f)/(g)). A leaf of the app (so its state changes
+// re-render nothing else), mounted with it, so it runs only after the first sync drained and
+// duplicates can be seen. Renders nothing.
+export default function MergeOffer() {
   const { mergeOffer, dismissMergeOffer } = useCloud();
   const { library, libraries } = useLibrary();
   const { showBlocking, hide } = useProgressOverlay();
@@ -41,7 +43,7 @@ export default function useMergeOffer() {
   useEffect(() => {
     if (!mergeOffer || !library) return undefined;
     const source = libraries.find((entry) => entry.id === mergeOffer && entry.owner.kind === 'device');
-    if (!source || source.id === library.id || library.owner.kind !== 'account') {
+    if (!source || library.owner.kind !== 'account') {
       dismissMergeOffer();
       return undefined;
     }
@@ -86,4 +88,6 @@ export default function useMergeOffer() {
       cancelled = true;
     };
   }, [mergeOffer, library?.id]);
+
+  return null;
 }

@@ -4,6 +4,8 @@ import type { SyncDb } from './db/types';
 import { readByIds } from './readByIds';
 import { requestSync } from './worker';
 
+import SessionChangedError from '@/utils/cloud-api/SessionChangedError';
+
 type BackupAsset = schema.AssetRow;
 
 // The uploads of one asset, bound by the caller to the session the run started for (the upload
@@ -16,21 +18,23 @@ export interface BackupUploads {
 }
 
 export interface BackupRunOptions {
-  uploads: BackupUploads;
-  // Aborted when the session or the library changes (by the caller, or by stopBackup): the run
-  // stops at its next step without marking anything.
-  controller: AbortController;
+  uploads(signal: AbortSignal): BackupUploads;
   onProgress?(progress: { index: number; total: number }): void;
 }
 
 export type BackupOutcome = 'completed' | 'aborted';
 
-// The run in progress, if any: the library switch stops it and waits for it before closing.
-let running: { abort: () => void; done: Promise<unknown> } | null = null;
+// The one run in progress: it owns the abort controller, and stopBackup is the only stop (the sync
+// pause asks for it before a session or library change).
+let running: { controller: AbortController; done: Promise<unknown> } | null = null;
+
+export function isBackupRunning(): boolean {
+  return running !== null;
+}
 
 export async function stopBackup(): Promise<void> {
   if (!running) return;
-  running.abort();
+  running.controller.abort();
   await running.done;
 }
 
@@ -39,12 +43,15 @@ export async function stopBackup(): Promise<void> {
  * upload the thumbnail and mark the asset synced. A failed upload sets the asset's syncError and
  * the run goes on. Each row is read again right before its upload, so one synced, failed or deleted
  * meanwhile is skipped. The run stops before each asset, between an upload and its mark, and
- * before the thumbnail upload once `signal` is aborted: nothing is marked or deleted for a session
- * the run no longer belongs to, and no syncError is written for the interrupted upload.
+ * before the thumbnail upload once it is aborted, and an upload the session change refused ends it
+ * the same way: nothing is marked or deleted for a session the run no longer belongs to, and no
+ * syncError is written for the interrupted upload. One run at a time.
  */
 export async function runBackup(db: SyncDb, ids: string[], options: BackupRunOptions): Promise<BackupOutcome> {
-  const done = backupAssets(db, ids, options);
-  running = { abort: () => options.controller.abort(), done: done.catch(() => {}) };
+  if (running) throw new Error('A backup is already running');
+  const controller = new AbortController();
+  const done = backupAssets(db, ids, controller.signal, options);
+  running = { controller, done: done.catch(() => {}) };
   try {
     return await done;
   } finally {
@@ -52,38 +59,44 @@ export async function runBackup(db: SyncDb, ids: string[], options: BackupRunOpt
   }
 }
 
-async function backupAssets(db: SyncDb, ids: string[], options: BackupRunOptions): Promise<BackupOutcome> {
-  const { signal } = options.controller;
+async function backupAssets(
+  db: SyncDb,
+  ids: string[],
+  signal: AbortSignal,
+  { uploads, onProgress }: BackupRunOptions,
+): Promise<BackupOutcome> {
+  const bound = uploads(signal);
   for (const [index, id] of ids.entries()) {
     if (signal.aborted) return 'aborted';
-    options.onProgress?.({ index, total: ids.length });
+    onProgress?.({ index, total: ids.length });
     const [asset] = await readByIds<BackupAsset>(db, schema.assets, [id]);
     if (!asset || !isUnsynced(asset)) continue;
-    if ((await backupAsset(db, asset, options)) === 'aborted') return 'aborted';
+    if (await backupAsset(db, asset, bound, signal)) return 'aborted';
   }
   return 'completed';
 }
 
-async function backupAsset(db: SyncDb, asset: BackupAsset, { uploads, controller: { signal } }: BackupRunOptions) {
+// Resolves whether the run was aborted on this asset.
+async function backupAsset(db: SyncDb, asset: BackupAsset, uploads: BackupUploads, signal: AbortSignal) {
   try {
     if (!asset.isFileSynced) {
       await uploads.uploadFile(asset);
-      if (signal.aborted) return 'aborted';
+      if (signal.aborted) return true;
       await updateAsset(db, asset.id, { isFileSynced: true });
       // The local file isn't needed any more: it's in the cloud now.
       await uploads.deleteFile(asset.filename);
     }
-    if (signal.aborted) return 'aborted';
+    if (signal.aborted) return true;
     // The thumbnail stays on the device, the app shows it.
     if (!asset.isThumbnailSynced) await uploads.uploadThumbnail(asset);
-    if (signal.aborted) return 'aborted';
+    if (signal.aborted) return true;
     await updateAsset(db, asset.id, { isThumbnailSynced: true, isSynced: true });
     requestSync();
-    return 'done';
+    return false;
   } catch (error) {
-    if (signal.aborted) return 'aborted';
+    if (signal.aborted || error instanceof SessionChangedError) return true;
     // The other assets still get their turn; the error shows in the UI with a retry.
     await setSyncError(db, [asset.id], error instanceof Error ? error.message : String(error));
-    return 'failed';
+    return false;
   }
 }

@@ -278,13 +278,16 @@ export function requestSync(): void {
   if (syncActive) syncFlight.request();
 }
 
-// Run `work` with syncing paused: asks a running sync to stop at its next batch, waits for it, and
-// starts no new one until `work` finishes. Use it for anything that must not interleave with a
-// sync, like changing the session or the open library.
+// Run `work` with syncing paused: asks a running sync to stop at its next batch and a running
+// backup to stop at its next step, waits for both, and starts no new sync until `work` finishes.
+// Use it for anything that must not interleave with them, like changing the session or the open
+// library.
 export function withSyncPaused<T>(work: () => Promise<T>): Promise<T> {
   stopRequested = true;
   return syncFlight.exclusive(async () => {
     stopRequested = false;
+    const { stopBackup } = await import('./backupRun'); // it imports requestSync from here
+    await stopBackup();
     return work();
   });
 }
@@ -299,8 +302,8 @@ type SyncWork = (db: SyncDb, transport: SyncTransport, options: SyncRunOptions) 
 async function withSyncRun(work: SyncWork): Promise<void> {
   const { getDb } = await import('./db/client');
   const { httpTransport } = await import('./transport');
-  const { syncIdentityAsync } = await import('../library/syncIdentityAsync');
-  const identity = await syncIdentityAsync();
+  const { currentSyncIdentity } = await import('../library/currentSyncIdentity');
+  const identity = currentSyncIdentity();
   if (!identity) return;
   const db = getDb();
   try {
@@ -308,7 +311,7 @@ async function withSyncRun(work: SyncWork): Promise<void> {
     await patchStatus(db, { phase: 'idle', lastError: null });
   } catch (err) {
     // A session that changed under the run ended it, like a stop request; that is not an error.
-    const { SessionChangedError } = await import('@/utils/cloud-api/requireSessionAsync');
+    const { default: SessionChangedError } = await import('@/utils/cloud-api/SessionChangedError');
     if (err instanceof SessionChangedError) await patchStatus(db, { phase: 'idle' });
     else await patchStatus(db, { phase: 'error', lastError: err instanceof Error ? err.message : String(err) });
   }

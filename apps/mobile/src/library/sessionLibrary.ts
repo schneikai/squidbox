@@ -1,11 +1,12 @@
-import { getLibrary, isLibraryOpen } from './current';
-import { deviceLibrary, findAccountLibrary, getRegistry, setLibraryOwner, type Library } from './registry';
+import { openLibraryId } from './current';
+import { deviceLibrary, getRegistry, updateLibrary, type Library } from './registry';
+import { sameAccount } from './sameAccount';
 import type { Session } from './session';
 import { sessionMatches } from './sessionMatches';
 
 import { getDb } from '@/sync/db/client';
 import { setOwner } from '@/sync/status';
-import { setSessionAsync } from '@/utils/cloud-api/sessionStore';
+import { updateSession } from '@/utils/cloud-api/sessionStore';
 import getNewItemId from '@/utils/getNewItemId';
 
 // The session is the open pointer: no session means this device's library, a session its owner's
@@ -15,7 +16,10 @@ import getNewItemId from '@/utils/getNewItemId';
 export function libraryForSession(session: Session | null): Library {
   const { libraries } = getRegistry();
   if (session) {
-    const existing = findAccountLibrary(libraries, session.serverId, session.userId);
+    const existing = libraries.find(
+      ({ owner }) =>
+        owner.kind === 'account' && (session.userId === null ? owner.serverId === null : sameAccount(owner, session)),
+    );
     if (existing) return existing;
     if (session.userId) {
       const { serverId, userId, email } = session;
@@ -34,11 +38,11 @@ export async function openLibraryForSession(
   switchLibrary: (target: Library) => Promise<void>,
 ): Promise<void> {
   const target = libraryForSession(session);
-  if (!isLibraryOpen() || getLibrary().id !== target.id) {
+  if (openLibraryId() !== target.id) {
     try {
       await switchLibrary(target);
     } catch (error) {
-      await setSessionAsync(previous);
+      await updateSession(() => previous);
       throw error;
     }
   }
@@ -55,5 +59,18 @@ async function resolveOwner(library: Library, session: Session | null): Promise<
   };
   if (resolved.serverId === owner.serverId && resolved.email === owner.email) return;
   await setOwner(getDb(), resolved);
-  await setLibraryOwner(library.id, resolved);
+  await updateLibrary(library.id, (entry) => ({ ...entry, owner: resolved }));
+}
+
+// The boot's open: the stored session's library, then the owner resolved from the session once
+// the cloud init verified it (a converted session that learned its user from /me may name another
+// library than the one opened first; the switch then moves there).
+export async function openLibraryForBoot(
+  verified: Promise<Session | null>,
+  switchLibrary: (target: Library) => Promise<void>,
+  session: Session | null,
+): Promise<void> {
+  await openLibraryForSession(session, session, switchLibrary);
+  const checked = await verified;
+  await openLibraryForSession(checked, checked, switchLibrary);
 }

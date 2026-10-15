@@ -39,9 +39,12 @@ export async function loadRegistry(rebuild: () => Promise<Registry>): Promise<Re
   return registry;
 }
 
+// `change` returns the same object for no change, which writes nothing.
 export function updateRegistry(change: (registry: Registry) => Registry): Promise<Registry> {
   const next = chain.then(async () => {
-    registry = change(getRegistry());
+    const changed = change(getRegistry());
+    if (changed === registry) return changed;
+    registry = changed;
     await AsyncStorage.setItem(REGISTRY_KEY, JSON.stringify(registry));
     for (const listener of listeners) listener(registry);
     return registry;
@@ -57,28 +60,12 @@ export function onRegistryChange(listener: (registry: Registry) => void): () => 
 }
 
 export function updateLibrary(id: string, change: (library: Library) => Library): Promise<Registry> {
-  return updateRegistry(({ libraries }) => ({
-    libraries: libraries.map((library) => (library.id === id ? change(library) : library)),
-  }));
-}
-
-export function setLibraryOwner(id: string, owner: Owner): Promise<Registry> {
-  return updateLibrary(id, (library) => ({ ...library, owner }));
-}
-
-// The account's library, or none yet. A library whose serverId is still null is the account's
-// until resolved (sessionMatches.ts has the same rule); a session without a userId (a converted
-// install before its first /me) can only mean the one such library.
-export function findAccountLibrary(
-  libraries: Library[],
-  serverId: string | null,
-  userId: string | null,
-): Library | undefined {
-  return libraries.find(({ owner }) => {
-    if (owner.kind !== 'account') return false;
-    if (userId === null) return owner.serverId === null;
-    if (owner.userId !== userId) return false;
-    return owner.serverId === serverId || owner.serverId === null || serverId === null;
+  return updateRegistry((current) => {
+    const library = current.libraries.find((entry) => entry.id === id);
+    if (!library) return current;
+    const changed = change(library);
+    if (changed === library) return current;
+    return { libraries: current.libraries.map((entry) => (entry === library ? changed : entry)) };
   });
 }
 

@@ -55,7 +55,6 @@ describe('isSessionAuthenticated', () => {
 describe('syncIdentity', () => {
   it('binds a run to the library and the session', () => {
     expect(syncIdentity(libraryOf('A'), sessionOf('A'), BASE_URL)).toEqual({
-      libraryId: 'lib-A',
       serverId: 's1',
       userId: 'A',
     });

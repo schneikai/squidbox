@@ -1,0 +1,1 @@
+ALTER TABLE "refresh_tokens" ADD COLUMN "replaced_at" timestamp with time zone;

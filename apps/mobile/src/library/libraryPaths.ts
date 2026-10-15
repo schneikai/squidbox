@@ -7,6 +7,7 @@ export interface LibraryPaths {
   dbName: string;
   filesDir: string; // relative to the app's document directory
   thumbnailsDir: string;
+  downloadsDir: string; // relative to the app's cache directory: full-resolution files fetched to save or view
 }
 
 export function assertLibraryId(id: string): void {
@@ -15,13 +16,15 @@ export function assertLibraryId(id: string): void {
 
 export function libraryPaths(id: string): LibraryPaths {
   assertLibraryId(id);
+  const downloadsDir = `downloads/${id}/`;
   if (id === MIGRATED_LIBRARY_ID) {
-    return { dbName: MIGRATED_DB_NAME, filesDir: 'assetfiles/', thumbnailsDir: 'assetthumbnails/' };
+    return { dbName: MIGRATED_DB_NAME, filesDir: 'assetfiles/', thumbnailsDir: 'assetthumbnails/', downloadsDir };
   }
   return {
     dbName: `library-${id}.db`,
     filesDir: `libraries/${id}/files/`,
     thumbnailsDir: `libraries/${id}/thumbnails/`,
+    downloadsDir,
   };
 }
 

@@ -1,20 +1,22 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
+import getDownloadsDirectory from '@/utils/assets/files/getDownloadsDirectory';
 import getAssetFileDownloadUrlAsync from '@/utils/cloud-api/assets/getAssetFileDownloadUrlAsync';
 
-const CACHE_DIRECTORY = `${FileSystem.cacheDirectory}downloads`;
 const PROGRESS_THROTTLE = 250; // ms
 
-export default async function downloadAssetFileAsync(asset, onProgress) {
+// Fetches an asset's full-resolution file into `library`'s downloads folder and resolves its uri.
+export default async function downloadAssetFileAsync(asset, library, onProgress) {
   const downloadUrl = await getAssetFileDownloadUrlAsync(asset.filename);
-  return await downloadWithProgress(asset.filename, downloadUrl, onProgress);
+  return await downloadWithProgress(asset.filename, downloadUrl, library, onProgress);
 }
 
-async function downloadWithProgress(filename, downloadUrl, onProgress) {
+async function downloadWithProgress(filename, downloadUrl, library, onProgress) {
   // Must finish before the download starts — createDownloadResumable does NOT create parent dirs, so
   // on a fresh install / cleared cache the first download would reject before any progress fires.
-  await createCacheDirectoryAsync();
-  const fileUri = `${CACHE_DIRECTORY}/${filename}`;
+  const directory = getDownloadsDirectory(library);
+  await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
+  const fileUri = `${directory}${filename}`;
 
   // We throttle the progress updates because the frequent rerendering slows down the download.
   let lastUpdateTime = 0;
@@ -33,8 +35,4 @@ async function downloadWithProgress(filename, downloadUrl, onProgress) {
   const downloadInstance = FileSystem.createDownloadResumable(downloadUrl, fileUri, {}, throttledProgress);
   const result = await downloadInstance.downloadAsync();
   return result.uri;
-}
-
-async function createCacheDirectoryAsync() {
-  await FileSystem.makeDirectoryAsync(CACHE_DIRECTORY, { intermediates: true });
 }

@@ -1,7 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
 import { getLibrary } from '@/library/current';
-import createAssetThumbnailDirectory from '@/utils/assets/thumbnails/createAssetThumbnailDirectory';
 import getAssetThumbnailUri from '@/utils/assets/thumbnails/getAssetThumbnailUri';
 import hasThumbnailAsync from '@/utils/assets/thumbnails/hasThumbnailAsync';
 import getAssetFileDownloadUrlsAsync from '@/utils/cloud-api/assets/getAssetFileDownloadUrlsAsync';
@@ -12,7 +11,6 @@ export default async function preloadAssetThumbnailsAsync(assets) {
 
   // The downloads land in the library open now, however long the network takes.
   const library = getLibrary();
-  await createAssetThumbnailDirectory(library);
 
   for (const asset of assets) {
     if (await hasThumbnailAsync(asset.thumbnailFilename, library)) continue;

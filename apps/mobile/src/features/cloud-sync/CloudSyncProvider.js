@@ -1,43 +1,35 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo } from 'react';
 
 import CloudSyncContext from './CloudSyncContext';
 
 import useCloud from '@/features/cloud/useCloud';
 import { getLibrary } from '@/library/current';
 import { readUnsyncedIds } from '@/sync/assetsRepository';
-import { runBackup } from '@/sync/backupRun';
+import { isBackupRunning, runBackup } from '@/sync/backupRun';
 import { getDb } from '@/sync/db/client';
 import deleteAssetFileAsync from '@/utils/assets/files/deleteAssetFileAsync';
-import requireSessionAsync from '@/utils/cloud-api/requireSessionAsync';
-import { sessionIdentity } from '@/utils/cloud-api/sessionIdentity';
+import requireSession from '@/utils/cloud-api/requireSession';
+import sessionIdentity from '@/utils/cloud-api/sessionIdentity';
 import fileSizeToHumanReadable from '@/utils/fileSizeToHumanReadable';
 
 // Exponential moving average time constant (seconds).
 // Higher = smoother but slower to react. 10s gives a stable readable number.
 const EMA_TAU = 10;
 
-// The backup's progress state around the run itself (sync/backupRun.ts).
+// The backup's progress state around the run itself (sync/backupRun.ts, which owns the one run and
+// its stop).
 export default function CloudSyncProvider({ children }) {
-  const { isAuthenticated, user, uploadAssetFileAsync, uploadAssetThumbnailAsync } = useCloud();
+  const { isAuthenticated, uploadAssetFileAsync, uploadAssetThumbnailAsync } = useCloud();
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState(null);
   const [syncProgressMessage, setSyncProgressMessage] = useState(null);
   const [syncSpeedMessage, setSyncSpeedMessage] = useState(null);
   const [backupError, setBackupError] = useState(null);
 
-  // The running backup's abort controller: one run at a time, stopped when the session changes.
-  const runRef = useRef(null);
   const lastProgressRef = useRef(null);
   const emaSpeedRef = useRef(0);
   const sessionStartRef = useRef(null);
   const completedBytesRef = useRef(0);
-
-  const signedInUserId = isAuthenticated ? user?.id : null;
-
-  // A run belongs to the user signed in at its start: once that changes (or the provider goes), it
-  // stops, cancelling an upload in flight.
-  useEffect(() => () => runRef.current?.abort(), [signedInUserId]);
-
   function updateSyncProgressMessage({ totalBytesSent, totalBytesExpectedToSend }) {
     const now = Date.now();
 
@@ -72,9 +64,9 @@ export default function CloudSyncProvider({ children }) {
     });
   }
 
-  // The uploads of one run, for the session and the library it started with, under its abort signal.
-  function uploadsFor(identity, library, signal) {
-    return {
+  // The uploads of one run, for the session and the library it started with, under the run's signal.
+  function uploadsFor(identity, library) {
+    return (signal) => ({
       uploadFile: async (asset) => {
         lastProgressRef.current = null;
         emaSpeedRef.current = 0;
@@ -93,15 +85,13 @@ export default function CloudSyncProvider({ children }) {
       },
       uploadThumbnail: (asset) => uploadAssetThumbnailAsync(asset, identity, { library, signal }),
       deleteFile: (filename) => deleteAssetFileAsync(filename, library),
-    };
+    });
   }
 
   // The run backs up the assets unsynced at its start (their ids are read once; assets added
   // meanwhile wait for the next run), for the user and the library of its start.
   async function syncAssets() {
-    if (!isAuthenticated || runRef.current) return;
-    const controller = new AbortController();
-    runRef.current = controller;
+    if (!isAuthenticated || isBackupRunning()) return;
 
     setIsSyncing(true);
     sessionStartRef.current = Date.now();
@@ -111,11 +101,10 @@ export default function CloudSyncProvider({ children }) {
     try {
       const db = getDb();
       const library = getLibrary();
-      const identity = sessionIdentity(await requireSessionAsync());
+      const identity = sessionIdentity(requireSession());
       const ids = await readUnsyncedIds(db);
       await runBackup(db, ids, {
-        uploads: uploadsFor(identity, library, controller.signal),
-        controller,
+        uploads: uploadsFor(identity, library),
         onProgress: ({ index, total }) => setSyncMessage(`Syncing ${index + 1} of ${total}`),
       });
     } catch (error) {
@@ -127,7 +116,6 @@ export default function CloudSyncProvider({ children }) {
       setSyncMessage(null);
       setSyncProgressMessage(null);
       setSyncSpeedMessage(null);
-      runRef.current = null;
     }
   }
 

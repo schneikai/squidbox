@@ -2,7 +2,6 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 import assetSchema from './assetSchema';
 import deleteAssetFilesAndThumbnailsAsync from './deleteAssetFilesAndThumbnailsAsync';
-import createAssetFileDirectory from './files/createAssetFileDirectory';
 import getAssetFileUri from './files/getAssetFileUri';
 import getNewAssetId from './getNewAssetId';
 import createAssetThumbnail from './thumbnails/createAssetThumbnail';
@@ -20,9 +19,9 @@ export default async function buildAssetAsync(assetData = {}) {
 
   if (!newAsset.id) newAsset.id = getNewAssetId();
 
-  // The file goes into the library that is open now, whatever happens before the record is saved.
+  // The file goes into the library that is open now (its folders exist since it opened), whatever
+  // happens before the record is saved.
   const library = getLibrary();
-  await createAssetFileDirectory(library);
 
   newAsset.filename = `${newAsset.id}.${getFileExtension(sourceFileUri)}`;
   const assetFileUri = getAssetFileUri(newAsset.filename, library);

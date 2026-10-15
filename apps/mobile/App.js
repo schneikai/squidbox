@@ -26,9 +26,9 @@ import PostsQueryProvider from '@/features/post-list/posts-query/PostsQueryProvi
 import PostsProvider from '@/features/posts-context/PostsProvider';
 import FirstSyncScreen from '@/features/sync-status/FirstSyncScreen';
 import LibraryProvider from '@/library/LibraryProvider';
+import MergeOffer from '@/library/MergeOffer';
 import SwitchingScreen from '@/library/SwitchingScreen';
 import useLibrary from '@/library/useLibrary';
-import useMergeOffer from '@/library/useMergeOffer';
 import RootNavigator from '@/navigators/RootNavigator';
 import { navigationRef, flushPendingNavigation } from '@/navigators/navigationRef';
 import { colors } from '@/styles/designTokens';
@@ -98,52 +98,39 @@ const App = () => {
   );
 };
 
-// One-time app init: restore the cloud session + hide the splash, and mount the foreground/interval
-// sync triggers. Lives ABOVE the gates so it runs exactly once, alongside the library opening, and
-// keeps the sync running whether the setup screen or the main app is showing. Renders nothing until
-// ready.
+// One-time app init: hide the splash once the boot (LibraryProvider: the library open and the cloud
+// session check, side by side) is through, and mount the foreground/interval sync triggers. Lives
+// ABOVE the gates so it runs exactly once and keeps the sync running whether the setup screen or the
+// main app is showing. Renders nothing until ready.
 function AppInit({ children }) {
-  const { initializeCloudAsync, isAuthenticated } = useCloud();
-  const { library } = useLibrary();
+  const { isAuthenticated } = useCloud();
+  const { booted } = useLibrary();
   const [appIsReady, setAppIsReady] = useState(false);
 
   // Foreground + interval sync triggers. They're no-ops while sync is inactive (below).
   useSyncTriggers();
 
-  // Sync only once init is done (so it can't starve init's DB work and strand the splash), the
-  // library is open AND someone is signed in. Activating kicks the launch pull; signing out or a
-  // rejected session stops it.
+  // Sync only once the boot is done (so it can't starve the boot's DB work and strand the splash)
+  // AND someone is signed in for the open library. Activating kicks the launch pull; signing out or
+  // a rejected session stops it.
   useEffect(() => {
-    setSyncActive(appIsReady && isAuthenticated && library !== null);
-  }, [appIsReady, isAuthenticated, library]);
+    setSyncActive(appIsReady && isAuthenticated);
+  }, [appIsReady, isAuthenticated]);
 
+  // The splash's ONLY exit: the boot, or a watchdog if it hangs (an unreachable API, a long
+  // migration), so a release build (no redbox) can never get stranded on the native splash. The
+  // boot keeps running and the gates show what is ready.
   useEffect(() => {
-    let revealed = false;
-    // The splash's ONLY exit. Idempotent. Always runs — even if init throws or hangs — so a release
-    // build (no redbox) can never get stranded on the native splash.
-    const reveal = () => {
-      if (revealed) return;
-      revealed = true;
+    if (!booted) return undefined;
+    setAppIsReady(true);
+    SplashScreen.hideAsync().catch(() => {});
+    return undefined;
+  }, [booted]);
+  useEffect(() => {
+    const watchdog = setTimeout(() => {
       setAppIsReady(true);
-      SplashScreen.hideAsync().catch(() => {}); // no-op if already hidden
-    };
-
-    async function prepare() {
-      try {
-        await initializeCloudAsync();
-      } catch (error) {
-        // Never let an init failure strand the splash. Report it and boot anyway — the login/gate
-        // flow can recover (e.g. show the login screen) instead of an invisible dead splash.
-        Sentry.captureException(error);
-      } finally {
-        reveal();
-      }
-    }
-    prepare();
-
-    // Watchdog: if init HANGS (e.g. an unreachable API with no request timeout), lift the splash
-    // anyway after a bound so the user is never stuck. Init keeps running and updates state later.
-    const watchdog = setTimeout(reveal, 8000);
+      SplashScreen.hideAsync().catch(() => {});
+    }, 8000);
     return () => clearTimeout(watchdog);
   }, []);
 
@@ -197,7 +184,6 @@ export default Sentry.wrap(App);
 
 // Memoized: a change of AppGate's cloud state must not re-render the whole app below it.
 const MainApp = memo(function MainApp() {
-  useMergeOffer();
   return (
     <AssetThumbnailLoaderProvider>
       <NavigationContainer ref={navigationRef} onReady={flushPendingNavigation}>
@@ -215,6 +201,7 @@ const MainApp = memo(function MainApp() {
                   <RootNavigator />
                   <FloatingNavigationBar />
                   <FloatingFilterModal />
+                  <MergeOffer />
                 </View>
               </FloatingBarsProvider>
             </AssetPickerProvider>

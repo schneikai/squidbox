@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
+import { sessionStoreMock } from './helpers/sessionStoreMock';
 import { makeTestDb } from './helpers/testDb';
 import type { Session } from '../src/library/session';
 import * as repo from '../src/sync/assetsRepository';
@@ -45,22 +46,13 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
     },
   },
 }));
-vi.mock('../src/utils/cloud-api/sessionStore', () => ({
-  getSessionAsync: async () => store.session,
-  setSessionAsync: async (session: Session | null) => {
-    store.session = session;
-  },
-}));
+vi.mock('../src/utils/cloud-api/sessionStore', () => sessionStoreMock(store));
 vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({ API_BASE_URL: 'https://api.test/api/v1' }));
-vi.mock('../src/library/fs', () => ({
-  listDatabaseNames: async () => [],
-  createLibraryFolders: async () => {},
-  createFailedMessage: (error: Error) => error.message,
-}));
+vi.mock('../src/library/fs', () => ({ listDatabaseNames: async () => [], createLibraryFolders: async () => {} }));
 const ids = vi.hoisted(() => ({ n: 0 }));
 vi.mock('../src/utils/getNewItemId', () => ({ default: () => `id-${++ids.n}` }));
 
-const { closeLibrary, getLibrary, isLibraryOpen } = await import('../src/library/current');
+const { closeLibrary, getLibrary, openLibraryId } = await import('../src/library/current');
 const { getRegistry, loadRegistry } = await import('../src/library/registry');
 const { openLibraryForSession, libraryForSession } = await import('../src/library/sessionLibrary');
 const { switchLibrary } = await import('../src/library/switchLibrary');
@@ -87,7 +79,7 @@ const outbox = () => getDb().select().from(schema.outbox);
 
 describe('switching libraries with the session', () => {
   beforeEach(async () => {
-    if (isLibraryOpen()) await closeLibrary();
+    if (openLibraryId()) await closeLibrary();
     stores.clear();
     failing.clear();
     deleted.length = 0;
@@ -149,9 +141,8 @@ describe('switching libraries with the session', () => {
     await setCursor(getDb(), 42);
     failing.add('library-id-2.db'); // the next id, B's new library
 
-    await expect(signIn(sessionOf('B'))).rejects.toThrow('cannot open library-id-2.db');
+    await expect(signIn(sessionOf('B'))).rejects.toThrow("Couldn't create the library: cannot open library-id-2.db");
 
-    expect(isLibraryOpen()).toBe(true);
     expect(getLibrary().id).toBe(aId);
     expect(await getCursor(getDb())).toBe(42);
     expect(store.session).toEqual(sessionOf('A'));

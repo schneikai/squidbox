@@ -61,7 +61,7 @@ vi.mock('../src/library/mergeLibrary', async (importOriginal) => {
   };
 });
 
-const { closeLibrary, isLibraryOpen, openLibrary } = await import('../src/library/current');
+const { closeLibrary, openLibrary, openLibraryId } = await import('../src/library/current');
 const { getRegistry, loadRegistry, updateLibrary } = await import('../src/library/registry');
 const { mergeLibrary, resumeMerges } = await import('../src/library/mergeRun');
 const { getDb } = await import('../src/sync/db/client');
@@ -86,7 +86,7 @@ async function devicePhoto(over: Record<string, unknown> = {}) {
 
 describe('mergeLibrary / resumeMerges', () => {
   beforeEach(async () => {
-    if (isLibraryOpen()) await closeLibrary();
+    if (openLibraryId()) await closeLibrary();
     stores.clear();
     deleted.length = 0;
     files.clear();
@@ -101,7 +101,7 @@ describe('mergeLibrary / resumeMerges', () => {
     const a = await devicePhoto({ filename: 'a.jpg', mediaLibraryAssetId: 'm-a' });
     await albums.create(sourceDb(), makeAlbumRecord({ name: 'Trip' }));
 
-    expect(await mergeLibrary('dev', 'acc')).toEqual({ removed: true, cloudOnly: 0 });
+    expect(await mergeLibrary('dev', 'acc')).toEqual({ cloudOnly: 0 });
 
     expect((await getDb().select().from(schema.assets)).map((row) => row.id)).toEqual([a.id]);
     expect(await getDb().select().from(schema.albums)).toHaveLength(1);
@@ -162,7 +162,7 @@ describe('mergeLibrary / resumeMerges', () => {
       makeAssetRecord({ mediaLibraryAssetId: 'm-cloud', filename: 'cloud.jpg', isFileSynced: true }),
     );
 
-    expect(await mergeLibrary('dev', 'acc')).toEqual({ removed: false, cloudOnly: 1 });
+    expect(await mergeLibrary('dev', 'acc')).toEqual({ cloudOnly: 1 });
 
     expect(entry('dev')).toEqual(DEV); // listed, no marker
     expect(stores.has(SRC.dbName)).toBe(true);

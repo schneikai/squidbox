@@ -17,9 +17,10 @@ const device: { names: string[]; session: Session | null } = { names: [], sessio
 vi.mock('../src/library/fs', () => ({ listDatabaseNames: async () => device.names }));
 vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({ API_BASE_URL: 'https://api.test/api/v1' }));
 vi.mock('../src/utils/cloud-api/sessionStore', () => ({
-  getSessionAsync: async () => device.session,
-  setSessionAsync: async (session: Session | null) => {
-    device.session = session;
+  getSession: () => device.session,
+  updateSession: async (change: (session: Session | null) => Session | null) => {
+    device.session = change(device.session);
+    return device.session;
   },
 }));
 

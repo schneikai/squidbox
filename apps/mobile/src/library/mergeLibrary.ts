@@ -15,16 +15,7 @@ type AssetRow = schema.AssetRow;
 type OutboxRow = typeof schema.outbox.$inferSelect;
 type Edge = { id: string; updatedAt: number; deletedAt: number | null; assetId: string } & Record<string, unknown>;
 
-export interface MergeCounts {
-  photos: number;
-  albums: number;
-  posts: number;
-  alreadyInAccount: number; // photos the account has (same id, or the same camera-roll item)
-  cloudOnly: number; // photos whose file is in another account's storage: they stay in the source
-}
-
 export interface MergePlan {
-  counts: MergeCounts;
   assets: AssetRow[];
   albums: schema.AlbumRow[];
   posts: schema.PostRow[];
@@ -36,6 +27,8 @@ export interface MergePlan {
   replays: OutboxRow[];
   // Source assets the target has by id: their files may still be in the source (moveMergedFiles).
   sameIdAssets: AssetRow[];
+  alreadyInAccount: number; // photos the account has (same id, or the same camera-roll item)
+  cloudOnly: number; // photos whose file is in another account's storage: they stay in the source
   // Every source record is in the target or skipped by a rule that leaves nothing behind.
   nothingLeftToAdd: boolean;
 }
@@ -51,7 +44,6 @@ const live = <R extends { deletedAt: number | null }>(rows: R[]) => rows.filter(
  * and parent and are dropped with them.
  */
 export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: LibraryPaths): Promise<MergePlan> {
-  const counts: MergeCounts = { photos: 0, albums: 0, posts: 0, alreadyInAccount: 0, cloudOnly: 0 };
   const replays: OutboxRow[] = [];
   const sourceOutbox = new Map(
     (await source.select().from(schema.outbox)).map((row) => [`${row.collection}:${row.recordId}`, row]),
@@ -79,12 +71,14 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
     }
   }
 
-  // Assets.
-  const sourceAssets = live(await source.select().from(schema.assets));
+  // Assets. Replays consider every source record the target has by id, tombstones included (a
+  // deletion made on the device after the copy is an edit too); only live ones are copied.
+  const allSourceAssets = await source.select().from(schema.assets);
+  const sourceAssets = live(allSourceAssets);
   const targetById = await readByIdMap<AssetRow>(
     target,
     schema.assets,
-    sourceAssets.map((asset) => asset.id),
+    allSourceAssets.map((asset) => asset.id),
   );
   const mediaIds = sourceAssets.map((asset) => asset.mediaLibraryAssetId).filter(Boolean);
   const targetByMediaId = new Map<string, AssetRow>();
@@ -97,112 +91,101 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
   }
   const assets: AssetRow[] = [];
   const sameIdAssets: AssetRow[] = [];
-  const duplicates: MergePlan['duplicates'] = [];
+  const merged = new Map<string, { isFavorite: boolean; notes: string | null }>(); // by target asset id
+  const matched = new Map<string, AssetRow>(); // the target assets those were merged into
   const assetIdMap = new Map<string, string>(); // source asset id → the id it has in the target
-  const inTarget = (id: string) => targetById.has(id);
+  let alreadyInAccount = 0;
+  let cloudOnly = 0;
   for (const asset of sourceAssets) {
-    if (inTarget(asset.id)) {
+    if (targetById.has(asset.id)) {
       assetIdMap.set(asset.id, asset.id);
       sameIdAssets.push(asset);
-      counts.alreadyInAccount += 1;
+      alreadyInAccount += 1;
       continue;
     }
-    if (asset.isFileSynced && !(await fileExists(getAssetFileUri(asset.filename, sourcePaths)))) {
-      counts.cloudOnly += 1;
+    const hasFile = await fileExists(getAssetFileUri(asset.filename, sourcePaths));
+    if (asset.isFileSynced && !hasFile) {
+      cloudOnly += 1;
       continue;
     }
     const match = asset.mediaLibraryAssetId ? targetByMediaId.get(asset.mediaLibraryAssetId) : undefined;
     if (match) {
       assetIdMap.set(asset.id, match.id);
-      counts.alreadyInAccount += 1;
-      const notes = mergedNotes(match.notes, asset.notes);
-      const isFavorite = match.isFavorite || asset.isFavorite;
-      if (notes !== match.notes || isFavorite !== match.isFavorite)
-        duplicates.push({ id: match.id, isFavorite, notes });
+      matched.set(match.id, match);
+      alreadyInAccount += 1;
+      // Several source assets can match one target asset: merge them all into it.
+      const sofar = merged.get(match.id) ?? { isFavorite: match.isFavorite, notes: match.notes };
+      merged.set(match.id, {
+        isFavorite: sofar.isFavorite || asset.isFavorite,
+        notes: mergedNotes(sofar.notes, asset.notes),
+      });
       continue;
     }
     assetIdMap.set(asset.id, asset.id);
-    assets.push({ ...asset, syncError: null });
-    counts.photos += 1;
+    // A file this device holds is uploaded to the account by its backup, whatever the source said.
+    const flags = hasFile ? { isFileSynced: false, isThumbnailSynced: false, isSynced: false } : {};
+    assets.push({ ...asset, ...flags, syncError: null });
   }
-  await collectReplays('assets', sameIdAssets, targetById);
+  const duplicates = [...merged]
+    .filter(([id, change]) => {
+      const row = matched.get(id)!;
+      return change.isFavorite !== row.isFavorite || change.notes !== row.notes;
+    })
+    .map(([id, change]) => ({ id, ...change }));
+  await collectReplays('assets', allSourceAssets, targetById);
 
   // Albums and posts.
-  const sourceAlbums = live(await source.select().from(schema.albums)).filter((album) => !album.smartAlbumType);
+  const allSourceAlbums = (await source.select().from(schema.albums)).filter((album) => !album.smartAlbumType);
+  const sourceAlbums = live(allSourceAlbums);
   const targetAlbums = await readByIdMap<schema.AlbumRow>(
     target,
     schema.albums,
-    sourceAlbums.map((a) => a.id),
+    allSourceAlbums.map((a) => a.id),
   );
   const albums = sourceAlbums.filter((album) => !targetAlbums.has(album.id));
-  counts.albums = albums.length;
-  await collectReplays('albums', sourceAlbums, targetAlbums);
+  await collectReplays('albums', allSourceAlbums, targetAlbums);
 
-  const sourcePosts = live(await source.select().from(schema.posts));
+  const allSourcePosts = await source.select().from(schema.posts);
+  const sourcePosts = live(allSourcePosts);
   const targetPosts = await readByIdMap<schema.PostRow>(
     target,
     schema.posts,
-    sourcePosts.map((p) => p.id),
+    allSourcePosts.map((p) => p.id),
   );
   const posts = sourcePosts.filter((post) => !targetPosts.has(post.id));
-  counts.posts = posts.length;
-  await collectReplays('posts', sourcePosts, targetPosts);
+  await collectReplays('posts', allSourcePosts, targetPosts);
 
-  // Edges: only between records that will be in the target, re-pointed at matched assets, and not
-  // doubling a membership the target already has.
-  const parentsInTarget = new Set([...albums, ...sourceAlbums.filter((a) => targetAlbums.has(a.id))].map((a) => a.id));
-  const postsInTarget = new Set([...posts, ...sourcePosts.filter((p) => targetPosts.has(p.id))].map((p) => p.id));
-  const albumAssets = await planEdges(
-    live(await source.select().from(schema.albumAssets)),
-    (edge) => edge.albumId,
-    parentsInTarget,
-    schema.albumAssets,
-    schema.albumAssets.albumId,
-  );
-  const postAssets = await planEdges(
-    live(await source.select().from(schema.postAssets)),
-    (edge) => edge.postId,
-    postsInTarget,
-    schema.postAssets,
-    schema.postAssets.postId,
-  );
-  for (const [collection, edges] of [
-    ['album_assets', albumAssets],
-    ['post_assets', postAssets],
-  ] as const) {
-    const targetEdges = await readByIdMap<Edge>(
-      target,
-      schema[collection === 'album_assets' ? 'albumAssets' : 'postAssets'],
-      edges.map((edge) => edge.id),
-    );
-    await collectReplays(collection, edges, targetEdges);
-  }
-
+  // Edges: an unpushed edit of an edge the target has (a removal from an album, say) is replayed
+  // like a record's; a live edge between records that will be in the target (every live, non-smart
+  // parent is) is copied, re-pointed at a matched asset, unless the target has that membership.
   async function planEdges<E extends Edge>(
     edges: E[],
     parentOf: (edge: E) => string,
     parents: Set<string>,
     table: typeof schema.albumAssets | typeof schema.postAssets,
     parentColumn: typeof schema.albumAssets.albumId | typeof schema.postAssets.postId,
+    collection: string,
   ): Promise<E[]> {
-    const candidates = edges.filter((edge) => parents.has(parentOf(edge)) && assetIdMap.has(edge.assetId));
-    if (candidates.length === 0) return [];
     const byId = await readByIdMap<E>(
       target,
       table,
-      candidates.map((edge) => edge.id),
+      edges.map((edge) => edge.id),
     );
+    await collectReplays(collection, edges, byId);
+    const fresh = live(edges).filter(
+      (edge) => !byId.has(edge.id) && parents.has(parentOf(edge)) && assetIdMap.has(edge.assetId),
+    );
+    if (fresh.length === 0) return [];
     const existing = new Set(
       (
         await target
           .select()
           .from(table)
-          .where(and(inArray(parentColumn, [...new Set(candidates.map(parentOf))]), isNull(table.deletedAt)))
+          .where(and(inArray(parentColumn, [...new Set(fresh.map(parentOf))]), isNull(table.deletedAt)))
       ).map((edge) => `${parentOf(edge as unknown as E)}:${edge.assetId}`),
     );
     const planned: E[] = [];
-    for (const edge of candidates) {
-      if (byId.has(edge.id)) continue;
+    for (const edge of fresh) {
       const assetId = assetIdMap.get(edge.assetId)!;
       if (existing.has(`${parentOf(edge)}:${assetId}`)) continue;
       existing.add(`${parentOf(edge)}:${assetId}`);
@@ -210,13 +193,28 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
     }
     return planned;
   }
+  const albumAssets = await planEdges(
+    await source.select().from(schema.albumAssets),
+    (edge) => edge.albumId,
+    new Set(sourceAlbums.map((album) => album.id)),
+    schema.albumAssets,
+    schema.albumAssets.albumId,
+    'album_assets',
+  );
+  const postAssets = await planEdges(
+    await source.select().from(schema.postAssets),
+    (edge) => edge.postId,
+    new Set(sourcePosts.map((post) => post.id)),
+    schema.postAssets,
+    schema.postAssets.postId,
+    'post_assets',
+  );
 
   const nothingLeftToAdd =
     assets.length + albums.length + posts.length + albumAssets.length + postAssets.length === 0 &&
     duplicates.length === 0 &&
     replays.length === 0;
   return {
-    counts,
     assets,
     albums,
     posts,
@@ -225,6 +223,8 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
     duplicates,
     replays,
     sameIdAssets,
+    alreadyInAccount,
+    cloudOnly,
     nothingLeftToAdd,
   };
 }
@@ -289,6 +289,6 @@ export async function moveMergedFiles(
 }
 
 /** Whether the target would get anything, or has something to say about what it won't. */
-export function isEmptyPlan({ counts }: MergePlan): boolean {
-  return counts.photos + counts.albums + counts.posts + counts.alreadyInAccount + counts.cloudOnly === 0;
+export function isEmptyPlan(plan: MergePlan): boolean {
+  return plan.assets.length + plan.albums.length + plan.posts.length + plan.alreadyInAccount + plan.cloudOnly === 0;
 }

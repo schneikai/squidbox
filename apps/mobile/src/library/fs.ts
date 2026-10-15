@@ -4,7 +4,10 @@ import type { OpenLibrary } from './current';
 import type { LibraryPaths } from './libraryPaths';
 
 import createAssetFileDirectory from '@/utils/assets/files/createAssetFileDirectory';
+import getAssetFilesDirectory from '@/utils/assets/files/getAssetFilesDirectory';
+import getDownloadsDirectory from '@/utils/assets/files/getDownloadsDirectory';
 import createAssetThumbnailDirectory from '@/utils/assets/thumbnails/createAssetThumbnailDirectory';
+import getAssetThumbnailsDirectory from '@/utils/assets/thumbnails/getAssetThumbnailsDirectory';
 
 // expo-sqlite keeps every database under this folder (it exists once a database has been opened).
 const SQLITE_DIR = `${FileSystem.documentDirectory}SQLite/`;
@@ -16,16 +19,16 @@ export async function listDatabaseNames(): Promise<string[]> {
   return FileSystem.readDirectoryAsync(SQLITE_DIR);
 }
 
-// A library's two folders, ready before anything is written into them.
+// A library's two folders, ready when it opens, before anything is written into them.
 export async function createLibraryFolders(library: OpenLibrary): Promise<void> {
   await createAssetFileDirectory(library);
   await createAssetThumbnailDirectory(library);
 }
 
-// A removed library's folders, with everything in them.
+// A removed library's folders and its downloads cache, with everything in them.
 export async function removeLibraryFolders(paths: LibraryPaths): Promise<void> {
-  for (const dir of [paths.filesDir, paths.thumbnailsDir]) {
-    await FileSystem.deleteAsync(`${FileSystem.documentDirectory}${dir}`, { idempotent: true });
+  for (const dir of [getAssetFilesDirectory(paths), getAssetThumbnailsDirectory(paths), getDownloadsDirectory(paths)]) {
+    await FileSystem.deleteAsync(dir, { idempotent: true });
   }
 }
 
@@ -36,9 +39,4 @@ export async function fileExists(uri: string): Promise<boolean> {
 // Moves a file into a destination that doesn't exist yet (the legacy iOS move would replace one).
 export async function moveFile(from: string, to: string): Promise<void> {
   await FileSystem.moveAsync({ from, to });
-}
-
-// Why a new library could not be opened, for the user.
-export function createFailedMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

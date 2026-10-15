@@ -8,6 +8,9 @@ import { AppError } from '../errors.js';
 // Per-device refresh tokens: every device holds its own valid refresh token, and rotation replaces
 // only the token that was presented, so device A refreshing never logs out device B.
 export const REFRESH_TOKEN_TTL_MS = 365 * 24 * 60 * 60 * 1000; // 1 year
+// How long a rotated token still answers with its successor: long enough for a lost response to be
+// retried, short enough that a stolen predecessor is worthless soon.
+export const ROTATION_GRACE_MS = 10 * 60 * 1000;
 
 function newRefreshToken(): string {
   return randomBytes(32).toString('hex');
@@ -24,10 +27,11 @@ export async function issueRefreshToken(db: Db, userId: string, now = Date.now()
 }
 
 // Validate + rotate atomically: mark the presented (valid, unexpired) token as replaced and issue
-// its successor for the same user. The presented token stays valid until the successor is first
-// presented, so a refresh whose response was lost, or two concurrent refreshes of one token, get
-// the same successor again instead of signing the device out. Presenting the successor retires
-// its predecessor. Throws invalid_token when the presented token is unknown, expired or retired.
+// its successor for the same user. For ROTATION_GRACE_MS the presented token stays valid, until
+// the successor is first presented, so a refresh whose response was lost, or two concurrent
+// refreshes of one token, get the same successor again instead of signing the device out.
+// Presenting the successor retires its predecessor. Throws invalid_token when the presented token
+// is unknown, expired or retired (a rotation older than the grace counts as retired).
 export async function rotateRefreshToken(
   db: Db,
   presented: string,
@@ -37,7 +41,7 @@ export async function rotateRefreshToken(
     const token = newRefreshToken();
     const [rotated] = await tx
       .update(refreshTokens)
-      .set({ replacedBy: token })
+      .set({ replacedBy: token, replacedAt: new Date(now) })
       .where(
         and(
           eq(refreshTokens.token, presented),
@@ -56,7 +60,7 @@ export async function rotateRefreshToken(
       return { userId: rotated.userId, token };
     }
 
-    // Already rotated: hand out its successor again while that one is still unpresented and valid.
+    // Rotated recently: hand out its successor again while that one is still unpresented and valid.
     const predecessor = alias(refreshTokens, 'predecessor');
     const [successor] = await tx
       .select({ userId: refreshTokens.userId, token: refreshTokens.token })
@@ -65,6 +69,7 @@ export async function rotateRefreshToken(
       .where(
         and(
           eq(predecessor.token, presented),
+          gt(predecessor.replacedAt, new Date(now - ROTATION_GRACE_MS)),
           isNull(refreshTokens.replacedBy),
           gt(refreshTokens.expiresAt, new Date(now)),
         ),

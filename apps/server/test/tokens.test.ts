@@ -3,7 +3,13 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { eq } from 'drizzle-orm';
 import pg from 'pg';
 import * as schema from '../src/db/schema.js';
-import { issueRefreshToken, rotateRefreshToken, revokeRefreshToken, REFRESH_TOKEN_TTL_MS } from '../src/auth/tokens.js';
+import {
+  issueRefreshToken,
+  rotateRefreshToken,
+  revokeRefreshToken,
+  REFRESH_TOKEN_TTL_MS,
+  ROTATION_GRACE_MS,
+} from '../src/auth/tokens.js';
 
 // The rotation grace is a chain of conditional statements (replaced_by IS NULL, expires_at, the
 // self-join to the successor), so these tests run against a real Postgres: `npm run test:db`
@@ -70,6 +76,14 @@ d('refresh tokens (per-device, with rotation grace)', () => {
     const { token: third } = await rotateRefreshToken(db, second, NOW);
     expect(await tokens()).toEqual([second, third].sort());
     await expect(rotateRefreshToken(db, first, NOW)).rejects.toThrow(/Invalid or expired/);
+  });
+
+  it('a rotation older than the grace is not replayed', async () => {
+    const first = await issueRefreshToken(db, USER, NOW);
+    const { token: second } = await rotateRefreshToken(db, first, NOW);
+    expect((await rotateRefreshToken(db, first, NOW + ROTATION_GRACE_MS - 1000)).token).toBe(second);
+    await expect(rotateRefreshToken(db, first, NOW + ROTATION_GRACE_MS + 1000)).rejects.toThrow(/Invalid or expired/);
+    expect(await tokens()).toEqual([first, second].sort()); // the successor is untouched
   });
 
   it('an expired successor is not replayed', async () => {

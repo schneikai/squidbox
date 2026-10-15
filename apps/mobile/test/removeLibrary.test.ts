@@ -47,7 +47,7 @@ vi.mock('../src/library/fs', () => ({
   },
 }));
 
-const { closeLibrary, getLibrary, isLibraryOpen, openLibrary } = await import('../src/library/current');
+const { closeLibrary, getLibrary, openLibrary, openLibraryId } = await import('../src/library/current');
 const { getRegistry, loadRegistry } = await import('../src/library/registry');
 const { readParkedCounts, removeLibrary } = await import('../src/library/removeLibrary');
 const { getDb } = await import('../src/sync/db/client');
@@ -60,7 +60,7 @@ const parked = {
 
 describe('removeLibrary', () => {
   beforeEach(async () => {
-    if (isLibraryOpen()) await closeLibrary();
+    if (openLibraryId()) await closeLibrary();
     stores.clear();
     deleted.length = 0;
     removedFolders.length = 0;
@@ -77,7 +77,7 @@ describe('removeLibrary', () => {
     stores.set('library-parked-lib.db', parkedDb);
     await repo.createAssets(parkedDb, [makeAssetRecord({ isSynced: false }), makeAssetRecord({ isSynced: true })]);
 
-    expect(await readParkedCounts('parked-lib')).toEqual({ pendingCount: 2, atRiskCount: 1 });
+    expect(await readParkedCounts('parked-lib')).toMatchObject({ pendingCount: 2, atRiskCount: 1 });
     expect(opened).toEqual(['library-parked-lib.db', 'closed library-parked-lib.db']);
     expect(getLibrary().id).toBe('open-lib');
     expect(

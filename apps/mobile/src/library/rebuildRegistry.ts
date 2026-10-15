@@ -7,7 +7,7 @@ import type { Session } from './session';
 import type { AppDb } from '@/sync/db/driver';
 import { getLastSyncUser, getOwner, setOwner } from '@/sync/status';
 import { API_BASE_URL } from '@/utils/cloud-api/apiBaseUrl';
-import { getSessionAsync, setSessionAsync } from '@/utils/cloud-api/sessionStore';
+import { getSession, updateSession } from '@/utils/cloud-api/sessionStore';
 
 // Recreates the library list from the databases on the device: each one's owner is stored inside
 // it. The install from before libraries (squidbox.db) has none yet and gets it from whose data it
@@ -16,7 +16,7 @@ import { getSessionAsync, setSessionAsync } from '@/utils/cloud-api/sessionStore
 // device library. Nothing on disk is moved or deleted, so a crash at any point re-runs to the same
 // result.
 export async function rebuildRegistry({ openDb }: { openDb: (dbName: string) => Promise<AppDb> }): Promise<Registry> {
-  const session = (await getSessionAsync()) as Session | null;
+  const session = getSession();
   const libraries: Library[] = [];
   for (const dbName of await listDatabaseNames()) {
     const id = libraryIdFromDbName(dbName);
@@ -32,7 +32,7 @@ export async function rebuildRegistry({ openDb }: { openDb: (dbName: string) => 
   const migrated = libraries.find((library) => library.id === MIGRATED_LIBRARY_ID);
   if (!session && migrated?.owner.kind === 'account') {
     const { serverId, userId, email } = migrated.owner;
-    await setSessionAsync({ serverId, userId, email, apiBaseUrl: API_BASE_URL, tokens: null });
+    await updateSession(() => ({ serverId, userId, email, apiBaseUrl: API_BASE_URL, tokens: null }));
   }
   return { libraries };
 }

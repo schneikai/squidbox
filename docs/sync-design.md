@@ -376,8 +376,8 @@ Background sync (`expo-background-task`) and server push notifications are not i
 **Session gating and exclusivity.** The worker is one single-flight queue
 (`apps/mobile/src/sync/singleFlight.ts`). `requestSync()` coalesces into one trailing run, and
 `withSyncPaused(work)` asks the running sync to stop at its next batch (push batch or applied pull
-batch, so what ran is committed and the next run resumes), waits for it, and holds new ones until
-`work` is done. Sync is active only while the app has finished init, the library is open AND
+batch, so what ran is committed and the next run resumes) and the running backup at its next step,
+waits for both, and holds new syncs until `work` is done. Sync is active only while the app has finished init, the library is open AND
 someone is signed in (`setSyncActive`, driven from one effect in `App.js`); every trigger above is
 a no-op otherwise. A run is bound to the identity it started with, `{ libraryId, serverId,
 userId }` (`library/sessionMatches.ts`): it runs only when the open library is the signed-in
