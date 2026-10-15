@@ -10,6 +10,7 @@ import initializeCloudAsyncFn from './initializeCloudAsync';
 
 import { getLibrary, whenLibraryOpen } from '@/library/current';
 import deviceLabel from '@/library/deviceLabel';
+import { deviceLibrary, getRegistry } from '@/library/registry';
 import { removeLibrary } from '@/library/removeLibrary';
 import { openLibraryForSession } from '@/library/sessionLibrary';
 import { isSessionAuthenticated, needsReauth as sessionNeedsReauth } from '@/library/sessionMatches';
@@ -28,6 +29,8 @@ import { getSessionAsync, setSessionAsync } from '@/utils/cloud-api/sessionStore
 export default function CloudProvider({ children }) {
   const { library, switchLibrary } = useLibrary();
   const [session, setSession] = useState(null);
+  // The device library to offer to the account after a sign-in (useMergeOffer), once per sign-in.
+  const [mergeOffer, setMergeOffer] = useState(null);
 
   const isAuthenticated = library !== null && isSessionAuthenticated(library, session, API_BASE_URL);
   const needsReauth = library !== null && sessionNeedsReauth(library, session);
@@ -87,7 +90,12 @@ export default function CloudProvider({ children }) {
       needsReauth,
       user,
       initializeCloudAsync: () => startSessionAsync(initializeCloudAsyncFn),
-      loginAsync: (email, password) => startSessionAsync(() => apiLoginAsync(email, password)),
+      loginAsync: async (email, password) => {
+        await startSessionAsync(() => apiLoginAsync(email, password));
+        setMergeOffer(deviceLibrary(getRegistry().libraries)?.id ?? null);
+      },
+      mergeOffer,
+      dismissMergeOffer: () => setMergeOffer(null),
       logoutAsync: (options) =>
         endSessionAsync(options).catch((error) => Alert.alert("Couldn't sign out", error.message)),
       preloadAssetThumbnailsAsync,
@@ -95,7 +103,7 @@ export default function CloudProvider({ children }) {
       uploadAssetThumbnailAsync,
       downloadAssetFileAsync,
     }),
-    [session, library, switchLibrary],
+    [session, library, switchLibrary, mergeOffer],
   );
 
   return <CloudContext.Provider value={value}>{children}</CloudContext.Provider>;

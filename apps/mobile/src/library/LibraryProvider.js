@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import LibraryContext from './LibraryContext';
 import { getLibrary, isLibraryOpen } from './current';
+import { resumeMerges } from './mergeRun';
 import { openBootLibrary } from './openBootLibrary';
 import { getRegistry, onRegistryChange } from './registry';
 import { switchLibrary as performSwitch } from './switchLibrary';
@@ -23,6 +24,8 @@ export default function LibraryProvider({ children }) {
     openBootLibrary().then(() => {
       setLibraries(getRegistry().libraries);
       setOpenId(getLibrary().id);
+      // A merge a crash interrupted finishes in the background; a failure waits for the next boot.
+      resumeMerges().catch((resumeError) => console.warn('Could not resume a merge', resumeError));
     }, setError);
     return unsubscribe;
   }, []);

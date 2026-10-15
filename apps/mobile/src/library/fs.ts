@@ -29,6 +29,15 @@ export async function removeLibraryFolders(paths: LibraryPaths): Promise<void> {
   }
 }
 
+export async function fileExists(uri: string): Promise<boolean> {
+  return (await FileSystem.getInfoAsync(uri)).exists;
+}
+
+// Moves a file into a destination that doesn't exist yet (the legacy iOS move would replace one).
+export async function moveFile(from: string, to: string): Promise<void> {
+  await FileSystem.moveAsync({ from, to });
+}
+
 // Why a new library could not be opened, for the user.
 export function createFailedMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);

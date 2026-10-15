@@ -15,9 +15,9 @@ import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, motion, spacing } from '@/styles/designTokens';
 
 const NAV_ITEMS = [
-  { tab: 'AssetsTab', icon: 'grid' },
-  { tab: 'AlbumsTab', icon: 'folder' },
-  { tab: 'PostsTab', icon: 'share-alt' },
+  { tab: 'AssetsTab', icon: 'grid', label: 'Library' },
+  { tab: 'AlbumsTab', icon: 'folder', label: 'Albums' },
+  { tab: 'PostsTab', icon: 'share-alt', label: 'Posts' },
 ];
 
 const MAIN_TABS = NAV_ITEMS.map((item) => item.tab);
@@ -71,19 +71,24 @@ export default function FloatingNavigationBar() {
       ]}
     >
       <FloatingPill>
-        {NAV_ITEMS.map(({ tab, icon }) => {
-          const isActive = activeTab === tab;
-          return <NavButton key={tab} icon={icon} isActive={isActive} onPress={() => handleNavigate(tab)} />;
-        })}
+        {NAV_ITEMS.map(({ tab, icon, label }) => (
+          <NavButton
+            key={tab}
+            icon={icon}
+            label={label}
+            isActive={activeTab === tab}
+            onPress={() => handleNavigate(tab)}
+          />
+        ))}
       </FloatingPill>
     </Animated.View>
   );
 }
 
-function NavButton({ icon, isActive, onPress }) {
+function NavButton({ icon, label, isActive, onPress }) {
   if (isActive) {
     return (
-      <GradientButton onPress={onPress}>
+      <GradientButton onPress={onPress} accessibilityLabel={label}>
         <Icon name={icon} color={colors.iconActive} />
       </GradientButton>
     );
@@ -91,6 +96,8 @@ function NavButton({ icon, isActive, onPress }) {
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
       style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
     >
       <Icon name={icon} color={colors.iconInactive} />

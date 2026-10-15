@@ -271,6 +271,12 @@ library's counts and its Remove (recounted from its own database), and the expir
 with the account library open, revoke the phone's refresh token server-side (or set `tokens` to
 null in the stored session) → the red dot on the avatar, "Sign in to sync" with the waiting
 counts, the still (non-pulsing) placeholders, the pre-filled email and "Sign in as someone else".
+Step 6 (the merge): signed out, add two photos from the camera roll (one that is already in the
+account), an album with them and a post; sign in → after the first sync the dialog "Add 1 photo, 1
+album and 1 post from This iPhone to <email>?" with "1 photo is already in the account" → Add: the
+album and post show in the account, the new photo too with its thumbnail, "Back up now" uploads
+it, and "Libraries on this iPhone" no longer lists This iPhone. Then once more with Keep Separate:
+the device library stays listed with its counts.
 
 ### [ ] Set the SERVER_ID secret, then deploy the server
 

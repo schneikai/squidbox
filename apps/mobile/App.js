@@ -28,6 +28,7 @@ import FirstSyncScreen from '@/features/sync-status/FirstSyncScreen';
 import LibraryProvider from '@/library/LibraryProvider';
 import SwitchingScreen from '@/library/SwitchingScreen';
 import useLibrary from '@/library/useLibrary';
+import useMergeOffer from '@/library/useMergeOffer';
 import RootNavigator from '@/navigators/RootNavigator';
 import { navigationRef, flushPendingNavigation } from '@/navigators/navigationRef';
 import { colors } from '@/styles/designTokens';
@@ -196,6 +197,7 @@ export default Sentry.wrap(App);
 
 // Memoized: a change of AppGate's cloud state must not re-render the whole app below it.
 const MainApp = memo(function MainApp() {
+  useMergeOffer();
   return (
     <AssetThumbnailLoaderProvider>
       <NavigationContainer ref={navigationRef} onReady={flushPendingNavigation}>

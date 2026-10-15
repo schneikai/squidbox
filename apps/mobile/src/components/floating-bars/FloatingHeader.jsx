@@ -62,7 +62,7 @@ export default function FloatingHeader({ title, onAdd, selection, selectionActio
         {/* Action pill: select toggle + add */}
         <FloatingPill>
           {selection && <IconButton icon="check-circle" onPress={selection.toggleSelectMode} />}
-          <GradientButton onPress={onAdd} style={styles.addButton}>
+          <GradientButton onPress={onAdd} style={styles.addButton} accessibilityLabel="Add">
             <Icon name="add" color={colors.textInverse} />
           </GradientButton>
         </FloatingPill>

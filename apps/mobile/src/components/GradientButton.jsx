@@ -3,11 +3,13 @@ import { Pressable, StyleSheet } from 'react-native';
 
 import { colors, shadows, spacing, radii } from '@/styles/designTokens';
 
-export default function GradientButton({ onPress, children, style, disabled = false }) {
+export default function GradientButton({ onPress, children, style, disabled = false, accessibilityLabel }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       style={({ pressed }) => [styles.pressable, pressed && styles.pressed, disabled && styles.disabled, style]}
     >
       <LinearGradient

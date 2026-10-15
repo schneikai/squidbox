@@ -28,3 +28,10 @@ export async function removeLibraryFolders(): Promise<void> {}
 export function createFailedMessage(): string {
   return "This browser can't hold more libraries. Remove one under Libraries on this device.";
 }
+
+// No files on web: an asset's file exists only in the cloud.
+export async function fileExists(): Promise<boolean> {
+  return false;
+}
+
+export async function moveFile(): Promise<void> {}
