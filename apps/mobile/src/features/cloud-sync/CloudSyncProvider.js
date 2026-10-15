@@ -1,37 +1,41 @@
-import { useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 
 import CloudSyncContext from './CloudSyncContext';
 
-import useAssets from '@/features/assets-context/useAssets';
 import useCloud from '@/features/cloud/useCloud';
-import { isUnsynced, readUnsyncedIds } from '@/sync/assetsRepository';
-import { getDb, schema } from '@/sync/db/client';
-import { readByIds } from '@/sync/readByIds';
+import { readUnsyncedIds } from '@/sync/assetsRepository';
+import { runBackup } from '@/sync/backupRun';
+import { getDb } from '@/sync/db/client';
 import deleteAssetFileAsync from '@/utils/assets/files/deleteAssetFileAsync';
 import requireSessionAsync from '@/utils/cloud-api/requireSessionAsync';
 import { sessionIdentity } from '@/utils/cloud-api/sessionIdentity';
 import fileSizeToHumanReadable from '@/utils/fileSizeToHumanReadable';
 
+// Exponential moving average time constant (seconds).
+// Higher = smoother but slower to react. 10s gives a stable readable number.
+const EMA_TAU = 10;
+
+// The backup's progress state around the run itself (sync/backupRun.ts).
 export default function CloudSyncProvider({ children }) {
-  const { updateAsset, setAssetsSyncError } = useAssets();
-  const { isAuthenticated, uploadAssetFileAsync, uploadAssetThumbnailAsync } = useCloud();
+  const { isAuthenticated, user, uploadAssetFileAsync, uploadAssetThumbnailAsync } = useCloud();
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState(null);
   const [syncProgressMessage, setSyncProgressMessage] = useState(null);
   const [syncSpeedMessage, setSyncSpeedMessage] = useState(null);
   const [backupError, setBackupError] = useState(null);
 
-  // Since state is not updated immediately I use this ref to make sure
-  // that the sync function is not running multiple times at the same time.
-  const isSyncRunning = useRef(false);
+  // The running backup's abort controller: one run at a time, stopped when the session changes.
+  const runRef = useRef(null);
   const lastProgressRef = useRef(null);
   const emaSpeedRef = useRef(0);
   const sessionStartRef = useRef(null);
   const completedBytesRef = useRef(0);
 
-  // Exponential moving average time constant (seconds).
-  // Higher = smoother but slower to react. 10s gives a stable readable number.
-  const EMA_TAU = 10;
+  const signedInUserId = isAuthenticated ? user?.id : null;
+
+  // A run belongs to the user signed in at its start: once that changes (or the provider goes), it
+  // stops, cancelling an upload in flight.
+  useEffect(() => () => runRef.current?.abort(), [signedInUserId]);
 
   function updateSyncProgressMessage({ totalBytesSent, totalBytesExpectedToSend }) {
     const now = Date.now();
@@ -67,29 +71,50 @@ export default function CloudSyncProvider({ children }) {
     });
   }
 
+  // The uploads of one run, for the session it started with and under its abort signal.
+  function uploadsFor(identity, signal) {
+    return {
+      uploadFile: async (asset) => {
+        lastProgressRef.current = null;
+        emaSpeedRef.current = 0;
+        let fileTotalBytes = 0;
+        await uploadAssetFileAsync(asset, identity, {
+          signal,
+          onProgress: (progress) => {
+            fileTotalBytes = progress.totalBytesExpectedToSend;
+            updateSyncProgressMessage(progress);
+          },
+        });
+        completedBytesRef.current += fileTotalBytes;
+        setSyncProgressMessage(null);
+        setSyncSpeedMessage(null);
+      },
+      uploadThumbnail: (asset) => uploadAssetThumbnailAsync(asset, identity, { signal }),
+      deleteFile: deleteAssetFileAsync,
+    };
+  }
+
+  // The run backs up the assets unsynced at its start (their ids are read once; assets added
+  // meanwhile wait for the next run), for the user signed in at its start.
   async function syncAssets() {
-    // Backup needs the cloud. Just making double sure that we don't start syncing multiple times.
-    if (!isAuthenticated || isSyncRunning.current) return;
-    isSyncRunning.current = true;
+    if (!isAuthenticated || runRef.current) return;
+    const controller = new AbortController();
+    runRef.current = controller;
 
     setIsSyncing(true);
     sessionStartRef.current = Date.now();
     completedBytesRef.current = 0;
     setBackupError(null);
 
-    // The run backs up the assets unsynced at its start: their ids are read once, and each row is
-    // read again right before its upload, so one synced, failed or deleted meanwhile is skipped (its
-    // file isn't uploaded or removed). The total is exact; assets added meanwhile wait for the next run.
-    // Every upload runs for the user signed in at the start, never for one who signs in meanwhile.
     try {
       const db = getDb();
       const identity = sessionIdentity(await requireSessionAsync());
       const ids = await readUnsyncedIds(db);
-      for (const [index, id] of ids.entries()) {
-        setSyncMessage(`Syncing ${index + 1} of ${ids.length}`);
-        const [asset] = await readByIds(db, schema.assets, [id]);
-        if (asset && isUnsynced(asset)) await uploadAsset(asset, identity);
-      }
+      await runBackup(db, ids, {
+        uploads: uploadsFor(identity, controller.signal),
+        signal: controller.signal,
+        onProgress: ({ index, total }) => setSyncMessage(`Syncing ${index + 1} of ${total}`),
+      });
     } catch (error) {
       // Not an upload (those are marked per asset): the run itself couldn't go on.
       console.error('Backup failed', error);
@@ -97,35 +122,9 @@ export default function CloudSyncProvider({ children }) {
     } finally {
       setIsSyncing(false);
       setSyncMessage(null);
-      isSyncRunning.current = false;
-    }
-  }
-
-  async function uploadAsset(asset, identity) {
-    try {
-      if (!asset.isFileSynced) {
-        lastProgressRef.current = null;
-        emaSpeedRef.current = 0;
-        let fileTotalBytes = 0;
-        await uploadAssetFileAsync(asset, identity, (progress) => {
-          fileTotalBytes = progress.totalBytesExpectedToSend;
-          updateSyncProgressMessage(progress);
-        });
-        completedBytesRef.current += fileTotalBytes;
-        setSyncProgressMessage(null);
-        setSyncSpeedMessage(null);
-        await updateAsset(asset.id, { isFileSynced: true });
-        // Delete local file. We don't need it anymore since it is now stored in the cloud.
-        await deleteAssetFileAsync(asset.filename);
-      }
-
-      // We keep the local thumbnail because it is used in the app.
-      if (!asset.isThumbnailSynced) await uploadAssetThumbnailAsync(asset, identity);
-      await updateAsset(asset.id, { isThumbnailSynced: true, isSynced: true });
-    } catch (error) {
-      // We do not raise the error and instead continue syncing the other assets.
-      // Sync errors are then shown in the UI with a button to retry.
-      await setAssetsSyncError([asset.id], error.message);
+      setSyncProgressMessage(null);
+      setSyncSpeedMessage(null);
+      runRef.current = null;
     }
   }
 
