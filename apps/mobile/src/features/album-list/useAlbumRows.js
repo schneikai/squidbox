@@ -6,5 +6,5 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
 export default function useAlbumRows(scope) {
   const { albumSortOrder } = useAppSettings();
   const query = albumQuery({ scope, assetSort: albumSortOrder });
-  return useLiveQuery(query.page, query.tables, [query.descriptor]);
+  return useLiveQuery(query.read, query.tables, [query.descriptor]);
 }

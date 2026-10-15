@@ -212,4 +212,27 @@ describe('watchQuery', () => {
     gate.release();
     watch.stop();
   });
+
+  it('says how fresh each result is: a read queued before a write is older than that write, even landing after it', async () => {
+    const seen: number[] = [];
+    const watch = watchQuery(db, readAssets, [schema.assets], (_rows, readAt) => seen.push(readAt));
+    watch.setEnabled(true);
+    await settle();
+    expect(seen).toEqual([0]);
+
+    // A read already queued, then a write: the read runs first, so it can't show the write.
+    const queued = db.committedWrites();
+    const read = db.transaction((tx) => tx.select({ id: schema.assets.id }).from(schema.assets));
+    await repo.createAssets(db, [makeAssetRecord({ id: 'a' })]);
+    const writtenAt = db.committedWrites();
+    expect(await read).toEqual([]);
+    expect(queued).toBeLessThan(writtenAt);
+    await settle();
+    // The watch's re-read after the write is at least as fresh as the write.
+    expect(seen.at(-1)).toBeGreaterThanOrEqual(writtenAt);
+    // A write that changes nothing isn't counted.
+    await repo.setSyncError(db, ['missing'], 'x');
+    expect(db.committedWrites()).toBe(writtenAt);
+    watch.stop();
+  });
 });

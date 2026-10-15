@@ -57,12 +57,3 @@ export function assetOrder(scope: AssetScope, sort: string): SQL {
   const byDate = sql`a.created_at ${direction}, a.id ${direction}`;
   return sortsByLastPostedAt(scope, sort) ? sql`last_posted_at ${direction}, ${byDate}` : byDate;
 }
-
-/**
- * The ids of the rows whose text contains `searchText` (lowercased): Unicode-aware, literal and
- * case-insensitive, which SQLite's LIKE and lower() aren't (they fold ASCII only and read % and _ as
- * wildcards). So a search matches in JS and SQL takes the ids (`inJson`).
- */
-export function matchingIds(rows: { id: string; text: string }[], searchText: string): string[] {
-  return rows.filter((row) => row.text.toLowerCase().includes(searchText)).map((row) => row.id);
-}

@@ -38,7 +38,8 @@ export default function AssetScreen({ route, navigation }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const insets = useSafeAreaInsets();
 
-  const snapshot = assetIds ?? [tappedAssetId];
+  const tappedOnly = useMemo(() => [tappedAssetId], [tappedAssetId]);
+  const snapshot = assetIds ?? tappedOnly;
   const windowStart = Math.max(0, center - WINDOW);
   const windowIds = useMemo(() => snapshot.slice(windowStart, center + WINDOW), [snapshot, windowStart, center]);
   // The previous window's rows stay until the new read lands, so a recenter never blanks a page.

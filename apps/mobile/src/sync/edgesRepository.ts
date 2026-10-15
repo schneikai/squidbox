@@ -6,7 +6,7 @@ import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import { nextVersion, tombstone } from './clock';
 import type { SyncDb } from './db/types';
 import { inJson } from './inJson';
-import { readByIds } from './readByIds';
+import { readByIdMap } from './readByIds';
 import { saveRecords } from './saveRecords';
 
 // Repository for a junction/edge collection (album_assets, post_assets). add / remove / reorder
@@ -152,7 +152,7 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
         // A ref can name an edge that was removed meanwhile (e.g. on another device): it is restored as
         // that edge's next version, so the clock still moves forward.
         const removedIds = refs.map((r) => r.id).filter((id) => !liveById.has(id));
-        const removedById = new Map((await readByIds(tx, table, removedIds)).map((e) => [e.id, e]));
+        const removedById = await readByIdMap(tx, table, removedIds);
         const changed = live.filter((e) => !targetIds.has(e.id)).map(tombstone);
         for (const [i, ref] of refs.entries()) {
           const existing = liveById.get(ref.id);

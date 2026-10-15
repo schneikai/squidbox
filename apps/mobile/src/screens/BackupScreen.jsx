@@ -11,6 +11,7 @@ import { Row, Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
+import useBackupCounts from '@/features/cloud-sync/useBackupCounts';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
 import { colors, typography } from '@/styles/designTokens';
 
@@ -20,7 +21,9 @@ import { colors, typography } from '@/styles/designTokens';
 export default function BackupScreen() {
   const navigation = useNavigation();
   const cloudSync = useCloudSync();
-  const { isSyncing, syncProgressMessage, syncSpeedMessage, unsyncedCount, syncErrorCount, syncNow } = cloudSync;
+  const counts = useBackupCounts();
+  const { isSyncing, syncProgressMessage, syncSpeedMessage, backupError, syncNow } = cloudSync;
+  const { unsyncedCount, syncErrorCount } = counts;
   const [showErrors, setShowErrors] = useState(false);
 
   return (
@@ -33,7 +36,13 @@ export default function BackupScreen() {
         </Text>
 
         <Section>
-          <Row label="Status" value={getBackupStatusText(cloudSync)} />
+          <Row label="Status" value={getBackupStatusText({ ...cloudSync, ...counts })} />
+
+          {!!backupError && unsyncedCount > 0 && !isSyncing && (
+            <View style={styles.panel}>
+              <Text style={[styles.line, styles.danger]}>{backupError}</Text>
+            </View>
+          )}
 
           {isSyncing && (
             <View style={styles.panel}>
@@ -88,4 +97,5 @@ const styles = StyleSheet.create({
   line: { fontSize: typography.sm, color: colors.text, lineHeight: 18 },
   bold: { fontWeight: '600', color: colors.text },
   muted: { color: colors.textSecondary },
+  danger: { color: colors.danger },
 });

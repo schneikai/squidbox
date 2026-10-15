@@ -16,12 +16,14 @@ export interface Watch {
  * drops a late result, and a watch starts disabled with a read due. Rows keep their identity across
  * reads (see reuseRows), so memoized cells re-render only for rows a write touched; `previous` is the
  * data a replaced watch last delivered, so a new watch (a load-more, a changed query) reuses them too.
+ * `onData` also gets `readAt`, the db's committed-write count when the read began (see
+ * AppDb.committedWrites): every write counted by then shows in the data.
  */
 export function watchQuery<T>(
   db: AppDb,
   read: (db: AppDb) => Promise<T>,
   tables: SQLiteTable[],
-  onData: (data: T) => void,
+  onData: (data: T, readAt: number) => void,
   previous?: T,
 ): Watch {
   const names = new Set(tables.map((table) => getTableName(table)));
@@ -35,10 +37,11 @@ export function watchQuery<T>(
     while (isOwed && isEnabled && !isStopped) {
       isOwed = false;
       try {
+        const readAt = db.committedWrites();
         const result: T = reuseRows(previous, await read(db));
         if (isStopped) return;
         previous = result;
-        onData(result);
+        onData(result, readAt);
       } catch (error) {
         console.error('Live query failed', error);
       }

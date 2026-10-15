@@ -14,6 +14,7 @@ import { MODEL_STORAGE_KEY, DEFAULT_MODEL } from '@/features/ai-suggestions/aiSu
 import confirmLogoutAsync from '@/features/cloud/confirmLogoutAsync';
 import useCloud from '@/features/cloud/useCloud';
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
+import useBackupCounts from '@/features/cloud-sync/useBackupCounts';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
 import { colors } from '@/styles/designTokens';
 import { useSyncStatus } from '@/sync/useSyncStatus';
@@ -26,6 +27,7 @@ export default function SettingsScreen() {
   const navigation = useNavigation();
   const { isAuthenticated, user, logoutAsync } = useCloud();
   const cloudSync = useCloudSync();
+  const backupCounts = useBackupCounts();
   const { phase, pendingCount, lastError } = useSyncStatus();
 
   const [aiModel, setAiModel] = useState(DEFAULT_MODEL);
@@ -123,7 +125,7 @@ export default function SettingsScreen() {
             <Section>
               <Row
                 label="Photo backup"
-                value={getBackupStatusText(cloudSync)}
+                value={getBackupStatusText({ ...cloudSync, ...backupCounts })}
                 onPress={() => navigation.navigate('BackupScreen')}
                 chevron
               />

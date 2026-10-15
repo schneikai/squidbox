@@ -7,7 +7,10 @@ import { motion } from '@/styles/designTokens';
 // springs driven by the shared `positions` map; while it is the lifted cell it
 // follows the shared active translate/scale values instead. Memoized: the grid
 // isn't virtualized, so every cell would otherwise re-render with the screen.
-export default memo(SortableAssetGridCell);
+// `initialSlot` only places a new cell, so a changed slot alone doesn't re-render it.
+export default memo(SortableAssetGridCell, (prev, next) =>
+  Object.keys(next).every((key) => key === 'initialSlot' || prev[key] === next[key]),
+);
 
 function SortableAssetGridCell({
   asset,

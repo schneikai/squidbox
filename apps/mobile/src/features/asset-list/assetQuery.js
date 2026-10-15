@@ -1,8 +1,9 @@
 import { and, count, eq, getTableColumns, isNotNull, isNull } from 'drizzle-orm';
 
-import { a, assetOrder, assetScopeWhere, e, lastPostedAt, matchingIds, sortsByLastPostedAt } from '@/sync/assetSql';
+import { a, assetOrder, assetScopeWhere, e, lastPostedAt, sortsByLastPostedAt } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import { inJson } from '@/sync/inJson';
+import { matchingIds } from '@/sync/matchingIds';
 import { MEDIA_TYPES } from '@/utils/assets/constants';
 
 /**

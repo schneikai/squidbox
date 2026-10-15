@@ -16,9 +16,12 @@ import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import RandomSuggestionsModal from '@/features/post-random-suggestions/RandomSuggestionsModal';
 import { colors } from '@/styles/designTokens';
 import buildPostAsset from '@/utils/posts/buildPostAsset';
+import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
+import postSchema from '@/utils/posts/postSchema';
 
-// Edits a post seeded from `post` ({ text, postAssets, postedAt }); every change is reported the same way.
-export default function PostEditor({ post, onChange, navigation, onSave, canSave, title = 'Post' }) {
+// Edits a post seeded from `post` ({ text, postAssets, postedAt }) and holds the draft; Save hands
+// `onSave` the post the posts store takes ({ text, assetRefs, postedAt }), allowed once it is valid.
+export default function PostEditor({ post, navigation, onSave, title = 'Post' }) {
   const scrollY = useSharedValue(0);
   const [isSaving, setIsSaving] = useState(false);
   const onScroll = useAnimatedScrollHandler((e) => {
@@ -30,44 +33,24 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
   const [showAiChat, setShowAiChat] = useState(false);
   const [showRandomSuggestions, setShowRandomSuggestions] = useState(false);
 
-  function emit(changes) {
-    onChange({ text, postAssets, postedAt, ...changes });
-  }
-
-  function handleTextChange(newText) {
-    setText(newText);
-    emit({ text: newText });
-  }
-
-  function handlePostAssetsChange(newPostAssets) {
-    setPostAssets(newPostAssets);
-    emit({ postAssets: newPostAssets });
-  }
-
-  function handlePostedAtChange(newPostedAt) {
-    setPostedAt(newPostedAt);
-    emit({ postedAt: newPostedAt });
-  }
+  const data = { text, assetRefs: postAssetsToAssetRefs(postAssets), postedAt };
+  const canSave = postSchema.isValidSync(data);
 
   function handleSuggestionConfirm(asset, suggestionText) {
-    // Apply both changes in a single onChange so the second update doesn't
-    // overwrite the first with a stale value from this render's closure.
-    const newPostAssets = asset ? [buildPostAsset(asset)] : postAssets;
-    const newText = suggestionText || text;
-    setPostAssets(newPostAssets);
-    setText(newText);
-    emit({ text: newText, postAssets: newPostAssets });
+    if (asset) setPostAssets([buildPostAsset(asset)]);
+    if (suggestionText) setText(suggestionText);
   }
 
   // One save at a time: a second tap while the first is still writing would save the post twice.
   async function handleSave() {
     setIsSaving(true);
     try {
-      await onSave();
+      await onSave(data);
     } finally {
       setIsSaving(false);
     }
   }
+
   return (
     <ModalSheet>
       <ModalHeader
@@ -91,14 +74,14 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
         contentContainerStyle={styles.scrollContent}
       >
         <Card style={styles.mediaCard}>
-          <PostAssetsEditor postAssets={postAssets} onChange={handlePostAssetsChange} />
+          <PostAssetsEditor postAssets={postAssets} onChange={setPostAssets} />
         </Card>
 
         <Card style={styles.textCard}>
           <Textarea
             placeholder="What's new?"
             numberOfLines={4}
-            onChangeText={handleTextChange}
+            onChangeText={setText}
             value={text}
             style={styles.textArea}
           />
@@ -112,15 +95,10 @@ export default function PostEditor({ post, onChange, navigation, onSave, canSave
           </View>
         </Card>
 
-        <DateTimePicker timestamp={postedAt} onChange={handlePostedAtChange} />
+        <DateTimePicker timestamp={postedAt} onChange={setPostedAt} />
       </Animated.ScrollView>
 
-      <AiChatModal
-        visible={showAiChat}
-        onClose={() => setShowAiChat(false)}
-        onSelect={(suggestion) => handleTextChange(suggestion)}
-        existingText={text}
-      />
+      <AiChatModal visible={showAiChat} onClose={() => setShowAiChat(false)} onSelect={setText} existingText={text} />
 
       <RandomSuggestionsModal
         visible={showRandomSuggestions}

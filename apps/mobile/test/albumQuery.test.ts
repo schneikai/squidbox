@@ -52,7 +52,7 @@ async function library() {
 }
 
 const byId = async (q = albumQuery({ scope: 'all' })) =>
-  Object.fromEntries((await q.page(db)).map((row) => [row.id, row]));
+  Object.fromEntries((await q.read(db)).map((row) => [row.id, row]));
 
 describe('albumQuery', () => {
   it('lists every non-deleted album with its live asset count, counting a double edge once', async () => {
@@ -104,7 +104,7 @@ describe('albumQuery', () => {
     await createPost(db, { postedAt: 10 }, ['asset-1']);
     await createPost(db, { postedAt: 20 }, ['asset-3', 'asset-5']);
     for (const assetSort of ['createdAt:asc', 'createdAt:desc', 'lastPostedAt:asc', 'lastPostedAt:desc'] as const) {
-      for (const row of await albumQuery({ scope: 'all', assetSort }).page(db)) {
+      for (const row of await albumQuery({ scope: 'all', assetSort }).read(db)) {
         const sort = getAlbumSortOrder(row, assetSort);
         const { rows } = await assetQuery({ scope: getAlbumAssetScope(row), sort }).read(db, { limit: 1 });
         expect(row.cover?.id, `${row.id} under ${sort}`).toBe(rows[0]?.id);
@@ -127,7 +127,7 @@ describe('albumQuery', () => {
 
   it('an album without assets has no cover and no count', async () => {
     await albums.createMany(db, [album('empty')]);
-    const [row] = await albumQuery({ scope: 'all' }).page(db);
+    const [row] = await albumQuery({ scope: 'all' }).read(db);
     expect(row.cover).toBeUndefined();
     expect(row.assetCount).toBe(0);
     expect(row.lastPostedAt).toBeNull();
@@ -137,7 +137,7 @@ describe('albumQuery', () => {
     await library();
     await albumEdges.remove(db, 'custom', ['asset-0']);
     const ids = async (assetIds: string[]) =>
-      (await albumQuery({ scope: { assetIds } }).page(db)).map((row) => row.id).sort();
+      (await albumQuery({ scope: { assetIds } }).read(db)).map((row) => row.id).sort();
     expect(await ids(['asset-3'])).toEqual(['custom', 'regular']);
     expect(await ids(['asset-1', 'asset-0'])).toEqual(['regular']);
     expect(await ids(['asset-5'])).toEqual([]);

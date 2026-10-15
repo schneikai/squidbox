@@ -88,7 +88,7 @@ export default function Album({ album }) {
     filter: activeFilter,
     search: searchText,
   });
-  const { rows, count, loadMore, keepLimit } = usePagedQuery(query, 150);
+  const { rows, count, readAt, loadMore, keepLimit } = usePagedQuery(query, 150);
 
   const actions = useAssetSelectionActions(selection, query, count);
   const hasSubHeader = !!album.archivedAt || !!album.notes;
@@ -117,20 +117,18 @@ export default function Album({ album }) {
   }
 
   // A drag under any sort adopts the order on screen and switches the album to Custom, like
-  // Reminders; the loaded grid keeps its depth, so no scroll-to-top. A failed write switches back.
+  // Reminders; the loaded grid keeps its depth, so no scroll-to-top. A failed write shows the order
+  // the database holds: the album's stored sort (an earlier drag may have made it Custom).
   async function handleReorder(change) {
-    const isSwitching = sortOrder !== 'custom';
-    if (isSwitching) {
-      keepLimit();
+    if (sortOrder !== 'custom') {
+      keepLimit({ ...query.descriptor, sort: 'custom' });
       setSessionSortOrder('custom');
     }
     try {
       await reorderAlbumAssets(album, { ...change, sort: sortOrder });
     } catch (error) {
-      if (isSwitching) {
-        keepLimit();
-        setSessionSortOrder(sessionSortOrder);
-      }
+      keepLimit({ ...query.descriptor, sort: getAlbumSortOrder(album, albumSortOrder) });
+      setSessionSortOrder(null);
       throw error;
     }
   }
@@ -205,7 +203,7 @@ export default function Album({ album }) {
         {activeTab === 'Assets' ? (
           <AlbumAssetsView
             rows={rows}
-            count={count}
+            rowsReadAt={readAt}
             loadMore={loadMore}
             isSelectMode={isSelectMode}
             selectedAssetIds={selectedAssetIds}

@@ -4,7 +4,7 @@ import { alias } from 'drizzle-orm/sqlite-core';
 import { assetOrder, assetScopeWhere, lastPostedAt, liveAlbumAssetIds, sortsByLastPostedAt } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import { inJson } from '@/sync/inJson';
-import { readByIds } from '@/sync/readByIds';
+import { readByIdMap } from '@/sync/readByIds';
 
 const al = alias(schema.albums, 'al');
 
@@ -23,7 +23,7 @@ function firstOf(scope, sort) {
 }
 
 /**
- * The album list's rows, as SQL: `page(db)` → every non-deleted album with `assetCount`, `cover`
+ * The album list's rows, as SQL: `read(db)` → every non-deleted album with `assetCount`, `cover`
  * (the asset it shows first, in the album's effective order) and `lastPostedAt` (`null` for the
  * smart albums, which have no edges), read in one transaction; `tables` → what a live read watches.
  * Sort, filter and search stay in JS (prepareAlbums), albums being hundreds.
@@ -55,18 +55,13 @@ export default function albumQuery({ scope = 'all', assetSort = 'createdAt:desc'
   return {
     descriptor: { scope, assetSort },
     tables: [schema.albums, schema.albumAssets, schema.assets, schema.posts, schema.postAssets],
-    page(db) {
+    read(db) {
       return db.transaction(async (tx) => {
         const rows = await tx
           .select({ ...getTableColumns(al), assetCount, coverAssetId, lastPostedAt: newestPostedAt })
           .from(al)
           .where(and(isNull(al.deletedAt), inScope));
-        const covers = new Map(
-          (await readByIds(tx, schema.assets, rows.map((row) => row.coverAssetId).filter(Boolean))).map((a) => [
-            a.id,
-            a,
-          ]),
-        );
+        const covers = await readByIdMap(tx, schema.assets, rows.map((row) => row.coverAssetId).filter(Boolean));
         return rows.map(({ coverAssetId: coverId, ...album }) => ({ ...album, cover: covers.get(coverId) }));
       });
     },

@@ -1,7 +1,6 @@
 import type { AssetRecord } from '@squidbox/shared';
-import { and, asc, count, eq, gt, inArray, isNotNull, isNull, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, eq, isNotNull, isNull, sql, type SQL } from 'drizzle-orm';
 
-import { chunk, SQL_BATCH } from './chunk';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { inJson } from './inJson';
@@ -32,9 +31,9 @@ function writeSyncError(db: SyncDb, where: SQL, error: string | null) {
     .where(and(where, sql`${schema.assets.syncError} is not ${error}`));
 }
 
-/** Sets the sync error of some assets; null clears it. */
+/** Sets the sync error of some assets, in one statement; null clears it. */
 export async function setSyncError(db: SyncDb, ids: string[], error: string | null): Promise<void> {
-  for (const batch of chunk(ids, SQL_BATCH)) await writeSyncError(db, inArray(schema.assets.id, batch), error);
+  await writeSyncError(db, inJson(schema.assets.id, ids), error);
 }
 
 /** How many of these assets are photos and how many videos, in one statement (for a sheet title). */
@@ -56,22 +55,31 @@ const unsynced = and(
 );
 const failed = and(isNotNull(schema.assets.syncError), isNull(schema.assets.deletedAt));
 
-/**
- * The next assets to upload, by id after `afterId` (the key-walk of one backup run: each asset is
- * tried once whatever the run writes meanwhile).
- */
-export async function readUnsynced(db: SyncDb, { afterId, limit }: { afterId: string | null; limit: number }) {
-  return db
-    .select()
+/** The ids of the assets to upload, in id order: one backup run walks this snapshot. */
+export async function readUnsyncedIds(db: SyncDb): Promise<string[]> {
+  const rows = await db
+    .select({ id: schema.assets.id })
     .from(schema.assets)
-    .where(afterId === null ? unsynced : and(unsynced, gt(schema.assets.id, afterId)))
-    .orderBy(asc(schema.assets.id))
-    .limit(limit);
+    .where(unsynced)
+    .orderBy(asc(schema.assets.id));
+  return rows.map((row) => row.id);
 }
 
-export async function countUnsynced(db: SyncDb): Promise<number> {
-  const [row] = await db.select({ count: count() }).from(schema.assets).where(unsynced);
-  return row?.count ?? 0;
+/** Whether this asset row still needs its upload, as `readUnsyncedIds` selects them. */
+export function isUnsynced(asset: { isSynced: boolean; deletedAt: number | null; syncError: string | null }): boolean {
+  return !asset.isSynced && asset.deletedAt === null && asset.syncError === null;
+}
+
+/** How many assets wait for their upload and how many failed, in one statement (both indexed). */
+export async function readBackupCounts(db: SyncDb): Promise<{ unsyncedCount: number; syncErrorCount: number }> {
+  const [row] = await db
+    .select({
+      unsyncedCount: count(),
+      syncErrorCount: sql<number>`(select count(*) from ${schema.assets} where ${failed})`,
+    })
+    .from(schema.assets)
+    .where(unsynced);
+  return { unsyncedCount: row?.unsyncedCount ?? 0, syncErrorCount: Number(row?.syncErrorCount ?? 0) };
 }
 
 export async function countSyncErrors(db: SyncDb): Promise<number> {

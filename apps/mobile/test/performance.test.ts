@@ -291,7 +291,7 @@ describe('plan guard', () => {
 
   it('reads the album stats through one index per branch, never scanning the assets', async () => {
     const { measure, db } = await library();
-    const work = await measure(() => albumQuery({ scope: 'all', assetSort: 'lastPostedAt:desc' }).page(db));
+    const work = await measure(() => albumQuery({ scope: 'all', assetSort: 'lastPostedAt:desc' }).read(db));
     // Not table scans: the albums themselves, the cover ids passed as JSON, each cover's one-row result.
     const scans = work.fullScans.filter((line) => line !== 'SCAN al' && !/^SCAN (json_each|\(subquery-)/.test(line));
     expect(scans).toEqual(

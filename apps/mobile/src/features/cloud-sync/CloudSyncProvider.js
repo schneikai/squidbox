@@ -4,21 +4,14 @@ import CloudSyncContext from './CloudSyncContext';
 
 import useAssets from '@/features/assets-context/useAssets';
 import useCloud from '@/features/cloud/useCloud';
-import { countSyncErrors, countUnsynced, readUnsynced } from '@/sync/assetsRepository';
+import { isUnsynced, readUnsyncedIds } from '@/sync/assetsRepository';
+import { chunk } from '@/sync/chunk';
 import { getDb, schema } from '@/sync/db/client';
-import { useLiveQuery } from '@/sync/useLiveQuery';
+import { readByIdMap } from '@/sync/readByIds';
 import deleteAssetFileAsync from '@/utils/assets/files/deleteAssetFileAsync';
 import fileSizeToHumanReadable from '@/utils/fileSizeToHumanReadable';
 
 const UPLOAD_BATCH = 50;
-const NO_COUNTS = { unsyncedCount: 0, syncErrorCount: 0 };
-
-function readBackupCounts(db) {
-  return db.transaction(async (tx) => ({
-    unsyncedCount: await countUnsynced(tx),
-    syncErrorCount: await countSyncErrors(tx),
-  }));
-}
 
 export default function CloudSyncProvider({ children }) {
   const { updateAsset, setAssetsSyncError } = useAssets();
@@ -28,14 +21,6 @@ export default function CloudSyncProvider({ children }) {
   const [syncProgressMessage, setSyncProgressMessage] = useState(null);
   const [syncSpeedMessage, setSyncSpeedMessage] = useState(null);
   const [backupError, setBackupError] = useState(null);
-
-  // Live counts (0 while signed out: backup needs the cloud), each covered by a partial index.
-  const { unsyncedCount, syncErrorCount } =
-    useLiveQuery(
-      async (db) => (isAuthenticated ? readBackupCounts(db) : NO_COUNTS),
-      [schema.assets],
-      [isAuthenticated],
-    ) ?? NO_COUNTS;
 
   // Since state is not updated immediately I use this ref to make sure
   // that the sync function is not running multiple times at the same time.
@@ -93,19 +78,20 @@ export default function CloudSyncProvider({ children }) {
     completedBytesRef.current = 0;
     setBackupError(null);
 
-    // The total is fixed at the start (the live count shrinks as uploads land) and the walk by id
-    // stops after that many, so each asset is tried once however the run marks it and the progress
-    // never passes its total; anything added meanwhile waits for the next run.
+    // The run backs up the assets unsynced at its start: their ids are read once and walked in
+    // batches, each row re-read so one that was synced, failed or deleted meanwhile is skipped. The
+    // total is exact; assets added meanwhile wait for the next run.
     try {
       const db = getDb();
-      const total = await countUnsynced(db);
+      const ids = await readUnsyncedIds(db);
       let index = 0;
-      let afterId = null;
-      while (index < total) {
-        const batch = await readUnsynced(db, { afterId, limit: Math.min(UPLOAD_BATCH, total - index) });
-        if (batch.length === 0) break;
-        afterId = batch[batch.length - 1].id;
-        for (const asset of batch) await uploadAsset(asset, ++index, total);
+      for (const batch of chunk(ids, UPLOAD_BATCH)) {
+        const assets = await readByIdMap(db, schema.assets, batch);
+        for (const id of batch) {
+          setSyncMessage(`Syncing ${++index} of ${ids.length}`);
+          const asset = assets.get(id);
+          if (asset && isUnsynced(asset)) await uploadAsset(asset);
+        }
       }
     } catch (error) {
       // Not an upload (those are marked per asset): the run itself couldn't go on.
@@ -118,8 +104,7 @@ export default function CloudSyncProvider({ children }) {
     }
   }
 
-  async function uploadAsset(asset, index, total) {
-    setSyncMessage(`Syncing ${index} of ${total}`);
+  async function uploadAsset(asset) {
     try {
       if (!asset.isFileSynced) {
         lastProgressRef.current = null;
@@ -149,8 +134,6 @@ export default function CloudSyncProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      unsyncedCount,
-      syncErrorCount,
       backupError,
       isSyncing,
       syncMessage,
@@ -158,16 +141,7 @@ export default function CloudSyncProvider({ children }) {
       syncSpeedMessage,
       syncNow: syncAssets,
     }),
-    [
-      isAuthenticated,
-      unsyncedCount,
-      syncErrorCount,
-      backupError,
-      isSyncing,
-      syncMessage,
-      syncProgressMessage,
-      syncSpeedMessage,
-    ],
+    [isAuthenticated, backupError, isSyncing, syncMessage, syncProgressMessage, syncSpeedMessage],
   );
 
   return <CloudSyncContext.Provider value={value}>{children}</CloudSyncContext.Provider>;

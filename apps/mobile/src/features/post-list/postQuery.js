@@ -1,12 +1,13 @@
 import { and, asc, count, desc, eq, getTableColumns, isNull, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 
-import { liveAlbumAssetIds, matchingIds } from '@/sync/assetSql';
+import { liveAlbumAssetIds } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import { isCanonicalEdge } from '@/sync/edgeSql';
 import { inJson } from '@/sync/inJson';
+import { matchingIds } from '@/sync/matchingIds';
 import { repostDate } from '@/sync/postsRepository';
-import { readByIds } from '@/sync/readByIds';
+import { readByIdMap } from '@/sync/readByIds';
 
 const p = alias(schema.posts, 'p');
 const e = alias(schema.postAssets, 'e');
@@ -68,14 +69,10 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
       .from(e)
       .where(and(inJson(e.postId, postIds), isNull(e.deletedAt), isCanonicalEdge(schema.postAssets, e, 'postId')))
       .orderBy(e.postId, e.position, e.id);
-    const assets = new Map(
-      (
-        await readByIds(
-          tx,
-          schema.assets,
-          edges.map((edge) => edge.assetId),
-        )
-      ).map((a) => [a.id, a]),
+    const assets = await readByIdMap(
+      tx,
+      schema.assets,
+      edges.map((edge) => edge.assetId),
     );
     const byPost = new Map(postIds.map((id) => [id, []]));
     for (const edge of edges) {

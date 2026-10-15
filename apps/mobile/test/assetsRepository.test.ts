@@ -3,6 +3,8 @@ import { describe, it, expect } from 'vitest';
 import { makeAssetRecord } from './helpers/factory';
 import { makeMeasuredTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
+import * as schema from '../src/sync/db/schema';
+import { readByIds } from '../src/sync/readByIds';
 
 describe('assetsRepository', () => {
   it('counts the photos and videos among the given ids in one statement', async () => {
@@ -21,7 +23,7 @@ describe('assetsRepository', () => {
     expect(await repo.countByMediaType(db, [])).toEqual({ photo: 0, video: 0 });
   });
 
-  it('walks the unsynced assets by id and counts them, and the failed ones, through the partial indexes', async () => {
+  it('snapshots the ids to upload and counts them, and the failed ones, in one statement through the partial indexes', async () => {
     const { db, measure } = makeMeasuredTestDb();
     await repo.createAssets(
       db,
@@ -30,15 +32,18 @@ describe('assetsRepository', () => {
       ),
     );
     await repo.setSyncError(db, ['a4'], 'failed');
-    let work = await measure(async () => expect(await repo.countUnsynced(db)).toBe(2)); // a0, a2
-    expect(work.plans[0]).toMatch(/assets_unsynced_idx/);
-    const first = await repo.readUnsynced(db, { afterId: null, limit: 1 });
-    expect(first.map((a) => a.id)).toEqual(['a0']);
-    work = await measure(async () =>
-      expect((await repo.readUnsynced(db, { afterId: 'a0', limit: 50 })).map((a) => a.id)).toEqual(['a2']),
-    );
-    expect(work.plans[0]).toMatch(/assets_unsynced_idx/);
-    expect(await repo.countSyncErrors(db)).toBe(1);
+    let ids: string[] = [];
+    let work = await measure(async () => (ids = await repo.readUnsyncedIds(db)));
+    expect(ids).toEqual(['a0', 'a2']); // a4 failed, a6 deleted, the odd ones synced
+    expect(work.plans.join()).toMatch(/assets_unsynced_idx/);
+    const rows = await readByIds(db, schema.assets, ['a0', 'a1', 'a4', 'a6']);
+    expect(rows.filter(repo.isUnsynced).map((a) => a.id)).toEqual(['a0']); // the same rule in JS
+    let counts;
+    work = await measure(async () => (counts = await repo.readBackupCounts(db)));
+    expect(counts).toEqual({ unsyncedCount: 2, syncErrorCount: 1 });
+    expect(work.statements).toBe(1);
+    expect(work.plans.join()).toMatch(/assets_unsynced_idx/);
+    expect(work.plans.join()).toMatch(/assets_sync_error_idx/);
     const errors = await repo.readSyncErrors(db, { limit: 10 });
     expect(errors.count).toBe(1);
     expect(errors.rows.map((a) => a.syncError)).toEqual(['failed']);

@@ -28,11 +28,11 @@ describe('the sortable grid’s pending moves', () => {
     expect(ids(applyPendingMoves(rows, [{ assetId: 'b', afterId: 'x' }]))).toBe('abcd');
   });
 
-  it('drops a move on the first rows update after its write, keeping unwritten ones', () => {
-    const written = { assetId: 'd', afterId: 'a', rowsWhenWritten: rows };
+  it('drops a move once rows read after its write land, not rows read before it', () => {
+    const written = { assetId: 'd', afterId: 'a', writtenAt: 5 };
     const unwritten = { assetId: 'b', afterId: null };
-    expect(dropLandedMoves([written, unwritten], rows)).toEqual([written, unwritten]); // the re-read hasn't landed
-    const reread = [...rows];
-    expect(dropLandedMoves([written, unwritten], reread)).toEqual([unwritten]);
+    expect(dropLandedMoves([written, unwritten], 4)).toEqual([written, unwritten]); // read before the write committed
+    expect(dropLandedMoves([written, unwritten], 5)).toEqual([unwritten]);
+    expect(dropLandedMoves([written, unwritten], 9)).toEqual([unwritten]);
   });
 });

@@ -8,23 +8,19 @@ import { getDb, schema } from '@/sync/db/client';
 import { readByIds } from '@/sync/readByIds';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
-import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
-import postSchema from '@/utils/posts/postSchema';
 
 // A new post, seeded once from the route: the assets to post (`assetIds`, in that order), a text, or
 // the post to repost (`rePostId`: its text and assets, as fresh post assets).
 export default function AddPostScreen({ route, navigation }) {
   const { rePostId } = route.params ?? {};
   const { addPost, updatePost } = usePosts();
-  const [post, setPost] = useState(null);
+  const [seed, setSeed] = useState(null);
 
   useEffect(() => {
-    readSeed(getDb(), route.params ?? {}).then(setPost);
+    readSeed(getDb(), route.params ?? {}).then(setSeed);
   }, [route.params]);
 
-  const data = post && { text: post.text, assetRefs: postAssetsToAssetRefs(post.postAssets), postedAt: post.postedAt };
-
-  async function handleAddPost() {
+  async function handleAddPost(data) {
     try {
       await addPost({ ...data, rePostId: rePostId ?? null });
       if (rePostId) await updatePost(rePostId, { hasBeenReposted: true });
@@ -34,20 +30,9 @@ export default function AddPostScreen({ route, navigation }) {
     }
   }
 
-  function canAddPost() {
-    try {
-      postSchema.validateSync(data);
-      return true;
-    } catch (_e) {
-      return false;
-    }
-  }
+  if (!seed) return null;
 
-  if (!post) return null;
-
-  return (
-    <PostEditor post={post} onChange={setPost} navigation={navigation} onSave={handleAddPost} canSave={canAddPost()} />
-  );
+  return <PostEditor post={seed} navigation={navigation} onSave={handleAddPost} />;
 }
 
 async function readSeed(db, { rePostId, assetIds, text }) {

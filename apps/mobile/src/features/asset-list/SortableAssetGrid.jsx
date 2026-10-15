@@ -9,6 +9,8 @@ import dropLandedMoves from './dropLandedMoves';
 import useAssetDragReorder from './useAssetDragReorder';
 import useAssetDragSelect from './useAssetDragSelect';
 
+import { getDb } from '@/sync/db/client';
+
 // Non-virtualized asset grid used by the album Assets tab. Unlike the virtualized AssetList
 // (library / all-assets view), every cell is absolutely positioned so it can be dragged and
 // reflowed for Apple Photos-style reordering. It renders every loaded row, so memory is what was
@@ -17,7 +19,7 @@ const NO_MOVES = [];
 
 export default function SortableAssetGrid({
   rows,
-  count,
+  rowsReadAt,
   loadMore,
   renderListItem,
   paddingTop = 0,
@@ -35,22 +37,20 @@ export default function SortableAssetGrid({
 
   const scrollRef = useAnimatedRef();
   const scrollY = useSharedValue(0);
-  // Within two screens of the end: the next page, once per content height and count (not on every
-  // scroll frame), so a no-op call is asked again once a page lands or the album grows.
-  const loadMoreAt = useSharedValue({ height: -1, count: -1 });
-  const scrollHandler = useAnimatedScrollHandler(
-    (event) => {
-      scrollY.value = event.contentOffset.y;
-      const { contentOffset, layoutMeasurement, contentSize } = event;
-      const isNearEnd = contentOffset.y + layoutMeasurement.height * 3 >= contentSize.height;
-      const isAsked = loadMoreAt.value.height === contentSize.height && loadMoreAt.value.count === count;
-      if (isNearEnd && !isAsked) {
-        loadMoreAt.value = { height: contentSize.height, count };
-        runOnJS(loadMore)();
-      }
-    },
-    [loadMore, count],
-  );
+  // Within two screens of the end: ask for the next page on arriving there and again whenever the
+  // content grows while still there, not on every scroll frame. usePagedQuery keeps an ask until more
+  // rows can show, so none is lost.
+  const askedAtHeight = useSharedValue(-1);
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y;
+    const { contentOffset, layoutMeasurement, contentSize } = event;
+    if (contentOffset.y + layoutMeasurement.height * 3 < contentSize.height) {
+      askedAtHeight.value = -1;
+    } else if (askedAtHeight.value !== contentSize.height) {
+      askedAtHeight.value = contentSize.height;
+      runOnJS(loadMore)();
+    }
+  });
 
   // Reorder animation state (shared with the cells + the reorder gesture hook).
   const positions = useSharedValue({});
@@ -63,15 +63,18 @@ export default function SortableAssetGrid({
   // write is re-read after it, and the rows until then would spring the cells back and let the next
   // drag lift the wrong cell. While a drag runs, the gesture owns the slots; rows arriving meanwhile
   // apply after it.
-  const [isDragging, setIsDragging] = useState(false);
   const [pendingMoves, setPendingMoves] = useState(NO_MOVES);
-  const rowsRef = useRef(rows);
-  rowsRef.current = rows;
-  const ordered = useMemo(() => rows && applyPendingMoves(rows, pendingMoves), [rows, pendingMoves]);
-  const slots = useMemo(() => Object.fromEntries((ordered ?? []).map((asset, slot) => [asset.id, slot])), [ordered]);
+  const isDraggingRef = useRef(false);
+  const sentOrderRef = useRef(null);
+  const landed = dropLandedMoves(pendingMoves, rowsReadAt);
+  const moves = landed.length === pendingMoves.length ? pendingMoves : landed;
+  if (moves !== pendingMoves) setPendingMoves(moves);
+  const ordered = rows && applyPendingMoves(rows, moves);
+  const orderedRef = useRef(ordered);
+  orderedRef.current = ordered;
   useEffect(() => {
-    if (!isDragging) positions.value = slots;
-  }, [slots, isDragging]);
+    if (ordered && !isDraggingRef.current) sendSlots(ordered);
+  }, [ordered]);
 
   // Expose a FlatList-compatible ref so useAssetList / the gesture hooks can call
   // scrollToOffset even though we render a ScrollView underneath.
@@ -122,27 +125,37 @@ export default function SortableAssetGrid({
   );
   const contentContainerStyle = useMemo(() => ({ paddingTop, paddingBottom }), [paddingTop, paddingBottom]);
 
-  const unlanded = dropLandedMoves(pendingMoves, rows);
-  if (unlanded.length !== pendingMoves.length) setPendingMoves(unlanded);
   const gridHeight = Math.ceil((rows?.length ?? 0) / numColumns) * itemSize;
+  const initialSlots = new Map(ordered?.map((asset, slot) => [asset.id, slot]));
+
+  // The slots go to the UI thread only when the order changed, not for every new rows array.
+  function sendSlots(list) {
+    const ids = list.map((asset) => asset.id);
+    const sent = sentOrderRef.current;
+    if (sent && sent.length === ids.length && sent.every((id, slot) => id === ids[slot])) return;
+    sentOrderRef.current = ids;
+    positions.value = Object.fromEntries(ids.map((id, slot) => [id, slot]));
+  }
 
   function handleDragStart() {
-    setIsDragging(true);
+    isDraggingRef.current = true;
   }
 
   // The drop shows at once; its write lands later, or fails and the cells go back.
   async function handleDragEnd(change) {
-    setIsDragging(false);
+    isDraggingRef.current = false;
+    // The gesture moved the slots itself: whatever arrived during the drag applies now.
+    sentOrderRef.current = null;
+    sendSlots(applyPendingMoves(orderedRef.current, change ? [change] : NO_MOVES));
     if (!change) return;
-    setPendingMoves((moves) => [...moves, change]);
+    setPendingMoves((current) => [...current, change]);
     try {
       await onReorder(change);
-      setPendingMoves((moves) =>
-        moves.map((move) => (move === change ? { ...move, rowsWhenWritten: rowsRef.current } : move)),
-      );
+      const writtenAt = getDb().committedWrites();
+      setPendingMoves((current) => current.map((move) => (move === change ? { ...move, writtenAt } : move)));
     } catch (error) {
       console.error('Reorder failed', error);
-      setPendingMoves((moves) => moves.filter((move) => move !== change));
+      setPendingMoves((current) => current.filter((move) => move !== change));
       Alert.alert("Couldn't move the photo", 'The drop was undone.');
     }
   }
@@ -171,7 +184,7 @@ export default function SortableAssetGrid({
                 key={asset.id}
                 asset={asset}
                 renderCell={renderListItem}
-                initialSlot={slots[asset.id]}
+                initialSlot={initialSlots.get(asset.id)}
                 itemSize={itemSize}
                 numColumns={numColumns}
                 positions={positions}

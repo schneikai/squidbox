@@ -28,6 +28,7 @@ const ANY_WRITE = /^\s*(?:insert|update|delete|replace)\b/i;
 export function createDb(execute: Execute) {
   let tail: Promise<unknown> = Promise.resolve();
   let written: Set<string> | null = null; // tables written by the unit that holds the queue
+  let committedWrites = 0; // units that changed rows, so far
   const listeners = new Set<TablesChangedListener>();
 
   function queue<T>(work: () => Promise<T>): Promise<T> {
@@ -36,7 +37,10 @@ export function createDb(execute: Execute) {
       const result = await work();
       const tables = written;
       written = null;
-      if (tables.size > 0) for (const listener of listeners) listener(tables);
+      if (tables.size > 0) {
+        committedWrites += 1;
+        for (const listener of listeners) listener(tables);
+      }
       return result;
     });
     tail = unit.catch(() => (written = null));
@@ -56,6 +60,14 @@ export function createDb(execute: Execute) {
   db.transaction = ((work, config) => queue(() => inner.transaction(work, config))) as typeof db.transaction;
 
   return Object.assign(db, {
+    /**
+     * How many units that changed rows have committed. A read that starts at N sees every one of
+     * them; a write has committed by the time this counts it. So rows read at or after the count
+     * noted right after a write show that write.
+     */
+    committedWrites(): number {
+      return committedWrites;
+    },
     onTablesChanged(listener: TablesChangedListener): () => void {
       listeners.add(listener);
       return () => listeners.delete(listener);

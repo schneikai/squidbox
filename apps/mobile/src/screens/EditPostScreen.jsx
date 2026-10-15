@@ -5,8 +5,6 @@ import readPost from '@/features/post-detail/readPost';
 import PostEditor from '@/features/posts/PostEditor';
 import usePosts from '@/features/posts-context/usePosts';
 import { getDb } from '@/sync/db/client';
-import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
-import postSchema from '@/utils/posts/postSchema';
 
 // Edits a post, seeded once from what it is when the screen opens.
 export default function EditPostScreen({ route, navigation }) {
@@ -18,9 +16,7 @@ export default function EditPostScreen({ route, navigation }) {
     readPost(getDb(), postId).then(setPost);
   }, [postId]);
 
-  const data = post && { text: post.text, assetRefs: postAssetsToAssetRefs(post.postAssets), postedAt: post.postedAt };
-
-  async function handleUpdatePost() {
+  async function handleUpdatePost(data) {
     try {
       await updatePost(postId, data);
       navigation.goBack();
@@ -29,25 +25,7 @@ export default function EditPostScreen({ route, navigation }) {
     }
   }
 
-  function canUpdatePost() {
-    try {
-      postSchema.validateSync(data);
-      return true;
-    } catch (_e) {
-      return false;
-    }
-  }
-
   if (!post) return null;
 
-  return (
-    <PostEditor
-      post={post}
-      onChange={setPost}
-      navigation={navigation}
-      onSave={handleUpdatePost}
-      canSave={canUpdatePost()}
-      title="Edit Post"
-    />
-  );
+  return <PostEditor post={post} navigation={navigation} onSave={handleUpdatePost} title="Edit Post" />;
 }

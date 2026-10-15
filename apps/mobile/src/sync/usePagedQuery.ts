@@ -1,8 +1,8 @@
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import type { AppDb } from './db/driver';
-import { useLiveQuery } from './useLiveQuery';
+import { useLiveQueryState } from './useLiveQuery';
 
 export interface PagedQuery<R> {
   descriptor?: unknown; // what the query shows, as a plain object: a change starts at the first page
@@ -28,10 +28,33 @@ export function nextLimit(limit: number): number {
 /**
  * Whether a bigger page would show more rows. Only the result read for this descriptor and limit can
  * tell: while a load-more or a new descriptor's first read is in flight, the previous result is still
- * shown, so repeated onEndReached or onScroll calls are no-ops until the new one lands.
+ * shown.
  */
 export function hasMore<R>(result: PagedResult<R> | undefined, key: string | undefined, limit: number): boolean {
   return !!result && result.key === key && result.limit === limit && result.count > limit;
+}
+
+export interface Page {
+  key: string | undefined; // the descriptor, as JSON
+  limit: number;
+  keepFor: string | null; // the descriptor key that keeps this limit (keepLimit)
+  wantsMore: boolean; // a load-more is waiting for the current result
+}
+
+/**
+ * A new descriptor starts again at `pageSize` with no load-more waiting, unless it is the one
+ * keepLimit named: that one keeps the limit and a waiting load-more (the grid stays where it is).
+ */
+export function pageForKey(page: Page, key: string | undefined, pageSize: number): Page {
+  if (page.key === key) return page;
+  const isKept = page.keepFor === key;
+  return { key, limit: isKept ? page.limit : pageSize, keepFor: null, wantsMore: isKept && page.wantsMore };
+}
+
+/** A waiting load-more grows the limit once the current result shows more rows. */
+export function pageAfterResult<R>(page: Page, result: PagedResult<R> | undefined): Page {
+  if (!page.wantsMore || !hasMore(result, page.key, page.limit)) return page;
+  return { ...page, limit: nextLimit(page.limit), wantsMore: false };
 }
 
 /**
@@ -39,30 +62,29 @@ export function hasMore<R>(result: PagedResult<R> | undefined, key: string | und
  * limit. The offset is always 0: the first page, a load-more and the refresh after a write are the
  * same read, so the database decides the order and nothing is appended. A new descriptor (a sort,
  * filter or search) starts again at `pageSize`, in the same render, so nothing is read at the old
- * depth; `keepLimit()` right before a descriptor change keeps the depth across it instead.
+ * depth; `keepLimit(nextDescriptor)` right before switching to that descriptor keeps the depth.
+ * `loadMore` is never lost: asked while a read is in flight or with nothing left, it waits and grows
+ * the limit once the current result shows more rows (a new descriptor forgets it). `readAt` says how
+ * fresh the rows are (see useLiveQueryState).
  */
 export function usePagedQuery<R>(query: PagedQuery<R>, pageSize: number) {
   const key = JSON.stringify(query.descriptor);
-  const [page, setPage] = useState({ key, limit: pageSize, keep: false });
-  let limit = page.limit;
-  if (page.key !== key) {
-    limit = page.keep ? page.limit : pageSize;
-    setPage({ key, limit, keep: false });
-  }
-  const result = useLiveQuery<PagedResult<R>>(
+  const [page, setPage] = useState<Page>({ key, limit: pageSize, keepFor: null, wantsMore: false });
+  const current = pageForKey(page, key, pageSize);
+  const { limit } = current;
+  const { data: result, readAt } = useLiveQueryState<PagedResult<R>>(
     async (db) => ({ ...(await query.read(db, { limit })), limit, key }),
     query.tables,
     [key, limit],
   );
+  const next = pageAfterResult(current, result);
+  if (next !== page) setPage(next);
 
-  // Stable, so a scroll handler can hold it: it reads the latest state through the ref.
-  const latest = useRef({ key, limit, canLoadMore: false });
-  latest.current = { key, limit, canLoadMore: hasMore(result, key, limit) };
-  const loadMore = useCallback(() => {
-    const { key: current, limit: loaded, canLoadMore } = latest.current;
-    if (canLoadMore) setPage({ key: current, limit: nextLimit(loaded), keep: false });
-  }, []);
-  const keepLimit = useCallback(() => setPage((current) => ({ ...current, keep: true })), []);
+  const loadMore = useCallback(() => setPage((state) => (state.wantsMore ? state : { ...state, wantsMore: true })), []);
+  const keepLimit = useCallback(
+    (nextDescriptor: unknown) => setPage((state) => ({ ...state, keepFor: JSON.stringify(nextDescriptor) })),
+    [],
+  );
 
-  return { rows: result?.rows, count: result?.count, loadMore, keepLimit };
+  return { rows: result?.rows, count: result?.count, readAt, loadMore, keepLimit };
 }
