@@ -5,11 +5,6 @@ when the owner defers something, or when an idea comes up. Remove an entry once 
 
 ## Bugs
 
-### [ ] AI chat corrections misbehave
-
-Asking for corrections sometimes returns a single post instead of variations, and replies sometimes
-contain raw markup such as JS array notation.
-
 ### [ ] Drag-select in the system photo picker moves the screen sideways
 
 In the system picker (camera roll), tap-and-drag to select makes the whole screen move left and

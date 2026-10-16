@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useCallback, useState, useTransition } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
@@ -10,7 +9,8 @@ import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import { MODEL_STORAGE_KEY, DEFAULT_MODEL } from '@/features/ai-suggestions/aiSuggestionsStorage';
+import { DEFAULT_MODEL } from '@/features/ai-suggestions/aiSuggestionsStorage';
+import resolveModel from '@/features/ai-suggestions/resolveModel';
 import confirmSignOutAsync from '@/features/cloud/confirmSignOutAsync';
 import useCloud from '@/features/cloud/useCloud';
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
@@ -41,13 +41,9 @@ export default function SettingsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      async function loadAiSettings() {
-        try {
-          const model = await AsyncStorage.getItem(MODEL_STORAGE_KEY);
-          if (model) setAiModel(model);
-        } catch {}
-      }
-      loadAiSettings();
+      resolveModel()
+        .then(setAiModel)
+        .catch(() => {});
     }, []),
   );
 

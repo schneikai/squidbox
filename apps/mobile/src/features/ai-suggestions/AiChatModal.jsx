@@ -22,7 +22,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ModelSelectorButton from './ModelSelectorButton';
 import {
   CHAT_STORAGE_KEY,
-  MODEL_STORAGE_KEY,
   PROMPT_STORAGE_KEY,
   SYSTEM_PROMPT_STORAGE_KEY,
   VARIATION_PROMPT_STORAGE_KEY,
@@ -31,6 +30,10 @@ import {
   DEFAULT_SYSTEM_PROMPT,
   DEFAULT_VARIATION_PROMPT,
 } from './aiSuggestionsStorage';
+import readChatHistory from './readChatHistory';
+import resolveModel from './resolveModel';
+import sampleReferencePosts from './sampleReferencePosts';
+import saveChatHistory from './saveChatHistory';
 import sendAiMessageAsync from './sendAiMessageAsync';
 
 import Icon from '@/components/Icon';
@@ -44,9 +47,18 @@ import { colors, radii, scale } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { readPostTexts } from '@/sync/postsRepository';
 
+// Reads the posts itself rather than using state, so a chat started before they loaded still gets a sample.
+async function drawReferencePosts(includeReference) {
+  if (!includeReference) return [];
+  return sampleReferencePosts(await readPostTexts(getDb()));
+}
+
 export default function AiChatModal({ visible, onClose, onSelect, existingText }) {
   const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState([]);
+  // Drawn when the chat starts and stored with it, so the system prompt stays the same between turns
+  // (prompt caching). [] = the user opted out; null = not drawn yet.
+  const [referencePosts, setReferencePosts] = useState(null);
   const [inputText, setInputText] = useState('');
   const [defaultPrompt, setDefaultPrompt] = useState(DEFAULT_PROMPT);
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
@@ -104,21 +116,21 @@ export default function AiChatModal({ visible, onClose, onSelect, existingText }
 
   async function loadSettings() {
     try {
-      const [history, model, prompt, sysPrompt, variationPrompt] = await Promise.all([
-        AsyncStorage.getItem(CHAT_STORAGE_KEY),
-        AsyncStorage.getItem(MODEL_STORAGE_KEY),
+      const [chat, resolvedModel, prompt, sysPrompt, variationPrompt] = await Promise.all([
+        readChatHistory(),
+        resolveModel(),
         AsyncStorage.getItem(PROMPT_STORAGE_KEY),
         AsyncStorage.getItem(SYSTEM_PROMPT_STORAGE_KEY),
         AsyncStorage.getItem(VARIATION_PROMPT_STORAGE_KEY),
       ]);
 
-      const msgs = history ? JSON.parse(history) : [];
+      const msgs = chat.messages;
       const resolvedPrompt = prompt ?? DEFAULT_PROMPT;
       const resolvedVariationPrompt = variationPrompt ?? DEFAULT_VARIATION_PROMPT;
-      const resolvedModel = model ?? DEFAULT_MODEL;
       const resolvedSystemPrompt = sysPrompt ?? DEFAULT_SYSTEM_PROMPT;
 
       setMessages(msgs);
+      setReferencePosts(chat.referencePosts);
       setDefaultPrompt(resolvedPrompt);
       setSystemPrompt(resolvedSystemPrompt);
       setSelectedModel(resolvedModel);
@@ -132,13 +144,14 @@ export default function AiChatModal({ visible, onClose, onSelect, existingText }
       }
     } catch {
       setMessages([]);
+      setReferencePosts(null);
       setInputText(DEFAULT_PROMPT);
     }
   }
 
-  async function saveHistory(msgs) {
+  async function saveHistory(msgs, chatReferencePosts) {
     try {
-      await AsyncStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(msgs));
+      await saveChatHistory(msgs, chatReferencePosts);
     } catch {
       // non-critical
     }
@@ -158,18 +171,17 @@ export default function AiChatModal({ visible, onClose, onSelect, existingText }
 
     startMessageTransition(async () => {
       try {
-        const contextPosts = includeReference ? recentPostTexts : [];
-        const suggestions = await sendAiMessageAsync(updatedMessages, contextPosts, selectedModel, systemPrompt);
-        const assistantMessage = {
-          role: 'assistant',
-          content: JSON.stringify(suggestions),
-        };
-        const finalMessages = [...updatedMessages, assistantMessage];
+        const chatReferencePosts =
+          currentMessages.length > 0 && referencePosts ? referencePosts : await drawReferencePosts(includeReference);
+        const variations = await sendAiMessageAsync(updatedMessages, chatReferencePosts, selectedModel, systemPrompt);
+        const finalMessages = [...updatedMessages, { role: 'assistant', variations }];
         setMessages(finalMessages);
-        await saveHistory(finalMessages);
+        setReferencePosts(chatReferencePosts);
+        await saveHistory(finalMessages, chatReferencePosts);
       } catch (error) {
         Alert.alert('Error', error.message);
         setMessages(currentMessages);
+        setInputText((current) => current || userText);
       }
     });
   }
@@ -183,6 +195,7 @@ export default function AiChatModal({ visible, onClose, onSelect, existingText }
         onPress: async () => {
           await AsyncStorage.removeItem(CHAT_STORAGE_KEY);
           setMessages([]);
+          setReferencePosts(null);
           setInputText(defaultPrompt);
         },
       },
@@ -225,18 +238,11 @@ export default function AiChatModal({ visible, onClose, onSelect, existingText }
       );
     }
 
-    let suggestions = [];
-    try {
-      suggestions = JSON.parse(item.content);
-    } catch {
-      suggestions = [item.content];
-    }
-
     return (
       <View style={styles.assistantBubble}>
-        {suggestions.map((suggestion, idx) => {
+        {item.variations.map((suggestion, idx) => {
           const key = `${index}-${idx}`;
-          const isLast = idx === suggestions.length - 1;
+          const isLast = idx === item.variations.length - 1;
           return (
             <View key={key} style={[styles.suggestionRow, !isLast && styles.suggestionRowDivider]}>
               <Text style={styles.suggestionText}>{suggestion}</Text>
@@ -300,8 +306,8 @@ export default function AiChatModal({ visible, onClose, onSelect, existingText }
                 centerSlot="Style Reference"
               />
               <Text style={styles.refModalSubtitle}>
-                A random selection from your {recentPostTexts.length} past posts is used on each generation to match
-                your tone and keep ideas fresh.
+                A random selection from your {recentPostTexts.length} past posts is used in each new chat to match your
+                tone and keep ideas fresh.
               </Text>
               <FlatList
                 data={recentPostTexts}

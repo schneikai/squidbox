@@ -3,6 +3,8 @@ import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { DEFAULT_MODEL, MODEL_STORAGE_KEY } from './aiSuggestionsStorage';
+import isSupportedModel from './isSupportedModel';
+import resolveModel from './resolveModel';
 
 import EmptyState from '@/components/EmptyState';
 import Icon from '@/components/Icon';
@@ -10,18 +12,6 @@ import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import SearchInput from '@/components/SearchInput';
 import { colors, radii, scale, shadows, typography } from '@/styles/designTokens';
-
-const MODEL_ID_BLOCKLIST = [
-  'whisper',
-  'tts',
-  'dall-e',
-  'davinci',
-  'babbage',
-  'curie',
-  'ada',
-  'embedding',
-  'moderation',
-];
 
 /**
  * Self-contained model selector. Renders a tappable trigger (model name + chevron)
@@ -39,9 +29,7 @@ const ModelSelectorButton = forwardRef(function ModelSelectorButton({ onChange }
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    AsyncStorage.getItem(MODEL_STORAGE_KEY).then((m) => {
-      if (m) setSelectedModel(m);
-    });
+    resolveModel().then(setSelectedModel);
   }, []);
 
   async function fetchAvailableModels() {
@@ -55,7 +43,7 @@ const ModelSelectorButton = forwardRef(function ModelSelectorButton({ onChange }
       const data = await res.json();
       const models = (data.data ?? [])
         .map((m) => m.id)
-        .filter((id) => !MODEL_ID_BLOCKLIST.some((blocked) => id.includes(blocked)))
+        .filter(isSupportedModel)
         .sort();
       setAvailableModels(models);
     } catch {

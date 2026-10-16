@@ -21,11 +21,12 @@ import ModelSelectorButton from '@/features/ai-suggestions/ModelSelectorButton';
 import {
   DEFAULT_MODEL,
   DEFAULT_RANDOM_TWEETS_PROMPT,
-  MODEL_STORAGE_KEY,
   RANDOM_TWEETS_PROMPT_STORAGE_KEY,
   SYSTEM_PROMPT_STORAGE_KEY,
   DEFAULT_SYSTEM_PROMPT,
 } from '@/features/ai-suggestions/aiSuggestionsStorage';
+import resolveModel from '@/features/ai-suggestions/resolveModel';
+import sampleReferencePosts from '@/features/ai-suggestions/sampleReferencePosts';
 import sendAiMessageAsync from '@/features/ai-suggestions/sendAiMessageAsync';
 import assetQuery from '@/features/asset-list/assetQuery';
 import { colors, motion, radii, scale, typography } from '@/styles/designTokens';
@@ -37,7 +38,6 @@ import { MEDIA_TYPES } from '@/utils/assets/constants';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
 const TWEET_BATCH_SIZE = 10;
-const BATCH_INSTRUCTION = `Generate exactly ${TWEET_BATCH_SIZE} tweets and return them as a raw JSON array of strings. Nothing else.`;
 const SWIPE_THRESHOLD = 50;
 const PROMPT_FOCUS_DELAY_MS = 100;
 const POOL_SIZE = 50;
@@ -85,9 +85,7 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
       fetchTextBatch().then(setTextPool);
     }
     if (visible) {
-      AsyncStorage.getItem(MODEL_STORAGE_KEY).then((m) => {
-        if (m) setSelectedModel(m);
-      });
+      resolveModel().then(setSelectedModel);
     }
     if (!visible) {
       setTextPool([]);
@@ -176,21 +174,20 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
   async function fetchTextBatch() {
     setIsLoading(true);
     try {
-      const [storedPrompt, storedModel, storedSystemPrompt, recentPostTexts] = await Promise.all([
+      const [storedPrompt, model, storedSystemPrompt, recentPostTexts] = await Promise.all([
         AsyncStorage.getItem(RANDOM_TWEETS_PROMPT_STORAGE_KEY),
-        AsyncStorage.getItem(MODEL_STORAGE_KEY),
+        resolveModel(),
         AsyncStorage.getItem(SYSTEM_PROMPT_STORAGE_KEY),
         readPostTexts(getDb()),
       ]);
       const stylePrompt = (storedPrompt ?? DEFAULT_RANDOM_TWEETS_PROMPT).trim();
-      const model = storedModel ?? DEFAULT_MODEL;
       const systemPrompt = storedSystemPrompt ?? DEFAULT_SYSTEM_PROMPT;
-      const fullPrompt = `${BATCH_INSTRUCTION}\n\n${stylePrompt}`;
       return await sendAiMessageAsync(
-        [{ role: 'user', content: fullPrompt }],
-        recentPostTexts,
+        [{ role: 'user', content: stylePrompt }],
+        sampleReferencePosts(recentPostTexts),
         model,
         systemPrompt || null,
+        { batchSize: TWEET_BATCH_SIZE },
       );
     } catch (e) {
       console.warn('Failed to fetch text suggestions:', e.message);
