@@ -26,7 +26,7 @@ export default function LoginForm({ ownerEmail }) {
       try {
         await loginAsync(email, password);
       } catch (error) {
-        Alert.alert('Authentication failed!', error.message);
+        Alert.alert("Couldn't sign in", error.message);
       }
     });
   }

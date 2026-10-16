@@ -22,7 +22,7 @@ vi.mock('../src/sync/db/client', () => ({
   },
 }));
 
-const { listDatabaseNames } = await import('../src/library/fs.web');
+const { libraryLimitMessage, listDatabaseNames } = await import('../src/library/fs.web');
 
 describe('listDatabaseNames (web probe)', () => {
   beforeEach(() => {
@@ -41,5 +41,20 @@ describe('listDatabaseNames (web probe)', () => {
     expect(await listDatabaseNames()).toEqual([]);
     expect(calls).toEqual(['open squidbox.db', 'close squidbox.db', 'delete squidbox.db']);
     expect(files.size).toBe(0);
+  });
+});
+
+// The messages a full OPFS pool gives, as headless Chromium showed them through expo-sqlite's worker.
+describe('libraryLimitMessage (web)', () => {
+  it('recognizes a database file or a journal that got no slot', () => {
+    expect(libraryLimitMessage(new Error('Error: sqlite3_open_v2'))).toMatch(/^This browser/);
+    expect(libraryLimitMessage(new Error('Error: Error code 14: unable to open database file'))).toMatch(
+      /^This browser/,
+    );
+  });
+
+  it('leaves any other failure alone', () => {
+    expect(libraryLimitMessage(new Error('Error: Error code 1: no such table: assets'))).toBeNull();
+    expect(libraryLimitMessage('sqlite3_open_v2')).toBeNull();
   });
 });

@@ -17,10 +17,15 @@ export async function openLibrary(library: Library): Promise<void> {
   if (current) throw new Error(`Library ${current.id} is still open`);
   const paths = libraryPaths(library.id);
   const db = await openAppDb(paths.dbName);
-  // A new database learns its owner here; an existing one keeps what it recorded itself.
-  if (!(await getOwner(db))) await setOwner(db, library.owner);
-  // Each open (a launch, a switch) gives the failed pushes another try (sync-design §6).
-  await retryFailures(db);
+  try {
+    // A new database learns its owner here; an existing one keeps what it recorded itself.
+    if (!(await getOwner(db))) await setOwner(db, library.owner);
+    // Each open (a launch, a switch) gives the failed pushes another try (sync-design §6).
+    await retryFailures(db);
+  } catch (error) {
+    await db.close().catch(() => {}); // not published yet: closeLibrary wouldn't see it
+    throw error;
+  }
   setOpenDb(db);
   current = { id: library.id, ...paths };
 }

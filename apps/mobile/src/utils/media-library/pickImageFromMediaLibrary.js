@@ -18,6 +18,9 @@ export default async function pickImageFromMediaLibrary({ onOpen } = {}) {
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images', 'videos'],
     allowsMultipleSelection: true,
+    // The default page sheet shifted sideways during the picker's drag-to-select; full screen has no
+    // sheet to move.
+    presentationStyle: ImagePicker.UIImagePickerPresentationStyle.FULL_SCREEN,
   });
 
   if (result.canceled) return [];

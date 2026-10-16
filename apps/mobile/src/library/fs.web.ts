@@ -22,6 +22,18 @@ export async function listDatabaseNames(): Promise<string[]> {
   return [];
 }
 
+// wa-sqlite's OPFS pool has a fixed number of files (library-ownership plan §1.8); with all taken it
+// reports SQLITE_CANTOPEN, which expo-sqlite passes on as a message only: `sqlite3_open_v2` when the
+// database file itself gets none, "Error code 14" when a write's journal gets none.
+const NO_SLOT = /sqlite3_open_v2|Error code 14:/;
+
+// What to tell the user when a new library found no free file. Nothing in the app removes a parked
+// library, so the way out is one the browser already holds, or clearing the site's data.
+export function libraryLimitMessage(error: unknown): string | null {
+  if (!(error instanceof Error && NO_SLOT.test(error.message))) return null;
+  return "This browser can't hold more libraries. Sign in to an account used here before, or clear this site's data (unsynced changes are lost).";
+}
+
 // Web keeps no files: thumbnails are presigned URLs (utils/assets/thumbnails/webThumbnailUrls.js),
 // and an asset's file exists only in the cloud.
 export async function listFiles(): Promise<Set<string>> {

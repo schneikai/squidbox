@@ -15,6 +15,7 @@ import { getCursor, getOwner, isFirstSyncDone, markFirstSyncDone, setCursor, set
 // session and the library list in AsyncStorage.
 const stores = new Map<string, AppDb>();
 const failing = new Set<string>();
+const full = new Set<string>(); // the browser has no room for these (web's fixed pool of files)
 const deleted: string[] = [];
 const storage = new Map<string, string>();
 const store: { session: Session | null } = { session: null };
@@ -23,6 +24,7 @@ vi.mock('../src/sync/db/client', () => {
   let open: AppDb | null = null;
   const openAppDb = async (name: string) => {
     if (failing.has(name)) throw new Error(`cannot open ${name}`);
+    if (full.has(name)) throw new Error(`no room for ${name}`);
     if (!stores.has(name)) stores.set(name, makeTestDb());
     return Object.assign(Object.create(stores.get(name)!), { close: async () => {} });
   };
@@ -64,6 +66,7 @@ vi.mock('../src/library/fs', () => ({
   removeLibraryFolders: async () => {},
   fileExists: async () => false,
   moveFile: async () => {},
+  libraryLimitMessage: (error: Error) => (error.message.startsWith('no room') ? 'No more libraries' : null),
 }));
 const ids = vi.hoisted(() => ({ n: 0 }));
 vi.mock('../src/utils/getNewItemId', () => ({ default: () => `id-${++ids.n}` }));
@@ -107,6 +110,7 @@ describe('switching libraries with the session', () => {
     if (openLibraryId()) await closeLibrary();
     stores.clear();
     failing.clear();
+    full.clear();
     deleted.length = 0;
     storage.clear();
     store.session = null;
@@ -288,6 +292,19 @@ describe('switching libraries with the session', () => {
     expect(store.session).toEqual(sessionOf('A'));
     expect(getRegistry().libraries.map(({ id }) => id)).toEqual([aId]);
     expect(deleted).toEqual(['library-id-2.db']);
+  });
+
+  it('a browser with no room for B says so, leaving A open', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(sessionOf('A'));
+    const aId = getLibrary().id;
+    full.add('library-id-2.db');
+
+    const error = await signIn(sessionOf('B')).catch((e) => e);
+
+    expect(error.message).toBe('No more libraries');
+    expect(getLibrary().id).toBe(aId);
+    expect(deleted).toEqual(['library-id-2.db']); // its half-made file keeps no slot
   });
 
   it("a failed open of B whose A won't reopen either keeps B's error and leaves no library open", async () => {

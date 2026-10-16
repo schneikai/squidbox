@@ -5,18 +5,6 @@ when the owner defers something, or when an idea comes up. Remove an entry once 
 
 ## Bugs
 
-### [ ] Drag-select in the system photo picker moves the screen sideways
-
-In the system picker (camera roll), tap-and-drag to select makes the whole screen move left and
-right. The picker is native, so check what the app can influence through its options.
-
-### [ ] The web preview's library limit shows as a generic sign-in failure
-
-The browser holds about three parked libraries (`docs/library-ownership-plan.md` §1.8 promised
-"This browser can't hold more libraries…"); today a fourth sign-in surfaces as `LoginForm`'s
-"Authentication failed!" with "Couldn't create the library: …" (`switchLibrary.ts`). Only matters
-when the web preview signs into several accounts.
-
 ## Features
 
 ### [ ] Drag to reorder albums
@@ -321,6 +309,13 @@ Treat these as exposed and rotate them:
 
 The distribution certificate and both ad hoc profiles expire then, and installed apps stop opening.
 Renew them via the **`/build`** skill (see "expired signing" there) a few weeks ahead.
+
+### [ ] Check drag-select in the camera-roll picker on the phone
+
+Drag-to-select moved the whole screen sideways; the picker now opens full screen
+(`pickImageFromMediaLibrary.js`). Drag across photos from Library "+", an album and the post editor:
+nothing should shift, Cancel should close it, and the app should take taps after it closes (full
+screen hides the screens below; swipe-down no longer closes it). If it still shifts, drop the option.
 
 ### [ ] Check the photo detail view on a device
 

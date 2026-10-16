@@ -32,6 +32,11 @@ export async function createLibraryFolders(library: OpenLibrary): Promise<void> 
   await createAssetThumbnailDirectory(library);
 }
 
+// A new library that found no free database file: web only (fs.web.ts), iOS has no such limit.
+export function libraryLimitMessage(_error: unknown): string | null {
+  return null;
+}
+
 // A removed library's folders and its downloads cache, with everything in them.
 export async function removeLibraryFolders(paths: LibraryPaths): Promise<void> {
   for (const dir of [getAssetFilesDirectory(paths), getAssetThumbnailsDirectory(paths), getDownloadsDirectory(paths)]) {
