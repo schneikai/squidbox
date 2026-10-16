@@ -25,9 +25,11 @@ async function refreshOnceAsync(refreshToken) {
   } catch (error) {
     // Only a definitive "no" from the server ends the session. Network errors and rate limits keep
     // it, so being offline when the access token expires doesn't sign the user out. The session
-    // keeps its owner: the library stays, nothing syncs until the owner signs in again.
-    if ([400, 401, 403].includes(error?.response?.status)) await replaceTokensAsync(refreshToken, null);
-    throw error;
+    // keeps its owner: the library stays, nothing syncs until the owner signs in again. The caller
+    // sees a session change, not a failure (a backup run writes no syncError for it).
+    if (![400, 401, 403].includes(error?.response?.status)) throw error;
+    await replaceTokensAsync(refreshToken, null);
+    throw new SessionChangedError('The server rejected the session');
   }
 }
 

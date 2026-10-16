@@ -54,7 +54,6 @@ const unsynced = and(
   isNull(schema.assets.syncError),
 );
 const failed = and(isNotNull(schema.assets.syncError), isNull(schema.assets.deletedAt));
-const atRisk = and(eq(schema.assets.isSynced, false), isNull(schema.assets.deletedAt));
 
 /** The ids of the assets to upload, in id order: one backup run walks this snapshot. */
 export async function readUnsyncedIds(db: SyncDb): Promise<string[]> {
@@ -71,27 +70,22 @@ export function isUnsynced(asset: { isSynced: boolean; deletedAt: number | null;
   return !asset.isSynced && asset.deletedAt === null && asset.syncError === null;
 }
 
+// Together: the photos not in the cloud (deleted ones not).
 export interface BackupCounts {
   unsyncedCount: number; // waiting for their upload
   syncErrorCount: number; // whose upload failed
-  atRiskCount: number; // not in the cloud at all: both of the above (deleted ones not)
 }
 
-/** How many assets wait for their upload, how many failed, and how many are not in the cloud, in one statement. */
+/** How many assets wait for their upload and how many failed, in one statement. */
 export async function readBackupCounts(db: SyncDb): Promise<BackupCounts> {
   const [row] = await db
     .select({
       unsyncedCount: count(),
       syncErrorCount: sql<number>`(select count(*) from ${schema.assets} where ${failed})`,
-      atRiskCount: sql<number>`(select count(*) from ${schema.assets} where ${atRisk})`,
     })
     .from(schema.assets)
     .where(unsynced);
-  return {
-    unsyncedCount: row?.unsyncedCount ?? 0,
-    syncErrorCount: Number(row?.syncErrorCount ?? 0),
-    atRiskCount: Number(row?.atRiskCount ?? 0),
-  };
+  return { unsyncedCount: row?.unsyncedCount ?? 0, syncErrorCount: Number(row?.syncErrorCount ?? 0) };
 }
 
 export async function countSyncErrors(db: SyncDb): Promise<number> {

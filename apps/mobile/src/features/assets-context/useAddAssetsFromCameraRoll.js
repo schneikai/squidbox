@@ -1,6 +1,7 @@
 import * as MediaLibrary from 'expo-media-library';
 
 import useAssets from '@/features/assets-context/useAssets';
+import { getLibrary, openLibraryId } from '@/library/current';
 import buildAssetAsync from '@/utils/assets/buildAssetAsync';
 import deleteAssetFilesAndThumbnailsAsync from '@/utils/assets/deleteAssetFilesAndThumbnailsAsync';
 import imagePickerMediaTypeToAssetMediaType from '@/utils/assets/imagePickerMediaTypeToAssetMediaType';
@@ -22,24 +23,31 @@ export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFini
         result.isFavorite = assetInfo.isFavorite;
       }
 
+      // The files go into the library open now; the records must too (a sign-in meanwhile would
+      // open another one), else the files are removed again.
+      const library = getLibrary();
       const newAssets = [];
       try {
         for (const result of imagePickerResults) {
-          const newAsset = await buildAssetAsync({
-            mediaLibraryAssetId: result.assetId,
-            sourceFileUri: result.uri,
-            mediaType: imagePickerMediaTypeToAssetMediaType(result.type),
-            fileSize: result.fileSize,
-            width: result.width,
-            height: result.height,
-            duration: result.duration,
-            isFavorite: result.isFavorite,
-          });
+          const newAsset = await buildAssetAsync(
+            {
+              mediaLibraryAssetId: result.assetId,
+              sourceFileUri: result.uri,
+              mediaType: imagePickerMediaTypeToAssetMediaType(result.type),
+              fileSize: result.fileSize,
+              width: result.width,
+              height: result.height,
+              duration: result.duration,
+              isFavorite: result.isFavorite,
+            },
+            library,
+          );
           newAssets.push(newAsset);
           if (onProgress) onProgress((newAssets.length / imagePickerResults.length) * 100);
         }
+        if (openLibraryId() !== library.id) throw new Error('The library changed while the photos were added');
       } catch (e) {
-        await deleteAssetFilesAndThumbnailsAsync(newAssets);
+        await deleteAssetFilesAndThumbnailsAsync(newAssets, library);
         throw e;
       }
 

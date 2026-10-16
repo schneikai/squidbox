@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createPost, makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
 import { libraryPaths } from '../src/library/libraryPaths';
-import { applyMerge, moveMergedFiles, planMerge } from '../src/library/mergeLibrary';
+import { applyMerge, moveMergedFiles, planMerge, type MergePlan } from '../src/library/mergeLibrary';
 import * as repo from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
@@ -13,16 +13,17 @@ import { upsertRows } from '../src/sync/upsertRows';
 import getAssetFileUri from '../src/utils/assets/files/getAssetFileUri';
 import getAssetThumbnailUri from '../src/utils/assets/thumbnails/getAssetThumbnailUri';
 
-// The device's files, by uri, and every move made.
+// The device's files, by uri, and every move made (one that `loses` its file reports no error).
 const files = new Set<string>();
 const moves: string[] = [];
+const lose = new Set<string>();
 vi.mock('expo-file-system/legacy', () => ({ documentDirectory: 'file:///docs/' }));
 vi.mock('../src/library/fs', () => ({
   fileExists: async (uri: string) => files.has(uri),
   moveFile: async (from: string, to: string) => {
     if (!files.has(from) || files.has(to)) throw new Error(`bad move ${from} -> ${to}`);
     files.delete(from);
-    files.add(to);
+    if (!lose.has(from)) files.add(to);
     moves.push(`${from} -> ${to}`);
   },
 }));
@@ -48,7 +49,14 @@ beforeEach(() => {
   target = makeTestDb();
   files.clear();
   moves.length = 0;
+  lose.clear();
 });
+
+// Every source record is in the target or skipped by a rule that leaves nothing behind.
+const nothingLeftToAdd = (plan: MergePlan) =>
+  [plan.assets, plan.albums, plan.posts, plan.albumAssets, plan.postAssets, plan.duplicates, plan.replays].every(
+    (list) => list.length === 0,
+  );
 
 // A photo on the device: its file and thumbnail in the source's folders, never uploaded.
 async function devicePhoto(over: Record<string, unknown> = {}) {
@@ -79,9 +87,9 @@ describe('planMerge + applyMerge', () => {
 
     const plan = await planMerge(source, target, SRC);
     expect([plan.assets.length, plan.albums.length, plan.posts.length]).toEqual([2, 1, 1]);
-    expect(plan).toMatchObject({ alreadyInAccount: 0, cloudOnly: 1 });
+    expect(plan.cloudOnly).toBe(1);
     expect(plan.albumAssets.map((edge) => edge.assetId).sort()).toEqual([a.id, b.id].sort()); // not the deleted one
-    expect(plan.nothingLeftToAdd).toBe(false);
+    expect(nothingLeftToAdd(plan)).toBe(false);
 
     await applyMerge(target, plan);
     expect((await target.select().from(schema.assets)).map((row) => row.id).sort()).toEqual([a.id, b.id].sort());
@@ -93,9 +101,8 @@ describe('planMerge + applyMerge', () => {
 
     // Nothing left to add but the photo that lives elsewhere; the copied ones' files are still here.
     const again = await planMerge(source, target, SRC);
-    expect(again.nothingLeftToAdd).toBe(true);
-    expect([again.assets.length, again.albums.length, again.posts.length]).toEqual([0, 0, 0]);
-    expect(again).toMatchObject({ alreadyInAccount: 2, cloudOnly: 1 });
+    expect(nothingLeftToAdd(again)).toBe(true);
+    expect(again.cloudOnly).toBe(1);
     expect(again.sameIdAssets.map((asset) => asset.id).sort()).toEqual([a.id, b.id].sort());
   });
 
@@ -107,13 +114,13 @@ describe('planMerge + applyMerge', () => {
 
     const plan = await planMerge(source, target, SRC);
     expect(plan.assets).toEqual([]);
-    expect(plan.alreadyInAccount).toBe(1);
+    expect(plan.sameIdAssets.map((asset) => asset.id)).toEqual([shared.id]);
     expect(plan.replays.map((row) => row.recordId)).toEqual([shared.id]);
     await applyMerge(target, plan);
     const [row] = await outbox(target);
     expect(row).toMatchObject({ collection: 'assets', recordId: shared.id, updatedAt: plan.replays[0]!.updatedAt });
     expect(row!.payload).toMatchObject({ notes: 'edited on the device' });
-    expect((await planMerge(source, target, SRC)).nothingLeftToAdd).toBe(true);
+    expect(nothingLeftToAdd(await planMerge(source, target, SRC))).toBe(true);
   });
 
   it('does not replay over a newer pending edit of the target', async () => {
@@ -126,7 +133,7 @@ describe('planMerge + applyMerge', () => {
 
     const plan = await planMerge(source, target, SRC);
     expect(plan.replays).toEqual([]);
-    expect(plan.nothingLeftToAdd).toBe(true);
+    expect(nothingLeftToAdd(plan)).toBe(true);
   });
 
   it('matches a photo the account has from the same camera-roll item: edges re-pointed, favorite OR, notes kept, no file', async () => {
@@ -141,7 +148,7 @@ describe('planMerge + applyMerge', () => {
     await albumEdges.add(source, album.id, [mine.id], newEdgeId);
 
     const plan = await planMerge(source, target, SRC);
-    expect([plan.assets.length, plan.albums.length, plan.alreadyInAccount]).toEqual([0, 1, 1]);
+    expect([plan.assets.length, plan.albums.length]).toEqual([0, 1]);
     expect(plan.duplicates).toEqual([{ id: theirs.id, isFavorite: true, notes: 'theirs\nmine' }]);
     expect(plan.albumAssets.map((edge) => edge.assetId)).toEqual([theirs.id]);
     expect(plan.sameIdAssets).toEqual([]);
@@ -151,7 +158,7 @@ describe('planMerge + applyMerge', () => {
     expect(row).toMatchObject({ id: theirs.id, isFavorite: true, notes: 'theirs\nmine' });
     expect(await moveMergedFiles(plan.sameIdAssets, SRC, TGT)).toBe(0);
     expect(files.has(getAssetFileUri('mine.jpg', SRC))).toBe(true);
-    expect((await planMerge(source, target, SRC)).nothingLeftToAdd).toBe(true);
+    expect(nothingLeftToAdd(await planMerge(source, target, SRC))).toBe(true);
   });
 
   it('keeps same-name albums separate', async () => {
@@ -195,6 +202,14 @@ describe('planMerge + applyMerge', () => {
     expect([a.id, b.id]).toHaveLength(2);
   });
 
+  it('a move whose destination is then missing is an error, so the source is never removed on it', async () => {
+    await devicePhoto({ filename: 'a.jpg', thumbnailFilename: 'at.jpg', mediaLibraryAssetId: 'm-a' });
+    const plan = await planMerge(source, target, SRC);
+    await applyMerge(target, plan);
+    lose.add(getAssetFileUri('a.jpg', SRC));
+    await expect(moveMergedFiles(plan.assets, SRC, TGT)).rejects.toThrow('Could not move');
+  });
+
   it("merges several source photos of one camera-roll item into the account's photo, once", async () => {
     const theirs = await repo.createAsset(target, makeAssetRecord({ mediaLibraryAssetId: 'm-1', notes: null }));
     await devicePhoto({ mediaLibraryAssetId: 'm-1', isFavorite: true, notes: 'first', filename: 'one.jpg' });
@@ -202,11 +217,10 @@ describe('planMerge + applyMerge', () => {
 
     const plan = await planMerge(source, target, SRC);
     expect(plan.duplicates).toEqual([{ id: theirs.id, isFavorite: true, notes: 'first\nsecond' }]);
-    expect(plan.alreadyInAccount).toBe(2);
     await applyMerge(target, plan);
     const [row] = await target.select().from(schema.assets);
     expect(row).toMatchObject({ isFavorite: true, notes: 'first\nsecond' });
-    expect((await planMerge(source, target, SRC)).nothingLeftToAdd).toBe(true);
+    expect(nothingLeftToAdd(await planMerge(source, target, SRC))).toBe(true);
   });
 
   it('a copied photo whose file is on the device is backed up to the account again', async () => {
@@ -237,6 +251,6 @@ describe('planMerge + applyMerge', () => {
     await applyMerge(target, plan);
     const [row] = await outbox(target).then((rows) => rows.filter((r) => r.collection === 'album_assets'));
     expect(row!.payload).toMatchObject({ deletedAt: expect.any(Number) });
-    expect((await planMerge(source, target, SRC)).nothingLeftToAdd).toBe(true);
+    expect(nothingLeftToAdd(await planMerge(source, target, SRC))).toBe(true);
   });
 });

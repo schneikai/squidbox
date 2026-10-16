@@ -12,6 +12,8 @@ import { getCursor, setCursor, patchStatus, appendSyncLog, markFirstSyncDone, cl
 import type { SyncTransport } from './transport';
 import { upsertRows } from './upsertRows';
 
+import SessionChangedError from '@/utils/cloud-api/SessionChangedError';
+
 const PULL_LIMIT = 1000; // server/contract cap
 const PUSH_BATCH = 500; // server caps pushRequest mutations at 500
 // Records per apply transaction (and per bulk-action transaction, see writeInBatches). Each
@@ -268,6 +270,7 @@ export async function resetLocalSync(db: SyncDb, { keepOutbox = false } = {}): P
 const syncFlight = createSingleFlight(() => withSyncRun(runSyncOnce));
 let syncActive = false;
 let stopRequested = false;
+let paused = false;
 
 export function setSyncActive(active: boolean): void {
   syncActive = active;
@@ -281,15 +284,25 @@ export function requestSync(): void {
 // Run `work` with syncing paused: asks a running sync to stop at its next batch and a running
 // backup to stop at its next step, waits for both, and starts no new sync until `work` finishes.
 // Use it for anything that must not interleave with them, like changing the session or the open
-// library.
+// library. A backup must not start meanwhile either (isSyncPaused).
 export function withSyncPaused<T>(work: () => Promise<T>): Promise<T> {
   stopRequested = true;
   return syncFlight.exclusive(async () => {
     stopRequested = false;
     const { stopBackup } = await import('./backupRun'); // it imports requestSync from here
     await stopBackup();
-    return work();
+    paused = true;
+    try {
+      return await work();
+    } finally {
+      paused = false;
+    }
   });
+}
+
+// Whether a withSyncPaused section is running right now.
+export function isSyncPaused(): boolean {
+  return paused;
 }
 
 type SyncWork = (db: SyncDb, transport: SyncTransport, options: SyncRunOptions) => Promise<void>;
@@ -311,7 +324,6 @@ async function withSyncRun(work: SyncWork): Promise<void> {
     await patchStatus(db, { phase: 'idle', lastError: null });
   } catch (err) {
     // A session that changed under the run ended it, like a stop request; that is not an error.
-    const { default: SessionChangedError } = await import('@/utils/cloud-api/SessionChangedError');
     if (err instanceof SessionChangedError) await patchStatus(db, { phase: 'idle' });
     else await patchStatus(db, { phase: 'error', lastError: err instanceof Error ? err.message : String(err) });
   }

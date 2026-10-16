@@ -3,6 +3,7 @@ import { and, inArray, isNull } from 'drizzle-orm';
 import { fileExists, moveFile } from './fs';
 import type { LibraryPaths } from './libraryPaths';
 
+import { chunk } from '@/sync/chunk';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { enqueueMutations, outboxUpdatedAts } from '@/sync/outbox';
@@ -27,11 +28,10 @@ export interface MergePlan {
   replays: OutboxRow[];
   // Source assets the target has by id: their files may still be in the source (moveMergedFiles).
   sameIdAssets: AssetRow[];
-  alreadyInAccount: number; // photos the account has (same id, or the same camera-roll item)
   cloudOnly: number; // photos whose file is in another account's storage: they stay in the source
-  // Every source record is in the target or skipped by a rule that leaves nothing behind.
-  nothingLeftToAdd: boolean;
 }
+
+const FILE_CHECKS = 50; // stat calls in flight at once
 
 const live = <R extends { deletedAt: number | null }>(rows: R[]) => rows.filter((row) => row.deletedAt === null);
 
@@ -89,22 +89,23 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
       .where(and(inArray(schema.assets.mediaLibraryAssetId, mediaIds), isNull(schema.assets.deletedAt)));
     for (const row of rows) targetByMediaId.set(row.mediaLibraryAssetId, row);
   }
+  const withFile = await sourceFilesPresent(
+    sourceAssets.filter((asset) => !targetById.has(asset.id)),
+    sourcePaths,
+  );
   const assets: AssetRow[] = [];
   const sameIdAssets: AssetRow[] = [];
   const merged = new Map<string, { isFavorite: boolean; notes: string | null }>(); // by target asset id
   const matched = new Map<string, AssetRow>(); // the target assets those were merged into
   const assetIdMap = new Map<string, string>(); // source asset id → the id it has in the target
-  let alreadyInAccount = 0;
   let cloudOnly = 0;
   for (const asset of sourceAssets) {
     if (targetById.has(asset.id)) {
       assetIdMap.set(asset.id, asset.id);
       sameIdAssets.push(asset);
-      alreadyInAccount += 1;
       continue;
     }
-    const hasFile = await fileExists(getAssetFileUri(asset.filename, sourcePaths));
-    if (asset.isFileSynced && !hasFile) {
+    if (asset.isFileSynced && !withFile.has(asset.id)) {
       cloudOnly += 1;
       continue;
     }
@@ -112,7 +113,6 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
     if (match) {
       assetIdMap.set(asset.id, match.id);
       matched.set(match.id, match);
-      alreadyInAccount += 1;
       // Several source assets can match one target asset: merge them all into it.
       const sofar = merged.get(match.id) ?? { isFavorite: match.isFavorite, notes: match.notes };
       merged.set(match.id, {
@@ -123,7 +123,7 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
     }
     assetIdMap.set(asset.id, asset.id);
     // A file this device holds is uploaded to the account by its backup, whatever the source said.
-    const flags = hasFile ? { isFileSynced: false, isThumbnailSynced: false, isSynced: false } : {};
+    const flags = withFile.has(asset.id) ? { isFileSynced: false, isThumbnailSynced: false, isSynced: false } : {};
     assets.push({ ...asset, ...flags, syncError: null });
   }
   const duplicates = [...merged]
@@ -210,23 +210,20 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
     'post_assets',
   );
 
-  const nothingLeftToAdd =
-    assets.length + albums.length + posts.length + albumAssets.length + postAssets.length === 0 &&
-    duplicates.length === 0 &&
-    replays.length === 0;
-  return {
-    assets,
-    albums,
-    posts,
-    albumAssets,
-    postAssets,
-    duplicates,
-    replays,
-    sameIdAssets,
-    alreadyInAccount,
-    cloudOnly,
-    nothingLeftToAdd,
-  };
+  return { assets, albums, posts, albumAssets, postAssets, duplicates, replays, sameIdAssets, cloudOnly };
+}
+
+// The ids of the assets whose file is in the source's folder, checked a few at a time.
+async function sourceFilesPresent(assets: AssetRow[], sourcePaths: LibraryPaths): Promise<Set<string>> {
+  const present = new Set<string>();
+  for (const batch of chunk(assets, FILE_CHECKS)) {
+    await Promise.all(
+      batch.map(async (asset) => {
+        if (await fileExists(getAssetFileUri(asset.filename, sourcePaths))) present.add(asset.id);
+      }),
+    );
+  }
+  return present;
 }
 
 function mergedNotes(target: string | null, source: string | null): string | null {
@@ -262,7 +259,8 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<void>
 /**
  * Moves the files and thumbnails of `assets` (source assets the target has by the same id) from
  * the source's folders into the target's, each only when the target lacks it and the source has
- * it, so a second pass moves nothing and deletes nothing. Returns how many files moved.
+ * it, so a second pass moves nothing and deletes nothing. A move whose destination is then missing
+ * throws, so the source is never removed on an unverified move. Returns how many files moved.
  */
 export async function moveMergedFiles(
   assets: { filename: string; thumbnailFilename: string }[],
@@ -282,6 +280,7 @@ export async function moveMergedFiles(
       if (await fileExists(to)) continue;
       if (!(await fileExists(from))) continue;
       await moveFile(from, to);
+      if (!(await fileExists(to))) throw new Error(`Could not move ${from} to ${to}`);
       moved += 1;
     }
   }

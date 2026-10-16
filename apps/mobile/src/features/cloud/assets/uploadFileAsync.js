@@ -24,6 +24,8 @@ export default async function uploadFileAsync(filename, fileUri, identity, { onP
 }
 
 async function doUploadAsync(filename, fileUri, accessToken, { onProgress, signal }) {
+  // A signal aborted before this upload starts (during the token refresh, say) fires no event.
+  if (signal?.aborted) throw new Error('Upload cancelled');
   // Token is passed as a query param because iOS can silently drop Authorization
   // headers on background upload tasks (NSURLSessionUploadTask limitation).
   // The API's authenticate_request supports both header and ?token= param.

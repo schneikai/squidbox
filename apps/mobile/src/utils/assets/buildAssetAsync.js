@@ -9,7 +9,9 @@ import createAssetThumbnail from './thumbnails/createAssetThumbnail';
 import { getLibrary } from '@/library/current';
 import getFileExtension from '@/utils/files/getFileExtension';
 
-export default async function buildAssetAsync(assetData = {}) {
+// `library`: the open one, whose folders the file and thumbnail go into (a caller adding several
+// assets captures it once, so they all land in the same library).
+export default async function buildAssetAsync(assetData = {}, library = getLibrary()) {
   const newAsset = { ...assetData };
   const sourceFileUri = extractSourceFileUri(newAsset);
 
@@ -18,10 +20,6 @@ export default async function buildAssetAsync(assetData = {}) {
   }
 
   if (!newAsset.id) newAsset.id = getNewAssetId();
-
-  // The file goes into the library that is open now (its folders exist since it opened), whatever
-  // happens before the record is saved.
-  const library = getLibrary();
 
   newAsset.filename = `${newAsset.id}.${getFileExtension(sourceFileUri)}`;
   const assetFileUri = getAssetFileUri(newAsset.filename, library);

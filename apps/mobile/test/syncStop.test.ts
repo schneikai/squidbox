@@ -8,7 +8,7 @@ import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { getCursor, isFirstSyncDone } from '../src/sync/status';
 import type { SyncTransport } from '../src/sync/transport';
-import { APPLY_BATCH, runSyncOnce } from '../src/sync/worker';
+import { APPLY_BATCH, isSyncPaused, runSyncOnce, withSyncPaused } from '../src/sync/worker';
 
 let db: SyncDb;
 beforeEach(() => {
@@ -31,6 +31,20 @@ function server(total: number, onPull: (cursor: number) => void = () => {}): Syn
     },
   };
 }
+
+describe('withSyncPaused', () => {
+  it('says a section is running while its work runs, and not after a throw', async () => {
+    expect(isSyncPaused()).toBe(false);
+    let during = false;
+    await withSyncPaused(async () => {
+      during = isSyncPaused();
+    });
+    expect(during).toBe(true);
+    expect(isSyncPaused()).toBe(false);
+    await expect(withSyncPaused(() => Promise.reject(new Error('boom')))).rejects.toThrow('boom');
+    expect(isSyncPaused()).toBe(false);
+  });
+});
 
 describe('a stop request', () => {
   it('ends a pull after the current applied batch, with its cursor committed', async () => {

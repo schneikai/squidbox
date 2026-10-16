@@ -62,6 +62,21 @@ export function updateSession(change) {
   return next;
 }
 
+/**
+ * Signs out, or records a session the server rejected: the tokens go, the session keeps its owner
+ * (so its library stays open). Resolves the dropped tokens, for the caller to revoke, null when
+ * there were none.
+ * @returns {Promise<Session['tokens']>}
+ */
+export async function dropTokensAsync() {
+  let dropped = null;
+  await updateSession((current) => {
+    dropped = current?.tokens ?? null;
+    return dropped ? { ...current, tokens: null } : current;
+  });
+  return dropped;
+}
+
 // Writes the new record first, then removes the old keys, so a crash in between re-runs to the
 // same state. Nothing is removed when there is nothing to convert. The server and base URL the
 // tokens came from are the current ones.

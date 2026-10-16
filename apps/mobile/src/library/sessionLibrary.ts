@@ -32,22 +32,13 @@ export function libraryForSession(session: Session | null): Library {
 }
 
 // The stored session has just become `session`: opens its library, switching when another one is
-// open. When the switch fails, `previous` is stored again (its library is open again) and the error
-// rethrown. A library whose owner was unresolved learns the session's serverId and email.
+// open. A library whose owner was unresolved learns the session's serverId and email.
 export async function openLibraryForSession(
   session: Session | null,
-  previous: Session | null,
   switchLibrary: (target: Library) => Promise<void>,
 ): Promise<void> {
   const target = libraryForSession(session);
-  if (openLibraryId() !== target.id) {
-    try {
-      await switchLibrary(target);
-    } catch (error) {
-      await updateSession(() => previous);
-      throw error;
-    }
-  }
+  if (openLibraryId() !== target.id) await switchLibrary(target);
   await resolveOwner(target, session);
 }
 
@@ -65,43 +56,48 @@ async function resolveOwner(library: Library, session: Session | null): Promise<
 }
 
 // A sign-in (the session just stored): the account's library opens, then whatever this device's
-// library holds (added before any sign-in) joins it, crash-safe (mergeRun.ts), and pushes with the
-// next sync. A merge that fails doesn't fail the sign-in: the device library stays parked and the
-// next sign-in tries again.
+// library holds joins it. When the switch fails, `previous` is stored again (its library is open
+// again) and the error rethrown.
 export async function openLibraryForSignIn(
   session: Session,
   previous: Session | null,
   switchLibrary: (target: Library) => Promise<void>,
 ): Promise<void> {
-  await openLibraryForSession(session, previous, switchLibrary);
-  const source = deviceLibrary(getRegistry().libraries);
-  const targetId = openLibraryId();
-  if (!source || targetId === null || source.id === targetId) return;
   try {
-    await mergeLibrary(source.id, targetId);
+    await openLibraryForSession(session, switchLibrary);
+  } catch (error) {
+    await updateSession(() => previous);
+    throw error;
+  }
+  await mergeDeviceLibrary();
+}
+
+// Whatever this device's library holds (added before any sign-in) joins the open library when that
+// is its owner's account library: at the sign-in and at every boot, so a merge that failed or was
+// interrupted is tried again (mergeRun.ts, crash-safe and idempotent). A failure doesn't fail the
+// sign-in or the boot: the device library stays parked until the next try. One that is marked for
+// another library is that one's (resumeMerges finishes it).
+export async function mergeDeviceLibrary(): Promise<void> {
+  const { libraries } = getRegistry();
+  const source = deviceLibrary(libraries);
+  const target = libraries.find(({ id }) => id === openLibraryId());
+  if (!source || !target || !sessionMatches(target, getSession())) return;
+  if (source.mergedInto && source.mergedInto !== target.id) return;
+  try {
+    await mergeLibrary(source.id, target.id);
   } catch (error) {
     console.warn('Could not add this device’s library to the account', error);
   }
-}
-
-// A sign-out keeps the library open: only the tokens go (returned, for the caller to revoke), the
-// session keeps its owner, so the same library is open now and at the next boot, nothing syncs until
-// the owner signs in again (needsReauth), and what is added meanwhile uploads then.
-export async function signOut(): Promise<Session['tokens']> {
-  const tokens = getSession()?.tokens ?? null;
-  await updateSession((session) => (session?.tokens ? { ...session, tokens: null } : session));
-  return tokens;
 }
 
 // The boot's open: the stored session's library, then the owner resolved from the session once
 // the cloud init verified it (a converted session that learned its user from /me may name another
 // library than the one opened first; the switch then moves there).
 export async function openLibraryForBoot(
+  session: Session | null,
   verified: Promise<Session | null>,
   switchLibrary: (target: Library) => Promise<void>,
-  session: Session | null,
 ): Promise<void> {
-  await openLibraryForSession(session, session, switchLibrary);
-  const checked = await verified;
-  await openLibraryForSession(checked, checked, switchLibrary);
+  await openLibraryForSession(session, switchLibrary);
+  await openLibraryForSession(await verified, switchLibrary);
 }

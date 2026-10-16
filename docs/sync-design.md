@@ -394,8 +394,10 @@ run stopped, the closing library's database closed, the next one opened), so no 
 session or library change; then whatever the device library (the one from before any sign-in)
 holds is added to the account's library at once, with no prompt (`library/mergeRun.ts`: one
 transaction, every copied record with its outbox row, files moved after the commit, the source
-removed when nothing is left in it; a merge a crash interrupted finishes at the next boot). Signing
-out drops the tokens and nothing else: the same library stays open and editable, writes queue in
+removed when nothing is left in it). The same merge runs again at every boot while a device
+library exists (`mergeDeviceLibrary`, inside `withSyncPaused` with `resumeMerges`), so one that
+failed or that a crash interrupted finishes then; no backup run starts while such a section runs
+(`isSyncPaused`). Signing out drops the tokens and nothing else: the same library stays open and editable, writes queue in
 its outbox and upload when its owner signs in again; it asks once, and only when something is
 pending or not backed up. Signing in as another account opens that account's library and parks
 the current one with its pending changes, until its owner signs in again. Nothing is wiped and

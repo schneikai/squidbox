@@ -5,16 +5,17 @@ import { bootLibrary } from './bootLibrary';
 import { openLibraryId } from './current';
 import { resumeMerges } from './mergeRun';
 import { getRegistry, onRegistryChange } from './registry';
+import { mergeDeviceLibrary } from './sessionLibrary';
 import { switchLibrary as performSwitch } from './switchLibrary';
 
 import { navigateToTab } from '@/navigators/navigationRef';
 import { withSyncPaused } from '@/sync/worker';
 
-// The libraries on this device and the open one. Boots at mount (bootLibrary.ts): the session's
-// library opens while the cloud init runs. A switch sets `next`: LibraryGate (App.js) then shows
-// the switching screen, so everything below unmounts and its effects clean up, and the effect here
-// runs the switch after those cleanups, in the same commit; the gate remounts the app under the
-// new library's id. `booted` turns true once the boot, cloud init included, is through.
+// The open library. Boots at mount (bootLibrary.ts): the session's library opens while the cloud
+// init runs. A switch sets `next`: LibraryGate (App.js) then shows the switching screen, so
+// everything below unmounts and its effects clean up, and the effect here runs the switch after
+// those cleanups, in the same commit; the gate remounts the app under the new library's id.
+// `booted` turns true once the boot, cloud init included, is through.
 export default function LibraryProvider({ children }) {
   const [libraries, setLibraries] = useState([]);
   const [openId, setOpenId] = useState(null);
@@ -33,9 +34,12 @@ export default function LibraryProvider({ children }) {
     const unsubscribe = onRegistryChange((registry) => setLibraries(registry.libraries));
     bootLibrary(switchLibrary).then(() => {
       setBooted(true);
-      // A merge a crash interrupted finishes now, serialized with every switch; a failure waits for
-      // the next boot.
-      withSyncPaused(resumeMerges).catch((resumeError) => console.warn('Could not resume a merge', resumeError));
+      // A merge a crash interrupted finishes now, and this device's library joins the account's if
+      // it hasn't yet, serialized with every switch; a failure waits for the next boot.
+      withSyncPaused(async () => {
+        await resumeMerges();
+        await mergeDeviceLibrary();
+      }).catch((resumeError) => console.warn('Could not resume a merge', resumeError));
     }, setError);
     return unsubscribe;
   }, [switchLibrary]);
@@ -62,7 +66,7 @@ export default function LibraryProvider({ children }) {
 
   const value = useMemo(() => {
     const library = next || openId === null ? null : (libraries.find(({ id }) => id === openId) ?? null);
-    return { library, libraries, switching: next?.target ?? null, switchLibrary, booted };
+    return { library, switching: next?.target ?? null, switchLibrary, booted };
   }, [libraries, openId, next, switchLibrary, booted]);
 
   if (error) throw error; // a database that won't open or migrate: BootErrorBoundary

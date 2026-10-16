@@ -5,7 +5,8 @@ import type { Owner } from './owner';
 export interface Library {
   id: string;
   owner: Owner;
-  // A merge into another library is under way (library-ownership plan §1.5 (f)).
+  // The library this one joins (library-ownership plan §1.5 (f)): set while the merge runs, and kept
+  // when the source stays for photos in another account's storage, so it never joins another one.
   mergedInto?: string;
 }
 

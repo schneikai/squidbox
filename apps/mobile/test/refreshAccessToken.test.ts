@@ -41,9 +41,9 @@ describe('refreshAccessTokenAsync', () => {
     expect(store.session).toEqual(sessionA({ accessToken: 'access-2', refreshToken: 'refresh-2' }));
   });
 
-  it('drops the tokens and keeps the owner when the server rejects the refresh token', async () => {
+  it('drops the tokens and keeps the owner when the server rejects the refresh token: a session change', async () => {
     post.mockRejectedValue(httpError(401));
-    await expect(refreshAccessTokenAsync(identityA)).rejects.toThrow('HTTP 401');
+    await expect(refreshAccessTokenAsync(identityA)).rejects.toThrow(SessionChangedError);
     expect(store.session).toEqual(sessionA(null));
   });
 
@@ -59,7 +59,7 @@ describe('refreshAccessTokenAsync', () => {
       store.session = sessionA({ accessToken: 'access-new-login', refreshToken: 'refresh-new-login' });
       throw httpError(401);
     });
-    await expect(refreshAccessTokenAsync(identityA)).rejects.toThrow('HTTP 401');
+    await expect(refreshAccessTokenAsync(identityA)).rejects.toThrow(SessionChangedError);
     expect(store.session?.tokens).toEqual({ accessToken: 'access-new-login', refreshToken: 'refresh-new-login' });
   });
 

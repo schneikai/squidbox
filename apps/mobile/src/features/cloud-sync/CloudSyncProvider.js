@@ -7,6 +7,7 @@ import { getLibrary } from '@/library/current';
 import { readUnsyncedIds } from '@/sync/assetsRepository';
 import { isBackupRunning, runBackup } from '@/sync/backupRun';
 import { getDb } from '@/sync/db/client';
+import { isSyncPaused } from '@/sync/worker';
 import deleteAssetFileAsync from '@/utils/assets/files/deleteAssetFileAsync';
 import requireSession from '@/utils/cloud-api/requireSession';
 import sessionIdentity from '@/utils/cloud-api/sessionIdentity';
@@ -89,9 +90,10 @@ export default function CloudSyncProvider({ children }) {
   }
 
   // The run backs up the assets unsynced at its start (their ids are read once; assets added
-  // meanwhile wait for the next run), for the user and the library of its start.
+  // meanwhile wait for the next run), for the user and the library of its start. None starts while
+  // the session or the library is changing (a sign-in's merge is still moving files).
   async function syncAssets() {
-    if (!isAuthenticated || isBackupRunning()) return;
+    if (!isAuthenticated || isBackupRunning() || isSyncPaused()) return;
 
     setIsSyncing(true);
     sessionStartRef.current = Date.now();

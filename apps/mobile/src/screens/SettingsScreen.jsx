@@ -14,9 +14,9 @@ import { MODEL_STORAGE_KEY, DEFAULT_MODEL } from '@/features/ai-suggestions/aiSu
 import confirmSignOutAsync from '@/features/cloud/confirmSignOutAsync';
 import useCloud from '@/features/cloud/useCloud';
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
+import useBackupCounts from '@/features/cloud-sync/useBackupCounts';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
 import useLibrary from '@/library/useLibrary';
-import useUnsyncedCounts from '@/library/useUnsyncedCounts';
 import { colors } from '@/styles/designTokens';
 import { useSyncStatus } from '@/sync/useSyncStatus';
 import { SERVER_URL } from '@/utils/cloud-api/apiBaseUrl';
@@ -27,8 +27,8 @@ export default function SettingsScreen() {
   const { isAuthenticated, needsReauth, user, logoutAsync } = useCloud();
   const { library } = useLibrary();
   const cloudSync = useCloudSync();
-  const unsynced = useUnsyncedCounts(); // the one live query behind every count on this screen
-  const { phase, lastError } = useSyncStatus();
+  const counts = useBackupCounts();
+  const { phase, lastError, pendingCount } = useSyncStatus();
 
   const [aiModel, setAiModel] = useState(DEFAULT_MODEL);
   const [isLoggingOut, startLogoutTransition] = useTransition();
@@ -54,7 +54,7 @@ export default function SettingsScreen() {
   // The confirmation is asked outside the transition: a state update made inside its callback
   // before the first await would be part of the pending transition and never render the alert.
   async function handleLogout() {
-    if (await confirmSignOutAsync(unsynced)) startLogoutTransition(() => logoutAsync());
+    if (await confirmSignOutAsync({ pendingCount, ...counts })) startLogoutTransition(() => logoutAsync());
   }
 
   function handleResortAlbums() {
@@ -97,7 +97,6 @@ export default function SettingsScreen() {
   // Backup = uploading full-res photo files to the cloud (manual). Library sync = the metadata
   // engine (automatic). Each is one tappable status row → its own detail screen.
   function librarySyncStatusText() {
-    const { pendingCount } = unsynced;
     if (needsReauth) return pendingCount > 0 ? `${pendingCount} waiting for sign-in` : 'Up to date';
     if (lastError) return 'Error';
     if (phase === 'pushing' || phase === 'pulling') return 'Syncing…';
@@ -148,7 +147,7 @@ export default function SettingsScreen() {
             <Section>
               <Row
                 label="Photo backup"
-                value={getBackupStatusText({ ...cloudSync, ...unsynced, needsReauth })}
+                value={getBackupStatusText({ ...cloudSync, ...counts, needsReauth })}
                 onPress={() => navigation.navigate('BackupScreen')}
                 chevron
               />

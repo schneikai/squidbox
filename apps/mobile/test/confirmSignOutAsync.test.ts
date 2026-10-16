@@ -10,14 +10,14 @@ describe('confirmSignOutAsync', () => {
   beforeEach(() => alert.mockReset());
 
   it('signs out without asking when everything is synced', async () => {
-    await expect(confirmSignOutAsync({ pendingCount: 0, atRiskCount: 0 })).resolves.toBe(true);
+    await expect(confirmSignOutAsync({ pendingCount: 0, unsyncedCount: 0, syncErrorCount: 0 })).resolves.toBe(true);
     expect(alert).not.toHaveBeenCalled();
   });
 
   it('asks once when something has not synced, and answers what the user chose', async () => {
     const pressed = (text: string) => alert.mock.calls.at(-1)![2].find((button) => button.text === text)!.onPress!();
 
-    const cancelled = confirmSignOutAsync({ pendingCount: 2, atRiskCount: 0 });
+    const cancelled = confirmSignOutAsync({ pendingCount: 2, unsyncedCount: 0, syncErrorCount: 0 });
     expect(alert).toHaveBeenCalledWith(
       "You have media that isn't backed up yet",
       'It will upload the next time you sign in.',
@@ -26,9 +26,13 @@ describe('confirmSignOutAsync', () => {
     pressed('Cancel');
     await expect(cancelled).resolves.toBe(false);
 
-    const confirmed = confirmSignOutAsync({ pendingCount: 0, atRiskCount: 3 });
+    const confirmed = confirmSignOutAsync({ pendingCount: 0, unsyncedCount: 3, syncErrorCount: 0 });
     pressed('Sign Out');
     await expect(confirmed).resolves.toBe(true);
-    expect(alert).toHaveBeenCalledTimes(2);
+
+    const failed = confirmSignOutAsync({ pendingCount: 0, unsyncedCount: 0, syncErrorCount: 1 });
+    pressed('Sign Out');
+    await expect(failed).resolves.toBe(true);
+    expect(alert).toHaveBeenCalledTimes(3);
   });
 });

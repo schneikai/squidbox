@@ -1,7 +1,7 @@
 import api from './api';
 import { API_BASE_URL, SERVER_URL } from './apiBaseUrl';
 import apiWithAuthentication from './apiWithAuthentication';
-import { getSession, updateSession } from './sessionStore';
+import { dropTokensAsync, getSession, updateSession } from './sessionStore';
 
 // Verifies the stored session for this launch and resolves to it. A complete session obtained from
 // the current base URL is good as it is, offline included. A changed base URL (a new dev tunnel)
@@ -17,7 +17,7 @@ export default async function initializeCloudAsync() {
   if (session.apiBaseUrl !== API_BASE_URL) {
     const serverId = await fetchServerIdAsync();
     if (serverId === undefined) return session;
-    if (serverId === null || serverId !== session.serverId) return dropTokensAsync();
+    if (serverId === null || serverId !== session.serverId) return dropAsync();
     await updateSession((current) => (current ? { ...current, apiBaseUrl: API_BASE_URL } : current));
   }
 
@@ -44,11 +44,12 @@ async function fillOwnerAsync() {
       current ? { ...current, serverId: serverId ?? null, userId: user.id, email: user.email } : current,
     );
   } catch (error) {
-    if ([401, 403].includes(error?.response?.status)) return dropTokensAsync();
+    if ([401, 403].includes(error?.response?.status)) return dropAsync();
     return getSession();
   }
 }
 
-function dropTokensAsync() {
-  return updateSession((current) => (current?.tokens ? { ...current, tokens: null } : current));
+async function dropAsync() {
+  await dropTokensAsync();
+  return getSession();
 }

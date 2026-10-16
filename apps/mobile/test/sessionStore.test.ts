@@ -74,6 +74,17 @@ describe('sessionStore', () => {
     expect(seen).toEqual([{ ...session, tokens: null }, null]);
   });
 
+  it('dropTokensAsync keeps the owner and resolves the dropped tokens, once', async () => {
+    secure.set('session', JSON.stringify(session));
+    await store.loadSessionAsync();
+    expect(await store.dropTokensAsync()).toEqual(session.tokens);
+    expect(store.getSession()).toEqual({ ...session, tokens: null });
+    expect(JSON.parse(secure.get('session')!)).toEqual({ ...session, tokens: null });
+    log.length = 0;
+    expect(await store.dropTokensAsync()).toBeNull();
+    expect(log).toEqual([]);
+  });
+
   it('writes nothing when the change returns the same record', async () => {
     secure.set('session', JSON.stringify(session));
     await store.loadSessionAsync();

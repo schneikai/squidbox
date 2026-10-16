@@ -7,13 +7,18 @@ import type { Session } from '../src/library/session';
 const store: { session: Session | null } = { session: null };
 vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({ API_BASE_URL: 'https://api.test/api/v1' }));
 vi.mock('../src/utils/cloud-api/sessionStore', () => sessionStoreMock(store));
-// The refresh rotates the stored tokens, as the real one does after the server answered.
-vi.mock('../src/utils/cloud-api/authentication/refreshAccessTokenAsync', () => ({
-  default: async () => {
-    store.session = { ...store.session!, tokens: { accessToken: 'access-2', refreshToken: 'refresh-2' } };
-    return 'access-2';
-  },
-}));
+// The refresh checks the identity like the real one and rotates the stored tokens, as the real one
+// does after the server answered.
+vi.mock('../src/utils/cloud-api/authentication/refreshAccessTokenAsync', async () => {
+  const { default: requireSession } = await import('../src/utils/cloud-api/requireSession');
+  return {
+    default: async (identity?: { serverId: string | null; userId: string }) => {
+      requireSession(identity);
+      store.session = { ...store.session!, tokens: { accessToken: 'access-2', refreshToken: 'refresh-2' } };
+      return 'access-2';
+    },
+  };
+});
 
 const { default: apiWithAuthentication } = await import('../src/utils/cloud-api/apiWithAuthentication');
 const { default: SessionChangedError } = await import('../src/utils/cloud-api/SessionChangedError');
@@ -73,5 +78,13 @@ describe('apiWithAuthentication', () => {
     const { fn, bearers } = adapter([200]);
     await apiWithAuthentication.get('me', { adapter: fn });
     expect(bearers).toEqual(['Bearer access-1']);
+  });
+
+  it('refreshes for a converted session that does not know its user yet, instead of refusing', async () => {
+    store.session = { ...sessionA('access-1'), serverId: null, userId: null, email: null };
+    const { fn, bearers } = adapter([401, 200]);
+    const { data } = await apiWithAuthentication.get('me', { adapter: fn });
+    expect(data).toEqual({ ok: true });
+    expect(bearers).toEqual(['Bearer access-1', 'Bearer access-2']);
   });
 });

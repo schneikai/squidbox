@@ -1,9 +1,8 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 
+import StatusScreen from '@/components/StatusScreen';
 import useCloud from '@/features/cloud/useCloud';
-import { colors } from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
 import { useRecordCounts } from '@/sync/useRecordCounts';
 import { useSyncStatus } from '@/sync/useSyncStatus';
@@ -38,60 +37,44 @@ export default function FirstSyncScreen() {
   }, [hasError]);
 
   return (
-    <View style={styles.root}>
-      <LinearGradient
-        colors={colors.appBackground}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <View style={styles.center}>
-        {hasError ? (
-          <>
-            <Text style={styles.title}>Can't reach the server</Text>
-            <Text style={styles.subtitle}>
-              We'll keep trying automatically. Check your connection — your data is safe.
+    <StatusScreen busy={!hasError} title={hasError ? "Can't reach the server" : 'Setting up your library'}>
+      {hasError ? (
+        <>
+          <Text style={styles.subtitle}>
+            We'll keep trying automatically. Check your connection — your data is safe.
+          </Text>
+          {started ? (
+            <Text style={styles.count}>
+              {assets.toLocaleString()} photos · {albums.toLocaleString()} albums · {posts.toLocaleString()} posts so
+              far
             </Text>
-            {started ? (
-              <Text style={styles.count}>
-                {assets.toLocaleString()} photos · {albums.toLocaleString()} albums · {posts.toLocaleString()} posts so
-                far
-              </Text>
-            ) : null}
-            <Pressable style={styles.retry} onPress={() => requestSync()} hitSlop={8}>
-              <Text style={styles.retryText}>Try again</Text>
-            </Pressable>
-          </>
-        ) : (
-          <>
-            <ActivityIndicator size="large" />
-            <Text style={styles.title}>Setting up your library</Text>
-            <Text style={styles.subtitle}>
-              {started
-                ? 'Downloading your photos, albums and posts. This happens once.'
-                : 'Connecting to your library…'}
+          ) : null}
+          <Pressable style={styles.retry} onPress={() => requestSync()} hitSlop={8}>
+            <Text style={styles.retryText}>Try again</Text>
+          </Pressable>
+        </>
+      ) : (
+        <>
+          <Text style={styles.subtitle}>
+            {started ? 'Downloading your photos, albums and posts. This happens once.' : 'Connecting to your library…'}
+          </Text>
+          {started ? (
+            <Text style={styles.count}>
+              {assets.toLocaleString()} photos · {albums.toLocaleString()} albums · {posts.toLocaleString()} posts
             </Text>
-            {started ? (
-              <Text style={styles.count}>
-                {assets.toLocaleString()} photos · {albums.toLocaleString()} albums · {posts.toLocaleString()} posts
-              </Text>
-            ) : null}
-            <Text style={styles.hint}>Please keep the app open — it'll finish shortly.</Text>
-          </>
-        )}
-        {/* A sign-out stops the pull at its next batch (the pulled part stays in the parked library). */}
-        <Pressable style={styles.signout} onPress={() => logoutAsync()} hitSlop={8}>
-          <Text style={styles.signoutText}>Sign out</Text>
-        </Pressable>
-      </View>
-    </View>
+          ) : null}
+          <Text style={styles.hint}>Please keep the app open — it'll finish shortly.</Text>
+        </>
+      )}
+      {/* A sign-out stops the pull at its next batch; the library stays open with what it pulled. */}
+      <Pressable style={styles.signout} onPress={() => logoutAsync()} hitSlop={8}>
+        <Text style={styles.signoutText}>Sign out</Text>
+      </Pressable>
+    </StatusScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 12 },
-  title: { fontSize: 22, fontWeight: '700', marginTop: 8, textAlign: 'center' },
   subtitle: { fontSize: 15, opacity: 0.7, textAlign: 'center' },
   count: { fontSize: 16, fontWeight: '600', marginTop: 8, textAlign: 'center' },
   hint: { fontSize: 13, opacity: 0.5, textAlign: 'center', marginTop: 4 },

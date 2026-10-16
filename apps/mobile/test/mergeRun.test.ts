@@ -101,7 +101,7 @@ describe('mergeLibrary / resumeMerges', () => {
     const a = await devicePhoto({ filename: 'a.jpg', mediaLibraryAssetId: 'm-a' });
     await albums.create(sourceDb(), makeAlbumRecord({ name: 'Trip' }));
 
-    expect(await mergeLibrary('dev', 'acc')).toEqual({ cloudOnly: 0 });
+    await mergeLibrary('dev', 'acc');
 
     expect((await getDb().select().from(schema.assets)).map((row) => row.id)).toEqual([a.id]);
     expect(await getDb().select().from(schema.albums)).toHaveLength(1);
@@ -122,32 +122,27 @@ describe('mergeLibrary / resumeMerges', () => {
     expect(stores.has(SRC.dbName)).toBe(true);
   });
 
-  it('a crash between the marker and the commit, then boot: the source still exists, everything left to add', async () => {
-    await devicePhoto({ filename: 'a.jpg' });
+  it('a crash between the marker and the commit, then boot: the merge runs again and finishes', async () => {
+    const a = await devicePhoto({ filename: 'a.jpg' });
     await updateLibrary('dev', (library) => ({ ...library, mergedInto: 'acc' })); // the marker a crash left
 
     await resumeMerges();
 
-    expect(entry('dev')).toEqual({ ...DEV, mergedInto: 'acc' });
-    expect(stores.has(SRC.dbName)).toBe(true);
-    expect(files.has(getAssetFileUri('a.jpg', SRC))).toBe(true);
-    expect(await getDb().select().from(schema.assets)).toHaveLength(0);
+    expect((await getDb().select().from(schema.assets)).map((row) => row.id)).toEqual([a.id]);
+    expect(files.has(getAssetFileUri('a.jpg', TGT))).toBe(true);
+    expect(entry('dev')).toBeUndefined();
+    expect(deleted).toEqual([SRC.dbName]);
   });
 
-  it('a crash after the commit, then boot: the files move and the source goes, only when nothing is left', async () => {
+  it('a crash after the commit, then boot: the files move, what was added meanwhile joins too, the source goes', async () => {
     const { applyMerge, planMerge } = await import('../src/library/mergeLibrary');
     const a = await devicePhoto({ filename: 'a.jpg', mediaLibraryAssetId: 'm-a' });
     await updateLibrary('dev', (library) => ({ ...library, mergedInto: 'acc' }));
     await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC)); // committed, then the crash
-    // Something new on the device before the boot: not in the account yet, so the source stays.
     const later = await devicePhoto({ filename: 'later.jpg', mediaLibraryAssetId: 'm-later' });
-    await resumeMerges();
-    expect(entry('dev')).toEqual({ ...DEV, mergedInto: 'acc' });
-    expect(files.has(getAssetFileUri('a.jpg', SRC))).toBe(true);
 
-    // Added by the next answer; then a boot finishes the merge.
-    await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC));
     await resumeMerges();
+
     expect((await getDb().select().from(schema.assets)).map((row) => row.id).sort()).toEqual([a.id, later.id].sort());
     expect(files.has(getAssetFileUri('a.jpg', TGT))).toBe(true);
     expect(files.has(getAssetFileUri('later.jpg', TGT))).toBe(true);
@@ -155,19 +150,23 @@ describe('mergeLibrary / resumeMerges', () => {
     expect(deleted).toEqual([SRC.dbName]);
   });
 
-  it("keeps a source that holds photos living in another account's storage", async () => {
+  it("keeps a source that holds photos living in another account's storage, marked for the account", async () => {
     await devicePhoto({ filename: 'a.jpg', mediaLibraryAssetId: 'm-a' });
     await repo.createAsset(
       sourceDb(),
       makeAssetRecord({ mediaLibraryAssetId: 'm-cloud', filename: 'cloud.jpg', isFileSynced: true }),
     );
 
-    expect(await mergeLibrary('dev', 'acc')).toEqual({ cloudOnly: 1 });
+    await mergeLibrary('dev', 'acc');
 
-    expect(entry('dev')).toEqual(DEV); // listed, no marker
+    expect(entry('dev')).toEqual({ ...DEV, mergedInto: 'acc' });
     expect(stores.has(SRC.dbName)).toBe(true);
     expect(await getDb().select().from(schema.assets)).toHaveLength(1);
     expect(files.has(getAssetFileUri('a.jpg', TGT))).toBe(true);
+
+    await resumeMerges(); // every later boot: nothing more to add, the source stays
+    expect(entry('dev')).toEqual({ ...DEV, mergedInto: 'acc' });
+    expect(await getDb().select().from(schema.assets)).toHaveLength(1);
   });
 
   it('a marker whose target is gone is just cleared', async () => {

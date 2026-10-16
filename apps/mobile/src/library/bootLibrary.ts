@@ -19,5 +19,5 @@ export async function bootLibrary(switchLibrary: (target: Library) => Promise<vo
     Sentry.captureException(error);
     return getSession();
   });
-  await openLibraryForBoot(verified, switchLibrary, session);
+  await openLibraryForBoot(session, verified, switchLibrary);
 }

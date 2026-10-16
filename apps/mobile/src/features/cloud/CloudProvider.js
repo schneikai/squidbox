@@ -7,14 +7,14 @@ import preloadAssetThumbnailsAsync from './assets/preloadAssetThumbnailsAsync';
 import uploadAssetFileAsync from './assets/uploadAssetFileAsync';
 import uploadAssetThumbnailAsync from './assets/uploadAssetThumbnailAsync';
 
-import { openLibraryForSignIn, signOut } from '@/library/sessionLibrary';
+import { openLibraryForSignIn } from '@/library/sessionLibrary';
 import { isSessionAuthenticated, needsReauth as sessionNeedsReauth } from '@/library/sessionMatches';
 import useLibrary from '@/library/useLibrary';
 import { withSyncPaused } from '@/sync/worker';
 import { API_BASE_URL } from '@/utils/cloud-api/apiBaseUrl';
 import apiLoginAsync from '@/utils/cloud-api/authentication/loginAsync';
 import apiLogoutAsync from '@/utils/cloud-api/authentication/logoutAsync';
-import { getSession, onSessionChange } from '@/utils/cloud-api/sessionStore';
+import { dropTokensAsync, getSession, onSessionChange } from '@/utils/cloud-api/sessionStore';
 
 // The session is loaded by the boot (LibraryProvider); until then there is none.
 function readSession() {
@@ -27,9 +27,10 @@ function readSession() {
 
 // The session: who is signed in, mirrored from the session store. It is also the open pointer of the
 // libraries: a session opens its owner's library, with or without tokens, none opens this device's
-// (library/sessionLibrary.ts). Every change of it runs inside withSyncPaused together with the
-// library switch it causes, so no sync run spans either. An account backs the library up and keeps
-// it in sync; signing out, or a session the server rejected (needsReauth), only pauses that.
+// (library/sessionLibrary.ts). Every change of it runs inside withSyncPaused, a sign-in together
+// with the library switch it causes, so no sync or backup run spans either. An account backs the
+// library up and keeps it in sync; signing out, or a session the server rejected (needsReauth),
+// only pauses that.
 export default function CloudProvider({ children }) {
   const { library, switchLibrary } = useLibrary();
   const session = useSyncExternalStore(onSessionChange, readSession);
@@ -53,7 +54,7 @@ export default function CloudProvider({ children }) {
   async function logoutAsync() {
     let tokens;
     try {
-      tokens = await withSyncPaused(signOut);
+      tokens = await withSyncPaused(dropTokensAsync);
     } catch (error) {
       Alert.alert("Couldn't sign out", error.message);
       return;

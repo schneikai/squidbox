@@ -40,7 +40,7 @@ describe('assetsRepository', () => {
     expect(rows.filter(repo.isUnsynced).map((a) => a.id)).toEqual(['a0']); // the same rule in JS
     let counts;
     work = await measure(async () => (counts = await repo.readBackupCounts(db)));
-    expect(counts).toEqual({ unsyncedCount: 2, syncErrorCount: 1, atRiskCount: 3 }); // a4 failed counts as at risk, a6 deleted not
+    expect(counts).toEqual({ unsyncedCount: 2, syncErrorCount: 1 }); // a4 failed, a6 deleted not
     expect(work.statements).toBe(1);
     expect(work.plans.join()).toMatch(/assets_unsynced_idx/);
     expect(work.plans.join()).toMatch(/assets_sync_error_idx/);
