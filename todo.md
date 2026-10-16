@@ -210,7 +210,20 @@ writing the flags in one `updateAsset` halves the waits and the writes per photo
 Parked libraries stay on the phone forever: signing in as another account parks the current
 library (`src/library/switchLibrary.ts`) and nothing in the UI removes one since "Libraries on this
 iPhone" went (`removeLibrary` now only serves the merge). Rare, multi-account only; a Developer or
-Settings action behind a recount of the parked database would do.
+Settings action behind a recount of the parked database would do, and it must keep or warn about
+originals that aren't uploaded yet.
+
+### [ ] Find duplicates by content when the device library joins an account
+
+The sign-in merge (`src/library/mergeLibrary.ts`) only spots a camera-roll photo the account already
+holds if this phone's account library pulled it before. A content hash per asset would catch the
+rest. Only worth it if duplicates show up in practice; a wrong match would hide a distinct photo.
+
+### [ ] Concurrent edits from two devices overwrite each other
+
+Sync resolves conflicts per record by last writer wins (`apps/server/src/sync/push.ts`): editing the
+same album or post on two devices before either syncs keeps only the later edit, silently. Fine for
+one person on one phone; per-field merge would fix it if it bites.
 
 ### [ ] Web preview gaps
 
