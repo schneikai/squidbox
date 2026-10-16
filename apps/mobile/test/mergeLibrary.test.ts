@@ -117,6 +117,9 @@ describe('planMerge + applyMerge', () => {
     const [row] = await outbox(target);
     expect(row).toMatchObject({ collection: 'assets', recordId: shared.id, updatedAt: plan.replays[0]!.updatedAt });
     expect(row!.payload).toMatchObject({ notes: 'edited on the device' });
+    // The target shows the edit at once, not after a push and pull.
+    const [targetRow] = await target.select().from(schema.assets);
+    expect(targetRow).toMatchObject({ notes: 'edited on the device', updatedAt: plan.replays[0]!.updatedAt });
     expect(addsRecords(await planMerge(source, target, SRC))).toBe(false);
   });
 
@@ -252,6 +255,8 @@ describe('planMerge + applyMerge', () => {
     await applyMerge(target, plan);
     const [row] = await outbox(target).then((rows) => rows.filter((r) => r.collection === 'album_assets'));
     expect(row!.payload).toMatchObject({ deletedAt: expect.any(Number) });
+    const [edge] = await target.select().from(schema.albumAssets);
+    expect(edge!.deletedAt).toEqual(expect.any(Number));
     expect(addsRecords(await planMerge(source, target, SRC))).toBe(false);
   });
 });

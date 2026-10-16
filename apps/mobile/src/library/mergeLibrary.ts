@@ -5,11 +5,12 @@ import { fileExists, listFiles, moveFile } from './fs';
 import type { LibraryPaths } from './libraryPaths';
 
 import { chunk } from '@/sync/chunk';
+import { clientCollectionTables } from '@/sync/clientCollections';
 import { nextVersion } from '@/sync/clock';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
-import { enqueueMutations, outboxUpdatedAts } from '@/sync/outbox';
+import { outboxUpdatedAts } from '@/sync/outbox';
 import { readByIdMap, readByIds } from '@/sync/readByIds';
 import { saveRecords } from '@/sync/saveRecords';
 import getAssetFileUri from '@/utils/assets/files/getAssetFileUri';
@@ -231,10 +232,13 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<void>
         rows.map((row) => nextVersion(row, changes.get(row.id)!)),
       );
     }
+    // A replayed edit is written to the target's row as well as its outbox: a push alone would leave
+    // the row stale, and the pull skips a record with a pending outbox row.
     for (const collection of new Set(plan.replays.map((row) => row.collection))) {
-      await enqueueMutations(
+      await saveRecords(
         tx,
         collection,
+        clientCollectionTables[collection]!,
         plan.replays
           .filter((row) => row.collection === collection)
           .map((row) => row.payload as { id: string; updatedAt: number; deletedAt?: number | null }),

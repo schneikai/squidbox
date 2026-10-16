@@ -1,6 +1,6 @@
 // One persisted JSON value: an in-memory copy loaded once at boot, changed only through `update`
-// on a promise chain (so no writer overwrites another's change from a stale copy), written
-// through, and announced to subscribers after every change.
+// on a promise chain (so no writer overwrites another's change from a stale copy), written first
+// (a failed write changes nothing in memory), and announced to subscribers after every change.
 export function createPersistedStore<T>({ name, write }: { name: string; write: (value: T) => Promise<void> }) {
   let value: T | undefined;
   let chain: Promise<unknown> = Promise.resolve();
@@ -31,8 +31,8 @@ export function createPersistedStore<T>({ name, write }: { name: string; write: 
       const next = chain.then(async () => {
         const changed = change(get());
         if (changed === value) return changed;
+        await write(changed);
         value = changed;
-        await write(value);
         notify();
         return value;
       });

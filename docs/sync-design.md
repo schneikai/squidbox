@@ -388,8 +388,9 @@ of the session at its start (`library/currentSyncIdentity.ts`, `library/sessionM
 runs only when the open library is the signed-in account's, and every request reads the tokens
 fresh from the stored session for that identity (`apiWithAuthentication` → `requireSession`), so a
 mid-run refresh is picked up and another user's session is refused (`SessionChangedError`, which
-the gate treats like an abort, not as an error). `requireSession` also refuses tokens bound to
-another API base URL.
+the gate treats like an abort, not as an error; the 401 retry's refresh lets it through too, so a
+session the server rejected ends the run the same way). `requireSession` also refuses tokens
+bound to another API base URL.
 
 **Libraries and the session.** A library (one database plus its file folders) belongs to this
 device or to an account on a server (`sync_meta.owner`, the list in `library/registry.ts`), and the
@@ -408,11 +409,13 @@ backs it up and keeps it in sync, and signing out only pauses that.
   (`library/mergeRun.ts`, crash-safe and idempotent: the `mergedInto` marker on the source, every
   record in one transaction of the target with its outbox row, files, found by listing the source's
   folders, moved into missing destinations after the commit, the source removed when nothing is left
-  in it; a kept source's boot re-run skips the transaction when its plan adds nothing). The same merge
-  runs again at every boot while a device library exists (`mergeDeviceLibrary`, inside
-  `withSyncPaused` after `resumeMerges`), so one that failed or that a crash interrupted finishes
-  then. A device library with photos whose file lives in another account's storage is kept,
-  marked, and never joins a second account.
+  in it; a replayed edit of a record the target has is written to the target's row as well as its
+  outbox). The same merge runs again at every boot while an unmerged device library exists
+  (`mergeDeviceLibrary`, inside `withSyncPaused` after `resumeMerges`, which skips a marked source
+  that is the open library and goes on after a failed one), so one that failed or that a crash
+  interrupted finishes then. A device library with photos whose file lives in another account's
+  storage is kept, recorded as `keptFor` the account once its merge completed, and never merged
+  again, so it never joins a second account.
 - **Signing out** drops the tokens and nothing else (`dropTokensAsync`, then a best-effort
   revoke): the same library stays open and editable, writes queue in its outbox and photos wait for
   the backup, and all of it uploads when its owner signs in again. Settings asks once, and only
@@ -426,7 +429,7 @@ backs it up and keeps it in sync, and signing out only pauses that.
 library `<id>` (a uuid) is `library-<id>.db` and `libraries/<id>/{files,thumbnails}/`; its
 downloads cache is `downloads/<id>/` under the cache directory and goes with it
 (`library/libraryPaths.ts`: the paths come from the id alone). The list of libraries is the
-AsyncStorage value `libraries` (`{ libraries: [{ id, owner, mergedInto? }] }`); a corrupt value is
+AsyncStorage value `libraries` (`{ libraries: [{ id, owner, mergedInto?, keptFor? }] }`); a corrupt value is
 moved aside and the list rebuilt from the owners the databases carry (`library/rebuildRegistry.ts`); the list and the session record share one persisted store
 (`utils/persistedStore.ts`).
 
@@ -439,9 +442,11 @@ came from: the server reports its `SERVER_ID` in `/up`, the login response and `
 session beside the library open (`library/bootLibrary.ts`): with the same base URL and a complete
 record the app is signed in at once, offline included; a changed base URL (a new dev tunnel) must
 report the session's `serverId` in `/up` before the session rebinds to it, else the tokens are
-dropped; a converted install whose session lacks its user keeps its tokens and is filled from
-`/me` (sync waits for that). Only the server's own 401/403 drops tokens there; a network error
-leaves everything for the next launch.
+dropped (a session whose server is unresolved adopts the reported one); a converted install whose
+session lacks its user keeps its tokens and is filled from `/me` (sync waits for that). Only the
+server's own 401/403 drops tokens there; a network error leaves everything for the next launch.
+The boot reads the session after the library list loaded, since a rebuilt list stores a token-less
+session for a signed-out owner.
 
 **Photo backup** (`sync/backupRun.ts`, started from `CloudSyncProvider`) uploads the files of the
 assets unsynced at its start, one run at a time, for the library and identity it started with: each

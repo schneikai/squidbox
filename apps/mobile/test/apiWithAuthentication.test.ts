@@ -8,12 +8,20 @@ const store: { session: Session | null } = { session: null };
 vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({ API_BASE_URL: 'https://api.test/api/v1' }));
 vi.mock('../src/utils/cloud-api/sessionStore', () => sessionStoreMock(store));
 // The refresh checks the identity like the real one and rotates the stored tokens, as the real one
-// does after the server answered.
+// does after the server answered; `refresh.answer` is the server's answer instead: rejected (the
+// tokens go, a SessionChangedError) or unreachable.
+const refresh = vi.hoisted(() => ({ answer: 'ok' as 'ok' | 'rejected' | 'unreachable' }));
 vi.mock('../src/utils/cloud-api/authentication/refreshAccessTokenAsync', async () => {
   const { default: requireSession } = await import('../src/utils/cloud-api/requireSession');
+  const { default: SessionChangedError } = await import('../src/utils/cloud-api/SessionChangedError');
   return {
     default: async (identity?: { serverId: string | null; userId: string }) => {
       requireSession(identity);
+      if (refresh.answer === 'unreachable') throw new Error('Network Error');
+      if (refresh.answer === 'rejected') {
+        store.session = { ...store.session!, tokens: null };
+        throw new SessionChangedError('The server rejected the session');
+      }
       store.session = { ...store.session!, tokens: { accessToken: 'access-2', refreshToken: 'refresh-2' } };
       return 'access-2';
     },
@@ -48,6 +56,26 @@ function adapter(statuses: number[]) {
 describe('apiWithAuthentication', () => {
   beforeEach(() => {
     store.session = sessionA('access-1');
+    refresh.answer = 'ok';
+  });
+
+  it('a session the server rejected on the refresh ends the request as a session change, not a 401', async () => {
+    refresh.answer = 'rejected';
+    const { fn, bearers } = adapter([401]);
+    await expect(apiWithAuthentication.post('sync/push', {}, { identity: identityA, adapter: fn })).rejects.toThrow(
+      SessionChangedError,
+    );
+    expect(bearers).toEqual(['Bearer access-1']);
+    expect(store.session?.tokens).toBeNull();
+  });
+
+  it('a refresh that fails for another reason rejects with the original 401', async () => {
+    refresh.answer = 'unreachable';
+    const { fn } = adapter([401]);
+    await expect(
+      apiWithAuthentication.post('sync/push', {}, { identity: identityA, adapter: fn }),
+    ).rejects.toMatchObject({ response: { status: 401 } });
+    expect(store.session?.tokens).toEqual({ accessToken: 'access-1', refreshToken: 'refresh-1' });
   });
 
   it('reads the token fresh for every request, so a mid-run refresh is picked up', async () => {

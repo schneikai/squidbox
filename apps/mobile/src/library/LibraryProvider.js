@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 
 import LibraryContext from './LibraryContext';
 import { bootLibrary } from './bootLibrary';
-import { openLibraryEntry } from './current';
+import { openLibraryEntry, openLibraryId } from './current';
 import { resumeMerges } from './mergeRun';
 import { onRegistryChange } from './registry';
 import { mergeDeviceLibrary } from './sessionLibrary';
@@ -48,6 +48,9 @@ export default function LibraryProvider({ children }) {
       (switchError) => {
         setNext(null);
         next.reject(switchError);
+        // The previous library couldn't be reopened either: with none open the gate would render
+        // nothing, so the boot error asks for a restart (which opens the session's library again).
+        if (!openLibraryId()) setError(switchError);
       },
     );
   }, [next]);

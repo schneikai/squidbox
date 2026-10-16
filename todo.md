@@ -37,6 +37,13 @@ In Add to Album and the picker's albums list, the "Archived" filter shows an emp
 `AlbumListItem` ignores its `showLastPostedAt` prop, so every album row shows "Posted …" whether
 or not the screen asks for it. Decide whether rows should show it only when sorted by last posted.
 
+### [ ] The web preview's library limit shows as a generic sign-in failure
+
+The browser holds about three parked libraries (`docs/library-ownership-plan.md` §1.8 promised
+"This browser can't hold more libraries…"); today a fourth sign-in surfaces as `LoginForm`'s
+"Authentication failed!" with "Couldn't create the library: …" (`switchLibrary.ts`). Only matters
+when the web preview signs into several accounts.
+
 ### [ ] Drafts show "Posted NaN years ago"
 
 `PostPostedAt` formats a missing `postedAt` as "Posted NaN years ago" for posts that were never

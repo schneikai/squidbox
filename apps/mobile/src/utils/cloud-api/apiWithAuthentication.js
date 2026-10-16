@@ -1,5 +1,6 @@
 import axios from 'axios';
 
+import SessionChangedError from './SessionChangedError';
 import { API_BASE_URL } from './apiBaseUrl';
 import refreshAccessTokenAsync from './authentication/refreshAccessTokenAsync';
 import requireSession from './requireSession';
@@ -30,9 +31,12 @@ apiWithAuthentication.interceptors.response.use(
       try {
         await refreshAccessTokenAsync(originalRequest.identity);
         return apiWithAuthentication(originalRequest);
-      } catch {
-        // Refresh failed. Reject with the ORIGINAL 401 so callers see a clean auth failure, not the
-        // refresh endpoint's error. A rejected session dropped its tokens (refreshAccessTokenAsync).
+      } catch (refreshError) {
+        // A session that ended (the server rejected it, which dropped its tokens, or someone else
+        // signed in) is the caller's session change, not a failure of its request: the run gate
+        // ends a sync or backup run on it. Any other refresh failure rejects with the ORIGINAL 401,
+        // so callers see a clean auth failure, not the refresh endpoint's error.
+        if (refreshError instanceof SessionChangedError) throw refreshError;
       }
     }
     return Promise.reject(error);

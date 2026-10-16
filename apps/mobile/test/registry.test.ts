@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const storage = new Map<string, string>();
+const writes = { fail: false };
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
     getItem: async (key: string) => storage.get(key) ?? null,
     setItem: async (key: string, value: string) => {
+      if (writes.fail) throw new Error('disk full');
       storage.set(key, value);
     },
   },
@@ -19,8 +21,30 @@ const rebuilt = { libraries: [device] };
 describe('registry', () => {
   beforeEach(async () => {
     storage.clear();
+    writes.fail = false;
     vi.resetModules();
     registry = await import('../src/library/registry');
+  });
+
+  it('a write that fails changes nothing in memory and tells nobody; the next update goes through', async () => {
+    await registry.loadRegistry(async () => rebuilt);
+    const listener = vi.fn();
+    registry.onRegistryChange(listener);
+    writes.fail = true;
+    await expect(
+      registry.updateRegistry(({ libraries }) => ({
+        libraries: [...libraries, { id: 'x', owner: { kind: 'device' } }],
+      })),
+    ).rejects.toThrow('disk full');
+    expect(registry.getRegistry()).toEqual(rebuilt);
+    expect(listener).not.toHaveBeenCalled();
+    writes.fail = false;
+    await registry.updateRegistry(({ libraries }) => ({
+      libraries: [...libraries, { id: 'y', owner: { kind: 'device' } }],
+    }));
+    expect(registry.getRegistry().libraries.map((library) => library.id)).toEqual(['dev-1', 'y']);
+    expect(JSON.parse(storage.get('libraries')!)).toEqual(registry.getRegistry());
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 
   it('rebuilds and stores the list when there is none', async () => {

@@ -4,9 +4,10 @@ import apiWithAuthentication from './apiWithAuthentication';
 import { dropTokensAsync, getSession, updateSession } from './sessionStore';
 
 // Verifies the stored session for this launch and resolves to it: a changed base URL (a new dev
-// tunnel) must report the session's serverId in /up before the session rebinds to it, and a session
-// missing its owner (a converted install) is filled from /me. Only the server's own "no" (401/403)
-// drops tokens; a network error leaves everything for the next launch.
+// tunnel) must report the session's serverId in /up before the session rebinds to it (a session
+// whose server is unresolved yet adopts the reported one, as sameAccount reads a null serverId),
+// and a session missing its owner (a converted install) is filled from /me. Only the server's own
+// "no" (401/403) drops tokens; a network error leaves everything for the next launch.
 export default async function initializeCloudAsync() {
   const session = getSession();
   if (!session?.tokens) return session;
@@ -14,11 +15,14 @@ export default async function initializeCloudAsync() {
   if (session.apiBaseUrl !== API_BASE_URL) {
     const serverId = await fetchServerIdAsync();
     if (serverId === undefined) return session;
-    if (serverId === null || serverId !== session.serverId) return dropAsync();
-    await updateSession((current) => (current ? { ...current, apiBaseUrl: API_BASE_URL } : current));
+    if (serverId === null || (session.serverId !== null && serverId !== session.serverId)) return dropAsync();
+    await updateSession((current) =>
+      current ? { ...current, apiBaseUrl: API_BASE_URL, serverId: current.serverId ?? serverId } : current,
+    );
   }
 
-  if (session.serverId && session.userId && session.email) return getSession();
+  const bound = getSession();
+  if (bound.serverId && bound.userId && bound.email) return bound;
   return fillOwnerAsync();
 }
 

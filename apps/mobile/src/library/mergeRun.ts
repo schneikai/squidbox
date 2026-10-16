@@ -24,14 +24,19 @@ function setMarker(sourceId: string, targetId: string | undefined): Promise<unkn
   );
 }
 
+// The merge is complete and the source stays: the marker gives way to the record of what it joined.
+function setKept(sourceId: string, targetId: string): Promise<unknown> {
+  return updateLibrary(sourceId, ({ mergedInto: _mergedInto, ...library }) => ({ ...library, keptFor: targetId }));
+}
+
 /**
  * Adds the source library to the target in resumable stages, inside the caller's paused sync
  * section: the marker, every record in one transaction of the target, the files of the assets
  * that are in the target by id, then the source is removed, unless photos living in another
- * account's storage keep it, marked, so it never joins another account. A throw before the commit
- * clears the marker; a crash leaves it, and the boot runs the merge again (resumeMerges): planMerge
- * finds what is left to add, so every stage is idempotent and a re-run of a kept source costs its
- * plan alone.
+ * account's storage keep it, recorded as kept for the target (`keptFor`), so it is never merged
+ * again and never joins another account. A throw before the commit clears the marker; a crash
+ * leaves it, and the boot runs the merge again (resumeMerges): planMerge finds what is left to
+ * add, so every stage is idempotent.
  */
 export async function mergeLibrary(sourceId: string, targetId: string): Promise<void> {
   await setMarker(sourceId, targetId);
@@ -47,12 +52,16 @@ export async function mergeLibrary(sourceId: string, targetId: string): Promise<
     await moveMergedFiles(plan, libraryPaths(sourceId), libraryPaths(targetId));
     return plan.keepsSource;
   });
-  if (!keepsSource) await removeLibrary(sourceId);
+  if (keepsSource) await setKept(sourceId, targetId);
+  else await removeLibrary(sourceId);
 }
 
 /**
  * Boot: runs every merge whose marker is set again, finishing one a crash interrupted (a marker
- * whose target is gone is just cleared). Runs inside withSyncPaused, serialized with every switch.
+ * whose target is gone is just cleared). A marked source that is the open library (a device
+ * library opened again after the session was lost) waits for a boot that opens another; a merge
+ * that fails waits for the next boot without stopping the others. Runs inside withSyncPaused,
+ * serialized with every switch.
  */
 export async function resumeMerges(): Promise<void> {
   const { libraries } = getRegistry();
@@ -60,7 +69,12 @@ export async function resumeMerges(): Promise<void> {
     Boolean(library.mergedInto),
   );
   for (const source of marked) {
-    if (libraries.some(({ id }) => id === source.mergedInto)) await mergeLibrary(source.id, source.mergedInto);
-    else await setMarker(source.id, undefined);
+    if (source.id === openLibraryId()) continue;
+    try {
+      if (libraries.some(({ id }) => id === source.mergedInto)) await mergeLibrary(source.id, source.mergedInto);
+      else await setMarker(source.id, undefined);
+    } catch (error) {
+      console.warn(`Could not resume the merge of library ${source.id}`, error);
+    }
   }
 }

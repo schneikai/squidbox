@@ -8,7 +8,7 @@ import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import { makeRepository } from '../src/sync/repository';
-import { getCursor, getOwner, isFirstSyncDone, markFirstSyncDone, setCursor } from '../src/sync/status';
+import { getCursor, getOwner, isFirstSyncDone, markFirstSyncDone, setCursor, setOwner } from '../src/sync/status';
 
 // The device: its databases by name (a store survives close and reopen, like a file), the stored
 // session and the library list in AsyncStorage.
@@ -52,8 +52,12 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 vi.mock('../src/utils/cloud-api/sessionStore', () => sessionStoreMock(store));
 vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({ API_BASE_URL: 'https://api.test/api/v1' }));
 vi.mock('expo-file-system/legacy', () => ({ documentDirectory: 'file:///docs/' }));
+vi.mock('@sentry/react-native', () => ({ captureException: () => {} }));
+// The boot's network check: the stored session as it is (offline).
+vi.mock('../src/utils/cloud-api/initializeCloudAsync', () => ({ default: async () => store.session }));
+const dbNames: string[] = []; // the databases on disk, for a registry rebuild
 vi.mock('../src/library/fs', () => ({
-  listDatabaseNames: async () => [],
+  listDatabaseNames: async () => dbNames,
   listFiles: async () => new Set(),
   createLibraryFolders: async () => {},
   removeLibraryFolders: async () => {},
@@ -63,6 +67,7 @@ vi.mock('../src/library/fs', () => ({
 const ids = vi.hoisted(() => ({ n: 0 }));
 vi.mock('../src/utils/getNewItemId', () => ({ default: () => `id-${++ids.n}` }));
 
+const { bootLibrary } = await import('../src/library/bootLibrary');
 const { closeLibrary, getLibrary, openLibraryId } = await import('../src/library/current');
 const { resumeMerges } = await import('../src/library/mergeRun');
 const { getRegistry, loadRegistry } = await import('../src/library/registry');
@@ -104,7 +109,21 @@ describe('switching libraries with the session', () => {
     deleted.length = 0;
     storage.clear();
     store.session = null;
+    dbNames.length = 0;
     ids.n = 0;
+  });
+
+  it('boots a signed-out install from before libraries into its account library, not a new device one', async () => {
+    const migrated = makeTestDb();
+    stores.set('squidbox.db', migrated);
+    dbNames.push('squidbox.db');
+    await setOwner(migrated, { kind: 'account', serverId: 's1', userId: 'A', email: 'A@test' });
+
+    await bootLibrary(switchLibrary); // the list is rebuilt, which stores the owner's token-less session
+
+    expect(getLibrary().id).toBe('squidbox');
+    expect(libraryIds()).toEqual(['squidbox']);
+    expect(store.session).toEqual({ ...sessionOf('A'), tokens: null });
   });
 
   it('signs in as A, switches to B, and comes back to A with everything intact', async () => {
@@ -255,6 +274,20 @@ describe('switching libraries with the session', () => {
     expect(store.session).toEqual(sessionOf('A'));
     expect(getRegistry().libraries.map(({ id }) => id)).toEqual([aId]);
     expect(deleted).toEqual(['library-id-2.db']);
+  });
+
+  it("a failed open of B whose A won't reopen either keeps B's error and leaves no library open", async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(sessionOf('A'));
+    const aId = getLibrary().id;
+    failing.add('library-id-2.db');
+    failing.add(`library-${aId}.db`);
+
+    await expect(signIn(sessionOf('B'))).rejects.toThrow("Couldn't create the library: cannot open library-id-2.db");
+
+    expect(openLibraryId()).toBeNull();
+    expect(store.session).toEqual(sessionOf('A'));
+    expect(libraryIds()).toEqual([aId]);
   });
 
   it('the same session opens the library it already has, resolving an unresolved owner', async () => {

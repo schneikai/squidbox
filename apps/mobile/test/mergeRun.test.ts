@@ -58,6 +58,7 @@ vi.mock('../src/library/mergeLibrary', async (importOriginal) => {
   const original = await importOriginal<typeof import('../src/library/mergeLibrary')>();
   return {
     ...original,
+    planMerge: vi.fn(original.planMerge),
     applyMerge: vi.fn((...args: Parameters<typeof original.applyMerge>) => {
       if (applyMergeImpl.fail) throw new Error('apply failed');
       return original.applyMerge(...args);
@@ -154,7 +155,7 @@ describe('mergeLibrary / resumeMerges', () => {
     expect(deleted).toEqual([SRC.dbName]);
   });
 
-  it("keeps a source that holds photos living in another account's storage, marked for the account", async () => {
+  it("keeps a source that holds photos living in another account's storage, recorded as kept for the account", async () => {
     await devicePhoto({ filename: 'a.jpg', mediaLibraryAssetId: 'm-a' });
     await repo.createAsset(
       sourceDb(),
@@ -163,17 +164,39 @@ describe('mergeLibrary / resumeMerges', () => {
 
     await mergeLibrary('dev', 'acc');
 
-    expect(entry('dev')).toEqual({ ...DEV, mergedInto: 'acc' });
+    expect(entry('dev')).toEqual({ ...DEV, keptFor: 'acc' });
     expect(stores.has(SRC.dbName)).toBe(true);
     expect(await getDb().select().from(schema.assets)).toHaveLength(1);
     expect(files.has(getAssetFileUri('a.jpg', TGT))).toBe(true);
 
-    const { applyMerge } = await import('../src/library/mergeLibrary');
-    const applied = vi.mocked(applyMerge).mock.calls.length;
-    await resumeMerges(); // every later boot: nothing more to add, the source stays
-    expect(entry('dev')).toEqual({ ...DEV, mergedInto: 'acc' });
-    expect(await getDb().select().from(schema.assets)).toHaveLength(1);
-    expect(vi.mocked(applyMerge).mock.calls).toHaveLength(applied); // nothing applied or moved: the plan alone
+    const { planMerge } = await import('../src/library/mergeLibrary');
+    const planned = vi.mocked(planMerge).mock.calls.length;
+    await resumeMerges(); // every later boot: the merge is complete, nothing runs
+    expect(entry('dev')).toEqual({ ...DEV, keptFor: 'acc' });
+    expect(vi.mocked(planMerge).mock.calls).toHaveLength(planned);
+  });
+
+  it('skips a marked source that is the open library, and one failing merge does not stop the next', async () => {
+    const OTHER = { id: 'other', owner: { kind: 'device' as const } };
+    storage.clear();
+    await loadRegistry(async () => ({
+      libraries: [{ ...DEV, mergedInto: 'acc' }, ACC, { ...OTHER, mergedInto: 'gone' }],
+    }));
+    await closeLibrary();
+    await openLibrary(DEV); // the session was lost: the marked device library opened again
+
+    await resumeMerges();
+    expect(entry('dev')).toEqual({ ...DEV, mergedInto: 'acc' }); // waits for a boot that opens another
+    expect(entry('other')).toEqual(OTHER);
+
+    await closeLibrary();
+    await openLibrary(ACC);
+    await devicePhoto();
+    await updateLibrary('other', (library) => ({ ...library, mergedInto: 'gone' }));
+    applyMergeImpl.fail = true;
+    await resumeMerges();
+    expect(entry('dev')).toEqual(DEV); // its merge failed before the commit
+    expect(entry('other')).toEqual(OTHER); // still cleared, after the failure
   });
 
   it('a marker whose target is gone is just cleared', async () => {

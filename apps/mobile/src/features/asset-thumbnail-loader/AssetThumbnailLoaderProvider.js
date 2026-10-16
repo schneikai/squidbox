@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/react-native';
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import AssetThumbnailLoaderContext from './AssetThumbnailLoaderContext';
 
@@ -60,7 +60,12 @@ export default function AssetThumbnailLoaderProvider({ children }) {
     [pump],
   );
 
-  // Inactive while nobody is signed in: requests queue up and drain once the session is back.
+  // Inactive while nobody is signed in: requests queue up (the cells' polls find their keys tracked
+  // and add nothing) and drain once the session is back, which makes `pump` a new function.
+  useEffect(() => {
+    pump();
+  }, [pump]);
+
   const value = useMemo(() => ({ loadThumbnail }), [loadThumbnail]);
 
   return <AssetThumbnailLoaderContext.Provider value={value}>{children}</AssetThumbnailLoaderContext.Provider>;

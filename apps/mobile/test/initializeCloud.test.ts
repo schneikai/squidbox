@@ -98,6 +98,13 @@ describe('initializeCloudAsync', () => {
     expect(me).not.toHaveBeenCalled();
   });
 
+  it('a changed base URL rebinds a session whose server is unresolved and adopts the reported one', async () => {
+    store.session = { ...complete, serverId: null, apiBaseUrl: 'https://old.test/api/v1' };
+    up.mockResolvedValue({ data: { status: 'ok', serverId: 's1' } });
+    expect(await initializeCloudAsync()).toEqual(complete);
+    expect(me).not.toHaveBeenCalled();
+  });
+
   it('a changed base URL whose server has no identity yet is not trusted', async () => {
     store.session = { ...complete, serverId: null, apiBaseUrl: 'https://old.test/api/v1' };
     up.mockResolvedValue({ data: { status: 'ok' } });

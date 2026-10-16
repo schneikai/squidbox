@@ -78,7 +78,7 @@ export async function openLibraryForSignIn(
 export async function mergeDeviceLibrary(): Promise<void> {
   const source = deviceLibrary(getRegistry().libraries);
   const target = openLibraryEntry();
-  if (!source || source.mergedInto || !target || !sessionMatches(target, getSession())) return;
+  if (!source || source.mergedInto || source.keptFor || !target || !sessionMatches(target, getSession())) return;
   try {
     await mergeLibrary(source.id, target.id);
   } catch (error) {

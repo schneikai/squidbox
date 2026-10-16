@@ -7,9 +7,12 @@ import { createPersistedStore } from '@/utils/persistedStore';
 export interface Library {
   id: string;
   owner: Owner;
-  // The library this one joins: set while the merge runs, and kept when the source stays for
-  // photos in another account's storage, so it never joins another one.
+  // The library this one is joining: set while the merge runs, so a boot finishes one a crash
+  // interrupted.
   mergedInto?: string;
+  // The library this one joined and stays beside, for photos in another account's storage: never
+  // merged again, never into another one.
+  keptFor?: string;
 }
 
 export interface Registry {
