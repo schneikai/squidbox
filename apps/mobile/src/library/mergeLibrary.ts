@@ -287,8 +287,3 @@ export async function moveMergedFiles(
   }
   return moved;
 }
-
-/** Whether the target would get anything, or has something to say about what it won't. */
-export function isEmptyPlan(plan: MergePlan): boolean {
-  return plan.assets.length + plan.albums.length + plan.posts.length + plan.alreadyInAccount + plan.cloudOnly === 0;
-}

@@ -33,11 +33,6 @@ function setMarker(sourceId: string, targetId: string | undefined): Promise<unkn
   );
 }
 
-/** The dry run of adding `sourceId` to `targetId`. */
-export function planMergeOf(sourceId: string, targetId: string): Promise<MergePlan> {
-  return withBothDbs(sourceId, targetId, (source, target) => planMerge(source, target, libraryPaths(sourceId)));
-}
-
 /**
  * Adds the source library to the target in three resumable stages (library-ownership plan §1.5
  * (f)), inside the caller's paused sync section: the marker, then every record in one transaction

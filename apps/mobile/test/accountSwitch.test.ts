@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { makeAssetRecord } from './helpers/factory';
+import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { sessionStoreMock } from './helpers/sessionStoreMock';
 import { makeTestDb } from './helpers/testDb';
 import type { Session } from '../src/library/session';
 import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
+import { makeRepository } from '../src/sync/repository';
 import { getCursor, getOwner, isFirstSyncDone, markFirstSyncDone, setCursor } from '../src/sync/status';
 
 // The device: its databases by name (a store survives close and reopen, like a file), the stored
@@ -48,13 +49,21 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 }));
 vi.mock('../src/utils/cloud-api/sessionStore', () => sessionStoreMock(store));
 vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({ API_BASE_URL: 'https://api.test/api/v1' }));
-vi.mock('../src/library/fs', () => ({ listDatabaseNames: async () => [], createLibraryFolders: async () => {} }));
+vi.mock('expo-file-system/legacy', () => ({ documentDirectory: 'file:///docs/' }));
+vi.mock('../src/library/fs', () => ({
+  listDatabaseNames: async () => [],
+  createLibraryFolders: async () => {},
+  removeLibraryFolders: async () => {},
+  fileExists: async () => false,
+  moveFile: async () => {},
+}));
 const ids = vi.hoisted(() => ({ n: 0 }));
 vi.mock('../src/utils/getNewItemId', () => ({ default: () => `id-${++ids.n}` }));
 
 const { closeLibrary, getLibrary, openLibraryId } = await import('../src/library/current');
 const { getRegistry, loadRegistry } = await import('../src/library/registry');
-const { openLibraryForSession, libraryForSession } = await import('../src/library/sessionLibrary');
+const { libraryForSession, openLibraryForSession, openLibraryForSignIn, signOut } =
+  await import('../src/library/sessionLibrary');
 const { switchLibrary } = await import('../src/library/switchLibrary');
 const { getDb } = await import('../src/sync/db/client');
 
@@ -67,12 +76,20 @@ const sessionOf = (userId: string, serverId: string | null = 's1'): Session => (
   tokens,
 });
 
-// What CloudProvider does inside withSyncPaused: store the session, then open its library.
-async function signIn(session: Session | null) {
+// The boot's open for a stored session (or none), and what CloudProvider's loginAsync does inside
+// withSyncPaused: store the session the server answered with, then open its library.
+async function open(session: Session | null) {
   const previous = store.session;
   store.session = session;
   await openLibraryForSession(session, previous, switchLibrary);
 }
+async function signIn(session: Session) {
+  const previous = store.session;
+  store.session = session;
+  await openLibraryForSignIn(session, previous, switchLibrary);
+}
+const albums = makeRepository('albums', schema.albums);
+const libraryIds = () => getRegistry().libraries.map(({ id }) => id);
 const openOwner = () => getRegistry().libraries.find(({ id }) => id === getLibrary().id)!.owner;
 const assets = () => getDb().select().from(schema.assets);
 const outbox = () => getDb().select().from(schema.outbox);
@@ -90,11 +107,12 @@ describe('switching libraries with the session', () => {
 
   it('signs in as A, switches to B, and comes back to A with everything intact', async () => {
     await loadRegistry(async () => ({ libraries: [] }));
-    await signIn(null);
+    await open(null);
     expect(openOwner()).toEqual({ kind: 'device' });
     const deviceId = getLibrary().id;
 
     await signIn(sessionOf('A'));
+    expect(libraryIds()).not.toContain(deviceId); // empty, so it joined A's library and went
     expect(openOwner()).toEqual({ kind: 'account', serverId: 's1', userId: 'A', email: 'A@test' });
     expect(await getOwner(getDb())).toEqual(openOwner());
     const aId = getLibrary().id;
@@ -110,8 +128,6 @@ describe('switching libraries with the session', () => {
     expect(await getCursor(getDb())).toBe(0);
     expect(await isFirstSyncDone(getDb())).toBe(false);
     await setCursor(getDb(), 7);
-    const parkedA = getRegistry().libraries.find(({ id }) => id === aId)!;
-    expect(parkedA.closed).toMatchObject({ pendingCount: 1, atRiskCount: 1 });
 
     await signIn(sessionOf('A'));
     expect(getLibrary().id).toBe(aId);
@@ -119,29 +135,103 @@ describe('switching libraries with the session', () => {
     expect(await outbox()).toHaveLength(1);
     expect(await getCursor(getDb())).toBe(42);
     expect(await isFirstSyncDone(getDb())).toBe(true);
-    expect(getRegistry().libraries.find(({ id }) => id === aId)!.closed).toBeUndefined();
 
     await signIn(sessionOf('B'));
     expect(getLibrary().id).toBe(bId);
     expect(await getCursor(getDb())).toBe(7);
+    expect(libraryIds().sort()).toEqual([aId, bId].sort());
+  });
 
-    await signIn(null);
-    expect(getLibrary().id).toBe(deviceId);
-    expect(
-      getRegistry()
-        .libraries.map(({ id }) => id)
-        .sort(),
-    ).toEqual([aId, bId, deviceId].sort());
+  it('signing in adds what this device holds to the account and keeps nothing of another account', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    const deviceId = getLibrary().id;
+    const photo = await repo.createAsset(
+      getDb(),
+      makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+    );
+    const cloudOnly = await repo.createAsset(getDb(), makeAssetRecord({ filename: 'c.jpg', isFileSynced: true }));
+    await albums.create(getDb(), makeAlbumRecord({ name: 'Trip' }));
+
+    await signIn(sessionOf('A'));
+
+    expect(openOwner()).toMatchObject({ kind: 'account', userId: 'A' });
+    expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
+    expect(await getDb().select().from(schema.albums)).toHaveLength(1);
+    expect(await outbox()).toHaveLength(2); // the photo and the album push with the next sync
+    // The photo in another account's storage stays where it was, in the parked device library.
+    expect(libraryIds()).toContain(deviceId);
+    const device = await (await import('../src/sync/db/client')).openAppDb(`library-${deviceId}.db`);
+    expect((await device.select().from(schema.assets)).map(({ id }) => id)).toEqual([photo.id, cloudOnly.id]);
+  });
+
+  it('a merge that fails leaves the device library parked for the next sign-in, signed in anyway', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    const deviceId = getLibrary().id;
+    await repo.createAsset(getDb(), makeAssetRecord({ isSynced: false }));
+    failing.add(`library-${deviceId}.db`); // the merge's second connection to it
+
+    await signIn(sessionOf('A'));
+
+    expect(openOwner()).toMatchObject({ kind: 'account', userId: 'A' });
+    expect(await assets()).toHaveLength(0);
+    expect(libraryIds()).toContain(deviceId);
+    expect(store.session).toEqual(sessionOf('A'));
+  });
+
+  it('a sign-out keeps the library open, with what is added meanwhile, and the next boot reopens it', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    await signIn(sessionOf('A'));
+    const aId = getLibrary().id;
+    await setCursor(getDb(), 42);
+
+    expect(await signOut()).toEqual(tokens);
+    expect(store.session).toEqual({ ...sessionOf('A'), tokens: null });
+    expect(getLibrary().id).toBe(aId);
+    expect(libraryIds()).toEqual([aId]); // no device library comes back
+    await repo.createAsset(getDb(), makeAssetRecord({ isSynced: false })); // while signed out
+    expect(await signOut()).toBeNull(); // nothing more to revoke
+
+    await closeLibrary(); // the app is closed and opened again
+    await open(store.session);
+    expect(getLibrary().id).toBe(aId);
+    expect(await getCursor(getDb())).toBe(42);
+    expect(await outbox()).toHaveLength(1);
+
+    await signIn(sessionOf('A')); // the owner signs in again: no switch, the outbox is still there
+    expect(getLibrary().id).toBe(aId);
+    expect(await outbox()).toHaveLength(1);
+  });
+
+  it('signing in as B while A is signed out parks A with its pending changes until A signs in again', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    await signIn(sessionOf('A'));
+    const aId = getLibrary().id;
+    await repo.createAsset(getDb(), makeAssetRecord({ isSynced: false }));
+    await signOut();
+
+    await signIn(sessionOf('B'));
+    const bId = getLibrary().id;
+    expect(bId).not.toBe(aId);
+    expect(await assets()).toHaveLength(0);
+    expect(libraryIds().sort()).toEqual([aId, bId].sort());
+
+    await signIn(sessionOf('A'));
+    expect(getLibrary().id).toBe(aId);
+    expect(await outbox()).toHaveLength(1);
   });
 
   it('a failed open of B leaves A open with its session and no B entry', async () => {
     await loadRegistry(async () => ({ libraries: [] }));
-    await signIn(sessionOf('A'));
+    await open(sessionOf('A'));
     const aId = getLibrary().id;
     await setCursor(getDb(), 42);
     failing.add('library-id-2.db'); // the next id, B's new library
 
-    await expect(signIn(sessionOf('B'))).rejects.toThrow("Couldn't create the library: cannot open library-id-2.db");
+    await expect(open(sessionOf('B'))).rejects.toThrow("Couldn't create the library: cannot open library-id-2.db");
 
     expect(getLibrary().id).toBe(aId);
     expect(await getCursor(getDb())).toBe(42);
@@ -150,25 +240,14 @@ describe('switching libraries with the session', () => {
     expect(deleted).toEqual(['library-id-2.db']);
   });
 
-  it('a sign-out whose device library will not open keeps the old session', async () => {
-    await loadRegistry(async () => ({ libraries: [] }));
-    await signIn(sessionOf('A'));
-    failing.add('library-id-2.db');
-
-    await expect(signIn(null)).rejects.toThrow('cannot open');
-
-    expect(store.session).toEqual(sessionOf('A'));
-    expect(openOwner()).toMatchObject({ userId: 'A' });
-  });
-
   it('the same session opens the library it already has, resolving an unresolved owner', async () => {
     const migrated = { id: 'squidbox', owner: { kind: 'account' as const, serverId: null, userId: 'A', email: '' } };
     await loadRegistry(async () => ({ libraries: [migrated] }));
-    await signIn(sessionOf('A', null));
+    await open(sessionOf('A', null));
     expect(getLibrary().id).toBe('squidbox');
     expect(openOwner()).toEqual({ kind: 'account', serverId: null, userId: 'A', email: 'A@test' });
 
-    await signIn(sessionOf('A', 's1')); // /me resolved the server
+    await open(sessionOf('A', 's1')); // /me resolved the server
     expect(getLibrary().id).toBe('squidbox');
     expect(openOwner()).toEqual({ kind: 'account', serverId: 's1', userId: 'A', email: 'A@test' });
     expect(await getOwner(getDb())).toEqual(openOwner());

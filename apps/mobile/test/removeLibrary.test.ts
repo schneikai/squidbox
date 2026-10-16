@@ -9,19 +9,13 @@ const stores = new Map<string, AppDb>();
 const deleted: string[] = [];
 const removedFolders: string[] = [];
 const storage = new Map<string, string>();
-const opened: string[] = [];
 
 vi.mock('../src/sync/db/client', () => {
   let open: AppDb | null = null;
   return {
     openAppDb: async (name: string) => {
-      opened.push(name);
       if (!stores.has(name)) stores.set(name, makeTestDb());
-      return Object.assign(Object.create(stores.get(name)!), {
-        close: async () => {
-          opened.push(`closed ${name}`);
-        },
-      });
+      return Object.assign(Object.create(stores.get(name)!), { close: async () => {} });
     },
     deleteAppDb: async (name: string) => {
       deleted.push(name);
@@ -49,7 +43,7 @@ vi.mock('../src/library/fs', () => ({
 
 const { closeLibrary, getLibrary, openLibrary, openLibraryId } = await import('../src/library/current');
 const { getRegistry, loadRegistry } = await import('../src/library/registry');
-const { readParkedCounts, removeLibrary } = await import('../src/library/removeLibrary');
+const { removeLibrary } = await import('../src/library/removeLibrary');
 const { getDb } = await import('../src/sync/db/client');
 
 const open = { id: 'open-lib', owner: { kind: 'device' as const } };
@@ -65,26 +59,9 @@ describe('removeLibrary', () => {
     deleted.length = 0;
     removedFolders.length = 0;
     storage.clear();
-    opened.length = 0;
     await loadRegistry(async () => ({ libraries: [open, parked] }));
     await openLibrary(open);
     await repo.createAsset(getDb(), makeAssetRecord({ isSynced: false })); // the open library has its own data
-    opened.length = 0;
-  });
-
-  it('recounts a parked library from its own database while the open one stays open', async () => {
-    const parkedDb = stores.get('library-parked-lib.db') ?? makeTestDb();
-    stores.set('library-parked-lib.db', parkedDb);
-    await repo.createAssets(parkedDb, [makeAssetRecord({ isSynced: false }), makeAssetRecord({ isSynced: true })]);
-
-    expect(await readParkedCounts('parked-lib')).toMatchObject({ pendingCount: 2, atRiskCount: 1 });
-    expect(opened).toEqual(['library-parked-lib.db', 'closed library-parked-lib.db']);
-    expect(getLibrary().id).toBe('open-lib');
-    expect(
-      await getDb()
-        .select()
-        .from((await import('../src/sync/db/schema')).assets),
-    ).toHaveLength(1);
   });
 
   it('deletes the database, the folders and the entry', async () => {
@@ -98,7 +75,6 @@ describe('removeLibrary', () => {
 
   it('refuses the open library and an id that could name another path', async () => {
     await expect(removeLibrary('open-lib')).rejects.toThrow('open library cannot be removed');
-    await expect(readParkedCounts('open-lib')).rejects.toThrow('open library cannot be removed');
     await expect(removeLibrary('../squidbox')).rejects.toThrow('Invalid library id');
     expect(deleted).toEqual([]);
     expect(getRegistry().libraries).toEqual([open, parked]);

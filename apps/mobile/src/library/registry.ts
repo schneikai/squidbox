@@ -5,8 +5,6 @@ import type { Owner } from './owner';
 export interface Library {
   id: string;
   owner: Owner;
-  // For display while the library is parked: what hadn't synced when it was closed.
-  closed?: { pendingCount: number; atRiskCount: number; at: number };
   // A merge into another library is under way (library-ownership plan §1.5 (f)).
   mergedInto?: string;
 }

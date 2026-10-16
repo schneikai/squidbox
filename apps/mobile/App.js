@@ -26,7 +26,6 @@ import PostsQueryProvider from '@/features/post-list/posts-query/PostsQueryProvi
 import PostsProvider from '@/features/posts-context/PostsProvider';
 import FirstSyncScreen from '@/features/sync-status/FirstSyncScreen';
 import LibraryProvider from '@/library/LibraryProvider';
-import MergeOffer from '@/library/MergeOffer';
 import SwitchingScreen from '@/library/SwitchingScreen';
 import useLibrary from '@/library/useLibrary';
 import RootNavigator from '@/navigators/RootNavigator';
@@ -201,7 +200,6 @@ const MainApp = memo(function MainApp() {
                   <RootNavigator />
                   <FloatingNavigationBar />
                   <FloatingFilterModal />
-                  <MergeOffer />
                 </View>
               </FloatingBarsProvider>
             </AssetPickerProvider>

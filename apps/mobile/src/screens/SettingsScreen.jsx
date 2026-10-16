@@ -9,16 +9,12 @@ import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
-import { Row, Section } from '@/components/settings-list/SettingsList';
+import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import { MODEL_STORAGE_KEY, DEFAULT_MODEL } from '@/features/ai-suggestions/aiSuggestionsStorage';
+import confirmSignOutAsync from '@/features/cloud/confirmSignOutAsync';
 import useCloud from '@/features/cloud/useCloud';
-import useSignOutSheet from '@/features/cloud/useSignOutSheet';
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
-import deviceLabel from '@/library/deviceLabel';
-import libraryLabel from '@/library/libraryLabel';
-import { readParkedCounts, removeLibrary } from '@/library/removeLibrary';
-import unsyncedCountsText from '@/library/unsyncedCountsText';
 import useLibrary from '@/library/useLibrary';
 import useUnsyncedCounts from '@/library/useUnsyncedCounts';
 import { colors } from '@/styles/designTokens';
@@ -26,20 +22,13 @@ import { useSyncStatus } from '@/sync/useSyncStatus';
 import { SERVER_URL } from '@/utils/cloud-api/apiBaseUrl';
 import useResortAlbumsByName from '@/utils/tools/useResortAlbumsByName';
 
-// A parked library's row: what its snapshot says hadn't synced when it was closed.
-function parkedValue({ closed }) {
-  if (!closed) return null;
-  return [`${closed.pendingCount} pending`, `${closed.atRiskCount} at risk`].join(' · ');
-}
-
 export default function SettingsScreen() {
   const navigation = useNavigation();
   const { isAuthenticated, needsReauth, user, logoutAsync } = useCloud();
-  const { library, libraries } = useLibrary();
+  const { library } = useLibrary();
   const cloudSync = useCloudSync();
   const unsynced = useUnsyncedCounts(); // the one live query behind every count on this screen
   const { phase, lastError } = useSyncStatus();
-  const confirmSignOutAsync = useSignOutSheet();
 
   const [aiModel, setAiModel] = useState(DEFAULT_MODEL);
   const [isLoggingOut, startLogoutTransition] = useTransition();
@@ -47,10 +36,8 @@ export default function SettingsScreen() {
   const { showBlocking, hide } = useProgressOverlay();
   const resortAlbumsByNameAsync = useResortAlbumsByName();
 
-  // Every library but this device's own while it is parked and empty (nothing added while signed out).
-  const listedLibraries = libraries.filter(
-    (entry) => entry.id === library.id || entry.owner.kind === 'account' || (entry.closed?.pendingCount ?? 0) > 0,
-  );
+  // An account library shows its backup whether or not its owner is signed in right now.
+  const isAccountLibrary = library.owner.kind === 'account';
 
   useFocusEffect(
     useCallback(() => {
@@ -64,46 +51,10 @@ export default function SettingsScreen() {
     }, []),
   );
 
-  // The choice is asked outside the transition: a state update made inside its callback before the
-  // first await would be part of the pending transition and never render the sheet.
+  // The confirmation is asked outside the transition: a state update made inside its callback
+  // before the first await would be part of the pending transition and never render the alert.
   async function handleLogout() {
-    const choice = await confirmSignOutAsync(unsynced);
-    if (choice) startLogoutTransition(() => logoutAsync(choice));
-  }
-
-  // A parked library is removed only after its own database was counted again (a crash can leave
-  // the snapshot stale); it opens on a second connection, never through the open library.
-  async function handleRemoveLibrary(parked) {
-    const label = libraryLabel(parked);
-    try {
-      showBlocking();
-      const text = unsyncedCountsText(await readParkedCounts(parked.id));
-      hide();
-      Alert.alert(
-        `Remove ${label}?`,
-        text ? `${text} haven't synced and will be lost.` : 'Everything in it is synced.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Remove',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                showBlocking();
-                await removeLibrary(parked.id);
-              } catch (error) {
-                Alert.alert("Couldn't remove", error.message);
-              } finally {
-                hide();
-              }
-            },
-          },
-        ],
-      );
-    } catch (error) {
-      hide();
-      Alert.alert("Couldn't open", error.message);
-    }
+    if (await confirmSignOutAsync(unsynced)) startLogoutTransition(() => logoutAsync());
   }
 
   function handleResortAlbums() {
@@ -165,17 +116,21 @@ export default function SettingsScreen() {
         </Section>
       );
     }
-    const waiting = unsyncedCountsText(unsynced);
     return (
       <>
         {needsReauth && (
           <Section>
-            <Row label="Sign in to sync" value={waiting ? `${waiting} waiting` : 'Everything synced'} />
+            <Row label="Backup paused" value="Sign in to continue" />
           </Section>
         )}
         <View style={styles.loginWrapper}>
           <LoginForm ownerEmail={needsReauth ? user?.email : undefined} />
         </View>
+        {!isAccountLibrary && (
+          <SectionFooter>
+            Squidbox works without an account. Sign in to back up your photos and keep them in sync.
+          </SectionFooter>
+        )}
       </>
     );
   }
@@ -187,7 +142,7 @@ export default function SettingsScreen() {
         <ScreenSectionHeader title="Account" />
         {renderAccount()}
 
-        {(isAuthenticated || needsReauth) && (
+        {isAccountLibrary && (
           <>
             <ScreenSectionHeader title="Backup & Sync" />
             <Section>
@@ -206,27 +161,6 @@ export default function SettingsScreen() {
             </Section>
           </>
         )}
-
-        <ScreenSectionHeader title={`Libraries on ${deviceLabel()}`} />
-        <Section>
-          {listedLibraries.map((entry) =>
-            entry.id === library.id ? (
-              <Row
-                key={entry.id}
-                label={libraryLabel(entry)}
-                value={[unsyncedCountsText(unsynced), 'Open'].filter(Boolean).join(' · ')}
-              />
-            ) : (
-              <Row
-                key={entry.id}
-                label={libraryLabel(entry)}
-                value={parkedValue(entry)}
-                onPress={() => handleRemoveLibrary(entry)}
-                chevron
-              />
-            ),
-          )}
-        </Section>
 
         <ScreenSectionHeader title="AI Caption Suggestions" />
         <Section>

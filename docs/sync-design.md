@@ -386,23 +386,29 @@ account's, and every request reads the tokens fresh from the stored session for 
 
 **Libraries and the session.** A library (one database plus its file folders) belongs to this
 device or to an account on a server (`sync_meta.owner`, the list in `library/registry.ts`), and the
-stored session is the open pointer: no session opens the device library, a session its owner's
-(`library/sessionLibrary.ts`). Signing in or out changes the session and switches libraries inside
-one `withSyncPaused` section (`library/switchLibrary.ts`: the backup run stopped, the closing
-library's unsynced counts noted, its database closed, the next one opened), so no run spans a
-session or library change. Nothing is wiped: the account's library is parked on sign-out and
-reopens on the next sign-in with its cursor, outbox and first-sync flag; removing a library is an
-explicit choice (the sign-out sheet, or Settings → Libraries). After a sign-in, the device
-library's records can be added to the account once (`library/mergeLibrary.ts`: one transaction,
-every copied record with its outbox row, files moved after the commit, the source removed when
-nothing is left in it).
+stored session is the open pointer: no session opens the device library, a session its owner's,
+with or without tokens (`library/sessionLibrary.ts`). The library lives on the device; an account
+backs it up and keeps it in sync, and signing out only pauses that. Signing in changes the session
+and switches libraries inside one `withSyncPaused` section (`library/switchLibrary.ts`: the backup
+run stopped, the closing library's database closed, the next one opened), so no run spans a
+session or library change; then whatever the device library (the one from before any sign-in)
+holds is added to the account's library at once, with no prompt (`library/mergeRun.ts`: one
+transaction, every copied record with its outbox row, files moved after the commit, the source
+removed when nothing is left in it; a merge a crash interrupted finishes at the next boot). Signing
+out drops the tokens and nothing else: the same library stays open and editable, writes queue in
+its outbox and upload when its owner signs in again; it asks once, and only when something is
+pending or not backed up. Signing in as another account opens that account's library and parks
+the current one with its pending changes, until its owner signs in again. Nothing is wiped and
+nothing in the UI removes a library.
 
 **Expired sessions.** Access tokens live 24h; refresh tokens rotate on every refresh, so the app
 refreshes once for all concurrent callers (`refreshAccessTokenAsync`), and the server keeps a
 rotated token valid until its successor is first presented, so a lost response doesn't sign the
 device out. Only a server rejection (400/401/403) drops the tokens; network errors keep them. A
-rejected session keeps its owner and library: the library stays open and editable, writes queue
-in its outbox, nothing syncs, and Settings asks the owner to sign in again (`needsReauth`).
+rejected session keeps its owner and library, like a sign-out: the library stays open and
+editable, writes queue in its outbox, nothing syncs, and the only signs are the badge on the
+header avatar and Settings' "Backup paused · Sign in to continue" row above the pre-filled sign-in
+form (`needsReauth`). No alert.
 
 **First sync.** A new device or account starts at `cursor = 0` and pulls everything. While
 signed in and `firstSyncDone` is not set, `AppGate` (`App.js`) shows `FirstSyncScreen` and does

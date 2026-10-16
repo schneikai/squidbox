@@ -205,11 +205,12 @@ The upload loop (`CloudSyncProvider.js`) uploads the file, then the thumbnail, a
 asset twice (`isFileSynced`, then the rest). Uploading both at once (`Promise.allSettled`) and
 writing the flags in one `updateAsset` halves the waits and the writes per photo.
 
-### [ ] Directory sizes in the Libraries list
+### [ ] Free the space used by other accounts' cached libraries
 
-"Libraries on this iPhone" (`SettingsScreen.jsx`) shows each library's unsynced counts only. The
-plan (`docs/library-ownership-plan.md` §6, decision 10) would add each library's size on disk if
-`getInfoAsync(dir, { size: true })` measures fast at 10k files on a device; measure it before adding.
+Parked libraries stay on the phone forever: signing in as another account parks the current
+library (`src/library/switchLibrary.ts`) and nothing in the UI removes one since "Libraries on this
+iPhone" went (`removeLibrary` now only serves the merge). Rare, multi-account only; a Developer or
+Settings action behind a recount of the parked database would do.
 
 ### [ ] Web preview gaps
 
@@ -262,18 +263,21 @@ build: an older one would open `squidbox.db` with its wipe-on-switch logic and k
   the library shows with the sign-in form. Note the time from splash to library.
 - Files: adding a photo from the camera roll and backing it up still works (the migrated library
   keeps `assetfiles/` and `assetthumbnails/`; a fresh install writes under `libraries/<id>/`).
-- The switch: sign out → "Opening This iPhone…", an empty library, the sign-in form; sign back in
-  → "Opening <email>…", the library is back at once, no "Setting up your library". A photo added
-  while signed out stays in the device library until the merge offer.
-- Sign-out sheet and Libraries: Keep / Remove with the fresh counts; "Libraries on this iPhone"
-  shows the parked library's counts and removes it after recounting its own database.
+- Sign-out: with everything synced, "Sign out" signs out at once; the library stays, with its
+  photos, the avatar shows the badge and Settings "Backup paused · Sign in to continue" above the
+  sign-in form with the email pre-filled. Add a photo while signed out; sign in again → no
+  "Setting up your library", the photo uploads with "Back up now".
+- Sign-out with unsynced work: add a photo, sign out before it is backed up → "You have media
+  that isn't backed up yet" → Cancel keeps you signed in, Sign Out signs out.
+- Another account: signed out of A, "Sign in as someone else" as B → "Opening <B>…", B's library
+  (its first sync if new); sign in as A again → A's library with the photo still waiting.
 - Expired session: revoke the phone's refresh token server-side (or set `tokens` to null in the
-  stored session) → the red dot on the avatar, "Sign in to sync" with the waiting counts, still
-  placeholders, the pre-filled email and "Sign in as someone else".
-- The merge: signed out, add two photos (one already in the account), an album with them and a
-  post; sign in → "Add 1 photo, 1 album and 1 post from This iPhone to <email>?" with "1 photo is
-  already in the account" → Add: all in the account, the new photo with its thumbnail, "Back up
-  now" uploads it, This iPhone leaves the list. Once more with Keep Separate: it stays listed.
+  stored session) → no alert, only the red dot on the avatar and the "Backup paused" row; still
+  placeholders for thumbnails not on the phone.
+- First sign-in on a fresh install: add two photos (one already in the account), an album with
+  them and a post before signing in; sign in → no dialog; after the setup screen everything is in
+  the account, the new photo with its thumbnail, "Back up now" uploads it; the camera-roll
+  duplicate is a second copy (the merge runs before the first pull; see the plan's "Changed" note).
 
 ### [ ] Set the SERVER_ID secret, then deploy the server
 
