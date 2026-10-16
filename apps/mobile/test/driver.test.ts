@@ -92,4 +92,58 @@ describe('driver (createDb)', () => {
     await expect(after).rejects.toThrow('The database is closed');
     await expect(setCursor(db, 1)).rejects.toThrow('The database is closed');
   });
+
+  it('skips the statements and transactions of a cancellable db cancelled by their turn', async () => {
+    let isCancelled = false;
+    const reads = db.cancellable(() => isCancelled);
+    let release = () => {};
+    const busy = db.transaction(() => new Promise<void>((resolve) => (release = resolve)));
+    const select = () =>
+      reads
+        .select({ id: schema.assets.id })
+        .from(schema.assets)
+        .then((rows) => rows); // queues it
+    await new Promise((resolve) => setTimeout(resolve, 5)); // the transaction holds the queue
+
+    const before = select(); // queued while still wanted, cancelled before its turn
+    const inTransaction = reads.transaction((tx) => tx.select().from(schema.assets));
+    isCancelled = true;
+    release();
+    await busy;
+    await expect(before).rejects.toThrow('cancelled');
+    await expect(inTransaction).rejects.toThrow('cancelled');
+
+    isCancelled = false;
+    expect(await select()).toEqual([]);
+  });
+
+  it('refuses writes on a cancellable db, alone or in a transaction', async () => {
+    const reads = db.cancellable(() => false);
+    const changed: Set<string>[] = [];
+    db.onTablesChanged((tables) => changed.push(tables));
+
+    await expect(setCursor(reads, 1)).rejects.toThrow('only reads');
+    await expect(repo.createAsset(reads, makeAssetRecord())).rejects.toThrow('only reads');
+
+    expect(changed).toEqual([]);
+    expect(await db.select().from(schema.assets)).toEqual([]);
+    expect(await reads.select().from(schema.assets)).toEqual([]); // reads still run
+  });
+
+  it('runs only reads on a cancellable db: DDL, CTE writes and pragma assignments are refused', async () => {
+    const reads = db.cancellable(() => false);
+
+    await expect(reads.run(sql`create table t (id integer)`)).rejects.toThrow('only reads');
+    await expect(reads.run(sql`drop table sync_meta`)).rejects.toThrow('only reads');
+    await expect(
+      reads.run(sql`with gone as (select id from assets) delete from assets where id in gone`),
+    ).rejects.toThrow('only reads');
+    await expect(reads.run(sql`pragma user_version = 7`)).rejects.toThrow('only reads');
+    await expect(reads.run(sql`pragma foreign_keys(0)`)).rejects.toThrow('only reads');
+
+    expect(await reads.all(sql`with ids as (select id from assets) select count(*) from ids`)).toEqual([[0]]);
+    expect(await reads.all(sql`pragma user_version`)).toHaveLength(1);
+    expect(await reads.transaction((tx) => tx.select().from(schema.assets))).toEqual([]);
+    expect(await db.all(sql`select name from sqlite_master where name = 't'`)).toEqual([]);
+  });
 });

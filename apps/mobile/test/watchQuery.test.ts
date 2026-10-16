@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
-import { makeTestDb } from './helpers/testDb';
+import { makeMeasuredTestDb, makeTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
+import type { SyncDb } from '../src/sync/db/types';
 import { setCursor } from '../src/sync/status';
 import { watchQuery } from '../src/sync/watchQuery';
 
@@ -14,7 +15,7 @@ beforeEach(() => {
 });
 
 type Row = { id: string; filename: string; isFavorite: boolean };
-const readAssets = (db: AppDb): Promise<Row[]> =>
+const readAssets = (db: SyncDb): Promise<Row[]> =>
   db
     .select({ id: schema.assets.id, filename: schema.assets.filename, isFavorite: schema.assets.isFavorite })
     .from(schema.assets)
@@ -26,10 +27,10 @@ async function settle(): Promise<void> {
 }
 
 // A read that waits until the test releases it, counting its runs.
-function gatedRead<T>(read: (db: AppDb) => Promise<T>) {
+function gatedRead<T>(read: (db: SyncDb) => Promise<T>) {
   let release = () => {};
   const gate = { runs: 0, release: () => release() };
-  const gated = async (db: AppDb): Promise<T> => {
+  const gated = async (db: SyncDb): Promise<T> => {
     gate.runs++;
     await new Promise<void>((resolve) => (release = resolve));
     return read(db);
@@ -248,5 +249,135 @@ describe('watchQuery', () => {
     await settle();
     expect(seen.map((rows) => rows.map((row) => row.id))).toEqual([['a']]);
     watch.stop();
+  });
+
+  it("doesn't run a stopped watch's read still waiting in the db queue, nor log it", async () => {
+    const measured = makeMeasuredTestDb();
+    const errors = vi.spyOn(console, 'error');
+    const { gate, gated } = gatedRead(async () => {});
+    const busy = measured.db.transaction(gated); // holds the queue, like a long read or write
+    const stale: Row[][] = [];
+    const current: Row[][] = [];
+
+    const work = await measured.measure(async () => {
+      await settle();
+      // A keystroke: a watch queues its read, the next keystroke replaces it before the queue gets there.
+      const first = watchQuery(measured.db, readAssets, [schema.assets], (rows) => stale.push(rows));
+      first.setEnabled(true);
+      first.stop();
+      const second = watchQuery(measured.db, readAssets, [schema.assets], (rows) => current.push(rows));
+      second.setEnabled(true);
+      gate.release();
+      await busy;
+      await settle();
+      second.stop();
+    });
+
+    expect(stale).toEqual([]);
+    expect(current).toHaveLength(1);
+    expect(work.statements).toBe(3); // the transaction's begin and commit, and one read
+    expect(errors).not.toHaveBeenCalled();
+    errors.mockRestore();
+  });
+
+  describe('with minInterval', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('reads first and after a quiet write right away, and a burst of writes once per interval', async () => {
+      const results: Row[][] = [];
+      const watch = watchQuery(db, readAssets, [schema.assets], (rows) => results.push(rows), undefined, {
+        minInterval: 1000,
+      });
+      watch.setEnabled(true);
+      await settle();
+      expect(results).toHaveLength(1); // the first read doesn't wait
+
+      vi.advanceTimersByTime(2000);
+      await repo.createAsset(db, makeAssetRecord({ filename: 'quiet.jpg' }));
+      await settle();
+      expect(results).toHaveLength(2); // a write after a quiet second shows right away
+
+      for (let i = 0; i < 5; i++) {
+        await repo.createAsset(db, makeAssetRecord({ filename: `burst${i}.jpg` }));
+        await settle();
+        vi.advanceTimersByTime(100);
+      }
+      expect(results).toHaveLength(2);
+      vi.advanceTimersByTime(499);
+      await settle();
+      expect(results).toHaveLength(2);
+      vi.advanceTimersByTime(1);
+      await settle();
+      expect(results).toHaveLength(3); // one read for the whole burst, a second after the last one began
+      expect(results[2]).toHaveLength(6);
+
+      await repo.createAsset(db, makeAssetRecord());
+      watch.stop();
+      expect(vi.getTimerCount()).toBe(0);
+      vi.advanceTimersByTime(1000);
+      await settle();
+      expect(results).toHaveLength(3); // a stopped watch's pending re-read is dropped
+    });
+
+    it('clears the pending re-read when disabled', async () => {
+      const results: Row[][] = [];
+      const watch = watchQuery(db, readAssets, [schema.assets], (rows) => results.push(rows), undefined, {
+        minInterval: 1000,
+      });
+      watch.setEnabled(true);
+      await settle();
+      await repo.createAsset(db, makeAssetRecord());
+      await settle();
+      expect(vi.getTimerCount()).toBe(1); // the re-read waits for the interval
+
+      watch.setEnabled(false);
+      expect(vi.getTimerCount()).toBe(0);
+      vi.advanceTimersByTime(1000);
+      await settle();
+      expect(results).toHaveLength(1);
+      watch.stop();
+    });
+
+    it('catches up on enable right away', async () => {
+      const { gate, gated } = gatedRead(readAssets);
+      const watch = watchQuery(db, gated, [schema.assets], () => {}, undefined, { minInterval: 1000 });
+      watch.setEnabled(true);
+      gate.release();
+      await settle();
+      expect(gate.runs).toBe(1);
+
+      watch.setEnabled(false);
+      await repo.createAsset(db, makeAssetRecord());
+      await settle();
+      watch.setEnabled(true);
+      await settle();
+      expect(gate.runs).toBe(2); // within the interval, but a focus shows fresh data at once
+      gate.release();
+      watch.stop();
+    });
+
+    it('keeps the interval when enabled again while a read is in flight', async () => {
+      const { gate, gated } = gatedRead(readAssets);
+      const watch = watchQuery(db, gated, [schema.assets], () => {}, undefined, { minInterval: 1000 });
+      watch.setEnabled(true);
+      await settle();
+      watch.setEnabled(false);
+      watch.setEnabled(true); // a quick blur and focus while the first read runs
+      await repo.createAsset(db, makeAssetRecord());
+      gate.release();
+      await settle();
+      expect(gate.runs).toBe(1); // the write's re-read waits for the interval
+
+      vi.advanceTimersByTime(1000);
+      await settle();
+      expect(gate.runs).toBe(2);
+      gate.release();
+      watch.stop();
+    });
   });
 });

@@ -175,24 +175,6 @@ Their outbox rows retry on every sync and the failure is only visible in the Syn
 FIFO queue, WAL adds no read concurrency, so take it only if a measured write-latency win on a
 device justifies an iOS-only setting (web's OPFS storage measured slower with WAL).
 
-### [ ] Throttle the albums stats re-read during uploads
-
-While the Albums tab is focused, `albumQuery.page` re-runs on every write to its five tables. A
-backup run writes each asset twice, so the list re-reads its stats (175–440 ms native) per
-uploaded asset. Coalesce its re-reads to about one per second (`useAlbumRows` / `watchQuery`).
-
-### [ ] Skip a stopped watch's queued read
-
-`watchQuery.stop()` only drops a late result: a read already waiting in the database queue still
-runs, so fast typing in a search queues one full read per keystroke and the last one waits behind
-them. Check the stopped flag when the read starts.
-
-### [ ] Upload a photo's file and thumbnail at once
-
-The upload loop (`CloudSyncProvider.js`) uploads the file, then the thumbnail, and writes the
-asset twice (`isFileSynced`, then the rest). Uploading both at once (`Promise.allSettled`) and
-writing the flags in one `updateAsset` halves the waits and the writes per photo.
-
 ### [ ] Free the space used by other accounts' cached libraries
 
 Parked libraries stay on the phone forever: signing in as another account parks the current

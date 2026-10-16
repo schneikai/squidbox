@@ -1,6 +1,5 @@
 import { count, desc } from 'drizzle-orm';
 
-import { getDb } from './db/client';
 import * as schema from './db/schema';
 import { useLiveQuery } from './useLiveQuery';
 import { useRecordCounts } from './useRecordCounts';
@@ -23,8 +22,8 @@ export function useCollectionStats(): CollectionStats[] {
   const posts = useRecordCounts(schema.posts);
   const pending =
     useLiveQuery(
-      () =>
-        getDb()
+      (db) =>
+        db
           .select({ collection: schema.outbox.collection, count: count() })
           .from(schema.outbox)
           .groupBy(schema.outbox.collection),
@@ -44,7 +43,7 @@ export function useCollectionStats(): CollectionStats[] {
 export function useSyncLogRows(): schema.SyncLogRow[] {
   return (
     useLiveQuery(
-      () => getDb().select().from(schema.syncLog).orderBy(desc(schema.syncLog.id)).limit(SYNC_LOG_SHOWN),
+      (db) => db.select().from(schema.syncLog).orderBy(desc(schema.syncLog.id)).limit(SYNC_LOG_SHOWN),
       [schema.syncLog],
     ) ?? NO_ROWS
   );

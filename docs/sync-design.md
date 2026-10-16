@@ -389,13 +389,15 @@ Tables (`apps/mobile/src/sync/db/schema.ts`):
 
 **Reads.** Nothing holds a whole table in memory. Each screen declares what it shows as a small
 query descriptor and reads it live (`docs/paged-reads-plan.md`): `watchQuery.ts` runs a read once
-and again after each committed write to the tables it watches, never overlapping, keeping the
-object of every row whose fields are unchanged; `useLiveQuery` wraps it for a screen and pauses it
-while the screen is blurred; `usePagedQuery` reads the first `limit` rows and the exact count of a
-query and grows the limit as the user scrolls. The query builders (`assetQuery`, `albumQuery`,
-`postQuery`) turn a descriptor into SQL with a stable order (every `ORDER BY` ends in `id`) over
-the partial indexes of migration 0006; album stats and `lastPostedAt` are computed in SQL per read,
-never stored or synced. Memoized grid cells re-render only for the rows a write touched.
+and again after each committed write to the tables it watches, never overlapping, keeping the object
+of every row whose fields are unchanged; a stopped watch's read still waiting in the db queue is
+skipped, and `minInterval` coalesces a write burst's re-reads (the album list's, to about one a
+second); `useLiveQuery` wraps it for a screen and pauses it while the screen is blurred;
+`usePagedQuery` reads the first `limit` rows and the exact count of a query and grows the limit as
+the user scrolls. The query builders (`assetQuery`, `albumQuery`, `postQuery`) turn a descriptor
+into SQL with a stable order (every `ORDER BY` ends in `id`) over the partial indexes of migration
+0006; album stats and `lastPostedAt` are computed in SQL per read, never stored or synced. Memoized
+grid cells re-render only for the rows a write touched.
 
 The data providers (`AssetsProvider`, `AlbumsProvider`, `PostsProvider`) expose the write methods
 to the screens; membership lives in the edge collections and is read where needed.
@@ -501,10 +503,14 @@ session for a signed-out owner.
 
 **Photo backup** (`sync/backupRun.ts`, started from `CloudSyncProvider`) uploads the files of the
 assets unsynced at its start, one run at a time, for the library and identity it started with: each
-asset is re-read right before its upload, every upload reads the tokens fresh for that identity,
-and `withSyncPaused` aborts the run (the upload in flight included) before any session or library
-change; it registers with the gate before it reads the ids, so a pause starting meanwhile stops it. An interrupted or refused upload leaves the asset unmarked, its file in place and no
-`syncError`, so the next run uploads it.
+asset is re-read right before its upload, its file and thumbnail upload at once and what uploaded is
+marked in one write, every upload reads the tokens fresh for that identity, and `withSyncPaused`
+aborts the run (the upload in flight included) before any session or library change; it registers
+with the gate before it reads the ids, so a pause starting meanwhile stops it. An interrupted or
+refused upload leaves its part unmarked, the file in place and no `syncError`, so the next run
+uploads it; a part that finished before the abort is still marked (the pause waits for the run). A
+refusal for another session marks nothing; an asset deleted or purged during its uploads isn't
+marked and keeps its file; a failed upload or marking write sets `syncError` and the run goes on.
 
 **Expired sessions.** Access tokens live 24h; refresh tokens rotate on every refresh, so the app
 refreshes once for all concurrent callers (`refreshAccessTokenAsync`), and the server keeps a

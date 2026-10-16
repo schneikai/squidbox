@@ -1,6 +1,5 @@
 import { count } from 'drizzle-orm';
 
-import { getDb } from './db/client';
 import * as schema from './db/schema';
 import { getCursor, getStatus, isFirstSyncDone, type SyncPhase } from './status';
 import { useLiveQuery } from './useLiveQuery';
@@ -17,9 +16,11 @@ export interface LiveSyncStatus {
 }
 
 export function useSyncStatus(): LiveSyncStatus {
-  const db = getDb();
-  const meta = useLiveQuery(async () => ({ ...(await getStatus(db)), cursor: await getCursor(db) }), [schema.syncMeta]);
-  const [pending] = useLiveQuery(() => db.select({ count: count() }).from(schema.outbox), [schema.outbox]) ?? [];
+  const meta = useLiveQuery(
+    async (db) => ({ ...(await getStatus(db)), cursor: await getCursor(db) }),
+    [schema.syncMeta],
+  );
+  const [pending] = useLiveQuery((db) => db.select({ count: count() }).from(schema.outbox), [schema.outbox]) ?? [];
 
   return {
     phase: meta?.phase ?? 'idle',
@@ -41,5 +42,5 @@ export function useSyncStatus(): LiveSyncStatus {
 // already-synced user.
 // A boolean, so the many other sync_meta writes (status, cursor) don't re-render its callers.
 export function useFirstSyncDone(): boolean | undefined {
-  return useLiveQuery(() => isFirstSyncDone(getDb()), [schema.syncMeta]);
+  return useLiveQuery(isFirstSyncDone, [schema.syncMeta]);
 }

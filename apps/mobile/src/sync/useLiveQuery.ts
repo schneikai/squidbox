@@ -3,17 +3,12 @@ import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import { useEffect, useRef, useState } from 'react';
 
 import { getDb } from './db/client';
-import type { AppDb } from './db/driver';
-import { watchQuery, type Watch } from './watchQuery';
+import type { SyncDb } from './db/types';
+import { watchQuery, type Watch, type WatchOptions } from './watchQuery';
 
 import useScreenFocus from '@/hooks/useScreenFocus';
 
 const NOT_READ = { data: undefined, readAt: -1 };
-
-interface LiveQueryOptions {
-  /** The first read waits for a write: the caller already holds the current data (e.g. just read it). */
-  waitForWrite?: boolean;
-}
 
 /**
  * The result of `read`, re-run after each committed write to any of `tables` while the screen is
@@ -21,13 +16,13 @@ interface LiveQueryOptions {
  * previous data stays until its first read lands), so `read` must be pure given `deps`: a write
  * re-runs the closure captured when they last changed. A blurred screen reads nothing; on focus it
  * reads once if a write or a deps change happened meanwhile. A re-read that returns the same data
- * renders nothing.
+ * renders nothing. `options`: see WatchOptions.
  */
 export function useLiveQuery<T>(
-  read: (db: AppDb) => Promise<T>,
+  read: (db: SyncDb) => Promise<T>,
   tables: SQLiteTable[],
   deps: unknown[] = [],
-  options: LiveQueryOptions = {},
+  options: WatchOptions = {},
 ) {
   const [data, setData] = useState<T>();
   useWatch(read, tables, deps, data, setData, options);
@@ -42,7 +37,7 @@ export function useLiveQuery<T>(
  * it only changes with the data, which renders nothing for an identical re-read.
  */
 export function useLiveQueryState<T>(
-  read: (db: AppDb) => Promise<T>,
+  read: (db: SyncDb) => Promise<T>,
   tables: SQLiteTable[],
   deps: unknown[] = [],
   { everyRead = false }: { everyRead?: boolean } = {},
@@ -56,12 +51,12 @@ export function useLiveQueryState<T>(
 
 // The watch behind both hooks: one per tables and deps, enabled while the screen is focused.
 function useWatch<T>(
-  read: (db: AppDb) => Promise<T>,
+  read: (db: SyncDb) => Promise<T>,
   tables: SQLiteTable[],
   deps: unknown[],
   data: T | undefined,
   onData: (data: T, readAt: number) => void,
-  options: LiveQueryOptions = {},
+  options: WatchOptions = {},
 ) {
   const dataRef = useRef(data);
   dataRef.current = data;

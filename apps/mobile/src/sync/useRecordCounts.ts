@@ -1,6 +1,5 @@
 import { sql } from 'drizzle-orm';
 
-import { getDb } from './db/client';
 import * as schema from './db/schema';
 import { useLiveQuery } from './useLiveQuery';
 
@@ -10,8 +9,8 @@ const NO_ROWS: never[] = [];
 export function useRecordCounts(table: typeof schema.assets | typeof schema.albums | typeof schema.posts) {
   const [row] =
     useLiveQuery(
-      () =>
-        getDb()
+      (db) =>
+        db
           .select({
             records: sql<number>`count(*) filter (where ${table.deletedAt} is null)`,
             tombstones: sql<number>`count(*) filter (where ${table.deletedAt} is not null)`,

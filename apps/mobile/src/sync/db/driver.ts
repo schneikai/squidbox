@@ -1,6 +1,7 @@
 import { drizzle, type AsyncRemoteCallback } from 'drizzle-orm/sqlite-proxy';
 
 import * as schema from './schema';
+import type { SyncDb } from './types';
 
 // `changes` (rows a `run` changed) lets a write that matched nothing skip notifying live reads.
 export type Execute = (
@@ -14,6 +15,16 @@ const WRITTEN_TABLE = /^\s*(?:insert\s+into|update|delete\s+from)\s+["`]([^"`]+)
 // Any other write (raw SQL with an unquoted table, REPLACE, INSERT OR …) would change a table without
 // telling live reads, so it is refused.
 const ANY_WRITE = /^\s*(?:insert|update|delete|replace)\b/i;
+// What a cancellable db runs (a cancelled write would be lost): reads, the statements of a
+// transaction around them, a CTE that writes nothing and a pragma read (`pragma name`; the argument
+// form can assign, so it's refused). Anything else, DDL or a pragma assignment included, is refused.
+const READ_STATEMENT = /^\s*(?:select|begin|commit|rollback|savepoint|release)\b|^\s*pragma\s+[\w.]+\s*;?\s*$/i;
+const CTE = /^\s*with\b/i;
+const WRITE_WORD = /\b(?:insert|update|delete|replace)\b/i;
+
+function isRead(sql: string): boolean {
+  return READ_STATEMENT.test(sql) || (CTE.test(sql) && !WRITE_WORD.test(sql));
+}
 
 /**
  * An async drizzle database on top of `execute`, the same on every platform. All access runs
@@ -32,9 +43,10 @@ export function createDb(execute: Execute, close: () => Promise<void> = async ()
   let closed = false;
   const listeners = new Set<TablesChangedListener>();
 
-  function queue<T>(work: () => Promise<T>): Promise<T> {
+  function queue<T>(work: () => Promise<T>, isCancelled?: () => boolean): Promise<T> {
     if (closed) return Promise.reject(new Error('The database is closed'));
     const unit = tail.then(async () => {
+      if (isCancelled?.()) throw new Error('The read was cancelled');
       written = new Set();
       const result = await work();
       const tables = written;
@@ -57,9 +69,16 @@ export function createDb(execute: Execute, close: () => Promise<void> = async ()
     return result;
   };
 
+  const executeRead: Execute = async (sql, params, method) => {
+    if (!isRead(sql)) throw new Error(`A cancellable db only reads: ${sql.slice(0, 80)}`);
+    return executeTracked(sql, params, method);
+  };
+
   const inner = drizzle(executeTracked, { schema });
   const db = drizzle((sql, params, method) => queue(() => executeTracked(sql, params, method)), { schema });
   db.transaction = ((work, config) => queue(() => inner.transaction(work, config))) as typeof db.transaction;
+  // The cancellable dbs, one per live read, skip the schema walk: nothing uses db.query (see SyncDb).
+  const innerReads = drizzle(executeRead);
 
   return Object.assign(db, {
     /**
@@ -73,6 +92,16 @@ export function createDb(execute: Execute, close: () => Promise<void> = async ()
     onTablesChanged(listener: TablesChangedListener): () => void {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    /**
+     * This database for reads only (a write rejects), each statement or transaction rejecting
+     * instead of running if `isCancelled()` holds when its turn in the queue comes.
+     */
+    cancellable(isCancelled: () => boolean): SyncDb {
+      const reads = drizzle((sql, params, method) => queue(() => executeRead(sql, params, method), isCancelled));
+      reads.transaction = ((work, config) =>
+        queue(() => innerReads.transaction(work, config), isCancelled)) as typeof reads.transaction;
+      return reads;
     },
     /** Closes the connection once everything queued before has run; anything queued after rejects. */
     close(): Promise<void> {

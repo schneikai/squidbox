@@ -30,11 +30,14 @@ export function isBackupRunning(): boolean {
 }
 
 /**
- * Backs up the assets unsynced at the start, in id order: upload the file and mark it, delete the
- * local copy, upload the thumbnail and mark the asset synced; a failed upload sets syncError and
- * the run goes on. One run at a time, through the run gate: null while a pause holds. An abort (or
- * a session change) ends the run between steps, so nothing is marked or deleted for a session the
- * run no longer belongs to, and no syncError is written for the interrupted upload.
+ * Backs up the assets unsynced at the start, in id order: upload the file and the thumbnail at
+ * once, mark what uploaded in one write (nothing for an asset deleted or purged meanwhile), then
+ * delete the local copy of an uploaded file; a failed upload or write sets syncError (what did
+ * upload is still marked) and the run goes on. One run at a time, through the run gate: null while
+ * a pause holds. An abort ends the run once the asset's uploads settled: an upload that finished
+ * before it is still marked (the pause waits for the run, so the session and library are still the
+ * run's), an interrupted one is neither marked nor a syncError. A session that changed under the
+ * run (SessionChangedError) ends it with nothing marked or deleted for the asset.
  */
 export function runBackup(db: SyncDb, options: BackupRunOptions): Promise<void> | null {
   if (running) throw new Error('A backup is already running');
@@ -64,26 +67,72 @@ async function backupAssets(
 
 // Resolves whether the run was aborted on this asset.
 async function backupAsset(db: SyncDb, asset: BackupAsset, uploads: BackupUploads, signal: AbortSignal) {
-  try {
-    if (!asset.isFileSynced) {
-      await uploads.uploadFile(asset);
-      if (signal.aborted) return true;
-      await updateAsset(db, asset.id, { isFileSynced: true });
-      // The local file isn't needed any more: it's in the cloud now.
-      await uploads.deleteFile(asset.filename);
-    }
-    if (signal.aborted) return true;
+  const [file, thumbnail] = await Promise.allSettled([
+    !asset.isFileSynced && finishedBeforeAbort(uploads.uploadFile(asset), signal),
     // The thumbnail stays on the device, the app shows it.
-    if (!asset.isThumbnailSynced) await uploads.uploadThumbnail(asset);
-    if (signal.aborted) return true;
-    await updateAsset(db, asset.id, { isThumbnailSynced: true, isSynced: true });
-    requestSync();
-    return false;
+    !asset.isThumbnailSynced && finishedBeforeAbort(uploads.uploadThumbnail(asset), signal),
+  ]);
+  const failures = [file, thumbnail].flatMap((result) => (result.status === 'rejected' ? [result.reason] : []));
+  const sessionChanged = failures.find((error) => error instanceof SessionChangedError);
+  if (sessionChanged) throw sessionChanged; // the run gate ends the run on it
+  const uploaded = {
+    file: file.status === 'fulfilled' && file.value,
+    thumbnail: thumbnail.status === 'fulfilled' && thumbnail.value,
+  };
+  try {
+    // An abort interrupts the uploads still running: not failures.
+    const marked = await markAsset(db, asset.id, uploaded, signal.aborted ? [] : failures);
+    if (marked) requestSync();
+    // The local file isn't needed any more once it's in the cloud and marked so, thumbnail or not.
+    if (marked && uploaded.file) await deleteOriginal(uploads, asset.filename);
   } catch (error) {
-    if (error instanceof SessionChangedError) throw error; // the run gate ends the run on it
     if (signal.aborted) return true;
     // The other assets still get their turn; the error shows in the UI with a retry.
-    await setSyncError(db, [asset.id], error instanceof Error ? error.message : String(error));
-    return false;
+    await setSyncError(db, [asset.id], errorMessage(error));
   }
+  return signal.aborted;
+}
+
+// Resolves whether the upload finished before an abort: only such an upload is marked.
+async function finishedBeforeAbort(upload: Promise<void>, signal: AbortSignal): Promise<boolean> {
+  await upload;
+  return !signal.aborted;
+}
+
+// Marks what uploaded and records the first failure in one write, unless the asset was deleted or
+// purged meanwhile; resolves whether it marked anything (a new version to push). The syncError is
+// local-only, so a write that only sets it makes no new version.
+async function markAsset(
+  db: SyncDb,
+  id: string,
+  uploaded: { file: boolean; thumbnail: boolean },
+  failures: unknown[],
+): Promise<boolean> {
+  if (!uploaded.file && !uploaded.thumbnail && failures.length === 0) return false;
+  return db.transaction(async (tx) => {
+    const [row] = await readByIds<BackupAsset>(tx, schema.assets, [id]);
+    if (!row || row.deletedAt !== null || row.purgedAt !== null) return false;
+    const changes: Partial<BackupAsset> = {};
+    if (uploaded.file && !row.isFileSynced) changes.isFileSynced = true;
+    if (uploaded.thumbnail && !row.isThumbnailSynced) changes.isThumbnailSynced = true;
+    const marked = Object.keys(changes).length > 0;
+    if (marked)
+      await updateAsset(tx, id, {
+        ...changes,
+        isSynced: (row.isFileSynced || uploaded.file) && (row.isThumbnailSynced || uploaded.thumbnail),
+      });
+    if (failures.length > 0) await setSyncError(tx, [id], errorMessage(failures[0]));
+    return marked;
+  });
+}
+
+// A failed delete only leaves a copy the cloud already has: not an upload error, so not a syncError.
+async function deleteOriginal(uploads: BackupUploads, filename: string) {
+  await uploads
+    .deleteFile(filename)
+    .catch((error) => console.warn('Could not delete the uploaded original', filename, error));
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

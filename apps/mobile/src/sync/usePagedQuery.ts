@@ -1,12 +1,12 @@
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import { useCallback, useState } from 'react';
 
-import type { AppDb } from './db/driver';
+import type { SyncDb } from './db/types';
 import { useLiveQueryState } from './useLiveQuery';
 
 export interface PagedQuery<R> {
   descriptor?: unknown; // what the query shows, as a plain object: a change starts at the first page
-  read(db: AppDb, options: { limit: number }): Promise<{ rows: R[]; count: number }>;
+  read(db: SyncDb, options: { limit: number }): Promise<{ rows: R[]; count: number }>;
   tables: SQLiteTable[];
 }
 
