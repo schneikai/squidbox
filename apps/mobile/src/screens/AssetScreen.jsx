@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { Modal, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import AssetImage from '@/components/AssetImage';
 import Page from '@/components/Page';
 import VideoControls from '@/components/VideoControls';
 import FloatingDetailActionsBar from '@/components/floating-bars/FloatingDetailActionsBar';
@@ -36,6 +36,7 @@ export default function AssetScreen({ route, navigation }) {
   const [assetIds, setAssetIds] = useState(null);
   const [center, setCenter] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isPagerLocked, setIsPagerLocked] = useState(false);
   const insets = useSafeAreaInsets();
 
   const tappedOnly = useMemo(() => [tappedAssetId], [tappedAssetId]);
@@ -86,6 +87,17 @@ export default function AssetScreen({ route, navigation }) {
     setAssetIds(assetIds.filter((assetId) => !droppedIds.has(assetId)));
   }, [windowData]);
 
+  // A zoomed photo's pan owns the swipe, so the swipe back is locked with the pager, and so is the
+  // swipe down that dismisses the sheet this screen may be in (CreatePostNavigator): a native-stack
+  // modal can't be swiped away without `gestureEnabled`. The sheet's swipe comes back on unmount.
+  useEffect(() => {
+    const parent = navigation.getParent();
+    navigation.setOptions({ gestureEnabled: !isPagerLocked });
+    parent?.setOptions({ gestureEnabled: !isPagerLocked });
+    if (!isPagerLocked) return;
+    return () => parent?.setOptions({ gestureEnabled: true });
+  }, [navigation, isPagerLocked]);
+
   // Recenter once the current asset leaves the middle third of the window.
   useEffect(() => {
     const third = windowIds.length / 3;
@@ -95,6 +107,7 @@ export default function AssetScreen({ route, navigation }) {
 
   const headerTopOffset = insets.top + spacing.contentPaddingTop;
   const openFullscreen = useCallback(() => setIsFullscreen(true), []);
+  const closeFullscreen = useCallback(() => setIsFullscreen(false), []);
 
   if (!windowData) return <Page />;
 
@@ -124,9 +137,11 @@ export default function AssetScreen({ route, navigation }) {
           currentAssetId={selectedAssetId}
           onChangeAssetId={setSelectedAssetId}
           onTapAsset={openFullscreen}
+          onLockChange={setIsPagerLocked}
         />
       ) : (
-        <AssetItem asset={asset} style={styles.page} onTap={openFullscreen} />
+        // Not zoomable until the pager takes over, which locks the swipes while zoomed.
+        <AssetItem asset={asset} style={styles.page} isZoomable={false} onTap={openFullscreen} />
       )}
 
       {asset && asset.mediaType === MEDIA_TYPES.VIDEO && <VideoControls asset={asset} />}
@@ -139,17 +154,18 @@ export default function AssetScreen({ route, navigation }) {
         />
       )}
 
-      {/* Full-screen overlay — tap anywhere to dismiss */}
+      {/* Full-screen overlay, zoomable like the pager — tap to dismiss. A modal is its own native root,
+          so its gestures need their own root view. Keyed by asset: another asset starts at 1×. */}
       <Modal
         visible={isFullscreen}
         transparent={false}
         animationType="fade"
-        onRequestClose={() => setIsFullscreen(false)}
+        onRequestClose={closeFullscreen}
         statusBarTranslucent
       >
-        <Pressable style={styles.fullscreenOverlay} onPress={() => setIsFullscreen(false)}>
-          <AssetImage asset={asset} contentFit="contain" placeholderColor="transparent" />
-        </Pressable>
+        <GestureHandlerRootView style={styles.fullscreenOverlay}>
+          <AssetItem key={asset?.id} asset={asset} style={styles.page} isZoomable onTap={closeFullscreen} />
+        </GestureHandlerRootView>
       </Modal>
     </Page>
   );

@@ -5,15 +5,23 @@ import AssetItem from './AssetItem';
 
 const keyExtractor = (assetId) => assetId;
 
+// A page that zooms out clears the slot only if it still holds that page.
+function nextZoomedAssetId({ zoomed, assetId, isZoomed }) {
+  if (isZoomed) return assetId;
+  return zoomed === assetId ? null : zoomed;
+}
+
 /**
  * Horizontally paged, controlled list of assets: it shows `currentAssetId` and reports the page
  * the user settles on through `onChangeAssetId`. `assetsById` holds the rows around the current one
  * (the screen's window); a page outside it is blank, never visible with paging. Memoized with
- * stable list props, so a swipe re-renders the pager but not its pages.
+ * stable list props, so a swipe re-renders the pager and only the two pages it moves between. Only
+ * the current page is zoomable. While it is zoomed in, its pan owns the swipe: the pager is locked,
+ * and `onLockChange(isLocked)` reports it so the screen can lock its swipe-back too.
  */
 export default memo(AssetPager);
 
-function AssetPager({ assetIds, assetsById, currentAssetId, onChangeAssetId, onTapAsset }) {
+function AssetPager({ assetIds, assetsById, currentAssetId, onChangeAssetId, onTapAsset, onLockChange }) {
   const { width: pageWidth } = useWindowDimensions();
   // Pages take the pager's height explicitly: native stretches list items to it, the web doesn't.
   const [pageHeight, setPageHeight] = useState(0);
@@ -21,6 +29,18 @@ function AssetPager({ assetIds, assetsById, currentAssetId, onChangeAssetId, onT
   const currentIndex = assetIds.indexOf(currentAssetId);
   const [initialScrollIndex] = useState(Math.max(currentIndex, 0));
   const shownIndexRef = useRef(initialScrollIndex);
+  const [zoomedAssetId, setZoomedAssetId] = useState(null);
+  // Only the current asset can be zoomed, so the pager unlocks once it stops being current.
+  const isLocked = !!zoomedAssetId && zoomedAssetId === currentAssetId;
+
+  // Only changes are reported: the pager starts unlocked.
+  const reportedLockRef = useRef(false);
+
+  useEffect(() => {
+    if (isLocked === reportedLockRef.current) return;
+    reportedLockRef.current = isLocked;
+    onLockChange(isLocked);
+  }, [isLocked, onLockChange]);
 
   // Follow the current asset when it moves without a swipe, e.g. when an asset before it is deleted.
   useEffect(() => {
@@ -40,10 +60,22 @@ function AssetPager({ assetIds, assetsById, currentAssetId, onChangeAssetId, onT
     },
     [assetIds, pageWidth, onChangeAssetId],
   );
+  const handleZoomChange = useCallback(
+    (assetId, isZoomed) => setZoomedAssetId((zoomed) => nextZoomedAssetId({ zoomed, assetId, isZoomed })),
+    [],
+  );
   const pageStyle = useMemo(() => ({ width: pageWidth, height: pageHeight }), [pageWidth, pageHeight]);
   const renderItem = useCallback(
-    ({ item: assetId }) => <AssetItem asset={assetsById.get(assetId)} style={pageStyle} onTap={onTapAsset} />,
-    [assetsById, pageStyle, onTapAsset],
+    ({ item: assetId }) => (
+      <AssetItem
+        asset={assetsById.get(assetId)}
+        style={pageStyle}
+        isZoomable={assetId === currentAssetId}
+        onTap={onTapAsset}
+        onZoomChange={handleZoomChange}
+      />
+    ),
+    [assetsById, pageStyle, currentAssetId, onTapAsset, handleZoomChange],
   );
   const getItemLayout = useCallback(
     (_, index) => ({ length: pageWidth, offset: pageWidth * index, index }),
@@ -61,6 +93,7 @@ function AssetPager({ assetIds, assetsById, currentAssetId, onChangeAssetId, onT
       initialScrollIndex={initialScrollIndex}
       horizontal
       pagingEnabled
+      scrollEnabled={!isLocked}
       bounces={false}
       showsHorizontalScrollIndicator={false}
       onScrollEndDrag={handleScrollEnd}

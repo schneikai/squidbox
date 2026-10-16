@@ -50,11 +50,32 @@ already installed.
 On the asset detail screen, swipe up (as in Apple Photos) to see details: the albums the asset
 belongs to and when it was last posted.
 
-### [ ] Zoom like Apple Photos
+### [ ] Fullscreen as a chrome-hiding state of the photo pager
 
-Pinch currently springs back and always scales from the center (`AssetItem`). Zoom should center
-on the pinch or tap point, stay zoomed and allow panning, with the pager locked while zoomed. The
-fullscreen view on the asset detail screen needs the same.
+Like Apple Photos: a tap hides the header, notes and actions and turns the background black, while
+paging and the current zoom stay. Today fullscreen is a `Modal` with a second viewer in
+`AssetScreen.jsx`.
+
+### [ ] Swipe on to the next photo from a zoomed photo's edge
+
+In Apple Photos, a zoomed photo panned to its left or right edge hands the swipe to the pager. Here
+the pager (`AssetPager`, a native `FlatList`) is locked while the photo is zoomed, so you zoom out
+first. Handing over mid-touch needs the pager driven from the zoom's pan (e.g. Reanimated `scrollTo`)
+or a gesture-handler pager, instead of toggling `scrollEnabled`.
+
+### [ ] Lock the photo pager on the UI thread
+
+A zoom locks the pager through the JS thread (`runOnJS` → `setZoomedAssetId` → `scrollEnabled` in
+`AssetPager`), so under JS load a pan right after zooming in can still move the pager. Driving
+`scrollEnabled` from a shared value (`useAnimatedProps` on an `Animated.FlatList`) would skip the round
+trip, but it's unverified on the phone (Fabric) and react-native-web ignores it, and the swipe-back
+lock (`navigation.setOptions`) still needs JS. Try it on a device first.
+
+### [ ] Zoom deeper than the thumbnail
+
+The photo viewer shows the 1000 px thumbnail, so zoom stops at 4× (`useZoomGesture`) and looks soft
+well before that. Loading the full-resolution file once zoomed would make deeper zoom worthwhile,
+with the maximum taken from the photo's own size.
 
 ### [ ] Quick view in albums with custom sort
 
@@ -218,7 +239,8 @@ The web preview (README → "Web preview") can't add photos from the camera roll
 files or pinch. Web versions exist only for tokens and thumbnails. Extend them if testing those
 flows in the browser becomes worth it. The photo viewer also doesn't follow a scroll on web:
 react-native-web's ScrollView never fires `onMomentumScrollEnd`/`onScrollEndDrag`, so
-`AssetPager` never learns the new page (header, actions and notes stay on the first photo).
+`AssetPager` never learns the new page (header, actions and notes stay on the first photo, and only
+that photo zooms).
 
 ### [ ] Sentry receives events from development
 
@@ -228,8 +250,8 @@ production project. Consider `enabled: !__DEV__`.
 ### [ ] One animation library
 
 Animations use both React Native's `Animated` and Reanimated. Move the `Animated` ones
-(`BlurPopoverRenderer`, `SortFilterModal`, `MainTabNavigator`, `AssetImage`, `AiChatModal`;
-`AssetItem` goes with the zoom rework) to Reanimated, so everything runs on the UI thread with one API.
+(`BlurPopoverRenderer`, `SortFilterModal`, `MainTabNavigator`, `AssetImage`, `AiChatModal`) to
+Reanimated, so everything runs on the UI thread with one API.
 
 ### [ ] Move off Node 20
 
@@ -307,6 +329,17 @@ Renew them via the **`/build`** skill (see "expired signing" there) a few weeks 
 ### [ ] Check the photo detail view on a device
 
 Photos in the detail view may be slightly cropped. Confirm or rule it out.
+
+### [ ] Check photo zoom on the phone
+
+Zoom (`useZoomGesture`, in the photo pager and the fullscreen view) was only tried in the web
+preview with a mouse. On the phone, check the feel: pinch stays on the fingers and two fingers move
+the photo, lifting one finger carries on as a pan without a jump, pinching below 1× or past 4×
+springs back, a pan resists at the edges and a fling glides and stops there, double tap zooms in on
+the point and back out, and a single tap still opens/closes fullscreen without a noticeable delay.
+At 1× the pager swipes as before; zoomed, it and the swipe back from the screen's edge are locked,
+and they unlock after zooming out. Opened from the create-post sheet, the sheet can't be swiped down
+while zoomed. A pinch that zooms in from 1× and then lifts one finger carries on as a pan.
 
 ### [ ] Check the boot screen and the octopus on the phone
 

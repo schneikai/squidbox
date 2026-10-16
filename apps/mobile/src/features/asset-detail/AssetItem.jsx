@@ -1,41 +1,44 @@
-// TODO: Pinch is a peek: the image springs back on release. Zooming in place (focal point, panning,
-// staying zoomed while the pager is locked) is not implemented yet. A slight crop of the image was
-// also reported and still needs checking on a device.
+import { memo, useCallback } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { GestureDetector } from 'react-native-gesture-handler';
+import Animated from 'react-native-reanimated';
 
-import { memo, useState } from 'react';
-import { Animated, Pressable } from 'react-native';
-import { PinchGestureHandler, State } from 'react-native-gesture-handler';
+import useZoomGesture from './useZoomGesture';
 
 import AssetImage from '@/components/AssetImage';
-import { motion } from '@/styles/designTokens';
 
 // Memoized: the pager re-renders on every swipe, its pages shouldn't.
 export default memo(AssetItem);
 
-function AssetItem({ asset, style, onTap }) {
-  // Created once: a new native event would make the pinch handler reattach it on every render.
-  const [{ pinchScale, scale, onPinchGestureEvent }] = useState(() => {
-    const value = new Animated.Value(1);
-    return {
-      pinchScale: value,
-      // Pinching in never shrinks the image below its fitted size.
-      scale: value.interpolate({ inputRange: [1, 2], outputRange: [1, 2], extrapolateLeft: 'clamp' }),
-      onPinchGestureEvent: Animated.event([{ nativeEvent: { scale: value } }], { useNativeDriver: true }),
-    };
+// An asset filling `style`, zoomable while `isZoomable` (see useZoomGesture). `onZoomChange(assetId,
+// isZoomed)` lets a pager lock its swipe while this asset is zoomed in.
+function AssetItem({ asset, style, isZoomable, onTap, onZoomChange }) {
+  const assetId = asset?.id;
+  const handleZoomChange = useCallback((isZoomed) => onZoomChange?.(assetId, isZoomed), [assetId, onZoomChange]);
+  const { gesture, zoomStyle, onLayout } = useZoomGesture({
+    aspectRatio: asset?.width / asset?.height,
+    isZoomable,
+    onTap,
+    onZoomChange: handleZoomChange,
   });
 
-  function handlePinchStateChange(event) {
-    if (event.nativeEvent.oldState !== State.ACTIVE) return;
-    Animated.spring(pinchScale, { toValue: 1, ...motion.spring, useNativeDriver: true }).start();
-  }
-
   return (
-    <Pressable style={style} onPress={onTap}>
-      <PinchGestureHandler onGestureEvent={onPinchGestureEvent} onHandlerStateChange={handlePinchStateChange}>
-        <Animated.View style={{ flex: 1, transform: [{ scale }] }}>
+    <GestureDetector gesture={gesture}>
+      <View style={[styles.container, style]} onLayout={onLayout}>
+        <Animated.View style={[styles.image, zoomStyle]}>
           <AssetImage asset={asset} contentFit="contain" placeholderColor="transparent" />
         </Animated.View>
-      </PinchGestureHandler>
-    </Pressable>
+      </View>
+    </GestureDetector>
   );
 }
+
+const styles = StyleSheet.create({
+  // A zoomed image stays inside its page.
+  container: {
+    overflow: 'hidden',
+  },
+  image: {
+    flex: 1,
+  },
+});
