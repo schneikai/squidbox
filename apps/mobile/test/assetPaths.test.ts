@@ -6,6 +6,7 @@ import { libraryPaths } from '../src/library/libraryPaths';
 // The open library, as the file helpers see it, and a record of the file-system calls they make.
 const current: { library: OpenLibrary | null } = { library: null };
 const fs: string[] = [];
+const folders: Record<string, string[]> = {}; // what readDirectoryAsync lists, by folder
 
 vi.mock('../src/library/current', () => ({
   getLibrary: () => {
@@ -15,25 +16,28 @@ vi.mock('../src/library/current', () => ({
 }));
 vi.mock('expo-file-system/legacy', () => ({
   documentDirectory: 'file:///documents/',
+  cacheDirectory: 'file:///caches/',
   makeDirectoryAsync: async (uri: string) => {
     fs.push(`mkdir ${uri}`);
   },
   deleteAsync: async (uri: string) => {
     fs.push(`delete ${uri}`);
   },
-  getInfoAsync: async (uri: string) => ({ exists: uri.endsWith('present.jpg') }),
+  getInfoAsync: async (uri: string) => ({ exists: uri.endsWith('present.jpg') || uri in folders }),
+  readDirectoryAsync: async (uri: string) => {
+    fs.push(`list ${uri}`);
+    return folders[uri];
+  },
 }));
 
 const { default: getAssetFileUri } = await import('../src/utils/assets/files/getAssetFileUri');
 const { default: createAssetFileDirectory } = await import('../src/utils/assets/files/createAssetFileDirectory');
-const { default: deleteAssetFileAsync } = await import('../src/utils/assets/files/deleteAssetFileAsync');
 const { default: assetFileExistsAsync } = await import('../src/utils/assets/files/assetFileExistsAsync');
 const { default: getAssetThumbnailUri } = await import('../src/utils/assets/thumbnails/getAssetThumbnailUri');
 const { default: createAssetThumbnailDirectory } =
   await import('../src/utils/assets/thumbnails/createAssetThumbnailDirectory');
 const { default: hasThumbnailAsync } = await import('../src/utils/assets/thumbnails/hasThumbnailAsync');
-const { default: deleteAssetFilesAndThumbnailsAsync } =
-  await import('../src/utils/assets/deleteAssetFilesAndThumbnailsAsync');
+const { removeAssetFiles } = await import('../src/library/fs');
 
 const open = (id: string): OpenLibrary => ({ id, ...libraryPaths(id) });
 
@@ -65,9 +69,10 @@ describe('asset file and thumbnail paths', () => {
     current.library = open('other');
     expect(getAssetFileUri('a.jpg', captured)).toBe('file:///documents/libraries/abc/files/a.jpg');
     expect(getAssetThumbnailUri('athumb.jpg', captured)).toBe('file:///documents/libraries/abc/thumbnails/athumb.jpg');
-    await deleteAssetFilesAndThumbnailsAsync({ filename: 'a.jpg', thumbnailFilename: 'athumb.jpg' }, captured);
+    await removeAssetFiles([{ filename: 'a.jpg', thumbnailFilename: 'athumb.jpg' }], captured);
     expect(fs).toEqual([
       'delete file:///documents/libraries/abc/files/a.jpg',
+      'delete file:///caches/downloads/abc/a.jpg',
       'delete file:///documents/libraries/abc/thumbnails/athumb.jpg',
     ]);
   });
@@ -77,8 +82,29 @@ describe('asset file and thumbnail paths', () => {
     expect(await assetFileExistsAsync('missing.jpg')).toBe(false);
     expect(await hasThumbnailAsync('present.jpg', open('other'))).toBe(true);
     expect(await hasThumbnailAsync(null)).toBe(true);
-    await deleteAssetFileAsync('a.jpg');
-    expect(fs).toEqual(['delete file:///documents/libraries/abc/files/a.jpg']);
+    await removeAssetFiles([{ filename: 'a.jpg' }], open('abc')); // a backed-up file: its thumbnail stays
+    expect(fs).toEqual([
+      'delete file:///documents/libraries/abc/files/a.jpg',
+      'delete file:///caches/downloads/abc/a.jpg',
+    ]);
+  });
+
+  it('removing many assets’ copies lists each folder once and deletes only the files that are there', async () => {
+    folders['file:///documents/libraries/abc/files/'] = ['a0.jpg', 'unrelated.jpg'];
+    folders['file:///documents/libraries/abc/thumbnails/'] = ['a0-t.jpg', 'a1-t.jpg'];
+    // No downloads folder: nothing was ever fetched.
+    const assets = Array.from({ length: 100 }, (_, i) => ({ filename: `a${i}.jpg`, thumbnailFilename: `a${i}-t.jpg` }));
+    await removeAssetFiles(assets, open('abc'));
+    expect(fs.sort()).toEqual([
+      'delete file:///documents/libraries/abc/files/a0.jpg',
+      'delete file:///documents/libraries/abc/thumbnails/a0-t.jpg',
+      'delete file:///documents/libraries/abc/thumbnails/a1-t.jpg',
+      'list file:///documents/libraries/abc/files/',
+      'list file:///documents/libraries/abc/thumbnails/',
+    ]);
+    fs.length = 0;
+    await removeAssetFiles([], open('abc'));
+    expect(fs).toEqual([]);
   });
 
   it('refuse to resolve while no library is open', () => {

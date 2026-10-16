@@ -8,6 +8,7 @@ import m0005 from './0005_tearful_marauders.sql';
 import m0006 from './0006_query_indexes.sql';
 import m0007 from './0007_drop_row_changes.sql';
 import m0008 from './0008_round_post_timestamps.sql';
+import m0009 from './0009_purged_assets.sql';
 
   export default {
     journal,
@@ -20,7 +21,8 @@ m0004,
 m0005,
 m0006,
 m0007,
-m0008
+m0008,
+m0009
     }
   }
   

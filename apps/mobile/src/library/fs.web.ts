@@ -1,8 +1,10 @@
 import { openDatabaseAsync } from 'expo-sqlite';
 
+import type { AssetFileNames } from './fs';
 import { MIGRATED_LIBRARY_ID, libraryPaths } from './libraryPaths';
 
 import { deleteAppDb } from '@/sync/db/client';
+import webThumbnailUrls from '@/utils/assets/thumbnails/webThumbnailUrls';
 
 // Web storage can't be listed, and opening a name creates its file, so a probe opens the one name
 // a web install can have had before libraries existed and looks for the migrations table; a file
@@ -29,6 +31,10 @@ export async function listFiles(): Promise<Set<string>> {
 export async function createLibraryFolders(): Promise<void> {}
 
 export async function removeLibraryFolders(): Promise<void> {}
+
+export async function removeAssetFiles(assets: AssetFileNames[]): Promise<void> {
+  for (const { thumbnailFilename } of assets) if (thumbnailFilename) webThumbnailUrls.delete(thumbnailFilename);
+}
 
 export async function fileExists(): Promise<boolean> {
   return false;

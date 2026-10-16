@@ -2,8 +2,8 @@ import * as MediaLibrary from 'expo-media-library';
 
 import useAssets from '@/features/assets-context/useAssets';
 import { getLibrary, openLibraryId } from '@/library/current';
+import { removeAssetFiles } from '@/library/fs';
 import buildAssetAsync from '@/utils/assets/buildAssetAsync';
-import deleteAssetFilesAndThumbnailsAsync from '@/utils/assets/deleteAssetFilesAndThumbnailsAsync';
 import imagePickerMediaTypeToAssetMediaType from '@/utils/assets/imagePickerMediaTypeToAssetMediaType';
 import pickImageFromMediaLibrary from '@/utils/media-library/pickImageFromMediaLibrary';
 
@@ -47,7 +47,7 @@ export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFini
         }
         if (openLibraryId() !== library.id) throw new Error('The library changed while the photos were added');
       } catch (e) {
-        await deleteAssetFilesAndThumbnailsAsync(newAssets, library);
+        await removeAssetFiles(newAssets, library);
         throw e;
       }
 

@@ -19,7 +19,7 @@ import pluralizeText from '@/utils/pluralizeText';
 const query = assetQuery({ scope: 'deleted' });
 
 export default function AlbumScreenComponentForDeletedAssets({ album }) {
-  const { restoreDeletedAssets, deleteAssetsAsync } = useAssets();
+  const { restoreDeletedAssets, deleteAssetsPermanently } = useAssets();
   const navigation = useNavigation();
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
   const runWithProgress = useRunWithProgress();
@@ -70,7 +70,7 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
         onPress: async () => {
           const ids = await targetIds();
           exitSelectMode();
-          runWithProgress((batchOptions) => deleteAssetsAsync(ids, batchOptions));
+          runWithProgress((batchOptions) => deleteAssetsPermanently(ids, batchOptions));
         },
       },
     ]);

@@ -1,10 +1,14 @@
 import type { AssetRecord } from '@squidbox/shared';
-import { and, asc, count, eq, isNotNull, isNull, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, eq, isNotNull, isNull, not, or, sql, type SQL } from 'drizzle-orm';
 
+import { nextUpdatedAt } from './clock';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { inJson } from './inJson';
+import { readByIds } from './readByIds';
 import { makeRepository } from './repository';
+import { saveRecords } from './saveRecords';
+import type { AssetFileNames } from '../library/fs';
 
 const repository = makeRepository<AssetRecord>('assets', schema.assets);
 
@@ -17,8 +21,57 @@ export const updateAssets = repository.updateMany;
 export const updateAsset = repository.update;
 export const updateAllAssets = repository.updateAll;
 
-/** Soft-delete (tombstone): set deletedAt. Binary/thumbnail cleanup is the caller's job. */
+/** Move to the Deleted album (tombstone: set deletedAt). The files stay, so a restore is complete. */
 export const deleteAssets = repository.remove;
+
+/**
+ * "Delete permanently": removes this device's copies of the assets' files, then sets purgedAt,
+ * which no later version undoes (sync-design §7). The files go first, as with a purge arriving
+ * through sync, so a crash can't leave files that no asset names any more; a crash in between leaves
+ * an asset in the Deleted album without its copies here (it was being deleted). Resolves to the
+ * newly purged rows.
+ */
+export async function purgeAssets(db: SyncDb, ids: string[], removeFiles: RemoveFiles): Promise<schema.AssetRow[]> {
+  const notPurged = (rows: schema.AssetRow[]) => rows.filter((row) => row.purgedAt === null);
+  const rows = notPurged(await readByIds(db, schema.assets, ids));
+  if (rows.length === 0) return [];
+  await removeFiles(await unsharedFiles(db, rows));
+  return db.transaction(async (tx) => {
+    const purgedRows = notPurged(await readByIds(tx, schema.assets, ids)).map(purged);
+    await saveRecords(tx, 'assets', schema.assets, purgedRows);
+    return purgedRows;
+  });
+}
+
+export type RemoveFiles = (files: AssetFileNames[]) => Promise<void>;
+
+/**
+ * The file names of these assets that no other asset that isn't purged names, in one statement:
+ * what removing their copies may delete, as the server keeps a key in use (§7a). One scan of the
+ * assets per call (~20 ms for 50k on a laptop), cheaper than two more indexes every insert pays for.
+ */
+export async function unsharedFiles(db: SyncDb, rows: schema.AssetRow[]): Promise<AssetFileNames[]> {
+  const ids = rows.map((row) => row.id);
+  const names = [...new Set(rows.flatMap((row) => [row.filename, row.thumbnailFilename]))];
+  const sharing = await db
+    .select({ filename: schema.assets.filename, thumbnailFilename: schema.assets.thumbnailFilename })
+    .from(schema.assets)
+    .where(
+      and(
+        isNull(schema.assets.purgedAt),
+        not(inJson(schema.assets.id, ids)),
+        or(inJson(schema.assets.filename, names), inJson(schema.assets.thumbnailFilename, names)),
+      ),
+    );
+  const inUse = new Set(sharing.flatMap((row) => [row.filename, row.thumbnailFilename]));
+  const unshared = (name: string) => (name && !inUse.has(name) ? name : undefined);
+  return rows.map((row) => ({ filename: unshared(row.filename), thumbnailFilename: unshared(row.thumbnailFilename) }));
+}
+
+function purged(row: schema.AssetRow): schema.AssetRow {
+  const ts = nextUpdatedAt(row.updatedAt);
+  return { ...row, updatedAt: ts, deletedAt: row.deletedAt ?? ts, purgedAt: ts };
+}
 
 export const toggleFavorite = (db: SyncDb, id: string) => repository.toggle(db, id, 'isFavorite');
 
@@ -48,9 +101,11 @@ export async function countByMediaType(db: SyncDb, ids: string[]): Promise<{ pho
   return counts;
 }
 
+// A purged asset is deleted too; it's checked as well, so its file is never uploaded (§7a).
 const unsynced = and(
   eq(schema.assets.isSynced, false),
   isNull(schema.assets.deletedAt),
+  isNull(schema.assets.purgedAt),
   isNull(schema.assets.syncError),
 );
 const failed = and(isNotNull(schema.assets.syncError), isNull(schema.assets.deletedAt));
@@ -66,8 +121,8 @@ export async function readUnsyncedIds(db: SyncDb): Promise<string[]> {
 }
 
 /** Whether this asset row still needs its upload, as `readUnsyncedIds` selects them. */
-export function isUnsynced(asset: { isSynced: boolean; deletedAt: number | null; syncError: string | null }): boolean {
-  return !asset.isSynced && asset.deletedAt === null && asset.syncError === null;
+export function isUnsynced(asset: Pick<schema.AssetRow, 'isSynced' | 'deletedAt' | 'purgedAt' | 'syncError'>): boolean {
+  return !asset.isSynced && asset.deletedAt === null && asset.purgedAt === null && asset.syncError === null;
 }
 
 /**

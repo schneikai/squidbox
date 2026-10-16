@@ -1,14 +1,13 @@
-import type { PushRequest, PushResponse, PullResponse } from '@squidbox/shared';
 import { desc } from 'drizzle-orm';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
+import { fakeTransport } from './helpers/fakeTransport';
 import { readLiveAsset } from './helpers/readLiveAsset';
 import { makeTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
-import type { SyncTransport } from '../src/sync/transport';
 import { runSyncOnce, clearOutbox, fullResync } from '../src/sync/worker';
 
 let db: SyncDb;
@@ -16,23 +15,12 @@ beforeEach(() => {
   db = makeTestDb();
 });
 
-const appliedTransport = (): SyncTransport => ({
-  push: async (req: PushRequest): Promise<PushResponse> => ({
-    results: req.mutations.map((m) => ({
-      id: String((m.record as any).id),
-      collection: m.collection,
-      status: 'applied' as const,
-    })),
-  }),
-  pull: async (): Promise<PullResponse> => ({ changes: { assets: { records: [] } }, cursor: 0, hasMore: false }),
-});
-
 const lastLog = () => db.select().from(schema.syncLog).orderBy(desc(schema.syncLog.id)).limit(1).get();
 
 describe('sync_log observability', () => {
   it('writes a log row with push/pull counts after each run', async () => {
     await repo.createAsset(db, makeAssetRecord());
-    await runSyncOnce(db, appliedTransport());
+    await runSyncOnce(db, fakeTransport());
     const row = await lastLog();
     expect(row).toBeTruthy();
     expect(row!.pushed).toBe(1);

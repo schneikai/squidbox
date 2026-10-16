@@ -8,13 +8,19 @@ import {
   resolveExpiresIn,
 } from '@squidbox/shared';
 import { loadConfig } from '../config.js';
+import { getDb } from '../db/client.js';
 import { AppError } from '../errors.js';
 import { authenticate, requireUser } from '../auth/authenticate.js';
 import { resolveStorage, type StorageLocation } from './resolver.js';
-import { presignedDownloadUrl, uploadStream, deleteObject } from './s3.js';
+import { isPurgedFileKey } from '../sync/purgedFiles.js';
+import { presignedDownloadUrl, uploadStream, deleteObjects } from './s3.js';
 
 function storageFor(request: FastifyRequest): StorageLocation {
   return resolveStorage(requireUser(request), loadConfig().S3_SHARED_BUCKET);
+}
+
+function purgedError(): AppError {
+  return new AppError(410, 'purged', 'The asset was deleted permanently');
 }
 
 // Simple per-user upload concurrency guard so one tenant's bulk upload can't starve others.
@@ -74,12 +80,20 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
         if (!fileKey) throw new AppError(400, 'validation_error', 'Missing file key');
         const loc = storageFor(request);
         const contentType = request.headers['content-type'];
+        // A purged asset's file is refused before its body is read, and deleted again when the purge
+        // landed during the upload (sync-design §7a).
+        if (await isPurgedFileKey(getDb(), userId, fileKey)) throw purgedError();
 
         acquireUploadSlot(userId);
         try {
           await uploadStream(loc, fileKey, request.raw, contentType);
         } finally {
           releaseUploadSlot(userId);
+        }
+        if (await isPurgedFileKey(getDb(), userId, fileKey)) {
+          const [failed] = await deleteObjects(loc, [fileKey]);
+          if (failed) throw AppError.s3(`Delete failed: ${failed}`);
+          throw purgedError();
         }
         return reply.code(200).send({ key: fileKey });
       },
@@ -93,8 +107,8 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
     preHandler: authenticate(),
     schema: { body: deleteAssetsRequestSchema, response: { 200: deleteAssetsResponseSchema } },
     handler: async (request) => {
-      const loc = storageFor(request);
-      await Promise.all(request.body.keys.map((key) => deleteObject(loc, key)));
+      const [failed] = await deleteObjects(storageFor(request), request.body.keys);
+      if (failed) throw AppError.s3(`Delete failed: ${failed}`);
       return { deleted: request.body.keys };
     },
   });

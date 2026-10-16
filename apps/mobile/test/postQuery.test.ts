@@ -74,12 +74,12 @@ describe('postQuery', () => {
     expect(post.postAssets[2].asset.deletedAt).toBe(9);
   });
 
-  it('reads the count, the posts, their edges and their assets in one transaction', async () => {
+  it('reads the count, the posts and their edges with their assets in one transaction', async () => {
     await repo.createAssets(db, [makeAssetRecord({ id: 'a1' })]);
     await createPost('p1', {}, ['a1']);
     const work = await measure(() => postQuery({ scope: 'all' }).read(db, { limit: 20 }));
     expect(work.commits).toBe(1);
-    expect(work.statements).toBe(2 + 4);
+    expect(work.statements).toBe(2 + 3);
   });
 
   it('reads one post without the count', async () => {
@@ -88,7 +88,7 @@ describe('postQuery', () => {
     let post: { id: string } | null = null;
     const work = await measure(async () => (post = await readPost(db, 'p1')));
     expect(post!.id).toBe('p1');
-    expect(work.statements).toBe(2 + 3);
+    expect(work.statements).toBe(2 + 2);
     expect(await readPost(db, 'missing')).toBeNull();
   });
 
@@ -148,7 +148,7 @@ describe('postQuery', () => {
     expect(await ids({ scope: 'all', search: '_' })).toEqual(['p2']);
     expect(await ids({ scope: 'all', search: 'n', filter: ['favorites'] })).toEqual(['p3', 'p1']);
     const work = await measure(() => postQuery({ scope: 'all', search: 'n' }).read(db, { limit: 10 }));
-    expect(work.statements).toBe(2 + 5);
+    expect(work.statements).toBe(2 + 4);
     expect((await postQuery({ scope: 'all', search: 'n' }).read(db, { limit: 10 })).count).toBe(3);
   });
 });

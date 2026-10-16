@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { baseRecordSchema, defineCollection, textSchema } from './define';
+import { baseRecordSchema, defineCollection, textSchema, timestampSchema } from './define';
 
 // The server's integer (int4) columns.
 const int4Schema = z.number().int().min(-(2 ** 31)).max(2 ** 31 - 1);
@@ -26,6 +26,8 @@ export const assetCollection = defineCollection({
     isFileSynced: z.boolean(),
     isThumbnailSynced: z.boolean(),
     isSynced: z.boolean(),
+    // "Delete permanently", final (sync-design §7). Optional: older apps don't send it.
+    purgedAt: timestampSchema.nullable().optional(),
   }),
   localOnly: {
     syncError: z.string().nullable(),

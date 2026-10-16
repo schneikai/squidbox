@@ -8,6 +8,7 @@ export type ErrorCode =
   | 'invalid_token'
   | 'not_found'
   | 'rate_limited'
+  | 'purged'
   | 's3_error'
   | 'internal';
 

@@ -105,7 +105,9 @@ every push transaction first takes a per-user advisory lock:
 Other users' commits can't hide or reorder this user's rows, and users never wait on each other.
 
 **Invariant: every write to a syncable table goes through `push()`.** The legacy importer (§11)
-does too. A write that skips the lock reopens the visibility gap; a write that skips the trigger
+does too. The one other write, the purge cleanup's server-only marker (§7a), takes the same lock
+(`withUserLock`).
+A write that skips the lock reopens the visibility gap; a write that skips the trigger
 is never pulled. Together with "no hard deletes" (§7), this is a code-review rule.
 
 ---
@@ -219,6 +221,8 @@ advisory lock (§3), for each mutation:
 2. Clamp a future `updatedAt` to server time (§7).
 3. Upsert in one atomic statement:
    `INSERT … ON CONFLICT (user_id, id) DO UPDATE SET … WHERE excluded.updated_at > <table>.updated_at`.
+   For assets the condition also lets a purge apply over a newer trashed version and makes a
+   purge final (§7, `appliesOver`).
    `user_id` comes from the token. The update sets only the columns the record carries, so an
    optional column an older app doesn't send (e.g. `albums.position`) keeps its stored value. A new
    synced column is therefore added as optional, and the server ships before the app.
@@ -273,6 +277,16 @@ leaves out the collection's local-only fields (`localOnly` in its shared descrip
   person's devices (§2a). The cost for scalar fields is in §14.
 - **Deletes** are updates that set `deletedAt`, resolved by the same LWW. A newer edit beats an
   older delete (undelete) and the other way round. Restoring a deleted asset clears `deletedAt`.
+- **Purges** ("Delete permanently", §7a) are the one exception to LWW. Once the stored asset has
+  `purgedAt`, no pushed version applies, whatever its timestamp. A pushed version that sets
+  `purgedAt` applies when it is newer, or when the stored version is still in the Deleted album
+  (`deletedAt` set), newer or not. So an edit to the trashed asset made on a device that hadn't
+  seen the purge can't out-date it, but a restore can: a purge made offline, before another device
+  restored the asset, loses, and the purging device adopts the restored record as `current`
+  (its copies on that device are already gone; the app fetches the cloud ones). An older app
+  (which sends no `purgedAt`) can't undo a purge, every device converges on the purged record (a
+  losing push adopts it as `current`), and a purged asset stays deleted, since the purging version
+  is.
 - **Membership** (which assets are in an album or post, and their order) is stored as separate
   edge records in `album_assets` and `post_assets` (§10), not as arrays on the parent. Add,
   remove and reorder each write their own edge rows, so concurrent membership changes on two
@@ -282,8 +296,10 @@ leaves out the collection's local-only fields (`localOnly` in its shared descrip
     (and saving a post's asset list) assigns `initialKeys(n)` across the list and rewrites only
     the edges whose key changed.
   - Removing tombstones the edge. Deleting an album or post tombstones its edges too
-    (`tombstoneParent`). Deleting an asset does not touch its edges; readers skip ids that
-    don't resolve.
+    (`tombstoneParent`). Deleting or purging an asset does not touch its edges, so a restore puts
+    it back where it was. Readers resolve edges through the asset: albums skip deleted assets, a
+    post still shows a deleted one (it can come back) but never a purged one, and ids that don't
+    resolve are skipped.
   - The app gives new edges random ids, so two offline devices adding the same asset can create
     two edges. The read path shows the asset once (§8), and removal tombstones every live edge
     for that asset.
@@ -301,14 +317,41 @@ leaves out the collection's local-only fields (`localOnly` in its shared descrip
 
 ## 7a. Binary files and tombstones
 
-- Deleting an asset tombstones its record, and it shows up in the Deleted album. The app never
-  deletes the asset's S3 file or thumbnail; `POST /assets/delete` exists but the app does not call
-  it. "Delete permanently" in the Deleted album (`deleteAssetsAsync`) only tombstones the records
-  again, so those assets stay in the Deleted album and their files stay in S3.
-- Applying an asset tombstone from pull does not delete this device's local file or thumbnail.
-  Not implemented.
-- The upload queue (`getUnsyncedAssets`) selects assets that are not `isSynced`, not deleted and
-  have no `syncError`. It does not check that the local file exists; a missing file fails the
+- **Deleting** an asset tombstones its record, and it shows up in the Deleted album. Its files stay,
+  in S3 and on every device (file, thumbnail and downloaded copy), also when the delete arrives
+  through sync: a deleted asset can be restored, and the Deleted album shows its thumbnail.
+- **Deleting permanently** in the Deleted album (`deleteAssetsPermanently` → `purgeAssets`) sets
+  `purgedAt` (synced, final: §7); the record stays as a permanent tombstone (§5). A purged asset
+  shows nowhere, the Deleted album included. The device first removes its copies
+  (`removeAssetFiles` in `library/fs.ts`: file, thumbnail and downloaded copy), then commits the
+  purge, so a crash can't leave files no asset names; a crash in between leaves the asset in the
+  Deleted album without its copies on this device, which is acceptable for an asset being deleted.
+- **A purge arriving through sync** (pulled, or adopted as the `current` of a `skipped-lww`)
+  removes this device's copies before the batch commits, so a crash in between redoes it. Only
+  for assets this device holds and hasn't purged yet, so an echo costs nothing. The worker gets
+  the removal for the library it syncs (`removeFiles`, from the sync target's library).
+- Either way, a name that another asset not purged still uses is kept (`unsharedFiles`, one
+  statement per batch), as on the server.
+- **The S3 file and thumbnail** of a purged asset are deleted by the server, after each push
+  reply, one cleanup at a time per user (`cleanUpPurgedFiles` → `deletePurgedFiles` in
+  `sync/purgedFiles.ts`). It selects the purged assets whose files it hasn't deleted yet by a
+  server-only column, `files_deleted_at` (not in the shared schema, never on the wire), not by the
+  synced file flags: a stale device can push outdated flags, and an upload can finish before its
+  flags are pushed. It deletes their keys whatever the flags say (a missing key counts as
+  deleted), one `DeleteObjects` request per 500 assets, in id order, in the user's own storage.
+  For each batch it takes the user's lock, checks which keys an asset not purged still names
+  (kept), deletes the rest and marks the assets whose keys are gone, all before releasing the
+  lock, so no push can add an asset naming a key between the check and the delete. The marker
+  write gets a new `server_seq` like any update (§3), so devices pull the unchanged record once
+  more, at no cost. A key `fullKey` would refuse holds no file and is skipped; an asset with a key
+  S3 reports an error for stays unmarked for the next cleanup without holding up the others; a
+  failed request leaves its batch for the next push.
+- **The upload route** refuses a key that only purged assets name with `410` before reading the
+  body, and checks again once the file is stored, deleting it with `410` when the purge landed
+  during the upload. With the cleanup deleting regardless of the flags, a purged asset's files
+  can't stay in S3.
+- The upload queue (`getUnsyncedAssets`) selects assets that are not `isSynced`, not deleted, not
+  purged and have no `syncError`. It does not check that the local file exists; a missing file fails the
   upload and sets `syncError`.
 
 ---
@@ -389,8 +432,8 @@ sync and backup alike, is aborted (a sync at its next push batch or applied pull
 is committed and the next run resumes; a backup at its next step, the upload in flight included),
 and `work` starts once they ended. Both kinds of run start through the gate (`startRun`), which
 registers a run synchronously and starts none while a pause holds. The worker syncs the target
-`App.js` sets from one effect, `setSyncTarget({ db, identity } | null)`: the open library's
-database and the identity of its signed-in owner, null until the app has finished init, the library
+`App.js` sets from one effect, `setSyncTarget({ db, identity, library } | null)`: the open
+library's database and folders and the identity of its signed-in owner, null until the app has finished init, the library
 is open AND someone is signed in; every trigger above is a no-op without it. A run is bound to the open library and to the identity `{ serverId, userId }`
 of the session at its start (`library/currentSyncIdentity.ts`, `library/sessionMatches.ts`): it
 runs only when the open library is the signed-in account's, and every request reads the tokens
@@ -536,8 +579,8 @@ stores them in bigint columns). Booleans are integers in SQLite.
 
 **assets** (asset metadata). Synced: `mediaLibraryAssetId`, `mediaType` (`photo` | `video`),
 `width`, `height`, `fileSize`, `duration`, `filename`, `thumbnailFilename`, `isFavorite`,
-`notes`, `oldFileId`, `isFileSynced`, `isThumbnailSynced`, `isSynced`, plus the base columns.
-Local-only: `syncError`.
+`notes`, `oldFileId`, `isFileSynced`, `isThumbnailSynced`, `isSynced`, `purgedAt` (optional,
+null | epoch ms: deleted permanently, §7), plus the base columns. Local-only: `syncError`.
 
 **albums**. Synced: `name`, `isFavorite`, `archivedAt`, `showInPostSuggestionsAfter`,
 `oldCollectionName`, `notes`, `sortOrder` (null | `custom`), `smartAlbumType`
@@ -586,7 +629,7 @@ Runbook: [`legacy-import.md`](./legacy-import.md), or the `/legacy-import` skill
 - Conflicts resolve by whole-record LWW (§7); membership is edge records (§10).
 - Pull apply is outbox-guarded and server-authoritative (§5).
 - `skipped-lww` returns the winning record, and the client adopts it (§6).
-- Tombstones are kept forever (§5).
+- Tombstones are kept forever (§5); a purge is a final tombstone that wins over LWW (§7).
 - Asset file flags are synced; only `syncError` is local-only (§4).
 - Sync runs in the foreground and on each local write (§8).
 - Users are isolated; there is no cross-user sharing (§2a).
@@ -645,4 +688,3 @@ the applied / skipped-lww / rejected tally. `GET /up` is the health check.
   per-field merge would be an additive change.
 - **Derived values are computed per read.** Album stats and `lastPostedAt` are SQL in the paged
   queries (§8), so nothing is recomputed in JavaScript when a table changes.
-- File cleanup on delete is not implemented (§7a).

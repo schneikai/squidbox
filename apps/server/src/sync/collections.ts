@@ -36,8 +36,9 @@ export const serverCollections: Record<string, ServerCollection> = {
   post_assets: serverCollection('post_assets', postAssets, postAssetCollection.schema),
 };
 
-// Strip server-only columns (user_id, server_seq) to produce the client-facing record.
+// Strip server-only columns (user_id, server_seq, an asset's files_deleted_at) to produce the
+// client-facing record.
 export function toWireRecord(row: Record<string, unknown>): Record<string, unknown> {
-  const { userId: _userId, serverSeq: _serverSeq, ...rest } = row;
+  const { userId: _userId, serverSeq: _serverSeq, filesDeletedAt: _filesDeletedAt, ...rest } = row;
   return rest;
 }

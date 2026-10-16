@@ -11,6 +11,7 @@ import { makeTestDb } from './helpers/testDb';
 // Real server engine (against docker Postgres) — the other side of the round-trip.
 import * as serverSchema from '../../server/src/db/schema.js';
 import { pull as serverPull } from '../../server/src/sync/pull.js';
+import { deletePurgedFiles } from '../../server/src/sync/purgedFiles.js';
 import { push as serverPush } from '../../server/src/sync/push.js';
 import * as repo from '../src/sync/assetsRepository';
 import * as clientSchema from '../src/sync/db/schema';
@@ -36,9 +37,18 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
   let deviceA: SyncDb;
   let deviceB: SyncDb;
 
-  // Both devices are the SAME user (multi-device sync for one account).
+  // Both devices are the SAME user (multi-device sync for one account). Like the push route, every
+  // push is followed by the purge cleanup; the storage is a list of the keys deleted from it.
+  let deletedKeys: string[] = [];
   const transport: SyncTransport = {
-    push: async (req) => ({ results: await serverPush(pgDb as any, USER, req.mutations) }),
+    push: async (req) => {
+      const results = await serverPush(pgDb as any, USER, req.mutations);
+      await deletePurgedFiles(pgDb as any, USER, async (keys) => {
+        deletedKeys.push(...keys);
+        return [];
+      });
+      return { results };
+    },
     pull: async (req) => serverPull(pgDb as any, USER, { cursor: req.cursor, limit: req.limit }),
   };
 
@@ -65,6 +75,7 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
     await clearServer();
     deviceA = makeTestDb();
     deviceB = makeTestDb();
+    deletedKeys = [];
   });
 
   it('propagates a create from A to B', async () => {
@@ -147,5 +158,61 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
     await runSyncOnce(deviceA, transport); // push tombstone
     await runSyncOnce(deviceB, transport); // pull tombstone
     expect(await readLiveAsset(deviceB, rec.id)).toBeUndefined();
+  });
+
+  it('a permanent delete wins over a stale restore: the cloud files go once and the asset stays gone on both', async () => {
+    const rec = await repo.createAsset(deviceA, makeAssetRecord({ filename: 'p.jpg', thumbnailFilename: 'p-t.jpg' }));
+    await repo.deleteAssets(deviceA, [rec.id]);
+    await runSyncOnce(deviceA, transport);
+    await runSyncOnce(deviceB, transport);
+
+    // B restores it while offline, after A purged it (B's clock is later).
+    const removedOnA: string[] = [];
+    await repo.purgeAssets(deviceA, [rec.id], async (files) => {
+      removedOnA.push(
+        ...files.flatMap((file) => [file.filename, file.thumbnailFilename]).filter((n) => n !== undefined),
+      );
+    });
+    expect(removedOnA).toEqual(['p.jpg', 'p-t.jpg']);
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    await repo.updateAllAssets(deviceB, [rec.id], { deletedAt: null });
+
+    await runSyncOnce(deviceA, transport); // the purge; the server deletes its files after the push
+    expect(deletedKeys).toEqual(['p.jpg', 'p-t.jpg']);
+    const removedOnB: string[] = [];
+    const removeFiles = async (assets: { filename?: string }[]) => {
+      removedOnB.push(...assets.flatMap((a) => (a.filename ? [a.filename] : [])));
+    };
+    await runSyncOnce(deviceB, transport, { removeFiles }); // B's restore loses, B adopts the purge
+    await runSyncOnce(deviceA, transport);
+
+    expect(removedOnB).toContain('p.jpg');
+    for (const device of [deviceA, deviceB]) {
+      const [row] = await device.select().from(clientSchema.assets).where(eq(clientSchema.assets.id, rec.id));
+      expect(row).toMatchObject({ purgedAt: expect.any(Number), deletedAt: expect.any(Number) });
+      expect(await device.select().from(clientSchema.outbox)).toEqual([]);
+    }
+    expect(deletedKeys).toEqual(['p.jpg', 'p-t.jpg']); // nobody deletes them again
+  });
+
+  it('an offline device’s purge loses to a restore another device pushed first: the asset and its cloud files stay', async () => {
+    const rec = await repo.createAsset(deviceA, makeAssetRecord({ filename: 'r.jpg', thumbnailFilename: 'r-t.jpg' }));
+    await repo.deleteAssets(deviceA, [rec.id]);
+    await runSyncOnce(deviceA, transport);
+    await runSyncOnce(deviceB, transport);
+
+    await repo.purgeAssets(deviceA, [rec.id], async () => {}); // A, offline
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    await repo.updateAllAssets(deviceB, [rec.id], { deletedAt: null }); // B restores it later
+    await runSyncOnce(deviceB, transport);
+
+    await runSyncOnce(deviceA, transport); // A's older purge loses, A adopts the restore
+    await runSyncOnce(deviceB, transport);
+
+    expect(deletedKeys).toEqual([]);
+    for (const device of [deviceA, deviceB]) {
+      expect(await readLiveAsset(device, rec.id)).toMatchObject({ purgedAt: null, deletedAt: null });
+      expect(await device.select().from(clientSchema.outbox)).toEqual([]);
+    }
   });
 });

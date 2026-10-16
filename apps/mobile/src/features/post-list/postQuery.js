@@ -7,7 +7,6 @@ import { isCanonicalEdge } from '@/sync/edgeSql';
 import { inJson } from '@/sync/inJson';
 import { matchingIds } from '@/sync/matchingIds';
 import { repostDate } from '@/sync/postsRepository';
-import { readByIdMap } from '@/sync/readByIds';
 
 const p = alias(schema.posts, 'p');
 const e = alias(schema.postAssets, 'e');
@@ -15,8 +14,8 @@ const e = alias(schema.postAssets, 'e');
 /**
  * What a post list shows, as SQL: `read(db, { limit })` → `{ rows, count }` from one transaction
  * (`withCount: false` skips the count, for a read of one post),
- * each row a post with `postAssets: [{ id, asset }]` (its live edges in order, one per asset, the
- * asset rows read by id so a deleted asset still shows); `tables` → what a live read watches.
+ * each row a post with `postAssets: [{ id, asset }]` (its live edges in order, one per asset, a
+ * deleted asset included); `tables` → what a live read watches.
  * An `asset:<id>` or `album:<id>` search becomes that scope, as the posts screen always read it.
  * Every order ends with an id tie-break, so refreshes and pages see one stable order.
  * @param {object} descriptor
@@ -61,24 +60,18 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
   }
   const where = (ids) => and(isNull(p.deletedAt), scopeCondition, favorites, ids ? inJson(p.id, ids) : undefined);
 
-  // The posts' live edges, one per asset (the earliest by position), in order.
+  // The posts' live edges, one per asset (the earliest by position), in order, with their assets. A
+  // trashed asset still shows (it can come back), a purged one never does (sync-design §7).
   async function readPostAssets(tx, posts) {
     const postIds = posts.map((post) => post.id);
     const edges = await tx
-      .select({ id: e.id, postId: e.postId, assetId: e.assetId })
+      .select({ id: e.id, postId: e.postId, asset: schema.assets })
       .from(e)
+      .innerJoin(schema.assets, and(eq(schema.assets.id, e.assetId), isNull(schema.assets.purgedAt)))
       .where(and(inJson(e.postId, postIds), isNull(e.deletedAt), isCanonicalEdge(schema.postAssets, e, 'postId')))
       .orderBy(e.postId, e.position, e.id);
-    const assets = await readByIdMap(
-      tx,
-      schema.assets,
-      edges.map((edge) => edge.assetId),
-    );
     const byPost = new Map(postIds.map((id) => [id, []]));
-    for (const edge of edges) {
-      const asset = assets.get(edge.assetId);
-      if (asset) byPost.get(edge.postId).push({ id: edge.id, asset });
-    }
+    for (const { id, postId, asset } of edges) byPost.get(postId).push({ id, asset });
     return posts.map((post) => ({ ...post, postAssets: byPost.get(post.id) }));
   }
 

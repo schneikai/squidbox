@@ -28,6 +28,7 @@ import PostsProvider from '@/features/posts-context/PostsProvider';
 import FirstSyncScreen from '@/features/sync-status/FirstSyncScreen';
 import LibraryProvider from '@/library/LibraryProvider';
 import SwitchingScreen from '@/library/SwitchingScreen';
+import { getLibrary } from '@/library/current';
 import { currentSyncIdentity } from '@/library/currentSyncIdentity';
 import useLibrary from '@/library/useLibrary';
 import RootNavigator from '@/navigators/RootNavigator';
@@ -119,11 +120,12 @@ function AppInit({ children }) {
   useSyncTriggers();
 
   // Sync only once the boot is done (so it can't starve the boot's DB work and strand the splash)
-  // AND someone is signed in for the open library: that library and identity are the sync's target.
+  // AND someone is signed in for the open library: that library (its database and folders) and
+  // identity are the sync's target.
   // Setting one kicks the launch pull; signing out or a rejected session clears it.
   useEffect(() => {
     const identity = appIsReady && isAuthenticated ? currentSyncIdentity() : null;
-    setSyncTarget(identity && { db: getDb(), identity });
+    setSyncTarget(identity && { db: getDb(), identity, library: getLibrary() });
   }, [appIsReady, isAuthenticated]);
 
   // While the boot hangs (an unreachable API, a long migration) the octopus stays up and moving. A

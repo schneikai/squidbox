@@ -50,6 +50,13 @@
       "when": 1792080292204,
       "tag": "0006_equal_shriek",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792169136810,
+      "tag": "0007_purged_assets",
+      "breakpoints": true
     }
   ]
 }

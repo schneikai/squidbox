@@ -27,6 +27,7 @@ export const assets = sqliteTable(
     isFileSynced: integer('is_file_synced', { mode: 'boolean' }).notNull(),
     isThumbnailSynced: integer('is_thumbnail_synced', { mode: 'boolean' }).notNull(),
     isSynced: integer('is_synced', { mode: 'boolean' }).notNull(),
+    purgedAt: integer('purged_at'), // "Delete permanently", final (sync-design §7)
     // local-only (never synced)
     syncError: text('sync_error'),
   },
@@ -36,9 +37,10 @@ export const assets = sqliteTable(
     live: index('assets_live_created_idx')
       .on(t.createdAt, t.id, t.isFavorite, t.mediaType)
       .where(sql`${t.deletedAt} is null`),
+    // purgedAt (always null here) keeps the Deleted reads covered by the index.
     deleted: index('assets_deleted_idx')
-      .on(t.deletedAt, t.id)
-      .where(sql`${t.deletedAt} is not null`),
+      .on(t.deletedAt, t.id, t.purgedAt)
+      .where(sql`${t.deletedAt} is not null and ${t.purgedAt} is null`),
     unsynced: index('assets_unsynced_idx')
       .on(t.id)
       .where(sql`${t.isSynced} = 0 and ${t.deletedAt} is null and ${t.syncError} is null`),

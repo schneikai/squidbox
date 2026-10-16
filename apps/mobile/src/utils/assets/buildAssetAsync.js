@@ -1,12 +1,12 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
 import assetSchema from './assetSchema';
-import deleteAssetFilesAndThumbnailsAsync from './deleteAssetFilesAndThumbnailsAsync';
 import getAssetFileUri from './files/getAssetFileUri';
 import getNewAssetId from './getNewAssetId';
 import createAssetThumbnail from './thumbnails/createAssetThumbnail';
 
 import { getLibrary } from '@/library/current';
+import { removeAssetFiles } from '@/library/fs';
 import getFileExtension from '@/utils/files/getFileExtension';
 
 // `library`: the open one, whose folders the file and thumbnail go into (a caller adding several
@@ -35,7 +35,7 @@ export default async function buildAssetAsync(assetData = {}, library = getLibra
     // Make sure the new asset is valid before returning it.
     assetSchema.validateSync(newAsset, { strict: true });
   } catch (e) {
-    await deleteAssetFilesAndThumbnailsAsync(newAsset, library);
+    await removeAssetFiles([newAsset], library);
     throw e;
   }
 

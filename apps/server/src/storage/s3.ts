@@ -1,12 +1,8 @@
 import type { Readable } from 'node:stream';
-import {
-  S3Client,
-  GetObjectCommand,
-  DeleteObjectCommand,
-} from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Upload } from '@aws-sdk/lib-storage';
-import { MULTIPART_PART_SIZE } from '@squidbox/shared';
+import { DELETE_KEYS_MAX, MULTIPART_PART_SIZE } from '@squidbox/shared';
 import { loadConfig } from '../config.js';
 import { AppError } from '../errors.js';
 import { fullKey, type StorageLocation } from './resolver.js';
@@ -93,10 +89,19 @@ export async function getObjectText(loc: StorageLocation, fileKey: string): Prom
   }
 }
 
-export async function deleteObject(loc: StorageLocation, fileKey: string): Promise<void> {
-  try {
-    await s3().send(new DeleteObjectCommand({ Bucket: loc.bucket, Key: fullKey(loc, fileKey) }));
-  } catch (err) {
-    throw AppError.s3(err instanceof Error ? err.message : 'Delete failed');
+// One request per DELETE_KEYS_MAX keys (the S3 limit). Resolves to the keys S3 reported an error for;
+// a key that doesn't exist counts as deleted. A failed request, or an invalid key, throws.
+export async function deleteObjects(loc: StorageLocation, fileKeys: string[]): Promise<string[]> {
+  const failed: string[] = [];
+  for (let i = 0; i < fileKeys.length; i += DELETE_KEYS_MAX) {
+    const byFullKey = new Map(fileKeys.slice(i, i + DELETE_KEYS_MAX).map((key) => [fullKey(loc, key), key]));
+    const Objects = [...byFullKey.keys()].map((Key) => ({ Key }));
+    const res = await s3()
+      .send(new DeleteObjectsCommand({ Bucket: loc.bucket, Delete: { Objects, Quiet: true } }))
+      .catch((err) => {
+        throw AppError.s3(err instanceof Error ? err.message : 'Delete failed');
+      });
+    for (const error of res.Errors ?? []) failed.push(byFullKey.get(error.Key ?? '') ?? String(error.Key));
   }
+  return failed;
 }

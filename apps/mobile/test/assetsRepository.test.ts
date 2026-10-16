@@ -27,16 +27,21 @@ describe('assetsRepository', () => {
     const { db, measure } = makeMeasuredTestDb();
     await repo.createAssets(
       db,
-      Array.from({ length: 7 }, (_, i) =>
-        makeAssetRecord({ id: `a${i}`, isSynced: i % 2 === 1, deletedAt: i === 6 ? 1 : null }),
+      Array.from({ length: 9 }, (_, i) =>
+        makeAssetRecord({
+          id: `a${i}`,
+          isSynced: i % 2 === 1,
+          deletedAt: i === 6 ? 1 : null,
+          purgedAt: i === 8 ? 1 : null,
+        }),
       ),
     );
     await repo.setSyncError(db, ['a4'], 'failed');
     let ids: string[] = [];
     let work = await measure(async () => (ids = await repo.readUnsyncedIds(db)));
-    expect(ids).toEqual(['a0', 'a2']); // a4 failed, a6 deleted, the odd ones synced
+    expect(ids).toEqual(['a0', 'a2']); // a4 failed, a6 deleted, a8 purged, the odd ones synced
     expect(work.plans.join()).toMatch(/assets_unsynced_idx/);
-    const rows = await readByIds(db, schema.assets, ['a0', 'a1', 'a4', 'a6']);
+    const rows = await readByIds(db, schema.assets, ['a0', 'a1', 'a4', 'a6', 'a8']);
     expect(rows.filter(repo.isUnsynced).map((a) => a.id)).toEqual(['a0']); // the same rule in JS
     let counts;
     work = await measure(async () => (counts = await repo.readBackupCounts(db)));

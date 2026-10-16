@@ -5,17 +5,6 @@ when the owner defers something, or when an idea comes up. Remove an entry once 
 
 ## Bugs
 
-### [ ] Make "Delete permanently" actually delete
-
-In the Deleted album, "Delete permanently" (`deleteAssetsAsync`) only tombstones the assets again.
-They stay in the Deleted album, and their files stay in S3. It should delete the S3 file and
-thumbnail through `POST /assets/delete` and remove the records for good.
-
-### [ ] Remove local files when a delete arrives through sync
-
-When another device deletes an asset, this device applies the tombstone but keeps its local file
-and thumbnail. See `docs/sync-design.md` §7a.
-
 ### [ ] AI chat corrections misbehave
 
 Asking for corrections sometimes returns a single post instead of variations, and replies sometimes

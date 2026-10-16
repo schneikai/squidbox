@@ -82,10 +82,20 @@ export const assets = pgTable(
     isFileSynced: boolean('is_file_synced').notNull(),
     isThumbnailSynced: boolean('is_thumbnail_synced').notNull(),
     isSynced: boolean('is_synced').notNull(),
+    purgedAt: bigint('purged_at', { mode: 'number' }), // "Delete permanently", final (sync-design §7)
+    // Server-only, never on the wire: when the purge cleanup deleted the asset's S3 files (§7a).
+    filesDeletedAt: bigint('files_deleted_at', { mode: 'number' }),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.id] }),
     byUserSeq: index('assets_user_seq_idx').on(t.userId, t.serverSeq),
+    // Purged assets whose S3 files the cleanup after a push still has to delete, in id order (sync/purgedFiles.ts).
+    purgedFiles: index('assets_purged_files_idx')
+      .on(t.userId, t.id)
+      .where(sql`${t.purgedAt} is not null and ${t.filesDeletedAt} is null`),
+    // The assets naming a key: the purge cleanup's and the upload route's checks.
+    byFilename: index('assets_user_filename_idx').on(t.userId, t.filename),
+    byThumbnailFilename: index('assets_user_thumbnail_filename_idx').on(t.userId, t.thumbnailFilename),
   })
 );
 

@@ -8,6 +8,12 @@ import * as schema from '../src/db/schema.js';
 import { serverCollections } from '../src/sync/collections.js';
 import { push } from '../src/sync/push.js';
 import { pull } from '../src/sync/pull.js';
+import {
+  cleanUpPurgedFiles,
+  deletePurgedFiles,
+  isPurgedFileKey,
+  purgedFileCleanupsSettled,
+} from '../src/sync/purgedFiles.js';
 
 // DB-backed integration tests (advisory locks, trigger, ON CONFLICT) — require a real
 // Postgres. Run with `npm run test:db` (points at the docker-compose stack); plain `npm test`
@@ -192,6 +198,153 @@ d('sync engine (Postgres)', () => {
 
     const newer = await push(db, USER_A, [mut({ ...r, updatedAt: 3000, notes: 'newest' })]);
     expect(newer[0].status).toBe('applied');
+  });
+
+  it('a purge is final: it beats a newer edit in the Deleted album, and no later version applies', async () => {
+    const r = assetRecord({ updatedAt: 2000, deletedAt: 2000 });
+    await push(db, USER_A, [mut(r)]);
+    await push(db, USER_A, [mut({ ...r, updatedAt: 4000, notes: 'edited in the Deleted album' })]);
+
+    // The purge was made before that edit, on a device that hadn't seen it: it still wins.
+    const purged = { ...r, updatedAt: 3000, purgedAt: 3000 };
+    expect((await push(db, USER_A, [mut(purged)]))[0].status).toBe('applied');
+
+    // A stale device's newer restore, an older app that doesn't send purgedAt, or a newer purge: none applies.
+    const restore = await push(db, USER_A, [mut({ ...r, updatedAt: 9000, deletedAt: null, purgedAt: null })]);
+    expect(restore[0]).toMatchObject({ status: 'skipped-lww', current: { purgedAt: 3000, deletedAt: 2000 } });
+    const olderApp = { ...r, updatedAt: 9001, deletedAt: null }; // no purgedAt key at all
+    expect((await push(db, USER_A, [mut(olderApp)]))[0].status).toBe('skipped-lww');
+    expect((await push(db, USER_A, [mut({ ...purged, updatedAt: 9002, isFileSynced: false })]))[0].status).toBe(
+      'skipped-lww'
+    );
+
+    const { changes } = await pull(db, USER_A, { cursor: 0, limit: 100 });
+    expect(changes.assets.records).toEqual([expect.objectContaining({ id: r.id, purgedAt: 3000, isFileSynced: true })]);
+    expect(changes.assets.records[0]).not.toHaveProperty('filesDeletedAt'); // server-only
+  });
+
+  it('an offline device’s purge loses to a newer restore made on another device', async () => {
+    const r = assetRecord({ updatedAt: 2000, deletedAt: 2000 });
+    await push(db, USER_A, [mut(r)]);
+    await push(db, USER_A, [mut({ ...r, updatedAt: 4000, deletedAt: null })]); // restored on device B
+
+    const purge = await push(db, USER_A, [mut({ ...r, updatedAt: 3000, purgedAt: 3000 })]); // device A, offline
+    expect(purge[0]).toMatchObject({ status: 'skipped-lww', current: { deletedAt: null, purgedAt: null } });
+
+    // Once it's in the Deleted album again, a purge applies, even one older than that delete.
+    await push(db, USER_A, [mut({ ...r, updatedAt: 5000, deletedAt: 5000 })]);
+    expect((await push(db, USER_A, [mut({ ...r, updatedAt: 3000, purgedAt: 3000 })]))[0].status).toBe('applied');
+  });
+
+  describe('S3 files of purged assets', () => {
+    let deleted: string[][] = [];
+    let failing = new Set<string>();
+    const deleteKeys = async (keys: string[]) => {
+      deleted.push(keys);
+      return keys.filter((key) => failing.has(key));
+    };
+    beforeEach(() => {
+      deleted = [];
+      failing = new Set();
+    });
+    const stored = async (id: string) =>
+      (await db.select().from(schema.assets).where(and(eq(schema.assets.userId, USER_A), eq(schema.assets.id, id))))[0];
+    const purgedAsset = (over: Record<string, unknown>) => assetRecord({ purgedAt: 1000, deletedAt: 1000, ...over });
+
+    it('are deleted once, whatever the file flags say, keeping a key a live asset names', async () => {
+      // A device's upload finished but its flags weren't pushed before the purge: all false here.
+      const unflagged = { isFileSynced: false, isThumbnailSynced: false, isSynced: false };
+      const r = assetRecord({ filename: 'p.jpg', thumbnailFilename: 'p-t.jpg', deletedAt: 1000, ...unflagged });
+      await push(db, USER_A, [mut(r)]);
+      const shared = assetRecord({ filename: 'p.jpg', thumbnailFilename: 'other-t.jpg' }); // a live asset, same file
+      const untouched = purgedAsset({ filename: 'b.jpg', thumbnailFilename: 'b-t.jpg' });
+      await push(db, USER_A, [mut(shared)]);
+      await push(db, USER_B, [mut(untouched)]); // another user's purge isn't this user's work
+      const { cursor } = await pull(db, USER_A, { cursor: 0, limit: 100 });
+      await push(db, USER_A, [mut({ ...r, updatedAt: 2000, purgedAt: 2000 })]);
+
+      await deletePurgedFiles(db, USER_A, deleteKeys);
+
+      expect(deleted).toEqual([['p-t.jpg']]);
+      expect(await stored(r.id)).toMatchObject({ ...unflagged, updatedAt: 2000, filesDeletedAt: expect.any(Number) });
+      const { changes } = await pull(db, USER_A, { cursor, limit: 100 });
+      expect(changes.assets.records).toEqual([expect.objectContaining({ id: r.id, purgedAt: 2000 })]);
+
+      await deletePurgedFiles(db, USER_A, deleteKeys);
+      expect(deleted).toHaveLength(1); // done for good
+    });
+
+    it('stay to do when the request fails, so the next cleanup retries them', async () => {
+      const r = purgedAsset({});
+      await push(db, USER_A, [mut(r)]);
+      const failure = new Error('S3 down');
+      await expect(deletePurgedFiles(db, USER_A, async () => Promise.reject(failure))).rejects.toBe(failure);
+      expect((await stored(r.id))!.filesDeletedAt).toBeNull();
+      await deletePurgedFiles(db, USER_A, deleteKeys);
+      expect(deleted).toEqual([['a.jpg', 't.jpg']]);
+    });
+
+    it('a key that fails, or can’t be a key, holds up no other asset', async () => {
+      const ids = ['00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000002'];
+      const failingAsset = purgedAsset({ id: ids[0], filename: 'bad.jpg', thumbnailFilename: 'bad-t.jpg' });
+      const ok = purgedAsset({ id: ids[1], filename: 'ok.jpg', thumbnailFilename: 'ok-t.jpg' });
+      const invalid = purgedAsset({ filename: '../x.jpg', thumbnailFilename: '' });
+      await push(db, USER_A, [mut(failingAsset), mut(ok), mut(invalid)]);
+      failing = new Set(['bad.jpg']);
+
+      await deletePurgedFiles(db, USER_A, deleteKeys);
+
+      expect(deleted).toEqual([['bad.jpg', 'bad-t.jpg', 'ok.jpg', 'ok-t.jpg']]); // id order, the invalid keys skipped
+      expect((await stored(failingAsset.id))!.filesDeletedAt).toBeNull();
+      expect((await stored(ok.id))!.filesDeletedAt).not.toBeNull();
+      expect((await stored(invalid.id))!.filesDeletedAt).not.toBeNull();
+
+      failing = new Set();
+      await deletePurgedFiles(db, USER_A, deleteKeys);
+      expect(deleted[1]).toEqual(['bad.jpg', 'bad-t.jpg']);
+      expect((await stored(failingAsset.id))!.filesDeletedAt).not.toBeNull();
+    });
+
+    it('run one at a time per user after the push, a push meanwhile asking for one more pass', async () => {
+      await push(db, USER_A, [mut(purgedAsset({ filename: 'first.jpg', thumbnailFilename: 'first-t.jpg' }))]);
+      let running = 0;
+      let overlapped = false;
+      const errors: unknown[] = [];
+      const slowDelete = async (keys: string[]) => {
+        overlapped ||= running > 0;
+        running += 1;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        running -= 1;
+        return deleteKeys(keys);
+      };
+
+      cleanUpPurgedFiles(db, USER_A, slowDelete, (error) => errors.push(error));
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await push(db, USER_A, [mut(purgedAsset({ filename: 'second.jpg', thumbnailFilename: 'second-t.jpg' }))]);
+      cleanUpPurgedFiles(db, USER_A, slowDelete, (error) => errors.push(error));
+      cleanUpPurgedFiles(db, USER_A, slowDelete, (error) => errors.push(error));
+      await purgedFileCleanupsSettled();
+
+      expect(overlapped).toBe(false);
+      expect(deleted.flat().sort()).toEqual(['first-t.jpg', 'first.jpg', 'second-t.jpg', 'second.jpg']);
+      expect(errors).toEqual([]);
+
+      await push(db, USER_A, [mut(purgedAsset({ filename: 'third.jpg' }))]);
+      const failure = new Error('S3 down');
+      cleanUpPurgedFiles(db, USER_A, async () => Promise.reject(failure), (error) => errors.push(error));
+      await purgedFileCleanupsSettled();
+      expect(errors).toEqual([failure]); // logged, not thrown into the push
+    });
+
+    it('a key is purged when every asset naming it is', async () => {
+      await push(db, USER_A, [mut(purgedAsset({ filename: 'gone.jpg' }))]);
+      await push(db, USER_A, [mut(assetRecord({ filename: 'kept.jpg', thumbnailFilename: 'gone.jpg' }))]);
+      await push(db, USER_A, [mut(purgedAsset({ filename: 'only.jpg' }))]);
+      expect(await isPurgedFileKey(db, USER_A, 'gone.jpg')).toBe(false); // a live asset still names it
+      expect(await isPurgedFileKey(db, USER_A, 'only.jpg')).toBe(true);
+      expect(await isPurgedFileKey(db, USER_A, 'new.jpg')).toBe(false); // its record isn't pushed yet
+      expect(await isPurgedFileKey(db, USER_B, 'only.jpg')).toBe(false);
+    });
   });
 
   it('idempotent strict-> replay: equal timestamp is a no-op, no server_seq re-stamp', async () => {

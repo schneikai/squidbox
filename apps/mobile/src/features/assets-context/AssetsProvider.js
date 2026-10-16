@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 
 import AssetsContext from './AssetsContext';
 
+import { getLibrary } from '@/library/current';
+import { removeAssetFiles } from '@/library/fs';
 import * as repo from '@/sync/assetsRepository';
 import { getDb } from '@/sync/db/client';
 import { toAssetRecord, toAssetChanges } from '@/sync/legacyAsset';
@@ -53,11 +55,17 @@ export default function AssetsProvider({ children }) {
           requestSync();
         }
       },
-      deleteAssetsAsync: async (assetIds, batchOptions) => {
-        // Tombstone the metadata; it syncs as a delete. TODO: also delete the S3
-        // binaries via the new backend before tombstoning (sync-design §7a).
+      // Gone for good: this device's files now, the cloud's after the push (sync-design §7a).
+      deleteAssetsPermanently: async (assetIds, batchOptions) => {
+        const library = getLibrary();
         try {
-          return await writeInBatches(assetIds, (ids) => repo.deleteAssets(getDb(), ids), batchOptions);
+          return await writeInBatches(
+            assetIds,
+            async (ids) => {
+              await repo.purgeAssets(getDb(), ids, (files) => removeAssetFiles(files, library));
+            },
+            batchOptions,
+          );
         } finally {
           requestSync();
         }

@@ -9,13 +9,16 @@ vi.mock('../src/users.js', () => ({
 vi.mock('../src/storage/s3.js', () => ({
   presignedDownloadUrl: vi.fn(),
   uploadStream: vi.fn(),
-  deleteObject: vi.fn(),
+  deleteObjects: vi.fn(),
 }));
+vi.mock('../src/sync/purgedFiles.js', () => ({ isPurgedFileKey: vi.fn() }));
 
+import { DELETE_KEYS_MAX } from '@squidbox/shared';
 import { buildApp } from '../src/app.js';
 import { signAccessToken } from '../src/auth/jwt.js';
 import { findUserById } from '../src/users.js';
-import { presignedDownloadUrl, uploadStream, deleteObject } from '../src/storage/s3.js';
+import { presignedDownloadUrl, uploadStream, deleteObjects } from '../src/storage/s3.js';
+import { isPurgedFileKey } from '../src/sync/purgedFiles.js';
 
 const token = signAccessToken('u1');
 const auth = { authorization: `Bearer ${token}` };
@@ -134,6 +137,35 @@ describe('PUT /api/v1/assets/upload/*', () => {
     expect(res.statusCode).toBe(200);
   });
 
+  it('410 before reading the body when the asset is purged', async () => {
+    vi.mocked(isPurgedFileKey).mockResolvedValueOnce(true);
+    const res = await (await buildApp({ logger: false })).inject({
+      method: 'PUT',
+      url: '/api/v1/assets/upload/photo.jpg',
+      headers: { ...auth, 'content-type': 'application/octet-stream' },
+      payload: Buffer.from('hello'),
+    });
+    expect(res.statusCode).toBe(410);
+    expect(isPurgedFileKey).toHaveBeenCalledWith(expect.anything(), 'u1', 'photo.jpg');
+    expect(uploadStream).not.toHaveBeenCalled();
+    expect(deleteObjects).not.toHaveBeenCalled();
+  });
+
+  it('410 and the file deleted again when the purge landed during the upload', async () => {
+    vi.mocked(uploadStream).mockResolvedValue();
+    vi.mocked(deleteObjects).mockResolvedValue([]);
+    vi.mocked(isPurgedFileKey).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    const res = await (await buildApp({ logger: false })).inject({
+      method: 'PUT',
+      url: '/api/v1/assets/upload/photo.jpg',
+      headers: { ...auth, 'content-type': 'application/octet-stream' },
+      payload: Buffer.from('hello'),
+    });
+    expect(res.statusCode).toBe(410);
+    expect(uploadStream).toHaveBeenCalled();
+    expect(deleteObjects).toHaveBeenCalledWith({ bucket: 'test-shared-bucket', keyPrefix: 'u/u1/' }, ['photo.jpg']);
+  });
+
   it('401 without any token', async () => {
     const res = await (await buildApp({ logger: false })).inject({
       method: 'PUT',
@@ -147,7 +179,7 @@ describe('PUT /api/v1/assets/upload/*', () => {
 
 describe('POST /api/v1/assets/delete', () => {
   it('deletes keys and echoes them', async () => {
-    vi.mocked(deleteObject).mockResolvedValue();
+    vi.mocked(deleteObjects).mockResolvedValue([]);
     const res = await (await buildApp({ logger: false })).inject({
       method: 'POST',
       url: '/api/v1/assets/delete',
@@ -156,6 +188,22 @@ describe('POST /api/v1/assets/delete', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ deleted: ['a.jpg', 'b.jpg'] });
-    expect(deleteObject).toHaveBeenCalledTimes(2);
+    // One request, only ever in the caller's own namespace, derived from the token.
+    expect(deleteObjects).toHaveBeenCalledTimes(1);
+    expect(deleteObjects).toHaveBeenCalledWith({ bucket: 'test-shared-bucket', keyPrefix: 'u/u1/' }, ['a.jpg', 'b.jpg']);
+  });
+
+  it('401 without auth, 400 for more keys than one request takes', async () => {
+    const app = await buildApp({ logger: false });
+    const unauthenticated = await app.inject({ method: 'POST', url: '/api/v1/assets/delete', payload: { keys: ['a'] } });
+    expect(unauthenticated.statusCode).toBe(401);
+    const tooMany = await app.inject({
+      method: 'POST',
+      url: '/api/v1/assets/delete',
+      headers: auth,
+      payload: { keys: Array.from({ length: DELETE_KEYS_MAX + 1 }, (_, i) => `${i}.jpg`) },
+    });
+    expect(tooMany.statusCode).toBe(400);
+    expect(deleteObjects).not.toHaveBeenCalled();
   });
 });

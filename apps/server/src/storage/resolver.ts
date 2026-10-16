@@ -27,9 +27,11 @@ export function resolveStorage(user: StorageResolvableUser, sharedBucket: string
 
 // Client keys are bare file keys. Reject anything that could try to escape the namespace or
 // isn't a plain relative key. (S3 treats keys literally, but keep the contract tight.)
+export function isValidFileKey(fileKey: string): boolean {
+  return Boolean(fileKey) && !fileKey.startsWith('/') && !fileKey.split('/').includes('..');
+}
+
 export function fullKey(loc: StorageLocation, fileKey: string): string {
-  if (!fileKey || fileKey.startsWith('/') || fileKey.split('/').includes('..')) {
-    throw new AppError(400, 'validation_error', `Invalid file key: ${fileKey}`);
-  }
+  if (!isValidFileKey(fileKey)) throw new AppError(400, 'validation_error', `Invalid file key: ${fileKey}`);
   return loc.keyPrefix + fileKey;
 }

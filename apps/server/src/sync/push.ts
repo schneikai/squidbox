@@ -1,9 +1,10 @@
 import { and, eq, sql, type SQL } from 'drizzle-orm';
 import type { PushMutation, PushResult } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
+import { assets } from '../db/schema.js';
 import { serverCollections, toWireRecord, type ServerCollection } from './collections.js';
 
-type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 type ValidRecord = Record<string, unknown> & { id: string; updatedAt: number };
 type DriverError = { code?: unknown; constraint?: unknown; cause?: DriverError };
 
@@ -31,7 +32,8 @@ function driverError(error: unknown): DriverError | undefined {
  *   1. validate the record against the collection's Zod schema (reject on failure);
  *   2. clamp a future `updatedAt` to server-now (clock skew, §7);
  *   3. atomic LWW upsert: INSERT … ON CONFLICT (user_id, id) DO UPDATE … WHERE
- *      excluded.updated_at > table.updated_at (strict >, composite conflict target).
+ *      excluded.updated_at > table.updated_at (strict >, composite conflict target; for assets a
+ *      purge is final, see appliesOver).
  * A returned row = applied; no row on conflict = lost LWW → 'skipped-lww' with the server's
  * current winning record (required for client convergence, §6). user_id always comes from the
  * token, never the client. No hard deletes — a delete is an update setting deletedAt.
@@ -44,15 +46,21 @@ function driverError(error: unknown): DriverError | undefined {
 export async function push(db: Db, userId: string, mutations: PushMutation[]): Promise<PushResult[]> {
   const now = Date.now();
 
-  return db.transaction(async (tx) => {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${userId}::text, 0::bigint))`);
-
+  return withUserLock(db, userId, async (tx) => {
     try {
       return await tx.transaction((batch) => applyMutations(batch, userId, mutations, now, false));
     } catch (error) {
       if (!recordErrorCode(error)) throw error;
       return applyMutations(tx, userId, mutations, now, true);
     }
+  });
+}
+
+// Every write to a syncable table runs in a transaction holding this user's advisory lock (§3).
+export function withUserLock<T>(db: Db, userId: string, write: (tx: Tx) => Promise<T>): Promise<T> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${userId}::text, 0::bigint))`);
+    return write(tx);
   });
 }
 
@@ -98,6 +106,15 @@ async function applyMutations(
   return results;
 }
 
+// The newer version wins (strict >, §6). For assets, a purge also applies over a newer version that
+// is still in the Deleted album (not over a restore), and nothing applies over a purged one (§7).
+function appliesOver(col: ServerCollection): SQL {
+  const newer = sql`excluded.updated_at > ${(col.table as any).updatedAt}`;
+  if (col.table !== assets) return newer;
+  const purgesTrashed = sql`excluded.purged_at is not null and ${assets.deletedAt} is not null`;
+  return sql`${assets.purgedAt} is null and (${newer} or ${purgesTrashed})`;
+}
+
 async function upsert(tx: Tx, col: ServerCollection, record: ValidRecord, userId: string): Promise<PushResult> {
   const table = col.table as any;
 
@@ -114,7 +131,7 @@ async function upsert(tx: Tx, col: ServerCollection, record: ValidRecord, userId
     .onConflictDoUpdate({
       target: [table.userId, table.id],
       set,
-      setWhere: sql`excluded.updated_at > ${table.updatedAt}`,
+      setWhere: appliesOver(col),
     })
     .returning();
 

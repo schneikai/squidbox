@@ -1,17 +1,20 @@
 import type { PushMutation, PushResult } from '@squidbox/shared';
 import { gt } from 'drizzle-orm';
 
-import { setSyncError } from './assetsRepository';
+import { setSyncError, unsharedFiles, type RemoveFiles } from './assetsRepository';
 import { clientCollectionTables } from './clientCollections';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { clearOutboxRows, outboxUpdatedAts, pendingRecordIds } from './outbox';
 import { planPushOutcome } from './pushPlan';
+import { readByIds } from './readByIds';
 import { pauseRuns, startRun } from './runGate';
 import { createSingleFlight } from './singleFlight';
 import { getCursor, setCursor, patchStatus, appendSyncLog, markFirstSyncDone, clearFirstSyncDone } from './status';
 import type { SyncTransport } from './transport';
 import { upsertRows } from './upsertRows';
+import type { AssetFileNames } from '../library/fs';
+import type { LibraryPaths } from '../library/libraryPaths';
 import type { SyncIdentity } from '../library/sessionMatches';
 
 const PULL_LIMIT = 1000; // server/contract cap
@@ -24,8 +27,10 @@ export const APPLY_BATCH = 5000;
 
 // An aborted `signal` ends the run between push batches or between applied pull batches, with
 // everything so far committed (the cursor moves per applied batch, so the next run resumes).
+// `removeFiles` removes this device's copies of assets purged elsewhere, before the purge commits (§7a).
 interface SyncRunOptions {
   signal?: AbortSignal;
+  removeFiles?: RemoveFiles;
 }
 
 // ── DI core: one push→pull pass against an injected db + transport, recording a sync_log entry
@@ -34,7 +39,7 @@ interface SyncRunOptions {
 export async function runSyncOnce(
   db: SyncDb,
   transport: SyncTransport,
-  { signal = new AbortController().signal }: SyncRunOptions = {},
+  { signal = new AbortController().signal, removeFiles = async () => {} }: SyncRunOptions = {},
 ): Promise<void> {
   const ranAt = Date.now();
   let pushed = 0;
@@ -42,12 +47,12 @@ export async function runSyncOnce(
   const notes: string[] = [];
   let error: string | null = null;
   try {
-    const p = await pushPhase(db, transport, signal);
+    const p = await pushPhase(db, transport, signal, removeFiles);
     pushed = p.pushed;
     notes.push(...p.notes);
     if (p.stopped) notes.push('stopped during push');
     else {
-      const pull = await pullPhase(db, transport, signal);
+      const pull = await pullPhase(db, transport, signal, removeFiles);
       pulled = pull.pulled;
       if (pull.stopped) notes.push('stopped during pull');
     }
@@ -70,6 +75,7 @@ async function pushPhase(
   db: SyncDb,
   transport: SyncTransport,
   signal: AbortSignal,
+  removeFiles: RemoveFiles,
 ): Promise<{ pushed: number; notes: string[]; stopped: boolean }> {
   let pushed = 0;
   const notes: string[] = [];
@@ -92,6 +98,12 @@ async function pushPhase(
 
     const mutations: PushMutation[] = batch.map((row) => ({ collection: row.collection, record: row.payload }));
     const { results } = await transport.push({ mutations });
+    // A purge that beat this device's edit comes back as the current record to adopt.
+    await removeNewlyPurgedFiles(
+      db,
+      results.filter((result) => result.collection === 'assets').map((result) => result.current),
+      removeFiles,
+    );
     const pushedUpdatedAt = new Map(batch.map((row) => [`${row.collection}:${row.recordId}`, row.updatedAt]));
     notes.push(...(await db.transaction((tx) => applyPushResults(tx, results, pushedUpdatedAt))));
     pushed += results.length;
@@ -174,6 +186,7 @@ async function pullPhase(
   db: SyncDb,
   transport: SyncTransport,
   signal: AbortSignal,
+  removeFiles: RemoveFiles,
 ): Promise<{ pulled: number; stopped: boolean }> {
   await patchStatus(db, { phase: 'pulling' });
   let cursor = await getCursor(db);
@@ -194,6 +207,7 @@ async function pullPhase(
       cursor = page.cursor;
       hasMore = page.hasMore;
     } while (hasMore && buffered < APPLY_BATCH);
+    await removeNewlyPurgedFiles(db, changes.assets, removeFiles);
     if (buffered > 0 || cursor !== previousCursor) pulled += await applyChanges(db, changes, cursor);
   }
   // The initial full pull has drained — the app can leave the "Setting up…" gate.
@@ -222,6 +236,19 @@ async function applyChanges(
     await setCursor(tx, cursor);
     return applied;
   });
+}
+
+// The files of the purged assets among these records that aren't purged here yet, so an echo or an
+// asset this device never had costs no file work, and only the names no other asset uses (§7a).
+async function removeNewlyPurgedFiles(
+  db: SyncDb,
+  records: (Record<string, unknown> | undefined)[],
+  removeFiles: RemoveFiles,
+): Promise<void> {
+  const ids = records.flatMap((record) => (record?.purgedAt != null ? [String(record.id)] : []));
+  if (ids.length === 0) return;
+  const rows = (await readByIds<schema.AssetRow>(db, schema.assets, ids)).filter((row) => row.purgedAt === null);
+  if (rows.length > 0) await removeFiles(await unsharedFiles(db, rows));
 }
 
 async function applyRecord(db: SyncDb, collection: string, record: Record<string, unknown>): Promise<void> {
@@ -262,6 +289,7 @@ export async function fullResync(db: SyncDb, transport: SyncTransport, options: 
 export interface SyncTarget {
   db: SyncDb;
   identity: SyncIdentity;
+  library: LibraryPaths;
 }
 
 const syncFlight = createSingleFlight(() => withSyncRun(runSyncOnce));
@@ -298,9 +326,12 @@ type SyncWork = (db: SyncDb, transport: SyncTransport, options: SyncRunOptions) 
 // success, error on throw). Callers run it through syncFlight so it never overlaps another sync.
 async function withSyncRun(work: SyncWork): Promise<void> {
   if (!syncTarget) return;
-  const { db, identity } = syncTarget;
-  const { httpTransport } = await import('./transport'); // its session store needs the native modules the tests lack
-  const run = startRun((signal) => work(db, httpTransport(identity), { signal }));
+  const { db, identity, library } = syncTarget;
+  // Their session store and file system need the native modules the tests lack.
+  const { httpTransport } = await import('./transport');
+  const { removeAssetFiles } = await import('../library/fs');
+  const removeFiles = (assets: AssetFileNames[]) => removeAssetFiles(assets, library);
+  const run = startRun((signal) => work(db, httpTransport(identity), { signal, removeFiles }));
   if (!run) return;
   try {
     await run;

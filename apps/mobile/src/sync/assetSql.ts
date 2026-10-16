@@ -12,7 +12,7 @@ import { isCanonicalEdge } from './edgeSql';
 export const a = alias(schema.assets, 'a');
 export const e = alias(schema.albumAssets, 'e');
 
-/** An asset scope: the library, a smart album, or an album by id (a value, or SQL naming a column). */
+/** An asset scope: the library, a smart album (Deleted: not the purged), or an album by id (a value, or SQL naming a column). */
 export type AssetScope = 'library' | 'favorites' | 'deleted' | { albumId: string | SQL };
 
 /** The ids of an album's assets, through its live edges. */
@@ -37,7 +37,7 @@ export function sortsByLastPostedAt(scope: AssetScope, sort: string): boolean {
  */
 export function assetScopeWhere(scope: AssetScope, sort: string): SQL {
   if (scope === 'favorites') return sql`a.deleted_at is null and a.is_favorite = 1`;
-  if (scope === 'deleted') return sql`a.deleted_at is not null`;
+  if (scope === 'deleted') return sql`a.deleted_at is not null and a.purged_at is null`;
   if (scope === 'library') return sql`a.deleted_at is null`;
   if (sort === 'custom') {
     return sql`a.deleted_at is null and e.album_id = ${scope.albumId} and e.deleted_at is null and ${isCanonicalEdge(schema.albumAssets, e, 'albumId')}`;

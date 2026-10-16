@@ -5,9 +5,9 @@ import CloudSyncContext from './CloudSyncContext';
 import useCloud from '@/features/cloud/useCloud';
 import { getLibrary } from '@/library/current';
 import { currentSyncIdentity } from '@/library/currentSyncIdentity';
+import { removeAssetFiles } from '@/library/fs';
 import { isBackupRunning, runBackup } from '@/sync/backupRun';
 import { getDb } from '@/sync/db/client';
-import deleteAssetFileAsync from '@/utils/assets/files/deleteAssetFileAsync';
 import fileSizeToHumanReadable from '@/utils/fileSizeToHumanReadable';
 
 // Exponential moving average time constant (seconds).
@@ -81,7 +81,7 @@ export default function CloudSyncProvider({ children }) {
         setSyncSpeedMessage(null);
       },
       uploadThumbnail: (asset) => uploadAssetThumbnailAsync(asset, library, identity, { signal }),
-      deleteFile: (filename) => deleteAssetFileAsync(filename, library),
+      deleteFile: (filename) => removeAssetFiles([{ filename }], library),
     });
   }
 

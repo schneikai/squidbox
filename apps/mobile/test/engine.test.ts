@@ -1,8 +1,8 @@
-import type { PullResponse, PushRequest, PushResponse } from '@squidbox/shared';
 import { eq } from 'drizzle-orm';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
+import { fakeTransport } from './helpers/fakeTransport';
 import { readLiveAsset } from './helpers/readLiveAsset';
 import { makeTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
@@ -10,7 +10,6 @@ import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { getCursor } from '../src/sync/status';
-import type { SyncTransport } from '../src/sync/transport';
 import { runSyncOnce } from '../src/sync/worker';
 
 let db: SyncDb;
@@ -20,21 +19,6 @@ beforeEach(() => {
 
 const outboxRows = () => db.select().from(schema.outbox);
 const assetRow = (id: string) => db.select().from(schema.assets).where(eq(schema.assets.id, id)).get();
-
-// Configurable fake transport.
-function transport(over: Partial<SyncTransport> = {}): SyncTransport {
-  return {
-    push: async (req: PushRequest): Promise<PushResponse> => ({
-      results: req.mutations.map((m) => ({
-        id: String((m.record as any).id),
-        collection: m.collection,
-        status: 'applied' as const,
-      })),
-    }),
-    pull: async (): Promise<PullResponse> => ({ changes: { assets: { records: [] } }, cursor: 0, hasMore: false }),
-    ...over,
-  };
-}
 
 describe('repository (real SQLite)', () => {
   it('createAsset writes the row and one outbox row; the row reads back', async () => {
@@ -77,7 +61,7 @@ describe('worker push', () => {
   it('drains the outbox when everything is applied', async () => {
     await repo.createAsset(db, makeAssetRecord());
     await repo.createAsset(db, makeAssetRecord());
-    await runSyncOnce(db, transport());
+    await runSyncOnce(db, fakeTransport());
     expect(await outboxRows()).toHaveLength(0);
   });
 
@@ -85,7 +69,7 @@ describe('worker push', () => {
     await repo.createAsset(db, makeAssetRecord());
     const changed: string[] = [];
     (db as AppDb).onTablesChanged((tables) => changed.push(...tables));
-    await runSyncOnce(db, transport());
+    await runSyncOnce(db, fakeTransport());
     expect(changed).not.toContain('assets');
   });
 
@@ -94,7 +78,7 @@ describe('worker push', () => {
     const serverWins = makeAssetRecord({ id: rec.id, notes: 'server', updatedAt: 5000 });
     await runSyncOnce(
       db,
-      transport({
+      fakeTransport({
         push: async (req) => ({
           results: req.mutations.map((m) => ({
             id: String((m.record as any).id),
@@ -113,7 +97,7 @@ describe('worker push', () => {
     const rec = await repo.createAsset(db, makeAssetRecord());
     await runSyncOnce(
       db,
-      transport({
+      fakeTransport({
         push: async (req) => ({
           results: req.mutations.map((m) => ({
             id: String((m.record as any).id),
@@ -134,7 +118,7 @@ describe('worker push', () => {
     const good = await repo.createAsset(db, makeAssetRecord());
     await runSyncOnce(
       db,
-      transport({
+      fakeTransport({
         push: async () => ({
           results: [
             // A malformed `current` (missing required columns) can't be stored.
@@ -159,7 +143,7 @@ describe('worker pull', () => {
     const incoming = makeAssetRecord({ filename: 'pulled.jpg' });
     await runSyncOnce(
       db,
-      transport({
+      fakeTransport({
         pull: async () => ({
           changes: { assets: { records: [incoming as unknown as Record<string, unknown>] } },
           cursor: 42,
@@ -176,7 +160,7 @@ describe('worker pull', () => {
     const stale = makeAssetRecord({ id: rec.id, notes: 'stale-from-server' });
     await runSyncOnce(
       db,
-      transport({
+      fakeTransport({
         // push rejected → outbox row stays pending for rec.id
         push: async (req) => ({
           results: req.mutations.map((m) => ({
@@ -198,7 +182,7 @@ describe('worker pull', () => {
 
   it('keeps a local column the incoming record does not carry', async () => {
     const rec = await repo.createAsset(db, makeAssetRecord({ notes: 'mine' }));
-    await runSyncOnce(db, transport()); // pushed and settled
+    await runSyncOnce(db, fakeTransport()); // pushed and settled
     const { notes: _notes, ...withoutNotes } = makeAssetRecord({
       id: rec.id,
       filename: 'renamed.jpg',
@@ -206,7 +190,7 @@ describe('worker pull', () => {
     });
     await runSyncOnce(
       db,
-      transport({
+      fakeTransport({
         pull: async () => ({ changes: { assets: { records: [withoutNotes] } }, cursor: 1, hasMore: false }),
       }),
     );

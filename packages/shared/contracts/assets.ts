@@ -49,8 +49,10 @@ export const uploadResponseSchema = z.object({ key: z.string() });
 export type UploadResponse = z.infer<typeof uploadResponseSchema>;
 
 // --- Delete (batch) ---
+// Bare keys in the caller's own namespace, at most one S3 DeleteObjects request; a missing key counts as deleted.
+export const DELETE_KEYS_MAX = 1000;
 export const deleteAssetsRequestSchema = z.object({
-  keys: z.array(z.string()).min(1),
+  keys: z.array(z.string()).min(1).max(DELETE_KEYS_MAX),
 });
 export type DeleteAssetsRequest = z.infer<typeof deleteAssetsRequestSchema>;
 
