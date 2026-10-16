@@ -4,6 +4,7 @@ import type { Owner } from './owner';
 import type { Library, Registry } from './registry';
 import type { Session } from './session';
 
+import { withAppDb } from '@/sync/db/client';
 import type { AppDb } from '@/sync/db/driver';
 import { getLastSyncUser, getOwner, setOwner } from '@/sync/status';
 import { API_BASE_URL } from '@/utils/cloud-api/apiBaseUrl';
@@ -15,18 +16,13 @@ import { getSession, updateSession } from '@/utils/cloud-api/sessionStore';
 // gets a token-less session, so they boot into their data with the sign-in form, not into an empty
 // device library. Nothing on disk is moved or deleted, so a crash at any point re-runs to the same
 // result.
-export async function rebuildRegistry({ openDb }: { openDb: (dbName: string) => Promise<AppDb> }): Promise<Registry> {
+export async function rebuildRegistry(): Promise<Registry> {
   const session = getSession();
   const libraries: Library[] = [];
   for (const dbName of await listDatabaseNames()) {
     const id = libraryIdFromDbName(dbName);
     if (!id) continue;
-    const db = await openDb(dbName);
-    try {
-      libraries.push({ id, owner: await ensureOwner(db, session) });
-    } finally {
-      await db.close();
-    }
+    libraries.push({ id, owner: await withAppDb(dbName, (db) => ensureOwner(db, session)) });
   }
 
   const migrated = libraries.find((library) => library.id === MIGRATED_LIBRARY_ID);

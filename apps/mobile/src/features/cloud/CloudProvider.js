@@ -10,43 +10,30 @@ import uploadAssetThumbnailAsync from './assets/uploadAssetThumbnailAsync';
 import { openLibraryForSignIn } from '@/library/sessionLibrary';
 import { isSessionAuthenticated, needsReauth as sessionNeedsReauth } from '@/library/sessionMatches';
 import useLibrary from '@/library/useLibrary';
+import { navigateToTab } from '@/navigators/navigationRef';
 import { withSyncPaused } from '@/sync/worker';
-import { API_BASE_URL } from '@/utils/cloud-api/apiBaseUrl';
 import apiLoginAsync from '@/utils/cloud-api/authentication/loginAsync';
 import apiLogoutAsync from '@/utils/cloud-api/authentication/logoutAsync';
-import { dropTokensAsync, getSession, onSessionChange } from '@/utils/cloud-api/sessionStore';
+import { dropTokensAsync, getSessionSnapshot, onSessionChange } from '@/utils/cloud-api/sessionStore';
 
-// The session is loaded by the boot (LibraryProvider); until then there is none.
-function readSession() {
-  try {
-    return getSession();
-  } catch {
-    return null;
-  }
-}
-
-// The session: who is signed in, mirrored from the session store. It is also the open pointer of the
-// libraries: a session opens its owner's library, with or without tokens, none opens this device's
-// (library/sessionLibrary.ts). Every change of it runs inside withSyncPaused, a sign-in together
-// with the library switch it causes, so no sync or backup run spans either. An account backs the
-// library up and keeps it in sync; signing out, or a session the server rejected (needsReauth),
-// only pauses that.
+// Who is signed in, mirrored from the session store. Every change of the session runs inside
+// withSyncPaused, a sign-in together with the library switch it causes (library/sessionLibrary.ts),
+// so no sync or backup run spans either.
 export default function CloudProvider({ children }) {
   const { library, switchLibrary } = useLibrary();
-  const session = useSyncExternalStore(onSessionChange, readSession);
+  const session = useSyncExternalStore(onSessionChange, getSessionSnapshot);
 
-  const isAuthenticated = library !== null && isSessionAuthenticated(library, session, API_BASE_URL);
+  const isAuthenticated = library !== null && isSessionAuthenticated(library, session);
   const needsReauth = library !== null && sessionNeedsReauth(library, session);
   const user = session?.userId ? { id: session.userId, email: session.email } : null;
 
   // Signs in and opens the account's library (a parked one, or a new one), adding what this device's
-  // library holds; the library of another account stays parked with its pending changes. A switch
-  // that fails puts the previous session back and throws.
+  // library holds; the library of another account stays parked with its pending changes.
   async function loginAsync(email, password) {
-    await withSyncPaused(async () => {
-      const previous = getSession();
-      await openLibraryForSignIn(await apiLoginAsync(email, password), previous, switchLibrary);
-    });
+    const next = await apiLoginAsync(email, password);
+    const switched = await withSyncPaused(() => openLibraryForSignIn(next, switchLibrary));
+    // The remount after a switch reset the navigation; a sign-in ends where it began, in Settings.
+    if (switched) navigateToTab('SettingsTab');
   }
 
   // Signs out: the sync and backup stop and the tokens go, the library stays open as it is. The

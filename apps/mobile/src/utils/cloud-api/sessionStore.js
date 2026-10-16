@@ -3,13 +3,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from './apiBaseUrl';
 import { deleteItemAsync, getItemAsync, setItemAsync } from './secureStorage';
 
+import { createPersistedStore } from '@/utils/persistedStore';
+
 /** @typedef {import('@/library/session').Session} Session */
 
 // The one session record: who is signed in, on which server, obtained from which base URL, and the
 // tokens (null once the server rejected them and the user has to sign in again). serverId, userId
-// and email can be null until the first /me fills them (a converted install). One in-memory copy,
-// loaded once at boot and written through, changed only through updateSession on a promise chain,
-// so no writer can overwrite another's change from a stale copy.
+// and email can be null until the first /me fills them (a converted install).
 const SESSION_KEY = 'session';
 
 // Before the session record, the tokens lived under two keys and the user in AsyncStorage.
@@ -17,49 +17,22 @@ const LEGACY_ACCESS_TOKEN_KEY = 'accessToken';
 const LEGACY_REFRESH_TOKEN_KEY = 'refreshToken';
 const LEGACY_USER_KEY = 'user';
 
-/** @type {Session | null | undefined} undefined until loaded */
-let session;
-let chain = Promise.resolve();
-const listeners = new Set();
+const store = createPersistedStore({
+  name: 'The session',
+  write: (session) => (session ? setItemAsync(SESSION_KEY, JSON.stringify(session)) : deleteItemAsync(SESSION_KEY)),
+});
 
-/** Boot: reads the stored session, converting a legacy install once. @returns {Promise<Session | null>} */
-export async function loadSessionAsync() {
-  const stored = await getItemAsync(SESSION_KEY);
-  session = stored ? JSON.parse(stored) : await convertLegacySessionAsync();
-  for (const listener of listeners) listener(session);
-  return session;
-}
+export const getSession = store.get;
+export const getSessionSnapshot = store.snapshot;
+export const onSessionChange = store.subscribe;
+export const updateSession = store.update;
 
-/** @returns {Session | null} */
-export function getSession() {
-  if (session === undefined) throw new Error('The session is not loaded yet (see LibraryProvider).');
-  return session;
-}
-
-// Called after every stored change (CloudProvider mirrors the session into React).
-export function onSessionChange(listener) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-/**
- * Changes the session: `change` gets the current record and returns the next (the same object
- * for no change). Writes through and notifies.
- * @param {(session: Session | null) => Session | null} change
- * @returns {Promise<Session | null>}
- */
-export function updateSession(change) {
-  const next = chain.then(async () => {
-    const changed = change(getSession());
-    if (changed === session) return session;
-    session = changed;
-    if (session) await setItemAsync(SESSION_KEY, JSON.stringify(session));
-    else await deleteItemAsync(SESSION_KEY);
-    for (const listener of listeners) listener(session);
-    return session;
+/** Boot: reads the stored session, converting a legacy install once. */
+export function loadSessionAsync() {
+  return store.load(async () => {
+    const stored = await getItemAsync(SESSION_KEY);
+    return stored ? JSON.parse(stored) : convertLegacySessionAsync();
   });
-  chain = next.catch(() => {});
-  return next;
 }
 
 /**

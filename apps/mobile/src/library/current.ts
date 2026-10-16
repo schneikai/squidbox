@@ -1,5 +1,5 @@
 import { libraryPaths, type LibraryPaths } from './libraryPaths';
-import type { Library } from './registry';
+import { getRegistry, type Library } from './registry';
 
 import { getDb, openAppDb, setOpenDb } from '@/sync/db/client';
 import { getOwner, setOwner } from '@/sync/status';
@@ -36,6 +36,13 @@ export async function closeLibrary(): Promise<void> {
 
 export function openLibraryId(): string | null {
   return current?.id ?? null;
+}
+
+// The open library's entry in the list, or null while none is open.
+export function openLibraryEntry(): Library | null {
+  if (!current) return null;
+  const id = current.id;
+  return getRegistry().libraries.find((library) => library.id === id) ?? null;
 }
 
 export function getLibrary(): OpenLibrary {

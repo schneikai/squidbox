@@ -1,6 +1,7 @@
 import { useState, useTransition } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
+import TextButton from '@/components/TextButton';
 import useCloud from '@/features/cloud/useCloud';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, radii, scale, spacing } from '@/styles/designTokens';
@@ -75,11 +76,7 @@ export default function LoginForm({ ownerEmail }) {
         )}
       </TouchableOpacity>
 
-      {isOwnerEmail && (
-        <TouchableOpacity style={styles.link} onPress={handleSomeoneElse} hitSlop={8}>
-          <Text style={styles.linkText}>Sign in as someone else</Text>
-        </TouchableOpacity>
-      )}
+      {isOwnerEmail && <TextButton label="Sign in as someone else" onPress={handleSomeoneElse} />}
     </>
   );
 }
@@ -114,14 +111,5 @@ const styles = StyleSheet.create({
     color: colors.textInverse,
     fontSize: scale(16),
     fontWeight: '600',
-  },
-  link: {
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-  linkText: {
-    color: colors.accent,
-    fontSize: scale(15),
-    fontWeight: '500',
   },
 });

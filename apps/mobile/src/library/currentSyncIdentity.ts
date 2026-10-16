@@ -1,13 +1,14 @@
-import { openLibraryId } from './current';
-import { getRegistry } from './registry';
-import { syncIdentity, type SyncIdentity } from './sessionMatches';
+import { openLibraryEntry } from './current';
+import { isSessionAuthenticated, type SyncIdentity } from './sessionMatches';
 
-import { API_BASE_URL } from '@/utils/cloud-api/apiBaseUrl';
+import sessionIdentity from '@/utils/cloud-api/sessionIdentity';
 import { getSession } from '@/utils/cloud-api/sessionStore';
 
-// The identity of a sync run started now: the open library with the stored session, or null when
-// nothing may sync (sessionMatches.ts).
+// The identity of a sync or backup run started now: the open library with the stored session, or
+// null when nothing may sync: the device library, a signed-out, expired or unverified session, or a
+// session for someone else.
 export function currentSyncIdentity(): SyncIdentity | null {
-  const library = getRegistry().libraries.find(({ id }) => id === openLibraryId());
-  return library ? syncIdentity(library, getSession(), API_BASE_URL) : null;
+  const library = openLibraryEntry();
+  const session = getSession();
+  return library && isSessionAuthenticated(library, session) ? (sessionIdentity(session) as SyncIdentity) : null;
 }

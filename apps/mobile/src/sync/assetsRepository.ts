@@ -70,14 +70,11 @@ export function isUnsynced(asset: { isSynced: boolean; deletedAt: number | null;
   return !asset.isSynced && asset.deletedAt === null && asset.syncError === null;
 }
 
-// Together: the photos not in the cloud (deleted ones not).
-export interface BackupCounts {
-  unsyncedCount: number; // waiting for their upload
-  syncErrorCount: number; // whose upload failed
-}
-
-/** How many assets wait for their upload and how many failed, in one statement. */
-export async function readBackupCounts(db: SyncDb): Promise<BackupCounts> {
+/**
+ * How many assets wait for their upload and how many failed (together: the photos not in the cloud,
+ * deleted ones not), in one statement.
+ */
+export async function readBackupCounts(db: SyncDb): Promise<{ unsyncedCount: number; syncErrorCount: number }> {
   const [row] = await db
     .select({
       unsyncedCount: count(),

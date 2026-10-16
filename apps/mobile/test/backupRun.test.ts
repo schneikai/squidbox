@@ -3,9 +3,10 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { makeAssetRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
-import { isBackupRunning, runBackup, stopBackup, type BackupUploads } from '../src/sync/backupRun';
+import { isBackupRunning, runBackup, type BackupUploads } from '../src/sync/backupRun';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
+import { withSyncPaused } from '../src/sync/worker';
 import SessionChangedError from '../src/utils/cloud-api/SessionChangedError';
 
 describe('runBackup', () => {
@@ -41,18 +42,17 @@ describe('runBackup', () => {
       ...over,
     });
 
+  // A pause that starts during the run: the session or the library is about to change.
+  const pause = () => withSyncPaused(async () => {});
+
   const row = async (id: string) => (await db.select().from(schema.assets)).find((asset) => asset.id === id)!;
 
   it('uploads file and thumbnail, marks the asset synced and removes the local file', async () => {
     const a = await unsyncedAsset('a.jpg');
     const progress: number[] = [];
 
-    const outcome = await runBackup(db, [a.id], {
-      uploads: uploads(),
-      onProgress: ({ index }) => progress.push(index),
-    });
+    await runBackup(db, { uploads: uploads(), onProgress: ({ index }) => progress.push(index) });
 
-    expect(outcome).toBe('completed');
     expect(calls).toEqual(['file a.jpg', 'thumbnail a.jpg']);
     expect(deleted).toEqual(['a.jpg']);
     expect(await row(a.id)).toMatchObject({
@@ -69,7 +69,7 @@ describe('runBackup', () => {
     const a = await unsyncedAsset('a.jpg');
     const b = await unsyncedAsset('b.jpg');
 
-    const outcome = await runBackup(db, [a.id, b.id], {
+    await runBackup(db, {
       uploads: uploads({
         uploadFile: async (asset) => {
           if (asset.filename === 'a.jpg') throw new Error('boom');
@@ -78,7 +78,6 @@ describe('runBackup', () => {
       }),
     });
 
-    expect(outcome).toBe('completed');
     expect(await row(a.id)).toMatchObject({ isFileSynced: false, syncError: 'boom' });
     expect(deleted).toEqual(['b.jpg']);
     expect(await row(b.id)).toMatchObject({ isSynced: true });
@@ -86,32 +85,32 @@ describe('runBackup', () => {
 
   it('skips an asset that was synced or deleted meanwhile', async () => {
     const a = await unsyncedAsset('a.jpg');
-    await repo.updateAsset(db, a.id, { isFileSynced: true, isThumbnailSynced: true, isSynced: true });
     const gone = await unsyncedAsset('gone.jpg');
+    const run = runBackup(db, { uploads: uploads() }); // reads the ids, then each row again
+    await repo.updateAsset(db, a.id, { isFileSynced: true, isThumbnailSynced: true, isSynced: true });
     await repo.deleteAssets(db, [gone.id]);
 
-    expect(await runBackup(db, [a.id, gone.id], { uploads: uploads() })).toBe('completed');
+    await run;
     expect(calls).toEqual([]);
   });
 
-  it('a stop after the first upload leaves the next asset untouched, and the stop waits for the run', async () => {
+  it('a pause after the first upload leaves the next asset untouched and waits for the run', async () => {
     const a = await unsyncedAsset('a.jpg');
     const b = await unsyncedAsset('b.jpg');
-    let stopped: Promise<void> | undefined;
+    let paused: Promise<void> | undefined;
 
-    const outcome = await runBackup(db, [a.id, b.id], {
+    await runBackup(db, {
       uploads: uploads({
         uploadFile: async (asset) => {
           calls.push(`file ${asset.filename}`);
-          stopped = stopBackup(); // the session changes while the first file uploads
+          paused = pause(); // the session changes while the first file uploads
         },
       }),
     });
 
-    expect(outcome).toBe('aborted');
-    await stopped;
     expect(isBackupRunning()).toBe(false);
-    expect(calls).toEqual(['file a.jpg']);
+    await paused;
+    expect(calls).toHaveLength(1); // the run walks the ids in id order: one upload, then the stop
     expect(deleted).toEqual([]);
     expect(await row(a.id)).toMatchObject({ isFileSynced: false, isSynced: false, syncError: null });
     expect(await row(b.id)).toMatchObject({ isFileSynced: false, isSynced: false, syncError: null });
@@ -119,17 +118,18 @@ describe('runBackup', () => {
 
   it('a cancelled upload is not a failure', async () => {
     const a = await unsyncedAsset('a.jpg');
+    let paused: Promise<void> | undefined;
 
-    const outcome = await runBackup(db, [a.id], {
+    await runBackup(db, {
       uploads: uploads({
         uploadFile: async () => {
-          stopBackup().catch(() => {});
+          paused = pause();
           throw new Error('Upload cancelled');
         },
       }),
     });
 
-    expect(outcome).toBe('aborted');
+    await paused;
     expect(await row(a.id)).toMatchObject({ isFileSynced: false, syncError: null });
   });
 
@@ -137,7 +137,7 @@ describe('runBackup', () => {
     const a = await unsyncedAsset('a.jpg');
     const b = await unsyncedAsset('b.jpg');
 
-    const outcome = await runBackup(db, [a.id, b.id], {
+    await runBackup(db, {
       uploads: uploads({
         uploadFile: async () => {
           throw new SessionChangedError('Signed in as someone else');
@@ -145,38 +145,45 @@ describe('runBackup', () => {
       }),
     });
 
-    expect(outcome).toBe('aborted');
+    expect(isBackupRunning()).toBe(false);
     expect(await row(a.id)).toMatchObject({ isFileSynced: false, syncError: null });
     expect(await row(b.id)).toMatchObject({ isFileSynced: false, syncError: null });
   });
 
   it('stops before the thumbnail upload and before the next asset', async () => {
     const a = await unsyncedAsset('a.jpg');
+    let paused: Promise<void> | undefined;
 
-    const outcome = await runBackup(db, [a.id], {
+    await runBackup(db, {
       uploads: uploads({
         deleteFile: async (filename) => {
           deleted.push(filename);
-          stopBackup().catch(() => {});
+          paused = pause();
         },
       }),
     });
 
-    expect(outcome).toBe('aborted');
+    await paused;
     expect(calls).toEqual(['file a.jpg']);
     expect(await row(a.id)).toMatchObject({ isFileSynced: true, isThumbnailSynced: false, isSynced: false });
   });
 
-  it('refuses a second run while one is running', async () => {
+  it('refuses a second run while one is running, and does not start while a pause holds', async () => {
     const a = await unsyncedAsset('a.jpg');
     let release!: () => void;
-    const first = runBackup(db, [a.id], {
+    const first = runBackup(db, {
       uploads: uploads({ uploadFile: () => new Promise<void>((resolve) => (release = resolve)) }),
     });
     await new Promise((resolve) => setTimeout(resolve, 5));
     expect(isBackupRunning()).toBe(true);
-    await expect(runBackup(db, [a.id], { uploads: uploads() })).rejects.toThrow('already running');
+    expect(() => runBackup(db, { uploads: uploads() })).toThrow('already running');
     release();
-    expect(await first).toBe('completed');
+    await first;
+    expect(await row(a.id)).toMatchObject({ isSynced: true });
+
+    await withSyncPaused(async () => {
+      expect(runBackup(db, { uploads: uploads() })).toBeNull();
+      expect(isBackupRunning()).toBe(false);
+    });
   });
 });

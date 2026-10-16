@@ -7,6 +7,7 @@ import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { LogBlock, LogEmpty, LogLine } from '@/components/settings-list/LogBlock';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
+import { getDb } from '@/sync/db/client';
 import { useCollectionStats, useSyncLogRows } from '@/sync/useInspector';
 import { useSyncStatus } from '@/sync/useSyncStatus';
 import { requestSync, runClearOutbox, runFullResync } from '@/sync/worker';
@@ -52,7 +53,7 @@ export default function SyncScreen() {
         {
           text: 'Discard',
           style: 'destructive',
-          onPress: () => runClearOutbox().catch((e) => Alert.alert('Failed', String(e))),
+          onPress: () => runClearOutbox(getDb()).catch((e) => Alert.alert('Failed', String(e))),
         },
       ],
     );

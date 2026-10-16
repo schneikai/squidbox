@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { assertLibraryId, libraryIdFromDbName, libraryPaths, MIGRATED_LIBRARY_ID } from '../src/library/libraryPaths';
+import { libraryIdFromDbName, libraryPaths, MIGRATED_LIBRARY_ID } from '../src/library/libraryPaths';
 
 describe('libraryPaths', () => {
   it('the migrated library keeps the names from before libraries', () => {
@@ -23,7 +23,6 @@ describe('libraryPaths', () => {
 
   it('refuses an id that could name another path', () => {
     for (const id of ['', '../x', 'a/b', 'A1', 'a b', 'a.db']) {
-      expect(() => assertLibraryId(id)).toThrow('Invalid library id');
       expect(() => libraryPaths(id)).toThrow('Invalid library id');
     }
   });

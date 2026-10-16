@@ -10,12 +10,8 @@ export interface LibraryPaths {
   downloadsDir: string; // relative to the app's cache directory: full-resolution files fetched to save or view
 }
 
-export function assertLibraryId(id: string): void {
-  if (!/^[a-z0-9-]+$/.test(id)) throw new Error(`Invalid library id: ${id}`);
-}
-
 export function libraryPaths(id: string): LibraryPaths {
-  assertLibraryId(id);
+  if (!/^[a-z0-9-]+$/.test(id)) throw new Error(`Invalid library id: ${id}`);
   const downloadsDir = `downloads/${id}/`;
   if (id === MIGRATED_LIBRARY_ID) {
     return { dbName: MIGRATED_DB_NAME, filesDir: 'assetfiles/', thumbnailsDir: 'assetthumbnails/', downloadsDir };

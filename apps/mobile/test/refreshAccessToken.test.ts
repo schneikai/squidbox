@@ -7,6 +7,7 @@ const store: { session: Session | null; writes: number } = { session: null, writ
 const post = vi.fn();
 
 vi.mock('../src/utils/cloud-api/api', () => ({ default: { post: (...args: unknown[]) => post(...args) } }));
+vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({ API_BASE_URL: 'https://api.test/api/v1' }));
 vi.mock('../src/utils/cloud-api/sessionStore', () => sessionStoreMock(store));
 
 const { default: refreshAccessTokenAsync } =
@@ -78,8 +79,10 @@ describe('refreshAccessTokenAsync', () => {
     expect(post).not.toHaveBeenCalled();
   });
 
-  it('does not call the server without a session', async () => {
+  it('does not call the server without a session, or with tokens from another base URL', async () => {
     store.session = sessionA(null);
+    expect(() => refreshAccessTokenAsync(identityA)).toThrow('Not signed in');
+    store.session = { ...sessionA({ accessToken: 'access-1', refreshToken: 'refresh-1' }), apiBaseUrl: 'https://old' };
     expect(() => refreshAccessTokenAsync(identityA)).toThrow('Not signed in');
     expect(post).not.toHaveBeenCalled();
   });

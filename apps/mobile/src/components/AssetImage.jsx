@@ -3,6 +3,7 @@ import { View, Image, Animated, StyleSheet } from 'react-native';
 
 import useAppSettings from '@/features/app-settings/useAppSettings';
 import useAssetThumbnailLoader from '@/features/asset-thumbnail-loader/useAssetThumbnailLoader';
+import useCloud from '@/features/cloud/useCloud';
 import { motion } from '@/styles/designTokens';
 import getAssetThumbnailUri from '@/utils/assets/thumbnails/getAssetThumbnailUri';
 import hasThumbnailAsync from '@/utils/assets/thumbnails/hasThumbnailAsync';
@@ -13,7 +14,8 @@ import hasThumbnailAsync from '@/utils/assets/thumbnails/hasThumbnailAsync';
 export default function AssetImage({ asset = {}, contentFit, placeholderColor = 'lightgrey', overlay }) {
   const [thumbnailUri, setThumbnailUri] = useState(null);
   const [loadedUri, setLoadedUri] = useState(null);
-  const { loadThumbnail, isActive } = useAssetThumbnailLoader();
+  const { loadThumbnail } = useAssetThumbnailLoader();
+  const { isAuthenticated } = useCloud();
   const { thumbnailStyle } = useAppSettings();
 
   // A different asset must not keep showing the previous one's picture until its own is found.
@@ -52,7 +54,7 @@ export default function AssetImage({ asset = {}, contentFit, placeholderColor = 
   if (!asset.thumbnailFilename) return null;
 
   if (!thumbnailUri) {
-    return <LoadingPlaceholder color={placeholderColor} still={!isActive} />;
+    return <LoadingPlaceholder color={placeholderColor} still={!isAuthenticated} />;
   }
 
   const isLoaded = loadedUri === thumbnailUri;

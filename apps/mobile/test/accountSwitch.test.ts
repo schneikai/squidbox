@@ -20,12 +20,14 @@ const store: { session: Session | null } = { session: null };
 
 vi.mock('../src/sync/db/client', () => {
   let open: AppDb | null = null;
+  const openAppDb = async (name: string) => {
+    if (failing.has(name)) throw new Error(`cannot open ${name}`);
+    if (!stores.has(name)) stores.set(name, makeTestDb());
+    return Object.assign(Object.create(stores.get(name)!), { close: async () => {} });
+  };
   return {
-    openAppDb: async (name: string) => {
-      if (failing.has(name)) throw new Error(`cannot open ${name}`);
-      if (!stores.has(name)) stores.set(name, makeTestDb());
-      return Object.assign(Object.create(stores.get(name)!), { close: async () => {} });
-    },
+    openAppDb,
+    withAppDb: async (name: string, use: (db: AppDb) => Promise<unknown>) => use(await openAppDb(name)),
     deleteAppDb: async (name: string) => {
       deleted.push(name);
       stores.delete(name);
@@ -52,6 +54,7 @@ vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({ API_BASE_URL: 'https://api
 vi.mock('expo-file-system/legacy', () => ({ documentDirectory: 'file:///docs/' }));
 vi.mock('../src/library/fs', () => ({
   listDatabaseNames: async () => [],
+  listFiles: async () => new Set(),
   createLibraryFolders: async () => {},
   removeLibraryFolders: async () => {},
   fileExists: async () => false,
@@ -79,16 +82,12 @@ const sessionOf = (userId: string, serverId: string | null = 's1'): Session => (
 });
 
 // The boot's open for a stored session (or none), and what CloudProvider's loginAsync does inside
-// withSyncPaused: store the session the server answered with, then open its library.
+// withSyncPaused with the session the server answered with.
 async function open(session: Session | null) {
   store.session = session;
   await openLibraryForSession(session, switchLibrary);
 }
-async function signIn(session: Session) {
-  const previous = store.session;
-  store.session = session;
-  await openLibraryForSignIn(session, previous, switchLibrary);
-}
+const signIn = (session: Session) => openLibraryForSignIn(session, switchLibrary);
 const albums = makeRepository('albums', schema.albums);
 const libraryIds = () => getRegistry().libraries.map(({ id }) => id);
 const openOwner = () => getRegistry().libraries.find(({ id }) => id === getLibrary().id)!.owner;
@@ -114,7 +113,8 @@ describe('switching libraries with the session', () => {
     expect(openOwner()).toEqual({ kind: 'device' });
     const deviceId = getLibrary().id;
 
-    await signIn(sessionOf('A'));
+    expect(await signIn(sessionOf('A'))).toBe(true);
+    expect(store.session).toEqual(sessionOf('A'));
     expect(libraryIds()).not.toContain(deviceId); // empty, so it joined A's library and went
     expect(openOwner()).toEqual({ kind: 'account', serverId: 's1', userId: 'A', email: 'A@test' });
     expect(await getOwner(getDb())).toEqual(openOwner());
@@ -216,7 +216,8 @@ describe('switching libraries with the session', () => {
     expect(await getCursor(getDb())).toBe(42);
     expect(await outbox()).toHaveLength(1);
 
-    await signIn(sessionOf('A')); // the owner signs in again: no switch, the outbox is still there
+    expect(await signIn(sessionOf('A'))).toBe(false); // the owner signs in again: no switch, the outbox is still there
+    expect(store.session).toEqual(sessionOf('A'));
     expect(getLibrary().id).toBe(aId);
     expect(await outbox()).toHaveLength(1);
   });
@@ -240,7 +241,7 @@ describe('switching libraries with the session', () => {
     expect(await outbox()).toHaveLength(1);
   });
 
-  it('a failed open of B leaves A open with its session and no B entry', async () => {
+  it('a failed open of B leaves A open with its session (never stored for B) and no B entry', async () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(sessionOf('A'));
     const aId = getLibrary().id;

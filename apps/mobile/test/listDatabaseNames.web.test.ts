@@ -14,7 +14,9 @@ vi.mock('expo-sqlite', () => ({
       },
     };
   },
-  deleteDatabaseAsync: async (name: string) => {
+}));
+vi.mock('../src/sync/db/client', () => ({
+  deleteAppDb: async (name: string) => {
     calls.push(`delete ${name}`);
     files.delete(name);
   },

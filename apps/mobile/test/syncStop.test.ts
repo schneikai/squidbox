@@ -6,9 +6,11 @@ import { makeTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
+import { startRun } from '../src/sync/runGate';
 import { getCursor, isFirstSyncDone } from '../src/sync/status';
 import type { SyncTransport } from '../src/sync/transport';
-import { APPLY_BATCH, isSyncPaused, runSyncOnce, withSyncPaused } from '../src/sync/worker';
+import { APPLY_BATCH, runSyncOnce, withSyncPaused } from '../src/sync/worker';
+import SessionChangedError from '../src/utils/cloud-api/SessionChangedError';
 
 let db: SyncDb;
 beforeEach(() => {
@@ -33,36 +35,49 @@ function server(total: number, onPull: (cursor: number) => void = () => {}): Syn
 }
 
 describe('withSyncPaused', () => {
-  it('says a section is running while its work runs, and not after a throw', async () => {
-    expect(isSyncPaused()).toBe(false);
-    let during = false;
-    await withSyncPaused(async () => {
-      during = isSyncPaused();
+  it('lets no run start while its work runs, aborts and awaits the running ones, and resumes after a throw', async () => {
+    let aborted = false;
+    let ended = false;
+    const run = startRun(async (signal) => {
+      await new Promise<void>((resolve) => signal.addEventListener('abort', () => resolve()));
+      aborted = true;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      ended = true;
     });
-    expect(during).toBe(true);
-    expect(isSyncPaused()).toBe(false);
+    expect(run).not.toBeNull();
+
+    let during: Promise<void> | null | undefined;
+    await withSyncPaused(async () => {
+      expect(aborted && ended).toBe(true);
+      during = startRun(async () => {});
+    });
+    expect(during).toBeNull();
     await expect(withSyncPaused(() => Promise.reject(new Error('boom')))).rejects.toThrow('boom');
-    expect(isSyncPaused()).toBe(false);
+    expect(startRun(async () => {})).not.toBeNull();
+  });
+
+  it('a session that changed under a run ends it like an abort, not as a failure', async () => {
+    await expect(startRun(async () => Promise.reject(new SessionChangedError()))).resolves.toBeUndefined();
+    await expect(startRun(async () => Promise.reject(new Error('boom')))).rejects.toThrow('boom');
   });
 });
 
-describe('a stop request', () => {
+describe('an aborted run', () => {
   it('ends a pull after the current applied batch, with its cursor committed', async () => {
-    let stop = false;
+    const controller = new AbortController();
     const pulls: number[] = [];
     const transport = server(APPLY_BATCH * 2, (cursor) => {
       pulls.push(cursor);
-      if (cursor === 2000) stop = true; // requested while the first batch is still being fetched
+      if (cursor === 2000) controller.abort(); // requested while the first batch is still being fetched
     });
 
-    await runSyncOnce(db, transport, { shouldStop: () => stop });
+    await runSyncOnce(db, transport, { signal: controller.signal });
 
     expect(await getCursor(db)).toBe(APPLY_BATCH);
     expect(await db.select().from(schema.assets)).toHaveLength(APPLY_BATCH);
     expect(await isFirstSyncDone(db)).toBe(false);
     expect(pulls).toEqual([0, 1000, 2000, 3000, 4000]);
 
-    stop = false;
     await runSyncOnce(db, transport); // the next run resumes from the committed cursor
     expect(await getCursor(db)).toBe(APPLY_BATCH * 2);
     expect(await isFirstSyncDone(db)).toBe(true);
@@ -73,15 +88,15 @@ describe('a stop request', () => {
       db,
       Array.from({ length: 1001 }, () => makeAssetRecord()),
     );
-    let stop = false;
+    const controller = new AbortController();
     const transport = server(0);
     const push = transport.push;
     transport.push = async (req) => {
-      stop = true;
+      controller.abort();
       return push(req);
     };
 
-    await runSyncOnce(db, transport, { shouldStop: () => stop });
+    await runSyncOnce(db, transport, { signal: controller.signal });
 
     expect(await db.select().from(schema.outbox)).toHaveLength(501);
     expect(await isFirstSyncDone(db)).toBe(false);

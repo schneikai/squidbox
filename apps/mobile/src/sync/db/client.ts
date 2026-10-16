@@ -27,6 +27,16 @@ export async function openAppDb(dbName: string): Promise<AppDb> {
   return appDb;
 }
 
+// Opens a database by name for `use` and closes it after.
+export async function withAppDb<T>(dbName: string, use: (db: AppDb) => Promise<T>): Promise<T> {
+  const db = await openAppDb(dbName);
+  try {
+    return await use(db);
+  } finally {
+    await db.close();
+  }
+}
+
 // Removes a database file that nothing has open. Tolerates a missing file (iOS throws on one).
 export async function deleteAppDb(dbName: string): Promise<void> {
   await deleteDatabaseAsync(dbName).catch(() => {});

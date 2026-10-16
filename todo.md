@@ -219,6 +219,21 @@ The sign-in merge (`src/library/mergeLibrary.ts`) only spots a camera-roll photo
 holds if this phone's account library pulled it before. A content hash per asset would catch the
 rest. Only worth it if duplicates show up in practice; a wrong match would hide a distinct photo.
 
+### [ ] A library handle that owns its database, paths and caches
+
+About 15 helpers in `src/utils/assets` default a `library` argument to `getLibrary()` (the open
+library), and every long flow (a backup run, a merge, a camera-roll add) captures the library itself
+so a late write lands in the right one. A handle provided from `LibraryGate` that owns the
+database, the paths and the thumbnail caches would drop those defaults and the captures. A larger
+refactor; today's defaults work.
+
+### [ ] Resolve a converted install's null serverId/userId once at boot
+
+An install converted before its first `/me` carries `serverId: null` (and a session may carry
+`userId: null`), and `sameAccount`, `libraryForSession`, `resolveOwner` and `rebuildRegistry`
+each handle that case. Resolving it once at boot (after `/me`) would let `sameAccount` be strict
+(same user on the same server, no null wildcard) and remove the special cases from the others.
+
 ### [ ] Concurrent edits from two devices overwrite each other
 
 Sync resolves conflicts per record by last writer wins (`apps/server/src/sync/push.ts`): editing the
@@ -282,7 +297,7 @@ build: an older one would open `squidbox.db` with its wipe-on-switch logic and k
   "Setting up your library", the photo uploads with "Back up now".
 - Sign-out with unsynced work: add a photo, sign out before it is backed up → "You have media
   that isn't backed up yet" → Cancel keeps you signed in, Sign Out signs out.
-- Another account: signed out of A, "Sign in as someone else" as B → "Opening <B>…", B's library
+- Another account: signed out of A, "Sign in as someone else" as B → "Opening your library…", B's library
   (its first sync if new); sign in as A again → A's library with the photo still waiting.
 - Expired session: revoke the phone's refresh token server-side (or set `tokens` to null in the
   stored session) → no alert, only the red dot on the avatar and the "Backup paused" row; still

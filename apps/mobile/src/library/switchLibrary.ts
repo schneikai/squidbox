@@ -1,4 +1,4 @@
-import { closeLibrary, getLibrary, openLibrary, openLibraryId } from './current';
+import { closeLibrary, getLibrary, openLibrary, openLibraryEntry } from './current';
 import { createLibraryFolders } from './fs';
 import { libraryPaths } from './libraryPaths';
 import { getRegistry, updateRegistry, type Library } from './registry';
@@ -10,7 +10,7 @@ import { deleteAppDb } from '@/sync/db/client';
 // new. If the target won't open, a file it was just creating is deleted (so it holds no storage),
 // the previous library is reopened and the error rethrown; a library that never opened gets no entry.
 export async function switchLibrary(target: Library): Promise<void> {
-  const previous = getRegistry().libraries.find(({ id }) => id === openLibraryId());
+  const previous = openLibraryEntry();
   const creating = !getRegistry().libraries.some(({ id }) => id === target.id);
   if (previous) await closeLibrary();
 

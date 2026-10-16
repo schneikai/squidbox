@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 import StatusScreen from '@/components/StatusScreen';
+import TextButton from '@/components/TextButton';
 import useCloud from '@/features/cloud/useCloud';
 import { schema } from '@/sync/db/client';
 import { useRecordCounts } from '@/sync/useRecordCounts';
@@ -27,6 +28,7 @@ export default function FirstSyncScreen() {
 
   const hasError = phase === 'error' && !!lastError;
   const started = assets + albums + posts > 0;
+  const counts = `${assets.toLocaleString()} photos · ${albums.toLocaleString()} albums · ${posts.toLocaleString()} posts`;
 
   // Never sit dead on an error: auto-retry the pull on a short interval while this screen shows an
   // error, and self-heal without the user restarting. (The normal 30s trigger still runs too.)
@@ -36,40 +38,22 @@ export default function FirstSyncScreen() {
     return () => clearInterval(id);
   }, [hasError]);
 
+  function subtitle() {
+    if (hasError) return "We'll keep trying automatically. Check your connection — your data is safe.";
+    return started ? 'Downloading your photos, albums and posts. This happens once.' : 'Connecting to your library…';
+  }
+
   return (
     <StatusScreen busy={!hasError} title={hasError ? "Can't reach the server" : 'Setting up your library'}>
+      <Text style={styles.subtitle}>{subtitle()}</Text>
+      {started && <Text style={styles.count}>{hasError ? `${counts} so far` : counts}</Text>}
       {hasError ? (
-        <>
-          <Text style={styles.subtitle}>
-            We'll keep trying automatically. Check your connection — your data is safe.
-          </Text>
-          {started ? (
-            <Text style={styles.count}>
-              {assets.toLocaleString()} photos · {albums.toLocaleString()} albums · {posts.toLocaleString()} posts so
-              far
-            </Text>
-          ) : null}
-          <Pressable style={styles.retry} onPress={() => requestSync()} hitSlop={8}>
-            <Text style={styles.retryText}>Try again</Text>
-          </Pressable>
-        </>
+        <TextButton label="Try again" onPress={() => requestSync()} />
       ) : (
-        <>
-          <Text style={styles.subtitle}>
-            {started ? 'Downloading your photos, albums and posts. This happens once.' : 'Connecting to your library…'}
-          </Text>
-          {started ? (
-            <Text style={styles.count}>
-              {assets.toLocaleString()} photos · {albums.toLocaleString()} albums · {posts.toLocaleString()} posts
-            </Text>
-          ) : null}
-          <Text style={styles.hint}>Please keep the app open — it'll finish shortly.</Text>
-        </>
+        <Text style={styles.hint}>Please keep the app open — it'll finish shortly.</Text>
       )}
       {/* A sign-out stops the pull at its next batch; the library stays open with what it pulled. */}
-      <Pressable style={styles.signout} onPress={() => logoutAsync()} hitSlop={8}>
-        <Text style={styles.signoutText}>Sign out</Text>
-      </Pressable>
+      <TextButton label="Sign out" onPress={() => logoutAsync()} muted />
     </StatusScreen>
   );
 }
@@ -78,14 +62,4 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 15, opacity: 0.7, textAlign: 'center' },
   count: { fontSize: 16, fontWeight: '600', marginTop: 8, textAlign: 'center' },
   hint: { fontSize: 13, opacity: 0.5, textAlign: 'center', marginTop: 4 },
-  retry: {
-    marginTop: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-  },
-  retryText: { fontSize: 16, fontWeight: '600' },
-  signout: { marginTop: 4, paddingHorizontal: 24, paddingVertical: 10 },
-  signoutText: { fontSize: 15, opacity: 0.6 },
 });

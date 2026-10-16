@@ -3,13 +3,10 @@ import { API_BASE_URL, SERVER_URL } from './apiBaseUrl';
 import apiWithAuthentication from './apiWithAuthentication';
 import { dropTokensAsync, getSession, updateSession } from './sessionStore';
 
-// Verifies the stored session for this launch and resolves to it. A complete session obtained from
-// the current base URL is good as it is, offline included. A changed base URL (a new dev tunnel)
-// must first prove it is the session's server: its /up has to report the session's serverId, then
-// the session rebinds to it; another server's tokens are dropped. A session missing its owner (a
-// converted install) is filled from /me. Only the server's own "no" (401/403) drops tokens; a
-// network error leaves everything for the next launch. Every change goes through updateSession, so
-// tokens a refresh rotates meanwhile are never overwritten.
+// Verifies the stored session for this launch and resolves to it: a changed base URL (a new dev
+// tunnel) must report the session's serverId in /up before the session rebinds to it, and a session
+// missing its owner (a converted install) is filled from /me. Only the server's own "no" (401/403)
+// drops tokens; a network error leaves everything for the next launch.
 export default async function initializeCloudAsync() {
   const session = getSession();
   if (!session?.tokens) return session;

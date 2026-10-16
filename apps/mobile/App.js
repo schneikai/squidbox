@@ -27,13 +27,15 @@ import PostsProvider from '@/features/posts-context/PostsProvider';
 import FirstSyncScreen from '@/features/sync-status/FirstSyncScreen';
 import LibraryProvider from '@/library/LibraryProvider';
 import SwitchingScreen from '@/library/SwitchingScreen';
+import { currentSyncIdentity } from '@/library/currentSyncIdentity';
 import useLibrary from '@/library/useLibrary';
 import RootNavigator from '@/navigators/RootNavigator';
 import { navigationRef, flushPendingNavigation } from '@/navigators/navigationRef';
 import { colors } from '@/styles/designTokens';
+import { getDb } from '@/sync/db/client';
 import { useFirstSyncDone } from '@/sync/useSyncStatus';
 import useSyncTriggers from '@/sync/useSyncTriggers';
-import { setSyncActive } from '@/sync/worker';
+import { setSyncTarget } from '@/sync/worker';
 
 // Module setup. Imports are hoisted, so this runs once every import above has loaded.
 Sentry.init({
@@ -106,30 +108,30 @@ function AppInit({ children }) {
   const { booted } = useLibrary();
   const [appIsReady, setAppIsReady] = useState(false);
 
-  // Foreground + interval sync triggers. They're no-ops while sync is inactive (below).
+  // Foreground + interval sync triggers. They're no-ops without a sync target (below).
   useSyncTriggers();
 
+  function reveal() {
+    setAppIsReady(true);
+    SplashScreen.hideAsync().catch(() => {});
+  }
+
   // Sync only once the boot is done (so it can't starve the boot's DB work and strand the splash)
-  // AND someone is signed in for the open library. Activating kicks the launch pull; signing out or
-  // a rejected session stops it.
+  // AND someone is signed in for the open library: that library and identity are the sync's target.
+  // Setting one kicks the launch pull; signing out or a rejected session clears it.
   useEffect(() => {
-    setSyncActive(appIsReady && isAuthenticated);
+    const identity = appIsReady && isAuthenticated ? currentSyncIdentity() : null;
+    setSyncTarget(identity && { db: getDb(), identity });
   }, [appIsReady, isAuthenticated]);
 
   // The splash's ONLY exit: the boot, or a watchdog if it hangs (an unreachable API, a long
   // migration), so a release build (no redbox) can never get stranded on the native splash. The
   // boot keeps running and the gates show what is ready.
   useEffect(() => {
-    if (!booted) return undefined;
-    setAppIsReady(true);
-    SplashScreen.hideAsync().catch(() => {});
-    return undefined;
+    if (booted) reveal();
   }, [booted]);
   useEffect(() => {
-    const watchdog = setTimeout(() => {
-      setAppIsReady(true);
-      SplashScreen.hideAsync().catch(() => {});
-    }, 8000);
+    const watchdog = setTimeout(reveal, 8000);
     return () => clearTimeout(watchdog);
   }, []);
 
@@ -143,7 +145,7 @@ function AppInit({ children }) {
 // library closes and another opens, so no screen reads across the switch.
 function LibraryGate({ children }) {
   const { library, switching } = useLibrary();
-  if (switching) return <SwitchingScreen library={switching} />;
+  if (switching) return <SwitchingScreen />;
   if (!library) return null;
   return <Fragment key={library.id}>{children}</Fragment>;
 }

@@ -4,13 +4,10 @@ import CloudSyncContext from './CloudSyncContext';
 
 import useCloud from '@/features/cloud/useCloud';
 import { getLibrary } from '@/library/current';
-import { readUnsyncedIds } from '@/sync/assetsRepository';
+import { currentSyncIdentity } from '@/library/currentSyncIdentity';
 import { isBackupRunning, runBackup } from '@/sync/backupRun';
 import { getDb } from '@/sync/db/client';
-import { isSyncPaused } from '@/sync/worker';
 import deleteAssetFileAsync from '@/utils/assets/files/deleteAssetFileAsync';
-import requireSession from '@/utils/cloud-api/requireSession';
-import sessionIdentity from '@/utils/cloud-api/sessionIdentity';
 import fileSizeToHumanReadable from '@/utils/fileSizeToHumanReadable';
 
 // Exponential moving average time constant (seconds).
@@ -72,8 +69,7 @@ export default function CloudSyncProvider({ children }) {
         lastProgressRef.current = null;
         emaSpeedRef.current = 0;
         let fileTotalBytes = 0;
-        await uploadAssetFileAsync(asset, identity, {
-          library,
+        await uploadAssetFileAsync(asset, library, identity, {
           signal,
           onProgress: (progress) => {
             fileTotalBytes = progress.totalBytesExpectedToSend;
@@ -84,16 +80,21 @@ export default function CloudSyncProvider({ children }) {
         setSyncProgressMessage(null);
         setSyncSpeedMessage(null);
       },
-      uploadThumbnail: (asset) => uploadAssetThumbnailAsync(asset, identity, { library, signal }),
+      uploadThumbnail: (asset) => uploadAssetThumbnailAsync(asset, library, identity, { signal }),
       deleteFile: (filename) => deleteAssetFileAsync(filename, library),
     });
   }
 
-  // The run backs up the assets unsynced at its start (their ids are read once; assets added
-  // meanwhile wait for the next run), for the user and the library of its start. None starts while
-  // the session or the library is changing (a sign-in's merge is still moving files).
+  // The run backs up for the user and the library of its start. None starts while the session or
+  // the library is changing (a sign-in's merge is still moving files): runBackup is null then.
   async function syncAssets() {
-    if (!isAuthenticated || isBackupRunning() || isSyncPaused()) return;
+    const identity = isAuthenticated && !isBackupRunning() ? currentSyncIdentity() : null;
+    if (!identity) return;
+    const run = runBackup(getDb(), {
+      uploads: uploadsFor(identity, getLibrary()),
+      onProgress: ({ index, total }) => setSyncMessage(`Syncing ${index + 1} of ${total}`),
+    });
+    if (!run) return;
 
     setIsSyncing(true);
     sessionStartRef.current = Date.now();
@@ -101,13 +102,7 @@ export default function CloudSyncProvider({ children }) {
     setBackupError(null);
 
     try {
-      const db = getDb();
-      const library = getLibrary();
-      const identity = sessionIdentity(requireSession());
-      await runBackup(db, readUnsyncedIds(db), {
-        uploads: uploadsFor(identity, library),
-        onProgress: ({ index, total }) => setSyncMessage(`Syncing ${index + 1} of ${total}`),
-      });
+      await run;
     } catch (error) {
       // Not an upload (those are marked per asset): the run itself couldn't go on.
       console.error('Backup failed', error);

@@ -13,8 +13,22 @@ type Session = {
   tokens: { accessToken: string; refreshToken: string } | null;
 };
 const device: { names: string[]; session: Session | null } = { names: [], session: null };
+// Databases by name: each test's "disk". A rebuild opens and closes them, so every open hands out a
+// fresh handle on the same (shared) store.
+const stores = new Map<string, AppDb>();
+const opened: string[] = [];
 
 vi.mock('../src/library/fs', () => ({ listDatabaseNames: async () => device.names }));
+vi.mock('../src/sync/db/client', () => ({
+  withAppDb: async (name: string, use: (db: AppDb) => Promise<unknown>) => {
+    opened.push(name);
+    try {
+      return await use(stores.get(name)!);
+    } finally {
+      opened.push(`closed ${name}`);
+    }
+  },
+}));
 vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({ API_BASE_URL: 'https://api.test/api/v1' }));
 vi.mock('../src/utils/cloud-api/sessionStore', () => ({
   getSession: () => device.session,
@@ -30,8 +44,6 @@ const { rebuildRegistry } = await import('../src/library/rebuildRegistry');
 const setLastSyncUser = (db: AppDb, userId: string) =>
   db.run(sql`insert into "sync_meta" ("key", "value") values ('lastSyncUserId', ${userId})`);
 
-// Databases by name: each test's "disk". A rebuild opens and closes them, so every open hands out a
-// fresh handle on the same (shared) store.
 const tokens = { accessToken: 'a', refreshToken: 'r' };
 const signedInAs = (userId: string): Session => ({
   serverId: 's1',
@@ -42,12 +54,9 @@ const signedInAs = (userId: string): Session => ({
 });
 
 describe('rebuildRegistry', () => {
-  let stores: Map<string, AppDb>;
-  let opened: string[];
-
   beforeEach(() => {
-    stores = new Map();
-    opened = [];
+    stores.clear();
+    opened.length = 0;
     device.names = [];
     device.session = null;
   });
@@ -57,19 +66,9 @@ describe('rebuildRegistry', () => {
     device.names = [...stores.keys(), 'squidbox.db-journal'];
     return stores.get(name)!;
   }
-  // A handle that forwards to the shared store and only marks itself closed.
-  async function openDb(name: string): Promise<AppDb> {
-    opened.push(name);
-    const store = stores.get(name)!;
-    return Object.assign(Object.create(store), {
-      close: async () => {
-        opened.push(`closed ${name}`);
-      },
-    });
-  }
 
   it('a fresh install has no libraries', async () => {
-    expect(await rebuildRegistry({ openDb })).toEqual({ libraries: [] });
+    expect(await rebuildRegistry()).toEqual({ libraries: [] });
     expect(device.session).toBeNull();
   });
 
@@ -77,7 +76,7 @@ describe('rebuildRegistry', () => {
     await setLastSyncUser(disk('squidbox.db'), 'u1');
     device.session = signedInAs('u1');
 
-    const registry = await rebuildRegistry({ openDb });
+    const registry = await rebuildRegistry();
 
     const owner = { kind: 'account', serverId: null, userId: 'u1', email: 'u1@test' };
     expect(registry).toEqual({ libraries: [{ id: 'squidbox', owner }] });
@@ -89,14 +88,14 @@ describe('rebuildRegistry', () => {
   it('an install that never synced becomes the device library', async () => {
     disk('squidbox.db');
 
-    expect(await rebuildRegistry({ openDb })).toEqual({ libraries: [{ id: 'squidbox', owner: { kind: 'device' } }] });
+    expect(await rebuildRegistry()).toEqual({ libraries: [{ id: 'squidbox', owner: { kind: 'device' } }] });
     expect(await getOwner(disk('squidbox.db'))).toEqual({ kind: 'device' });
   });
 
   it('a signed-out account owner gets a token-less session, email unknown until /me', async () => {
     await setLastSyncUser(disk('squidbox.db'), 'u1');
 
-    const registry = await rebuildRegistry({ openDb });
+    const registry = await rebuildRegistry();
 
     expect(registry.libraries[0]!.owner).toEqual({ kind: 'account', serverId: null, userId: 'u1', email: '' });
     expect(device.session).toEqual({
@@ -112,7 +111,7 @@ describe('rebuildRegistry', () => {
     await setLastSyncUser(disk('squidbox.db'), 'u1');
     device.session = signedInAs('u2');
 
-    const registry = await rebuildRegistry({ openDb });
+    const registry = await rebuildRegistry();
 
     expect(registry.libraries[0]!.owner).toEqual({ kind: 'account', serverId: null, userId: 'u1', email: '' });
     expect(device.session).toEqual(signedInAs('u2'));
@@ -123,7 +122,7 @@ describe('rebuildRegistry', () => {
     await setOwner(disk('library-abc.db'), owner);
     await setLastSyncUser(disk('squidbox.db'), 'u1');
 
-    const registry = await rebuildRegistry({ openDb });
+    const registry = await rebuildRegistry();
 
     expect(registry.libraries).toEqual([
       { id: 'abc', owner },
@@ -134,9 +133,9 @@ describe('rebuildRegistry', () => {
   it('runs to the same result again after a crash before the list was written', async () => {
     await setLastSyncUser(disk('squidbox.db'), 'u1');
 
-    const first = await rebuildRegistry({ openDb });
+    const first = await rebuildRegistry();
     device.session!.tokens = tokens; // the user signed in meanwhile; the owner is already in the database
-    const second = await rebuildRegistry({ openDb });
+    const second = await rebuildRegistry();
 
     expect(second).toEqual(first);
     expect(await getOwner(disk('squidbox.db'))).toEqual(first.libraries[0]!.owner);

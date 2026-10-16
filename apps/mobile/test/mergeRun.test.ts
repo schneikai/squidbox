@@ -18,11 +18,13 @@ const storage = new Map<string, string>();
 vi.mock('expo-file-system/legacy', () => ({ documentDirectory: 'file:///docs/' }));
 vi.mock('../src/sync/db/client', () => {
   let open: AppDb | null = null;
+  const openAppDb = async (name: string) => {
+    if (!stores.has(name)) stores.set(name, makeTestDb());
+    return Object.assign(Object.create(stores.get(name)!), { close: async () => {} });
+  };
   return {
-    openAppDb: async (name: string) => {
-      if (!stores.has(name)) stores.set(name, makeTestDb());
-      return Object.assign(Object.create(stores.get(name)!), { close: async () => {} });
-    },
+    openAppDb,
+    withAppDb: async (name: string, use: (db: AppDb) => Promise<unknown>) => use(await openAppDb(name)),
     deleteAppDb: async (name: string) => {
       deleted.push(name);
       stores.delete(name);
@@ -42,6 +44,8 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
   },
 }));
 vi.mock('../src/library/fs', () => ({
+  listFiles: async (dir: string) =>
+    new Set([...files].filter((uri) => uri.startsWith(dir)).map((uri) => uri.slice(dir.length))),
   fileExists: async (uri: string) => files.has(uri),
   moveFile: async (from: string, to: string) => {
     files.delete(from);
@@ -54,10 +58,10 @@ vi.mock('../src/library/mergeLibrary', async (importOriginal) => {
   const original = await importOriginal<typeof import('../src/library/mergeLibrary')>();
   return {
     ...original,
-    applyMerge: (...args: Parameters<typeof original.applyMerge>) => {
+    applyMerge: vi.fn((...args: Parameters<typeof original.applyMerge>) => {
       if (applyMergeImpl.fail) throw new Error('apply failed');
       return original.applyMerge(...args);
-    },
+    }),
   };
 });
 
@@ -164,9 +168,12 @@ describe('mergeLibrary / resumeMerges', () => {
     expect(await getDb().select().from(schema.assets)).toHaveLength(1);
     expect(files.has(getAssetFileUri('a.jpg', TGT))).toBe(true);
 
+    const { applyMerge } = await import('../src/library/mergeLibrary');
+    const applied = vi.mocked(applyMerge).mock.calls.length;
     await resumeMerges(); // every later boot: nothing more to add, the source stays
     expect(entry('dev')).toEqual({ ...DEV, mergedInto: 'acc' });
     expect(await getDb().select().from(schema.assets)).toHaveLength(1);
+    expect(vi.mocked(applyMerge).mock.calls).toHaveLength(applied); // nothing applied or moved: the plan alone
   });
 
   it('a marker whose target is gone is just cleared', async () => {

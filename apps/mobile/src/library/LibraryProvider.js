@@ -1,24 +1,20 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
 import LibraryContext from './LibraryContext';
 import { bootLibrary } from './bootLibrary';
-import { openLibraryId } from './current';
+import { openLibraryEntry } from './current';
 import { resumeMerges } from './mergeRun';
-import { getRegistry, onRegistryChange } from './registry';
+import { onRegistryChange } from './registry';
 import { mergeDeviceLibrary } from './sessionLibrary';
 import { switchLibrary as performSwitch } from './switchLibrary';
 
-import { navigateToTab } from '@/navigators/navigationRef';
 import { withSyncPaused } from '@/sync/worker';
 
-// The open library. Boots at mount (bootLibrary.ts): the session's library opens while the cloud
-// init runs. A switch sets `next`: LibraryGate (App.js) then shows the switching screen, so
+// The open library. A switch sets `next`: LibraryGate (App.js) then shows the switching screen, so
 // everything below unmounts and its effects clean up, and the effect here runs the switch after
 // those cleanups, in the same commit; the gate remounts the app under the new library's id.
-// `booted` turns true once the boot, cloud init included, is through.
 export default function LibraryProvider({ children }) {
-  const [libraries, setLibraries] = useState([]);
-  const [openId, setOpenId] = useState(null);
+  const openLibrary = useSyncExternalStore(onRegistryChange, openLibraryEntry);
   const [next, setNext] = useState(null);
   const [booted, setBooted] = useState(false);
   const [error, setError] = useState(null);
@@ -31,7 +27,6 @@ export default function LibraryProvider({ children }) {
   );
 
   useEffect(() => {
-    const unsubscribe = onRegistryChange((registry) => setLibraries(registry.libraries));
     bootLibrary(switchLibrary).then(() => {
       setBooted(true);
       // A merge a crash interrupted finishes now, and this device's library joins the account's if
@@ -41,33 +36,26 @@ export default function LibraryProvider({ children }) {
         await mergeDeviceLibrary();
       }).catch((resumeError) => console.warn('Could not resume a merge', resumeError));
     }, setError);
-    return unsubscribe;
   }, [switchLibrary]);
 
   useEffect(() => {
     if (!next) return;
-    const firstOpen = openLibraryId() === null; // the boot's open, not a switch
     performSwitch(next.target).then(
       () => {
-        setLibraries(getRegistry().libraries);
-        setOpenId(openLibraryId());
         setNext(null);
         next.resolve();
-        // The remount reset the navigation; a switch always ends in Settings.
-        if (!firstOpen) navigateToTab('SettingsTab');
       },
       (switchError) => {
-        setOpenId(openLibraryId());
         setNext(null);
         next.reject(switchError);
       },
     );
   }, [next]);
 
-  const value = useMemo(() => {
-    const library = next || openId === null ? null : (libraries.find(({ id }) => id === openId) ?? null);
-    return { library, switching: next?.target ?? null, switchLibrary, booted };
-  }, [libraries, openId, next, switchLibrary, booted]);
+  const value = useMemo(
+    () => ({ library: next ? null : openLibrary, switching: next !== null, switchLibrary, booted }),
+    [openLibrary, next, switchLibrary, booted],
+  );
 
   if (error) throw error; // a database that won't open or migrate: BootErrorBoundary
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;

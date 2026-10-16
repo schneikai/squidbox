@@ -14,9 +14,13 @@ const SQLITE_DIR = `${FileSystem.documentDirectory}SQLite/`;
 
 // Every database file on this device, by name.
 export async function listDatabaseNames(): Promise<string[]> {
-  const info = await FileSystem.getInfoAsync(SQLITE_DIR);
-  if (!info.exists) return [];
-  return FileSystem.readDirectoryAsync(SQLITE_DIR);
+  return [...(await listFiles(SQLITE_DIR))];
+}
+
+// The names of the files in a folder (none for a folder that doesn't exist).
+export async function listFiles(dir: string): Promise<Set<string>> {
+  const info = await FileSystem.getInfoAsync(dir);
+  return new Set(info.exists ? await FileSystem.readDirectoryAsync(dir) : []);
 }
 
 // A library's two folders, ready when it opens, before anything is written into them.
