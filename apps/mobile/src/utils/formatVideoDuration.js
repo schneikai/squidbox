@@ -1,9 +1,10 @@
+// Milliseconds as m:ss, rounded to the second as a whole, so 59.6 s reads 1:00, never 0:60.
 export default function formatVideoDuration(duration) {
-  if (!duration) return;
+  if (!Number.isFinite(duration)) return;
 
-  // convert milliseconds duration to minutes:seconds
-  const minutes = Math.floor(duration / 60000);
-  const seconds = ((duration % 60000) / 1000).toFixed(0).padStart(2, '0');
+  const totalSeconds = Math.round(duration / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = String(totalSeconds % 60).padStart(2, '0');
 
   return `${minutes}:${seconds}`;
 }

@@ -1,13 +1,12 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
 import getDownloadsDirectory from '@/utils/assets/files/getDownloadsDirectory';
-import getAssetFileDownloadUrlAsync from '@/utils/cloud-api/assets/getAssetFileDownloadUrlAsync';
 
 const PROGRESS_THROTTLE = 250; // ms
 
-// Fetches an asset's full-resolution file into `library`'s downloads folder and resolves its uri.
-export default async function downloadAssetFileAsync(asset, library, onProgress) {
-  const downloadUrl = await getAssetFileDownloadUrlAsync(asset.filename);
+// Fetches an asset's full-resolution file from `downloadUrl` (getAssetFileSourceAsync's) into
+// `library`'s downloads folder and resolves its uri.
+export default async function downloadAssetFileAsync(asset, downloadUrl, library, onProgress) {
   return await downloadWithProgress(asset.filename, downloadUrl, library, onProgress);
 }
 

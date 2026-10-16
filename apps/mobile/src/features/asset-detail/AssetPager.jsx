@@ -16,12 +16,12 @@ function nextZoomedAssetId({ zoomed, assetId, isZoomed }) {
  * the user settles on through `onChangeAssetId`. `assetsById` holds the rows around the current one
  * (the screen's window); a page outside it is blank, never visible with paging. Memoized with
  * stable list props, so a swipe re-renders the pager and only the two pages it moves between. Only
- * the current page is zoomable. While it is zoomed in, its pan owns the swipe: the pager is locked,
- * and `onLockChange(isLocked)` reports it so the screen can lock its swipe-back too.
+ * the current page is zoomable and shows `video`. While it is zoomed in, its pan owns the swipe: the
+ * pager is locked, and `onLockChange(isLocked)` reports it so the screen can lock its swipe-back too.
  */
 export default memo(AssetPager);
 
-function AssetPager({ assetIds, assetsById, currentAssetId, onChangeAssetId, onTapAsset, onLockChange }) {
+function AssetPager({ assetIds, assetsById, currentAssetId, video, onChangeAssetId, onTapAsset, onLockChange }) {
   const { width: pageWidth } = useWindowDimensions();
   // Pages take the pager's height explicitly: native stretches list items to it, the web doesn't.
   const [pageHeight, setPageHeight] = useState(0);
@@ -73,9 +73,10 @@ function AssetPager({ assetIds, assetsById, currentAssetId, onChangeAssetId, onT
         isZoomable={assetId === currentAssetId}
         onTap={onTapAsset}
         onZoomChange={handleZoomChange}
+        video={assetId === currentAssetId ? video : null}
       />
     ),
-    [assetsById, pageStyle, currentAssetId, onTapAsset, handleZoomChange],
+    [assetsById, pageStyle, currentAssetId, video, onTapAsset, handleZoomChange],
   );
   const getItemLayout = useCallback(
     (_, index) => ({ length: pageWidth, offset: pageWidth * index, index }),

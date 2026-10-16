@@ -1,24 +1,24 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Page from '@/components/Page';
-import VideoControls from '@/components/VideoControls';
 import FloatingDetailActionsBar from '@/components/floating-bars/FloatingDetailActionsBar';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { SCREEN_PADDING } from '@/constants';
 import AssetItem from '@/features/asset-detail/AssetItem';
 import AssetPager from '@/features/asset-detail/AssetPager';
+import VideoControls from '@/features/asset-detail/VideoControls';
 import MoreAction from '@/features/asset-detail/actions/MoreAction';
 import getCurrentAssetId from '@/features/asset-detail/getCurrentAssetId';
+import useAssetVideo from '@/features/asset-detail/useAssetVideo';
 import assetQuery from '@/features/asset-list/assetQuery';
 import useAssets from '@/features/assets-context/useAssets';
 import { radii, scale, spacing } from '@/styles/designTokens';
 import { getDb, schema } from '@/sync/db/client';
 import { readByIds } from '@/sync/readByIds';
 import { useLiveQuery } from '@/sync/useLiveQuery';
-import { MEDIA_TYPES } from '@/utils/assets/constants';
 import formatDetailHeaderDate from '@/utils/date-time/formatDetailHeaderDate';
 
 // Rows are read live for a window of ids around the current one: enough pages to swipe through,
@@ -37,6 +37,7 @@ export default function AssetScreen({ route, navigation }) {
   const [center, setCenter] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPagerLocked, setIsPagerLocked] = useState(false);
+  const [areVideoControlsShown, setAreVideoControlsShown] = useState(true);
   const insets = useSafeAreaInsets();
 
   const tappedOnly = useMemo(() => [tappedAssetId], [tappedAssetId]);
@@ -56,6 +57,11 @@ export default function AssetScreen({ route, navigation }) {
   const currentIndex = snapshot.indexOf(selectedAssetId);
   const asset = assetsById.get(selectedAssetId);
   const headerDate = asset ? formatDetailHeaderDate(asset.createdAt) : null;
+  // One player, for the current asset while it is a video, once the pager (which shows it) is up.
+  const video = useAssetVideo(assetIds ? asset : null);
+  // Read by the tap handler, which stays the same so a swipe doesn't re-render every page.
+  const hasPlayerRef = useRef(false);
+  hasPlayerRef.current = !!video?.player;
 
   // Taken once the tapped asset's row has landed, so the database reads that row first and the asset
   // paints before the whole scope's ids are read.
@@ -105,9 +111,16 @@ export default function AssetScreen({ route, navigation }) {
     if (currentIndex >= 0 && !isInMiddle) setCenter(currentIndex);
   }, [currentIndex, windowStart, windowIds.length]);
 
+  // Another asset starts with its controls shown.
+  useEffect(() => setAreVideoControlsShown(true), [selectedAssetId]);
+
   const headerTopOffset = insets.top + spacing.contentPaddingTop;
-  const openFullscreen = useCallback(() => setIsFullscreen(true), []);
   const closeFullscreen = useCallback(() => setIsFullscreen(false), []);
+  // A tap on a playing video shows or hides its controls; on anything else, it opens it full screen.
+  const handleTapAsset = useCallback(() => {
+    if (hasPlayerRef.current) setAreVideoControlsShown((isShown) => !isShown);
+    else setIsFullscreen(true);
+  }, []);
 
   if (!windowData) return <Page />;
 
@@ -135,23 +148,27 @@ export default function AssetScreen({ route, navigation }) {
           assetIds={assetIds}
           assetsById={assetsById}
           currentAssetId={selectedAssetId}
+          video={video}
           onChangeAssetId={setSelectedAssetId}
-          onTapAsset={openFullscreen}
+          onTapAsset={handleTapAsset}
           onLockChange={setIsPagerLocked}
         />
       ) : (
         // Not zoomable until the pager takes over, which locks the swipes while zoomed.
-        <AssetItem asset={asset} style={styles.page} isZoomable={false} onTap={openFullscreen} />
+        <AssetItem asset={asset} style={styles.page} isZoomable={false} onTap={handleTapAsset} />
       )}
 
-      {asset && asset.mediaType === MEDIA_TYPES.VIDEO && <VideoControls asset={asset} />}
-
       {asset && (
-        <FloatingDetailActionsBar
-          asset={asset}
-          onDeleteAsset={(a) => setAssetsDeleted([a.id])}
-          navigation={navigation}
-        />
+        <FloatingDetailActionsBar asset={asset} onDeleteAsset={(a) => setAssetsDeleted([a.id])} navigation={navigation}>
+          {video?.player && (
+            <VideoControls
+              key={video.key}
+              player={video.player}
+              fallbackDuration={asset.duration}
+              isVisible={areVideoControlsShown}
+            />
+          )}
+        </FloatingDetailActionsBar>
       )}
 
       {/* Full-screen overlay, zoomable like the pager — tap to dismiss. A modal is its own native root,

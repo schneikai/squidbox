@@ -7,6 +7,12 @@ when the owner defers something, or when an idea comes up. Remove an entry once 
 
 ## Features
 
+### [ ] Load the visible thumbnails first
+
+When thumbnails load, the ones on screen should come first. `AssetThumbnailLoaderProvider` drains
+a stack (newest request first), but cells that scrolled away stay queued and take slots from the
+visible ones (2 batches of 12 in flight). Drop or deprioritize requests from cells that left the view.
+
 ### [ ] Drag to reorder albums
 
 The albums list has a synced custom order (`albums.position`, the default sort), but the only way to
@@ -22,11 +28,6 @@ Related: on web a drag-select doesn't cancel the cell's press, so the cell it st
 again after release (`SuperPressable` with `useAssetDragSelect`); natively the pan cancels it.
 The same happens after a drag reorder in an album: the drop also counts as a tap and opens the
 photo viewer (`SortableAssetGrid` with `useAssetDragReorder`).
-
-### [ ] Video playback
-
-Videos don't play: the detail screen shows only the duration (`VideoControls`). `expo-video` is
-already installed.
 
 ### [ ] Asset details on swipe up
 
@@ -210,7 +211,8 @@ files or pinch. Web versions exist only for tokens and thumbnails. Extend them i
 flows in the browser becomes worth it. The photo viewer also doesn't follow a scroll on web:
 react-native-web's ScrollView never fires `onMomentumScrollEnd`/`onScrollEndDrag`, so
 `AssetPager` never learns the new page (header, actions and notes stay on the first photo, and only
-that photo zooms).
+that photo zooms). The mock data has no video, and Playwright's Chromium can't decode H.264 or HEVC,
+so only a WebM plays in the preview (an iPhone's HEVC `.mov` may not play in desktop Chrome either).
 
 ### [ ] Sentry receives events from development
 
@@ -331,6 +333,16 @@ the point and back out, and a single tap still opens/closes fullscreen without a
 At 1× the pager swipes as before; zoomed, it and the swipe back from the screen's edge are locked,
 and they unlock after zooming out. Opened from the create-post sheet, the sheet can't be swiped down
 while zoomed. A pinch that zooms in from 1× and then lifts one finger carries on as a pan.
+
+### [ ] Check video playback on the phone
+
+Videos play in the asset detail screen (`useAssetVideo`, `AssetVideo`, `VideoControls`), so far
+only tried in the web preview with a WebM. On the phone, check: a video from the phone and one only
+in the cloud start by themselves after the thumbnail, with no flash; play/pause, scrubbing, mute and
+replay after the end; a tap hides and shows the controls; swiping to another asset or leaving the
+screen stops the sound; sound plays with the silent switch on (expo-video's `.playback` session) and
+other apps' audio pauses meanwhile; a video not yet uploaded from another device says so, and
+so does saving it to the camera roll (`getAssetFileSourceAsync`).
 
 ### [ ] Check the boot screen and the octopus on the phone
 

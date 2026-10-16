@@ -59,8 +59,10 @@ import {
   List,
   ListFilter,
   Maximize2,
+  Pause,
   Pencil,
   PenLine,
+  Play,
   Plus,
   Repeat2,
   Search,
@@ -75,6 +77,8 @@ import {
   Undo2,
   User,
   Video,
+  Volume2,
+  VolumeX,
   Wand,
   X,
 } from '@/lib/lucide';
@@ -121,7 +125,9 @@ const ICON_MAP = {
   menu: Ellipsis,
   mobile: Smartphone,
   options: SlidersHorizontal,
+  pause: Pause,
   pencil: Pencil,
+  play: Play,
   repeat: Repeat2,
   search: Search,
   share: Share,
@@ -133,6 +139,8 @@ const ICON_MAP = {
   undo: Undo2,
   user: User,
   video: Video,
+  'volume-off': VolumeX,
+  'volume-on': Volume2,
   wand: Wand,
 };
 

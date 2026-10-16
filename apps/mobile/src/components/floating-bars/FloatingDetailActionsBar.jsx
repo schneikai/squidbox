@@ -12,13 +12,14 @@ import humanizeMediaType from '@/utils/assets/humanizeMediaType';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 
 /**
- * Bottom floating action bar for the asset detail screen.
+ * Bottom floating action bar for the asset detail screen. `children` (e.g. video controls) go
+ * above its row, full width.
  *
  * Layout:
  *   [♥  ↓]                           [🗑]
  *   left pill (favorite + download)   right pill (delete)
  */
-export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigation }) {
+export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigation, children }) {
   const insets = useSafeAreaInsets();
   const { toggleFavoriteAsset } = useAssets();
   const { show, hide, updateProgress } = useProgressOverlay();
@@ -56,22 +57,29 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
 
   return (
     <View style={[styles.container, { bottom: insets.bottom + spacing.floatingBarBottom }]} pointerEvents="box-none">
-      {/* Left pill — favorite + download */}
-      <FloatingPill>
-        <ActionButton onPress={handleToggleFavorite}>
-          <Icon name="heart" filled={asset.isFavorite} color={asset.isFavorite ? colors.danger : colors.iconInactive} />
-        </ActionButton>
-        <ActionButton onPress={handleDownload}>
-          <Icon name="cloud-download" color={colors.iconInactive} />
-        </ActionButton>
-      </FloatingPill>
+      {children}
+      <View style={styles.row} pointerEvents="box-none">
+        {/* Left pill — favorite + download */}
+        <FloatingPill>
+          <ActionButton onPress={handleToggleFavorite}>
+            <Icon
+              name="heart"
+              filled={asset.isFavorite}
+              color={asset.isFavorite ? colors.danger : colors.iconInactive}
+            />
+          </ActionButton>
+          <ActionButton onPress={handleDownload}>
+            <Icon name="cloud-download" color={colors.iconInactive} />
+          </ActionButton>
+        </FloatingPill>
 
-      {/* Right pill — delete */}
-      <FloatingPill>
-        <ActionButton onPress={handleDelete} danger>
-          <Icon name="trash" color={colors.danger} />
-        </ActionButton>
-      </FloatingPill>
+        {/* Right pill — delete */}
+        <FloatingPill>
+          <ActionButton onPress={handleDelete} danger>
+            <Icon name="trash" color={colors.danger} />
+          </ActionButton>
+        </FloatingPill>
+      </View>
     </View>
   );
 }
@@ -95,8 +103,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: spacing.floatingBarSide,
     right: spacing.floatingBarSide,
+    gap: spacing.floatingBarBottom,
+    zIndex: 100,
+  },
+  row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    zIndex: 100,
   },
 });
