@@ -23,6 +23,7 @@ export const colors = {
   gradientStart: '#7C3AED',
   gradientEnd: '#4F46E5',
   appBackground: ['#F9FAFB', '#FFFFFF', '#F5F3FF'],
+  splashBackground: '#B1F1FF', // app.config.js `SPLASH_BACKGROUND` (the native splash's), for the boot screen
 
   glassSurface: 'rgba(255,255,255,0.95)',
   glassBorder: 'rgba(0,0,0,0.08)',
@@ -141,6 +142,7 @@ export const motion = {
   move: { duration: durations.base, easing: Easing.inOut(Easing.cubic) }, // changes while staying on screen
   spring: springConfig({ duration: 0.3, bounce: 0.15 }), // anything that grows, follows a finger or settles
   pulse: { duration: 1000, easing: Easing.inOut(Easing.sin) }, // one half of a loading placeholder's breath
+  shoot: { easing: Easing.bezierFn(0.1, 0.6, 0.7, 0.75) }, // shoots off and slows, still moving when it ends
 };
 
 // Apple's spring model (WWDC23 "Animate with springs"): perceptual duration in seconds and bounce

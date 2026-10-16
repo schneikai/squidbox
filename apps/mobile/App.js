@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import * as Sentry from '@sentry/react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SplashScreen from 'expo-splash-screen';
-import { useState, useEffect, Component, Fragment, memo } from 'react';
+import { useState, useEffect, useCallback, Component, Fragment, createContext, memo, use } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Menu, MenuProvider } from 'react-native-popup-menu';
@@ -19,6 +19,7 @@ import AppSettingsProvider from '@/features/app-settings/AppSettingsProvider';
 import AssetPickerProvider from '@/features/asset-picker/AssetPickerProvider';
 import AssetThumbnailLoaderProvider from '@/features/asset-thumbnail-loader/AssetThumbnailLoaderProvider';
 import AssetsProvider from '@/features/assets-context/AssetsProvider';
+import BootScreen from '@/features/boot/BootScreen';
 import CloudProvider from '@/features/cloud/CloudProvider';
 import useCloud from '@/features/cloud/useCloud';
 import CloudSyncProvider from '@/features/cloud-sync/CloudSyncProvider';
@@ -44,7 +45,7 @@ Sentry.init({
   debug: process.env.EXPO_PUBLIC_SENTRY_DEBUG === 'true',
 });
 Menu.setDefaultRenderer(BlurPopoverRenderer);
-// Keep the splash screen visible while we fetch resources
+// The native splash stays up until BootScreen, which looks just like it, is on screen.
 SplashScreen.preventAutoHideAsync();
 
 // Catches render-time throws during boot (e.g. a failed DB migration) that would otherwise unmount
@@ -99,22 +100,23 @@ const App = () => {
   );
 };
 
-// One-time app init: hide the splash once the boot (LibraryProvider: the library open and the cloud
-// session check, side by side) is through, and mount the foreground/interval sync triggers. Lives
-// ABOVE the gates so it runs exactly once and keeps the sync running whether the setup screen or the
-// main app is showing. Renders nothing until ready.
+// Called by AppGate once it shows a screen (FirstSyncScreen or the app): the boot screen's cue to go.
+const AppShownContext = createContext(() => {});
+
+// One-time app init: the boot screen (the native splash's twin, with the octopus moving) until the
+// boot (LibraryProvider: the library open and the cloud session check, side by side) is through and
+// the gates below show a screen, which the boot screen then fades out over; and the
+// foreground/interval sync triggers. Lives ABOVE the gates so it runs exactly once and keeps the sync
+// running whether the setup screen or the main app is showing.
 function AppInit({ children }) {
   const { isAuthenticated } = useCloud();
   const { booted } = useLibrary();
   const [appIsReady, setAppIsReady] = useState(false);
+  const [appShown, setAppShown] = useState(false);
+  const showApp = useCallback(() => setAppShown(true), []);
 
   // Foreground + interval sync triggers. They're no-ops without a sync target (below).
   useSyncTriggers();
-
-  function reveal() {
-    setAppIsReady(true);
-    SplashScreen.hideAsync().catch(() => {});
-  }
 
   // Sync only once the boot is done (so it can't starve the boot's DB work and strand the splash)
   // AND someone is signed in for the open library: that library and identity are the sync's target.
@@ -124,19 +126,19 @@ function AppInit({ children }) {
     setSyncTarget(identity && { db: getDb(), identity });
   }, [appIsReady, isAuthenticated]);
 
-  // The splash's ONLY exit: the boot, or a watchdog if it hangs (an unreachable API, a long
-  // migration), so a release build (no redbox) can never get stranded on the native splash. The
-  // boot keeps running and the gates show what is ready.
+  // While the boot hangs (an unreachable API, a long migration) the octopus stays up and moving. A
+  // crash during it is BootErrorBoundary's, which replaces all of this and hides the native splash
+  // (otherwise BootScreen's to hide).
   useEffect(() => {
-    if (booted) reveal();
+    if (booted) setAppIsReady(true);
   }, [booted]);
-  useEffect(() => {
-    const watchdog = setTimeout(reveal, 8000);
-    return () => clearTimeout(watchdog);
-  }, []);
 
-  if (!appIsReady) return null;
-  return children;
+  return (
+    <>
+      <AppShownContext value={showApp}>{appIsReady && children}</AppShownContext>
+      <BootScreen leaving={appShown} />
+    </>
+  );
 }
 
 // Everything that queries SQLite (including the firstSyncDone probe in AppGate) mounts under the
@@ -158,12 +160,17 @@ function LibraryGate({ children }) {
 function AppGate() {
   const { isAuthenticated } = useCloud();
   const firstSyncDone = useFirstSyncDone();
+  const showApp = use(AppShownContext);
+  const showing = firstSyncDone !== undefined;
+
+  useEffect(() => {
+    if (showing) showApp();
+  }, [showing, showApp]);
 
   // firstSyncDone is undefined until sync_meta has been read once (a live query yields [] on its
   // first render). Render nothing for that brief moment so we never gate on a not-yet-loaded value
-  // and flash the setup screen. The splash is already hidden by AppInit, so this is at most a
-  // sub-second blank, never a stuck screen.
-  if (firstSyncDone === undefined) return null;
+  // and flash the setup screen; the boot screen stays up over it.
+  if (!showing) return null;
   if (isAuthenticated && !firstSyncDone) return <FirstSyncScreen />;
 
   return (

@@ -30,6 +30,10 @@ Your library lives on the phone; an account backs it up and keeps it in sync. Ea
 
 The session is bound to the server's identity (`SERVER_ID`) and to the user, so two servers never share a library. Paths, the session record, the merge and the boot checks are in `docs/sync-design.md` §8; the design history is `docs/library-ownership-plan.md`.
 
+## Launch
+
+`BootScreen` (`apps/mobile/src/features/boot/`) takes over from the native splash with a live copy of it: the vector octopus (`apps/mobile/src/components/octopus/`), which floats, blinks and waves while the app boots, and shows again on the status screens. Its parts are traced from `assets/splash.png` by `apps/mobile/scripts/traceOctopus.py`; rerun it when `splash.png` changes.
+
 ## Operational tasks (skills)
 
 Common operations are driven by skills rather than memorized commands:

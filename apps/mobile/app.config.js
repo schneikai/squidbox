@@ -1,3 +1,6 @@
+// Matched by colors.splashBackground, for BootScreen, which takes over from the splash.
+const SPLASH_BACKGROUND = '#B1F1FF';
+
 const baseConfig = {
   expo: {
     name: 'Squidbox',
@@ -12,7 +15,7 @@ const baseConfig = {
     splash: {
       image: './assets/splash.png',
       resizeMode: 'contain',
-      backgroundColor: '#B1F1FF',
+      backgroundColor: SPLASH_BACKGROUND,
     },
     assetBundlePatterns: ['**/*'],
     ios: {
@@ -25,7 +28,7 @@ const baseConfig = {
     android: {
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#B1F1FF',
+        backgroundColor: SPLASH_BACKGROUND,
       },
     },
     web: {

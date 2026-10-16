@@ -290,13 +290,6 @@ build: an older one would open `squidbox.db` with its wipe-on-switch logic and k
   the account, the new photo with its thumbnail, "Back up now" uploads it; the camera-roll
   duplicate is a second copy (the merge runs before the first pull; see the plan's "Changed" note).
 
-### [ ] Set the SERVER_ID secret, then deploy the server
-
-The server now refuses to boot without `SERVER_ID` (`apps/server/src/config.ts`), a fixed uuid that
-`/up`, login and `/me` report so the app can bind a session and its library to the server
-(`docs/library-ownership-plan.md` §2). Run `fly secrets set --app squidbox-server
-SERVER_ID="$(uuidgen | tr A-Z a-z)"` once, before the deploy (`/deploy-server`), and never change it.
-
 ### [ ] Test a photo upload
 
 Against the deployed backend (`squidbox-server` on Fly.io), take/upload a photo and confirm the
@@ -328,9 +321,10 @@ Photos in the detail view may be slightly cropped. Confirm or rule it out.
 
 ### [ ] Check the boot screen and the octopus on the phone
 
-`BootScreen` (`src/features/boot/`) takes over from the native splash once it has laid out. Only the
-web preview has checked it so far. On the phone, confirm: there's no jump or flash from the splash to
-the boot screen, the octopus moves smoothly on the boot screen and the setup screen
-(`src/components/octopus/`, 7 arm paths re-computed per frame), and a tap squeezes the head without
-a seam where it meets the arms. On web, the squeezed head shows a 1 px light line at its bottom edge
-for the 0.6 s of the squeeze, probably from Chrome compositing the scaled layer.
+`BootScreen` (`src/features/boot/`) takes over from the native splash a frame after it has laid out,
+and fades out once the first screen shows. Only the web preview has checked it so far. On the phone,
+confirm: there's no jump or flash from the splash to the boot screen or from it to the app, the
+octopus moves smoothly on the boot screen and the setup screen (`src/components/octopus/`, 7 arms'
+paths rebuilt at 30 Hz at rest, every frame during a tap), a tap squeezes the head without a seam
+where it meets the arms, and with Reduce Motion (also toggled while it shows) it stands still and the
+setup screen shows a spinner that VoiceOver reads as busy.
