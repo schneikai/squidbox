@@ -122,16 +122,27 @@ providers, utils, styles) and merge what repeats into the existing components an
 AGENTS.md. A copy-paste detector such as [jscpd](https://github.com/kucherenko/jscpd) finds the
 literal copies; the near-copies need reading.
 
-### [ ] Run lint, tests and knip in CI
+### [ ] Widen what CI checks
 
-The only workflow is `db-backup.yml`; nothing checks a push. A GitHub Actions job running
-`npm run lint`, the mobile and server tests and `npm run knip` would catch regressions before they
-land. `src/obsolete-code` stays out of knip on purpose (a kept drawer of old code).
+`.github/workflows/ci.yml` lints only `apps/mobile`; `apps/server` and `packages/shared` have no
+ESLint setup. The mobile tests aren't typechecked (`tsconfig.synccheck.json` leaves out `test/`,
+which already has type errors, e.g. `twoDevice.e2e.test.ts`). Nothing bundles the app, so a wrong
+named import in JS passes until a build (`npx expo export` would catch it).
+
+### [ ] Match the test Postgres to production
+
+CI and `apps/server/docker-compose.yml` run Postgres 16; Neon runs 18 (`db-backup.yml`). Bump both
+together; an existing local compose volume needs a dump and restore (or a fresh volume).
+
+### [ ] CI depends on ngrok's CDN
+
+`npm ci` runs ngrok's postinstall, which downloads its binary on every run and fails the install
+when the download fails. CI doesn't need it. Make `ngrok` optional or skip its script in CI.
 
 ### [ ] Rewrite the app in TypeScript
 
 The app is mostly JavaScript (`.js` / `.jsx`); only `src/sync` is TypeScript, and only that part
-is typechecked (`npm run typecheck:sync`). Convert the rest gradually, feature by feature, and widen
+is typechecked (`npm run typecheck`). Convert the rest gradually, feature by feature, and widen
 the typecheck to the whole app.
 
 ### [ ] Share models between backend and app
