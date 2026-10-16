@@ -56,33 +56,34 @@ async function resolveOwner(library: Library, session: Session | null): Promise<
 }
 
 // A sign-in (the session just stored): the account's library opens, then whatever this device's
-// library holds joins it. When the switch fails, `previous` is stored again (its library is open
-// again) and the error rethrown.
+// library holds joins it. When the switch fails, `previous` is stored again (the switch reopened its
+// library) and the error rethrown.
 export async function openLibraryForSignIn(
   session: Session,
   previous: Session | null,
   switchLibrary: (target: Library) => Promise<void>,
 ): Promise<void> {
+  const target = libraryForSession(session);
   try {
-    await openLibraryForSession(session, switchLibrary);
+    if (openLibraryId() !== target.id) await switchLibrary(target);
   } catch (error) {
     await updateSession(() => previous);
     throw error;
   }
+  await resolveOwner(target, session);
   await mergeDeviceLibrary();
 }
 
 // Whatever this device's library holds (added before any sign-in) joins the open library when that
 // is its owner's account library: at the sign-in and at every boot, so a merge that failed or was
 // interrupted is tried again (mergeRun.ts, crash-safe and idempotent). A failure doesn't fail the
-// sign-in or the boot: the device library stays parked until the next try. One that is marked for
-// another library is that one's (resumeMerges finishes it).
+// sign-in or the boot: the device library stays parked until the next try. One that is marked is
+// resumeMerges's: it finishes the merge into the library the marker names.
 export async function mergeDeviceLibrary(): Promise<void> {
   const { libraries } = getRegistry();
   const source = deviceLibrary(libraries);
   const target = libraries.find(({ id }) => id === openLibraryId());
-  if (!source || !target || !sessionMatches(target, getSession())) return;
-  if (source.mergedInto && source.mergedInto !== target.id) return;
+  if (!source || source.mergedInto || !target || !sessionMatches(target, getSession())) return;
   try {
     await mergeLibrary(source.id, target.id);
   } catch (error) {

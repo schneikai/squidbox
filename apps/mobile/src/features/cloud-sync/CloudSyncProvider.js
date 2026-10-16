@@ -104,8 +104,7 @@ export default function CloudSyncProvider({ children }) {
       const db = getDb();
       const library = getLibrary();
       const identity = sessionIdentity(requireSession());
-      const ids = await readUnsyncedIds(db);
-      await runBackup(db, ids, {
+      await runBackup(db, readUnsyncedIds(db), {
         uploads: uploadsFor(identity, library),
         onProgress: ({ index, total }) => setSyncMessage(`Syncing ${index + 1} of ${total}`),
       });

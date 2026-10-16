@@ -47,7 +47,13 @@ export async function stopBackup(): Promise<void> {
  * the same way: nothing is marked or deleted for a session the run no longer belongs to, and no
  * syncError is written for the interrupted upload. One run at a time.
  */
-export async function runBackup(db: SyncDb, ids: string[], options: BackupRunOptions): Promise<BackupOutcome> {
+// `ids` may still be loading: the run is registered before they are read, so a pause that starts
+// meanwhile stops it.
+export async function runBackup(
+  db: SyncDb,
+  ids: string[] | Promise<string[]>,
+  options: BackupRunOptions,
+): Promise<BackupOutcome> {
   if (running) throw new Error('A backup is already running');
   const controller = new AbortController();
   const done = backupAssets(db, ids, controller.signal, options);
@@ -61,10 +67,11 @@ export async function runBackup(db: SyncDb, ids: string[], options: BackupRunOpt
 
 async function backupAssets(
   db: SyncDb,
-  ids: string[],
+  loadingIds: string[] | Promise<string[]>,
   signal: AbortSignal,
   { uploads, onProgress }: BackupRunOptions,
 ): Promise<BackupOutcome> {
+  const ids = await loadingIds;
   const bound = uploads(signal);
   for (const [index, id] of ids.entries()) {
     if (signal.aborted) return 'aborted';

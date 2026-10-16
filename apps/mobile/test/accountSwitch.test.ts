@@ -61,6 +61,7 @@ const ids = vi.hoisted(() => ({ n: 0 }));
 vi.mock('../src/utils/getNewItemId', () => ({ default: () => `id-${++ids.n}` }));
 
 const { closeLibrary, getLibrary, openLibraryId } = await import('../src/library/current');
+const { resumeMerges } = await import('../src/library/mergeRun');
 const { getRegistry, loadRegistry } = await import('../src/library/registry');
 const { libraryForSession, mergeDeviceLibrary, openLibraryForSession, openLibraryForSignIn } =
   await import('../src/library/sessionLibrary');
@@ -189,7 +190,8 @@ describe('switching libraries with the session', () => {
     failing.clear();
     await closeLibrary(); // the app is closed and opened again
     await open(store.session);
-    await mergeDeviceLibrary(); // what the boot runs after the library opened
+    await resumeMerges(); // what the boot runs after the library opened
+    await mergeDeviceLibrary();
     expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
     expect(libraryIds()).not.toContain(deviceId);
   });
