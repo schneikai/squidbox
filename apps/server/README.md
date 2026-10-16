@@ -3,11 +3,14 @@
 The TypeScript backend: Fastify + Drizzle + Postgres + S3, deployed on Fly.io (see the
 `/deploy-server` skill). It serves:
 
-- **Auth:** JWT access tokens plus per-device refresh tokens that rotate on every refresh. A rotated
-  token stays valid until its successor is first presented, so a lost refresh response doesn't sign
-  the device out.
+- **Auth:** JWT access tokens (24h) plus per-device refresh tokens that rotate on every refresh. A
+  rotated token stays valid for 10 minutes, until its successor is first presented, so a lost
+  refresh response or two concurrent refreshes don't sign the device out; logout revokes both sides
+  of a rotation. `authenticate` loads the token's user once per request and answers 401 for a user
+  that no longer exists.
 - **Identity:** `SERVER_ID`, a fixed uuid per deployment, reported by `/up`, login and `/me`. The
-  app binds each session and its local library to it.
+  app binds each session and its local library to it (`docs/sync-design.md` §8), so it must never
+  change: a different id is another server to the app, with its own library.
 - **Files:** presigned GET downloads, server-proxied streaming uploads with server-side multipart,
   and batch delete.
 - **Sync:** `/sync/pull` and `/sync/push`.

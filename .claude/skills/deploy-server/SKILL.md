@@ -42,8 +42,9 @@ deploys. No separate "setup" vs "deploy" skill to choose.
    password, and read AWS creds from `apps/server/.env` (avoids credential literals in the command,
    which the sandbox blocks). `JWT_SECRET` is a random secret;
    changing it signs every device out. `SERVER_ID` is the server's stable identity (the app binds
-   each session and library to it): generate it once and never change it. `SEED_USER_PASSWORD` is
-   the app login password.
+   each session and library to it, `docs/sync-design.md` §8): generate it once and never change it.
+   A changed id is another server to the app: the next sign-in opens a new, empty library and
+   parks the existing one. `SEED_USER_PASSWORD` is the app login password.
    ```bash
    AWS_KEY=$(grep '^AWS_ACCESS_KEY_ID=' apps/server/.env | cut -d= -f2-)
    AWS_SEC=$(grep '^AWS_SECRET_ACCESS_KEY=' apps/server/.env | cut -d= -f2-)
@@ -74,7 +75,8 @@ deploys. No separate "setup" vs "deploy" skill to choose.
 From the repo root: `fly deploy . --config apps/server/fly.toml --dockerfile apps/server/Dockerfile`
 Migrations run automatically. Verify: `curl https://<app>.fly.dev/up` → `{"status":"ok","serverId":"<uuid>"}`.
 `SERVER_ID` must be set as a secret before the deploy that first needs it; the server refuses to
-boot without it.
+boot without it. Check it with `fly secrets list --app <app>` before deploying, and never re-set
+it to a new value (see step 3).
 
 ### From the cloud workspace (behind the agent proxy)
 

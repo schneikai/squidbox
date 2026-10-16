@@ -319,11 +319,12 @@ on iOS and web. `createDb` (`apps/mobile/src/sync/db/driver.ts`) puts Drizzle's 
   listeners once with the tables it changed. A write that changed no rows and a rolled-back
   transaction notify nothing.
 
-The app keeps one such database per **library** (`docs/library-ownership-plan.md`): the open
-library's database is behind `getDb()` (`sync/db/client.ts`), opened and migrated by
-`library/current.ts` when the library opens (`openAppDb` runs the SQLite migrations of
-`apps/mobile/src/sync/db/migrations`), and `LibraryGate` (`App.js`) mounts the app under it, keyed
-by the library, so nothing queries across a switch.
+The app keeps one such database per **library** (the design record is
+`docs/library-ownership-plan.md`; what is built is described here): the open library's database is
+behind `getDb()` (`sync/db/client.ts`), opened and migrated by `library/current.ts` when the
+library opens (`openAppDb` runs the SQLite migrations of `apps/mobile/src/sync/db/migrations`), and
+`LibraryGate` (`App.js`) mounts the app under it, keyed by the library, so nothing queries across a
+switch.
 
 Tables (`apps/mobile/src/sync/db/schema.ts`):
 
@@ -379,43 +380,85 @@ Background sync (`expo-background-task`) and server push notifications are not i
 batch, so what ran is committed and the next run resumes) and the running backup at its next step,
 waits for both, and holds new syncs until `work` is done. Sync is active only while the app has finished init, the library is open AND
 someone is signed in (`setSyncActive`, driven from one effect in `App.js`); every trigger above is
-a no-op otherwise. A run is bound to the identity it started with, `{ libraryId, serverId,
-userId }` (`library/sessionMatches.ts`): it runs only when the open library is the signed-in
-account's, and every request reads the tokens fresh from the stored session for that identity
-(`apiWithAuthentication`), so a mid-run refresh is picked up and another user's session is refused.
+a no-op otherwise. A run is bound to the open library and to the identity `{ serverId, userId }`
+of the session at its start (`library/currentSyncIdentity.ts`, `library/sessionMatches.ts`): it
+runs only when the open library is the signed-in account's, and every request reads the tokens
+fresh from the stored session for that identity (`apiWithAuthentication` → `requireSession`), so a
+mid-run refresh is picked up and another user's session is refused (`SessionChangedError`, which
+ends the run like a stop request, not as an error).
 
 **Libraries and the session.** A library (one database plus its file folders) belongs to this
 device or to an account on a server (`sync_meta.owner`, the list in `library/registry.ts`), and the
 stored session is the open pointer: no session opens the device library, a session its owner's,
 with or without tokens (`library/sessionLibrary.ts`). The library lives on the device; an account
-backs it up and keeps it in sync, and signing out only pauses that. Signing in changes the session
-and switches libraries inside one `withSyncPaused` section (`library/switchLibrary.ts`: the backup
-run stopped, the closing library's database closed, the next one opened), so no run spans a
-session or library change; then whatever the device library (the one from before any sign-in)
-holds is added to the account's library at once, with no prompt (`library/mergeRun.ts`: one
-transaction, every copied record with its outbox row, files moved after the commit, the source
-removed when nothing is left in it). The same merge runs again at every boot while a device
-library exists (`mergeDeviceLibrary`, inside `withSyncPaused` with `resumeMerges`), so one that
-failed or that a crash interrupted finishes then; no backup run starts while such a section runs
-(`isSyncPaused`). Signing out drops the tokens and nothing else: the same library stays open and editable, writes queue in
-its outbox and upload when its owner signs in again; it asks once, and only when something is
-pending or not backed up. Signing in as another account opens that account's library and parks
-the current one with its pending changes, until its owner signs in again. Nothing is wiped and
-nothing in the UI removes a library.
+backs it up and keeps it in sync, and signing out only pauses that.
+
+- **Without an account** the app fills the device library (`owner: { kind: 'device' }`), created on
+  demand. It exists only before the first sign-in.
+- **Signing in** changes the session and switches libraries inside one `withSyncPaused` section
+  (`library/switchLibrary.ts`: the backup run stopped, the closing library's database closed, the
+  next one opened, everything reverted if the next one won't open), so no run spans a session or
+  library change. The account's library is the parked one from an earlier sign-in, or a new empty
+  one. Then whatever the device library holds joins it at once, with no prompt
+  (`library/mergeRun.ts`, crash-safe and idempotent: the `mergedInto` marker on the source, every
+  record in one transaction of the target with its outbox row, files moved into missing
+  destinations after the commit, the source removed when nothing is left in it). The same merge
+  runs again at every boot while a device library exists (`mergeDeviceLibrary`, inside
+  `withSyncPaused` after `resumeMerges`), so one that failed or that a crash interrupted finishes
+  then. A device library with photos whose file lives in another account's storage is kept,
+  marked, and never joins a second account. No backup run starts while such a section runs
+  (`isSyncPaused`).
+- **Signing out** drops the tokens and nothing else (`dropTokensAsync`, then a best-effort
+  revoke): the same library stays open and editable, writes queue in its outbox and photos wait for
+  the backup, and all of it uploads when its owner signs in again. Settings asks once, and only
+  when something is pending or not backed up.
+- **Signing in as another account** opens that account's library and parks the current one with
+  its pending changes, until its owner signs in again. Nothing is wiped and nothing in the UI
+  removes a library.
+
+**On disk.** The install from before libraries is the library `squidbox`: `squidbox.db`,
+`assetfiles/` and `assetthumbnails/` under the document directory, nothing moved. Every other
+library `<id>` (a uuid) is `library-<id>.db` and `libraries/<id>/{files,thumbnails}/`; its
+downloads cache is `downloads/<id>/` under the cache directory and goes with it
+(`library/libraryPaths.ts`: the paths come from the id alone). The list of libraries is the
+AsyncStorage value `libraries` (`{ libraries: [{ id, owner, mergedInto? }] }`); a corrupt value is
+moved aside and the list rebuilt from the owners the databases carry (`library/rebuildRegistry.ts`).
+
+**The session** is one record in SecureStore (`session`; localStorage on web):
+`{ serverId, userId, email, apiBaseUrl, tokens }` (`utils/cloud-api/sessionStore.js`, one in-memory
+copy changed only through `updateSession`). It binds the signed-in user to the server the tokens
+came from: the server reports its `SERVER_ID` in `/up`, the login response and `/me`
+(`apps/server/src/config.ts`), and `sameAccount` treats the same `userId` on a different
+`serverId` as another account, with its own library. At boot, `initializeCloudAsync` verifies the
+session beside the library open (`library/bootLibrary.ts`): with the same base URL and a complete
+record the app is signed in at once, offline included; a changed base URL (a new dev tunnel) must
+report the session's `serverId` in `/up` before the session rebinds to it, else the tokens are
+dropped; a converted install whose session lacks its user keeps its tokens and is filled from
+`/me` (sync waits for that). Only the server's own 401/403 drops tokens there; a network error
+leaves everything for the next launch.
+
+**Photo backup** (`sync/backupRun.ts`, started from `CloudSyncProvider`) uploads the files of the
+assets unsynced at its start, one run at a time, for the library and identity it started with: each
+asset is re-read right before its upload, every upload reads the tokens fresh for that identity,
+and `withSyncPaused` aborts the run (the upload in flight included) before any session or library
+change. An interrupted or refused upload leaves the asset unmarked, its file in place and no
+`syncError`, so the next run uploads it.
 
 **Expired sessions.** Access tokens live 24h; refresh tokens rotate on every refresh, so the app
 refreshes once for all concurrent callers (`refreshAccessTokenAsync`), and the server keeps a
-rotated token valid until its successor is first presented, so a lost response doesn't sign the
-device out. Only a server rejection (400/401/403) drops the tokens; network errors keep them. A
-rejected session keeps its owner and library, like a sign-out: the library stays open and
-editable, writes queue in its outbox, nothing syncs, and the only signs are the badge on the
-header avatar and Settings' "Backup paused · Sign in to continue" row above the pre-filled sign-in
-form (`needsReauth`). No alert.
+rotated token valid for 10 minutes, until its successor is first presented, so a lost response or
+two concurrent refreshes don't sign the device out. Only a server rejection (400/401/403) drops
+the tokens; network errors keep them. A rejected session keeps its owner and library, like a
+sign-out: the library stays open and editable, writes queue in its outbox, nothing syncs, and the
+only signs are the badge on the header avatar and Settings' "Backup paused · Sign in to continue"
+row above the pre-filled sign-in form (`needsReauth`; "Sign in as someone else" opens that
+account's library instead). No alert.
 
 **First sync.** A new device or account starts at `cursor = 0` and pulls everything. While
 signed in and `firstSyncDone` is not set, `AppGate` (`App.js`) shows `FirstSyncScreen` and does
 not mount the data providers, so nothing competes with the bulk pull. The providers mount once
-the pull has drained. Files download on demand.
+the pull has drained. Files download on demand. A sign-out there stops the pull at its next batch;
+the library keeps what it pulled and the next sign-in resumes from the committed cursor.
 
 ---
 
@@ -580,8 +623,6 @@ the applied / skipped-lww / rejected tally. `GET /up` is the health check.
   (for example renaming an album on one device while favoriting it on another) keep only one
   writer's version. Membership doesn't have this problem because it is separate edge records. A
   per-field merge would be an additive change.
-- **Derivation is a full recompute.** `derive.ts` rebuilds ordered membership, `postHistory`
-  and `lastPostedAt` from all live rows whenever any of its input tables change. The providers
-  mount only after the initial pull (`AppGate`), so the first sync isn't slowed by it.
-  Incremental derivation is an option if it ever feels slow.
+- **Derived values are computed per read.** Album stats and `lastPostedAt` are SQL in the paged
+  queries (§8), so nothing is recomputed in JavaScript when a table changes.
 - File cleanup on delete is not implemented (§7a).

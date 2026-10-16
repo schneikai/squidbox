@@ -18,6 +18,18 @@ The backend lives in `apps/server` and runs on **Fly.io** (app `squidbox-server`
 
 The app keeps an on-device SQLite database (expo-sqlite + Drizzle) and syncs with the backend via generic pull/push: whole-record last-writer-wins, tombstones for deletes, an outbox for local changes, and a cursor for incremental pulls. Collection descriptors are defined in `packages/shared`.
 
+## Accounts and libraries
+
+Your library lives on the phone; an account backs it up and keeps it in sync. Each library is its own SQLite database plus photo and thumbnail folders, owned either by the device (no account) or by one account on one server:
+
+- **Without an account** the app works on the device library.
+- **Signing in** opens that account's library (the one parked from an earlier sign-in, or a new one) and adds whatever the device library holds to it, automatically. The copied photos upload with the next backup.
+- **Signing out** only pauses backup and sync: the same library stays open and editable, and what you add uploads when you sign in again. It asks once, only if something isn't backed up yet.
+- **Signing in as another account** opens that account's library and parks the current one with its pending changes. Nothing is wiped and nothing mixes.
+- **An expired session** (the server rejected the tokens) looks like a sign-out: the avatar shows a badge and Settings says "Backup paused · Sign in to continue" above the pre-filled sign-in form. No alert.
+
+The session is bound to the server's identity (`SERVER_ID`) and to the user, so two servers never share a library. Paths, the session record, the merge and the boot checks are in `docs/sync-design.md` §8; the design history is `docs/library-ownership-plan.md`.
+
 ## Operational tasks (skills)
 
 Common operations are driven by skills rather than memorized commands:
@@ -106,7 +118,7 @@ It starts Postgres + MinIO, applies migrations and creates the local accounts, s
 
 Metro serves the API and file storage through its own tunnel (`apps/mobile/scripts/localBackendProxy.js`), and the script sets `EXPO_PUBLIC_LOCAL_BACKEND`, which makes the app send its API calls to the dev server it loaded from (`Constants.expoConfig.hostUri`). So no env file holds the tunnel URL, and `.env.local` stays pointed at the live backend. On the first run, `apps/server/.env` is created from `.env.docker`.
 
-To go back to your real library, start Metro normally and sign in with your account. Each account's library is its own database and file folders on the device (`docs/library-ownership-plan.md`): signing in as another account opens that account's library and parks the current one, so the two never mix; signing out keeps the library open and only pauses its backup.
+To go back to your real library, start Metro normally and sign in with your account: the local account's library is parked and yours opens (see [Accounts and libraries](#accounts-and-libraries)). The local backend has its own `SERVER_ID` (`apps/server/.env.docker`), so its session and library never pass for the live server's; the dev tunnel's changing host costs no sign-in, since the app re-checks the server's identity on `/up` first.
 
 If Docker pulls fail, or the server can't reach MinIO, see `apps/server/README.md` → "Local development".
 
@@ -122,7 +134,7 @@ Scripts can drive it through `openWebPreview()` and `settleAsync()` in `scripts/
 
 `npm run dev:local -- --web` starts everything without Expo's tunnel, which is all the web preview needs and keeps it working when the tunnel is down. Add `--production` to `web:preview` to load Metro's release bundle, without React's development overhead, for performance checks; `npm run web:measure` times reload → first grid cell, the idle JS heap and a favorite toggle on it. For a large library, `npm run seed:mock -- --assets 50000` in `apps/server/` pads the mock account (the extra assets reuse the 30 photos' files).
 
-The web build is a preview, not a target. Platform files (`*.web.js`) stand in for what the browser lacks: the session record and the library list live in `localStorage` (the preview script seeds the session once per browser context), and thumbnails load straight from their signed URLs. The camera roll, uploads, file downloads and native gestures don't work there, so confirm those on a device. The database works the same as on iOS: the app only uses expo-sqlite's async API (`docs/sync-design.md` §8). Web storage holds a fixed number of database files, so besides the open library about three parked ones (other accounts signed in to in the same browser context) fit; a fourth fails to open with an Alert. A preview run is a fresh context, so this never builds up.
+The web build is a preview, not a target. Platform files (`*.web.js`) stand in for what the browser lacks: the session record and the library list live in `localStorage` (the preview script seeds the session once per browser context, with the page's origin as `apiBaseUrl`), and thumbnails load straight from their signed URLs. The camera roll, uploads, file downloads and native gestures don't work there, so confirm those on a device. The database works the same as on iOS: the app only uses expo-sqlite's async API (`docs/sync-design.md` §8). Web storage holds a fixed number of database files, so besides the open library about three parked ones (other accounts signed in to in the same browser context) fit; a fourth fails to open and the sign-in shows the error, with the previous library still open. A preview run is a fresh context, so this never builds up.
 
 ## Deploying the backend
 
