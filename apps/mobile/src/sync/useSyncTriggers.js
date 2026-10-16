@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
 
-import { requestSync } from './worker';
+import { requestSync, retryFailuresAndSync } from './worker';
 
-// Primary sync triggers (sync-design §8): on app foreground and on a plain in-app interval
-// while foregrounded, plus on-mutation (providers call requestSync after each write). This is
-// ordinary JS — the opportunistic background top-up (expo-background-task) is a later,
-// device-gated addition.
+// Primary sync triggers (sync-design §8): on app foreground (which first retries the failed pushes,
+// §6) and on a plain in-app interval while foregrounded, plus on-mutation (providers call
+// requestSync after each write). This is ordinary JS — the opportunistic background top-up
+// (expo-background-task) is a later, device-gated addition.
 //
 // The LAUNCH pull is not fired here: App.js sets the sync target (setSyncTarget) once init is done and
 // someone is signed in, which kicks it. requestSync() is a no-op without one. That gate lives in
@@ -19,7 +19,7 @@ export default function useSyncTriggers() {
       if (AppState.currentState === 'active') requestSync();
     }, INTERVAL_MS);
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') requestSync();
+      if (state === 'active') retryFailuresAndSync();
     });
     return () => {
       clearInterval(interval);

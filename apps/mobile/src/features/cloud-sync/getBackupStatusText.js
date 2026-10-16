@@ -1,4 +1,4 @@
-import pluralizeText from '@/utils/pluralizeText';
+import formatErrorCount from '@/utils/formatErrorCount';
 
 /**
  * The backup's state in a few words, from the cloud-sync context and useBackupCounts: running,
@@ -15,7 +15,7 @@ export default function getBackupStatusText({
 }) {
   if (isSyncing) return syncMessage ?? 'Backing up…';
   if (needsReauth && unsyncedCount > 0) return `${unsyncedCount} waiting for sign-in`;
-  if (syncErrorCount > 0) return pluralizeText('1 error', '%{count} errors', syncErrorCount);
+  if (syncErrorCount > 0) return formatErrorCount(syncErrorCount);
   if (backupError && unsyncedCount > 0) return "Couldn't back up";
   if (unsyncedCount > 0) return `${unsyncedCount} not backed up`;
   return 'All backed up';

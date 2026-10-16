@@ -163,12 +163,6 @@ finalized again (`db/expoExecutor.ts`; a statement cache saves two native calls 
 fetches the next pages only after applying the last batch (`worker.ts` `pullPhase`; prefetching one
 page overlaps network and writes).
 
-### [ ] Push failures of albums and posts only show in the sync log
-
-A rejected or unappliable push result flags assets with `syncError` (shown in the sync error
-viewer), but albums, posts and their edges have no such field (`worker.ts` `applyPushResults`).
-Their outbox rows retry on every sync and the failure is only visible in the Sync Inspector's log.
-
 ### [ ] Measure WAL on iOS
 
 `db/client.ts` sets no journal mode (expo-sqlite sets none either). With one connection and the
@@ -229,6 +223,20 @@ production project. Consider `enabled: !__DEV__`.
 Animations use both React Native's `Animated` and Reanimated. Move the `Animated` ones
 (`BlurPopoverRenderer`, `SortFilterModal`, `MainTabNavigator`, `AssetImage`, `AiChatModal`) to
 Reanimated, so everything runs on the UI thread with one API.
+
+### [ ] Keep upload failures out of the synced assets table
+
+Upload failures (`syncError`) are the one local-only field, on the synced `assets` table. Move them
+into a local `sync_failures` table: that drops the `localOnly` descriptor machinery
+(`packages/shared/collections/define.ts`, `localOnlyKeys.ts`, the stripping in `outbox.ts` and
+`upsertRows.ts`, the reset in `mergeLibrary.ts`).
+
+### [ ] Backup doesn't say why it skips an asset whose push failed
+
+The backup run skips assets with an outbox row (`backupRun.ts` `isUnconfirmed`), so their originals
+aren't deleted before the server has their record. The Backup screen still counts them as "N not
+backed up" with no hint why: a failed push is listed on the Library sync screen, and a pending one
+(an import right before Backup) needs another run. Backup could wait for the push first.
 
 ### [ ] Move off Node 20
 

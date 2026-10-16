@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -5,30 +6,29 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
-import useAssets from '@/features/assets-context/useAssets';
 import { colors, radii, scale } from '@/styles/designTokens';
-import { readSyncErrors } from '@/sync/assetsRepository';
-import { schema } from '@/sync/db/client';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
-const errorsQuery = { read: readSyncErrors, tables: [schema.assets] };
-
-export default function SyncErrorViewer({ close }) {
+// The failures a paged `query` reads, as `{ id, title, error }` rows: what failed and why. `onRetryAll`
+// retries every one of them, not just the loaded page. Closes itself once none are left.
+export default function SyncErrorViewer({ query, onRetryAll, close }) {
   const { bottom } = useSafeAreaInsets();
-  const { clearSyncErrors } = useAssets();
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => {
     scrollY.value = e.contentOffset.y;
   });
-  const { rows, count, loadMore } = usePagedQuery(errorsQuery, 50);
+  const { rows, count, loadMore } = usePagedQuery(query, 50);
 
-  // Clears every error, not just the loaded page, so each failed upload is retried.
+  useEffect(() => {
+    if (count === 0) close();
+  }, [count, close]);
+
   async function handleRetry() {
-    await clearSyncErrors();
+    await onRetryAll();
     close();
   }
 
-  if (!rows) return null;
+  if (!rows || count === 0) return null;
 
   return (
     <Modal animationType="slide" visible presentationStyle="pageSheet" onRequestClose={close}>
@@ -41,13 +41,13 @@ export default function SyncErrorViewer({ close }) {
 
         <Animated.FlatList
           data={rows}
-          keyExtractor={(asset) => asset.id}
-          renderItem={({ item: asset }) => (
+          keyExtractor={(row) => String(row.id)}
+          renderItem={({ item: row }) => (
             <View style={styles.errorRow}>
-              <Text style={styles.errorAssetId} numberOfLines={1}>
-                {asset.id}
+              <Text style={styles.errorTitle} numberOfLines={1}>
+                {row.title}
               </Text>
-              <Text style={styles.errorMessage}>{asset.syncError}</Text>
+              <Text style={styles.errorMessage}>{row.error}</Text>
             </View>
           )}
           onEndReached={loadMore}
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
     padding: 12,
   },
-  errorAssetId: {
+  errorTitle: {
     fontSize: scale(12),
     color: colors.textSecondary,
     marginBottom: 4,

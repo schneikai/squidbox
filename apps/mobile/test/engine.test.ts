@@ -93,7 +93,7 @@ describe('worker push', () => {
     expect((await assetRow(rec.id))?.notes).toBe('server'); // adopted the winner
   });
 
-  it('keeps the outbox row and flags syncError on rejected', async () => {
+  it('keeps the outbox row on rejected and records the reason there, not as an upload error', async () => {
     const rec = await repo.createAsset(db, makeAssetRecord());
     await runSyncOnce(
       db,
@@ -109,8 +109,8 @@ describe('worker push', () => {
         pull: async () => ({ changes: { assets: { records: [] } }, cursor: 0, hasMore: false }),
       }),
     );
-    expect(await outboxRows()).toHaveLength(1); // not silently dropped
-    expect((await assetRow(rec.id))?.syncError).toBe('schema:boom');
+    expect(await outboxRows()).toMatchObject([{ recordId: rec.id, error: 'schema:boom' }]); // not silently dropped
+    expect((await assetRow(rec.id))?.syncError).toBeNull();
   });
 
   it('a push result that cannot be applied is flagged alone; the rest of the batch and the pull go on', async () => {
@@ -129,9 +129,7 @@ describe('worker push', () => {
         pull: async () => ({ changes: { assets: { records: [] } }, cursor: 9, hasMore: false }),
       }),
     );
-    expect((await outboxRows()).map((row) => row.recordId)).toEqual([bad.id]); // kept for the next push
-    expect((await assetRow(bad.id))?.syncError).toBeTruthy();
-    expect((await assetRow(good.id))?.syncError).toBeNull();
+    expect(await outboxRows()).toMatchObject([{ recordId: bad.id, error: expect.any(String) }]); // kept, with why
     expect(await getCursor(db)).toBe(9);
     const [log] = await db.select().from(schema.syncLog);
     expect(log?.notes).toContain(`assets ${bad.id}: push result not applied`);

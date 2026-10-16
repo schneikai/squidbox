@@ -1,11 +1,18 @@
 import type { PushMutation, PushResult } from '@squidbox/shared';
-import { gt } from 'drizzle-orm';
+import { and, gt } from 'drizzle-orm';
 
-import { setSyncError, unsharedFiles, type RemoveFiles } from './assetsRepository';
+import { unsharedFiles, type RemoveFiles } from './assetsRepository';
 import { clientCollectionTables } from './clientCollections';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
-import { clearOutboxRows, outboxUpdatedAts, pendingRecordIds } from './outbox';
+import {
+  clearOutboxRows,
+  outboxUpdatedAts,
+  pendingRecordIds,
+  pushableOutboxRows,
+  retryFailures,
+  setOutboxError,
+} from './outbox';
 import { planPushOutcome } from './pushPlan';
 import { readByIds } from './readByIds';
 import { pauseRuns, startRun } from './runGate';
@@ -89,7 +96,7 @@ async function pushPhase(
     const batch = await db
       .select()
       .from(schema.outbox)
-      .where(gt(schema.outbox.id, lastId))
+      .where(and(gt(schema.outbox.id, lastId), pushableOutboxRows))
       .orderBy(schema.outbox.id)
       .limit(PUSH_BATCH);
     if (batch.length === 0) break;
@@ -115,7 +122,7 @@ async function pushPhase(
 // Settle a batch's push results (sync-design §6), a few statements per collection. Adopting the
 // server's record is the one step that can fail on bad data, so each runs in its own savepoint: a
 // failure keeps that record's outbox row and flags it, instead of rolling back the batch and
-// stalling every later sync. Returns the notes for the sync log.
+// stalling every later sync. A flagged row waits (§6). Returns the notes for the sync log.
 async function applyPushResults(
   tx: SyncDb,
   results: PushResult[],
@@ -129,8 +136,7 @@ async function applyPushResults(
       group.map((result) => result.id),
     );
     const cleared: string[] = [];
-    const settled: string[] = [];
-    const errors = new Map<string, string[]>(); // syncError → record ids
+    const errors = new Map<string, string[]>(); // error → record ids
     const flag = (id: string, error: string) => pushTo(errors, error, id);
 
     for (const result of group) {
@@ -152,7 +158,6 @@ async function applyPushResults(
         }
       }
       if (plan.clearOutbox) cleared.push(result.id);
-      if (plan.clearError) settled.push(result.id);
       if (plan.flagRejected) {
         flag(result.id, result.reason ?? 'rejected');
         notes.push(`${collection} ${result.id}: rejected (${result.reason ?? 'unknown'})`);
@@ -160,10 +165,7 @@ async function applyPushResults(
     }
 
     await clearOutboxRows(tx, collection, cleared);
-    // syncError is an assets-only local field; other collections' failures show in the sync log.
-    if (collection !== 'assets') continue;
-    await setSyncError(tx, settled, null);
-    for (const [error, ids] of errors) await setSyncError(tx, ids, error);
+    for (const [error, ids] of errors) await setOutboxError(tx, collection, ids, error);
   }
   return notes;
 }
@@ -298,6 +300,19 @@ let syncTarget: SyncTarget | null = null;
 export function setSyncTarget(target: SyncTarget | null): void {
   syncTarget = target;
   if (target) syncFlight.request();
+}
+
+// On the app's return to the foreground: the failed pushes get another try (§6), then a sync. A
+// launch's retry is the library open's (library/current.ts). The suspended app may have been resident
+// for days, and a failed row also keeps the pull from updating its record.
+export function retryFailuresAndSync(): void {
+  if (!syncTarget) return;
+  syncFlight
+    .exclusive(async () => {
+      if (syncTarget) await retryFailures(syncTarget.db);
+    })
+    .catch((error) => console.warn('Could not retry the failed pushes', error));
+  syncFlight.request();
 }
 
 export function requestSync(): void {

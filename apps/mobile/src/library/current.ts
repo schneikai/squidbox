@@ -2,6 +2,7 @@ import { libraryPaths, type LibraryPaths } from './libraryPaths';
 import { getRegistry, type Library } from './registry';
 
 import { getDb, openAppDb, setOpenDb } from '@/sync/db/client';
+import { retryFailures } from '@/sync/outbox';
 import { getOwner, setOwner } from '@/sync/status';
 import webThumbnailUrls from '@/utils/assets/thumbnails/webThumbnailUrls';
 
@@ -18,6 +19,8 @@ export async function openLibrary(library: Library): Promise<void> {
   const db = await openAppDb(paths.dbName);
   // A new database learns its owner here; an existing one keeps what it recorded itself.
   if (!(await getOwner(db))) await setOwner(db, library.owner);
+  // Each open (a launch, a switch) gives the failed pushes another try (sync-design §6).
+  await retryFailures(db);
   setOpenDb(db);
   current = { id: library.id, ...paths };
 }

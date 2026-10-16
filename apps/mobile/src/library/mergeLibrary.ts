@@ -19,7 +19,6 @@ import getAssetThumbnailUri from '@/utils/assets/thumbnails/getAssetThumbnailUri
 import getAssetThumbnailsDirectory from '@/utils/assets/thumbnails/getAssetThumbnailsDirectory';
 
 type AssetRow = schema.AssetRow;
-type OutboxRow = typeof schema.outbox.$inferSelect;
 type Row = { id: string; updatedAt: number; deletedAt: number | null };
 type Edge = Row & { assetId: string } & Record<string, unknown>;
 
@@ -32,7 +31,7 @@ export interface MergePlan {
   // Target assets that match a source asset by camera-roll item: favorite merged as OR, notes kept.
   duplicates: { id: string; isFavorite: boolean; notes: string | null }[];
   // Source outbox rows for records the target already has, to push with their own updatedAt.
-  replays: OutboxRow[];
+  replays: schema.OutboxRow[];
   // What is still in the source's folders of the assets the target has (by id, once applied).
   files: string[];
   thumbnails: string[];
@@ -51,7 +50,7 @@ const live = <R extends { deletedAt: number | null }>(rows: R[]) => rows.filter(
  * smart albums are the account's own; edges follow their asset and parent and are dropped with them.
  */
 export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: LibraryPaths): Promise<MergePlan> {
-  const replays: OutboxRow[] = [];
+  const replays: schema.OutboxRow[] = [];
   const sourceOutbox = await source.select().from(schema.outbox);
 
   // A source outbox row for a record the target has is worth pushing only when it is newer than

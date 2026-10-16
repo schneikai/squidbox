@@ -1,6 +1,7 @@
 import { isUnsynced, readUnsyncedIds, setSyncError, updateAsset } from './assetsRepository';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
+import { outboxUpdatedAts } from './outbox';
 import { readByIds } from './readByIds';
 import { startRun } from './runGate';
 import { requestSync } from './worker';
@@ -30,14 +31,15 @@ export function isBackupRunning(): boolean {
 }
 
 /**
- * Backs up the assets unsynced at the start, in id order: upload the file and the thumbnail at
- * once, mark what uploaded in one write (nothing for an asset deleted or purged meanwhile), then
- * delete the local copy of an uploaded file; a failed upload or write sets syncError (what did
- * upload is still marked) and the run goes on. One run at a time, through the run gate: null while
- * a pause holds. An abort ends the run once the asset's uploads settled: an upload that finished
- * before it is still marked (the pause waits for the run, so the session and library are still the
- * run's), an interrupted one is neither marked nor a syncError. A session that changed under the
- * run (SessionChangedError) ends it with nothing marked or deleted for the asset.
+ * Backs up the assets unsynced at the start whose record the server has confirmed, in id order:
+ * upload the file and the thumbnail at once, mark what uploaded in one write (nothing for an asset
+ * deleted or purged meanwhile), then delete the local copy of an uploaded file; a failed upload or
+ * write sets syncError (what did upload is still marked) and the run goes on. One run at a time,
+ * through the run gate: null while a pause holds. An abort ends the run once the asset's uploads
+ * settled: an upload that finished before it is still marked (the pause waits for the run, so the
+ * session and library are still the run's), an interrupted one is neither marked nor a syncError. A
+ * session that changed under the run (SessionChangedError) ends it with nothing marked or deleted
+ * for the asset.
  */
 export function runBackup(db: SyncDb, options: BackupRunOptions): Promise<void> | null {
   if (running) throw new Error('A backup is already running');
@@ -60,9 +62,16 @@ async function backupAssets(
     if (signal.aborted) return;
     onProgress?.({ index, total: ids.length });
     const [asset] = await readByIds<BackupAsset>(db, schema.assets, [id]);
-    if (!asset || !isUnsynced(asset)) continue;
+    if (!asset || !isUnsynced(asset) || (await isUnconfirmed(db, id))) continue;
     if (await backupAsset(db, asset, bound, signal)) return;
   }
+}
+
+// Whether the server has yet to confirm the asset's record: it has an outbox row, pending or failed
+// (§6). Such an asset waits: its original is deleted once uploaded, so the server must have its
+// record first, and a push that keeps failing would otherwise upload the file on every run.
+async function isUnconfirmed(db: SyncDb, id: string): Promise<boolean> {
+  return (await outboxUpdatedAts(db, 'assets', [id])).has(id);
 }
 
 // Resolves whether the run was aborted on this asset.

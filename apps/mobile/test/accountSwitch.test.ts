@@ -7,6 +7,7 @@ import type { Session } from '../src/library/session';
 import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
+import { setOutboxError } from '../src/sync/outbox';
 import { makeRepository } from '../src/sync/repository';
 import { getCursor, getOwner, isFirstSyncDone, markFirstSyncDone, setCursor, setOwner } from '../src/sync/status';
 
@@ -239,6 +240,19 @@ describe('switching libraries with the session', () => {
     expect(store.session).toEqual(sessionOf('A'));
     expect(getLibrary().id).toBe(aId);
     expect(await outbox()).toHaveLength(1);
+  });
+
+  it('opening a library gives its failed pushes another try, and leaves its failed uploads', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    const photo = await repo.createAsset(getDb(), makeAssetRecord({ isSynced: false }));
+    await setOutboxError(getDb(), 'assets', [photo.id], 'schema:boom');
+    await repo.setSyncError(getDb(), [photo.id], 'upload failed');
+
+    await closeLibrary(); // the app is closed and opened again
+    await open(null);
+    expect(await outbox()).toMatchObject([{ recordId: photo.id, error: null }]);
+    expect(await repo.countSyncErrors(getDb())).toBe(1);
   });
 
   it('signing in as B while A is signed out parks A with its pending changes until A signs in again', async () => {

@@ -20,6 +20,7 @@ import useLibrary from '@/library/useLibrary';
 import { colors } from '@/styles/designTokens';
 import { useSyncStatus } from '@/sync/useSyncStatus';
 import { SERVER_URL } from '@/utils/cloud-api/apiBaseUrl';
+import formatErrorCount from '@/utils/formatErrorCount';
 import useResortAlbumsByName from '@/utils/tools/useResortAlbumsByName';
 
 export default function SettingsScreen() {
@@ -28,7 +29,7 @@ export default function SettingsScreen() {
   const { library } = useLibrary();
   const cloudSync = useCloudSync();
   const counts = useBackupCounts();
-  const { phase, lastError, pendingCount } = useSyncStatus();
+  const { phase, lastError, pendingCount, failedCount } = useSyncStatus();
 
   const [aiModel, setAiModel] = useState(DEFAULT_MODEL);
   const [isLoggingOut, startLogoutTransition] = useTransition();
@@ -96,6 +97,7 @@ export default function SettingsScreen() {
     if (needsReauth) return pendingCount > 0 ? `${pendingCount} waiting for sign-in` : 'Up to date';
     if (lastError) return 'Error';
     if (phase === 'pushing' || phase === 'pulling') return 'Syncing…';
+    if (failedCount > 0) return formatErrorCount(failedCount);
     if (pendingCount > 0) return `${pendingCount} pending`;
     return 'Up to date';
   }

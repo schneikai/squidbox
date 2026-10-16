@@ -1,14 +1,14 @@
-import { count } from 'drizzle-orm';
-
 import * as schema from './db/schema';
+import { countOutbox } from './outbox';
 import { getCursor, getStatus, isFirstSyncDone, type SyncPhase } from './status';
 import { useLiveQuery } from './useLiveQuery';
 
-// Reactive sync status for the dev status surface + Inspector: the phase +
-// pending outbox count, live from SQLite.
+// Reactive sync status for the dev status surface + Inspector: the phase + pending outbox count
+// (failed rows included) and how many of those the server rejected, live from SQLite.
 export interface LiveSyncStatus {
   phase: SyncPhase;
   pendingCount: number;
+  failedCount: number;
   cursor: number;
   lastPushAt?: number;
   lastPullAt?: number;
@@ -20,11 +20,12 @@ export function useSyncStatus(): LiveSyncStatus {
     async (db) => ({ ...(await getStatus(db)), cursor: await getCursor(db) }),
     [schema.syncMeta],
   );
-  const [pending] = useLiveQuery((db) => db.select({ count: count() }).from(schema.outbox), [schema.outbox]) ?? [];
+  const outbox = useLiveQuery(countOutbox, [schema.outbox]);
 
   return {
     phase: meta?.phase ?? 'idle',
-    pendingCount: pending?.count ?? 0,
+    pendingCount: outbox?.pending ?? 0,
+    failedCount: outbox?.failed ?? 0,
     cursor: meta?.cursor ?? 0,
     lastPushAt: meta?.lastPushAt,
     lastPullAt: meta?.lastPullAt,

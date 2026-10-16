@@ -148,7 +148,7 @@ export const syncMeta = sqliteTable('sync_meta', {
 });
 
 // Outbox: pending local mutations to push. Coalesced to one row per (collection, recordId)
-// — the latest whole-record payload wins (sync-design §6).
+// — the latest whole-record payload wins (sync-design §6). `error`: why this payload failed; it waits (§6).
 export const outbox = sqliteTable(
   'outbox',
   {
@@ -161,9 +161,16 @@ export const outbox = sqliteTable(
     createdAt: integer('created_at')
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
+    error: text('error'),
   },
-  (t) => ({ oneRowPerRecord: uniqueIndex('outbox_collection_record_idx').on(t.collection, t.recordId) }),
+  (t) => ({
+    oneRowPerRecord: uniqueIndex('outbox_collection_record_idx').on(t.collection, t.recordId),
+    failed: index('outbox_error_idx')
+      .on(t.id)
+      .where(sql`${t.error} is not null`),
+  }),
 );
+export type OutboxRow = typeof outbox.$inferSelect;
 
 // Ring-buffer of recent sync runs (last ~100) for the Inspector: counts, duration, errors, and
 // conflict/rebase notes (e.g. "assets <id>: local change overwritten by server"). Local-only.

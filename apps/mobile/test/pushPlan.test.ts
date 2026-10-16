@@ -9,7 +9,6 @@ describe('planPushOutcome', () => {
       clearOutbox: true,
       adoptCurrent: false,
       flagRejected: false,
-      clearError: true,
     });
   });
 
@@ -18,7 +17,6 @@ describe('planPushOutcome', () => {
       clearOutbox: false,
       adoptCurrent: false,
       flagRejected: false,
-      clearError: false,
     });
   });
 
@@ -27,7 +25,6 @@ describe('planPushOutcome', () => {
       clearOutbox: true,
       adoptCurrent: true,
       flagRejected: false,
-      clearError: true,
     });
   });
 
@@ -40,12 +37,19 @@ describe('planPushOutcome', () => {
     );
   });
 
-  it('rejected → keep outbox and flag, regardless of supersession', () => {
+  it('rejected → keep outbox and flag', () => {
     expect(planPushOutcome({ status: 'rejected', pushedUpdatedAt: 100, currentOutboxUpdatedAt: 100 })).toEqual({
       clearOutbox: false,
       adoptCurrent: false,
       flagRejected: true,
-      clearError: false,
+    });
+  });
+
+  it('rejected + superseded → keep, do NOT flag (the newer edit is pushed next)', () => {
+    expect(planPushOutcome({ status: 'rejected', pushedUpdatedAt: 100, currentOutboxUpdatedAt: 200 })).toEqual({
+      clearOutbox: false,
+      adoptCurrent: false,
+      flagRejected: false,
     });
   });
 

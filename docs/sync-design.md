@@ -246,17 +246,29 @@ cursor won't deliver it again. Without `current` the losing device would never c
 
 Client handling of each result (`planPushOutcome` in `apps/mobile/src/sync/pushPlan.ts`):
 
-- `applied` or `skipped-lww` for a record edited again during the push (the outbox row's
-  `updatedAt` is now newer than the pushed one): keep the row and do nothing; the next push
-  settles it.
-- `applied`: delete the outbox row and clear `syncError`.
+- Any result for a record edited again during the push (the outbox row's `updatedAt` is now
+  newer than the pushed one): keep the row and do nothing; the next push settles it.
+- `applied`: delete the outbox row.
 - `skipped-lww`: write `current` to the local table, delete the outbox row, and log a conflict
   note (§13).
-- `rejected`: keep the outbox row, set `syncError` on assets, and log the reason. A rejected
+- `rejected`: keep the outbox row, record the reason in its `error`, and log it. A rejected
   edit is never silently dropped.
 - A result that can't be applied (e.g. a malformed `current`) is handled like `rejected`: it runs
   in its own savepoint inside the batch's transaction, so it rolls back alone, keeps its outbox row
-  and gets `syncError` and a log note, while the rest of the batch and the pull go on.
+  and gets an `error` and a log note, while the rest of the batch and the pull go on.
+
+**Failed rows wait.** The push skips outbox rows with an `error`. Every per-row failure is
+deterministic (a schema or database rejection, a `current` this device can't store): pushing the
+same payload to the same server fails the same way, so retrying it on every sync, or with backoff,
+only repeats the failure. A failed row is pushed again when a new local edit replaces its payload
+(`enqueueMutations` clears the `error`), and `retryFailures` (`outbox.ts`) clears every `error` on
+launch (when `library/current.ts` opens the library, before it syncs), when the app returns to the
+foreground (`retryFailuresAndSync` in `worker.ts`, which then syncs), and when the user taps Retry
+All in the sync error viewer (§13). So a server fix or an app update gets a failure through without
+anyone acting on it, even while the app stays resident for days; meanwhile the failed row also keeps
+the pull from updating its record (§5). Failed uploads (`syncError`) are separate: only the Backup
+screen's Retry All clears them (§8). A push that fails as a whole (network, server error) records
+nothing on the rows; the run fails and the next trigger retries it.
 
 Push returns no cursor. The cursor only moves through pull (§3).
 
@@ -350,9 +362,9 @@ leaves out the collection's local-only fields (`localOnly` in its shared descrip
   body, and checks again once the file is stored, deleting it with `410` when the purge landed
   during the upload. With the cleanup deleting regardless of the flags, a purged asset's files
   can't stay in S3.
-- The upload queue (`getUnsyncedAssets`) selects assets that are not `isSynced`, not deleted, not
-  purged and have no `syncError`. It does not check that the local file exists; a missing file fails the
-  upload and sets `syncError`.
+- The upload queue (`readUnsyncedIds`) selects assets that are not `isSynced`, not deleted, not
+  purged and have no `syncError`; the backup run then skips any with an outbox row (§8). It does not
+  check that the local file exists; a missing file fails the upload and sets `syncError`.
 
 ---
 
@@ -383,8 +395,9 @@ Tables (`apps/mobile/src/sync/db/schema.ts`):
 - `sync_meta(key, value)`: `cursor`, `status`, `firstSyncDone`, `owner` (whose library this
   database is, JSON, so the library list can be rebuilt from the databases). `lastSyncUserId` is
   retired: read once by the install migration, never written.
-- `outbox(id, collection, record_id, op, payload, updated_at, created_at)`: pending mutations,
-  one row per record. `op` is `delete` when the payload has `deletedAt`, otherwise `upsert`.
+- `outbox(id, collection, record_id, op, payload, updated_at, created_at, error)`: pending
+  mutations, one row per record. `op` is `delete` when the payload has `deletedAt`, otherwise
+  `upsert`. `error` is why the server rejected the payload (§6), null while it waits to be pushed.
 - `sync_log`: recent sync runs (§13).
 
 **Reads.** Nothing holds a whole table in memory. Each screen declares what it shows as a small
@@ -421,8 +434,8 @@ Each run writes a `sync_log` entry and updates `status`. A failed run sets `phas
 **Triggers:**
 
 - After each local write (`requestSync()` from the providers).
-- When the app comes to the foreground, and every 30 seconds while it is in the foreground
-  (`useSyncTriggers.js`).
+- When the app comes to the foreground (after retrying the failed pushes, §6), and every 30
+  seconds while it is in the foreground (`useSyncTriggers.js`).
 - When sync becomes active (app ready and signed in).
 
 Background sync (`expo-background-task`) and server push notifications are not implemented.
@@ -511,6 +524,10 @@ refused upload leaves its part unmarked, the file in place and no `syncError`, s
 uploads it; a part that finished before the abort is still marked (the pause waits for the run). A
 refusal for another session marks nothing; an asset deleted or purged during its uploads isn't
 marked and keeps its file; a failed upload or marking write sets `syncError` and the run goes on.
+An asset with an outbox row, pending or failed (§6), is skipped until the server has confirmed its
+record: the run deletes the local original once the file is uploaded, so the server must have the
+asset first (it never loses a record it applied, §5), and an asset whose push keeps failing isn't
+uploaded again on every run. Its push failure shows on the Library sync screen (§13).
 
 **Expired sessions.** Access tokens live 24h; refresh tokens rotate on every refresh, so the app
 refreshes once for all concurrent callers (`refreshAccessTokenAsync`), and the server keeps a
@@ -637,6 +654,8 @@ Runbook: [`legacy-import.md`](./legacy-import.md), or the `/legacy-import` skill
 - `skipped-lww` returns the winning record, and the client adopts it (§6).
 - Tombstones are kept forever (§5); a purge is a final tombstone that wins over LWW (§7).
 - Asset file flags are synced; only `syncError` is local-only (§4).
+- A rejected push waits on its outbox row, with its reason; it is retried on launch and when the
+  app returns to the foreground, on a new edit, or Retry All (§6).
 - Sync runs in the foreground and on each local write (§8).
 - Users are isolated; there is no cross-user sharing (§2a).
 
@@ -652,19 +671,31 @@ All sync state is local to the device and none of it syncs.
 lastPushAt, lastPullAt, lastError }`. The cursor is stored separately under `cursor`.
   `useSyncStatus` exposes both, plus the pending count, as live queries.
 - **Outbox.** A record is pending if it has an outbox row. Pending counts are queried from the
-  outbox overall and per collection.
+  outbox overall and per collection; `useSyncStatus` also counts the failed rows.
 - **File state.** `isFileSynced` and `isThumbnailSynced` (synced) and this device's `syncError`
   (local-only) on each asset.
 - **Sync log.** `sync_log(ran_at, pushed, pulled, duration_ms, error, notes)` keeps the last 100
   runs. When a local change loses LWW, the run's notes say so
   (`albums <id>: local change overwritten by server`), so an override is never silent. Rejected
-  mutations are noted with their reason.
+  mutations are noted with their reason each time they are pushed (§6).
+
+### Sync errors
+
+Settings' "Library sync" row reads "N errors" while outbox rows have failed (and "Photo backup"
+counts the assets whose upload failed). The sync error viewer
+(`features/cloud-sync/cloud-sync-control/SyncErrorViewer.jsx`) lists either kind with what failed
+and why, with Retry All: from the Library sync screen the failed pushes (`readPushFailures`, named
+after the record: `Album "Trips"`, `Post "First words…"`, `Photo in album "Trips"`), from the Backup
+screen the failed uploads. The viewer closes itself once nothing has failed. Only Clear outbox
+(below) gives up on a failed push; Rebuild from server keeps the outbox, failed rows included, and
+puts their edits back, so they still wait.
 
 ### Sync Inspector
 
 The "Library sync" screen (`apps/mobile/src/screens/SyncScreen.jsx`) shows:
 
-- **Status:** current status, last sync time, and **Sync now**.
+- **Status:** current status, last sync time, **View errors** (above, while pushes have failed)
+  and **Sync now**.
 - **Developer:** cursor, pending count, and records / pending / tombstones for `assets`,
   `albums` and `posts`.
 - **Sync log:** the last 30 runs with counts, duration, notes and errors.

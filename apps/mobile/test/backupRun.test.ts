@@ -6,6 +6,7 @@ import * as repo from '../src/sync/assetsRepository';
 import { isBackupRunning, runBackup, type BackupUploads } from '../src/sync/backupRun';
 import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
+import { setOutboxError } from '../src/sync/outbox';
 import { withSyncPaused } from '../src/sync/worker';
 import SessionChangedError from '../src/utils/cloud-api/SessionChangedError';
 
@@ -20,12 +21,15 @@ describe('runBackup', () => {
     deleted = [];
   });
 
-  async function unsyncedAsset(filename: string) {
-    return repo.createAsset(
-      db,
-      makeAssetRecord({ filename, isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
-    );
+  // An asset whose record the server has (pushed: no outbox row left), so the backup takes it.
+  async function pushedAsset(fields: Parameters<typeof makeAssetRecord>[0]) {
+    const asset = await repo.createAsset(db, makeAssetRecord(fields));
+    await db.delete(schema.outbox);
+    return asset;
   }
+
+  const unsyncedAsset = (filename: string) =>
+    pushedAsset({ filename, isFileSynced: false, isThumbnailSynced: false, isSynced: false });
 
   const uploads =
     (over: Partial<BackupUploads> = {}) =>
@@ -104,10 +108,7 @@ describe('runBackup', () => {
   });
 
   it('uploads only what is missing', async () => {
-    const a = await repo.createAsset(
-      db,
-      makeAssetRecord({ filename: 'a.jpg', isFileSynced: true, isThumbnailSynced: false, isSynced: false }),
-    );
+    const a = await pushedAsset({ filename: 'a.jpg', isFileSynced: true, isThumbnailSynced: false, isSynced: false });
 
     await runBackup(db, { uploads: uploads() });
 
@@ -193,10 +194,7 @@ describe('runBackup', () => {
   });
 
   it('a failed thumbnail upload of an asset whose file is synced only sets syncError', async () => {
-    const a = await repo.createAsset(
-      db,
-      makeAssetRecord({ filename: 'a.jpg', isFileSynced: true, isThumbnailSynced: false, isSynced: false }),
-    );
+    const a = await pushedAsset({ filename: 'a.jpg', isFileSynced: true, isThumbnailSynced: false, isSynced: false });
 
     const writes = await assetWrites(() =>
       runBackup(db, {
@@ -304,6 +302,20 @@ describe('runBackup', () => {
 
     await run;
     expect(calls).toEqual([]);
+  });
+
+  it('skips an asset whose record the server has yet to confirm: its push pending or failed', async () => {
+    const unsynced = () => makeAssetRecord({ isFileSynced: false, isThumbnailSynced: false, isSynced: false });
+    const pending = await repo.createAsset(db, unsynced());
+    const failed = await repo.createAsset(db, unsynced());
+    await setOutboxError(db, 'assets', [failed.id], 'schema:boom');
+
+    await runBackup(db, { uploads: uploads() });
+
+    expect(calls).toEqual([]); // nothing uploaded again, no original deleted
+    expect(deleted).toEqual([]);
+    expect(await row(pending.id)).toMatchObject({ isSynced: false, syncError: null });
+    expect(await row(failed.id)).toMatchObject({ isSynced: false, syncError: null });
   });
 
   it('a pause during the uploads marks nothing, leaves the next asset untouched and waits for the run', async () => {
