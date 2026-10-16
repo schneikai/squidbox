@@ -376,16 +376,20 @@ Background sync (`expo-background-task`) and server push notifications are not i
 
 **Session gating and exclusivity.** The worker is one single-flight queue
 (`apps/mobile/src/sync/singleFlight.ts`). `requestSync()` coalesces into one trailing run, and
-`withSyncPaused(work)` asks the running sync to stop at its next batch (push batch or applied pull
-batch, so what ran is committed and the next run resumes) and the running backup at its next step,
-waits for both, and holds new syncs until `work` is done. Sync is active only while the app has finished init, the library is open AND
-someone is signed in (`setSyncActive`, driven from one effect in `App.js`); every trigger above is
-a no-op otherwise. A run is bound to the open library and to the identity `{ serverId, userId }`
+`withSyncPaused(work)` pauses the run gate (`sync/runGate.ts`, `pauseRuns`): every registered run,
+sync and backup alike, is aborted (a sync at its next push batch or applied pull batch, so what ran
+is committed and the next run resumes; a backup at its next step, the upload in flight included),
+and `work` starts once they ended. Both kinds of run start through the gate (`startRun`), which
+registers a run synchronously and starts none while a pause holds. The worker syncs the target
+`App.js` sets from one effect, `setSyncTarget({ db, identity } | null)`: the open library's
+database and the identity of its signed-in owner, null until the app has finished init, the library
+is open AND someone is signed in; every trigger above is a no-op without it. A run is bound to the open library and to the identity `{ serverId, userId }`
 of the session at its start (`library/currentSyncIdentity.ts`, `library/sessionMatches.ts`): it
 runs only when the open library is the signed-in account's, and every request reads the tokens
 fresh from the stored session for that identity (`apiWithAuthentication` → `requireSession`), so a
 mid-run refresh is picked up and another user's session is refused (`SessionChangedError`, which
-ends the run like a stop request, not as an error).
+the gate treats like an abort, not as an error). `requireSession` also refuses tokens bound to
+another API base URL.
 
 **Libraries and the session.** A library (one database plus its file folders) belongs to this
 device or to an account on a server (`sync_meta.owner`, the list in `library/registry.ts`), and the
@@ -395,19 +399,20 @@ backs it up and keeps it in sync, and signing out only pauses that.
 
 - **Without an account** the app fills the device library (`owner: { kind: 'device' }`), created on
   demand. It exists only before the first sign-in.
-- **Signing in** changes the session and switches libraries inside one `withSyncPaused` section
-  (`library/switchLibrary.ts`: the backup run stopped, the closing library's database closed, the
-  next one opened, everything reverted if the next one won't open), so no run spans a session or
-  library change. The account's library is the parked one from an earlier sign-in, or a new empty
-  one. Then whatever the device library holds joins it at once, with no prompt
+- **Signing in** switches libraries and then stores the session, inside one `withSyncPaused`
+  section (`library/sessionLibrary.ts`; `library/switchLibrary.ts`: the closing library's database
+  closed, the next one opened, the previous one reopened if the next won't open), so no run spans
+  a session or library change, and a failed switch leaves the old session untouched, with nothing
+  to revert. `CloudProvider.loginAsync` then navigates to Settings. The account's library is the
+  parked one from an earlier sign-in, or a new empty one. Then whatever the device library holds joins it at once, with no prompt
   (`library/mergeRun.ts`, crash-safe and idempotent: the `mergedInto` marker on the source, every
-  record in one transaction of the target with its outbox row, files moved into missing
-  destinations after the commit, the source removed when nothing is left in it). The same merge
+  record in one transaction of the target with its outbox row, files, found by listing the source's
+  folders, moved into missing destinations after the commit, the source removed when nothing is left
+  in it; a kept source's boot re-run skips the transaction when its plan adds nothing). The same merge
   runs again at every boot while a device library exists (`mergeDeviceLibrary`, inside
   `withSyncPaused` after `resumeMerges`), so one that failed or that a crash interrupted finishes
   then. A device library with photos whose file lives in another account's storage is kept,
-  marked, and never joins a second account. No backup run starts while such a section runs
-  (`isSyncPaused`).
+  marked, and never joins a second account.
 - **Signing out** drops the tokens and nothing else (`dropTokensAsync`, then a best-effort
   revoke): the same library stays open and editable, writes queue in its outbox and photos wait for
   the backup, and all of it uploads when its owner signs in again. Settings asks once, and only
@@ -422,7 +427,8 @@ library `<id>` (a uuid) is `library-<id>.db` and `libraries/<id>/{files,thumbnai
 downloads cache is `downloads/<id>/` under the cache directory and goes with it
 (`library/libraryPaths.ts`: the paths come from the id alone). The list of libraries is the
 AsyncStorage value `libraries` (`{ libraries: [{ id, owner, mergedInto? }] }`); a corrupt value is
-moved aside and the list rebuilt from the owners the databases carry (`library/rebuildRegistry.ts`).
+moved aside and the list rebuilt from the owners the databases carry (`library/rebuildRegistry.ts`); the list and the session record share one persisted store
+(`utils/persistedStore.ts`).
 
 **The session** is one record in SecureStore (`session`; localStorage on web):
 `{ serverId, userId, email, apiBaseUrl, tokens }` (`utils/cloud-api/sessionStore.js`, one in-memory
@@ -441,7 +447,7 @@ leaves everything for the next launch.
 assets unsynced at its start, one run at a time, for the library and identity it started with: each
 asset is re-read right before its upload, every upload reads the tokens fresh for that identity,
 and `withSyncPaused` aborts the run (the upload in flight included) before any session or library
-change. An interrupted or refused upload leaves the asset unmarked, its file in place and no
+change; it registers with the gate before it reads the ids, so a pause starting meanwhile stops it. An interrupted or refused upload leaves the asset unmarked, its file in place and no
 `syncError`, so the next run uploads it.
 
 **Expired sessions.** Access tokens live 24h; refresh tokens rotate on every refresh, so the app
