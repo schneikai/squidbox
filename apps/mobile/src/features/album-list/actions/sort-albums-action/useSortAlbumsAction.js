@@ -37,5 +37,6 @@ export default function useSortAlbumsAction({ afterSort } = {}) {
     sortFunction: sortOptions[sortOrder],
     sortAlbums: sort,
     isDefaultSortOrder: sortOrder === DEFAULT_SORT_ORDER,
+    isSortedByLastPosted: sortOrder.startsWith('lastPostedAt'),
   };
 }

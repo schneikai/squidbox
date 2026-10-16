@@ -35,7 +35,9 @@ export default function AddToAlbumScreen({ route, navigation }) {
   const { width: screenWidth } = useWindowDimensions();
 
   const { listRef, listScrollTop } = useAlbumList();
-  const { sortOrder, sortFunction, sortAlbums, isDefaultSortOrder } = useSortAlbumsAction({ afterSort: listScrollTop });
+  const { sortOrder, sortFunction, sortAlbums, isDefaultSortOrder, isSortedByLastPosted } = useSortAlbumsAction({
+    afterSort: listScrollTop,
+  });
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterFilter: listScrollTop });
   const { searchBar, query: searchText } = useSearchMode(useSearchAlbumsAction());
 
@@ -86,7 +88,7 @@ export default function AddToAlbumScreen({ route, navigation }) {
         onScroll={onScroll}
         renderItem={({ album, elementWidth }) => (
           <TouchableOpacity onPress={() => handleAddAssetsToAlbum(album)}>
-            <AlbumListItem album={album} elementWidth={elementWidth} />
+            <AlbumListItem album={album} elementWidth={elementWidth} showLastPostedAt={isSortedByLastPosted} />
           </TouchableOpacity>
         )}
       />

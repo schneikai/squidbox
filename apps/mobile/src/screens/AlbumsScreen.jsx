@@ -23,19 +23,16 @@ export default function AlbumsScreen({ navigation }) {
   const { paddingTop, paddingBottom } = useScreenPadding('main');
 
   const { listRef, listScrollTop } = useAlbumList();
-  const { sortOrder, sortFunction, sortAlbums, isDefaultSortOrder } = useSortAlbumsAction({ afterSort: listScrollTop });
+  const { sortOrder, sortFunction, sortAlbums, isDefaultSortOrder, isSortedByLastPosted } = useSortAlbumsAction({
+    afterSort: listScrollTop,
+  });
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterFilter: listScrollTop });
 
   const { registerScreenOptions } = useFloatingBars();
   const { searchBar, query: searchText } = useSearchMode(useSearchAlbumsAction());
   const scrollHandler = useFloatingBarScrollHandler();
 
-  const albums = usePreparedAlbums({
-    sortFn: sortFunction,
-    filterFn: matchFilter,
-    showArchivedAlbums: activeFilter.includes('archived'),
-    searchText,
-  });
+  const albums = usePreparedAlbums({ sortFn: sortFunction, filterFn: matchFilter, searchText });
 
   function handleAdd() {
     Alert.prompt('Album name', undefined, (name) => {
@@ -74,11 +71,7 @@ export default function AlbumsScreen({ navigation }) {
             singleTap={() => navigation.navigate('AlbumScreen', { albumId: album.id })}
             doubleTap={() => toggleFavoriteAlbum(album)}
           >
-            <AlbumListItem
-              album={album}
-              elementWidth={elementWidth}
-              showLastPostedAt={sortOrder.includes('lastPostedAt')}
-            />
+            <AlbumListItem album={album} elementWidth={elementWidth} showLastPostedAt={isSortedByLastPosted} />
           </AlbumListItemWithEditMode>
         )}
       />

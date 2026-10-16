@@ -213,13 +213,21 @@ Server (`apps/server/src/sync/push.ts`), in one transaction that first takes the
 advisory lock (§3), for each mutation:
 
 1. Reject an unknown collection (`unknown-collection`) or a record that fails the collection's
-   Zod schema (`schema:<paths>`).
+   Zod schema (`schema:<paths>`). The schema also rejects what Postgres can't store (a NUL in text,
+   an integer out of its column's range), so a row the upsert refuses (`db:<sqlstate>`, step 3) is
+   an unforeseen case.
 2. Clamp a future `updatedAt` to server time (§7).
 3. Upsert in one atomic statement:
    `INSERT … ON CONFLICT (user_id, id) DO UPDATE SET … WHERE excluded.updated_at > <table>.updated_at`.
    `user_id` comes from the token. The update sets only the columns the record carries, so an
    optional column an older app doesn't send (e.g. `albums.position`) keeps its stored value. A new
    synced column is therefore added as optional, and the server ships before the app.
+   The batch's upserts run in one savepoint. A database error caused by a row itself (SQLSTATE
+   class 22 or 23, e.g. a constraint the schema doesn't mirror) rolls that savepoint back (the
+   advisory lock, taken before it, stays held) and reruns the batch with a savepoint per upsert, so
+   that row alone is rejected as `db:<sqlstate>` and only such pushes pay the extra round trips.
+   Any other error fails the whole push, which the client retries, and so does a violated `user_id`
+   foreign key (the user was deleted mid-push).
 4. If a row came back, the result is `applied`. Otherwise the mutation lost LWW and the result is
    `skipped-lww` with the server's current record as `current`.
 
@@ -523,7 +531,8 @@ and another user's pull does not see it.
 
 ## 10. Collections
 
-Timestamps are epoch-ms numbers. Booleans are integers in SQLite.
+Timestamps are epoch-ms integers (the push rejects a fractional value per record, as the server
+stores them in bigint columns). Booleans are integers in SQLite.
 
 **assets** (asset metadata). Synced: `mediaLibraryAssetId`, `mediaType` (`photo` | `video`),
 `width`, `height`, `fileSize`, `duration`, `filename`, `thumbnailFilename`, `isFavorite`,

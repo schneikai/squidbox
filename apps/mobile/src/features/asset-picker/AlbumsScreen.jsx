@@ -13,7 +13,9 @@ import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
 
 export default function AlbumsScreen({ navigation }) {
   const { listRef, listScrollTop } = useAlbumList();
-  const { sortOrder, sortFunction, sortAlbums } = useSortAlbumsAction({ afterSort: listScrollTop });
+  const { sortOrder, sortFunction, sortAlbums, isSortedByLastPosted } = useSortAlbumsAction({
+    afterSort: listScrollTop,
+  });
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterFilter: listScrollTop });
   const { searchText } = useSearchAlbumsAction();
 
@@ -25,7 +27,7 @@ export default function AlbumsScreen({ navigation }) {
       albums={albums}
       renderItem={({ album, elementWidth }) => (
         <TouchableOpacity onPress={() => navigation.navigate('Album', { albumId: album.id })}>
-          <AlbumListItem album={album} elementWidth={elementWidth} />
+          <AlbumListItem album={album} elementWidth={elementWidth} showLastPostedAt={isSortedByLastPosted} />
         </TouchableOpacity>
       )}
       ListHeaderComponent={

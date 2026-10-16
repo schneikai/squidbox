@@ -26,28 +26,12 @@ contain raw markup such as JS array notation.
 In the system picker (camera roll), tap-and-drag to select makes the whole screen move left and
 right. The picker is native, so check what the app can influence through its options.
 
-### [ ] "Archived" album filter shows nothing outside the Albums tab
-
-In Add to Album and the picker's albums list, the "Archived" filter shows an empty list:
-`prepareAlbums` hides archived albums unless `showArchivedAlbums` is passed, which only
-`AlbumsScreen` does. Albums keep their JS filtering under the paged-reads plan, so it stays.
-
-### [ ] "Posted …" shows on every album row
-
-`AlbumListItem` ignores its `showLastPostedAt` prop, so every album row shows "Posted …" whether
-or not the screen asks for it. Decide whether rows should show it only when sorted by last posted.
-
 ### [ ] The web preview's library limit shows as a generic sign-in failure
 
 The browser holds about three parked libraries (`docs/library-ownership-plan.md` §1.8 promised
 "This browser can't hold more libraries…"); today a fourth sign-in surfaces as `LoginForm`'s
 "Authentication failed!" with "Couldn't create the library: …" (`switchLibrary.ts`). Only matters
 when the web preview signs into several accounts.
-
-### [ ] Drafts show "Posted NaN years ago"
-
-`PostPostedAt` formats a missing `postedAt` as "Posted NaN years ago" for posts that were never
-posted (drafts). It should say nothing, or "Not posted yet".
 
 ## Features
 
@@ -179,14 +163,6 @@ page overlaps network and writes).
 A rejected or unappliable push result flags assets with `syncError` (shown in the sync error
 viewer), but albums, posts and their edges have no such field (`worker.ts` `applyPushResults`).
 Their outbox rows retry on every sync and the failure is only visible in the Sync Inspector's log.
-
-### [ ] The server answers an invalid push value with 500
-
-"Postpone" on a repost suggestion wrote a fractional `suggestRepostAt` (fixed in
-`CreatePostScreen.jsx`), and the server's bigint column made the whole push fail with HTTP 500
-instead of rejecting that one mutation. The push contract (`packages/shared`) should require
-integers for timestamps so a bad value is rejected per record. A phone that postponed a post
-before the fix keeps retrying it until the app update goes out.
 
 ### [ ] Measure WAL on iOS
 
@@ -349,3 +325,12 @@ Renew them via the **`/build`** skill (see "expired signing" there) a few weeks 
 ### [ ] Check the photo detail view on a device
 
 Photos in the detail view may be slightly cropped. Confirm or rule it out.
+
+### [ ] Check the boot screen and the octopus on the phone
+
+`BootScreen` (`src/features/boot/`) takes over from the native splash once it has laid out. Only the
+web preview has checked it so far. On the phone, confirm: there's no jump or flash from the splash to
+the boot screen, the octopus moves smoothly on the boot screen and the setup screen
+(`src/components/octopus/`, 7 arm paths re-computed per frame), and a tap squeezes the head without
+a seam where it meets the arms. On web, the squeezed head shows a 1 px light line at its bottom edge
+for the 0.6 s of the squeeze, probably from Chrome compositing the scaled layer.

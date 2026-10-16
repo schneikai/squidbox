@@ -1,32 +1,28 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Text, Pressable } from 'react-native';
 
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
 import formatDateTime from '@/utils/date-time/formatDateTime';
 
+// Tap toggles between "3 days ago" and the exact date and time. Nothing for a post never posted.
 export default function PostPostedAt({ postedAt, style }) {
-  const [postedAtFormat, setPostedAtFormat] = useState('inWords');
-  const [postedAtFormated, setPostedAtFormated] = useState(formatPostedAt(postedAt, postedAtFormat));
+  const [format, setFormat] = useState('inWords');
 
-  useEffect(() => {
-    setPostedAtFormated(formatPostedAt(postedAt, postedAtFormat));
-  }, [postedAtFormat]);
+  const formatted = postedAt ? formatPostedAt(postedAt, format) : null;
 
-  function togglePostedAtFormat() {
-    setPostedAtFormat((prevPostedAtFormat) => (prevPostedAtFormat === 'inWords' ? 'dateTime' : 'inWords'));
+  function toggleFormat() {
+    setFormat((prev) => (prev === 'inWords' ? 'dateTime' : 'inWords'));
   }
 
-  function formatPostedAt(postedAt, format) {
-    if (format === 'inWords') {
-      return dateToTimeAgo(postedAt);
-    } else if (format === 'dateTime') {
-      return formatDateTime(postedAt);
-    }
-  }
+  if (!postedAt) return null;
 
   return (
-    <Pressable onPress={togglePostedAtFormat}>
-      <Text style={style}>Posted {postedAtFormated}</Text>
+    <Pressable onPress={toggleFormat}>
+      <Text style={style}>Posted {formatted}</Text>
     </Pressable>
   );
+}
+
+function formatPostedAt(postedAt, format) {
+  return format === 'inWords' ? dateToTimeAgo(postedAt) : formatDateTime(postedAt);
 }

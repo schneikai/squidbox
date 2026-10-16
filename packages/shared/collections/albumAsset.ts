@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { baseRecordSchema, defineCollection } from './define';
+import { baseRecordSchema, defineCollection, textSchema } from './define';
 
 // `album_assets` — a junction collection: one record per (album, asset) membership. Promoted out
 // of the old `album.assets` array so add / remove / reorder each touch a single edge row and
@@ -13,7 +13,7 @@ export const albumAssetCollection = defineCollection({
   schema: baseRecordSchema.extend({
     albumId: z.string().uuid(),
     assetId: z.string().uuid(),
-    position: z.string(),
+    position: textSchema,
   }),
 });
 

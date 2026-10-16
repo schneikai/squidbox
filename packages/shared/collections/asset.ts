@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { baseRecordSchema, defineCollection } from './define';
+import { baseRecordSchema, defineCollection, textSchema } from './define';
+
+// The server's integer (int4) columns.
+const int4Schema = z.number().int().min(-(2 ** 31)).max(2 ** 31 - 1);
 
 // The `assets` collection — asset METADATA (binary files move via the S3 flow, not sync).
 // Fields mapped from the app's yup schema (sync-design §10). The three is*Synced flags are
@@ -8,18 +11,18 @@ import { baseRecordSchema, defineCollection } from './define';
 export const assetCollection = defineCollection({
   name: 'assets',
   schema: baseRecordSchema.extend({
-    mediaLibraryAssetId: z.string(),
+    mediaLibraryAssetId: textSchema,
     mediaType: z.enum(['photo', 'video']),
-    width: z.number(),
-    height: z.number(),
-    fileSize: z.number(),
+    width: int4Schema,
+    height: int4Schema,
+    fileSize: z.number().int().safe(),
     duration: z.number().nullable(),
-    filename: z.string(),
-    thumbnailFilename: z.string(),
+    filename: textSchema,
+    thumbnailFilename: textSchema,
     isFavorite: z.boolean(),
-    notes: z.string().nullable(),
+    notes: textSchema.nullable(),
     // postHistory / lastPostedAt are derived on-device from posts + membership (not synced).
-    oldFileId: z.string().nullable(),
+    oldFileId: textSchema.nullable(),
     isFileSynced: z.boolean(),
     isThumbnailSynced: z.boolean(),
     isSynced: z.boolean(),

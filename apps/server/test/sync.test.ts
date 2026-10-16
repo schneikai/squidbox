@@ -45,6 +45,22 @@ function assetRecord(over: Record<string, unknown> = {}) {
     ...over,
   };
 }
+function postRecord(over: Record<string, unknown> = {}) {
+  return {
+    id: randomUUID(),
+    createdAt: 1000,
+    updatedAt: 1000,
+    deletedAt: null as number | null,
+    text: 'hi',
+    isFavorite: false,
+    postedAt: null as number | null,
+    rePostId: null as string | null,
+    isIgnoredForRepost: false,
+    suggestRepostAt: 1000,
+    hasBeenReposted: false,
+    ...over,
+  };
+}
 const mut = (record: Record<string, unknown>) => ({ collection: 'assets', record });
 
 async function serverSeqOf(userId: string, id: string): Promise<number | null> {
@@ -221,6 +237,83 @@ d('sync engine (Postgres)', () => {
     expect(page.changes.assets.records.map((r: any) => r.id)).toEqual([good.id]);
   });
 
+  it('partial-push rejection: a fractional timestamp is rejected, the rest of the push applies', async () => {
+    const good = postRecord();
+    const bad = postRecord({ suggestRepostAt: 1734567890123.5 }); // the server's bigint column can't take it
+    const res = await push(db, USER_A, [
+      { collection: 'posts', record: bad },
+      { collection: 'posts', record: good },
+    ]);
+    expect(res[0]).toMatchObject({ id: bad.id, status: 'rejected', reason: 'schema:suggestRepostAt' });
+    expect(res[1]).toMatchObject({ id: good.id, status: 'applied' });
+
+    const page = await pull(db, USER_A, { cursor: 0 });
+    expect(page.changes.posts.records.map((r: any) => r.id)).toEqual([good.id]);
+  });
+
+  it('partial-push rejection: values Postgres cannot store are schema rejections, the rest applies', async () => {
+    const nulByte = assetRecord({ notes: 'a\u0000b' }); // Postgres text can't hold NUL
+    const tooWide = assetRecord({ width: 2 ** 31 }); // out of range for the int4 column
+    const good = assetRecord();
+    const res = await push(db, USER_A, [mut(nulByte), mut(tooWide), mut(good)]);
+    expect(res[0]).toMatchObject({ id: nulByte.id, status: 'rejected', reason: 'schema:notes' });
+    expect(res[1]).toMatchObject({ id: tooWide.id, status: 'rejected', reason: 'schema:width' });
+    expect(res[2]).toMatchObject({ id: good.id, status: 'applied' });
+  });
+
+  // No record the schema accepts fails in Postgres today; the savepoint fallback is the backstop for
+  // a row-level error the schema doesn't foresee. A temporary CHECK constraint stands in for one.
+  const REJECTED_NOTES = 'rejected by test_rejected_notes';
+  async function withRejectedNotes(run: () => Promise<void>) {
+    await pool.query('ALTER TABLE assets DROP CONSTRAINT IF EXISTS test_rejected_notes');
+    await pool.query(
+      `ALTER TABLE assets ADD CONSTRAINT test_rejected_notes CHECK (notes IS DISTINCT FROM '${REJECTED_NOTES}') NOT VALID`,
+    );
+    try {
+      await run();
+    } finally {
+      await pool.query('ALTER TABLE assets DROP CONSTRAINT test_rejected_notes');
+    }
+  }
+
+  it('partial-push rejection: a database error on one row rejects it, the rest of the push applies', async () => {
+    await withRejectedNotes(async () => {
+      const bad = assetRecord({ notes: REJECTED_NOTES });
+      const good = assetRecord();
+      const res = await push(db, USER_A, [mut(bad), mut(good)]);
+      expect(res[0]).toMatchObject({ id: bad.id, status: 'rejected', reason: 'db:23514' });
+      expect(res[1]).toMatchObject({ id: good.id, status: 'applied' });
+
+      const page = await pull(db, USER_A, { cursor: 0 });
+      expect(page.changes.assets.records.map((r: any) => r.id)).toEqual([good.id]);
+    });
+  });
+
+  it('partial-push rejection: rows before a database error get the same results as in a clean push', async () => {
+    // The failing batch is rolled back and rerun row by row, so the rerun must not see its own writes.
+    await withRejectedNotes(async () => {
+      const r = assetRecord();
+      const res = await push(db, USER_A, [
+        mut({ ...r, updatedAt: 1000 }),
+        mut({ ...r, updatedAt: 2000, notes: 'win' }),
+        mut({ ...r, updatedAt: 1500, notes: 'lose' }),
+        mut(assetRecord({ notes: REJECTED_NOTES })),
+      ]);
+      expect(res.map((x) => x.reason ?? x.status)).toEqual(['applied', 'applied', 'skipped-lww', 'db:23514']);
+      expect(res[2].current).toMatchObject({ id: r.id, updatedAt: 2000, notes: 'win' });
+
+      const page = await pull(db, USER_A, { cursor: 0 });
+      expect(page.changes.assets.records).toHaveLength(1);
+    });
+  });
+
+  it('a push for a deleted user fails as a whole instead of rejecting each row', async () => {
+    // user_id comes from the token, so its foreign key failing is not the rows' fault.
+    await expect(push(db, randomUUID(), [mut(assetRecord()), mut(assetRecord())])).rejects.toThrow(
+      /assets_user_id_users_id_fk/,
+    );
+  });
+
   it('pagination: hasMore loops until drained', async () => {
     const records = Array.from({ length: 5 }, () => assetRecord());
     await push(db, USER_A, records.map(mut));
@@ -275,16 +368,7 @@ d('sync engine (Postgres)', () => {
         sortOrder: null,
         smartAlbumType: null,
       }),
-      posts: () => ({
-        ...base(),
-        text: 'hi',
-        isFavorite: false,
-        postedAt: null,
-        rePostId: null,
-        isIgnoredForRepost: false,
-        suggestRepostAt: 1000,
-        hasBeenReposted: false,
-      }),
+      posts: () => postRecord(),
       album_assets: () => ({ ...base(), albumId: randomUUID(), assetId: randomUUID(), position: 'a0' }),
       post_assets: () => ({ ...base(), postId: randomUUID(), assetId: randomUUID(), position: 'a0' }),
     };

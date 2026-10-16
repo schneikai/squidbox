@@ -39,7 +39,7 @@ export const pushResultSchema = z.object({
   status: pushResultStatus,
   // skipped-lww: the server's winning record, which the client adopts (sync-design §6).
   current: syncRecord.optional(),
-  // rejected: why (e.g. "schema:…" or "unknown-collection").
+  // rejected: why: "unknown-collection", "schema:<paths>", or "db:<sqlstate>" for a row Postgres refused.
   reason: z.string().optional(),
 });
 export type PushResult = z.infer<typeof pushResultSchema>;

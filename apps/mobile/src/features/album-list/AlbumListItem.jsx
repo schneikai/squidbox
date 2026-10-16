@@ -7,7 +7,7 @@ import { colors, scale } from '@/styles/designTokens';
 import pluralizeText from '@/utils/pluralizeText';
 
 // `album` is an albumQuery row: it carries its cover and stats.
-export default function AlbumListItem({ album, elementWidth }) {
+export default function AlbumListItem({ album, elementWidth, showLastPostedAt }) {
   return (
     <View style={[styles.album, { width: elementWidth }]}>
       <View style={[styles.imageContainer, { height: elementWidth }]}>
@@ -17,7 +17,7 @@ export default function AlbumListItem({ album, elementWidth }) {
         </View>
       </View>
 
-      {album.archivedAt && (
+      {Boolean(album.archivedAt) && (
         <View style={{ alignSelf: 'left' }}>
           <Text style={styles.isArchived}>Archived</Text>
         </View>
@@ -29,7 +29,9 @@ export default function AlbumListItem({ album, elementWidth }) {
         <Text style={[styles.albumInfo, styles.metaCount]} numberOfLines={1}>
           {pluralizeText('1 Asset', '%{count} Assets', album.assetCount)}
         </Text>
-        <AlbumLastPostedAt album={album} style={[styles.albumInfo, styles.metaPosted]} numberOfLines={1} />
+        {showLastPostedAt && (
+          <AlbumLastPostedAt album={album} style={[styles.albumInfo, styles.metaPosted]} numberOfLines={1} />
+        )}
       </View>
     </View>
   );
