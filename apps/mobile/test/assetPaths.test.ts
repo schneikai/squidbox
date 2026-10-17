@@ -30,6 +30,9 @@ vi.mock('expo-file-system/legacy', () => ({
   },
 }));
 
+// The status helper makes a missing thumbnail again from its original; none of these assets has one.
+vi.mock('../src/utils/thumbnails/createThumbnail', () => ({ default: vi.fn() }));
+
 const { default: getAssetFileUri } = await import('../src/utils/assets/files/getAssetFileUri');
 const { default: createAssetFileDirectory } = await import('../src/utils/assets/files/createAssetFileDirectory');
 const { default: assetFileExistsAsync } = await import('../src/utils/assets/files/assetFileExistsAsync');

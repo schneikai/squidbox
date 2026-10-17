@@ -8,6 +8,7 @@ import { currentSyncIdentity } from '@/library/currentSyncIdentity';
 import { removeAssetFiles } from '@/library/fs';
 import { isBackupRunning, runBackup } from '@/sync/backupRun';
 import { getDb } from '@/sync/db/client';
+import ensureAssetThumbnailAsync from '@/utils/assets/thumbnails/ensureAssetThumbnailAsync';
 import fileSizeToHumanReadable from '@/utils/fileSizeToHumanReadable';
 
 // Exponential moving average time constant (seconds).
@@ -65,6 +66,7 @@ export default function CloudSyncProvider({ children }) {
   // The uploads of one run, for the session and the library it started with, under the run's signal.
   function uploadsFor(identity, library) {
     return (signal) => ({
+      ensureThumbnail: (asset) => ensureAssetThumbnailAsync(asset, { library }),
       uploadFile: async (asset) => {
         lastProgressRef.current = null;
         emaSpeedRef.current = 0;

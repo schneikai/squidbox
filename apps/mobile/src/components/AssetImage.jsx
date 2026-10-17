@@ -9,12 +9,12 @@ import { colors, motion, spacing } from '@/styles/designTokens';
 import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';
 import getAssetThumbnailStatusAsync from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
 import getAssetThumbnailUri from '@/utils/assets/thumbnails/getAssetThumbnailUri';
-import hasThumbnailAsync from '@/utils/assets/thumbnails/hasThumbnailAsync';
 
 // contentFit: "cover" | "contain". The placeholder pulses until the picture has loaded (and holds
-// still while nobody is signed in to fetch it). `renderOverlay(hasPicture)` draws over the cell either
-// way, e.g. corner badges that only make sense over a loaded picture. A thumbnail its device hasn't
-// backed up yet gets a crossed-out cloud on the placeholder while `showNotUploaded`.
+// still while nobody is signed in to fetch it, or once its download gave up). `renderOverlay(hasPicture)`
+// draws over the cell either way, e.g. corner badges that only make sense over a loaded picture. A
+// thumbnail its device hasn't backed up yet gets a crossed-out cloud on the placeholder while
+// `showNotUploaded`.
 export default function AssetImage({
   asset = {},
   contentFit,
@@ -22,7 +22,8 @@ export default function AssetImage({
   renderOverlay,
   showNotUploaded = true,
 }) {
-  // getAssetThumbnailStatusAsync's for `filename`, with the picture's `uri` once it's 'local'.
+  // getAssetThumbnailStatusAsync's for `filename` (or the loader's 'failed'), with the picture's `uri`
+  // once it's 'local'.
   const [found, setFound] = useState(null);
   const [loadedUri, setLoadedUri] = useState(null);
   const { loadThumbnail } = useAssetThumbnailLoader();
@@ -35,39 +36,34 @@ export default function AssetImage({
   useEffect(() => {
     const filename = asset.thumbnailFilename;
     if (!filename || isLocal) return;
-    let isCancelled = false;
-    let interval;
+    const controller = new AbortController();
+    let withdraw;
 
     function showLocal() {
       setFound({ filename, status: 'local', uri: getAssetThumbnailUri(filename) });
     }
 
     (async () => {
-      const status = await getAssetThumbnailStatusAsync(asset, { isAuthenticated });
-      if (isCancelled) return;
+      const status = await getAssetThumbnailStatusAsync(asset, { isAuthenticated, signal: controller.signal });
+      if (controller.signal.aborted) return;
       if (status === 'local') {
         showLocal();
         return;
       }
       setFound({ filename, status });
       // Only a cloud copy can arrive. A not-uploaded one waits for sync to flip isThumbnailSynced,
-      // a signed-out one for the session, either of which reruns this effect.
+      // a signed-out one for the session, either of which reruns this effect. The loader retries a
+      // failed download a few times before it gives up; a remount asks again.
       if (status !== 'remote') return;
-      loadThumbnail(asset);
-      // Poll until the download lands. A failed request (a network hiccup during the launch-sync
-      // storm, a transient 401/403) frees its key, so asking again re-enqueues it, while
-      // loadThumbnail dedupes requests still in flight: a blank cell heals instead of staying blank.
-      interval = setInterval(async () => {
-        const isOnDisk = await hasThumbnailAsync(filename);
-        if (isCancelled) return;
-        if (isOnDisk) showLocal();
-        else loadThumbnail(asset);
-      }, 2000);
+      withdraw = loadThumbnail(asset, (result) => {
+        if (result === 'done') showLocal();
+        else setFound({ filename, status: 'failed' });
+      });
     })();
 
     return () => {
-      isCancelled = true;
-      clearInterval(interval);
+      controller.abort();
+      withdraw?.();
     };
   }, [asset.thumbnailFilename, asset.isThumbnailSynced, isAuthenticated, isLocal, loadThumbnail]);
 
@@ -80,7 +76,10 @@ export default function AssetImage({
   if (!thumbnailUri) {
     return (
       <>
-        <LoadingPlaceholder color={placeholderColor} still={current?.status === 'signedOut'}>
+        <LoadingPlaceholder
+          color={placeholderColor}
+          still={current?.status === 'signedOut' || current?.status === 'failed'}
+        >
           {showNotUploadedIcon && (
             <View
               style={styles.notUploaded}

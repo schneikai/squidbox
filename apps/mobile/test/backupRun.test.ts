@@ -34,6 +34,7 @@ describe('runBackup', () => {
   const uploads =
     (over: Partial<BackupUploads> = {}) =>
     (): BackupUploads => ({
+      ensureThumbnail: async () => true,
       uploadFile: async (asset) => {
         calls.push(`file ${asset.filename}`);
       },
@@ -113,8 +114,61 @@ describe('runBackup', () => {
     await runBackup(db, { uploads: uploads() });
 
     expect(calls).toEqual(['thumbnail a.jpg']);
-    expect(deleted).toEqual([]); // deleted when it uploaded
+    // Its original was deleted when it uploaded, unless it was kept to make the thumbnail again.
+    expect(deleted).toEqual(['a.jpg']);
     expect(await row(a.id)).toMatchObject({ isThumbnailSynced: true, isSynced: true });
+  });
+
+  it('makes a missing thumbnail again before the uploads, only for a thumbnail not uploaded', async () => {
+    await unsyncedAsset('a.jpg');
+    await pushedAsset({ filename: 'b.jpg', isFileSynced: false, isThumbnailSynced: true, isSynced: false });
+    const ensureThumbnail = async (asset: schema.AssetRow) => {
+      calls.push(`ensure ${asset.filename}`);
+      return true;
+    };
+
+    await runBackup(db, { uploads: uploads({ ensureThumbnail }) });
+
+    const ofA = calls.filter((call) => call.endsWith('a.jpg'));
+    expect(ofA).toEqual(['ensure a.jpg', 'file a.jpg', 'thumbnail a.jpg']);
+    expect(calls.filter((call) => call.endsWith('b.jpg'))).toEqual(['file b.jpg']);
+  });
+
+  it('a thumbnail that can’t be made again sets syncError; the file still uploads, its original stays', async () => {
+    const a = await unsyncedAsset('a.jpg');
+    const b = await unsyncedAsset('b.jpg');
+    const ensureThumbnail = async (asset: schema.AssetRow) => {
+      if (asset.id === b.id) throw new Error('unreadable video');
+      return false;
+    };
+
+    await runBackup(db, { uploads: uploads({ ensureThumbnail }) });
+
+    expect(calls.sort()).toEqual(['file a.jpg', 'file b.jpg']);
+    expect(deleted).toEqual([]); // b's to make its thumbnail from on the next run (a has none)
+    expect(await row(a.id)).toMatchObject({
+      isFileSynced: true,
+      isThumbnailSynced: false,
+      syncError: 'Its thumbnail and original are both missing from this device',
+    });
+    expect(await row(b.id)).toMatchObject({ isFileSynced: true, syncError: 'unreadable video' });
+  });
+
+  it('an original kept for its thumbnail goes once a later run uploaded the thumbnail', async () => {
+    const a = await unsyncedAsset('a.jpg');
+    const ensureThumbnail = async () => {
+      throw new Error('out of memory');
+    };
+    await runBackup(db, { uploads: uploads({ ensureThumbnail }) });
+    expect(deleted).toEqual([]);
+
+    await db.delete(schema.outbox); // the marked file pushed
+    await repo.clearSyncErrors(db); // the user's retry
+    await runBackup(db, { uploads: uploads() });
+
+    expect(calls).toEqual(['file a.jpg', 'thumbnail a.jpg']);
+    expect(deleted).toEqual(['a.jpg']);
+    expect(await row(a.id)).toMatchObject({ isSynced: true, syncError: null });
   });
 
   it('a failed file upload sets syncError, marks the thumbnail, keeps the file and the run goes on', async () => {

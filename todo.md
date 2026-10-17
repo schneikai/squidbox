@@ -7,17 +7,6 @@ when the owner defers something, or when an idea comes up. Remove an entry once 
 
 ## Features
 
-### [ ] Load the visible thumbnails first
-
-When thumbnails load, the ones on screen should come first. `AssetThumbnailLoaderProvider` drains
-a stack (newest request first), but cells that scrolled away stay queued and take slots from the
-visible ones (2 batches of 12 in flight). Drop or deprioritize requests from cells that left the view.
-
-Related, in `AssetImage`: a cloud thumbnail whose download keeps failing is polled every 2 s for as
-long as its cell is mounted. The loader should report done/failed per key instead of cells polling.
-And an own asset whose local thumbnail is gone while `isThumbnailSynced` is false (e.g. after a merge)
-shows as "not uploaded" for good: nothing will upload it again.
-
 ### [ ] Drag to reorder albums
 
 The albums list has a synced custom order (`albums.position`, the default sort), but the only way to
@@ -90,7 +79,10 @@ the old design. It should work like the asset and album screens, with search and
 
 ### [ ] Recreate thumbnails
 
-An action to regenerate an asset's thumbnail. The video thumbnail in album 197 is broken.
+An action to regenerate an asset's thumbnail. The video thumbnail in album 197 is broken. The backup
+and the tiles already make a missing one again from the original on the device
+(`ensureAssetThumbnailAsync`); one whose original is gone too (already backed up) only gets a backup
+error, and could be made from the cloud original.
 
 ## Design
 
@@ -323,6 +315,15 @@ Renew them via the **`/build`** skill (see "expired signing" there) a few weeks 
 ### [ ] Check the photo detail view on a device
 
 Photos in the detail view may be slightly cropped. Confirm or rule it out.
+
+### [ ] Check thumbnail loading on the phone
+
+The thumbnail loader (`createThumbnailQueue`) was only tried in unit tests. On the phone, with a
+large library only in the cloud: fling through the grid and stop, the thumbnails on screen load
+first, not the ones scrolled past; a thumbnail whose download keeps failing stops pulsing after about
+15 s and loads once scrolled back into view, within a minute of the network coming back, or when the
+app returns to the foreground. After signing in on a phone with its own photos (a merge), their
+thumbnails show at once and upload, with no "thumbnail and original both missing" error.
 
 ### [ ] Check photo zoom on the phone
 

@@ -5,43 +5,43 @@ import getAssetThumbnailUri from '@/utils/assets/thumbnails/getAssetThumbnailUri
 import hasThumbnailAsync from '@/utils/assets/thumbnails/hasThumbnailAsync';
 import getAssetFileDownloadUrlsAsync from '@/utils/cloud-api/assets/getAssetFileDownloadUrlsAsync';
 
-export default async function preloadAssetThumbnailsAsync(assets) {
-  const batchSize = 25;
-  const batch = [];
+const DOWNLOADS_AT_ONCE = 3; // per batch; the loader runs two
 
+// Downloads the thumbnails of `assets` not on the device yet and resolves the names of those it has
+// afterwards. Throws when it can't ask for any (the presign request failed). Once `signal` aborts, no
+// new download starts.
+export default async function preloadAssetThumbnailsAsync(assets, signal) {
   // The downloads land in the library open now, however long the network takes.
   const library = getLibrary();
+  const names = assets.map((asset) => asset.thumbnailFilename);
+  const isOnDevice = await Promise.all(names.map((name) => hasThumbnailAsync(name, library)));
+  const available = new Set(names.filter((_, index) => isOnDevice[index]));
+  const missing = names.filter((_, index) => !isOnDevice[index]);
+  if (missing.length === 0 || signal?.aborted) return available;
 
-  for (const asset of assets) {
-    if (await hasThumbnailAsync(asset.thumbnailFilename, library)) continue;
-    batch.push(asset);
-
-    if (batch.length >= batchSize) {
-      await preloadBatch(batch, library);
-      batch.length = 0;
+  const pending = await getAssetFileDownloadUrlsAsync(missing);
+  async function downloadNext() {
+    while (pending.length > 0 && !signal?.aborted) {
+      const [thumbnailFilename, presignedUrl] = pending.shift();
+      if (await downloadAsync(presignedUrl, getAssetThumbnailUri(thumbnailFilename, library))) {
+        available.add(thumbnailFilename);
+      }
     }
   }
-
-  if (batch.length > 0) {
-    await preloadBatch(batch, library);
-  }
+  await Promise.all(Array.from({ length: DOWNLOADS_AT_ONCE }, downloadNext));
+  return available;
 }
 
-async function preloadBatch(assets, library) {
-  const thumbnailFilenames = assets.map((asset) => asset.thumbnailFilename);
-
-  const presignedUrls = await getAssetFileDownloadUrlsAsync(thumbnailFilenames);
-
-  for (const [thumbnailFilename, presignedUrl] of presignedUrls) {
-    const fileUri = getAssetThumbnailUri(thumbnailFilename, library);
-    const { status } = await FileSystem.downloadAsync(presignedUrl, fileUri);
-    // A presigned GET that 403/404s does NOT throw — downloadAsync writes the S3 error XML to the
-    // file and returns non-200. That poisons the cache: hasThumbnailAsync then sees a file and
-    // reports the thumbnail "present", so the grid shows a broken image forever with no retry.
-    // Delete the bad file and throw so the caller can surface the error and the cell can retry.
-    if (status !== 200) {
-      await FileSystem.deleteAsync(fileUri, { idempotent: true });
-      throw new Error(`Thumbnail download failed (HTTP ${status}) for ${thumbnailFilename}`);
-    }
+// Resolves whether the file landed; never throws, so one bad download leaves the others be.
+async function downloadAsync(url, fileUri) {
+  try {
+    const { status } = await FileSystem.downloadAsync(url, fileUri);
+    if (status === 200) return true;
+  } catch {
+    // A network error: the loader tries it again.
   }
+  // A presigned GET that 403/404s does NOT throw — downloadAsync writes the S3 error XML to the file
+  // and returns non-200. Left there, it would pass for the thumbnail and show as a broken image.
+  await FileSystem.deleteAsync(fileUri, { idempotent: true }).catch(() => {});
+  return false;
 }

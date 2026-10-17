@@ -40,8 +40,8 @@ export async function openWebPreview({ signedIn = true, production = false } = {
 
 const SETTLE_MAX_ROUNDS = 10;
 
-// Waits until the screen has loaded its data and thumbnails: grid cells look for their thumbnail
-// every 2 s (AssetImage), so wait in rounds of that length until no new image shows up.
+// Waits until the screen has loaded its data and thumbnails: the loader fills cells batch by batch,
+// so wait in rounds until no new image shows up.
 export async function settleAsync(page) {
   let imageCount = -1;
   for (let round = 0; round < SETTLE_MAX_ROUNDS; round++) {

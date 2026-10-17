@@ -1,7 +1,9 @@
 import * as Sentry from '@sentry/react-native';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { AppState } from 'react-native';
 
 import AssetThumbnailLoaderContext from './AssetThumbnailLoaderContext';
+import createThumbnailQueue from './createThumbnailQueue';
 
 import useCloud from '@/features/cloud/useCloud';
 
@@ -10,63 +12,32 @@ import useCloud from '@/features/cloud/useCloud';
 let reportedFailures = 0;
 const MAX_REPORTED_FAILURES = 5;
 
-// Lazy, bounded thumbnail loader. Screens (see AssetImage) call loadThumbnail(asset) for the cells
-// that scroll into view; each cell already checks the disk first and only asks for what's missing.
-// We download those in small batches behind a hard concurrency cap, so even a large library
-// (10k+ assets) can never fan out into thousands of parallel S3 downloads — that used to stall the
-// device and crash the app. Nothing is preloaded up front; we only fetch what a screen requests.
-const BATCH_SIZE = 12; // thumbnails presigned + fetched per drain (one presign call per batch)
-const MAX_ACTIVE_BATCHES = 2; // hard cap on batches in flight at once
+function reportFailure(error) {
+  if (reportedFailures >= MAX_REPORTED_FAILURES) return;
+  reportedFailures += 1;
+  Sentry.captureException(error);
+}
 
+// Lazy, bounded thumbnail loader: AssetImage asks it for the cells in view (see createThumbnailQueue).
 export default function AssetThumbnailLoaderProvider({ children }) {
   const { isAuthenticated, preloadAssetThumbnailsAsync } = useCloud();
+  // Made once and never set: requesting a thumbnail re-renders nothing (a grid can request hundreds
+  // of cells while scrolling).
+  const [queue] = useState(() => createThumbnailQueue({ load: preloadAssetThumbnailsAsync, onError: reportFailure }));
 
-  // Queue + bookkeeping live in refs, not state, so requesting a thumbnail never re-renders the
-  // whole subtree (a grid can enqueue hundreds of cells while scrolling).
-  const queueRef = useRef([]); // assets waiting to load (a stack — newest-visible drained first)
-  const trackedRef = useRef(new Set()); // thumbnailFilenames queued or in flight (dedupe)
-  const activeBatchesRef = useRef(0);
+  useEffect(() => queue.setEnabled(isAuthenticated), [queue, isAuthenticated]);
 
-  const pump = useCallback(() => {
-    if (!isAuthenticated) return;
-    while (activeBatchesRef.current < MAX_ACTIVE_BATCHES && queueRef.current.length > 0) {
-      const batch = queueRef.current.splice(-BATCH_SIZE).reverse(); // newest-requested first
-      activeBatchesRef.current += 1;
-      Promise.resolve(preloadAssetThumbnailsAsync(batch))
-        .catch((err) => {
-          // Best-effort — the key is freed below so a still-visible cell retries on its next poll.
-          // Surface the reason (was silently swallowed) so a systemic failure is diagnosable.
-          if (reportedFailures < MAX_REPORTED_FAILURES) {
-            reportedFailures += 1;
-            Sentry.captureException(err);
-          }
-        })
-        .finally(() => {
-          for (const asset of batch) trackedRef.current.delete(asset.thumbnailFilename);
-          activeBatchesRef.current -= 1;
-          pump(); // drain whatever queued while this batch ran
-        });
-    }
-  }, [isAuthenticated, preloadAssetThumbnailsAsync]);
-
-  const loadThumbnail = useCallback(
-    (asset) => {
-      const key = asset?.thumbnailFilename;
-      if (!key || trackedRef.current.has(key)) return; // no key, or already queued/in flight
-      trackedRef.current.add(key);
-      queueRef.current.push(asset);
-      pump();
-    },
-    [pump],
-  );
-
-  // Inactive while nobody is signed in: requests queue up (the cells' polls find their keys tracked
-  // and add nothing) and drain once the session is back, which makes `pump` a new function.
+  // Back in the foreground, the thumbnails that failed get another chance; a library switch unmounts
+  // the provider, and the old library's loads stop with it.
   useEffect(() => {
-    pump();
-  }, [pump]);
+    const subscription = AppState.addEventListener('change', (state) => state === 'active' && queue.retryFailed());
+    return () => {
+      subscription.remove();
+      queue.dispose();
+    };
+  }, [queue]);
 
-  const value = useMemo(() => ({ loadThumbnail }), [loadThumbnail]);
+  const value = useMemo(() => ({ loadThumbnail: queue.request }), [queue]);
 
   return <AssetThumbnailLoaderContext.Provider value={value}>{children}</AssetThumbnailLoaderContext.Provider>;
 }
