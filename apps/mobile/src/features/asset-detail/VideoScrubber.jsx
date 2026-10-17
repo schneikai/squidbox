@@ -56,6 +56,8 @@ export default function VideoScrubber({ progress, onScrubStart, onScrub, onScrub
 const styles = StyleSheet.create({
   touchArea: {
     flex: 1,
+    // The thumb overhangs the track ends by half its size; keep a gap to the times beside it.
+    marginHorizontal: spacing.barPaddingX + THUMB_SIZE / 2,
     height: spacing.iconButtonSize,
     justifyContent: 'center',
   },
