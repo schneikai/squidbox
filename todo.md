@@ -225,6 +225,13 @@ Animations use both React Native's `Animated` and Reanimated. Move the `Animated
 (`BlurPopoverRenderer`, `SortFilterModal`, `MainTabNavigator`, `AssetImage`, `AiChatModal`) to
 Reanimated, so everything runs on the UI thread with one API.
 
+### [ ] One sync for data and files
+
+Records sync on their own (`sync/worker.ts`, the outbox) while files upload in a separate, manual
+backup run (`sync/backupRun.ts`), each with its own errors and Retry All (Sync and Backup screens).
+Consolidate into one procedure that syncs data and files together, with one status and one error
+list. The owner wants this later, not now.
+
 ### [ ] Keep upload failures out of the synced assets table
 
 Upload failures (`syncError`) are the one local-only field, on the synced `assets` table. Move them
@@ -311,13 +318,6 @@ Treat these as exposed and rotate them:
 
 The distribution certificate and both ad hoc profiles expire then, and installed apps stop opening.
 Renew them via the **`/build`** skill (see "expired signing" there) a few weeks ahead.
-
-### [ ] Check drag-select in the camera-roll picker on the phone
-
-Drag-to-select moved the whole screen sideways; the picker now opens full screen
-(`pickImageFromMediaLibrary.js`). Drag across photos from Library "+", an album and the post editor:
-nothing should shift, Cancel should close it, and the app should take taps after it closes (full
-screen hides the screens below; swipe-down no longer closes it). If it still shifts, drop the option.
 
 ### [ ] Check the photo detail view on a device
 

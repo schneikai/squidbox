@@ -288,7 +288,7 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
           {/* Filter bar */}
           <View style={styles.filterBar}>
             <FilterPill label="All" active={allTypesActive} onPress={handlePressAll} />
-            <FilterPill label="Images" active={showImages && !showVideos} onPress={handlePressImages} />
+            <FilterPill label="Photos" active={showImages && !showVideos} onPress={handlePressImages} />
             <FilterPill label="Videos" active={!showImages && showVideos} onPress={handlePressVideos} />
             <FilterPill label="Favorites" active={onlyFavorites} onPress={() => setOnlyFavorites((v) => !v)} />
           </View>

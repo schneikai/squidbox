@@ -1,7 +1,7 @@
 import { MEDIA_TYPES } from '@/utils/assets/constants';
 import humanizeMediaType from '@/utils/assets/humanizeMediaType';
 
-/** "3 Images", "1 Video" or "5 Assets", from counts per media type ({ photo, video }). */
+/** "3 Photos", "1 Video" or "5 Assets", from counts per media type ({ photo, video }). */
 export default function getAssetCountInfo(counts) {
   const total = counts.photo + counts.video;
   if (total === 0) return '0 Assets';

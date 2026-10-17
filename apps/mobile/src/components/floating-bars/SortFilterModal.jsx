@@ -188,7 +188,7 @@ export default function SortFilterModal({
                     style={styles.rowLeadIcon}
                   />
                   <Text style={styles.rowLabel}>
-                    {thumbnailStyle === 'cover' ? 'Full image grid' : 'Square image grid'}
+                    {thumbnailStyle === 'cover' ? 'Full photo grid' : 'Square photo grid'}
                   </Text>
                 </Pressable>
               </>

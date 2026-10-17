@@ -5,8 +5,8 @@ const REVERSE_MEDIA_TYPES = Object.fromEntries(Object.entries(MEDIA_TYPES).map((
 
 const MEDIA_TYPES_HUMANIZED = {
   IMAGE: {
-    singular: 'Image',
-    plural: 'Images',
+    singular: 'Photo',
+    plural: 'Photos',
   },
   VIDEO: {
     singular: 'Video',
