@@ -223,8 +223,10 @@ Reanimated, so everything runs on the UI thread with one API.
 
 Records sync on their own (`sync/worker.ts`, the outbox) while files upload in a separate, manual
 backup run (`sync/backupRun.ts`), each with its own errors and Retry All (Sync and Backup screens).
-Consolidate into one procedure that syncs data and files together, with one status and one error
-list. The owner wants this later, not now.
+Consolidate into one procedure that syncs data and files together, automatically in the background,
+with one status and one error list. Until then a photo added on one device shows on the others with
+no picture ("Still uploading from your other device.") until someone taps "Back up now" there. The
+owner wants this later, not now.
 
 ### [ ] Keep upload failures out of the synced assets table
 
