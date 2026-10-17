@@ -1,12 +1,15 @@
-import { useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Gesture } from 'react-native-gesture-handler';
-import { withSpring } from 'react-native-reanimated';
+import { runOnJS, withSpring } from 'react-native-reanimated';
 
 import gridIndexAtPoint from './gridIndexAtPoint';
+import gridSlotOrigin from './gridSlotOrigin';
+import mergeRowIds from './mergeRowIds';
+import useEdgeAutoScroll from './useEdgeAutoScroll';
 
 import { motion } from '@/styles/designTokens';
 
-// Apple Photos-style drag-to-reorder for the album asset grid.
+// Apple Photos-style drag-to-reorder for a sortable grid (an album's photos, the albums).
 //
 // A touch-and-hold lifts the cell under the finger (it pops: scales up + shadow)
 // and it follows the finger. As the finger crosses into another cell's slot the
@@ -14,24 +17,21 @@ import { motion } from '@/styles/designTokens';
 // settles into its new slot and the move is committed as the row it was dropped after.
 //
 // Positions are driven by shared values owned by the grid:
-//   positions  – { [assetId]: slotIndex }  (drives each resting cell)
+//   positions  – { [rowId]: slotIndex }  (drives each resting cell)
 //   activeId   – id of the lifted cell (or null)
 //   activeX/Y  – content-space top-left of the lifted cell (follows finger)
 //   activeScale – lift scale
+//   shownLiftedId – reset when the lifted cell has settled (see SortableGridLiftedCell)
 //
-// The edge auto-scroll loop mirrors useAssetDragSelect so long grids can be
-// reordered in one motion.
+// Near the top/bottom edge the list auto-scrolls (useEdgeAutoScroll). `layout`: see gridSlotOrigin.
 
-const LONG_PRESS_MS = 150;
-const EDGE_ZONE = 90;
-const MAX_SCROLL_STEP = 16;
-const SCROLL_TICK_MS = 16;
+// Longer than a slow tap, so a tap always opens what it lands on (UIKit's long press is 500 ms).
+const LONG_PRESS_MS = 400;
 
-export default function useAssetDragReorder({
+export default function useDragReorder({
   enabled,
   rows,
-  numColumns,
-  itemSize,
+  layout,
   paddingTop,
   listRef,
   scrollY,
@@ -40,15 +40,15 @@ export default function useAssetDragReorder({
   activeX,
   activeY,
   activeScale,
+  shownLiftedId,
   onDragStart,
   onDragEnd,
+  onSettled,
 }) {
-  const containerHeightRef = useRef(0);
   const orderRef = useRef([]);
   const activeIndexRef = useRef(-1);
+  const startAfterIdRef = useRef(null);
   const grabOffsetRef = useRef({ x: 0, y: 0 });
-  const lastPointRef = useRef({ x: 0, y: 0 });
-  const autoScrollTimerRef = useRef(null);
 
   // Rows and callbacks are read through the handlers, so a rows update or a new callback doesn't
   // rebuild the gesture mid-drag.
@@ -56,12 +56,31 @@ export default function useAssetDragReorder({
   handlers.current.rows = rows ?? [];
   handlers.current.onDragStart = onDragStart;
   handlers.current.onDragEnd = onDragEnd;
-  const startIndexRef = useRef(-1);
+  handlers.current.onSettled = onSettled;
+  const settled = useCallback(() => handlers.current.onSettled?.(), []);
 
-  handlers.current.slotToXY = (slot) => ({
-    x: (slot % numColumns) * itemSize,
-    y: Math.floor(slot / numColumns) * itemSize,
+  const autoScroll = useEdgeAutoScroll({
+    listRef,
+    scrollY,
+    onScrolled: (x, y) => handlers.current.updateFromPoint(x, y),
   });
+
+  // Rows that arrive or leave during a drag (a page the auto-scroll loaded, a synced album) join the
+  // drag's slots, so their cells don't overlap others and a drop can land among them.
+  useEffect(() => {
+    if (activeIndexRef.current === -1 || !rows) return;
+    const order = orderRef.current;
+    const liftedId = order[activeIndexRef.current];
+    const merged = mergeRowIds(
+      order,
+      rows.map((row) => row.id),
+      liftedId,
+    );
+    if (merged.length === order.length && merged.every((id, slot) => id === order[slot])) return;
+    orderRef.current = merged;
+    activeIndexRef.current = merged.indexOf(liftedId);
+    positions.value = Object.fromEntries(merged.map((id, slot) => [id, slot]));
+  }, [rows]);
 
   handlers.current.targetIndexAtPoint = (x, y) => {
     const scrollOffset = scrollY?.value ?? 0;
@@ -70,15 +89,14 @@ export default function useAssetDragReorder({
       y,
       scrollOffset,
       paddingTop,
-      itemSize,
-      numColumns,
+      layout,
       count: orderRef.current.length,
     });
     if (index !== -1) return index;
-    // Below the last row but still inside content → clamp to the final slot so
+    // Below the last row (past the gap above the first) → clamp to the final slot so
     // dragging past the end drops at the bottom.
     const contentY = y + scrollOffset - paddingTop;
-    if (contentY >= 0 && orderRef.current.length > 0) return orderRef.current.length - 1;
+    if (contentY >= layout.gap / 2 && orderRef.current.length > 0) return orderRef.current.length - 1;
     return -1;
   };
 
@@ -107,49 +125,24 @@ export default function useAssetDragReorder({
     handlers.current.moveActive(handlers.current.targetIndexAtPoint(x, y));
   };
 
-  handlers.current.stopAutoScroll = () => {
-    if (autoScrollTimerRef.current) {
-      clearInterval(autoScrollTimerRef.current);
-      autoScrollTimerRef.current = null;
-    }
-  };
-
-  handlers.current.tickAutoScroll = () => {
-    const { x, y } = lastPointRef.current;
-    const height = containerHeightRef.current;
-    let delta = 0;
-    if (y < EDGE_ZONE) {
-      delta = -MAX_SCROLL_STEP * (1 - Math.max(y, 0) / EDGE_ZONE);
-    } else if (height > 0 && y > height - EDGE_ZONE) {
-      delta = MAX_SCROLL_STEP * (1 - Math.max(height - y, 0) / EDGE_ZONE);
-    }
-    if (delta === 0) return;
-
-    const next = Math.max(0, (scrollY?.value ?? 0) + delta);
-    listRef?.current?.scrollToOffset?.({ offset: next, animated: false });
-    handlers.current.updateFromPoint(x, y);
-  };
-
-  handlers.current.ensureAutoScroll = () => {
-    if (autoScrollTimerRef.current) return;
-    autoScrollTimerRef.current = setInterval(handlers.current.tickAutoScroll, SCROLL_TICK_MS);
-  };
-
-  // Settles the lifted cell and reports the drop: the moved asset and the loaded row above its new
-  // slot (`null` at the top), or `null` when it landed where it started.
+  // Settles the lifted cell and reports the drop: the moved row and the loaded row above its new
+  // slot (`null` at the top), or `null` when it landed after the same row it started after.
   handlers.current.settleAndCommit = () => {
     const slot = activeIndexRef.current;
     if (slot === -1) return;
-    const { x, y } = handlers.current.slotToXY(slot);
+    const { x, y } = gridSlotOrigin(layout, slot);
     activeScale.value = withSpring(1, motion.spring);
     activeX.value = withSpring(x, motion.spring);
     activeY.value = withSpring(y, motion.spring, (finished) => {
       'worklet';
-      if (finished) activeId.value = null;
+      if (!finished) return;
+      activeId.value = null;
+      shownLiftedId.value = null;
+      runOnJS(settled)();
     });
     const order = orderRef.current;
-    const change = slot === startIndexRef.current ? null : { assetId: order[slot], afterId: order[slot - 1] ?? null };
-    handlers.current.onDragEnd?.(change);
+    const afterId = order[slot - 1] ?? null;
+    handlers.current.onDragEnd?.(afterId === startAfterIdRef.current ? null : { id: order[slot], afterId });
   };
 
   const gesture = useMemo(
@@ -159,15 +152,13 @@ export default function useAssetDragReorder({
         .activateAfterLongPress(LONG_PRESS_MS)
         .runOnJS(true)
         .onStart((e) => {
-          lastPointRef.current = { x: e.x, y: e.y };
-          orderRef.current = handlers.current.rows.map((asset) => asset.id);
+          orderRef.current = handlers.current.rows.map((row) => row.id);
           const index = gridIndexAtPoint({
             x: e.x,
             y: e.y,
             scrollOffset: scrollY?.value ?? 0,
             paddingTop,
-            itemSize,
-            numColumns,
+            layout,
             count: orderRef.current.length,
           });
           if (index === -1) {
@@ -175,10 +166,10 @@ export default function useAssetDragReorder({
             return;
           }
           activeIndexRef.current = index;
-          startIndexRef.current = index;
-          handlers.current.onDragStart?.();
+          startAfterIdRef.current = orderRef.current[index - 1] ?? null;
+          handlers.current.onDragStart?.(orderRef.current[index]);
 
-          const { x: slotX, y: slotY } = handlers.current.slotToXY(index);
+          const { x: slotX, y: slotY } = gridSlotOrigin(layout, index);
           const contentX = e.x;
           const contentY = e.y + (scrollY?.value ?? 0) - paddingTop;
           grabOffsetRef.current = { x: contentX - slotX, y: contentY - slotY };
@@ -187,15 +178,15 @@ export default function useAssetDragReorder({
           activeY.value = slotY;
           activeScale.value = withSpring(1.08, motion.spring);
           activeId.value = orderRef.current[index];
-          handlers.current.ensureAutoScroll();
+          autoScroll.start(e.x, e.y);
         })
         .onUpdate((e) => {
           if (activeIndexRef.current === -1) return;
-          lastPointRef.current = { x: e.x, y: e.y };
+          autoScroll.move(e.x, e.y);
           handlers.current.updateFromPoint(e.x, e.y);
         })
         .onFinalize(() => {
-          handlers.current.stopAutoScroll();
+          autoScroll.stop();
           if (activeIndexRef.current !== -1) {
             handlers.current.settleAndCommit();
           } else {
@@ -203,12 +194,8 @@ export default function useAssetDragReorder({
           }
           activeIndexRef.current = -1;
         }),
-    [enabled, numColumns, itemSize, paddingTop, listRef, scrollY],
+    [enabled, layout, paddingTop, scrollY, autoScroll],
   );
 
-  function onContainerLayout(height) {
-    containerHeightRef.current = height;
-  }
-
-  return { gesture, onContainerLayout };
+  return { gesture, onContainerLayout: autoScroll.onContainerLayout };
 }

@@ -48,7 +48,12 @@ export default function AddToAlbumScreen({ route, navigation }) {
     scrollY.value = e.contentOffset.y;
   });
 
-  const albums = usePreparedAlbums({ sortFn: sortFunction, filterFn: matchFilter, searchText, showSmartAlbums: false });
+  const { albums } = usePreparedAlbums({
+    sortFn: sortFunction,
+    filterFn: matchFilter,
+    searchText,
+    showSmartAlbums: false,
+  });
 
   async function handleAddAssetsToAlbum(album) {
     // After a failure or a Cancel the screen stays, so the user can go on (what was added stays).

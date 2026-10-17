@@ -34,17 +34,24 @@ export function useLiveQuery<T>(
  * that produced it began (AppDb.committedWrites), -1 before the first. With `everyRead`, every read
  * updates it, so a consumer waiting for a read after some write sees it even when the rows came back
  * the same (the screen renders once per read; unchanged rows keep their memoized cells); otherwise
- * it only changes with the data, which renders nothing for an identical re-read.
+ * it only changes with the data, which renders nothing for an identical re-read. The other
+ * `options`: see WatchOptions.
  */
 export function useLiveQueryState<T>(
   read: (db: SyncDb) => Promise<T>,
   tables: SQLiteTable[],
   deps: unknown[] = [],
-  { everyRead = false }: { everyRead?: boolean } = {},
+  { everyRead = false, ...options }: { everyRead?: boolean } & WatchOptions = {},
 ): { data: T | undefined; readAt: number } {
   const [state, setState] = useState<{ data: T | undefined; readAt: number }>(NOT_READ);
-  useWatch(read, tables, deps, state.data, (data: T, readAt: number) =>
-    setState((current) => (!everyRead && current.data === data ? current : { data, readAt })),
+  useWatch(
+    read,
+    tables,
+    deps,
+    state.data,
+    (data: T, readAt: number) =>
+      setState((current) => (!everyRead && current.data === data ? current : { data, readAt })),
+    options,
   );
   return state;
 }

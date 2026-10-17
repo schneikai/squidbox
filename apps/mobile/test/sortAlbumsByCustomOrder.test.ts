@@ -23,4 +23,16 @@ describe('albums custom order', () => {
     const albums = [album('first', 1, a!), album('last', 2, b!), album('between', 3, keyBetween(a!, b!))];
     expect(names(albums.sort(sortAlbumsByCustomOrder))).toEqual(['first', 'between', 'last']);
   });
+
+  it('breaks ties by id, also among never-placed albums made at the same time, so every sort agrees', () => {
+    const [a] = initialKeys(1);
+    const rows = [
+      { id: 'z', name: 'z', createdAt: 5, position: null },
+      { id: 'y', name: 'y', createdAt: 5, position: null },
+      { id: 'q', name: 'q', createdAt: 1, position: a! },
+      { id: 'p', name: 'p', createdAt: 2, position: a! },
+    ];
+    expect(names([...rows].sort(sortAlbumsByCustomOrder))).toEqual(['y', 'z', 'p', 'q']);
+    expect(names([...rows].reverse().sort(sortAlbumsByCustomOrder))).toEqual(['y', 'z', 'p', 'q']);
+  });
 });

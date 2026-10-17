@@ -40,6 +40,17 @@ export function keyBetween(a: string | null, b: string | null): string {
   return midpoint(a ?? '', b);
 }
 
+/**
+ * `n` increasing keys strictly between `a` and `b` (either may be null), spread by halving the range,
+ * so their length grows with log(n), not with n as repeated keyBetween toward one bound would.
+ */
+export function keysBetween(a: string | null, b: string | null, n: number): string[] {
+  if (n <= 0) return [];
+  const mid = keyBetween(a, b);
+  const below = Math.floor((n - 1) / 2);
+  return [...keysBetween(a, mid, below), mid, ...keysBetween(mid, b, n - 1 - below)];
+}
+
 /** N increasing keys for an initial ordered list (e.g. the legacy converter's array → edges). */
 export function initialKeys(n: number): string[] {
   const keys: string[] = [];

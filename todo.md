@@ -7,21 +7,15 @@ when the owner defers something, or when an idea comes up. Remove an entry once 
 
 ## Features
 
-### [ ] Drag to reorder albums
-
-The albums list has a synced custom order (`albums.position`, the default sort), but the only way to
-set it is the "Sort albums by name" tool in Settings. Dragging albums in the list, like photos in an
-album (`SortableAssetGrid`, `edges.reorder`), would write the same positions.
-
 ### [ ] Mouse-friendly triggers on web
 
 Touch gestures map poorly to a mouse: long press to peek, double tap to favorite and drag-select
 are awkward with a pointer. When the input is a mouse, offer pointer-native triggers instead, for
 example right click (context menu) to peek, hover affordances, and shift/cmd-click to select.
 Related: on web a drag-select doesn't cancel the cell's press, so the cell it started on toggles
-again after release (`SuperPressable` with `useAssetDragSelect`); natively the pan cancels it.
-The same happens after a drag reorder in an album: the drop also counts as a tap and opens the
-photo viewer (`SortableAssetGrid` with `useAssetDragReorder`).
+again after release (`SuperPressable` with `useDragSelect`); natively the pan cancels it.
+After a drag reorder (photos in an album, the albums list) the drop also counted as a tap and opened
+what it was dropped on; `SortableGrid` now swallows the click that follows a lift, unverified on web.
 
 ### [ ] Swipe on to the next photo from a zoomed photo's edge
 
@@ -341,6 +335,13 @@ pan still work. In the create-post sheet, a swipe down with the panel closed sti
 sheet, and with it open only closes the panel. The sheet's lock lands a JS round trip after the drag
 starts and only blocks dismissal, so the sheet may still stretch a little on the first swipe up or
 while closing the panel.
+
+### [ ] Check dragging albums on the phone
+
+Albums list, Custom sort: hold an album until it lifts and drag it; the others make room, the list
+scrolls at the edges, the drop opens nothing and syncs to a second device. Tap and double tap work
+as before. A fast fling through all albums and a big photo album shows no blank cells (`SortableGrid`
+mounts about two screens around the view).
 
 ### [ ] Check video playback on the phone
 

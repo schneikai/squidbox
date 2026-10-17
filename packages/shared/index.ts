@@ -17,6 +17,7 @@ export * from './collections/albumAsset';
 export * from './collections/postAsset';
 export * from './collections/registry';
 export * from './fractionalIndex';
+export * from './movePositions';
 
 // Wire contracts shared between the mobile app and the server.
 export * from './contracts/auth';

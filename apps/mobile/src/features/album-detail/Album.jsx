@@ -125,7 +125,7 @@ export default function Album({ album }) {
       setSessionSortOrder('custom');
     }
     try {
-      await reorderAlbumAssets(album, { ...change, sort: sortOrder });
+      return await reorderAlbumAssets(album, { assetId: change.id, afterId: change.afterId, sort: sortOrder });
     } catch (error) {
       keepLimit({ ...query.descriptor, sort: getAlbumSortOrder(album, albumSortOrder) });
       setSessionSortOrder(null);

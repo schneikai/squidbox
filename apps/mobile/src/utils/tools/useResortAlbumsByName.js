@@ -1,9 +1,8 @@
 import { initialKeys } from '@squidbox/shared';
-import { isNull } from 'drizzle-orm';
 
-import sortAlbumsByCustomOrder from '@/features/album-list/actions/sort-albums-action/sortAlbumsByCustomOrder';
+import readAlbumsInCustomOrder from '@/features/album-list/readAlbumsInCustomOrder';
 import useAlbums from '@/features/albums-context/useAlbums';
-import { getDb, schema } from '@/sync/db/client';
+import { getDb } from '@/sync/db/client';
 
 /**
  * Reorders albums with a numeric name from highest to lowest (e.g. 230, 220, 210) so the list looks
@@ -11,15 +10,14 @@ import { getDb, schema } from '@/sync/db/client';
  * exact position.
  *
  * Works on the albums' custom order (their synced `position`): the numeric albums swap into each
- * other's slots, then every album gets a position in that order. Returns the number of numeric albums.
+ * other's slots, then every album gets a position in that order; only the changed ones are written.
+ * Returns the number of numeric albums.
  */
 export default function useResortAlbumsByName() {
   const { updateManyAlbums } = useAlbums();
 
   async function resortAlbumsByNameAsync() {
-    const currentOrder = (await getDb().select().from(schema.albums).where(isNull(schema.albums.deletedAt))).sort(
-      sortAlbumsByCustomOrder,
-    );
+    const currentOrder = await readAlbumsInCustomOrder(getDb());
 
     // Highest number first, into the numeric albums' slots in the current order.
     const numericDesc = currentOrder
@@ -29,7 +27,10 @@ export default function useResortAlbumsByName() {
     const newOrder = currentOrder.map((album) => (isNumericName(album.name) ? numericDesc[next++] : album));
 
     const positions = initialKeys(newOrder.length);
-    await updateManyAlbums(Object.fromEntries(newOrder.map((album, i) => [album.id, { position: positions[i] }])));
+    const changed = newOrder.flatMap((album, i) =>
+      album.position === positions[i] ? [] : [[album.id, { position: positions[i] }]],
+    );
+    await updateManyAlbums(Object.fromEntries(changed));
 
     return numericDesc.length;
   }

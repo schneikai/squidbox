@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic over any edge table */
-import { keyBetween, initialKeys } from '@squidbox/shared';
-import { and, eq, isNull, max, ne, sql } from 'drizzle-orm';
+import { keyBetween, initialKeys, movePositions } from '@squidbox/shared';
+import { and, eq, gt, isNull, max, ne } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
 import { nextVersion, tombstone } from './clock';
@@ -77,9 +77,9 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
   /**
    * Move `assetId` right after `afterId` (`null`: to the front) with one new position between
    * `afterId`'s canonical edge and the next live edge as the database sees it, so the caller only
-   * names the row it dropped after. Duplicate edges of the moved asset are tombstoned. When the two
-   * neighbor keys are equal (two offline appends) no key fits between: the whole order is rewritten
-   * instead. An asset that left the parent meanwhile has nothing to move, nor one dropped after one.
+   * names the row it dropped after (movePositions). When edges after it share its key (two offline
+   * appends), those are re-keyed after the moved one too. Duplicate edges of the moved asset are
+   * tombstoned. An asset that left the parent meanwhile has nothing to move, nor one dropped after one.
    */
   async function move(db: SyncDb, parentId: string, assetId: string, afterId: string | null): Promise<void> {
     await db.transaction(async (tx) => {
@@ -88,21 +88,25 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
       if (!moved) return;
       const after = afterId === null ? null : (await liveTo(tx, parentId, [afterId]))[0];
       if (afterId !== null && !after) return;
+      // The edges movePositions needs: the one dropped after, those tied with it after it, and the next.
       const others = and(eq(parentCol, parentId), isNull(t.deletedAt), ne(t.assetId, assetId));
+      const tied = after
+        ? await tx
+            .select()
+            .from(table)
+            .where(and(others, eq(t.position, after.position), gt(t.id, after.id)))
+            .orderBy(t.id)
+        : [];
       const [next] = await tx
         .select()
         .from(table)
-        .where(after ? and(others, sql`(${t.position}, ${t.id}) > (${after.position}, ${after.id})`) : others)
+        .where(after ? and(others, gt(t.position, after.position)) : others)
         .orderBy(t.position, t.id)
         .limit(1);
-      const lower = after?.position ?? null;
-      const upper = next?.position ?? null;
-      if (lower !== null && lower === upper) {
-        const order = (await liveSorted(tx, parentId)).map((e) => e.assetId).filter((id) => id !== assetId);
-        order.splice(afterId === null ? 0 : order.indexOf(afterId) + 1, 0, assetId);
-        return reorder(tx, parentId, order);
-      }
-      await save(tx, [nextVersion(moved, { position: keyBetween(lower, upper) }), ...duplicates.map(tombstone)]);
+      const neighbors = [...(after ? [after] : []), ...tied, ...(next ? [next] : []), moved];
+      const updates = movePositions(neighbors, moved.id, after?.id ?? null);
+      const changed = neighbors.filter((e) => updates[e.id]).map((e) => nextVersion(e, updates[e.id]));
+      await save(tx, [...changed, ...duplicates.map(tombstone)]);
     });
   }
 

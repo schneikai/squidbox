@@ -19,7 +19,7 @@ export default function AlbumsScreen({ navigation }) {
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterFilter: listScrollTop });
   const { searchText } = useSearchAlbumsAction();
 
-  const albums = usePreparedAlbums({ sortFn: sortFunction, filterFn: matchFilter, searchText });
+  const { albums } = usePreparedAlbums({ sortFn: sortFunction, filterFn: matchFilter, searchText });
 
   return (
     <AlbumList

@@ -100,20 +100,7 @@ describe('edgesRepository (album_assets)', () => {
     expect(live.map((e) => e.id)).not.toContain('e-a2');
   });
 
-  it('move rewrites the whole order when the two neighbor keys are equal', async () => {
-    await albumEdgeRows.createMany(db, [
-      edge('e-a', 'a', '1'),
-      edge('e-b', 'b', '5'),
-      edge('e-c', 'c', '5'),
-      edge('e-d', 'd', '9'),
-    ]);
-    await edges.move(db, AL, 'd', 'b'); // between b ('5') and c ('5'): no key fits
-    const live = await liveEdges();
-    expect(live.map((e) => e.assetId)).toEqual(['a', 'b', 'd', 'c']);
-    expect(new Set(live.map((e) => e.position)).size).toBe(4);
-  });
-
-  it('the equal-key fallback writes each asset once when the album holds a duplicate edge', async () => {
+  it('move re-keys only the edges tied with the one dropped after when no key fits between', async () => {
     await albumEdgeRows.createMany(db, [
       edge('e-a', 'a', '1'),
       edge('e-b', 'b', '5'),
@@ -121,10 +108,13 @@ describe('edgesRepository (album_assets)', () => {
       edge('e-a2', 'a', '7'), // a's duplicate, from a concurrent add on another device
       edge('e-d', 'd', '9'),
     ]);
-    await edges.move(db, AL, 'd', 'b');
+    const before = await liveEdges();
+    await edges.move(db, AL, 'd', 'b'); // between b ('5') and c ('5'): d and c go between '5' and '7'
     const live = await liveEdges();
-    expect(live.map((e) => e.assetId)).toEqual(['a', 'b', 'd', 'c']);
-    expect(new Set(live.map((e) => e.position)).size).toBe(4);
+    expect(await order()).toEqual(['a', 'b', 'd', 'c']);
+    const untouched = (e: { id: string }) => ['e-a', 'e-b', 'e-a2'].includes(e.id);
+    expect(live.filter(untouched)).toEqual(before.filter(untouched));
+    expect(live.map((e) => e.id)).toEqual(['e-a', 'e-b', 'e-d', 'e-c', 'e-a2']);
   });
 
   it('move does nothing for an asset or a target that left the album meanwhile', async () => {

@@ -9,7 +9,7 @@ const itemWidth = screenWidth / 2.7;
 
 // The albums holding any of the post's assets.
 export default function PostAlbums({ post }) {
-  const albums = useAlbumRows({ assetIds: post.postAssets.map((postAsset) => postAsset.asset.id) }) ?? [];
+  const { rows: albums = [] } = useAlbumRows({ assetIds: post.postAssets.map((postAsset) => postAsset.asset.id) });
 
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.container}>

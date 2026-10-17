@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 
 import AlbumsContext from './AlbumsContext';
+import moveAlbum from './moveAlbum';
 
 import assetQuery from '@/features/asset-list/assetQuery';
 import { getDb, schema } from '@/sync/db/client';
@@ -45,6 +46,13 @@ export default function AlbumsProvider({ children }) {
         await repo.updateMany(db, Object.fromEntries(changesById));
         requestSync();
       },
+      // A drag in the albums list: `afterId: null` drops at the front. Resolves to the write's
+      // committed-write count, as moveAlbum.
+      moveAlbum: async (change) => {
+        const writtenAt = await moveAlbum(db, repo, change);
+        requestSync();
+        return writtenAt;
+      },
       toggleFavoriteAlbum: async (album) => {
         await repo.toggle(db, album.id, 'isFavorite');
         requestSync();
@@ -67,7 +75,8 @@ export default function AlbumsProvider({ children }) {
         }
       },
       // A drag under a date sort adopts the order on screen (`sort`) and puts the album on custom
-      // order; from then on each drag is one edge write. `afterId: null` drops at the front.
+      // order; from then on each drag is one edge write. `afterId: null` drops at the front. Resolves
+      // to the write's committed-write count (AppDb.committedWrites), read before anything else runs.
       reorderAlbumAssets: async (album, { assetId, afterId, sort }) => {
         await db.transaction(async (tx) => {
           if (sort !== 'custom') {
@@ -76,7 +85,9 @@ export default function AlbumsProvider({ children }) {
           await edges.move(tx, album.id, assetId, afterId);
           if (album.sortOrder !== 'custom') await repo.update(tx, album.id, { sortOrder: 'custom' });
         });
+        const writtenAt = db.committedWrites();
         requestSync();
+        return writtenAt;
       },
       setAlbumDeleted: async (album) => {
         await db.transaction(async (tx) => {
