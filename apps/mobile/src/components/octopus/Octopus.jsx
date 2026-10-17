@@ -55,7 +55,8 @@ const ARM_MOTION = DRAWN.map(({ arm, amp, phase }) => ({
 // ...the head squeezes from its bottom middle, squashed for a moment, then springs back...
 const SQUEEZE_MS = 4 * FAST;
 const SQUEEZE = { at: [0, 0.2, 0.5, 0.75, 1], x: [1, 1.07, 0.97, 1.01, 1], y: [1, 0.9, 1.04, 0.99, 1] };
-const SQUEEZE_ORIGIN = `${(parts.headBase[0] / WIDTH) * 100}% ${(parts.headBase[1] / HEIGHT) * 100}%`;
+// Whole percents: React Native's transformOrigin parser rejects decimals (web accepts them).
+const SQUEEZE_ORIGIN = `${Math.round((parts.headBase[0] / WIDTH) * 100)}% ${Math.round((parts.headBase[1] / HEIGHT) * 100)}%`;
 
 // ...and it blows three bubbles as the squeeze peaks; each smaller one rises a little slower, so
 // they spread out on the way up and pop one by one.
