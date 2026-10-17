@@ -2,7 +2,7 @@
 const assetFileUnavailableMessages = {
   notUploaded: {
     title: 'Not uploaded yet',
-    message: 'Only on the device it was added on. Back it up there to see it here.',
+    message: 'Still uploading from your other device.',
   },
   signedOut: {
     title: 'Not signed in',
