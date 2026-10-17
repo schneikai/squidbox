@@ -48,6 +48,10 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
   const lastPanPointers = useSharedValue(0);
   // Where the finger a pan measures its distance from went down.
   const panStart = useSharedValue({ id: -1, x: 0, y: 0 });
+  // Spring and decay animations under way, so a tap that catches the image moving isn't a tap.
+  const settlingCount = useSharedValue(0);
+  // The fingers a tap has had down, and whether it landed while the image was moving.
+  const tapTouch = useSharedValue({ pointers: 0, isOnMovingImage: false });
   // For the report on unmount, after the reaction below has stopped.
   const onZoomChangeRef = useRef(onZoomChange);
 
@@ -80,10 +84,20 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
   }, [isZoomable, scale, translateX, translateY]);
 
   const gesture = useMemo(() => {
+    // One finger only, and not one that lands on a gliding or springing image: a quick two-finger
+    // touch, a tiny pinch or catching a fling isn't meant as a tap.
     const singleTap = Gesture.Tap()
       .maxDistance(TAP_SLOP)
+      .onTouchesDown((event) => {
+        const isFirst = event.numberOfTouches === 1;
+        tapTouch.value = {
+          pointers: Math.max(event.numberOfTouches, isFirst ? 0 : tapTouch.value.pointers),
+          isOnMovingImage: isFirst ? settlingCount.value > 0 : tapTouch.value.isOnMovingImage,
+        };
+      })
       .onStart(() => {
-        if (onTap) runOnJS(onTap)();
+        const { pointers, isOnMovingImage } = tapTouch.value;
+        if (onTap && pointers === 1 && !isOnMovingImage) runOnJS(onTap)();
       });
 
     if (!isZoomable) return singleTap;
@@ -122,6 +136,17 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
       return { id: touch.id, x: touch.x, y: touch.y };
     };
 
+    // Counts an animation as under way until it finishes or is cancelled.
+    const settled = () => {
+      'worklet';
+      settlingCount.value -= 1;
+    };
+    const settling = () => {
+      'worklet';
+      settlingCount.value += 1;
+      return settled;
+    };
+
     const stop = () => {
       'worklet';
       cancelAnimation(scale);
@@ -138,9 +163,9 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
       const bounds = boundsAt(toScale);
       const x = zoomAround({ translation: translateX.value, from: focal.x, to: to.x, ratio });
       const y = zoomAround({ translation: translateY.value, from: focal.y, to: to.y, ratio });
-      scale.value = withSpring(toScale, motion.spring);
-      translateX.value = withSpring(clamp(x, -bounds.x, bounds.x), motion.spring);
-      translateY.value = withSpring(clamp(y, -bounds.y, bounds.y), motion.spring);
+      scale.value = withSpring(toScale, motion.spring, settling());
+      translateX.value = withSpring(clamp(x, -bounds.x, bounds.x), motion.spring, settling());
+      translateY.value = withSpring(clamp(y, -bounds.y, bounds.y), motion.spring, settling());
     };
 
     const dragAxis = (value, delta, bound, dimension) => {
@@ -153,8 +178,8 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
       'worklet';
       const isPastEdge = Math.abs(value.value) > bound || bound === 0;
       value.value = isPastEdge
-        ? withSpring(clamp(value.value, -bound, bound), { ...motion.spring, velocity })
-        : withDecay({ velocity, clamp: [-bound, bound], rubberBandEffect: true });
+        ? withSpring(clamp(value.value, -bound, bound), { ...motion.spring, velocity }, settling())
+        : withDecay({ velocity, clamp: [-bound, bound], rubberBandEffect: true }, settling());
     };
 
     const pinch = Gesture.Pinch()
@@ -242,7 +267,20 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
       });
 
     return Gesture.Simultaneous(pinch, pan, Gesture.Exclusive(doubleTap, singleTap));
-  }, [aspectRatio, isZoomable, onTap, size, scale, translateX, translateY, lastPinch, lastPanPointers, panStart]);
+  }, [
+    aspectRatio,
+    isZoomable,
+    onTap,
+    size,
+    scale,
+    translateX,
+    translateY,
+    lastPinch,
+    lastPanPointers,
+    panStart,
+    settlingCount,
+    tapTouch,
+  ]);
 
   const zoomStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }, { translateY: translateY.value }, { scale: scale.value }],

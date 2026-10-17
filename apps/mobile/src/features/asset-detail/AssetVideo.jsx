@@ -6,6 +6,7 @@ import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated'
 
 import Icon from '@/components/Icon';
 import FloatingPill from '@/components/floating-bars/FloatingPill';
+import useAppSettings from '@/features/app-settings/useAppSettings';
 import { colors, motion, spacing, typography } from '@/styles/designTokens';
 import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';
 
@@ -16,8 +17,9 @@ const MESSAGES = {
 
 /**
  * The current page's video (`useAssetVideo`'s result), laid over its thumbnail: the video fades in
- * once its first frame is drawn, a cloud copy shows a spinner while it loads or buffers, and a video
- * that can't play says why. Touches pass through to the page. Expects a fresh mount per `video.key`.
+ * once its first frame is drawn, a cloud copy shows a spinner while it loads or buffers on its way
+ * to playing (a paused one just shows its thumbnail), and a video that can't play says why. Touches
+ * pass through to the page. Expects a fresh mount per `video.key`.
  */
 export default function AssetVideo({ video }) {
   return (
@@ -33,10 +35,14 @@ export default function AssetVideo({ video }) {
 
 function Playback({ player, isRemote }) {
   const { status } = useEvent(player, 'statusChange', { status: player.status });
+  const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
+  const { isVideoAutoplayOn } = useAppSettings();
   const [hasFirstFrame, setHasFirstFrame] = useState(false);
 
   const isFailed = status === 'error';
-  const isWaiting = isRemote && !isFailed && (!hasFirstFrame || status === 'loading');
+  // Autoplay starts it once it's ready, so until then it counts as on its way to playing.
+  const isAboutToPlay = isPlaying || (isVideoAutoplayOn && status !== 'readyToPlay');
+  const isWaiting = isRemote && !isFailed && isAboutToPlay && (!hasFirstFrame || status === 'loading');
   const videoStyle = useAnimatedStyle(() => ({ opacity: withTiming(hasFirstFrame ? 1 : 0, motion.enter) }));
 
   return (

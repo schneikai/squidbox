@@ -6,11 +6,13 @@ import DetailScrollView from '@/components/DetailScrollView';
 import LoginForm from '@/components/LoginForm';
 import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
+import Switch from '@/components/Switch';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import { DEFAULT_MODEL } from '@/features/ai-suggestions/aiSuggestionsStorage';
 import resolveModel from '@/features/ai-suggestions/resolveModel';
+import useAppSettings from '@/features/app-settings/useAppSettings';
 import confirmSignOutAsync from '@/features/cloud/confirmSignOutAsync';
 import useCloud from '@/features/cloud/useCloud';
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
@@ -30,6 +32,7 @@ export default function SettingsScreen() {
   const cloudSync = useCloudSync();
   const counts = useBackupCounts();
   const { phase, lastError, pendingCount, failedCount } = useSyncStatus();
+  const { isVideoAutoplayOn, setIsVideoAutoplayOn } = useAppSettings();
 
   const [aiModel, setAiModel] = useState(DEFAULT_MODEL);
   const [isLoggingOut, startLogoutTransition] = useTransition();
@@ -158,6 +161,17 @@ export default function SettingsScreen() {
             </Section>
           </>
         )}
+
+        <ScreenSectionHeader title="Videos" />
+        <Section>
+          <Row label="Autoplay">
+            <Switch
+              value={isVideoAutoplayOn}
+              onValueChange={setIsVideoAutoplayOn}
+              accessibilityLabel="Autoplay videos"
+            />
+          </Row>
+        </Section>
 
         <ScreenSectionHeader title="AI Caption Suggestions" />
         <Section>

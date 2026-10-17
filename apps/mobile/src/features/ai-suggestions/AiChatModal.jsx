@@ -10,7 +10,6 @@ import {
   Modal,
   Platform,
   StyleSheet,
-  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -41,6 +40,7 @@ import IconButton from '@/components/IconButton';
 import IconMenuButton from '@/components/IconMenuButton';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import Switch from '@/components/Switch';
 import Textarea from '@/components/Textarea';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { colors, radii, scale } from '@/styles/designTokens';
@@ -346,13 +346,7 @@ export default function AiChatModal({ visible, onClose, onSelect, existingText }
               <TouchableOpacity onPress={() => setShowReferencePosts(true)} style={styles.referenceLabelButton}>
                 <Text style={styles.referenceLabel}>Match my writing style</Text>
               </TouchableOpacity>
-              <Switch
-                value={includeReference}
-                onValueChange={setIncludeReference}
-                trackColor={{ false: colors.glassBorder, true: colors.accent }}
-                thumbColor={colors.textInverse}
-                style={styles.referenceSwitch}
-              />
+              <Switch value={includeReference} onValueChange={setIncludeReference} style={styles.referenceSwitch} />
             </View>
           )}
 

@@ -34,12 +34,6 @@ photo viewer (`SortableAssetGrid` with `useAssetDragReorder`).
 On the asset detail screen, swipe up (as in Apple Photos) to see details: the albums the asset
 belongs to and when it was last posted.
 
-### [ ] Fullscreen as a chrome-hiding state of the photo pager
-
-Like Apple Photos: a tap hides the header, notes and actions and turns the background black, while
-paging and the current zoom stay. Today fullscreen is a `Modal` with a second viewer in
-`AssetScreen.jsx`.
-
 ### [ ] Swipe on to the next photo from a zoomed photo's edge
 
 In Apple Photos, a zoomed photo panned to its left or right edge hands the swipe to the pager. Here
@@ -325,24 +319,39 @@ Photos in the detail view may be slightly cropped. Confirm or rule it out.
 
 ### [ ] Check photo zoom on the phone
 
-Zoom (`useZoomGesture`, in the photo pager and the fullscreen view) was only tried in the web
-preview with a mouse. On the phone, check the feel: pinch stays on the fingers and two fingers move
-the photo, lifting one finger carries on as a pan without a jump, pinching below 1× or past 4×
-springs back, a pan resists at the edges and a fling glides and stops there, double tap zooms in on
-the point and back out, and a single tap still opens/closes fullscreen without a noticeable delay.
-At 1× the pager swipes as before; zoomed, it and the swipe back from the screen's edge are locked,
-and they unlock after zooming out. Opened from the create-post sheet, the sheet can't be swiped down
-while zoomed. A pinch that zooms in from 1× and then lifts one finger carries on as a pan.
+Zoom (`useZoomGesture`, in the photo pager) was only tried in the web preview with a mouse. On the
+phone, check the feel: pinch stays on the fingers and two fingers move the photo, lifting one finger
+carries on as a pan without a jump, pinching below 1× or past 4× springs back, a pan resists at the
+edges and a fling glides and stops there, double tap zooms in on the point and back out (without
+toggling fullscreen), and a single tap toggles fullscreen without a noticeable delay. At 1× the
+pager swipes as before; zoomed, it and the swipe back from the screen's edge are locked, and they
+unlock after zooming out. Opened from the create-post sheet, the sheet can't be swiped down while
+zoomed. A pinch that zooms in from 1× and then lifts one finger carries on as a pan.
 
 ### [ ] Check video playback on the phone
 
-Videos play in the asset detail screen (`useAssetVideo`, `AssetVideo`, `VideoControls`), so far
-only tried in the web preview with a WebM. On the phone, check: a video from the phone and one only
-in the cloud start by themselves after the thumbnail, with no flash; play/pause, scrubbing, mute and
-replay after the end; a tap hides and shows the controls; swiping to another asset or leaving the
-screen stops the sound; sound plays with the silent switch on (expo-video's `.playback` session) and
-other apps' audio pauses meanwhile; a video not yet uploaded from another device says so, and
-so does saving it to the camera roll (`getAssetFileSourceAsync`).
+Videos play in the asset detail screen (`useAssetVideo`, `AssetVideo`, `VideoControls`), so far only
+tried in the web preview with a WebM. On the phone, check: a video from the phone and one only in
+the cloud start by themselves after the thumbnail, with no flash; with Settings → Videos → Autoplay
+off (`isVideoAutoplayOn`, device-local in `AppSettingsProvider`), a video shows its first frame (or
+its thumbnail) and the play button and waits, a cloud one with no spinner until play is pressed;
+play/pause, scrubbing, mute and replay after the end; swiping to another asset or leaving the screen
+stops the sound; sound plays with the silent switch on (expo-video's `.playback` session) and other
+apps' audio pauses meanwhile; a video not yet uploaded from another device says so, and so does
+saving it to the camera roll (`getAssetFileSourceAsync`).
+
+### [ ] Check fullscreen on the phone
+
+In the asset detail screen a single tap on a photo or video toggles fullscreen (`AssetScreen`,
+`FadeView`, `useChromeInsets`, `FullscreenPlayButton`), so far only tried in the web preview. On the
+phone, check: the header, notes, actions and video controls fade out, the background fades to black
+and the status bar hides; nothing hidden takes a tap or reaches VoiceOver, and after showing again
+the header's date pill and the video scrubber have their full width; it stays while swiping through
+photos and videos and a zoomed photo stays zoomed; a paused video shows a play button in the middle,
+which plays it without leaving fullscreen; a two-finger touch, a small pinch or a tap that catches a
+gliding zoomed photo doesn't toggle. On an iPhone without a notch (e.g. SE), the header doesn't move
+while the status bar hides or comes back. In the create-post sheet (`CreatePostNavigator`),
+fullscreen turns only the sheet black and leaves the status bar alone, and the sheet keeps its size.
 
 ### [ ] Check the boot screen and the octopus on the phone
 

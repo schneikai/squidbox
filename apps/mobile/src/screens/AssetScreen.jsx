@@ -1,18 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { StatusBar, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
+import FadeView from '@/components/FadeView';
 import Page from '@/components/Page';
 import FloatingDetailActionsBar from '@/components/floating-bars/FloatingDetailActionsBar';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { SCREEN_PADDING } from '@/constants';
 import AssetItem from '@/features/asset-detail/AssetItem';
 import AssetPager from '@/features/asset-detail/AssetPager';
+import FullscreenPlayButton from '@/features/asset-detail/FullscreenPlayButton';
 import VideoControls from '@/features/asset-detail/VideoControls';
 import MoreAction from '@/features/asset-detail/actions/MoreAction';
 import getCurrentAssetId from '@/features/asset-detail/getCurrentAssetId';
 import useAssetVideo from '@/features/asset-detail/useAssetVideo';
+import useChromeInsets from '@/features/asset-detail/useChromeInsets';
 import assetQuery from '@/features/asset-list/assetQuery';
 import useAssets from '@/features/assets-context/useAssets';
 import { radii, scale, spacing } from '@/styles/designTokens';
@@ -35,10 +37,13 @@ export default function AssetScreen({ route, navigation }) {
   const [selectedAssetId, setSelectedAssetId] = useState(tappedAssetId);
   const [assetIds, setAssetIds] = useState(null);
   const [center, setCenter] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPagerLocked, setIsPagerLocked] = useState(false);
-  const [areVideoControlsShown, setAreVideoControlsShown] = useState(true);
-  const insets = useSafeAreaInsets();
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  // In the create-post sheet (a page sheet, inside CreatePostNavigator) the status bar stays: hiding
+  // it can resize the sheet.
+  const isInSheet = !!navigation.getParent();
+  const isStatusBarHidden = isFullscreen && !isInSheet;
+  const chromeInsets = useChromeInsets(isStatusBarHidden);
 
   const tappedOnly = useMemo(() => [tappedAssetId], [tappedAssetId]);
   const snapshot = assetIds ?? tappedOnly;
@@ -59,9 +64,6 @@ export default function AssetScreen({ route, navigation }) {
   const headerDate = asset ? formatDetailHeaderDate(asset.createdAt) : null;
   // One player, for the current asset while it is a video, once the pager (which shows it) is up.
   const video = useAssetVideo(assetIds ? asset : null);
-  // Read by the tap handler, which stays the same so a swipe doesn't re-render every page.
-  const hasPlayerRef = useRef(false);
-  hasPlayerRef.current = !!video?.player;
 
   // Taken once the tapped asset's row has landed, so the database reads that row first and the asset
   // paints before the whole scope's ids are read.
@@ -111,37 +113,20 @@ export default function AssetScreen({ route, navigation }) {
     if (currentIndex >= 0 && !isInMiddle) setCenter(currentIndex);
   }, [currentIndex, windowStart, windowIds.length]);
 
-  // Another asset starts with its controls shown.
-  useEffect(() => setAreVideoControlsShown(true), [selectedAssetId]);
-
-  const headerTopOffset = insets.top + spacing.contentPaddingTop;
-  const closeFullscreen = useCallback(() => setIsFullscreen(false), []);
-  // A tap on a playing video shows or hides its controls; on anything else, it opens it full screen.
-  const handleTapAsset = useCallback(() => {
-    if (hasPlayerRef.current) setAreVideoControlsShown((isShown) => !isShown);
-    else setIsFullscreen(true);
-  }, []);
+  const headerTopOffset = chromeInsets.top + spacing.contentPaddingTop;
+  // Stays the same, so a tap doesn't re-render every page.
+  const handleTapAsset = useCallback(() => setIsFullscreen((isOn) => !isOn), []);
 
   if (!windowData) return <Page />;
 
   return (
     <Page>
-      <FloatingDetailHeader
-        title={headerDate?.title ?? ''}
-        subtitle={headerDate?.subtitle ?? ''}
-        onBack={() => navigation.goBack()}
-        menuSlot={asset && <MoreAction asset={asset} navigation={navigation} />}
+      <StatusBar hidden={isStatusBarHidden} animated showHideTransition="fade" />
+      <FadeView
+        isVisible={isFullscreen}
+        style={[StyleSheet.absoluteFill, styles.fullscreenBackdrop]}
+        pointerEvents="none"
       />
-
-      {!!asset?.notes && (
-        <TouchableOpacity
-          style={[styles.notesContainer, { top: headerTopOffset }]}
-          onPress={() => navigation.navigate('EditNotesModal', { type: 'asset', id: asset.id, notes: asset.notes })}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.notesText}>{asset.notes}</Text>
-        </TouchableOpacity>
-      )}
 
       {assetIds ? (
         <AssetPager
@@ -155,35 +140,43 @@ export default function AssetScreen({ route, navigation }) {
         />
       ) : (
         // Not zoomable until the pager takes over, which locks the swipes while zoomed.
-        <AssetItem asset={asset} style={styles.page} isZoomable={false} onTap={handleTapAsset} />
+        <AssetItem asset={asset} style={styles.page} onTap={handleTapAsset} />
       )}
 
-      {asset && (
-        <FloatingDetailActionsBar asset={asset} onDeleteAsset={(a) => setAssetsDeleted([a.id])} navigation={navigation}>
-          {video?.player && (
-            <VideoControls
-              key={video.key}
-              player={video.player}
-              fallbackDuration={asset.duration}
-              isVisible={areVideoControlsShown}
-            />
+      {video?.player && <FullscreenPlayButton key={video.key} player={video.player} isVisible={isFullscreen} />}
+
+      <SafeAreaInsetsContext.Provider value={chromeInsets}>
+        <FadeView isVisible={!isFullscreen} style={StyleSheet.absoluteFill} pointerEvents="box-none">
+          <FloatingDetailHeader
+            title={headerDate?.title ?? ''}
+            subtitle={headerDate?.subtitle ?? ''}
+            onBack={() => navigation.goBack()}
+            menuSlot={asset && <MoreAction asset={asset} navigation={navigation} />}
+          />
+
+          {!!asset?.notes && (
+            <TouchableOpacity
+              style={[styles.notesContainer, { top: headerTopOffset }]}
+              onPress={() => navigation.navigate('EditNotesModal', { type: 'asset', id: asset.id, notes: asset.notes })}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.notesText}>{asset.notes}</Text>
+            </TouchableOpacity>
           )}
-        </FloatingDetailActionsBar>
-      )}
 
-      {/* Full-screen overlay, zoomable like the pager — tap to dismiss. A modal is its own native root,
-          so its gestures need their own root view. Keyed by asset: another asset starts at 1×. */}
-      <Modal
-        visible={isFullscreen}
-        transparent={false}
-        animationType="fade"
-        onRequestClose={closeFullscreen}
-        statusBarTranslucent
-      >
-        <GestureHandlerRootView style={styles.fullscreenOverlay}>
-          <AssetItem key={asset?.id} asset={asset} style={styles.page} isZoomable onTap={closeFullscreen} />
-        </GestureHandlerRootView>
-      </Modal>
+          {asset && (
+            <FloatingDetailActionsBar
+              asset={asset}
+              onDeleteAsset={(a) => setAssetsDeleted([a.id])}
+              navigation={navigation}
+            >
+              {video?.player && (
+                <VideoControls key={video.key} player={video.player} fallbackDuration={asset.duration} />
+              )}
+            </FloatingDetailActionsBar>
+          )}
+        </FadeView>
+      </SafeAreaInsetsContext.Provider>
     </Page>
   );
 }
@@ -194,6 +187,9 @@ const NOTE_YELLOW_BORDER = 'rgba(200,170,0,0.25)';
 const styles = StyleSheet.create({
   page: {
     flex: 1,
+  },
+  fullscreenBackdrop: {
+    backgroundColor: '#000',
   },
   notesContainer: {
     position: 'absolute',
@@ -211,9 +207,5 @@ const styles = StyleSheet.create({
     fontSize: scale(14),
     color: '#5C4A00',
     lineHeight: 20,
-  },
-  fullscreenOverlay: {
-    flex: 1,
-    backgroundColor: '#000',
   },
 });
