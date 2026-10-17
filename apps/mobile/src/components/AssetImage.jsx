@@ -1,46 +1,66 @@
 import { useEffect, useState, useRef } from 'react';
 import { View, Image, Animated, StyleSheet } from 'react-native';
 
+import Icon from '@/components/Icon';
 import useAppSettings from '@/features/app-settings/useAppSettings';
 import useAssetThumbnailLoader from '@/features/asset-thumbnail-loader/useAssetThumbnailLoader';
 import useCloud from '@/features/cloud/useCloud';
-import { motion } from '@/styles/designTokens';
+import { colors, motion, spacing } from '@/styles/designTokens';
+import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';
+import getAssetThumbnailStatusAsync from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
 import getAssetThumbnailUri from '@/utils/assets/thumbnails/getAssetThumbnailUri';
 import hasThumbnailAsync from '@/utils/assets/thumbnails/hasThumbnailAsync';
 
 // contentFit: "cover" | "contain". The placeholder pulses until the picture has loaded (and holds
-// still while the loader can't fetch, i.e. nobody is signed in), and `overlay` (e.g. a cell's corner
-// glows) shows only then.
-export default function AssetImage({ asset = {}, contentFit, placeholderColor = 'lightgrey', overlay }) {
-  const [thumbnailUri, setThumbnailUri] = useState(null);
+// still while nobody is signed in to fetch it). `renderOverlay(hasPicture)` draws over the cell either
+// way, e.g. corner badges that only make sense over a loaded picture. A thumbnail its device hasn't
+// backed up yet gets a crossed-out cloud on the placeholder while `showNotUploaded`.
+export default function AssetImage({
+  asset = {},
+  contentFit,
+  placeholderColor = 'lightgrey',
+  renderOverlay,
+  showNotUploaded = true,
+}) {
+  // getAssetThumbnailStatusAsync's for `filename`, with the picture's `uri` once it's 'local'.
+  const [found, setFound] = useState(null);
   const [loadedUri, setLoadedUri] = useState(null);
   const { loadThumbnail } = useAssetThumbnailLoader();
   const { isAuthenticated } = useCloud();
   const { thumbnailStyle } = useAppSettings();
-
-  // A different asset must not keep showing the previous one's picture until its own is found.
-  useEffect(() => setThumbnailUri(null), [asset.thumbnailFilename]);
+  // A recycled cell must not show the previous asset's status or picture.
+  const current = found?.filename === asset.thumbnailFilename ? found : null;
+  const isLocal = current?.status === 'local';
 
   useEffect(() => {
     const filename = asset.thumbnailFilename;
-    if (!filename) return;
+    if (!filename || isLocal) return;
     let isCancelled = false;
     let interval;
 
-    async function showIfOnDisk() {
-      if (!(await hasThumbnailAsync(filename))) return false;
-      if (!isCancelled) setThumbnailUri(getAssetThumbnailUri(filename));
-      return true;
+    function showLocal() {
+      setFound({ filename, status: 'local', uri: getAssetThumbnailUri(filename) });
     }
 
     (async () => {
-      if ((await showIfOnDisk()) || isCancelled) return;
+      const status = await getAssetThumbnailStatusAsync(asset, { isAuthenticated });
+      if (isCancelled) return;
+      if (status === 'local') {
+        showLocal();
+        return;
+      }
+      setFound({ filename, status });
+      // Only a cloud copy can arrive. A not-uploaded one waits for sync to flip isThumbnailSynced,
+      // a signed-out one for the session, either of which reruns this effect.
+      if (status !== 'remote') return;
       loadThumbnail(asset);
       // Poll until the download lands. A failed request (a network hiccup during the launch-sync
       // storm, a transient 401/403) frees its key, so asking again re-enqueues it, while
       // loadThumbnail dedupes requests still in flight: a blank cell heals instead of staying blank.
       interval = setInterval(async () => {
-        if (await showIfOnDisk()) clearInterval(interval);
+        const isOnDisk = await hasThumbnailAsync(filename);
+        if (isCancelled) return;
+        if (isOnDisk) showLocal();
         else loadThumbnail(asset);
       }, 2000);
     })();
@@ -49,15 +69,38 @@ export default function AssetImage({ asset = {}, contentFit, placeholderColor = 
       isCancelled = true;
       clearInterval(interval);
     };
-  }, [asset.thumbnailFilename, asset.isThumbnailSynced, loadThumbnail]);
+  }, [asset.thumbnailFilename, asset.isThumbnailSynced, isAuthenticated, isLocal, loadThumbnail]);
+
+  const thumbnailUri = isLocal ? current.uri : null;
+  const hasPicture = !!thumbnailUri && loadedUri === thumbnailUri;
+  const showNotUploadedIcon = showNotUploaded && current?.status === 'notUploaded';
 
   if (!asset.thumbnailFilename) return null;
 
   if (!thumbnailUri) {
-    return <LoadingPlaceholder color={placeholderColor} still={!isAuthenticated} />;
+    return (
+      <>
+        <LoadingPlaceholder color={placeholderColor} still={current?.status === 'signedOut'}>
+          {showNotUploadedIcon && (
+            <View
+              style={styles.notUploaded}
+              accessible
+              accessibilityRole="image"
+              accessibilityLabel={assetFileUnavailableMessages.notUploaded.title}
+            >
+              <Icon
+                name={assetFileUnavailableMessages.notUploaded.icon}
+                size={spacing.iconSizeLarge}
+                color={colors.textSecondary}
+              />
+            </View>
+          )}
+        </LoadingPlaceholder>
+        {renderOverlay?.(false)}
+      </>
+    );
   }
 
-  const isLoaded = loadedUri === thumbnailUri;
   const styleProps = {
     flex: 1,
     resizeMode: contentFit || thumbnailStyle,
@@ -67,14 +110,15 @@ export default function AssetImage({ asset = {}, contentFit, placeholderColor = 
   return (
     <>
       <Image source={{ uri: thumbnailUri }} style={styleProps} onLoad={() => setLoadedUri(thumbnailUri)} />
-      {isLoaded ? overlay : <LoadingPlaceholder color={placeholderColor} style={StyleSheet.absoluteFill} />}
+      {!hasPicture && <LoadingPlaceholder color={placeholderColor} style={StyleSheet.absoluteFill} />}
+      {renderOverlay?.(hasPicture)}
     </>
   );
 }
 
 // Each placeholder breathes at its own pace from its own starting point, so a screen of loading cells
 // doesn't pulse as one grey surface. A still one says nothing is coming.
-function LoadingPlaceholder({ color, style, still = false }) {
+function LoadingPlaceholder({ color, style, still = false, children }) {
   const animatedValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -99,6 +143,15 @@ function LoadingPlaceholder({ color, style, still = false }) {
   return (
     <View style={[{ flex: 1, backgroundColor: color }, style]}>
       <Animated.View style={{ flex: 1, backgroundColor: 'white', opacity: overlayOpacity }} />
+      {children}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  notUploaded: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

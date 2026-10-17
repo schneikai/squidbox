@@ -95,6 +95,7 @@ export const spacing = {
   iconButtonSize: scale(44), // 44pt baseline (Apple HIG minimum tap target), scales with screen
   iconSize: scale(20), // standard icon inside a button (~45% of button size)
   iconSizeSmall: scale(18), // compact icon (avatar, secondary indicators)
+  iconSizeLarge: scale(32), // standalone icon that stands for content (e.g. a not-uploaded thumbnail)
   barPaddingX: scale(8),
   barPaddingY: scale(6),
   contentPaddingTop: scale(88),

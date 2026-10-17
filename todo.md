@@ -13,6 +13,11 @@ When thumbnails load, the ones on screen should come first. `AssetThumbnailLoade
 a stack (newest request first), but cells that scrolled away stay queued and take slots from the
 visible ones (2 batches of 12 in flight). Drop or deprioritize requests from cells that left the view.
 
+Related, in `AssetImage`: a cloud thumbnail whose download keeps failing is polled every 2 s for as
+long as its cell is mounted. The loader should report done/failed per key instead of cells polling.
+And an own asset whose local thumbnail is gone while `isThumbnailSynced` is false (e.g. after a merge)
+shows as "not uploaded" for good: nothing will upload it again.
+
 ### [ ] Drag to reorder albums
 
 The albums list has a synced custom order (`albums.position`, the default sort), but the only way to

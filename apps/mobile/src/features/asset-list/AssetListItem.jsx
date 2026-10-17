@@ -12,27 +12,30 @@ export default memo(AssetListItem);
 
 function AssetListItem({ asset, selection, showLastPostedAt }) {
   const { lastPostedAt, duration, isFavorite, isSynced, notes } = asset;
-  // The glows darken the corners behind the indicators, so they only show over a loaded picture.
-  const glows = (
+  // The glows darken the corners behind the indicators, so they only show over a loaded picture, as
+  // does the cloud badge: the placeholder says itself when a picture isn't uploaded yet.
+  const renderOverlay = (hasPicture) => (
     <>
-      <CornerGlow corner="topRight" size={80} />
-      {!!duration && <CornerGlow corner="bottomRight" size={80} />}
-      {selection && <SelectGlow selection={selection} assetId={asset.id} />}
+      {hasPicture && (
+        <>
+          <CornerGlow corner="topRight" size={80} />
+          {!!duration && <CornerGlow corner="bottomRight" size={80} />}
+          {selection && <SelectGlow selection={selection} assetId={asset.id} />}
+        </>
+      )}
+      <View style={styles.indicators}>
+        <FavoriteAssetIndicator isFavorite={isFavorite} />
+        {hasPicture && <CloudIndicator isSynced={isSynced} />}
+        <NoteIndicator hasNote={!!notes} />
+      </View>
     </>
   );
 
   return (
     <View style={styles.container}>
-      <AssetImage asset={asset} overlay={glows} />
+      <AssetImage asset={asset} renderOverlay={renderOverlay} />
       {showLastPostedAt && <LastPostedAt lastPostedAt={lastPostedAt} />}
       <VideoDuration duration={duration} />
-
-      {/* Top-right: favorite / cloud / note indicators */}
-      <View style={styles.indicators}>
-        <FavoriteAssetIndicator isFavorite={isFavorite} />
-        <CloudIndicator isSynced={isSynced} />
-        <NoteIndicator hasNote={!!notes} />
-      </View>
 
       {/* Top-left: selection indicator (empty ring or filled checkmark) */}
       {selection && <SelectRing selection={selection} assetId={asset.id} />}

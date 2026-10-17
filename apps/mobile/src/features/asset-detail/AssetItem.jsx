@@ -29,7 +29,13 @@ function AssetItem({ asset, style, isZoomable, onTap, onZoomChange, video }) {
     <GestureDetector gesture={gesture}>
       <View style={[styles.container, style]} onLayout={onLayout}>
         <Animated.View style={[styles.image, zoomStyle]}>
-          <AssetImage asset={asset} contentFit="contain" placeholderColor="transparent" />
+          <AssetImage
+            asset={asset}
+            contentFit="contain"
+            placeholderColor="transparent"
+            // AssetVideo says itself why the current video can't play.
+            showNotUploaded={!video}
+          />
         </Animated.View>
         {video && <AssetVideo key={video.key} video={video} />}
       </View>

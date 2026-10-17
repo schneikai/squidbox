@@ -37,6 +37,8 @@ const { default: getAssetThumbnailUri } = await import('../src/utils/assets/thum
 const { default: createAssetThumbnailDirectory } =
   await import('../src/utils/assets/thumbnails/createAssetThumbnailDirectory');
 const { default: hasThumbnailAsync } = await import('../src/utils/assets/thumbnails/hasThumbnailAsync');
+const { default: getAssetThumbnailStatusAsync } =
+  await import('../src/utils/assets/thumbnails/getAssetThumbnailStatusAsync');
 const { removeAssetFiles } = await import('../src/library/fs');
 
 const open = (id: string): OpenLibrary => ({ id, ...libraryPaths(id) });
@@ -87,6 +89,15 @@ describe('asset file and thumbnail paths', () => {
       'delete file:///documents/libraries/abc/files/a.jpg',
       'delete file:///caches/downloads/abc/a.jpg',
     ]);
+  });
+
+  it('a thumbnail on this device is local, one not backed up yet is not uploaded, else it’s in the cloud', async () => {
+    const status = (asset: object, isAuthenticated = true) => getAssetThumbnailStatusAsync(asset, { isAuthenticated });
+    expect(await status({ thumbnailFilename: 'present.jpg', isThumbnailSynced: false })).toBe('local');
+    expect(await status({ thumbnailFilename: 'missing.jpg', isThumbnailSynced: false })).toBe('notUploaded');
+    expect(await status({ thumbnailFilename: 'missing.jpg', isThumbnailSynced: false }, false)).toBe('notUploaded');
+    expect(await status({ thumbnailFilename: 'missing.jpg', isThumbnailSynced: true })).toBe('remote');
+    expect(await status({ thumbnailFilename: 'missing.jpg', isThumbnailSynced: true }, false)).toBe('signedOut');
   });
 
   it('removing many assets’ copies lists each folder once and deletes only the files that are there', async () => {

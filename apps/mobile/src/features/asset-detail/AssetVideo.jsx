@@ -70,7 +70,7 @@ function Playback({ player, isRemote }) {
 function messageFor(status) {
   const unavailable = assetFileUnavailableMessages[status];
   if (!unavailable) return MESSAGES[status];
-  return { icon: 'cloud-offline', text: `${unavailable.title}. ${unavailable.message}` };
+  return { icon: unavailable.icon, text: unavailable.message };
 }
 
 function Message({ message }) {
