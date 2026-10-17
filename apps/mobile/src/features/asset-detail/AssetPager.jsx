@@ -18,10 +18,21 @@ function nextZoomedAssetId({ zoomed, assetId, isZoomed }) {
  * stable list props, so a swipe re-renders the pager and only the two pages it moves between. Only
  * the current page is zoomable and shows `video`. While it is zoomed in, its pan owns the swipe: the
  * pager is locked, and `onLockChange(isLocked)` reports it so the screen can lock its swipe-back too.
+ * `verticalDrag` goes to every page (see useZoomGesture); `isPagingLocked` locks the pager too.
  */
 export default memo(AssetPager);
 
-function AssetPager({ assetIds, assetsById, currentAssetId, video, onChangeAssetId, onTapAsset, onLockChange }) {
+function AssetPager({
+  assetIds,
+  assetsById,
+  currentAssetId,
+  video,
+  verticalDrag,
+  isPagingLocked,
+  onChangeAssetId,
+  onTapAsset,
+  onLockChange,
+}) {
   const { width: pageWidth } = useWindowDimensions();
   // Pages take the pager's height explicitly: native stretches list items to it, the web doesn't.
   const [pageHeight, setPageHeight] = useState(0);
@@ -74,9 +85,10 @@ function AssetPager({ assetIds, assetsById, currentAssetId, video, onChangeAsset
         onTap={onTapAsset}
         onZoomChange={handleZoomChange}
         video={assetId === currentAssetId ? video : null}
+        verticalDrag={verticalDrag}
       />
     ),
-    [assetsById, pageStyle, currentAssetId, video, onTapAsset, handleZoomChange],
+    [assetsById, pageStyle, currentAssetId, video, verticalDrag, onTapAsset, handleZoomChange],
   );
   const getItemLayout = useCallback(
     (_, index) => ({ length: pageWidth, offset: pageWidth * index, index }),
@@ -94,7 +106,7 @@ function AssetPager({ assetIds, assetsById, currentAssetId, video, onChangeAsset
       initialScrollIndex={initialScrollIndex}
       horizontal
       pagingEnabled
-      scrollEnabled={!isLocked}
+      scrollEnabled={!isLocked && !isPagingLocked}
       bounces={false}
       showsHorizontalScrollIndicator={false}
       onScrollEndDrag={handleScrollEnd}

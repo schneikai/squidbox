@@ -37,8 +37,13 @@ const TAP_SLOP = 10;
  *
  * The gesture goes on an untransformed container (focal points are measured in it) that reports
  * `onLayout`; `zoomStyle` goes on the view inside it.
+ *
+ * With `verticalDrag` (worklets `canStart(dy)`, `onStart()`, `onChange(changeY)`, `onEnd(velocityY)`
+ * and `isOpen()`), a mostly vertical one-finger drag at 1× goes to it instead, zoomable or not (a
+ * video), when `canStart` agrees. While that drag runs or `isOpen()`, pinch and double tap don't
+ * zoom, and a double tap counts as a tap.
  */
-export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomChange }) {
+export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomChange, verticalDrag }) {
   const size = useSharedValue({ width: 0, height: 0 });
   const scale = useSharedValue(1);
   const translateX = useSharedValue(0);
@@ -48,6 +53,8 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
   const lastPanPointers = useSharedValue(0);
   // Where the finger a pan measures its distance from went down.
   const panStart = useSharedValue({ id: -1, x: 0, y: 0 });
+  // The pan under way is `verticalDrag`'s, not the zoomed image's.
+  const isDraggingVertically = useSharedValue(false);
   // Spring and decay animations under way, so a tap that catches the image moving isn't a tap.
   const settlingCount = useSharedValue(0);
   // The fingers a tap has had down, and whether it landed while the image was moving.
@@ -100,7 +107,7 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
         if (onTap && pointers === 1 && !isOnMovingImage) runOnJS(onTap)();
       });
 
-    if (!isZoomable) return singleTap;
+    if (!isZoomable && !verticalDrag) return singleTap;
 
     const boundsAt = (atScale) => {
       'worklet';
@@ -182,6 +189,12 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
         : withDecay({ velocity, clamp: [-bound, bound], rubberBandEffect: true }, settling());
     };
 
+    // The vertical drag, or what it opened, has the photo.
+    const isZoomBlocked = () => {
+      'worklet';
+      return isDraggingVertically.value || (!!verticalDrag && verticalDrag.isOpen());
+    };
+
     const pinch = Gesture.Pinch()
       .onStart((event) => {
         stop();
@@ -192,7 +205,7 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
         const latest = pinchSnapshot(event);
         lastPinch.value = latest;
         // A finger lifting or landing moves the focal point in one jump.
-        if (latest.pointers !== 2 || last.pointers !== 2) return;
+        if (latest.pointers !== 2 || last.pointers !== 2 || isZoomBlocked()) return;
         const current = scale.value;
         const next = dragWithin({
           position: current,
@@ -207,6 +220,7 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
         translateY.value = zoomAround({ translation: translateY.value, from: last.focalY, to: latest.focalY, ratio });
       })
       .onEnd(() => {
+        if (isZoomBlocked()) return;
         const { focalX, focalY } = lastPinch.value;
         zoomTo(restingScale(), { x: focalX, y: focalY });
       });
@@ -216,6 +230,10 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
       .maxDelay(DOUBLE_TAP_DELAY_MS)
       .maxDistance(TAP_SLOP)
       .onStart((event) => {
+        if (isZoomBlocked()) {
+          if (onTap) runOnJS(onTap)();
+          return;
+        }
         stop();
         const point = fromCenter(event.x, event.y);
         if (scale.value > ZOOMED_SCALE) zoomTo(1, point);
@@ -226,7 +244,7 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
     // jitter never starts a pan whose fling would undo the double tap's zoom.
     const pan = Gesture.Pan()
       .manualActivation(true)
-      .requireExternalGestureToFail(doubleTap)
+      .requireExternalGestureToFail(...(isZoomable ? [doubleTap] : []))
       .onTouchesDown((event) => {
         if (event.numberOfTouches === 1) panStart.value = touchAnchor(event);
       })
@@ -239,17 +257,37 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
           panStart.value = touchAnchor(event);
           return;
         }
-        if (Math.hypot(touch.x - start.x, touch.y - start.y) <= TAP_SLOP) return;
-        if (scale.value > ZOOMED_SCALE) manager.activate();
-        // At 1× one finger swipes the pager; two may be a pinch zooming in that carries on as a pan.
-        else if (event.numberOfTouches === 1) manager.fail();
+        const dx = touch.x - start.x;
+        const dy = touch.y - start.y;
+        if (Math.hypot(dx, dy) <= TAP_SLOP) return;
+        if (scale.value > ZOOMED_SCALE) {
+          manager.activate();
+          return;
+        }
+        // At 1× two fingers may be a pinch zooming in that carries on as a pan.
+        if (event.numberOfTouches !== 1) return;
+        if (verticalDrag && Math.abs(dy) > Math.abs(dx) && verticalDrag.canStart(dy)) {
+          isDraggingVertically.value = true;
+          manager.activate();
+        } else {
+          // One finger swiping sideways swipes the pager.
+          manager.fail();
+        }
       })
       .onStart((event) => {
+        if (isDraggingVertically.value) {
+          verticalDrag.onStart();
+          return;
+        }
         cancelAnimation(translateX);
         cancelAnimation(translateY);
         lastPanPointers.value = event.numberOfPointers;
       })
       .onChange((event) => {
+        if (isDraggingVertically.value) {
+          verticalDrag.onChange(event.changeY);
+          return;
+        }
         const hasSamePointers = event.numberOfPointers === lastPanPointers.value;
         lastPanPointers.value = event.numberOfPointers;
         // Two fingers belong to the pinch, which moves the image with them.
@@ -259,18 +297,27 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
         dragAxis(translateY, event.changeY, bounds.y, size.value.height);
       })
       .onEnd((event) => {
+        if (isDraggingVertically.value) {
+          verticalDrag.onEnd(event.velocityY);
+          return;
+        }
         // A pan last moved by two fingers was the pinch's, which settles the image itself.
         if (lastPanPointers.value !== 1) return;
         const bounds = boundsAt(restingScale());
         settleAxis(translateX, event.velocityX, bounds.x);
         settleAxis(translateY, event.velocityY, bounds.y);
+      })
+      .onFinalize(() => {
+        isDraggingVertically.value = false;
       });
 
+    if (!isZoomable) return Gesture.Simultaneous(pan, singleTap);
     return Gesture.Simultaneous(pinch, pan, Gesture.Exclusive(doubleTap, singleTap));
   }, [
     aspectRatio,
     isZoomable,
     onTap,
+    verticalDrag,
     size,
     scale,
     translateX,
@@ -278,6 +325,7 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
     lastPinch,
     lastPanPointers,
     panStart,
+    isDraggingVertically,
     settlingCount,
     tapTouch,
   ]);

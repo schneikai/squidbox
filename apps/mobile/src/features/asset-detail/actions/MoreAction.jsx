@@ -3,11 +3,11 @@ import { Alert } from 'react-native';
 
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import PopupMenu from '@/components/popup-menu-options/PopupMenu';
-import usePostsQuery from '@/features/post-list/posts-query/usePostsQuery';
+import useShowAssetPosts from '@/features/asset-detail/useShowAssetPosts';
 import getAssetFileDownloadUrlAsync from '@/utils/cloud-api/assets/getAssetFileDownloadUrlAsync';
 
 export default function MoreAction({ asset, navigation }) {
-  const { setPostsQuery } = usePostsQuery();
+  const showAssetPosts = useShowAssetPosts(navigation);
 
   function handleAddToAlbum() {
     navigation.navigate('AddToAlbumModal', { assetIds: [asset.id] });
@@ -18,8 +18,7 @@ export default function MoreAction({ asset, navigation }) {
   }
 
   function handleShowPosts() {
-    setPostsQuery(`asset:${asset.id}`);
-    navigation.navigate('PostsTab', { screen: 'PostsScreen' });
+    showAssetPosts(asset.id);
   }
 
   async function handleCopyFileUrl() {

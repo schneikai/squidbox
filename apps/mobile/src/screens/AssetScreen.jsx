@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StatusBar, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 import FadeView from '@/components/FadeView';
@@ -12,6 +13,8 @@ import AssetPager from '@/features/asset-detail/AssetPager';
 import FullscreenPlayButton from '@/features/asset-detail/FullscreenPlayButton';
 import VideoControls from '@/features/asset-detail/VideoControls';
 import MoreAction from '@/features/asset-detail/actions/MoreAction';
+import AssetDetailsPanel from '@/features/asset-detail/details/AssetDetailsPanel';
+import useDetailsPanel from '@/features/asset-detail/details/useDetailsPanel';
 import getCurrentAssetId from '@/features/asset-detail/getCurrentAssetId';
 import useAssetVideo from '@/features/asset-detail/useAssetVideo';
 import useChromeInsets from '@/features/asset-detail/useChromeInsets';
@@ -44,6 +47,7 @@ export default function AssetScreen({ route, navigation }) {
   const isInSheet = !!navigation.getParent();
   const isStatusBarHidden = isFullscreen && !isInSheet;
   const chromeInsets = useChromeInsets(isStatusBarHidden);
+  const headerTopOffset = chromeInsets.top + spacing.contentPaddingTop;
 
   const tappedOnly = useMemo(() => [tappedAssetId], [tappedAssetId]);
   const snapshot = assetIds ?? tappedOnly;
@@ -64,6 +68,8 @@ export default function AssetScreen({ route, navigation }) {
   const headerDate = asset ? formatDetailHeaderDate(asset.createdAt) : null;
   // One player, for the current asset while it is a video, once the pager (which shows it) is up.
   const video = useAssetVideo(assetIds ? asset : null);
+  const details = useDetailsPanel({ aspectRatio: asset?.width / asset?.height, headerBottom: headerTopOffset });
+  const { closeIfOpen, reset: resetDetails } = details;
 
   // Taken once the tapped asset's row has landed, so the database reads that row first and the asset
   // paints before the whole scope's ids are read.
@@ -97,14 +103,32 @@ export default function AssetScreen({ route, navigation }) {
 
   // A zoomed photo's pan owns the swipe, so the swipe back is locked with the pager, and so is the
   // swipe down that dismisses the sheet this screen may be in (CreatePostNavigator): a native-stack
-  // modal can't be swiped away without `gestureEnabled`. The sheet's swipe comes back on unmount.
+  // modal can't be swiped away without `gestureEnabled`. While the details show, a swipe down closes
+  // them, so the sheet's swipe is locked then too. The sheet's swipe comes back on unmount.
+  const isSheetLocked = isPagerLocked || details.isShown;
+  useEffect(() => {
+    navigation.setOptions({ gestureEnabled: !isPagerLocked });
+  }, [navigation, isPagerLocked]);
   useEffect(() => {
     const parent = navigation.getParent();
-    navigation.setOptions({ gestureEnabled: !isPagerLocked });
-    parent?.setOptions({ gestureEnabled: !isPagerLocked });
-    if (!isPagerLocked) return;
+    parent?.setOptions({ gestureEnabled: !isSheetLocked });
+    if (!isSheetLocked) return;
     return () => parent?.setOptions({ gestureEnabled: true });
-  }, [navigation, isPagerLocked]);
+  }, [navigation, isSheetLocked]);
+
+  // The details leave fullscreen as they start to show.
+  useEffect(() => {
+    if (details.isShown) setIsFullscreen(false);
+  }, [details.isShown]);
+
+  // The details close when the screen is left (a row opened an album or a post), releasing the
+  // sheet, and when the asset they show changes, which only a deletion does: paging is locked while
+  // they show.
+  useEffect(() => navigation.addListener('blur', resetDetails), [navigation, resetDetails]);
+  const shownAssetId = asset?.id;
+  useEffect(() => {
+    resetDetails();
+  }, [shownAssetId, resetDetails]);
 
   // Recenter once the current asset leaves the middle third of the window.
   useEffect(() => {
@@ -113,14 +137,15 @@ export default function AssetScreen({ route, navigation }) {
     if (currentIndex >= 0 && !isInMiddle) setCenter(currentIndex);
   }, [currentIndex, windowStart, windowIds.length]);
 
-  const headerTopOffset = chromeInsets.top + spacing.contentPaddingTop;
-  // Stays the same, so a tap doesn't re-render every page.
-  const handleTapAsset = useCallback(() => setIsFullscreen((isOn) => !isOn), []);
+  // Stays the same, so a tap doesn't re-render every page. While the details show, a tap closes them.
+  const handleTapAsset = useCallback(() => {
+    if (!closeIfOpen()) setIsFullscreen((isOn) => !isOn);
+  }, [closeIfOpen]);
 
   if (!windowData) return <Page />;
 
   return (
-    <Page>
+    <Page style={styles.clip}>
       <StatusBar hidden={isStatusBarHidden} animated showHideTransition="fade" />
       <FadeView
         isVisible={isFullscreen}
@@ -128,20 +153,25 @@ export default function AssetScreen({ route, navigation }) {
         pointerEvents="none"
       />
 
-      {assetIds ? (
-        <AssetPager
-          assetIds={assetIds}
-          assetsById={assetsById}
-          currentAssetId={selectedAssetId}
-          video={video}
-          onChangeAssetId={setSelectedAssetId}
-          onTapAsset={handleTapAsset}
-          onLockChange={setIsPagerLocked}
-        />
-      ) : (
-        // Not zoomable until the pager takes over, which locks the swipes while zoomed.
-        <AssetItem asset={asset} style={styles.page} onTap={handleTapAsset} />
-      )}
+      <Animated.View style={[styles.page, details.mediaStyle]} onLayout={details.onMediaLayout}>
+        {assetIds ? (
+          <AssetPager
+            assetIds={assetIds}
+            assetsById={assetsById}
+            currentAssetId={selectedAssetId}
+            video={video}
+            verticalDrag={details.verticalDrag}
+            isPagingLocked={details.isShown}
+            onChangeAssetId={setSelectedAssetId}
+            onTapAsset={handleTapAsset}
+            onLockChange={setIsPagerLocked}
+          />
+        ) : (
+          // Not zoomable (nor its details shown) until the pager takes over, which locks the swipes
+          // while zoomed.
+          <AssetItem asset={asset} style={styles.page} onTap={handleTapAsset} />
+        )}
+      </Animated.View>
 
       {video?.player && <FullscreenPlayButton key={video.key} player={video.player} isVisible={isFullscreen} />}
 
@@ -163,7 +193,14 @@ export default function AssetScreen({ route, navigation }) {
               <Text style={styles.notesText}>{asset.notes}</Text>
             </TouchableOpacity>
           )}
+        </FadeView>
 
+        {/* The details panel takes the actions' place. */}
+        <FadeView
+          isVisible={!isFullscreen && !details.isShown}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="box-none"
+        >
           {asset && (
             <FloatingDetailActionsBar
               asset={asset}
@@ -177,6 +214,16 @@ export default function AssetScreen({ route, navigation }) {
           )}
         </FadeView>
       </SafeAreaInsetsContext.Provider>
+
+      {assetIds && asset && (
+        <AssetDetailsPanel
+          asset={asset}
+          navigation={navigation}
+          isShown={details.isShown}
+          showsAllPosts={!isInSheet}
+          style={[styles.detailsPanel, details.panelStyle]}
+        />
+      )}
     </Page>
   );
 }
@@ -185,8 +232,18 @@ const NOTE_YELLOW = '#FFF3B0';
 const NOTE_YELLOW_BORDER = 'rgba(200,170,0,0.25)';
 
 const styles = StyleSheet.create({
+  // The details panel waits below the screen's edge.
+  clip: {
+    overflow: 'hidden',
+  },
   page: {
     flex: 1,
+  },
+  detailsPanel: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   fullscreenBackdrop: {
     backgroundColor: '#000',

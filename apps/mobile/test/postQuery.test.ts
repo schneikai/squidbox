@@ -106,6 +106,18 @@ describe('postQuery', () => {
     expect(await ids({ scope: 'ignored', sort: 'updatedAt:desc' })).toEqual(['p3']);
   });
 
+  it("reads an asset's last posted post first and counts all its posts, never-posted ones included", async () => {
+    await createPost('p1', { postedAt: 20 }, ['a1']);
+    await createPost('p2', { postedAt: null }, ['a1']);
+    await createPost('p3', { postedAt: 30 }, ['a1']);
+    await createPost('p4', { postedAt: 40 }, ['a2']);
+    await createPost('p5', { postedAt: 50, deletedAt: 5 }, ['a1']);
+    const { rows, count } = await postQuery({ scope: { assetId: 'a1' } }).read(db, { limit: 1, withAssets: false });
+    expect(rows.map((row) => row.id)).toEqual(['p3']);
+    expect(rows[0].postAssets).toBeUndefined();
+    expect(count).toBe(3);
+  });
+
   it('turns an asset: or album: search into that scope', async () => {
     await createPost('p1', {}, ['a1']);
     await createPost('p2', { text: 'asset' }, ['a2']);

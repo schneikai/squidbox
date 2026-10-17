@@ -23,11 +23,6 @@ again after release (`SuperPressable` with `useAssetDragSelect`); natively the p
 The same happens after a drag reorder in an album: the drop also counts as a tap and opens the
 photo viewer (`SortableAssetGrid` with `useAssetDragReorder`).
 
-### [ ] Asset details on swipe up
-
-On the asset detail screen, swipe up (as in Apple Photos) to see details: the albums the asset
-belongs to and when it was last posted.
-
 ### [ ] Swipe on to the next photo from a zoomed photo's edge
 
 In Apple Photos, a zoomed photo panned to its left or right edge hands the swipe to the pager. Here
@@ -57,8 +52,9 @@ reorder.
 
 ### [ ] Post suggestions: show and open where an asset was posted
 
-Show when the asset and its album were last posted, and allow going to the album (or to the asset
-detail screen on tap).
+In the random suggestions card (`RandomSuggestionsModal`), show when the asset and its album were
+last posted, and open the asset detail screen on tap. That screen's swipe-up details
+(`AssetDetailsPanel`) already list the asset's albums (each opens its album) and its last post.
 
 ### [ ] Save posts for later / drafts
 
@@ -201,8 +197,8 @@ The web preview (README → "Web preview") can't add photos from the camera roll
 files or pinch. Web versions exist only for tokens and thumbnails. Extend them if testing those
 flows in the browser becomes worth it. The photo viewer also doesn't follow a scroll on web:
 react-native-web's ScrollView never fires `onMomentumScrollEnd`/`onScrollEndDrag`, so
-`AssetPager` never learns the new page (header, actions and notes stay on the first photo, and only
-that photo zooms). The mock data has no video, and Playwright's Chromium can't decode H.264 or HEVC,
+`AssetPager` never learns the new page (header, actions, notes and the swipe-up details stay on the
+first photo, and only that photo zooms). The mock data has no video, and Playwright's Chromium can't decode H.264 or HEVC,
 so only a WebM plays in the preview (an iPhone's HEVC `.mov` may not play in desktop Chrome either).
 
 ### [ ] Sentry receives events from development
@@ -335,6 +331,16 @@ toggling fullscreen), and a single tap toggles fullscreen without a noticeable d
 pager swipes as before; zoomed, it and the swipe back from the screen's edge are locked, and they
 unlock after zooming out. Opened from the create-post sheet, the sheet can't be swiped down while
 zoomed. A pinch that zooms in from 1× and then lifts one finger carries on as a pan.
+
+### [ ] Check the swipe-up details on the phone
+
+The asset screen's details panel (`useDetailsPanel`, the vertical drag in `useZoomGesture`) is
+untried on a device. Check: swipe up opens it on a photo or video, swipe down or a tap closes it,
+and the photo lands above it; paging is locked while it shows; the swipe back and a zoomed photo's
+pan still work. In the create-post sheet, a swipe down with the panel closed still dismisses the
+sheet, and with it open only closes the panel. The sheet's lock lands a JS round trip after the drag
+starts and only blocks dismissal, so the sheet may still stretch a little on the first swipe up or
+while closing the panel.
 
 ### [ ] Check video playback on the phone
 

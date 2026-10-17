@@ -15,7 +15,7 @@ const e = alias(schema.postAssets, 'e');
  * What a post list shows, as SQL: `read(db, { limit })` → `{ rows, count }` from one transaction
  * (`withCount: false` skips the count, for a read of one post),
  * each row a post with `postAssets: [{ id, asset }]` (its live edges in order, one per asset, a
- * deleted asset included); `tables` → what a live read watches.
+ * deleted asset included; `withAssets: false` skips them); `tables` → what a live read watches.
  * An `asset:<id>` or `album:<id>` search becomes that scope, as the posts screen always read it.
  * Every order ends with an id tie-break, so refreshes and pages see one stable order.
  * @param {object} descriptor
@@ -78,7 +78,7 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
   return {
     descriptor,
     tables,
-    read(db, { limit, withCount = true }) {
+    read(db, { limit, withCount = true, withAssets = true }) {
       return db.transaction(async (tx) => {
         const ids = await matchedIds(tx);
         const total = withCount ? (await tx.select({ count: count() }).from(p).where(where(ids)))[0].count : undefined;
@@ -88,7 +88,7 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
           .where(where(ids))
           .orderBy(...order)
           .limit(limit);
-        return { rows: await readPostAssets(tx, posts), count: total };
+        return { rows: withAssets ? await readPostAssets(tx, posts) : posts, count: total };
       });
     },
   };
