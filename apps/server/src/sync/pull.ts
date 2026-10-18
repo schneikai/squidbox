@@ -1,7 +1,7 @@
 import { and, asc, eq, gt } from 'drizzle-orm';
 import type { PullResponse } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
-import { serverCollections, toWireRecord } from './collections.js';
+import { serverCollections } from './collections.js';
 
 const DEFAULT_LIMIT = 500;
 const MAX_LIMIT = 1000;
@@ -28,14 +28,14 @@ export async function pull(
   for (const col of Object.values(serverCollections)) {
     const table = col.table as any;
     const rows: Array<Record<string, unknown>> = await db
-      .select()
+      .select({ ...col.wireColumns, serverSeq: table.serverSeq })
       .from(col.table)
       .where(and(eq(table.userId, userId), gt(table.serverSeq, cursor)))
       .orderBy(asc(table.serverSeq))
       .limit(limit);
     if (rows.length === limit) anyHitLimit = true;
-    for (const row of rows) {
-      merged.push({ collection: col.name, serverSeq: row.serverSeq as number, record: toWireRecord(row) });
+    for (const { serverSeq, ...record } of rows) {
+      merged.push({ collection: col.name, serverSeq: serverSeq as number, record });
     }
   }
 

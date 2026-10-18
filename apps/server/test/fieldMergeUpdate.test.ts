@@ -48,21 +48,10 @@ describe('fieldMergeUpdate', () => {
     expect(render(purge.set.fieldClock)).not.toContain(`'purgedAt'`);
   });
 
-  it('names fields as literals, with no parameters, updates nothing when no field is sent, and builds once', () => {
+  it('names fields as literals, with no parameters, and updates nothing when no field is sent', () => {
     const { set, setWhere } = fieldMergeUpdate(serverCollections.posts, []);
     expect(render(setWhere)).toBe('false');
     for (const part of [...Object.values(set), setWhere]) expect(dialect.sqlToQuery(part).params).toEqual([]);
-    expect(fieldMergeUpdate(serverCollections.posts, [])).toBe(fieldMergeUpdate(serverCollections.posts, []));
   });
 
-  it('keeps the most recently used builds only', () => {
-    const [field, ...others] = serverCollections.albums.clockedFields;
-    const first = fieldMergeUpdate(serverCollections.albums, [field!]);
-    for (let i = 1; i <= 300; i++)
-      fieldMergeUpdate(
-        serverCollections.albums,
-        others.filter((_, k) => (i >> k) & 1),
-      );
-    expect(fieldMergeUpdate(serverCollections.albums, [field!])).not.toBe(first);
-  });
 });

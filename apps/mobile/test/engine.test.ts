@@ -88,11 +88,13 @@ describe('outbox fields (per-field merge)', () => {
     await settled();
 
     await repo.deleteAssets(db, [rec.id]);
-    expect(await fieldsOf(rec.id)).toEqual({ deletedAt: (await assetRow(rec.id))!.updatedAt });
+    const deletedAt = (await assetRow(rec.id))!.updatedAt;
+    expect(await fieldsOf(rec.id)).toEqual({ deletedAt, purgedAt: deletedAt }); // one field group
     await settled();
 
     await repo.purgeAssets(db, [rec.id], async () => {});
-    expect(await fieldsOf(rec.id)).toEqual({ purgedAt: (await assetRow(rec.id))!.updatedAt });
+    const purgedAt = (await assetRow(rec.id))!.updatedAt;
+    expect(await fieldsOf(rec.id)).toEqual({ deletedAt: purgedAt, purgedAt });
   });
 
   it('coalesced edits keep each field’s own clock, the payload the latest record', async () => {

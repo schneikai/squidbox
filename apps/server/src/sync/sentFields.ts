@@ -1,4 +1,4 @@
-import type { FieldClocks } from '@squidbox/shared';
+import { widenToGroups, type FieldClocks } from '@squidbox/shared';
 import type { ServerCollection } from './collections.js';
 
 /**
@@ -14,14 +14,13 @@ export function sentFields(
   now: number,
 ): FieldClocks {
   const carried = col.mergeFields.filter((field) => field in record);
-  const clocks: FieldClocks = fields
-    ? Object.fromEntries(carried.filter((field) => field in fields).map((field) => [field, fields[field]!]))
-    : Object.fromEntries(carried.map((field) => [field, record.updatedAt]));
-  for (const group of col.fieldGroups) {
-    const sent = group.filter((field) => field in clocks);
-    if (sent.length === 0) continue;
-    const clock = Math.max(...sent.map((field) => clocks[field]!));
-    for (const field of group) if (carried.includes(field)) clocks[field] = clock;
-  }
-  return Object.fromEntries(Object.entries(clocks).map(([field, clock]) => [field, Math.min(clock, now)]));
+  const clocks = widenToGroups(
+    col,
+    fields
+      ? Object.fromEntries(carried.filter((field) => field in fields).map((field) => [field, fields[field]!]))
+      : Object.fromEntries(carried.map((field) => [field, record.updatedAt])),
+  );
+  return Object.fromEntries(
+    carried.filter((field) => field in clocks).map((field) => [field, Math.min(clocks[field]!, now)]),
+  );
 }

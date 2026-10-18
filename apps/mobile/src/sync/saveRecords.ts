@@ -1,5 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic over any collection's table */
-import { collectionsByName, mergeFields, type FieldClocks } from '@squidbox/shared';
+import {
+  collectionsByName,
+  mergeFields,
+  widenToGroups,
+  type CollectionDescriptor,
+  type FieldClocks,
+} from '@squidbox/shared';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
 import { chunk, SQL_BATCH } from './chunk';
@@ -13,20 +19,29 @@ type StoredRow = { id: string } & Record<string, any>;
 /**
  * A local write: store whole records of a collection and enqueue them for push. Call it inside the
  * transaction that read them, with records already given their next `updatedAt` (see clock.ts).
- * New records are inserted, so an id that already exists fails instead of overwriting that record.
- * Otherwise `previous` holds the stored rows the records were made from (one missing counts as new);
- * the outbox row names the fields that changed from it (sync-design §6), and a record that changes
- * none is neither written nor enqueued.
+ * - `isNew`: the records are inserted, so an id that already exists fails instead of overwriting it.
+ * - `previous`: the stored rows the records were made from (one missing counts as new); the outbox
+ *   row names the fields that changed from it, and a record that changes none isn't saved.
+ * - `clocks`: the changed fields of each record with their own clocks (an edit replayed from another
+ *   library's outbox).
+ * Field groups are widened either way (sync-design §6).
  */
 export async function saveRecords<R extends SavedRecord>(
   tx: SyncDb,
   collection: string,
   table: SQLiteTable,
   records: R[],
-  saved: { isNew: true } | { previous: StoredRow[] },
+  saved: { isNew: true } | { previous: StoredRow[] } | { clocks: Map<string, FieldClocks> },
 ): Promise<void> {
-  const previous = 'previous' in saved ? saved.previous : [];
-  const fields = changedFields(collection, records, new Map(previous.map((row) => [row.id, row])));
+  const descriptor = collectionsByName[collection]!;
+  const fields =
+    'clocks' in saved
+      ? new Map([...saved.clocks].map(([id, clocks]) => [id, widenToGroups(descriptor, clocks)]))
+      : changedFields(
+          descriptor,
+          records,
+          new Map(('previous' in saved ? saved.previous : []).map((row) => [row.id, row])),
+        );
   const changed = records.filter((record) => fields.has(record.id));
   if (changed.length === 0) return;
   if ('isNew' in saved) for (const batch of chunk(changed, SQL_BATCH)) await tx.insert(table).values(batch as any);
@@ -34,24 +49,25 @@ export async function saveRecords<R extends SavedRecord>(
   await enqueueMutations(tx, collection, changed, fields);
 }
 
-// The merge fields each record changes from its previous row, widened to their field group; records
-// that change none are left out. A field the record leaves out is unchanged.
+// The merge fields each record changes from its previous row, at the record's updatedAt, widened to
+// their field groups; records that change none are left out. A field the record leaves out is unchanged.
 function changedFields(
-  collection: string,
+  descriptor: CollectionDescriptor,
   records: SavedRecord[],
   previous: Map<string, StoredRow>,
 ): Map<string, FieldClocks> {
-  const descriptor = collectionsByName[collection]!;
   const names = mergeFields(descriptor);
   const changes = new Map<string, FieldClocks>();
   for (const record of records as (SavedRecord & Record<string, unknown>)[]) {
     const prev = previous.get(record.id);
-    const carried = names.filter((name) => record[name] !== undefined);
-    const changed = new Set(carried.filter((name) => !prev || !Object.is(prev[name], record[name])));
-    for (const group of descriptor.fieldGroups)
-      if (group.some((name) => changed.has(name))) for (const name of group) changed.add(name);
-    const clocks = carried.filter((name) => changed.has(name)).map((name) => [name, record.updatedAt]);
-    if (clocks.length > 0) changes.set(record.id, Object.fromEntries(clocks));
+    const changed = names.filter(
+      (name) => record[name] !== undefined && (!prev || !Object.is(prev[name], record[name])),
+    );
+    if (changed.length > 0)
+      changes.set(
+        record.id,
+        widenToGroups(descriptor, Object.fromEntries(changed.map((name) => [name, record.updatedAt]))),
+      );
   }
   return changes;
 }

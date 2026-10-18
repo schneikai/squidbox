@@ -3,7 +3,9 @@ import { getTableColumns } from 'drizzle-orm';
 import {
   assetCollection,
   collections,
+  lostFields,
   mergeFields,
+  widenToGroups,
   pushMutationSchema,
   resolveExpiresIn,
   PRESIGN_DEFAULT_EXPIRES_IN,
@@ -73,7 +75,31 @@ describe('merge fields', () => {
         for (const field of group) expect(mergeFields(collection), `${collection.name}.${field}`).toContain(field);
       }
     }
-    expect(assetCollection.fieldGroups).toEqual([['isFileSynced', 'isThumbnailSynced', 'isSynced']]);
+    expect(assetCollection.fieldGroups).toEqual([
+      ['isFileSynced', 'isThumbnailSynced', 'isSynced'],
+      ['deletedAt', 'purgedAt'],
+    ]);
+  });
+
+  it('widen a group with a member among the clocks to all its members, at its newest clock', () => {
+    expect(widenToGroups(assetCollection, { notes: 1, isSynced: 2, isFileSynced: 3 })).toEqual({
+      notes: 1,
+      isFileSynced: 3,
+      isThumbnailSynced: 3,
+      isSynced: 3,
+    });
+    expect(widenToGroups(assetCollection, { purgedAt: 4 })).toEqual({ deletedAt: 4, purgedAt: 4 });
+    expect(widenToGroups(assetCollection, { notes: 1 })).toEqual({ notes: 1 });
+  });
+});
+
+describe('lost fields', () => {
+  it('are the sent fields the merged record holds with another value', () => {
+    const current = { notes: 'server', isFavorite: true, deletedAt: null };
+    expect(lostFields(['notes', 'isFavorite', 'deletedAt'], { notes: 'mine', isFavorite: true, deletedAt: null }, current)).toEqual([
+      'notes',
+    ]);
+    expect(lostFields(['filename'], { filename: 'a' }, current)).toEqual([]); // not in current
   });
 });
 

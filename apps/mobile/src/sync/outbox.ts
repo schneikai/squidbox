@@ -54,34 +54,17 @@ function recordsIn(collection: string, recordIds: string[]) {
   return and(eq(schema.outbox.collection, collection), inArray(schema.outbox.recordId, recordIds));
 }
 
-/** The fields the pending edits of these records changed, by record id; records without a pending row are left out. */
-export async function pendingFields(
+/** The pending edits of these records, by record id: their changed fields and updatedAt. Records without one are left out. */
+export async function pendingEdits(
   db: SyncDb,
   collection: string,
   recordIds: string[],
-): Promise<Map<string, FieldClocks>> {
+): Promise<Map<string, { fields: FieldClocks; updatedAt: number }>> {
   const rows = await db
-    .select({ recordId: schema.outbox.recordId, fields: schema.outbox.fields })
+    .select({ recordId: schema.outbox.recordId, fields: schema.outbox.fields, updatedAt: schema.outbox.updatedAt })
     .from(schema.outbox)
     .where(and(eq(schema.outbox.collection, collection), inJson(schema.outbox.recordId, recordIds)));
-  return new Map(rows.map((r) => [r.recordId, r.fields]));
-}
-
-/** The outbox rows' updatedAt of these records, by record id; records without a pending row are left out. */
-export async function outboxUpdatedAts(
-  db: SyncDb,
-  collection: string,
-  recordIds: string[],
-): Promise<Map<string, number>> {
-  const updatedAts = new Map<string, number>();
-  for (const batch of chunk(recordIds, SQL_BATCH)) {
-    const rows = await db
-      .select({ recordId: schema.outbox.recordId, updatedAt: schema.outbox.updatedAt })
-      .from(schema.outbox)
-      .where(recordsIn(collection, batch));
-    for (const row of rows) updatedAts.set(row.recordId, row.updatedAt);
-  }
-  return updatedAts;
+  return new Map(rows.map(({ recordId, ...edit }) => [recordId, edit]));
 }
 
 export async function clearOutboxRows(db: SyncDb, collection: string, recordIds: string[]): Promise<void> {

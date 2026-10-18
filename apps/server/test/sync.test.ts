@@ -539,6 +539,19 @@ d('sync engine (Postgres)', () => {
       expect((await stored(r.id)).fieldClock).toMatchObject({ notes: 5000, isFavorite: 2000 });
     });
 
+    it('a push to a purged asset that doesn’t have the purge is skipped with it, even if every sent field holds', async () => {
+      const r = { ...assetRecord({ deletedAt: 1000 }), purgedAt: null as number | null };
+      await push(db, USER_A, [mut(r)]);
+      await push(db, USER_A, [edit({ ...r, updatedAt: 2000, purgedAt: 2000 }, ['deletedAt', 'purgedAt'])]);
+      // A device whose deletion the server already has, pushing it again without the purge.
+      const [again] = await push(db, USER_A, [edit({ ...r, updatedAt: 1000 }, ['notes'])]);
+      expect(again).toMatchObject({ status: 'skipped-lww', current: { purgedAt: 2000 } });
+      const { purgedAt: _purgedAt, ...olderApp } = r; // an app that doesn't know purges
+      expect((await push(db, USER_A, [mut(olderApp)]))[0]).toMatchObject({ status: 'skipped-lww' });
+      const purge = edit({ ...r, updatedAt: 2000, purgedAt: 2000 }, ['deletedAt', 'purgedAt']);
+      expect((await push(db, USER_A, [purge]))[0].status).toBe('applied'); // the purge's own replay
+    });
+
     it('clamps a future field clock to server time', async () => {
       const r = assetRecord();
       await push(db, USER_A, [mut(r)]);
@@ -679,13 +692,14 @@ d('sync engine (Postgres)', () => {
       expect(results[2]).toMatchObject({ status: 'skipped-lww', current: { deletedAt: 3000, purgedAt: 2500 } });
     });
 
-    it('a purge alone on a live row changes nothing', async () => {
+    it('a purge alone on a live row doesn’t apply; its deletion pair merges the live deletedAt', async () => {
       const r = assetRecord();
       await push(db, USER_A, [mut(r)]);
       const before = await raw(r.id);
       const [result] = await push(db, USER_A, [at({ ...r, updatedAt: 2000, purgedAt: 2000 }, 2000, ['purgedAt'])]);
       expect(result).toMatchObject({ status: 'skipped-lww', current: { purgedAt: null } });
-      expect(await raw(r.id)).toEqual(before);
+      // deletedAt and purgedAt are one field group: the pushed (null) deletedAt is merged at the purge's clock.
+      expect(await raw(r.id)).toMatchObject({ ...before, fieldClock: { ...before.fieldClock, deletedAt: 2000 }, updatedAt: 2000, serverSeq: expect.any(Number) });
     });
 
     it('an edge removal stays removed when a newer reorder of it arrives, and keeps the new position', async () => {

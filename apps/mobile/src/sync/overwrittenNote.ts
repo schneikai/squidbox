@@ -1,4 +1,4 @@
-import type { OutboxRow } from './db/schema';
+import { lostFields, type FieldClocks } from '@squidbox/shared';
 
 /**
  * The sync log's note for a push that lost to the server (sync-design §13): the pushed fields whose
@@ -7,11 +7,10 @@ import type { OutboxRow } from './db/schema';
 export function overwrittenNote(
   collection: string,
   id: string,
-  pushed: OutboxRow | undefined,
+  fields: FieldClocks,
+  payload: Record<string, unknown>,
   current: Record<string, unknown>,
 ): string {
-  const lost = Object.keys(pushed?.fields ?? {}).filter(
-    (field) => field in current && !Object.is(current[field], pushed!.payload[field]),
-  );
+  const lost = lostFields(Object.keys(fields), payload, current);
   return `${collection} ${id}: ${lost.length > 0 ? lost.join(', ') : 'local change'} overwritten by server`;
 }

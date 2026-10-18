@@ -32,8 +32,12 @@ export const assetCollection = defineCollection({
   localOnly: {
     syncError: z.string().nullable(),
   },
-  // isSynced is derived from the other two, so they merge as one (sync-design §7).
-  fieldGroups: [['isFileSynced', 'isThumbnailSynced', 'isSynced']],
+  // isSynced is derived from the file flags, and a purge only goes with a deletion: each set merges
+  // as one (sync-design §7).
+  fieldGroups: [
+    ['isFileSynced', 'isThumbnailSynced', 'isSynced'],
+    ['deletedAt', 'purgedAt'],
+  ],
   finalField: 'purgedAt',
 });
 

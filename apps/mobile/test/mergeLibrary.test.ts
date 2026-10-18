@@ -333,7 +333,7 @@ describe('replays against a pending edit of the target (adversarial)', () => {
   // for the one that wasn't replayed. Here the source's purge replays and drags its old deletedAt
   // onto the target's newer restore: the outbox then pushes deletedAt=5000 under the restore's clock,
   // so the restore is lost and the stale purge applies on the server.
-  it.fails('a device purge does not undo the account’s newer pending restore', async () => {
+  it('a device purge does not undo the account’s newer pending restore', async () => {
     const shared = await sharedDeletedAsset();
     await repo.purgeAssets(source, [shared.id], noFiles); // the device purges it, not pushed
     await tick();
@@ -350,7 +350,7 @@ describe('replays against a pending edit of the target (adversarial)', () => {
   // BUG (same root cause): the source's delete replays and drags its purgedAt (null) over the
   // target's pending purge; the outbox keeps the purge's clock but pushes purgedAt=null, so the purge
   // (whose files this device already removed) never reaches the server and the asset is un-purged here.
-  it.fails('a device delete does not undo the account’s pending purge', async () => {
+  it('a device delete does not undo the account’s pending purge', async () => {
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, deletedAt: 5000, syncError: null }]);
@@ -376,7 +376,7 @@ describe('replays against a pending edit of the target (adversarial)', () => {
     const [row] = await target.select().from(schema.assets);
     const [pending] = await outbox(target);
     expect(row).toMatchObject({ notes: 'device notes', deletedAt: 5000, purgedAt: expect.any(Number) });
-    expect(Object.keys(pending!.fields).sort()).toEqual(['notes', 'purgedAt']);
+    expect(Object.keys(pending!.fields).sort()).toEqual(['deletedAt', 'notes', 'purgedAt']); // the purge's group
     expect(pending!.payload).toMatchObject({ notes: 'device notes', deletedAt: 5000, purgedAt: row!.purgedAt });
   });
 

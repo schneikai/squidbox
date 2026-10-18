@@ -1,3 +1,4 @@
+import { collectionsByName, widenToGroups } from '@squidbox/shared';
 import { and, isNull } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
@@ -10,11 +11,10 @@ import { nextVersion } from '@/sync/clock';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
-import { enqueueMutations, pendingFields } from '@/sync/outbox';
+import { pendingEdits } from '@/sync/outbox';
+import { overlayFields } from '@/sync/overlayFields';
 import { readByIdMap, readByIds } from '@/sync/readByIds';
 import { saveRecords } from '@/sync/saveRecords';
-import { upsertRows } from '@/sync/upsertRows';
-import { withDeletionPair } from '@/sync/withDeletionPair';
 import getAssetFileUri from '@/utils/assets/files/getAssetFileUri';
 import getAssetFilesDirectory from '@/utils/assets/files/getAssetFilesDirectory';
 import getAssetThumbnailUri from '@/utils/assets/thumbnails/getAssetThumbnailUri';
@@ -57,19 +57,22 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
 
   // A source outbox row for a record the target has replays each of its fields with its own clock,
   // unless the target's own pending edit of that field is as new: the server's per-field merge
-  // settles the rest against what it holds.
-  async function collectReplays(collection: string, targetRows: Map<string, unknown>) {
-    const candidates = sourceOutbox.filter((row) => row.collection === collection && targetRows.has(row.recordId));
+  // settles the rest against what it holds. Both sides are widened to their field groups first, so a
+  // group (a deletion and its purge) is replayed or kept whole.
+  async function collectReplays(collection: string, targetIds: Set<string>) {
+    const candidates = sourceOutbox.filter((row) => row.collection === collection && targetIds.has(row.recordId));
     if (candidates.length === 0) return;
-    const pending = await pendingFields(
+    const descriptor = collectionsByName[collection]!;
+    const pending = await pendingEdits(
       target,
       collection,
       candidates.map((row) => row.recordId),
     );
     for (const row of candidates) {
-      const targetClocks = pending.get(row.recordId) ?? {};
-      const fields = Object.entries(row.fields).filter(([field, clock]) => (targetClocks[field] ?? -1) < clock);
-      if (fields.length > 0) replays.push({ ...row, fields: Object.fromEntries(fields) });
+      const fields = widenToGroups(descriptor, row.fields);
+      const targetClocks = widenToGroups(descriptor, pending.get(row.recordId)?.fields ?? {});
+      const replayed = Object.entries(fields).filter(([field, clock]) => (targetClocks[field] ?? -1) < clock);
+      if (replayed.length > 0) replays.push({ ...row, fields: Object.fromEntries(replayed) });
     }
   }
 
@@ -85,7 +88,7 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
       table,
       sourceRows.map((row) => row.id),
     );
-    await collectReplays(collection, targetRows);
+    await collectReplays(collection, new Set(targetRows.keys()));
     return { fresh: live(sourceRows).filter((row) => !targetRows.has(row.id)), targetRows };
   }
 
@@ -236,7 +239,7 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<void>
       );
     }
     // A replayed edit is written to the target's row as well as its outbox: a push alone would leave
-    // the row stale, and the pull skips a record with a pending outbox row. Its fields go onto the
+    // the row stale, and the pull keeps a pending record's fields local. Its fields go onto the
     // target's row and into the target's outbox with the source's own clocks, for the server to merge.
     for (const collection of new Set(plan.replays.map((row) => row.collection))) {
       const table = clientCollectionTables[collection]!;
@@ -248,19 +251,12 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<void>
       );
       const records = replays.flatMap((row) => {
         const targetRow = targetRows.get(row.recordId);
-        return targetRow ? [replayed(collection, row, targetRow)] : [];
+        return targetRow ? [overlayFields(collection, targetRow, row.payload as Row, row.fields)] : [];
       });
-      await upsertRows(tx, collection, table, records);
-      await enqueueMutations(tx, collection, records, new Map(replays.map((row) => [row.recordId, row.fields])));
+      const clocks = new Map(replays.map((row) => [row.recordId, row.fields]));
+      await saveRecords(tx, collection, table, records, { clocks });
     }
   });
-}
-
-// A source outbox row's edit applied to the target's row: the fields it replays.
-function replayed(collection: string, row: schema.OutboxRow, target: Row): Row {
-  const fields = withDeletionPair(collection, Object.keys(row.fields));
-  const changes = Object.fromEntries(fields.map((field) => [field, row.payload[field]]));
-  return { ...target, ...changes, updatedAt: Math.max(target.updatedAt, row.updatedAt) };
 }
 
 /**

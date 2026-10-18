@@ -5,14 +5,8 @@ import { unsharedFiles, type RemoveFiles } from './assetsRepository';
 import { clientCollectionTables } from './clientCollections';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
-import {
-  clearOutboxRows,
-  outboxUpdatedAts,
-  pendingFields,
-  pushableOutboxRows,
-  retryFailures,
-  setOutboxError,
-} from './outbox';
+import { clearOutboxRows, pendingEdits, pushableOutboxRows, retryFailures, setOutboxError } from './outbox';
+import { overlayFields } from './overlayFields';
 import { overwrittenNote } from './overwrittenNote';
 import { planPushOutcome } from './pushPlan';
 import { readByIdMap, readByIds } from './readByIds';
@@ -21,7 +15,6 @@ import { createSingleFlight } from './singleFlight';
 import { getCursor, setCursor, patchStatus, appendSyncLog, markFirstSyncDone, clearFirstSyncDone } from './status';
 import type { SyncTransport } from './transport';
 import { upsertRows } from './upsertRows';
-import { withDeletionPair } from './withDeletionPair';
 import type { AssetFileNames } from '../library/fs';
 import type { LibraryPaths } from '../library/libraryPaths';
 import type { SyncIdentity } from '../library/sessionMatches';
@@ -136,7 +129,7 @@ async function applyPushResults(
 ): Promise<string[]> {
   const notes: string[] = [];
   for (const [collection, group] of groupByCollection(results)) {
-    const current = await outboxUpdatedAts(
+    const current = await pendingEdits(
       tx,
       collection,
       group.map((result) => result.id),
@@ -150,13 +143,13 @@ async function applyPushResults(
       const plan = planPushOutcome({
         status: result.status,
         pushedUpdatedAt: row?.updatedAt ?? 0,
-        currentOutboxUpdatedAt: current.get(result.id) ?? null,
+        currentOutboxUpdatedAt: current.get(result.id)?.updatedAt ?? null,
       });
       if (plan.adoptCurrent && result.current) {
         try {
           await tx.transaction((savepoint) => applyRecord(savepoint, collection, result.current!));
           // Conflict/rebase visibility (sync-design §13): a local change lost and was overwritten.
-          notes.push(overwrittenNote(collection, result.id, row, result.current));
+          notes.push(overwrittenNote(collection, result.id, row?.fields ?? {}, row?.payload ?? {}, result.current));
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           flag(result.id, message);
@@ -264,17 +257,17 @@ async function applyChanges(
     let applied = 0;
     for (const [name, table] of Object.entries(clientCollectionTables)) {
       if (changes[name].length === 0) continue;
-      const pending = await pendingFields(
+      const pending = await pendingEdits(
         tx,
         name,
         changes[name].map((record) => String(record.id)),
       );
       const local = await readByIdMap(tx, table, [...pending.keys()]);
       const rows = changes[name].flatMap((record) => {
-        const fields = pending.get(String(record.id));
-        if (!fields) return [record];
+        const edit = pending.get(String(record.id));
+        if (!edit) return [record];
         const row = local.get(String(record.id));
-        return row ? [withLocalFields(name, record, row, Object.keys(fields))] : [];
+        return row ? [overlayFields(name, record as { updatedAt: number }, row, edit.fields)] : [];
       });
       await upsertRows(tx, name, table, rows);
       applied += rows.length;
@@ -282,20 +275,6 @@ async function applyChanges(
     await setCursor(tx, cursor);
     return applied;
   });
-}
-
-// The incoming record with the local values of the pending fields. A deletion and the final field
-// (a purge) stay together, so a pending purge and an incoming restore can't make a live purged record.
-// updatedAt is the newer of the two, so this device's next edit gets a clock above the pulled one.
-function withLocalFields(
-  collection: string,
-  record: Record<string, unknown>,
-  local: Record<string, unknown>,
-  fields: string[],
-): Record<string, unknown> {
-  const kept = withDeletionPair(collection, fields);
-  const values = Object.fromEntries(kept.map((field) => [field, local[field]]));
-  return { ...record, ...values, updatedAt: Math.max(Number(local.updatedAt), Number(record.updatedAt)) };
 }
 
 // The files of the purged assets among these records that aren't purged here yet, so an echo or an
@@ -325,8 +304,8 @@ export async function clearOutbox(db: SyncDb): Promise<void> {
 /**
  * Full resync (sync-design §13): wipe the collection tables, the cursor and the first-sync flag (the
  * setup gate shows again), then re-run sync (push any pending, then a fresh full pull from
- * cursor=0). The outbox stays and its edits are put back, since the pull skips records with an
- * outbox row and one the server keeps rejecting would otherwise vanish from the app. Warn on a
+ * cursor=0). The outbox stays and its edits are put back: the pull keeps their fields from the
+ * local row, and an edit the server keeps rejecting would otherwise vanish from the app. Warn on a
  * non-empty outbox before calling (this rebuilds local state from the server).
  */
 export async function fullResync(db: SyncDb, transport: SyncTransport, options: SyncRunOptions = {}): Promise<void> {

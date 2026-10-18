@@ -11,10 +11,11 @@ import { readLiveAsset } from './helpers/readLiveAsset';
 import { makeTestDb } from './helpers/testDb';
 // Real server engine (against docker Postgres) — the other side of the round-trip.
 import * as serverSchema from '../../server/src/db/schema.js';
-import { serverCollections, toWireRecord } from '../../server/src/sync/collections.js';
+import { serverCollections } from '../../server/src/sync/collections.js';
 import { pull as serverPull } from '../../server/src/sync/pull.js';
 import { deletePurgedFiles } from '../../server/src/sync/purgedFiles.js';
 import { push as serverPush } from '../../server/src/sync/push.js';
+import { sentFields } from '../../server/src/sync/sentFields.js';
 import { libraryPaths } from '../src/library/libraryPaths';
 import { applyMerge, planMerge } from '../src/library/mergeLibrary';
 import * as repo from '../src/sync/assetsRepository';
@@ -313,10 +314,14 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       .where(and(eq(table.userId, USER2), eq(table.id, id)));
     return row as Record<string, any> | undefined;
   }
-  const serverRow = async (collection: string, id: string) => {
-    const row = await serverRaw(collection, id);
-    return row && toWireRecord(row);
-  };
+  async function serverRow(collection: string, id: string) {
+    const { table, wireColumns } = serverCollections[collection]!;
+    const [row] = await pgDb
+      .select(wireColumns)
+      .from(table)
+      .where(and(eq((table as any).userId, USER2), eq((table as any).id, id)));
+    return row as Record<string, any> | undefined;
+  }
   async function localRow(device: SyncDb, collection: string, id: string) {
     const table = clientCollectionTables[collection] as any;
     const [row] = await device.select().from(table).where(eq(table.id, id));
@@ -329,14 +334,16 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       const mutation = mutations[i]!;
       const col = serverCollections[mutation.collection]!;
       const record = mutation.record as Record<string, unknown>;
-      const carried = col.mergeFields.filter((field) => field in record);
-      const merged = mutation.fields ? carried.filter((field) => field in mutation.fields!) : carried;
+      const merged = Object.keys(sentFields(col, record as never, mutation.fields, Number.MAX_SAFE_INTEGER));
       const row = await serverRow(mutation.collection, result.id);
       const lost = merged.filter((field) => !Object.is(row?.[field], record[field]));
+      const final = col.finalField;
+      const purgeMissing = !!final && row?.[final] != null && !Object.is(row[final], record[final] ?? null);
       const where = `${mutation.collection} ${result.id}`;
-      if (result.status === 'applied' && lost.length > 0) violations.push(`${where}: applied, but lost ${lost}`);
+      if (result.status === 'applied' && (lost.length > 0 || purgeMissing))
+        violations.push(`${where}: applied, but lost ${lost}${purgeMissing ? ' (no purge)' : ''}`);
       if (result.status === 'skipped-lww') {
-        if (lost.length === 0) violations.push(`${where}: skipped-lww, but every pushed field holds`);
+        if (lost.length === 0 && !purgeMissing) violations.push(`${where}: skipped-lww, but every pushed field holds`);
         try {
           expect(result.current).toEqual(row);
         } catch {
@@ -646,18 +653,24 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       }
     });
 
-    it('a purge newer than a restore it hadn’t seen loses to it', async () => {
-      const id = await seedAsset();
-      await edit(B, S + 100, () => repo.deleteAssets(B, [id]));
-      await settle();
-      await edit(B, S + 200, () => repo.updateAllAssets(B, [id], { deletedAt: null }));
-      await sync(B);
-      await edit(A, S + 300, () => repo.purgeAssets(A, [id], async () => {}));
-      await settle();
-      expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: null, purgedAt: null });
+    // deletedAt and purgedAt are one field group: a purge carries the deletion at its own clock, so
+    // against a restore it hadn't seen the later of the two wins, like any write of one field.
+    it('a purge and a restore it hadn’t seen: the later one wins', async () => {
+      for (const purgeLater of [true, false]) {
+        const id = await seedAsset();
+        await edit(B, S + 100, () => repo.deleteAssets(B, [id]));
+        await settle();
+        await edit(B, purgeLater ? S + 200 : S + 400, () => repo.updateAllAssets(B, [id], { deletedAt: null }));
+        await sync(B);
+        await edit(A, S + 300, () => repo.purgeAssets(A, [id], async () => {}));
+        await settle();
+        expect(await expectConverged('assets', id)).toMatchObject(
+          purgeLater ? { deletedAt: S + 100, purgedAt: S + 300 } : { deletedAt: null, purgedAt: null },
+        );
+      }
     });
 
-    it('an offline delete and purge coalesced in one push still lose to a restore they hadn’t seen', async () => {
+    it('an offline delete and purge coalesced in one push go as one group, at the purge’s clock', async () => {
       const id = await seedAsset();
       await edit(B, S + 100, () => repo.deleteAssets(B, [id]));
       await sync(B);
@@ -666,11 +679,53 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       await edit(A, S + 200, () => repo.deleteAssets(A, [id])); // A saw neither
       await edit(A, S + 400, () => repo.purgeAssets(A, [id], async () => {}));
       expect((await A.select().from(clientSchema.outbox))[0]!.fields).toEqual({
-        deletedAt: S + 200,
+        deletedAt: S + 400,
         purgedAt: S + 400,
       });
       await settle();
-      expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: null, purgedAt: null });
+      // Newer than the restore it hadn't seen, so it wins (an older one loses, as above).
+      expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: S + 200, purgedAt: S + 400 });
+    });
+
+    it('a deletion whose push landed unanswered, then a purge elsewhere: the device still takes the purge', async () => {
+      const id = await seedAsset();
+      const refused = (req: { mutations: PushMutation[] }) => ({
+        results: req.mutations.map((m) => ({
+          id: String(m.record.id),
+          collection: m.collection,
+          status: 'rejected' as const,
+          reason: 'no answer',
+        })),
+      });
+      const pull: SyncTransport['pull'] = (req) =>
+        serverPull(pgDb as any, USER2, { cursor: req.cursor, limit: req.limit });
+      await edit(B, S + 100, () => repo.deleteAssets(B, [id]));
+      at(SERVER_NOW);
+      await runSyncOnce(B, {
+        push: async (req) => {
+          await serverPush(pgDb as any, USER2, req.mutations); // it lands, but B never hears back
+          return refused(req);
+        },
+        pull,
+      });
+      await retryFailures(B);
+      await sync(A);
+      await edit(A, S + 200, () => repo.purgeAssets(A, [id], async () => {}));
+      await sync(A);
+
+      const removed: string[] = [];
+      const removeFiles: RemoveFiles = async (files) => {
+        removed.push(...files.flatMap((f) => (f.filename ? [f.filename] : [])));
+      };
+      at(SERVER_NOW);
+      await runSyncOnce(B, { push: async (req) => refused(req), pull }, { removeFiles }); // pulls the purge
+      expect(await localRow(B, 'assets', id)).toMatchObject({ purgedAt: S + 200 });
+      await retryFailures(B);
+      await sync(B, { removeFiles }); // its deletion again: the server answers with the purge
+      expect(pushLog.at(-1)!.results[0]!.status).toBe('skipped-lww');
+      await settle();
+      expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: S + 100, purgedAt: S + 200 });
+      expect(removed).toEqual(['a.jpg']);
     });
 
     it('pushes to a purged row stay frozen: new apps, an old app, a restore, nothing moves it', async () => {
@@ -909,7 +964,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     // BUG (mergeLibrary.ts replayed() + withDeletionPair): see mergeLibrary.test.ts. The device's
     // older purge replays with its old deletedAt under the account's newer restore clock, so the
     // server takes the stale delete, applies the purge, and the restore is lost on every device.
-    it.fails('a device purge older than the account’s pending restore loses to it everywhere', async () => {
+    it('a device purge older than the account’s pending restore loses to it everywhere', async () => {
       const id = await seedAsset();
       await edit(A, S + 50, () => repo.deleteAssets(A, [id]));
       await settle();
@@ -1081,7 +1136,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       const byId = async (device: SyncDb) =>
         new Map((await device.select().from(clientSchema.assets)).map((row) => [row.id, synced('assets', row)]));
       const serverRows = await pgDb.select().from(serverSchema.assets).where(eq(serverSchema.assets.userId, USER2));
-      const server = new Map(serverRows.map((row) => [row.id, synced('assets', toWireRecord(row))]));
+      const server = new Map(serverRows.map((row) => [row.id, synced('assets', row)]));
       expect(server.size).toBe(n);
       expect(await byId(A)).toEqual(server);
       expect(await byId(B)).toEqual(server);

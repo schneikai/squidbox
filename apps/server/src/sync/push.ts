@@ -1,7 +1,7 @@
 import { and, eq, sql } from 'drizzle-orm';
-import type { FieldClocks, PushMutation, PushResult } from '@squidbox/shared';
+import { lostFields, type FieldClocks, type PushMutation, type PushResult } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
-import { serverCollections, toWireRecord, type ServerCollection } from './collections.js';
+import { serverCollections, type ServerCollection } from './collections.js';
 import { fieldMergeUpdate } from './fieldMergeUpdate.js';
 import { sentFields } from './sentFields.js';
 
@@ -107,8 +107,10 @@ async function applyMutations(
   return results;
 }
 
-// A sent field is lost when the row holds another value for it after the merge; then `current`, the
-// merged row with the fields that did apply, is what the device adopts. A replay is 'applied'.
+// The merged row is 'applied' when every sent field holds the pushed value. Otherwise the push lost
+// a field, or the row is purged and the pushed record doesn't have the purge: then it is
+// 'skipped-lww' with the whole merged record as `current`, for the device to adopt. A replay is
+// 'applied'. Only the columns the check needs come back from the upsert.
 async function upsert(
   tx: Tx,
   col: ServerCollection,
@@ -118,29 +120,32 @@ async function upsert(
 ): Promise<PushResult> {
   const table = col.table as any;
   const sent = col.mergeFields.filter((field) => field in fields);
-  const fieldClock = Object.fromEntries(sent.filter((field) => field !== col.finalField).map((f) => [f, fields[f]]));
+  const fieldClock = Object.fromEntries(col.clockedFields.filter((f) => f in fields).map((f) => [f, fields[f]]));
   const { set, setWhere } = fieldMergeUpdate(col, sent);
+  const checked = [...new Set(['id', ...sent, ...(col.finalField ? [col.finalField] : [])])];
   const [updated] = await tx
     .insert(col.table)
     .values({ ...record, userId, fieldClock })
     .onConflictDoUpdate({ target: [table.userId, table.id], set, setWhere })
-    .returning();
+    .returning(Object.fromEntries(checked.map((field) => [field, col.wireColumns[field]!])) as any);
   const row: Record<string, unknown> = updated ?? (await currentRow(tx, col, userId, record.id));
-  const result = (status: PushResult['status'], current?: Record<string, unknown>): PushResult => ({
-    id: record.id,
-    collection: col.name,
-    status,
-    ...(current && { current }),
-  });
-  const lost = sent.some((field) => !Object.is(row[field], record[field]));
-  return lost ? result('skipped-lww', toWireRecord(row)) : result('applied');
+  if (!isLost(col, sent, record, row)) return { id: record.id, collection: col.name, status: 'applied' };
+  const current = updated ? await currentRow(tx, col, userId, record.id) : row;
+  return { id: record.id, collection: col.name, status: 'skipped-lww', current };
 }
 
-async function currentRow(tx: Tx, col: ServerCollection, userId: string, id: string) {
+function isLost(col: ServerCollection, sent: string[], record: ValidRecord, row: Record<string, unknown>): boolean {
+  if (lostFields(sent, record, row).length > 0) return true;
+  const final = col.finalField;
+  return final !== undefined && row[final] != null && !Object.is(row[final], record[final] ?? null);
+}
+
+// The row's client-facing record.
+async function currentRow(tx: Tx, col: ServerCollection, userId: string, id: string): Promise<Record<string, unknown>> {
   const table = col.table as any;
   const [row] = await tx
-    .select()
+    .select(col.wireColumns)
     .from(col.table)
     .where(and(eq(table.userId, userId), eq(table.id, id)));
-  return row;
+  return row!;
 }
