@@ -143,6 +143,14 @@ together; an existing local compose volume needs a dump and restore (or a fresh 
 `npm ci` runs ngrok's postinstall, which downloads its binary on every run and fails the install
 when the download fails. CI doesn't need it. Make `ngrok` optional or skip its script in CI.
 
+### [ ] One vertical drag per asset page
+
+The photo's drag (`verticalDrag` in `useZoomGesture`) and the details panel's pan
+(`useDetailsPanelDrag`) feed one track as two gestures. Merging them into one page-level pan was
+tried and left: it needs checks on where each touch lands (catching the panel, a zoomed photo with
+the details open), zoom state passed up to `AssetPage`, and new relations with the nested zoom
+gestures, which only a phone can test. Revisit only if the two drift apart.
+
 ### [ ] Rewrite the app in TypeScript
 
 The app is mostly JavaScript (`.js` / `.jsx`); only `src/sync` is TypeScript, and only that part
