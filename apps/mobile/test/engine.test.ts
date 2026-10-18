@@ -296,7 +296,32 @@ describe('worker pull', () => {
       updatedAt: local!.updatedAt + 9,
     });
     await runSyncOnce(db, pendingAndPulling(incoming as unknown as Record<string, unknown>));
-    expect(await assetRow(rec.id)).toMatchObject({ notes: 'local', isFavorite: true, updatedAt: local!.updatedAt });
+    expect(await assetRow(rec.id)).toMatchObject({ notes: 'local', isFavorite: true, updatedAt: incoming.updatedAt });
+  });
+
+  it('an edit right after the pull of a newer field gets a clock above it', async () => {
+    const rec = await repo.createAsset(db, makeAssetRecord());
+    await runSyncOnce(db, fakeTransport());
+    await repo.updateAsset(db, rec.id, { filename: 'renamed.jpg' }); // pending
+    const pulledAt = Date.now() + 60_000; // another device's clock runs ahead
+    const incoming = makeAssetRecord({ id: rec.id, notes: 'from the other device', updatedAt: pulledAt });
+    await runSyncOnce(db, pendingAndPulling(incoming as unknown as Record<string, unknown>));
+    await repo.updateAsset(db, rec.id, { notes: 'edited here after' });
+    const [row] = await outboxRows();
+    expect(row!.fields.notes).toBeGreaterThan(pulledAt);
+    expect(await assetRow(rec.id)).toMatchObject({ filename: 'renamed.jpg', notes: 'edited here after' });
+  });
+
+  it('a pending purge keeps the asset deleted when a restore is pulled', async () => {
+    const rec = await repo.createAsset(db, makeAssetRecord());
+    await repo.deleteAssets(db, [rec.id]);
+    await runSyncOnce(db, fakeTransport());
+    await repo.purgeAssets(db, [rec.id], async () => {}); // pending: { purgedAt }
+    const restored = makeAssetRecord({ id: rec.id, deletedAt: null, updatedAt: Date.now() + 60_000 });
+    await runSyncOnce(db, pendingAndPulling({ ...restored, purgedAt: null } as unknown as Record<string, unknown>));
+    const row = await assetRow(rec.id);
+    expect(row!.purgedAt).not.toBeNull();
+    expect(row!.deletedAt).not.toBeNull();
   });
 
   it('keeps a local column the incoming record does not carry', async () => {

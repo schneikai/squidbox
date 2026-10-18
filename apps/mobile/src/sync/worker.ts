@@ -1,4 +1,4 @@
-import type { PushMutation, PushResult } from '@squidbox/shared';
+import { collectionsByName, type PushMutation, type PushResult } from '@squidbox/shared';
 import { and, gt } from 'drizzle-orm';
 
 import { unsharedFiles, type RemoveFiles } from './assetsRepository';
@@ -273,7 +273,7 @@ async function applyChanges(
         const fields = pending.get(String(record.id));
         if (!fields) return [record];
         const row = local.get(String(record.id));
-        return row ? [withLocalFields(record, row, Object.keys(fields))] : [];
+        return row ? [withLocalFields(name, record, row, Object.keys(fields))] : [];
       });
       await upsertRows(tx, name, table, rows);
       applied += rows.length;
@@ -283,13 +283,20 @@ async function applyChanges(
   });
 }
 
+// The incoming record with the local values of the pending fields. A deletion and the final field
+// (a purge) stay together, so a pending purge and an incoming restore can't make a live purged record.
+// updatedAt is the newer of the two, so this device's next edit gets a clock above the pulled one.
 function withLocalFields(
+  collection: string,
   record: Record<string, unknown>,
   local: Record<string, unknown>,
   fields: string[],
 ): Record<string, unknown> {
-  const kept = Object.fromEntries([...fields, 'updatedAt'].map((field) => [field, local[field]]));
-  return { ...record, ...kept };
+  const kept = new Set(fields);
+  const { finalField } = collectionsByName[collection]!;
+  if (finalField && (kept.has('deletedAt') || kept.has(finalField))) kept.add('deletedAt').add(finalField);
+  const values = Object.fromEntries([...kept].map((field) => [field, local[field]]));
+  return { ...record, ...values, updatedAt: Math.max(Number(local.updatedAt), Number(record.updatedAt)) };
 }
 
 // The files of the purged assets among these records that aren't purged here yet, so an echo or an
