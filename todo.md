@@ -5,6 +5,17 @@ when the owner defers something, or when an idea comes up. Remove an entry once 
 
 ## Bugs
 
+### [ ] A library merge replay can push one side's deletion under the other side's clock
+
+`replayed()` in `apps/mobile/src/library/mergeLibrary.ts` copies both `deletedAt` and `purgedAt` from
+the device library's payload when either is replayed (`withDeletionPair`), but the target outbox's
+`fields` keep the account's own newer clock for the one not replayed. So a device purge older than the
+account's pending restore pushes the stale `deletedAt` under the restore's clock: the restore is lost
+and the purge applies everywhere. The other way, a device delete clears the account's pending purge
+(`purgedAt: null` under the purge's clock), so the purge, whose files are already gone, never reaches
+the server. Failing tests (`it.fails`): `mergeLibrary.test.ts` "replays against a pending edit of
+the target" and `twoDevice.e2e.test.ts` "a device library merged into the account library".
+
 ## Features
 
 ### [ ] Share several assets at once

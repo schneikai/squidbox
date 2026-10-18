@@ -312,3 +312,102 @@ describe('planMerge + applyMerge', () => {
     expect(addsRecords(await planMerge(source, target, SRC))).toBe(false);
   });
 });
+
+// Adversarial replays: the device's pending edit lands on an account row with its own pending edit.
+// Every field the target's outbox row names must carry the value of the side whose clock it holds,
+// or the server merges one side's value under the other side's clock.
+describe('replays against a pending edit of the target (adversarial)', () => {
+  const tick = () => new Promise((resolve) => setTimeout(resolve, 3));
+  const noFiles = async () => {};
+
+  // One asset in both libraries, deleted in both (synced: no outbox rows).
+  async function sharedDeletedAsset() {
+    const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000, deletedAt: 5000 });
+    await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);
+    await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
+    return shared;
+  }
+
+  // BUG: replayed() (mergeLibrary.ts) takes deletedAt AND purgedAt from the source payload whenever
+  // either is replayed (withDeletionPair), but the outbox `fields` keep the target's own, newer clock
+  // for the one that wasn't replayed. Here the source's purge replays and drags its old deletedAt
+  // onto the target's newer restore: the outbox then pushes deletedAt=5000 under the restore's clock,
+  // so the restore is lost and the stale purge applies on the server.
+  it.fails('a device purge does not undo the account’s newer pending restore', async () => {
+    const shared = await sharedDeletedAsset();
+    await repo.purgeAssets(source, [shared.id], noFiles); // the device purges it, not pushed
+    await tick();
+    await repo.updateAllAssets(target, [shared.id], { deletedAt: null }); // the account restores it later
+
+    await applyMerge(target, await planMerge(source, target, SRC));
+    const [row] = await target.select().from(schema.assets);
+    const [pending] = await outbox(target);
+    // The newer restore stands, and the outbox pushes it with its clock.
+    expect(row).toMatchObject({ deletedAt: null, purgedAt: null });
+    expect(pending!.payload).toMatchObject({ deletedAt: null });
+  });
+
+  // BUG (same root cause): the source's delete replays and drags its purgedAt (null) over the
+  // target's pending purge; the outbox keeps the purge's clock but pushes purgedAt=null, so the purge
+  // (whose files this device already removed) never reaches the server and the asset is un-purged here.
+  it.fails('a device delete does not undo the account’s pending purge', async () => {
+    const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
+    await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
+    await upsertRows(target, 'assets', schema.assets, [{ ...shared, deletedAt: 5000, syncError: null }]);
+    await repo.purgeAssets(target, [shared.id], noFiles); // the account purges it, not pushed
+    await tick();
+    await repo.deleteAssets(source, [shared.id]); // the device deletes it later
+
+    await applyMerge(target, await planMerge(source, target, SRC));
+    const [row] = await target.select().from(schema.assets);
+    const [pending] = await outbox(target);
+    expect(row!.purgedAt).toEqual(expect.any(Number));
+    expect(pending!.payload).toMatchObject({ purgedAt: expect.any(Number) });
+    expect(pending!.payload.deletedAt).not.toBeNull();
+  });
+
+  it('a device edit of another field replays beside the account’s pending purge, which stays', async () => {
+    const shared = await sharedDeletedAsset();
+    await repo.updateAsset(source, shared.id, { notes: 'device notes' });
+    await tick();
+    await repo.purgeAssets(target, [shared.id], noFiles);
+
+    await applyMerge(target, await planMerge(source, target, SRC));
+    const [row] = await target.select().from(schema.assets);
+    const [pending] = await outbox(target);
+    expect(row).toMatchObject({ notes: 'device notes', deletedAt: 5000, purgedAt: expect.any(Number) });
+    expect(Object.keys(pending!.fields).sort()).toEqual(['notes', 'purgedAt']);
+    expect(pending!.payload).toMatchObject({ notes: 'device notes', deletedAt: 5000, purgedAt: row!.purgedAt });
+  });
+
+  it('every field the target outbox names carries the value of the side whose clock it holds', async () => {
+    const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000, isFileSynced: false });
+    await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);
+    await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
+    await repo.updateAsset(source, shared.id, { notes: 'device, older' });
+    await tick();
+    await repo.updateAsset(target, shared.id, { notes: 'account, newer', isFavorite: true });
+    await tick();
+    await repo.updateAsset(source, shared.id, { isFileSynced: true, isThumbnailSynced: true, isSynced: true });
+    await repo.updateAsset(source, shared.id, { oldFileId: 'x' }); // the newest edit
+
+    await applyMerge(target, await planMerge(source, target, SRC));
+    const [row] = await target.select().from(schema.assets);
+    const [pending] = await outbox(target);
+    const [sourcePending] = await outbox(source);
+    expect(row).toMatchObject({
+      notes: 'account, newer',
+      isFavorite: true,
+      oldFileId: 'x',
+      isFileSynced: true,
+      isThumbnailSynced: true,
+      isSynced: true,
+    });
+    for (const field of Object.keys(pending!.fields))
+      expect(pending!.payload[field]).toEqual(row![field as keyof typeof row]);
+    expect(pending!.fields.notes).toBeLessThan(sourcePending!.fields.oldFileId!);
+    expect(pending!.fields.oldFileId).toBe(sourcePending!.fields.oldFileId);
+    expect(pending!.fields.isFileSynced).toBe(sourcePending!.fields.isFileSynced);
+    expect(pending!.fields.isSynced).toBe(sourcePending!.fields.isFileSynced);
+  });
+});
