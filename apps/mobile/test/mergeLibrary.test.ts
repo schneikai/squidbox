@@ -123,6 +123,37 @@ describe('planMerge + applyMerge', () => {
     expect(addsRecords(await planMerge(source, target, SRC))).toBe(false);
   });
 
+  it('a replay pushes the fields the device changed, keeping the account’s newer values of the others', async () => {
+    const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
+    await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
+    await upsertRows(target, 'assets', schema.assets, [{ ...shared, isFavorite: true, syncError: null }]);
+    await repo.updateAsset(source, shared.id, { notes: 'edited on the device' });
+
+    const plan = await planMerge(source, target, SRC);
+    await applyMerge(target, plan);
+    const [row] = await outbox(target);
+    expect(row!.fields).toEqual(plan.replays[0]!.fields);
+    expect(row!.fields).toEqual({ notes: plan.replays[0]!.updatedAt });
+    const [targetRow] = await target.select().from(schema.assets);
+    expect(targetRow).toMatchObject({ notes: 'edited on the device', isFavorite: true });
+    expect(row!.payload).toMatchObject({ notes: 'edited on the device', isFavorite: true });
+  });
+
+  it('a replay of an edit from before per-field merge pushes its whole record', async () => {
+    const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
+    await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
+    await upsertRows(target, 'assets', schema.assets, [{ ...shared, isFavorite: true, syncError: null }]);
+    await repo.updateAsset(source, shared.id, { notes: 'edited on the device' });
+    await source.update(schema.outbox).set({ fields: null });
+
+    await applyMerge(target, await planMerge(source, target, SRC));
+    const [row] = await outbox(target);
+    expect(row!.fields).toBeNull();
+    expect(await target.select().from(schema.assets)).toMatchObject([
+      { notes: 'edited on the device', isFavorite: false },
+    ]);
+  });
+
   it('does not replay over a newer pending edit of the target', async () => {
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);
