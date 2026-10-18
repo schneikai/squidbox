@@ -183,7 +183,9 @@ function pushTo<K, V>(lists: Map<K, V[]>, key: K, value: V): void {
   else lists.set(key, [value]);
 }
 
-// A stopped pull leaves the batches applied so far committed with their cursor.
+// A stopped pull leaves the batches applied so far committed with their cursor. The next batch
+// downloads while one is applied; a stop cuts its paging short, and the run ends after applying the
+// batch at hand.
 async function pullPhase(
   db: SyncDb,
   transport: SyncTransport,
@@ -191,31 +193,48 @@ async function pullPhase(
   removeFiles: RemoveFiles,
 ): Promise<{ pulled: number; stopped: boolean }> {
   await patchStatus(db, { phase: 'pulling' });
+  if (signal.aborted) return { pulled: 0, stopped: true };
   let cursor = await getCursor(db);
-  let hasMore = true;
   let pulled = 0;
-  while (hasMore) {
-    if (signal.aborted) return { pulled, stopped: true };
-    const changes: Record<string, Record<string, unknown>[]> = {};
-    const previousCursor = cursor;
-    let buffered = 0;
-    do {
-      const page = await transport.pull({ cursor, limit: PULL_LIMIT });
-      for (const name of Object.keys(clientCollectionTables)) {
-        const records = page.changes[name]?.records ?? [];
-        (changes[name] ??= []).push(...records);
-        buffered += records.length;
-      }
-      cursor = page.cursor;
-      hasMore = page.hasMore;
-    } while (hasMore && buffered < APPLY_BATCH);
-    await removeNewlyPurgedFiles(db, changes.assets, removeFiles);
-    if (buffered > 0 || cursor !== previousCursor) pulled += await applyChanges(db, changes, cursor);
+  let next: Promise<PulledBatch> | null = fetchBatch(transport, cursor);
+  while (next) {
+    const batch: PulledBatch = await next;
+    next = batch.hasMore && !signal.aborted ? fetchBatch(transport, batch.cursor, () => signal.aborted) : null;
+    next?.catch(() => {}); // awaited next round, unless this apply fails or the run stops
+    await removeNewlyPurgedFiles(db, batch.changes.assets, removeFiles);
+    if (batch.buffered > 0 || batch.cursor !== cursor) pulled += await applyChanges(db, batch.changes, batch.cursor);
+    cursor = batch.cursor;
+    if (batch.hasMore && signal.aborted) return { pulled, stopped: true };
   }
   // The initial full pull has drained — the app can leave the "Setting up…" gate.
   await markFirstSyncDone(db);
   await patchStatus(db, { phase: 'idle', lastPullAt: Date.now() });
   return { pulled, stopped: false };
+}
+
+interface PulledBatch {
+  changes: Record<string, Record<string, unknown>[]>;
+  buffered: number;
+  cursor: number;
+  hasMore: boolean;
+}
+
+// Pages from `cursor` until APPLY_BATCH records or the end, or until `stop()` holds after a page.
+async function fetchBatch(transport: SyncTransport, cursor: number, stop = () => false): Promise<PulledBatch> {
+  const changes: Record<string, Record<string, unknown>[]> = {};
+  let buffered = 0;
+  let hasMore: boolean;
+  do {
+    const page = await transport.pull({ cursor, limit: PULL_LIMIT });
+    for (const name of Object.keys(clientCollectionTables)) {
+      const records = page.changes[name]?.records ?? [];
+      (changes[name] ??= []).push(...records);
+      buffered += records.length;
+    }
+    cursor = page.cursor;
+    hasMore = page.hasMore;
+  } while (hasMore && buffered < APPLY_BATCH && !stop());
+  return { changes, buffered, cursor, hasMore };
 }
 
 // Outbox-guarded apply (sync-design §5): apply an incoming record only if it has no pending
