@@ -86,7 +86,7 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
     expect(onB).toMatchObject({ id: rec.id, filename: 'from-a.jpg' });
   });
 
-  it('converges under a concurrent conflicting edit (whole-record LWW)', async () => {
+  it('converges under concurrent edits of the same field (last writer wins)', async () => {
     // Both devices start with the same synced asset.
     const rec = await repo.createAsset(deviceA, makeAssetRecord({ notes: 'orig' }));
     await runSyncOnce(deviceA, transport);
@@ -107,6 +107,63 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
     expect(a.notes).toBe(b.notes); // converged (byte-identical winner)
     expect(['edited-on-A', 'edited-on-B']).toContain(a.notes);
     expect(a.updatedAt).toBe(b.updatedAt);
+  });
+
+  // Drain both devices until push, adopt and pull settle.
+  async function settle() {
+    for (let i = 0; i < 2; i++) {
+      await runSyncOnce(deviceA, transport);
+      await runSyncOnce(deviceB, transport);
+    }
+  }
+
+  it('a rename on A and a favorite on B both survive, on both devices', async () => {
+    const album = makeAlbumRecord({ createdAt: 1000, updatedAt: 1000, name: 'Trip' });
+    await albumRepo.create(deviceA, album);
+    await settle();
+
+    await albumRepo.update(deviceA, album.id, { name: 'Summer trip' });
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    await albumRepo.toggle(deviceB, album.id, 'isFavorite'); // the later edit, of another field
+    await runSyncOnce(deviceB, transport); // B pushes first, A's older rename after
+    await settle();
+
+    for (const device of [deviceA, deviceB]) {
+      const [row] = await device.select().from(clientSchema.albums).where(eq(clientSchema.albums.id, album.id));
+      expect(row).toMatchObject({ name: 'Summer trip', isFavorite: true });
+      expect(await device.select().from(clientSchema.outbox)).toEqual([]);
+    }
+  });
+
+  it('notes added on A to a photo deleted on B: it stays deleted, with the notes', async () => {
+    const rec = await repo.createAsset(deviceA, makeAssetRecord());
+    await settle();
+
+    await repo.deleteAssets(deviceB, [rec.id]);
+    await runSyncOnce(deviceB, transport);
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    await repo.updateAsset(deviceA, rec.id, { notes: 'written offline' }); // newer, but no restore
+    await settle();
+
+    for (const device of [deviceA, deviceB]) {
+      const [row] = await device.select().from(clientSchema.assets).where(eq(clientSchema.assets.id, rec.id));
+      expect(row).toMatchObject({ notes: 'written offline', deletedAt: expect.any(Number) });
+      expect(await readLiveAsset(device, rec.id)).toBeUndefined();
+    }
+  });
+
+  it('an edit enqueued before per-field merge still converges, as a whole record', async () => {
+    const rec = await repo.createAsset(deviceA, makeAssetRecord({ notes: 'orig' }));
+    await settle();
+
+    await repo.updateAsset(deviceA, rec.id, { notes: 'from the old app' });
+    await deviceA.update(clientSchema.outbox).set({ fields: null });
+    await settle();
+
+    for (const device of [deviceA, deviceB]) {
+      expect(await readLiveAsset(device, rec.id)).toMatchObject({ notes: 'from the old app' });
+      expect(await device.select().from(clientSchema.outbox)).toEqual([]);
+    }
   });
 
   it('propagates a non-asset collection (albums) A → B via the generic engine', async () => {
