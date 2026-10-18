@@ -21,6 +21,7 @@ export default function PostAssetsEditor({ postAssets, onChange }) {
   const haptics = useHaptics();
   const handleAddAssets = useAssetPickerHandler({
     addAssetsToPost: addPostAssets,
+    postAssetIds: postAssets.map((postAsset) => postAsset.asset.id),
     onStart: show,
     onProgress: updateProgress,
     onFinish: hide,

@@ -1,4 +1,4 @@
-import { and, count, eq, getTableColumns, isNotNull } from 'drizzle-orm';
+import { and, count, eq, getTableColumns, isNotNull, not } from 'drizzle-orm';
 
 import {
   a,
@@ -28,8 +28,15 @@ import { MEDIA_TYPES } from '@/utils/assets/constants';
  *   deleted first; a post has no sort either and lists in its own order (filter and search still apply)
  * @param {('favorites' | 'images' | 'videos')[]} [descriptor.filter]
  * @param {string} [descriptor.search] a notes substring, matched as the grid did: Unicode-aware, literal, case-insensitive
+ * @param {string[]} [descriptor.exclude] ids to leave out (the asset picker hides what the post or album already holds)
  */
-export default function assetQuery({ scope = 'library', sort = 'createdAt:desc', filter = [], search = '' }) {
+export default function assetQuery({
+  scope = 'library',
+  sort = 'createdAt:desc',
+  filter = [],
+  search = '',
+  exclude = [],
+}) {
   const isCustom = sort === 'custom';
   if (isCustom && !scope.albumId) throw new Error('The custom sort needs an album scope');
   const isByLastPosted = sortsByLastPostedAt(scope, sort);
@@ -43,6 +50,7 @@ export default function assetQuery({ scope = 'library', sort = 'createdAt:desc',
   if (filter.includes('favorites')) filterConditions.push(eq(a.isFavorite, true));
   if (filter.includes('images')) filterConditions.push(eq(a.mediaType, MEDIA_TYPES.IMAGE));
   if (filter.includes('videos')) filterConditions.push(eq(a.mediaType, MEDIA_TYPES.VIDEO));
+  if (exclude.length) filterConditions.push(not(inJson(a.id, exclude)));
 
   // The search runs over the noted rows of the scope, once per read for rows and count alike: a
   // post's few through its edges, any other scope's through the noted assets' index.
@@ -70,7 +78,7 @@ export default function assetQuery({ scope = 'library', sort = 'createdAt:desc',
   }
 
   return {
-    descriptor: { scope, sort, filter, search },
+    descriptor: { scope, sort, filter, search, exclude },
     tables,
     read(db, { limit }) {
       return db.transaction(async (tx) => {

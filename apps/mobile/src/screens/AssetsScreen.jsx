@@ -7,12 +7,12 @@ import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
-import AssetList from '@/features/asset-list/AssetList';
+import AssetGrid from '@/features/asset-list/AssetGrid';
+import assetFilterOptions from '@/features/asset-list/actions/filter-assets-action/assetFilterOptions';
 import useFilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/useFilterAssetsAction';
 import useSortAssetsAction from '@/features/asset-list/actions/sort-assets-action/useSortAssetsAction';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import assetQuery from '@/features/asset-list/assetQuery';
-import useAssetCells from '@/features/asset-list/useAssetCells';
 import useAssetList from '@/features/asset-list/useAssetList';
 import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
 import useAddAssetsFromCameraRoll from '@/features/assets-context/useAddAssetsFromCameraRoll';
@@ -80,24 +80,12 @@ export default function AssetsScreen({ route }) {
     registerScreenOptions('assets', {
       sortOrder,
       activeFilter,
-      filterOptions: [
-        { key: 'all', label: 'All Media', icon: 'apps-outline' },
-        { key: 'favorites', label: 'Favorites', icon: 'heart-outline' },
-        { key: 'images', label: 'Photos', icon: 'image-outline' },
-        { key: 'videos', label: 'Videos', icon: 'videocam-outline' },
-      ],
+      filterOptions: assetFilterOptions,
       showViewOptions: true,
       onSort: sortAssets,
       onFilter: toggleFilter,
     });
   }, [sortOrder, activeFilter]);
-
-  const { renderCell, quickViewModal } = useAssetCells({
-    onPress: actions.openAsset,
-    isSelectMode,
-    isAssetSelected,
-    showLastPostedAt: sortOrder.includes('lastPostedAt'),
-  });
 
   const hasActiveOptions = activeFilter.length > 0 || sortOrder !== 'createdAt:desc';
 
@@ -110,8 +98,7 @@ export default function AssetsScreen({ route }) {
         selectionActions={actions}
         onDelete={handleDelete}
       />
-      {quickViewModal}
-      <AssetList
+      <AssetGrid
         listRef={listRef}
         rows={rows}
         loadMore={loadMore}
@@ -119,10 +106,12 @@ export default function AssetsScreen({ route }) {
         paddingBottom={paddingBottom}
         onScroll={scrollHandler}
         scrollY={scrollY}
-        dragSelectEnabled={isSelectMode}
+        isSelectMode={isSelectMode}
         selectedAssetIds={selectedAssetIds}
+        isAssetSelected={isAssetSelected}
         selectAssets={selectAssets}
-        renderListItem={renderCell}
+        onPressAsset={actions.openAsset}
+        sortOrder={sortOrder}
       />
       <FloatingActionsBar search={searchBar} placeholder="Search notes…" hasActiveState={hasActiveOptions} />
     </View>

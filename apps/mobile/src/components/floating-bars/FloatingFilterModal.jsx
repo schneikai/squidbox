@@ -3,14 +3,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFloatingBars } from './FloatingBarsContext';
 import SortFilterModal from './SortFilterModal';
 
+import assetFilterOptions from '@/features/asset-list/actions/filter-assets-action/assetFilterOptions';
 import { spacing } from '@/styles/designTokens';
-
-const DEFAULT_FILTER_OPTIONS = [
-  { key: 'all', label: 'All Media', icon: 'apps-outline' },
-  { key: 'favorites', label: 'Favorites', icon: 'heart-outline' },
-  { key: 'images', label: 'Photos', icon: 'image-outline' },
-  { key: 'videos', label: 'Videos', icon: 'videocam-outline' },
-];
 
 export default function FloatingFilterModal() {
   const insets = useSafeAreaInsets();
@@ -25,7 +19,7 @@ export default function FloatingFilterModal() {
       sortOrder={filterModalData?.sortOrder ?? 'createdAt:desc'}
       sortOptions={filterModalData?.sortOptions}
       activeFilter={filterModalData?.activeFilter ?? []}
-      filterOptions={filterModalData?.filterOptions ?? DEFAULT_FILTER_OPTIONS}
+      filterOptions={filterModalData?.filterOptions ?? assetFilterOptions}
       onSort={filterModalData?.onSort}
       onFilter={filterModalData?.onFilter}
       showViewOptions={filterModalData?.showViewOptions ?? false}

@@ -8,6 +8,7 @@ import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingB
 import AlbumListItem from '@/features/album-list/AlbumListItem';
 import AlbumListItemWithEditMode from '@/features/album-list/AlbumListItemWithEditMode';
 import SortableAlbumList from '@/features/album-list/SortableAlbumList';
+import albumFilterOptions from '@/features/album-list/actions/filter-albums-action/albumFilterOptions';
 import useFilterAlbumsAction from '@/features/album-list/actions/filter-albums-action/useFilterAlbumsAction';
 import useSearchAlbumsAction from '@/features/album-list/actions/search-albums-action/useSearchAlbumsAction';
 import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
@@ -63,11 +64,7 @@ export default function AlbumsScreen({ navigation }) {
       sortOrder,
       sortOptions: albumSortOptions,
       activeFilter,
-      filterOptions: [
-        { key: 'all', label: 'All Albums', icon: 'apps-outline' },
-        { key: 'starred', label: 'Starred', icon: 'star-outline' },
-        { key: 'archived', label: 'Archived', icon: 'archive-outline' },
-      ],
+      filterOptions: albumFilterOptions,
       onSort: sortAlbums,
       onFilter: toggleFilter,
     });

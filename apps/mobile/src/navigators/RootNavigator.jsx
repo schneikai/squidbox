@@ -49,7 +49,7 @@ export default function RootNavigator() {
       <RootStack.Group screenOptions={{ presentation: 'modal' }}>
         <RootStack.Screen name="CreatePostModal" component={CreatePostModalRoute} options={{ headerShown: false }} />
         <RootStack.Screen name="AddEditPostModal" component={AddEditPostModalRoute} options={{ headerShown: false }} />
-        <RootStack.Screen name="AssetPickerModal" component={AssetPickerModalRoute} />
+        <RootStack.Screen name="AssetPickerModal" component={AssetPickerModalRoute} options={{ headerShown: false }} />
         <RootStack.Screen name="AddToAlbumModal" component={AddToAlbumModalRoute} options={{ headerShown: false }} />
         <RootStack.Screen
           name="EditAlbumNotesModal"

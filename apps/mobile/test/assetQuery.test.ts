@@ -82,6 +82,16 @@ describe('assetQuery', () => {
     expect(await ids(['images', 'videos'])).toEqual([]);
   });
 
+  it('leaves out the excluded ids in every scope, the count included', async () => {
+    await createAssets([{}, { notes: 'beach' }, {}, { notes: 'beach' }]);
+    await albumEdges.add(db, AL, ['asset-0', 'asset-1', 'asset-2'], newId);
+    const exclude = ['asset-1', 'asset-2', 'gone'];
+    expect(await assetQuery({ scope: 'library', exclude }).ids(db)).toEqual(['asset-3', 'asset-0']);
+    expect(await assetQuery({ scope: { albumId: AL }, sort: 'custom', exclude }).ids(db)).toEqual(['asset-0']);
+    expect(await assetQuery({ scope: 'library', search: 'beach', exclude }).ids(db)).toEqual(['asset-3']);
+    expect((await assetQuery({ scope: 'library', exclude }).read(db, { limit: 10 })).count).toBe(2);
+  });
+
   it('matches the search Unicode-aware, literally and once per read', async () => {
     await createAssets([{ notes: 'Über 50% done' }, { notes: 'under_score' }, { notes: 'plain' }, { notes: null }]);
     const search = (text: string) => assetQuery({ scope: 'library', search: text });
@@ -203,6 +213,8 @@ describe('assetQuery', () => {
       { scope: { postId: 'p1' } },
       { scope: { postId: 'p1' }, filter: ['videos'], search: 'o' },
       { scope: { assetId: 'asset-1' }, search: 'o' },
+      { scope: 'library', exclude: ['asset-0', 'asset-4'] },
+      { scope: { albumId: AL }, exclude: ['asset-1'], search: 'o' },
     ];
     for (const descriptor of descriptors) {
       const q = assetQuery(descriptor);

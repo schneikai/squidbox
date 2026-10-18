@@ -5,7 +5,7 @@ import { UPLOAD_MEDIA_FROM_DEVICE, UPLOAD_MEDIA_FROM_APP } from '@/constants';
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';
 import useAddAssetsFromCameraRoll from '@/features/assets-context/useAddAssetsFromCameraRoll';
 
-export default function useAssetPickerHandler({ addAssetsToPost, onStart, onProgress, onFinish }) {
+export default function useAssetPickerHandler({ addAssetsToPost, postAssetIds, onStart, onProgress, onFinish }) {
   const addAssetsFromCameraRollAsync = useAddAssetsFromCameraRoll({
     onStart,
     onProgress,
@@ -29,7 +29,7 @@ export default function useAssetPickerHandler({ addAssetsToPost, onStart, onProg
               break;
             }
             case 1: {
-              const { assets } = await openAssetPicker();
+              const assets = await openAssetPicker({ excludedAssetIds: postAssetIds });
               addAssetsToPost(assets);
               break;
             }

@@ -18,8 +18,7 @@ export default function CreatePostNavigator() {
         <Stack.Screen name="IgnoredPostsScreen" component={IgnoredPostsScreen} />
         <Stack.Screen name="AlbumScreen" component={AlbumScreen} />
         {/* Registered here (as well as on the root stack) because we're inside a modal: navigating
-            to a root-only screen would resolve on the stack BEHIND the modal and open there. Same
-            reason AddEditPostNavigator re-registers AssetPicker. */}
+            to a root-only screen would resolve on the stack BEHIND the modal and open there. */}
         <Stack.Screen name="AssetScreen" component={AssetScreen} />
       </Stack.Navigator>
     </MenuProvider>
