@@ -26,6 +26,8 @@ export interface CollectionDescriptor<
   schema: S;
   /** Client-only fields, never sent over the wire (e.g. per-device syncError). */
   localOnly: L;
+  /** Synced fields that change together: an edit of one sends the whole group with one clock. */
+  fieldGroups: readonly (readonly string[])[];
 }
 
 /** Define a sync collection once — the single source of truth shared by app and server. */
@@ -33,6 +35,12 @@ export function defineCollection<S extends z.ZodTypeAny, L extends z.ZodRawShape
   name: string;
   schema: S;
   localOnly?: L;
+  fieldGroups?: readonly (readonly string[])[];
 }): CollectionDescriptor<S, L> {
-  return { name: config.name, schema: config.schema, localOnly: (config.localOnly ?? {}) as L };
+  return {
+    name: config.name,
+    schema: config.schema,
+    localOnly: (config.localOnly ?? {}) as L,
+    fieldGroups: config.fieldGroups ?? [],
+  };
 }

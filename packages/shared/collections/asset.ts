@@ -32,6 +32,8 @@ export const assetCollection = defineCollection({
   localOnly: {
     syncError: z.string().nullable(),
   },
+  // isSynced is derived from the other two, so they merge as one (sync-design §7).
+  fieldGroups: [['isFileSynced', 'isThumbnailSynced', 'isSynced']],
 });
 
 export type AssetRecord = z.infer<typeof assetCollection.schema>;

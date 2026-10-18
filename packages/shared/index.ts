@@ -16,6 +16,7 @@ export * from './collections/post';
 export * from './collections/albumAsset';
 export * from './collections/postAsset';
 export * from './collections/registry';
+export * from './collections/mergeFields';
 export * from './fractionalIndex';
 export * from './movePositions';
 

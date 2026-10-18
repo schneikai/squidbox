@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { getTableColumns } from 'drizzle-orm';
 import {
+  assetCollection,
+  collections,
+  mergeFields,
+  pushMutationSchema,
   resolveExpiresIn,
   PRESIGN_DEFAULT_EXPIRES_IN,
   PRESIGN_MAX_EXPIRES_IN,
@@ -34,6 +38,43 @@ describe('sync record schemas', () => {
       }
     });
   }
+});
+
+describe('push contract', () => {
+  const record = { id: 'x', updatedAt: 1 };
+
+  it('fields are optional, so an older app’s push still parses', () => {
+    expect(pushMutationSchema.parse({ collection: 'assets', record })).toEqual({ collection: 'assets', record });
+  });
+
+  it('fields map each changed field to its clock, a whole epoch-ms number', () => {
+    const mutation = { collection: 'assets', record, fields: { notes: 2000 } };
+    expect(pushMutationSchema.parse(mutation)).toEqual(mutation);
+    expect(pushMutationSchema.safeParse({ ...mutation, fields: { notes: 1.5 } }).success).toBe(false);
+    expect(pushMutationSchema.safeParse({ ...mutation, fields: { notes: 'x' } }).success).toBe(false);
+  });
+});
+
+describe('merge fields', () => {
+  it('are every synced field but the id and the two creation and version clocks', () => {
+    const fields = mergeFields(assetCollection);
+    expect(fields).toContain('deletedAt');
+    expect(fields).toContain('purgedAt');
+    expect(fields).toContain('isFavorite');
+    expect(fields).not.toContain('id');
+    expect(fields).not.toContain('createdAt');
+    expect(fields).not.toContain('updatedAt');
+    expect(fields).not.toContain('syncError'); // local-only
+  });
+
+  it('field groups name merge fields only', () => {
+    for (const collection of collections) {
+      for (const group of collection.fieldGroups) {
+        for (const field of group) expect(mergeFields(collection), `${collection.name}.${field}`).toContain(field);
+      }
+    }
+    expect(assetCollection.fieldGroups).toEqual([['isFileSynced', 'isThumbnailSynced', 'isSynced']]);
+  });
 });
 
 describe('presign expiry rules', () => {

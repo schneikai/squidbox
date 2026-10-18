@@ -1,6 +1,7 @@
 // Sync protocol wire contract (sync-design §5/§6). Per-collection record validation happens
 // server-side against each collection's descriptor schema, so records are loosely typed here.
 import { z } from 'zod';
+import { timestampSchema } from '../collections/define';
 
 const syncRecord = z.record(z.string(), z.unknown());
 
@@ -21,7 +22,10 @@ export type PullResponse = z.infer<typeof pullResponseSchema>;
 // --- Push ---
 export const pushMutationSchema = z.object({
   collection: z.string(),
-  record: syncRecord, // whole-record upsert of synced fields
+  record: syncRecord, // the whole record, validated as a whole
+  // The fields this edit changed, each with its clock: the server merges only these, field by field
+  // (sync-design §6). Without it the push is a whole-record upsert, as older apps send it.
+  fields: z.record(z.string(), timestampSchema).optional(),
 });
 export type PushMutation = z.infer<typeof pushMutationSchema>;
 
