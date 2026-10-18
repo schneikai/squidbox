@@ -4,6 +4,7 @@ import { Alert } from 'react-native';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import PopupMenu from '@/components/popup-menu-options/PopupMenu';
 import useAlbums from '@/features/albums-context/useAlbums';
+import changedValues from '@/utils/changedValues';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 
 export default function MoreAction({ album, afterDelete, onSelect }) {
@@ -29,7 +30,8 @@ export default function MoreAction({ album, afterDelete, onSelect }) {
       'Album name',
       '',
       async (name) => {
-        await updateAlbum(album.id, { name });
+        const changes = changedValues({ name: album.name }, { name });
+        if (Object.keys(changes).length > 0) await updateAlbum(album.id, changes);
       },
       'plain-text',
       album.name,
