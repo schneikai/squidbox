@@ -20,7 +20,10 @@ download (Firefox has no file sharing). Web pitfalls: Chromium allows at most 10
 rejects `.mov`/`.heic`; the tap's activation lasts about 5 s, so a slower download needs a second
 "Share N items" tap. Collect all files first (`useRunWithAssetFiles` with kept downloads), name them
 after the asset, and gate the button with `requireOptionalNativeModule`. Skipped
-`react-native-share`: no web, slowing releases, config-plugin bugs. Needs a new build.
+`react-native-share`: no web, slowing releases, config-plugin bugs. Needs a new build. Then remove
+our own "Save to camera roll" (`useSaveAssetsToMediaLibrary`, the download buttons): the share sheet's
+Save Image / Save Video does it. Check first: it saves without our "Squidbox" album
+(`copyToMediaLibraryAsync`), and web has no Save there (the share fallback downloads).
 
 ### [ ] Make the app work on Android
 
