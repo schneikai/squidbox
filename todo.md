@@ -209,6 +209,17 @@ page overlaps network and writes).
 FIFO queue, WAL adds no read concurrency, so take it only if a measured write-latency win on a
 device justifies an iOS-only setting (web's OPFS storage measured slower with WAL).
 
+### [ ] Investigate everything the app stores on the phone
+
+The app promises not to clutter the phone's storage, so check every place it writes and whether
+each is cleaned up: originals of uploaded assets (`assetFiles`, kept after upload?), thumbnails,
+cloud downloads for Save/Share (cache, swept after an hour), each library's SQLite database and
+WAL, parked libraries (see below), the image and video players' caches, the picker's and the
+thumbnail makers' temporary copies (`pickImageFromMediaLibrary`, `createImageThumbnail`,
+`createVideoThumbnail`) and whatever a crash or kill leaves mid-write. Outcome: a list of what
+stays and why, fixes for leaks, and maybe a Settings view of the space used with a "Free up space"
+action.
+
 ### [ ] Free the space used by other accounts' cached libraries
 
 Parked libraries stay on the phone forever: signing in as another account parks the current
