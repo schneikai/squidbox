@@ -10,6 +10,7 @@ import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingB
 import PostList from '@/features/post-list/PostList';
 import PostListItem from '@/features/post-list/PostListItem';
 import postFilterOptions from '@/features/post-list/actions/filter-posts-action/postFilterOptions';
+import postSortOptions from '@/features/post-list/actions/filter-posts-action/postSortOptions';
 import useFilterPostsAction from '@/features/post-list/actions/filter-posts-action/useFilterPostsAction';
 import useSortPostsAction from '@/features/post-list/actions/sort-posts-action/useSortPostsAction';
 import postQuery from '@/features/post-list/postQuery';
@@ -45,6 +46,7 @@ export default function PostsScreen() {
     registerScreenOptions('posts', {
       sortOrder,
       activeFilter,
+      sortOptions: postSortOptions,
       filterOptions: postFilterOptions,
       onSort: sortPosts,
       onFilter: toggleFilter,

@@ -21,7 +21,7 @@ export default function AddPostScreen({ route, navigation }) {
     try {
       await addPost({ ...data, rePostId: rePostId ?? null });
       if (rePostId) await updatePost(rePostId, { hasBeenReposted: true });
-      navigation.popToTop();
+      navigation.getParent().goBack(); // closes this editor only, not one it was opened over
     } catch (error) {
       Alert.alert('Failed to create post!', error.message);
     }
