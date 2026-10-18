@@ -159,6 +159,12 @@ together; an existing local compose volume needs a dump and restore (or a fresh 
 `npm ci` runs ngrok's postinstall, which downloads its binary on every run and fails the install
 when the download fails. CI doesn't need it. Make `ngrok` optional or skip its script in CI.
 
+### [ ] One vertical drag per asset page
+
+The photo's drag (`verticalDrag` in `useZoomGesture`) and the details panel's own pan
+(`useDetailsPanelDrag`) feed the same track as two gestures. One page-level vertical Pan in
+`AssetPage` would be simpler; it needs device testing against the zoom, the pager and the rows.
+
 ### [ ] Rewrite the app in TypeScript
 
 The app is mostly JavaScript (`.js` / `.jsx`); only `src/sync` is TypeScript, and only that part
@@ -188,13 +194,6 @@ swipe, open a post's photo, share. Catches iPhone-only crashes the web preview m
 worklet-capture and post-photo crashes). Needs a test account with a few photos on the live backend
 (login as an EAS secret, since the cloud can't reach the local mock backend) and costs EAS build
 time per run. Can't check gestures' feel or sharing to other apps.
-
-### [ ] Check a 50,000-asset library on a device
-
-The data layer was tuned on the web preview (`npm run seed:mock -- --assets 50000`): a favorite
-toggle costs ~0.2 s of main-thread work there, a pull of 1,000 remote changes ~0.3 s, and the first
-sync ~40 s (web storage is slow). Measure the same on
-an iPhone with the dev client.
 
 ### [ ] Smaller data-layer costs
 
@@ -329,39 +328,6 @@ Node 20 reached end of life in April 2026. `mise.toml` pins 20.19.4 and the serv
 
 ## Owner-side (needs a device, infra or secrets)
 
-### [ ] Check the library-ownership release on the phone
-
-The first launch after `docs/library-ownership-plan.md` turns `squidbox.db` into the library
-`squidbox` without moving anything (`src/library/rebuildRegistry.ts`). No downgrades past that
-build: an older one would open `squidbox.db` with its wipe-on-switch logic and knows nothing of
-`library-*.db`. On the phone, confirm:
-
-- Migration: signed in, every photo, album and post and the session are still there; signed out,
-  the library shows with the sign-in form. Note the time from splash to library.
-- Files: adding a photo from the camera roll and backing it up still works (the migrated library
-  keeps `assetfiles/` and `assetthumbnails/`; a fresh install writes under `libraries/<id>/`).
-- Sign-out: with everything synced, "Sign out" signs out at once; the library stays, with its
-  photos, the avatar shows the badge and Settings "Backup paused · Sign in to continue" above the
-  sign-in form with the email pre-filled. Add a photo while signed out; sign in again → no
-  "Setting up your library", the photo uploads with "Back up now".
-- Sign-out with unsynced work: add a photo, sign out before it is backed up → "You have media
-  that isn't backed up yet" → Cancel keeps you signed in, Sign Out signs out.
-- Another account: signed out of A, "Sign in as someone else" as B → "Opening your library…", B's library
-  (its first sync if new); sign in as A again → A's library with the photo still waiting.
-- Expired session: revoke the phone's refresh token server-side (or set `tokens` to null in the
-  stored session) → no alert, only the red dot on the avatar and the "Backup paused" row; still
-  placeholders for thumbnails not on the phone.
-- First sign-in on a fresh install: add two photos (one already in the account), an album with
-  them and a post before signing in; sign in → no dialog; after the setup screen everything is in
-  the account, the new photo with its thumbnail, "Back up now" uploads it; the camera-roll
-  duplicate is a second copy (the merge runs before the first pull; see the plan's "Changed" note).
-
-### [ ] Test a photo upload
-
-Against the deployed backend (`squidbox-server` on Fly.io), take/upload a photo and confirm the
-file lands in S3 and the asset syncs. The server-proxied streaming upload (`assets/upload/*`) is
-the flow best confirmed on a real device.
-
 ### [ ] Retire the old Rails droplet
 
 The old Rails server still runs on a DigitalOcean droplet. Its library is already in the backend.
@@ -380,131 +346,3 @@ Treat these as exposed and rotate them:
 
 The distribution certificate and both ad hoc profiles expire then, and installed apps stop opening.
 Renew them via the **`/build`** skill (see "expired signing" there) a few weeks ahead.
-
-### [ ] Check the photo detail view on a device
-
-Photos in the detail view may be slightly cropped. Confirm or rule it out.
-
-### [ ] Check thumbnail loading on the phone
-
-The thumbnail loader (`createThumbnailQueue`) was only tried in unit tests. On the phone, with a
-large library only in the cloud: fling through the grid and stop, the thumbnails on screen load
-first, not the ones scrolled past; a thumbnail whose download keeps failing stops pulsing after about
-15 s and loads once scrolled back into view, within a minute of the network coming back, or when the
-app returns to the foreground. After signing in on a phone with its own photos (a merge), their
-thumbnails show at once and upload, with no "thumbnail and original both missing" error.
-
-### [ ] Check photo zoom on the phone
-
-Zoom (`useZoomGesture`, in the photo pager) was only tried in the web preview with a mouse. On the
-phone, check the feel: pinch stays on the fingers and two fingers move the photo, lifting one finger
-carries on as a pan without a jump, pinching below 1× or past 4× springs back, a pan resists at the
-edges and a fling glides and stops there, double tap zooms in on the point and back out (without
-toggling fullscreen), and a single tap toggles fullscreen without a noticeable delay. At 1× the
-pager swipes as before; zoomed, it and the swipe back from the screen's edge are locked, and they
-unlock after zooming out. Opened from the create-post sheet, the sheet can't be swiped down while
-zoomed. A pinch that zooms in from 1× and then lifts one finger carries on as a pan.
-
-### [ ] One vertical drag per asset page
-
-The photo's drag (`verticalDrag` in `useZoomGesture`) and the details panel's own pan
-(`useDetailsPanelDrag`) feed the same track as two gestures. One page-level vertical Pan in
-`AssetPage` would be simpler; it needs device testing against the zoom, the pager and the rows.
-
-### [ ] Check the swipe-up details on the phone
-
-The asset screen's details panel (one `offset` track in `useDetailsPanel` that every pager page
-(`AssetPage`) follows, driven by the photo's drag in `useZoomGesture` and the panel's own in
-`useDetailsPanelDrag`) needs a check on the phone after its rework. Check: swipe up opens it on a
-photo or video, taking the lower two thirds, and the photo grows to cover the top third without a
-jump; dragging past open rubber-bands and springs back; long details scroll within the panel (no
-scroll indicator) and a downward fling stops at their top, a drag down from the top closes it;
-flicks settle with a little bounce, slow releases and taps without; a touch on the moving panel
-catches it and opens no row, and a drag that starts on a row doesn't open it; a tap on the photo
-closes it; a sideways swipe anywhere on the page (photo or details) pages while it's open, the next
-page already showing its own details and its photo in place, without a zoom; editing the note lifts
-the page only as far as the keyboard would cover the field, never off the top, and Done saves it; no
-grey band shows between the photo and the panel; the note icon on the photo opens the panel; the
-swipe back and a zoomed photo's pan still work. In the create-post sheet, a swipe down with the
-panel closed still dismisses the sheet, and with it open only closes the panel. The sheet's lock
-lands a JS round trip after the drag starts and only blocks dismissal, so the sheet may still
-stretch a little on the first swipe up or while closing the panel.
-
-### [ ] Check opening a post's photos on the phone
-
-On a post's screen, a tap on a photo or video opens the asset screen on it (`Post`, `PostAssets`,
-the `{ postId }` scope of `assetQuery`), so far only covered by tests. On the phone, check: a tap
-opens the tapped asset and a swipe still pages the post's photos without opening anything; in the
-asset screen, swiping pages through only that post's assets, in the post's order (a trashed one
-included); back returns to the post. The same from the create-post sheet (a post opened from its
-list). On a trashed asset the actions bar says "Deleted" and offers Restore and Delete permanently
-(`useDeletedAssetsActions`) instead of Delete. A post deleted (e.g. on another device) while its
-asset screen is open closes with an alert on the way back (`useCloseWhenGone`).
-
-### [ ] Check dragging albums on the phone
-
-Albums list, Custom sort: hold an album until it lifts and drag it; the others make room, the list
-scrolls at the edges, the drop opens nothing and syncs to a second device. Tap and double tap work
-as before. A fast fling through all albums and a big photo album shows no blank cells (`SortableGrid`
-mounts about two screens around the view).
-
-### [ ] Check video playback on the phone
-
-Videos play in the asset detail screen (`useAssetVideo`, `AssetVideo`, `VideoControls`), so far only
-tried in the web preview with a WebM. On the phone, check: a video from the phone and one only in
-the cloud start by themselves after the thumbnail, with no flash; with Settings → Videos → Autoplay
-off (`isVideoAutoplayOn`, device-local in `AppSettingsProvider`), a video shows its first frame (or
-its thumbnail) and the play button and waits, a cloud one with no spinner until play is pressed;
-play/pause, scrubbing, mute and replay after the end; swiping to another asset or leaving the screen
-stops the sound; sound plays with the silent switch on (expo-video's `.playback` session) and other
-apps' audio pauses meanwhile; a video not yet uploaded from another device says so, and so does
-saving it to the camera roll (`getAssetFileSourceAsync`).
-
-### [ ] Check fullscreen on the phone
-
-In the asset detail screen a single tap on a photo or video toggles fullscreen (`AssetScreen`,
-`FadeView`, `useChromeInsets`, `FullscreenPlayButton`), so far only tried in the web preview. On the
-phone, check: the header, notes, actions and video controls fade out, the background fades to black
-and the status bar hides; nothing hidden takes a tap or reaches VoiceOver, and after showing again
-the header's date pill and the video scrubber have their full width; it stays while swiping through
-photos and videos and a zoomed photo stays zoomed; a paused video shows a play button in the middle,
-which plays it without leaving fullscreen; a two-finger touch, a small pinch or a tap that catches a
-gliding zoomed photo doesn't toggle. On an iPhone without a notch (e.g. SE), the header doesn't move
-while the status bar hides or comes back. In the create-post sheet (`CreatePostNavigator`),
-fullscreen turns only the sheet black and leaves the status bar alone, and the sheet keeps its size.
-
-### [ ] Check the boot screen and the octopus on the phone
-
-`BootScreen` (`src/features/boot/`) takes over from the native splash a frame after it has laid out,
-and fades out once the first screen shows. Only the web preview has checked it so far. On the phone,
-confirm: there's no jump or flash from the splash to the boot screen or from it to the app, the
-octopus moves smoothly on the boot screen and the setup screen (`src/components/octopus/`, 7 arms'
-paths rebuilt at 30 Hz at rest, every frame during a tap), a tap squeezes the head without a seam
-where it meets the arms, and with Reduce Motion (also toggled while it shows) it stands still and the
-setup screen shows a spinner that VoiceOver reads as busy.
-
-### [ ] Check sharing on the phone
-
-Needs a new build (preview and dev client): `expo-sharing` is a native module, and a build without
-it hides Share (`canShareFiles`). Share (asset detail, bottom left) opens the system share sheet
-(`useShareAsset`). Check: a photo still on the phone opens the sheet at once; a video only in the
-cloud downloads with the progress ring first, then shares; Cancel under the ring stops a cloud
-download at once (no sheet, no alert; a batch save says "3 of 10 done"); Save Image / Save Video in the sheet
-lands in the camera roll, and AirDrop and Messages get it (HEIC, `.mov`); picking an activity and
-cancelling it leaves the app usable; a not-yet-uploaded asset, or one while signed out, says why; a
-trashed asset in a post shares too. Save to camera roll (now on the same `useRunWithAssetFiles`)
-asks for Photos access once before downloading, saves local and cloud files with progress, and a
-failure (e.g. airplane mode mid-batch) alerts how many were saved; a double tap runs once.
-
-### [ ] Check saving with Limited Photos access
-
-With Photos access set to Limited, save assets to the camera roll twice. `copyToMediaLibraryAsync`
-looks the "Squidbox" album up with `getAlbumAsync`, which may not see the app's own album under
-Limited access, so each save could create another "Squidbox" album. Also import a photo picked
-outside the allowed selection (`useAddAssetsFromCameraRoll` now treats its info as not favorite).
-
-### [ ] Check album drag-reorder on a large album
-
-In an album sorted Custom with a few hundred photos, drag a photo across many slots on the phone:
-the drag and the others making room stay smooth. Each slot crossing copies the whole positions object to the UI
-thread (`SortableGrid`), which may stutter on a big album.
