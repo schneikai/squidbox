@@ -1,49 +1,20 @@
 import { listDatabaseNames } from './fs';
-import { MIGRATED_LIBRARY_ID, libraryIdFromDbName } from './libraryPaths';
-import type { Owner } from './owner';
+import { libraryIdFromDbName } from './libraryPaths';
 import type { Library, Registry } from './registry';
-import type { Session } from './session';
 
 import { withAppDb } from '@/sync/db/client';
-import type { AppDb } from '@/sync/db/driver';
-import { getLastSyncUser, getOwner, setOwner } from '@/sync/status';
-import { API_BASE_URL } from '@/utils/cloud-api/apiBaseUrl';
-import { getSession, updateSession } from '@/utils/cloud-api/sessionStore';
+import { getOwner } from '@/sync/status';
 
 // Recreates the library list from the databases on the device: each one's owner is stored inside
-// it. The install from before libraries (squidbox.db) has none yet and gets it from whose data it
-// held: the last synced account, or this device when nobody ever synced. A signed-out account owner
-// gets a token-less session, so they boot into their data with the sign-in form, not into an empty
-// device library. Nothing on disk is moved or deleted, so a crash at any point re-runs to the same
-// result.
+// it. A database without one is skipped: only a first open that crashed before writing the owner
+// leaves one, and it holds nothing. Nothing on disk is moved or deleted.
 export async function rebuildRegistry(): Promise<Registry> {
-  const session = getSession();
   const libraries: Library[] = [];
   for (const dbName of await listDatabaseNames()) {
     const id = libraryIdFromDbName(dbName);
     if (!id) continue;
-    libraries.push({ id, owner: await withAppDb(dbName, (db) => ensureOwner(db, session)) });
-  }
-
-  const migrated = libraries.find((library) => library.id === MIGRATED_LIBRARY_ID);
-  if (!session && migrated?.owner.kind === 'account') {
-    const { serverId, userId, email } = migrated.owner;
-    await updateSession(() => ({ serverId, userId, email, apiBaseUrl: API_BASE_URL, tokens: null }));
+    const owner = await withAppDb(dbName, getOwner);
+    if (owner) libraries.push({ id, owner });
   }
   return { libraries };
-}
-
-async function ensureOwner(db: AppDb, session: Session | null): Promise<Owner> {
-  const stored = await getOwner(db);
-  if (stored) return stored;
-  const owner = await ownerFromSyncState(db, session);
-  await setOwner(db, owner);
-  return owner;
-}
-
-async function ownerFromSyncState(db: AppDb, session: Session | null): Promise<Owner> {
-  const userId = await getLastSyncUser(db);
-  if (!userId) return { kind: 'device' };
-  const email = session?.userId === userId ? (session.email ?? '') : '';
-  return { kind: 'account', serverId: null, userId, email };
 }

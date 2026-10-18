@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { sessionStoreMock } from './helpers/sessionStoreMock';
 import { makeTestDb } from './helpers/testDb';
+import type { Owner } from '../src/library/owner';
 import type { Session } from '../src/library/session';
 import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
@@ -55,7 +56,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 vi.mock('../src/utils/cloud-api/sessionStore', () => sessionStoreMock(store));
 vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({ API_BASE_URL: 'https://api.test/api/v1' }));
 vi.mock('expo-file-system/legacy', () => ({ documentDirectory: 'file:///docs/' }));
-vi.mock('@sentry/react-native', () => ({ captureException: () => {} }));
+vi.mock('@sentry/react-native', () => ({ captureException: () => {}, captureMessage: () => {} }));
 // The boot's network check: the stored session as it is (offline).
 vi.mock('../src/utils/cloud-api/initializeCloudAsync', () => ({ default: async () => store.session }));
 const dbNames: string[] = []; // the databases on disk, for a registry rebuild
@@ -82,7 +83,7 @@ const { getDb, openAppDb } = await import('../src/sync/db/client');
 const { dropTokensAsync: signOut } = await import('../src/utils/cloud-api/sessionStore');
 
 const tokens = { accessToken: 'a', refreshToken: 'r' };
-const sessionOf = (userId: string, serverId: string | null = 's1'): Session => ({
+const sessionOf = (userId: string, serverId = 's1'): Session => ({
   serverId,
   userId,
   email: `${userId}@test`,
@@ -118,17 +119,35 @@ describe('switching libraries with the session', () => {
     ids.n = 0;
   });
 
-  it('boots a signed-out install from before libraries into its account library, not a new device one', async () => {
+  it('boots a signed-out owner into the library rebuilt from its database, not a new one', async () => {
     const migrated = makeTestDb();
     stores.set('squidbox.db', migrated);
     dbNames.push('squidbox.db');
     await setOwner(migrated, { kind: 'account', serverId: 's1', userId: 'A', email: 'A@test' });
+    store.session = { ...sessionOf('A'), tokens: null };
 
-    await bootLibrary(switchLibrary); // the list is rebuilt, which stores the owner's token-less session
+    await bootLibrary(switchLibrary);
 
     expect(getLibrary().id).toBe('squidbox');
     expect(libraryIds()).toEqual(['squidbox']);
     expect(store.session).toEqual({ ...sessionOf('A'), tokens: null });
+  });
+
+  it('boots a converted library whose owner has no serverId into it, resolved, not a new one', async () => {
+    // Stored by a build from before every owner had a serverId.
+    const unresolved = { kind: 'account', serverId: null, userId: 'A', email: '' } as unknown as Owner;
+    const migrated = makeTestDb();
+    stores.set('squidbox.db', migrated);
+    await setOwner(migrated, unresolved);
+    await loadRegistry(async () => ({ libraries: [{ id: 'squidbox', owner: unresolved }] }));
+    store.session = sessionOf('A');
+
+    await bootLibrary(switchLibrary);
+
+    expect(getLibrary().id).toBe('squidbox');
+    expect(libraryIds()).toEqual(['squidbox']);
+    expect(openOwner()).toEqual({ kind: 'account', serverId: 's1', userId: 'A', email: 'A@test' });
+    expect(await getOwner(getDb())).toEqual(openOwner());
   });
 
   it('signs in as A, switches to B, and comes back to A with everything intact', async () => {
@@ -321,25 +340,12 @@ describe('switching libraries with the session', () => {
     expect(libraryIds()).toEqual([aId]);
   });
 
-  it('the same session opens the library it already has, resolving an unresolved owner', async () => {
-    const migrated = { id: 'squidbox', owner: { kind: 'account' as const, serverId: null, userId: 'A', email: '' } };
-    await loadRegistry(async () => ({ libraries: [migrated] }));
-    await open(sessionOf('A', null));
-    expect(getLibrary().id).toBe('squidbox');
-    expect(openOwner()).toEqual({ kind: 'account', serverId: null, userId: 'A', email: 'A@test' });
-
-    await open(sessionOf('A', 's1')); // /me resolved the server
-    expect(getLibrary().id).toBe('squidbox');
-    expect(openOwner()).toEqual({ kind: 'account', serverId: 's1', userId: 'A', email: 'A@test' });
-    expect(await getOwner(getDb())).toEqual(openOwner());
-  });
-
-  it('libraryForSession: a session without a user opens the unresolved library, else the device one', async () => {
-    const unresolved = { id: 'squidbox', owner: { kind: 'account' as const, serverId: null, userId: 'A', email: '' } };
-    await loadRegistry(async () => ({ libraries: [unresolved] }));
-    expect(libraryForSession({ ...sessionOf('A'), userId: null, serverId: null })).toBe(unresolved);
-    storage.clear();
-    await loadRegistry(async () => ({ libraries: [{ id: 'dev', owner: { kind: 'device' } }] }));
-    expect(libraryForSession({ ...sessionOf('A'), userId: null, serverId: null }).id).toBe('dev');
+  it('libraryForSession: the same user on another server is another account, with a library of its own', async () => {
+    const onS1 = { id: 'a-s1', owner: { kind: 'account' as const, serverId: 's1', userId: 'A', email: 'A@test' } };
+    await loadRegistry(async () => ({ libraries: [onS1] }));
+    expect(libraryForSession(sessionOf('A'))).toBe(onS1);
+    expect(libraryForSession(sessionOf('A', 's2'))).toMatchObject({
+      owner: { kind: 'account', serverId: 's2', userId: 'A' },
+    });
   });
 });

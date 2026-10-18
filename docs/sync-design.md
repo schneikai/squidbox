@@ -393,8 +393,8 @@ Tables (`apps/mobile/src/sync/db/schema.ts`):
 
 - One table per collection: synced fields plus local-only fields.
 - `sync_meta(key, value)`: `cursor`, `status`, `firstSyncDone`, `owner` (whose library this
-  database is, JSON, so the library list can be rebuilt from the databases). `lastSyncUserId` is
-  retired: read once by the install migration, never written.
+  database is, JSON, so the library list can be rebuilt from the databases). `lastSyncUserId`, from
+  before libraries, is left unread.
 - `outbox(id, collection, record_id, op, payload, updated_at, created_at, error)`: pending
   mutations, one row per record. `op` is `delete` when the payload has `deletedAt`, otherwise
   `upsert`. `error` is why the server rejected the payload (§6), null while it waits to be pushed.
@@ -502,23 +502,25 @@ it started with, so a late write lands in its own library or fails, never in the
 database needs no such handle: closing a library rejects every statement queued after it
 (`driver.ts`). The list of libraries is the
 AsyncStorage value `libraries` (`{ libraries: [{ id, owner, mergedInto?, keptFor? }] }`); a corrupt value is
-moved aside and the list rebuilt from the owners the databases carry (`library/rebuildRegistry.ts`); the list and the session record share one persisted store
+moved aside and the list rebuilt from the owners the databases carry (`library/rebuildRegistry.ts`;
+a database without one, left by a first open that crashed, holds nothing and is skipped); the list and the session record share one persisted store
 (`utils/persistedStore.ts`).
 
 **The session** is one record in SecureStore (`session`; localStorage on web):
 `{ serverId, userId, email, apiBaseUrl, tokens }` (`utils/cloud-api/sessionStore.js`, one in-memory
 copy changed only through `updateSession`). It binds the signed-in user to the server the tokens
 came from: the server reports its `SERVER_ID` in `/up`, the login response and `/me`
-(`apps/server/src/config.ts`), and `sameAccount` treats the same `userId` on a different
-`serverId` as another account, with its own library. At boot, `initializeCloudAsync` verifies the
-session beside the library open (`library/bootLibrary.ts`): with the same base URL and a complete
-record the app is signed in at once, offline included; a changed base URL (a new dev tunnel) must
-report the session's `serverId` in `/up` before the session rebinds to it, else the tokens are
-dropped (a session whose server is unresolved adopts the reported one); a converted install whose
-session lacks its user keeps its tokens and is filled from `/me` (sync waits for that). Only the
-server's own 401/403 drops tokens there; a network error leaves everything for the next launch.
-The boot reads the session after the library list loaded, since a rebuilt list stores a token-less
-session for a signed-out owner.
+(`apps/server/src/config.ts`). `serverId` and `userId` are always set, on the session and on every
+account owner, and `sameAccount` matches both exactly: the same `userId` on a different `serverId`
+is another account, with its own library. At boot, `initializeCloudAsync` verifies the session
+beside the library open (`library/bootLibrary.ts`): with the same base URL the app is signed in at
+once, offline included; a changed base URL (a new dev tunnel) must report the session's `serverId`
+in `/up` before the session rebinds to it, else the tokens are dropped; a network error leaves
+everything for the next launch. Either way the session keeps its owner, so the library opened
+beside the check stays open. Installs converted from before the session record could still hold an
+owner without its `serverId`; until every such phone has booted once, `library/resolveOwners.ts`
+copies the stored session's `serverId` into that user's unresolved owners right after the list
+loads, before any library opens (reported to Sentry when it fires).
 
 **Photo backup** (`sync/backupRun.ts`, started from `CloudSyncProvider`) uploads the files of the
 assets unsynced at its start, one run at a time, for the library and identity it started with: each

@@ -6,7 +6,7 @@ import { API_BASE_URL } from '@/utils/cloud-api/apiBaseUrl';
 
 // What a sync run and every request of it belong to.
 export interface SyncIdentity {
-  serverId: string | null;
+  serverId: string;
   userId: string;
 }
 

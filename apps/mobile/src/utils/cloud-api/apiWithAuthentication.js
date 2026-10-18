@@ -13,10 +13,10 @@ const apiWithAuthentication = axios.create({
 
 // Every request reads the access token fresh from the stored session, for the identity it was given
 // (`config.identity`) or else for the stored session's, noted on the config so the retry below
-// refreshes for the same user (a converted session that doesn't know its user yet pins none).
+// refreshes for the same user.
 apiWithAuthentication.interceptors.request.use((config) => {
   const session = requireSession(config.identity);
-  if (!config.identity && session.userId) config.identity = sessionIdentity(session);
+  if (!config.identity) config.identity = sessionIdentity(session);
   config.headers['Authorization'] = `Bearer ${session.tokens.accessToken}`;
   return config;
 });

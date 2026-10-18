@@ -30,14 +30,12 @@ vi.mock('@sentry/react-native', () => ({ captureMessage: (message: string) => re
 const { resolveOwners } = await import('../src/library/resolveOwners');
 const { getRegistry, loadRegistry, updateRegistry } = await import('../src/library/registry');
 
-const session = (serverId: string | null, userId: string | null): Session => ({
-  serverId,
-  userId,
-  email: 'u1@test',
-  apiBaseUrl: 'https://api.test/api/v1',
-  tokens: null,
-});
-const unresolved = (userId: string, email = ''): Owner => ({ kind: 'account', serverId: null, userId, email });
+// A session missing its server or its user, as older builds stored them.
+const session = (serverId: string | null, userId: string | null) =>
+  ({ serverId, userId, email: 'u1@test', apiBaseUrl: 'https://api.test/api/v1', tokens: null }) as unknown as Session;
+// Stored by a build from before every owner had a serverId.
+const unresolved = (userId: string, email = '') =>
+  ({ kind: 'account', serverId: null, userId, email }) as unknown as Owner;
 
 // Each library's owner, in its database and in the list.
 async function libraries(owners: Record<string, Owner>) {

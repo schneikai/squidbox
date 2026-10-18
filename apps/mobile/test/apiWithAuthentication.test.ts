@@ -107,12 +107,4 @@ describe('apiWithAuthentication', () => {
     await apiWithAuthentication.get('me', { adapter: fn });
     expect(bearers).toEqual(['Bearer access-1']);
   });
-
-  it('refreshes for a converted session that does not know its user yet, instead of refusing', async () => {
-    store.session = { ...sessionA('access-1'), serverId: null, userId: null, email: null };
-    const { fn, bearers } = adapter([401, 200]);
-    const { data } = await apiWithAuthentication.get('me', { adapter: fn });
-    expect(data).toEqual({ ok: true });
-    expect(bearers).toEqual(['Bearer access-1', 'Bearer access-2']);
-  });
 });

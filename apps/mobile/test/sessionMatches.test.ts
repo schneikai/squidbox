@@ -9,14 +9,14 @@ const { isSessionAuthenticated, sessionMatches } = await import('../src/library/
 
 const tokens = { accessToken: 'a', refreshToken: 'r' };
 const device: Library = { id: 'dev', owner: { kind: 'device' } };
-const libraryOf = (userId: string, serverId: string | null = 's1'): Library => ({
+const libraryOf = (userId: string, serverId = 's1'): Library => ({
   id: `lib-${userId}`,
   owner: { kind: 'account', serverId, userId, email: `${userId}@test` },
 });
-const sessionOf = (userId: string | null, over: Partial<Session> = {}): Session => ({
+const sessionOf = (userId: string, over: Partial<Session> = {}): Session => ({
   serverId: 's1',
   userId,
-  email: userId && `${userId}@test`,
+  email: `${userId}@test`,
   apiBaseUrl: BASE_URL,
   tokens,
   ...over,
@@ -29,16 +29,14 @@ describe('sessionMatches', () => {
     expect(sessionMatches(libraryOf('A'), sessionOf('A', { serverId: 's2' }))).toBe(false);
   });
 
-  it('never matches the device library, no session, or a session without a user', () => {
+  it('never matches the device library or no session', () => {
     expect(sessionMatches(device, sessionOf('A'))).toBe(false);
     expect(sessionMatches(libraryOf('A'), null)).toBe(false);
-    expect(sessionMatches(libraryOf('A'), sessionOf(null))).toBe(false);
   });
 
-  it('treats an unresolved serverId on either side as the same server', () => {
-    expect(sessionMatches(libraryOf('A', null), sessionOf('A'))).toBe(true);
-    expect(sessionMatches(libraryOf('A'), sessionOf('A', { serverId: null }))).toBe(true);
-    expect(sessionMatches(libraryOf('A', null), sessionOf('A', { serverId: null }))).toBe(true);
+  it('needs the same server: the same user on another one is another account', () => {
+    expect(sessionMatches(libraryOf('A', 's2'), sessionOf('A'))).toBe(false);
+    expect(sessionMatches(libraryOf('A', 's2'), sessionOf('A', { serverId: 's2' }))).toBe(true);
   });
 });
 

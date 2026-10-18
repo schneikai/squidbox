@@ -1,29 +1,18 @@
 import api from './api';
 import { API_BASE_URL, SERVER_URL } from './apiBaseUrl';
-import apiWithAuthentication from './apiWithAuthentication';
 import { dropTokensAsync, getSession, updateSession } from './sessionStore';
 
 // Verifies the stored session for this launch and resolves to it: a changed base URL (a new dev
-// tunnel) must report the session's serverId in /up before the session rebinds to it (a session
-// whose server is unresolved yet adopts the reported one, as sameAccount reads a null serverId),
-// and a session missing its owner (a converted install) is filled from /me. Only the server's own
-// "no" (401/403) drops tokens; a network error leaves everything for the next launch.
+// tunnel) must report the session's serverId in /up before the session rebinds to it, else the
+// tokens are dropped. A network error leaves everything for the next launch.
 export default async function initializeCloudAsync() {
   const session = getSession();
-  if (!session?.tokens) return session;
+  if (!session?.tokens || session.apiBaseUrl === API_BASE_URL) return session;
 
-  if (session.apiBaseUrl !== API_BASE_URL) {
-    const serverId = await fetchServerIdAsync();
-    if (serverId === undefined) return session;
-    if (serverId === null || (session.serverId !== null && serverId !== session.serverId)) return dropAsync();
-    await updateSession((current) =>
-      current ? { ...current, apiBaseUrl: API_BASE_URL, serverId: current.serverId ?? serverId } : current,
-    );
-  }
-
-  const bound = getSession();
-  if (bound.serverId && bound.userId && bound.email) return bound;
-  return fillOwnerAsync();
+  const serverId = await fetchServerIdAsync();
+  if (serverId === undefined) return session;
+  if (serverId !== session.serverId) return dropAsync();
+  return updateSession((current) => (current ? { ...current, apiBaseUrl: API_BASE_URL } : current));
 }
 
 // The server's identity (null before its SERVER_ID deploy), or undefined when it can't be reached.
@@ -33,20 +22,6 @@ async function fetchServerIdAsync() {
     return data.serverId ?? null;
   } catch {
     return undefined;
-  }
-}
-
-async function fillOwnerAsync() {
-  try {
-    const {
-      data: { user, serverId },
-    } = await apiWithAuthentication.get('me');
-    return updateSession((current) =>
-      current ? { ...current, serverId: serverId ?? null, userId: user.id, email: user.email } : current,
-    );
-  } catch (error) {
-    if ([401, 403].includes(error?.response?.status)) return dropAsync();
-    return getSession();
   }
 }
 
