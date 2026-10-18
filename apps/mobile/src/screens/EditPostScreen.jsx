@@ -16,9 +16,8 @@ export default function EditPostScreen({ route, navigation }) {
 
   async function handleUpdatePost(data) {
     const original = { text: post.text, assetRefs: postAssetsToAssetRefs(post.postAssets), postedAt: post.postedAt };
-    const changes = changedValues(original, data);
     try {
-      if (Object.keys(changes).length > 0) await updatePost(postId, changes);
+      await updatePost(postId, changedValues(original, data));
       navigation.goBack();
     } catch (error) {
       Alert.alert('Failed to update post!', error.message);

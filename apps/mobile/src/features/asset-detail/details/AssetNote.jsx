@@ -35,7 +35,7 @@ export default function AssetNote({ asset, isEditable, guardPress, onEditingBott
   }
 
   function handleEdit() {
-    editing.current = { assetId: asset.id, original: asset.notes ?? null, draft: asset.notes ?? '' };
+    editing.current = { assetId: asset.id, original: asset.notes?.trim() || null, draft: asset.notes ?? '' };
     setDraft(editing.current.draft);
   }
 

@@ -22,8 +22,7 @@ export default function EditAlbumNotesModal({ route, navigation }) {
   const { updateAlbum } = useAlbums();
 
   async function saveNotes(value) {
-    const changes = changedValues({ notes: initialNotes || null }, { notes: value });
-    if (Object.keys(changes).length > 0) await updateAlbum(id, changes);
+    await updateAlbum(id, changedValues({ notes: initialNotes?.trim() || null }, { notes: value }));
     navigation.goBack();
   }
 

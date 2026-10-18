@@ -50,10 +50,9 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
   function newEdge(id: string, parentId: string, assetId: string, position: string, now: number) {
     return { id, createdAt: now, updatedAt: now, deletedAt: null, [parentField]: parentId, assetId, position };
   }
-  const save = (tx: SyncDb, edges: any[], saved: { isNew: true } | { previous: any[] }) =>
-    saveRecords(tx, collection, table, edges, saved);
-  // Tombstone these live edges.
-  const tombstoneAll = (tx: SyncDb, edges: any[]) => save(tx, edges.map(tombstone), { previous: edges });
+  const save = (tx: SyncDb, edges: any[], previous: any[]) => saveRecords(tx, collection, table, edges, { previous });
+  const insert = (tx: SyncDb, edges: any[]) => saveRecords(tx, collection, table, edges, { isNew: true });
+  const tombstoneAll = (tx: SyncDb, edges: any[]) => save(tx, edges.map(tombstone), edges);
 
   /**
    * Reassign positions to match `orderedAssetIds`, with the parent's other live edges (assets not
@@ -73,7 +72,7 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
         const e = canonical.get(assetId);
         if (e.position !== keys[i]) changed.push(nextVersion(e, { position: keys[i] }));
       }
-      await save(tx, changed, { previous: live });
+      await save(tx, changed, live);
     });
   }
 
@@ -109,7 +108,7 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
       const neighbors = [...(after ? [after] : []), ...tied, ...(next ? [next] : []), moved];
       const updates = movePositions(neighbors, moved.id, after?.id ?? null);
       const changed = neighbors.filter((e) => updates[e.id]).map((e) => nextVersion(e, updates[e.id]));
-      await save(tx, [...changed, ...duplicates.map(tombstone)], { previous: [...neighbors, ...duplicates] });
+      await save(tx, [...changed, ...duplicates.map(tombstone)], [...neighbors, ...duplicates]);
     });
   }
 
@@ -131,7 +130,7 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
           added.push(newEdge(newId(), parentId, assetId, position, now));
           existing.add(assetId);
         }
-        await save(tx, added, { isNew: true });
+        await insert(tx, added);
       });
     },
 
@@ -141,7 +140,7 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
       const keys = initialKeys(refs.length);
       const now = Date.now();
       const edges = refs.map((ref, i) => newEdge(ref.id, parentId, ref.assetId, keys[i]!, now));
-      await db.transaction((tx) => save(tx, edges, { isNew: true }));
+      await db.transaction((tx) => insert(tx, edges));
     },
 
     /**
@@ -171,7 +170,7 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
             changed.push(nextVersion(removed, { deletedAt: null, assetId: ref.assetId, position: keys[i] }));
           } else changed.push(newEdge(ref.id, parentId, ref.assetId, keys[i]!, now));
         }
-        await save(tx, changed, { previous: [...live, ...removedById.values()] });
+        await save(tx, changed, [...live, ...removedById.values()]);
       });
     },
 
