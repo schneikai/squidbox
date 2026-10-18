@@ -74,31 +74,22 @@ the pager (`AssetPager`, a native `FlatList`) is locked while the photo is zoome
 first. Handing over mid-touch needs the pager driven from the zoom's pan (e.g. Reanimated `scrollTo`)
 or a gesture-handler pager, instead of toggling `scrollEnabled`.
 
-### [ ] Lock the photo pager on the UI thread
-
-A zoom locks the pager through the JS thread (`runOnJS` → `setZoomedAssetId` → `scrollEnabled` in
-`AssetPager`), so under JS load a pan right after zooming in can still move the pager. Driving
-`scrollEnabled` from a shared value (`useAnimatedProps` on an `Animated.FlatList`) would skip the round
-trip, but it's unverified on the phone (Fabric) and react-native-web ignores it, and the swipe-back
-lock (`navigation.setOptions`) still needs JS. Try it on a device first.
-
 ### [ ] Zoom deeper than the thumbnail
 
 The photo viewer shows the 1000 px thumbnail, so zoom stops at 4× (`useZoomGesture`) and looks soft
 well before that. Loading the full-resolution file once zoomed would make deeper zoom worthwhile,
 with the maximum taken from the photo's own size.
 
-### [ ] Quick view in albums with custom sort
+### [ ] Context menus on long press (photo, album, post)
 
-The long-press quick view is off while drag-to-reorder is enabled (`AlbumAssetsView`). A
-long-press held still for about a second could open the quick view, while moving starts the
-reorder.
-
-### [ ] Post suggestions: show and open where an asset was posted
-
-In the random suggestions card (`RandomSuggestionsModal`), show when the asset and its album were
-last posted, and open the asset detail screen on tap. That screen's swipe-up details
-(`AssetDetailsPanel`) already show the asset's albums and every post it is in, each opening it.
+Apple-Photos-style menu on long press: a preview with actions such as Share, Save, Add to album,
+Favorite, Delete. Build it in JS: the existing quick view (`AssetQuickViewModal`) with a menu from
+`components/popup-menu-options` under it, opened from the grids' "hold still" step (`onPeek` in
+`components/sortable-grid/useDragReorder.js`), so moving the finger still closes it and drags, as in
+Photos, and it works on web. Unlike today's quick view, the menu stays open after the finger lifts.
+Native menus were checked: `@expo/ui` `ContextMenu` ships with the SDK but is iOS only and takes the
+touch, so drag-to-reorder can't follow it (fine later for screens that don't drag, like a post);
+`zeego` and `react-native-ios-context-menu` would make SDK upgrades harder.
 
 ### [ ] More AI tools
 
@@ -156,12 +147,6 @@ together; an existing local compose volume needs a dump and restore (or a fresh 
 
 `npm ci` runs ngrok's postinstall, which downloads its binary on every run and fails the install
 when the download fails. CI doesn't need it. Make `ngrok` optional or skip its script in CI.
-
-### [ ] One vertical drag per asset page
-
-The photo's drag (`verticalDrag` in `useZoomGesture`) and the details panel's own pan
-(`useDetailsPanelDrag`) feed the same track as two gestures. One page-level vertical Pan in
-`AssetPage` would be simpler; it needs device testing against the zoom, the pager and the rows.
 
 ### [ ] Rewrite the app in TypeScript
 
