@@ -35,10 +35,10 @@ describe('fieldMergeUpdate', () => {
     );
   });
 
-  it('never updates a purged asset, and purges only an asset that stays deleted', () => {
+  it('never updates a purged asset, and purges an asset that stays deleted, whatever the clock', () => {
     const purgeOnly = fieldMergeUpdate(serverCollections.assets, ['purgedAt']);
     expect(render(purgeOnly.setWhere)).toBe(
-      `"assets"."purged_at" is null and ((${wins('assets', 'purgedAt')} and "assets"."deleted_at" is not null))`,
+      `"assets"."purged_at" is null and ((case when excluded.purged_at is null then ${wins('assets', 'purgedAt')} else "assets"."deleted_at" is not null end))`,
     );
     const withDelete = fieldMergeUpdate(serverCollections.assets, ['deletedAt', 'purgedAt']);
     expect(render(withDelete.set.purgedAt)).toContain(

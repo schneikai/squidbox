@@ -7,8 +7,8 @@ import { storedClocks } from './storedClocks.js';
  * The DO UPDATE of a per-field push (sync-design §6, §7): each sent field applies when its clock is
  * newer than the stored one (strict >, so a replay changes nothing), the others keep their value and
  * clock, and `updated_at` is the newest clock. The row is updated, and gets a new server_seq, only
- * when a field applies. For assets, a purged row is final and a purge applies only when the merged
- * row is deleted. `sent` holds merge fields only: they are written into the SQL as names.
+ * when a field applies. For assets, a purged row is final, and a purge applies, whatever its clock,
+ * when the merged row is deleted. `sent` holds merge fields only: they are written into the SQL as names.
  */
 export function fieldMergeUpdate(col: ServerCollection, sent: string[]): { set: Record<string, SQL>; setWhere: SQL } {
   const table = col.table as any;
@@ -21,9 +21,11 @@ export function fieldMergeUpdate(col: ServerCollection, sent: string[]): { set: 
   const mergedDeletedAt = sent.includes('deletedAt')
     ? sql`(case when ${wins('deletedAt')} then ${sentValue('deletedAt')} else ${table.deletedAt} end)`
     : sql`${table.deletedAt}`;
+  // A purge applies to an asset that stays deleted whatever its clock, as in the whole-record path:
+  // a whole-record push stamps purgedAt with its clock too, and must not out-date a purge.
   const applies = (field: string) =>
     col.table === assets && field === 'purgedAt'
-      ? sql`(${wins(field)} and ${mergedDeletedAt} is not null)`
+      ? sql`(case when excluded.purged_at is null then ${wins(field)} else ${mergedDeletedAt} is not null end)`
       : wins(field);
 
   const set: Record<string, SQL> = {};

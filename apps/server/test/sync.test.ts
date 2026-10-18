@@ -473,6 +473,15 @@ d('sync engine (Postgres)', () => {
       expect(await serverSeqOf(USER_A, r.id)).toBe(seq);
     });
 
+    it('a purge applies over a newer whole-record edit in the Deleted album, which stamped every field', async () => {
+      const r = assetRecord({ deletedAt: 1000, purgedAt: null });
+      await push(db, USER_A, [mut(r)]);
+      await push(db, USER_A, [mut({ ...r, updatedAt: 3000, notes: 'from the old app' })]);
+      const purge = edit({ ...r, updatedAt: 2000, purgedAt: 2000 }, ['purgedAt']);
+      expect((await push(db, USER_A, [purge]))[0].status).toBe('applied');
+      expect(await stored(r.id)).toMatchObject({ purgedAt: 2000, notes: 'from the old app', updatedAt: 3000 });
+    });
+
     it('a row written before per-field merge takes its updated_at as every field’s clock', async () => {
       const r = assetRecord({ updatedAt: 2000 });
       await push(db, USER_A, [mut(r)]);
