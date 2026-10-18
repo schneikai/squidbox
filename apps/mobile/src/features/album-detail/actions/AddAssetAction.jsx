@@ -21,7 +21,7 @@ export default function AddAssetAction({ album }) {
   async function handleAddAssetsFromDevice() {
     try {
       const assets = await addAssetsFromCameraRollAsync();
-      addAssetsToAlbum(album, assets);
+      if (assets.length) await addAssetsToAlbum(album, assets);
     } catch (error) {
       Alert.alert('Failed to add assets from device!', error.message);
     }
@@ -30,7 +30,7 @@ export default function AddAssetAction({ album }) {
   async function handleAddAssetsFromApp() {
     try {
       const assets = await openAssetPicker({ exclude: { albumId: album.id } });
-      addAssetsToAlbum(album, assets);
+      if (assets.length) await addAssetsToAlbum(album, assets);
     } catch (error) {
       Alert.alert('Failed to add assets from app!', error.message);
     }
