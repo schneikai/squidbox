@@ -100,11 +100,6 @@ In the random suggestions card (`RandomSuggestionsModal`), show when the asset a
 last posted, and open the asset detail screen on tap. That screen's swipe-up details
 (`AssetDetailsPanel`) already show the asset's albums and every post it is in, each opening it.
 
-### [ ] Save posts for later / drafts
-
-Keep a generated caption without posting it now, for example as a draft post. Posts without a
-`postedAt` already exist and sort separately, so drafts can build on that.
-
 ### [ ] More AI tools
 
 - Generate a few PPV message texts from a post.
