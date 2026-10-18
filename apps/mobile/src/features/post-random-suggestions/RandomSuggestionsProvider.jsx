@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { StackActions, useNavigation } from '@react-navigation/native';
 import { useCallback, useMemo, useRef } from 'react';
 
 import RandomSuggestionsContext from './RandomSuggestionsContext';
@@ -16,7 +16,9 @@ export default function RandomSuggestionsProvider({ children }) {
       new Promise((resolve) => {
         const requestId = ++lastRequestIdRef.current;
         resolversRef.current.set(requestId, resolve);
-        navigation.push('RandomSuggestionsModal', { requestId });
+        // Pushed, not navigated to, which would go back to a sheet still open below. A dispatch: the
+        // navigation outside the navigators has no push.
+        navigation.dispatch(StackActions.push('RandomSuggestionsModal', { requestId }));
       }),
     [navigation],
   );
