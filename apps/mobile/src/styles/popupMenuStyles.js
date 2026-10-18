@@ -1,4 +1,4 @@
-import { colors, radii, spacing } from '@/styles/designTokens';
+import { colors, spacing } from '@/styles/designTokens';
 
 /**
  * Shared styles for react-native-popup-menu components.
@@ -53,14 +53,6 @@ export default {
   menuOptionIcon: {
     marginRight: spacing.menuIconGap,
     width: spacing.menuIconSize,
-  },
-
-  // Trigger wrapper — round shape, clips the TouchableHighlight press state
-  menuTrigger: {
-    borderRadius: radii.pill,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
   // Trailing active dot shown on the right of an active menu option

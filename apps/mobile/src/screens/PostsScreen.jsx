@@ -9,6 +9,7 @@ import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
 import PostList from '@/features/post-list/PostList';
 import PostListItem from '@/features/post-list/PostListItem';
+import postFilterOptions from '@/features/post-list/actions/filter-posts-action/postFilterOptions';
 import useFilterPostsAction from '@/features/post-list/actions/filter-posts-action/useFilterPostsAction';
 import useSortPostsAction from '@/features/post-list/actions/sort-posts-action/useSortPostsAction';
 import postQuery from '@/features/post-list/postQuery';
@@ -44,6 +45,7 @@ export default function PostsScreen() {
     registerScreenOptions('posts', {
       sortOrder,
       activeFilter,
+      filterOptions: postFilterOptions,
       onSort: sortPosts,
       onFilter: toggleFilter,
     });
