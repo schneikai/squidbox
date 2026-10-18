@@ -7,7 +7,6 @@ const files = new Set<string>();
 const downloads: { name: string; end(status: number | Error): void }[] = [];
 const peak = { running: 0, most: 0 };
 
-vi.mock('../src/library/current', () => ({ getLibrary: () => libraryPaths('abc') }));
 vi.mock('expo-file-system/legacy', () => ({
   documentDirectory: 'file:///documents/',
   getInfoAsync: async (uri: string) => ({ exists: files.has(uri) }),

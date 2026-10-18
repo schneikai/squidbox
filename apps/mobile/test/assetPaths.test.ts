@@ -1,19 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import type { OpenLibrary } from '../src/library/current';
 import { libraryPaths } from '../src/library/libraryPaths';
 
-// The open library, as the file helpers see it, and a record of the file-system calls they make.
-const current: { library: OpenLibrary | null } = { library: null };
+// A record of the file-system calls the file helpers make.
 const fs: string[] = [];
 const folders: Record<string, string[]> = {}; // what readDirectoryAsync lists, by folder
 
-vi.mock('../src/library/current', () => ({
-  getLibrary: () => {
-    if (!current.library) throw new Error('No library is open');
-    return current.library;
-  },
-}));
 vi.mock('expo-file-system/legacy', () => ({
   documentDirectory: 'file:///documents/',
   cacheDirectory: 'file:///caches/',
@@ -44,19 +36,18 @@ const { default: getAssetThumbnailStatusAsync } =
   await import('../src/utils/assets/thumbnails/getAssetThumbnailStatusAsync');
 const { removeAssetFiles } = await import('../src/library/fs');
 
-const open = (id: string): OpenLibrary => ({ id, ...libraryPaths(id) });
+const abc = libraryPaths('abc');
 
 describe('asset file and thumbnail paths', () => {
   beforeEach(() => {
-    current.library = open('abc');
     fs.length = 0;
   });
 
-  it('resolve against the open library', async () => {
-    expect(getAssetFileUri('a.jpg')).toBe('file:///documents/libraries/abc/files/a.jpg');
-    expect(getAssetThumbnailUri('athumb.jpg')).toBe('file:///documents/libraries/abc/thumbnails/athumb.jpg');
-    await createAssetFileDirectory();
-    await createAssetThumbnailDirectory();
+  it('resolve against the library they are given', async () => {
+    expect(getAssetFileUri('a.jpg', abc)).toBe('file:///documents/libraries/abc/files/a.jpg');
+    expect(getAssetThumbnailUri('athumb.jpg', abc)).toBe('file:///documents/libraries/abc/thumbnails/athumb.jpg');
+    await createAssetFileDirectory(abc);
+    await createAssetThumbnailDirectory(abc);
     expect(fs).toEqual([
       'mkdir file:///documents/libraries/abc/files/',
       'mkdir file:///documents/libraries/abc/thumbnails/',
@@ -64,17 +55,13 @@ describe('asset file and thumbnail paths', () => {
   });
 
   it('the migrated library keeps its folders from before libraries', () => {
-    current.library = open('squidbox');
-    expect(getAssetFileUri('a.jpg')).toBe('file:///documents/assetfiles/a.jpg');
-    expect(getAssetThumbnailUri('athumb.jpg')).toBe('file:///documents/assetthumbnails/athumb.jpg');
+    const migrated = libraryPaths('squidbox');
+    expect(getAssetFileUri('a.jpg', migrated)).toBe('file:///documents/assetfiles/a.jpg');
+    expect(getAssetThumbnailUri('athumb.jpg', migrated)).toBe('file:///documents/assetthumbnails/athumb.jpg');
   });
 
-  it('a captured library keeps resolving against itself after the open one changed', async () => {
-    const captured = current.library!;
-    current.library = open('other');
-    expect(getAssetFileUri('a.jpg', captured)).toBe('file:///documents/libraries/abc/files/a.jpg');
-    expect(getAssetThumbnailUri('athumb.jpg', captured)).toBe('file:///documents/libraries/abc/thumbnails/athumb.jpg');
-    await removeAssetFiles([{ filename: 'a.jpg', thumbnailFilename: 'athumb.jpg' }], captured);
+  it('removing an asset’s copies deletes its file and thumbnail in its library', async () => {
+    await removeAssetFiles([{ filename: 'a.jpg', thumbnailFilename: 'athumb.jpg' }], abc);
     expect(fs).toEqual([
       'delete file:///documents/libraries/abc/files/a.jpg',
       'delete file:///documents/libraries/abc/thumbnails/athumb.jpg',
@@ -82,16 +69,17 @@ describe('asset file and thumbnail paths', () => {
   });
 
   it('existence checks look in the library they were given', async () => {
-    expect(await assetFileExistsAsync('present.jpg')).toBe(true);
-    expect(await assetFileExistsAsync('missing.jpg')).toBe(false);
-    expect(await hasThumbnailAsync('present.jpg', open('other'))).toBe(true);
-    expect(await hasThumbnailAsync(null)).toBe(true);
-    await removeAssetFiles([{ filename: 'a.jpg' }], open('abc')); // a backed-up file: its thumbnail stays
+    expect(await assetFileExistsAsync('present.jpg', abc)).toBe(true);
+    expect(await assetFileExistsAsync('missing.jpg', abc)).toBe(false);
+    expect(await hasThumbnailAsync('present.jpg', libraryPaths('other'))).toBe(true);
+    expect(await hasThumbnailAsync(null, abc)).toBe(true);
+    await removeAssetFiles([{ filename: 'a.jpg' }], abc); // a backed-up file: its thumbnail stays
     expect(fs).toEqual(['delete file:///documents/libraries/abc/files/a.jpg']);
   });
 
   it('a thumbnail on this device is local, one not backed up yet is not uploaded, else it’s in the cloud', async () => {
-    const status = (asset: object, isAuthenticated = true) => getAssetThumbnailStatusAsync(asset, { isAuthenticated });
+    const status = (asset: object, isAuthenticated = true) =>
+      getAssetThumbnailStatusAsync(asset, { isAuthenticated, library: abc });
     expect(await status({ thumbnailFilename: 'present.jpg', isThumbnailSynced: false })).toBe('local');
     expect(await status({ thumbnailFilename: 'missing.jpg', isThumbnailSynced: false })).toBe('notUploaded');
     expect(await status({ thumbnailFilename: 'missing.jpg', isThumbnailSynced: false }, false)).toBe('notUploaded');
@@ -103,7 +91,7 @@ describe('asset file and thumbnail paths', () => {
     folders['file:///documents/libraries/abc/files/'] = ['a0.jpg', 'unrelated.jpg'];
     folders['file:///documents/libraries/abc/thumbnails/'] = ['a0-t.jpg', 'a1-t.jpg'];
     const assets = Array.from({ length: 100 }, (_, i) => ({ filename: `a${i}.jpg`, thumbnailFilename: `a${i}-t.jpg` }));
-    await removeAssetFiles(assets, open('abc'));
+    await removeAssetFiles(assets, abc);
     expect(fs.sort()).toEqual([
       'delete file:///documents/libraries/abc/files/a0.jpg',
       'delete file:///documents/libraries/abc/thumbnails/a0-t.jpg',
@@ -112,14 +100,14 @@ describe('asset file and thumbnail paths', () => {
       'list file:///documents/libraries/abc/thumbnails/',
     ]);
     fs.length = 0;
-    await removeAssetFiles([], open('abc'));
+    await removeAssetFiles([], abc);
     expect(fs).toEqual([]);
   });
 
   it('removing an asset also removes the downloads kept for a share sheet', async () => {
     const uuid = '3f2a0000-0000-4000-8000-000000000001';
     folders['file:///caches/downloads/abc/'] = [`a.jpg-${uuid}`, `b.jpg-${uuid}`];
-    await removeAssetFiles([{ filename: 'a.jpg' }], open('abc'));
+    await removeAssetFiles([{ filename: 'a.jpg' }], abc);
     expect(fs).toEqual([
       'list file:///caches/downloads/abc/',
       'delete file:///documents/libraries/abc/files/a.jpg',
@@ -128,8 +116,7 @@ describe('asset file and thumbnail paths', () => {
     delete folders['file:///caches/downloads/abc/'];
   });
 
-  it('refuse to resolve while no library is open', () => {
-    current.library = null;
-    expect(() => getAssetFileUri('a.jpg')).toThrow('No library is open');
+  it('refuse to resolve without a library, instead of guessing the open one', () => {
+    expect(() => getAssetFileUri('a.jpg')).toThrow(TypeError);
   });
 });

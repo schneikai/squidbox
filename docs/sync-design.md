@@ -494,7 +494,13 @@ backs it up and keeps it in sync, and signing out only pauses that.
 `assetfiles/` and `assetthumbnails/` under the document directory, nothing moved. Every other
 library `<id>` (a uuid) is `library-<id>.db` and `libraries/<id>/{files,thumbnails}/`; its
 downloads cache is `downloads/<id>/` under the cache directory and goes with it
-(`library/libraryPaths.ts`: the paths come from the id alone). The list of libraries is the
+(`library/libraryPaths.ts`: the paths come from the id alone). Every path helper takes the library
+as a required argument and never falls back to the open one: screens pass `useLibrary().paths`
+(`LibraryProvider`), which can't change under them since everything below `LibraryGate` is keyed by
+the library, and work outside React (a backup run, a merge, the sync worker) is handed the library
+it started with, so a late write lands in its own library or fails, never in the next one. The
+database needs no such handle: closing a library rejects every statement queued after it
+(`driver.ts`). The list of libraries is the
 AsyncStorage value `libraries` (`{ libraries: [{ id, owner, mergedInto?, keptFor? }] }`); a corrupt value is
 moved aside and the list rebuilt from the owners the databases carry (`library/rebuildRegistry.ts`); the list and the session record share one persisted store
 (`utils/persistedStore.ts`).

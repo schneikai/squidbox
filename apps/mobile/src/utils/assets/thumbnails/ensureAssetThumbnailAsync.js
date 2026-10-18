@@ -1,7 +1,6 @@
 import createAssetThumbnail from './createAssetThumbnail';
 import hasThumbnailAsync from './hasThumbnailAsync';
 
-import { getLibrary } from '@/library/current';
 import assetFileExistsAsync from '@/utils/assets/files/assetFileExistsAsync';
 import getAssetFileUri from '@/utils/assets/files/getAssetFileUri';
 
@@ -11,10 +10,10 @@ const waiting = []; // the jobs not started, the newest last
 let running = 0;
 
 // Resolves whether the asset's thumbnail is on the device, made again from the original when it's
-// missing and the original is here (a merge brings originals without their thumbnails). At most two
-// are made at once, the newest asked for first; one whose callers all aborted `signal` is skipped
-// (resolves false).
-export default function ensureAssetThumbnailAsync(asset, { library = getLibrary(), signal } = {}) {
+// missing and the original is in `library` (a merge brings originals without their thumbnails). At
+// most two are made at once, the newest asked for first; one whose callers all aborted `signal` is
+// skipped (resolves false).
+export default function ensureAssetThumbnailAsync(asset, { library, signal }) {
   if (signal?.aborted) return Promise.resolve(false);
   const key = `${library.thumbnailsDir}${asset.thumbnailFilename}`;
   let job = jobs.get(key);

@@ -5,13 +5,12 @@ import getAssetFileUri from './files/getAssetFileUri';
 import getNewAssetId from './getNewAssetId';
 import createAssetThumbnail from './thumbnails/createAssetThumbnail';
 
-import { getLibrary } from '@/library/current';
 import { removeAssetFiles } from '@/library/fs';
 import getFileExtension from '@/utils/files/getFileExtension';
 
-// `library`: the open one, whose folders the file and thumbnail go into (a caller adding several
-// assets captures it once, so they all land in the same library).
-export default async function buildAssetAsync(assetData = {}, library = getLibrary()) {
+// `library`: the one whose folders the file and thumbnail go into (a caller adding several assets
+// passes the same one, so they all land in the same library).
+export default async function buildAssetAsync(assetData, library) {
   const newAsset = { ...assetData };
   const sourceFileUri = extractSourceFileUri(newAsset);
 

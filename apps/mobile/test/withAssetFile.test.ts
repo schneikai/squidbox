@@ -21,7 +21,6 @@ vi.mock('../src/features/cloud/assets/downloadAssetFileAsync', () => ({
   },
 }));
 vi.mock('../src/utils/getNewItemId', () => ({ default: () => 'uuid' }));
-vi.mock('../src/library/current', () => ({ getLibrary: vi.fn() }));
 
 const { default: withAssetFileAsync } = await import('../src/utils/assets/files/withAssetFileAsync');
 
