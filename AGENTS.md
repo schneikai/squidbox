@@ -62,6 +62,7 @@ The codebase follows a modular, component-driven architecture with an emphasis o
 - Do not use low-level primitives (e.g. raw TextInput, menu primitives) directly in features if a project component exists
 - Keep UI abstractions simple — avoid over-generalization
 - Animate with the `motion` tokens in `styles/designTokens.js` (`enter`, `exit`, `move`, `spring`), not ad-hoc durations, easings or spring values
+- Give haptic feedback through `hooks/useHaptics`, never expo-haptics directly: it respects the Haptics setting and skips builds and web without the native module. Use it only for meaningful moments (a lift, a drop, a peek, a selection change, a success or an error), never for every tap
 
 ## Naming
 

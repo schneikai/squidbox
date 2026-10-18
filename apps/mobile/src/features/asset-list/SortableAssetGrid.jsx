@@ -15,6 +15,8 @@ export default function SortableAssetGrid({
   dragSelectEnabled,
   reorderEnabled,
   onReorder,
+  onPeek,
+  onPeekEnd,
 }) {
   return (
     <SortableGrid
@@ -32,6 +34,8 @@ export default function SortableAssetGrid({
       onSelect={selectAssets}
       reorderEnabled={reorderEnabled}
       onReorder={onReorder}
+      onPeek={onPeek}
+      onPeekEnd={onPeekEnd}
       moveFailedTitle="Couldn't move the photo"
     />
   );

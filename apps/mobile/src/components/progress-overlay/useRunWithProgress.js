@@ -2,6 +2,8 @@ import { Alert } from 'react-native';
 
 import useProgressOverlay from './useProgressOverlay';
 
+import useHaptics from '@/hooks/useHaptics';
+
 /**
  * Runs an action behind the progress overlay with a Cancel button: `run((options) => …, { failureTitle })`
  * passes `{ onProgress, signal }`, the batch options the providers' bulk methods take (see
@@ -13,6 +15,7 @@ import useProgressOverlay from './useProgressOverlay';
  */
 export default function useRunWithProgress() {
   const { show, hide, updateProgress } = useProgressOverlay();
+  const haptics = useHaptics();
 
   return async function runWithProgress(action, { failureTitle = "Couldn't finish" } = {}) {
     const controller = new AbortController();
@@ -30,6 +33,7 @@ export default function useRunWithProgress() {
       if (error.name !== 'AbortError') {
         console.error('Action failed', error);
         const done = doneText(progress);
+        haptics.error();
         Alert.alert(failureTitle, done ? `${error.message}\n\n${done} were done before that.` : error.message);
         return false;
       }

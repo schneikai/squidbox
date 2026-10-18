@@ -32,7 +32,7 @@ export default function SettingsScreen() {
   const cloudSync = useCloudSync();
   const counts = useBackupCounts();
   const { phase, lastError, pendingCount, failedCount } = useSyncStatus();
-  const { isVideoAutoplayOn, setIsVideoAutoplayOn } = useAppSettings();
+  const { isVideoAutoplayOn, setIsVideoAutoplayOn, isHapticsOn, setIsHapticsOn } = useAppSettings();
 
   const [aiModel, setAiModel] = useState(DEFAULT_MODEL);
   const [isLoggingOut, startLogoutTransition] = useTransition();
@@ -172,6 +172,17 @@ export default function SettingsScreen() {
             />
           </Row>
         </Section>
+
+        <ScreenSectionHeader title="Feedback" />
+        <Section>
+          <Row label="Haptics">
+            <Switch value={isHapticsOn} onValueChange={setIsHapticsOn} accessibilityLabel="Haptics" />
+          </Row>
+        </Section>
+        <SectionFooter>
+          Gentle taps you can feel when you pick up or drop a photo or album, peek at a photo, or when something is
+          saved or goes wrong.
+        </SectionFooter>
 
         <ScreenSectionHeader title="AI Caption Suggestions" />
         <Section>

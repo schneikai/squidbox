@@ -20,23 +20,24 @@ let isRunning = false;
  *
  * Options: `failureTitle`; `prepareAsync`, which may resolve false to stop before anything starts;
  * `keepDownloads` for a `use` that reads the file after it returns (deleteStaleDownloadsAsync, at
- * the start of each run, removes them once over an hour old).
+ * the start of each run, removes them once over an hour old). Resolves to whether every asset went
+ * through.
  */
 export default function useRunWithAssetFiles() {
   const { isAuthenticated } = useCloud();
   const runWithProgress = useRunWithProgress();
 
   return async function runWithAssetFilesAsync(assets, use, { failureTitle, prepareAsync, keepDownloads = false }) {
-    if (isRunning) return;
+    if (isRunning) return false;
     isRunning = true;
     // The local copies are read from the library open now, however long the downloads take.
     const library = getLibrary();
 
     try {
-      if (await alertIfUnavailableAsync(assets, { isAuthenticated, library })) return;
-      if (prepareAsync && !(await prepareAsync())) return;
+      if (await alertIfUnavailableAsync(assets, { isAuthenticated, library })) return false;
+      if (prepareAsync && !(await prepareAsync())) return false;
 
-      await runWithProgress(
+      return await runWithProgress(
         async ({ onProgress, signal }) => {
           await deleteStaleDownloadsAsync(library);
           for (const [index, asset] of assets.entries()) {
@@ -52,6 +53,7 @@ export default function useRunWithAssetFiles() {
     } catch (error) {
       // The up-front checks: runWithProgress alerts what fails after them.
       Alert.alert(failureTitle, error.message);
+      return false;
     } finally {
       isRunning = false;
     }

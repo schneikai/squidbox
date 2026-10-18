@@ -5,6 +5,8 @@ import { Gesture } from 'react-native-gesture-handler';
 import gridIndexAtPoint from './gridIndexAtPoint';
 import useEdgeAutoScroll from './useEdgeAutoScroll';
 
+import useHaptics from '@/hooks/useHaptics';
+
 // Apple Photos-style drag-to-select for a grid (the asset grids).
 //
 // While in select mode, a short hold begins a marquee drag: the cell you start
@@ -30,6 +32,7 @@ export default function useDragSelect({
   onSelect,
 }) {
   const navigation = useNavigation();
+  const haptics = useHaptics();
 
   // A drag can start in the grid's first column, where iOS's swipe-back gesture also starts. Turn
   // swipe-back off while drag-select is on, so the drag selects instead of leaving the screen.
@@ -103,6 +106,7 @@ export default function useDragSelect({
           currentIndexRef.current = index;
           intentRef.current = !baseSelectedRef.current.includes(handlers.current.rows[index].id);
           handlers.current.applyRange(index);
+          haptics.selection();
           autoScroll.start(e.x, e.y);
         })
         .onUpdate((e) => {
@@ -114,7 +118,7 @@ export default function useDragSelect({
           anchorIndexRef.current = -1;
           currentIndexRef.current = -1;
         }),
-    [enabled, selectedIdsRef, onSelect, autoScroll],
+    [enabled, selectedIdsRef, onSelect, autoScroll, haptics],
   );
 
   return { gesture, onContainerLayout: autoScroll.onContainerLayout };

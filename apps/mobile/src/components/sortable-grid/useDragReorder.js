@@ -4,9 +4,11 @@ import { runOnJS, withSpring } from 'react-native-reanimated';
 
 import gridIndexAtPoint from './gridIndexAtPoint';
 import gridSlotOrigin from './gridSlotOrigin';
+import isPastDragSlop from './isPastDragSlop';
 import mergeRowIds from './mergeRowIds';
 import useEdgeAutoScroll from './useEdgeAutoScroll';
 
+import useHaptics from '@/hooks/useHaptics';
 import { motion } from '@/styles/designTokens';
 
 // Apple Photos-style drag-to-reorder for a sortable grid (an album's photos, the albums).
@@ -23,10 +25,16 @@ import { motion } from '@/styles/designTokens';
 //   activeScale – lift scale
 //   shownLiftedId – reset when the lifted cell has settled (see SortableGridLiftedCell)
 //
+// With `onPeek`, a lifted cell stays put until the finger moves (isPastDragSlop), like a context
+// menu's preview that turns into a drag: held still a moment longer it peeks (`onPeek(row)`, until
+// `onPeekEnd()` on release or on moving, which drags on from there).
+//
 // Near the top/bottom edge the list auto-scrolls (useEdgeAutoScroll). `layout`: see gridSlotOrigin.
 
 // Longer than a slow tap, so a tap always opens what it lands on (UIKit's long press is 500 ms).
 const LONG_PRESS_MS = 400;
+// After the lift, so a drag that starts right away never flashes the quick view first.
+const PEEK_AFTER_LIFT_MS = 400;
 
 export default function useDragReorder({
   enabled,
@@ -44,11 +52,19 @@ export default function useDragReorder({
   onDragStart,
   onDragEnd,
   onSettled,
+  onPeek,
+  onPeekEnd,
 }) {
+  const haptics = useHaptics();
   const orderRef = useRef([]);
   const activeIndexRef = useRef(-1);
   const startAfterIdRef = useRef(null);
   const grabOffsetRef = useRef({ x: 0, y: 0 });
+  const liftPointRef = useRef({ x: 0, y: 0 });
+  const isDraggingRef = useRef(false);
+  const peekTimerRef = useRef(null);
+  const isPeekingRef = useRef(false);
+  const canPeek = Boolean(onPeek);
 
   // Rows and callbacks are read through the handlers, so a rows update or a new callback doesn't
   // rebuild the gesture mid-drag.
@@ -57,6 +73,8 @@ export default function useDragReorder({
   handlers.current.onDragStart = onDragStart;
   handlers.current.onDragEnd = onDragEnd;
   handlers.current.onSettled = onSettled;
+  handlers.current.onPeek = onPeek;
+  handlers.current.onPeekEnd = onPeekEnd;
   const settled = useCallback(() => handlers.current.onSettled?.(), []);
 
   const autoScroll = useEdgeAutoScroll({
@@ -64,6 +82,8 @@ export default function useDragReorder({
     scrollY,
     onScrolled: (x, y) => handlers.current.updateFromPoint(x, y),
   });
+
+  useEffect(() => () => clearTimeout(peekTimerRef.current), []);
 
   // Rows that arrive or leave during a drag (a page the auto-scroll loaded, a synced album) join the
   // drag's slots, so their cells don't overlap others and a drop can land among them.
@@ -124,6 +144,13 @@ export default function useDragReorder({
     handlers.current.moveActive(handlers.current.targetIndexAtPoint(x, y));
   };
 
+  handlers.current.endPeek = () => {
+    clearTimeout(peekTimerRef.current);
+    if (!isPeekingRef.current) return;
+    isPeekingRef.current = false;
+    handlers.current.onPeekEnd?.();
+  };
+
   // Settles the lifted cell and reports the drop: the moved row and the loaded row above its new
   // slot (`null` at the top), or `null` when it landed after the same row it started after.
   handlers.current.settleAndCommit = () => {
@@ -141,7 +168,9 @@ export default function useDragReorder({
     });
     const order = orderRef.current;
     const afterId = order[slot - 1] ?? null;
-    handlers.current.onDragEnd?.(afterId === startAfterIdRef.current ? null : { id: order[slot], afterId });
+    const change = afterId === startAfterIdRef.current ? null : { id: order[slot], afterId };
+    if (change) haptics.drop();
+    handlers.current.onDragEnd?.(change);
   };
 
   const gesture = useMemo(
@@ -164,9 +193,12 @@ export default function useDragReorder({
             activeIndexRef.current = -1;
             return;
           }
+          const row = handlers.current.rows[index];
+          const id = row.id;
           activeIndexRef.current = index;
           startAfterIdRef.current = orderRef.current[index - 1] ?? null;
-          handlers.current.onDragStart?.(orderRef.current[index]);
+          handlers.current.onDragStart?.(id);
+          haptics.lift();
 
           const { x: slotX, y: slotY } = gridSlotOrigin(layout, index);
           const contentX = e.x;
@@ -176,15 +208,31 @@ export default function useDragReorder({
           activeX.value = slotX;
           activeY.value = slotY;
           activeScale.value = withSpring(1.08, motion.spring);
-          activeId.value = orderRef.current[index];
-          autoScroll.start(e.x, e.y);
+          activeId.value = id;
+          liftPointRef.current = { x: e.x, y: e.y };
+          isDraggingRef.current = !canPeek;
+          if (canPeek) {
+            peekTimerRef.current = setTimeout(() => {
+              isPeekingRef.current = true;
+              handlers.current.onPeek?.(row);
+            }, PEEK_AFTER_LIFT_MS);
+          } else {
+            autoScroll.start(e.x, e.y);
+          }
         })
         .onUpdate((e) => {
           if (activeIndexRef.current === -1) return;
+          if (!isDraggingRef.current) {
+            if (!isPastDragSlop(liftPointRef.current, e.x, e.y)) return;
+            isDraggingRef.current = true;
+            handlers.current.endPeek();
+            autoScroll.start(e.x, e.y);
+          }
           autoScroll.move(e.x, e.y);
           handlers.current.updateFromPoint(e.x, e.y);
         })
         .onFinalize(() => {
+          handlers.current.endPeek();
           autoScroll.stop();
           if (activeIndexRef.current !== -1) {
             handlers.current.settleAndCommit();
@@ -193,7 +241,7 @@ export default function useDragReorder({
           }
           activeIndexRef.current = -1;
         }),
-    [enabled, layout, paddingTop, scrollY, autoScroll],
+    [enabled, canPeek, layout, paddingTop, scrollY, autoScroll, haptics],
   );
 
   return { gesture, onContainerLayout: autoScroll.onContainerLayout };

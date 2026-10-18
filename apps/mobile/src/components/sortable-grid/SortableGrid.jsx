@@ -17,9 +17,12 @@ import dropLandedMoves from './dropLandedMoves';
 import useDragReorder from './useDragReorder';
 import useDragSelect from './useDragSelect';
 
+import useHaptics from '@/hooks/useHaptics';
+
 // A grid whose cells can be dragged into a new order, Apple Photos-style (an album's photos, the
 // albums). Cells are absolutely positioned so they can be dragged and reflowed, and only the rows
-// within WINDOW_SCREENS screens of the viewport are mounted, like a FlatList's window.
+// within WINDOW_SCREENS screens of the viewport are mounted, like a FlatList's window. With `onPeek`,
+// a lifted cell held still peeks instead (see useDragReorder).
 const NO_MOVES = [];
 const WINDOW_SCREENS = 2;
 // How long after a drop its click may still come (it follows the pointer's release at once).
@@ -44,8 +47,11 @@ export default function SortableGrid({
   reorderEnabled = false,
   onReorder,
   moveFailedTitle,
+  onPeek,
+  onPeekEnd,
 }) {
   const window = useWindowDimensions();
+  const haptics = useHaptics();
   const cellWidth = (window.width - gap * (numColumns + 1)) / numColumns;
   const layout = useMemo(
     () => ({ numColumns, cellWidth, cellHeight: cellHeight ?? cellWidth, gap }),
@@ -169,6 +175,8 @@ export default function SortableGrid({
     onDragStart: handleDragStart,
     onDragEnd: handleDragEnd,
     onSettled: handleSettled,
+    onPeek,
+    onPeekEnd,
   });
 
   // Compose only what can run: on web, a disabled gesture inside Exclusive still makes the other
@@ -223,6 +231,7 @@ export default function SortableGrid({
     } catch (error) {
       console.error('Reorder failed', error);
       setPendingMoves((current) => current.filter((move) => move !== change));
+      haptics.error();
       Alert.alert(moveFailedTitle, 'The drop was undone.');
     } finally {
       setIsWriting(false);

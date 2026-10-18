@@ -12,9 +12,12 @@ export default function AppSettingsProvider({ children }) {
   const defaultAlbumSortOrder = 'createdAt:desc';
   // Whether a video in the asset detail screen starts by itself.
   const defaultIsVideoAutoplayOn = true;
+  // Whether lifts, drops, peeks and outcomes tap back (useHaptics).
+  const defaultIsHapticsOn = true;
   const [thumbnailStyle, setThumbnailStyle] = useState(defaultThumbnailStyle);
   const [albumSortOrder, setAlbumSortOrder] = useState(defaultAlbumSortOrder);
   const [isVideoAutoplayOn, setIsVideoAutoplayOn] = useState(defaultIsVideoAutoplayOn);
+  const [isHapticsOn, setIsHapticsOn] = useState(defaultIsHapticsOn);
   // Nothing is saved before the stored settings are read, so the defaults never overwrite them.
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -24,7 +27,7 @@ export default function AppSettingsProvider({ children }) {
       if (!settings) return;
 
       try {
-        const { thumbnailStyle, albumSortOrder, isVideoAutoplayOn } = JSON.parse(settings);
+        const { thumbnailStyle, albumSortOrder, isVideoAutoplayOn, isHapticsOn } = JSON.parse(settings);
 
         if (thumbnailStyle) {
           setThumbnailStyle(thumbnailStyle);
@@ -34,6 +37,9 @@ export default function AppSettingsProvider({ children }) {
         }
         if (typeof isVideoAutoplayOn === 'boolean') {
           setIsVideoAutoplayOn(isVideoAutoplayOn);
+        }
+        if (typeof isHapticsOn === 'boolean') {
+          setIsHapticsOn(isHapticsOn);
         }
       } catch (error) {
         console.error('Error loading app settings', error);
@@ -57,11 +63,14 @@ export default function AppSettingsProvider({ children }) {
       if (isVideoAutoplayOn !== defaultIsVideoAutoplayOn) {
         settings.isVideoAutoplayOn = isVideoAutoplayOn;
       }
+      if (isHapticsOn !== defaultIsHapticsOn) {
+        settings.isHapticsOn = isHapticsOn;
+      }
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     }
 
     saveSettings();
-  }, [isLoaded, thumbnailStyle, albumSortOrder, isVideoAutoplayOn]);
+  }, [isLoaded, thumbnailStyle, albumSortOrder, isVideoAutoplayOn, isHapticsOn]);
 
   const value = useMemo(
     () => ({
@@ -71,8 +80,10 @@ export default function AppSettingsProvider({ children }) {
       setAlbumSortOrder,
       isVideoAutoplayOn,
       setIsVideoAutoplayOn,
+      isHapticsOn,
+      setIsHapticsOn,
     }),
-    [thumbnailStyle, albumSortOrder, isVideoAutoplayOn],
+    [thumbnailStyle, albumSortOrder, isVideoAutoplayOn, isHapticsOn],
   );
 
   return <AppSettingsContext.Provider value={value}>{children}</AppSettingsContext.Provider>;

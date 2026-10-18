@@ -6,6 +6,7 @@ import PostAsset from './PostAsset';
 import useAssetPickerHandler from './useAssetPickerHandler';
 
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
+import useHaptics from '@/hooks/useHaptics';
 import { colors, scale } from '@/styles/designTokens';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
@@ -17,6 +18,7 @@ const LIST_VERTICAL_PADDING = 80;
 export default function PostAssetsEditor({ postAssets, onChange }) {
   const { width } = useWindowDimensions();
   const { show, hide, updateProgress } = useProgressOverlay();
+  const haptics = useHaptics();
   const handleAddAssets = useAssetPickerHandler({
     addAssetsToPost: addPostAssets,
     onStart: show,
@@ -39,13 +41,19 @@ export default function PostAssetsEditor({ postAssets, onChange }) {
     onChange(postAssets.filter((x) => x.id !== postAsset.id));
   }
 
+  function handleDragEnd({ data, from, to }) {
+    if (from !== to) haptics.drop();
+    onChange(data);
+  }
+
   return (
     <View style={[styles.container, { width, height: width }]}>
       <DraggableFlatList
         data={postAssets}
         horizontal
         showsHorizontalScrollIndicator={false}
-        onDragEnd={({ data }) => onChange(data)}
+        onDragBegin={haptics.lift}
+        onDragEnd={handleDragEnd}
         keyExtractor={(postAsset) => postAsset.id}
         renderItem={({ item: postAsset, drag, isActive }) => (
           <PostAsset
