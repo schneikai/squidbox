@@ -131,10 +131,8 @@ describe('outbox fields (per-field merge)', () => {
     expect(await fieldsOf(rec.id)).toEqual({ isFileSynced: ts, isThumbnailSynced: ts, isSynced: ts });
   });
 
-  it('the push sends the fields, and a row enqueued before them as a whole record', async () => {
+  it('the push sends the fields', async () => {
     const edited = await repo.createAsset(db, makeAssetRecord());
-    const legacy = await repo.createAsset(db, makeAssetRecord());
-    await db.update(schema.outbox).set({ fields: null }).where(eq(schema.outbox.recordId, legacy.id));
     const sent: PushMutation[] = [];
     await runSyncOnce(
       db,
@@ -146,14 +144,6 @@ describe('outbox fields (per-field merge)', () => {
       }),
     );
     expect(sent.find((m) => m.record.id === edited.id)?.fields).toMatchObject({ notes: edited.updatedAt });
-    expect(sent.find((m) => m.record.id === legacy.id)?.fields).toBeUndefined();
-  });
-
-  it('an edit of a row enqueued before them keeps it a whole record', async () => {
-    const rec = await repo.createAsset(db, makeAssetRecord());
-    await db.update(schema.outbox).set({ fields: null });
-    await repo.updateAsset(db, rec.id, { notes: 'n' });
-    expect(await fieldsOf(rec.id)).toBeNull();
   });
 });
 
@@ -307,16 +297,6 @@ describe('worker pull', () => {
     });
     await runSyncOnce(db, pendingAndPulling(incoming as unknown as Record<string, unknown>));
     expect(await assetRow(rec.id)).toMatchObject({ notes: 'local', isFavorite: true, updatedAt: local!.updatedAt });
-  });
-
-  it('a pulled record with a pending edit from before per-field merge is skipped', async () => {
-    const rec = await repo.createAsset(db, makeAssetRecord());
-    await runSyncOnce(db, fakeTransport());
-    await repo.updateAsset(db, rec.id, { notes: 'local' });
-    await db.update(schema.outbox).set({ fields: null });
-    const incoming = makeAssetRecord({ id: rec.id, notes: 'server', isFavorite: true });
-    await runSyncOnce(db, pendingAndPulling(incoming as unknown as Record<string, unknown>));
-    expect(await assetRow(rec.id)).toMatchObject({ notes: 'local', isFavorite: false });
   });
 
   it('keeps a local column the incoming record does not carry', async () => {

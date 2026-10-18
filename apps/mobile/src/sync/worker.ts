@@ -107,7 +107,7 @@ async function pushPhase(
     const mutations: PushMutation[] = batch.map((row) => ({
       collection: row.collection,
       record: row.payload,
-      fields: row.fields ?? undefined,
+      fields: row.fields,
     }));
     const { results } = await transport.push({ mutations });
     // A purge that beat this device's edit comes back as the current record to adopt.
@@ -155,11 +155,7 @@ async function applyPushResults(
         try {
           await tx.transaction((savepoint) => applyRecord(savepoint, collection, result.current!));
           // Conflict/rebase visibility (sync-design §13): a local change lost and was overwritten.
-          notes.push(
-            row
-              ? overwrittenNote(row, result.current)
-              : `${collection} ${result.id}: local change overwritten by server`,
-          );
+          notes.push(overwrittenNote(collection, result.id, row, result.current));
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           flag(result.id, message);
@@ -255,10 +251,9 @@ async function fetchBatch(transport: SyncTransport, cursor: number, stop: () => 
 }
 
 // Outbox-guarded apply (sync-design §5): an incoming record with a pending local mutation keeps the
-// fields that mutation changed (and its updatedAt), which re-assert via push; one whose changed
-// fields are unknown (enqueued before per-field merge) is skipped. Never timestamp-compare against
-// committed local state. The records of several pages and their cursor commit in one transaction.
-// Returns the number of records actually applied.
+// fields that mutation changed (and its updatedAt), which re-assert via push. Never timestamp-compare
+// against committed local state. The records of several pages and their cursor commit in one
+// transaction. Returns the number of records actually applied.
 async function applyChanges(
   db: SyncDb,
   changes: Record<string, Record<string, unknown>[]>,
@@ -268,19 +263,17 @@ async function applyChanges(
     let applied = 0;
     for (const [name, table] of Object.entries(clientCollectionTables)) {
       if (changes[name].length === 0) continue;
-      const pending = await pendingFields(tx, name);
-      const ids = changes[name].map((record) => String(record.id));
-      const local = await readByIdMap(
+      const pending = await pendingFields(
         tx,
-        table,
-        ids.filter((id) => pending.get(id)),
+        name,
+        changes[name].map((record) => String(record.id)),
       );
+      const local = await readByIdMap(tx, table, [...pending.keys()]);
       const rows = changes[name].flatMap((record) => {
-        const id = String(record.id);
-        if (!pending.has(id)) return [record];
-        const fields = pending.get(id);
-        const row = local.get(id);
-        return fields && row ? [withLocalFields(record, row, Object.keys(fields))] : [];
+        const fields = pending.get(String(record.id));
+        if (!fields) return [record];
+        const row = local.get(String(record.id));
+        return row ? [withLocalFields(record, row, Object.keys(fields))] : [];
       });
       await upsertRows(tx, name, table, rows);
       applied += rows.length;

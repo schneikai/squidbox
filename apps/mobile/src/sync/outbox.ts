@@ -1,23 +1,21 @@
+import type { FieldClocks } from '@squidbox/shared';
 import { and, count, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 
 import { chunk, SQL_BATCH } from './chunk';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
+import { inJson } from './inJson';
 import { localOnlyKeys } from './localOnlyKeys';
 
-export type FieldClocks = Record<string, number>;
-
-// Enqueue whole-record mutations, coalesced to one row per (collection, recordId): the latest
-// payload wins, and the changed fields of every coalesced edit are kept, each with its own clock
-// (sync-design §6). A row without fields (enqueued before per-field merge, or replayed from one)
-// stays without, so it is still pushed as a whole record. `op` is 'delete' for a tombstone, else
-// 'upsert'. The payload leaves out the collection's local-only fields; a new payload clears the
-// error of the one it replaces (§6). Called inside the transaction that writes the records.
+// Enqueue whole-record mutations with their changed fields, coalesced to one row per (collection,
+// recordId): the latest payload wins and each field keeps its own last clock (sync-design §6). `op`
+// is 'delete' for a tombstone, else 'upsert'. The payload leaves out local-only fields; a new payload
+// clears the error of the one it replaces. Called inside the transaction that writes the records.
 export async function enqueueMutations(
   tx: SyncDb,
   collection: string,
   records: { id: string; updatedAt: number; deletedAt?: number | null }[],
-  fieldsById: Map<string, FieldClocks | null>,
+  fieldsById: Map<string, FieldClocks>,
 ): Promise<void> {
   const localOnly = localOnlyKeys(collection);
   for (const batch of chunk(records, SQL_BATCH)) {
@@ -29,7 +27,7 @@ export async function enqueueMutations(
           recordId: record.id,
           op: record.deletedAt != null ? ('delete' as const) : ('upsert' as const),
           payload: withoutKeys(record, localOnly),
-          fields: fieldsById.get(record.id) ?? null,
+          fields: fieldsById.get(record.id)!,
           updatedAt: record.updatedAt,
         })),
       )
@@ -56,12 +54,16 @@ function recordsIn(collection: string, recordIds: string[]) {
   return and(eq(schema.outbox.collection, collection), inArray(schema.outbox.recordId, recordIds));
 }
 
-/** The collection's pending records, by id, each with the fields its edits changed (null: unknown, from before per-field merge). */
-export async function pendingFields(db: SyncDb, collection: string): Promise<Map<string, FieldClocks | null>> {
+/** The fields the pending edits of these records changed, by record id; records without a pending row are left out. */
+export async function pendingFields(
+  db: SyncDb,
+  collection: string,
+  recordIds: string[],
+): Promise<Map<string, FieldClocks>> {
   const rows = await db
     .select({ recordId: schema.outbox.recordId, fields: schema.outbox.fields })
     .from(schema.outbox)
-    .where(eq(schema.outbox.collection, collection));
+    .where(and(eq(schema.outbox.collection, collection), inJson(schema.outbox.recordId, recordIds)));
   return new Map(rows.map((r) => [r.recordId, r.fields]));
 }
 

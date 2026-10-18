@@ -152,20 +152,6 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
     }
   });
 
-  it('an edit enqueued before per-field merge still converges, as a whole record', async () => {
-    const rec = await repo.createAsset(deviceA, makeAssetRecord({ notes: 'orig' }));
-    await settle();
-
-    await repo.updateAsset(deviceA, rec.id, { notes: 'from the old app' });
-    await deviceA.update(clientSchema.outbox).set({ fields: null });
-    await settle();
-
-    for (const device of [deviceA, deviceB]) {
-      expect(await readLiveAsset(device, rec.id)).toMatchObject({ notes: 'from the old app' });
-      expect(await device.select().from(clientSchema.outbox)).toEqual([]);
-    }
-  });
-
   it('propagates a non-asset collection (albums) A → B via the generic engine', async () => {
     const album = makeAlbumRecord({ createdAt: 1000, updatedAt: 1000, name: 'Trip' });
     await albumRepo.create(deviceA, album);

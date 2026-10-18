@@ -1,3 +1,4 @@
+import type { FieldClocks } from '@squidbox/shared';
 import { sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, real, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
@@ -158,9 +159,9 @@ export const outbox = sqliteTable(
     recordId: text('record_id').notNull(),
     op: text('op', { enum: ['upsert', 'delete'] }).notNull(),
     payload: text('payload', { mode: 'json' }).$type<Record<string, unknown>>().notNull(),
-    // The fields the pending edits changed, each with its clock; null for a row enqueued before
-    // per-field merge, which is pushed as a whole record (sync-design §6).
-    fields: text('fields', { mode: 'json' }).$type<Record<string, number>>(),
+    // The fields the pending edits changed, each with its clock. Migration 0011 filled it for the
+    // rows enqueued before per-field merge with every field at the row's updatedAt (sync-design §6).
+    fields: text('fields', { mode: 'json' }).$type<FieldClocks>().notNull().default({}),
     updatedAt: integer('updated_at').notNull(),
     createdAt: integer('created_at')
       .notNull()

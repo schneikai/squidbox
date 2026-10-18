@@ -233,8 +233,7 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<void>
     }
     // A replayed edit is written to the target's row as well as its outbox: a push alone would leave
     // the row stale, and the pull skips a record with a pending outbox row. Only the fields the
-    // source's outbox row names are replayed: a diff against the target's row would also push the
-    // source's stale values of the others.
+    // source's outbox row names are patched onto the target's row, not the source's stale others.
     for (const collection of new Set(plan.replays.map((row) => row.collection))) {
       const table = clientCollectionTables[collection]!;
       const replays = plan.replays.filter((row) => row.collection === collection);
@@ -248,17 +247,14 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<void>
         collection,
         table,
         replays.map((row) => replayed(row, targetRows.get(row.recordId))),
-        { fieldsById: new Map(replays.map((row) => [row.recordId, row.fields])) },
       );
     }
   });
 }
 
-// A source outbox row's edit applied to the target's row: the fields it changed, or, from before
-// per-field merge (no fields), its whole record.
+// A source outbox row's edit applied to the target's row: the fields it changed.
 function replayed(row: schema.OutboxRow, target: Row | undefined): Row {
-  const payload = row.payload as Row;
-  if (!row.fields || !target) return payload;
+  if (!target) return row.payload as Row;
   const changes = Object.fromEntries(Object.keys(row.fields).map((field) => [field, row.payload[field]]));
   return { ...target, ...changes, updatedAt: row.updatedAt };
 }

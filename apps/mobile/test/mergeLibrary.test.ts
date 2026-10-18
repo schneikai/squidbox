@@ -139,21 +139,6 @@ describe('planMerge + applyMerge', () => {
     expect(row!.payload).toMatchObject({ notes: 'edited on the device', isFavorite: true });
   });
 
-  it('a replay of an edit from before per-field merge pushes its whole record', async () => {
-    const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
-    await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
-    await upsertRows(target, 'assets', schema.assets, [{ ...shared, isFavorite: true, syncError: null }]);
-    await repo.updateAsset(source, shared.id, { notes: 'edited on the device' });
-    await source.update(schema.outbox).set({ fields: null });
-
-    await applyMerge(target, await planMerge(source, target, SRC));
-    const [row] = await outbox(target);
-    expect(row!.fields).toBeNull();
-    expect(await target.select().from(schema.assets)).toMatchObject([
-      { notes: 'edited on the device', isFavorite: false },
-    ]);
-  });
-
   it('does not replay over a newer pending edit of the target', async () => {
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);

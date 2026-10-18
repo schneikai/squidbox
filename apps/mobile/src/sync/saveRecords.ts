@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic over any collection's table */
-import { collectionsByName, mergeFields } from '@squidbox/shared';
+import { collectionsByName, mergeFields, type FieldClocks } from '@squidbox/shared';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
 import { chunk, SQL_BATCH } from './chunk';
 import type { SyncDb } from './db/types';
-import { enqueueMutations, type FieldClocks } from './outbox';
+import { enqueueMutations } from './outbox';
 import { readByIdMap } from './readByIds';
 import { upsertRows } from './upsertRows';
 
@@ -14,19 +14,17 @@ type SavedRecord = { id: string; updatedAt: number; deletedAt?: number | null };
  * A local write: store whole records of a collection and enqueue them for push. Call it inside the
  * transaction that read them, with records already given their next `updatedAt` (see clock.ts).
  * New records are inserted, so an id that already exists fails instead of overwriting that record.
- * Each record's outbox row names the fields that changed from the stored row, at the record's
- * `updatedAt` (every field of a new record), for the server's per-field merge (sync-design §6); a
- * record that changes no synced field is neither written nor enqueued. `fieldsById` names them
- * instead, for edits replayed from another outbox (null: pushed as a whole record).
+ * The outbox row names the fields that changed from the stored row (sync-design §6); a record that
+ * changes none is neither written nor enqueued.
  */
 export async function saveRecords<R extends SavedRecord>(
   tx: SyncDb,
   collection: string,
   table: SQLiteTable,
   records: R[],
-  { isNew = false, fieldsById }: { isNew?: boolean; fieldsById?: Map<string, FieldClocks | null> } = {},
+  { isNew = false } = {},
 ): Promise<void> {
-  const fields = fieldsById ?? (await changedFields(tx, collection, table, records, isNew));
+  const fields = await changedFields(tx, collection, table, records, isNew);
   const changed = records.filter((record) => fields.has(record.id));
   if (changed.length === 0) return;
   if (isNew) for (const batch of chunk(changed, SQL_BATCH)) await tx.insert(table).values(batch as any);
