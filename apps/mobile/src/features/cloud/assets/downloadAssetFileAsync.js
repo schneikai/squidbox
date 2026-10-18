@@ -1,6 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
-import deleteStaleDownloadsAsync from '@/utils/assets/files/deleteStaleDownloadsAsync';
 import getDownloadsDirectory from '@/utils/assets/files/getDownloadsDirectory';
 
 const PROGRESS_THROTTLE = 250; // ms
@@ -15,7 +14,6 @@ export default async function downloadAssetFileAsync({ filename }, downloadUrl, 
   // on a fresh install / cleared cache the first download would reject before any progress fires.
   const directory = getDownloadsDirectory(library);
   await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
-  await deleteStaleDownloadsAsync(library);
   const fileUri = `${directory}${filename}`;
 
   // We throttle the progress updates because the frequent rerendering slows down the download.

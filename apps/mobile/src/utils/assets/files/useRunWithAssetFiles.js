@@ -1,6 +1,7 @@
 import { Alert } from 'react-native';
 
 import assetFileUnavailableMessages from './assetFileUnavailableMessages';
+import deleteStaleDownloadsAsync from './deleteStaleDownloadsAsync';
 import getAssetFileStatusAsync from './getAssetFileStatusAsync';
 import withAssetFileAsync from './withAssetFileAsync';
 
@@ -18,8 +19,8 @@ let isRunning = false;
  * asking the cloud for URLs, so a batch doesn't stop halfway). A tap while a run is going is ignored.
  *
  * Options: `failureTitle`; `prepareAsync`, which may resolve false to stop before anything starts;
- * `keepDownloads` for a `use` that reads the file after it returns (deleteStaleDownloadsAsync
- * removes those later).
+ * `keepDownloads` for a `use` that reads the file after it returns (deleteStaleDownloadsAsync, at
+ * the start of each run, removes them once over an hour old).
  */
 export default function useRunWithAssetFiles() {
   const { isAuthenticated } = useCloud();
@@ -37,6 +38,7 @@ export default function useRunWithAssetFiles() {
 
       await runWithProgress(
         async ({ onProgress, signal }) => {
+          await deleteStaleDownloadsAsync(library);
           for (const [index, asset] of assets.entries()) {
             if (signal.aborted) return false;
             const onFileProgress = (fraction) => onProgress(index, assets.length, fraction);

@@ -27,8 +27,8 @@ export async function listFiles(dir: string): Promise<Set<string>> {
   return new Set(info.exists ? await FileSystem.readDirectoryAsync(dir) : []);
 }
 
-// A library's two folders, ready when it opens, before anything is written into them; downloads an
-// earlier run left go.
+// A library's two folders, ready when it opens, before anything is written into them; downloads over
+// an hour old go.
 export async function createLibraryFolders(library: OpenLibrary): Promise<void> {
   await createAssetFileDirectory(library);
   await createAssetThumbnailDirectory(library);
