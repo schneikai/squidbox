@@ -157,24 +157,26 @@ describe('a pull downloading the next batch while it applies one', () => {
   });
 
   it.each(['answers', 'fails'])(
-    'drops the download of a run stopped during an apply, which then %s without paging on or writing',
+    'waits for the download of a run stopped during an apply, which then %s, without paging on or writing',
     async (outcome) => {
       const controller = new AbortController();
       const pulls: number[] = [];
-      let answerLate = () => {};
+      let isRunDone = false;
+      let answeredBeforeRunDone = false;
       const base = server(APPLY_BATCH * 2);
       const transport = withPull(base, async (req) => {
         pulls.push(req.cursor);
         if (req.cursor < APPLY_BATCH) return base.pull(req);
         controller.abort(); // requested while the first batch is applied
-        await new Promise<void>((resolve) => (answerLate = resolve));
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        answeredBeforeRunDone = !isRunDone; // the run outlives its last request
         if (outcome === 'fails') throw new Error('offline');
         return base.pull(req);
       });
 
       await runSyncOnce(db, transport, { signal: controller.signal });
-      answerLate();
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      isRunDone = true;
+      expect(answeredBeforeRunDone).toBe(true);
 
       expect(pulls).toEqual([0, 1000, 2000, 3000, 4000, 5000]);
       expect(await getCursor(db)).toBe(APPLY_BATCH);

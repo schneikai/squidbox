@@ -32,7 +32,7 @@ const PUSH_BATCH = 500; // server caps pushRequest mutations at 500
 // page: on web, a 50k first sync drops from ~3 min to ~40 s.
 export const APPLY_BATCH = 5000;
 
-// An aborted `signal` ends the run between push batches or between applied pull batches, with
+// An aborted `signal` ends the run between push batches, or in a pull after the page at hand, with
 // everything so far committed (the cursor moves per applied batch, so the next run resumes).
 // `removeFiles` removes this device's copies of assets purged elsewhere, before the purge commits (§7a).
 interface SyncRunOptions {
@@ -211,6 +211,7 @@ async function pullPhase(
     }
   } finally {
     ended = true;
+    await next?.catch(() => {}); // no request outlives the run
   }
   // The initial full pull has drained — the app can leave the "Setting up…" gate.
   await markFirstSyncDone(db);
@@ -344,7 +345,7 @@ export function requestSync(): void {
   if (syncTarget) syncFlight.request();
 }
 
-// Run `work` with syncing paused: aborts the running sync (it stops at its next batch) and backup
+// Run `work` with syncing paused: aborts the running sync (it stops at its next batch or page) and backup
 // (at its next step), waits for both, and starts no run until `work` finishes. Use it for anything
 // that must not interleave with them, like changing the session or the open library. Sections run
 // one after another, with the sync requests made meanwhile honored after.

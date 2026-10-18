@@ -98,11 +98,6 @@ touch, so drag-to-reorder can't follow it (fine later for screens that don't dra
   buttons after a reply.
 - Suggest @ mentions from the album's posts, or more generally from the post history.
 
-### [ ] Asset selector in the new design
-
-The Squidbox asset selector (for example "add asset → from Squidbox" when editing a post) still uses
-the old design. It should work like the asset and album screens, with search and filter.
-
 ### [ ] Recreate thumbnails
 
 An action to regenerate an asset's thumbnail. The video thumbnail in album 197 is broken. The backup
@@ -177,13 +172,6 @@ swipe, open a post's photo, share. Catches iPhone-only crashes the web preview m
 worklet-capture and post-photo crashes). Needs a test account with a few photos on the live backend
 (login as an EAS secret, since the cloud can't reach the local mock backend) and costs EAS build
 time per run. Can't check gestures' feel or sharing to other apps.
-
-### [ ] Smaller data-layer costs
-
-Measured as worth little today, so left open: every statement is prepared and
-finalized again (`db/expoExecutor.ts`; a statement cache saves two native calls each); the pull
-fetches the next pages only after applying the last batch (`worker.ts` `pullPhase`; prefetching one
-page overlaps network and writes).
 
 ### [ ] Measure WAL on iOS
 

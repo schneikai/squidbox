@@ -110,16 +110,25 @@ describe('expoExecutor', () => {
     expect(of(events, 'prepare')).toEqual([]);
   });
 
-  it('finalizes a statement that failed instead of reusing it', async () => {
+  it('keeps reusing a statement after a run of it failed', async () => {
     const insert = 'insert into "sync_meta" ("key", "value") values (?, ?)';
     await execute(insert, ['k', '1'], 'run');
     await execute(insert, ['k2', '1'], 'run'); // cached now
     events.length = 0;
     await expect(execute(insert, ['k', '2'], 'run')).rejects.toThrow('UNIQUE');
-
-    expect(of(events, 'finalize')).toEqual([`finalize ${insert}`]);
     await execute(insert, ['k3', '1'], 'run');
-    expect(of(events, 'prepare')).toEqual([`prepare ${insert}`]);
+
+    expect(of(events, 'prepare')).toEqual([]);
+    expect(of(events, 'finalize')).toEqual([]);
+  });
+
+  it('prepares another statement for the same SQL while the cached one runs', async () => {
+    await twice(select(1));
+    events.length = 0;
+    await Promise.all([execute(select(1), [], 'all'), execute(select(1), [], 'all')]);
+
+    expect(of(events, 'prepare')).toEqual([`prepare ${select(1)}`]);
+    expect(of(events, 'finalize')).toEqual([`finalize ${select(1)}`]);
   });
 
   it('resets a statement after reading one row of it', async () => {
