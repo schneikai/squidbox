@@ -71,6 +71,7 @@ export default function RootNavigator() {
           name="RandomSuggestionsModal"
           component={RandomSuggestionsModalRoute}
           options={{ headerShown: false }}
+          getId={({ params }) => params?.callerKey}
         />
       </RootStack.Group>
       <RootStack.Group screenOptions={{ headerShown: false }}>

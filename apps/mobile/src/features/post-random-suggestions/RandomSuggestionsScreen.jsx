@@ -53,7 +53,7 @@ const SWAP_IN = { ...motion.enter, duration: motion.duration.fast };
 // The sheet of useRandomSuggestions: a random asset and AI captions to start a post from. Use hands
 // the shown ones to the caller; a tap on the asset opens its screen on this sheet's stack.
 export default function RandomSuggestionsScreen({ route, navigation }) {
-  const { requestId } = route.params;
+  const { callerKey } = route.params;
   const { finishRandomSuggestions } = useRandomSuggestions();
   const modelPickerRef = useRef(null);
   const promptInputRef = useRef(null);
@@ -81,7 +81,7 @@ export default function RandomSuggestionsScreen({ route, navigation }) {
   const [isClosing, setIsClosing] = useState(false);
 
   // Closing the sheet without Use (the close button, a swipe down) suggests nothing.
-  useEffect(() => () => finishRandomSuggestions(requestId, null), [finishRandomSuggestions, requestId]);
+  useEffect(() => () => finishRandomSuggestions(callerKey, null), [finishRandomSuggestions, callerKey]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -256,10 +256,15 @@ export default function RandomSuggestionsScreen({ route, navigation }) {
     navigation.push('AssetScreen', { assetId: currentAsset.id, query: { scope: { assetId: currentAsset.id } } });
   }
 
-  // Once only: a second tap while the sheet closes would close the screen below it too.
   function handleConfirm() {
+    finishRandomSuggestions(callerKey, { asset: currentAsset, text: currentText });
+    close();
+  }
+
+  // Once only: a second tap while the sheet closes would close the screen below it too.
+  function close() {
+    if (isClosing) return;
     setIsClosing(true);
-    finishRandomSuggestions(requestId, { asset: currentAsset, text: currentText });
     navigation.goBack();
   }
 
@@ -281,7 +286,7 @@ export default function RandomSuggestionsScreen({ route, navigation }) {
   return (
     <ModalSheet style={styles.containerPadding}>
       <ModalHeader
-        leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />}
+        leftSlot={<ModalCloseButton onPress={close} />}
         centerSlot="Suggestions"
         rightSlot={
           <View style={styles.headerRight}>
