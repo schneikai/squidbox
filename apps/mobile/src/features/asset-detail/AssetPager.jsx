@@ -19,8 +19,6 @@ function nextZoomedAssetId({ zoomed, assetId, isZoomed }) {
  * stable list props, so a swipe re-renders the pager and only the two pages it moves between. Only
  * the current page is zoomable and shows `video`. While it is zoomed in, its pan owns the swipe: the
  * pager is locked, and `onLockChange(isLocked)` reports it so the screen can lock its swipe-back too.
- * Natively the zoomed photo's pan holds the list itself, on the UI thread (`pagerGesture`, see
- * useZoomGesture), so only the web, where a gesture can't hold a scroll view, locks it by render.
  * Each page shows its asset with its details panel (AssetPage, on `panel`'s track, useDetailsPanel):
  * while `isDetailsShown`, the current page and its neighbours mount their details. The list is
  * `panel.pagerGesture`, which the pages' vertical drags hold while they run.
@@ -49,8 +47,8 @@ function AssetPager({
   const [zoomedAssetId, setZoomedAssetId] = useState(null);
   // Only the current asset can be zoomed, so the pager unlocks once it stops being current.
   const isLocked = !!zoomedAssetId && zoomedAssetId === currentAssetId;
-  // Natively not by render, which lags under JS load: it would keep a swipe right after zooming out
-  // from paging.
+  // Natively the zoomed pan holds the list on the UI thread (useZoomGesture); a lock by render would
+  // lag under JS load. The web's gestures can't hold a scroll view.
   const isScrollLocked = isLocked && Platform.OS === 'web';
 
   // Only changes are reported: the pager starts unlocked.

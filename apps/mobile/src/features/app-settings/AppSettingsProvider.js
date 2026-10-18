@@ -5,42 +5,34 @@ import AppSettingsContext from './AppSettingsContext';
 
 const STORAGE_KEY = 'app-settings';
 
-export default function AppSettingsProvider({ children }) {
+// Each setting until it is changed. Only changed ones are stored, under these keys.
+const DEFAULTS = {
   // "cover" | "contain"
-  const defaultThumbnailStyle = 'cover';
+  thumbnailStyle: 'cover',
   // Global album sort applied to every album that isn't on its own custom order.
-  const defaultAlbumSortOrder = 'createdAt:desc';
+  albumSortOrder: 'createdAt:desc',
   // Whether a video in the asset detail screen starts by itself.
-  const defaultIsVideoAutoplayOn = true;
+  isVideoAutoplayOn: true,
   // Whether lifts, drops, peeks and outcomes tap back (useHaptics).
-  const defaultIsHapticsOn = true;
-  const [thumbnailStyle, setThumbnailStyle] = useState(defaultThumbnailStyle);
-  const [albumSortOrder, setAlbumSortOrder] = useState(defaultAlbumSortOrder);
-  const [isVideoAutoplayOn, setIsVideoAutoplayOn] = useState(defaultIsVideoAutoplayOn);
-  const [isHapticsOn, setIsHapticsOn] = useState(defaultIsHapticsOn);
+  isHapticsOn: true,
+};
+const KEYS = Object.keys(DEFAULTS);
+
+// The context holds each setting with its setter, e.g. `isHapticsOn` and `setIsHapticsOn`.
+const setterName = (key) => `set${key[0].toUpperCase()}${key.slice(1)}`;
+
+export default function AppSettingsProvider({ children }) {
+  const [settings, setSettings] = useState(DEFAULTS);
   // Nothing is saved before the stored settings are read, so the defaults never overwrite them.
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     async function loadSettings() {
-      const settings = await AsyncStorage.getItem(STORAGE_KEY);
-      if (!settings) return;
+      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      if (!stored) return;
 
       try {
-        const { thumbnailStyle, albumSortOrder, isVideoAutoplayOn, isHapticsOn } = JSON.parse(settings);
-
-        if (thumbnailStyle) {
-          setThumbnailStyle(thumbnailStyle);
-        }
-        if (albumSortOrder) {
-          setAlbumSortOrder(albumSortOrder);
-        }
-        if (typeof isVideoAutoplayOn === 'boolean') {
-          setIsVideoAutoplayOn(isVideoAutoplayOn);
-        }
-        if (typeof isHapticsOn === 'boolean') {
-          setIsHapticsOn(isHapticsOn);
-        }
+        setSettings(readStoredSettings(JSON.parse(stored)));
       } catch (error) {
         console.error('Error loading app settings', error);
       }
@@ -51,40 +43,29 @@ export default function AppSettingsProvider({ children }) {
 
   useEffect(() => {
     if (!isLoaded) return;
+    const changed = Object.fromEntries(
+      KEYS.filter((key) => settings[key] !== DEFAULTS[key]).map((key) => [key, settings[key]]),
+    );
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(changed));
+  }, [isLoaded, settings]);
 
-    async function saveSettings() {
-      const settings = {};
-      if (thumbnailStyle !== defaultThumbnailStyle) {
-        settings.thumbnailStyle = thumbnailStyle;
-      }
-      if (albumSortOrder !== defaultAlbumSortOrder) {
-        settings.albumSortOrder = albumSortOrder;
-      }
-      if (isVideoAutoplayOn !== defaultIsVideoAutoplayOn) {
-        settings.isVideoAutoplayOn = isVideoAutoplayOn;
-      }
-      if (isHapticsOn !== defaultIsHapticsOn) {
-        settings.isHapticsOn = isHapticsOn;
-      }
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    }
-
-    saveSettings();
-  }, [isLoaded, thumbnailStyle, albumSortOrder, isVideoAutoplayOn, isHapticsOn]);
-
-  const value = useMemo(
-    () => ({
-      thumbnailStyle,
-      setThumbnailStyle,
-      albumSortOrder,
-      setAlbumSortOrder,
-      isVideoAutoplayOn,
-      setIsVideoAutoplayOn,
-      isHapticsOn,
-      setIsHapticsOn,
-    }),
-    [thumbnailStyle, albumSortOrder, isVideoAutoplayOn, isHapticsOn],
+  const setters = useMemo(
+    () =>
+      Object.fromEntries(
+        KEYS.map((key) => [setterName(key), (value) => setSettings((current) => ({ ...current, [key]: value }))]),
+      ),
+    [],
   );
+  const value = useMemo(() => ({ ...settings, ...setters }), [settings, setters]);
 
   return <AppSettingsContext.Provider value={value}>{children}</AppSettingsContext.Provider>;
+}
+
+// The stored settings over the defaults, each only when it has its default's type.
+function readStoredSettings(stored) {
+  const settings = { ...DEFAULTS };
+  for (const key of KEYS) {
+    if (typeof stored[key] === typeof DEFAULTS[key]) settings[key] = stored[key];
+  }
+  return settings;
 }

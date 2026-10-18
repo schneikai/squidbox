@@ -4,10 +4,10 @@ import { runOnJS, withSpring } from 'react-native-reanimated';
 
 import gridIndexAtPoint from './gridIndexAtPoint';
 import gridSlotOrigin from './gridSlotOrigin';
-import isPastDragSlop from './isPastDragSlop';
 import mergeRowIds from './mergeRowIds';
 import useEdgeAutoScroll from './useEdgeAutoScroll';
 
+import { TAP_SLOP } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
 import { motion } from '@/styles/designTokens';
 
@@ -25,7 +25,7 @@ import { motion } from '@/styles/designTokens';
 //   activeScale – lift scale
 //   shownLiftedId – reset when the lifted cell has settled (see SortableGridLiftedCell)
 //
-// With `onPeek`, a lifted cell stays put until the finger moves (isPastDragSlop), like a context
+// With `onPeek`, a lifted cell stays put until the finger moves past the tap slop, like a context
 // menu's preview that turns into a drag: held still a moment longer it peeks (`onPeek(row)`, until
 // `onPeekEnd()` on release or on moving, which drags on from there).
 //
@@ -76,6 +76,12 @@ export default function useDragReorder({
   handlers.current.onPeek = onPeek;
   handlers.current.onPeekEnd = onPeekEnd;
   const settled = useCallback(() => handlers.current.onSettled?.(), []);
+  const endPeek = useCallback(() => {
+    clearTimeout(peekTimerRef.current);
+    if (!isPeekingRef.current) return;
+    isPeekingRef.current = false;
+    handlers.current.onPeekEnd?.();
+  }, []);
 
   const autoScroll = useEdgeAutoScroll({
     listRef,
@@ -144,13 +150,6 @@ export default function useDragReorder({
     handlers.current.moveActive(handlers.current.targetIndexAtPoint(x, y));
   };
 
-  handlers.current.endPeek = () => {
-    clearTimeout(peekTimerRef.current);
-    if (!isPeekingRef.current) return;
-    isPeekingRef.current = false;
-    handlers.current.onPeekEnd?.();
-  };
-
   // Settles the lifted cell and reports the drop: the moved row and the loaded row above its new
   // slot (`null` at the top), or `null` when it landed after the same row it started after.
   handlers.current.settleAndCommit = () => {
@@ -173,6 +172,15 @@ export default function useDragReorder({
     handlers.current.onDragEnd?.(change);
   };
 
+  const startDragging = useCallback(
+    (x, y) => {
+      isDraggingRef.current = true;
+      endPeek();
+      autoScroll.start(x, y);
+    },
+    [autoScroll, endPeek],
+  );
+
   const gesture = useMemo(
     () =>
       Gesture.Pan()
@@ -194,10 +202,9 @@ export default function useDragReorder({
             return;
           }
           const row = handlers.current.rows[index];
-          const id = row.id;
           activeIndexRef.current = index;
           startAfterIdRef.current = orderRef.current[index - 1] ?? null;
-          handlers.current.onDragStart?.(id);
+          handlers.current.onDragStart?.(row.id);
           haptics.lift();
 
           const { x: slotX, y: slotY } = gridSlotOrigin(layout, index);
@@ -208,31 +215,29 @@ export default function useDragReorder({
           activeX.value = slotX;
           activeY.value = slotY;
           activeScale.value = withSpring(1.08, motion.spring);
-          activeId.value = id;
+          activeId.value = row.id;
           liftPointRef.current = { x: e.x, y: e.y };
-          isDraggingRef.current = !canPeek;
+          isDraggingRef.current = false;
           if (canPeek) {
             peekTimerRef.current = setTimeout(() => {
               isPeekingRef.current = true;
               handlers.current.onPeek?.(row);
             }, PEEK_AFTER_LIFT_MS);
           } else {
-            autoScroll.start(e.x, e.y);
+            startDragging(e.x, e.y);
           }
         })
         .onUpdate((e) => {
           if (activeIndexRef.current === -1) return;
           if (!isDraggingRef.current) {
-            if (!isPastDragSlop(liftPointRef.current, e.x, e.y)) return;
-            isDraggingRef.current = true;
-            handlers.current.endPeek();
-            autoScroll.start(e.x, e.y);
+            if (!isPastTapSlop(liftPointRef.current, e.x, e.y)) return;
+            startDragging(e.x, e.y);
           }
           autoScroll.move(e.x, e.y);
           handlers.current.updateFromPoint(e.x, e.y);
         })
         .onFinalize(() => {
-          handlers.current.endPeek();
+          endPeek();
           autoScroll.stop();
           if (activeIndexRef.current !== -1) {
             handlers.current.settleAndCommit();
@@ -241,8 +246,14 @@ export default function useDragReorder({
           }
           activeIndexRef.current = -1;
         }),
-    [enabled, canPeek, layout, paddingTop, scrollY, autoScroll, haptics],
+    [enabled, canPeek, layout, paddingTop, scrollY, autoScroll, haptics, endPeek, startDragging],
   );
 
   return { gesture, onContainerLayout: autoScroll.onContainerLayout };
+}
+
+// Whether the finger at (x, y) left the point it lifted the cell at by more than a tap's slop, so a
+// held finger's tremor still peeks.
+function isPastTapSlop(liftPoint, x, y) {
+  return Math.hypot(x - liftPoint.x, y - liftPoint.y) > TAP_SLOP;
 }

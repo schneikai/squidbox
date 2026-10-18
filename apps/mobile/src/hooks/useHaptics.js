@@ -9,7 +9,7 @@ import {
 
 import useAppSettings from '@/features/app-settings/useAppSettings';
 
-// Builds from before expo-haptics was added lack its native module, and web has none: both stay silent.
+// The web, and a build without expo-haptics' native module, stay silent.
 const canPlayHaptics = requireOptionalNativeModule('ExpoHaptics') !== null;
 
 // The app's haptic moments (Apple's HIG: a tap marks something the user did or that happened, never
@@ -18,7 +18,7 @@ const HAPTICS = {
   lift: () => impactAsync(ImpactFeedbackStyle.Light),
   drop: () => impactAsync(ImpactFeedbackStyle.Soft),
   peek: () => impactAsync(ImpactFeedbackStyle.Medium),
-  selection: () => selectionAsync(),
+  selection: selectionAsync,
   success: () => notificationAsync(NotificationFeedbackType.Success),
   error: () => notificationAsync(NotificationFeedbackType.Error),
 };
