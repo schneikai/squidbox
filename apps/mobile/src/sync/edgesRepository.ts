@@ -50,8 +50,10 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
   function newEdge(id: string, parentId: string, assetId: string, position: string, now: number) {
     return { id, createdAt: now, updatedAt: now, deletedAt: null, [parentField]: parentId, assetId, position };
   }
-  const save = (tx: SyncDb, edges: any[], options?: { isNew: boolean }) =>
-    saveRecords(tx, collection, table, edges, options);
+  const save = (tx: SyncDb, edges: any[], saved: { isNew: true } | { previous: any[] }) =>
+    saveRecords(tx, collection, table, edges, saved);
+  // Tombstone these live edges.
+  const tombstoneAll = (tx: SyncDb, edges: any[]) => save(tx, edges.map(tombstone), { previous: edges });
 
   /**
    * Reassign positions to match `orderedAssetIds`, with the parent's other live edges (assets not
@@ -60,7 +62,8 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
    */
   async function reorder(db: SyncDb, parentId: string, orderedAssetIds: string[]): Promise<void> {
     await db.transaction(async (tx) => {
-      const { canonical, duplicates } = canonicalByAsset(await liveSorted(tx, parentId));
+      const live = await liveSorted(tx, parentId);
+      const { canonical, duplicates } = canonicalByAsset(live);
       const given = new Set(orderedAssetIds);
       const order = [...given].filter((id) => canonical.has(id));
       for (const id of canonical.keys()) if (!given.has(id)) order.push(id);
@@ -70,7 +73,7 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
         const e = canonical.get(assetId);
         if (e.position !== keys[i]) changed.push(nextVersion(e, { position: keys[i] }));
       }
-      await save(tx, changed);
+      await save(tx, changed, { previous: live });
     });
   }
 
@@ -106,7 +109,7 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
       const neighbors = [...(after ? [after] : []), ...tied, ...(next ? [next] : []), moved];
       const updates = movePositions(neighbors, moved.id, after?.id ?? null);
       const changed = neighbors.filter((e) => updates[e.id]).map((e) => nextVersion(e, updates[e.id]));
-      await save(tx, [...changed, ...duplicates.map(tombstone)]);
+      await save(tx, [...changed, ...duplicates.map(tombstone)], { previous: [...neighbors, ...duplicates] });
     });
   }
 
@@ -168,13 +171,13 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
             changed.push(nextVersion(removed, { deletedAt: null, assetId: ref.assetId, position: keys[i] }));
           } else changed.push(newEdge(ref.id, parentId, ref.assetId, keys[i]!, now));
         }
-        await save(tx, changed);
+        await save(tx, changed, { previous: [...live, ...removedById.values()] });
       });
     },
 
     /** Tombstone every live edge for (parentId, assetId ∈ set). */
     async remove(db: SyncDb, parentId: string, assetIds: string[]): Promise<void> {
-      await db.transaction(async (tx) => save(tx, (await liveTo(tx, parentId, assetIds)).map(tombstone)));
+      await db.transaction(async (tx) => tombstoneAll(tx, await liveTo(tx, parentId, assetIds)));
     },
 
     reorder,
@@ -182,7 +185,7 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
 
     /** Tombstone all live edges for a parent (its album/post was deleted). */
     async tombstoneParent(db: SyncDb, parentId: string): Promise<void> {
-      await db.transaction(async (tx) => save(tx, (await liveSorted(tx, parentId)).map(tombstone)));
+      await db.transaction(async (tx) => tombstoneAll(tx, await liveSorted(tx, parentId)));
     },
   };
 }

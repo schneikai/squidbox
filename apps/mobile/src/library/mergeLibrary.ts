@@ -223,12 +223,13 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<void>
     await saveRecords(tx, 'post_assets', schema.postAssets, plan.postAssets, { isNew: true });
     if (plan.duplicates.length > 0) {
       const changes = new Map(plan.duplicates.map((d) => [d.id, d]));
-      const rows = await readByIds<AssetRow>(tx, schema.assets, [...changes.keys()]);
+      const previous = await readByIds<AssetRow>(tx, schema.assets, [...changes.keys()]);
       await saveRecords(
         tx,
         'assets',
         schema.assets,
-        rows.map((row) => nextVersion(row, changes.get(row.id)!)),
+        previous.map((row) => nextVersion(row, changes.get(row.id)!)),
+        { previous },
       );
     }
     // A replayed edit is written to the target's row as well as its outbox: a push alone would leave
@@ -247,6 +248,7 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<void>
         collection,
         table,
         replays.map((row) => replayed(row, targetRows.get(row.recordId))),
+        { previous: [...targetRows.values()] },
       );
     }
   });

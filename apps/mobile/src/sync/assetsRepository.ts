@@ -37,8 +37,9 @@ export async function purgeAssets(db: SyncDb, ids: string[], removeFiles: Remove
   if (rows.length === 0) return [];
   await removeFiles(await unsharedFiles(db, rows));
   return db.transaction(async (tx) => {
-    const purgedRows = notPurged(await readByIds(tx, schema.assets, ids)).map(purged);
-    await saveRecords(tx, 'assets', schema.assets, purgedRows);
+    const previous = notPurged(await readByIds(tx, schema.assets, ids));
+    const purgedRows = previous.map(purged);
+    await saveRecords(tx, 'assets', schema.assets, purgedRows, { previous });
     return purgedRows;
   });
 }
