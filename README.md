@@ -18,7 +18,7 @@ CI (`.github/workflows/ci.yml`) checks every push and pull request to `main`. Lo
 
 ## Multi-device sync
 
-The app keeps an on-device SQLite database (expo-sqlite + Drizzle) and syncs with the backend via generic pull/push: whole-record last-writer-wins, tombstones for deletes, an outbox for local changes, and a cursor for incremental pulls. Collection descriptors are defined in `packages/shared`.
+The app keeps an on-device SQLite database (expo-sqlite + Drizzle) and syncs with the backend via generic pull/push: per-field last-writer-wins, tombstones for deletes, an outbox for local changes, and a cursor for incremental pulls. Collection descriptors are defined in `packages/shared`.
 
 ## Accounts and libraries
 

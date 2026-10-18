@@ -33,7 +33,7 @@ export async function syncRoutes(app: FastifyInstance): Promise<void> {
     },
   });
 
-  // POST /sync/push — whole-record LWW upsert, per-mutation results.
+  // POST /sync/push — per-field merge (whole-record LWW for a mutation without fields), per-mutation results.
   r.route({
     method: 'POST',
     url: '/sync/push',
