@@ -139,6 +139,42 @@ describe('planMerge + applyMerge', () => {
     expect(row!.payload).toMatchObject({ notes: 'edited on the device', isFavorite: true });
   });
 
+  it('a replay keeps each field’s own clock, also for a target row edited later', async () => {
+    const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
+    await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
+    await repo.updateAsset(source, shared.id, { notes: 'first on the device' });
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    await repo.toggleFavorite(source, shared.id);
+    const [sourceRow] = await outbox(source);
+    // The account pulled a newer edit of another field: the device's edits are older than its row.
+    const later = Date.now() + 60_000;
+    await upsertRows(target, 'assets', schema.assets, [
+      { ...shared, filename: 'b.jpg', updatedAt: later, syncError: null },
+    ]);
+
+    await applyMerge(target, await planMerge(source, target, SRC));
+    const [row] = await outbox(target);
+    expect(row!.fields).toEqual(sourceRow!.fields);
+    expect(await target.select().from(schema.assets)).toMatchObject([
+      { notes: 'first on the device', isFavorite: true, filename: 'b.jpg', updatedAt: later },
+    ]);
+  });
+
+  it('a newer pending edit of the target keeps its field; the device’s other fields replay', async () => {
+    const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
+    await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);
+    await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
+    await repo.updateAsset(source, shared.id, { notes: 'older', isFavorite: true });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await repo.updateAsset(target, shared.id, { notes: 'newer' });
+
+    const plan = await planMerge(source, target, SRC);
+    expect(Object.keys(plan.replays[0]!.fields)).toEqual(['isFavorite']);
+    await applyMerge(target, plan);
+    expect(await target.select().from(schema.assets)).toMatchObject([{ notes: 'newer', isFavorite: true }]);
+    expect(Object.keys((await outbox(target))[0]!.fields).sort()).toEqual(['isFavorite', 'notes']);
+  });
+
   it('does not replay over a newer pending edit of the target', async () => {
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);

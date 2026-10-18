@@ -10,9 +10,11 @@ import { nextVersion } from '@/sync/clock';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
-import { outboxUpdatedAts } from '@/sync/outbox';
+import { enqueueMutations, pendingFields } from '@/sync/outbox';
 import { readByIdMap, readByIds } from '@/sync/readByIds';
 import { saveRecords } from '@/sync/saveRecords';
+import { upsertRows } from '@/sync/upsertRows';
+import { withDeletionPair } from '@/sync/withDeletionPair';
 import getAssetFileUri from '@/utils/assets/files/getAssetFileUri';
 import getAssetFilesDirectory from '@/utils/assets/files/getAssetFilesDirectory';
 import getAssetThumbnailUri from '@/utils/assets/thumbnails/getAssetThumbnailUri';
@@ -30,7 +32,7 @@ export interface MergePlan {
   postAssets: schema.PostAssetRow[];
   // Target assets that match a source asset by camera-roll item: favorite merged as OR, notes kept.
   duplicates: { id: string; isFavorite: boolean; notes: string | null }[];
-  // Source outbox rows for records the target already has, to push with their own updatedAt.
+  // Source outbox rows for records the target already has, narrowed to the fields to replay.
   replays: schema.OutboxRow[];
   // What is still in the source's folders of the assets the target has (by id, once applied).
   files: string[];
@@ -44,8 +46,8 @@ const live = <R extends { deletedAt: number | null }>(rows: R[]) => rows.filter(
 
 /**
  * What adding `source` (this device's library) to `target` (the account's) would do, without
- * writing anything. Tombstones are left behind; a record the target has by id is skipped (a
- * pending edit of it is replayed when newer); an asset the target has from the same camera-roll
+ * writing anything. Tombstones are left behind; a record the target has by id is skipped (its
+ * pending edits are replayed field by field); an asset the target has from the same camera-roll
  * item is matched instead of copied; an asset whose file lives in another account's storage stays;
  * smart albums are the account's own; edges follow their asset and parent and are dropped with them.
  */
@@ -53,20 +55,21 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
   const replays: schema.OutboxRow[] = [];
   const sourceOutbox = await source.select().from(schema.outbox);
 
-  // A source outbox row for a record the target has is worth pushing only when it is newer than
-  // what the target holds, in its row and in its own outbox.
-  async function collectReplays(collection: string, targetRows: Map<string, { updatedAt: number }>) {
+  // A source outbox row for a record the target has replays each of its fields with its own clock,
+  // unless the target's own pending edit of that field is as new: the server's per-field merge
+  // settles the rest against what it holds.
+  async function collectReplays(collection: string, targetRows: Map<string, unknown>) {
     const candidates = sourceOutbox.filter((row) => row.collection === collection && targetRows.has(row.recordId));
     if (candidates.length === 0) return;
-    const pending = await outboxUpdatedAts(
+    const pending = await pendingFields(
       target,
       collection,
       candidates.map((row) => row.recordId),
     );
     for (const row of candidates) {
-      if (row.updatedAt <= targetRows.get(row.recordId)!.updatedAt) continue;
-      if ((pending.get(row.recordId) ?? -1) >= row.updatedAt) continue;
-      replays.push(row);
+      const targetClocks = pending.get(row.recordId) ?? {};
+      const fields = Object.entries(row.fields).filter(([field, clock]) => (targetClocks[field] ?? -1) < clock);
+      if (fields.length > 0) replays.push({ ...row, fields: Object.fromEntries(fields) });
     }
   }
 
@@ -233,32 +236,31 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<void>
       );
     }
     // A replayed edit is written to the target's row as well as its outbox: a push alone would leave
-    // the row stale, and the pull skips a record with a pending outbox row. Only the fields the
-    // source's outbox row names are patched onto the target's row, not the source's stale others.
+    // the row stale, and the pull skips a record with a pending outbox row. Its fields go onto the
+    // target's row and into the target's outbox with the source's own clocks, for the server to merge.
     for (const collection of new Set(plan.replays.map((row) => row.collection))) {
       const table = clientCollectionTables[collection]!;
       const replays = plan.replays.filter((row) => row.collection === collection);
-      const targetRows = await readByIdMap(
+      const targetRows = await readByIdMap<Row>(
         tx,
         table,
         replays.map((row) => row.recordId),
       );
-      await saveRecords(
-        tx,
-        collection,
-        table,
-        replays.map((row) => replayed(row, targetRows.get(row.recordId))),
-        { previous: [...targetRows.values()] },
-      );
+      const records = replays.flatMap((row) => {
+        const targetRow = targetRows.get(row.recordId);
+        return targetRow ? [replayed(collection, row, targetRow)] : [];
+      });
+      await upsertRows(tx, collection, table, records);
+      await enqueueMutations(tx, collection, records, new Map(replays.map((row) => [row.recordId, row.fields])));
     }
   });
 }
 
-// A source outbox row's edit applied to the target's row: the fields it changed.
-function replayed(row: schema.OutboxRow, target: Row | undefined): Row {
-  if (!target) return row.payload as Row;
-  const changes = Object.fromEntries(Object.keys(row.fields).map((field) => [field, row.payload[field]]));
-  return { ...target, ...changes, updatedAt: row.updatedAt };
+// A source outbox row's edit applied to the target's row: the fields it replays.
+function replayed(collection: string, row: schema.OutboxRow, target: Row): Row {
+  const fields = withDeletionPair(collection, Object.keys(row.fields));
+  const changes = Object.fromEntries(fields.map((field) => [field, row.payload[field]]));
+  return { ...target, ...changes, updatedAt: Math.max(target.updatedAt, row.updatedAt) };
 }
 
 /**

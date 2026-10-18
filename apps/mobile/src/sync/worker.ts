@@ -1,4 +1,4 @@
-import { collectionsByName, type PushMutation, type PushResult } from '@squidbox/shared';
+import type { PushMutation, PushResult } from '@squidbox/shared';
 import { and, gt } from 'drizzle-orm';
 
 import { unsharedFiles, type RemoveFiles } from './assetsRepository';
@@ -21,6 +21,7 @@ import { createSingleFlight } from './singleFlight';
 import { getCursor, setCursor, patchStatus, appendSyncLog, markFirstSyncDone, clearFirstSyncDone } from './status';
 import type { SyncTransport } from './transport';
 import { upsertRows } from './upsertRows';
+import { withDeletionPair } from './withDeletionPair';
 import type { AssetFileNames } from '../library/fs';
 import type { LibraryPaths } from '../library/libraryPaths';
 import type { SyncIdentity } from '../library/sessionMatches';
@@ -292,10 +293,8 @@ function withLocalFields(
   local: Record<string, unknown>,
   fields: string[],
 ): Record<string, unknown> {
-  const kept = new Set(fields);
-  const { finalField } = collectionsByName[collection]!;
-  if (finalField && (kept.has('deletedAt') || kept.has(finalField))) kept.add('deletedAt').add(finalField);
-  const values = Object.fromEntries([...kept].map((field) => [field, local[field]]));
+  const kept = withDeletionPair(collection, fields);
+  const values = Object.fromEntries(kept.map((field) => [field, local[field]]));
   return { ...record, ...values, updatedAt: Math.max(Number(local.updatedAt), Number(record.updatedAt)) };
 }
 
