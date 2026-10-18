@@ -1,7 +1,8 @@
 import SortableGrid from '@/components/sortable-grid/SortableGrid';
 
 // The album Assets tab's grid: a SortableGrid of square cells, so photos can be dragged into a new
-// order, with the props of the virtualized AssetList (library / all-assets view).
+// order, with the props of the virtualized AssetList (library / all-assets view). It tracks its own
+// scroll offset, so `onScroll` alone keeps a caller's `scrollY` current.
 export default function SortableAssetGrid({
   rows,
   rowsReadAt,
@@ -10,6 +11,7 @@ export default function SortableAssetGrid({
   paddingTop,
   paddingBottom,
   listRef,
+  onScroll,
   selectedAssetIds,
   selectAssets,
   dragSelectEnabled,
@@ -29,6 +31,7 @@ export default function SortableAssetGrid({
       paddingTop={paddingTop}
       paddingBottom={paddingBottom}
       listRef={listRef}
+      onScroll={onScroll}
       dragSelectEnabled={dragSelectEnabled}
       selectedIds={selectedAssetIds}
       onSelect={selectAssets}

@@ -3,7 +3,8 @@ import SortableAssetGrid from '@/features/asset-list/SortableAssetGrid';
 import useAssetCells from '@/features/asset-list/useAssetCells';
 
 // An asset grid with its cells and quick view: the library, an album and the asset picker. In select
-// mode a tap goes to `onPressAsset` and a drag selects (with `selectAssets`).
+// mode a tap goes to `onPressAsset` and a drag selects (with `selectAssets`). `onScroll` gets the
+// grid's scroll events and `scrollY` is the offset it writes, which the drag-select then reads.
 export default function AssetGrid({
   rows,
   rowsReadAt,
