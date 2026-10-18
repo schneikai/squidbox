@@ -49,8 +49,8 @@ Every synced record, on server and client, carries:
 
 `baseRecordSchema` in `packages/shared/collections/define.ts` defines these.
 
-Server-only columns, never accepted from the client and stripped from pull and push responses
-(`toWireRecord`):
+Server-only columns, never accepted from the client and never selected for pull and push responses
+(`wireColumns`, the schema's fields):
 
 | Column        | Type   | Purpose                                                                                |
 | ------------- | ------ | -------------------------------------------------------------------------------------- |
@@ -166,9 +166,10 @@ Tombstones flow like any other change.
 
 Client apply (`apps/mobile/src/sync/worker.ts`) is **server-authoritative and outbox-guarded**:
 an incoming record with a pending outbox row takes every field except the ones that row's `fields`
-names (a deletion and a purge count as one, so they never come from different sides), with the newer
-of the two `updatedAt`s, so this device's next edit gets a clock above the pulled one; the pending
-push re-asserts those fields and the push result settles them (§6). So another device's favorite
+names, widened to their field groups (`overlayFields`), with the newer of the two `updatedAt`s, so
+this device's next edit gets a clock above the pulled one; the pending push re-asserts those fields
+and the push result settles them (§6). A purge is final: an incoming purged record keeps its
+deletion group over a pending one without the purge. So another device's favorite
 shows while a rename made here waits to be pushed.
 The client pulls pages until it holds about 5,000 records (or the server has no more), then
 applies them in one SQLite transaction, as multi-row upserts by `id`, together with the new cursor.
@@ -244,15 +245,15 @@ advisory lock (§3), for each mutation:
    that row alone is rejected as `db:<sqlstate>` and only such pushes pay the extra round trips.
    Any other error fails the whole push, which the client retries, and so does a violated `user_id`
    foreign key (the user was deleted mid-push).
-
-4. A named field is lost when the row then holds another value for it. None lost: `applied`. Any
-   lost: `skipped-lww` with the merged row as `current`, which already holds the fields that
-   applied, so the client adopts it.
+4. A named field is lost when the row then holds another value for it (`lostFields`), and a push to
+   a purged row whose record lacks that purge counts as lost too. None lost: `applied`. Any lost:
+   `skipped-lww` with the merged row as `current`, which already holds the fields that applied, so
+   the client adopts it.
 
 The comparison is strict `>`. The trigger re-stamps `server_seq` on every UPDATE, so an equal
 timestamp must not count as newer; with `>` a replay is a true no-op (and `applied`) and pushes can
-be retried without dedup. Two different
-edits of a field in the same millisecond keep the first one applied. The client's monotonic clock
+be retried without dedup. Two different edits of a field in the same millisecond keep the first one
+applied. The client's monotonic clock
 (below) rules this out on one device. Any field that applies gets the row a new `server_seq`, so
 every device pulls the merged row.
 
@@ -319,8 +320,9 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
   between one person's devices (§2a).
 - **Field groups:** fields that must change together are declared as a group on the descriptor
   (`fieldGroups`). An edit of one sends the whole group with one clock, and the server widens a
-  partly sent group the same way, so the group never mixes two devices' values. Assets have one:
-  `isFileSynced`, `isThumbnailSynced`, `isSynced` (§4).
+  partly sent group the same way (both through `widenToGroups`), so the group never mixes two
+  devices' values. Assets have two: `isFileSynced`, `isThumbnailSynced`, `isSynced` (§4), and
+  `deletedAt`, `purgedAt`.
 - **Whole-record pushes** (an app from before per-field merge, the legacy importer) send no
   `fields`; the server merges every field they carry at their `updatedAt`, so they win or lose
   field by field like any push. Outbox rows from before per-field merge name every merge field of
@@ -330,9 +332,10 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
   an album deleted on the phone, and a reorder doesn't bring back a removed edge); only a restore,
   which sends a newer `deletedAt: null`, does (a whole-record push still carries `deletedAt`, so
   a newer one undeletes). Restoring a deleted asset clears `deletedAt`.
-- **Purges** ("Delete permanently", §7a) set `purgedAt`, the descriptor's write-once `finalField`:
-  it has no clock, applies only to a record still deleted after the push's own `deletedAt`, and
-  freezes the row. So a purge beats any edit but a restore it hadn't seen, which its device adopts.
+- **Purges** ("Delete permanently", §7a) set `purgedAt`, the write-once `finalField`, sent with
+  its deletion as one group: it has no clock, applies only to a record still deleted after the
+  push's `deletedAt`, and freezes the row. So a purge beats any edit, and a restore it hadn't seen
+  only when that restore is the later of the two.
 - **Membership** (which assets are in an album or post, and their order) is stored as separate
   edge records in `album_assets` and `post_assets` (§10), not as arrays on the parent. Add,
   remove and reorder each write their own edge rows, so concurrent membership changes on two
@@ -506,13 +509,14 @@ backs it up and keeps it in sync, and signing out only pauses that.
   closed, the next one opened, the previous one reopened if the next won't open), so no run spans
   a session or library change, and a failed switch leaves the old session untouched, with nothing
   to revert. `CloudProvider.loginAsync` then navigates to Settings. The account's library is the
-  parked one from an earlier sign-in, or a new empty one. Then whatever the device library holds joins it at once, with no prompt
+  parked one from an earlier sign-in, or a new empty one. Then whatever the device library holds
+  joins it at once, with no prompt
   (`library/mergeRun.ts`, crash-safe and idempotent: the `mergedInto` marker on the source, every
   record in one transaction of the target with its outbox row, files, found by listing the source's
   folders, moved into missing destinations after the commit, the source removed when nothing is left
-  in it; a pending edit of a record the target has is replayed field by field, each with its own
-  clock unless the target's own pending edit of that field is as new, onto the target's row and
-  outbox). The same merge runs again at every boot while an unmerged device library exists
+  in it; a pending edit of a record the target has is replayed field by field, a field group as
+  one, each with its own clock unless the target's own pending edit of it is as new, onto the
+  target's row and outbox through `saveRecords`). The same merge runs again at every boot while an unmerged device library exists
   (`mergeDeviceLibrary`, inside `withSyncPaused` after `resumeMerges`, which skips a marked source
   that is the open library and goes on after a failed one), so one that failed or that a crash
   interrupted finishes then. A device library with photos whose file lives in another account's
