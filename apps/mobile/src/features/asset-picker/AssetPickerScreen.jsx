@@ -99,7 +99,8 @@ export default function AssetPickerScreen({ route, navigation }) {
 
       {isPickingAlbum ? (
         <AlbumPicker
-          onPick={(pickedAlbum) => showView('Albums', pickedAlbum)}
+          onPick={(nextAlbum) => showView('Albums', nextAlbum)}
+          showSmartAlbums
           paddingTop={MODAL_HEADER_HEIGHT}
           onScroll={onScroll}
           expandProgress={expandProgress}

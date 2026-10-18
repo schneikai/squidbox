@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -12,11 +13,13 @@ import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-actio
 import useAlbumList from '@/features/album-list/useAlbumList';
 import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
 import useSearchMode from '@/hooks/useSearchMode';
+import isDeletedAssetsAlbum from '@/utils/albums/isDeletedAssetsAlbum';
 
-// The albums of a modal to pick one from (smart albums left out), with search, sort and filter; a tap
-// hands the album to `onPick`. `onScroll` and `expandProgress` let the modal animate its header and
-// a segment pill.
-export default function AlbumPicker({ onPick, paddingTop, onScroll, expandProgress }) {
+// The albums of a modal to pick one from, with search, sort and filter; a tap hands the album to
+// `onPick`. Smart albums show with `showSmartAlbums` (to pick assets from Favorites, not to add to
+// it), but never Deleted: nothing is picked from the trash. `onScroll` and `expandProgress` let the
+// modal animate its header and a segment pill.
+export default function AlbumPicker({ onPick, showSmartAlbums = false, paddingTop, onScroll, expandProgress }) {
   const { bottom } = useSafeAreaInsets();
 
   const { listRef, listScrollTop } = useAlbumList();
@@ -25,12 +28,13 @@ export default function AlbumPicker({ onPick, paddingTop, onScroll, expandProgre
   });
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterFilter: listScrollTop });
   const { searchBar, query: searchText } = useSearchMode(useSearchAlbumsAction());
+  const matchPickable = useCallback((album) => !isDeletedAssetsAlbum(album) && matchFilter(album), [matchFilter]);
 
   const { albums } = usePreparedAlbums({
     sortFn: sortFunction,
-    filterFn: matchFilter,
+    filterFn: matchPickable,
     searchText,
-    showSmartAlbums: false,
+    showSmartAlbums,
   });
 
   return (
