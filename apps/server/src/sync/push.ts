@@ -3,6 +3,7 @@ import type { PushMutation, PushResult } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import { assets } from '../db/schema.js';
 import { serverCollections, toWireRecord, type ServerCollection } from './collections.js';
+import { storedClocks } from './storedClocks.js';
 
 export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 type ValidRecord = Record<string, unknown> & { id: string; updatedAt: number };
@@ -119,15 +120,19 @@ async function upsert(tx: Tx, col: ServerCollection, record: ValidRecord, userId
   const table = col.table as any;
 
   // DO UPDATE SET from excluded.* for the updatable columns the record carries: an optional
-  // column an older client doesn't send keeps its stored value.
+  // column an older client doesn't send keeps its stored value. Each field it carries takes the
+  // record's clock; the others keep theirs.
   const set: Record<string, SQL> = {};
   for (const key of col.updateColumns) {
     if (key in record) set[key] = sql`excluded.${sql.identifier(table[key].name)}`;
   }
+  const carried = col.mergeFields.filter((key) => key in record);
+  const fieldClock = Object.fromEntries(carried.map((key) => [key, record.updatedAt]));
+  set.fieldClock = sql`${storedClocks(col)} || excluded.field_clock`;
 
   const inserted = await tx
     .insert(col.table)
-    .values({ ...record, userId })
+    .values({ ...record, userId, fieldClock })
     .onConflictDoUpdate({
       target: [table.userId, table.id],
       set,

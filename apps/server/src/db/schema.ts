@@ -51,6 +51,13 @@ export type User = typeof users.$inferSelect;
 export type RefreshToken = typeof refreshTokens.$inferSelect;
 
 // --- Syncable collections ---
+// Server-only, never on the wire: each merge field's clock, { field: epochMs } (sync-design §7). NULL
+// for a row last written before per-field merge: its fields' clocks are all its updated_at.
+function fieldClock() {
+  return jsonb('field_clock').$type<Record<string, number>>();
+}
+
+
 // `assets` — asset metadata (sync-design §10). Composite PK (user_id, id): id is
 // client-generated, so a plain-id PK would let a colliding uuid touch another tenant's row
 // (§2a). server_seq is stamped by a BEFORE INSERT/UPDATE trigger (created in migrate.ts).
@@ -68,6 +75,7 @@ export const assets = pgTable(
     updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
     deletedAt: bigint('deleted_at', { mode: 'number' }),
     serverSeq: bigint('server_seq', { mode: 'number' }), // set by trigger
+    fieldClock: fieldClock(),
     mediaLibraryAssetId: text('media_library_asset_id').notNull(),
     mediaType: text('media_type').notNull(), // 'photo' | 'video' (validated via Zod)
     width: integer('width').notNull(),
@@ -113,6 +121,7 @@ function syncableBase() {
     updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
     deletedAt: bigint('deleted_at', { mode: 'number' }),
     serverSeq: bigint('server_seq', { mode: 'number' }),
+    fieldClock: fieldClock(),
   };
 }
 

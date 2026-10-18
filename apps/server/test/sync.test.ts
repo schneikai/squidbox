@@ -67,6 +67,24 @@ function postRecord(over: Record<string, unknown> = {}) {
     ...over,
   };
 }
+function albumRecord(over: Record<string, unknown> = {}) {
+  return {
+    id: randomUUID(),
+    createdAt: 1000,
+    updatedAt: 1000,
+    deletedAt: null as number | null,
+    name: 'A',
+    isFavorite: false,
+    archivedAt: null,
+    showInPostSuggestionsAfter: null,
+    oldCollectionName: null,
+    notes: null as string | null,
+    sortOrder: null,
+    smartAlbumType: null,
+    position: null as string | null,
+    ...over,
+  };
+}
 const mut = (record: Record<string, unknown>) => ({ collection: 'assets', record });
 
 async function serverSeqOf(userId: string, id: string): Promise<number | null> {
@@ -134,6 +152,29 @@ d('sync engine (Postgres)', () => {
 
     await push(db as any, USER_A, [{ collection: 'albums', record: { ...album, position: null, updatedAt: 3000 } }]);
     expect((await stored())?.position).toBeNull();
+  });
+
+  it('a whole-record push stamps each field it carries with its clock; the others keep theirs', async () => {
+    const album = albumRecord({ position: 'a0' });
+    const clocks = async () =>
+      (await pool.query('SELECT field_clock FROM albums WHERE user_id = $1 AND id = $2', [USER_A, album.id])).rows[0]
+        .field_clock;
+    await push(db, USER_A, [{ collection: 'albums', record: album }]);
+    expect(await clocks()).toMatchObject({ name: 1000, position: 1000, deletedAt: 1000 });
+    expect(await clocks()).not.toHaveProperty('updatedAt');
+
+    const { position: _position, ...withoutPosition } = album; // an app without `position`
+    await push(db, USER_A, [{ collection: 'albums', record: { ...withoutPosition, name: 'B', updatedAt: 2000 } }]);
+    expect(await clocks()).toMatchObject({ name: 2000, position: 1000 });
+
+    // A row written before per-field merge has no clocks: each field's is its updated_at.
+    await pool.query('UPDATE albums SET field_clock = NULL WHERE user_id = $1 AND id = $2', [USER_A, album.id]);
+    await push(db, USER_A, [{ collection: 'albums', record: { ...withoutPosition, name: 'C', updatedAt: 3000 } }]);
+    expect(await clocks()).toMatchObject({ name: 3000, position: 2000 });
+
+    const { changes } = await pull(db, USER_A, { cursor: 0 });
+    expect(changes.albums.records[0]).toMatchObject({ name: 'C', position: 'a0' });
+    expect(changes.albums.records[0]).not.toHaveProperty('fieldClock'); // server-only
   });
 
   it('pull window + tombstone delivery', async () => {
@@ -510,17 +551,7 @@ d('sync engine (Postgres)', () => {
     const base = () => ({ id: randomUUID(), createdAt: 1000, updatedAt: 1000, deletedAt: null });
     const sample: Record<string, () => Record<string, unknown>> = {
       assets: () => assetRecord(),
-      albums: () => ({
-        ...base(),
-        name: 'A',
-        isFavorite: false,
-        archivedAt: null,
-        showInPostSuggestionsAfter: null,
-        oldCollectionName: null,
-        notes: null,
-        sortOrder: null,
-        smartAlbumType: null,
-      }),
+      albums: () => albumRecord(),
       posts: () => postRecord(),
       album_assets: () => ({ ...base(), albumId: randomUUID(), assetId: randomUUID(), position: 'a0' }),
       post_assets: () => ({ ...base(), postId: randomUUID(), assetId: randomUUID(), position: 'a0' }),
