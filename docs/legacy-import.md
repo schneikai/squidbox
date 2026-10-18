@@ -59,7 +59,7 @@ applied, skipped and rejected count per collection. It ends with:
 OK — all ids canonical uuids and all references resolve.
 ```
 
-On a re-run without truncating, every record reports as skipped.
+On a re-run without truncating, every record reports as applied and nothing changes: a replay holds.
 
 ## Code map
 

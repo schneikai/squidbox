@@ -168,7 +168,7 @@ Client apply (`apps/mobile/src/sync/worker.ts`) is **server-authoritative and ou
 an incoming record with a pending outbox row takes every field except the ones that row's `fields`
 names, and keeps its local `updatedAt`; the pending push re-asserts those fields and the push
 result settles them (§6). So another device's favorite shows while a rename made here waits to be
-pushed. A pending row without `fields` (enqueued before per-field merge) skips the record whole.
+pushed.
 The client pulls pages until it holds about 5,000 records (or the server has no more), then
 applies them in one SQLite transaction, as multi-row upserts by `id`, together with the new cursor.
 Few big transactions matter on web, where every page a transaction touches is written again. A
@@ -195,9 +195,8 @@ stays valid and late devices always learn about deletes. Per-user data is small.
 
 Each mutation carries the **whole record** (the full schema validates it, and an insert needs every
 column) and `fields`: the fields its edits changed, each with its clock. The server merges only
-those, field by field (§7). A mutation without `fields` is a whole-record upsert; older apps, outbox
-rows from before per-field merge and the legacy importer (§11) send those. A request holds at most
-500 mutations; the client splits its outbox into batches of 500.
+those, field by field; a mutation without `fields` is a whole-record push (§7). A request holds at
+most 500 mutations; the client splits its outbox into batches of 500.
 
 ```jsonc
 // request
@@ -207,7 +206,7 @@ rows from before per-field merge and the legacy importer (§11) send those. A re
       "fields": { "isFavorite": 1699 } },
     { "collection": "albums", "record": { "id": "…", "updatedAt": 1700, "deletedAt": 1700 /* … */ },
       "fields": { "deletedAt": 1700 } },
-    { "collection": "posts", "record": { "id": "…", "updatedAt": 1701 /* … */ } } // whole record
+    { "collection": "posts", "record": { "id": "…", "updatedAt": 1701 /* … */ } } // older app
   ]
 }
 
@@ -230,21 +229,13 @@ advisory lock (§3), for each mutation:
    an unforeseen case. A `fields` key that isn't a merge field (§7) or that the record doesn't carry
    is rejected as `schema:fields.<key>`.
 2. Clamp a future `updatedAt`, and each future field clock, to server time (§7).
-3. Upsert in one atomic statement, `INSERT … ON CONFLICT (user_id, id) DO UPDATE`, with `user_id`
-   from the token:
-   - **With `fields`** (`fieldMergeUpdate.ts`): each named field takes the pushed value when its
-     clock is newer than the stored one (strict `>`), and its clock with it; every other field keeps
-     its value and clock; `updated_at` becomes the newest clock. The row is updated only when a field
-     applies (`WHERE` one applies; for assets, also not purged). An insert stores the named clocks.
-   - **Without** (`appliesOver`): whole-record LWW,
-     `… DO UPDATE SET … WHERE excluded.updated_at > <table>.updated_at`. For assets the condition
-     also lets a purge apply over a newer trashed version and makes a purge final (§7). It stamps
-     each field the record carries with the record's clock, so a per-field push that follows merges
-     against it.
-
-   The update sets only the columns the record carries, so an optional column an older app doesn't
-   send (e.g. `albums.position`) keeps its stored value. A new synced column is therefore added as
-   optional, and the server ships before the app.
+3. Merge in one atomic statement, `INSERT … ON CONFLICT (user_id, id) DO UPDATE`
+   (`fieldMergeUpdate.ts`), with `user_id` from the token: each named field takes the pushed
+   value when its clock is newer than the stored one (strict `>`), and its clock with it; every
+   other field keeps its value and clock; `updated_at` becomes the newest clock. The final field
+   has its own rule (§7). The row is updated only when a field applies. An insert stores the named clocks. So an
+   optional column an older app doesn't send (e.g. `albums.position`) keeps its stored value; a new
+   synced column is added as optional, and the server ships before the app.
    The batch's upserts run in one savepoint. A database error caused by a row itself (SQLSTATE
    class 22 or 23, e.g. a constraint the schema doesn't mirror) rolls that savepoint back (the
    advisory lock, taken before it, stays held) and reruns the batch with a savepoint per upsert, so
@@ -252,23 +243,21 @@ advisory lock (§3), for each mutation:
    Any other error fails the whole push, which the client retries, and so does a violated `user_id`
    foreign key (the user was deleted mid-push).
 
-4. Whole record: if a row came back, the result is `applied`; otherwise the mutation lost LWW and
-   the result is `skipped-lww` with the server's current record as `current`. Per field: a named
-   field is lost when the row then holds another clock or value for it. None lost: `applied`.
-   Any lost: `skipped-lww` with the merged row as `current`, which already holds the fields that
-   applied, so the client adopts it as before. There is no new status, so an older app's parsing
-   holds.
+4. A named field is lost when the row then holds another value for it. None lost: `applied`. Any
+   lost: `skipped-lww` with the merged row as `current`, which already holds the fields that
+   applied, so the client adopts it.
 
 The comparison is strict `>`. The trigger re-stamps `server_seq` on every UPDATE, so an equal
-timestamp must not count as newer; with `>` a replay is a true no-op (`skipped-lww` for a whole
-record, `applied` for one with `fields`) and pushes can be retried without dedup. Two different
+timestamp must not count as newer; with `>` a replay is a true no-op (and `applied`) and pushes can
+be retried without dedup. Two different
 edits of a field in the same millisecond keep the first one applied. The client's monotonic clock
 (below) rules this out on one device. Any field that applies gets the row a new `server_seq`, so
 every device pulls the merged row.
 
 `skipped-lww` must carry `current`. The winning row was usually already delivered by an earlier
-pull while the record had a pending outbox row, so its contested fields kept the local values (§5),
-and a pull from the stored cursor won't deliver it again. Without `current` the losing device would never converge.
+pull while the record had a pending outbox row, so its contested fields kept the local values
+(§5), and a pull from the stored cursor won't deliver it again. Without `current` the losing device
+would never converge.
 
 Client handling of each result (`planPushOutcome` in `apps/mobile/src/sync/pushPlan.ts`):
 
@@ -304,16 +293,14 @@ same millisecond would tie and the second would be dropped. It also keeps a slig
 from losing to this device's own earlier write.
 
 **Changed fields.** `saveRecords` (`apps/mobile/src/sync/saveRecords.ts`), which every local write
-goes through, reads the stored rows and names the merge fields each record changes, widened to
-their field group, at the record's new `updatedAt`; a new record names every field. It compares
-values, not the keys a caller passes, since a form passes all of them. A record that changes no
-synced field is neither written nor enqueued. A library merge's replay names the fields of the
-source's outbox row instead (§8).
+goes through, compares each record with the stored row its caller read and names the merge fields
+that changed, widened to their field group, at the record's new `updatedAt`; a new record names
+every field. It compares values, not the keys a caller passes, since a form passes all of them. A
+record that changes no synced field is neither written nor enqueued.
 
 **Outbox coalescing.** The outbox holds at most one row per `(collection, record_id)`; a newer
 write replaces the payload, and its `fields` are merged into the row's with `json_patch`, so each
 field keeps the clock of its own last edit (`enqueueMutations` in `apps/mobile/src/sync/outbox.ts`).
-A row without `fields` (from before per-field merge) stays without and is pushed as a whole record.
 The payload leaves out the collection's local-only fields (`localOnly` in its shared descriptor).
 
 ---
@@ -321,34 +308,27 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
 ## 7. Conflict resolution
 
 - **Granularity:** per-field last-writer-wins. The **merge fields** are every synced field but
-  `id`, `createdAt` and `updatedAt` (`mergeFields` in `packages/shared`), `deletedAt` and
-  `purgedAt` included. The server keeps each field's clock in `field_clock`; a row written before
-  per-field merge has none, and each of its fields takes the row's `updated_at`, so no data needed
-  migrating. `updated_at` stays the newest clock, the record's version for whole-record pushes.
-  Editing different fields of a record on two devices keeps both edits; editing the same field
-  keeps the later one. Conflicts only arise between one person's devices (§2a).
+  `id`, `createdAt` and `updatedAt` (`mergeFields` in `packages/shared`), `deletedAt` included. The
+  server keeps each field's clock in `field_clock`; a row written before per-field merge has none,
+  and each of its fields takes the row's `updated_at`, so no data needed migrating. `updated_at`
+  stays the newest clock. Editing different fields of a record on two devices keeps both edits;
+  editing the same field keeps the later one. Conflicts only arise between one person's devices
+  (§2a).
 - **Field groups:** fields that must change together are declared as a group on the descriptor
   (`fieldGroups`). An edit of one sends the whole group with one clock, so the group never mixes
   two devices' values. Assets have one: `isFileSynced`, `isThumbnailSynced`, `isSynced` (§4).
-- **Whole-record pushes** (an app from before per-field merge, an outbox row from before it, the
-  legacy importer) keep whole-record LWW by `updatedAt`, and stamp every field they carry with
-  their clock. Devices on both versions converge.
+- **Whole-record pushes** (an app from before per-field merge, the legacy importer) send no
+  `fields`; the server merges every field they carry at their `updatedAt`, so they win or lose
+  field by field like any push. Outbox rows from before per-field merge name every field of their
+  payload (SQLite migration 0011), which comes to the same.
 - **Deletes** are updates that set `deletedAt`, which merges like any other field. An edit of a
   _different_ field on another device doesn't undelete (a favorite on the iPad doesn't bring back
   an album deleted on the phone, and a reorder doesn't bring back a removed edge); only a restore,
-  which sends a newer `deletedAt: null`, does. A whole-record push still undeletes when newer, as
-  before. Restoring a deleted asset clears `deletedAt`.
-- **Purges** ("Delete permanently", §7a) are the one exception. Once the stored asset has
-  `purgedAt`, no pushed version applies, whatever its timestamp. A per-field push that sets
-  `purgedAt` applies when the asset, after merging the push's own `deletedAt`, is still in the
-  Deleted album, whatever its clock; a whole-record one when it is newer, or when the stored
-  version is still in the Deleted album, newer or not. So an edit to the trashed asset made on a
-  device that hadn't seen the purge can't out-date it (nor can the clock a whole-record push stamps
-  on `purgedAt`), but a restore can: a purge made offline, on a device that hadn't seen another
-  device's restore, loses, and the purging device adopts the restored record as `current` (its
-  copies on that device are already gone; the app fetches the cloud ones). An older app (which sends no `purgedAt`) can't undo a purge, every device converges
-  on the purged record (a losing push adopts it as `current`), and a purged asset stays deleted,
-  since the purging version is.
+  which sends a newer `deletedAt: null`, does (a whole-record push still carries `deletedAt`, so
+  a newer one undeletes). Restoring a deleted asset clears `deletedAt`.
+- **Purges** ("Delete permanently", §7a) set `purgedAt`, the descriptor's write-once `finalField`:
+  it has no clock, applies only to a record still deleted after the push's own `deletedAt`, and
+  freezes the row. So a purge beats any edit but a restore it hadn't seen, which its device adopts.
 - **Membership** (which assets are in an album or post, and their order) is stored as separate
   edge records in `album_assets` and `post_assets` (§10), not as arrays on the parent. Add,
   remove and reorder each write their own edge rows, so concurrent membership changes on two
@@ -447,9 +427,8 @@ Tables (`apps/mobile/src/sync/db/schema.ts`):
   before libraries, is left unread.
 - `outbox(id, collection, record_id, op, payload, fields, updated_at, created_at, error)`: pending
   mutations, one row per record. `op` is `delete` when the payload has `deletedAt`, otherwise
-  `upsert`. `fields` is the changed fields with their clocks (§6), null for a row enqueued before
-  per-field merge. `error` is why the server rejected the payload (§6), null while it waits to be
-  pushed.
+  `upsert`. `fields` is the changed fields with their clocks (§6). `error` is why the server
+  rejected the payload (§6), null while it waits to be pushed.
 - `sync_log`: recent sync runs (§13).
 
 **Reads.** Nothing holds a whole table in memory. Each screen declares what it shows as a small
@@ -528,7 +507,8 @@ backs it up and keeps it in sync, and signing out only pauses that.
   record in one transaction of the target with its outbox row, files, found by listing the source's
   folders, moved into missing destinations after the commit, the source removed when nothing is left
   in it; a replayed edit of a record the target has patches the fields of the source's outbox row
-  onto the target's row and outbox, as a whole record when that row has no `fields`). The same merge runs again at every boot while an unmerged device library exists
+  onto the target's row and outbox). The same merge runs again at every boot while an unmerged
+  device library exists
   (`mergeDeviceLibrary`, inside `withSyncPaused` after `resumeMerges`, which skips a marked source
   that is the open library and goes on after a failed one), so one that failed or that a crash
   interrupted finishes then. A device library with photos whose file lives in another account's
@@ -628,6 +608,7 @@ export const assetCollection = defineCollection({
     syncError: z.string().nullable(), // this device's last upload error (§4)
   },
   fieldGroups: [['isFileSynced', 'isThumbnailSynced', 'isSynced']], // merge as one (§7)
+  finalField: 'purgedAt', // write-once, freezes the record (§7)
 });
 ```
 
@@ -640,10 +621,9 @@ SQLite tables are declared by hand per dialect from the same field list.
 1. Add a descriptor in `packages/shared/collections/` and add it to `collections` and
    `CollectionName` in `registry.ts`.
 2. Server: add the table in `apps/server/src/db/schema.ts` with `syncableBase()` (which brings
-   `field_clock`), a composite
-   `(user_id, id)` primary key and a `(user_id, server_seq)` index. Add it to `serverCollections`
-   in `apps/server/src/sync/collections.ts`. Generate the Drizzle migration. `migrate.ts`
-   attaches the `server_seq` trigger.
+   `field_clock`), a composite `(user_id, id)` primary key and a `(user_id, server_seq)` index. Add
+   it to `serverCollections` in `apps/server/src/sync/collections.ts`. Generate the Drizzle
+   migration. `migrate.ts` attaches the `server_seq` trigger.
 3. Client: add the table in `apps/mobile/src/sync/db/schema.ts` and to `clientCollectionTables`
    in `clientCollections.ts`, and generate the SQLite migration.
 4. Add a sample record to the registry guard test.
@@ -715,7 +695,7 @@ Runbook: [`legacy-import.md`](./legacy-import.md), or the `/legacy-import` skill
 - Conflicts resolve by per-field LWW, with field groups for fields that change together; a delete
   is a field, so only a restore undeletes (§7). Membership is edge records (§10).
 - Pull apply is server-authoritative and outbox-guarded per field (§5).
-- Whole-record pushes keep working, so the server ships before the app (§6, §7).
+- Pushes without `fields` merge as whole records, so the server ships before the app (§7).
 - `skipped-lww` returns the winning record, and the client adopts it (§6).
 - Tombstones are kept forever (§5); a purge is a final tombstone that wins over LWW (§7).
 - Asset file flags are synced; only `syncError` is local-only (§4).
@@ -788,7 +768,6 @@ the applied / skipped-lww / rejected tally. `GET /up` is the health check.
   album's notes) keep only the later writer's version; text is not merged within a field. Fields
   that depend on each other must be declared as a group (§7), or two devices' edits can combine
   into a mix neither made.
-- **Whole-record pushes still overwrite.** Until every device runs an app with per-field merge, an
-  older app's push replaces every field it carries when it is newer, as before.
+- **Whole-record pushes** from an older app carry every field as changed (§7).
 - **Derived values are computed per read.** Album stats and `lastPostedAt` are SQL in the paged
   queries (§8), so nothing is recomputed in JavaScript when a table changes.
