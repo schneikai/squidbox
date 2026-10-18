@@ -477,7 +477,8 @@ setup screen shows a spinner that VoiceOver reads as busy.
 Needs a new build (preview and dev client): `expo-sharing` is a native module, and a build without
 it hides Share (`canShareFiles`). Share (asset detail, bottom left) opens the system share sheet
 (`useShareAsset`). Check: a photo still on the phone opens the sheet at once; a video only in the
-cloud downloads with the progress ring first, then shares; Save Image / Save Video in the sheet
+cloud downloads with the progress ring first, then shares; Cancel under the ring stops a cloud
+download at once (no sheet, no alert; a batch save says "3 of 10 done"); Save Image / Save Video in the sheet
 lands in the camera roll, and AirDrop and Messages get it (HEIC, `.mov`); picking an activity and
 cancelling it leaves the app usable; a not-yet-uploaded asset, or one while signed out, says why; a
 trashed asset in a post shares too. Save to camera roll (now on the same `useRunWithAssetFiles`)

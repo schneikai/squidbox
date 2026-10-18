@@ -3,7 +3,7 @@ import { APPLY_BATCH } from './worker';
 
 export interface BatchOptions {
   onProgress?: (done: number, total: number) => void;
-  isCancelled?: () => boolean;
+  signal?: AbortSignal;
 }
 
 /**
@@ -15,11 +15,11 @@ export interface BatchOptions {
 export async function writeInBatches(
   ids: string[],
   write: (batch: string[]) => Promise<void>,
-  { onProgress, isCancelled }: BatchOptions = {},
+  { onProgress, signal }: BatchOptions = {},
 ): Promise<boolean> {
   let done = 0;
   for (const batch of chunk(ids, APPLY_BATCH)) {
-    if (isCancelled?.()) return false;
+    if (signal?.aborted) return false;
     await write(batch);
     done += batch.length;
     onProgress?.(done, ids.length);

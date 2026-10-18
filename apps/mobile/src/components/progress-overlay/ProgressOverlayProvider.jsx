@@ -9,7 +9,8 @@ export default function ProgressOverlayProvider({ children }) {
   const [progress, setProgress] = useState(0);
   const [onCancel, setOnCancel] = useState(null);
 
-  // show({ onCancel }) adds a Cancel button; the caller stops between its batches and hides as usual.
+  // show({ onCancel }) adds a Cancel button; the caller stops at its next chance (see useRunWithProgress)
+  // and hides as usual.
   const show = useCallback(({ onCancel = null } = {}) => {
     setOnCancel(() => onCancel);
     setMode('progress');
@@ -30,7 +31,7 @@ export default function ProgressOverlayProvider({ children }) {
     [show, showBlocking, hide, updateProgress],
   );
   const state = useMemo(() => {
-    // The button goes once pressed: the running batch still finishes, which the ring shows.
+    // The button goes once pressed.
     const cancel = onCancel
       ? () => {
           onCancel();

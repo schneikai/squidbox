@@ -57,7 +57,7 @@ export default function AlbumsProvider({ children }) {
         await repo.toggle(db, album.id, 'isFavorite');
         requestSync();
       },
-      // Both take the batch options of writeInBatches ({ onProgress, isCancelled }), resolve to whether
+      // Both take the batch options of writeInBatches ({ onProgress, signal }), resolve to whether
       // every batch was written, and push what committed even after a failure or a Cancel.
       addAssetsToAlbum: async (album, assetsOrAssetIds, batchOptions) => {
         const assetIds = assetsOrAssetIds.map((a) => (typeof a === 'string' ? a : a.id));

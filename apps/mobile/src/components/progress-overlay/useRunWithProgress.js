@@ -3,38 +3,49 @@ import { Alert } from 'react-native';
 import useProgressOverlay from './useProgressOverlay';
 
 /**
- * Runs a bulk action behind the progress overlay with a Cancel button: `run((batchOptions) => …)`
- * passes the `{ onProgress, isCancelled }` the providers' bulk methods take (see writeInBatches), so
- * the ring follows the batches and Cancel stops after the running one. A failure or a Cancel is
- * shown here, so every caller gets it; resolves to whether the action finished (the action resolves
- * to `false` when it stopped early, as writeInBatches does).
+ * Runs an action behind the progress overlay with a Cancel button: `run((options) => …, { failureTitle })`
+ * passes `{ onProgress, signal }`, the batch options the providers' bulk methods take (see
+ * writeInBatches). `onProgress(done, total, current)` moves the ring: `done` items finished plus
+ * `current`, the running one's share (0–1). Cancel aborts `signal`: bulk writes stop between batches,
+ * a download stops at once (rejecting with an `AbortError`). A failure, or a Cancel after some items,
+ * is shown here with how many were done, so every caller gets it; resolves to whether the action
+ * finished (the action resolves to `false` when it stopped early, as writeInBatches does).
  */
 export default function useRunWithProgress() {
   const { show, hide, updateProgress } = useProgressOverlay();
 
-  return async function runWithProgress(action) {
-    let isCancelled = false;
+  return async function runWithProgress(action, { failureTitle = "Couldn't finish" } = {}) {
+    const controller = new AbortController();
     let progress = null;
-    show({ onCancel: () => (isCancelled = true) });
+    const onProgress = (done, total, current = 0) => {
+      progress = { done, total };
+      updateProgress(((done + current) / total) * 100);
+    };
+
+    show({ onCancel: () => controller.abort() });
+    let finished;
     try {
-      const finished = await action({
-        onProgress: (done, total) => {
-          progress = { done, total };
-          updateProgress((done / total) * 100);
-        },
-        isCancelled: () => isCancelled,
-      });
-      if (finished !== false) return true;
-      // Cancelled between batches: what committed stays, so say how far it got.
-      Alert.alert('Stopped', progress ? `${progress.done} of ${progress.total} done.` : 'Nothing was changed.');
-      return false;
+      finished = await action({ onProgress, signal: controller.signal });
     } catch (error) {
-      console.error('Bulk action failed', error);
-      // Batches commit one by one, so what came before the failure stays done.
-      Alert.alert("Couldn't finish", `Part of it may already be done.\n${error.message}`);
-      return false;
+      if (error.name !== 'AbortError') {
+        console.error('Action failed', error);
+        const done = doneText(progress);
+        Alert.alert(failureTitle, done ? `${error.message}\n\n${done} were done before that.` : error.message);
+        return false;
+      }
+      finished = false;
     } finally {
       hide();
     }
+    if (finished !== false) return true;
+
+    // Cancelled: what came before stays done (batches commit one by one, files are saved one by one).
+    const done = doneText(progress);
+    if (done) Alert.alert('Stopped', `${done} done.`);
+    return false;
   };
+}
+
+function doneText(progress) {
+  return progress?.done ? `${progress.done} of ${progress.total}` : null;
 }

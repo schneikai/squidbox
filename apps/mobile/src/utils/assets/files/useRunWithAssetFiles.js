@@ -4,7 +4,7 @@ import assetFileUnavailableMessages from './assetFileUnavailableMessages';
 import getAssetFileStatusAsync from './getAssetFileStatusAsync';
 import withAssetFileAsync from './withAssetFileAsync';
 
-import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
+import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
 import useCloud from '@/features/cloud/useCloud';
 import { getLibrary } from '@/library/current';
 
@@ -13,9 +13,9 @@ let isRunning = false;
 
 /**
  * Runs `use(uri, asset)` over assets' full-resolution files (see withAssetFileAsync), one by one,
- * behind the progress overlay. Alerts why when one can't be had (checked up front, without asking
- * the cloud for URLs, so a batch doesn't stop halfway), and alerts a failure with how many went
- * through. A tap while a run is going is ignored.
+ * through useRunWithProgress: the ring follows the downloads, Cancel stops the running one, and a
+ * failure says how many went through. Alerts why when one can't be had (checked up front, without
+ * asking the cloud for URLs, so a batch doesn't stop halfway). A tap while a run is going is ignored.
  *
  * Options: `failureTitle`; `prepareAsync`, which may resolve false to stop before anything starts;
  * `keepDownloads` for a `use` that reads the file after it returns (deleteStaleDownloadsAsync
@@ -23,33 +23,34 @@ let isRunning = false;
  */
 export default function useRunWithAssetFiles() {
   const { isAuthenticated } = useCloud();
-  const { show, hide, updateProgress } = useProgressOverlay();
+  const runWithProgress = useRunWithProgress();
 
   return async function runWithAssetFilesAsync(assets, use, { failureTitle, prepareAsync, keepDownloads = false }) {
     if (isRunning) return;
     isRunning = true;
     // The local copies are read from the library open now, however long the downloads take.
     const library = getLibrary();
-    let doneCount = 0;
 
     try {
       if (await alertIfUnavailableAsync(assets, { isAuthenticated, library })) return;
       if (prepareAsync && !(await prepareAsync())) return;
 
-      show();
-      const totalBytes = assets.reduce((total, asset) => total + asset.fileSize, 0);
-      let doneBytes = 0;
-      for (const asset of assets) {
-        const onProgress = (bytes) => updateProgress(((doneBytes + bytes) / totalBytes) * 100);
-        const options = { isAuthenticated, library, onProgress, keepDownload: keepDownloads };
-        await withAssetFileAsync(asset, options, (uri) => use(uri, asset));
-        doneBytes += asset.fileSize;
-        doneCount += 1;
-      }
+      await runWithProgress(
+        async ({ onProgress, signal }) => {
+          for (const [index, asset] of assets.entries()) {
+            if (signal.aborted) return false;
+            const onFileProgress = (fraction) => onProgress(index, assets.length, fraction);
+            const options = { isAuthenticated, library, onProgress: onFileProgress, signal, keepDownloads };
+            await withAssetFileAsync(asset, options, (uri) => use(uri, asset));
+            onProgress(index + 1, assets.length);
+          }
+        },
+        { failureTitle },
+      );
     } catch (error) {
-      Alert.alert(failureTitle, failureMessage(error, doneCount, assets.length));
+      // The up-front checks: runWithProgress alerts what fails after them.
+      Alert.alert(failureTitle, error.message);
     } finally {
-      hide();
       isRunning = false;
     }
   };
@@ -64,9 +65,4 @@ async function alertIfUnavailableAsync(assets, options) {
     }
   }
   return false;
-}
-
-function failureMessage(error, doneCount, total) {
-  if (doneCount === 0) return error.message;
-  return `${error.message}\n\n${doneCount} of ${total} were done before that.`;
 }

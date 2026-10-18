@@ -35,7 +35,7 @@ export default function AssetsProvider({ children }) {
         await repo.toggleFavorite(getDb(), asset.id);
         requestSync();
       },
-      // The bulk methods take the batch options of writeInBatches ({ onProgress, isCancelled }), resolve
+      // The bulk methods take the batch options of writeInBatches ({ onProgress, signal }), resolve
       // to whether every batch was written, and push what committed even after a failure or a Cancel.
       setAssetsDeleted: async (assetIds, batchOptions) => {
         try {

@@ -25,14 +25,14 @@ describe('writeInBatches', () => {
   });
 
   it('stops between batches once cancelled, keeping what is written, and says it did not finish', async () => {
-    let cancelled = false;
+    const controller = new AbortController();
     const batches: number[] = [];
     const finished = await writeInBatches(
       ids,
       async (batch) => {
         batches.push(batch.length);
       },
-      { onProgress: () => (cancelled = true), isCancelled: () => cancelled },
+      { onProgress: () => controller.abort(), signal: controller.signal },
     );
     expect(batches).toEqual([5000]);
     expect(finished).toBe(false); // so the caller can say it stopped
