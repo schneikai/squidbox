@@ -501,13 +501,42 @@ d('sync engine (Postgres)', () => {
       expect((await stored(r.id)).fieldClock).toMatchObject({ notes: 2500, isFavorite: 2000 });
     });
 
-    it('rejects fields that aren’t merge fields or that the record doesn’t carry', async () => {
+    it('drops fields that aren’t merge fields the record carries, and merges the rest', async () => {
+      const r = assetRecord();
+      await push(db, USER_A, [mut(r)]);
       const { position: _position, ...withoutPosition } = albumRecord(); // an optional field
       const res = await push(db, USER_A, [
-        { collection: 'assets', record: assetRecord(), fields: { updatedAt: 1000, syncError: 1000 } },
+        {
+          collection: 'assets',
+          record: { ...r, updatedAt: 2000, notes: 'n' },
+          fields: { updatedAt: 2000, syncError: 2000, bogus: 2000, notes: 2000 },
+        },
         { collection: 'albums', record: withoutPosition, fields: { position: 1000 } },
       ]);
-      expect(res.map((x) => x.reason)).toEqual(['schema:fields.updatedAt,fields.syncError', 'schema:fields.position']);
+      expect(res.map((x) => x.status)).toEqual(['applied', 'applied']);
+      expect(await stored(r.id)).toMatchObject({ notes: 'n' });
+    });
+
+    it('a field group sent in part merges whole, at its newest clock', async () => {
+      const r = assetRecord({ isFileSynced: false, isThumbnailSynced: false, isSynced: false });
+      await push(db, USER_A, [mut(r)]);
+      // Another device marked the thumbnail later; this push names only isFileSynced, with stale others.
+      await push(db, USER_A, [edit({ ...r, updatedAt: 3000, isThumbnailSynced: true }, ['isThumbnailSynced'])]);
+      const stale = { ...r, updatedAt: 2000, isFileSynced: true };
+      const [result] = await push(db, USER_A, [{ collection: 'assets', record: stale, fields: { isFileSynced: 2000 } }]);
+      expect(result.status).toBe('skipped-lww');
+      expect(await stored(r.id)).toMatchObject({ isFileSynced: false, isThumbnailSynced: true, isSynced: false });
+      expect((await stored(r.id)).fieldClock).toMatchObject({ isFileSynced: 3000, isThumbnailSynced: 3000 });
+    });
+
+    it('a field without a stored clock takes the row’s updated_at, and keeps it once the row moves on', async () => {
+      const r = assetRecord({ updatedAt: 2000 });
+      await push(db, USER_A, [mut(r)]);
+      await pool.query(`UPDATE assets SET field_clock = '{"notes": 2000}' WHERE user_id = $1 AND id = $2`, [USER_A, r.id]);
+      const [older] = await push(db, USER_A, [edit({ ...r, updatedAt: 1500, isFavorite: true }, ['isFavorite'])]);
+      expect(older.status).toBe('skipped-lww');
+      await push(db, USER_A, [edit({ ...r, updatedAt: 5000, notes: 'n' }, ['notes'])]);
+      expect((await stored(r.id)).fieldClock).toMatchObject({ notes: 5000, isFavorite: 2000 });
     });
 
     it('clamps a future field clock to server time', async () => {

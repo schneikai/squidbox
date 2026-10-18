@@ -12,8 +12,8 @@ import {
 import { assets, albums, posts, albumAssets, postAssets } from '../db/schema.js';
 
 // Server-side view of a syncable collection: its Drizzle table + the shared Zod schema, the fields a
-// push may change (mergeFields), those of them merged by clock, and the write-once one (sync-design
-// §7). Derived from the descriptor so it stays in lockstep with the contract.
+// push may change (mergeFields), those of them merged by clock, the write-once one and the field
+// groups (sync-design §7). Derived from the descriptor so it stays in lockstep with the contract.
 export interface ServerCollection {
   name: string;
   table: PgTable;
@@ -21,6 +21,7 @@ export interface ServerCollection {
   mergeFields: string[];
   clockedFields: string[];
   finalField?: string;
+  fieldGroups: readonly (readonly string[])[];
 }
 
 function serverCollection(table: PgTable, descriptor: CollectionDescriptor): ServerCollection {
@@ -32,6 +33,7 @@ function serverCollection(table: PgTable, descriptor: CollectionDescriptor): Ser
     mergeFields: fields,
     clockedFields: fields.filter((field) => field !== descriptor.finalField),
     finalField: descriptor.finalField,
+    fieldGroups: descriptor.fieldGroups,
   };
 }
 

@@ -8,9 +8,9 @@ const dialect = new PgDialect();
 const render = (query: SQL) => dialect.sqlToQuery(query).sql;
 
 const storedClocks = (table: string, fields: string[]) =>
-  `coalesce("${table}"."field_clock", jsonb_build_object(${fields.map((f) => `'${f}', "${table}"."updated_at"`).join(', ')}))`;
-const wins = (table: string, fields: string[], field: string) =>
-  `((excluded.field_clock->>'${field}')::bigint > coalesce((${storedClocks(table, fields)}->>'${field}')::bigint, 0))`;
+  `jsonb_build_object(${fields.map((f) => `'${f}', "${table}"."updated_at"`).join(', ')}) || coalesce("${table}"."field_clock", '{}'::jsonb)`;
+const wins = (table: string, _fields: string[], field: string) =>
+  `((excluded.field_clock->>'${field}')::bigint > coalesce(("${table}"."field_clock"->>'${field}')::bigint, "${table}"."updated_at"))`;
 
 describe('fieldMergeUpdate', () => {
   const albumFields = serverCollections.albums.clockedFields;
@@ -53,5 +53,16 @@ describe('fieldMergeUpdate', () => {
     expect(render(setWhere)).toBe('false');
     for (const part of [...Object.values(set), setWhere]) expect(dialect.sqlToQuery(part).params).toEqual([]);
     expect(fieldMergeUpdate(serverCollections.posts, [])).toBe(fieldMergeUpdate(serverCollections.posts, []));
+  });
+
+  it('keeps the most recently used builds only', () => {
+    const [field, ...others] = serverCollections.albums.clockedFields;
+    const first = fieldMergeUpdate(serverCollections.albums, [field!]);
+    for (let i = 1; i <= 300; i++)
+      fieldMergeUpdate(
+        serverCollections.albums,
+        others.filter((_, k) => (i >> k) & 1),
+      );
+    expect(fieldMergeUpdate(serverCollections.albums, [field!])).not.toBe(first);
   });
 });

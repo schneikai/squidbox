@@ -3,6 +3,7 @@ import type { FieldClocks, PushMutation, PushResult } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import { serverCollections, toWireRecord, type ServerCollection } from './collections.js';
 import { fieldMergeUpdate } from './fieldMergeUpdate.js';
+import { sentFields } from './sentFields.js';
 
 export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 type ValidRecord = Record<string, unknown> & { id: string; updatedAt: number };
@@ -29,11 +30,10 @@ function driverError(error: unknown): DriverError | undefined {
  * Push (sync-design §6). In ONE transaction, take a per-user advisory lock (serializes this
  * user's pushes so server_seq order == commit order → safe pull watermark; tenants don't
  * contend), then for each mutation:
- *   1. validate the record against the collection's Zod schema, and its `fields` (reject on failure);
- *   2. clamp a future `updatedAt`, and future field clocks, to server-now (clock skew, §7);
- *   3. atomic per-field merge, INSERT … ON CONFLICT (user_id, id) DO UPDATE (fieldMergeUpdate), of
- *      the fields the mutation names; without `fields` (older apps, the legacy importer), of every
- *      field the record carries, at its updatedAt.
+ *   1. validate the record against the collection's Zod schema (reject on failure);
+ *   2. clamp a future `updatedAt` to server-now (clock skew, §7) and find the field clocks to merge
+ *      (sentFields);
+ *   3. atomic per-field merge of those, INSERT … ON CONFLICT (user_id, id) DO UPDATE (fieldMergeUpdate).
  * 'applied' when every sent field holds the sent value afterwards; otherwise 'skipped-lww' with the
  * merged record as `current` (required for client convergence, §6). user_id always comes from the
  * token, never the client. No hard deletes — a delete is an update setting deletedAt.
@@ -89,21 +89,8 @@ async function applyMutations(
     }
 
     const record = parsed.data as ValidRecord;
-    const invalidFields = Object.keys(mutation.fields ?? {}).filter(
-      (field) => !col.mergeFields.includes(field) || !(field in record),
-    );
-    if (invalidFields.length > 0) {
-      const reason = 'schema:' + invalidFields.map((field) => `fields.${field}`).join(',');
-      results.push({ id: record.id, collection: col.name, status: 'rejected', reason });
-      continue;
-    }
-
-    const clamp = (clock: number) => Math.min(clock, now); // clamp future
-    const clamped = { ...record, updatedAt: clamp(record.updatedAt) };
-    const sentFields =
-      mutation.fields ??
-      Object.fromEntries(col.mergeFields.filter((field) => field in record).map((field) => [field, record.updatedAt]));
-    const fields = Object.fromEntries(Object.entries(sentFields).map(([field, clock]) => [field, clamp(clock)]));
+    const clamped = { ...record, updatedAt: Math.min(record.updatedAt, now) }; // clamp future
+    const fields = sentFields(col, record, mutation.fields, now);
     const write = (t: Tx) => upsert(t, col, clamped, fields, userId);
     if (!isolateRows) {
       results.push(await write(tx));

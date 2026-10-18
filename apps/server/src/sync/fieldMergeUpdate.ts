@@ -5,7 +5,9 @@ import { storedClocks } from './storedClocks.js';
 
 type MergeUpdate = { set: Record<string, SQL>; setWhere: SQL };
 
-// Built once per collection and set of sent fields: the SQL has no parameters.
+// Built once per collection and set of sent fields (the SQL has no parameters), the most recently
+// used ones kept: clients choose the sets, so there can be many.
+const CACHE_SIZE = 256;
 const built = new Map<string, MergeUpdate>();
 
 /**
@@ -17,11 +19,10 @@ const built = new Map<string, MergeUpdate>();
  */
 export function fieldMergeUpdate(col: ServerCollection, sent: string[]): MergeUpdate {
   const key = `${col.name}:${sent.join(',')}`;
-  let update = built.get(key);
-  if (!update) {
-    update = buildMergeUpdate(col, sent);
-    built.set(key, update);
-  }
+  const update = built.get(key) ?? buildMergeUpdate(col, sent);
+  built.delete(key);
+  built.set(key, update);
+  if (built.size > CACHE_SIZE) built.delete(built.keys().next().value!);
   return update;
 }
 
@@ -29,7 +30,8 @@ function buildMergeUpdate(col: ServerCollection, sent: string[]): MergeUpdate {
   const table = col.table as any;
   const clocked = sent.filter((field) => field !== col.finalField);
   const sentClock = (field: string) => sql`(excluded.field_clock->>${jsonKey(field)})::bigint`;
-  const storedClock = (field: string) => sql`coalesce((${storedClocks(col)}->>${jsonKey(field)})::bigint, 0)`;
+  const storedClock = (field: string) =>
+    sql`coalesce((${table.fieldClock}->>${jsonKey(field)})::bigint, ${table.updatedAt})`;
   const wins = (field: string) => sql`(${sentClock(field)} > ${storedClock(field)})`;
   const sentValue = (field: string) => sql`excluded.${sql.identifier(table[field].name)}`;
   const mergedDeletedAt = clocked.includes('deletedAt')
