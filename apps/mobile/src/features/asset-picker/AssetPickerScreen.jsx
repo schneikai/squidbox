@@ -8,6 +8,7 @@ import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import FloatingSegmentPill from '@/components/floating-bars/FloatingSegmentPill';
+import useAlbum from '@/features/album-detail/useAlbum';
 import AlbumPicker from '@/features/album-list/AlbumPicker';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import AssetPickerGrid from '@/features/asset-picker/AssetPickerGrid';
@@ -27,7 +28,8 @@ export default function AssetPickerScreen({ route, navigation }) {
   const { finishAssetPicking } = useAssetPicker();
   const selection = useToggleSelectAssetsAction();
   const [activeTab, setActiveTab] = useState('Library');
-  const [album, setAlbum] = useState(null);
+  const [pickedAlbum, setPickedAlbum] = useState(null);
+  const liveAlbum = useAlbum(pickedAlbum?.id);
   const [isAdding, setIsAdding] = useState(false);
   const expandProgress = useSharedValue(0);
   const scrollY = useSharedValue(0);
@@ -38,6 +40,15 @@ export default function AssetPickerScreen({ route, navigation }) {
   // Closing the picker without Add (the close button, a swipe down) picks nothing.
   useEffect(() => () => finishAssetPicking([]), [finishAssetPicking]);
 
+  // An album deleted while it shows (e.g. by a sync) goes back to the albums, as a screen would close.
+  useEffect(() => {
+    if (!pickedAlbum || liveAlbum !== null) return;
+    Alert.alert('This album was deleted');
+    showView('Albums', null);
+  }, [liveAlbum]);
+
+  // The album as picked until it is read, then live, so a rename shows.
+  const album = liveAlbum ?? pickedAlbum;
   const selectedCount = selection.selectedAssetIds.length;
   const isPickingAlbum = activeTab === 'Albums' && !album;
   const title = album?.name ?? activeTab;
@@ -45,7 +56,7 @@ export default function AssetPickerScreen({ route, navigation }) {
   // Each view starts at its top, so the header title shows again.
   function showView(nextTab, nextAlbum) {
     setActiveTab(nextTab);
-    setAlbum(nextAlbum);
+    setPickedAlbum(nextAlbum);
     scrollY.value = 0;
   }
 
