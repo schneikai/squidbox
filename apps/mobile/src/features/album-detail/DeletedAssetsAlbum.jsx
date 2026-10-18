@@ -1,15 +1,14 @@
 import { useNavigation } from '@react-navigation/native';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import IconButton from '@/components/IconButton';
 import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
-import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
 import AssetList from '@/features/asset-list/AssetList';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import assetQuery from '@/features/asset-list/assetQuery';
 import useAssetCells from '@/features/asset-list/useAssetCells';
-import useAssets from '@/features/assets-context/useAssets';
+import useDeletedAssetsActions from '@/features/assets-context/useDeletedAssetsActions';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import { colors } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
@@ -19,10 +18,9 @@ import pluralizeText from '@/utils/pluralizeText';
 const query = assetQuery({ scope: 'deleted' });
 
 export default function AlbumScreenComponentForDeletedAssets({ album }) {
-  const { restoreDeletedAssets, deleteAssetsPermanently } = useAssets();
+  const { restore, deletePermanently } = useDeletedAssetsActions();
   const navigation = useNavigation();
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
-  const runWithProgress = useRunWithProgress();
 
   const { isSelectMode, selectedAssetIds, isAssetSelected, toggleSelectMode, exitSelectMode, toggleSelectAsset } =
     useToggleSelectAssetsAction();
@@ -37,17 +35,12 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
       ? pluralizeText('Restore the selected asset?', 'Restore the %{count} selected assets?', targetCount)
       : pluralizeText('Restore the deleted asset?', 'Restore all %{count} deleted assets?', targetCount);
 
-    Alert.alert(isSelectMode ? 'Restore selected' : 'Restore all', message, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Restore',
-        onPress: async () => {
-          const ids = await targetIds();
-          exitSelectMode();
-          runWithProgress((batchOptions) => restoreDeletedAssets(ids, batchOptions));
-        },
-      },
-    ]);
+    restore({
+      title: isSelectMode ? 'Restore selected' : 'Restore all',
+      message,
+      ids: targetIds,
+      onConfirm: exitSelectMode,
+    });
   }
 
   function handleDeleteAssets() {
@@ -63,17 +56,12 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
           targetCount,
         );
 
-    Alert.alert(isSelectMode ? 'Delete selected' : 'Delete all', message, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        onPress: async () => {
-          const ids = await targetIds();
-          exitSelectMode();
-          runWithProgress((batchOptions) => deleteAssetsPermanently(ids, batchOptions));
-        },
-      },
-    ]);
+    deletePermanently({
+      title: isSelectMode ? 'Delete selected' : 'Delete all',
+      message,
+      ids: targetIds,
+      onConfirm: exitSelectMode,
+    });
   }
 
   const { renderCell } = useAssetCells({

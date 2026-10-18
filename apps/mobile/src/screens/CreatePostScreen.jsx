@@ -155,9 +155,11 @@ function PostActions({ onRepost, onPostpone, onIgnore }) {
 }
 
 const styles = StyleSheet.create({
+  // Posts pad only below themselves (PostListItem), so the room above the first is here.
   topSection: {
     paddingHorizontal: SCREEN_PADDING,
     paddingTop: 20,
+    paddingBottom: SCREEN_PADDING,
     gap: 8,
   },
 
@@ -201,10 +203,11 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
 
+  // Over the post's bottom padding (PostListItem's), like its text.
   menuContainer: {
     position: 'absolute',
     right: 12,
-    bottom: 12,
+    bottom: SCREEN_PADDING + 12,
     flexDirection: 'row',
     gap: 6,
   },

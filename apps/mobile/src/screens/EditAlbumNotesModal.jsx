@@ -10,33 +10,24 @@ import ModalSheet from '@/components/ModalSheet';
 import Textarea from '@/components/Textarea';
 import { SCREEN_PADDING } from '@/constants';
 import useAlbums from '@/features/albums-context/useAlbums';
-import useAssets from '@/features/assets-context/useAssets';
 import { colors } from '@/styles/designTokens';
 
-export default function EditNotesModal({ route, navigation }) {
-  const { type, id, notes: initialNotes } = route.params;
+// An album's notes (an asset's are edited in its details, AssetNote).
+export default function EditAlbumNotesModal({ route, navigation }) {
+  const { id, notes: initialNotes } = route.params;
   const { bottom } = useSafeAreaInsets();
   const [notes, setNotes] = useState(initialNotes ?? '');
 
   const { updateAlbum } = useAlbums();
-  const { updateAsset } = useAssets();
 
   async function handleSave() {
     const value = notes.trim() === '' ? null : notes.trim();
-    if (type === 'album') {
-      await updateAlbum(id, { notes: value });
-    } else {
-      await updateAsset(id, { notes: value });
-    }
+    await updateAlbum(id, { notes: value });
     navigation.goBack();
   }
 
   async function handleDelete() {
-    if (type === 'album') {
-      await updateAlbum(id, { notes: null });
-    } else {
-      await updateAsset(id, { notes: null });
-    }
+    await updateAlbum(id, { notes: null });
     navigation.goBack();
   }
 

@@ -1,7 +1,15 @@
 import { and, getTableColumns, isNull, sql } from 'drizzle-orm';
-import { alias } from 'drizzle-orm/sqlite-core';
+import { alias, QueryBuilder } from 'drizzle-orm/sqlite-core';
 
-import { assetOrder, assetScopeWhere, lastPostedAt, liveAlbumAssetIds, sortsByLastPostedAt } from '@/sync/assetSql';
+import {
+  a,
+  assetOrder,
+  assetScopeWhere,
+  fromScope,
+  lastPostedAt,
+  liveAlbumAssetIds,
+  sortsByLastPostedAt,
+} from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import { inJson } from '@/sync/inJson';
 import { readByIdMap } from '@/sync/readByIds';
@@ -13,26 +21,33 @@ const al = alias(schema.albums, 'al');
 // plain WHERE, so each uses its index (a shared scope CASE inside one subquery's WHERE measured
 // 435 ms per album).
 const thisAlbum = { albumId: sql.raw('al.id') };
-const from = (sort) => sql.raw(sort === 'custom' ? 'album_assets e join assets a on a.id = e.asset_id' : 'assets a');
 const countOf = (scope) => sql`(select count(*) from assets a where ${assetScopeWhere(scope, 'createdAt:desc')})`;
 // The first asset in the scope's order, as assetQuery reads it: with the `last_posted_at` column the
 // order may name, and one column left for the CASE.
 function firstOf(scope, sort) {
-  const key = sortsByLastPostedAt(scope, sort) ? sql`, ${lastPostedAt} as last_posted_at` : sql``;
-  return sql`(select id from (select a.id${key} from ${from(sort)} where ${assetScopeWhere(scope, sort)} order by ${assetOrder(scope, sort)} limit 1))`;
+  const fields = sortsByLastPostedAt(scope, sort)
+    ? { id: a.id, lastPostedAt: lastPostedAt.as('last_posted_at') }
+    : { id: a.id };
+  const first = fromScope(new QueryBuilder().select(fields), scope, sort)
+    .where(assetScopeWhere(scope, sort))
+    .orderBy(assetOrder(scope, sort))
+    .limit(1);
+  return sql`(select id from (${first}))`;
 }
 
 /**
  * The album list's rows, as SQL: `read(db)` → every non-deleted album with `assetCount`, `cover`
  * (the asset it shows first, in the album's effective order) and `lastPostedAt` (`null` for the
- * smart albums, which have no edges), read in one transaction; `tables` → what a live read watches.
+ * smart albums, which have no edges; skipped with `withLastPostedAt: false`, which then doesn't
+ * watch the posts either), read in one transaction; `tables` → what a live read watches.
  * Sort, filter and search stay in JS (prepareAlbums), albums being hundreds.
  * @param {object} descriptor
  * @param {'all' | { assetIds: string[] }} [descriptor.scope] albums holding any of these assets
  * @param {'createdAt:asc' | 'createdAt:desc' | 'lastPostedAt:asc' | 'lastPostedAt:desc'} [descriptor.assetSort]
  *   the shared album-asset sort, which decides the cover of albums not on custom order
+ * @param {boolean} [descriptor.withLastPostedAt]
  */
-export default function albumQuery({ scope = 'all', assetSort = 'createdAt:desc' }) {
+export default function albumQuery({ scope = 'all', assetSort = 'createdAt:desc', withLastPostedAt = true }) {
   const assetCount = sql`case al.smart_album_type
     when 'FAVORITES' then ${countOf('favorites')}
     when 'DELETED' then ${countOf('deleted')}
@@ -52,13 +67,17 @@ export default function albumQuery({ scope = 'all', assetSort = 'createdAt:desc'
       ? undefined
       : sql`exists (select 1 from album_assets where album_id = al.id and deleted_at is null and ${inJson(sql.raw('asset_id'), scope.assetIds)})`;
 
+  const tables = [schema.albums, schema.albumAssets, schema.assets];
+  if (withLastPostedAt) tables.push(schema.posts, schema.postAssets);
+
   return {
-    descriptor: { scope, assetSort },
-    tables: [schema.albums, schema.albumAssets, schema.assets, schema.posts, schema.postAssets],
+    descriptor: { scope, assetSort, withLastPostedAt },
+    tables,
     read(db) {
       return db.transaction(async (tx) => {
+        const stats = withLastPostedAt ? { lastPostedAt: newestPostedAt } : {};
         const rows = await tx
-          .select({ ...getTableColumns(al), assetCount, coverAssetId, lastPostedAt: newestPostedAt })
+          .select({ ...getTableColumns(al), assetCount, coverAssetId, ...stats })
           .from(al)
           .where(and(isNull(al.deletedAt), inScope));
         const covers = await readByIdMap(tx, schema.assets, rows.map((row) => row.coverAssetId).filter(Boolean));

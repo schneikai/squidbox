@@ -1,22 +1,20 @@
 import { and, asc, count, desc, eq, getTableColumns, isNull, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 
-import { liveAlbumAssetIds } from '@/sync/assetSql';
+import { a, assetOrder, assetScopeWhere, fromScope, liveAlbumAssetIds, placeInPost, scopeEdges } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
-import { isCanonicalEdge } from '@/sync/edgeSql';
 import { inJson } from '@/sync/inJson';
 import { matchingIds } from '@/sync/matchingIds';
 import { repostDate } from '@/sync/postsRepository';
 
 const p = alias(schema.posts, 'p');
-const e = alias(schema.postAssets, 'e');
 
 /**
  * What a post list shows, as SQL: `read(db, { limit })` → `{ rows, count }` from one transaction
- * (`withCount: false` skips the count, for a read of one post),
+ * (no `limit` reads them all; `withCount: false` skips the count, for a read of one post),
  * each row a post with `postAssets: [{ id, asset }]` (its live edges in order, one per asset, a
- * deleted asset included; `withAssets: false` skips them); `tables` → what a live read watches.
- * An `asset:<id>` or `album:<id>` search becomes that scope, as the posts screen always read it.
+ * deleted asset included; `firstAssetOnly` reads just the first, e.g. for a thumbnail);
+ * `tables` → what a live read watches.
  * Every order ends with an id tie-break, so refreshes and pages see one stable order.
  * @param {object} descriptor
  * @param {'all' | 'repostCandidates' | 'ignored' | { assetId: string } | { albumId: string } | { postId: string }} [descriptor.scope]
@@ -26,9 +24,7 @@ const e = alias(schema.postAssets, 'e');
  */
 export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filter = [], search = '' }) {
   const descriptor = { scope, sort, filter, search };
-  const scoped = search.match(/(asset|album):(\S+)/i);
-  if (scoped) scope = scoped[1].toLowerCase() === 'asset' ? { assetId: scoped[2] } : { albumId: scoped[2] };
-  const searchText = scoped ? '' : search.trim().toLowerCase();
+  const searchText = search.trim().toLowerCase();
   const direction = sort.endsWith(':asc') ? asc : desc;
 
   const tables = [schema.posts, schema.postAssets, schema.assets];
@@ -60,16 +56,18 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
   }
   const where = (ids) => and(isNull(p.deletedAt), scopeCondition, favorites, ids ? inJson(p.id, ids) : undefined);
 
-  // The posts' live edges, one per asset (the earliest by position), in order, with their assets. A
-  // trashed asset still shows (it can come back), a purged one never does (sync-design §7).
-  async function readPostAssets(tx, posts) {
+  // The posts' assets in order, read as the asset screen reads a post's (assetQuery's post scope): a
+  // trashed asset still shows (it can come back), a purged one never does (sync-design §7). With
+  // `firstAssetOnly`, only each post's first.
+  async function readPostAssets(tx, posts, firstAssetOnly) {
     const postIds = posts.map((post) => post.id);
-    const edges = await tx
-      .select({ id: e.id, postId: e.postId, asset: schema.assets })
-      .from(e)
-      .innerJoin(schema.assets, and(eq(schema.assets.id, e.assetId), isNull(schema.assets.purgedAt)))
-      .where(and(inJson(e.postId, postIds), isNull(e.deletedAt), isCanonicalEdge(schema.postAssets, e, 'postId')))
-      .orderBy(e.postId, e.position, e.id);
+    const postScope = { postId: postIds };
+    const { e } = scopeEdges(postScope);
+    const edges = firstAssetOnly
+      ? await readFirstEdges(tx, postScope)
+      : await fromScope(tx.select({ id: e.id, postId: e.postId, asset: a }), postScope)
+          .where(assetScopeWhere(postScope))
+          .orderBy(e.postId, assetOrder(postScope));
     const byPost = new Map(postIds.map((id) => [id, []]));
     for (const { id, postId, asset } of edges) byPost.get(postId).push({ id, asset });
     return posts.map((post) => ({ ...post, postAssets: byPost.get(post.id) }));
@@ -78,7 +76,7 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
   return {
     descriptor,
     tables,
-    read(db, { limit, withCount = true, withAssets = true }) {
+    read(db, { limit, withCount = true, firstAssetOnly = false }) {
       return db.transaction(async (tx) => {
         const ids = await matchedIds(tx);
         const total = withCount ? (await tx.select({ count: count() }).from(p).where(where(ids)))[0].count : undefined;
@@ -88,8 +86,25 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
           .where(where(ids))
           .orderBy(...order)
           .limit(limit);
-        return { rows: withAssets ? await readPostAssets(tx, posts) : posts, count: total };
+        return { rows: await readPostAssets(tx, posts, firstAssetOnly), count: total };
       });
     },
   };
+}
+
+// Each post's first edge of its scope (placeInPost), with its asset: one windowed pass over the
+// scope's edges, then the asset rows of the first ones only.
+function readFirstEdges(tx, postScope) {
+  const { e } = scopeEdges(postScope);
+  const ranked = fromScope(
+    tx.select({ id: e.id, postId: e.postId, assetId: e.assetId, place: placeInPost(postScope).as('place') }),
+    postScope,
+  )
+    .where(assetScopeWhere(postScope))
+    .as('ranked');
+  return tx
+    .select({ id: ranked.id, postId: ranked.postId, asset: a })
+    .from(ranked)
+    .innerJoin(a, eq(a.id, ranked.assetId))
+    .where(eq(ranked.place, 1));
 }

@@ -1,6 +1,7 @@
-import { TextInput as RNTextInput, StyleSheet } from 'react-native';
+import { TextInput as RNTextInput } from 'react-native';
 
-import { colors, typography } from '@/styles/designTokens';
+import { colors } from '@/styles/designTokens';
+import textareaTextStyle from '@/styles/textareaTextStyle';
 
 /**
  * Multiline free-text input.
@@ -17,17 +18,8 @@ export default function Textarea({ style, minHeight, ...rest }) {
       multiline
       textAlignVertical="top"
       placeholderTextColor={colors.textTertiary}
-      style={[styles.base, minHeight != null && { minHeight }, style]}
+      style={[textareaTextStyle, minHeight != null && { minHeight }, style]}
       {...rest}
     />
   );
 }
-
-const styles = StyleSheet.create({
-  base: {
-    fontSize: typography.input,
-    lineHeight: 24,
-    color: colors.text,
-    textAlignVertical: 'top',
-  },
-});

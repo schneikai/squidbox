@@ -188,7 +188,7 @@ export default function Album({ album }) {
           {!!album.archivedAt && <Text style={styles.archivedBadge}>Archived</Text>}
           {!!album.notes && (
             <TouchableOpacity
-              onPress={() => navigation.navigate('EditNotesModal', { type: 'album', id: album.id, notes: album.notes })}
+              onPress={() => navigation.navigate('EditAlbumNotesModal', { id: album.id, notes: album.notes })}
             >
               <Text style={styles.notesText}>{album.notes}</Text>
             </TouchableOpacity>

@@ -10,12 +10,12 @@ import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingB
 import PostList from '@/features/post-list/PostList';
 import PostListItem from '@/features/post-list/PostListItem';
 import useFilterPostsAction from '@/features/post-list/actions/filter-posts-action/useFilterPostsAction';
-import useSearchPostsAction from '@/features/post-list/actions/search-posts-action/useSearchPostsAction';
 import useSortPostsAction from '@/features/post-list/actions/sort-posts-action/useSortPostsAction';
 import postQuery from '@/features/post-list/postQuery';
 import usePostList from '@/features/post-list/usePostList';
 import usePosts from '@/features/posts-context/usePosts';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import useSearch from '@/hooks/useSearch';
 import useSearchMode from '@/hooks/useSearchMode';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
@@ -28,9 +28,7 @@ export default function PostsScreen() {
   const { sortOrder, sortPosts } = useSortPostsAction({ afterSort: listScrollTop });
   const { activeFilter, toggleFilter } = useFilterPostsAction({ afterFilter: listScrollTop });
 
-  // The posts query lives in its own context, so other screens can open Posts filtered (e.g. "Show
-  // posts" on an asset). The search bar shows it, so it can always be seen and cleared.
-  const { searchBar, query: postsSearchText } = useSearchMode(useSearchPostsAction());
+  const { searchBar, query: postsSearchText } = useSearchMode(useSearch());
 
   const { registerScreenOptions } = useFloatingBars();
   const scrollHandler = useFloatingBarScrollHandler();

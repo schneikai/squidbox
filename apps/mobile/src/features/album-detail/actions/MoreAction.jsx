@@ -37,7 +37,7 @@ export default function MoreAction({ album, afterDelete, onSelect }) {
   }
 
   function handleEditNotes() {
-    navigation.navigate('EditNotesModal', { type: 'album', id: album.id, notes: album.notes ?? '' });
+    navigation.navigate('EditAlbumNotesModal', { id: album.id, notes: album.notes ?? '' });
   }
 
   async function handleArchiveAlbum() {

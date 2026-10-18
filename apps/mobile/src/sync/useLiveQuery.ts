@@ -11,18 +11,25 @@ import useScreenFocus from '@/hooks/useScreenFocus';
 const NOT_READ = { data: undefined, readAt: -1 };
 
 /**
+ * WatchOptions, and `isLive` (default true): false reads once and then only notes writes, until it
+ * turns true and catches up — for data shown ahead of time, such as the next page's.
+ */
+type LiveOptions = WatchOptions & { isLive?: boolean };
+
+/**
  * The result of `read`, re-run after each committed write to any of `tables` while the screen is
- * focused; `undefined` until the first read has finished. A change of `deps` starts a new watch (the
+ * focused; `undefined` until the first read has finished. `deps` are compared as JSON, so they must be
+ * plain data (a query descriptor, not the query built from it). A change of `deps` starts a new watch (the
  * previous data stays until its first read lands), so `read` must be pure given `deps`: a write
  * re-runs the closure captured when they last changed. A blurred screen reads nothing; on focus it
  * reads once if a write or a deps change happened meanwhile. A re-read that returns the same data
- * renders nothing. `options`: see WatchOptions.
+ * renders nothing. `options`: see LiveOptions.
  */
 export function useLiveQuery<T>(
   read: (db: SyncDb) => Promise<T>,
   tables: SQLiteTable[],
   deps: unknown[] = [],
-  options: WatchOptions = {},
+  options: LiveOptions = {},
 ) {
   const [data, setData] = useState<T>();
   useWatch(read, tables, deps, data, setData, options);
@@ -35,13 +42,13 @@ export function useLiveQuery<T>(
  * updates it, so a consumer waiting for a read after some write sees it even when the rows came back
  * the same (the screen renders once per read; unchanged rows keep their memoized cells); otherwise
  * it only changes with the data, which renders nothing for an identical re-read. The other
- * `options`: see WatchOptions.
+ * `options`: see LiveOptions.
  */
 export function useLiveQueryState<T>(
   read: (db: SyncDb) => Promise<T>,
   tables: SQLiteTable[],
   deps: unknown[] = [],
-  { everyRead = false, ...options }: { everyRead?: boolean } & WatchOptions = {},
+  { everyRead = false, ...options }: { everyRead?: boolean } & LiveOptions = {},
 ): { data: T | undefined; readAt: number } {
   const [state, setState] = useState<{ data: T | undefined; readAt: number }>(NOT_READ);
   useWatch(
@@ -56,14 +63,15 @@ export function useLiveQueryState<T>(
   return state;
 }
 
-// The watch behind both hooks: one per tables and deps, enabled while the screen is focused.
+// The watch behind both hooks: one per tables and deps, enabled while the screen is focused (and,
+// unless `isLive`, until its first read has landed).
 function useWatch<T>(
   read: (db: SyncDb) => Promise<T>,
   tables: SQLiteTable[],
   deps: unknown[],
   data: T | undefined,
   onData: (data: T, readAt: number) => void,
-  options: WatchOptions = {},
+  { isLive = true, ...options }: LiveOptions = {},
 ) {
   const dataRef = useRef(data);
   dataRef.current = data;
@@ -71,14 +79,28 @@ function useWatch<T>(
   const isFocused = useScreenFocus();
   const tableNames = tables.map((table) => getTableName(table)).join();
   const depsKey = JSON.stringify(deps);
+  const key = `${tableNames}|${depsKey}`;
+  // The watch whose first read has landed.
+  const [readKey, setReadKey] = useState<string | null>(null);
 
   useEffect(() => {
-    watch.current = watchQuery(getDb(), read, tables, onData, dataRef.current, options);
+    watch.current = watchQuery(
+      getDb(),
+      read,
+      tables,
+      (result: T, readAt: number) => {
+        onData(result, readAt);
+        setReadKey(key);
+      },
+      dataRef.current,
+      options,
+    );
     return watch.current.stop;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- see useLiveQuery
   }, [tableNames, depsKey]);
 
+  const isEnabled = isFocused && (isLive || readKey !== key);
   useEffect(() => {
-    watch.current?.setEnabled(isFocused);
-  }, [isFocused, tableNames, depsKey]);
+    watch.current?.setEnabled(isEnabled);
+  }, [isEnabled, tableNames, depsKey]);
 }

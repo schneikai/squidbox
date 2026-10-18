@@ -106,27 +106,62 @@ describe('postQuery', () => {
     expect(await ids({ scope: 'ignored', sort: 'updatedAt:desc' })).toEqual(['p3']);
   });
 
-  it("reads an asset's last posted post first and counts all its posts, never-posted ones included", async () => {
+  it("reads all of an asset's posts without a limit, newest first and never-posted ones last, or just their first assets", async () => {
+    await repo.createAssets(db, [makeAssetRecord({ id: 'a1' }), makeAssetRecord({ id: 'a2' })]);
     await createPost('p1', { postedAt: 20 }, ['a1']);
-    await createPost('p2', { postedAt: null }, ['a1']);
+    await createPost('p2', { postedAt: null }, ['a1', 'a2']);
     await createPost('p3', { postedAt: 30 }, ['a1']);
     await createPost('p4', { postedAt: 40 }, ['a2']);
     await createPost('p5', { postedAt: 50, deletedAt: 5 }, ['a1']);
-    const { rows, count } = await postQuery({ scope: { assetId: 'a1' } }).read(db, { limit: 1, withAssets: false });
-    expect(rows.map((row) => row.id)).toEqual(['p3']);
-    expect(rows[0].postAssets).toBeUndefined();
-    expect(count).toBe(3);
+    const query = postQuery({ scope: { assetId: 'a1' } });
+    const { rows, count } = await query.read(db, { withCount: false });
+    expect(rows.map((row) => row.id)).toEqual(['p3', 'p1', 'p2']);
+    expect(rows[2].postAssets.map((pa: { asset: { id: string } }) => pa.asset.id)).toEqual(['a1', 'a2']);
+    expect(count).toBeUndefined();
+    const firsts = (await query.read(db, { withCount: false, firstAssetOnly: true })).rows;
+    expect(firsts[2].postAssets.map((pa: { asset: { id: string } }) => pa.asset.id)).toEqual(['a1']);
   });
 
-  it('turns an asset: or album: search into that scope', async () => {
-    await createPost('p1', {}, ['a1']);
-    await createPost('p2', { text: 'asset' }, ['a2']);
-    await albumEdges.add(db, 'al', ['a2'], newId);
-    expect(await ids({ scope: 'all', search: 'asset:a1' })).toEqual(['p1']);
-    expect(await ids({ scope: 'all', search: ' Album:al ' })).toEqual(['p2']);
-    expect(await ids({ scope: 'all', search: 'asset' })).toEqual(['p2']);
-    expect(postQuery({ scope: 'all', search: 'asset:a1' }).tables).toContain(schema.postAssets);
-    expect(postQuery({ scope: 'all', search: 'album:al' }).tables).toContain(schema.albumAssets);
+  it("reads each post's first asset with firstAssetOnly: past a purged one, a trashed one included, by id on a tied position, an asset once", async () => {
+    await repo.createAssets(db, [
+      makeAssetRecord({ id: 'a1' }),
+      makeAssetRecord({ id: 'a2' }),
+      makeAssetRecord({ id: 'trashed', deletedAt: 3 }),
+      makeAssetRecord({ id: 'purged', deletedAt: 3, purgedAt: 4 }),
+    ]);
+    await createPost('p1', {}, ['purged', 'a1']);
+    await createPost('p2', {}, ['trashed', 'a1']);
+    await createPost('p3');
+    await createPost('p4');
+    const edge = (id: string, postId: string, assetId: string, position: string) => ({
+      id,
+      createdAt: 1,
+      updatedAt: 1,
+      deletedAt: null,
+      postId,
+      assetId,
+      position,
+    });
+    await postEdgeRows.createMany(db, [
+      // p3: two edges on one position, the lower id first.
+      edge('e-b', 'p3', 'a1', 'm'),
+      edge('e-a', 'p3', 'a2', 'm'),
+      // p4: a2 twice (two devices adding it), its earliest edge first.
+      edge('e-2', 'p4', 'a2', 'n'),
+      edge('e-1', 'p4', 'a2', 'm'),
+      edge('e-3', 'p4', 'a1', 'z'),
+    ]);
+    const { rows } = await postQuery({ scope: 'all' }).read(db, { withCount: false, firstAssetOnly: true });
+    const firsts = Object.fromEntries(
+      rows.map((row) => [
+        row.id,
+        row.postAssets.map((pa: { id: string; asset: { id: string } }) => [pa.id, pa.asset.id]),
+      ]),
+    );
+    expect(firsts.p1).toEqual([[expect.any(String), 'a1']]);
+    expect(firsts.p2).toEqual([[expect.any(String), 'trashed']]);
+    expect(firsts.p3).toEqual([['e-a', 'a2']]);
+    expect(firsts.p4).toEqual([['e-1', 'a2']]);
   });
 
   it('sorts the repost candidates by their suggested date and the ignored posts by their update', async () => {

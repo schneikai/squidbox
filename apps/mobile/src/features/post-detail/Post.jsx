@@ -1,13 +1,21 @@
+import { useNavigation } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import { StyleSheet, View, Text, TouchableOpacity, Alert, ScrollView } from 'react-native';
 
 import PostAssets from './PostAssets';
-import PostAlbums from './post-albums/PostAlbums';
 
+import AssetAlbums from '@/features/album-list/AssetAlbums';
 import PostPostedAt from '@/features/posts/PostPostedAt';
 import { colors, scale } from '@/styles/designTokens';
 
 export default function Post({ post, contentPaddingTop = 0 }) {
+  const navigation = useNavigation();
+
+  // Pushed, so back returns to the post.
+  function handleOpenAsset(asset) {
+    navigation.push('AssetScreen', { assetId: asset.id, query: { scope: { postId: post.id } } });
+  }
+
   async function handleCopyToClipboard() {
     await Clipboard.setStringAsync(post.text);
     Alert.alert('Copied to clipboard');
@@ -15,7 +23,7 @@ export default function Post({ post, contentPaddingTop = 0 }) {
 
   return (
     <ScrollView contentContainerStyle={{ paddingTop: contentPaddingTop }}>
-      <PostAssets postAssets={post.postAssets} />
+      <PostAssets postAssets={post.postAssets} onPressAsset={handleOpenAsset} />
 
       <View style={styles.container}>
         <TouchableOpacity onPress={handleCopyToClipboard}>
@@ -25,7 +33,7 @@ export default function Post({ post, contentPaddingTop = 0 }) {
 
         <View style={styles.postedAlbums}>
           <Text style={styles.postedAlbumsHeadline}>Posted Albums</Text>
-          <PostAlbums post={post} />
+          <AssetAlbums assetIds={post.postAssets.map((postAsset) => postAsset.asset.id)} />
         </View>
       </View>
     </ScrollView>

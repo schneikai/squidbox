@@ -3,22 +3,15 @@ import { Alert } from 'react-native';
 
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import PopupMenu from '@/components/popup-menu-options/PopupMenu';
-import useShowAssetPosts from '@/features/asset-detail/useShowAssetPosts';
 import getAssetFileDownloadUrlAsync from '@/utils/cloud-api/assets/getAssetFileDownloadUrlAsync';
 
 export default function MoreAction({ asset, navigation }) {
-  const showAssetPosts = useShowAssetPosts(navigation);
-
   function handleAddToAlbum() {
     navigation.navigate('AddToAlbumModal', { assetIds: [asset.id] });
   }
 
   function handleCreatePost() {
     navigation.navigate('AddEditPostModal', { assetIds: [asset.id] });
-  }
-
-  function handleShowPosts() {
-    showAssetPosts(asset.id);
   }
 
   async function handleCopyFileUrl() {
@@ -31,17 +24,11 @@ export default function MoreAction({ asset, navigation }) {
     }
   }
 
-  function handleEditNotes() {
-    navigation.navigate('EditNotesModal', { type: 'asset', id: asset.id, notes: asset.notes ?? '' });
-  }
-
   return (
     <PopupMenu icon="menu" variant="pill">
       <MenuOption label="Add to album" icon="library" onPress={handleAddToAlbum} />
       <MenuOption label="Create post" icon="edit" onPress={handleCreatePost} />
-      <MenuOption label="Show posts" icon="list" onPress={handleShowPosts} />
-      <MenuOption label="Copy file URL" icon="link" onPress={handleCopyFileUrl} />
-      <MenuOption label={asset.notes ? 'Edit note' : 'Add note'} icon="document" onPress={handleEditNotes} isLast />
+      <MenuOption label="Copy file URL" icon="link" onPress={handleCopyFileUrl} isLast />
     </PopupMenu>
   );
 }

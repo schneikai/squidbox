@@ -8,6 +8,7 @@ import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import SuperPressable from '@/components/SuperPressable';
+import { SCREEN_PADDING } from '@/constants';
 import PostList from '@/features/post-list/PostList';
 import PostListItem from '@/features/post-list/PostListItem';
 import postQuery from '@/features/post-list/postQuery';
@@ -51,7 +52,7 @@ export default function IgnoredPostsScreen({ navigation }) {
         <PostList
           rows={rows}
           loadMore={loadMore}
-          contentContainerStyle={{ paddingTop: MODAL_HEADER_HEIGHT, paddingBottom: bottom + 16 }}
+          contentContainerStyle={{ paddingTop: MODAL_HEADER_HEIGHT + SCREEN_PADDING, paddingBottom: bottom + 16 }}
           onScroll={onScroll}
           renderListItem={(post) => (
             <SuperPressable onPress={() => navigation.navigate('PostScreen', { postId: post.id })} style={{ flex: 1 }}>
@@ -70,9 +71,10 @@ export default function IgnoredPostsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  // Over the post's bottom padding (PostListItem's), like its text.
   actionContainer: {
     position: 'absolute',
     right: 12,
-    bottom: 12,
+    bottom: SCREEN_PADDING + 12,
   },
 });

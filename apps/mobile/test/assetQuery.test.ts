@@ -1,4 +1,5 @@
 import type { AssetRecord } from '@squidbox/shared';
+import { eq } from 'drizzle-orm';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import { createPost, makeAssetRecord } from './helpers/factory';
@@ -135,6 +136,38 @@ describe('assetQuery', () => {
     expect(await byDate.ids(db)).toEqual(['asset-2', 'asset-1', 'asset-0']);
   });
 
+  it('shows a post in its order once per asset, a trashed asset too, whatever the sort', async () => {
+    await createAssets([{ createdAt: 1 }, { createdAt: 3, deletedAt: 5 }, { createdAt: 2 }, {}, {}]);
+    await repo.updateAsset(db, 'asset-3', { deletedAt: 6, purgedAt: 7 });
+    await createPost(db, { id: 'p1' }, ['asset-2', 'asset-0', 'asset-1', 'asset-3', 'asset-4'], newId);
+    await createPost(db, { id: 'p2' }, ['asset-0'], newId);
+    // A second live edge for asset-1 at the front (two offline devices adding it), and asset-4's
+    // edge removed from the post.
+    await makeRepository('post_assets', schema.postAssets).createMany(db, [
+      { id: 'dup', createdAt: 1, updatedAt: 1, deletedAt: null, postId: 'p1', assetId: 'asset-1', position: '0' },
+    ]);
+    await db.update(schema.postAssets).set({ deletedAt: 9 }).where(eq(schema.postAssets.assetId, 'asset-4'));
+
+    const post = assetQuery({ scope: { postId: 'p1' } });
+    const { rows, count } = await post.read(db, { limit: 10 });
+    expect(rowIds(rows)).toEqual(['asset-1', 'asset-2', 'asset-0']);
+    expect(count).toBe(3);
+    expect(await post.ids(db)).toEqual(rowIds(rows));
+    expect(rowIds((await post.read(db, { limit: 2 })).rows)).toEqual(['asset-1', 'asset-2']);
+    expect(await assetQuery({ scope: { postId: 'p1' }, sort: 'lastPostedAt:asc' }).ids(db)).toEqual(rowIds(rows));
+    expect(await assetQuery({ scope: { postId: 'p2' } }).ids(db)).toEqual(['asset-0']);
+  });
+
+  it('reads rows by id as the scope keeps them by deletion, matching it or not', async () => {
+    await createAssets([{ isFavorite: true }, { deletedAt: 5 }, { deletedAt: 5 }, {}]);
+    await repo.updateAsset(db, 'asset-2', { purgedAt: 6 });
+    const ids = ['asset-0', 'asset-1', 'asset-2', 'asset-3', 'gone'];
+    const kept = async (scope: Descriptor['scope']) => rowIds(await assetQuery({ scope }).rowsByIds(db, ids)).sort();
+    expect(await kept('favorites')).toEqual(['asset-0', 'asset-3']);
+    expect(await kept('deleted')).toEqual(['asset-1']);
+    expect(await kept({ postId: 'p1' })).toEqual(['asset-0', 'asset-1', 'asset-3']);
+  });
+
   it('agrees between count and ids for every descriptor', async () => {
     await createAssets([
       { isFavorite: true, notes: 'one' },
@@ -144,7 +177,7 @@ describe('assetQuery', () => {
       {},
     ]);
     await albumEdges.add(db, AL, ['asset-0', 'asset-1', 'asset-2'], newId);
-    await createPost(db, { id: 'p1', postedAt: 10 }, ['asset-1']);
+    await createPost(db, { id: 'p1', postedAt: 10 }, ['asset-1', 'asset-2', 'asset-0']);
     const descriptors: Descriptor[] = [
       { scope: 'library' },
       { scope: 'library', filter: ['favorites'] },
@@ -155,6 +188,8 @@ describe('assetQuery', () => {
       { scope: { albumId: AL } },
       { scope: { albumId: AL }, sort: 'custom', filter: ['images'] },
       { scope: { albumId: AL }, sort: 'lastPostedAt:asc' },
+      { scope: { postId: 'p1' } },
+      { scope: { postId: 'p1' }, filter: ['videos'], search: 'o' },
     ];
     for (const descriptor of descriptors) {
       const q = assetQuery(descriptor);
@@ -181,6 +216,7 @@ describe('assetQuery', () => {
   it('watches the tables its reads depend on', () => {
     expect(assetQuery({ scope: 'library' }).tables).toEqual([schema.assets]);
     expect(assetQuery({ scope: { albumId: AL } }).tables).toEqual([schema.assets, schema.albumAssets]);
+    expect(assetQuery({ scope: { postId: 'p1' } }).tables).toEqual([schema.assets, schema.postAssets]);
     expect(assetQuery({ scope: 'library', sort: 'lastPostedAt:desc' }).tables).toEqual([
       schema.assets,
       schema.postAssets,

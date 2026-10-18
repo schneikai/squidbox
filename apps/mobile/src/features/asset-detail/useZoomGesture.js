@@ -7,14 +7,15 @@ import {
   useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
-  withDecay,
   withSpring,
 } from 'react-native-reanimated';
 
 import dragWithin from './dragWithin';
 import getPanBounds from './getPanBounds';
+import settleWithin from './settleWithin';
 import zoomAround from './zoomAround';
 
+import { TAP_SLOP } from '@/constants';
 import { motion } from '@/styles/designTokens';
 
 // The viewer shows the 1000 px thumbnail, so zooming further than this only enlarges its pixels.
@@ -24,8 +25,6 @@ const DOUBLE_TAP_SCALE = 2.5;
 const ZOOMED_SCALE = 1.01;
 // The second tap of a double tap, kept short since a single tap waits for it.
 const DOUBLE_TAP_DELAY_MS = 250;
-// A tap that moves further is a swipe or a pan, and only then can a pan start.
-const TAP_SLOP = 10;
 
 /**
  * Apple Photos-style zoom for an image fitted into its view: pinch around the fingers, stay zoomed,
@@ -41,9 +40,10 @@ const TAP_SLOP = 10;
  * With `verticalDrag` (worklets `canStart(dy)`, `onStart()`, `onChange(changeY)`, `onEnd(velocityY)`
  * and `isOpen()`), a mostly vertical one-finger drag at 1× goes to it instead, zoomable or not (a
  * video), when `canStart` agrees. While that drag runs or `isOpen()`, pinch and double tap don't
- * zoom, and a double tap counts as a tap.
+ * zoom, and a double tap counts as a tap. `pagerGesture` (the list paging through the assets)
+ * waits for the pan: a sideways swipe at 1× fails it at once, a vertical drag holds the pager.
  */
-export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomChange, verticalDrag }) {
+export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomChange, verticalDrag, pagerGesture }) {
   const size = useSharedValue({ width: 0, height: 0 });
   const scale = useSharedValue(1);
   const translateX = useSharedValue(0);
@@ -180,13 +180,9 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
       value.value = dragWithin({ position: value.value, delta, min: -bound, max: bound, dimension });
     };
 
-    // A fling glides on and stops at the edge; released past the edge, it springs back.
     const settleAxis = (value, velocity, bound) => {
       'worklet';
-      const isPastEdge = Math.abs(value.value) > bound || bound === 0;
-      value.value = isPastEdge
-        ? withSpring(clamp(value.value, -bound, bound), { ...motion.spring, velocity }, settling())
-        : withDecay({ velocity, clamp: [-bound, bound], rubberBandEffect: true }, settling());
+      settleWithin({ value, velocity, min: -bound, max: bound, onDone: settling() });
     };
 
     // The vertical drag, or what it opened, has the photo.
@@ -245,6 +241,7 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
     const pan = Gesture.Pan()
       .manualActivation(true)
       .requireExternalGestureToFail(...(isZoomable ? [doubleTap] : []))
+      .blocksExternalGesture(...(pagerGesture ? [pagerGesture] : []))
       .onTouchesDown((event) => {
         if (event.numberOfTouches === 1) panStart.value = touchAnchor(event);
       })
@@ -318,6 +315,7 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
     isZoomable,
     onTap,
     verticalDrag,
+    pagerGesture,
     size,
     scale,
     translateX,

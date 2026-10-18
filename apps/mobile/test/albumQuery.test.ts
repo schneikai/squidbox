@@ -142,4 +142,13 @@ describe('albumQuery', () => {
     expect(await ids(['asset-1', 'asset-0'])).toEqual(['regular']);
     expect(await ids(['asset-5'])).toEqual([]);
   });
+
+  it('skips lastPostedAt, and watching the posts, without withLastPostedAt', async () => {
+    await library();
+    const query = albumQuery({ scope: { assetIds: ['asset-3'] }, withLastPostedAt: false });
+    const rows = await query.read(db);
+    expect(rows.length).toBe(2);
+    expect(rows.every((row) => !('lastPostedAt' in row) && row.cover)).toBe(true);
+    expect(query.tables).not.toContain(schema.posts);
+  });
 });

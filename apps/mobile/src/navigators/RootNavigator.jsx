@@ -9,7 +9,7 @@ import MainTabNavigator from '@/navigators/MainTabNavigator';
 import AddToAlbumScreen from '@/screens/AddToAlbumScreen';
 import AlbumScreen from '@/screens/AlbumScreen';
 import AssetScreen from '@/screens/AssetScreen';
-import EditNotesModal from '@/screens/EditNotesModal';
+import EditAlbumNotesModal from '@/screens/EditAlbumNotesModal';
 import PostScreen from '@/screens/PostScreen';
 
 const RootStack = createNativeStackNavigator();
@@ -38,7 +38,7 @@ const CreatePostModalRoute = asModalRoute(CreatePostNavigator);
 const AddEditPostModalRoute = asModalRoute(AddEditPostNavigator);
 const AssetPickerModalRoute = asModalRoute(AssetPickerScreen);
 const AddToAlbumModalRoute = asModalRoute(AddToAlbumScreen);
-const EditNotesModalRoute = asModalRoute(EditNotesModal);
+const EditAlbumNotesModalRoute = asModalRoute(EditAlbumNotesModal);
 
 export default function RootNavigator() {
   return (
@@ -51,7 +51,11 @@ export default function RootNavigator() {
         <RootStack.Screen name="AddEditPostModal" component={AddEditPostModalRoute} options={{ headerShown: false }} />
         <RootStack.Screen name="AssetPickerModal" component={AssetPickerModalRoute} />
         <RootStack.Screen name="AddToAlbumModal" component={AddToAlbumModalRoute} options={{ headerShown: false }} />
-        <RootStack.Screen name="EditNotesModal" component={EditNotesModalRoute} options={{ headerShown: false }} />
+        <RootStack.Screen
+          name="EditAlbumNotesModal"
+          component={EditAlbumNotesModalRoute}
+          options={{ headerShown: false }}
+        />
       </RootStack.Group>
       <RootStack.Group screenOptions={{ headerShown: false }}>
         <RootStack.Screen name="MainTab" component={MainTabNavigator} />

@@ -11,7 +11,8 @@ import getAssetThumbnailStatusAsync from '@/utils/assets/thumbnails/getAssetThum
 import getAssetThumbnailUri from '@/utils/assets/thumbnails/getAssetThumbnailUri';
 
 // contentFit: "cover" | "contain". The placeholder pulses until the picture has loaded (and holds
-// still while nobody is signed in to fetch it, or once its download gave up). `renderOverlay(hasPicture)`
+// still while nobody is signed in to fetch it, once its download gave up, or without a thumbnail at
+// all). `renderOverlay(hasPicture)`
 // draws over the cell either way, e.g. corner badges that only make sense over a loaded picture. A
 // thumbnail its device hasn't backed up yet gets a crossed-out cloud on the placeholder while
 // `showNotUploaded`.
@@ -71,14 +72,12 @@ export default function AssetImage({
   const hasPicture = !!thumbnailUri && loadedUri === thumbnailUri;
   const showNotUploadedIcon = showNotUploaded && current?.status === 'notUploaded';
 
-  if (!asset.thumbnailFilename) return null;
-
   if (!thumbnailUri) {
     return (
       <>
         <LoadingPlaceholder
           color={placeholderColor}
-          still={current?.status === 'signedOut' || current?.status === 'failed'}
+          still={!asset.thumbnailFilename || current?.status === 'signedOut' || current?.status === 'failed'}
         >
           {showNotUploadedIcon && (
             <View

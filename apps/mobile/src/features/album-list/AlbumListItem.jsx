@@ -1,6 +1,6 @@
 import { StyleSheet, View, Text } from 'react-native';
 
-import AssetImage from '@/components/AssetImage';
+import CoverImage from '@/components/CoverImage';
 import FavoriteAlbumIndicator from '@/components/FavoriteAlbumIndicator';
 import AlbumLastPostedAt from '@/features/album-list/AlbumLastPostedAt';
 import { colors, scale } from '@/styles/designTokens';
@@ -10,12 +10,11 @@ import pluralizeText from '@/utils/pluralizeText';
 export default function AlbumListItem({ album, elementWidth, showLastPostedAt }) {
   return (
     <View style={[styles.album, { width: elementWidth }]}>
-      <View style={[styles.imageContainer, { height: elementWidth }]}>
-        <AssetImage asset={album.cover} />
+      <CoverImage asset={album.cover} style={{ height: elementWidth }}>
         <View style={styles.indicators}>
           <FavoriteAlbumIndicator isFavorite={album.isFavorite} />
         </View>
-      </View>
+      </CoverImage>
 
       {Boolean(album.archivedAt) && (
         <View style={{ alignSelf: 'left' }}>
@@ -39,9 +38,6 @@ export default function AlbumListItem({ album, elementWidth, showLastPostedAt })
 
 const styles = StyleSheet.create({
   album: {},
-  imageContainer: {
-    backgroundColor: 'lightgrey',
-  },
   albumTitle: {
     marginTop: 4,
     fontWeight: '600',

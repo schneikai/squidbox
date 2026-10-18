@@ -7,7 +7,7 @@ export default function gridIndexAtPoint({ x, y, scrollOffset, paddingTop, layou
   const col = Math.min(Math.max(Math.floor((x - gap / 2) / (cellWidth + gap)), 0), numColumns - 1);
   const contentY = y + scrollOffset - paddingTop;
   if (contentY < 0) return -1;
-  const row = Math.floor((contentY - gap / 2) / (cellHeight + gap));
+  const row = Math.floor((contentY + gap / 2) / (cellHeight + gap));
   const index = row * numColumns + col;
   if (index < 0 || index >= count) return -1;
   return index;

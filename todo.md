@@ -7,6 +7,22 @@ when the owner defers something, or when an idea comes up. Remove an entry once 
 
 ## Features
 
+### [ ] Share photos and videos
+
+A Share action on the asset detail screen (and for a selection) that opens the system share sheet,
+like Apple Photos. `expo-sharing` (`Sharing.shareAsync(localUri)`) does it on iOS and needs a local
+file: use the original when it's on the device, else download it first, as Save to camera roll
+does (`getAssetFileSourceAsync`). `expo-sharing` isn't installed yet: it's a native module, so the
+preview build and the dev client need a rebuild. On web it falls back to the Web Share API.
+
+### [ ] Keep the original filename
+
+Imports rename the file to `<id>.<ext>` (`buildAssetAsync.js`) and drop the original name, though the
+picker returns it (e.g. `IMG_1234.HEIC`). Store it in a new synced, nullable `originalFilename`
+(shared collection schema, client and server migrations; deploy the server before the app sends
+it) and show it in the details panel's info block. Older assets stay without it unless the legacy
+backups carry names.
+
 ### [ ] Mouse-friendly triggers on web
 
 Touch gestures map poorly to a mouse: long press to peek, double tap to favorite and drag-select
@@ -48,7 +64,7 @@ reorder.
 
 In the random suggestions card (`RandomSuggestionsModal`), show when the asset and its album were
 last posted, and open the asset detail screen on tap. That screen's swipe-up details
-(`AssetDetailsPanel`) already list the asset's albums (each opens its album) and its last post.
+(`AssetDetailsPanel`) already show the asset's albums and every post it is in, each opening it.
 
 ### [ ] Save posts for later / drafts
 
@@ -326,15 +342,41 @@ pager swipes as before; zoomed, it and the swipe back from the screen's edge are
 unlock after zooming out. Opened from the create-post sheet, the sheet can't be swiped down while
 zoomed. A pinch that zooms in from 1× and then lifts one finger carries on as a pan.
 
+### [ ] One vertical drag per asset page
+
+The photo's drag (`verticalDrag` in `useZoomGesture`) and the details panel's own pan
+(`useDetailsPanelDrag`) feed the same track as two gestures. One page-level vertical Pan in
+`AssetPage` would be simpler; it needs device testing against the zoom, the pager and the rows.
+
 ### [ ] Check the swipe-up details on the phone
 
-The asset screen's details panel (`useDetailsPanel`, the vertical drag in `useZoomGesture`) is
-untried on a device. Check: swipe up opens it on a photo or video, swipe down or a tap closes it,
-and the photo lands above it; paging is locked while it shows; the swipe back and a zoomed photo's
-pan still work. In the create-post sheet, a swipe down with the panel closed still dismisses the
-sheet, and with it open only closes the panel. The sheet's lock lands a JS round trip after the drag
-starts and only blocks dismissal, so the sheet may still stretch a little on the first swipe up or
-while closing the panel.
+The asset screen's details panel (one `offset` track in `useDetailsPanel` that every pager page
+(`AssetPage`) follows, driven by the photo's drag in `useZoomGesture` and the panel's own in
+`useDetailsPanelDrag`) needs a check on the phone after its rework. Check: swipe up opens it on a
+photo or video, taking the lower two thirds, and the photo grows to cover the top third without a
+jump; dragging past open rubber-bands and springs back; long details scroll within the panel (no
+scroll indicator) and a downward fling stops at their top, a drag down from the top closes it;
+flicks settle with a little bounce, slow releases and taps without; a touch on the moving panel
+catches it and opens no row, and a drag that starts on a row doesn't open it; a tap on the photo
+closes it; a sideways swipe anywhere on the page (photo or details) pages while it's open, the next
+page already showing its own details and its photo in place, without a zoom; editing the note lifts
+the page only as far as the keyboard would cover the field, never off the top, and Done saves it; no
+grey band shows between the photo and the panel; the note icon on the photo opens the panel; the
+swipe back and a zoomed photo's pan still work. In the create-post sheet, a swipe down with the
+panel closed still dismisses the sheet, and with it open only closes the panel. The sheet's lock
+lands a JS round trip after the drag starts and only blocks dismissal, so the sheet may still
+stretch a little on the first swipe up or while closing the panel.
+
+### [ ] Check opening a post's photos on the phone
+
+On a post's screen, a tap on a photo or video opens the asset screen on it (`Post`, `PostAssets`,
+the `{ postId }` scope of `assetQuery`), so far only covered by tests. On the phone, check: a tap
+opens the tapped asset and a swipe still pages the post's photos without opening anything; in the
+asset screen, swiping pages through only that post's assets, in the post's order (a trashed one
+included); back returns to the post. The same from the create-post sheet (a post opened from its
+list). On a trashed asset the actions bar says "Deleted" and offers Restore and Delete permanently
+(`useDeletedAssetsActions`) instead of Delete. A post deleted (e.g. on another device) while its
+asset screen is open closes with an alert on the way back (`useCloseWhenGone`).
 
 ### [ ] Check dragging albums on the phone
 

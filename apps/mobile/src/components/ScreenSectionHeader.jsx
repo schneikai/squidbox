@@ -7,17 +7,17 @@ import { colors, typography } from '@/styles/designTokens';
  * Shared by SettingsScreen, AiPromptsScreen, and any future list screens.
  *
  * When rightSlot is provided the component renders a flex row with the title
- * on the left and the slot on the right. Existing callers that pass only title
- * are unaffected.
+ * on the left and the slot on the right. Over cards it sits a little in from
+ * their edge; `isFlush` lines it up with content that has no card around it.
  */
-export default function ScreenSectionHeader({ title, rightSlot }) {
+export default function ScreenSectionHeader({ title, rightSlot, isFlush = false }) {
   if (!rightSlot) {
-    return <Text style={styles.label}>{title}</Text>;
+    return <Text style={[styles.label, isFlush && styles.flush]}>{title}</Text>;
   }
 
   return (
     <View style={styles.row}>
-      <Text style={styles.labelInRow}>{title}</Text>
+      <Text style={[styles.labelInRow, isFlush && styles.flush]}>{title}</Text>
       {rightSlot}
     </View>
   );
@@ -38,6 +38,9 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textSecondary,
     marginLeft: 4,
+  },
+  flush: {
+    marginLeft: 0,
   },
   row: {
     flexDirection: 'row',

@@ -1,6 +1,14 @@
-import { and, count, eq, getTableColumns, isNotNull, isNull } from 'drizzle-orm';
+import { and, count, eq, getTableColumns, isNotNull } from 'drizzle-orm';
 
-import { a, assetOrder, assetScopeWhere, e, lastPostedAt, sortsByLastPostedAt } from '@/sync/assetSql';
+import {
+  a,
+  assetDeletionWhere,
+  assetOrder,
+  assetScopeWhere,
+  fromScope,
+  lastPostedAt,
+  sortsByLastPostedAt,
+} from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import { inJson } from '@/sync/inJson';
 import { matchingIds } from '@/sync/matchingIds';
@@ -8,13 +16,15 @@ import { MEDIA_TYPES } from '@/utils/assets/constants';
 
 /**
  * What an asset grid shows, as SQL: `read(db, { limit })` → `{ rows, count }` from one transaction,
- * `ids(db, { limit })` → the matching ids in the same order, `tables` → what a live read watches.
- * The descriptor is a plain object a screen can pass around. Every order ends with an id tie-break,
- * so refreshes and pages see one stable order.
+ * `ids(db, { limit })` → the matching ids in the same order, `tables` → what a live read watches,
+ * `rowsByIds(db, ids)` → those of these assets the scope keeps by their deletion, whether they
+ * still match it or not (the asset screen's window). The descriptor is a plain object a screen can
+ * pass around. Every order ends with an id tie-break, so refreshes and pages see one stable order.
  * @param {object} descriptor
- * @param {'library' | 'favorites' | 'deleted' | { albumId: string }} [descriptor.scope]
+ * @param {'library' | 'favorites' | 'deleted' | { albumId: string } | { postId: string }} [descriptor.scope] a post: see AssetScope
  * @param {'createdAt:asc' | 'createdAt:desc' | 'lastPostedAt:asc' | 'lastPostedAt:desc' | 'custom' | 'random'} [descriptor.sort]
- *   `custom` needs an album scope; the Deleted scope has no sort menu and lists the most recently deleted first
+ *   `custom` needs an album scope; the Deleted scope has no sort menu and lists the most recently
+ *   deleted first; a post has no sort either and lists in its own order (filter and search still apply)
  * @param {('favorites' | 'images' | 'videos')[]} [descriptor.filter]
  * @param {string} [descriptor.search] a notes substring, matched as the grid did: Unicode-aware, literal, case-insensitive
  */
@@ -25,6 +35,7 @@ export default function assetQuery({ scope = 'library', sort = 'createdAt:desc',
 
   const tables = [schema.assets];
   if (scope.albumId) tables.push(schema.albumAssets);
+  if (scope.postId) tables.push(schema.postAssets);
   if (isByLastPosted) tables.push(schema.postAssets, schema.posts);
 
   const filterConditions = [];
@@ -32,14 +43,15 @@ export default function assetQuery({ scope = 'library', sort = 'createdAt:desc',
   if (filter.includes('images')) filterConditions.push(eq(a.mediaType, MEDIA_TYPES.IMAGE));
   if (filter.includes('videos')) filterConditions.push(eq(a.mediaType, MEDIA_TYPES.VIDEO));
 
-  // The search runs over the noted rows of the scope, once per read for rows and count alike.
+  // The search runs over the noted rows of the scope, once per read for rows and count alike: a
+  // post's few through its edges, any other scope's through the noted assets' index.
   const searchText = search.trim().toLowerCase();
   async function matchedIds(tx) {
     if (!searchText) return null;
-    const noted = await tx
-      .select({ id: a.id, text: a.notes })
-      .from(a)
-      .where(and(isNotNull(a.notes), scope === 'deleted' ? isNotNull(a.deletedAt) : isNull(a.deletedAt)));
+    const select = tx.select({ id: a.id, text: a.notes });
+    const noted = await (scope.postId
+      ? from(select).where(and(isNotNull(a.notes), assetScopeWhere(scope, sort)))
+      : select.from(a).where(and(isNotNull(a.notes), assetDeletionWhere(scope))));
     return matchingIds(noted, searchText);
   }
 
@@ -48,7 +60,7 @@ export default function assetQuery({ scope = 'library', sort = 'createdAt:desc',
   }
 
   function from(query) {
-    return isCustom ? query.from(e).innerJoin(a, eq(a.id, e.assetId)) : query.from(a);
+    return fromScope(query, scope, sort);
   }
 
   function ordered(tx, fields, ids) {
@@ -73,6 +85,12 @@ export default function assetQuery({ scope = 'library', sort = 'createdAt:desc',
         const rows = await (limit === undefined ? query : query.limit(limit));
         return rows.map((row) => row.id);
       });
+    },
+    rowsByIds(db, ids) {
+      return db
+        .select()
+        .from(a)
+        .where(and(inJson(a.id, ids), assetDeletionWhere(scope)));
     },
   };
 }

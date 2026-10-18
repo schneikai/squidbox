@@ -14,8 +14,9 @@ export default memo(AssetItem);
 
 // An asset filling `style`, zoomable while `isZoomable` (see useZoomGesture), unless it's a video.
 // `onZoomChange(assetId, isZoomed)` lets a pager lock its swipe while this asset is zoomed in;
-// `video` (useAssetVideo's) plays over the thumbnail; `verticalDrag`: see useZoomGesture.
-function AssetItem({ asset, style, isZoomable, onTap, onZoomChange, video, verticalDrag }) {
+// `video` (useAssetVideo's) plays over the thumbnail; `verticalDrag` and `pagerGesture`: see
+// useZoomGesture.
+function AssetItem({ asset, style, isZoomable, onTap, onZoomChange, video, verticalDrag, pagerGesture }) {
   const assetId = asset?.id;
   const handleZoomChange = useCallback((isZoomed) => onZoomChange?.(assetId, isZoomed), [assetId, onZoomChange]);
   const { gesture, zoomStyle, onLayout } = useZoomGesture({
@@ -24,6 +25,7 @@ function AssetItem({ asset, style, isZoomable, onTap, onZoomChange, video, verti
     onTap,
     onZoomChange: handleZoomChange,
     verticalDrag,
+    pagerGesture,
   });
 
   return (

@@ -2,9 +2,10 @@ import { useState, useRef } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, useWindowDimensions, Text } from 'react-native';
 
 import AssetImage from '@/components/AssetImage';
+import SuperPressable from '@/components/SuperPressable';
 
-// `postAssets` are a post's [{ id, asset }], as postQuery reads them.
-export default function PostAssets({ postAssets }) {
+// `postAssets` are a post's [{ id, asset }], as postQuery reads them; a tap on one calls `onPressAsset(asset)`.
+export default function PostAssets({ postAssets, onPressAsset }) {
   const scrollViewRef = useRef();
   const [currentPage, setCurrentPage] = useState(0);
   const { width: screenWidth } = useWindowDimensions();
@@ -42,9 +43,13 @@ export default function PostAssets({ postAssets }) {
           </View>
         )}
         {postAssets.map((postAsset) => (
-          <View key={postAsset.id} style={{ width: screenWidth, height: screenWidth }}>
+          <SuperPressable
+            key={postAsset.id}
+            style={{ width: screenWidth, height: screenWidth }}
+            onPress={() => onPressAsset(postAsset.asset)}
+          >
             <AssetImage asset={postAsset.asset} contentFit="contain" placeholderColor="transparent" />
-          </View>
+          </SuperPressable>
         ))}
       </ScrollView>
       {postAssets.length > 1 && (

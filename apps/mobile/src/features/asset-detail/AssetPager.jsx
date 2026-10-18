@@ -1,7 +1,8 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, useWindowDimensions } from 'react-native';
+import { GestureDetector } from 'react-native-gesture-handler';
 
-import AssetItem from './AssetItem';
+import AssetPage from './AssetPage';
 
 const keyExtractor = (assetId) => assetId;
 
@@ -18,7 +19,9 @@ function nextZoomedAssetId({ zoomed, assetId, isZoomed }) {
  * stable list props, so a swipe re-renders the pager and only the two pages it moves between. Only
  * the current page is zoomable and shows `video`. While it is zoomed in, its pan owns the swipe: the
  * pager is locked, and `onLockChange(isLocked)` reports it so the screen can lock its swipe-back too.
- * `verticalDrag` goes to every page (see useZoomGesture); `isPagingLocked` locks the pager too.
+ * Each page shows its asset with its details panel (AssetPage, on `panel`'s track, useDetailsPanel):
+ * while `isDetailsShown`, the current page and its neighbours mount their details. The list is
+ * `panel.pagerGesture`, which the pages' vertical drags hold while they run.
  */
 export default memo(AssetPager);
 
@@ -27,8 +30,9 @@ function AssetPager({
   assetsById,
   currentAssetId,
   video,
-  verticalDrag,
-  isPagingLocked,
+  panel,
+  isDetailsShown,
+  navigation,
   onChangeAssetId,
   onTapAsset,
   onLockChange,
@@ -77,18 +81,31 @@ function AssetPager({
   );
   const pageStyle = useMemo(() => ({ width: pageWidth, height: pageHeight }), [pageWidth, pageHeight]);
   const renderItem = useCallback(
-    ({ item: assetId }) => (
-      <AssetItem
+    ({ item: assetId, index }) => (
+      <AssetPage
         asset={assetsById.get(assetId)}
         style={pageStyle}
-        isZoomable={assetId === currentAssetId}
+        isCurrent={assetId === currentAssetId}
+        showsDetails={isDetailsShown && Math.abs(index - currentIndex) <= 1}
+        panel={panel}
+        navigation={navigation}
         onTap={onTapAsset}
         onZoomChange={handleZoomChange}
         video={assetId === currentAssetId ? video : null}
-        verticalDrag={verticalDrag}
       />
     ),
-    [assetsById, pageStyle, currentAssetId, video, verticalDrag, onTapAsset, handleZoomChange],
+    [
+      assetsById,
+      pageStyle,
+      currentAssetId,
+      currentIndex,
+      isDetailsShown,
+      video,
+      panel,
+      navigation,
+      onTapAsset,
+      handleZoomChange,
+    ],
   );
   const getItemLayout = useCallback(
     (_, index) => ({ length: pageWidth, offset: pageWidth * index, index }),
@@ -97,21 +114,25 @@ function AssetPager({
   const handleLayout = useCallback((event) => setPageHeight(event.nativeEvent.layout.height), []);
 
   return (
-    <FlatList
-      ref={listRef}
-      data={assetIds}
-      keyExtractor={keyExtractor}
-      renderItem={renderItem}
-      getItemLayout={getItemLayout}
-      initialScrollIndex={initialScrollIndex}
-      horizontal
-      pagingEnabled
-      scrollEnabled={!isLocked && !isPagingLocked}
-      bounces={false}
-      showsHorizontalScrollIndicator={false}
-      onScrollEndDrag={handleScrollEnd}
-      onMomentumScrollEnd={handleScrollEnd}
-      onLayout={handleLayout}
-    />
+    <GestureDetector gesture={panel.pagerGesture}>
+      <FlatList
+        ref={listRef}
+        data={assetIds}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        getItemLayout={getItemLayout}
+        initialScrollIndex={initialScrollIndex}
+        horizontal
+        pagingEnabled
+        scrollEnabled={!isLocked}
+        // Pages follow the panel's drag frame by frame: keep only the current one and its neighbours.
+        windowSize={3}
+        bounces={false}
+        showsHorizontalScrollIndicator={false}
+        onScrollEndDrag={handleScrollEnd}
+        onMomentumScrollEnd={handleScrollEnd}
+        onLayout={handleLayout}
+      />
+    </GestureDetector>
   );
 }

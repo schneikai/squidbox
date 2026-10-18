@@ -1,4 +1,4 @@
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
@@ -6,8 +6,9 @@ import FloatingPill from './FloatingPill';
 import Icon from '@/components/Icon';
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import useAssets from '@/features/assets-context/useAssets';
+import useDeletedAssetsActions from '@/features/assets-context/useDeletedAssetsActions';
 import actionButtonStyles from '@/styles/actionButtonStyles';
-import { colors, spacing } from '@/styles/designTokens';
+import { colors, scale, spacing } from '@/styles/designTokens';
 import humanizeMediaType from '@/utils/assets/humanizeMediaType';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 
@@ -18,16 +19,21 @@ import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibr
  * Layout:
  *   [♥  ↓]                           [🗑]
  *   left pill (favorite + download)   right pill (delete)
+ *
+ * A trashed asset (shown in a post) gets the Deleted album's actions instead, and says it's deleted:
+ *   [↓]          Deleted           [↺  🗑]
  */
 export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigation, children }) {
   const insets = useSafeAreaInsets();
   const { toggleFavoriteAsset } = useAssets();
+  const { restore, deletePermanently } = useDeletedAssetsActions();
   const { show, hide, updateProgress } = useProgressOverlay();
   const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary({
     onStart: show,
     onProgress: updateProgress,
     onFinish: hide,
   });
+  const isDeleted = !!asset.deletedAt;
 
   function handleToggleFavorite() {
     toggleFavoriteAsset(asset);
@@ -35,6 +41,21 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
 
   async function handleDownload() {
     await saveAssetsToMediaLibraryAsync([asset]);
+  }
+
+  function handleRestore() {
+    const mediaType = humanizeMediaType(asset.mediaType);
+    restore({ title: `Restore ${mediaType}`, message: `Restore this ${mediaType}?`, ids: [asset.id] });
+  }
+
+  function handleDeletePermanently() {
+    const mediaType = humanizeMediaType(asset.mediaType);
+    deletePermanently({
+      title: `Delete ${mediaType}`,
+      message: `Permanently delete this ${mediaType}?`,
+      ids: [asset.id],
+      onConfirm: () => navigation.goBack(),
+    });
   }
 
   function handleDelete() {
@@ -61,21 +82,34 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
       <View style={styles.row} pointerEvents="box-none">
         {/* Left pill — favorite + download */}
         <FloatingPill>
-          <ActionButton onPress={handleToggleFavorite}>
-            <Icon
-              name="heart"
-              filled={asset.isFavorite}
-              color={asset.isFavorite ? colors.danger : colors.iconInactive}
-            />
-          </ActionButton>
+          {!isDeleted && (
+            <ActionButton onPress={handleToggleFavorite}>
+              <Icon
+                name="heart"
+                filled={asset.isFavorite}
+                color={asset.isFavorite ? colors.danger : colors.iconInactive}
+              />
+            </ActionButton>
+          )}
           <ActionButton onPress={handleDownload}>
             <Icon name="cloud-download" color={colors.iconInactive} />
           </ActionButton>
         </FloatingPill>
 
-        {/* Right pill — delete */}
+        {isDeleted && (
+          <FloatingPill>
+            <Text style={styles.deletedLabel}>Deleted</Text>
+          </FloatingPill>
+        )}
+
+        {/* Right pill — delete, or restore + delete permanently */}
         <FloatingPill>
-          <ActionButton onPress={handleDelete} danger>
+          {isDeleted && (
+            <ActionButton onPress={handleRestore}>
+              <Icon name="undo" color={colors.iconInactive} />
+            </ActionButton>
+          )}
+          <ActionButton onPress={isDeleted ? handleDeletePermanently : handleDelete} danger>
             <Icon name="trash" color={colors.danger} />
           </ActionButton>
         </FloatingPill>
@@ -109,5 +143,12 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  deletedLabel: {
+    paddingHorizontal: spacing.barPaddingY * 2,
+    fontSize: scale(13),
+    fontWeight: '600',
+    color: colors.danger,
   },
 });

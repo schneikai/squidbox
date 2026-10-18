@@ -304,6 +304,29 @@ describe('plan guard', () => {
     expectCanonicalEdgeProbe(work); // the custom cover
   });
 
+  it('reads a post, and searches it, through its edges and the canonical probe, never the library', async () => {
+    const { plansOf } = await library();
+    const descriptors: Parameters<typeof assetQuery>[0][] = [
+      { scope: { postId: 'post-1' } },
+      { scope: { postId: 'post-1' }, search: 'note' },
+    ];
+    for (const descriptor of descriptors) {
+      const work = await plansOf(descriptor);
+      const context = JSON.stringify(descriptor);
+      expect(
+        work.fullScans.filter((line) => !line.startsWith('SCAN json_each')),
+        context,
+      ).toEqual([]);
+      expect(work.plans, context).toContain('SEARCH e USING INDEX post_assets_post_idx (post_id=?)');
+      expect(work.plans, context).toContain('SEARCH x USING INDEX post_assets_asset_idx (asset_id=? AND post_id=?)');
+      expect(
+        work.plans.filter((line) => /^SEARCH x\b/.test(line) && line.includes('position')),
+        context,
+      ).toEqual([]);
+      expect(work.plans, context).toContain('SEARCH a USING INDEX sqlite_autoindex_assets_1 (id=?)');
+    }
+  });
+
   it('reads posts by postedAt through their index, their edges through the asset probe', async () => {
     const { measure, db } = await library();
     const work = await measure(() => postQuery({ scope: 'all' }).read(db, { limit: 20 }));
@@ -312,7 +335,20 @@ describe('plan guard', () => {
     expect(work.plans).toContain('SCAN p USING INDEX posts_live_posted_idx');
     expect(work.plans).toContain('SEARCH e USING INDEX post_assets_post_idx (post_id=?)');
     expect(work.plans).toContain('SEARCH x USING INDEX post_assets_asset_idx (asset_id=? AND post_id=?)');
-    expect(work.plans).toContain('SEARCH assets USING INDEX sqlite_autoindex_assets_1 (id=?)');
+    expect(work.plans).toContain('SEARCH a USING INDEX sqlite_autoindex_assets_1 (id=?)');
+  });
+
+  it("reads each post's first asset in one windowed pass over the edges, through their indexes", async () => {
+    const { measure, db } = await library();
+    const work = await measure(() => postQuery({ scope: 'all' }).read(db, { limit: 20, firstAssetOnly: true }));
+    // The window's own pass (a co-routine) is the only scan: the posts' edges, their canonical check
+    // and the assets all go through indexes.
+    const isWindowPass = (line: string) => /^SCAN (ranked|\(subquery-\d+\))$/.test(line);
+    expect(unindexedScans(work).filter((line) => !isWindowPass(line))).toEqual([]);
+    expect(work.plans).toContain('CO-ROUTINE ranked');
+    expect(work.plans).toContain('SEARCH e USING INDEX post_assets_post_idx (post_id=?)');
+    expect(work.plans).toContain('SEARCH x USING INDEX post_assets_asset_idx (asset_id=? AND post_id=?)');
+    expect(work.plans).toContain('SEARCH a USING INDEX sqlite_autoindex_assets_1 (id=?)');
   });
 
   it('sorts the repost candidates and the ignored posts in a temp B-tree, posts being few', async () => {

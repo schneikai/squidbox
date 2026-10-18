@@ -93,10 +93,9 @@ export default function useDragReorder({
       count: orderRef.current.length,
     });
     if (index !== -1) return index;
-    // Below the last row (past the gap above the first) → clamp to the final slot so
-    // dragging past the end drops at the bottom.
+    // Below the last row → clamp to the final slot so dragging past the end drops at the bottom.
     const contentY = y + scrollOffset - paddingTop;
-    if (contentY >= layout.gap / 2 && orderRef.current.length > 0) return orderRef.current.length - 1;
+    if (contentY >= 0 && orderRef.current.length > 0) return orderRef.current.length - 1;
     return -1;
   };
 

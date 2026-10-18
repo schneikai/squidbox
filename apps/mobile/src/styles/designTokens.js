@@ -26,6 +26,7 @@ export const colors = {
   splashBackground: '#B1F1FF', // app.config.js `SPLASH_BACKGROUND` (the native splash's), for the boot screen
 
   glassSurface: 'rgba(255,255,255,0.95)',
+  surface: '#FFFFFF', // opaque, for a surface over media that mustn't show it through (the asset's details)
   glassBorder: 'rgba(0,0,0,0.08)',
 
   // Popover menus and the sort/filter panel: a light frosted surface.
@@ -85,6 +86,7 @@ export const shadows = {
 export const radii = {
   pill: 100,
   card: 16,
+  cover: 10, // album covers and the thumbnails of list rows (CoverImage)
   modal: 20,
   icon: 40,
 };
@@ -142,6 +144,7 @@ export const motion = {
   exit: { duration: durations.fast, easing: Easing.in(Easing.cubic) }, // leaves, shorter and accelerating away
   move: { duration: durations.base, easing: Easing.inOut(Easing.cubic) }, // changes while staying on screen
   spring: springConfig({ duration: 0.3, bounce: 0.15 }), // anything that grows, follows a finger or settles
+  settle: springConfig({ duration: 0.38, bounce: 0 }), // settles after a tap or a slow release, without overshoot
   pulse: { duration: 1000, easing: Easing.inOut(Easing.sin) }, // one half of a loading placeholder's breath
   shoot: { easing: Easing.bezierFn(0.1, 0.6, 0.7, 0.75) }, // shoots off and slows, still moving when it ends
 };

@@ -42,9 +42,12 @@ function FavoritePostIndicator({ isFavorite }) {
 }
 
 const styles = StyleSheet.create({
+  // Nothing above the post, so the list's top padding alone sets where the first one starts; the
+  // room between posts is all below each.
   container: {
     flex: 1,
-    padding: SCREEN_PADDING,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingBottom: SCREEN_PADDING * 2,
   },
   postText: {
     fontSize: scale(15),
@@ -80,7 +83,7 @@ const styles = StyleSheet.create({
 
   indicators: {
     position: 'absolute',
-    top: 25,
+    top: 25 - SCREEN_PADDING,
     left: 25,
     flexDirection: 'row',
     alignItems: 'center',
