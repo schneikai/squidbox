@@ -14,7 +14,7 @@ import { usePagedQuery } from '@/sync/usePagedQuery';
 
 // The picker's grid of the library or of one album (`scope`, see assetQuery), always selecting, with
 // search, sort and filter. `selection` comes from useToggleSelectAssetsAction and outlives the grid.
-export default function AssetPickerGrid({ scope, excludedAssetIds, selection, onScroll, scrollY, expandProgress }) {
+export default function AssetPickerGrid({ scope, exclude, selection, onScroll, scrollY, expandProgress }) {
   const { bottom } = useSafeAreaInsets();
   const { listRef, listScrollTop } = useAssetList();
   const { sortOrder, sortAssets } = useSortAssetsAction({ afterSort: listScrollTop });
@@ -26,7 +26,7 @@ export default function AssetPickerGrid({ scope, excludedAssetIds, selection, on
     sort: sortOrder,
     filter: activeFilter,
     search: searchText,
-    exclude: excludedAssetIds,
+    exclude,
   });
   const { rows, loadMore } = usePagedQuery(query, 150);
 

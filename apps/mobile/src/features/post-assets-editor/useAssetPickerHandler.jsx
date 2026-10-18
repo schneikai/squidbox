@@ -29,7 +29,7 @@ export default function useAssetPickerHandler({ addAssetsToPost, postAssetIds, o
               break;
             }
             case 1: {
-              const assets = await openAssetPicker({ excludedAssetIds: postAssetIds });
+              const assets = await openAssetPicker({ exclude: postAssetIds });
               addAssetsToPost(assets);
               break;
             }

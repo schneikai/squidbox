@@ -88,7 +88,7 @@ export default function AssetPickerScreen({ route, navigation }) {
           // A new grid per album: its own search, sort and filter, and it starts at the top.
           key={album?.id ?? 'library'}
           scope={album ? getAlbumAssetScope(album) : 'library'}
-          excludedAssetIds={route.params?.excludedAssetIds ?? []}
+          exclude={route.params?.exclude}
           selection={selection}
           onScroll={onScroll}
           scrollY={scrollY}

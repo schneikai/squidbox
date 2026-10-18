@@ -1,4 +1,4 @@
-import { and, count, eq, getTableColumns, isNotNull, not } from 'drizzle-orm';
+import { and, count, eq, getTableColumns, isNotNull, not, sql } from 'drizzle-orm';
 
 import {
   a,
@@ -7,6 +7,7 @@ import {
   assetScopeWhere,
   fromScope,
   lastPostedAt,
+  liveAlbumAssetIds,
   sortsByLastPostedAt,
 } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
@@ -28,7 +29,8 @@ import { MEDIA_TYPES } from '@/utils/assets/constants';
  *   deleted first; a post has no sort either and lists in its own order (filter and search still apply)
  * @param {('favorites' | 'images' | 'videos')[]} [descriptor.filter]
  * @param {string} [descriptor.search] a notes substring, matched as the grid did: Unicode-aware, literal, case-insensitive
- * @param {string[]} [descriptor.exclude] ids to leave out (the asset picker hides what the post or album already holds)
+ * @param {string[] | { albumId: string }} [descriptor.exclude] assets to leave out, by id or an album's
+ *   (the asset picker hides what the post or album already holds)
  */
 export default function assetQuery({
   scope = 'library',
@@ -45,12 +47,14 @@ export default function assetQuery({
   if (scope.albumId) tables.push(schema.albumAssets);
   if (scope.postId) tables.push(schema.postAssets);
   if (isByLastPosted) tables.push(schema.postAssets, schema.posts);
+  if (exclude.albumId) tables.push(schema.albumAssets);
 
   const filterConditions = [];
   if (filter.includes('favorites')) filterConditions.push(eq(a.isFavorite, true));
   if (filter.includes('images')) filterConditions.push(eq(a.mediaType, MEDIA_TYPES.IMAGE));
   if (filter.includes('videos')) filterConditions.push(eq(a.mediaType, MEDIA_TYPES.VIDEO));
-  if (exclude.length) filterConditions.push(not(inJson(a.id, exclude)));
+  if (exclude.albumId) filterConditions.push(sql`a.id not in ${liveAlbumAssetIds(exclude.albumId)}`);
+  else if (exclude.length) filterConditions.push(not(inJson(a.id, exclude)));
 
   // The search runs over the noted rows of the scope, once per read for rows and count alike: a
   // post's few through its edges, any other scope's through the noted assets' index.

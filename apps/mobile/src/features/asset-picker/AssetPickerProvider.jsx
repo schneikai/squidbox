@@ -8,12 +8,13 @@ export default function AssetPickerProvider({ children }) {
   const resolveRef = useRef(null);
 
   // Works like the system image picker: resolves with the picked assets, or with none when the picker
-  // closes without Add. `excludedAssetIds` (what the post or album already holds) don't show.
+  // closes without Add. What the post or album already holds doesn't show: `exclude` as in assetQuery,
+  // a post's few ids or `{ albumId }`.
   const openAssetPicker = useCallback(
-    ({ excludedAssetIds = [] } = {}) =>
+    ({ exclude = [] } = {}) =>
       new Promise((resolve) => {
         resolveRef.current = resolve;
-        navigation.navigate('AssetPickerModal', { excludedAssetIds });
+        navigation.navigate('AssetPickerModal', { exclude });
       }),
     [navigation],
   );

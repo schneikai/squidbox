@@ -92,6 +92,20 @@ describe('assetQuery', () => {
     expect((await assetQuery({ scope: 'library', exclude }).read(db, { limit: 10 })).count).toBe(2);
   });
 
+  it("leaves out an album's live assets, the count included, and shows them again once removed", async () => {
+    await createAssets([{}, { notes: 'beach' }, {}, { notes: 'beach' }]);
+    await albumEdges.add(db, AL, ['asset-0', 'asset-1', 'asset-2'], newId);
+    await albumEdges.add(db, 'album-2', ['asset-1'], newId);
+    const exclude = { albumId: AL };
+    expect(await assetQuery({ scope: 'library', exclude }).ids(db)).toEqual(['asset-3']);
+    expect(await assetQuery({ scope: { albumId: 'album-2' }, exclude }).ids(db)).toEqual([]);
+    expect((await assetQuery({ scope: 'library', search: 'beach', exclude }).read(db, { limit: 10 })).count).toBe(1);
+
+    await albumEdges.remove(db, AL, ['asset-1']);
+    expect(await assetQuery({ scope: 'library', exclude }).ids(db)).toEqual(['asset-3', 'asset-1']);
+    expect(await assetQuery({ scope: { albumId: 'album-2' }, exclude }).ids(db)).toEqual(['asset-1']);
+  });
+
   it('matches the search Unicode-aware, literally and once per read', async () => {
     await createAssets([{ notes: 'Über 50% done' }, { notes: 'under_score' }, { notes: 'plain' }, { notes: null }]);
     const search = (text: string) => assetQuery({ scope: 'library', search: text });
@@ -215,6 +229,7 @@ describe('assetQuery', () => {
       { scope: { assetId: 'asset-1' }, search: 'o' },
       { scope: 'library', exclude: ['asset-0', 'asset-4'] },
       { scope: { albumId: AL }, exclude: ['asset-1'], search: 'o' },
+      { scope: 'library', exclude: { albumId: AL }, sort: 'lastPostedAt:desc' },
     ];
     for (const descriptor of descriptors) {
       const q = assetQuery(descriptor);
@@ -242,6 +257,10 @@ describe('assetQuery', () => {
     expect(assetQuery({ scope: 'library' }).tables).toEqual([schema.assets]);
     expect(assetQuery({ scope: { albumId: AL } }).tables).toEqual([schema.assets, schema.albumAssets]);
     expect(assetQuery({ scope: { postId: 'p1' } }).tables).toEqual([schema.assets, schema.postAssets]);
+    expect(assetQuery({ scope: 'library', exclude: { albumId: AL } }).tables).toEqual([
+      schema.assets,
+      schema.albumAssets,
+    ]);
     expect(assetQuery({ scope: 'library', sort: 'lastPostedAt:desc' }).tables).toEqual([
       schema.assets,
       schema.postAssets,

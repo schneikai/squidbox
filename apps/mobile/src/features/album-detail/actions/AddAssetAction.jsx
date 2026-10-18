@@ -5,11 +5,8 @@ import PopupMenu from '@/components/popup-menu-options/PopupMenu';
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import { UPLOAD_MEDIA_FROM_DEVICE, UPLOAD_MEDIA_FROM_APP } from '@/constants';
 import useAlbums from '@/features/albums-context/useAlbums';
-import assetQuery from '@/features/asset-list/assetQuery';
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';
 import useAddAssetsFromCameraRoll from '@/features/assets-context/useAddAssetsFromCameraRoll';
-import { getDb } from '@/sync/db/client';
-import getAlbumAssetScope from '@/utils/albums/getAlbumAssetScope';
 
 export default function AddAssetAction({ album }) {
   const { addAssetsToAlbum } = useAlbums();
@@ -32,8 +29,7 @@ export default function AddAssetAction({ album }) {
 
   async function handleAddAssetsFromApp() {
     try {
-      const albumAssetIds = await assetQuery({ scope: getAlbumAssetScope(album) }).ids(getDb());
-      const assets = await openAssetPicker({ excludedAssetIds: albumAssetIds });
+      const assets = await openAssetPicker({ exclude: { albumId: album.id } });
       addAssetsToAlbum(album, assets);
     } catch (error) {
       Alert.alert('Failed to add assets from app!', error.message);
