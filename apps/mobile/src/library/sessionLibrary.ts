@@ -1,7 +1,6 @@
 import { openLibraryEntry, openLibraryId } from './current';
 import { mergeLibrary } from './mergeRun';
 import { deviceLibrary, getRegistry, type Library } from './registry';
-import { sameAccount } from './sameAccount';
 import type { Session } from './session';
 import { sessionMatches } from './sessionMatches';
 
@@ -14,14 +13,13 @@ import getNewItemId from '@/utils/getNewItemId';
 export function libraryForSession(session: Session | null): Library {
   const { libraries } = getRegistry();
   if (!session) return deviceLibrary(libraries) ?? { id: getNewItemId(), owner: { kind: 'device' } };
-  const existing = libraries.find(({ owner }) => owner.kind === 'account' && sameAccount(owner, session));
+  const existing = libraries.find((library) => sessionMatches(library, session));
   if (existing) return existing;
   const { serverId, userId, email } = session;
   return { id: getNewItemId(), owner: { kind: 'account', serverId, userId, email: email ?? '' } };
 }
 
-// The stored session has just become `session`: opens its library, switching when another one is
-// open.
+// At boot: opens the session's library, switching when another one is open.
 export async function openLibraryForSession(
   session: Session | null,
   switchLibrary: (target: Library) => Promise<void>,

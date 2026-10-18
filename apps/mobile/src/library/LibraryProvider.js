@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 
 import LibraryContext from './LibraryContext';
 import { bootLibrary } from './bootLibrary';
-import { getLibrary, openLibraryEntry, openLibraryId } from './current';
+import { openLibraryEntry, openLibraryId } from './current';
+import { libraryPaths } from './libraryPaths';
 import { resumeMerges } from './mergeRun';
 import { onRegistryChange } from './registry';
 import { mergeDeviceLibrary } from './sessionLibrary';
@@ -57,15 +58,17 @@ export default function LibraryProvider({ children }) {
 
   // `paths`: the open library's folders and database name. Everything below LibraryGate is keyed by
   // the library, so paths read at render belong to that library for the component's whole life.
+  const openId = openLibrary?.id;
+  const openPaths = useMemo(() => openId && { id: openId, ...libraryPaths(openId) }, [openId]);
   const value = useMemo(
     () => ({
       library: next ? null : openLibrary,
-      paths: next || !openLibrary ? null : getLibrary(),
+      paths: next || !openPaths ? null : openPaths,
       switching: next !== null,
       switchLibrary,
       booted,
     }),
-    [openLibrary, next, switchLibrary, booted],
+    [openLibrary, openPaths, next, switchLibrary, booted],
   );
 
   if (error) throw error; // a database that won't open or migrate: BootErrorBoundary

@@ -212,21 +212,6 @@ The sign-in merge (`src/library/mergeLibrary.ts`) only spots a camera-roll photo
 holds if this phone's account library pulled it before. A content hash per asset would catch the
 rest. Only worth it if duplicates show up in practice; a wrong match would hide a distinct photo.
 
-### [ ] A library handle that owns its database, paths and caches
-
-About 15 helpers in `src/utils/assets` default a `library` argument to `getLibrary()` (the open
-library), and every long flow (a backup run, a merge, a camera-roll add) captures the library itself
-so a late write lands in the right one. A handle provided from `LibraryGate` that owns the
-database, the paths and the thumbnail caches would drop those defaults and the captures. A larger
-refactor; today's defaults work.
-
-### [ ] Resolve a converted install's null serverId/userId once at boot
-
-An install converted before its first `/me` carries `serverId: null` (and a session may carry
-`userId: null`), and `sameAccount`, `libraryForSession`, `resolveOwner` and `rebuildRegistry`
-each handle that case. Resolving it once at boot (after `/me`) would let `sameAccount` be strict
-(same user on the same server, no null wildcard) and remove the special cases from the others.
-
 ### [ ] Concurrent edits from two devices overwrite each other
 
 Sync resolves conflicts per record by last writer wins (`apps/server/src/sync/push.ts`): editing the
@@ -290,6 +275,12 @@ React hook result or an unresolved import that the worklet calls. An audit proto
 
 Node 20 reached end of life in April 2026. `mise.toml` pins 20.19.4 and the server image uses
 `node:20-slim`. Move both to the current LTS and run the tests.
+
+### [ ] Delete `resolveOwners` once the phone has booted this build
+
+`src/library/resolveOwners.ts`, its call in `bootLibrary.ts`, `test/resolveOwners.test.ts` and its
+boot test in `accountSwitch.test.ts`. It only fills in a missing `serverId` on libraries converted by
+older builds; Sentry reports "Resolved the owner of library … at boot" if it ever did.
 
 ## Ideas
 

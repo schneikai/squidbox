@@ -32,23 +32,27 @@ describe('initializeCloudAsync', () => {
 
   it('a session from the current base URL is used as it is, without the network', async () => {
     store.session = complete;
-    expect(await initializeCloudAsync()).toEqual(complete);
+    await initializeCloudAsync();
+    expect(store.session).toEqual(complete);
     expect(up).not.toHaveBeenCalled();
     expect(store.writes).toBe(0);
   });
 
   it('no session, or one without tokens, needs no verification', async () => {
     store.session = null;
-    expect(await initializeCloudAsync()).toBeNull();
+    await initializeCloudAsync();
+    expect(store.session).toBeNull();
     store.session = { ...complete, tokens: null };
-    expect(await initializeCloudAsync()).toEqual({ ...complete, tokens: null });
+    await initializeCloudAsync();
+    expect(store.session).toEqual({ ...complete, tokens: null });
     expect(up).not.toHaveBeenCalled();
   });
 
   it('a changed base URL that reports the same server rebinds the session', async () => {
     store.session = { ...complete, apiBaseUrl: 'https://old.test/api/v1' };
     up.mockResolvedValue({ data: { status: 'ok', serverId: 's1' } });
-    expect(await initializeCloudAsync()).toEqual(complete);
+    await initializeCloudAsync();
+    expect(store.session).toEqual(complete);
     expect(up).toHaveBeenCalledWith('https://new.test/up');
   });
 
@@ -56,19 +60,22 @@ describe('initializeCloudAsync', () => {
     const elsewhere = { ...complete, apiBaseUrl: 'https://old.test/api/v1' };
     store.session = elsewhere;
     up.mockResolvedValue({ data: { status: 'ok', serverId: 's2' } });
-    expect(await initializeCloudAsync()).toEqual({ ...elsewhere, tokens: null });
+    await initializeCloudAsync();
+    expect(store.session).toEqual({ ...elsewhere, tokens: null });
   });
 
   it('a changed base URL whose server has no identity yet is not trusted', async () => {
     store.session = { ...complete, apiBaseUrl: 'https://old.test/api/v1' };
     up.mockResolvedValue({ data: { status: 'ok' } });
-    expect((await initializeCloudAsync())?.tokens).toBeNull();
+    await initializeCloudAsync();
+    expect(store.session?.tokens).toBeNull();
   });
 
   it('a changed base URL that cannot be reached leaves the session unverified for this launch', async () => {
     const elsewhere = { ...complete, apiBaseUrl: 'https://old.test/api/v1' };
     store.session = elsewhere;
     up.mockRejectedValue(new Error('Network Error'));
-    expect(await initializeCloudAsync()).toEqual(elsewhere);
+    await initializeCloudAsync();
+    expect(store.session).toEqual(elsewhere);
   });
 });

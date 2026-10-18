@@ -11,9 +11,7 @@ import { getSession, loadSessionAsync } from '@/utils/cloud-api/sessionStore';
 // The one boot sequence: the stored session and the library list (rebuilt from the databases when
 // there is none), an owner without its serverId resolved from the session, then the session's
 // library opens while the cloud init verifies the session over the network. The boot ends once the
-// init has: an init failure never stops it, and the stored session stays as it is for this launch.
-// Whatever the init changes (a rebind, dropped tokens), the session keeps its owner, so the open
-// library stays.
+// init has; an init failure never stops it.
 export async function bootLibrary(switchLibrary: (target: Library) => Promise<void>): Promise<void> {
   await loadSessionAsync();
   await loadRegistry(rebuildRegistry);

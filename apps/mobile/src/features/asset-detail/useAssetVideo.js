@@ -51,12 +51,13 @@ export default function useAssetVideo(asset) {
       setResolved(cached);
       return () => setResolved(null);
     }
-    const options = { isAuthenticated, library };
-    resolveSourceAsync({ filename, isFileSynced: isFileSyncedRef.current }, options).then((found) => {
-      const entry = { assetId, ...found, resolvedAt: Date.now() };
-      if (entry.isRemote) urls.set(filename, entry);
-      if (!isCancelled) setResolved(entry);
-    });
+    resolveSourceAsync({ filename, isFileSynced: isFileSyncedRef.current }, { isAuthenticated, library }).then(
+      (found) => {
+        const entry = { assetId, ...found, resolvedAt: Date.now() };
+        if (entry.isRemote) urls.set(filename, entry);
+        if (!isCancelled) setResolved(entry);
+      },
+    );
     return () => {
       isCancelled = true;
       setResolved(null);

@@ -2,17 +2,17 @@ import api from './api';
 import { API_BASE_URL, SERVER_URL } from './apiBaseUrl';
 import { dropTokensAsync, getSession, updateSession } from './sessionStore';
 
-// Verifies the stored session for this launch and resolves to it: a changed base URL (a new dev
-// tunnel) must report the session's serverId in /up before the session rebinds to it, else the
-// tokens are dropped. A network error leaves everything for the next launch.
+// Verifies the stored session for this launch: a changed base URL (a new dev tunnel) must report the
+// session's serverId in /up before the session rebinds to it, else the tokens are dropped. A network
+// error leaves everything for the next launch.
 export default async function initializeCloudAsync() {
   const session = getSession();
-  if (!session?.tokens || session.apiBaseUrl === API_BASE_URL) return session;
+  if (!session?.tokens || session.apiBaseUrl === API_BASE_URL) return;
 
   const serverId = await fetchServerIdAsync();
-  if (serverId === undefined) return session;
-  if (serverId !== session.serverId) return dropAsync();
-  return updateSession((current) => (current ? { ...current, apiBaseUrl: API_BASE_URL } : current));
+  if (serverId === undefined) return;
+  if (serverId !== session.serverId) await dropTokensAsync();
+  else await updateSession((current) => (current ? { ...current, apiBaseUrl: API_BASE_URL } : current));
 }
 
 // The server's identity (null before its SERVER_ID deploy), or undefined when it can't be reached.
@@ -23,9 +23,4 @@ async function fetchServerIdAsync() {
   } catch {
     return undefined;
   }
-}
-
-async function dropAsync() {
-  await dropTokensAsync();
-  return getSession();
 }
