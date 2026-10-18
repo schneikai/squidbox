@@ -9,7 +9,8 @@ const render = (query: SQL) => dialect.sqlToQuery(query).sql;
 
 const stored = (table: string, field: string) =>
   `coalesce(("${table}"."field_clock"->>'${field}')::bigint, case when "${table}"."field_clock" is null then "${table}"."updated_at" else 0 end)`;
-const wins = (table: string, field: string) => `((excluded.field_clock->>'${field}')::bigint > ${stored(table, field)})`;
+const wins = (table: string, field: string) =>
+  `((excluded.field_clock->>'${field}')::bigint > ${stored(table, field)})`;
 
 describe('fieldMergeUpdate', () => {
   it('applies each sent field whose clock is newer than the stored one, and updates only then', () => {
@@ -29,7 +30,9 @@ describe('fieldMergeUpdate', () => {
     expect(fieldClock).toMatch(
       /^coalesce\("album_assets"\."field_clock", jsonb_build_object\('deletedAt', "album_assets"\."updated_at", .*'position', "album_assets"\."updated_at"\)\) \|\| jsonb_strip_nulls\(/,
     );
-    expect(fieldClock).toContain(`jsonb_build_object('position', case when ${wins('album_assets', 'position')} then excluded.field_clock->'position' end))`);
+    expect(fieldClock).toContain(
+      `jsonb_build_object('position', case when ${wins('album_assets', 'position')} then excluded.field_clock->'position' end))`,
+    );
   });
 
   it('never updates a purged asset, and purges only an asset that stays deleted', () => {

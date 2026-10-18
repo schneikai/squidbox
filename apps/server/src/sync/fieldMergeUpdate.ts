@@ -22,10 +22,13 @@ export function fieldMergeUpdate(col: ServerCollection, sent: string[]): { set: 
     ? sql`(case when ${wins('deletedAt')} then ${sentValue('deletedAt')} else ${table.deletedAt} end)`
     : sql`${table.deletedAt}`;
   const applies = (field: string) =>
-    col.table === assets && field === 'purgedAt' ? sql`(${wins(field)} and ${mergedDeletedAt} is not null)` : wins(field);
+    col.table === assets && field === 'purgedAt'
+      ? sql`(${wins(field)} and ${mergedDeletedAt} is not null)`
+      : wins(field);
 
   const set: Record<string, SQL> = {};
-  for (const field of sent) set[field] = sql`case when ${applies(field)} then ${sentValue(field)} else ${table[field]} end`;
+  for (const field of sent)
+    set[field] = sql`case when ${applies(field)} then ${sentValue(field)} else ${table[field]} end`;
   const appliedClocks = sent.map(
     (field) => sql`${name(field)}, case when ${applies(field)} then excluded.field_clock->${name(field)} end`,
   );

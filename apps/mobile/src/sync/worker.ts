@@ -103,7 +103,11 @@ async function pushPhase(
     if (pushed === 0) await patchStatus(db, { phase: 'pushing' });
     lastId = batch[batch.length - 1]!.id;
 
-    const mutations: PushMutation[] = batch.map((row) => ({ collection: row.collection, record: row.payload }));
+    const mutations: PushMutation[] = batch.map((row) => ({
+      collection: row.collection,
+      record: row.payload,
+      fields: row.fields ?? undefined,
+    }));
     const { results } = await transport.push({ mutations });
     // A purge that beat this device's edit comes back as the current record to adopt.
     await removeNewlyPurgedFiles(

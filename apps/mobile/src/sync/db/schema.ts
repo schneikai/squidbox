@@ -148,7 +148,8 @@ export const syncMeta = sqliteTable('sync_meta', {
 });
 
 // Outbox: pending local mutations to push. Coalesced to one row per (collection, recordId)
-// — the latest whole-record payload wins (sync-design §6). `error`: why this payload failed; it waits (§6).
+// — the latest whole-record payload wins and `fields` gathers the changed fields (sync-design §6).
+// `error`: why this payload failed; it waits (§6).
 export const outbox = sqliteTable(
   'outbox',
   {
@@ -157,6 +158,9 @@ export const outbox = sqliteTable(
     recordId: text('record_id').notNull(),
     op: text('op', { enum: ['upsert', 'delete'] }).notNull(),
     payload: text('payload', { mode: 'json' }).$type<Record<string, unknown>>().notNull(),
+    // The fields the pending edits changed, each with its clock; null for a row enqueued before
+    // per-field merge, which is pushed as a whole record (sync-design §6).
+    fields: text('fields', { mode: 'json' }).$type<Record<string, number>>(),
     updatedAt: integer('updated_at').notNull(),
     createdAt: integer('created_at')
       .notNull()

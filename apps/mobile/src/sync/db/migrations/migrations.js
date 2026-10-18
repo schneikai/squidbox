@@ -12,6 +12,7 @@ import m0007 from './0007_drop_row_changes.sql';
 import m0008 from './0008_round_post_timestamps.sql';
 import m0009 from './0009_purged_assets.sql';
 import m0010 from './0010_outbox_errors.sql';
+import m0011 from './0011_outbox_fields.sql';
 
   export default {
     journal,
@@ -26,7 +27,8 @@ m0006,
 m0007,
 m0008,
 m0009,
-m0010
+m0010,
+m0011
     }
   }
   

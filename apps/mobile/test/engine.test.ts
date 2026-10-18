@@ -1,3 +1,4 @@
+import type { PushMutation } from '@squidbox/shared';
 import { eq } from 'drizzle-orm';
 import { describe, it, expect, beforeEach } from 'vitest';
 
@@ -54,6 +55,105 @@ describe('repository (real SQLite)', () => {
     expect(row?.deletedAt).not.toBeNull();
     const ob = await outboxRows();
     expect(ob[0]).toMatchObject({ op: 'delete' });
+  });
+});
+
+describe('outbox fields (per-field merge)', () => {
+  const fieldsOf = async (id: string) => (await outboxRows()).find((row) => row.recordId === id)?.fields;
+  const settled = async () => {
+    await runSyncOnce(db, fakeTransport());
+    expect(await outboxRows()).toHaveLength(0);
+  };
+
+  it('a create names every field at its clock', async () => {
+    const rec = await repo.createAsset(db, makeAssetRecord());
+    expect(await fieldsOf(rec.id)).toMatchObject({
+      notes: rec.updatedAt,
+      deletedAt: rec.updatedAt,
+      isFileSynced: rec.updatedAt,
+    });
+    expect(await fieldsOf(rec.id)).not.toHaveProperty('updatedAt');
+  });
+
+  it('an update, a toggle, a delete and a purge name only what they change', async () => {
+    const rec = await repo.createAsset(db, makeAssetRecord({ notes: 'same' }));
+    await settled();
+
+    await repo.updateAsset(db, rec.id, { notes: 'same', filename: 'b.jpg' }); // the whole form, one change
+    expect(await fieldsOf(rec.id)).toEqual({ filename: (await assetRow(rec.id))!.updatedAt });
+    await settled();
+
+    await repo.toggleFavorite(db, rec.id);
+    expect(await fieldsOf(rec.id)).toEqual({ isFavorite: (await assetRow(rec.id))!.updatedAt });
+    await settled();
+
+    await repo.deleteAssets(db, [rec.id]);
+    expect(await fieldsOf(rec.id)).toEqual({ deletedAt: (await assetRow(rec.id))!.updatedAt });
+    await settled();
+
+    await repo.purgeAssets(db, [rec.id], async () => {});
+    expect(await fieldsOf(rec.id)).toEqual({ purgedAt: (await assetRow(rec.id))!.updatedAt });
+  });
+
+  it('coalesced edits keep each field’s own clock, the payload the latest record', async () => {
+    const rec = await repo.createAsset(db, makeAssetRecord());
+    await settled();
+    await repo.updateAsset(db, rec.id, { notes: 'first' });
+    const first = (await assetRow(rec.id))!.updatedAt;
+    await repo.updateAsset(db, rec.id, { isFavorite: true });
+    const second = (await assetRow(rec.id))!.updatedAt;
+    await repo.updateAsset(db, rec.id, { notes: 'again' });
+    const third = (await assetRow(rec.id))!.updatedAt;
+
+    const [row] = await outboxRows();
+    expect(row?.fields).toEqual({ isFavorite: second, notes: third });
+    expect(second).toBeGreaterThan(first);
+    expect(row?.payload).toMatchObject({ notes: 'again', isFavorite: true, updatedAt: third });
+  });
+
+  it('a save that changes nothing writes nothing', async () => {
+    const rec = await repo.createAsset(db, makeAssetRecord({ notes: 'same' }));
+    await settled();
+    const before = await assetRow(rec.id);
+    await repo.updateAsset(db, rec.id, { notes: 'same' });
+    expect(await assetRow(rec.id)).toEqual(before);
+    expect(await outboxRows()).toHaveLength(0);
+  });
+
+  it('the file flags are sent together', async () => {
+    const rec = await repo.createAsset(
+      db,
+      makeAssetRecord({ isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+    );
+    await settled();
+    await repo.updateAsset(db, rec.id, { isThumbnailSynced: true });
+    const ts = (await assetRow(rec.id))!.updatedAt;
+    expect(await fieldsOf(rec.id)).toEqual({ isFileSynced: ts, isThumbnailSynced: ts, isSynced: ts });
+  });
+
+  it('the push sends the fields, and a row enqueued before them as a whole record', async () => {
+    const edited = await repo.createAsset(db, makeAssetRecord());
+    const legacy = await repo.createAsset(db, makeAssetRecord());
+    await db.update(schema.outbox).set({ fields: null }).where(eq(schema.outbox.recordId, legacy.id));
+    const sent: PushMutation[] = [];
+    await runSyncOnce(
+      db,
+      fakeTransport({
+        push: async (req) => {
+          sent.push(...req.mutations);
+          return fakeTransport().push(req);
+        },
+      }),
+    );
+    expect(sent.find((m) => m.record.id === edited.id)?.fields).toMatchObject({ notes: edited.updatedAt });
+    expect(sent.find((m) => m.record.id === legacy.id)?.fields).toBeUndefined();
+  });
+
+  it('an edit of a row enqueued before them keeps it a whole record', async () => {
+    const rec = await repo.createAsset(db, makeAssetRecord());
+    await db.update(schema.outbox).set({ fields: null });
+    await repo.updateAsset(db, rec.id, { notes: 'n' });
+    expect(await fieldsOf(rec.id)).toBeNull();
   });
 });
 

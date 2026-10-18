@@ -5,14 +5,19 @@ import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { localOnlyKeys } from './localOnlyKeys';
 
+export type FieldClocks = Record<string, number>;
+
 // Enqueue whole-record mutations, coalesced to one row per (collection, recordId): the latest
-// payload wins (sync-design §6). `op` is 'delete' for a tombstone, else 'upsert'. The payload leaves
-// out the collection's local-only fields; a new payload clears the error of the one it replaces (§6).
-// Called inside the transaction that writes the records.
+// payload wins, and the changed fields of every coalesced edit are kept, each with its own clock
+// (sync-design §6). A row without fields (enqueued before per-field merge, or replayed from one)
+// stays without, so it is still pushed as a whole record. `op` is 'delete' for a tombstone, else
+// 'upsert'. The payload leaves out the collection's local-only fields; a new payload clears the
+// error of the one it replaces (§6). Called inside the transaction that writes the records.
 export async function enqueueMutations(
   tx: SyncDb,
   collection: string,
   records: { id: string; updatedAt: number; deletedAt?: number | null }[],
+  fieldsById: Map<string, FieldClocks | null>,
 ): Promise<void> {
   const localOnly = localOnlyKeys(collection);
   for (const batch of chunk(records, SQL_BATCH)) {
@@ -24,6 +29,7 @@ export async function enqueueMutations(
           recordId: record.id,
           op: record.deletedAt != null ? ('delete' as const) : ('upsert' as const),
           payload: withoutKeys(record, localOnly),
+          fields: fieldsById.get(record.id) ?? null,
           updatedAt: record.updatedAt,
         })),
       )
@@ -32,6 +38,7 @@ export async function enqueueMutations(
         set: {
           op: sql`excluded."op"`,
           payload: sql`excluded."payload"`,
+          fields: sql`json_patch(${schema.outbox.fields}, excluded."fields")`,
           updatedAt: sql`excluded."updated_at"`,
           error: null,
         },

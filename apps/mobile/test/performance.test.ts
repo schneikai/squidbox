@@ -90,7 +90,8 @@ describe('performance at library scale', () => {
     const [small, large] = costs;
     expect(large.toggle.statements).toBe(small.toggle.statements);
     expect(large.toggle.rowsRead).toBe(small.toggle.rowsRead);
-    expect(large.toggle.rowsRead).toBeLessThanOrEqual(LIMIT + 2); // the page, the count and the toggled row
+    // The page, the count and the toggled row, read by the toggle and again by the save to find what changed.
+    expect(large.toggle.rowsRead).toBeLessThanOrEqual(LIMIT + 3);
     expect(large.loadMore.rowsRead).toBe(small.loadMore.rowsRead);
     expect(large.loadMore.rowsRead).toBeLessThanOrEqual(LIMIT * 2 + 1);
   });
