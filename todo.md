@@ -216,7 +216,9 @@ each is cleaned up: originals of uploaded assets (`assetFiles`, kept after uploa
 cloud downloads for Save/Share (cache, swept after an hour), each library's SQLite database and
 WAL, parked libraries (see below), the image and video players' caches, the picker's and the
 thumbnail makers' temporary copies (`pickImageFromMediaLibrary`, `createImageThumbnail`,
-`createVideoThumbnail`) and whatever a crash or kill leaves mid-write. Outcome: a list of what
+`createVideoThumbnail`) and whatever a crash or kill leaves mid-write. Known edge: the stale sweep
+judges a download folder by its own age, so a single download running over an hour could be swept
+if the library reopens meanwhile. Outcome: a list of what
 stays and why, fixes for leaks, and maybe a Settings view of the space used with a "Free up space"
 action.
 

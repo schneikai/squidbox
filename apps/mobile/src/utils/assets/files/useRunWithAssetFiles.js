@@ -9,7 +9,7 @@ import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress
 import useCloud from '@/features/cloud/useCloud';
 import { getLibrary } from '@/library/current';
 
-// One run at a time, app-wide, so two never write the same download.
+// One run at a time, app-wide: one progress ring, and a tap while it's up is ignored.
 let isRunning = false;
 
 /**

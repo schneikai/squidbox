@@ -4,8 +4,8 @@ import getDownloadsDirectory from './getDownloadsDirectory';
 
 const STALE_AFTER = 60 * 60; // s
 
-// Deletes a library's downloads older than an hour: those kept for a share sheet (iOS doesn't always
-// say when it's done with them) and those an interrupted run left. Best effort: never throws.
+// Deletes a library's downloads (a folder each) older than an hour: those kept for a share sheet
+// (iOS doesn't always say when it's done with them) and those an interrupted run left. Best effort: never throws.
 export default async function deleteStaleDownloadsAsync(library) {
   try {
     const directory = getDownloadsDirectory(library);

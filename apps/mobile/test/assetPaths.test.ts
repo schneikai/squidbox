@@ -77,7 +77,6 @@ describe('asset file and thumbnail paths', () => {
     await removeAssetFiles([{ filename: 'a.jpg', thumbnailFilename: 'athumb.jpg' }], captured);
     expect(fs).toEqual([
       'delete file:///documents/libraries/abc/files/a.jpg',
-      'delete file:///caches/downloads/abc/a.jpg',
       'delete file:///documents/libraries/abc/thumbnails/athumb.jpg',
     ]);
   });
@@ -88,10 +87,7 @@ describe('asset file and thumbnail paths', () => {
     expect(await hasThumbnailAsync('present.jpg', open('other'))).toBe(true);
     expect(await hasThumbnailAsync(null)).toBe(true);
     await removeAssetFiles([{ filename: 'a.jpg' }], open('abc')); // a backed-up file: its thumbnail stays
-    expect(fs).toEqual([
-      'delete file:///documents/libraries/abc/files/a.jpg',
-      'delete file:///caches/downloads/abc/a.jpg',
-    ]);
+    expect(fs).toEqual(['delete file:///documents/libraries/abc/files/a.jpg']);
   });
 
   it('a thumbnail on this device is local, one not backed up yet is not uploaded, else it’s in the cloud', async () => {
@@ -106,7 +102,6 @@ describe('asset file and thumbnail paths', () => {
   it('removing many assets’ copies lists each folder once and deletes only the files that are there', async () => {
     folders['file:///documents/libraries/abc/files/'] = ['a0.jpg', 'unrelated.jpg'];
     folders['file:///documents/libraries/abc/thumbnails/'] = ['a0-t.jpg', 'a1-t.jpg'];
-    // No downloads folder: nothing was ever fetched.
     const assets = Array.from({ length: 100 }, (_, i) => ({ filename: `a${i}.jpg`, thumbnailFilename: `a${i}-t.jpg` }));
     await removeAssetFiles(assets, open('abc'));
     expect(fs.sort()).toEqual([
@@ -119,6 +114,18 @@ describe('asset file and thumbnail paths', () => {
     fs.length = 0;
     await removeAssetFiles([], open('abc'));
     expect(fs).toEqual([]);
+  });
+
+  it('removing an asset also removes the downloads kept for a share sheet', async () => {
+    const uuid = '3f2a0000-0000-4000-8000-000000000001';
+    folders['file:///caches/downloads/abc/'] = [`a.jpg-${uuid}`, `b.jpg-${uuid}`];
+    await removeAssetFiles([{ filename: 'a.jpg' }], open('abc'));
+    expect(fs).toEqual([
+      'list file:///caches/downloads/abc/',
+      'delete file:///documents/libraries/abc/files/a.jpg',
+      `delete file:///caches/downloads/abc/a.jpg-${uuid}/`,
+    ]);
+    delete folders['file:///caches/downloads/abc/'];
   });
 
   it('refuse to resolve while no library is open', () => {
