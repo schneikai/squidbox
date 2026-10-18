@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, useWindowDimensions } from 'react-native';
+import { FlatList, Platform, useWindowDimensions } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 
 import AssetPage from './AssetPage';
@@ -19,6 +19,8 @@ function nextZoomedAssetId({ zoomed, assetId, isZoomed }) {
  * stable list props, so a swipe re-renders the pager and only the two pages it moves between. Only
  * the current page is zoomable and shows `video`. While it is zoomed in, its pan owns the swipe: the
  * pager is locked, and `onLockChange(isLocked)` reports it so the screen can lock its swipe-back too.
+ * Natively the zoomed photo's pan holds the list itself, on the UI thread (`pagerGesture`, see
+ * useZoomGesture), so only the web, where a gesture can't hold a scroll view, locks it by render.
  * Each page shows its asset with its details panel (AssetPage, on `panel`'s track, useDetailsPanel):
  * while `isDetailsShown`, the current page and its neighbours mount their details. The list is
  * `panel.pagerGesture`, which the pages' vertical drags hold while they run.
@@ -47,6 +49,9 @@ function AssetPager({
   const [zoomedAssetId, setZoomedAssetId] = useState(null);
   // Only the current asset can be zoomed, so the pager unlocks once it stops being current.
   const isLocked = !!zoomedAssetId && zoomedAssetId === currentAssetId;
+  // Natively not by render, which lags under JS load: it would keep a swipe right after zooming out
+  // from paging.
+  const isScrollLocked = isLocked && Platform.OS === 'web';
 
   // Only changes are reported: the pager starts unlocked.
   const reportedLockRef = useRef(false);
@@ -124,7 +129,7 @@ function AssetPager({
         initialScrollIndex={initialScrollIndex}
         horizontal
         pagingEnabled
-        scrollEnabled={!isLocked}
+        scrollEnabled={!isScrollLocked}
         // Pages follow the panel's drag frame by frame: keep only the current one and its neighbours.
         windowSize={3}
         bounces={false}

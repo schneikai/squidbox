@@ -41,7 +41,8 @@ const DOUBLE_TAP_DELAY_MS = 250;
  * and `isOpen()`), a mostly vertical one-finger drag at 1× goes to it instead, zoomable or not (a
  * video), when `canStart` agrees. While that drag runs or `isOpen()`, pinch and double tap don't
  * zoom, and a double tap counts as a tap. `pagerGesture` (the list paging through the assets)
- * waits for the pan: a sideways swipe at 1× fails it at once, a vertical drag holds the pager.
+ * waits for the pan: a sideways swipe at 1× fails it at once, a vertical drag or a zoomed pan holds
+ * the pager. That decision reads `scale` on the UI thread, so it holds even while JS is busy.
  */
 export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomChange, verticalDrag, pagerGesture }) {
   const size = useSharedValue({ width: 0, height: 0 });
