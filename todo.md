@@ -122,8 +122,11 @@ error, and could be made from the cloud original.
 ## Design
 
 - **Asset detail background:** a blurred background in the asset's colors.
-- **Toolbar:** no outer pill when it holds a single button. Consider moving the settings button
-  into the toolbar, in a color other than the primary purple.
+- **Toolbar:** the floating bars wrap their buttons in a glass pill with padding around them
+  (`FloatingPill`, `spacing.barPaddingY`), so a single button, above all the purple one, sits in a
+  ring and the bar is taller than its buttons. Instead the bar keeps one height and only groups
+  buttons: several sit together with a gap between them, one stands alone without the ring.
+  Consider moving the settings button into the toolbar, in a color other than the primary purple.
 - **Albums list:** a better layout for name, asset count and last posted.
 
 ## Code quality
