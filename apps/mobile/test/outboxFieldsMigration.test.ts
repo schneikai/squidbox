@@ -1,3 +1,4 @@
+import { assetCollection, mergeFields } from '@squidbox/shared';
 import Database from 'better-sqlite3';
 import { readMigrationFiles } from 'drizzle-orm/migrator';
 import { fileURLToPath } from 'node:url';
@@ -17,10 +18,11 @@ function migrate(sqlite: Database.Database, from: number, to: number) {
 }
 
 describe('migration 0011_outbox_fields', () => {
-  it('names every field of a waiting payload at its updatedAt, so it merges like a whole record', () => {
+  it('names every merge field of a waiting payload at its updatedAt, so it merges like a whole record', () => {
     const sqlite = new Database(':memory:');
     migrate(sqlite, 0, index);
-    const { notes: _notes, ...withoutNotes } = makeAssetRecord({ updatedAt: 2000 });
+    const { notes: _notes, ...rest } = makeAssetRecord({ updatedAt: 2000 });
+    const withoutNotes = { ...rest, stray: 'not a field' };
     sqlite
       .prepare(
         `INSERT INTO outbox (collection, record_id, op, payload, updated_at) VALUES ('assets', ?, 'upsert', ?, ?)`,
@@ -30,7 +32,8 @@ describe('migration 0011_outbox_fields', () => {
     migrate(sqlite, index, index + 1);
 
     const { fields } = sqlite.prepare('SELECT fields FROM outbox').get() as { fields: string };
-    const expected = Object.keys(withoutNotes).filter((key) => !['id', 'createdAt', 'updatedAt'].includes(key));
+    const expected = mergeFields(assetCollection).filter((key) => key in withoutNotes);
+    expect(expected).not.toContain('notes');
     expect(JSON.parse(fields)).toEqual(Object.fromEntries(expected.map((key) => [key, 2000])));
   });
 });
