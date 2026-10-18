@@ -10,14 +10,14 @@ const THUMBNAIL_SIZE = scale(72);
 
 /**
  * A row of a list of albums or posts, as Apple Photos lists albums: `asset`'s thumbnail
- * (CoverImage), a one-line `title` (the album's name, the post's caption) over a smaller grey
- * `subtitle` (its count, when it was posted), and a separator inset to the text unless `isLast`.
- * The whole row is pressable.
+ * (CoverImage; none without `hasThumbnail`), a one-line `title` (the album's name, the post's
+ * caption) over a smaller grey `subtitle` (its count, when it was posted), and a separator inset to
+ * the text unless `isLast`. The whole row is pressable.
  */
-export default function ThumbnailRow({ asset, title, subtitle, isLast, onPress }) {
+export default function ThumbnailRow({ asset, hasThumbnail = true, title, subtitle, isLast, onPress }) {
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.6}>
-      <CoverImage asset={asset} style={styles.thumbnail} />
+      {hasThumbnail && <CoverImage asset={asset} style={styles.thumbnail} />}
       <View style={styles.text}>
         <View style={styles.labels}>
           <Text style={listTextStyles.title} numberOfLines={1}>

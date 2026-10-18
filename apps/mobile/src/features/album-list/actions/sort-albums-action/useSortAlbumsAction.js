@@ -1,4 +1,5 @@
 import sortAlbumsByCustomOrder from './sortAlbumsByCustomOrder';
+import sortAlbumsByLastPostedDesc from './sortAlbumsByLastPostedDesc';
 
 import useSort from '@/hooks/useSort';
 
@@ -23,11 +24,7 @@ const sortOptions = {
     if (b.lastPostedAt === null) return 1;
     return a.lastPostedAt - b.lastPostedAt;
   },
-  'lastPostedAt:desc': (a, b) => {
-    if (a.lastPostedAt === null) return 1;
-    if (b.lastPostedAt === null) return -1;
-    return b.lastPostedAt - a.lastPostedAt;
-  },
+  'lastPostedAt:desc': sortAlbumsByLastPostedDesc,
 };
 
 export default function useSortAlbumsAction({ afterSort } = {}) {

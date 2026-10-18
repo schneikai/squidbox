@@ -51,6 +51,17 @@ describe('readLastPosted', () => {
     });
   });
 
+  it('skips an album the asset was removed from and a deleted album', async () => {
+    await albumEdges.add(db, 'beach', ['asset-0', 'asset-1'], newId);
+    await albumEdges.add(db, 'city', ['asset-0', 'asset-2'], newId);
+    await createPost(db, { postedAt: 30 }, ['asset-1']);
+    await createPost(db, { postedAt: 20 }, ['asset-2']);
+    await albumEdges.remove(db, 'beach', ['asset-0']);
+    expect((await readLastPosted(db, 'asset-0')).album).toEqual({ name: 'City', lastPostedAt: 20 });
+    await albums.update(db, 'city', { deletedAt: 5 });
+    expect((await readLastPosted(db, 'asset-0')).album).toBeNull();
+  });
+
   it('reads no album for an asset in none', async () => {
     await createPost(db, { postedAt: 10 }, ['asset-0']);
     expect(await readLastPosted(db, 'asset-0')).toEqual({ lastPostedAt: 10, album: null });

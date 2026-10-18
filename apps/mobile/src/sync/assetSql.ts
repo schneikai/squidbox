@@ -69,6 +69,12 @@ export function liveAlbumAssetIds(albumId: string | SQL): SQL {
   return sql`(select asset_id from album_assets where album_id = ${albumId} and deleted_at is null)`;
 }
 
+/** When any of an album's assets was last posted, through its live edges: `null` for never. */
+export function albumLastPostedAt(albumId: string | SQL): SQL<number | null> {
+  return sql`(select max(p.posted_at) from post_assets pe join posts p on p.id = pe.post_id and p.deleted_at is null
+    where pe.asset_id in ${liveAlbumAssetIds(albumId)} and pe.deleted_at is null)`;
+}
+
 // When the asset was last posted: SQLite orders NULL (never posted) first ascending and last
 // descending, as the grid always did. A read under a lastPostedAt sort selects it as
 // `last_posted_at`, and the order names that column, so SQLite runs the subquery once per row (an

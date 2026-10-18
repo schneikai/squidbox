@@ -4,7 +4,7 @@ import { Modal, View, Text, StyleSheet, TouchableOpacity, PanResponder, Activity
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
 
 import lastPostedText from './lastPostedText';
-import readLastPosted from './readLastPosted';
+import readLastPosted, { lastPostedTables } from './readLastPosted';
 import useRandomSuggestions from './useRandomSuggestions';
 
 import AssetImage from '@/components/AssetImage';
@@ -19,6 +19,7 @@ import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import SuperPressable from '@/components/SuperPressable';
 import Textarea from '@/components/Textarea';
+import ThumbnailRow from '@/components/ThumbnailRow';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { MIN_REREAD_INTERVAL, SCREEN_PADDING } from '@/constants';
 import ModelSelectorButton from '@/features/ai-suggestions/ModelSelectorButton';
@@ -33,8 +34,7 @@ import resolveModel from '@/features/ai-suggestions/resolveModel';
 import sampleReferencePosts from '@/features/ai-suggestions/sampleReferencePosts';
 import sendAiMessageAsync from '@/features/ai-suggestions/sendAiMessageAsync';
 import assetQuery from '@/features/asset-list/assetQuery';
-import { colors, motion, radii, scale, spacing, typography } from '@/styles/designTokens';
-import listTextStyles from '@/styles/listTextStyles';
+import { colors, motion, radii, scale, typography } from '@/styles/designTokens';
 import { getDb, schema } from '@/sync/db/client';
 import { readPostTexts } from '@/sync/postsRepository';
 import { readByIds } from '@/sync/readByIds';
@@ -47,7 +47,6 @@ const SWIPE_THRESHOLD = 50;
 const PROMPT_FOCUS_DELAY_MS = 100;
 const POOL_SIZE = 50;
 const NO_POOL = { ids: [], rows: [] };
-const LAST_POSTED_TABLES = [schema.assets, schema.albums, schema.albumAssets, schema.posts, schema.postAssets];
 // Swapping cards is a quick fade-through: the old one exits, the new one enters at the fast duration.
 const SWAP_IN = { ...motion.enter, duration: motion.duration.fast };
 
@@ -353,9 +352,7 @@ export default function RandomSuggestionsScreen({ route, navigation }) {
       </Card>
 
       {currentAsset && (
-        <Animated.View style={mediaAnimStyle}>
-          <LastPosted assetId={currentAsset.id} onPress={handleOpenAsset} />
-        </Animated.View>
+        <LastPosted assetId={currentAsset.id} onPress={handleOpenAsset} style={[styles.lastPosted, mediaAnimStyle]} />
       )}
 
       {/* Caption card */}
@@ -439,27 +436,17 @@ function FilterPill({ label, active, onPress }) {
 }
 
 // When the asset and its album were last posted, opening the asset's screen on a press.
-function LastPosted({ assetId, onPress }) {
-  const lastPosted = useLiveQuery((db) => readLastPosted(db, assetId), LAST_POSTED_TABLES, [assetId], {
+function LastPosted({ assetId, onPress, style }) {
+  const lastPosted = useLiveQuery((db) => readLastPosted(db, assetId), lastPostedTables, [assetId], {
     minInterval: MIN_REREAD_INTERVAL,
   });
 
-  const text = lastPosted && lastPostedText(lastPosted);
-
-  if (!text) return null;
+  if (!lastPosted) return null;
 
   return (
-    <TouchableOpacity style={styles.lastPosted} onPress={onPress} activeOpacity={0.6}>
-      <View style={styles.lastPostedText}>
-        <Text style={listTextStyles.title} numberOfLines={1}>
-          {text.title}
-        </Text>
-        <Text style={listTextStyles.subtitle} numberOfLines={1}>
-          {text.subtitle}
-        </Text>
-      </View>
-      <Icon name="chevron-right" size={spacing.iconSizeSmall} color={colors.textTertiary} />
-    </TouchableOpacity>
+    <Animated.View style={style}>
+      <ThumbnailRow {...lastPostedText(lastPosted)} hasThumbnail={false} isLast onPress={onPress} />
+    </Animated.View>
   );
 }
 
@@ -540,12 +527,6 @@ const styles = StyleSheet.create({
   // --- Last posted ---
   lastPosted: {
     marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  lastPostedText: {
-    flex: 1,
   },
 
   hidden: {

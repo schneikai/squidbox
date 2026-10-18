@@ -3,11 +3,11 @@ import { alias, QueryBuilder } from 'drizzle-orm/sqlite-core';
 
 import {
   a,
+  albumLastPostedAt,
   assetOrder,
   assetScopeWhere,
   fromScope,
   lastPostedAt,
-  liveAlbumAssetIds,
   sortsByLastPostedAt,
 } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
@@ -59,9 +59,7 @@ export default function albumQuery({ scope = 'all', assetSort = 'createdAt:desc'
     when al.sort_order = 'custom' then ${firstOf(thisAlbum, 'custom')}
     else ${firstOf(thisAlbum, assetSort)}
   end`;
-  const newestPostedAt = sql`case when al.smart_album_type is null then (select max(p.posted_at) from post_assets pe
-    join posts p on p.id = pe.post_id and p.deleted_at is null
-    where pe.asset_id in ${liveAlbumAssetIds(thisAlbum.albumId)} and pe.deleted_at is null) end`;
+  const newestPostedAt = sql`case when al.smart_album_type is null then ${albumLastPostedAt(thisAlbum.albumId)} end`;
   const inScope =
     scope === 'all'
       ? undefined
