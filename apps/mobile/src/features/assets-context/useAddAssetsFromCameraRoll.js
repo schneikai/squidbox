@@ -1,14 +1,16 @@
 import * as MediaLibrary from 'expo-media-library';
 
 import useAssets from '@/features/assets-context/useAssets';
-import { getLibrary, openLibraryId } from '@/library/current';
+import { openLibraryId } from '@/library/current';
 import { removeAssetFiles } from '@/library/fs';
+import useLibrary from '@/library/useLibrary';
 import buildAssetAsync from '@/utils/assets/buildAssetAsync';
 import imagePickerMediaTypeToAssetMediaType from '@/utils/assets/imagePickerMediaTypeToAssetMediaType';
 import pickImageFromMediaLibrary from '@/utils/media-library/pickImageFromMediaLibrary';
 
 export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFinish }) {
   const { addAssetsAsync } = useAssets();
+  const { paths: library } = useLibrary();
 
   async function addAssetsFromCameraRollAsync() {
     try {
@@ -24,9 +26,8 @@ export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFini
         result.isFavorite = assetInfo?.isFavorite ?? false;
       }
 
-      // The files go into the library open now; the records must too (a sign-in meanwhile would
+      // The files go into this screen's library; the records must too (a sign-in meanwhile would
       // open another one), else the files are removed again.
-      const library = getLibrary();
       const newAssets = [];
       try {
         for (const result of imagePickerResults) {

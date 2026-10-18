@@ -6,6 +6,7 @@ import AssetThumbnailLoaderContext from './AssetThumbnailLoaderContext';
 import createThumbnailQueue from './createThumbnailQueue';
 
 import useCloud from '@/features/cloud/useCloud';
+import useLibrary from '@/library/useLibrary';
 
 // Report the first handful of thumbnail failures per session, then go quiet — enough to diagnose a
 // systemic problem (e.g. missing S3 objects, auth) without flooding Sentry during a launch storm.
@@ -21,9 +22,15 @@ function reportFailure(error) {
 // Lazy, bounded thumbnail loader: AssetImage asks it for the cells in view (see createThumbnailQueue).
 export default function AssetThumbnailLoaderProvider({ children }) {
   const { isAuthenticated, preloadAssetThumbnailsAsync } = useCloud();
+  const { paths } = useLibrary();
   // Made once and never set: requesting a thumbnail re-renders nothing (a grid can request hundreds
   // of cells while scrolling).
-  const [queue] = useState(() => createThumbnailQueue({ load: preloadAssetThumbnailsAsync, onError: reportFailure }));
+  const [queue] = useState(() =>
+    createThumbnailQueue({
+      load: (assets, signal) => preloadAssetThumbnailsAsync(assets, paths, signal),
+      onError: reportFailure,
+    }),
+  );
 
   useEffect(() => queue.setEnabled(isAuthenticated), [queue, isAuthenticated]);
 

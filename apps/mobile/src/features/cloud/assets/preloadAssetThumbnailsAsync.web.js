@@ -3,7 +3,7 @@ import getAssetFileDownloadUrlsAsync from '@/utils/cloud-api/assets/getAssetFile
 
 // Like the native one, with presigned URLs in place of files: resolves the names it has afterwards.
 // Nothing is written once `signal` aborts (closing the library cleared webThumbnailUrls).
-export default async function preloadAssetThumbnailsAsync(assets, signal) {
+export default async function preloadAssetThumbnailsAsync(assets, library, signal) {
   const names = assets.map((asset) => asset.thumbnailFilename);
   const missing = names.filter((name) => !webThumbnailUrls.has(name));
   if (missing.length > 0) {

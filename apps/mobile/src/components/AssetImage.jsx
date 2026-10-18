@@ -5,6 +5,7 @@ import Icon from '@/components/Icon';
 import useAppSettings from '@/features/app-settings/useAppSettings';
 import useAssetThumbnailLoader from '@/features/asset-thumbnail-loader/useAssetThumbnailLoader';
 import useCloud from '@/features/cloud/useCloud';
+import useLibrary from '@/library/useLibrary';
 import { colors, motion, spacing } from '@/styles/designTokens';
 import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';
 import getAssetThumbnailStatusAsync from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
@@ -29,6 +30,7 @@ export default function AssetImage({
   const [loadedUri, setLoadedUri] = useState(null);
   const { loadThumbnail } = useAssetThumbnailLoader();
   const { isAuthenticated } = useCloud();
+  const { paths: library } = useLibrary();
   const { thumbnailStyle } = useAppSettings();
   // A recycled cell must not show the previous asset's status or picture.
   const current = found?.filename === asset.thumbnailFilename ? found : null;
@@ -41,11 +43,15 @@ export default function AssetImage({
     let withdraw;
 
     function showLocal() {
-      setFound({ filename, status: 'local', uri: getAssetThumbnailUri(filename) });
+      setFound({ filename, status: 'local', uri: getAssetThumbnailUri(filename, library) });
     }
 
     (async () => {
-      const status = await getAssetThumbnailStatusAsync(asset, { isAuthenticated, signal: controller.signal });
+      const status = await getAssetThumbnailStatusAsync(asset, {
+        isAuthenticated,
+        library,
+        signal: controller.signal,
+      });
       if (controller.signal.aborted) return;
       if (status === 'local') {
         showLocal();
@@ -66,7 +72,7 @@ export default function AssetImage({
       controller.abort();
       withdraw?.();
     };
-  }, [asset.thumbnailFilename, asset.isThumbnailSynced, isAuthenticated, isLocal, loadThumbnail]);
+  }, [asset.thumbnailFilename, asset.isThumbnailSynced, isAuthenticated, isLocal, library, loadThumbnail]);
 
   const thumbnailUri = isLocal ? current.uri : null;
   const hasPicture = !!thumbnailUri && loadedUri === thumbnailUri;

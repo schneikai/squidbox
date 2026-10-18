@@ -40,6 +40,7 @@ const { default: preloadAssetThumbnailsAsync } =
 const { default: preloadOnWeb } = await import('../src/features/cloud/assets/preloadAssetThumbnailsAsync.web');
 const { default: webThumbnailUrls } = await import('../src/utils/assets/thumbnails/webThumbnailUrls');
 
+const library = libraryPaths('abc');
 const thumbnails = 'file:///documents/libraries/abc/thumbnails/';
 const assetsOf = (...names: string[]) => names.map((thumbnailFilename) => ({ thumbnailFilename }));
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -72,7 +73,7 @@ describe('preloadAssetThumbnailsAsync', () => {
       'undeletable.jpg',
       ...['a', 'b', 'c', 'd'].map((n) => `${n}.jpg`),
     ];
-    const result = preloadAssetThumbnailsAsync(assetsOf(...names));
+    const result = preloadAssetThumbnailsAsync(assetsOf(...names), library);
     const outcome = (name: string) =>
       name === 'offline.jpg' ? new Error('offline') : name.match(/gone|undeletable/) ? 404 : 200;
 
@@ -85,6 +86,7 @@ describe('preloadAssetThumbnailsAsync', () => {
     const controller = new AbortController();
     const result = preloadAssetThumbnailsAsync(
       assetsOf('a.jpg', 'b.jpg', 'c.jpg', 'd.jpg', 'e.jpg'),
+      library,
       controller.signal,
     );
     await flush();
@@ -95,10 +97,10 @@ describe('preloadAssetThumbnailsAsync', () => {
 
   it('on web, keeps the URLs it got, and none once aborted', async () => {
     webThumbnailUrls.set('here.jpg', 'url');
-    expect(await preloadOnWeb(assetsOf('here.jpg', 'new.jpg'))).toEqual(new Set(['here.jpg', 'new.jpg']));
+    expect(await preloadOnWeb(assetsOf('here.jpg', 'new.jpg'), library)).toEqual(new Set(['here.jpg', 'new.jpg']));
 
     const controller = new AbortController();
-    const result = preloadOnWeb(assetsOf('late.jpg'), controller.signal);
+    const result = preloadOnWeb(assetsOf('late.jpg'), library, controller.signal);
     controller.abort();
     expect(await result).toEqual(new Set());
     expect(webThumbnailUrls.has('late.jpg')).toBe(false);

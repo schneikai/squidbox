@@ -3,9 +3,9 @@ import { useState, useRef, useMemo } from 'react';
 import CloudSyncContext from './CloudSyncContext';
 
 import useCloud from '@/features/cloud/useCloud';
-import { getLibrary } from '@/library/current';
 import { currentSyncIdentity } from '@/library/currentSyncIdentity';
 import { removeAssetFiles } from '@/library/fs';
+import useLibrary from '@/library/useLibrary';
 import { isBackupRunning, runBackup } from '@/sync/backupRun';
 import { getDb } from '@/sync/db/client';
 import ensureAssetThumbnailAsync from '@/utils/assets/thumbnails/ensureAssetThumbnailAsync';
@@ -19,6 +19,7 @@ const EMA_TAU = 10;
 // its stop).
 export default function CloudSyncProvider({ children }) {
   const { isAuthenticated, uploadAssetFileAsync, uploadAssetThumbnailAsync } = useCloud();
+  const { paths } = useLibrary();
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState(null);
   const [syncProgressMessage, setSyncProgressMessage] = useState(null);
@@ -93,7 +94,7 @@ export default function CloudSyncProvider({ children }) {
     const identity = isAuthenticated && !isBackupRunning() ? currentSyncIdentity() : null;
     if (!identity) return;
     const run = runBackup(getDb(), {
-      uploads: uploadsFor(identity, getLibrary()),
+      uploads: uploadsFor(identity, paths),
       onProgress: ({ index, total }) => setSyncMessage(`Syncing ${index + 1} of ${total}`),
     });
     if (!run) return;

@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 
 import AssetsContext from './AssetsContext';
 
-import { getLibrary } from '@/library/current';
 import { removeAssetFiles } from '@/library/fs';
+import useLibrary from '@/library/useLibrary';
 import * as repo from '@/sync/assetsRepository';
 import { getDb } from '@/sync/db/client';
 import { toAssetRecord, toAssetChanges } from '@/sync/legacyAsset';
@@ -13,6 +13,7 @@ import { writeInBatches } from '@/sync/writeInBatches';
 // The asset writes: each goes through the repository and then starts a sync. Screens read assets
 // through their own live queries (assetQuery, readByIds).
 export default function AssetsProvider({ children }) {
+  const { paths } = useLibrary();
   const value = useMemo(
     () => ({
       addAssetsAsync: async (list) => {
@@ -57,12 +58,11 @@ export default function AssetsProvider({ children }) {
       },
       // Gone for good: this device's files now, the cloud's after the push (sync-design §7a).
       deleteAssetsPermanently: async (assetIds, batchOptions) => {
-        const library = getLibrary();
         try {
           return await writeInBatches(
             assetIds,
             async (ids) => {
-              await repo.purgeAssets(getDb(), ids, (files) => removeAssetFiles(files, library));
+              await repo.purgeAssets(getDb(), ids, (files) => removeAssetFiles(files, paths));
             },
             batchOptions,
           );
@@ -71,7 +71,7 @@ export default function AssetsProvider({ children }) {
         }
       },
     }),
-    [],
+    [paths],
   );
 
   return <AssetsContext.Provider value={value}>{children}</AssetsContext.Provider>;

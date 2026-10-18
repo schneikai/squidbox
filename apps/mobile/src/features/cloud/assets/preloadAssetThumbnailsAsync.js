@@ -1,18 +1,15 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
-import { getLibrary } from '@/library/current';
 import getAssetThumbnailUri from '@/utils/assets/thumbnails/getAssetThumbnailUri';
 import hasThumbnailAsync from '@/utils/assets/thumbnails/hasThumbnailAsync';
 import getAssetFileDownloadUrlsAsync from '@/utils/cloud-api/assets/getAssetFileDownloadUrlsAsync';
 
 const DOWNLOADS_AT_ONCE = 3; // per batch; the loader runs two
 
-// Downloads the thumbnails of `assets` not on the device yet and resolves the names of those it has
+// Downloads the thumbnails of `assets` not in `library` yet and resolves the names of those it has
 // afterwards. Throws when it can't ask for any (the presign request failed). Once `signal` aborts, no
 // new download starts.
-export default async function preloadAssetThumbnailsAsync(assets, signal) {
-  // The downloads land in the library open now, however long the network takes.
-  const library = getLibrary();
+export default async function preloadAssetThumbnailsAsync(assets, library, signal) {
   const names = assets.map((asset) => asset.thumbnailFilename);
   const isOnDevice = await Promise.all(names.map((name) => hasThumbnailAsync(name, library)));
   const available = new Set(names.filter((_, index) => isOnDevice[index]));

@@ -7,10 +7,10 @@ let hasWarned = false;
 // again from the original if need be; on web, already fetched), 'remote' (the cloud copy), or why it
 // can't: 'notUploaded' (its device hasn't backed it up yet) or 'signedOut'. Aborting `signal` (the
 // tile left) skips a thumbnail still waiting to be made.
-export default async function getAssetThumbnailStatusAsync(asset, { isAuthenticated, signal }) {
-  if (await hasThumbnailAsync(asset.thumbnailFilename)) return 'local';
+export default async function getAssetThumbnailStatusAsync(asset, { isAuthenticated, library, signal }) {
+  if (await hasThumbnailAsync(asset.thumbnailFilename, library)) return 'local';
   if (!asset.isThumbnailSynced) {
-    const isMade = await ensureAssetThumbnailAsync(asset, { signal }).catch(warnOnce);
+    const isMade = await ensureAssetThumbnailAsync(asset, { library, signal }).catch(warnOnce);
     return isMade ? 'local' : 'notUploaded';
   }
   return isAuthenticated ? 'remote' : 'signedOut';

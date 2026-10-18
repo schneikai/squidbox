@@ -7,7 +7,7 @@ import withAssetFileAsync from './withAssetFileAsync';
 
 import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
 import useCloud from '@/features/cloud/useCloud';
-import { getLibrary } from '@/library/current';
+import useLibrary from '@/library/useLibrary';
 
 // One run at a time, app-wide: one progress ring, and a tap while it's up is ignored.
 let isRunning = false;
@@ -26,12 +26,11 @@ let isRunning = false;
 export default function useRunWithAssetFiles() {
   const { isAuthenticated } = useCloud();
   const runWithProgress = useRunWithProgress();
+  const { paths: library } = useLibrary();
 
   return async function runWithAssetFilesAsync(assets, use, { failureTitle, prepareAsync, keepDownloads = false }) {
     if (isRunning) return false;
     isRunning = true;
-    // The local copies are read from the library open now, however long the downloads take.
-    const library = getLibrary();
 
     try {
       if (await alertIfUnavailableAsync(assets, { isAuthenticated, library })) return false;

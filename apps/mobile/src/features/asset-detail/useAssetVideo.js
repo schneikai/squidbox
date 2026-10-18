@@ -3,6 +3,7 @@ import { createVideoPlayer } from 'expo-video';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import useCloud from '@/features/cloud/useCloud';
+import useLibrary from '@/library/useLibrary';
 import { MEDIA_TYPES } from '@/utils/assets/constants';
 import getAssetFileSourceAsync from '@/utils/assets/files/getAssetFileSourceAsync';
 
@@ -21,6 +22,7 @@ const URL_REUSE_MS = 30 * 60 * 1000;
  */
 export default function useAssetVideo(asset) {
   const { isAuthenticated } = useCloud();
+  const { paths: library } = useLibrary();
   const [resolved, setResolved] = useState(null);
   const [playback, setPlayback] = useState(null);
   // Cloud URLs by filename, for revisits.
@@ -49,7 +51,8 @@ export default function useAssetVideo(asset) {
       setResolved(cached);
       return () => setResolved(null);
     }
-    resolveSourceAsync({ filename, isFileSynced: isFileSyncedRef.current }, isAuthenticated).then((found) => {
+    const options = { isAuthenticated, library };
+    resolveSourceAsync({ filename, isFileSynced: isFileSyncedRef.current }, options).then((found) => {
       const entry = { assetId, ...found, resolvedAt: Date.now() };
       if (entry.isRemote) urls.set(filename, entry);
       if (!isCancelled) setResolved(entry);
@@ -58,7 +61,7 @@ export default function useAssetVideo(asset) {
       isCancelled = true;
       setResolved(null);
     };
-  }, [assetId, filename, isAuthenticated]);
+  }, [assetId, filename, isAuthenticated, library]);
 
   useEffect(() => {
     if (!uri) return;
@@ -85,9 +88,9 @@ function isFreshUrl(entry, isAuthenticated) {
   return !!entry && isAuthenticated && Date.now() - entry.resolvedAt < URL_REUSE_MS;
 }
 
-async function resolveSourceAsync(asset, isAuthenticated) {
+async function resolveSourceAsync(asset, options) {
   try {
-    return await getAssetFileSourceAsync(asset, { isAuthenticated });
+    return await getAssetFileSourceAsync(asset, options);
   } catch {
     return { status: 'error' };
   }

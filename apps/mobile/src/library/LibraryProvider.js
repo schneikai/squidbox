@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 
 import LibraryContext from './LibraryContext';
 import { bootLibrary } from './bootLibrary';
-import { openLibraryEntry, openLibraryId } from './current';
+import { getLibrary, openLibraryEntry, openLibraryId } from './current';
 import { resumeMerges } from './mergeRun';
 import { onRegistryChange } from './registry';
 import { mergeDeviceLibrary } from './sessionLibrary';
@@ -55,8 +55,16 @@ export default function LibraryProvider({ children }) {
     );
   }, [next]);
 
+  // `paths`: the open library's folders and database name. Everything below LibraryGate is keyed by
+  // the library, so paths read at render belong to that library for the component's whole life.
   const value = useMemo(
-    () => ({ library: next ? null : openLibrary, switching: next !== null, switchLibrary, booted }),
+    () => ({
+      library: next ? null : openLibrary,
+      paths: next || !openLibrary ? null : getLibrary(),
+      switching: next !== null,
+      switchLibrary,
+      booted,
+    }),
     [openLibrary, next, switchLibrary, booted],
   );
 
