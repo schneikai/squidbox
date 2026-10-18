@@ -48,6 +48,7 @@ describe('useAlbum', () => {
     const album = makeAlbumRecord({ id: 'a' });
     liveQuery.mockReturnValue(undefined);
     expect(renderUseAlbum('a')).toBeUndefined();
+    expect(renderUseAlbum(undefined)).toBeUndefined(); // no album asked for, nothing read yet
 
     liveQuery.mockReturnValue({ albumId: 'a', album });
     expect(renderUseAlbum('a')).toBe(album);

@@ -15,5 +15,5 @@ export default function useAlbum(albumId) {
     [schema.albums],
     [albumId],
   );
-  return result?.albumId === albumId ? result.album : undefined;
+  return result && result.albumId === albumId ? result.album : undefined;
 }
