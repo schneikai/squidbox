@@ -13,7 +13,7 @@ import Textarea from '@/components/Textarea';
 import { SCREEN_PADDING } from '@/constants';
 import AiChatModal from '@/features/ai-suggestions/AiChatModal';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
-import RandomSuggestionsModal from '@/features/post-random-suggestions/RandomSuggestionsModal';
+import useRandomSuggestions from '@/features/post-random-suggestions/useRandomSuggestions';
 import { colors } from '@/styles/designTokens';
 import buildPostAsset from '@/utils/posts/buildPostAsset';
 import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
@@ -31,14 +31,15 @@ export default function PostEditor({ post, navigation, onSave }) {
   const [postAssets, setPostAssets] = useState(post.postAssets);
   const [postedAt, setPostedAt] = useState(post.postedAt);
   const [showAiChat, setShowAiChat] = useState(false);
-  const [showRandomSuggestions, setShowRandomSuggestions] = useState(false);
+  const { openRandomSuggestions } = useRandomSuggestions();
 
   const data = { text, assetRefs: postAssetsToAssetRefs(postAssets), postedAt };
   const canSave = postSchema.isValidSync(data);
 
-  function handleSuggestionConfirm(asset, suggestionText) {
-    if (asset) setPostAssets([buildPostAsset(asset)]);
-    if (suggestionText) setText(suggestionText);
+  async function handleOpenSuggestions() {
+    const suggestion = await openRandomSuggestions();
+    if (suggestion?.asset) setPostAssets([buildPostAsset(suggestion.asset)]);
+    if (suggestion?.text) setText(suggestion.text);
   }
 
   // One save at a time: a second tap while the first is still writing would save the post twice.
@@ -58,11 +59,7 @@ export default function PostEditor({ post, navigation, onSave }) {
         scrollY={scrollY}
         rightSlot={
           <>
-            <IconButton
-              icon="sparkles"
-              onPress={() => setShowRandomSuggestions(true)}
-              accessibilityLabel="AI suggestions"
-            />
+            <IconButton icon="sparkles" onPress={handleOpenSuggestions} accessibilityLabel="AI suggestions" />
             {onSave && <GradientPillButton label="Save" onPress={handleSave} disabled={!canSave || isSaving} />}
           </>
         }
@@ -99,12 +96,6 @@ export default function PostEditor({ post, navigation, onSave }) {
       </Animated.ScrollView>
 
       <AiChatModal visible={showAiChat} onClose={() => setShowAiChat(false)} onSelect={setText} existingText={text} />
-
-      <RandomSuggestionsModal
-        visible={showRandomSuggestions}
-        onClose={() => setShowRandomSuggestions(false)}
-        onConfirm={handleSuggestionConfirm}
-      />
     </ModalSheet>
   );
 }

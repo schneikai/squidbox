@@ -6,6 +6,7 @@ import AssetPickerScreen from '@/features/asset-picker/AssetPickerScreen';
 import AddEditPostNavigator from '@/navigators/AddEditPostNavigator';
 import CreatePostNavigator from '@/navigators/CreatePostNavigator';
 import MainTabNavigator from '@/navigators/MainTabNavigator';
+import RandomSuggestionsNavigator from '@/navigators/RandomSuggestionsNavigator';
 import AddToAlbumScreen from '@/screens/AddToAlbumScreen';
 import AlbumScreen from '@/screens/AlbumScreen';
 import AssetScreen from '@/screens/AssetScreen';
@@ -39,6 +40,11 @@ const AddEditPostModalRoute = asModalRoute(AddEditPostNavigator);
 const AssetPickerModalRoute = asModalRoute(AssetPickerScreen);
 const AddToAlbumModalRoute = asModalRoute(AddToAlbumScreen);
 const EditAlbumNotesModalRoute = asModalRoute(EditAlbumNotesModal);
+const RandomSuggestionsModalRoute = asModalRoute(RandomSuggestionsNavigator);
+
+// One editor per params: opening the editor for another post or other assets, also from inside an
+// open editor's sheet, opens a new one on top; the same params go back to the editor that has them.
+const editorId = ({ params }) => JSON.stringify(params ?? {});
 
 export default function RootNavigator() {
   return (
@@ -48,12 +54,22 @@ export default function RootNavigator() {
     >
       <RootStack.Group screenOptions={{ presentation: 'modal' }}>
         <RootStack.Screen name="CreatePostModal" component={CreatePostModalRoute} options={{ headerShown: false }} />
-        <RootStack.Screen name="AddEditPostModal" component={AddEditPostModalRoute} options={{ headerShown: false }} />
+        <RootStack.Screen
+          name="AddEditPostModal"
+          component={AddEditPostModalRoute}
+          options={{ headerShown: false }}
+          getId={editorId}
+        />
         <RootStack.Screen name="AssetPickerModal" component={AssetPickerModalRoute} options={{ headerShown: false }} />
         <RootStack.Screen name="AddToAlbumModal" component={AddToAlbumModalRoute} options={{ headerShown: false }} />
         <RootStack.Screen
           name="EditAlbumNotesModal"
           component={EditAlbumNotesModalRoute}
+          options={{ headerShown: false }}
+        />
+        <RootStack.Screen
+          name="RandomSuggestionsModal"
+          component={RandomSuggestionsModalRoute}
           options={{ headerShown: false }}
         />
       </RootStack.Group>

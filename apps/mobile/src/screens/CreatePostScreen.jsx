@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,7 +13,7 @@ import { SCREEN_PADDING } from '@/constants';
 import PostList from '@/features/post-list/PostList';
 import PostListItem from '@/features/post-list/PostListItem';
 import postQuery from '@/features/post-list/postQuery';
-import RandomSuggestionsModal from '@/features/post-random-suggestions/RandomSuggestionsModal';
+import useRandomSuggestions from '@/features/post-random-suggestions/useRandomSuggestions';
 import usePosts from '@/features/posts-context/usePosts';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, radii, scale, typography } from '@/styles/designTokens';
@@ -30,7 +30,7 @@ export default function CreatePostScreen({ navigation }) {
   const onScroll = useAnimatedScrollHandler((e) => {
     scrollY.value = e.contentOffset.y;
   });
-  const [showRandomSuggestions, setShowRandomSuggestions] = useState(false);
+  const { openRandomSuggestions } = useRandomSuggestions();
 
   const { rows, count, loadMore } = usePagedQuery(candidates, 20);
 
@@ -45,10 +45,12 @@ export default function CreatePostScreen({ navigation }) {
     navigation.navigate('AddEditPostModal');
   }
 
-  function handleSuggestionConfirm(asset, text) {
+  async function handleOpenSuggestions() {
+    const suggestion = await openRandomSuggestions();
+    if (!suggestion) return;
     const params = {};
-    if (asset) params.assetIds = [asset.id];
-    if (text) params.text = text;
+    if (suggestion.asset) params.assetIds = [suggestion.asset.id];
+    if (suggestion.text) params.text = suggestion.text;
     navigation.navigate('AddEditPostModal', params);
   }
 
@@ -92,11 +94,7 @@ export default function CreatePostScreen({ navigation }) {
                 <Icon name="add" size={scale(22)} color={colors.textInverse} />
                 <Text style={styles.newPostText}>New Post</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.aiButton}
-                onPress={() => setShowRandomSuggestions(true)}
-                activeOpacity={0.85}
-              >
+              <TouchableOpacity style={styles.aiButton} onPress={handleOpenSuggestions} activeOpacity={0.85}>
                 <Icon name="sparkles" size={scale(22)} color={colors.textInverse} />
               </TouchableOpacity>
             </View>
@@ -128,11 +126,6 @@ export default function CreatePostScreen({ navigation }) {
             </SuperPressable>
           );
         }}
-      />
-      <RandomSuggestionsModal
-        visible={showRandomSuggestions}
-        onClose={() => setShowRandomSuggestions(false)}
-        onConfirm={handleSuggestionConfirm}
       />
     </ModalSheet>
   );

@@ -1,18 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
 import { useState, useRef, useEffect } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  PanResponder,
-  ActivityIndicator,
-  Platform,
-} from 'react-native';
-import { MenuProvider } from 'react-native-popup-menu';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, PanResponder, ActivityIndicator } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
+
+import lastPostedText from './lastPostedText';
+import readLastPosted from './readLastPosted';
+import useRandomSuggestions from './useRandomSuggestions';
 
 import AssetImage from '@/components/AssetImage';
 import Card from '@/components/Card';
@@ -40,8 +33,6 @@ import resolveModel from '@/features/ai-suggestions/resolveModel';
 import sampleReferencePosts from '@/features/ai-suggestions/sampleReferencePosts';
 import sendAiMessageAsync from '@/features/ai-suggestions/sendAiMessageAsync';
 import assetQuery from '@/features/asset-list/assetQuery';
-import lastPostedText from '@/features/post-random-suggestions/lastPostedText';
-import readLastPosted from '@/features/post-random-suggestions/readLastPosted';
 import { colors, motion, radii, scale, spacing, typography } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import { getDb, schema } from '@/sync/db/client';
@@ -60,7 +51,11 @@ const LAST_POSTED_TABLES = [schema.assets, schema.albums, schema.albumAssets, sc
 // Swapping cards is a quick fade-through: the old one exits, the new one enters at the fast duration.
 const SWAP_IN = { ...motion.enter, duration: motion.duration.fast };
 
-export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) {
+// The sheet of useRandomSuggestions: a random asset and AI captions to start a post from. Use hands
+// the shown ones to the caller; a tap on the asset opens its screen on this sheet's stack.
+export default function RandomSuggestionsScreen({ route, navigation }) {
+  const { requestId } = route.params;
+  const { finishRandomSuggestions } = useRandomSuggestions();
   const modelPickerRef = useRef(null);
   const promptInputRef = useRef(null);
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
@@ -70,7 +65,7 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
   const [showImages, setShowImages] = useState(true);
   const [showVideos, setShowVideos] = useState(true);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
-  // Asset pool: a random draw when the modal opens or a filter changes, refilled past its end (not on
+  // Asset pool: a random draw when the sheet opens or a filter changes, refilled past its end (not on
   // every library write). A draw is shown once its rows are read, so the card never goes blank; after
   // a write the rows are read again, so an asset deleted meanwhile is skipped.
   const [pool, setPool] = useState(NO_POOL);
@@ -84,43 +79,24 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
   const [textPool, setTextPool] = useState([]);
   const [textIndex, setTextIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  // The asset's screen, opened from the card, shows on the stack below this sheet, so the sheet steps
-  // aside meanwhile, keeping its state, and comes back once that screen is left.
-  const navigation = useNavigation();
-  const [isShowingAsset, setIsShowingAsset] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
 
-  // Back once the way back has finished (on iOS, presenting the sheet during it can fail); the web's
-  // stack has no transitions to wait for.
-  useEffect(() => {
-    if (!isShowingAsset) return;
-    const event = Platform.OS === 'web' ? 'focus' : 'transitionEnd';
-    return navigation.addListener(event, (e) => {
-      if (!e.data?.closing) setIsShowingAsset(false);
-    });
-  }, [navigation, isShowingAsset]);
+  // Closing the sheet without Use (the close button, a swipe down) suggests nothing.
+  useEffect(() => () => finishRandomSuggestions(requestId, null), [finishRandomSuggestions, requestId]);
 
   useEffect(() => {
     let isCancelled = false;
-    if (visible) drawPool().then((drawn) => !isCancelled && setPool(drawn));
-    else setPool(NO_POOL);
+    drawPool().then((drawn) => !isCancelled && setPool(drawn));
     setAssetIndex(0);
     return () => {
       isCancelled = true;
     };
-  }, [visible, showImages, showVideos, onlyFavorites]);
+  }, [showImages, showVideos, onlyFavorites]);
 
   useEffect(() => {
-    if (visible && textPool.length === 0) {
-      fetchTextBatch().then(setTextPool);
-    }
-    if (visible) {
-      resolveModel().then(setSelectedModel);
-    }
-    if (!visible) {
-      setTextPool([]);
-      setTextIndex(0);
-    }
-  }, [visible]);
+    fetchTextBatch().then(setTextPool);
+    resolveModel().then(setSelectedModel);
+  }, []);
 
   const mediaOpacity = useSharedValue(1);
   const mediaTranslateX = useSharedValue(0);
@@ -171,7 +147,7 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
   const assetPool = pool.ids;
   const rows = livePool?.draw === pool.ids.join() ? livePool.rows : pool.rows;
   const assets = new Map(rows.map((asset) => [asset.id, asset]));
-  // Assets deleted while the modal is open (e.g. by a sync) are skipped, not shown.
+  // Assets deleted while the sheet is open (e.g. by a sync) are skipped, not shown.
   const currentIndex = findLiveIndex(assetPool, assets, assetIndex, 1);
   const currentAsset = currentIndex >= 0 ? assets.get(assetPool[currentIndex]) : null;
   const hasOtherAssets = currentIndex >= 0 && findLiveIndex(assetPool, assets, currentIndex + 1, 1) !== currentIndex;
@@ -278,13 +254,14 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
 
   // Just this asset, not its neighbours: the screen is for a look at the suggestion's albums and posts.
   function handleOpenAsset() {
-    setIsShowingAsset(true);
     navigation.push('AssetScreen', { assetId: currentAsset.id, query: { scope: { assetId: currentAsset.id } } });
   }
 
+  // Once only: a second tap while the sheet closes would close the screen below it too.
   function handleConfirm() {
-    onConfirm(currentAsset, currentText);
-    onClose();
+    setIsClosing(true);
+    finishRandomSuggestions(requestId, { asset: currentAsset, text: currentText });
+    navigation.goBack();
   }
 
   function handlePressAll() {
@@ -303,125 +280,120 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
   }
 
   return (
-    <Modal
-      visible={visible && !isShowingAsset}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <MenuProvider skipInstanceCheck>
-        <ModalSheet style={styles.containerPadding}>
-          <ModalHeader
-            leftSlot={<ModalCloseButton onPress={onClose} />}
-            centerSlot="Suggestions"
-            rightSlot={
-              <View style={styles.headerRight}>
-                <IconMenuButton accessibilityLabel="Suggestions options">
-                  <MenuOption label={selectedModel} icon="cpu" onPress={() => modelPickerRef.current?.open()} />
-                  <MenuOption label="Edit Prompt" icon="pencil" onPress={openEditPrompt} isLast />
-                </IconMenuButton>
-                <GradientPillButton label="Use" onPress={handleConfirm} disabled={!currentAsset && !currentText} />
-              </View>
-            }
-          />
-
-          {/* Filter bar */}
-          <View style={styles.filterBar}>
-            <FilterPill label="All" active={allTypesActive} onPress={handlePressAll} />
-            <FilterPill label="Photos" active={showImages && !showVideos} onPress={handlePressImages} />
-            <FilterPill label="Videos" active={!showImages && showVideos} onPress={handlePressVideos} />
-            <FilterPill label="Favorites" active={onlyFavorites} onPress={() => setOnlyFavorites((v) => !v)} />
+    <ModalSheet style={styles.containerPadding}>
+      <ModalHeader
+        leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />}
+        centerSlot="Suggestions"
+        rightSlot={
+          <View style={styles.headerRight}>
+            <IconMenuButton accessibilityLabel="Suggestions options">
+              <MenuOption label={selectedModel} icon="cpu" onPress={() => modelPickerRef.current?.open()} />
+              <MenuOption label="Edit Prompt" icon="pencil" onPress={openEditPrompt} isLast />
+            </IconMenuButton>
+            <GradientPillButton
+              label="Use"
+              onPress={handleConfirm}
+              disabled={(!currentAsset && !currentText) || isClosing}
+            />
           </View>
+        }
+      />
 
-          {/* Media card */}
-          <Card style={styles.mediaCard} {...mediaPanHandlers}>
-            <Animated.View style={[StyleSheet.absoluteFill, mediaAnimStyle]}>
-              {currentAsset ? (
-                <SuperPressable
-                  style={StyleSheet.absoluteFill}
-                  onPress={handleOpenAsset}
-                  accessibilityRole="button"
-                  accessibilityLabel="Show details"
-                >
-                  <AssetImage asset={currentAsset} contentFit="contain" placeholderColor="transparent" />
-                  {currentAsset.mediaType === MEDIA_TYPES.VIDEO && (
-                    <View style={styles.videoBadge}>
-                      <Icon name="video" size={scale(11)} color={colors.textInverse} />
-                      {!!currentAsset.duration && (
-                        <Text style={styles.videoBadgeText}>{formatVideoDuration(currentAsset.duration)}</Text>
-                      )}
-                    </View>
+      {/* Filter bar */}
+      <View style={styles.filterBar}>
+        <FilterPill label="All" active={allTypesActive} onPress={handlePressAll} />
+        <FilterPill label="Photos" active={showImages && !showVideos} onPress={handlePressImages} />
+        <FilterPill label="Videos" active={!showImages && showVideos} onPress={handlePressVideos} />
+        <FilterPill label="Favorites" active={onlyFavorites} onPress={() => setOnlyFavorites((v) => !v)} />
+      </View>
+
+      {/* Media card */}
+      <Card style={styles.mediaCard} {...mediaPanHandlers}>
+        <Animated.View style={[StyleSheet.absoluteFill, mediaAnimStyle]}>
+          {currentAsset ? (
+            <SuperPressable
+              style={StyleSheet.absoluteFill}
+              onPress={handleOpenAsset}
+              accessibilityRole="button"
+              accessibilityLabel="Show details"
+            >
+              <AssetImage asset={currentAsset} contentFit="contain" placeholderColor="transparent" />
+              {currentAsset.mediaType === MEDIA_TYPES.VIDEO && (
+                <View style={styles.videoBadge}>
+                  <Icon name="video" size={scale(11)} color={colors.textInverse} />
+                  {!!currentAsset.duration && (
+                    <Text style={styles.videoBadgeText}>{formatVideoDuration(currentAsset.duration)}</Text>
                   )}
-                </SuperPressable>
-              ) : (
-                <EmptyState icon="images" title="No media matches these filters" style={{ flex: 1 }} />
+                </View>
               )}
-            </Animated.View>
-
-            {hasOtherAssets && (
-              <>
-                <TouchableOpacity
-                  style={[styles.arrowButton, styles.arrowLeft]}
-                  onPress={() => navigateAsset('prev')}
-                  hitSlop={8}
-                >
-                  <Icon name="chevron-left" size={scale(18)} color={colors.text} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.arrowButton, styles.arrowRight]}
-                  onPress={() => navigateAsset('next')}
-                  hitSlop={8}
-                >
-                  <Icon name="chevron-right" size={scale(18)} color={colors.text} />
-                </TouchableOpacity>
-              </>
-            )}
-          </Card>
-
-          {currentAsset && (
-            <Animated.View style={mediaAnimStyle}>
-              <LastPosted assetId={currentAsset.id} onPress={handleOpenAsset} />
-            </Animated.View>
+            </SuperPressable>
+          ) : (
+            <EmptyState icon="images" title="No media matches these filters" style={{ flex: 1 }} />
           )}
+        </Animated.View>
 
-          {/* Caption card */}
-          <Card style={styles.captionCard} {...textPanHandlers}>
-            {textPool.length > 1 && (
-              <IconButton
-                icon="chevron-left"
-                size={scale(20)}
-                color={colors.textSecondary}
-                onPress={() => navigateText('prev')}
-                accessibilityLabel="Previous suggestion"
-              />
-            )}
-            <Animated.View style={[styles.captionContent, textAnimStyle]}>
-              {isLoading ? (
-                <ActivityIndicator size="small" color={colors.textTertiary} style={styles.captionSpinner} />
-              ) : (
-                // Read-only: "Use" opens the post editor, where the caption can be edited.
-                <Text style={[styles.captionText, !currentText && styles.captionPlaceholder]}>
-                  {currentText ?? 'No captions yet. Swipe to try again.'}
-                </Text>
-              )}
-            </Animated.View>
-            {textPool.length > 1 && (
-              <IconButton
-                icon="chevron-right"
-                size={scale(20)}
-                color={colors.textSecondary}
-                onPress={() => navigateText('next')}
-                accessibilityLabel="Next suggestion"
-              />
-            )}
-          </Card>
-        </ModalSheet>
+        {hasOtherAssets && (
+          <>
+            <TouchableOpacity
+              style={[styles.arrowButton, styles.arrowLeft]}
+              onPress={() => navigateAsset('prev')}
+              hitSlop={8}
+            >
+              <Icon name="chevron-left" size={scale(18)} color={colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.arrowButton, styles.arrowRight]}
+              onPress={() => navigateAsset('next')}
+              hitSlop={8}
+            >
+              <Icon name="chevron-right" size={scale(18)} color={colors.text} />
+            </TouchableOpacity>
+          </>
+        )}
+      </Card>
 
-        {/* Hidden model picker — trigger is invisible, the picker Modal still works */}
-        <View style={styles.hidden}>
-          <ModelSelectorButton ref={modelPickerRef} onChange={setSelectedModel} />
-        </View>
-      </MenuProvider>
+      {currentAsset && (
+        <Animated.View style={mediaAnimStyle}>
+          <LastPosted assetId={currentAsset.id} onPress={handleOpenAsset} />
+        </Animated.View>
+      )}
+
+      {/* Caption card */}
+      <Card style={styles.captionCard} {...textPanHandlers}>
+        {textPool.length > 1 && (
+          <IconButton
+            icon="chevron-left"
+            size={scale(20)}
+            color={colors.textSecondary}
+            onPress={() => navigateText('prev')}
+            accessibilityLabel="Previous suggestion"
+          />
+        )}
+        <Animated.View style={[styles.captionContent, textAnimStyle]}>
+          {isLoading ? (
+            <ActivityIndicator size="small" color={colors.textTertiary} style={styles.captionSpinner} />
+          ) : (
+            // Read-only: "Use" opens the post editor, where the caption can be edited.
+            <Text style={[styles.captionText, !currentText && styles.captionPlaceholder]}>
+              {currentText ?? 'No captions yet. Swipe to try again.'}
+            </Text>
+          )}
+        </Animated.View>
+        {textPool.length > 1 && (
+          <IconButton
+            icon="chevron-right"
+            size={scale(20)}
+            color={colors.textSecondary}
+            onPress={() => navigateText('next')}
+            accessibilityLabel="Next suggestion"
+          />
+        )}
+      </Card>
+
+      {/* Hidden model picker — trigger is invisible, the picker Modal still works */}
+      <View style={styles.hidden}>
+        <ModelSelectorButton ref={modelPickerRef} onChange={setSelectedModel} />
+      </View>
 
       {/* Edit Prompt modal */}
       <Modal
@@ -450,7 +422,7 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
           </View>
         </View>
       </Modal>
-    </Modal>
+    </ModalSheet>
   );
 }
 

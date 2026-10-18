@@ -11,10 +11,8 @@ export default function MoreAction({ post, afterDelete }) {
   const navigation = useNavigation();
   const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary();
 
-  // The post editor is pushed, not navigated to: opened inside the editor's sheet, navigate would hand
-  // its params to that open editor instead of opening a new one.
   function handleEditPost() {
-    navigation.push('AddEditPostModal', { postId: post.id });
+    navigation.navigate('AddEditPostModal', { postId: post.id });
   }
 
   function handleDeletePost() {
@@ -36,7 +34,7 @@ export default function MoreAction({ post, afterDelete }) {
   }
 
   function handleRepost() {
-    navigation.push('AddEditPostModal', { rePostId: post.id });
+    navigation.navigate('AddEditPostModal', { rePostId: post.id });
   }
 
   async function handleDownloadAssets() {
