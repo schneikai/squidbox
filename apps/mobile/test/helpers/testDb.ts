@@ -66,7 +66,7 @@ function countCommits(statements: string[]): number {
   return commits;
 }
 
-function openMigrated(): Database.Database {
+export function openMigrated(): Database.Database {
   const sqlite = new Database(':memory:');
   for (const migration of readMigrationFiles({ migrationsFolder })) {
     for (const statement of migration.sql) sqlite.exec(statement);
