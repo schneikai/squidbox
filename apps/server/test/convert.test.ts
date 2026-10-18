@@ -106,9 +106,11 @@ d('legacy converter (server-side)', () => {
 
   it('is idempotent (re-run is a no-op via LWW)', async () => {
     await importLegacy(db, USER, { assets: legacyAssets });
+    const { cursor } = await pull(db, USER, { cursor: 0 });
     const again = await importLegacy(db, USER, { assets: legacyAssets });
-    // equal updatedAt → strict-> LWW skips; nothing re-applied
-    expect(again.find((r) => r.collection === 'assets')).toMatchObject({ applied: 0, skipped: 2 });
+    // equal clocks → strict-> LWW changes nothing; a replay holds, so it reports applied
+    expect(again.find((r) => r.collection === 'assets')).toMatchObject({ applied: 2, skipped: 0 });
+    expect((await pull(db, USER, { cursor })).changes.assets.records).toHaveLength(0); // nothing re-stamped
     const page = await pull(db, USER, { cursor: 0 });
     expect(page.changes.assets.records).toHaveLength(2); // no duplicates
   });

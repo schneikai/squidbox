@@ -7,48 +7,51 @@ import { fieldMergeUpdate } from '../src/sync/fieldMergeUpdate.js';
 const dialect = new PgDialect();
 const render = (query: SQL) => dialect.sqlToQuery(query).sql;
 
-const stored = (table: string, field: string) =>
-  `coalesce(("${table}"."field_clock"->>'${field}')::bigint, case when "${table}"."field_clock" is null then "${table}"."updated_at" else 0 end)`;
-const wins = (table: string, field: string) =>
-  `((excluded.field_clock->>'${field}')::bigint > ${stored(table, field)})`;
+const storedClocks = (table: string, fields: string[]) =>
+  `coalesce("${table}"."field_clock", jsonb_build_object(${fields.map((f) => `'${f}', "${table}"."updated_at"`).join(', ')}))`;
+const wins = (table: string, fields: string[], field: string) =>
+  `((excluded.field_clock->>'${field}')::bigint > coalesce((${storedClocks(table, fields)}->>'${field}')::bigint, 0))`;
 
 describe('fieldMergeUpdate', () => {
+  const albumFields = serverCollections.albums.clockedFields;
+  const albumWins = (field: string) => wins('albums', albumFields, field);
+
   it('applies each sent field whose clock is newer than the stored one, and updates only then', () => {
     const { set, setWhere } = fieldMergeUpdate(serverCollections.albums, ['name', 'isFavorite']);
-    expect(render(setWhere)).toBe(`(${wins('albums', 'name')} or ${wins('albums', 'isFavorite')})`);
-    expect(render(set.name)).toBe(`case when ${wins('albums', 'name')} then excluded."name" else "albums"."name" end`);
+    expect(render(setWhere)).toBe(`(${albumWins('name')} or ${albumWins('isFavorite')})`);
+    expect(render(set.name)).toBe(`case when ${albumWins('name')} then excluded."name" else "albums"."name" end`);
     expect(Object.keys(set).sort()).toEqual(['fieldClock', 'isFavorite', 'name', 'updatedAt']);
     expect(render(set.updatedAt)).toBe(
-      `greatest("albums"."updated_at", case when ${wins('albums', 'name')} then (excluded.field_clock->>'name')::bigint end` +
-        `, case when ${wins('albums', 'isFavorite')} then (excluded.field_clock->>'isFavorite')::bigint end)`,
+      `greatest("albums"."updated_at", case when ${albumWins('name')} then (excluded.field_clock->>'name')::bigint end` +
+        `, case when ${albumWins('isFavorite')} then (excluded.field_clock->>'isFavorite')::bigint end)`,
     );
   });
 
-  it('keeps the clocks of the fields that don’t apply, a row without clocks taking its updated_at for each', () => {
+  it('keeps the clocks of the fields that don’t apply', () => {
+    const fields = serverCollections.album_assets.clockedFields;
     const { set } = fieldMergeUpdate(serverCollections.album_assets, ['position']);
-    const fieldClock = render(set.fieldClock);
-    expect(fieldClock).toMatch(
-      /^coalesce\("album_assets"\."field_clock", jsonb_build_object\('deletedAt', "album_assets"\."updated_at", .*'position', "album_assets"\."updated_at"\)\) \|\| jsonb_strip_nulls\(/,
-    );
-    expect(fieldClock).toContain(
-      `jsonb_build_object('position', case when ${wins('album_assets', 'position')} then excluded.field_clock->'position' end))`,
+    expect(render(set.fieldClock)).toBe(
+      `${storedClocks('album_assets', fields)} || jsonb_strip_nulls(jsonb_build_object('position', ` +
+        `case when ${wins('album_assets', fields, 'position')} then excluded.field_clock->'position' end))`,
     );
   });
 
-  it('never updates a purged asset, and purges an asset that stays deleted, whatever the clock', () => {
-    const purgeOnly = fieldMergeUpdate(serverCollections.assets, ['purgedAt']);
-    expect(render(purgeOnly.setWhere)).toBe(
-      `"assets"."purged_at" is null and ((case when excluded.purged_at is null then ${wins('assets', 'purgedAt')} else "assets"."deleted_at" is not null end))`,
+  it('never updates a purged asset, and purges once, only an asset that stays deleted, with no clock', () => {
+    const fields = serverCollections.assets.clockedFields;
+    expect(fields).not.toContain('purgedAt');
+    const purge = fieldMergeUpdate(serverCollections.assets, ['deletedAt', 'purgedAt']);
+    const mergedDeletedAt = `(case when ${wins('assets', fields, 'deletedAt')} then excluded."deleted_at" else "assets"."deleted_at" end)`;
+    const appliesPurge = `(excluded."purged_at" is not null and "assets"."purged_at" is null and ${mergedDeletedAt} is not null)`;
+    expect(render(purge.setWhere)).toBe(
+      `"assets"."purged_at" is null and (${wins('assets', fields, 'deletedAt')} or ${appliesPurge})`,
     );
-    const withDelete = fieldMergeUpdate(serverCollections.assets, ['deletedAt', 'purgedAt']);
-    expect(render(withDelete.set.purgedAt)).toContain(
-      `(case when ${wins('assets', 'deletedAt')} then excluded."deleted_at" else "assets"."deleted_at" end) is not null`,
-    );
+    expect(render(purge.set.fieldClock)).not.toContain(`'purgedAt'`);
   });
 
-  it('names fields as literals, with no parameters, and updates nothing when no field is sent', () => {
+  it('names fields as literals, with no parameters, updates nothing when no field is sent, and builds once', () => {
     const { set, setWhere } = fieldMergeUpdate(serverCollections.posts, []);
     expect(render(setWhere)).toBe('false');
     for (const part of [...Object.values(set), setWhere]) expect(dialect.sqlToQuery(part).params).toEqual([]);
+    expect(fieldMergeUpdate(serverCollections.posts, [])).toBe(fieldMergeUpdate(serverCollections.posts, []));
   });
 });

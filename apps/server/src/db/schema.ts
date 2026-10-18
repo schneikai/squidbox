@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import type { FieldClocks } from '@squidbox/shared';
 import {
   pgTable,
   uuid,
@@ -51,12 +52,11 @@ export type User = typeof users.$inferSelect;
 export type RefreshToken = typeof refreshTokens.$inferSelect;
 
 // --- Syncable collections ---
-// Server-only, never on the wire: each merge field's clock, { field: epochMs } (sync-design §7). NULL
-// for a row last written before per-field merge: its fields' clocks are all its updated_at.
+// Server-only, never on the wire: each merge field's clock. NULL for a row last written before
+// per-field merge, whose fields all take its updated_at (sync-design §7).
 function fieldClock() {
-  return jsonb('field_clock').$type<Record<string, number>>();
+  return jsonb('field_clock').$type<FieldClocks>();
 }
-
 
 // `assets` — asset metadata (sync-design §10). Composite PK (user_id, id): id is
 // client-generated, so a plain-id PK would let a colliding uuid touch another tenant's row

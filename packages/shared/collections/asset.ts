@@ -34,6 +34,7 @@ export const assetCollection = defineCollection({
   },
   // isSynced is derived from the other two, so they merge as one (sync-design §7).
   fieldGroups: [['isFileSynced', 'isThumbnailSynced', 'isSynced']],
+  finalField: 'purgedAt',
 });
 
 export type AssetRecord = z.infer<typeof assetCollection.schema>;

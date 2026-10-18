@@ -11,30 +11,27 @@ import {
 } from '@squidbox/shared';
 import { assets, albums, posts, albumAssets, postAssets } from '../db/schema.js';
 
-// Server-side view of a syncable collection: its Drizzle table + the shared Zod schema, plus
-// the set of columns to update on an LWW upsert (all synced fields except the PK `id` and the
-// immutable `createdAt`) and the fields that merge one by one (those but `updatedAt`). Derived
-// from the descriptor so it stays in lockstep with the contract.
+// Server-side view of a syncable collection: its Drizzle table + the shared Zod schema, the fields a
+// push may change (mergeFields), those of them merged by clock, and the write-once one (sync-design
+// §7). Derived from the descriptor so it stays in lockstep with the contract.
 export interface ServerCollection {
   name: string;
   table: PgTable;
   schema: z.ZodObject<z.ZodRawShape>;
-  updateColumns: string[];
   mergeFields: string[];
-}
-
-function updatableColumns(schema: z.ZodObject<z.ZodRawShape>): string[] {
-  return Object.keys(schema.shape).filter((k) => k !== 'id' && k !== 'createdAt');
+  clockedFields: string[];
+  finalField?: string;
 }
 
 function serverCollection(table: PgTable, descriptor: CollectionDescriptor): ServerCollection {
-  const schema = descriptor.schema as z.ZodObject<z.ZodRawShape>;
+  const fields = mergeFields(descriptor);
   return {
     name: descriptor.name,
     table,
-    schema,
-    updateColumns: updatableColumns(schema),
-    mergeFields: mergeFields(descriptor),
+    schema: descriptor.schema as z.ZodObject<z.ZodRawShape>,
+    mergeFields: fields,
+    clockedFields: fields.filter((field) => field !== descriptor.finalField),
+    finalField: descriptor.finalField,
   };
 }
 

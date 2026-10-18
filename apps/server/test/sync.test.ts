@@ -246,9 +246,13 @@ d('sync engine (Postgres)', () => {
     await push(db, USER_A, [mut(r)]);
     await push(db, USER_A, [mut({ ...r, updatedAt: 4000, notes: 'edited in the Deleted album' })]);
 
-    // The purge was made before that edit, on a device that hadn't seen it: it still wins.
+    // The purge was made before that edit, on a device that hadn't seen it: it still applies, and
+    // the edit's newer notes stay, so the push reports the merged record.
     const purged = { ...r, updatedAt: 3000, purgedAt: 3000 };
-    expect((await push(db, USER_A, [mut(purged)]))[0].status).toBe('applied');
+    expect((await push(db, USER_A, [mut(purged)]))[0]).toMatchObject({
+      status: 'skipped-lww',
+      current: { purgedAt: 3000, notes: 'edited in the Deleted album' },
+    });
 
     // A stale device's newer restore, an older app that doesn't send purgedAt, or a newer purge: none applies.
     const restore = await push(db, USER_A, [mut({ ...r, updatedAt: 9000, deletedAt: null, purgedAt: null })]);
@@ -272,9 +276,13 @@ d('sync engine (Postgres)', () => {
     const purge = await push(db, USER_A, [mut({ ...r, updatedAt: 3000, purgedAt: 3000 })]); // device A, offline
     expect(purge[0]).toMatchObject({ status: 'skipped-lww', current: { deletedAt: null, purgedAt: null } });
 
-    // Once it's in the Deleted album again, a purge applies, even one older than that delete.
+    // Once it's in the Deleted album again, a purge applies, even one older than that delete (whose
+    // newer deletedAt stays).
     await push(db, USER_A, [mut({ ...r, updatedAt: 5000, deletedAt: 5000 })]);
-    expect((await push(db, USER_A, [mut({ ...r, updatedAt: 3000, purgedAt: 3000 })]))[0].status).toBe('applied');
+    expect((await push(db, USER_A, [mut({ ...r, updatedAt: 3000, purgedAt: 3000 })]))[0]).toMatchObject({
+      status: 'skipped-lww',
+      current: { purgedAt: 3000, deletedAt: 5000 },
+    });
   });
 
   describe('S3 files of purged assets', () => {
@@ -519,8 +527,8 @@ d('sync engine (Postgres)', () => {
     await push(db, USER_A, [mut(r)]);
     const seq1 = await serverSeqOf(USER_A, r.id);
 
-    const replay = await push(db, USER_A, [mut(r)]); // identical, equal updatedAt
-    expect(replay[0].status).toBe('skipped-lww');
+    const replay = await push(db, USER_A, [mut(r)]); // identical, equal updatedAt: it holds
+    expect(replay[0].status).toBe('applied');
     const seq2 = await serverSeqOf(USER_A, r.id);
     expect(seq2).toBe(seq1); // NOT re-stamped → no sync amplification
   });

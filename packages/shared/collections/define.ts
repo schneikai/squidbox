@@ -28,6 +28,8 @@ export interface CollectionDescriptor<
   localOnly: L;
   /** Synced fields that change together: an edit of one sends the whole group with one clock. */
   fieldGroups: readonly (readonly string[])[];
+  /** A write-once field set only on a deleted record, which it freezes (e.g. purgedAt, sync-design §7). */
+  finalField?: string;
 }
 
 /** Define a sync collection once — the single source of truth shared by app and server. */
@@ -36,11 +38,13 @@ export function defineCollection<S extends z.ZodTypeAny, L extends z.ZodRawShape
   schema: S;
   localOnly?: L;
   fieldGroups?: readonly (readonly string[])[];
+  finalField?: string;
 }): CollectionDescriptor<S, L> {
   return {
     name: config.name,
     schema: config.schema,
     localOnly: (config.localOnly ?? {}) as L,
     fieldGroups: config.fieldGroups ?? [],
+    finalField: config.finalField,
   };
 }

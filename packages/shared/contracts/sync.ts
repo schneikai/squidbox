@@ -20,12 +20,16 @@ export const pullResponseSchema = z.object({
 export type PullResponse = z.infer<typeof pullResponseSchema>;
 
 // --- Push ---
+// Each changed field's clock, { field: epochMs }.
+const fieldClocksSchema = z.record(z.string(), timestampSchema);
+export type FieldClocks = z.infer<typeof fieldClocksSchema>;
+
 export const pushMutationSchema = z.object({
   collection: z.string(),
   record: syncRecord, // the whole record, validated as a whole
-  // The fields this edit changed, each with its clock: the server merges only these, field by field
-  // (sync-design §6). Without it the push is a whole-record upsert, as older apps send it.
-  fields: z.record(z.string(), timestampSchema).optional(),
+  // The fields this edit changed, each with its clock, merged field by field (sync-design §6).
+  // Without it (older apps), every field the record carries counts as changed at its updatedAt.
+  fields: fieldClocksSchema.optional(),
 });
 export type PushMutation = z.infer<typeof pushMutationSchema>;
 
