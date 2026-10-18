@@ -17,7 +17,7 @@ import useHaptics from '@/hooks/useHaptics';
 // decides whether the drag adds or removes (select vs deselect).
 //
 // Near the top/bottom edge the list auto-scrolls (useEdgeAutoScroll). `layout`: the grid's cells,
-// see gridSlotOrigin.
+// see gridSlotOrigin. `locksSwipeBack: false` for a grid that is a sheet's own screen, see below.
 
 const LONG_PRESS_MS = 150; // hold before selecting starts (keeps normal flicks scrolling)
 
@@ -30,15 +30,19 @@ export default function useDragSelect({
   scrollY,
   selectedIdsRef,
   onSelect,
+  locksSwipeBack = true,
 }) {
   const navigation = useNavigation();
   const haptics = useHaptics();
 
   // A drag can start in the grid's first column, where iOS's swipe-back gesture also starts. Turn
-  // swipe-back off while drag-select is on, so the drag selects instead of leaving the screen.
+  // swipe-back off while drag-select is on, so the drag selects instead of leaving the screen. A
+  // sheet's own screen has no swipe-back, and there the option would stop the swipe down that closes it.
   useEffect(() => {
-    navigation.setOptions({ gestureEnabled: !enabled });
-  }, [navigation, enabled]);
+    if (!enabled || !locksSwipeBack) return;
+    navigation.setOptions({ gestureEnabled: false });
+    return () => navigation.setOptions({ gestureEnabled: true });
+  }, [navigation, enabled, locksSwipeBack]);
 
   const baseSelectedRef = useRef([]);
   const anchorIndexRef = useRef(-1);

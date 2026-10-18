@@ -15,6 +15,7 @@ export default function SortableAssetGrid({
   selectedAssetIds,
   selectAssets,
   dragSelectEnabled,
+  dragSelectLocksSwipeBack,
   reorderEnabled,
   onReorder,
   onPeek,
@@ -33,6 +34,7 @@ export default function SortableAssetGrid({
       listRef={listRef}
       onScroll={onScroll}
       dragSelectEnabled={dragSelectEnabled}
+      dragSelectLocksSwipeBack={dragSelectLocksSwipeBack}
       selectedIds={selectedAssetIds}
       onSelect={selectAssets}
       reorderEnabled={reorderEnabled}

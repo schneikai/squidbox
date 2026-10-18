@@ -22,6 +22,7 @@ export default function AssetList({
   onScroll,
   scrollY,
   dragSelectEnabled = false,
+  dragSelectLocksSwipeBack,
   selectedAssetIds,
   selectAssets,
 }) {
@@ -55,6 +56,7 @@ export default function AssetList({
     scrollY: effectiveScrollY,
     selectedIdsRef,
     onSelect: selectAssets,
+    locksSwipeBack: dragSelectLocksSwipeBack,
   });
 
   const renderItem = useCallback(

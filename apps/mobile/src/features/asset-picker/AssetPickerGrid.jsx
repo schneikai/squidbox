@@ -41,6 +41,7 @@ export default function AssetPickerGrid({ scope, excludedAssetIds, selection, on
         onScroll={onScroll}
         scrollY={scrollY}
         isSelectMode
+        isSheet
         selectedAssetIds={selection.selectedAssetIds}
         isAssetSelected={selection.isAssetSelected}
         selectAssets={selection.selectAssets}

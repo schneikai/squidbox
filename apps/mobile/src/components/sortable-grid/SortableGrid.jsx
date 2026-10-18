@@ -42,6 +42,7 @@ export default function SortableGrid({
   listRef,
   onScroll,
   dragSelectEnabled = false,
+  dragSelectLocksSwipeBack,
   selectedIds,
   onSelect,
   reorderEnabled = false,
@@ -157,6 +158,7 @@ export default function SortableGrid({
     scrollY,
     selectedIdsRef,
     onSelect,
+    locksSwipeBack: dragSelectLocksSwipeBack,
   });
 
   const dragReorder = useDragReorder({
