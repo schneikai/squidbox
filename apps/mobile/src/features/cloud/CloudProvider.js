@@ -2,7 +2,6 @@ import { useMemo, useSyncExternalStore } from 'react';
 import { Alert } from 'react-native';
 
 import CloudContext from './CloudContext';
-import downloadAssetFileAsync from './assets/downloadAssetFileAsync';
 import preloadAssetThumbnailsAsync from './assets/preloadAssetThumbnailsAsync';
 import uploadAssetFileAsync from './assets/uploadAssetFileAsync';
 import uploadAssetThumbnailAsync from './assets/uploadAssetThumbnailAsync';
@@ -59,7 +58,6 @@ export default function CloudProvider({ children }) {
       preloadAssetThumbnailsAsync,
       uploadAssetFileAsync,
       uploadAssetThumbnailAsync,
-      downloadAssetFileAsync,
     }),
     [session, library, switchLibrary],
   );

@@ -1,6 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
 
-import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import { getDb, schema } from '@/sync/db/client';
 import { readByIds } from '@/sync/readByIds';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
@@ -10,12 +9,7 @@ import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibr
 export default function useAssetSelectionActions(selection, query, count) {
   const { isSelectMode, selectedAssetIds, toggleSelectAsset, selectAssets, exitSelectMode } = selection;
   const navigation = useNavigation();
-  const { show, hide, updateProgress } = useProgressOverlay();
-  const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary({
-    onStart: show,
-    onProgress: updateProgress,
-    onFinish: hide,
-  });
+  const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary();
 
   const allSelected = count > 0 && selectedAssetIds.length === count;
 

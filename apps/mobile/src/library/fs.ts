@@ -5,6 +5,7 @@ import type { LibraryPaths } from './libraryPaths';
 
 import { chunk } from '@/sync/chunk';
 import createAssetFileDirectory from '@/utils/assets/files/createAssetFileDirectory';
+import deleteStaleDownloadsAsync from '@/utils/assets/files/deleteStaleDownloadsAsync';
 import getAssetFileUri from '@/utils/assets/files/getAssetFileUri';
 import getAssetFilesDirectory from '@/utils/assets/files/getAssetFilesDirectory';
 import getDownloadsDirectory from '@/utils/assets/files/getDownloadsDirectory';
@@ -26,10 +27,12 @@ export async function listFiles(dir: string): Promise<Set<string>> {
   return new Set(info.exists ? await FileSystem.readDirectoryAsync(dir) : []);
 }
 
-// A library's two folders, ready when it opens, before anything is written into them.
+// A library's two folders, ready when it opens, before anything is written into them; downloads an
+// earlier run left go.
 export async function createLibraryFolders(library: OpenLibrary): Promise<void> {
   await createAssetFileDirectory(library);
   await createAssetThumbnailDirectory(library);
+  await deleteStaleDownloadsAsync(library);
 }
 
 // A new library that found no free database file: web only (fs.web.ts), iOS has no such limit.

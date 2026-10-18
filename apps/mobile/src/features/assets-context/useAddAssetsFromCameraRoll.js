@@ -19,8 +19,9 @@ export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFini
       if (!imagePickerResults || imagePickerResults.length === 0) return [];
 
       for (const result of imagePickerResults) {
+        // Null for a picked photo outside a Limited Photos selection.
         const assetInfo = await MediaLibrary.getAssetInfoAsync(result.assetId);
-        result.isFavorite = assetInfo.isFavorite;
+        result.isFavorite = assetInfo?.isFavorite ?? false;
       }
 
       // The files go into the library open now; the records must too (a sign-in meanwhile would

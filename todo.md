@@ -7,13 +7,13 @@ when the owner defers something, or when an idea comes up. Remove an entry once 
 
 ## Features
 
-### [ ] Share photos and videos
+### [ ] Share several assets at once
 
-A Share action on the asset detail screen (and for a selection) that opens the system share sheet,
-like Apple Photos. `expo-sharing` (`Sharing.shareAsync(localUri)`) does it on iOS and needs a local
-file: use the original when it's on the device, else download it first, as Save to camera roll
-does (`getAssetFileSourceAsync`). `expo-sharing` isn't installed yet: it's a native module, so the
-preview build and the dev client need a rebuild. On web it falls back to the Web Share API.
+Share is only on the asset detail screen (`useShareAsset`); select mode has none, because nothing
+installed shares several files on iOS (`expo-sharing` hands `UIActivityViewController` one URL,
+React Native's `Share` one `url`). Route: a small local Expo module that presents
+`UIActivityViewController(activityItems: urls)` with the files `useRunWithAssetFiles` resolves; on
+web `navigator.share({ files })`.
 
 ### [ ] Keep the original filename
 
@@ -22,6 +22,14 @@ picker returns it (e.g. `IMG_1234.HEIC`). Store it in a new synced, nullable `or
 (shared collection schema, client and server migrations; deploy the server before the app sends
 it) and show it in the details panel's info block. Older assets stay without it unless the legacy
 backups carry names.
+
+### [ ] Share links (like iCloud links)
+
+"Share link" for an asset, a selection or an album: the server stores a share (token, asset ids,
+expiry such as 30 days, revocable) and serves a short public link (e.g. `/s/<token>`) to a small web
+page that shows the photos and videos and signs fresh S3 download URLs when opened. The app offers
+Copy link and Stop sharing. Needs a server table, endpoints and a deploy plus the page. Also covers
+sharing several assets, which the share sheet can't do yet.
 
 ### [ ] Mouse-friendly triggers on web
 
@@ -245,6 +253,15 @@ aren't deleted before the server has their record. The Backup screen still count
 backed up" with no hint why: a failed push is listed on the Library sync screen, and a pending one
 (an import right before Backup) needs another run. Backup could wait for the push first.
 
+### [ ] Worklet capture check in CI
+
+A worklet that reads a captured binding in a default parameter, or calls a plain (non-worklet)
+function on the UI thread, only fails at runtime on the phone. A script could catch it: run the
+`react-native-worklets` Babel plugin over `src/`, find each generated worklet factory, read its
+`__closure` names, and flag those used in parameter defaults or bound to a plain function, a
+React hook result or an unresolved import that the worklet calls. An audit prototyped this
+(unpolished, with hard-coded paths); make it a `scripts/checkWorklets.mjs` run by `npm run lint`.
+
 ### [ ] Move off Node 20
 
 Node 20 reached end of life in April 2026. `mise.toml` pins 20.19.4 and the server image uses
@@ -419,3 +436,28 @@ octopus moves smoothly on the boot screen and the setup screen (`src/components/
 paths rebuilt at 30 Hz at rest, every frame during a tap), a tap squeezes the head without a seam
 where it meets the arms, and with Reduce Motion (also toggled while it shows) it stands still and the
 setup screen shows a spinner that VoiceOver reads as busy.
+
+### [ ] Check sharing on the phone
+
+Needs a new build (preview and dev client): `expo-sharing` is a native module, and a build without
+it hides Share (`canShareFiles`). Share (asset detail, bottom left) opens the system share sheet
+(`useShareAsset`). Check: a photo still on the phone opens the sheet at once; a video only in the
+cloud downloads with the progress ring first, then shares; Save Image / Save Video in the sheet
+lands in the camera roll, and AirDrop and Messages get it (HEIC, `.mov`); picking an activity and
+cancelling it leaves the app usable; a not-yet-uploaded asset, or one while signed out, says why; a
+trashed asset in a post shares too. Save to camera roll (now on the same `useRunWithAssetFiles`)
+asks for Photos access once before downloading, saves local and cloud files with progress, and a
+failure (e.g. airplane mode mid-batch) alerts how many were saved; a double tap runs once.
+
+### [ ] Check saving with Limited Photos access
+
+With Photos access set to Limited, save assets to the camera roll twice. `copyToMediaLibraryAsync`
+looks the "Squidbox" album up with `getAlbumAsync`, which may not see the app's own album under
+Limited access, so each save could create another "Squidbox" album. Also import a photo picked
+outside the allowed selection (`useAddAssetsFromCameraRoll` now treats its info as not favorite).
+
+### [ ] Check album drag-reorder on a large album
+
+In an album sorted Custom with a few hundred photos, drag a photo across many slots on the phone:
+the drag and the others making room stay smooth. Each slot crossing copies the whole positions object to the UI
+thread (`SortableGrid`), which may stutter on a big album.

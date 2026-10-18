@@ -4,39 +4,41 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FloatingPill from './FloatingPill';
 
 import Icon from '@/components/Icon';
-import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import useAssets from '@/features/assets-context/useAssets';
 import useDeletedAssetsActions from '@/features/assets-context/useDeletedAssetsActions';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, scale, spacing } from '@/styles/designTokens';
 import humanizeMediaType from '@/utils/assets/humanizeMediaType';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
+import useShareAsset from '@/utils/assets/useShareAsset';
+import canShareFiles from '@/utils/files/canShareFiles';
 
 /**
  * Bottom floating action bar for the asset detail screen. `children` (e.g. video controls) go
  * above its row, full width.
  *
  * Layout:
- *   [♥  ↓]                           [🗑]
- *   left pill (favorite + download)   right pill (delete)
+ *   [⇪  ♥  ↓]                               [🗑]
+ *   left pill (share + favorite + download)   right pill (delete)
+ *   (Share only in a build with expo-sharing's native module)
  *
  * A trashed asset (shown in a post) gets the Deleted album's actions instead, and says it's deleted:
- *   [↓]          Deleted           [↺  🗑]
+ *   [⇪  ↓]          Deleted           [↺  🗑]
  */
 export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigation, children }) {
   const insets = useSafeAreaInsets();
   const { toggleFavoriteAsset } = useAssets();
   const { restore, deletePermanently } = useDeletedAssetsActions();
-  const { show, hide, updateProgress } = useProgressOverlay();
-  const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary({
-    onStart: show,
-    onProgress: updateProgress,
-    onFinish: hide,
-  });
+  const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary();
+  const shareAssetAsync = useShareAsset();
   const isDeleted = !!asset.deletedAt;
 
   function handleToggleFavorite() {
     toggleFavoriteAsset(asset);
+  }
+
+  async function handleShare() {
+    await shareAssetAsync(asset);
   }
 
   async function handleDownload() {
@@ -80,8 +82,13 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
     <View style={[styles.container, { bottom: insets.bottom + spacing.floatingBarBottom }]} pointerEvents="box-none">
       {children}
       <View style={styles.row} pointerEvents="box-none">
-        {/* Left pill — favorite + download */}
+        {/* Left pill — share + favorite + download */}
         <FloatingPill>
+          {canShareFiles && (
+            <ActionButton onPress={handleShare}>
+              <Icon name="share" color={colors.iconInactive} />
+            </ActionButton>
+          )}
           {!isDeleted && (
             <ActionButton onPress={handleToggleFavorite}>
               <Icon

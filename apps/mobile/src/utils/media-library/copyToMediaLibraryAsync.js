@@ -1,18 +1,9 @@
 import * as ExpoMediaLibrary from 'expo-media-library';
 
-import askForMediaLibraryPermissionViaSettings from './askForMediaLibraryPermissionViaSettings';
-import getMediaLibraryPermissionAsync from './getMediaLibraryPermissionAsync';
-
 import { MEDIA_LIBRARY_ALBUM_NAME } from '@/constants';
 
+// Copies a file into the camera roll's app album. Needs the Photos permission (asked beforehand).
 export default async function copyToMediaLibraryAsync(fileUri) {
-  const hasPermission = await getMediaLibraryPermissionAsync();
-
-  if (!hasPermission) {
-    askForMediaLibraryPermissionViaSettings();
-    return;
-  }
-
   const mediaLibraryAsset = await ExpoMediaLibrary.createAssetAsync(fileUri);
   const album = await ExpoMediaLibrary.getAlbumAsync(MEDIA_LIBRARY_ALBUM_NAME);
 

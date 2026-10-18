@@ -3,19 +3,13 @@ import { Alert } from 'react-native';
 
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import PopupMenu from '@/components/popup-menu-options/PopupMenu';
-import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import usePosts from '@/features/posts-context/usePosts';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 
 export default function MoreAction({ post, afterDelete }) {
   const { deletePost } = usePosts();
   const navigation = useNavigation();
-  const { show, hide, updateProgress } = useProgressOverlay();
-  const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary({
-    onStart: show,
-    onProgress: updateProgress,
-    onFinish: hide,
-  });
+  const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary();
 
   function handleEditPost() {
     navigation.navigate('AddEditPostModal', { postId: post.id });

@@ -14,14 +14,14 @@ export default function useAssetPickerHandler({ addAssetsToPost, onStart, onProg
   const { showActionSheetWithOptions } = useActionSheet();
   const { openAssetPicker } = useAssetPicker();
 
-  async function handleAddAssets() {
-    try {
-      showActionSheetWithOptions(
-        {
-          options: [UPLOAD_MEDIA_FROM_DEVICE, UPLOAD_MEDIA_FROM_APP, 'Cancel'],
-          cancelButtonIndex: 2,
-        },
-        async (selectedIndex) => {
+  function handleAddAssets() {
+    showActionSheetWithOptions(
+      {
+        options: [UPLOAD_MEDIA_FROM_DEVICE, UPLOAD_MEDIA_FROM_APP, 'Cancel'],
+        cancelButtonIndex: 2,
+      },
+      async (selectedIndex) => {
+        try {
           switch (selectedIndex) {
             case 0: {
               const assets = await addAssetsFromCameraRollAsync();
@@ -34,11 +34,11 @@ export default function useAssetPickerHandler({ addAssetsToPost, onStart, onProg
               break;
             }
           }
-        },
-      );
-    } catch (error) {
-      Alert.alert('Failed to add assets!', error.message);
-    }
+        } catch (error) {
+          Alert.alert('Failed to add assets!', error.message);
+        }
+      },
+    );
   }
 
   return handleAddAssets;
