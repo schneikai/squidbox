@@ -15,8 +15,7 @@ export async function openAppDb(dbName: string): Promise<AppDb> {
   // Up to 64 MB of page cache (allocated on demand), so big transactions don't spill pages to the
   // journal mid-way. The default 2 MB triples the time of a large sync on web.
   await sqlite.execAsync('PRAGMA cache_size = -65536');
-  const executor = expoExecutor(sqlite);
-  const appDb = createDb(executor.execute, executor.close);
+  const appDb = createDb(expoExecutor(sqlite), () => sqlite.closeAsync());
   try {
     // drizzle's expo migrator runs the async dialect's migrate on the db's own session, which is
     // what this sqlite-proxy db has; its signature just names the expo driver.

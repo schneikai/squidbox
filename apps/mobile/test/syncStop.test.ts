@@ -63,7 +63,7 @@ describe('withSyncPaused', () => {
 });
 
 describe('an aborted run', () => {
-  it('ends a pull after the current applied batch, with its cursor committed', async () => {
+  it('ends a pull after the page at hand, applying what it has with its cursor committed', async () => {
     const controller = new AbortController();
     const pulls: number[] = [];
     const transport = server(APPLY_BATCH * 2, (cursor) => {
@@ -73,10 +73,10 @@ describe('an aborted run', () => {
 
     await runSyncOnce(db, transport, { signal: controller.signal });
 
-    expect(await getCursor(db)).toBe(APPLY_BATCH);
-    expect(await db.select().from(schema.assets)).toHaveLength(APPLY_BATCH);
+    expect(await getCursor(db)).toBe(3000);
+    expect(await db.select().from(schema.assets)).toHaveLength(3000);
     expect(await isFirstSyncDone(db)).toBe(false);
-    expect(pulls).toEqual([0, 1000, 2000, 3000, 4000]);
+    expect(pulls).toEqual([0, 1000, 2000]);
 
     await runSyncOnce(db, transport); // the next run resumes from the committed cursor
     expect(await getCursor(db)).toBe(APPLY_BATCH * 2);

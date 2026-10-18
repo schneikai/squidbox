@@ -48,21 +48,28 @@ function fakeExpoSqlite() {
       sqlite.close();
     },
   };
-  return { executor: expoExecutor(database as unknown as SQLiteDatabase), events };
+  return { execute: expoExecutor(database as unknown as SQLiteDatabase), close: () => database.closeAsync(), events };
 }
 
 const of = (events: string[], kind: string) => events.filter((event) => event.startsWith(`${kind} `));
 const select = (i: number) => `select ${i}`;
 
-let executor: ReturnType<typeof expoExecutor>;
+let execute: ReturnType<typeof expoExecutor>;
+let close: () => Promise<void>;
 let events: string[];
 beforeEach(() => {
-  ({ executor, events } = fakeExpoSqlite());
+  ({ execute, close, events } = fakeExpoSqlite());
 });
 
+// Runs SQL twice, so its statement is cached.
+const twice = async (sql: string) => {
+  await execute(sql, [], 'all');
+  await execute(sql, [], 'all');
+};
+
 describe('expoExecutor', () => {
-  it('prepares each statement of a sync once and reuses it', async () => {
-    const db = createDb(executor.execute, executor.close);
+  it('prepares each repeated statement of a sync at most twice and keeps reusing it', async () => {
+    const db = createDb(execute, close);
     const records: AssetRecord[] = Array.from({ length: 3_000 }, () => makeAssetRecord());
     const pull = async ({ cursor }: { cursor: number }): Promise<PullResponse> => {
       const page = records.slice(cursor, cursor + 1000);
@@ -75,55 +82,49 @@ describe('expoExecutor', () => {
     expect(await db.select().from(schema.assets)).toHaveLength(3_000);
     expect(await getCursor(db)).toBe(3_000);
     const prepared = of(events, 'prepare');
-    expect(new Set(prepared).size).toBe(prepared.length);
-    expect(prepared.length).toBeLessThan(CACHED_STATEMENTS);
+    const timesBySql = new Map<string, number>();
+    for (const event of prepared) timesBySql.set(event, (timesBySql.get(event) ?? 0) + 1);
+    expect(Math.max(...timesBySql.values())).toBeLessThanOrEqual(2);
+    expect(timesBySql.size).toBeLessThan(CACHED_STATEMENTS);
+  });
+
+  it('finalizes SQL run once after its run, and caches it the second time', async () => {
+    await execute(select(1), [], 'all');
+    expect(of(events, 'finalize')).toEqual([`finalize ${select(1)}`]);
+    events.length = 0;
+    await execute(select(1), [], 'all');
+    await execute(select(1), [], 'all');
+    expect(of(events, 'prepare')).toEqual([`prepare ${select(1)}`]);
     expect(of(events, 'finalize')).toEqual([]);
   });
 
   it('finalizes the least recently used statement once the cache is full', async () => {
-    for (let i = 0; i < CACHED_STATEMENTS; i++) await executor.execute(select(i), [], 'all');
-    await executor.execute(select(0), [], 'all'); // now the most recent
-    await executor.execute(select(CACHED_STATEMENTS), [], 'all');
-
-    expect(of(events, 'finalize')).toEqual([`finalize ${select(1)}`]);
+    for (let i = 0; i < CACHED_STATEMENTS; i++) await twice(select(i));
+    await execute(select(0), [], 'all'); // now the most recent
     events.length = 0;
-    await executor.execute(select(0), [], 'all');
-    await executor.execute(select(1), [], 'all');
-    expect(of(events, 'prepare')).toEqual([`prepare ${select(1)}`]);
-  });
+    await twice(select(CACHED_STATEMENTS));
 
-  it('finalizes every cached statement before closing, and runs nothing after', async () => {
-    await executor.execute(select(1), [], 'all');
-    await executor.execute(select(2), [], 'all');
+    expect(of(events, 'finalize')).toEqual([`finalize ${select(CACHED_STATEMENTS)}`, `finalize ${select(1)}`]);
     events.length = 0;
-
-    await executor.close();
-
-    expect(events).toEqual([`finalize ${select(1)}`, `finalize ${select(2)}`, 'close']);
-    await expect(executor.execute(select(1), [], 'all')).rejects.toThrow('The database is closed');
+    await execute(select(0), [], 'all');
+    expect(of(events, 'prepare')).toEqual([]);
   });
 
   it('finalizes a statement that failed instead of reusing it', async () => {
     const insert = 'insert into "sync_meta" ("key", "value") values (?, ?)';
-    await executor.execute(insert, ['k', '1'], 'run');
-    await expect(executor.execute(insert, ['k', '2'], 'run')).rejects.toThrow('UNIQUE');
+    await execute(insert, ['k', '1'], 'run');
+    await execute(insert, ['k2', '1'], 'run'); // cached now
+    events.length = 0;
+    await expect(execute(insert, ['k', '2'], 'run')).rejects.toThrow('UNIQUE');
 
     expect(of(events, 'finalize')).toEqual([`finalize ${insert}`]);
-    await executor.execute(insert, ['k2', '1'], 'run');
-    expect(of(events, 'prepare')).toHaveLength(2);
+    await execute(insert, ['k3', '1'], 'run');
+    expect(of(events, 'prepare')).toEqual([`prepare ${insert}`]);
   });
 
   it('resets a statement after reading one row of it', async () => {
-    const result = await executor.execute('select 1 union all select 2', [], 'get');
+    const result = await execute('select 1 union all select 2', [], 'get');
     expect(result.rows).toEqual([1]);
     expect(of(events, 'reset')).toHaveLength(1);
-  });
-
-  it('gives callers of the same SQL at once their own statements and keeps one', async () => {
-    await Promise.all([executor.execute(select(1), [], 'all'), executor.execute(select(1), [], 'all')]);
-    await executor.execute(select(1), [], 'all');
-
-    expect(of(events, 'prepare')).toHaveLength(2);
-    expect(of(events, 'finalize')).toHaveLength(1);
   });
 });

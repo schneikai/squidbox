@@ -183,9 +183,8 @@ function pushTo<K, V>(lists: Map<K, V[]>, key: K, value: V): void {
   else lists.set(key, [value]);
 }
 
-// A stopped pull leaves the batches applied so far committed with their cursor. The next batch
-// downloads while one is applied; a stop cuts its paging short, and the run ends after applying the
-// batch at hand.
+// Downloads the next batch while applying one; a stop ends the run after the batch at hand, which
+// commits with its cursor.
 async function pullPhase(
   db: SyncDb,
   transport: SyncTransport,
@@ -196,15 +195,22 @@ async function pullPhase(
   if (signal.aborted) return { pulled: 0, stopped: true };
   let cursor = await getCursor(db);
   let pulled = 0;
-  let next: Promise<PulledBatch> | null = fetchBatch(transport, cursor);
-  while (next) {
-    const batch: PulledBatch = await next;
-    next = batch.hasMore && !signal.aborted ? fetchBatch(transport, batch.cursor, () => signal.aborted) : null;
-    next?.catch(() => {}); // awaited next round, unless this apply fails or the run stops
-    await removeNewlyPurgedFiles(db, batch.changes.assets, removeFiles);
-    if (batch.buffered > 0 || batch.cursor !== cursor) pulled += await applyChanges(db, batch.changes, batch.cursor);
-    cursor = batch.cursor;
-    if (batch.hasMore && signal.aborted) return { pulled, stopped: true };
+  // Ends a download ahead once the run stops or an apply fails.
+  let ended = false;
+  const stop = () => ended || signal.aborted;
+  let next: Promise<PulledBatch> | null = fetchBatch(transport, cursor, stop);
+  try {
+    while (next) {
+      const batch: PulledBatch = await next;
+      next = batch.hasMore && !signal.aborted ? fetchBatch(transport, batch.cursor, stop) : null;
+      next?.catch(() => {}); // awaited next round, unless this apply fails or the run stops
+      await removeNewlyPurgedFiles(db, batch.changes.assets, removeFiles);
+      if (batch.buffered > 0 || batch.cursor !== cursor) pulled += await applyChanges(db, batch.changes, batch.cursor);
+      cursor = batch.cursor;
+      if (batch.hasMore && signal.aborted) return { pulled, stopped: true };
+    }
+  } finally {
+    ended = true;
   }
   // The initial full pull has drained — the app can leave the "Setting up…" gate.
   await markFirstSyncDone(db);
@@ -219,8 +225,8 @@ interface PulledBatch {
   hasMore: boolean;
 }
 
-// Pages from `cursor` until APPLY_BATCH records or the end, or until `stop()` holds after a page.
-async function fetchBatch(transport: SyncTransport, cursor: number, stop = () => false): Promise<PulledBatch> {
+// Pages from `cursor` until APPLY_BATCH records, the end, or `stop()` after a page.
+async function fetchBatch(transport: SyncTransport, cursor: number, stop: () => boolean): Promise<PulledBatch> {
   const changes: Record<string, Record<string, unknown>[]> = {};
   let buffered = 0;
   let hasMore: boolean;
