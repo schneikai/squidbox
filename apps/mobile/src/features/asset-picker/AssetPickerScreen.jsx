@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Alert } from 'react-native';
 import { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 
 import GradientPillButton from '@/components/GradientPillButton';
@@ -48,10 +49,19 @@ export default function AssetPickerScreen({ route, navigation }) {
     scrollY.value = 0;
   }
 
-  // Once only: a second tap while the picker closes would close the screen below it too.
+  // Once only: a second tap while the picker closes would close the screen below it too. So Add
+  // turns back on only when the read fails and the picker stays open.
   async function handleAdd() {
     setIsAdding(true);
-    finishAssetPicking(await readByIds(getDb(), schema.assets, selection.selectedAssetIds));
+    let assets;
+    try {
+      assets = await readByIds(getDb(), schema.assets, selection.selectedAssetIds);
+    } catch {
+      setIsAdding(false);
+      Alert.alert("Couldn't add the photos", 'Please try again.');
+      return;
+    }
+    finishAssetPicking(assets);
     navigation.goBack();
   }
 
