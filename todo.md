@@ -9,11 +9,18 @@ when the owner defers something, or when an idea comes up. Remove an entry once 
 
 ### [ ] Share several assets at once
 
-Share is only on the asset detail screen (`useShareAsset`); select mode has none, because nothing
-installed shares several files on iOS (`expo-sharing` hands `UIActivityViewController` one URL,
-React Native's `Share` one `url`). Route: a small local Expo module that presents
-`UIActivityViewController(activityItems: urls)` with the files `useRunWithAssetFiles` resolves; on
-web `navigator.share({ files })`.
+Nice to have, deferred. Share is only on the asset detail screen (`useShareAsset`); select mode has
+none, because `expo-sharing` shares one URL (still so in SDK 58 and on main, no PR or roadmap item)
+and React Native's `Share` takes one `url`. Plan: a small local Expo module
+(`apps/mobile/modules/share-files`, Expo Modules API, autolinked) whose iOS side presents
+`UIActivityViewController(activityItems: urls)` (copy expo-sharing's `SharingModule.swift`,
+including the regular-width popover anchor); Android later with `ACTION_SEND_MULTIPLE` and a
+FileProvider. A `.web.js` uses `navigator.share({ files })` after `navigator.canShare`, falling back to a
+download (Firefox has no file sharing). Web pitfalls: Chromium allows at most 10 files and 50 MB and
+rejects `.mov`/`.heic`; the tap's activation lasts about 5 s, so a slower download needs a second
+"Share N items" tap. Collect all files first (`useRunWithAssetFiles` with kept downloads), name them
+after the asset, and gate the button with `requireOptionalNativeModule`. Skipped
+`react-native-share`: no web, slowing releases, config-plugin bugs. Needs a new build.
 
 ### [ ] Keep the original filename
 
@@ -153,6 +160,15 @@ Only pure logic is tested (`apps/mobile/test`, vitest in Node). Set up component
 example jest-expo with React Native Testing Library) and cover the key screens first: the photo
 detail pager, login and sign-out, and the library grid. Consider end-to-end tests (for example
 Maestro) for the main flows later.
+
+### [ ] iPhone simulator smoke tests in the cloud
+
+Run Maestro flows on an iOS simulator with EAS Workflows (a simulator build profile in `eas.json`,
+`.eas/workflows/*.yml`, a `type: maestro` job) before each preview build: open a photo, zoom,
+swipe, open a post's photo, share. Catches iPhone-only crashes the web preview misses (like the
+worklet-capture and post-photo crashes). Needs a test account with a few photos on the live backend
+(login as an EAS secret, since the cloud can't reach the local mock backend) and costs EAS build
+time per run. Can't check gestures' feel or sharing to other apps.
 
 ### [ ] Check a 50,000-asset library on a device
 
