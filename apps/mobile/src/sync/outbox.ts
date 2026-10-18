@@ -56,12 +56,13 @@ function recordsIn(collection: string, recordIds: string[]) {
   return and(eq(schema.outbox.collection, collection), inArray(schema.outbox.recordId, recordIds));
 }
 
-export async function pendingRecordIds(db: SyncDb, collection: string): Promise<Set<string>> {
+/** The collection's pending records, by id, each with the fields its edits changed (null: unknown, from before per-field merge). */
+export async function pendingFields(db: SyncDb, collection: string): Promise<Map<string, FieldClocks | null>> {
   const rows = await db
-    .select({ recordId: schema.outbox.recordId })
+    .select({ recordId: schema.outbox.recordId, fields: schema.outbox.fields })
     .from(schema.outbox)
     .where(eq(schema.outbox.collection, collection));
-  return new Set(rows.map((r) => r.recordId));
+  return new Map(rows.map((r) => [r.recordId, r.fields]));
 }
 
 /** The outbox rows' updatedAt of these records, by record id; records without a pending row are left out. */

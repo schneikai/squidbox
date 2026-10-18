@@ -191,6 +191,8 @@ describe('worker push', () => {
     );
     expect(await outboxRows()).toHaveLength(0);
     expect((await assetRow(rec.id))?.notes).toBe('server'); // adopted the winner
+    const [log] = await db.select().from(schema.syncLog);
+    expect(log?.notes).toBe(`assets ${rec.id}: notes overwritten by server`); // names what was lost
   });
 
   it('keeps the outbox row on rejected and records the reason there, not as an upload error', async () => {
@@ -276,6 +278,45 @@ describe('worker pull', () => {
       }),
     );
     expect((await assetRow(rec.id))?.notes).toBe('local'); // local edit preserved
+  });
+
+  // A server that keeps every push pending (rejected) and delivers `record` on pull.
+  const pendingAndPulling = (record: Record<string, unknown>) =>
+    fakeTransport({
+      push: async (req) => ({
+        results: req.mutations.map((m) => ({
+          id: String(m.record.id),
+          collection: m.collection,
+          status: 'rejected' as const,
+          reason: 'x',
+        })),
+      }),
+      pull: async () => ({ changes: { assets: { records: [record] } }, cursor: 7, hasMore: false }),
+    });
+
+  it('a pulled record with a pending edit takes every field but the ones that edit changed', async () => {
+    const rec = await repo.createAsset(db, makeAssetRecord());
+    await runSyncOnce(db, fakeTransport());
+    await repo.updateAsset(db, rec.id, { notes: 'local' });
+    const local = await assetRow(rec.id);
+    const incoming = makeAssetRecord({
+      id: rec.id,
+      notes: 'server',
+      isFavorite: true,
+      updatedAt: local!.updatedAt + 9,
+    });
+    await runSyncOnce(db, pendingAndPulling(incoming as unknown as Record<string, unknown>));
+    expect(await assetRow(rec.id)).toMatchObject({ notes: 'local', isFavorite: true, updatedAt: local!.updatedAt });
+  });
+
+  it('a pulled record with a pending edit from before per-field merge is skipped', async () => {
+    const rec = await repo.createAsset(db, makeAssetRecord());
+    await runSyncOnce(db, fakeTransport());
+    await repo.updateAsset(db, rec.id, { notes: 'local' });
+    await db.update(schema.outbox).set({ fields: null });
+    const incoming = makeAssetRecord({ id: rec.id, notes: 'server', isFavorite: true });
+    await runSyncOnce(db, pendingAndPulling(incoming as unknown as Record<string, unknown>));
+    expect(await assetRow(rec.id)).toMatchObject({ notes: 'local', isFavorite: false });
   });
 
   it('keeps a local column the incoming record does not carry', async () => {

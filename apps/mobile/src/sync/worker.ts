@@ -8,13 +8,14 @@ import type { SyncDb } from './db/types';
 import {
   clearOutboxRows,
   outboxUpdatedAts,
-  pendingRecordIds,
+  pendingFields,
   pushableOutboxRows,
   retryFailures,
   setOutboxError,
 } from './outbox';
+import { overwrittenNote } from './overwrittenNote';
 import { planPushOutcome } from './pushPlan';
-import { readByIds } from './readByIds';
+import { readByIdMap, readByIds } from './readByIds';
 import { pauseRuns, startRun } from './runGate';
 import { createSingleFlight } from './singleFlight';
 import { getCursor, setCursor, patchStatus, appendSyncLog, markFirstSyncDone, clearFirstSyncDone } from './status';
@@ -115,8 +116,8 @@ async function pushPhase(
       results.filter((result) => result.collection === 'assets').map((result) => result.current),
       removeFiles,
     );
-    const pushedUpdatedAt = new Map(batch.map((row) => [`${row.collection}:${row.recordId}`, row.updatedAt]));
-    notes.push(...(await db.transaction((tx) => applyPushResults(tx, results, pushedUpdatedAt))));
+    const pushedRows = new Map(batch.map((row) => [`${row.collection}:${row.recordId}`, row]));
+    notes.push(...(await db.transaction((tx) => applyPushResults(tx, results, pushedRows))));
     pushed += results.length;
   }
   if (pushed > 0) await patchStatus(db, { lastPushAt: Date.now() });
@@ -130,7 +131,7 @@ async function pushPhase(
 async function applyPushResults(
   tx: SyncDb,
   results: PushResult[],
-  pushedUpdatedAt: Map<string, number>,
+  pushed: Map<string, schema.OutboxRow>,
 ): Promise<string[]> {
   const notes: string[] = [];
   for (const [collection, group] of groupByCollection(results)) {
@@ -144,16 +145,21 @@ async function applyPushResults(
     const flag = (id: string, error: string) => pushTo(errors, error, id);
 
     for (const result of group) {
+      const row = pushed.get(`${collection}:${result.id}`);
       const plan = planPushOutcome({
         status: result.status,
-        pushedUpdatedAt: pushedUpdatedAt.get(`${collection}:${result.id}`) ?? 0,
+        pushedUpdatedAt: row?.updatedAt ?? 0,
         currentOutboxUpdatedAt: current.get(result.id) ?? null,
       });
       if (plan.adoptCurrent && result.current) {
         try {
           await tx.transaction((savepoint) => applyRecord(savepoint, collection, result.current!));
-          // Conflict/rebase visibility (sync-design §13): a local change lost LWW and was overwritten.
-          notes.push(`${collection} ${result.id}: local change overwritten by server`);
+          // Conflict/rebase visibility (sync-design §13): a local change lost and was overwritten.
+          notes.push(
+            row
+              ? overwrittenNote(row, result.current)
+              : `${collection} ${result.id}: local change overwritten by server`,
+          );
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           flag(result.id, message);
@@ -248,9 +254,11 @@ async function fetchBatch(transport: SyncTransport, cursor: number, stop: () => 
   return { changes, buffered, cursor, hasMore };
 }
 
-// Outbox-guarded apply (sync-design §5): apply an incoming record only if it has no pending
-// local mutation. Never timestamp-compare against committed local state. The records of several
-// pages and their cursor commit in one transaction. Returns the number of records actually applied.
+// Outbox-guarded apply (sync-design §5): an incoming record with a pending local mutation keeps the
+// fields that mutation changed (and its updatedAt), which re-assert via push; one whose changed
+// fields are unknown (enqueued before per-field merge) is skipped. Never timestamp-compare against
+// committed local state. The records of several pages and their cursor commit in one transaction.
+// Returns the number of records actually applied.
 async function applyChanges(
   db: SyncDb,
   changes: Record<string, Record<string, unknown>[]>,
@@ -260,14 +268,35 @@ async function applyChanges(
     let applied = 0;
     for (const [name, table] of Object.entries(clientCollectionTables)) {
       if (changes[name].length === 0) continue;
-      const pending = await pendingRecordIds(tx, name);
-      const incoming = changes[name].filter((record) => !pending.has(String(record.id))); // local edits re-assert via push
-      await upsertRows(tx, name, table, incoming);
-      applied += incoming.length;
+      const pending = await pendingFields(tx, name);
+      const ids = changes[name].map((record) => String(record.id));
+      const local = await readByIdMap(
+        tx,
+        table,
+        ids.filter((id) => pending.get(id)),
+      );
+      const rows = changes[name].flatMap((record) => {
+        const id = String(record.id);
+        if (!pending.has(id)) return [record];
+        const fields = pending.get(id);
+        const row = local.get(id);
+        return fields && row ? [withLocalFields(record, row, Object.keys(fields))] : [];
+      });
+      await upsertRows(tx, name, table, rows);
+      applied += rows.length;
     }
     await setCursor(tx, cursor);
     return applied;
   });
+}
+
+function withLocalFields(
+  record: Record<string, unknown>,
+  local: Record<string, unknown>,
+  fields: string[],
+): Record<string, unknown> {
+  const kept = Object.fromEntries([...fields, 'updatedAt'].map((field) => [field, local[field]]));
+  return { ...record, ...kept };
 }
 
 // The files of the purged assets among these records that aren't purged here yet, so an echo or an
