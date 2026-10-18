@@ -15,7 +15,7 @@ export default async function initializeCloudAsync() {
   else await updateSession((current) => (current ? { ...current, apiBaseUrl: API_BASE_URL } : current));
 }
 
-// The server's identity (null before its SERVER_ID deploy), or undefined when it can't be reached.
+// The server's identity (null when it reports none), or undefined when it can't be reached.
 async function fetchServerIdAsync() {
   try {
     const { data } = await api.get(`${SERVER_URL}/up`);

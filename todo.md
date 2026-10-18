@@ -281,6 +281,14 @@ Node 20 reached end of life in April 2026. `mise.toml` pins 20.19.4 and the serv
 `src/library/resolveOwners.ts`, its call in `bootLibrary.ts`, `test/resolveOwners.test.ts` and its
 boot test in `accountSwitch.test.ts`. It only fills in a missing `serverId` on libraries converted by
 older builds; Sentry reports "Resolved the owner of library … at boot" if it ever did.
+Assumes every install has booted df33378 or later with a working `/me`: an older one would keep a
+session without ids, which now matches no library.
+
+### [ ] Database and caches through the library handle too
+
+Only the asset path helpers lost their `getLibrary()` fallback. `AppInit` still builds the sync target
+from `getDb()`/`getLibrary()`, `switchLibrary` uses `getLibrary()`, and the web thumbnail cache is
+module-global. Closing a library already makes a late write fail, so this is tidiness, not safety.
 
 ## Ideas
 

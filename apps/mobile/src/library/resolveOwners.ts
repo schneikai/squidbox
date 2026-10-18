@@ -19,8 +19,12 @@ export async function resolveOwners(): Promise<void> {
     const { owner } = library;
     if (owner.kind !== 'account' || owner.serverId !== null || owner.userId !== userId) continue;
     const resolved = { ...owner, serverId, email: owner.email || email || '' };
-    await withAppDb(libraryPaths(library.id).dbName, (db) => setOwner(db, resolved));
-    await updateLibrary(library.id, (entry) => ({ ...entry, owner: resolved }));
-    Sentry.captureMessage(`Resolved the owner of library ${library.id} at boot`);
+    try {
+      await withAppDb(libraryPaths(library.id).dbName, (db) => setOwner(db, resolved));
+      await updateLibrary(library.id, (entry) => ({ ...entry, owner: resolved }));
+      Sentry.captureMessage(`Resolved the owner of library ${library.id} at boot`);
+    } catch (error) {
+      Sentry.captureException(error); // never stops the boot; that library just stays unmatched
+    }
   }
 }

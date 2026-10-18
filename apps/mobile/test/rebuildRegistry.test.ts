@@ -55,7 +55,13 @@ describe('rebuildRegistry', () => {
     expect(opened).toEqual(['library-abc.db', 'closed library-abc.db', 'squidbox.db', 'closed squidbox.db']);
   });
 
-  it('skips a database without an owner (a first open that crashed) and leaves it as it was', async () => {
+  it("makes a database without an owner this device's library, so its data stays in reach", async () => {
+    const legacy = disk('squidbox.db');
+    expect(await rebuildRegistry()).toEqual({ libraries: [{ id: 'squidbox', owner: { kind: 'device' } }] });
+    expect(await getOwner(legacy)).toBeNull(); // nothing on disk changes
+  });
+
+  it('skips a database without an owner when this device already has its library', async () => {
     const empty = disk('library-new.db');
     await setOwner(disk('library-abc.db'), { kind: 'device' });
 

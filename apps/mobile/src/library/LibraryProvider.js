@@ -58,17 +58,17 @@ export default function LibraryProvider({ children }) {
 
   // `paths`: the open library's folders and database name. Everything below LibraryGate is keyed by
   // the library, so paths read at render belong to that library for the component's whole life.
-  const openId = openLibrary?.id;
-  const openPaths = useMemo(() => openId && { id: openId, ...libraryPaths(openId) }, [openId]);
+  const library = next ? null : openLibrary;
+  const paths = useMemo(() => (library ? { id: library.id, ...libraryPaths(library.id) } : null), [library?.id]);
   const value = useMemo(
     () => ({
-      library: next ? null : openLibrary,
-      paths: next || !openPaths ? null : openPaths,
+      library,
+      paths,
       switching: next !== null,
       switchLibrary,
       booted,
     }),
-    [openLibrary, openPaths, next, switchLibrary, booted],
+    [library, paths, next, switchLibrary, booted],
   );
 
   if (error) throw error; // a database that won't open or migrate: BootErrorBoundary

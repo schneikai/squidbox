@@ -15,8 +15,8 @@ import { getSession, loadSessionAsync } from '@/utils/cloud-api/sessionStore';
 export async function bootLibrary(switchLibrary: (target: Library) => Promise<void>): Promise<void> {
   await loadSessionAsync();
   await loadRegistry(rebuildRegistry);
-  await resolveOwners();
   const verified = initializeCloudAsync().catch((error) => Sentry.captureException(error));
+  await resolveOwners();
   await openLibraryForSession(getSession(), switchLibrary);
   await verified;
 }
