@@ -22,6 +22,22 @@ rejects `.mov`/`.heic`; the tap's activation lasts about 5 s, so a slower downlo
 after the asset, and gate the button with `requireOptionalNativeModule`. Skipped
 `react-native-share`: no web, slowing releases, config-plugin bugs. Needs a new build.
 
+### [ ] Make the app work on Android
+
+The app is built and tested only for iOS. Needed:
+- Config: an Android package id with a `.dev` variant like iOS (`app.config.js` switches on
+  `EAS_BUILD_PROFILE`), Android settings in the `eas.json` profiles (an APK for internal
+  installs) and an EAS-managed keystore.
+- Photo access: Android 13+ media permissions and partial access (Android 14) in
+  `useAddAssetsFromCameraRoll` and `copyToMediaLibraryAsync`.
+- Platform differences: edge-to-edge insets, the back button and gesture (closing modals, the
+  viewer, select mode), blur (`expo-blur` is slow or flat on Android: FloatingPill,
+  BlurPopoverRenderer, SortFilterModal, AssetQuickViewModal), keyboard events (`AiChatModal`), HEIC
+  display.
+- Device checks of the gesture-heavy screens: pager, zoom, swipe-up details, drag-select, album
+  reorder.
+- Pairs with the Android half of "Share several assets at once". Test on an emulator or a phone.
+
 ### [ ] Keep the original filename
 
 Imports rename the file to `<id>.<ext>` (`buildAssetAsync.js`) and drop the original name, though the
