@@ -10,8 +10,10 @@ export default function MoreAction({ asset, navigation }) {
     navigation.navigate('AddToAlbumModal', { assetIds: [asset.id] });
   }
 
+  // Pushed, not navigated to: opened inside the post editor's sheet, navigate would hand these params to
+  // that open editor instead of opening a new one.
   function handleCreatePost() {
-    navigation.navigate('AddEditPostModal', { assetIds: [asset.id] });
+    navigation.push('AddEditPostModal', { assetIds: [asset.id] });
   }
 
   async function handleCopyFileUrl() {

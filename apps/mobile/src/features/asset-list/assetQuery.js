@@ -21,7 +21,8 @@ import { MEDIA_TYPES } from '@/utils/assets/constants';
  * still match it or not (the asset screen's window). The descriptor is a plain object a screen can
  * pass around. Every order ends with an id tie-break, so refreshes and pages see one stable order.
  * @param {object} descriptor
- * @param {'library' | 'favorites' | 'deleted' | { albumId: string } | { postId: string }} [descriptor.scope] a post: see AssetScope
+ * @param {'library' | 'favorites' | 'deleted' | { albumId: string } | { postId: string } | { assetId: string }} [descriptor.scope]
+ *   a post or one asset: see AssetScope
  * @param {'createdAt:asc' | 'createdAt:desc' | 'lastPostedAt:asc' | 'lastPostedAt:desc' | 'custom' | 'random'} [descriptor.sort]
  *   `custom` needs an album scope; the Deleted scope has no sort menu and lists the most recently
  *   deleted first; a post has no sort either and lists in its own order (filter and search still apply)

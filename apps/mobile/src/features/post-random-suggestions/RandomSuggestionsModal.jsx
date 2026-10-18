@@ -1,6 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
 import { useState, useRef, useEffect } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, PanResponder, ActivityIndicator } from 'react-native';
+import {
+  Modal,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  PanResponder,
+  ActivityIndicator,
+  Platform,
+} from 'react-native';
 import { MenuProvider } from 'react-native-popup-menu';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
 
@@ -14,9 +24,10 @@ import IconMenuButton from '@/components/IconMenuButton';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
+import SuperPressable from '@/components/SuperPressable';
 import Textarea from '@/components/Textarea';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
-import { SCREEN_PADDING } from '@/constants';
+import { MIN_REREAD_INTERVAL, SCREEN_PADDING } from '@/constants';
 import ModelSelectorButton from '@/features/ai-suggestions/ModelSelectorButton';
 import {
   DEFAULT_MODEL,
@@ -29,7 +40,10 @@ import resolveModel from '@/features/ai-suggestions/resolveModel';
 import sampleReferencePosts from '@/features/ai-suggestions/sampleReferencePosts';
 import sendAiMessageAsync from '@/features/ai-suggestions/sendAiMessageAsync';
 import assetQuery from '@/features/asset-list/assetQuery';
-import { colors, motion, radii, scale, typography } from '@/styles/designTokens';
+import lastPostedText from '@/features/post-random-suggestions/lastPostedText';
+import readLastPosted from '@/features/post-random-suggestions/readLastPosted';
+import { colors, motion, radii, scale, spacing, typography } from '@/styles/designTokens';
+import listTextStyles from '@/styles/listTextStyles';
 import { getDb, schema } from '@/sync/db/client';
 import { readPostTexts } from '@/sync/postsRepository';
 import { readByIds } from '@/sync/readByIds';
@@ -42,6 +56,7 @@ const SWIPE_THRESHOLD = 50;
 const PROMPT_FOCUS_DELAY_MS = 100;
 const POOL_SIZE = 50;
 const NO_POOL = { ids: [], rows: [] };
+const LAST_POSTED_TABLES = [schema.assets, schema.albums, schema.albumAssets, schema.posts, schema.postAssets];
 // Swapping cards is a quick fade-through: the old one exits, the new one enters at the fast duration.
 const SWAP_IN = { ...motion.enter, duration: motion.duration.fast };
 
@@ -69,6 +84,20 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
   const [textPool, setTextPool] = useState([]);
   const [textIndex, setTextIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  // The asset's screen, opened from the card, shows on the stack below this sheet, so the sheet steps
+  // aside meanwhile, keeping its state, and comes back once that screen is left.
+  const navigation = useNavigation();
+  const [isShowingAsset, setIsShowingAsset] = useState(false);
+
+  // Back once the way back has finished (on iOS, presenting the sheet during it can fail); the web's
+  // stack has no transitions to wait for.
+  useEffect(() => {
+    if (!isShowingAsset) return;
+    const event = Platform.OS === 'web' ? 'focus' : 'transitionEnd';
+    return navigation.addListener(event, (e) => {
+      if (!e.data?.closing) setIsShowingAsset(false);
+    });
+  }, [navigation, isShowingAsset]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -247,6 +276,12 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
     animateTransition(textOpacity, textTranslateX, direction, () => setTextIndex(newIndex));
   }
 
+  // Just this asset, not its neighbours: the screen is for a look at the suggestion's albums and posts.
+  function handleOpenAsset() {
+    setIsShowingAsset(true);
+    navigation.push('AssetScreen', { assetId: currentAsset.id, query: { scope: { assetId: currentAsset.id } } });
+  }
+
   function handleConfirm() {
     onConfirm(currentAsset, currentText);
     onClose();
@@ -268,7 +303,12 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
   }
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal
+      visible={visible && !isShowingAsset}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
       <MenuProvider skipInstanceCheck>
         <ModalSheet style={styles.containerPadding}>
           <ModalHeader
@@ -297,7 +337,12 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
           <Card style={styles.mediaCard} {...mediaPanHandlers}>
             <Animated.View style={[StyleSheet.absoluteFill, mediaAnimStyle]}>
               {currentAsset ? (
-                <>
+                <SuperPressable
+                  style={StyleSheet.absoluteFill}
+                  onPress={handleOpenAsset}
+                  accessibilityRole="button"
+                  accessibilityLabel="Show details"
+                >
                   <AssetImage asset={currentAsset} contentFit="contain" placeholderColor="transparent" />
                   {currentAsset.mediaType === MEDIA_TYPES.VIDEO && (
                     <View style={styles.videoBadge}>
@@ -307,7 +352,7 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
                       )}
                     </View>
                   )}
-                </>
+                </SuperPressable>
               ) : (
                 <EmptyState icon="images" title="No media matches these filters" style={{ flex: 1 }} />
               )}
@@ -332,6 +377,12 @@ export default function RandomSuggestionsModal({ visible, onClose, onConfirm }) 
               </>
             )}
           </Card>
+
+          {currentAsset && (
+            <Animated.View style={mediaAnimStyle}>
+              <LastPosted assetId={currentAsset.id} onPress={handleOpenAsset} />
+            </Animated.View>
+          )}
 
           {/* Caption card */}
           <Card style={styles.captionCard} {...textPanHandlers}>
@@ -415,6 +466,31 @@ function FilterPill({ label, active, onPress }) {
   );
 }
 
+// When the asset and its album were last posted, opening the asset's screen on a press.
+function LastPosted({ assetId, onPress }) {
+  const lastPosted = useLiveQuery((db) => readLastPosted(db, assetId), LAST_POSTED_TABLES, [assetId], {
+    minInterval: MIN_REREAD_INTERVAL,
+  });
+
+  const text = lastPosted && lastPostedText(lastPosted);
+
+  if (!text) return null;
+
+  return (
+    <TouchableOpacity style={styles.lastPosted} onPress={onPress} activeOpacity={0.6}>
+      <View style={styles.lastPostedText}>
+        <Text style={listTextStyles.title} numberOfLines={1}>
+          {text.title}
+        </Text>
+        <Text style={listTextStyles.subtitle} numberOfLines={1}>
+          {text.subtitle}
+        </Text>
+      </View>
+      <Icon name="chevron-right" size={spacing.iconSizeSmall} color={colors.textTertiary} />
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
   containerPadding: {
     paddingHorizontal: SCREEN_PADDING,
@@ -487,6 +563,17 @@ const styles = StyleSheet.create({
     color: colors.textInverse,
     fontSize: scale(11),
     fontWeight: '600',
+  },
+
+  // --- Last posted ---
+  lastPosted: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  lastPostedText: {
+    flex: 1,
   },
 
   hidden: {

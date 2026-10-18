@@ -110,6 +110,18 @@ describe('assetQuery', () => {
     expect(await assetQuery({ scope: 'library' }).ids(db)).toEqual(['asset-5', 'asset-1', 'asset-0']);
   });
 
+  it('scopes to one live asset alone, whatever the sort', async () => {
+    await createAssets([{}, {}, { deletedAt: 5 }]);
+    await createPost(db, { id: 'p1', postedAt: 10 }, ['asset-1']);
+    const one = assetQuery({ scope: { assetId: 'asset-1' } });
+    const { rows, count } = await one.read(db, { limit: 10 });
+    expect(rowIds(rows)).toEqual(['asset-1']);
+    expect(count).toBe(1);
+    expect(await assetQuery({ scope: { assetId: 'asset-1' }, sort: 'lastPostedAt:desc' }).ids(db)).toEqual(['asset-1']);
+    expect(await assetQuery({ scope: { assetId: 'asset-2' } }).ids(db)).toEqual([]); // deleted
+    expect(rowIds(await one.rowsByIds(db, ['asset-0', 'asset-1', 'asset-2'])).sort()).toEqual(['asset-0', 'asset-1']);
+  });
+
   it('shows an album in custom order once per asset, at its earliest edge, with a double edge', async () => {
     await createAssets([{}, {}, {}]);
     await albumEdges.add(db, AL, ['asset-0', 'asset-1', 'asset-2'], newId);
@@ -190,6 +202,7 @@ describe('assetQuery', () => {
       { scope: { albumId: AL }, sort: 'lastPostedAt:asc' },
       { scope: { postId: 'p1' } },
       { scope: { postId: 'p1' }, filter: ['videos'], search: 'o' },
+      { scope: { assetId: 'asset-1' }, search: 'o' },
     ];
     for (const descriptor of descriptors) {
       const q = assetQuery(descriptor);

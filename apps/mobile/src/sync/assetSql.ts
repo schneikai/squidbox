@@ -14,11 +14,12 @@ export const a = alias(schema.assets, 'a');
 
 /**
  * An asset scope: the library, a smart album (Deleted: not the purged), an album by id (a value, or
- * SQL naming a column), or a post's assets as the post screen shows them, in its order, a trashed
- * one included (one post, or several for postQuery, which reads its posts' assets at once).
+ * SQL naming a column), a post's assets as the post screen shows them, in its order, a trashed
+ * one included (one post, or several for postQuery, which reads its posts' assets at once), or one
+ * live asset alone (a post suggestion's).
  */
 export type AssetScope =
-  'library' | 'favorites' | 'deleted' | { albumId: string | SQL } | { postId: string | string[] };
+  'library' | 'favorites' | 'deleted' | { albumId: string | SQL } | { postId: string | string[] } | { assetId: string };
 
 function isPostScope(scope: AssetScope): scope is { postId: string | string[] } {
   return typeof scope === 'object' && 'postId' in scope;
@@ -41,7 +42,7 @@ export function scopeEdges(scope: AssetScope, sort = 'createdAt:desc') {
       where: sql`${isOfPost} and e.deleted_at is null and ${isCanonicalEdge(schema.postAssets, postEdge, 'postId')}`,
     };
   }
-  if (typeof scope !== 'object' || sort !== 'custom') return null;
+  if (typeof scope !== 'object' || !('albumId' in scope) || sort !== 'custom') return null;
   return {
     e: albumEdge,
     where: sql`e.album_id = ${scope.albumId} and e.deleted_at is null and ${isCanonicalEdge(schema.albumAssets, albumEdge, 'albumId')}`,
@@ -92,6 +93,7 @@ export function assetScopeWhere(scope: AssetScope, sort = 'createdAt:desc'): SQL
   const edges = scopeEdges(scope, sort);
   if (edges) return sql`${deletion} and ${edges.where}`;
   if (scope === 'favorites') return sql`${deletion} and a.is_favorite = 1`;
+  if (typeof scope === 'object' && 'assetId' in scope) return sql`${deletion} and a.id = ${scope.assetId}`;
   if (typeof scope !== 'object' || !('albumId' in scope)) return deletion;
   return sql`${deletion} and a.id in ${liveAlbumAssetIds(scope.albumId)}`;
 }
