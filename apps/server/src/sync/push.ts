@@ -3,10 +3,12 @@ import type { PushMutation, PushResult } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import { assets } from '../db/schema.js';
 import { serverCollections, toWireRecord, type ServerCollection } from './collections.js';
+import { fieldMergeUpdate } from './fieldMergeUpdate.js';
 import { storedClocks } from './storedClocks.js';
 
 export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 type ValidRecord = Record<string, unknown> & { id: string; updatedAt: number };
+type Clocks = Record<string, number>;
 type DriverError = { code?: unknown; constraint?: unknown; cause?: DriverError };
 
 // SQLSTATE classes 22 (data exception) and 23 (integrity constraint violation) on a row the schema
@@ -30,14 +32,15 @@ function driverError(error: unknown): DriverError | undefined {
  * Push (sync-design §6). In ONE transaction, take a per-user advisory lock (serializes this
  * user's pushes so server_seq order == commit order → safe pull watermark; tenants don't
  * contend), then for each mutation:
- *   1. validate the record against the collection's Zod schema (reject on failure);
- *   2. clamp a future `updatedAt` to server-now (clock skew, §7);
- *   3. atomic LWW upsert: INSERT … ON CONFLICT (user_id, id) DO UPDATE … WHERE
- *      excluded.updated_at > table.updated_at (strict >, composite conflict target; for assets a
- *      purge is final, see appliesOver).
- * A returned row = applied; no row on conflict = lost LWW → 'skipped-lww' with the server's
- * current winning record (required for client convergence, §6). user_id always comes from the
- * token, never the client. No hard deletes — a delete is an update setting deletedAt.
+ *   1. validate the record against the collection's Zod schema, and its `fields` (reject on failure);
+ *   2. clamp a future `updatedAt`, and future field clocks, to server-now (clock skew, §7);
+ *   3. atomic upsert, INSERT … ON CONFLICT (user_id, id) DO UPDATE, composite conflict target:
+ *      - with `fields`, a per-field merge of the fields it names (fieldMergeUpdate);
+ *      - without (older apps, the legacy importer), whole-record LWW: WHERE excluded.updated_at >
+ *        table.updated_at (strict >; for assets a purge is final, see appliesOver).
+ * 'applied' when the push's changes hold; otherwise 'skipped-lww' with the server's current record
+ * (required for client convergence, §6). user_id always comes from the token, never the client.
+ * No hard deletes — a delete is an update setting deletedAt.
  *
  * The batch first runs in one savepoint. If a row raises a database error, that savepoint is
  * rolled back (the advisory lock, taken before it, stays held) and the batch reruns with a
@@ -90,14 +93,25 @@ async function applyMutations(
     }
 
     const record = parsed.data as ValidRecord;
-    const updatedAt = record.updatedAt > now ? now : record.updatedAt; // clamp future
-    const clamped = { ...record, updatedAt };
+    const invalidFields = Object.keys(mutation.fields ?? {}).filter(
+      (field) => !col.mergeFields.includes(field) || !(field in record),
+    );
+    if (invalidFields.length > 0) {
+      const reason = 'schema:' + invalidFields.map((field) => `fields.${field}`).join(',');
+      results.push({ id: record.id, collection: col.name, status: 'rejected', reason });
+      continue;
+    }
+
+    const clamp = (clock: number) => Math.min(clock, now); // clamp future
+    const clamped = { ...record, updatedAt: clamp(record.updatedAt) };
+    const fields = mutation.fields && mapValues(mutation.fields, clamp);
+    const write = (t: Tx) => (fields ? mergeUpsert(t, col, clamped, fields, userId) : upsert(t, col, clamped, userId));
     if (!isolateRows) {
-      results.push(await upsert(tx, col, clamped, userId));
+      results.push(await write(tx));
       continue;
     }
     try {
-      results.push(await tx.transaction((savepoint) => upsert(savepoint, col, clamped, userId)));
+      results.push(await tx.transaction(write));
     } catch (error) {
       const code = recordErrorCode(error);
       if (!code) throw error;
@@ -143,14 +157,54 @@ async function upsert(tx: Tx, col: ServerCollection, record: ValidRecord, userId
   if (inserted.length > 0) return { id: record.id, collection: col.name, status: 'applied' };
 
   // Lost LWW (or equal-timestamp replay): return the server's current winning record.
-  const [current] = await tx
-    .select()
-    .from(col.table)
-    .where(and(eq(table.userId, userId), eq(table.id, record.id)));
+  const current = await currentRow(tx, col, userId, record.id);
   return {
     id: record.id,
     collection: col.name,
     status: 'skipped-lww',
     current: current ? toWireRecord(current) : undefined,
   };
+}
+
+// A per-field push (§6): only the fields it names merge, each by its own clock. A sent field is lost
+// when the row holds another clock or value for it after the merge; then the push is 'skipped-lww'
+// and `current` (the merged row, with the fields that did apply) is what the device adopts. A replay
+// changes nothing and is 'applied'.
+async function mergeUpsert(
+  tx: Tx,
+  col: ServerCollection,
+  record: ValidRecord,
+  fields: Clocks,
+  userId: string,
+): Promise<PushResult> {
+  const table = col.table as any;
+  const sent = col.mergeFields.filter((field) => field in fields);
+  const { set, setWhere } = fieldMergeUpdate(col, sent);
+  const [updated] = await tx
+    .insert(col.table)
+    .values({ ...record, userId, fieldClock: fields })
+    .onConflictDoUpdate({ target: [table.userId, table.id], set, setWhere })
+    .returning();
+  const row: Record<string, unknown> = updated ?? (await currentRow(tx, col, userId, record.id));
+  const lost = sent.some((field) => storedClock(row, field) !== fields[field] || !Object.is(row[field], record[field]));
+  if (!lost) return { id: record.id, collection: col.name, status: 'applied' };
+  return { id: record.id, collection: col.name, status: 'skipped-lww', current: toWireRecord(row) };
+}
+
+function storedClock(row: Record<string, unknown>, field: string): number {
+  const clocks = row.fieldClock as Clocks | null;
+  return clocks ? (clocks[field] ?? 0) : (row.updatedAt as number);
+}
+
+async function currentRow(tx: Tx, col: ServerCollection, userId: string, id: string) {
+  const table = col.table as any;
+  const [row] = await tx
+    .select()
+    .from(col.table)
+    .where(and(eq(table.userId, userId), eq(table.id, id)));
+  return row;
+}
+
+function mapValues(clocks: Clocks, map: (clock: number) => number): Clocks {
+  return Object.fromEntries(Object.entries(clocks).map(([field, clock]) => [field, map(clock)]));
 }
