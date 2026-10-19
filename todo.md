@@ -82,9 +82,12 @@ with the maximum taken from the photo's own size.
 
 ### [ ] Show when an album was last posted on a post's screen
 
-The "Posted Albums" rows (`features/post-detail/Post.jsx`) show the album's asset count. Show when
-the album was last posted instead (or as well), like the suggestions card does, so a repeat is easy to
-spot.
+Two parts:
+- **Last posted on the album row.** The "Posted Albums" rows (`features/post-detail/Post.jsx`) show
+  the album's asset count. Show when the album was last posted instead, like the suggestions card
+  does, so a repeat is easy to spot.
+- **The album's other posts.** Below it, list the other posts made with media from this album, like
+  the photo details list an asset's posts (`AssetDetailsPanel`). Reuse that list.
 
 ### [ ] Context menus on long press (photo, album, post)
 
