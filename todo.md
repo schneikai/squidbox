@@ -80,6 +80,12 @@ The photo viewer shows the 1000 px thumbnail, so zoom stops at 4× (`useZoomGest
 well before that. Loading the full-resolution file once zoomed would make deeper zoom worthwhile,
 with the maximum taken from the photo's own size.
 
+### [ ] Show when an album was last posted on a post's screen
+
+The "Posted Albums" rows (`features/post-detail/Post.jsx`) show the album's asset count. Show when
+the album was last posted instead (or as well), like the suggestions card does, so a repeat is easy to
+spot.
+
 ### [ ] Context menus on long press (photo, album, post)
 
 Apple-Photos-style menu on long press: a preview with actions such as Share, Save, Add to album,
