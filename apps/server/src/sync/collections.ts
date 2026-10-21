@@ -7,8 +7,6 @@ import {
   postCollection,
   albumAssetCollection,
   postAssetCollection,
-  clockedFields,
-  mergeFields,
   type CollectionDescriptor,
 } from '@squidbox/shared';
 import { assets, albums, posts, albumAssets, postAssets } from '../db/schema.js';
@@ -20,8 +18,6 @@ export interface ServerCollection {
   descriptor: CollectionDescriptor;
   schema: z.ZodObject<z.ZodRawShape>;
   wireColumns: Record<string, PgColumn>;
-  mergeFields: string[];
-  clockedFields: string[];
   /** A collection with a final field keeps the last deletedAt values a restore undid (sync-design §7). */
   restoredDeletions: PgColumn | undefined;
   /** The table's columns, which bound the rows per statement (Postgres takes 65,535 bind parameters). */
@@ -45,8 +41,6 @@ function serverCollection(table: PgTable, descriptor: CollectionDescriptor): Ser
     descriptor,
     schema,
     wireColumns,
-    mergeFields: mergeFields(descriptor),
-    clockedFields: clockedFields(descriptor),
     restoredDeletions,
     columnCount: Object.keys(columns).length,
     upsertSet: Object.fromEntries(

@@ -30,22 +30,29 @@ import { runSyncOnce } from '../src/sync/worker';
 // phone, run as it is against this server. The suite extracts its apps/mobile/src/sync into
 // test/.main-client (gitignored) and drives it with its own SQLite migrations; an "update" then runs
 // this branch's new migrations on that same database and goes on with this branch's code. Needs the
-// docker Postgres and that commit in git (CI fetches it, .github/workflows/ci.yml: keep the two in
-// step): in CI a missing one fails the suite instead of skipping it.
+// docker Postgres and that commit, which the suite fetches (depth 1) when the checkout lacks it: in CI
+// one it can't get fails the suite instead of skipping it.
 const INSTALLED = 'df3337856e3c801b097384ce8e5ed30a9bee289c';
 const TEST_URL = process.env.TEST_DATABASE_URL;
 const here = fileURLToPath(new URL('.', import.meta.url));
 const mainRoot = `${here}.main-client`;
+const git = (args: string[]) => execFileSync('git', args, { cwd: here, stdio: 'ignore' });
 const hasInstalled = (() => {
+  if (!TEST_URL) return false;
   try {
-    execFileSync('git', ['cat-file', '-e', `${INSTALLED}^{commit}`], { cwd: here, stdio: 'ignore' });
+    git(['cat-file', '-e', `${INSTALLED}^{commit}`]);
     return true;
   } catch {
-    return false;
+    try {
+      git(['fetch', '--depth=1', 'origin', INSTALLED]);
+      return true;
+    } catch {
+      return false;
+    }
   }
 })();
 if (TEST_URL && !hasInstalled && process.env.CI)
-  throw new Error(`mainClient.e2e: commit ${INSTALLED} (the installed app) is missing; fetch the full history`);
+  throw new Error(`mainClient.e2e: commit ${INSTALLED} (the installed app) could not be fetched from origin`);
 const d = TEST_URL && hasInstalled ? describe : describe.skip;
 
 const USER = randomUUID();

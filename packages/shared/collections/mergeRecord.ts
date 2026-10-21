@@ -1,8 +1,6 @@
 import type { FieldClocks } from '../contracts/sync';
-import { clockedFields } from './clockedFields';
 import type { CollectionDescriptor } from './define';
 import { lostFields } from './lostFields';
-import { mergeFields } from './mergeFields';
 
 type Row = Record<string, unknown> & { updatedAt: number };
 
@@ -61,11 +59,11 @@ export function mergeRecord(
   }: MergeInput,
 ): MergeResult {
   const final = descriptor.finalField;
-  const carried = mergeFields(descriptor).filter((field) => field in sent);
+  const carried = descriptor.mergeFields.filter((field) => field in sent);
   const sentFields = carried.filter((field) => field in sentClocks);
   if (!stored) {
     // Every clocked field gets a clock, as the row is written: a sent one, or the record's updatedAt.
-    const clocked = clockedFields(descriptor);
+    const clocked = descriptor.clockedFields;
     const updatedAt = Math.max(sent.updatedAt, ...clocked.map((field) => sentClocks[field] ?? 0));
     const clocks = Object.fromEntries(clocked.map((field) => [field, sentClocks[field] ?? updatedAt]));
     return { record: { ...sent, updatedAt }, clocks, applied: carried, lost: [], restoredDeletions: [] };

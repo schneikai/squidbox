@@ -399,7 +399,7 @@ d('push: one upsert per collection', () => {
         const style = first ? pick(['whole', 'every']) : pick(['fields', 'fields', 'fields', 'whole']);
         if (style === 'whole') mutations.push(whole(record, kind));
         else if (style === 'every') {
-          const every = serverCollections[kind]!.mergeFields.filter((field) => field in record);
+          const every = serverCollections[kind]!.descriptor.mergeFields.filter((field) => field in record);
           mutations.push(at(record, clock, every, kind));
         } else mutations.push(at(record, clock, fields, kind));
       }

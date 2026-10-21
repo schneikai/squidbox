@@ -54,37 +54,29 @@ function recordsIn(collection: string, recordIds: string[]) {
   return and(eq(schema.outbox.collection, collection), inJson(schema.outbox.recordId, recordIds));
 }
 
-export type PendingEdit = Pick<schema.OutboxRow, 'fields' | 'payload' | 'updatedAt'>;
-
-const pendingColumns = {
-  fields: schema.outbox.fields,
-  payload: schema.outbox.payload,
-  updatedAt: schema.outbox.updatedAt,
-};
+export type PendingEdit = Pick<schema.OutboxRow, 'fields' | 'updatedAt'> & { payload?: schema.OutboxRow['payload'] };
 
 /**
- * The pending edits of these records, by record id, with the columns asked for (a payload is read
- * only when asked: it is the big one). Records without one are left out.
+ * The pending edits of these records, by record id: their changed fields and updatedAt, and their
+ * payload only when asked (it is the big one). Records without one are left out.
  */
-export async function pendingEdits<K extends keyof PendingEdit>(
+export async function pendingEdits(
   db: SyncDb,
   collection: string,
   recordIds: string[],
-  columns: K[],
-): Promise<Map<string, Pick<PendingEdit, K>>> {
+  { payload = false }: { payload?: boolean } = {},
+): Promise<Map<string, PendingEdit>> {
+  if (recordIds.length === 0) return new Map();
   const rows = await db
     .select({
       recordId: schema.outbox.recordId,
-      ...Object.fromEntries(columns.map((column) => [column, pendingColumns[column]])),
+      fields: schema.outbox.fields,
+      updatedAt: schema.outbox.updatedAt,
+      ...(payload && { payload: schema.outbox.payload }),
     })
     .from(schema.outbox)
     .where(recordsIn(collection, recordIds));
-  return new Map(
-    (rows as ({ recordId: string } & Pick<PendingEdit, K>)[]).map(({ recordId, ...edit }) => [
-      recordId,
-      edit as unknown as Pick<PendingEdit, K>,
-    ]),
-  );
+  return new Map(rows.map(({ recordId, ...edit }) => [recordId, edit]));
 }
 
 export async function clearOutboxRows(db: SyncDb, collection: string, recordIds: string[]): Promise<void> {

@@ -6,7 +6,7 @@ import { removeLibrary } from './removeLibrary';
 
 import { getDb, withAppDb } from '@/sync/db/client';
 import type { SyncDb } from '@/sync/db/types';
-import { getMergeTarget, setMergeTarget } from '@/sync/status';
+import { getMergeTarget, isFirstSyncDone, setMergeTarget } from '@/sync/status';
 
 // A library's database for the merge: the open one as it is (never opened a second time), a
 // parked one on its own connection, closed again afterwards.
@@ -40,13 +40,18 @@ function setKept(sourceId: string, targetId: string): Promise<unknown> {
  * account from then on, §7a); only a merge that completes clears them. A pass that throws before its
  * commit leaves both as they were before it, so a first one leaves none and one after an earlier
  * commit keeps them; a crash leaves them, and the boot runs the merge again (resumeMerges): planMerge
- * finds what is left to add, so every stage is idempotent.
+ * finds what is left to add, so every stage is idempotent. A source an earlier pass copied into a
+ * library that is gone may be in the account already: its merge waits for the target's first full
+ * pull (the boot tries again), which brings those records, so the device's edits and deletions of
+ * them replay by id instead of being left behind.
  */
 export async function mergeLibrary(sourceId: string, targetId: string): Promise<void> {
   const resumed = Boolean(getRegistry().libraries.find(({ id }) => id === sourceId)?.mergedInto);
   await setMarker(sourceId, targetId);
-  const keepsSource = await withBothDbs(sourceId, targetId, async (source, target) => {
-    const copied = Boolean(await getMergeTarget(source));
+  const outcome = await withBothDbs(sourceId, targetId, async (source, target) => {
+    const copiedInto = await getMergeTarget(source);
+    const copied = copiedInto !== null;
+    if (copied && copiedInto !== targetId && !(await isFirstSyncDone(target))) return 'waits';
     let plan: MergePlan;
     try {
       plan = await planMerge(source, target, libraryPaths(sourceId));
@@ -62,10 +67,10 @@ export async function mergeLibrary(sourceId: string, targetId: string): Promise<
     }
     await moveMergedFiles(plan, libraryPaths(sourceId), libraryPaths(targetId));
     if (plan.keepsSource) await setMergeTarget(source, null); // done: what it copied has its files in the target
-    return plan.keepsSource;
+    return plan.keepsSource ? 'kept' : 'done';
   });
-  if (keepsSource) await setKept(sourceId, targetId);
-  else await removeLibrary(sourceId);
+  if (outcome === 'kept') await setKept(sourceId, targetId);
+  else if (outcome === 'done') await removeLibrary(sourceId);
 }
 
 /**

@@ -190,6 +190,31 @@ describe('planMerge + applyMerge', () => {
     expect(addsRecords(plan)).toBe(false);
   });
 
+  it('an edit made on the target between the plan and its commit isn’t set back by the replay', async () => {
+    const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
+    await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);
+    await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
+    await repo.updateAsset(source, shared.id, { notes: 'device', oldFileId: 'device' });
+    const plan = await planMerge(source, target, SRC);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await repo.updateAsset(target, shared.id, { notes: 'account, meanwhile', isFavorite: true }); // the app is in use
+    await applyMerge(target, plan);
+    const [row] = await target.select().from(schema.assets);
+    expect(row).toMatchObject({ notes: 'account, meanwhile', isFavorite: true, oldFileId: 'device' });
+  });
+
+  it('a photo matched by an earlier pass, then deleted on the device, doesn’t come in as a trashed copy', async () => {
+    const theirs = await repo.createAsset(target, makeAssetRecord({ mediaLibraryAssetId: 'm-1' }));
+    const mine = await devicePhoto({ mediaLibraryAssetId: 'm-1', isFavorite: true });
+    await applyMerge(target, await planMerge(source, target, SRC));
+    await repo.deleteAssets(source, [mine.id]);
+    const again = await planMerge(source, target, SRC);
+    expect([again.assets, again.duplicates]).toEqual([[], []]);
+    expect((await target.select().from(schema.assets)).map((row) => [row.id, row.deletedAt])).toEqual([
+      [theirs.id, null],
+    ]);
+  });
+
   it('matches a photo the account has from the same camera-roll item: edges re-pointed, favorite OR, notes kept, no file', async () => {
     const theirs = await repo.createAsset(target, makeAssetRecord({ mediaLibraryAssetId: 'm-1', notes: 'theirs' }));
     const mine = await devicePhoto({
@@ -203,7 +228,7 @@ describe('planMerge + applyMerge', () => {
 
     const plan = await planMerge(source, target, SRC);
     expect([plan.assets.length, plan.albums.length]).toEqual([0, 1]);
-    expect(plan.duplicates).toEqual([{ id: theirs.id, isFavorite: true, notes: 'theirs\nmine' }]);
+    expect(plan.duplicates).toMatchObject([{ id: theirs.id, isFavorite: true, notes: 'theirs\nmine' }]);
     expect(plan.albumAssets.map((edge) => edge.assetId)).toEqual([theirs.id]);
     expect([plan.files, plan.thumbnails]).toEqual([[], []]);
 
@@ -274,7 +299,7 @@ describe('planMerge + applyMerge', () => {
     await devicePhoto({ mediaLibraryAssetId: 'm-1', isFavorite: false, notes: 'second', filename: 'two.jpg' });
 
     const plan = await planMerge(source, target, SRC);
-    expect(plan.duplicates).toEqual([{ id: theirs.id, isFavorite: true, notes: 'first\nsecond' }]);
+    expect(plan.duplicates).toMatchObject([{ id: theirs.id, isFavorite: true, notes: 'first\nsecond' }]);
     await applyMerge(target, plan);
     const [row] = await target.select().from(schema.assets);
     expect(row).toMatchObject({ isFavorite: true, notes: 'first\nsecond' });
@@ -510,15 +535,11 @@ describe('a device library that never synced (no account)', () => {
   });
 });
 
-describe('round 7: a big device library', () => {
-  // planMerge's replay mark is `Math.max(replayedThrough, ...every clock of the source's outbox)`:
-  // one argument per field of every pending row, and a device library that never synced holds an
-  // insert naming all 16 asset fields for every photo. Spread into a call, ~8,000 photos pass the
-  // engine's argument limit (about 125,000 in Node; Hermes has one too), so the planning throws a
-  // RangeError on every pass and the sign-in's merge never completes: nothing of the device library
-  // reaches the account. Expected: the plan copies the 10,000 photos. Actual: "Maximum call stack
-  // size exceeded".
-  it.fails('plans the merge of 10,000 photos', async () => {
+describe('a big device library', () => {
+  // A device library that never synced holds an insert naming every asset field for every photo:
+  // nothing in the plan may take one argument per clock (a spread into a call overflows the stack at
+  // about 8,000 photos), or the sign-in's merge would never complete.
+  it('plans the merge of 10,000 photos', async () => {
     const photos = Array.from({ length: 10_000 }, (_, i) =>
       makeAssetRecord({ mediaLibraryAssetId: `m-${i}`, filename: `f${i}.jpg`, isFileSynced: false }),
     );

@@ -41,9 +41,6 @@ jobs:
         with:
           persist-credentials: false
 
-      # mainClient.e2e runs the installed app's client code from its commit (INSTALLED there).
-      - run: git fetch --depth=1 origin df3337856e3c801b097384ce8e5ed30a9bee289c
-
       - uses: actions/setup-node@v7
         with:
           node-version-file: mise.toml

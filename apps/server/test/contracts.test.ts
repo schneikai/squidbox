@@ -5,7 +5,6 @@ import {
   collections,
   fieldClocksSchema,
   lostFields,
-  mergeFields,
   widenToGroups,
   pushMutationSchema,
   resolveExpiresIn,
@@ -62,7 +61,7 @@ describe('push contract', () => {
 
 describe('merge fields', () => {
   it('are every synced field but the id and the two creation and version clocks', () => {
-    const fields = mergeFields(assetCollection);
+    const fields = assetCollection.mergeFields;
     expect(fields).toContain('deletedAt');
     expect(fields).toContain('purgedAt');
     expect(fields).toContain('isFavorite');
@@ -75,7 +74,7 @@ describe('merge fields', () => {
   it('field groups name merge fields only', () => {
     for (const collection of collections) {
       for (const group of collection.fieldGroups) {
-        for (const field of group) expect(mergeFields(collection), `${collection.name}.${field}`).toContain(field);
+        for (const field of group) expect(collection.mergeFields, `${collection.name}.${field}`).toContain(field);
       }
     }
     expect(assetCollection.fieldGroups).toEqual([

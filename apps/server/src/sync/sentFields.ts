@@ -13,7 +13,7 @@ export function sentFields(
   fields: FieldClocks | undefined,
   now: number,
 ): FieldClocks {
-  const carried = col.mergeFields.filter((field) => field in record);
+  const carried = col.descriptor.mergeFields.filter((field) => field in record);
   const clocks = widenToGroups(
     col.descriptor,
     fields

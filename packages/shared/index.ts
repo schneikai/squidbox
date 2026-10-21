@@ -16,8 +16,6 @@ export * from './collections/post';
 export * from './collections/albumAsset';
 export * from './collections/postAsset';
 export * from './collections/registry';
-export * from './collections/mergeFields';
-export * from './collections/clockedFields';
 export * from './collections/widenToGroups';
 export * from './collections/lostFields';
 export * from './collections/mergeRecord';

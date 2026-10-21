@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assetCollection, mergeFields, mergeRecord, widenToGroups, type FieldClocks } from '@squidbox/shared';
+import { assetCollection, mergeRecord, widenToGroups, type FieldClocks } from '@squidbox/shared';
 import { serverCollections } from '../src/sync/collections.js';
 import { sentFields } from '../src/sync/sentFields.js';
 
@@ -20,7 +20,7 @@ type Mutation = { record: Rec; fields?: FieldClocks };
 type Result = { status: 'applied' | 'skipped-lww'; current?: Rec };
 
 const col = serverCollections.assets!;
-const MERGE = mergeFields(assetCollection);
+const MERGE = assetCollection.mergeFields;
 const FLAGS = ['isFileSynced', 'isThumbnailSynced', 'isSynced'];
 const REGISTERS = ['notes', 'isFavorite', 'mediaType', ...FLAGS]; // merge fields outside the deletion pair
 const HOUR = 3_600_000;
@@ -47,10 +47,10 @@ function prng(seed: number) {
 // when a server without clocks wrote the row since (its updated_at is newer than all of them), takes
 // updated_at.
 function storedClocks(updatedAt: number, fieldClock: FieldClocks | null): FieldClocks {
-  const known = col.clockedFields.flatMap((field) => (fieldClock && field in fieldClock ? [fieldClock[field]!] : []));
+  const known = col.descriptor.clockedFields.flatMap((field) => (fieldClock && field in fieldClock ? [fieldClock[field]!] : []));
   const legacy = known.length === 0 || updatedAt > Math.max(...known);
   return Object.fromEntries(
-    col.clockedFields.map((field) => [field, legacy ? updatedAt : (fieldClock![field] ?? updatedAt)]),
+    col.descriptor.clockedFields.map((field) => [field, legacy ? updatedAt : (fieldClock![field] ?? updatedAt)]),
   );
 }
 
@@ -137,7 +137,7 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
   };
   const server: Server = {
     record: initial,
-    fieldClock: Object.fromEntries(col.clockedFields.map((f) => [f, T0])),
+    fieldClock: Object.fromEntries(col.descriptor.clockedFields.map((f) => [f, T0])),
     seq: ++seq,
     restored: new Set(),
     restoredDeletions: [],
@@ -269,11 +269,11 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
       }
       server.record = { ...(merged.record as Rec), purgedAt: (merged.record.purgedAt as number | null) ?? null }; // a column: null when unsent
       // push.ts writeRows: null when every clock is updated_at (storedClocks reads it back the same).
-      server.fieldClock = col.clockedFields.every(
+      server.fieldClock = col.descriptor.clockedFields.every(
         (f) => (merged.clocks[f] ?? merged.record.updatedAt) === merged.record.updatedAt,
       )
         ? null
-        : Object.fromEntries(col.clockedFields.map((f) => [f, merged.clocks[f] ?? merged.record.updatedAt]));
+        : Object.fromEntries(col.descriptor.clockedFields.map((f) => [f, merged.clocks[f] ?? merged.record.updatedAt]));
       server.restoredDeletions = merged.restoredDeletions;
       server.seq = ++seq;
     }
@@ -281,7 +281,7 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
     for (const value of server.restoredDeletions)
       if (!server.restored.has(value)) fail(step, `${value} kept, but no restore undid it`);
     if (merged.applied.length > 0) {
-      const max = Math.max(...col.clockedFields.map((f) => merged.clocks[f] ?? 0));
+      const max = Math.max(...col.descriptor.clockedFields.map((f) => merged.clocks[f] ?? 0));
       if (merged.record.updatedAt !== max)
         fail(step, `updated_at ${merged.record.updatedAt} is not the newest clock ${max}`);
     }
@@ -580,7 +580,7 @@ describe('mergeRecord for a library merge, property-style (seeded)', () => {
       };
       const pendingFields = REGISTERS.concat(['deletedAt']).filter(() => rand.chance(0.3));
       const storedClocks = {
-        ...Object.fromEntries(col.clockedFields.map((f) => [f, 0])),
+        ...Object.fromEntries(col.descriptor.clockedFields.map((f) => [f, 0])),
         ...widenToGroups(assetCollection, Object.fromEntries(pendingFields.map((f) => [f, 1000 + rand.int(4) * 500]))),
       };
       const storedPurgeFinal = !('purgedAt' in storedClocks);

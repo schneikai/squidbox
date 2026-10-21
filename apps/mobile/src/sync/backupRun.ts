@@ -73,7 +73,7 @@ async function backupAssets(
 // (§6). Such an asset waits: its original is deleted once uploaded, so the server must have its
 // record first, and a push that keeps failing would otherwise upload the file on every run.
 async function isUnconfirmed(db: SyncDb, id: string): Promise<boolean> {
-  return (await pendingEdits(db, 'assets', [id], ['updatedAt'])).has(id);
+  return (await pendingEdits(db, 'assets', [id])).has(id);
 }
 
 // Resolves whether the run was aborted on this asset.

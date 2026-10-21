@@ -1158,16 +1158,17 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
 
     // "Target gone": a first pass copied the photo into the account's library T1, which pushed it, then
     // T1 left the list (resumeMerges clears the list's marker and keeps the source's). Opened while
-    // the session is lost, the device library trashes the photo, whose file stays. The next sign-in
-    // merges it into a new, never-synced library T2: as the source's marker says a pass copied it, its
-    // tombstones are carried too, with their files, so the deletion reaches the account.
+    // the session is lost, the device library trashes the photo, whose file stays. The next sign-in's
+    // merge into a new library T2 waits for T2's first full pull (mergeRun), which brings the photo,
+    // so the device's deletion replays by id.
     it('after the target is gone, a deletion made in the device library reaches the account through the next merge', async () => {
       const id = await seedAsset({ isFileSynced: false, isThumbnailSynced: false, isSynced: false }); // T1 pushed it
       const D = await deviceLibraryWith(id);
       await setOwner(D, { kind: 'device' });
       await setMergeTarget(D, 'gone');
       await edit(D, S + 100, () => repo.deleteAssets(D, [id]));
-      const T2 = makeTestDb(); // the account's new library, not synced yet
+      const T2 = makeTestDb(); // the account's new library
+      await settle([A, B, T2]); // its first full pull
       at(S + 200);
       const plan = await planMerge(D, T2, libraryPaths('device'));
       await applyMerge(T2, plan);

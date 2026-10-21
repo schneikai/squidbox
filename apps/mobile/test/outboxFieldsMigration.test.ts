@@ -1,4 +1,4 @@
-import { assetCollection, mergeFields } from '@squidbox/shared';
+import { assetCollection } from '@squidbox/shared';
 import Database from 'better-sqlite3';
 import { readMigrationFiles } from 'drizzle-orm/migrator';
 import { fileURLToPath } from 'node:url';
@@ -32,7 +32,7 @@ describe('migration 0011_outbox_fields', () => {
     migrate(sqlite, index, index + 1);
 
     const { fields } = sqlite.prepare('SELECT fields FROM outbox').get() as { fields: string };
-    const expected = mergeFields(assetCollection).filter((key) => key in withoutNotes);
+    const expected = assetCollection.mergeFields.filter((key) => key in withoutNotes);
     expect(expected).not.toContain('notes');
     expect(JSON.parse(fields)).toEqual(Object.fromEntries(expected.map((key) => [key, 2000])));
   });

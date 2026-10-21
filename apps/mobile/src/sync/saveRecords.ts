@@ -1,12 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic over any collection's table */
-import {
-  collectionsByName,
-  mergeFields,
-  widenToGroups,
-  type CollectionDescriptor,
-  type FieldClocks,
-  chunk,
-} from '@squidbox/shared';
+import { collectionsByName, widenToGroups, type CollectionDescriptor, type FieldClocks, chunk } from '@squidbox/shared';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
 import type { SyncDb } from './db/types';
@@ -57,7 +50,7 @@ function changedFields(
   records: readonly SavedRecord[],
   previous: Map<string, StoredRow>,
 ): Map<string, FieldClocks> {
-  const names = mergeFields(descriptor);
+  const names = descriptor.mergeFields;
   const changes = new Map<string, FieldClocks>();
   for (const record of records) {
     const prev = previous.get(record.id);

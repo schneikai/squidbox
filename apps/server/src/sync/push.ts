@@ -198,10 +198,10 @@ async function readStored(tx: Tx, userId: string, entries: Prepared[]): Promise<
 // before per-field merge, or with every clock at its updated_at), or written since by a server without
 // them (a rollback: its updated_at is newer than every clock), takes its updated_at for each (§7).
 function storedClocks(col: ServerCollection, updatedAt: number, fieldClock: FieldClocks | null): FieldClocks {
-  const known = col.clockedFields.flatMap((field) => (fieldClock && field in fieldClock ? [fieldClock[field]!] : []));
+  const known = col.descriptor.clockedFields.flatMap((field) => (fieldClock && field in fieldClock ? [fieldClock[field]!] : []));
   const legacy = known.length === 0 || updatedAt > Math.max(...known);
   return Object.fromEntries(
-    col.clockedFields.map((field) => [field, legacy ? updatedAt : (fieldClock![field] ?? updatedAt)]),
+    col.descriptor.clockedFields.map((field) => [field, legacy ? updatedAt : (fieldClock![field] ?? updatedAt)]),
   );
 }
 
@@ -217,9 +217,9 @@ async function writeRows(tx: Tx, col: ServerCollection, userId: string, rows: St
         batch.map(({ record, clocks, restoredDeletions }) => ({
           ...record,
           userId,
-          fieldClock: col.clockedFields.every((field) => (clocks[field] ?? record.updatedAt) === record.updatedAt)
+          fieldClock: col.descriptor.clockedFields.every((field) => (clocks[field] ?? record.updatedAt) === record.updatedAt)
             ? null
-            : Object.fromEntries(col.clockedFields.map((field) => [field, clocks[field] ?? record.updatedAt])),
+            : Object.fromEntries(col.descriptor.clockedFields.map((field) => [field, clocks[field] ?? record.updatedAt])),
           ...(col.restoredDeletions && { restoredDeletions: restoredDeletions.length > 0 ? restoredDeletions : null }),
         })),
       )
