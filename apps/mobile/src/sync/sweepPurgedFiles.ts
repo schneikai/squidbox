@@ -1,3 +1,4 @@
+import { assetCollection } from '@squidbox/shared';
 import { and, gt, isNotNull, not, or, sql, type SQL } from 'drizzle-orm';
 
 import { SQL_BATCH } from './chunk';
@@ -7,12 +8,13 @@ import { inJson } from './inJson';
 import { getMergeTarget, getOwner, isFirstSyncDone } from './status';
 import type { AssetFileNames } from '../library/fs';
 
-/** Removes this device's copies of these files (library/fs removeAssetFiles, for the open library). */
+/** Removes this device's copies of these files (library/fs purgedFilesRemover, for the open library). */
 export type RemoveFiles = (files: AssetFileNames[]) => Promise<void>;
 
-// An asset whose purge waits for the server: its pending outbox row carries the deletion pair.
-const pendingPurge = sql`exists (select 1 from ${schema.outbox} where ${schema.outbox.collection} = 'assets'
-  and ${schema.outbox.recordId} = ${schema.assets.id} and json_extract(${schema.outbox.fields}, '$.purgedAt') is not null)`;
+// An asset whose purge waits for the server: its pending outbox row names the final field.
+const pendingPurge = sql`exists (select 1 from ${schema.outbox} where ${schema.outbox.collection} = ${assetCollection.name}
+  and ${schema.outbox.recordId} = ${schema.assets.id}
+  and json_extract(${schema.outbox.fields}, ${`$.${assetCollection.finalField}`}) is not null)`;
 
 // A purged asset whose files this device hasn't removed for this purge yet (an undone purge's mark
 // doesn't count for a later one).
@@ -23,19 +25,20 @@ const filesToRemove = sql`${schema.assets.filesRemovedFor} is not ${schema.asset
  * confirmed (sync-design §7a), and marks each with the purge it removed them for (`filesRemovedFor`).
  * Only the names no other asset still uses go. An asset whose files can't be removed is left for the
  * next sweep and holds up no other; the sweep throws once it has gone through them all. It stops
- * between batches once `signal` aborts. Runs at the end of every sync run, when a library opens and
- * after a purge.
+ * between batches once `signal` aborts, or once nothing is confirmed any more (a full resync began).
+ * An account library sweeps at the end of its sync runs; a device library at its open and after a
+ * purge (library/current.ts sweepOpenLibrary).
  */
 export async function sweepPurgedFiles(
   db: SyncDb,
   removeFiles: RemoveFiles,
   { signal }: { signal?: AbortSignal } = {},
 ): Promise<void> {
-  const confirmed = await confirmedPurges(db);
-  if (!confirmed) return;
   const failures: unknown[] = [];
   let after = '';
   while (!signal?.aborted) {
+    const confirmed = await confirmedPurges(db);
+    if (!confirmed) break;
     const rows = await db
       .select({
         id: schema.assets.id,
@@ -48,7 +51,7 @@ export async function sweepPurgedFiles(
       .limit(SQL_BATCH);
     if (rows.length === 0) break;
     after = rows[rows.length - 1]!.id;
-    const removed = await removeEach(removeFiles, rows, await unsharedFiles(db, rows, not(confirmed)), failures);
+    const removed = await removeEach(removeFiles, rows, await unsharedFiles(db, rows, confirmed), failures);
     if (removed.length > 0)
       await db
         .update(schema.assets)
@@ -100,28 +103,19 @@ async function confirmedPurges(db: SyncDb): Promise<SQL | null> {
   return (await isFirstSyncDone(db)) ? confirmedByServer : null;
 }
 
-// The file names of these assets that no other asset still uses, in one statement, as the server
-// keeps a key in use (§7a).
+// The file names of these assets (all of them confirmed purges) that no asset whose purge isn't
+// confirmed uses, in one statement, as the server keeps a key in use (§7a).
 async function unsharedFiles(
   db: SyncDb,
-  rows: { id: string; filename: string; thumbnailFilename: string }[],
-  inUse: SQL,
+  rows: { filename: string; thumbnailFilename: string }[],
+  confirmed: SQL,
 ): Promise<AssetFileNames[]> {
   const names = [...new Set(rows.flatMap((row) => [row.filename, row.thumbnailFilename]))];
   const sharing = await db
     .select({ filename: schema.assets.filename, thumbnailFilename: schema.assets.thumbnailFilename })
     .from(schema.assets)
     .where(
-      and(
-        inUse,
-        not(
-          inJson(
-            schema.assets.id,
-            rows.map((row) => row.id),
-          ),
-        ),
-        or(inJson(schema.assets.filename, names), inJson(schema.assets.thumbnailFilename, names)),
-      ),
+      and(not(confirmed), or(inJson(schema.assets.filename, names), inJson(schema.assets.thumbnailFilename, names))),
     );
   const inUseNames = new Set(sharing.flatMap((row) => [row.filename, row.thumbnailFilename]));
   const unshared = (name: string) => (name && !inUseNames.has(name) ? name : undefined);

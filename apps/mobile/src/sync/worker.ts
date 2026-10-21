@@ -20,12 +20,15 @@ import { getCursor, setCursor, patchStatus, appendSyncLog, markFirstSyncDone, cl
 import { sweepPurgedFiles, type RemoveFiles } from './sweepPurgedFiles';
 import type { SyncTransport } from './transport';
 import { upsertRows } from './upsertRows';
-import type { AssetFileNames } from '../library/fs';
 import type { LibraryPaths } from '../library/libraryPaths';
 import type { SyncIdentity } from '../library/sessionMatches';
 
 const PULL_LIMIT = 1000; // server/contract cap
 const PUSH_BATCH = 500; // server caps pushRequest mutations at 500
+// Bytes of mutations per request: half the server's 1 MiB body limit, so a batch of large records
+// never gets the push stuck on a refused request.
+const PUSH_BYTES = 512 * 1024;
+const utf8 = new TextEncoder();
 // Records per apply transaction (and per bulk-action transaction, see writeInBatches). Each
 // transaction writes every database page it touches once more (the rollback journal), and with random
 // ids a transaction touches most index pages, so a few big transactions are much faster than one per
@@ -98,22 +101,17 @@ async function pushPhase(
       stopped = true;
       break;
     }
-    const batch = await db
+    const rows = await db
       .select()
       .from(schema.outbox)
       .where(and(gt(schema.outbox.id, lastId), pushableOutboxRows))
       .orderBy(schema.outbox.id)
       .limit(PUSH_BATCH);
-    if (batch.length === 0) break;
+    if (rows.length === 0) break;
     if (pushed === 0) await patchStatus(db, { phase: 'pushing' });
+    const { batch, mutations } = request(rows);
     lastId = batch[batch.length - 1]!.id;
 
-    // A row from before per-field merge goes without fields: the server merges it as that app's push.
-    const mutations: PushMutation[] = batch.map((row) => ({
-      collection: row.collection,
-      record: row.payload,
-      ...(!row.wholeRecord && { fields: row.fields }),
-    }));
     const { results } = await transport.push({ mutations });
     const pushedRows = new Map(batch.map((row) => [`${row.collection}:${row.recordId}`, row]));
     notes.push(...(await db.transaction((tx) => applyPushResults(tx, results, pushedRows))));
@@ -121,6 +119,24 @@ async function pushPhase(
   }
   if (pushed > 0) await patchStatus(db, { lastPushAt: Date.now() });
   return { pushed, notes, stopped };
+}
+
+// The leading rows whose mutations fit in PUSH_BYTES (always at least one), and their mutations. A row
+// from before per-field merge goes without fields: the server merges it as that app's push.
+function request(rows: schema.OutboxRow[]): { batch: schema.OutboxRow[]; mutations: PushMutation[] } {
+  const mutations: PushMutation[] = [];
+  let bytes = 0;
+  for (const row of rows) {
+    const mutation: PushMutation = {
+      collection: row.collection,
+      record: row.payload,
+      ...(!row.wholeRecord && { fields: row.fields }),
+    };
+    bytes += utf8.encode(JSON.stringify(mutation)).length;
+    if (mutations.length > 0 && bytes > PUSH_BYTES) break;
+    mutations.push(mutation);
+  }
+  return { batch: rows.slice(0, mutations.length), mutations };
 }
 
 // Settle a batch's push results (sync-design §6), a few statements per collection. Adopting the
@@ -392,8 +408,8 @@ async function withSyncRun(work: SyncWork): Promise<void> {
   const { db, identity, library } = syncTarget;
   // Their session store and file system need the native modules the tests lack.
   const { httpTransport } = await import('./transport');
-  const { removeAssetFiles } = await import('../library/fs');
-  const removeFiles = (assets: AssetFileNames[]) => removeAssetFiles(assets, library);
+  const { purgedFilesRemover } = await import('../library/fs');
+  const removeFiles = purgedFilesRemover(library);
   const run = startRun((signal) => work(db, httpTransport(identity), { signal, removeFiles }));
   if (!run) return;
   try {

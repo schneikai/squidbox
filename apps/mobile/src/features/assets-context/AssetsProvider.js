@@ -2,19 +2,16 @@ import { useMemo } from 'react';
 
 import AssetsContext from './AssetsContext';
 
-import { removeAssetFiles } from '@/library/fs';
-import useLibrary from '@/library/useLibrary';
+import { sweepOpenLibrary } from '@/library/current';
 import * as repo from '@/sync/assetsRepository';
 import { getDb } from '@/sync/db/client';
 import { toAssetRecord, toAssetChanges } from '@/sync/legacyAsset';
-import { sweepPurgedFiles } from '@/sync/sweepPurgedFiles';
 import { requestSync } from '@/sync/worker';
 import { writeInBatches } from '@/sync/writeInBatches';
 
 // The asset writes: each goes through the repository and then starts a sync. Screens read assets
 // through their own live queries (assetQuery, readByIds).
 export default function AssetsProvider({ children }) {
-  const { paths } = useLibrary();
   const value = useMemo(
     () => ({
       addAssetsAsync: async (list) => {
@@ -68,14 +65,12 @@ export default function AssetsProvider({ children }) {
             batchOptions,
           );
         } finally {
-          await sweepPurgedFiles(getDb(), (files) => removeAssetFiles(files, paths)).catch((error) =>
-            console.warn('Could not remove the files of the purged assets', error),
-          );
+          sweepOpenLibrary();
           requestSync();
         }
       },
     }),
-    [paths],
+    [],
   );
 
   return <AssetsContext.Provider value={value}>{children}</AssetsContext.Provider>;

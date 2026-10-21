@@ -433,9 +433,9 @@ describe('replays against a pending edit of the target (adversarial)', () => {
   });
 });
 
-// Round 2: a device library that never synced holds a pending insert for every asset it made (the
+// A device library that never synced holds a pending insert for every asset it made (the
 // insert names every field, deletedAt and purgedAt included), and its files are the only copy.
-describe('a device library merged again (adversarial, round 2)', () => {
+describe('a device library merged again', () => {
   const tick = () => new Promise((resolve) => setTimeout(resolve, 3));
   const targetRow = async () => (await target.select().from(schema.assets))[0]!;
 

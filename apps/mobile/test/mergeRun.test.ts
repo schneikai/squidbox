@@ -7,7 +7,7 @@ import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import { makeRepository } from '../src/sync/repository';
-import { getMergeTarget, setMergeTarget } from '../src/sync/status';
+import { getMergeTarget, markFirstSyncDone, setMergeTarget } from '../src/sync/status';
 import getAssetFileUri from '../src/utils/assets/files/getAssetFileUri';
 
 // The device: databases by name (a store survives close and reopen), files by uri, the list.
@@ -53,16 +53,15 @@ vi.mock('../src/library/fs', () => ({
     files.add(to);
   },
   removeLibraryFolders: async () => {},
-  // The open's own sweep (current.ts).
-  removeAssetFiles: async (
-    names: { filename?: string; thumbnailFilename?: string }[],
-    paths: { filesDir: string; thumbnailsDir: string },
-  ) => {
-    for (const { filename, thumbnailFilename } of names) {
-      if (filename) files.delete(`file:///docs/${paths.filesDir}${filename}`);
-      if (thumbnailFilename) files.delete(`file:///docs/${paths.thumbnailsDir}${thumbnailFilename}`);
-    }
-  },
+  // A device library's sweep (current.ts sweepOpenLibrary).
+  purgedFilesRemover:
+    (paths: { filesDir: string; thumbnailsDir: string }) =>
+    async (names: { filename?: string; thumbnailFilename?: string }[]) => {
+      for (const { filename, thumbnailFilename } of names) {
+        if (filename) files.delete(`file:///docs/${paths.filesDir}${filename}`);
+        if (thumbnailFilename) files.delete(`file:///docs/${paths.thumbnailsDir}${thumbnailFilename}`);
+      }
+    },
 }));
 const applyMergeImpl = vi.hoisted(() => ({ fail: false }));
 vi.mock('../src/library/mergeLibrary', async (importOriginal) => {
@@ -77,7 +76,7 @@ vi.mock('../src/library/mergeLibrary', async (importOriginal) => {
   };
 });
 
-const { closeLibrary, openLibrary, openLibraryId } = await import('../src/library/current');
+const { closeLibrary, openLibrary, openLibraryId, sweepOpenLibrary } = await import('../src/library/current');
 const { getRegistry, loadRegistry, updateLibrary } = await import('../src/library/registry');
 const { mergeLibrary, resumeMerges } = await import('../src/library/mergeRun');
 const { getDb } = await import('../src/sync/db/client');
@@ -209,23 +208,23 @@ describe('mergeLibrary / resumeMerges', () => {
     await updateLibrary('other', (library) => ({ ...library, mergedInto: 'gone' }));
     applyMergeImpl.fail = true;
     await resumeMerges();
-    expect(entry('dev')).toEqual(DEV); // its merge failed before the commit
+    expect(entry('dev')).toEqual({ ...DEV, mergedInto: 'acc' }); // failed: the next boot tries again
     expect(entry('other')).toEqual(OTHER); // still cleared, after the failure
   });
 
-  it('a marker whose target is gone is just cleared', async () => {
+  it('the list’s marker of a merge whose target is gone is cleared; the source’s own stays', async () => {
     storage.clear();
     await loadRegistry(async () => ({ libraries: [{ ...DEV, mergedInto: 'gone' }, ACC] }));
     await setMergeTarget(sourceDb(), 'gone'); // a pass had copied records
     await resumeMerges();
     expect(entry('dev')).toEqual(DEV);
-    expect(await getMergeTarget(sourceDb())).toBeNull(); // so the device library sweeps its purges again
+    expect(await getMergeTarget(sourceDb())).toBe('gone'); // what it copied may be in the account: purges wait
   });
 });
 
 const { sweepPurgedFiles } = await import('../src/sync/sweepPurgedFiles');
 
-describe('a failed pass after an earlier one committed (round 5, adversarial)', () => {
+describe('a failed pass after an earlier one committed', () => {
   // removeAssetFiles for the open library, on the fake file system.
   const removeFiles = async (names: { filename?: string; thumbnailFilename?: string }[]) => {
     for (const { filename, thumbnailFilename } of names) {
@@ -245,45 +244,79 @@ describe('a failed pass after an earlier one committed (round 5, adversarial)', 
     await openLibrary(ACC);
   });
 
-  // BUG (round 5): mergeLibrary clears the merge marker in the source's database on ANY failed pass
-  // (mergeRun.ts, the catch around planMerge/applyMerge), also when an EARLIER pass already committed
-  // records into the account. Pass 1 copied the photo into the account and crashed before moving its
-  // files; the device library, opened again while the session was lost, purged it and kept its files
-  // (the marker: that purge can still lose in the account, the round-3 bug 3 scenario). The next pass
-  // fails before its commit and clears the marker, so the device library's next sweep (at its next
-  // open) removes the files at once, though the account still holds the photo live, without its files,
-  // and the purge has yet to reach it, where a restore on another device can still beat it.
-  // Expected: the files stay (the marker stays while any pass has committed); actual: they are removed.
-  it.fails(
-    'a failed pass keeps the marker of an earlier pass that committed: the device purge keeps its files',
-    async () => {
-      const { applyMerge, planMerge } = await import('../src/library/mergeLibrary');
-      const a = await devicePhoto({ filename: 'a.jpg', thumbnailFilename: 'a-t.jpg', mediaLibraryAssetId: 'm-a' });
-      // Pass 1: the markers, every record committed into the account, then the crash.
-      await updateLibrary('dev', (library) => ({ ...library, mergedInto: 'acc' }));
-      await setMergeTarget(sourceDb(), 'acc');
-      await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC));
+  // Pass 1 copied the photo into the account and crashed before moving its files; the device library,
+  // opened again while the session was lost, purged it and kept its files (the marker: that purge can
+  // still lose in the account). The next pass fails before its commit: the markers stay as they were,
+  // so the device library's next sweep still keeps the files.
+  it('a failed pass keeps the marker of an earlier pass that committed: the device purge keeps its files', async () => {
+    const { applyMerge, planMerge } = await import('../src/library/mergeLibrary');
+    const a = await devicePhoto({ filename: 'a.jpg', thumbnailFilename: 'a-t.jpg', mediaLibraryAssetId: 'm-a' });
+    // Pass 1: the markers, every record committed into the account, then the crash.
+    await updateLibrary('dev', (library) => ({ ...library, mergedInto: 'acc' }));
+    await setMergeTarget(sourceDb(), 'acc');
+    await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC));
 
-      // The session is lost: the device library opens again, and its photo is purged there.
-      await closeLibrary();
-      await openLibrary(DEV);
-      await repo.deleteAssets(getDb(), [a.id]);
-      await repo.purgeAssets(getDb(), [a.id]);
-      await sweepPurgedFiles(getDb(), removeFiles);
-      expect(files.has(getAssetFileUri('a.jpg', SRC))).toBe(true); // waits, as the marker says
+    // The session is lost: the device library opens again, and its photo is purged there.
+    await closeLibrary();
+    await openLibrary(DEV);
+    await repo.deleteAssets(getDb(), [a.id]);
+    await repo.purgeAssets(getDb(), [a.id]);
+    await sweepPurgedFiles(getDb(), removeFiles);
+    expect(files.has(getAssetFileUri('a.jpg', SRC))).toBe(true); // waits, as the marker says
 
-      // Signed in again: the boot's next pass fails before its commit.
-      await closeLibrary();
-      await openLibrary(ACC);
-      applyMergeImpl.fail = true;
-      await resumeMerges();
-      expect((await getDb().select().from(schema.assets)).map((row) => row.deletedAt)).toEqual([null]); // live there
+    // Signed in again: the boot's next pass fails before its commit.
+    await closeLibrary();
+    await openLibrary(ACC);
+    applyMergeImpl.fail = true;
+    await resumeMerges();
+    expect((await getDb().select().from(schema.assets)).map((row) => row.deletedAt)).toEqual([null]); // live there
 
-      // The session is lost once more: the device library opens and sweeps.
-      await closeLibrary();
-      await openLibrary(DEV);
-      await sweepPurgedFiles(getDb(), removeFiles);
-      expect(files.has(getAssetFileUri('a.jpg', SRC))).toBe(true);
-    },
-  );
+    // The session is lost once more: the device library opens and sweeps.
+    await closeLibrary();
+    await openLibrary(DEV);
+    await sweepPurgedFiles(getDb(), removeFiles);
+    expect(files.has(getAssetFileUri('a.jpg', SRC))).toBe(true);
+  });
+});
+
+describe('the sweep at a library’s open', () => {
+  const settled = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+  beforeEach(async () => {
+    if (openLibraryId()) await closeLibrary();
+    stores.clear();
+    files.clear();
+    storage.clear();
+    await loadRegistry(async () => ({ libraries: [DEV, ACC] }));
+    stores.set(SRC.dbName, makeTestDb());
+  });
+
+  it('a device library sweeps when it opens and after a purge', async () => {
+    const a = await devicePhoto({ filename: 'a.jpg' });
+    const b = await devicePhoto({ filename: 'b.jpg' });
+    await repo.deleteAssets(sourceDb(), [a.id, b.id]);
+    await repo.purgeAssets(sourceDb(), [a.id]);
+    await openLibrary(DEV);
+    await settled();
+    expect(files.has(getAssetFileUri('a.jpg', SRC))).toBe(false);
+    await repo.purgeAssets(getDb(), [b.id]);
+    sweepOpenLibrary(); // as AssetsProvider does after a purge
+    await settled();
+    expect(files.has(getAssetFileUri('b.jpg', SRC))).toBe(false);
+  });
+
+  it('an account library doesn’t: it sweeps at the end of its sync runs only, inside the sync queue', async () => {
+    const TGT_DB = makeTestDb();
+    stores.set(TGT.dbName, TGT_DB);
+    const asset = await repo.createAsset(TGT_DB, makeAssetRecord({ filename: 'acc.jpg' }));
+    files.add(getAssetFileUri('acc.jpg', TGT));
+    await repo.deleteAssets(TGT_DB, [asset.id]);
+    await repo.purgeAssets(TGT_DB, [asset.id]);
+    await TGT_DB.delete(schema.outbox); // confirmed by the server
+    await markFirstSyncDone(TGT_DB);
+    await openLibrary(ACC);
+    sweepOpenLibrary();
+    await settled();
+    expect(files.has(getAssetFileUri('acc.jpg', TGT))).toBe(true);
+  });
 });

@@ -48,6 +48,10 @@ export async function removeAssetFiles(assets: AssetFileNames[]): Promise<void> 
   for (const { thumbnailFilename } of assets) if (thumbnailFilename) webThumbnailUrls.delete(thumbnailFilename);
 }
 
+export function purgedFilesRemover(): (assets: AssetFileNames[]) => Promise<void> {
+  return removeAssetFiles;
+}
+
 export async function fileExists(): Promise<boolean> {
   return false;
 }

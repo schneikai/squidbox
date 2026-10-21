@@ -57,36 +57,57 @@ const PARALLEL = 50; // deletes at a time
 // Deleting an absent file succeeds, so a few are deleted blind; for many (a first sync's purges) the
 // folders are listed once. A purge passes only the names no other asset uses (`unsharedFiles`).
 export async function removeAssetFiles(assets: AssetFileNames[], library: LibraryPaths): Promise<void> {
-  const copies = assets.flatMap(({ filename, thumbnailFilename }) => [
+  if (assets.length >= LIST_FROM) return purgedFilesRemover(library)(assets);
+  const downloads = [...(await listFiles(getDownloadsDirectory(library)))];
+  await deleteAll([...copies(assets, library), ...downloadFolders(assets, library, downloads)]);
+}
+
+// The remover of one sweep of a library's purged files: its folders are listed once, at the first
+// call, and only the copies present are deleted, so a sweep of many batches (and its asset-by-asset
+// retry after a failed batch) lists nothing again.
+export function purgedFilesRemover(library: LibraryPaths): (assets: AssetFileNames[]) => Promise<void> {
+  let listing: Promise<{ present: Set<string>; downloads: string[] }> | null = null;
+  return async (assets) => {
+    listing ??= listFolders(library);
+    const { present, downloads } = await listing;
+    const uris = [
+      ...copies(assets, library).filter((uri) => present.has(uri)),
+      ...downloadFolders(assets, library, downloads),
+    ];
+    await deleteAll(uris);
+    for (const uri of uris) present.delete(uri);
+  };
+}
+
+// The uris of these assets' file and thumbnail.
+function copies(assets: AssetFileNames[], library: LibraryPaths): string[] {
+  return assets.flatMap(({ filename, thumbnailFilename }) => [
     ...(filename ? [getAssetFileUri(filename, library)] : []),
     ...(thumbnailFilename ? [getAssetThumbnailUri(thumbnailFilename, library)] : []),
   ]);
-  const uris = [
-    ...(assets.length < LIST_FROM ? copies : await present(copies, library)),
-    ...(await downloadFolders(assets, library)),
-  ];
-  for (const batch of chunk(uris, PARALLEL)) {
-    await Promise.all(batch.map((uri) => FileSystem.deleteAsync(uri, { idempotent: true })));
-  }
 }
 
 // The download folders of these assets (kept for a share sheet): `<filename>-<uuid>/`, see
 // withAssetFileAsync.
-async function downloadFolders(assets: AssetFileNames[], library: LibraryPaths): Promise<string[]> {
+function downloadFolders(assets: AssetFileNames[], library: LibraryPaths, folders: string[]): string[] {
   const filenames = new Set(assets.map(({ filename }) => filename));
   const directory = getDownloadsDirectory(library);
-  const folders = [...(await listFiles(directory))];
   return folders.filter((name) => filenames.has(name.slice(0, -UUID_SUFFIX))).map((name) => `${directory}${name}/`);
 }
 
 const UUID_SUFFIX = '-00000000-0000-0000-0000-000000000000'.length;
 
-// The ones among these uris that are in the library's folders, each folder listed once.
-async function present(uris: string[], library: LibraryPaths): Promise<string[]> {
+// The uris in the library's file and thumbnail folders, and the names in its downloads folder.
+async function listFolders(library: LibraryPaths): Promise<{ present: Set<string>; downloads: string[] }> {
   const folders = [getAssetFilesDirectory(library), getAssetThumbnailsDirectory(library)];
   const listed = await Promise.all(folders.map(async (dir) => [...(await listFiles(dir))].map((name) => dir + name)));
-  const existing = new Set(listed.flat());
-  return uris.filter((uri) => existing.has(uri));
+  return { present: new Set(listed.flat()), downloads: [...(await listFiles(getDownloadsDirectory(library)))] };
+}
+
+async function deleteAll(uris: string[]): Promise<void> {
+  for (const batch of chunk(uris, PARALLEL)) {
+    await Promise.all(batch.map((uri) => FileSystem.deleteAsync(uri, { idempotent: true })));
+  }
 }
 
 export async function fileExists(uri: string): Promise<boolean> {

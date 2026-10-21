@@ -1,4 +1,11 @@
-import { chunk, clockedFields, collectionsByName, mergeRecord, type FieldClocks } from '@squidbox/shared';
+import {
+  assetCollection,
+  chunk,
+  clockedFields,
+  collectionsByName,
+  mergeRecord,
+  type FieldClocks,
+} from '@squidbox/shared';
 import { and, isNull } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
@@ -10,7 +17,7 @@ import { nextVersion } from '@/sync/clock';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
-import { pendingEdits, type PendingEdit } from '@/sync/outbox';
+import { pendingFields } from '@/sync/outbox';
 import { readByIdMap, readByIds } from '@/sync/readByIds';
 import { saveRecords } from '@/sync/saveRecords';
 import getAssetFileUri from '@/utils/assets/files/getAssetFileUri';
@@ -55,23 +62,23 @@ const purgeWaits = (final: string | undefined, fields: FieldClocks = {}) => fina
 export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: LibraryPaths): Promise<MergePlan> {
   const replays: schema.OutboxRow[] = [];
   const sourceOutbox = await source.select().from(schema.outbox);
-  const targetPending = new Map<string, Map<string, PendingEdit>>(); // by collection, then record id
+  const targetPending = new Map<string, Map<string, FieldClocks>>(); // by collection, then record id
 
   // A source outbox row for a record the target has is merged into the target's row as the server
   // would merge it (mergeRecord, sync-design §7), against the target's pending edits (a field the
   // target hasn't edited goes to the source, and the server settles it); what applies is replayed
-  // with the source's clocks.
-  // The target's pending edits of the records replayed, and of every asset it has (for the files).
+  // with the source's clocks. The target's pending fields are read for the records replayed, and for
+  // every asset it has (for the files).
   async function collectReplays(collection: string, targetRows: Map<string, Row>) {
     const candidates = sourceOutbox.filter((row) => row.collection === collection && targetRows.has(row.recordId));
     const ids = collection === 'assets' ? [...targetRows.keys()] : candidates.map((row) => row.recordId);
-    const pending = ids.length > 0 ? await pendingEdits(target, collection, ids) : new Map<string, PendingEdit>();
+    const pending = ids.length > 0 ? await pendingFields(target, collection, ids) : new Map<string, FieldClocks>();
     targetPending.set(collection, pending);
     if (candidates.length === 0) return;
     const descriptor = collectionsByName[collection]!;
     const unedited = Object.fromEntries(clockedFields(descriptor).map((field) => [field, 0]));
     for (const row of candidates) {
-      const edited = pending.get(row.recordId)?.fields;
+      const edited = pending.get(row.recordId);
       const storedClocks = { ...unedited, ...edited };
       const sentClocks = row.fields; // widened to their groups when saved
       const { record, applied } = mergeRecord(descriptor, {
@@ -164,7 +171,8 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
   const confirmedPurge = (id: string) => {
     const replay = assetReplays.get(id);
     const state = (replay?.payload ?? targetById.get(id)) as Record<string, unknown>;
-    return state.purgedAt != null && !purgeWaits('purgedAt', { ...pendingAssets.get(id)?.fields, ...replay?.fields });
+    const final = assetCollection.finalField!;
+    return state[final] != null && !purgeWaits(final, { ...pendingAssets.get(id), ...replay?.fields });
   };
   const sameId = allSourceAssets.filter((asset) =>
     targetById.has(asset.id) ? !confirmedPurge(asset.id) : assetIdMap.get(asset.id) === asset.id,

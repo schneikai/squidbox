@@ -1138,7 +1138,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     });
   });
 
-  describe('a restore beats a purge, round 2 (adversarial)', () => {
+  describe('a restore beats a purge', () => {
     function recorder() {
       const removed: string[] = [];
       const removeFiles: RemoveFiles = async (files) => {
@@ -1356,7 +1356,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     }, 120_000);
   });
 
-  describe('random interleavings, round 3 (seeded, the real client and server)', () => {
+  describe('random interleavings (seeded, the real client and server)', () => {
     function prng(seed: number) {
       let a = seed >>> 0;
       const next = () => {

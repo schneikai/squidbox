@@ -6,7 +6,7 @@ import { removeLibrary } from './removeLibrary';
 
 import { getDb, withAppDb } from '@/sync/db/client';
 import type { SyncDb } from '@/sync/db/types';
-import { setMergeTarget } from '@/sync/status';
+import { getMergeTarget, setMergeTarget } from '@/sync/status';
 
 // A library's database for the merge: the open one as it is (never opened a second time), a
 // parked one on its own connection, closed again afterwards.
@@ -35,24 +35,29 @@ function setKept(sourceId: string, targetId: string): Promise<unknown> {
  * section: the marker, every record in one transaction of the target, the files of the assets
  * that are in the target by id, then the source is removed, unless photos living in another
  * account's storage keep it, recorded as kept for the target (`keptFor`), so it is never merged
- * again and never joins another account. A throw before the commit clears the marker, in the list
- * and in the source's database (its purges are its own again, §7a); a crash
- * leaves it, and the boot runs the merge again (resumeMerges): planMerge finds what is left to
- * add, so every stage is idempotent.
+ * again and never joins another account. The marker is in the list (what the boot resumes) and,
+ * from the commit of a pass that copies records, in the source's database (its purges wait for the
+ * account from then on, §7a); only a merge that completes clears them. A pass that throws before its
+ * commit leaves both as they were before it, so a first one leaves none and one after an earlier
+ * commit keeps them; a crash leaves them, and the boot runs the merge again (resumeMerges): planMerge
+ * finds what is left to add, so every stage is idempotent.
  */
 export async function mergeLibrary(sourceId: string, targetId: string): Promise<void> {
+  const resumed = Boolean(getRegistry().libraries.find(({ id }) => id === sourceId)?.mergedInto);
   await setMarker(sourceId, targetId);
   const keepsSource = await withBothDbs(sourceId, targetId, async (source, target) => {
+    const copied = Boolean(await getMergeTarget(source));
     let plan: MergePlan;
     try {
       plan = await planMerge(source, target, libraryPaths(sourceId));
       if (addsRecords(plan)) {
-        await setMergeTarget(source, targetId); // its purges wait from here (sweepPurgedFiles)
+        // Set before the target's commit (two databases can't share one): a pass that fails takes it back.
+        await setMergeTarget(source, targetId);
         await applyMerge(target, plan);
       }
     } catch (error) {
-      await setMergeTarget(source, null);
-      await setMarker(sourceId, undefined);
+      if (!copied) await setMergeTarget(source, null);
+      if (!resumed) await setMarker(sourceId, undefined);
       throw error;
     }
     await moveMergedFiles(plan, libraryPaths(sourceId), libraryPaths(targetId));
@@ -64,8 +69,9 @@ export async function mergeLibrary(sourceId: string, targetId: string): Promise<
 }
 
 /**
- * Boot: runs every merge whose marker is set again, finishing one a crash interrupted (a marker
- * whose target is gone is just cleared). A marked source that is the open library (a device
+ * Boot: runs every merge whose marker is set again, finishing one a crash or a failure interrupted
+ * (the list's marker of one whose target is gone is just cleared; the source's own stays, as records
+ * it copied may be in the account). A marked source that is the open library (a device
  * library opened again after the session was lost) waits for a boot that opens another; a merge
  * that fails waits for the next boot without stopping the others. Runs inside withSyncPaused,
  * serialized with every switch.
@@ -79,10 +85,7 @@ export async function resumeMerges(): Promise<void> {
     if (source.id === openLibraryId()) continue;
     try {
       if (libraries.some(({ id }) => id === source.mergedInto)) await mergeLibrary(source.id, source.mergedInto);
-      else {
-        await withLibraryDb(source.id, (db) => setMergeTarget(db, null));
-        await setMarker(source.id, undefined);
-      }
+      else await setMarker(source.id, undefined);
     } catch (error) {
       console.warn(`Could not resume the merge of library ${source.id}`, error);
     }

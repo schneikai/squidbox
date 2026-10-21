@@ -13,8 +13,8 @@ export interface OpenLibrary extends LibraryPaths {
 
 // The one open library: the only code that sets the database behind getDb().
 let current: OpenLibrary | null = null;
-// The sweep an open starts, stopped when the library closes.
-let openSweep: AbortController | null = null;
+// A device library's sweeps (sweepOpenLibrary), stopped when it closes; null for an account library.
+let deviceSweeps: AbortController | null = null;
 
 export async function openLibrary(library: Library): Promise<void> {
   if (current) throw new Error(`Library ${current.id} is still open`);
@@ -31,14 +31,24 @@ export async function openLibrary(library: Library): Promise<void> {
   }
   setOpenDb(db);
   current = { id: library.id, ...paths };
-  // Then, without holding up the open, it removes the files of the purged assets whose purge is
-  // confirmed (§7a); the file system needs the native modules the tests lack.
-  const sweep = new AbortController();
-  openSweep = sweep;
+  deviceSweeps = library.owner.kind === 'device' ? new AbortController() : null;
+  sweepOpenLibrary();
+}
+
+/**
+ * Removes the files of the open library's confirmed purges (§7a), without holding up its caller; a
+ * failure is logged. Only a device library sweeps here (at its open and after a purge): an account
+ * library sweeps at the end of its sync runs only, inside the sync queue, so a full resync never
+ * interleaves with a sweep, and its purges wait for the server anyway.
+ */
+export function sweepOpenLibrary(): void {
+  if (!current || !deviceSweeps) return;
+  const db = getDb();
+  const { signal } = deviceSweeps;
+  const paths = current;
+  // The file system needs the native modules the tests lack.
   import('./fs')
-    .then(({ removeAssetFiles }) =>
-      sweepPurgedFiles(db, (files) => removeAssetFiles(files, paths), { signal: sweep.signal }),
-    )
+    .then(({ purgedFilesRemover }) => sweepPurgedFiles(db, purgedFilesRemover(paths), { signal }))
     .catch((error) => console.warn('Could not remove the files of the purged assets', error));
 }
 
@@ -48,8 +58,8 @@ export async function openLibrary(library: Library): Promise<void> {
 export async function closeLibrary(): Promise<void> {
   if (!current) return;
   const db = getDb();
-  openSweep?.abort();
-  openSweep = null;
+  deviceSweeps?.abort();
+  deviceSweeps = null;
   setOpenDb(null);
   current = null;
   webThumbnailUrls.clear();

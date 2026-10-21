@@ -157,6 +157,26 @@ describe('worker push', () => {
     expect(await outboxRows()).toHaveLength(0);
   });
 
+  it('splits a push by size too: no request carries more than 512 KB of mutations, each row is pushed once', async () => {
+    const notes = 'é'.repeat(60_000); // 120 KB in UTF-8
+    const records = Array.from({ length: 12 }, () => makeAssetRecord({ notes }));
+    await repo.createAssets(db, records);
+    const sizes: number[] = [];
+    const ids: string[] = [];
+    const counting = fakeTransport({
+      push: async (req) => {
+        sizes.push(new TextEncoder().encode(JSON.stringify(req.mutations)).length);
+        ids.push(...req.mutations.map((m) => String(m.record.id)));
+        return fakeTransport().push(req);
+      },
+    });
+    await runSyncOnce(db, counting);
+    expect(sizes.length).toBeGreaterThan(2);
+    for (const size of sizes) expect(size).toBeLessThanOrEqual(512 * 1024);
+    expect(ids.sort()).toEqual(records.map((r) => r.id).sort());
+    expect(await outboxRows()).toHaveLength(0);
+  });
+
   it('an applied push changes no asset row, so live reads of assets are not re-run', async () => {
     await repo.createAsset(db, makeAssetRecord());
     const changed: string[] = [];

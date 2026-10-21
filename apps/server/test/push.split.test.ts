@@ -325,7 +325,7 @@ d('push: split statements', () => {
     await clear(ME);
   }, 300_000);
 
-  // The round-4 insert clocks: an insert naming only some fields is clocked as it is written, so a batch
+  // Insert clocks: an insert naming only some fields is clocked as it is written, so a batch
   // holding it and later edits of the row merges as one push per mutation, whatever the batch sizes.
   it('seeded runs with inserts naming some fields, split at random, merge as one push per mutation', async () => {
     const THIRD = randomUUID();

@@ -26,22 +26,27 @@ import type { RemoveFiles } from '../src/sync/sweepPurgedFiles';
 import type { SyncTransport } from '../src/sync/transport';
 import { runSyncOnce } from '../src/sync/worker';
 
-// Round 4 (adversarial): the installed app is main's client code, run as it is against this server.
-// The suite extracts main's apps/mobile/src/sync into test/.main-client (gitignored) and drives it with
-// its own SQLite migrations; an "update" then runs this branch's new migrations on that same database
-// and goes on with this branch's code. Needs the docker Postgres and a `main` branch in git.
+// The installed app is the client code of INSTALLED, the commit of the preview build on the owner's
+// phone, run as it is against this server. The suite extracts its apps/mobile/src/sync into
+// test/.main-client (gitignored) and drives it with its own SQLite migrations; an "update" then runs
+// this branch's new migrations on that same database and goes on with this branch's code. Needs the
+// docker Postgres and that commit in git (CI checks out the whole history): in CI a missing one fails
+// the suite instead of skipping it.
+const INSTALLED = 'df33378';
 const TEST_URL = process.env.TEST_DATABASE_URL;
 const here = fileURLToPath(new URL('.', import.meta.url));
 const mainRoot = `${here}.main-client`;
-const hasMain = (() => {
+const hasInstalled = (() => {
   try {
-    execFileSync('git', ['rev-parse', '--verify', '--quiet', 'main'], { cwd: here, stdio: 'ignore' });
+    execFileSync('git', ['cat-file', '-e', `${INSTALLED}^{commit}`], { cwd: here, stdio: 'ignore' });
     return true;
   } catch {
     return false;
   }
 })();
-const d = TEST_URL && hasMain ? describe : describe.skip;
+if (TEST_URL && !hasInstalled && process.env.CI)
+  throw new Error(`mainClient.e2e: commit ${INSTALLED} (the installed app) is missing; fetch the full history`);
+const d = TEST_URL && hasInstalled ? describe : describe.skip;
 
 const USER = randomUUID();
 const S = 1_800_000_000_000;
@@ -50,9 +55,12 @@ function extractMain() {
   rmSync(mainRoot, { recursive: true, force: true });
   mkdirSync(mainRoot, { recursive: true });
   const top = execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: here }).toString().trim();
-  const archive = execFileSync('git', ['archive', 'main', 'apps/mobile/src/sync'], { cwd: top, maxBuffer: 1 << 28 });
+  const archive = execFileSync('git', ['archive', INSTALLED, 'apps/mobile/src/sync'], {
+    cwd: top,
+    maxBuffer: 1 << 28,
+  });
   execFileSync('tar', ['-x', '-C', mainRoot, '--strip-components=3'], { input: archive });
-  if (!existsSync(`${mainRoot}/sync/worker.ts`)) throw new Error('main has no apps/mobile/src/sync/worker.ts');
+  if (!existsSync(`${mainRoot}/sync/worker.ts`)) throw new Error(`${INSTALLED} has no apps/mobile/src/sync/worker.ts`);
 }
 
 function executor(sqlite: Database.Database): Execute {
@@ -72,7 +80,7 @@ function runMigrations(sqlite: Database.Database, folder: string, from = 0) {
 const newMigrations = fileURLToPath(new URL('../src/sync/db/migrations', import.meta.url));
 const firstNew = journal.entries.findIndex((entry) => entry.tag === '0011_outbox_fields');
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- main's modules, loaded at runtime */
+/* eslint-disable @typescript-eslint/no-explicit-any -- the installed app's modules, loaded at runtime */
 let main: {
   worker: any;
   assets: any;
@@ -83,12 +91,12 @@ let main: {
 interface Phone {
   sqlite: Database.Database;
   db: SyncDb;
-  /** Still the installed app (main's code); false once updated. */
+  /** Still the installed app (its code); false once updated. */
   old: boolean;
   removed: string[];
 }
 
-d('the installed app (main’s client code) against this server', () => {
+d('the installed app (its client code, as built) against this server', () => {
   let pool: pg.Pool;
   let pgDb: ReturnType<typeof pgDrizzle>;
   let pushes: { phone: Phone; mutations: PushMutation[] }[];
@@ -271,7 +279,7 @@ d('the installed app (main’s client code) against this server', () => {
     expect(N.removed).toEqual([]);
   });
 
-  // The upgrade path: main's database with a mixed outbox, updated in place.
+  // The upgrade path: the installed app's database with a mixed outbox, updated in place.
   it('an update with a mixed outbox: each row pushes whole, a failed one is retried, the purges keep their files rule', async () => {
     const M = installedPhone();
     const N = newPhone();
@@ -319,8 +327,10 @@ d('the installed app (main’s client code) against this server', () => {
           purge: number | null;
         }
       ).purge;
-    expect(removedFor(purgedHere)).toBe(S + 120);
-    expect(removedFor(confirmed)).toBe(S + 60);
+    // The installed app recorded no removals (it removed a purge's files at once, but not those of a
+    // purge learned in a full resync): the first sweep after the update goes over every purge once.
+    expect(removedFor(purgedHere)).toBeNull();
+    expect(removedFor(confirmed)).toBeNull();
 
     // A pull before the push (its push refused): the whole rows keep every field of their payload.
     at(S + 300);
@@ -347,8 +357,9 @@ d('the installed app (main’s client code) against this server', () => {
     // The installed app's whole-record purge is older than the restore: it loses, the photo is back
     // (without its files on M, which the installed app removed at once, as it always did).
     expect(await serverAsset(purgedHere)).toMatchObject({ deletedAt: null, purgedAt: null });
-    expect(removedFor(purgedHere)).toBe(S + 120); // the undone purge's: a later purge removes the new copies
-    expect(M.removed).toEqual([]); // nothing removed twice, nothing of a live photo
+    expect(removedFor(purgedHere)).toBeNull();
+    expect(M.removed).toEqual(['c.jpg', 'ct.jpg']); // the confirmed purge's, once more; nothing of a live photo
+    M.removed = [];
 
     // Purged again on the new app: the updated app removes the copies made since, once.
     await edit(N, S + 400, (a) => a.deleteAssets(N.db, [purgedHere]));
@@ -382,10 +393,10 @@ d('the installed app (main’s client code) against this server', () => {
   });
 
   // The installed app edits a photo while its clock is behind, during a sync run, after its push and
-  // before its pull (main's pull then skips the record, and moves its cursor past the newer row). A
+  // before its pull (its pull then skips the record, and moves its cursor past the newer row). A
   // whole record from an older app at a newer clock had set every field of the row with the same
   // values. The installed app's next push loses every field on its clock but holds the same values:
-  // the server answers skipped-lww with the row (its updatedAt is newer), as main's server did, and
+  // the server answers skipped-lww with the row (its updatedAt is newer), as the installed build's server did, and
   // the installed app adopts it.
   it('an installed app whose whole record loses every clock but no value converges on updatedAt', async () => {
     const M = installedPhone();
@@ -407,9 +418,9 @@ d('the installed app (main’s client code) against this server', () => {
     await expectConverged(id, [M, other]);
   });
 
-  // Round 5: the upgrade with purges the installed app already made, one of a photo sharing its file
-  // with a live one (the installed app kept that name): the backfill marks them, and the shared name
-  // goes once, when its last user is purged after the update; purge, restore and purge again after the
+  // The upgrade with purges the installed app already made, one of a photo sharing its file with a
+  // live one (the installed app kept that name): the first sweep goes over them once, and the shared
+  // name goes when its last user is purged after the update; purge, restore and purge again after the
   // update sweep the copies once per purge that the server kept.
   it('an update after purges sharing a name with a live photo: each name goes once, when its last user is purged', async () => {
     const M = installedPhone();
@@ -423,7 +434,10 @@ d('the installed app (main’s client code) against this server', () => {
     await update(M);
     M.removed = [];
     await settle([M, N]);
-    expect(M.removed).toEqual([]); // a's purge is marked done by the backfill
+    // The first sweep after the update goes over every purge once (the installed app never recorded
+    // which it removed): at.jpg again, harmless; s.jpg stays b's.
+    expect(M.removed).toEqual(['at.jpg']);
+    M.removed = [];
 
     // c: purged on M (now updated), restored on N before M's push, then purged again on N.
     await purge(M, S + 200, c);
@@ -446,15 +460,15 @@ d('the installed app (main’s client code) against this server', () => {
     for (const id of [a, b, c]) await expectConverged(id, [M, N]);
   });
 
-  // Round 5 (adversarial): long seeded runs of two installed apps and a new one on a few photos, with
-  // clocks ahead and behind, edits made during a push or between a push and its pull (main's pull then
+  // Long seeded runs of two installed apps and a new one on a few photos, with
+  // clocks ahead and behind, edits made during a push or between a push and its pull (its pull then
   // skips the record), purges from the Deleted album, and the installed apps updating mid-run. After
   // every run all phones and the server hold the same rows and every outbox is empty; a purge the
-  // server took stays; the new app removes only the files of purges the server kept. R5_FROM, R5_TO,
-  // R5_STEPS and R5_SKEWS (ms per phone, comma-separated) widen a run by hand.
+  // server took stays; the new app removes only the files of purges the server kept. RUNS_FROM, RUNS_TO,
+  // RUNS_STEPS and RUNS_SKEWS (ms per phone, comma-separated) widen a run by hand.
   it('seeded runs of installed and new apps, with updates mid-run, converge every time', async () => {
-    const SKEWS = process.env.R5_SKEWS ? process.env.R5_SKEWS.split(',').map(Number) : [0, -700, 900];
-    for (let n = Number(process.env.R5_FROM ?? 1); n <= Number(process.env.R5_TO ?? 24); n++) {
+    const SKEWS = process.env.RUNS_SKEWS ? process.env.RUNS_SKEWS.split(',').map(Number) : [0, -700, 900];
+    for (let n = Number(process.env.RUNS_FROM ?? 1); n <= Number(process.env.RUNS_TO ?? 24); n++) {
       let state = n * 7919;
       const rand = () => (state = (state * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
       const pick = <T>(list: readonly T[]) => list[Math.floor(rand() * list.length)]!;
@@ -487,7 +501,7 @@ d('the installed app (main’s client code) against this server', () => {
           else await repo.purgeAssets(phone.db, [id]);
         }
       };
-      for (let step = 0; step < Number(process.env.R5_STEPS ?? 40); step++) {
+      for (let step = 0; step < Number(process.env.RUNS_STEPS ?? 40); step++) {
         t += 10 + Math.floor(rand() * 200);
         const phone = pick(phones);
         const now = t + skew.get(phone)!;
