@@ -108,13 +108,10 @@ d('push, round 4 (adversarial): one upsert per collection', () => {
     await pool.end();
   });
 
-  // BUG (round 4): a new record is written with a clock for every field (writeRows gives each field
-  // without a sent clock the row's updated_at, and that's what the next push reads back), but the
-  // batch keeps only the sent fields' clocks in memory (mergeRecord's insert branch). So a second
-  // mutation of that record in the same batch finds no clock for the other fields (0) and applies an
-  // edit older than the insert, which the same push one by one rejects. push.ts applyMutations →
-  // `stored.set(key, after)` with `merged.clocks` from mergeRecord's `!stored` branch.
-  it.fails(
+  // A new record is written with a clock for every field (a sent one, or its updated_at), and the batch
+  // keeps the same clocks in memory (mergeRecord's insert branch), so a second mutation of it in the
+  // same batch merges as it would pushed alone.
+  it(
     'an insert naming some fields, then an older edit of another field in the same batch: as pushed one by one',
     async () => {
       const r = asset({ updatedAt: 2000, notes: 'new' });
@@ -295,13 +292,9 @@ d('push, round 4 (adversarial): one upsert per collection', () => {
     expect(await raw('albums', b.id)).toMatchObject({ position: 'b1' });
   });
 
-  // BUG (round 4): one push now reads its records with one IN list and writes each collection with one
-  // multi-row upsert, so a push's size is bounded by Postgres' 65,535 bind parameters (about 3,000 assets
-  // at 21-22 parameters each; the parameter count wraps at 2^16). The route caps a request at 500 mutations, but the legacy importer
-  // (src/convert/legacy.ts importLegacy, scripts/convert-legacy.ts) pushes each collection whole in one
-  // push() call: a library of 5,000 photos fails as a whole with 08P01 ("bind message has 39464
-  // parameter formats but 0 parameters"). On main, push wrote one row per statement and imported it.
-  it.fails(
+  // One push reads its records and writes each collection in as many statements as Postgres' 65,535
+  // bind parameters need, so the legacy importer, which pushes each collection whole, imports any size.
+  it(
     'the legacy importer imports a library of 5,000 photos',
     async () => {
       const legacy = Object.fromEntries(

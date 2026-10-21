@@ -13,12 +13,8 @@ import {
 } from '@squidbox/shared';
 import { assets, albums, posts, albumAssets, postAssets } from '../db/schema.js';
 
-// Server-side view of a syncable collection: its Drizzle table, its shared descriptor (with its Zod
-// schema as an object), the columns of the client-facing record (the schema's fields; user_id,
-// server_seq, field_clock, restored_through and an asset's files_deleted_at stay on the server), the
-// fields a push may change (mergeFields) and those of them merged by clock (clockedFields, §7), and
-// the push's upsert: what it sets on a conflict, and the guard that keeps it from un-purging a row or
-// setting updated_at back.
+// Server-side view of a syncable collection: its table and shared descriptor, the columns of the
+// client-facing record (`wireColumns`; the server-only ones stay out), and the push's upsert.
 export interface ServerCollection {
   table: PgTable;
   descriptor: CollectionDescriptor;
@@ -29,6 +25,7 @@ export interface ServerCollection {
   /** A collection with a final field keeps the largest deletedAt a restore undid (sync-design §7). */
   restoredThrough: PgColumn | undefined;
   upsertSet: Record<string, SQL>;
+  /** Never un-purge a row or set its updated_at back. */
   upsertGuard: SQL;
 }
 

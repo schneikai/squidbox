@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
 import { fieldClocksSchema, mergeRecord, type FieldClocks, type PushMutation, type PushResult } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import { serverCollections, type ServerCollection } from './collections.js';
@@ -98,13 +98,14 @@ async function applyMutations(
       storedClocks: before?.clocks ?? {},
       sent: record,
       sentClocks: fields,
-      restoredThrough: wholeRecord ? undefined : (before?.restoredThrough ?? null),
+      restoredThrough: before?.restoredThrough ?? null,
+      wholeRecord,
     });
     if (merged.applied.length > 0) {
       const after: Stored = {
         record: merged.record as ValidRecord,
         clocks: merged.clocks,
-        restoredThrough: Math.max(before?.restoredThrough ?? 0, merged.restoredThrough ?? 0) || null,
+        restoredThrough: merged.restoredThrough,
       };
       if (isolateRows) {
         try {
@@ -115,7 +116,11 @@ async function applyMutations(
           results.push({ id: sentId, collection, status: 'rejected', reason: `db:${code}` });
           continue;
         }
-      } else (writes.get(col) ?? writes.set(col, new Map()).get(col)!).set(record.id, after);
+      } else {
+        let rows = writes.get(col);
+        if (!rows) writes.set(col, (rows = new Map()));
+        rows.set(record.id, after);
+      }
       stored.set(key, after);
     }
     results.push(
@@ -160,15 +165,19 @@ async function readStored(tx: Tx, userId: string, entries: Prepared[]): Promise<
   for (const col of new Set(entries.map((entry) => entry.col))) {
     const table = col.table as any;
     const ids = [...new Set(entries.filter((entry) => entry.col === col).map((entry) => entry.record.id))];
-    const rows = await tx
-      .select({
-        ...col.wireColumns,
-        fieldClock: table.fieldClock,
-        ...(col.restoredThrough && { restoredThrough: col.restoredThrough }),
-      })
-      .from(col.table)
-      .where(and(eq(table.userId, userId), inArray(table.id, ids)));
-    for (const { fieldClock, restoredThrough, ...record } of rows as Record<string, any>[])
+    const rows: Record<string, any>[] = [];
+    for (const batch of chunks(ids, MAX_PARAMS - 1))
+      rows.push(
+        ...(await tx
+          .select({
+            ...col.wireColumns,
+            fieldClock: table.fieldClock,
+            ...(col.restoredThrough && { restoredThrough: col.restoredThrough }),
+          })
+          .from(col.table)
+          .where(and(eq(table.userId, userId), inArray(table.id, batch)))),
+      );
+    for (const { fieldClock, restoredThrough, ...record } of rows)
       stored.set(`${col.descriptor.name}:${record.id}`, {
         record: record as ValidRecord,
         clocks: storedClocks(col, record.updatedAt, fieldClock),
@@ -189,21 +198,32 @@ function storedClocks(col: ServerCollection, updatedAt: number, fieldClock: Fiel
   );
 }
 
-// One upsert of these rows (sync-design §6): field_clock null when every clock is the row's
-// updated_at, as storedClocks reads it. The guard keeps a purged row and a newer updated_at.
-function writeRows(tx: Tx, col: ServerCollection, userId: string, rows: Stored[]) {
+// Upserts these rows (sync-design §6), as many per statement as Postgres' bind parameters allow:
+// field_clock null when every clock is the row's updated_at, as storedClocks reads it. The guard keeps
+// a purged row and a newer updated_at.
+async function writeRows(tx: Tx, col: ServerCollection, userId: string, rows: Stored[]): Promise<void> {
   const table = col.table as any;
-  return tx
-    .insert(col.table)
-    .values(
-      rows.map(({ record, clocks, restoredThrough }) => ({
-        ...record,
-        userId,
-        fieldClock: col.clockedFields.every((field) => (clocks[field] ?? record.updatedAt) === record.updatedAt)
-          ? null
-          : Object.fromEntries(col.clockedFields.map((field) => [field, clocks[field] ?? record.updatedAt])),
-        ...(col.restoredThrough && { restoredThrough }),
-      })),
-    )
-    .onConflictDoUpdate({ target: [table.userId, table.id], set: col.upsertSet, setWhere: col.upsertGuard });
+  for (const batch of chunks(rows, Math.floor(MAX_PARAMS / Object.keys(getTableColumns(col.table)).length)))
+    await tx
+      .insert(col.table)
+      .values(
+        batch.map(({ record, clocks, restoredThrough }) => ({
+          ...record,
+          userId,
+          fieldClock: col.clockedFields.every((field) => (clocks[field] ?? record.updatedAt) === record.updatedAt)
+            ? null
+            : Object.fromEntries(col.clockedFields.map((field) => [field, clocks[field] ?? record.updatedAt])),
+          ...(col.restoredThrough && { restoredThrough }),
+        })),
+      )
+      .onConflictDoUpdate({ target: [table.userId, table.id], set: col.upsertSet, setWhere: col.upsertGuard });
+}
+
+// Postgres takes at most 65,535 bind parameters per statement.
+const MAX_PARAMS = 65_535;
+
+function chunks<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
 }

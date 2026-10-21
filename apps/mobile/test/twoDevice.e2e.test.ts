@@ -349,7 +349,10 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       if (result.status === 'applied' && (lost.length > 0 || purgeMissing))
         violations.push(`${where}: applied, but lost ${lost}${purgeMissing ? ' (no purge)' : ''}`);
       if (result.status === 'skipped-lww') {
-        if (lost.length === 0 && !purgeMissing) violations.push(`${where}: skipped-lww, but every pushed field holds`);
+        // A whole record (no fields) is also told it lost when the row ends newer than it (§6).
+        const stale = !mutation.fields && Number(row?.updatedAt) > Math.min(Number(record.updatedAt), Date.now());
+        if (lost.length === 0 && !purgeMissing && !stale)
+          violations.push(`${where}: skipped-lww, but every pushed field holds`);
         try {
           expect(result.current).toEqual(row);
         } catch {

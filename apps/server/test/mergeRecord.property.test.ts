@@ -94,13 +94,11 @@ interface Device {
   unanswered: boolean;
 }
 
-const stats = { purgeOverRedelete: 0, purged: 0, restoredThenPurgeLost: 0, oldAppStaleUpdatedAt: 0, upgradedWithPending: 0, wholeRowPushed: 0 };
+const stats = { purgeOverRedelete: 0, purged: 0, restoredThenPurgeLost: 0, upgradedWithPending: 0, wholeRowPushed: 0 };
 
 interface CaseOptions {
   /** Old apps update to this one mid-case, their pending row carried over as a whole-record row. */
   upgrades?: boolean;
-  /** Tolerate the known stale updatedAt of an old app (see the it.fails in round 4). */
-  tolerateStaleUpdatedAt?: boolean;
   /** The device clock skews to pick from. */
   skews?: number[];
 }
@@ -176,7 +174,8 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
       storedClocks: clocksBefore,
       sent: record,
       sentClocks: fields,
-      restoredThrough: wholeRecord ? undefined : server.restoredThrough,
+      restoredThrough: server.restoredThrough,
+      wholeRecord,
     });
     const frozen = before.purgedAt != null;
     if (frozen && merged.applied.length > 0) fail(step, `a frozen row took ${merged.applied}`);
@@ -250,7 +249,7 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
       server.fieldClock = col.clockedFields.every((f) => (merged.clocks[f] ?? merged.record.updatedAt) === merged.record.updatedAt)
         ? null
         : Object.fromEntries(col.clockedFields.map((f) => [f, merged.clocks[f] ?? merged.record.updatedAt]));
-      server.restoredThrough = Math.max(server.restoredThrough ?? 0, merged.restoredThrough ?? 0) || null; // as push.ts
+      server.restoredThrough = merged.restoredThrough;
       server.seq = ++seq;
     }
     for (const value of server.restored)
@@ -264,8 +263,11 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
     // checkResults (§6): applied means every sent field holds; skipped-lww carries the row.
     const lost = Object.keys(fields).filter((f) => !Object.is(server.record[f] ?? null, record[f] ?? null));
     const purgeMissing = server.record.purgedAt != null && !Object.is(server.record.purgedAt, record.purgedAt ?? null);
-    if (merged.lost.length === 0 && (lost.length > 0 || purgeMissing)) fail(step, `applied, but lost ${lost}`);
-    if (merged.lost.length > 0 && lost.length === 0 && !purgeMissing) fail(step, 'skipped-lww, but every field holds');
+    // A whole record whose row ends newer is told skipped-lww with it, as main's server answered.
+    const stale = wholeRecord && server.record.updatedAt > record.updatedAt;
+    if (merged.lost.length === 0 && (lost.length > 0 || purgeMissing || stale)) fail(step, `applied, but lost ${lost}`);
+    if (merged.lost.length > 0 && lost.length === 0 && !purgeMissing && !stale)
+      fail(step, 'skipped-lww, but every field holds');
     return merged.lost.length > 0 ? { status: 'skipped-lww', current: server.record } : { status: 'applied' };
   }
 
@@ -441,13 +443,6 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
     const local = synced(device.local);
     const expected = synced(server.record);
     if (device.prePurge) expected.purgedAt = local.purgedAt;
-    // A known gap (round 4, see the it.fails below): an old app whose whole record loses every clock
-    // but holds every value is told `applied`, and main's pull had skipped the newer row, so it can
-    // keep an older updatedAt. Counted, and only tolerated when the case asks.
-    if (device.old && Number(local.updatedAt) < Number(expected.updatedAt) && JSON.stringify({ ...local, updatedAt: 0 }) === JSON.stringify({ ...expected, updatedAt: 0 })) {
-      stats.oldAppStaleUpdatedAt++;
-      if (options.tolerateStaleUpdatedAt) continue;
-    }
     if (JSON.stringify(local) !== JSON.stringify(expected))
       fail(steps, `${device.name} diverged: ${JSON.stringify(local)} vs ${JSON.stringify(expected)}`);
   }
@@ -481,28 +476,24 @@ describe('mergeRecord, property-style (seeded)', () => {
 // Round 4: more seeds, clocks days apart, and old apps updated mid-case with their pending row carried over as a
 // whole-record row (pushed without fields, pulled around, new edits coalesced into it).
 describe('mergeRecord, property-style, round 4 (seeded)', () => {
-  // BUG (round 4), seed 116884: the installed app (whole-record pushes, main's pull that skips a
-  // record with a pending row) edits a field and pushes the whole record at 2531 while the server
-  // row is at 2584 (another device's newer edit, written by a rolled-back server) holding the same
-  // values. Every field loses on its clock, but none holds another value, so push.ts answers
-  // `applied` (lostFields compares values only) and sends no `current`; main's pull had skipped the
-  // row, so the app keeps updatedAt 2531 for good. Main's server answered `skipped-lww` with the row.
-  // Values all match; only updatedAt diverges, which lets that app's next edit, on a slow clock,
-  // lose to an older one. Expected: converged (the push names the row as current, or skipped-lww).
-  it.fails('an old app whose whole record loses every clock but no value converges on updatedAt (seed 116884)', () => {
+  // Seed 116884: the installed app (whole-record pushes, main's pull that skips a record with a pending
+  // row) pushes a whole record at 2531 while the server row is at 2584 with the same values. Every
+  // field loses on its clock but none holds another value; the push is told skipped-lww with the row
+  // (its updatedAt is newer), as main's server answered, so the app converges on updatedAt.
+  it('an old app whose whole record loses every clock but no value converges on updatedAt (seed 116884)', () => {
     expect(runCase(116_884, 60)).toEqual([]);
   });
 
   it('20,000 more random cases converge and keep every documented rule', () => {
     const violations: string[] = [];
     for (let seed = 100_001; seed <= 120_000; seed++)
-      violations.push(...runCase(seed, 60, undefined, { tolerateStaleUpdatedAt: true }));
+      violations.push(...runCase(seed, 60));
     expect(violations.slice(0, 10)).toEqual([]);
   }, 120_000);
 
   it('10,000 cases where the old apps update mid-case, a pending row carried over whole, converge', () => {
     const violations: string[] = [];
-    for (let seed = 1; seed <= 10_000; seed++) violations.push(...runCase(seed, 80, undefined, { upgrades: true, tolerateStaleUpdatedAt: true }));
+    for (let seed = 1; seed <= 10_000; seed++) violations.push(...runCase(seed, 80, undefined, { upgrades: true }));
     expect(violations.slice(0, 10)).toEqual([]);
     expect(stats.upgradedWithPending).toBeGreaterThan(500);
     expect(stats.wholeRowPushed).toBeGreaterThan(500);
@@ -513,13 +504,13 @@ describe('mergeRecord, property-style, round 4 (seeded)', () => {
     const skews = [0, DAY, -DAY, 3 * DAY, -3 * DAY, 50, -50, HOUR];
     const violations: string[] = [];
     for (let seed = 200_001; seed <= 210_000; seed++)
-      violations.push(...runCase(seed, 80, undefined, { upgrades: seed % 2 === 0, tolerateStaleUpdatedAt: true, skews }));
+      violations.push(...runCase(seed, 80, undefined, { upgrades: seed % 2 === 0, skews }));
     expect(violations.slice(0, 10)).toEqual([]);
   }, 120_000);
 
   it('long cases with updates (400 steps) converge too', () => {
     const violations: string[] = [];
-    for (let seed = 50_001; seed <= 50_500; seed++) violations.push(...runCase(seed, 400, undefined, { upgrades: true, tolerateStaleUpdatedAt: true }));
+    for (let seed = 50_001; seed <= 50_500; seed++) violations.push(...runCase(seed, 400, undefined, { upgrades: true }));
     expect(violations.slice(0, 10)).toEqual([]);
   }, 120_000);
 });

@@ -44,7 +44,10 @@ describe('mergeRecord', () => {
   it('inserts a new record with the sent clocks', () => {
     const result = merge({ stored: undefined, sent: asset({ updatedAt: 3000 }), sentClocks: at(3000) });
     expect(result.applied).toContain('notes');
-    expect(result.clocks).toEqual(at(3000));
+    expect(result.clocks).toMatchObject(at(3000)); // and every other clocked field at the record's updatedAt, as written
+    const partial = merge({ stored: undefined, sent: asset({ updatedAt: 3000 }), sentClocks: { notes: 2000 } });
+    expect(partial.clocks).toMatchObject({ notes: 2000, isFavorite: 3000, deletedAt: 3000 });
+    expect(partial.clocks).not.toHaveProperty('purgedAt');
     expect(result.record.updatedAt).toBe(3000);
   });
 
@@ -77,8 +80,9 @@ describe('mergeRecord', () => {
     const newer = { ...purge, deletedAt: 1001 };
     expect(merge({ ...input, sent: newer, restoredThrough: 1000 }).record).toMatchObject({ purgedAt: 9_999_999 });
 
-    // A push without fields (no restoredThrough) keeps its whole-record rule: its newer purge re-deletes and applies.
-    expect(merge(input).record).toMatchObject({ deletedAt: 1000, purgedAt: 9_999_999 });
+    // A push without fields keeps its whole-record rule: its newer purge re-deletes and applies.
+    const whole = { ...input, restoredThrough: restored.restoredThrough, wholeRecord: true };
+    expect(merge(whole).record).toMatchObject({ deletedAt: 1000, purgedAt: 9_999_999 });
   });
 
   it('an offline deletion and purge of a record never deleted apply, and so does a purge of a deletion after a restore', () => {
@@ -176,8 +180,9 @@ describe('mergeRecord', () => {
     });
     const purge = asset({ updatedAt: 3000, deletedAt: 1000, purgedAt: 3000 });
     const input = { stored: restored.record, storedClocks: restored.clocks, sent: purge };
-    const whole = merge({ ...input, sentClocks: at(3000, pair(3000)) }); // what push.ts merges for it
-    const perField = merge({ ...input, sentClocks: pair(3000), restoredThrough: restored.restoredThrough });
+    const restoredThrough = restored.restoredThrough;
+    const whole = merge({ ...input, sentClocks: at(3000, pair(3000)), restoredThrough, wholeRecord: true }); // as push.ts
+    const perField = merge({ ...input, sentClocks: pair(3000), restoredThrough });
     expect(whole.record).toMatchObject({ deletedAt: 1000, purgedAt: 3000 });
     expect(perField.record).toMatchObject({ deletedAt: null, purgedAt: null });
   });
@@ -196,9 +201,20 @@ describe('mergeRecord', () => {
     expect(result.record.purgedAt).toBeNull();
   });
 
+  it('a whole record that loses every clock but holds every value is told it lost: its row is newer', () => {
+    const stored = asset({ updatedAt: 5000, notes: 'same' });
+    const sent = asset({ updatedAt: 3000, notes: 'same' });
+    const whole = merge({ stored, storedClocks: at(5000), sent, sentClocks: at(3000), wholeRecord: true });
+    expect(whole).toMatchObject({ applied: [], lost: ['updatedAt'], record: { updatedAt: 5000 } });
+    const replay = merge({ stored, storedClocks: at(5000), sent: stored, sentClocks: at(5000), wholeRecord: true });
+    expect(replay.lost).toEqual([]);
+    // With fields, nothing it sent holds another value: applied.
+    expect(merge({ stored, storedClocks: at(5000), sent, sentClocks: { notes: 3000 } }).lost).toEqual([]);
+  });
+
   it('an insert writes the whole record, whatever its fields name', () => {
     const result = merge({ stored: undefined, sent: asset({ updatedAt: 3000, notes: 'n' }), sentClocks: {} });
     expect(result.applied).toEqual(expect.arrayContaining(['notes', 'deletedAt', 'purgedAt']));
-    expect(result).toMatchObject({ clocks: {}, lost: [], record: { notes: 'n', updatedAt: 3000 } });
+    expect(result).toMatchObject({ clocks: at(3000), lost: [], record: { notes: 'n', updatedAt: 3000 } });
   });
 });

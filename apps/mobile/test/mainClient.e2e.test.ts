@@ -377,14 +377,13 @@ d('the installed app (main’s client code) against this server', () => {
     expect(pushes.at(-1)!.mutations.map((m) => m.fields)).toEqual([{ notes: S + 300 }]);
   });
 
-  // BUG (round 4): the installed app edits a photo while its clock is behind, during a sync run, after
-  // its push and before its pull (main's pull then skips the record, and moves its cursor past the
-  // newer row). A whole record from an older app at a newer clock had set every field of the row
-  // with the same values. The installed app's next push loses every field on its clock but holds the
-  // same values, so the server answers `applied` without `current` (lostFields compares values) and
-  // writes nothing: the installed app keeps its older updatedAt for good. Main's server answered
-  // skipped-lww with the row, which it adopted. Expected: the installed app converges on updatedAt.
-  it.fails('an installed app whose whole record loses every clock but no value converges on updatedAt', async () => {
+  // The installed app edits a photo while its clock is behind, during a sync run, after its push and
+  // before its pull (main's pull then skips the record, and moves its cursor past the newer row). A
+  // whole record from an older app at a newer clock had set every field of the row with the same
+  // values. The installed app's next push loses every field on its clock but holds the same values:
+  // the server answers skipped-lww with the row (its updatedAt is newer), as main's server did, and
+  // the installed app adopts it.
+  it('an installed app whose whole record loses every clock but no value converges on updatedAt', async () => {
     const M = installedPhone();
     const other = installedPhone(); // another installed app, or the legacy importer: whole records
     const id = await seed([M, other]);
