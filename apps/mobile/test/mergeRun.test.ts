@@ -718,3 +718,65 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
     expect(files.has(getAssetFileUri('r.jpg', TGT))).toBe(true);
   });
 });
+
+// Round 12: pass 1 merges the device's photo into the account's photo X (a camera-roll match: the
+// device's favorite and note go onto X), commits into `acc`, records its marks in the source, then the
+// app stops before the files move. `acc` is lost before it pushed anything (as in round 9), and the
+// device library joins `acc2`, a new library of the same account, whose first pull brought X as the
+// server has it: not a favorite, no note. The match decision stands (X has a row), and only the
+// device's edits newer than the mark are replayed, so the favorite and the note, made before pass 1,
+// never reach the account.
+// Expected: X in acc2 is a favorite with the device's note. Actual: neither, and the source is gone.
+describe('round 12: a camera-roll match an earlier library never pushed', () => {
+  const ACC2 = { id: 'acc2', owner: { kind: 'account' as const, serverId: 's1', userId: 'u1', email: 'u1@test' } };
+  const TGT2 = libraryPaths('acc2');
+
+  beforeEach(async () => {
+    if (openLibraryId()) await closeLibrary();
+    stores.clear();
+    files.clear();
+    storage.clear();
+    applyMergeImpl.fail = false;
+    await loadRegistry(async () => ({ libraries: [DEV, ACC, ACC2] }));
+    stores.set(SRC.dbName, makeTestDb());
+    await openLibrary(ACC);
+    await markFirstSyncDone(getDb());
+  });
+
+  it.fails('merges the device’s favorite and note into the account’s photo again', async () => {
+    const { applyMerge, planMerge } = await import('../src/library/mergeLibrary');
+    const accountPhoto = makeAssetRecord({
+      mediaLibraryAssetId: 'm-x',
+      filename: 'x.jpg',
+      isFavorite: false,
+      notes: null,
+    });
+    await upsertRows(getDb(), 'assets', schema.assets, [{ ...accountPhoto, syncError: null }]); // pulled into acc
+    await devicePhoto({ mediaLibraryAssetId: 'm-x', filename: 'd.jpg', isFavorite: true, notes: 'from the beach' });
+    // The pass into acc: the markers, the commit, the source's marks, then the stop before the move.
+    await updateLibrary('dev', (library) => ({ ...library, mergedInto: marker('acc') }));
+    await setMergeTarget(sourceDb(), marker('acc'));
+    const plan = await planMerge(sourceDb(), getDb(), SRC);
+    await applyMerge(getDb(), plan);
+    await setMergeMarks(sourceDb(), SRC.dbName, plan.marks.decided);
+    expect((await getDb().select().from(schema.assets))[0]).toMatchObject({
+      isFavorite: true,
+      notes: 'from the beach',
+    });
+
+    // acc is lost before any push; acc2's first pull brings X as the server has it.
+    await closeLibrary();
+    stores.delete(TGT.dbName);
+    await updateRegistry(() => ({ libraries: [{ ...DEV, mergedInto: marker('acc') }, ACC2] }));
+    stores.set(TGT2.dbName, makeTestDb());
+    await openLibrary(ACC2);
+    await upsertRows(getDb(), 'assets', schema.assets, [{ ...accountPhoto, syncError: null }]);
+    await markFirstSyncDone(getDb());
+
+    await mergeLibrary('dev', 'acc2'); // mergeDeviceLibrary, signed in to the account again
+
+    expect(entry('dev')).toBeUndefined();
+    const [row] = await getDb().select().from(schema.assets);
+    expect(row).toMatchObject({ id: accountPhoto.id, isFavorite: true, notes: 'from the beach' });
+  });
+});
