@@ -35,7 +35,7 @@ export async function pull(
       .limit(limit);
     if (rows.length === limit) anyHitLimit = true;
     for (const { serverSeq, ...record } of rows) {
-      merged.push({ collection: col.name, serverSeq: serverSeq as number, record });
+      merged.push({ collection: col.descriptor.name, serverSeq: serverSeq as number, record });
     }
   }
 
@@ -47,7 +47,7 @@ export async function pull(
   const newCursor = included.length ? included[included.length - 1].serverSeq : cursor;
 
   const changes: PullResponse['changes'] = {};
-  for (const col of Object.values(serverCollections)) changes[col.name] = { records: [] };
+  for (const col of Object.values(serverCollections)) changes[col.descriptor.name] = { records: [] };
   for (const item of included) changes[item.collection].records.push(item.record);
 
   return { changes, cursor: newCursor, hasMore };

@@ -32,16 +32,17 @@ function driverError(error: unknown): DriverError | undefined {
  *   1. validate the record against the collection's Zod schema, and its `fields` (reject on failure);
  *   2. clamp a future `updatedAt` to server-now (clock skew, §7) and find the field clocks to merge
  *      (sentFields);
- *   3. merge it into the stored record (mergeRecord, §7) and write the row only when a field applied,
- *      so a replay gets no new server_seq.
+ *   3. merge it into the stored record (mergeRecord, §7; a push without fields gets no restored_through
+ *      check) and write the row only when a field applied, so a replay gets no new server_seq; the
+ *      rows are written in one upsert per collection, after the merges.
  * 'applied' when nothing sent was lost; otherwise 'skipped-lww' with the merged record as `current`
  * (required for client convergence, §6). user_id always comes from the token, never the client.
  * No hard deletes — a delete is an update setting deletedAt.
  *
  * The batch first runs in one savepoint. If a row raises a database error, that savepoint is
- * rolled back (the advisory lock, taken before it, stays held) and the batch reruns with a
- * savepoint per row, so only that row is rejected (`db:<sqlstate>`) and only such pushes pay the
- * two extra round trips per row.
+ * rolled back (the advisory lock, taken before it, stays held) and the batch reruns writing each row
+ * in its own savepoint, so only that row is rejected (`db:<sqlstate>`) and only such pushes pay the
+ * extra round trips per row.
  */
 export async function push(db: Db, userId: string, mutations: PushMutation[]): Promise<PushResult[]> {
   const now = Date.now();
@@ -64,7 +65,8 @@ export function withUserLock<T>(db: Db, userId: string, write: (tx: Tx) => Promi
   });
 }
 
-type Prepared = { col: ServerCollection; record: ValidRecord; fields: FieldClocks; wholeRecord: boolean };
+type Prepared = { col: ServerCollection; sentId: string; record: ValidRecord; fields: FieldClocks; wholeRecord: boolean };
+type Stored = { record: ValidRecord; clocks: FieldClocks; restoredThrough: number | null };
 
 async function applyMutations(
   tx: Tx,
@@ -79,68 +81,78 @@ async function applyMutations(
     userId,
     prepared.flatMap((entry) => ('col' in entry ? [entry] : [])),
   );
+  // The rows to write in one upsert per collection, by id: a row merged twice is written once.
+  const writes = new Map<ServerCollection, Map<string, Stored>>();
   const results: PushResult[] = [];
   for (const entry of prepared) {
     if (!('col' in entry)) {
       results.push(entry);
       continue;
     }
-    const { col, record, fields, wholeRecord } = entry;
-    const key = `${col.name}:${record.id}`;
+    const { col, sentId, record, fields, wholeRecord } = entry;
+    const collection = col.descriptor.name;
+    const key = `${collection}:${record.id}`;
     const before = stored.get(key);
     const merged = mergeRecord(col.descriptor, {
       stored: before?.record,
       storedClocks: before?.clocks ?? {},
       sent: record,
       sentClocks: fields,
-      wholeRecord,
+      restoredThrough: wholeRecord ? undefined : (before?.restoredThrough ?? null),
     });
     if (merged.applied.length > 0) {
-      const write = (t: Tx) => writeRow(t, col, userId, merged.record, merged.clocks);
-      try {
-        await (isolateRows ? tx.transaction(write) : write(tx));
-      } catch (error) {
-        const code = isolateRows && recordErrorCode(error);
-        if (!code) throw error;
-        results.push({ id: record.id, collection: col.name, status: 'rejected', reason: `db:${code}` });
-        continue;
-      }
-      stored.set(key, { record: merged.record, clocks: merged.clocks });
+      const after: Stored = {
+        record: merged.record as ValidRecord,
+        clocks: merged.clocks,
+        restoredThrough: Math.max(before?.restoredThrough ?? 0, merged.restoredThrough ?? 0) || null,
+      };
+      if (isolateRows) {
+        try {
+          await tx.transaction((row) => writeRows(row, col, userId, [after]));
+        } catch (error) {
+          const code = recordErrorCode(error);
+          if (!code) throw error;
+          results.push({ id: sentId, collection, status: 'rejected', reason: `db:${code}` });
+          continue;
+        }
+      } else (writes.get(col) ?? writes.set(col, new Map()).get(col)!).set(record.id, after);
+      stored.set(key, after);
     }
     results.push(
       merged.lost.length > 0
-        ? { id: record.id, collection: col.name, status: 'skipped-lww', current: merged.record }
-        : { id: record.id, collection: col.name, status: 'applied' },
+        ? { id: sentId, collection, status: 'skipped-lww', current: merged.record }
+        : { id: sentId, collection, status: 'applied' },
     );
   }
+  for (const [col, rows] of writes) await writeRows(tx, col, userId, [...rows.values()]);
   return results;
 }
 
-// A mutation ready to merge, or the result that rejects it.
+// A mutation ready to merge, or the result that rejects it. The id is lowercased as Postgres stores a
+// uuid, so the stored row is found whatever the case it was sent in; results name it as it was sent.
 function prepare(mutation: PushMutation, now: number): Prepared | PushResult {
   const col = serverCollections[mutation.collection];
-  const rawId = String((mutation.record as { id?: unknown }).id ?? '');
-  if (!col) return { id: rawId, collection: mutation.collection, status: 'rejected', reason: 'unknown-collection' };
+  const sentId = String((mutation.record as { id?: unknown }).id ?? '');
+  if (!col) return { id: sentId, collection: mutation.collection, status: 'rejected', reason: 'unknown-collection' };
 
+  const collection = col.descriptor.name;
   const parsed = col.schema.safeParse(mutation.record);
   if (!parsed.success) {
     const reason = 'schema:' + parsed.error.issues.map((i) => i.path.join('.') || '(root)').join(',');
-    return { id: rawId, collection: col.name, status: 'rejected', reason };
+    return { id: sentId, collection, status: 'rejected', reason };
   }
   const clocks = mutation.fields === undefined ? undefined : fieldClocksSchema.safeParse(mutation.fields);
-  if (clocks && !clocks.success)
-    return { id: rawId, collection: col.name, status: 'rejected', reason: 'schema:fields' };
+  if (clocks && !clocks.success) return { id: sentId, collection, status: 'rejected', reason: 'schema:fields' };
 
   const record = parsed.data as ValidRecord;
   return {
     col,
-    record: { ...record, updatedAt: Math.min(record.updatedAt, now) }, // clamp future
+    sentId,
+    record: { ...record, id: record.id.toLowerCase(), updatedAt: Math.min(record.updatedAt, now) }, // clamp future
     fields: sentFields(col, record, clocks?.data, now),
     wholeRecord: !clocks,
   };
 }
-
-type Stored = { record: Record<string, unknown> & { updatedAt: number }; clocks: FieldClocks };
 
 // The stored records these mutations name, by `collection:id`, with their field clocks.
 async function readStored(tx: Tx, userId: string, entries: Prepared[]): Promise<Map<string, Stored>> {
@@ -149,44 +161,49 @@ async function readStored(tx: Tx, userId: string, entries: Prepared[]): Promise<
     const table = col.table as any;
     const ids = [...new Set(entries.filter((entry) => entry.col === col).map((entry) => entry.record.id))];
     const rows = await tx
-      .select({ ...col.wireColumns, fieldClock: table.fieldClock })
+      .select({
+        ...col.wireColumns,
+        fieldClock: table.fieldClock,
+        ...(col.restoredThrough && { restoredThrough: col.restoredThrough }),
+      })
       .from(col.table)
       .where(and(eq(table.userId, userId), inArray(table.id, ids)));
-    for (const { fieldClock, ...record } of rows as Record<string, any>[])
-      stored.set(`${col.name}:${record.id}`, {
-        record: record as Stored['record'],
+    for (const { fieldClock, restoredThrough, ...record } of rows as Record<string, any>[])
+      stored.set(`${col.descriptor.name}:${record.id}`, {
+        record: record as ValidRecord,
         clocks: storedClocks(col, record.updatedAt, fieldClock),
+        restoredThrough: restoredThrough ?? null,
       });
   }
   return stored;
 }
 
 // Every clocked field's clock, one missing at the row's updated_at. A row without clocks (written
-// before per-field merge), or written since by a server without them (a rollback: its updated_at is
-// newer than every clock), takes its updated_at for each (sync-design §7). Restore marks are kept.
+// before per-field merge, or with every clock at its updated_at), or written since by a server without
+// them (a rollback: its updated_at is newer than every clock), takes its updated_at for each (§7).
 function storedClocks(col: ServerCollection, updatedAt: number, fieldClock: FieldClocks | null): FieldClocks {
-  const base = Object.fromEntries(col.clockedFields.map((field) => [field, updatedAt]));
-  if (!fieldClock) return base;
-  const known = col.clockedFields.flatMap((field) => (field in fieldClock ? [fieldClock[field]!] : []));
-  if (known.length === 0 || updatedAt > Math.max(...known)) return { ...fieldClock, ...base };
-  return { ...base, ...fieldClock };
+  const known = col.clockedFields.flatMap((field) => (fieldClock && field in fieldClock ? [fieldClock[field]!] : []));
+  const legacy = known.length === 0 || updatedAt > Math.max(...known);
+  return Object.fromEntries(
+    col.clockedFields.map((field) => [field, legacy ? updatedAt : (fieldClock![field] ?? updatedAt)]),
+  );
 }
 
-function writeRow(
-  tx: Tx,
-  col: ServerCollection,
-  userId: string,
-  record: Record<string, unknown>,
-  fieldClock: FieldClocks,
-) {
+// One upsert of these rows (sync-design §6): field_clock null when every clock is the row's
+// updated_at, as storedClocks reads it. The guard keeps a purged row and a newer updated_at.
+function writeRows(tx: Tx, col: ServerCollection, userId: string, rows: Stored[]) {
   const table = col.table as any;
-  const set = Object.fromEntries(
-    Object.entries({ ...col.wireColumns, fieldClock: table.fieldClock })
-      .filter(([key]) => key !== 'id')
-      .map(([key, column]) => [key, sql`excluded.${sql.identifier((column as { name: string }).name)}`]),
-  );
   return tx
     .insert(col.table)
-    .values({ ...record, userId, fieldClock })
-    .onConflictDoUpdate({ target: [table.userId, table.id], set });
+    .values(
+      rows.map(({ record, clocks, restoredThrough }) => ({
+        ...record,
+        userId,
+        fieldClock: col.clockedFields.every((field) => (clocks[field] ?? record.updatedAt) === record.updatedAt)
+          ? null
+          : Object.fromEntries(col.clockedFields.map((field) => [field, clocks[field] ?? record.updatedAt])),
+        ...(col.restoredThrough && { restoredThrough }),
+      })),
+    )
+    .onConflictDoUpdate({ target: [table.userId, table.id], set: col.upsertSet, setWhere: col.upsertGuard });
 }

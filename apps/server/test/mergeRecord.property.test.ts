@@ -3,7 +3,6 @@ import {
   assetCollection,
   mergeFields,
   mergeRecord,
-  restoredMark,
   widenToGroups,
   type FieldClocks,
 } from '@squidbox/shared';
@@ -52,18 +51,17 @@ function prng(seed: number) {
 
 // The server's stored clocks (push.ts `storedClocks`): a clocked field without one, or every one
 // when a server without clocks wrote the row since (its updated_at is newer than all of them), takes
-// updated_at; restore marks are kept.
+// updated_at.
 function storedClocks(updatedAt: number, fieldClock: FieldClocks | null): FieldClocks {
-  const base = Object.fromEntries(col.clockedFields.map((field) => [field, updatedAt]));
-  if (!fieldClock) return base;
-  const known = col.clockedFields.flatMap((field) => (field in fieldClock ? [fieldClock[field]!] : []));
-  if (known.length === 0 || updatedAt > Math.max(...known)) return { ...fieldClock, ...base };
-  return { ...base, ...fieldClock };
+  const known = col.clockedFields.flatMap((field) => (fieldClock && field in fieldClock ? [fieldClock[field]!] : []));
+  const legacy = known.length === 0 || updatedAt > Math.max(...known);
+  return Object.fromEntries(
+    col.clockedFields.map((field) => [field, legacy ? updatedAt : (fieldClock![field] ?? updatedAt)]),
+  );
 }
 
 const synced = (record: Record<string, unknown>) =>
   Object.fromEntries(['id', 'createdAt', 'updatedAt', ...MERGE].map((k) => [k, record[k] ?? null]));
-const marksOf = (clocks: FieldClocks) => Object.keys(clocks).filter((key) => key.startsWith('deletedAt:restored:'));
 
 interface Server {
   record: Rec;
@@ -71,6 +69,8 @@ interface Server {
   seq: number;
   /** The deletedAt values a restore undid on this server (the transitions deleted → live). */
   restored: Set<number>;
+  /** The restored_through column: the largest of them (a server from before it leaves it as it is). */
+  restoredThrough: number | null;
   /** The newest clock and value each register field got, by any push that reached an unfrozen row. */
   oracle: Map<string, { clock: number; value: unknown }>;
   /** Between rollback steps: the server from before per-field merge (whole-record LWW, field_clock untouched). */
@@ -126,6 +126,7 @@ function runCase(seed: number, steps: number, log?: string[]): string[] {
     fieldClock: Object.fromEntries(col.clockedFields.map((f) => [f, T0])),
     seq: ++seq,
     restored: new Set(),
+    restoredThrough: null,
     oracle: new Map(REGISTERS.map((f) => [f, { clock: T0, value: initial[f] }])),
     old: false,
   };
@@ -160,7 +161,7 @@ function runCase(seed: number, steps: number, log?: string[]): string[] {
       storedClocks: clocksBefore,
       sent: record,
       sentClocks: fields,
-      wholeRecord,
+      restoredThrough: wholeRecord ? undefined : server.restoredThrough,
     });
     const frozen = before.purgedAt != null;
     if (frozen && merged.applied.length > 0) fail(step, `a frozen row took ${merged.applied}`);
@@ -185,7 +186,11 @@ function runCase(seed: number, steps: number, log?: string[]): string[] {
         if (after.purgedAt != null) fail(step, 'a push without a purge purged');
       }
       if (sentPurge) {
-        const madeOfRestored = before.deletedAt == null && server.restored.has(record.deletedAt!) && !wholeRecord;
+        const madeOfRestored =
+          before.deletedAt == null &&
+          server.restoredThrough != null &&
+          record.deletedAt! <= server.restoredThrough &&
+          !wholeRecord;
         const expectPurged = !madeOfRestored && (newer || before.deletedAt != null);
         if (madeOfRestored) stats.restoredThenPurgeLost++;
         if ((after.purgedAt != null) !== expectPurged)
@@ -221,15 +226,17 @@ function runCase(seed: number, steps: number, log?: string[]): string[] {
       if (!changed) fail(step, 'a write that changed nothing (a new server_seq for nothing)');
       if (before.deletedAt != null && merged.record.deletedAt == null) {
         server.restored.add(before.deletedAt);
-        if (!(restoredMark(before.deletedAt) in merged.clocks)) fail(step, 'a restore left no mark');
+        const expected = Math.max(server.restoredThrough ?? 0, before.deletedAt);
+        if (!wholeRecord && merged.restoredThrough !== expected)
+          fail(step, `restoredThrough ${merged.restoredThrough}, expected ${expected}`);
       }
       server.record = { ...(merged.record as Rec), purgedAt: (merged.record.purgedAt as number | null) ?? null }; // a column: null when unsent
       server.fieldClock = merged.clocks;
+      server.restoredThrough = Math.max(server.restoredThrough ?? 0, merged.restoredThrough ?? 0) || null; // as push.ts
       server.seq = ++seq;
     }
-    for (const key of Object.keys(merged.record)) if (key.includes(':')) fail(step, `a mark in the record: ${key}`);
     for (const value of server.restored)
-      if (!(restoredMark(value) in (server.fieldClock ?? {}))) fail(step, `the mark of ${value} is gone`);
+      if (value > (server.restoredThrough ?? 0)) fail(step, `the restore of ${value} is past restored_through`);
     if (merged.applied.length > 0) {
       const max = Math.max(...col.clockedFields.map((f) => merged.clocks[f] ?? 0));
       if (merged.record.updatedAt !== max)

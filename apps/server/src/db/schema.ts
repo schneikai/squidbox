@@ -91,6 +91,8 @@ export const assets = pgTable(
     isThumbnailSynced: boolean('is_thumbnail_synced').notNull(),
     isSynced: boolean('is_synced').notNull(),
     purgedAt: bigint('purged_at', { mode: 'number' }), // "Delete permanently", final (sync-design §7)
+    // Server-only: the largest deletedAt a restore undid; a purge made of a deletion up to it loses (§7).
+    restoredThrough: bigint('restored_through', { mode: 'number' }),
     // Server-only, never on the wire: when the purge cleanup deleted the asset's S3 files (§7a).
     filesDeletedAt: bigint('files_deleted_at', { mode: 'number' }),
   },

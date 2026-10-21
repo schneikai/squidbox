@@ -27,17 +27,6 @@ pass has copied its records into an account (marker left), a restore there can b
 account has a live photo whose only files the device library removed. Test: `twoDevice.e2e.test.ts`,
 "a purge in a device library already merged in part".
 
-### [ ] mergeRecord leaves `purgedAt: undefined` for a record sent without it
-
-A pre-purge app's restore sets the final field to `undefined` in the merged record; within one push
-batch the next mutation of that record then counts `purgedAt: null` as lost (`skipped-lww` with
-nothing lost) and its `current` lacks `purgedAt`. Tests: `mergeRecord.test.ts`, `sync.test.ts` round 3.
-
-### [ ] Restore marks grow without bound
-
-Every restored deletion adds a `deletedAt:restored:<value>` key to `field_clock`, forever
-(`mergeRecord.ts`). Harmless at a few cycles; a row toggled thousands of times keeps thousands.
-
 ## Features
 
 ### [ ] Share several assets at once
