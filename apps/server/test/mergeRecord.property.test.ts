@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  assetCollection,
-  mergeFields,
-  mergeRecord,
-  widenToGroups,
-  type FieldClocks,
-} from '@squidbox/shared';
+import { assetCollection, mergeFields, mergeRecord, widenToGroups, type FieldClocks } from '@squidbox/shared';
 import { serverCollections } from '../src/sync/collections.js';
 import { sentFields } from '../src/sync/sentFields.js';
 
@@ -94,7 +88,15 @@ interface Device {
   unanswered: boolean;
 }
 
-const stats = { purgeOverRedelete: 0, purged: 0, restoredThenPurgeLost: 0, upgradedWithPending: 0, wholeRowPushed: 0 };
+const stats = {
+  purgeOverRedelete: 0,
+  purged: 0,
+  restoredThenPurgeLost: 0,
+  upgradedWithPending: 0,
+  wholeRowPushed: 0,
+  purgeOverRolledBackRestore: 0,
+  purgeOverEvictedRestore: 0,
+};
 
 interface CaseOptions {
   /** Old apps update to this one mid-case, their pending row carried over as a whole-record row. */
@@ -109,6 +111,8 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
   const fail = (step: number, message: string) => violations.push(`seed ${seed} step ${step}: ${message}`);
   let now = T0;
   let seq = 0;
+  const restoreOrder: number[] = []; // the deletedAt of every restore the new server applied, in order
+  const oldServerRestores = new Set<number>(); // the deletions a restore undid on the rolled-back server
 
   const initial: Rec = {
     id: 'a',
@@ -156,7 +160,8 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
   });
   // Only main's app (it has purges) updates: an app from before purges misses the purges it skipped
   // (main's SQLite migration 0009 adds the column empty), which this change doesn't touch.
-  if (options.upgrades) for (const device of devices) if (device.old && !device.prePurge) device.upgradeAt = rand.int(steps);
+  if (options.upgrades)
+    for (const device of devices) if (device.old && !device.prePurge) device.upgradeAt = rand.int(steps);
 
   // ── The server: a push, as push.ts merges it (or main's whole-record LWW while rolled back).
   function serverPush(step: number, mutation: Mutation): Result {
@@ -201,9 +206,7 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
       }
       if (sentPurge) {
         const madeOfRestored =
-          before.deletedAt == null &&
-          server.restoredDeletions.includes(record.deletedAt!) &&
-          !wholeRecord;
+          before.deletedAt == null && server.restoredDeletions.includes(record.deletedAt!) && !wholeRecord;
         const expectPurged = !madeOfRestored && (newer || before.deletedAt != null);
         if (madeOfRestored) stats.restoredThenPurgeLost++;
         if ((after.purgedAt != null) !== expectPurged)
@@ -218,6 +221,24 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
           server.restoredDeletions.includes(record.deletedAt!)
         )
           fail(step, 'a purge applied over a restore of its deletion');
+        // Round 6, from the restores themselves rather than the kept list: a purge of any deletion this
+        // server ever undid loses on a live row, unless ten other deletions were undone since (the list
+        // keeps the last ten) or the restore landed on the rolled-back server, which records none.
+        if (
+          !wholeRecord &&
+          before.deletedAt == null &&
+          after.purgedAt != null &&
+          server.restored.has(record.deletedAt!)
+        ) {
+          const since = new Set(restoreOrder.slice(restoreOrder.lastIndexOf(record.deletedAt!) + 1)).size;
+          if (oldServerRestores.has(record.deletedAt!)) stats.purgeOverRolledBackRestore++;
+          else if (since >= 10) stats.purgeOverEvictedRestore++;
+          else
+            fail(
+              step,
+              `a purge applied over the restore of ${record.deletedAt}, ${since} other deletions undone since`,
+            );
+        }
         if (
           !wholeRecord &&
           before.deletedAt != null &&
@@ -239,13 +260,18 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
       if (!changed) fail(step, 'a write that changed nothing (a new server_seq for nothing)');
       if (before.deletedAt != null && merged.record.deletedAt == null) {
         server.restored.add(before.deletedAt);
-        const expected = [...server.restoredDeletions.filter((v) => v !== before.deletedAt), before.deletedAt].slice(-10);
+        restoreOrder.push(before.deletedAt);
+        const expected = [...server.restoredDeletions.filter((v) => v !== before.deletedAt), before.deletedAt].slice(
+          -10,
+        );
         if (JSON.stringify(merged.restoredDeletions) !== JSON.stringify(expected))
           fail(step, `restoredDeletions ${merged.restoredDeletions}, expected ${expected}`);
       }
       server.record = { ...(merged.record as Rec), purgedAt: (merged.record.purgedAt as number | null) ?? null }; // a column: null when unsent
       // push.ts writeRows: null when every clock is updated_at (storedClocks reads it back the same).
-      server.fieldClock = col.clockedFields.every((f) => (merged.clocks[f] ?? merged.record.updatedAt) === merged.record.updatedAt)
+      server.fieldClock = col.clockedFields.every(
+        (f) => (merged.clocks[f] ?? merged.record.updatedAt) === merged.record.updatedAt,
+      )
         ? null
         : Object.fromEntries(col.clockedFields.map((f) => [f, merged.clocks[f] ?? merged.record.updatedAt]));
       server.restoredDeletions = merged.restoredDeletions;
@@ -279,6 +305,10 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
       stored.purgedAt == null &&
       (record.updatedAt > stored.updatedAt || (record.purgedAt != null && stored.deletedAt != null));
     if (!applies) return { status: 'skipped-lww', current: stored };
+    if (stored.deletedAt != null && record.deletedAt == null) {
+      server.restored.add(stored.deletedAt);
+      oldServerRestores.add(stored.deletedAt);
+    }
     server.record = { ...stored, ...record };
     server.seq = ++seq;
     for (const field of REGISTERS) server.oracle.set(field, { clock: record.updatedAt, value: server.record[field] });
@@ -486,8 +516,7 @@ describe('mergeRecord, property-style, with updates and skew (seeded)', () => {
 
   it('20,000 more random cases converge and keep every documented rule', () => {
     const violations: string[] = [];
-    for (let seed = 100_001; seed <= 120_000; seed++)
-      violations.push(...runCase(seed, 60));
+    for (let seed = 100_001; seed <= 120_000; seed++) violations.push(...runCase(seed, 60));
     expect(violations.slice(0, 10)).toEqual([]);
   }, 120_000);
 
@@ -508,9 +537,24 @@ describe('mergeRecord, property-style, with updates and skew (seeded)', () => {
     expect(violations.slice(0, 10)).toEqual([]);
   }, 120_000);
 
+  // Round 6: 50,000 more cases, each with a random mix of the options (updates, clocks days apart),
+  // under the check above that judges a purge by every restore the server applied.
+  it('50,000 cases mixing updates and skews: no purge beats a restore it hadn’t seen, but past ten or a rollback', () => {
+    const DAY = 24 * HOUR;
+    const days = [0, DAY, -DAY, 3 * DAY, -3 * DAY, 50, -50, HOUR];
+    const violations: string[] = [];
+    for (let seed = 300_001; seed <= 350_000; seed++)
+      violations.push(
+        ...runCase(seed, 80, undefined, { upgrades: seed % 3 !== 0, skews: seed % 2 ? days : undefined }),
+      );
+    expect(violations.slice(0, 10)).toEqual([]);
+    expect(stats.purgeOverRolledBackRestore).toBeGreaterThan(50); // the rollback window is exercised
+  }, 240_000);
+
   it('long cases with updates (400 steps) converge too', () => {
     const violations: string[] = [];
-    for (let seed = 50_001; seed <= 50_500; seed++) violations.push(...runCase(seed, 400, undefined, { upgrades: true }));
+    for (let seed = 50_001; seed <= 50_500; seed++)
+      violations.push(...runCase(seed, 400, undefined, { upgrades: true }));
     expect(violations.slice(0, 10)).toEqual([]);
   }, 120_000);
 });
