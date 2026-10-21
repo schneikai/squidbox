@@ -69,6 +69,8 @@ async function devicePhoto(over: Record<string, unknown> = {}) {
   return asset;
 }
 const outbox = (db: SyncDb) => db.select().from(schema.outbox);
+// File moves that keep their names: [name, name].
+const same = (...names: string[]) => names.map((name) => [name, name]);
 
 describe('planMerge + applyMerge', () => {
   it('counts and copies photos, albums, posts and edges, each with an outbox row', async () => {
@@ -103,8 +105,8 @@ describe('planMerge + applyMerge', () => {
     const again = await planMerge(source, target, SRC);
     expect(addsRecords(again)).toBe(false);
     expect(again.keepsSource).toBe(true);
-    expect(again.files.sort()).toEqual(['a.jpg', 'b.jpg']);
-    expect(again.thumbnails.sort()).toEqual(['at.jpg', 'bt.jpg']);
+    expect(again.files.sort()).toEqual(same('a.jpg', 'b.jpg'));
+    expect(again.thumbnails.sort()).toEqual(same('at.jpg', 'bt.jpg'));
   });
 
   it('a record the target has by id is skipped; its pending edit is replayed with its own updatedAt when newer', async () => {
@@ -284,7 +286,7 @@ describe('planMerge + applyMerge', () => {
     const before = [...files].sort();
     await moveMergedFiles(resumed, SRC, TGT);
     expect([...files].sort()).toEqual(before);
-    expect((await planMerge(source, target, SRC)).files).toEqual(['b.jpg']);
+    expect((await planMerge(source, target, SRC)).files).toEqual(same('b.jpg'));
   });
 
   it('a move whose destination is then missing is an error, so the source is never removed on it', async () => {
@@ -488,7 +490,7 @@ describe('a device library merged again', () => {
     const plan = await planMerge(source, target, SRC);
     await applyMerge(target, plan);
     expect((await targetRow()).deletedAt).toEqual(expect.any(Number)); // in the account's Deleted album
-    expect([plan.files, plan.thumbnails]).toEqual([['x.jpg'], ['xt.jpg']]);
+    expect([plan.files, plan.thumbnails]).toEqual([same('x.jpg'), same('xt.jpg')]);
   });
 
   it('a device copy older than the account’s pending delete and purge does not undo them', async () => {
@@ -583,7 +585,7 @@ describe('a device library that never synced (no account)', () => {
 
     const plan = await planMerge(source, target, SRC);
     expect(plan.assets.map((asset) => asset.id)).toEqual([kept.id]); // the purged one is a tombstone left behind
-    expect([plan.files, plan.thumbnails]).toEqual([['k.jpg'], ['kt.jpg']]); // its files go with the source
+    expect([plan.files, plan.thumbnails]).toEqual([same('k.jpg'), same('kt.jpg')]); // its files go with the source
     expect(plan.keepsSource).toBe(false);
   });
 });

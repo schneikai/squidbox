@@ -62,6 +62,27 @@ describe('registry', () => {
     expect(rebuild).not.toHaveBeenCalled();
   });
 
+  // The installed build stored a merge marker as the target library's id: it takes that library's
+  // account, and goes when the library is gone or its owner has no serverId yet.
+  it('loads the installed build’s merge markers with the account of the library they name', async () => {
+    const acc = { id: 'acc', owner: { kind: 'account', serverId: 's1', userId: 'u1', email: '' } };
+    const unresolved = { id: 'old', owner: { kind: 'account', serverId: null, userId: 'u2', email: '' } };
+    const stored = [
+      { ...device, mergedInto: 'acc' },
+      { id: 'dev-2', owner: { kind: 'device' }, mergedInto: 'gone' },
+      { id: 'dev-3', owner: { kind: 'device' }, mergedInto: 'old' },
+      acc,
+      unresolved,
+    ];
+    storage.set('libraries', JSON.stringify({ libraries: stored }));
+    const { libraries } = await registry.loadRegistry(async () => ({ libraries: [] }));
+    expect(libraries.slice(0, 3)).toEqual([
+      { ...device, mergedInto: { library: 'acc', serverId: 's1', userId: 'u1' } },
+      { id: 'dev-2', owner: { kind: 'device' } },
+      { id: 'dev-3', owner: { kind: 'device' } },
+    ]);
+  });
+
   it('moves a value that does not parse aside and rebuilds', async () => {
     storage.set('libraries', '{"libraries": [{"id": 1}]');
     expect(await registry.loadRegistry(async () => rebuilt)).toEqual(rebuilt);

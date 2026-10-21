@@ -21,6 +21,11 @@ export async function listDatabaseNames(): Promise<string[]> {
   return [...(await listFiles(SQLITE_DIR))];
 }
 
+// Whether the database exists on this device (opening a name would create it).
+export async function databaseExists(dbName: string): Promise<boolean> {
+  return (await listFiles(SQLITE_DIR)).has(dbName);
+}
+
 // The names of the files in a folder (none for a folder that doesn't exist).
 export async function listFiles(dir: string): Promise<Set<string>> {
   const info = await FileSystem.getInfoAsync(dir);

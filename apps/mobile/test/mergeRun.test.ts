@@ -97,6 +97,8 @@ const SRC = libraryPaths('dev');
 const TGT = libraryPaths('acc');
 const sourceDb = () => stores.get(SRC.dbName)!;
 const entry = (id: string) => getRegistry().libraries.find((library) => library.id === id);
+// A merge marker for a library of account u1 (mergeMarker.ts).
+const marker = (library: string, userId = 'u1') => ({ library, serverId: 's1', userId });
 
 async function devicePhoto(over: Record<string, unknown> = {}) {
   const asset = await repo.createAsset(
@@ -151,7 +153,7 @@ describe('mergeLibrary / resumeMerges', () => {
 
   it('a crash between the marker and the commit, then boot: the merge runs again and finishes', async () => {
     const a = await devicePhoto({ filename: 'a.jpg' });
-    await updateLibrary('dev', (library) => ({ ...library, mergedInto: 'acc' })); // the marker a crash left
+    await updateLibrary('dev', (library) => ({ ...library, mergedInto: marker('acc') })); // the marker a crash left
 
     await resumeMerges();
 
@@ -164,7 +166,7 @@ describe('mergeLibrary / resumeMerges', () => {
   it('a crash after the commit, then boot: the files move, what was added meanwhile joins too, the source goes', async () => {
     const { applyMerge, planMerge } = await import('../src/library/mergeLibrary');
     const a = await devicePhoto({ filename: 'a.jpg', mediaLibraryAssetId: 'm-a' });
-    await updateLibrary('dev', (library) => ({ ...library, mergedInto: 'acc' }));
+    await updateLibrary('dev', (library) => ({ ...library, mergedInto: marker('acc') }));
     await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC)); // committed, then the crash
     const later = await devicePhoto({ filename: 'later.jpg', mediaLibraryAssetId: 'm-later' });
 
@@ -207,32 +209,31 @@ describe('mergeLibrary / resumeMerges', () => {
     const OTHER = { id: 'other', owner: { kind: 'device' as const } };
     storage.clear();
     await loadRegistry(async () => ({
-      libraries: [{ ...DEV, mergedInto: 'acc' }, ACC, { ...OTHER, mergedInto: 'gone' }],
+      libraries: [{ ...DEV, mergedInto: marker('acc') }, ACC, { ...OTHER, mergedInto: marker('acc') }],
     }));
     await closeLibrary();
     await openLibrary(DEV); // the session was lost: the marked device library opened again
+    applyMergeImpl.fail = true;
 
     await resumeMerges();
-    expect(entry('dev')).toEqual({ ...DEV, mergedInto: 'acc' }); // waits for a boot that opens another
-    expect(entry('other')).toEqual(OTHER);
+    expect(entry('dev')).toEqual({ ...DEV, mergedInto: marker('acc') }); // waits for a boot that opens another
+    expect(entry('other')).toBeUndefined(); // holding nothing, its merge completed
 
     await closeLibrary();
     await openLibrary(ACC);
     await devicePhoto();
-    await updateLibrary('other', (library) => ({ ...library, mergedInto: 'gone' }));
-    applyMergeImpl.fail = true;
     await resumeMerges();
-    expect(entry('dev')).toEqual({ ...DEV, mergedInto: 'acc' }); // failed: the next boot tries again
-    expect(entry('other')).toEqual(OTHER); // still cleared, after the failure
+    expect(entry('dev')).toEqual({ ...DEV, mergedInto: marker('acc') }); // failed: the next boot tries again
   });
 
-  it('the list’s marker of a merge whose target is gone is cleared; the source’s own stays', async () => {
+  // The marker holds the account the source belongs to: a library of that account takes it over.
+  it('the list’s marker of a merge whose target is gone stays, as the source’s own does', async () => {
     storage.clear();
-    await loadRegistry(async () => ({ libraries: [{ ...DEV, mergedInto: 'gone' }, ACC] }));
-    await setMergeTarget(sourceDb(), 'gone'); // a pass had copied records
+    await loadRegistry(async () => ({ libraries: [{ ...DEV, mergedInto: marker('gone') }, ACC] }));
+    await setMergeTarget(sourceDb(), marker('gone')); // a pass had copied records
     await resumeMerges();
-    expect(entry('dev')).toEqual(DEV);
-    expect(await getMergeTarget(sourceDb())).toBe('gone'); // what it copied may be in the account: purges wait
+    expect(entry('dev')).toEqual({ ...DEV, mergedInto: marker('gone') });
+    expect(await getMergeTarget(sourceDb())).toEqual(marker('gone')); // what it copied may be in the account: purges wait
   });
 });
 
@@ -267,8 +268,8 @@ describe('a failed pass after an earlier one committed', () => {
     const { applyMerge, planMerge } = await import('../src/library/mergeLibrary');
     const a = await devicePhoto({ filename: 'a.jpg', thumbnailFilename: 'a-t.jpg', mediaLibraryAssetId: 'm-a' });
     // Pass 1: the markers, every record committed into the account, then the crash.
-    await updateLibrary('dev', (library) => ({ ...library, mergedInto: 'acc' }));
-    await setMergeTarget(sourceDb(), 'acc');
+    await updateLibrary('dev', (library) => ({ ...library, mergedInto: marker('acc') }));
+    await setMergeTarget(sourceDb(), marker('acc'));
     await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC));
 
     // The session is lost: the device library opens again, and its photo is purged there.
@@ -366,8 +367,8 @@ describe('a merge pass run again (a crash, a failed file move)', () => {
   // The sign-in's pass: the markers, every record committed into the account, then the crash.
   async function firstPassThenCrash() {
     const { applyMerge, planMerge } = await import('../src/library/mergeLibrary');
-    await updateLibrary('dev', (library) => ({ ...library, mergedInto: 'acc' }));
-    await setMergeTarget(sourceDb(), 'acc');
+    await updateLibrary('dev', (library) => ({ ...library, mergedInto: marker('acc') }));
+    await setMergeTarget(sourceDb(), marker('acc'));
     await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC));
   }
   async function openDevice() {
@@ -393,10 +394,10 @@ describe('a merge pass run again (a crash, a failed file move)', () => {
     expect(await getMergeTarget(sourceDb())).toBeNull();
     expect(await getDb().select().from(schema.assets)).toEqual([]);
 
-    await setMergeTarget(sourceDb(), 'gone');
-    await updateLibrary('dev', (library) => ({ ...library, mergedInto: 'acc' }));
+    await setMergeTarget(sourceDb(), marker('gone'));
+    await updateLibrary('dev', (library) => ({ ...library, mergedInto: marker('acc') }));
     await resumeMerges();
-    expect(entry('dev')).toEqual({ ...DEV, mergedInto: 'acc' }); // waits, for the next boot
+    expect(entry('dev')).toEqual({ ...DEV, mergedInto: marker('acc') }); // waits, for the next boot
     expect(await getDb().select().from(schema.assets)).toEqual([]);
     await markFirstSyncDone(getDb());
     await resumeMerges();
@@ -478,8 +479,8 @@ describe('a merge pass run again (a crash, a failed file move)', () => {
     await albumEdges.remove(sourceDb(), album.id, [photo.id]);
     await albumEdges.add(sourceDb(), album.id, [photo.id], newEdgeId);
     // mergeLibrary's markers, then the crash before the target's commit.
-    await updateLibrary('dev', (library) => ({ ...library, mergedInto: 'acc' }));
-    await setMergeTarget(sourceDb(), 'acc');
+    await updateLibrary('dev', (library) => ({ ...library, mergedInto: marker('acc') }));
+    await setMergeTarget(sourceDb(), marker('acc'));
 
     await resumeMerges();
     expect(entry('dev')).toBeUndefined();
@@ -518,8 +519,8 @@ describe('round 8: a resumed pass and a matched photo the account deleted since'
     await upsertRows(getDb(), 'assets', schema.assets, [{ ...accountPhoto, syncError: null }]); // synced
     const devicePhotoRow = await devicePhoto({ mediaLibraryAssetId: 'm-x', filename: 'd.jpg', isFavorite: true });
     // Pass 1: the markers, the commit, then the crash.
-    await updateLibrary('dev', (library) => ({ ...library, mergedInto: 'acc' }));
-    await setMergeTarget(sourceDb(), 'acc');
+    await updateLibrary('dev', (library) => ({ ...library, mergedInto: marker('acc') }));
+    await setMergeTarget(sourceDb(), marker('acc'));
     await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC));
     expect((await getDb().select().from(schema.assets)).map((row) => row.id)).toEqual([accountPhoto.id]);
 
@@ -561,8 +562,8 @@ describe('round 8: a device library an earlier pass copied into a library that i
   it('a photo copied into the earlier library keeps its file when the device library is merged elsewhere', async () => {
     const { applyMerge, planMerge } = await import('../src/library/mergeLibrary');
     const photo = await devicePhoto({ filename: 'a.jpg', mediaLibraryAssetId: 'm-a' });
-    await updateLibrary('dev', (library) => ({ ...library, mergedInto: 'acc' }));
-    await setMergeTarget(sourceDb(), 'acc');
+    await updateLibrary('dev', (library) => ({ ...library, mergedInto: marker('acc') }));
+    await setMergeTarget(sourceDb(), marker('acc'));
     await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC)); // committed, then the crash
     expect((await getDb().select().from(schema.assets))[0]).toMatchObject({ id: photo.id, isFileSynced: false });
 
@@ -577,7 +578,7 @@ describe('round 8: a device library an earlier pass copied into a library that i
     const inAcc = files.has(getAssetFileUri('a.jpg', TGT)) || files.has(getAssetFileUri('a.jpg', SRC));
     expect(inAcc).toBe(true);
     expect(await getDb().select().from(schema.assets)).toEqual([]);
-    expect(entry('dev')).toEqual({ ...DEV, mergedInto: 'acc' });
+    expect(entry('dev')).toEqual({ ...DEV, mergedInto: marker('acc') });
   });
 });
 
@@ -610,8 +611,8 @@ describe('round 9: records an earlier library never pushed', () => {
     const album = await albums.create(sourceDb(), makeAlbumRecord({ name: 'Trip' }));
     await albumEdges.add(sourceDb(), album.id, [photo.id], newEdgeId);
     // The pass into acc: the markers, the commit, the source's marks, then the crash before the move.
-    await updateLibrary('dev', (library) => ({ ...library, mergedInto: 'acc' }));
-    await setMergeTarget(sourceDb(), 'acc');
+    await updateLibrary('dev', (library) => ({ ...library, mergedInto: marker('acc') }));
+    await setMergeTarget(sourceDb(), marker('acc'));
     const plan = await planMerge(sourceDb(), getDb(), SRC);
     await applyMerge(getDb(), plan);
     await setMergeMarks(sourceDb(), SRC.dbName, plan.marks.decided);
@@ -619,7 +620,7 @@ describe('round 9: records an earlier library never pushed', () => {
     // acc is lost before any push; the device adds a photo to the album meanwhile.
     await closeLibrary();
     stores.delete(TGT.dbName);
-    await updateRegistry(() => ({ libraries: [{ ...DEV, mergedInto: 'acc' }, ACC2] }));
+    await updateRegistry(() => ({ libraries: [{ ...DEV, mergedInto: marker('acc') }, ACC2] }));
     const added = await devicePhoto({ filename: 'q.jpg', mediaLibraryAssetId: 'm-q' });
     await albumEdges.add(sourceDb(), album.id, [added.id], newEdgeId);
     stores.set(TGT2.dbName, makeTestDb());
@@ -680,5 +681,40 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
     expect(live.some((row) => files.has(getAssetFileUri(row.filename, TGT)))).toBe(true);
     expect(files.has(getAssetFileUri('r.jpg', TGT))).toBe(true);
     expect(files.has(`file:///docs/${TGT.thumbnailsDir}r-t.jpg`)).toBe(true);
+  });
+
+  const unsynced = { isFileSynced: false, isThumbnailSynced: false, isSynced: false };
+
+  // Its backup failed before (no file on this phone): with the device's copy there, it tries again.
+  it('clears the sync error of the account’s photo the device’s copy goes to', async () => {
+    const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-r', filename: 'r.jpg', ...unsynced });
+    await upsertRows(getDb(), 'assets', schema.assets, [{ ...accountPhoto, syncError: 'No file on this device' }]);
+    await devicePhoto({ mediaLibraryAssetId: 'm-r', filename: 'r2.jpg' });
+
+    await mergeLibrary('dev', 'acc');
+
+    const [row] = await getDb().select().from(schema.assets);
+    expect(row).toMatchObject({ id: accountPhoto.id, syncError: null });
+    expect(files.has(getAssetFileUri('r.jpg', TGT))).toBe(true);
+  });
+
+  // A pass merged the device's photo into the account's, then crashed before the files moved; the
+  // account purges that photo meanwhile, not yet confirmed by the server (a restore elsewhere can
+  // still beat it). The resumed pass keeps the device's copy for it, as it does for a photo kept by id.
+  it('keeps the device’s copy for the account’s photo while its purge waits for the server', async () => {
+    const { applyMerge, planMerge } = await import('../src/library/mergeLibrary');
+    const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-r', filename: 'r.jpg', ...unsynced });
+    await upsertRows(getDb(), 'assets', schema.assets, [{ ...accountPhoto, syncError: null }]);
+    await devicePhoto({ mediaLibraryAssetId: 'm-r', filename: 'r2.jpg' });
+    await updateLibrary('dev', (library) => ({ ...library, mergedInto: marker('acc') }));
+    await setMergeTarget(sourceDb(), marker('acc'));
+    await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC)); // committed, then the crash
+    await repo.deleteAssets(getDb(), [accountPhoto.id]);
+    await repo.purgeAssets(getDb(), [accountPhoto.id]); // pending in the account's outbox
+
+    await resumeMerges();
+
+    expect(entry('dev')).toBeUndefined();
+    expect(files.has(getAssetFileUri('r.jpg', TGT))).toBe(true);
   });
 });

@@ -1163,7 +1163,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       });
       const D = await deviceLibraryWith(id); // a first merge pass copied it into the account
       await setOwner(D, { kind: 'device' });
-      await setMergeTarget(D, 'account');
+      await setMergeTarget(D, { library: 'account', serverId: 's1', userId: 'u1' });
       await edit(D, S + 100, () => repo.deleteAssets(D, [id]));
       await edit(D, S + 200, () => repo.purgeAssets(D, [id]));
       const removed: string[] = [];
@@ -1190,7 +1190,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       const id = await seedAsset({ isFileSynced: false, isThumbnailSynced: false, isSynced: false }); // T1 pushed it
       const D = await deviceLibraryWith(id);
       await setOwner(D, { kind: 'device' });
-      await setMergeTarget(D, 'gone');
+      await setMergeTarget(D, { library: 'gone', serverId: 's1', userId: 'u1' });
       await edit(D, S + 100, () => repo.deleteAssets(D, [id]));
       const T2 = makeTestDb(); // the account's new library
       await settle([A, B, T2]); // its first full pull

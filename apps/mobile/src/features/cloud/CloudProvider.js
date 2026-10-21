@@ -6,14 +6,14 @@ import preloadAssetThumbnailsAsync from './assets/preloadAssetThumbnailsAsync';
 import uploadAssetFileAsync from './assets/uploadAssetFileAsync';
 import uploadAssetThumbnailAsync from './assets/uploadAssetThumbnailAsync';
 
-import { openLibraryForSession, openLibraryForSignIn } from '@/library/sessionLibrary';
+import { openLibraryForSignIn, openLibraryForSignOut } from '@/library/sessionLibrary';
 import { isSessionAuthenticated, needsReauth as sessionNeedsReauth } from '@/library/sessionMatches';
 import useLibrary from '@/library/useLibrary';
 import { navigateToTab } from '@/navigators/navigationRef';
 import { withSyncPaused } from '@/sync/worker';
 import apiLoginAsync from '@/utils/cloud-api/authentication/loginAsync';
 import apiLogoutAsync from '@/utils/cloud-api/authentication/logoutAsync';
-import { dropTokensAsync, getSession, getSessionSnapshot, onSessionChange } from '@/utils/cloud-api/sessionStore';
+import { getSessionSnapshot, onSessionChange } from '@/utils/cloud-api/sessionStore';
 
 // Who is signed in, mirrored from the session store. Every change of the session runs inside
 // withSyncPaused, a sign-in together with the library switch it causes (library/sessionLibrary.ts),
@@ -35,20 +35,13 @@ export default function CloudProvider({ children }) {
     if (switched) navigateToTab('SettingsTab');
   }
 
-  // Signs out: the sync and backup stop and the tokens go, the library stays open as it is, unless
-  // it would hide this iPhone's photos (an account library before its first pull drained, which this
-  // device's library waits to join: openLibraryForSession opens that one). The refresh token is then
-  // revoked as best effort, outside the paused section.
+  // Signs out: the sync and backup stop, the tokens go and openLibraryForSignOut opens the library for
+  // the session without them. The refresh token is then revoked as best effort, outside the paused
+  // section.
   async function logoutAsync() {
     let tokens;
     try {
-      tokens = await withSyncPaused(async () => {
-        const dropped = await dropTokensAsync();
-        await openLibraryForSession(getSession(), switchLibrary).catch((error) =>
-          console.warn('Could not open this device’s library after the sign-out', error),
-        );
-        return dropped;
-      });
+      tokens = await withSyncPaused(() => openLibraryForSignOut(switchLibrary));
     } catch (error) {
       Alert.alert("Couldn't sign out", error.message);
       return;

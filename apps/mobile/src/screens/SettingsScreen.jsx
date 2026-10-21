@@ -13,7 +13,7 @@ import { Row, Section, SectionFooter } from '@/components/settings-list/Settings
 import { DEFAULT_MODEL } from '@/features/ai-suggestions/aiSuggestionsStorage';
 import resolveModel from '@/features/ai-suggestions/resolveModel';
 import useAppSettings from '@/features/app-settings/useAppSettings';
-import confirmSignOutAsync from '@/features/cloud/confirmSignOutAsync';
+import confirmBackupSignOutAsync from '@/features/cloud/confirmBackupSignOutAsync';
 import useCloud from '@/features/cloud/useCloud';
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
 import useBackupCounts from '@/features/cloud-sync/useBackupCounts';
@@ -54,7 +54,7 @@ export default function SettingsScreen() {
   // The confirmation is asked outside the transition: a state update made inside its callback
   // before the first await would be part of the pending transition and never render the alert.
   async function handleLogout() {
-    if (await confirmSignOutAsync({ pendingCount, ...counts })) startLogoutTransition(() => logoutAsync());
+    if (await confirmBackupSignOutAsync({ pendingCount, ...counts })) startLogoutTransition(() => logoutAsync());
   }
 
   function handleResortAlbums() {

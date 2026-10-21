@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import type { MergeMarker } from './mergeMarker';
 import type { Owner } from './owner';
 
 import { createPersistedStore } from '@/utils/persistedStore';
@@ -7,9 +8,9 @@ import { createPersistedStore } from '@/utils/persistedStore';
 export interface Library {
   id: string;
   owner: Owner;
-  // The library this one is joining: set while the merge runs, so a boot finishes one a crash
-  // interrupted.
-  mergedInto?: string;
+  // The library this one is joining, and its account (mergeMarker.ts): set while the merge runs, so a
+  // boot finishes one a crash interrupted.
+  mergedInto?: MergeMarker;
   // The library this one joined and stays beside, for photos in another account's storage: never
   // merged again, never into another one.
   keptFor?: string;
@@ -59,13 +60,24 @@ export function deviceLibrary(libraries: Library[]): Library | undefined {
   return libraries.find(({ owner }) => owner.kind === 'device');
 }
 
+// The installed build (df33378) stored a merge marker as the target library's id: it takes the
+// account of that library, and goes when the library is gone or its owner unresolved (no serverId).
+function withMarker(library: Library, _index: number, libraries: Library[]): Library {
+  const marker = library.mergedInto as MergeMarker | string | undefined;
+  if (typeof marker !== 'string') return library;
+  const { mergedInto: _legacy, ...rest } = library;
+  const owner = libraries.find(({ id }) => id === marker)?.owner;
+  if (owner?.kind !== 'account' || !owner.serverId) return rest;
+  return { ...rest, mergedInto: { library: marker, serverId: owner.serverId, userId: owner.userId } };
+}
+
 function parseRegistry(raw: string): Registry | null {
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed?.libraries)) return null;
     if (!parsed.libraries.every((library: Library) => typeof library?.id === 'string' && library.owner?.kind))
       return null;
-    return parsed as Registry;
+    return { libraries: parsed.libraries.map(withMarker) };
   } catch {
     return null;
   }

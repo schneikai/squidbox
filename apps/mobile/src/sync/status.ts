@@ -2,6 +2,7 @@ import { eq, sql } from 'drizzle-orm';
 
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
+import type { MergeMarker } from '../library/mergeMarker';
 import type { Owner } from '../library/owner';
 
 // sync_meta helpers: the pull cursor + a small status blob (surfaced by the Inspector).
@@ -9,10 +10,9 @@ const CURSOR_KEY = 'cursor';
 const STATUS_KEY = 'status';
 const FIRST_SYNC_KEY = 'firstSyncDone'; // '1' once the initial full pull has drained
 const OWNER_KEY = 'owner'; // whose library this database is (JSON), so the library list is rebuildable
-const MERGE_TARGET_KEY = 'mergedInto'; // the library a merge pass copied this one's records into
+const MERGE_TARGET_KEY = 'mergedInto'; // the merge marker: the library (and account) a merge pass copied this one's records into
 const MARKS_KEY = 'mergeMarks:'; // + a source library's database name (getMergeMarks)
 const KEPT_FOR_KEY = 'keptFor'; // the library a kept source library joined (getKeptFor)
-const MERGE_ACCOUNT_KEY = 'mergedIntoAccount'; // the account a merge pass committed this one's records into
 
 export type SyncPhase = 'idle' | 'pushing' | 'pulling' | 'error';
 export interface SyncStatus {
@@ -59,28 +59,17 @@ export async function getOwner(db: SyncDb): Promise<Owner | null> {
 export async function setOwner(db: SyncDb, owner: Owner): Promise<void> {
   await setMeta(db, OWNER_KEY, JSON.stringify(owner));
 }
-// The merge marker in the source library's own database (library/mergeRun.ts): set with a merge pass
-// that copies its records into another library, cleared only once a merge that keeps the source is
-// done. Until then a restore there can beat this library's purges, which keep their files
+// The merge marker in the source library's own database (library/mergeMarker.ts), JSON: set with a
+// merge pass that copies its records into another library, cleared only once a merge that keeps the
+// source is done. Until then a restore there can beat this library's purges, which keep their files
 // (sweepPurgedFiles).
-export async function getMergeTarget(db: SyncDb): Promise<string | null> {
-  return getMeta(db, MERGE_TARGET_KEY);
+export async function getMergeTarget(db: SyncDb): Promise<MergeMarker | null> {
+  const raw = await getMeta(db, MERGE_TARGET_KEY);
+  return raw ? (JSON.parse(raw) as MergeMarker) : null;
 }
-export async function setMergeTarget(db: SyncDb, targetId: string | null): Promise<void> {
-  if (targetId) await setMeta(db, MERGE_TARGET_KEY, targetId);
+export async function setMergeTarget(db: SyncDb, marker: MergeMarker | null): Promise<void> {
+  if (marker) await setMeta(db, MERGE_TARGET_KEY, JSON.stringify(marker));
   else await db.delete(schema.syncMeta).where(eq(schema.syncMeta.key, MERGE_TARGET_KEY));
-}
-// The account whose library a merge pass first committed this (device) library's records into: they
-// are that account's from then on, so the library never joins another account's (mergeRun.ts).
-export type MergeAccount = { serverId: string; userId: string };
-export async function getMergeAccount(db: SyncDb): Promise<MergeAccount | null> {
-  const raw = await getMeta(db, MERGE_ACCOUNT_KEY);
-  return raw ? (JSON.parse(raw) as MergeAccount) : null;
-}
-export async function setMergeAccount(db: SyncDb, account: MergeAccount | null): Promise<void> {
-  if (account)
-    await setMeta(db, MERGE_ACCOUNT_KEY, JSON.stringify({ serverId: account.serverId, userId: account.userId }));
-  else await db.delete(schema.syncMeta).where(eq(schema.syncMeta.key, MERGE_ACCOUNT_KEY));
 }
 /**
  * What a committed merge pass decided for a source record (`collection:id`, library/mergeLibrary.ts),

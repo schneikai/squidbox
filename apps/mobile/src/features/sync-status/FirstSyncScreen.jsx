@@ -1,8 +1,9 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import { Alert, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 import StatusScreen from '@/components/StatusScreen';
 import TextButton from '@/components/TextButton';
+import confirmSignOutAsync from '@/features/cloud/confirmSignOutAsync';
 import useCloud from '@/features/cloud/useCloud';
 import { onRegistryChange } from '@/library/registry';
 import { deviceLibraryToJoin } from '@/library/sessionLibrary';
@@ -19,21 +20,6 @@ const RETRY_MS = 5_000;
 // Whether this device's library waits to join the open one: every merge waits for the first pull
 // (mergeWaits in library/mergeLibrary.ts).
 const deviceLibraryWaits = () => Boolean(deviceLibraryToJoin());
-
-// Signing out here stops the first pull, so it asks first, as Settings does when something would
-// wait. This iPhone's photos stay in reach: its library opens again while the account's hasn't
-// finished its first pull (openLibraryForSession).
-function confirmSetupSignOutAsync(addsDevicePhotos) {
-  const message = addsDevicePhotos
-    ? 'This iPhone’s photos stay here and join your account the next time you sign in.'
-    : 'Setting up your library goes on the next time you sign in.';
-  return new Promise((resolve) => {
-    Alert.alert('Sign out before setup finishes?', message, [
-      { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-      { text: 'Sign Out', style: 'destructive', onPress: () => resolve(true) },
-    ]);
-  });
-}
 
 function useTotal(table) {
   const { records, tombstones } = useRecordCounts(table);
@@ -60,8 +46,13 @@ export default function FirstSyncScreen() {
     return () => clearInterval(id);
   }, [hasError]);
 
+  // Signing out stops the first pull, so it asks first; openLibraryForSignOut then opens the library
+  // to show.
   async function handleSignOut() {
-    if (await confirmSetupSignOutAsync(addsDevicePhotos)) await logoutAsync();
+    const message = addsDevicePhotos
+      ? 'This iPhone’s photos stay here and join your account the next time you sign in.'
+      : 'Setting up your library goes on the next time you sign in.';
+    if (await confirmSignOutAsync({ title: 'Sign out before setup finishes?', message })) await logoutAsync();
   }
 
   function subtitle() {

@@ -373,7 +373,7 @@ describe('the sweep: crashes, shared names, resyncs, device libraries', () => {
 
   it('a device library a merge pass copied into an account keeps a pending purge’s files, as an account does', async () => {
     await setOwner(db, { kind: 'device' });
-    await setMergeTarget(db, 'account');
+    await setMergeTarget(db, { library: 'account', serverId: 's1', userId: 'u1' });
     const asset = await trashed({ filename: 'm.jpg', thumbnailFilename: 'm-t.jpg' });
     await repo.purgeAssets(db, [asset.id]);
     const { removed, removeFiles } = recording();

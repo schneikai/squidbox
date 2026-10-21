@@ -60,13 +60,13 @@ describe('rebuildRegistry', () => {
   it('restores what a device library joins or joined, from its own database', async () => {
     const merging = disk('library-dev.db');
     await setOwner(merging, { kind: 'device' });
-    await setMergeTarget(merging, 'acc');
+    await setMergeTarget(merging, { library: 'acc', serverId: 's1', userId: 'u1' });
     const kept = disk('library-old.db');
     await setOwner(kept, { kind: 'device' });
     await setKeptFor(kept, 'acc');
 
     expect((await rebuildRegistry()).libraries).toEqual([
-      { id: 'dev', owner: { kind: 'device' }, mergedInto: 'acc' },
+      { id: 'dev', owner: { kind: 'device' }, mergedInto: { library: 'acc', serverId: 's1', userId: 'u1' } },
       { id: 'old', owner: { kind: 'device' }, keptFor: 'acc' },
     ]);
   });

@@ -5,7 +5,7 @@ import { bootLibrary } from './bootLibrary';
 import { openLibraryEntry, openLibraryId } from './current';
 import { libraryPaths } from './libraryPaths';
 import { onRegistryChange } from './registry';
-import { runPendingMerges } from './sessionLibrary';
+import { runPendingMerges, watchTokenDrops } from './sessionLibrary';
 import { switchLibrary as performSwitch } from './switchLibrary';
 
 // The open library. A switch sets `next`: LibraryGate (App.js) then shows the switching screen, so
@@ -32,6 +32,9 @@ export default function LibraryProvider({ children }) {
       runPendingMerges().catch((resumeError) => console.warn('Could not resume a merge', resumeError));
     }, setError);
   }, [switchLibrary]);
+
+  // From the boot on, a session that loses its tokens anywhere opens the library for it.
+  useEffect(() => (booted ? watchTokenDrops(switchLibrary) : undefined), [booted, switchLibrary]);
 
   useEffect(() => {
     if (!next) return;
