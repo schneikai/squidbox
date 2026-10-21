@@ -293,6 +293,82 @@ describe('edgesRepository (album_assets)', () => {
     expect(live.map((r) => r.id)).toEqual(['r2', 'r3', 'r1']);
   });
 
+  // Round 9: two photos tied at one key (two devices appended one each offline, `keysBetween(last,
+  // null)` is deterministic) show in id order. The user puts a new photo between them in the editor:
+  // it should land between them (move() re-keys the tied edges after the one dropped after), but it
+  // gets a key after both: kept [k1, k, -, k], the run's next kept key k isn't above the highest
+  // kept key k, so it goes after the next live key above k (none): after a3.
+  it.fails('setRefs puts a photo added between two tied photos between them', async () => {
+    const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
+    await posts.createFromRefs(db, 'post-1', [{ id: 'r1', assetId: 'a1' }]);
+    const k1 = (await db.select().from(schema.postAssets))[0]!.position;
+    const tied = keyBetween(k1, null);
+    for (const [id, assetId] of [
+      ['r2', 'a2'],
+      ['r3', 'a3'],
+    ])
+      await db.insert(schema.postAssets).values({
+        ...{ id, assetId, postId: 'post-1', position: tied },
+        ...{ createdAt: 1, updatedAt: 1, deletedAt: null },
+      });
+    const seed = [
+      { id: 'r1', assetId: 'a1' },
+      { id: 'r2', assetId: 'a2' },
+      { id: 'r3', assetId: 'a3' },
+    ];
+    await posts.setRefs(db, 'post-1', [seed[0]!, seed[1]!, { id: 'rx', assetId: 'ax' }, seed[2]!], seed);
+    const rows = await db.select().from(schema.postAssets);
+    const live = rows
+      .filter((r) => r.deletedAt == null)
+      .sort((a, b) => (a.position < b.position || (a.position === b.position && a.id < b.id) ? -1 : 1));
+    expect(live.map((r) => r.assetId)).toEqual(['a1', 'a2', 'ax', 'a3']); // actual: a1, a2, a3, ax
+  });
+
+  // Round 9: another device moved a1 to the end while the editor was open (synced in before the
+  // save), and the user added X right after a1 and Y at the end. Both runs follow the highest kept
+  // key before them, a1's (the kept keys are out of order: [k4, -, k2, k3, -]), with nothing live
+  // above it: both get keysBetween(k4, null, 1), the same key, so the two new photos tie and show in
+  // id order, Y before X here, though the user put X first ("never tying", positionsBetween).
+  it.fails(
+    'setRefs gives two photos added in one save distinct keys in their order after a reorder made elsewhere',
+    async () => {
+      const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
+      const seed = [
+        { id: 'r1', assetId: 'a1' },
+        { id: 'r2', assetId: 'a2' },
+        { id: 'r3', assetId: 'a3' },
+      ];
+      await posts.createFromRefs(db, 'post-1', seed);
+      await posts.move(db, 'post-1', 'a1', 'a3'); // another device's, synced in
+      const x = { id: 'r9', assetId: 'ax' };
+      const y = { id: 'r5', assetId: 'ay' };
+      await posts.setRefs(db, 'post-1', [seed[0]!, x, seed[1]!, seed[2]!, y], seed);
+      const rows = await db.select().from(schema.postAssets);
+      const position = (id: string) => rows.find((r) => r.id === id)!.position;
+      expect(position('r9')).not.toBe(position('r5')); // actual: the same key
+      expect(position('r9') < position('r5')).toBe(true);
+    },
+  );
+
+  // Round 9: another device put a photo at the front of the post (its editor's insert, or a drag:
+  // keyBetween(null, k1)), synced in while this editor was open. The user, whose seed hasn't that
+  // photo, adds one at the front: its run is keyed between "the front" and a1's kept key, which the
+  // other device's key already sits between, and gets that very key. The two tie and show in id order,
+  // though that live key was known at the save ("so it ties with none", positionsBetween).
+  it.fails('setRefs keys a photo added at the front apart from a live photo another device put there', async () => {
+    const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
+    const seed = [
+      { id: 'r1', assetId: 'a1' },
+      { id: 'r2', assetId: 'a2' },
+    ];
+    await posts.createFromRefs(db, 'post-1', seed);
+    await posts.setRefs(db, 'post-1', [{ id: 'rz', assetId: 'az' }, ...seed], seed); // the other device's, synced in
+    await posts.setRefs(db, 'post-1', [{ id: 'rx', assetId: 'ax' }, ...seed], seed);
+    const rows = await db.select().from(schema.postAssets);
+    const position = (id: string) => rows.find((r) => r.id === id)!.position;
+    expect(position('rx')).not.toBe(position('rz')); // actual: the same key
+  });
+
   it('creating edges with ids that already exist fails instead of moving them to another post', async () => {
     const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
     const refs = [{ id: 'r1', assetId: 'a1' }];

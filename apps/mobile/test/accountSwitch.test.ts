@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
@@ -400,4 +401,49 @@ describe('switching libraries with the session', () => {
       owner: { kind: 'account', serverId: 's2', userId: 'A' },
     });
   });
+
+  // Round 9: the installed build (df33378, mainClient.e2e's INSTALLED) recorded a kept device library
+  // only in the library list (`keptFor`); its databases have no such key (its sync/status.ts writes
+  // none). The source's database became the authority in round 8, but nothing copies a list's
+  // `keptFor` into it on the update. A list lost after it (missing or corrupt at a launch) is rebuilt
+  // without it, and the device library, A's already, joins B's library: its photo and album are
+  // copied into another account. Expected: it stays kept for A.
+  it.fails(
+    'a device library kept by the installed build joins no second account after the list is rebuilt',
+    async () => {
+      await loadRegistry(async () => ({ libraries: [] }));
+      await open(null);
+      const deviceId = getLibrary().id;
+      await repo.createAsset(
+        getDb(),
+        makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+      );
+      await repo.createAsset(getDb(), makeAssetRecord({ filename: 'c.jpg', isFileSynced: true }));
+      await albums.create(getDb(), makeAlbumRecord({ name: 'Trip' }));
+      await signIn(sessionOf('A'));
+      await firstPullDrains();
+      const aId = getLibrary().id;
+      expect(getRegistry().libraries.find(({ id }) => id === deviceId)).toMatchObject({ keptFor: aId });
+      // As the installed build left the device library's database: kept in the list only, no merge
+      // keys (`keptFor`, `mergeMarks:<db>`) in it.
+      const deviceDb = await openAppDb(`library-${deviceId}.db`);
+      for (const key of ['keptFor', `mergeMarks:library-${deviceId}.db`])
+        await deviceDb.delete(schema.syncMeta).where(eq(schema.syncMeta.key, key));
+      await signIn(sessionOf('B'));
+      await firstPullDrains();
+      const bId = getLibrary().id;
+
+      // The update is installed; the stored list doesn't parse at a later launch, signed in as B.
+      await closeLibrary();
+      storage.set('libraries', '{not json');
+      dbNames.push(...[deviceId, aId, bId].map((id) => `library-${id}.db`));
+      await bootLibrary(switchLibrary);
+      expect(getLibrary().id).toBe(bId);
+      await resumeMerges(); // what LibraryProvider runs after the boot
+      await mergeDeviceLibrary();
+
+      expect(await assets()).toHaveLength(0); // actual: the device's photo, copied into B
+      expect(await getDb().select().from(schema.albums)).toHaveLength(0); // actual: its album too
+    },
+  );
 });
