@@ -254,33 +254,36 @@ describe('a failed pass after an earlier one committed (round 5, adversarial)', 
   // open) removes the files at once, though the account still holds the photo live, without its files,
   // and the purge has yet to reach it, where a restore on another device can still beat it.
   // Expected: the files stay (the marker stays while any pass has committed); actual: they are removed.
-  it.fails('a failed pass keeps the marker of an earlier pass that committed: the device purge keeps its files', async () => {
-    const { applyMerge, planMerge } = await import('../src/library/mergeLibrary');
-    const a = await devicePhoto({ filename: 'a.jpg', thumbnailFilename: 'a-t.jpg', mediaLibraryAssetId: 'm-a' });
-    // Pass 1: the markers, every record committed into the account, then the crash.
-    await updateLibrary('dev', (library) => ({ ...library, mergedInto: 'acc' }));
-    await setMergeTarget(sourceDb(), 'acc');
-    await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC));
+  it.fails(
+    'a failed pass keeps the marker of an earlier pass that committed: the device purge keeps its files',
+    async () => {
+      const { applyMerge, planMerge } = await import('../src/library/mergeLibrary');
+      const a = await devicePhoto({ filename: 'a.jpg', thumbnailFilename: 'a-t.jpg', mediaLibraryAssetId: 'm-a' });
+      // Pass 1: the markers, every record committed into the account, then the crash.
+      await updateLibrary('dev', (library) => ({ ...library, mergedInto: 'acc' }));
+      await setMergeTarget(sourceDb(), 'acc');
+      await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC));
 
-    // The session is lost: the device library opens again, and its photo is purged there.
-    await closeLibrary();
-    await openLibrary(DEV);
-    await repo.deleteAssets(getDb(), [a.id]);
-    await repo.purgeAssets(getDb(), [a.id]);
-    await sweepPurgedFiles(getDb(), removeFiles);
-    expect(files.has(getAssetFileUri('a.jpg', SRC))).toBe(true); // waits, as the marker says
+      // The session is lost: the device library opens again, and its photo is purged there.
+      await closeLibrary();
+      await openLibrary(DEV);
+      await repo.deleteAssets(getDb(), [a.id]);
+      await repo.purgeAssets(getDb(), [a.id]);
+      await sweepPurgedFiles(getDb(), removeFiles);
+      expect(files.has(getAssetFileUri('a.jpg', SRC))).toBe(true); // waits, as the marker says
 
-    // Signed in again: the boot's next pass fails before its commit.
-    await closeLibrary();
-    await openLibrary(ACC);
-    applyMergeImpl.fail = true;
-    await resumeMerges();
-    expect((await getDb().select().from(schema.assets)).map((row) => row.deletedAt)).toEqual([null]); // live there
+      // Signed in again: the boot's next pass fails before its commit.
+      await closeLibrary();
+      await openLibrary(ACC);
+      applyMergeImpl.fail = true;
+      await resumeMerges();
+      expect((await getDb().select().from(schema.assets)).map((row) => row.deletedAt)).toEqual([null]); // live there
 
-    // The session is lost once more: the device library opens and sweeps.
-    await closeLibrary();
-    await openLibrary(DEV);
-    await sweepPurgedFiles(getDb(), removeFiles);
-    expect(files.has(getAssetFileUri('a.jpg', SRC))).toBe(true);
-  });
+      // The session is lost once more: the device library opens and sweeps.
+      await closeLibrary();
+      await openLibrary(DEV);
+      await sweepPurgedFiles(getDb(), removeFiles);
+      expect(files.has(getAssetFileUri('a.jpg', SRC))).toBe(true);
+    },
+  );
 });

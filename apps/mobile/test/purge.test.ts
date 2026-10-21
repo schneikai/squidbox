@@ -470,6 +470,163 @@ describe('the sweep, round 3 (adversarial)', () => {
   });
 });
 
+describe('the sweep, round 5 (adversarial)', () => {
+  const applied = fakeTransport();
+  async function trashed(over: Record<string, unknown>) {
+    const asset = await repo.createAsset(db, makeAssetRecord(over));
+    await repo.deleteAssets(db, [asset.id]);
+    return asset;
+  }
+  async function manyPurged(n: number, name: (i: number) => { filename: string; thumbnailFilename: string }) {
+    const records = Array.from({ length: n }, (_, i) => makeAssetRecord(name(i)));
+    await repo.createAssets(db, records);
+    const ids = records.map((record) => record.id);
+    await repo.deleteAssets(db, ids);
+    await repo.purgeAssets(db, ids);
+    await runSyncOnce(db, applied);
+    return ids;
+  }
+  const unswept = async () =>
+    (await db.select().from(schema.assets)).filter(
+      (row) => row.purgedAt !== null && row.filesRemovedFor !== row.purgedAt,
+    );
+
+  it('two sweeps at once (the open’s and a run’s) remove each name, mark every asset, and neither throws', async () => {
+    await manyPurged(1200, (i) => ({ filename: `f${i % 700}.jpg`, thumbnailFilename: `t${i}.jpg` }));
+    const removed: string[] = [];
+    const slow: RemoveFiles = async (files) => {
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      for (const { filename, thumbnailFilename } of files)
+        removed.push(...[filename, thumbnailFilename].filter((n) => n !== undefined));
+    };
+    await Promise.all([
+      sweepPurgedFiles(db, slow),
+      runSyncOnce(db, applied, { removeFiles: slow }),
+      sweepPurgedFiles(db, slow),
+    ]);
+    expect(await unswept()).toEqual([]);
+    expect(new Set(removed).size).toBe(700 + 1200);
+    const [log] = await db.select().from(schema.syncLog).orderBy(desc(schema.syncLog.id)).limit(1);
+    expect(log).toMatchObject({ error: null });
+  });
+
+  it('an abort during a batch’s removal marks what went, then stops; the next sweep finishes', async () => {
+    await manyPurged(1100, (i) => ({ filename: `g${i}.jpg`, thumbnailFilename: `gt${i}.jpg` }));
+    const stop = new AbortController();
+    const removed: string[] = [];
+    const removeFiles: RemoveFiles = async (files) => {
+      stop.abort(); // the library closes while the first batch's files go
+      for (const { filename, thumbnailFilename } of files)
+        removed.push(...[filename, thumbnailFilename].filter((n) => n !== undefined));
+    };
+    await sweepPurgedFiles(db, removeFiles, { signal: stop.signal });
+    expect(removed).toHaveLength(1000);
+    expect(await unswept()).toHaveLength(600);
+    await sweepPurgedFiles(db, removeFiles);
+    expect(await unswept()).toEqual([]);
+    expect(new Set(removed).size).toBe(2200);
+  });
+
+  it('an asset that keeps failing among assets sharing its names: the others are marked, the shared name goes once its last user is swept', async () => {
+    const ids = await manyPurged(5, (i) => ({
+      filename: 'same.jpg',
+      thumbnailFilename: i === 2 ? 'stuck.jpg' : `s${i}.jpg`,
+    }));
+    const live = await repo.createAsset(db, makeAssetRecord({ filename: 'other.jpg', thumbnailFilename: 'stuck.jpg' }));
+    await runSyncOnce(db, applied);
+    const removed: string[] = [];
+    const removeFiles: RemoveFiles = async (files) => {
+      if (files.some((file) => file.filename === 'same.jpg' && file.thumbnailFilename === undefined))
+        throw new Error('locked');
+      for (const { filename, thumbnailFilename } of files)
+        removed.push(...[filename, thumbnailFilename].filter((n) => n !== undefined));
+    };
+    await expect(sweepPurgedFiles(db, removeFiles)).rejects.toThrow('1 purged assets: locked');
+    expect((await unswept()).map((row) => row.id)).toEqual([ids[2]]);
+    expect(removed).not.toContain('stuck.jpg'); // the live photo's
+    await repo.deleteAssets(db, [live.id]);
+    await repo.purgeAssets(db, [live.id]);
+    await runSyncOnce(db, applied);
+    await sweepPurgedFiles(db, async (files) => {
+      for (const { filename, thumbnailFilename } of files)
+        removed.push(...[filename, thumbnailFilename].filter((n) => n !== undefined));
+    });
+    expect(await unswept()).toEqual([]);
+    expect(removed).toContain('stuck.jpg');
+  });
+
+  // BUG (round 5): sweepPurgedFiles decides once, before its first batch, whether the library is fully
+  // pulled (confirmedPurges reads the first-sync flag), then pages on with that answer. The open's sweep
+  // (library/current.ts) and the one after a purge (AssetsProvider) run outside the sync queue, so a
+  // full resync can wipe the tables and pull its first page between two of their batches: the next
+  // batch then takes a purged photo from that page as confirmed, and the shared-name check, against a
+  // half-pulled table, misses the live photo not pulled back yet, whose file goes. The rule the design
+  // states (§7a, and the test above: "nothing is swept until the library is fully pulled") only holds
+  // for the first batch. Expected: shared.jpg stays; actual: it is removed.
+  it.fails(
+    'a full resync between two batches of a sweep already running: nothing more is swept until it drains',
+    async () => {
+      const first = await trashed({
+        id: '00000000-0000-4000-8000-000000000001',
+        filename: 'p1.jpg',
+        thumbnailFilename: 'p1-t.jpg',
+      });
+      const later = await trashed({
+        id: 'ffffffff-0000-4000-8000-000000000001',
+        filename: 'shared.jpg',
+        thumbnailFilename: 'p2-t.jpg',
+      });
+      const live = await repo.createAsset(
+        db,
+        makeAssetRecord({ filename: 'shared.jpg', thumbnailFilename: 'l-t.jpg', isFileSynced: false, isSynced: false }),
+      );
+      await repo.purgeAssets(db, [first.id]);
+      await runSyncOnce(db, applied); // confirmed, fully pulled
+      // Purged on another device meanwhile: the resync's first page brings it.
+      const {
+        syncError: _e,
+        filesRemovedFor: _f,
+        ...laterPurged
+      } = {
+        ...(await assetRow(later.id))!,
+        purgedAt: 3000,
+        updatedAt: 3000,
+      };
+      const liveRow = await assetRow(live.id);
+
+      const removed: string[] = [];
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => (release = resolve));
+      let calls = 0;
+      const sweep = sweepPurgedFiles(db, async (files) => {
+        if (calls++ === 0) await held; // the first batch's files take a while to go
+        for (const { filename, thumbnailFilename } of files)
+          removed.push(...[filename, thumbnailFilename].filter((n) => n !== undefined));
+      });
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(calls).toBe(1);
+
+      const stop = new AbortController();
+      await fullResync(
+        db,
+        fakeTransport({
+          pull: async ({ cursor }) => {
+            if (cursor === 0) {
+              stop.abort(); // paused after the first page (a sign-out, a switch) or simply still pulling
+              return { changes: { assets: { records: [laterPurged] } }, cursor: 1, hasMore: true };
+            }
+            return { changes: { assets: { records: [liveRow] } }, cursor: 2, hasMore: false };
+          },
+        }),
+        { signal: stop.signal },
+      );
+      release();
+      await sweep;
+      expect(removed).not.toContain('shared.jpg');
+    },
+  );
+});
+
 describe('migration 0012_purged_files on a database from before it', () => {
   const migrationsFolder = fileURLToPath(new URL('../src/sync/db/migrations', import.meta.url));
   const migrations = readMigrationFiles({ migrationsFolder });
