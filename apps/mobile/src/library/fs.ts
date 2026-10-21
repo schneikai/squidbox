@@ -54,20 +54,21 @@ const LIST_FROM = 100; // assets; from here, listing the folders beats a delete 
 const PARALLEL = 50; // deletes at a time
 
 // These files on this device: file and downloaded copies by `filename`, thumbnail by its name.
-// Deleting an absent file succeeds, so a few are deleted blind; for many (a first sync's purges) the
-// folders are listed once. A purge passes only the names no other asset uses (`unsharedFiles`).
+// Deleting an absent file succeeds, so a few are deleted blind; for many the folders are listed once.
 export async function removeAssetFiles(assets: AssetFileNames[], library: LibraryPaths): Promise<void> {
   if (assets.length >= LIST_FROM) return purgedFilesRemover(library)(assets);
   const downloads = [...(await listFiles(getDownloadsDirectory(library)))];
   await deleteAll([...copies(assets, library), ...downloadFolders(assets, library, downloads)]);
 }
 
-// The remover of one sweep of a library's purged files: its folders are listed once, at the first
-// call, and only the copies present are deleted, so a sweep of many batches (and its asset-by-asset
-// retry after a failed batch) lists nothing again.
+// The remover of one sweep of a library's purged files: a call for a few assets deletes blind, as
+// removeAssetFiles does; the first for many lists the folders, once, and from then on only the copies
+// present are deleted, so a sweep of many batches (and its asset-by-asset retry after a failed batch)
+// lists nothing again.
 export function purgedFilesRemover(library: LibraryPaths): (assets: AssetFileNames[]) => Promise<void> {
   let listing: Promise<{ present: Set<string>; downloads: string[] }> | null = null;
   return async (assets) => {
+    if (!listing && assets.length < LIST_FROM) return removeAssetFiles(assets, library);
     listing ??= listFolders(library);
     const { present, downloads } = await listing;
     const uris = [

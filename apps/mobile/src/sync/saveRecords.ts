@@ -9,9 +9,9 @@ import {
 } from '@squidbox/shared';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
-import { SQL_BATCH } from './chunk';
 import type { SyncDb } from './db/types';
 import { enqueueMutations } from './outbox';
+import { SQL_BATCH } from './sqlBatch';
 import { upsertRows } from './upsertRows';
 
 type SavedRecord = { id: string; updatedAt: number; deletedAt?: number | null };

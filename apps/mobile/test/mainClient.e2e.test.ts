@@ -30,9 +30,9 @@ import { runSyncOnce } from '../src/sync/worker';
 // phone, run as it is against this server. The suite extracts its apps/mobile/src/sync into
 // test/.main-client (gitignored) and drives it with its own SQLite migrations; an "update" then runs
 // this branch's new migrations on that same database and goes on with this branch's code. Needs the
-// docker Postgres and that commit in git (CI checks out the whole history): in CI a missing one fails
-// the suite instead of skipping it.
-const INSTALLED = 'df33378';
+// docker Postgres and that commit in git (CI fetches it, .github/workflows/ci.yml: keep the two in
+// step): in CI a missing one fails the suite instead of skipping it.
+const INSTALLED = 'df3337856e3c801b097384ce8e5ed30a9bee289c';
 const TEST_URL = process.env.TEST_DATABASE_URL;
 const here = fileURLToPath(new URL('.', import.meta.url));
 const mainRoot = `${here}.main-client`;

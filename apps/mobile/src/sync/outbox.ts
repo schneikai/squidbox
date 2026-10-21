@@ -1,11 +1,11 @@
 import { chunk, type FieldClocks } from '@squidbox/shared';
 import { and, count, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 
-import { SQL_BATCH } from './chunk';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { inJson } from './inJson';
 import { localOnlyKeys } from './localOnlyKeys';
+import { SQL_BATCH } from './sqlBatch';
 
 // Enqueue whole-record mutations with their changed fields, coalesced to one row per (collection,
 // recordId): the latest payload wins and each field keeps its own last clock (sync-design §6). `op`
@@ -56,48 +56,35 @@ function recordsIn(collection: string, recordIds: string[]) {
 
 export type PendingEdit = Pick<schema.OutboxRow, 'fields' | 'payload' | 'updatedAt'>;
 
-/** The pending edits of these records, by record id: their changed fields, payload and updatedAt. Records without one are left out. */
-export async function pendingEdits(
+const pendingColumns = {
+  fields: schema.outbox.fields,
+  payload: schema.outbox.payload,
+  updatedAt: schema.outbox.updatedAt,
+};
+
+/**
+ * The pending edits of these records, by record id, with the columns asked for (a payload is read
+ * only when asked: it is the big one). Records without one are left out.
+ */
+export async function pendingEdits<K extends keyof PendingEdit>(
   db: SyncDb,
   collection: string,
   recordIds: string[],
-): Promise<Map<string, PendingEdit>> {
+  columns: K[],
+): Promise<Map<string, Pick<PendingEdit, K>>> {
   const rows = await db
     .select({
       recordId: schema.outbox.recordId,
-      fields: schema.outbox.fields,
-      payload: schema.outbox.payload,
-      updatedAt: schema.outbox.updatedAt,
+      ...Object.fromEntries(columns.map((column) => [column, pendingColumns[column]])),
     })
     .from(schema.outbox)
     .where(recordsIn(collection, recordIds));
-  return new Map(rows.map(({ recordId, ...edit }) => [recordId, edit]));
-}
-
-/** The changed fields of these records' pending edits, by record id, without reading their payloads. */
-export async function pendingFields(
-  db: SyncDb,
-  collection: string,
-  recordIds: string[],
-): Promise<Map<string, FieldClocks>> {
-  const rows = await db
-    .select({ recordId: schema.outbox.recordId, fields: schema.outbox.fields })
-    .from(schema.outbox)
-    .where(recordsIn(collection, recordIds));
-  return new Map(rows.map(({ recordId, fields }) => [recordId, fields]));
-}
-
-/** The updatedAt of these records' pending edits, by record id, without reading their payloads. */
-export async function pendingUpdatedAt(
-  db: SyncDb,
-  collection: string,
-  recordIds: string[],
-): Promise<Map<string, number>> {
-  const rows = await db
-    .select({ recordId: schema.outbox.recordId, updatedAt: schema.outbox.updatedAt })
-    .from(schema.outbox)
-    .where(recordsIn(collection, recordIds));
-  return new Map(rows.map(({ recordId, updatedAt }) => [recordId, updatedAt]));
+  return new Map(
+    (rows as ({ recordId: string } & Pick<PendingEdit, K>)[]).map(({ recordId, ...edit }) => [
+      recordId,
+      edit as unknown as Pick<PendingEdit, K>,
+    ]),
+  );
 }
 
 export async function clearOutboxRows(db: SyncDb, collection: string, recordIds: string[]): Promise<void> {

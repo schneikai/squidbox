@@ -1,11 +1,11 @@
-import { chunk } from '@squidbox/shared';
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic over any collection's table */
+import { chunk } from '@squidbox/shared';
 import { getTableColumns, getTableName, sql } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
-import { SQL_BATCH } from './chunk';
 import type { SyncDb } from './db/types';
 import { localOnlyKeys } from './localOnlyKeys';
+import { SQL_BATCH } from './sqlBatch';
 
 const conflictSets = new Map<string, Record<string, unknown>>();
 

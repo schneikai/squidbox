@@ -52,7 +52,7 @@ export async function mergeLibrary(sourceId: string, targetId: string): Promise<
       plan = await planMerge(source, target, libraryPaths(sourceId));
       if (addsRecords(plan)) {
         // Set before the target's commit (two databases can't share one): a pass that fails takes it back.
-        await setMergeTarget(source, targetId);
+        if (!copied) await setMergeTarget(source, targetId);
         await applyMerge(target, plan);
       }
     } catch (error) {

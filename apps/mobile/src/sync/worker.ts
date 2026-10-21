@@ -7,7 +7,6 @@ import type { SyncDb } from './db/types';
 import {
   clearOutboxRows,
   pendingEdits,
-  pendingUpdatedAt,
   pushableOutboxRows,
   retryFailures,
   setOutboxError,
@@ -26,8 +25,10 @@ import type { SyncIdentity } from '../library/sessionMatches';
 const PULL_LIMIT = 1000; // server/contract cap
 const PUSH_BATCH = 500; // server caps pushRequest mutations at 500
 // Bytes of mutations per request: half the server's 1 MiB body limit, so a batch of large records
-// never gets the push stuck on a refused request.
+// never gets the push stuck on a refused request. A row the server can't take at all (its mutation
+// alone over the limit) is held back on its outbox row as a failure (§6).
 const PUSH_BYTES = 512 * 1024;
+const BODY_LIMIT = 1024 * 1024; // the server's (app.ts bodyLimit)
 const utf8 = new TextEncoder();
 // Records per apply transaction (and per bulk-action transaction, see writeInBatches). Each
 // transaction writes every database page it touches once more (the rollback journal), and with random
@@ -109,10 +110,15 @@ async function pushPhase(
       .limit(PUSH_BATCH);
     if (rows.length === 0) break;
     if (pushed === 0) await patchStatus(db, { phase: 'pushing' });
-    const { batch, mutations } = request(rows);
-    lastId = batch[batch.length - 1]!.id;
+    const { batch, mutations, body, tooLarge } = request(rows);
+    lastId = Math.max(batch.at(-1)?.id ?? 0, tooLarge.at(-1)?.id ?? 0);
+    for (const row of tooLarge) {
+      await setOutboxError(db, row.collection, [row.recordId], TOO_LARGE);
+      notes.push(`${row.collection} ${row.recordId}: ${TOO_LARGE}`);
+    }
+    if (mutations.length === 0) continue;
 
-    const { results } = await transport.push({ mutations });
+    const { results } = await transport.push({ mutations }, body);
     const pushedRows = new Map(batch.map((row) => [`${row.collection}:${row.recordId}`, row]));
     notes.push(...(await db.transaction((tx) => applyPushResults(tx, results, pushedRows))));
     pushed += results.length;
@@ -121,10 +127,22 @@ async function pushPhase(
   return { pushed, notes, stopped };
 }
 
-// The leading rows whose mutations fit in PUSH_BYTES (always at least one), and their mutations. A row
-// from before per-field merge goes without fields: the server merges it as that app's push.
-function request(rows: schema.OutboxRow[]): { batch: schema.OutboxRow[]; mutations: PushMutation[] } {
+const TOO_LARGE = 'too-large: over the server’s 1 MiB request limit';
+
+// The leading rows whose mutations fit in PUSH_BYTES (at least one, when any fits the server at all),
+// their mutations and the request body, each mutation serialized once; and the rows among them too
+// large for any request. A row from before per-field merge goes without fields: the server merges it
+// as that app's push.
+function request(rows: schema.OutboxRow[]): {
+  batch: schema.OutboxRow[];
+  mutations: PushMutation[];
+  body: string;
+  tooLarge: schema.OutboxRow[];
+} {
+  const batch: schema.OutboxRow[] = [];
   const mutations: PushMutation[] = [];
+  const parts: string[] = [];
+  const tooLarge: schema.OutboxRow[] = [];
   let bytes = 0;
   for (const row of rows) {
     const mutation: PushMutation = {
@@ -132,12 +150,22 @@ function request(rows: schema.OutboxRow[]): { batch: schema.OutboxRow[]; mutatio
       record: row.payload,
       ...(!row.wholeRecord && { fields: row.fields }),
     };
-    bytes += utf8.encode(JSON.stringify(mutation)).length;
-    if (mutations.length > 0 && bytes > PUSH_BYTES) break;
+    const json = JSON.stringify(mutation);
+    const size = utf8.encode(json).length + 1; // and its comma
+    if (size + ENVELOPE > BODY_LIMIT) {
+      tooLarge.push(row);
+      continue;
+    }
+    if (batch.length > 0 && bytes + size > PUSH_BYTES) break;
+    bytes += size;
+    batch.push(row);
     mutations.push(mutation);
+    parts.push(json);
   }
-  return { batch: rows.slice(0, mutations.length), mutations };
+  return { batch, mutations, body: `{"mutations":[${parts.join(',')}]}`, tooLarge };
 }
+
+const ENVELOPE = '{"mutations":[]}'.length;
 
 // Settle a batch's push results (sync-design §6), a few statements per collection. Adopting the
 // server's record is the one step that can fail on bad data, so each runs in its own savepoint: a
@@ -150,10 +178,11 @@ async function applyPushResults(
 ): Promise<string[]> {
   const notes: string[] = [];
   for (const [collection, group] of groupByCollection(results)) {
-    const current = await pendingUpdatedAt(
+    const current = await pendingEdits(
       tx,
       collection,
       group.map((result) => result.id),
+      ['updatedAt'],
     );
     const cleared: string[] = [];
     const errors = new Map<string, string[]>(); // error → record ids
@@ -164,7 +193,7 @@ async function applyPushResults(
       const plan = planPushOutcome({
         status: result.status,
         pushedUpdatedAt: row?.updatedAt ?? 0,
-        currentOutboxUpdatedAt: current.get(result.id) ?? null,
+        currentOutboxUpdatedAt: current.get(result.id)?.updatedAt ?? null,
       });
       if (plan.adoptCurrent && result.current) {
         try {
@@ -293,6 +322,7 @@ async function applyChanges(
         tx,
         name,
         changes[name].map((record) => String(record.id)),
+        ['fields', 'payload', 'updatedAt'],
       );
       const rows = changes[name].map((record) => {
         const edit = pending.get(String(record.id));

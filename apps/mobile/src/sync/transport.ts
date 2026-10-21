@@ -8,7 +8,8 @@ import type { SyncIdentity } from '../library/sessionMatches';
 // production uses the HTTP transport over the authenticated axios instance.
 export interface SyncTransport {
   pull(req: PullRequest): Promise<PullResponse>;
-  push(req: PushRequest): Promise<PushResponse>;
+  /** `body` is `req` serialized, when the caller has it (the worker measures each mutation's size). */
+  push(req: PushRequest, body?: string): Promise<PushResponse>;
 }
 
 // Every request runs for `identity`: the tokens are read fresh from the stored session, which must
@@ -16,6 +17,6 @@ export interface SyncTransport {
 export function httpTransport(identity: SyncIdentity): SyncTransport {
   return {
     pull: (req) => pullChanges(req, identity),
-    push: (req) => pushMutations(req, identity),
+    push: (req, body) => pushMutations(body ?? req, identity),
   };
 }

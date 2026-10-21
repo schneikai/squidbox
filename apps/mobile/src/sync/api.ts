@@ -19,7 +19,9 @@ export async function pullChanges(req: PullRequest, identity: SyncIdentity): Pro
   return data as PullResponse;
 }
 
-export async function pushMutations(req: PushRequest, identity: SyncIdentity): Promise<PushResponse> {
-  const { data } = await apiWithAuthentication.post('sync/push', req, { identity });
+// `req` may come serialized already (the worker's request body), sent as it is.
+export async function pushMutations(req: PushRequest | string, identity: SyncIdentity): Promise<PushResponse> {
+  const headers = typeof req === 'string' ? { 'Content-Type': 'application/json' } : undefined;
+  const { data } = await apiWithAuthentication.post('sync/push', req, { identity, headers });
   return data as PushResponse;
 }

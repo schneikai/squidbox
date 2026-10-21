@@ -10,6 +10,7 @@ const STATUS_KEY = 'status';
 const FIRST_SYNC_KEY = 'firstSyncDone'; // '1' once the initial full pull has drained
 const OWNER_KEY = 'owner'; // whose library this database is (JSON), so the library list is rebuildable
 const MERGE_TARGET_KEY = 'mergedInto'; // the library a merge pass copied this one's records into
+const REPLAYED_KEY = 'replayedThrough:'; // + a source library's database name (getReplayedThrough)
 
 export type SyncPhase = 'idle' | 'pushing' | 'pulling' | 'error';
 export interface SyncStatus {
@@ -66,6 +67,15 @@ export async function getMergeTarget(db: SyncDb): Promise<string | null> {
 export async function setMergeTarget(db: SyncDb, targetId: string | null): Promise<void> {
   if (targetId) await setMeta(db, MERGE_TARGET_KEY, targetId);
   else await db.delete(schema.syncMeta).where(eq(schema.syncMeta.key, MERGE_TARGET_KEY));
+}
+// In a merge's target: the newest clock of a source library's outbox a committed merge pass has
+// replayed (library/mergeLibrary.ts), by the source's database name, so a pass run again replays only
+// what the source edited since.
+export async function getReplayedThrough(db: SyncDb, source: string): Promise<number> {
+  return Number((await getMeta(db, `${REPLAYED_KEY}${source}`)) ?? 0);
+}
+export async function setReplayedThrough(db: SyncDb, source: string, clock: number): Promise<void> {
+  await setMeta(db, `${REPLAYED_KEY}${source}`, String(clock));
 }
 export async function isFirstSyncDone(db: SyncDb): Promise<boolean> {
   return (await getMeta(db, FIRST_SYNC_KEY)) === '1';

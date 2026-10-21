@@ -922,7 +922,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
         expect(Object.keys(changes).sort()).toEqual(['assetRefs', 'postedAt']);
         const postEdges = makeEdgeRepository('post_assets', clientSchema.postAssets, 'postId');
         await A.transaction(async (tx) => {
-          await postEdges.setRefs(tx, postId, changes.assetRefs);
+          await postEdges.setRefs(tx, postId, changes.assetRefs, original.assetRefs);
           await posts.update(tx, postId, toModernChanges(changes));
         });
       });
@@ -947,7 +947,8 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     ) {
       const updates = changedValues(seed, data);
       await device.transaction(async (tx) => {
-        if ('assetRefs' in updates) await postEdges.setRefs(tx, postId, (updates.assetRefs as never) ?? []);
+        if ('assetRefs' in updates)
+          await postEdges.setRefs(tx, postId, (updates.assetRefs as never) ?? [], seed.assetRefs as never);
         await posts.update(tx, postId, toModernChanges(updates));
       });
       return updates;
@@ -976,62 +977,48 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       for (const device of [A, B]) expect((await postAssetIds(device, postId)).sort()).toEqual([x, y].sort());
     });
 
-    // BUG (round 6): a post's photo whose purge waits for the server is hidden from the post (postQuery
-    // never shows a purged asset), so it is missing from the editor's seed; saving a changed photo list
-    // then tombstones its edge (edgesRepository setRefs removes every live edge the refs don't name).
-    // A restore made elsewhere beats that purge (§7) and the photo comes back, but no longer in the
-    // post, though "deleting or purging an asset does not touch its edges, so a restore puts it back
-    // where it was" (§7). Expected: the post shows the restored photo again. Location:
-    // features/posts-context/PostsProvider.js updatePost → edgesRepository.ts setRefs, seeded from
-    // features/post-list/postQuery.js.
-    it.fails(
-      'a post edited while one of its photos waits on a purge: a restore that beats the purge puts it back in the post',
-      async () => {
-        const [x, y, z] = [await seedAsset(), await seedAsset(), await seedAsset()];
-        at(S);
-        const postId = randomUUID();
-        await createPost(A, { id: postId, createdAt: S, updatedAt: S, text: 'trip', postedAt: null }, [x, y]);
-        await edit(A, S + 50, () => repo.deleteAssets(A, [x]));
-        await settle();
-        await edit(B, S + 100, () => repo.updateAllAssets(B, [x], { deletedAt: null })); // B restores x
-        await sync(B);
-        await edit(A, S + 200, () => repo.purgeAssets(A, [x])); // A, not having pulled the restore
-        const seed = await openEditor(A, postId);
-        expect(seed.assetRefs.map((ref: { assetId: string }) => ref.assetId)).toEqual([y]); // x is hidden
-        await edit(A, S + 300, () =>
-          savePost(A, postId, seed, { ...seed, assetRefs: [...seed.assetRefs, { id: randomUUID(), assetId: z }] }),
-        );
-        await settle();
-        expect(await expectConverged('assets', x)).toMatchObject({ deletedAt: null, purgedAt: null }); // the restore won
-        for (const device of [A, B]) expect((await postAssetIds(device, postId)).sort()).toEqual([x, y, z].sort());
-      },
-    );
+    // A post's photo whose purge waits for the server is hidden from the post (postQuery never shows a
+    // purged asset), so it is missing from the editor's seed. Saving a changed photo list removes only
+    // the edges the user took out of the seed (edgesRepository setRefs), so a restore made elsewhere
+    // that beats the purge (§7) puts the photo back where it was in the post.
+    it('a post edited while one of its photos waits on a purge: a restore that beats the purge puts it back in the post', async () => {
+      const [x, y, z] = [await seedAsset(), await seedAsset(), await seedAsset()];
+      at(S);
+      const postId = randomUUID();
+      await createPost(A, { id: postId, createdAt: S, updatedAt: S, text: 'trip', postedAt: null }, [x, y]);
+      await edit(A, S + 50, () => repo.deleteAssets(A, [x]));
+      await settle();
+      await edit(B, S + 100, () => repo.updateAllAssets(B, [x], { deletedAt: null })); // B restores x
+      await sync(B);
+      await edit(A, S + 200, () => repo.purgeAssets(A, [x])); // A, not having pulled the restore
+      const seed = await openEditor(A, postId);
+      expect(seed.assetRefs.map((ref: { assetId: string }) => ref.assetId)).toEqual([y]); // x is hidden
+      await edit(A, S + 300, () =>
+        savePost(A, postId, seed, { ...seed, assetRefs: [...seed.assetRefs, { id: randomUUID(), assetId: z }] }),
+      );
+      await settle();
+      expect(await expectConverged('assets', x)).toMatchObject({ deletedAt: null, purgedAt: null }); // the restore won
+      for (const device of [A, B]) expect((await postAssetIds(device, postId)).sort()).toEqual([x, y, z].sort());
+    });
 
-    // BUG (round 6), the same cause: the editor diffs every field against its seed but the photo list,
-    // which it saves whole, and setRefs then tombstones every live edge the list doesn't name, so a
-    // photo another device added while the editor was open is removed by a save that changed the list
-    // (an album's reorder appends the edges it wasn't given instead; §7: "concurrent membership changes
-    // on two devices compose instead of one overwriting the other"). Expected: the save removes only
-    // the edges the user removed from the seed. Location: as above.
-    it.fails(
-      'a photo another device added to the post while the editor was open survives a save that adds one too',
-      async () => {
-        const [x, y, z] = [await seedAsset(), await seedAsset(), await seedAsset()];
-        at(S);
-        const postId = randomUUID();
-        await createPost(A, { id: postId, createdAt: S, updatedAt: S, text: 'trip', postedAt: null }, [x]);
-        await settle();
-        const seed = await openEditor(A, postId);
-        await edit(B, S + 100, () => postEdges.createFromRefs(B, postId, [{ id: randomUUID(), assetId: y }]));
-        await sync(B);
-        await sync(A); // arrives while A's editor is open
-        await edit(A, S + 200, () =>
-          savePost(A, postId, seed, { ...seed, assetRefs: [...seed.assetRefs, { id: randomUUID(), assetId: z }] }),
-        );
-        await settle();
-        for (const device of [A, B]) expect((await postAssetIds(device, postId)).sort()).toEqual([x, y, z].sort());
-      },
-    );
+    // The same rule keeps a photo another device added while the editor was open: the save removes
+    // only what the user removed, as an album's reorder keeps the edges it wasn't given (§7).
+    it('a photo another device added to the post while the editor was open survives a save that adds one too', async () => {
+      const [x, y, z] = [await seedAsset(), await seedAsset(), await seedAsset()];
+      at(S);
+      const postId = randomUUID();
+      await createPost(A, { id: postId, createdAt: S, updatedAt: S, text: 'trip', postedAt: null }, [x]);
+      await settle();
+      const seed = await openEditor(A, postId);
+      await edit(B, S + 100, () => postEdges.createFromRefs(B, postId, [{ id: randomUUID(), assetId: y }]));
+      await sync(B);
+      await sync(A); // arrives while A's editor is open
+      await edit(A, S + 200, () =>
+        savePost(A, postId, seed, { ...seed, assetRefs: [...seed.assetRefs, { id: randomUUID(), assetId: z }] }),
+      );
+      await settle();
+      for (const device of [A, B]) expect((await postAssetIds(device, postId)).sort()).toEqual([x, y, z].sort());
+    });
 
     it('a rename and an album notes edit from their seeds keep the other device’s fields', async () => {
       const id = await seedAlbum({ name: 'Trip', notes: null });
@@ -1122,33 +1109,58 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       expect(removed).toEqual([]);
     });
 
-    // BUG (round 6, low likelihood): "target gone". A first pass copied the photo into the account's
-    // library T1, which pushed it, then T1 left the list (resumeMerges clears the list's marker and
-    // keeps the source's, "as records it copied may be in the account"). Opened while the session is
-    // lost, the device library trashes the photo; its file stays, as a trashed photo's does. The next
-    // sign-in opens a new, empty library T2 for the same account and merges the device library into it
-    // before T2's first sync. planMerge copies live records only and skips a tombstone T2 doesn't
-    // have, so the deletion never reaches the account (the photo stays live there), and the move
-    // leaves the trashed photo's file behind, so removeLibrary deletes it with the source's folders:
-    // a photo live in the account whose only file (never uploaded) is gone. Expected: a source whose
-    // marker says a pass copied it carries its tombstones too (they may be in the account), with their
-    // files. Location: library/mergeLibrary.ts planMerge (`live(...)` filters; `sameId`).
-    it.fails(
-      'after the target is gone, a deletion made in the device library reaches the account through the next merge',
-      async () => {
-        const id = await seedAsset({ isFileSynced: false, isThumbnailSynced: false, isSynced: false }); // T1 pushed it
-        const D = await deviceLibraryWith(id);
-        await setOwner(D, { kind: 'device' });
-        await setMergeTarget(D, 'gone');
-        await edit(D, S + 100, () => repo.deleteAssets(D, [id]));
-        const T2 = makeTestDb(); // the account's new library, not synced yet
-        at(S + 200);
-        const plan = await planMerge(D, T2, libraryPaths('device'));
-        await applyMerge(T2, plan);
-        await settle([A, B, T2]);
-        expect(await expectConverged('assets', id, [A, B, T2])).toMatchObject({ deletedAt: S + 100 });
-      },
-    );
+    // "Target gone": a first pass copied the photo into the account's library T1, which pushed it, then
+    // T1 left the list (resumeMerges clears the list's marker and keeps the source's). Opened while
+    // the session is lost, the device library trashes the photo, whose file stays. The next sign-in
+    // merges it into a new, never-synced library T2: as the source's marker says a pass copied it, its
+    // tombstones are carried too, with their files, so the deletion reaches the account.
+    it('after the target is gone, a deletion made in the device library reaches the account through the next merge', async () => {
+      const id = await seedAsset({ isFileSynced: false, isThumbnailSynced: false, isSynced: false }); // T1 pushed it
+      const D = await deviceLibraryWith(id);
+      await setOwner(D, { kind: 'device' });
+      await setMergeTarget(D, 'gone');
+      await edit(D, S + 100, () => repo.deleteAssets(D, [id]));
+      const T2 = makeTestDb(); // the account's new library, not synced yet
+      at(S + 200);
+      const plan = await planMerge(D, T2, libraryPaths('device'));
+      await applyMerge(T2, plan);
+      await settle([A, B, T2]);
+      expect(await expectConverged('assets', id, [A, B, T2])).toMatchObject({ deletedAt: S + 100 });
+    });
+
+    // The device library's outbox is never cleared, so a pass run again (a crash after the commit, a
+    // resumed merge) sees the same rows; replayed again, they would set the account's library back to
+    // the device's values (a rename, an edge's asset, a restore) until the server's answer came back,
+    // and push them once more. The target records the newest clock a committed pass replayed, and only
+    // newer edits replay.
+    it('a pass run again replays nothing a committed pass did, only what the device edited since', async () => {
+      const id = await seedAsset({ notes: 'orig' });
+      const D = await deviceLibraryWith(id);
+      await edit(D, S + 100, () => repo.updateAsset(D, id, { notes: 'device' }));
+      await edit(D, S + 110, () => repo.updateAllAssets(D, [id], { deletedAt: S + 110 }));
+      await mergeInto(A, D, S + 200);
+      await settle();
+      expect(await expectConverged('assets', id)).toMatchObject({ notes: 'device', deletedAt: S + 110 });
+      await edit(B, S + 300, () => repo.updateAsset(B, id, { notes: 'account' }));
+      await edit(B, S + 310, () => repo.updateAllAssets(B, [id], { deletedAt: null }));
+      await sync(B);
+      await settle();
+      const again = await planMerge(D, A, libraryPaths('device'));
+      expect(again.replays).toEqual([]);
+      await applyMerge(A, again);
+      expect(await localRow(A, 'assets', id)).toMatchObject({ notes: 'account', deletedAt: null }); // not set back
+      // An edit the device makes after the commit still replays.
+      await edit(D, S + 600, () => repo.updateAsset(D, id, { oldFileId: 'later' }));
+      const later = await planMerge(D, A, libraryPaths('device'));
+      expect(later.replays.map((row) => Object.keys(row.fields))).toEqual([['oldFileId']]);
+      await applyMerge(A, later);
+      await settle();
+      expect(await expectConverged('assets', id)).toMatchObject({
+        notes: 'account',
+        deletedAt: null,
+        oldFileId: 'later',
+      });
+    });
 
     it('a device purge older than the account’s pending restore loses to it everywhere', async () => {
       const id = await seedAsset();
@@ -1207,7 +1219,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       await edit(A, S + 100, () => postEdges.remove(A, postId, [asset]));
       await sync(A);
       await sync(B);
-      await edit(B, S + 300, () => postEdges.setRefs(B, postId, [{ id: edgeId, assetId: asset }]));
+      await edit(B, S + 300, () => postEdges.setRefs(B, postId, [{ id: edgeId, assetId: asset }], []));
       await settle();
       expect(await expectConverged('post_assets', edgeId)).toMatchObject({ deletedAt: null });
     });

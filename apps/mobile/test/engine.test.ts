@@ -208,15 +208,11 @@ describe('worker push', () => {
     expect(bodies.filter((b) => b > 512 * 1024 + 1024)).toHaveLength(1);
   });
 
-  // BUG (round 6): a single row over the server's 1 MiB body limit (a post or a note with ~1 MB of text;
-  // no schema bounds a text field) goes alone, as the batching promises, and is refused with a 413,
-  // which fails the request whole: nothing is recorded on the row (§6 "a push that fails as a whole …
-  // records nothing on the rows; the run fails and the next trigger retries it"), so every run sends
-  // the same first request again and fails. The rows behind it never push and the pull never runs:
-  // the library stops syncing for good, with no row marked failed for the sync screen to show.
-  // Expected: the oversize row is held back as a per-row failure (an `error` on its outbox row, as a
-  // `rejected` result is), and the other rows and the pull go on. worker.ts pushPhase / request.
-  it.fails('a single row over the 1 MiB body limit fails alone; the other rows and the pull go on', async () => {
+  // A single row over the server's 1 MiB body limit (a post or a note with ~1 MB of text; no schema
+  // bounds a text field) would be refused with a 413 on every run, failing the request whole. It is
+  // held back as a per-row failure instead (an `error` on its outbox row, shown like a rejected
+  // push), and the other rows and the pull go on.
+  it('a single row over the 1 MiB body limit fails alone; the other rows and the pull go on', async () => {
     const huge = await repo.createAsset(db, makeAssetRecord({ notes: 'é'.repeat(600_000) })); // 1.2 MB
     await repo.createAsset(db, makeAssetRecord({ notes: 'small' }));
     let pulls = 0;

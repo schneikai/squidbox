@@ -1,17 +1,18 @@
 import { assetCollection } from '@squidbox/shared';
 import { and, gt, isNotNull, not, or, sql, type SQL } from 'drizzle-orm';
 
-import { SQL_BATCH } from './chunk';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { inJson } from './inJson';
+import { SQL_BATCH } from './sqlBatch';
 import { getMergeTarget, getOwner, isFirstSyncDone } from './status';
 import type { AssetFileNames } from '../library/fs';
 
 /** Removes this device's copies of these files (library/fs purgedFilesRemover, for the open library). */
 export type RemoveFiles = (files: AssetFileNames[]) => Promise<void>;
 
-// An asset whose purge waits for the server: its pending outbox row names the final field.
+// An asset whose purge waits for the server: its pending outbox row names the final field. The library
+// merge states the same rule in JS (`purgeWaits` in library/mergeLibrary.ts).
 const pendingPurge = sql`exists (select 1 from ${schema.outbox} where ${schema.outbox.collection} = ${assetCollection.name}
   and ${schema.outbox.recordId} = ${schema.assets.id}
   and json_extract(${schema.outbox.fields}, ${`$.${assetCollection.finalField}`}) is not null)`;
