@@ -407,6 +407,45 @@ d('the installed app (main’s client code) against this server', () => {
     await expectConverged(id, [M, other]);
   });
 
+  // Round 5: the upgrade with purges the installed app already made, one of a photo sharing its file
+  // with a live one (the installed app kept that name): the backfill marks them, and the shared name
+  // goes once, when its last user is purged after the update; purge, restore and purge again after the
+  // update sweep the copies once per purge that the server kept.
+  it('an update after purges sharing a name with a live photo: each name goes once, when its last user is purged', async () => {
+    const M = installedPhone();
+    const N = newPhone();
+    const a = await seed([M, N], { deletedAt: S, filename: 's.jpg', thumbnailFilename: 'at.jpg' });
+    const b = await seed([M, N], { filename: 's.jpg', thumbnailFilename: 'bt.jpg' });
+    const c = await seed([M, N], { deletedAt: S, filename: 'c.jpg', thumbnailFilename: 'ct.jpg' });
+    await purge(M, S + 100, a);
+    await sync(M, S + 150);
+    expect(M.removed).toEqual(['at.jpg']); // s.jpg: b's
+    await update(M);
+    M.removed = [];
+    await settle([M, N]);
+    expect(M.removed).toEqual([]); // a's purge is marked done by the backfill
+
+    // c: purged on M (now updated), restored on N before M's push, then purged again on N.
+    await purge(M, S + 200, c);
+    await edit(N, S + 300, (x) => x.updateAsset(N.db, c, { deletedAt: null }));
+    await sync(N, S + 310);
+    await sync(M, S + 320);
+    expect(M.removed).toEqual([]);
+    expect(await serverAsset(c)).toMatchObject({ deletedAt: null, purgedAt: null });
+    await edit(N, S + 400, (x) => x.deleteAssets(N.db, [c]));
+    await purge(N, S + 410, c);
+    await settle([N, M]);
+    expect(M.removed).toEqual(['c.jpg', 'ct.jpg']);
+
+    // b, the last user of s.jpg, purged on N: the updated app removes s.jpg once.
+    await edit(N, S + 500, (x) => x.deleteAssets(N.db, [b]));
+    await purge(N, S + 510, b);
+    await settle([N, M]);
+    await settle([M, N]);
+    expect(M.removed.sort()).toEqual(['bt.jpg', 'c.jpg', 'ct.jpg', 's.jpg']);
+    for (const id of [a, b, c]) await expectConverged(id, [M, N]);
+  });
+
   // Round 5 (adversarial): long seeded runs of two installed apps and a new one on a few photos, with
   // clocks ahead and behind, edits made during a push or between a push and its pull (main's pull then
   // skips the record), purges from the Deleted album, and the installed apps updating mid-run. After
