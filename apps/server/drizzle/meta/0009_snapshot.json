@@ -1,5 +1,5 @@
 {
-  "id": "8bf9cf4c-8c55-4a1b-9510-f481e35260a3",
+  "id": "679b9065-9d4b-4cf4-9726-5fcbf5302a54",
   "prevId": "335fe874-82f7-4fd0-a9f9-bb6d6d3451b8",
   "version": "7",
   "dialect": "postgresql",
@@ -431,9 +431,9 @@
           "primaryKey": false,
           "notNull": false
         },
-        "restored_through": {
-          "name": "restored_through",
-          "type": "bigint",
+        "restored_deletions": {
+          "name": "restored_deletions",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },

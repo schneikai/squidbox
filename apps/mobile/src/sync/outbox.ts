@@ -1,7 +1,7 @@
-import type { FieldClocks } from '@squidbox/shared';
+import { chunk, type FieldClocks } from '@squidbox/shared';
 import { and, count, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 
-import { chunk, SQL_BATCH } from './chunk';
+import { SQL_BATCH } from './chunk';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { inJson } from './inJson';

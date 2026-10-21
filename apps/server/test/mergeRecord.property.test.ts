@@ -69,8 +69,8 @@ interface Server {
   seq: number;
   /** The deletedAt values a restore undid on this server (the transitions deleted → live). */
   restored: Set<number>;
-  /** The restored_through column: the largest of them (a server from before it leaves it as it is). */
-  restoredThrough: number | null;
+  /** The restored_deletions column: the last ten of them (a server from before it leaves it as it is). */
+  restoredDeletions: number[];
   /** The newest clock and value each register field got, by any push that reached an unfrozen row. */
   oracle: Map<string, { clock: number; value: unknown }>;
   /** Between rollback steps: the server from before per-field merge (whole-record LWW, field_clock untouched). */
@@ -87,7 +87,7 @@ interface Device {
   local: Rec;
   /** `whole`: a row from before per-field merge, carried over by an app update (SQLite migration 0011). */
   outbox: { payload: Rec; fields: FieldClocks; whole?: boolean } | null;
-  /** The step at which an old app is updated to this one, its pending row kept (round 4). */
+  /** The step at which an old app is updated to this one, its pending row kept. */
   upgradeAt?: number;
   cursor: number;
   /** A push whose response was lost ends the run: the next run pushes again before it pulls. */
@@ -136,7 +136,7 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
     fieldClock: Object.fromEntries(col.clockedFields.map((f) => [f, T0])),
     seq: ++seq,
     restored: new Set(),
-    restoredThrough: null,
+    restoredDeletions: [],
     oracle: new Map(REGISTERS.map((f) => [f, { clock: T0, value: initial[f] }])),
     old: false,
   };
@@ -174,7 +174,7 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
       storedClocks: clocksBefore,
       sent: record,
       sentClocks: fields,
-      restoredThrough: server.restoredThrough,
+      restoredDeletions: server.restoredDeletions,
       wholeRecord,
     });
     const frozen = before.purgedAt != null;
@@ -202,8 +202,7 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
       if (sentPurge) {
         const madeOfRestored =
           before.deletedAt == null &&
-          server.restoredThrough != null &&
-          record.deletedAt! <= server.restoredThrough &&
+          server.restoredDeletions.includes(record.deletedAt!) &&
           !wholeRecord;
         const expectPurged = !madeOfRestored && (newer || before.deletedAt != null);
         if (madeOfRestored) stats.restoredThenPurgeLost++;
@@ -216,14 +215,14 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
           !wholeRecord &&
           before.deletedAt == null &&
           after.purgedAt != null &&
-          server.restored.has(record.deletedAt!)
+          server.restoredDeletions.includes(record.deletedAt!)
         )
           fail(step, 'a purge applied over a restore of its deletion');
         if (
           !wholeRecord &&
           before.deletedAt != null &&
           after.purgedAt != null &&
-          server.restored.has(record.deletedAt!)
+          server.restoredDeletions.includes(record.deletedAt!)
         )
           stats.purgeOverRedelete++;
       }
@@ -240,20 +239,21 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
       if (!changed) fail(step, 'a write that changed nothing (a new server_seq for nothing)');
       if (before.deletedAt != null && merged.record.deletedAt == null) {
         server.restored.add(before.deletedAt);
-        const expected = Math.max(server.restoredThrough ?? 0, before.deletedAt);
-        if (!wholeRecord && merged.restoredThrough !== expected)
-          fail(step, `restoredThrough ${merged.restoredThrough}, expected ${expected}`);
+        const expected = [...server.restoredDeletions.filter((v) => v !== before.deletedAt), before.deletedAt].slice(-10);
+        if (JSON.stringify(merged.restoredDeletions) !== JSON.stringify(expected))
+          fail(step, `restoredDeletions ${merged.restoredDeletions}, expected ${expected}`);
       }
       server.record = { ...(merged.record as Rec), purgedAt: (merged.record.purgedAt as number | null) ?? null }; // a column: null when unsent
       // push.ts writeRows: null when every clock is updated_at (storedClocks reads it back the same).
       server.fieldClock = col.clockedFields.every((f) => (merged.clocks[f] ?? merged.record.updatedAt) === merged.record.updatedAt)
         ? null
         : Object.fromEntries(col.clockedFields.map((f) => [f, merged.clocks[f] ?? merged.record.updatedAt]));
-      server.restoredThrough = merged.restoredThrough;
+      server.restoredDeletions = merged.restoredDeletions;
       server.seq = ++seq;
     }
-    for (const value of server.restored)
-      if (value > (server.restoredThrough ?? 0)) fail(step, `the restore of ${value} is past restored_through`);
+    if (server.restoredDeletions.length > 10) fail(step, 'more than ten restored deletions kept');
+    for (const value of server.restoredDeletions)
+      if (!server.restored.has(value)) fail(step, `${value} kept, but no restore undid it`);
     if (merged.applied.length > 0) {
       const max = Math.max(...col.clockedFields.map((f) => merged.clocks[f] ?? 0));
       if (merged.record.updatedAt !== max)
@@ -342,7 +342,7 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
     };
   }
 
-  // An app update (round 4): main's pending row stays, marked whole-record, naming every merge field
+  // An app update: main's pending row stays, marked whole-record, naming every merge field
   // its payload carries at the row's updatedAt (SQLite migration 0011). From then on the device pulls
   // around it and coalesces new edits into it, still pushed without fields.
   function upgrade(device: Device) {
@@ -473,9 +473,9 @@ describe('mergeRecord, property-style (seeded)', () => {
   });
 });
 
-// Round 4: more seeds, clocks days apart, and old apps updated mid-case with their pending row carried over as a
+// More seeds, clocks days apart, and old apps updated mid-case with their pending row carried over as a
 // whole-record row (pushed without fields, pulled around, new edits coalesced into it).
-describe('mergeRecord, property-style, round 4 (seeded)', () => {
+describe('mergeRecord, property-style, with updates and skew (seeded)', () => {
   // Seed 116884: the installed app (whole-record pushes, main's pull that skips a record with a pending
   // row) pushes a whole record at 2531 while the server row is at 2584 with the same values. Every
   // field loses on its clock but none holds another value; the push is told skipped-lww with the row

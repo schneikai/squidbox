@@ -1,8 +1,9 @@
+import { chunk } from '@squidbox/shared';
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic over any collection's table */
 import { getTableColumns, getTableName, sql } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
-import { chunk, SQL_BATCH } from './chunk';
+import { SQL_BATCH } from './chunk';
 import type { SyncDb } from './db/types';
 import { localOnlyKeys } from './localOnlyKeys';
 

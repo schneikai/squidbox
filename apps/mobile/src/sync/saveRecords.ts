@@ -5,10 +5,11 @@ import {
   widenToGroups,
   type CollectionDescriptor,
   type FieldClocks,
+  chunk,
 } from '@squidbox/shared';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
-import { chunk, SQL_BATCH } from './chunk';
+import { SQL_BATCH } from './chunk';
 import type { SyncDb } from './db/types';
 import { enqueueMutations } from './outbox';
 import { upsertRows } from './upsertRows';

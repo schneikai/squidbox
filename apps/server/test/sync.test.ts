@@ -177,6 +177,21 @@ d('sync engine (Postgres)', () => {
     expect(changes.albums.records[0]).not.toHaveProperty('fieldClock'); // server-only
   });
 
+  it('an unknown collection, Object.prototype’s names included, is rejected per mutation', async () => {
+    const album = albumRecord();
+    const results = await push(db as any, USER_A, [
+      ...['constructor', '__proto__', 'toString', 'nope'].map((collection) => ({ collection, record: album })),
+      { collection: 'albums', record: album },
+    ]);
+    expect(results.map((result) => result.reason ?? result.status)).toEqual([
+      'unknown-collection',
+      'unknown-collection',
+      'unknown-collection',
+      'unknown-collection',
+      'applied',
+    ]);
+  });
+
   it('pull window + tombstone delivery', async () => {
     const r1 = assetRecord();
     const r2 = assetRecord();
@@ -945,7 +960,7 @@ d('sync engine (Postgres)', () => {
     expect(new Set(seen)).toEqual(new Set(records.map((r) => r.id)));
   });
 
-  describe('round 3 (adversarial): restored_through, the lock, one batch against many pushes', () => {
+  describe('restored deletions, the lock, one batch against many pushes', () => {
     // Users of their own: another checkout's run on the same Postgres can't touch their rows.
     const ME = randomUUID();
     const TWIN = randomUUID();
@@ -979,7 +994,7 @@ d('sync engine (Postgres)', () => {
       await db.delete(schema.users).where(inArray(schema.users.id, [ME, TWIN]));
     });
 
-    it('300 delete/restore cycles keep one restored_through, the newest deletion undone, which still beats a purge of the oldest', async () => {
+    it('300 delete/restore cycles keep the last ten deletions undone: a purge of one of them loses, of an older one goes by its clock', async () => {
       const r = asset();
       await push(db, ME, [mut(r)]);
       let clock = 2000;
@@ -990,13 +1005,32 @@ d('sync engine (Postgres)', () => {
         await push(db, ME, [at({ ...r, updatedAt: clock, deletedAt: null }, clock, pair)]);
       }
       const row = await raw(r.id);
-      expect(row.restoredThrough).toBe(clock - 10);
-      const purge = { ...r, updatedAt: 9_000_000, deletedAt: 2010, purgedAt: 9_000_000 };
-      const [result] = await push(db, ME, [at(purge, 9_000_000, pair)]);
-      expect(result).toMatchObject({ status: 'skipped-lww', current: { deletedAt: null, purgedAt: null } });
+      const last = clock - 10;
+      expect(row.restoredDeletions).toEqual(Array.from({ length: 10 }, (_, i) => last - (9 - i) * 20));
+      const recent = { ...r, updatedAt: 9_000_000, deletedAt: last, purgedAt: 9_000_000 };
+      const [lost] = await push(db, ME, [at(recent, 9_000_000, pair)]);
+      expect(lost).toMatchObject({ status: 'skipped-lww', current: { deletedAt: null, purgedAt: null } });
+      const oldest = { ...r, updatedAt: 9_000_001, deletedAt: 2010, purgedAt: 9_000_001 };
+      const [applied] = await push(db, ME, [at(oldest, 9_000_001, pair)]);
+      expect(applied.status).toBe('applied');
     });
 
-    it('restored_through survives the rollback rule and an old app’s whole record, and no client ever sees it', async () => {
+    it('a fast clock’s restore doesn’t make a later real delete and purge on another device lose', async () => {
+      const r = asset({ deletedAt: 1000 });
+      await push(db, ME, [mut(r)]);
+      // A device whose clock runs a day ahead restores the photo; then deletes it at its own clock.
+      const ahead = 1000 + 86_400_000;
+      await push(db, ME, [at({ ...r, updatedAt: ahead, deletedAt: null }, ahead, pair)]);
+      await push(db, ME, [at({ ...r, updatedAt: ahead + 10, deletedAt: ahead + 10 }, ahead + 10, pair)]);
+      await push(db, ME, [at({ ...r, updatedAt: ahead + 20, deletedAt: null }, ahead + 20, pair)]); // and restores again
+      expect((await raw(r.id)).restoredDeletions).toEqual([1000, ahead + 10]);
+      // Another device, its clock right, deletes and purges it for real, newer than every clock above.
+      const now = ahead + 1000;
+      await push(db, ME, [at({ ...r, updatedAt: now, deletedAt: now - 5, purgedAt: now }, now, pair)]);
+      expect(await raw(r.id)).toMatchObject({ deletedAt: now - 5, purgedAt: now });
+    });
+
+    it('the restored deletions survive the rollback rule and an old app’s whole record, and no client ever sees them', async () => {
       const r = asset({ deletedAt: 1000 });
       await push(db, ME, [mut(r)]);
       await push(db, ME, [at({ ...r, updatedAt: 2000, deletedAt: null }, 2000, pair)]);
@@ -1010,20 +1044,21 @@ d('sync engine (Postgres)', () => {
         mut({ ...r, updatedAt: 5000, deletedAt: null, notes: 'old server', isFavorite: true }),
       ]);
       expect(old.status).toBe('applied');
-      expect((await raw(r.id)).restoredThrough).toBe(1000);
+      expect((await raw(r.id)).restoredDeletions).toEqual([1000]);
       // A device that only saw the deletion at 1000 purges, its clock far ahead of everything.
       const [purge] = await push(db, ME, [at({ ...r, updatedAt: 9000, purgedAt: 9000 }, 9000, pair)]);
       expect(purge).toMatchObject({
         status: 'skipped-lww',
         current: { deletedAt: null, purgedAt: null, isFavorite: true },
       });
-      const serverOnly = (record: object) => Object.keys(record).filter((key) => key === 'restoredThrough' || key === 'fieldClock');
+      const serverOnly = (record: object) =>
+        Object.keys(record).filter((key) => key === 'restoredDeletions' || key === 'fieldClock');
       expect(serverOnly(purge.current!)).toEqual([]);
       const { changes } = await pull(db, ME, { cursor: 0, limit: 1000 });
       for (const record of changes.assets.records) expect(serverOnly(record)).toEqual([]);
     });
 
-    it('a restore an old server took leaves restored_through: a purge of that deletion then goes by its clock (a rollback’s limit)', async () => {
+    it('a restore an old server took is not remembered: a purge of that deletion then goes by its clock (a rollback’s limit)', async () => {
       const r = asset({ deletedAt: 1000 });
       await push(db, ME, [mut(r)]);
       await pool.query(`UPDATE assets SET updated_at = 2000, deleted_at = NULL WHERE user_id = $1 AND id = $2`, [

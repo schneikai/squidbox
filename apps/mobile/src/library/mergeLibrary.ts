@@ -1,11 +1,10 @@
-import { clockedFields, collectionsByName, mergeRecord, type FieldClocks } from '@squidbox/shared';
+import { chunk, clockedFields, collectionsByName, mergeRecord, type FieldClocks } from '@squidbox/shared';
 import { and, isNull } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
 import { fileExists, listFiles, moveFile } from './fs';
 import type { LibraryPaths } from './libraryPaths';
 
-import { chunk } from '@/sync/chunk';
 import { clientCollectionTables } from '@/sync/clientCollections';
 import { nextVersion } from '@/sync/clock';
 import * as schema from '@/sync/db/schema';

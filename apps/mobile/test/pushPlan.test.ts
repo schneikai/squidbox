@@ -1,6 +1,6 @@
+import { chunk } from '@squidbox/shared';
 import { describe, it, expect } from 'vitest';
 
-import { chunk } from '../src/sync/chunk';
 import { planPushOutcome } from '../src/sync/pushPlan';
 
 describe('planPushOutcome', () => {

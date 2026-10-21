@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { and, eq, getTableColumns, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import pg from 'pg';
 import type { PushMutation, PushResult } from '@squidbox/shared';
 import * as schema from '../src/db/schema.js';
@@ -10,7 +10,7 @@ import { push } from '../src/sync/push.js';
 import { pull } from '../src/sync/pull.js';
 import { importLegacy } from '../src/convert/legacy.js';
 
-// Round 5 (adversarial): pushes split into statements under Postgres' bind parameter limit. Rows
+// Pushes split into statements under Postgres' bind parameter limit. Rows
 // merged twice across a statement boundary, the per-row fallback inside a split push, the read split
 // at 65,534 ids, server_seq across statements, and the legacy importer at 10,000 photos.
 const TEST_URL = process.env.TEST_DATABASE_URL;
@@ -20,9 +20,9 @@ type Db = ReturnType<typeof drizzle<typeof schema>>;
 type Rec = Record<string, any> & { id: string; updatedAt: number };
 
 const rowsPerStatement = (collection: string) =>
-  Math.floor(65_535 / Object.keys(getTableColumns(serverCollections[collection]!.table)).length);
+  Math.floor(65_535 / serverCollections[collection]!.columnCount);
 
-d('push, round 5 (adversarial): split statements', () => {
+d('push: split statements', () => {
   let pool: pg.Pool;
   let db: Db;
   const ME = randomUUID();

@@ -22,8 +22,10 @@ export interface ServerCollection {
   wireColumns: Record<string, PgColumn>;
   mergeFields: string[];
   clockedFields: string[];
-  /** A collection with a final field keeps the largest deletedAt a restore undid (sync-design §7). */
-  restoredThrough: PgColumn | undefined;
+  /** A collection with a final field keeps the last deletedAt values a restore undid (sync-design §7). */
+  restoredDeletions: PgColumn | undefined;
+  /** The table's columns, which bound the rows per statement (Postgres takes 65,535 bind parameters). */
+  columnCount: number;
   upsertSet: Record<string, SQL>;
   /** Never un-purge a row or set its updated_at back. */
   upsertGuard: SQL;
@@ -33,8 +35,8 @@ function serverCollection(table: PgTable, descriptor: CollectionDescriptor): Ser
   const schema = descriptor.schema as z.ZodObject<z.ZodRawShape>;
   const columns = getTableColumns(table);
   const wireColumns = Object.fromEntries(Object.entries(columns).filter(([key]) => key in schema.shape));
-  const restoredThrough = descriptor.finalField ? columns.restoredThrough : undefined;
-  const written = { ...wireColumns, fieldClock: columns.fieldClock!, ...(restoredThrough && { restoredThrough }) };
+  const restoredDeletions = descriptor.finalField ? columns.restoredDeletions : undefined;
+  const written = { ...wireColumns, fieldClock: columns.fieldClock!, ...(restoredDeletions && { restoredDeletions }) };
   const stored = (key: string) => sql`${sql.identifier(getTableName(table))}.${sql.identifier(columns[key]!.name)}`;
   const sent = (key: string) => sql`excluded.${sql.identifier(columns[key]!.name)}`;
   const notSetBack = sql`${stored('updatedAt')} <= ${sent('updatedAt')}`;
@@ -45,7 +47,8 @@ function serverCollection(table: PgTable, descriptor: CollectionDescriptor): Ser
     wireColumns,
     mergeFields: mergeFields(descriptor),
     clockedFields: clockedFields(descriptor),
-    restoredThrough,
+    restoredDeletions,
+    columnCount: Object.keys(columns).length,
     upsertSet: Object.fromEntries(
       Object.entries(written)
         .filter(([key]) => key !== 'id')

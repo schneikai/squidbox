@@ -10,7 +10,7 @@ import { push } from '../src/sync/push.js';
 import { pull } from '../src/sync/pull.js';
 import { importLegacy } from '../src/convert/legacy.js';
 
-// Round 4 (adversarial): the one multi-row upsert per collection, against the same pushes one by
+// The one multi-row upsert per collection, against the same pushes one by
 // one; duplicate ids, the savepoint fallback, server_seq per row, the upsert's guard, upper-case ids.
 const TEST_URL = process.env.TEST_DATABASE_URL;
 const d = TEST_URL ? describe : describe.skip;
@@ -18,7 +18,7 @@ const d = TEST_URL ? describe : describe.skip;
 type Db = ReturnType<typeof drizzle<typeof schema>>;
 type Rec = Record<string, any> & { id: string; updatedAt: number };
 
-d('push, round 4 (adversarial): one upsert per collection', () => {
+d('push: one upsert per collection', () => {
   let pool: pg.Pool;
   let db: Db;
   // Users of their own, so another test file on the same Postgres never meets them.

@@ -713,7 +713,7 @@ describe('migration 0012_purged_files on a database from before it', () => {
   });
 
   // An installed app's offline purge reaches the new server as that app pushed it: without fields
-  // (outbox.whole_record, set by migration 0011), so the server spares it the restored_through check,
+  // (outbox.whole_record, set by migration 0011), so the server spares it the restored-deletions check,
   // as that app removed its files at once (sync-design §7). Should it lose anyway (a newer restore),
   // the asset comes back live; `filesRemovedFor` from the 0012 backfill names the old purge, so its
   // copies made since are swept when it is purged again.

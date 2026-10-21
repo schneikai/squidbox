@@ -1,9 +1,9 @@
+import { chunk } from '@squidbox/shared';
 import * as FileSystem from 'expo-file-system/legacy';
 
 import type { OpenLibrary } from './current';
 import type { LibraryPaths } from './libraryPaths';
 
-import { chunk } from '@/sync/chunk';
 import createAssetFileDirectory from '@/utils/assets/files/createAssetFileDirectory';
 import deleteStaleDownloadsAsync from '@/utils/assets/files/deleteStaleDownloadsAsync';
 import getAssetFileUri from '@/utils/assets/files/getAssetFileUri';

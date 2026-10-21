@@ -1,5 +1,12 @@
-import { and, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
-import { fieldClocksSchema, mergeRecord, type FieldClocks, type PushMutation, type PushResult } from '@squidbox/shared';
+import { and, eq, inArray, sql } from 'drizzle-orm';
+import {
+  chunk,
+  fieldClocksSchema,
+  mergeRecord,
+  type FieldClocks,
+  type PushMutation,
+  type PushResult,
+} from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import { serverCollections, type ServerCollection } from './collections.js';
 import { sentFields } from './sentFields.js';
@@ -32,7 +39,7 @@ function driverError(error: unknown): DriverError | undefined {
  *   1. validate the record against the collection's Zod schema, and its `fields` (reject on failure);
  *   2. clamp a future `updatedAt` to server-now (clock skew, §7) and find the field clocks to merge
  *      (sentFields);
- *   3. merge it into the stored record (mergeRecord, §7; a push without fields gets no restored_through
+ *   3. merge it into the stored record (mergeRecord, §7; a push without fields gets no restored_deletions
  *      check) and write the row only when a field applied, so a replay gets no new server_seq; the
  *      rows are written in one upsert per collection, after the merges.
  * 'applied' when nothing sent was lost; otherwise 'skipped-lww' with the merged record as `current`
@@ -66,7 +73,7 @@ export function withUserLock<T>(db: Db, userId: string, write: (tx: Tx) => Promi
 }
 
 type Prepared = { col: ServerCollection; sentId: string; record: ValidRecord; fields: FieldClocks; wholeRecord: boolean };
-type Stored = { record: ValidRecord; clocks: FieldClocks; restoredThrough: number | null };
+type Stored = { record: ValidRecord; clocks: FieldClocks; restoredDeletions: number[] };
 
 async function applyMutations(
   tx: Tx,
@@ -98,14 +105,14 @@ async function applyMutations(
       storedClocks: before?.clocks ?? {},
       sent: record,
       sentClocks: fields,
-      restoredThrough: before?.restoredThrough ?? null,
+      restoredDeletions: before?.restoredDeletions,
       wholeRecord,
     });
     if (merged.applied.length > 0) {
       const after: Stored = {
         record: merged.record as ValidRecord,
         clocks: merged.clocks,
-        restoredThrough: merged.restoredThrough,
+        restoredDeletions: merged.restoredDeletions,
       };
       if (isolateRows) {
         try {
@@ -136,7 +143,7 @@ async function applyMutations(
 // A mutation ready to merge, or the result that rejects it. The id is lowercased as Postgres stores a
 // uuid, so the stored row is found whatever the case it was sent in; results name it as it was sent.
 function prepare(mutation: PushMutation, now: number): Prepared | PushResult {
-  const col = serverCollections[mutation.collection];
+  const col = Object.hasOwn(serverCollections, mutation.collection) ? serverCollections[mutation.collection] : undefined;
   const sentId = String((mutation.record as { id?: unknown }).id ?? '');
   if (!col) return { id: sentId, collection: mutation.collection, status: 'rejected', reason: 'unknown-collection' };
 
@@ -166,22 +173,22 @@ async function readStored(tx: Tx, userId: string, entries: Prepared[]): Promise<
     const table = col.table as any;
     const ids = [...new Set(entries.filter((entry) => entry.col === col).map((entry) => entry.record.id))];
     const rows: Record<string, any>[] = [];
-    for (const batch of chunks(ids, MAX_PARAMS - 1))
+    for (const batch of chunk(ids, MAX_PARAMS - 1))
       rows.push(
         ...(await tx
           .select({
             ...col.wireColumns,
             fieldClock: table.fieldClock,
-            ...(col.restoredThrough && { restoredThrough: col.restoredThrough }),
+            ...(col.restoredDeletions && { restoredDeletions: col.restoredDeletions }),
           })
           .from(col.table)
           .where(and(eq(table.userId, userId), inArray(table.id, batch)))),
       );
-    for (const { fieldClock, restoredThrough, ...record } of rows)
+    for (const { fieldClock, restoredDeletions, ...record } of rows)
       stored.set(`${col.descriptor.name}:${record.id}`, {
         record: record as ValidRecord,
         clocks: storedClocks(col, record.updatedAt, fieldClock),
-        restoredThrough: restoredThrough ?? null,
+        restoredDeletions: restoredDeletions ?? [],
       });
   }
   return stored;
@@ -203,17 +210,17 @@ function storedClocks(col: ServerCollection, updatedAt: number, fieldClock: Fiel
 // a purged row and a newer updated_at.
 async function writeRows(tx: Tx, col: ServerCollection, userId: string, rows: Stored[]): Promise<void> {
   const table = col.table as any;
-  for (const batch of chunks(rows, Math.floor(MAX_PARAMS / Object.keys(getTableColumns(col.table)).length)))
+  for (const batch of chunk(rows, Math.floor(MAX_PARAMS / col.columnCount)))
     await tx
       .insert(col.table)
       .values(
-        batch.map(({ record, clocks, restoredThrough }) => ({
+        batch.map(({ record, clocks, restoredDeletions }) => ({
           ...record,
           userId,
           fieldClock: col.clockedFields.every((field) => (clocks[field] ?? record.updatedAt) === record.updatedAt)
             ? null
             : Object.fromEntries(col.clockedFields.map((field) => [field, clocks[field] ?? record.updatedAt])),
-          ...(col.restoredThrough && { restoredThrough }),
+          ...(col.restoredDeletions && { restoredDeletions: restoredDeletions.length > 0 ? restoredDeletions : null }),
         })),
       )
       .onConflictDoUpdate({ target: [table.userId, table.id], set: col.upsertSet, setWhere: col.upsertGuard });
@@ -221,9 +228,3 @@ async function writeRows(tx: Tx, col: ServerCollection, userId: string, rows: St
 
 // Postgres takes at most 65,535 bind parameters per statement.
 const MAX_PARAMS = 65_535;
-
-function chunks<T>(items: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
-  return out;
-}

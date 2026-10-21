@@ -1,1 +1,0 @@
-ALTER TABLE "assets" ADD COLUMN "restored_through" bigint;

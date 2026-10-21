@@ -1,4 +1,5 @@
-import { chunk } from './chunk';
+import { chunk } from '@squidbox/shared';
+
 import { APPLY_BATCH } from './worker';
 
 export interface BatchOptions {

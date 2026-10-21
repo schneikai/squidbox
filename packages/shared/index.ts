@@ -23,6 +23,7 @@ export * from './collections/lostFields';
 export * from './collections/mergeRecord';
 export * from './fractionalIndex';
 export * from './movePositions';
+export * from './chunk';
 
 // Wire contracts shared between the mobile app and the server.
 export * from './contracts/auth';
