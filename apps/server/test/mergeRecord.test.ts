@@ -160,4 +160,42 @@ describe('mergeRecord', () => {
     const deletion = merge({ ...pending, sent: asset({ updatedAt: 4000, deletedAt: 4000 }), sentClocks: pair(4000) });
     expect(deletion).toMatchObject({ applied: [], record: { deletedAt: 2000, purgedAt: 3000 } });
   });
+
+  // BUG (round 3): sync-design §6/§7 say an outbox row from before per-field merge names every merge
+  // field of its payload at its updatedAt (SQLite migration 0011), "which comes to the same" as a
+  // whole-record push. For the deletion pair it doesn't: the installed app's offline purge, pushed
+  // after the upgrade, carries fields, so a restore of its deletion beats it although that app has
+  // already removed its files (the reason pushes without fields keep their whole-record rule).
+  it.fails('an installed app’s purge carried over by migration 0011 merges like its whole record', () => {
+    const restored = merge({
+      stored: asset({ deletedAt: 1000 }),
+      sent: asset({ updatedAt: 2000 }),
+      sentClocks: pair(2000),
+    });
+    const purge = asset({ updatedAt: 3000, deletedAt: 1000, purgedAt: 3000 });
+    const input = { stored: restored.record, storedClocks: restored.clocks, sent: purge };
+    const whole = merge({ ...input, sentClocks: at(3000, pair(3000)), wholeRecord: true });
+    const migrated = merge({ ...input, sentClocks: at(3000, pair(3000)) }); // 0011: every merge field at updatedAt
+    expect(whole.record).toMatchObject({ deletedAt: 1000, purgedAt: 3000 });
+    expect(migrated.record).toEqual(whole.record); // actual: the restore wins, deletedAt null
+  });
+
+  // BUG (round 3): a record sent without the final field (an app from before purges) gets
+  // `purgedAt: undefined` in the merged record when its deletion pair applies. On the server that row
+  // reads back as NULL, but within one batch the next mutation of the record merges against the
+  // undefined, and lostFields counts a sent `purgedAt: null` as lost (sync.test, round 3).
+  it.fails(
+    'a restore by an app from before purges leaves purgedAt null in the merged record, as the column holds',
+    () => {
+      const { purgedAt: _p, ...prePurge } = asset({ updatedAt: 3000 });
+      const result = merge({
+        stored: asset({ deletedAt: 1000 }),
+        sent: prePurge as ReturnType<typeof asset>,
+        sentClocks: at(3000, { deletedAt: 3000 }),
+        wholeRecord: true,
+      });
+      expect(result.record.deletedAt).toBeNull();
+      expect(result.record.purgedAt).toBeNull(); // actual: undefined
+    },
+  );
 });

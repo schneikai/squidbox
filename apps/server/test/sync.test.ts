@@ -945,6 +945,246 @@ d('sync engine (Postgres)', () => {
     expect(new Set(seen)).toEqual(new Set(records.map((r) => r.id)));
   });
 
+  describe('round 3 (adversarial): restore marks, the lock, one batch against many pushes', () => {
+    // Users of their own: another checkout's run on the same Postgres can't touch their rows.
+    const ME = randomUUID();
+    const TWIN = randomUUID();
+    const pair = ['deletedAt', 'purgedAt'];
+    const at = (record: Record<string, unknown>, clock: number, fields: string[]) => ({
+      collection: 'assets',
+      record,
+      fields: Object.fromEntries(fields.map((field) => [field, clock])),
+    });
+    const raw = async (id: string, user = ME) =>
+      (
+        await db
+          .select()
+          .from(schema.assets)
+          .where(and(eq(schema.assets.userId, user), eq(schema.assets.id, id)))
+      )[0]!;
+    const marks = (clocks: unknown) => Object.keys(clocks ?? {}).filter((key) => key.startsWith('deletedAt:restored:'));
+    const asset = (over: Record<string, unknown> = {}) => ({
+      ...assetRecord(over),
+      purgedAt: null as number | null,
+      ...over,
+    });
+
+    beforeAll(async () => {
+      await db.insert(schema.users).values([
+        { id: ME, email: `r3-${ME}@test.local`, passwordDigest: 'x', storageBucket: null },
+        { id: TWIN, email: `r3-${TWIN}@test.local`, passwordDigest: 'x', storageBucket: null },
+      ]);
+    });
+    afterAll(async () => {
+      await db.delete(schema.assets).where(inArray(schema.assets.userId, [ME, TWIN]));
+      await db.delete(schema.users).where(inArray(schema.users.id, [ME, TWIN]));
+    });
+
+    it('every delete/restore cycle leaves its mark: 300 cycles, 300 marks, and the oldest still beats a purge of its deletion', async () => {
+      const r = asset();
+      await push(db, ME, [mut(r)]);
+      let clock = 2000;
+      for (let cycle = 0; cycle < 300; cycle++) {
+        const deletedAt = (clock += 10);
+        await push(db, ME, [at({ ...r, updatedAt: deletedAt, deletedAt }, deletedAt, pair)]);
+        clock += 10;
+        await push(db, ME, [at({ ...r, updatedAt: clock, deletedAt: null }, clock, pair)]);
+      }
+      const row = await raw(r.id);
+      // Nothing bounds the marks: field_clock grows by one per restored deletion (sync-design §7, todo.md).
+      expect(marks(row.fieldClock)).toHaveLength(300);
+      const purge = { ...r, updatedAt: 9_000_000, deletedAt: 2010, purgedAt: 9_000_000 };
+      const [result] = await push(db, ME, [at(purge, 9_000_000, pair)]);
+      expect(result).toMatchObject({ status: 'skipped-lww', current: { deletedAt: null, purgedAt: null } });
+    });
+
+    it('a mark survives the rollback rule and an old app’s whole record, and no client ever sees one', async () => {
+      const r = asset({ deletedAt: 1000 });
+      await push(db, ME, [mut(r)]);
+      await push(db, ME, [at({ ...r, updatedAt: 2000, deletedAt: null }, 2000, pair)]);
+      // A server without clocks writes the row since (a rollback), leaving field_clock as it was.
+      await pool.query(`UPDATE assets SET updated_at = 4000, notes = 'old server' WHERE user_id = $1 AND id = $2`, [
+        ME,
+        r.id,
+      ]);
+      // Then an old app's whole record, newer, from a device that saw the restore.
+      const [old] = await push(db, ME, [
+        mut({ ...r, updatedAt: 5000, deletedAt: null, notes: 'old server', isFavorite: true }),
+      ]);
+      expect(old.status).toBe('applied');
+      expect(marks((await raw(r.id)).fieldClock)).toEqual(['deletedAt:restored:1000']);
+      // A device that only saw the deletion at 1000 purges, its clock far ahead of everything.
+      const [purge] = await push(db, ME, [at({ ...r, updatedAt: 9000, purgedAt: 9000 }, 9000, pair)]);
+      expect(purge).toMatchObject({
+        status: 'skipped-lww',
+        current: { deletedAt: null, purgedAt: null, isFavorite: true },
+      });
+      expect(Object.keys(purge.current!).filter((key) => key.includes(':') || key === 'fieldClock')).toEqual([]);
+      const { changes } = await pull(db, ME, { cursor: 0, limit: 1000 });
+      for (const record of changes.assets.records)
+        expect(Object.keys(record).filter((key) => key.includes(':') || key === 'fieldClock')).toEqual([]);
+    });
+
+    it('a restore an old server took records no mark: a purge of that deletion then goes by its clock (a rollback’s limit)', async () => {
+      const r = asset({ deletedAt: 1000 });
+      await push(db, ME, [mut(r)]);
+      await pool.query(`UPDATE assets SET updated_at = 2000, deleted_at = NULL WHERE user_id = $1 AND id = $2`, [
+        ME,
+        r.id,
+      ]);
+      const [purge] = await push(db, ME, [at({ ...r, updatedAt: 3000, purgedAt: 3000 }, 3000, pair)]);
+      expect(purge.status).toBe('applied');
+      expect(await raw(r.id)).toMatchObject({ deletedAt: 1000, purgedAt: 3000 });
+    });
+
+    it('a stale field_clock behind an old server’s writes: every field takes its updated_at, then pins again', async () => {
+      const r = asset();
+      await push(db, ME, [mut(r)]);
+      await push(db, ME, [at({ ...r, updatedAt: 3000, notes: 'new' }, 3000, ['notes'])]);
+      // A server without clocks writes a newer whole record at 4000, field_clock left at notes 3000.
+      await pool.query(
+        `UPDATE assets SET updated_at = 4000, notes = 'old', is_favorite = true WHERE user_id = $1 AND id = $2`,
+        [ME, r.id],
+      );
+      // A per-field edit older than the old server's write loses, though newer than the stale clock.
+      const [older] = await push(db, ME, [at({ ...r, updatedAt: 3500, notes: 'newer than 3000' }, 3500, ['notes'])]);
+      expect(older).toMatchObject({ status: 'skipped-lww', current: { notes: 'old' } });
+      // A newer one wins, and from then on the row has clocks again: the next older edit of another field loses.
+      expect(
+        (await push(db, ME, [at({ ...r, updatedAt: 4500, isFavorite: false }, 4500, ['isFavorite'])]))[0].status,
+      ).toBe('applied');
+      const row = await raw(r.id);
+      expect(row.fieldClock).toMatchObject({ notes: 4000, isFavorite: 4500, deletedAt: 4000 });
+      expect(row.updatedAt).toBe(4500);
+      const [stale] = await push(db, ME, [at({ ...r, updatedAt: 4200, notes: 'late' }, 4200, ['notes'])]);
+      expect(stale.status).toBe('applied'); // 4200 > the notes clock 4000
+      expect((await raw(r.id)).notes).toBe('late');
+    });
+
+    it('two devices pushing one record at once, 30 times over: the lock serializes, the newer clock wins in any order', async () => {
+      for (let round = 0; round < 30; round++) {
+        const r = asset({ deletedAt: 1000 });
+        await push(db, ME, [mut(r)]);
+        const restore = at({ ...r, updatedAt: 2000, deletedAt: null, notes: 'B' }, 2000, [
+          'deletedAt',
+          'purgedAt',
+          'notes',
+        ]);
+        const purge = at({ ...r, updatedAt: 3000, purgedAt: 3000, notes: 'A' }, 3000, [
+          'deletedAt',
+          'purgedAt',
+          'notes',
+        ]);
+        const [[a], [b]] = await Promise.all([push(db, ME, [purge]), push(db, ME, [restore])]);
+        const row = await raw(r.id);
+        // Either order is consistent: the purge first is final; the restore first beats the purge of its deletion.
+        if (row.purgedAt !== null) {
+          expect(row).toMatchObject({ deletedAt: 1000, purgedAt: 3000, notes: 'A' });
+          expect([a!.status, b!.status]).toEqual(['applied', 'skipped-lww']);
+        } else {
+          expect(row).toMatchObject({ deletedAt: null, notes: 'A' }); // A's newer notes still apply
+          expect([a!.status, b!.status]).toEqual(['skipped-lww', 'applied']);
+        }
+      }
+      const records = Array.from({ length: 20 }, () => asset());
+      await push(db, ME, records.map(mut));
+      // 20 concurrent pushes per record, each a newer clock for notes and isFavorite: the newest wins.
+      await Promise.all(
+        Array.from({ length: 20 }, (_, i) =>
+          push(
+            db,
+            ME,
+            records.map((r) =>
+              at({ ...r, updatedAt: 5000 + i, notes: `n${i}`, isFavorite: i % 2 === 0 }, 5000 + i, [
+                'notes',
+                'isFavorite',
+              ]),
+            ),
+          ),
+        ),
+      );
+      for (const r of records)
+        expect(await raw(r.id)).toMatchObject({ notes: 'n19', isFavorite: false, updatedAt: 5019 });
+    });
+
+    // BUG (round 3): mergeRecord gives a record without the final field `purgedAt: undefined` (an
+    // app from before purges restores it), and the batch keeps that merged record for the next
+    // mutation of the same row. A later mutation sending the pair then counts purgedAt as lost
+    // (undefined is not null) and is told skipped-lww though the row holds every field it sent; pushed
+    // alone, after a fresh read (purged_at NULL), it is applied. packages/shared/collections/mergeRecord.ts
+    // (take(final) with sent[final] undefined) and lostFields.
+    it.fails(
+      'a restore by an app from before purges, then a restore by a new app in the same batch: applied, as pushed alone',
+      async () => {
+        const r = asset({ deletedAt: 1000 });
+        await push(db, ME, [mut(r)]);
+        const { purgedAt: _p, ...prePurge } = { ...r, updatedAt: 3000, deletedAt: null };
+        const newer = at({ ...r, updatedAt: 2000, deletedAt: null }, 2000, pair); // older clock, same values
+        const results = await push(db, ME, [mut(prePurge), newer]);
+        expect(await raw(r.id)).toMatchObject({ deletedAt: null, purgedAt: null });
+        expect(results.map((result) => result.status)).toEqual(['applied', 'applied']);
+      },
+    );
+
+    // One batch reads its rows once and merges in JS; pushed one by one, every mutation reads the
+    // row again. Both must come to the same results and rows. Seeded: 600 mutations, two batches.
+    async function batchAgainstOneByOne(kinds: string[]) {
+      let seed = 7;
+      const rand = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
+      const pick = <T>(list: readonly T[]) => list[Math.floor(rand() * list.length)]!;
+      const records = Array.from({ length: 25 }, () => asset());
+      // Each record has two devices' copies; a mutation changes one field of one copy, like an edit.
+      const copies = records.map((r) => Array.from({ length: 2 }, () => ({ ...r }) as Record<string, any>));
+      let now = 2000;
+      const mutations = Array.from({ length: 600 }, () => {
+        now += 10;
+        const clock = now - (rand() < 0.2 ? Math.floor(rand() * 30) * 10 : 0);
+        const copy = pick(copies)[rand() < 0.8 ? 0 : 1]!;
+        const change = rand() < 0.04 ? 'purge' : pick(['notes', 'isFavorite', 'delete', 'restore', 'restore'] as const);
+        let fields: string[];
+        if (change === 'notes') ((copy.notes = pick([null, 'x', 'y', `n${clock}`])), (fields = ['notes']));
+        else if (change === 'isFavorite') ((copy.isFavorite = !copy.isFavorite), (fields = ['isFavorite']));
+        else if (change === 'delete') ((copy.deletedAt = clock), (copy.purgedAt = null), (fields = pair));
+        else if (change === 'restore') ((copy.deletedAt = null), (copy.purgedAt = null), (fields = pair));
+        else ((copy.deletedAt ??= clock), (copy.purgedAt = clock), (fields = pair));
+        copy.updatedAt = clock;
+        const record = { ...copy };
+        const kind = pick(kinds);
+        if (kind === 'whole') return mut(record); // an app from before per-field merge
+        if (kind === 'prePurge') {
+          const { purgedAt: _p, ...rest } = record; // and from before purges
+          return mut(rest);
+        }
+        return at(record, clock, fields);
+      });
+      await push(db, ME, records.map(mut));
+      await push(db, TWIN, records.map(mut));
+      const batched = [];
+      for (let i = 0; i < mutations.length; i += 500)
+        batched.push(...(await push(db, ME, mutations.slice(i, i + 500))));
+      const single = [];
+      for (const mutation of mutations) single.push(...(await push(db, TWIN, [mutation])));
+      // `current` is the wire record: JSON, where an undefined purgedAt reads as a missing one.
+      const wire = (rows: unknown[]) => rows.map((row) => JSON.stringify(row));
+      expect(batched.filter((result) => result.status === 'applied').length).toBeGreaterThan(300);
+      expect(wire(batched)).toEqual(wire(single));
+      for (const r of records) {
+        const { userId: _a, serverSeq: _b, ...mine } = await raw(r.id, ME);
+        const { userId: _c, serverSeq: _d, ...twin } = await raw(r.id, TWIN);
+        expect(mine).toEqual(twin);
+      }
+    }
+
+    it('a seeded batch of 600 mutations naming 25 records over and over merges like the same pushes one by one', async () => {
+      await batchAgainstOneByOne(['fields', 'fields', 'fields', 'whole']);
+    });
+
+    // BUG (round 3), the one above: with apps from before purges in the mix, a few results differ.
+    it.fails('the same with apps from before purges in the mix', async () => {
+      await batchAgainstOneByOne(['fields', 'fields', 'fields', 'whole', 'prePurge']);
+    });
+  });
+
   describe('tenant isolation', () => {
     it('user B never sees user A rows; a colliding id lands in B partition, A untouched', async () => {
       const shared = assetRecord({ notes: 'A-data', updatedAt: 5000 });
