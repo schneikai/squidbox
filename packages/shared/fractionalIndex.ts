@@ -63,33 +63,25 @@ export function initialKeys(n: number): string[] {
 }
 
 /**
- * Keys that put a sequence in its order, strictly between `lower` and `upper` (null: open), changing
- * as few as possible. `current` is each item's key now (null: none). The items whose keys form a
- * longest strictly increasing run inside the bounds keep them (of tied keys at most one stays); every
- * other item gets a key from `keysBetween` over its gap, between the kept keys (or bounds) around it.
- * So the keys are distinct and in the sequence's order by construction.
+ * Keys that put a sequence in its order, changing as few as possible. `current` is each item's key
+ * now (null: none). The items whose keys form a longest strictly increasing run keep them (of tied
+ * keys at most one stays); every other item gets a key from `keysBetween` over its gap, between the
+ * kept keys around it. So the keys are distinct and in the sequence's order by construction.
  */
-export function keysInOrder(
-  current: (string | null)[],
-  lower: string | null = null,
-  upper: string | null = null,
-): string[] {
-  const inside = current.map((key) =>
-    key !== null && (lower === null || key > lower) && (upper === null || key < upper) ? key : null,
-  );
-  const kept = longestIncreasing(inside);
+export function keysInOrder(current: (string | null)[]): string[] {
+  const kept = longestIncreasing(current);
   const keys: string[] = [];
-  let prev = lower;
+  let prev: string | null = null;
   for (let i = 0; i < current.length;) {
     if (kept.has(i)) {
-      prev = inside[i]!;
+      prev = current[i]!;
       keys.push(prev);
       i++;
       continue;
     }
     let j = i;
     while (j < current.length && !kept.has(j)) j++;
-    keys.push(...keysBetween(prev, j < current.length ? inside[j]! : upper, j - i));
+    keys.push(...keysBetween(prev, j < current.length ? current[j]! : null, j - i));
     i = j;
   }
   return keys;

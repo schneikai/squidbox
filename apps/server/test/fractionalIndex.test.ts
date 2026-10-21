@@ -45,9 +45,9 @@ describe('fractionalIndex', () => {
 });
 
 // keysInOrder: a target sequence of items with their current keys (null: none) gets keys in its order,
-// distinct, inside the bounds, changing only the items outside one longest strictly increasing run.
-// Sequences come from concurrent edits: appends tied on two offline devices (keyBetween(last, null)
-// is deterministic), moves, inserts of new items, and edges never placed.
+// distinct, changing only the items outside one longest strictly increasing run. Sequences come from
+// concurrent edits: appends tied on two offline devices (keyBetween(last, null) is deterministic),
+// moves, inserts of new items, and edges never placed.
 describe('keysInOrder (property)', () => {
   function prng(seed: number) {
     let a = seed >>> 0;
@@ -77,27 +77,16 @@ describe('keysInOrder (property)', () => {
     return keys;
   }
 
-  it('keys every sequence in its order, distinct and inside the bounds, re-keying only outside a longest run', () => {
+  it('keys every sequence in its order, distinct, re-keying only outside a longest run', () => {
     for (let seed = 1; seed <= 2000; seed++) {
       const int = prng(seed);
       const current = sequence(int);
-      const sorted = current.filter((k): k is string => k !== null).sort();
-      const bounded = int(3) === 0 && sorted.length > 1;
-      const [lower, upper] = bounded
-        ? (() => {
-            const [a, b] = [sorted[int(sorted.length)]!, sorted[int(sorted.length)]!].sort();
-            return a === b ? [null, null] : [a, b];
-          })()
-        : [null, null];
-      const keys = keysInOrder(current, lower, upper);
-      const context = `seed ${seed}: ${JSON.stringify({ current, lower, upper, keys })}`;
+      const keys = keysInOrder(current);
+      const context = `seed ${seed}: ${JSON.stringify({ current, keys })}`;
       expect(keys, context).toHaveLength(current.length);
       for (let i = 1; i < keys.length; i++) expect(keys[i - 1]! < keys[i]!, context).toBe(true);
-      if (lower !== null) expect(keys.every((k) => k > lower), context).toBe(true);
-      if (upper !== null) expect(keys.every((k) => k < upper), context).toBe(true);
-      const inside = current.map((k) => (k !== null && (lower === null || k > lower) && (upper === null || k < upper) ? k : null));
       const unchanged = keys.filter((k, i) => k === current[i]).length;
-      expect(unchanged, context).toBe(longestIncreasing(inside).size);
+      expect(unchanged, context).toBe(longestIncreasing(current).size);
     }
   });
 
