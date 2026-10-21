@@ -53,6 +53,16 @@ vi.mock('../src/library/fs', () => ({
     files.add(to);
   },
   removeLibraryFolders: async () => {},
+  // The open's own sweep (current.ts).
+  removeAssetFiles: async (
+    names: { filename?: string; thumbnailFilename?: string }[],
+    paths: { filesDir: string; thumbnailsDir: string },
+  ) => {
+    for (const { filename, thumbnailFilename } of names) {
+      if (filename) files.delete(`file:///docs/${paths.filesDir}${filename}`);
+      if (thumbnailFilename) files.delete(`file:///docs/${paths.thumbnailsDir}${thumbnailFilename}`);
+    }
+  },
 }));
 const applyMergeImpl = vi.hoisted(() => ({ fail: false }));
 vi.mock('../src/library/mergeLibrary', async (importOriginal) => {
@@ -210,5 +220,67 @@ describe('mergeLibrary / resumeMerges', () => {
     await resumeMerges();
     expect(entry('dev')).toEqual(DEV);
     expect(await getMergeTarget(sourceDb())).toBeNull(); // so the device library sweeps its purges again
+  });
+});
+
+const { sweepPurgedFiles } = await import('../src/sync/sweepPurgedFiles');
+
+describe('a failed pass after an earlier one committed (round 5, adversarial)', () => {
+  // removeAssetFiles for the open library, on the fake file system.
+  const removeFiles = async (names: { filename?: string; thumbnailFilename?: string }[]) => {
+    for (const { filename, thumbnailFilename } of names) {
+      if (filename) files.delete(getAssetFileUri(filename, SRC));
+      if (thumbnailFilename) files.delete(`file:///docs/${SRC.thumbnailsDir}${thumbnailFilename}`);
+    }
+  };
+
+  beforeEach(async () => {
+    if (openLibraryId()) await closeLibrary();
+    stores.clear();
+    files.clear();
+    storage.clear();
+    applyMergeImpl.fail = false;
+    await loadRegistry(async () => ({ libraries: [DEV, ACC] }));
+    stores.set(SRC.dbName, makeTestDb());
+    await openLibrary(ACC);
+  });
+
+  // BUG (round 5): mergeLibrary clears the merge marker in the source's database on ANY failed pass
+  // (mergeRun.ts, the catch around planMerge/applyMerge), also when an EARLIER pass already committed
+  // records into the account. Pass 1 copied the photo into the account and crashed before moving its
+  // files; the device library, opened again while the session was lost, purged it and kept its files
+  // (the marker: that purge can still lose in the account, the round-3 bug 3 scenario). The next pass
+  // fails before its commit and clears the marker, so the device library's next sweep (at its next
+  // open) removes the files at once, though the account still holds the photo live, without its files,
+  // and the purge has yet to reach it, where a restore on another device can still beat it.
+  // Expected: the files stay (the marker stays while any pass has committed); actual: they are removed.
+  it.fails('a failed pass keeps the marker of an earlier pass that committed: the device purge keeps its files', async () => {
+    const { applyMerge, planMerge } = await import('../src/library/mergeLibrary');
+    const a = await devicePhoto({ filename: 'a.jpg', thumbnailFilename: 'a-t.jpg', mediaLibraryAssetId: 'm-a' });
+    // Pass 1: the markers, every record committed into the account, then the crash.
+    await updateLibrary('dev', (library) => ({ ...library, mergedInto: 'acc' }));
+    await setMergeTarget(sourceDb(), 'acc');
+    await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC));
+
+    // The session is lost: the device library opens again, and its photo is purged there.
+    await closeLibrary();
+    await openLibrary(DEV);
+    await repo.deleteAssets(getDb(), [a.id]);
+    await repo.purgeAssets(getDb(), [a.id]);
+    await sweepPurgedFiles(getDb(), removeFiles);
+    expect(files.has(getAssetFileUri('a.jpg', SRC))).toBe(true); // waits, as the marker says
+
+    // Signed in again: the boot's next pass fails before its commit.
+    await closeLibrary();
+    await openLibrary(ACC);
+    applyMergeImpl.fail = true;
+    await resumeMerges();
+    expect((await getDb().select().from(schema.assets)).map((row) => row.deletedAt)).toEqual([null]); // live there
+
+    // The session is lost once more: the device library opens and sweeps.
+    await closeLibrary();
+    await openLibrary(DEV);
+    await sweepPurgedFiles(getDb(), removeFiles);
+    expect(files.has(getAssetFileUri('a.jpg', SRC))).toBe(true);
   });
 });
