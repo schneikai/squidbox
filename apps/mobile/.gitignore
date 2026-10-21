@@ -6,3 +6,6 @@
 
 # Expo local state
 /.expo
+
+# Main's client code, extracted by test/mainClient.e2e.test.ts
+/test/.main-client
