@@ -177,6 +177,64 @@ describe('worker push', () => {
     expect(await outboxRows()).toHaveLength(0);
   });
 
+  // Round 6. A transport with the server's real limits: at most 500 mutations, and a request body
+  // (`{"mutations":[…]}` in UTF-8) of at most 1 MiB, else Fastify answers 413 before the handler
+  // (test/routes.sync.test.ts in apps/server), which fails the request whole.
+  const MiB = 1024 * 1024;
+  function serverLimits(sentBodies: number[] = []) {
+    return fakeTransport({
+      push: async (req) => {
+        const body = new TextEncoder().encode(JSON.stringify(req)).length;
+        sentBodies.push(body);
+        if (req.mutations.length > 500) throw new Error('400: more than 500 mutations');
+        if (body > MiB) throw new Error('Request failed with status code 413');
+        return fakeTransport().push(req);
+      },
+    });
+  }
+
+  it('by count and by bytes at once: 1,200 small rows, a 600 KB one and 4-byte emoji, none refused', async () => {
+    const small = Array.from({ length: 1200 }, (_, i) => makeAssetRecord({ notes: `😀${i}` }));
+    const big = makeAssetRecord({ notes: '😀'.repeat(150_000) }); // 600 KB in UTF-8, 300,000 UTF-16 units
+    const mid = Array.from({ length: 3 }, () => makeAssetRecord({ notes: '中'.repeat(100_000) })); // 300 KB each
+    await repo.createAssets(db, small.slice(0, 600));
+    await repo.createAssets(db, [big, ...mid]);
+    await repo.createAssets(db, small.slice(600));
+    const bodies: number[] = [];
+    await runSyncOnce(db, serverLimits(bodies));
+    expect(await outboxRows()).toHaveLength(0);
+    expect(Math.max(...bodies)).toBeLessThanOrEqual(MiB);
+    // A request over 512 KB is one row alone (the 600 KB one).
+    expect(bodies.filter((b) => b > 512 * 1024 + 1024)).toHaveLength(1);
+  });
+
+  // BUG (round 6): a single row over the server's 1 MiB body limit (a post or a note with ~1 MB of text;
+  // no schema bounds a text field) goes alone, as the batching promises, and is refused with a 413,
+  // which fails the request whole: nothing is recorded on the row (§6 "a push that fails as a whole …
+  // records nothing on the rows; the run fails and the next trigger retries it"), so every run sends
+  // the same first request again and fails. The rows behind it never push and the pull never runs:
+  // the library stops syncing for good, with no row marked failed for the sync screen to show.
+  // Expected: the oversize row is held back as a per-row failure (an `error` on its outbox row, as a
+  // `rejected` result is), and the other rows and the pull go on. worker.ts pushPhase / request.
+  it.fails('a single row over the 1 MiB body limit fails alone; the other rows and the pull go on', async () => {
+    const huge = await repo.createAsset(db, makeAssetRecord({ notes: 'é'.repeat(600_000) })); // 1.2 MB
+    await repo.createAsset(db, makeAssetRecord({ notes: 'small' }));
+    let pulls = 0;
+    const limits = serverLimits();
+    const transport = fakeTransport({
+      push: limits.push,
+      pull: async (req) => {
+        pulls += 1;
+        return limits.pull(req);
+      },
+    });
+    for (let run = 0; run < 3; run++) await runSyncOnce(db, transport).catch(() => {});
+    const waiting = await outboxRows();
+    expect(waiting.map((row) => row.recordId)).toEqual([huge.id]); // `other` pushed
+    expect(waiting[0]!.error).not.toBeNull(); // the oversize row shows as failed
+    expect(pulls).toBeGreaterThan(0); // and the pull ran
+  });
+
   it('an applied push changes no asset row, so live reads of assets are not re-run', async () => {
     await repo.createAsset(db, makeAssetRecord());
     const changed: string[] = [];
