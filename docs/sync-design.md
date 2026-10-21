@@ -480,9 +480,9 @@ Tables (`apps/mobile/src/sync/db/schema.ts`):
 - One table per collection: synced fields plus local-only fields.
 - `sync_meta(key, value)`: `cursor`, `status`, `firstSyncDone`, `owner` (whose library this
   database is, JSON, so the library list can be rebuilt from the databases), and in a device
-  library merged into an account's: `mergedInto` (the library a merge pass committed into, §7a),
-  `mergedIntoAccount` (that library's account, JSON, kept until the merge completes), `keptFor`
-  (the library it joined and stays beside) and `mergeMarks:<its database>` (the decisions
+  library merged into an account's: `mergedInto` (the merge marker, JSON `{ library, serverId,
+  userId }`: the library a merge pass committed into and its account, §7a, `library/mergeMarker.ts`),
+  `keptFor` (the library it joined and stays beside) and `mergeMarks:<its database>` (the decisions
   of its merge passes, kept until the merge completes); a target holds the marks until then too.
   `lastSyncUserId`, from before libraries, is left unread.
 - `outbox(id, collection, record_id, op, payload, fields, whole_record, updated_at, created_at,
@@ -571,13 +571,21 @@ backs it up and keeps it in sync, and signing out only pauses that.
   photos are added after it (`FirstSyncScreen`, with the list-only check `mergeDeviceLibrary` uses:
   `deviceLibraryToJoin`), the device library is held by nothing (another account leaves it free),
   and the end of that pull runs the merges due (`runPendingMerges`, from `useMergeAfterFirstSync` in
-  `AppGate`); a device library holding nothing joins at once (`mergeWaits`). The device library
-  stays the open library until the merge has happened: while the session can't pull (signed out, or
-  a re-auth needed) and its account library hasn't finished its first pull, the boot and a sign-out
-  open the device library (`libraryToOpen`), so its photos are never hidden behind a half-pulled
-  library. The setup screen's Sign out asks first.
-  The merge (`library/mergeRun.ts`) is crash-safe and idempotent: the `mergedInto` marker on the
-  source, in the list and, from the first pass that copies records, in its own database; only a
+  `AppGate`); a device library holding nothing joins at once (`mergeWaits`). A sign-in also resumes
+  a merge already marked for the account's library. The device library stays the open library until
+  the merge has happened: while the session can't pull (signed out, or a re-auth needed) and its
+  account library hasn't finished its first pull, the device library opens (`libraryToOpen`, with
+  the same "waits to join" rule as `deviceLibraryToJoin`), so its photos are never hidden behind a
+  half-pulled library. That is decided at the boot (again after the cloud init, if it dropped the
+  tokens) and at every loss of the tokens: a sign-out (`openLibraryForSignOut`, which drops them and
+  opens `libraryToOpen`), and a session the server rejects or a changed server, which
+  `watchTokenDrops` (installed by `LibraryProvider` after the boot) answers with the same call in a
+  paused section of its own, started outside the sync run that dropped them. A library that won't
+  open gives way to the session's own (`openLibraryForSession`), so a damaged device library never
+  stops the boot. The setup screen's Sign out asks first (`confirmSignOutAsync`).
+  The merge (`library/mergeRun.ts`) is crash-safe and idempotent: the `mergedInto` marker
+  (`{ library, serverId, userId }`) on the source, in the list and, from the first pass that copies
+  records, in its own database; only a
   completed merge clears them, and a pass that fails before its commit leaves both as they were
   before it; every record in one transaction of the target with its outbox row; files, found by
   listing the source's folders, moved into missing destinations after the commit; the source
@@ -600,28 +608,32 @@ backs it up and keeps it in sync, and signing out only pauses that.
     whose target record has no row at all, not even a tombstone (the server keeps those, and a
     full resync puts pending edits back), went into a library that never pushed it and is gone: it
     is made again, so those records and their files are copied rather than lost with the source.
-    That holds within one account only: the first pass that commits records the account
-    (`mergedIntoAccount`), and a source committed into one account's library never merges into
-    another's; it waits, files and all, for a library of that account.
+    That holds within one account only: the marker records the account, and a source committed into
+    one account's library never merges into another's; it waits, files and all, for a library of that
+    account. A marker whose library is gone stays, in the list too, for that rule.
   - **The source's own database is the authority** on what it joined (`mergedInto`, `keptFor`):
     `rebuildRegistry` restores both into a rebuilt list, and a source committed into a library that
     is still there joins no other (its list marker is set back to that library, whose merge the boot
-    finishes). The list follows the database, so the screens and `mergeDeviceLibrary` read the list
-    alone, and `mergeLibrary` checks the database (`joinedElsewhere`) and repairs the list. The
-    installed build kept the markers in the list only: the first boot of this build copies the
-    list's into each existing database lacking them before any merge runs, once
-    (`backfillMergeMarkers`, to delete once the phone has run this build). A source whose earlier
+    finishes). The list follows the database, so the screens, `libraryToOpen` and
+    `mergeDeviceLibrary` read the list alone, account rule included, and `mergeLibrary` checks the
+    database (`joinedElsewhere`, on the markers it read once) and repairs the list. The installed
+    build kept the markers in the list only, as a library id: they take that library's account as
+    the list loads (dropped when it is gone or its owner unresolved), and the first boot of this
+    build copies them into each existing database lacking them before any merge runs, once
+    (`backfillMergeMarkers`, to delete once the phone has run this build; on web, where databases
+    can't be listed, a listed library's database counts as existing). A source whose earlier
     target is gone joins a new library of the same account by the rules above. A kept source keeps
     no marks (nothing reads them), and the target's go before `keptFor` is set.
   Before the source is removed, every file it holds for a record that ends up in the account is in
   the target's folders or in the cloud: the files of the assets that end in the target by id, live
   or with a purge still pending (never of one purged there for good), and, for a camera-roll match
-  whose record has no file or thumbnail in the cloud, the device's copy, moved under the record's
-  names (its backup uploads it). The same merge runs again at every boot while an
+  whose record has no file or thumbnail in the cloud and no confirmed purge, the device's copy, moved
+  under the record's names (each destination once); its backup uploads it, a sync error it had
+  cleared. The same merge runs again at every boot while an
   unmerged device library exists (`runPendingMerges`: `resumeMerges`, which skips a marked source
   that is the open library and goes on after a failed one, then `mergeDeviceLibrary`, which leaves
-  a marked source to it, inside `withSyncPaused`), so one that failed or that a crash interrupted
-  finishes then. A device library with photos
+  a source marked for a listed library to it, inside `withSyncPaused`), so one that failed or that a
+  crash interrupted finishes then. A device library with photos
   whose file lives in another account's storage is kept, recorded as `keptFor` the account once its
   merge completed, and never merged again, so it never joins a second account.
 - **Signing out** drops the tokens and nothing else (`dropTokensAsync`, then a best-effort

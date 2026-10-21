@@ -304,8 +304,6 @@ The setup screen says this iPhone's photos join after the first sync (`FirstSync
 device library whose merge failed (it retries at each boot, `mergeDeviceLibrary`), or that waits for
 another library or account it joined (`joinedElsewhere` in `library/mergeRun.ts`), shows nothing in
 the app, so its photos are out of sight until it completes. Show it in the sync status or Settings.
-The setup screen's hint reads the list alone, so for a device library its database ties to another
-account it says the photos join, though they won't.
 
 ### [ ] Merge marks are one JSON value per source library
 
