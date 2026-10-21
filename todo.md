@@ -212,12 +212,6 @@ The sign-in merge (`src/library/mergeLibrary.ts`) only spots a camera-roll photo
 holds if this phone's account library pulled it before. A content hash per asset would catch the
 rest. Only worth it if duplicates show up in practice; a wrong match would hide a distinct photo.
 
-### [ ] Concurrent edits from two devices overwrite each other
-
-Sync resolves conflicts per record by last writer wins (`apps/server/src/sync/push.ts`): editing the
-same album or post on two devices before either syncs keeps only the later edit, silently. Fine for
-one person on one phone; per-field merge would fix it if it bites.
-
 ### [ ] Web preview gaps
 
 The web preview (README → "Web preview") can't add photos from the camera roll, upload, download
