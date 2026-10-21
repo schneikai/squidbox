@@ -1020,6 +1020,65 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       for (const device of [A, B]) expect((await postAssetIds(device, postId)).sort()).toEqual([x, y, z].sort());
     });
 
+    // Round 7: two devices that add the same photo to a post offline each make an edge for it, and
+    // after the sync the post has both; postQuery shows one per asset (the canonical edge), so the
+    // editor's seed names only that one. setRefs now keeps every live edge its seed didn't have, the
+    // other one included. Expected: the user takes the photo out and it leaves the post, as it did
+    // when setRefs tombstoned every edge not in the list. Actual: the other edge becomes the
+    // canonical one and the photo stays, on both devices (reorder and move tombstone such
+    // duplicates; setRefs doesn't).
+    it.fails('a photo both devices added to the post offline leaves it when the editor takes it out', async () => {
+      const [x, y] = [await seedAsset(), await seedAsset()];
+      at(S);
+      const postId = randomUUID();
+      await createPost(A, { id: postId, createdAt: S, updatedAt: S, text: 'trip', postedAt: null }, [x]);
+      await settle();
+      for (const [device, t] of [
+        [A, S + 100],
+        [B, S + 150],
+      ] as const) {
+        const seed = await openEditor(device, postId);
+        await edit(device, t, () =>
+          savePost(device, postId, seed, { ...seed, assetRefs: [...seed.assetRefs, { id: randomUUID(), assetId: y }] }),
+        );
+      }
+      await settle();
+      expect(await postAssetIds(A, postId)).toEqual([x, y]); // one per asset
+
+      const seed = await openEditor(A, postId);
+      const kept = seed.assetRefs.filter((ref: { assetId: string }) => ref.assetId !== y);
+      await edit(A, S + 300, () => savePost(A, postId, seed, { ...seed, assetRefs: kept }));
+      await settle();
+      for (const device of [A, B]) expect(await postAssetIds(device, postId)).toEqual([x]);
+    });
+
+    // Round 7: the seed's other half. setRefs restores every listed edge that isn't live, as "a ref can
+    // name an edge removed meanwhile", though the user only kept it: it was in the seed. So a photo
+    // another device took out of the post while the editor was open comes back when the user saves an
+    // unrelated photo change, but only if that removal was pulled before the save; pulled after, the
+    // save rewrites the edge's position alone and the removal holds (per field). Expected (§7: the save
+    // "removes only the edges the user took out and adds the ones they added", as a concurrent add is
+    // kept): the other device's removal stays. Actual: the photo is back in the post on both devices.
+    it.fails(
+      'a photo another device took out of the post while the editor was open stays out after a save that adds one',
+      async () => {
+        const [x, y, z] = [await seedAsset(), await seedAsset(), await seedAsset()];
+        at(S);
+        const postId = randomUUID();
+        await createPost(A, { id: postId, createdAt: S, updatedAt: S, text: 'trip', postedAt: null }, [x, y]);
+        await settle();
+        const seed = await openEditor(A, postId);
+        await edit(B, S + 100, () => postEdges.remove(B, postId, [y]));
+        await sync(B);
+        await sync(A); // arrives while A's editor is open
+        await edit(A, S + 200, () =>
+          savePost(A, postId, seed, { ...seed, assetRefs: [...seed.assetRefs, { id: randomUUID(), assetId: z }] }),
+        );
+        await settle();
+        for (const device of [A, B]) expect((await postAssetIds(device, postId)).sort()).toEqual([x, z].sort());
+      },
+    );
+
     it('a rename and an album notes edit from their seeds keep the other device’s fields', async () => {
       const id = await seedAlbum({ name: 'Trip', notes: null });
       const seed = (await localRow(A, 'albums', id))!;
