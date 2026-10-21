@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { useEffect, useSyncExternalStore } from 'react';
+import { Alert, StyleSheet, Text } from 'react-native';
 
 import StatusScreen from '@/components/StatusScreen';
 import TextButton from '@/components/TextButton';
@@ -16,25 +16,23 @@ import { requestSync } from '@/sync/worker';
 // grids unmounted during the bulk load so the sync isn't fighting the UI. Shows live counts, not rows.
 const RETRY_MS = 5_000;
 
-// Whether this device's library waits to join the open one (every merge waits for the first pull:
-// mergeWaits in library/mergeLibrary.ts), checked again when the library list changes.
-function useDeviceLibraryWaits() {
-  const [waits, setWaits] = useState(false);
-  useEffect(() => {
-    let current = true;
-    const check = () =>
-      deviceLibraryToJoin().then(
-        (source) => current && setWaits(Boolean(source)),
-        () => current && setWaits(false),
-      );
-    check();
-    const unsubscribe = onRegistryChange(check);
-    return () => {
-      current = false;
-      unsubscribe();
-    };
-  }, []);
-  return waits;
+// Whether this device's library waits to join the open one: every merge waits for the first pull
+// (mergeWaits in library/mergeLibrary.ts).
+const deviceLibraryWaits = () => Boolean(deviceLibraryToJoin());
+
+// Signing out here stops the first pull, so it asks first, as Settings does when something would
+// wait. This iPhone's photos stay in reach: its library opens again while the account's hasn't
+// finished its first pull (openLibraryForSession).
+function confirmSetupSignOutAsync(addsDevicePhotos) {
+  const message = addsDevicePhotos
+    ? 'This iPhone’s photos stay here and join your account the next time you sign in.'
+    : 'Setting up your library goes on the next time you sign in.';
+  return new Promise((resolve) => {
+    Alert.alert('Sign out before setup finishes?', message, [
+      { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'Sign Out', style: 'destructive', onPress: () => resolve(true) },
+    ]);
+  });
 }
 
 function useTotal(table) {
@@ -48,7 +46,7 @@ export default function FirstSyncScreen() {
   const posts = useTotal(schema.posts);
   const { phase, lastError } = useSyncStatus();
   const { logoutAsync } = useCloud();
-  const addsDevicePhotos = useDeviceLibraryWaits();
+  const addsDevicePhotos = useSyncExternalStore(onRegistryChange, deviceLibraryWaits);
 
   const hasError = phase === 'error' && !!lastError;
   const started = assets + albums + posts > 0;
@@ -61,6 +59,10 @@ export default function FirstSyncScreen() {
     const id = setInterval(() => requestSync(), RETRY_MS);
     return () => clearInterval(id);
   }, [hasError]);
+
+  async function handleSignOut() {
+    if (await confirmSetupSignOutAsync(addsDevicePhotos)) await logoutAsync();
+  }
 
   function subtitle() {
     if (hasError) return "We'll keep trying automatically. Check your connection — your data is safe.";
@@ -77,8 +79,8 @@ export default function FirstSyncScreen() {
         <Text style={styles.hint}>Please keep the app open — it'll finish shortly.</Text>
       )}
       {addsDevicePhotos && <Text style={styles.hint}>This iPhone’s photos are added once this is done.</Text>}
-      {/* A sign-out stops the pull at its next batch; the library stays open with what it pulled. */}
-      <TextButton label="Sign out" onPress={() => logoutAsync()} muted />
+      {/* A sign-out stops the pull at its next batch; the library keeps what it pulled. */}
+      <TextButton label="Sign out" onPress={handleSignOut} muted />
     </StatusScreen>
   );
 }

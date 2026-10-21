@@ -18,6 +18,8 @@ import {
   isFirstSyncDone,
   markFirstSyncDone,
   setCursor,
+  setMergeAccount,
+  setMergeTarget,
   setOwner,
 } from '../src/sync/status';
 
@@ -437,14 +439,16 @@ describe('switching libraries with the session', () => {
     await firstPullDrains();
     const bId = getLibrary().id;
 
-    // The update is installed and launched: the list's marker goes into the device library's database.
+    // The update is installed and launched: the list's marker goes into the device library's database,
+    // once.
     await closeLibrary();
+    dbNames.push(...[deviceId, aId, bId].map((id) => `library-${id}.db`));
     await bootLibrary(switchLibrary);
     expect(await getKeptFor(deviceDb)).toBe(aId);
+    expect(storage.get('mergeMarkersBackfilled')).toBe('1');
     // The stored list doesn't parse at a later launch, signed in as B.
     await closeLibrary();
     storage.set('libraries', '{not json');
-    dbNames.push(...[deviceId, aId, bId].map((id) => `library-${id}.db`));
     await bootLibrary(switchLibrary);
     expect(getLibrary().id).toBe(bId);
     await runPendingMerges(); // what LibraryProvider runs after the boot
@@ -455,14 +459,10 @@ describe('switching libraries with the session', () => {
   });
 
   // Round 10: the setup screen (FirstSyncScreen) offers Sign out while the account's first pull runs,
-  // and the device library's merge waits for that pull (mergeWaits). A sign-out there keeps the
-  // session, so the account's library stays the open one at every launch, with only what it pulled;
-  // the device library is parked, and nothing opens it again: this iPhone's photos, which the user
-  // saw a minute ago, are out of reach until that account signs in again and its first pull drains
-  // (before the merge waited, they joined at the sign-in). Expected: after the sign-out (and a
-  // relaunch, which runs the pending merges) the open library shows the device's photo. Actual: the
-  // account's library, without it.
-  it.fails('a sign-out on the setup screen leaves this iPhone’s photos in reach', async () => {
+  // and the device library's merge waits for that pull (mergeWaits). The session stays, without
+  // tokens, but its account library would hide this iPhone's photos until it pulls: this device's
+  // library opens instead (libraryToOpen), at the sign-out and at every launch, until a sign-in.
+  it('a sign-out on the setup screen leaves this iPhone’s photos in reach', async () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(null);
     const photo = await repo.createAsset(
@@ -471,11 +471,47 @@ describe('switching libraries with the session', () => {
     );
     await signIn(sessionOf('A')); // the setup screen: the merge waits for the first pull
     expect(await signOut()).toEqual(tokens); // its Sign out, before the pull drained
+    await open(store.session); // what CloudProvider's logoutAsync runs after dropping the tokens
+    expect(openOwner()).toEqual({ kind: 'device' });
 
     await closeLibrary(); // the app is closed and opened again
     await open(store.session);
     await runPendingMerges(); // what LibraryProvider runs after the boot
 
-    expect((await assets()).map(({ id }) => id)).toEqual([photo.id]); // actual: []
+    expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
+
+    await signIn(sessionOf('A')); // the merge waits again, and runs once the pull drained
+    await firstPullDrains();
+    expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
+    expect(openOwner()).toMatchObject({ kind: 'account', userId: 'A' });
+  });
+
+  // Round 10: a device library a merge pass committed into account A's library is A's from then on.
+  // A's library is gone from the phone (web storage evicted, the list rebuilt) and B signs in: the
+  // device library joins nothing of B's, and keeps its files, waiting for a library of A's.
+  it('a device library committed into one account’s library never joins another account', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    const deviceId = getLibrary().id;
+    const photo = await repo.createAsset(
+      getDb(),
+      makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+    );
+    const deviceDb = await openAppDb(`library-${deviceId}.db`);
+    // A's pass committed, then the app stopped before the files moved; A's library is lost since.
+    await setMergeTarget(deviceDb, 'gone');
+    await setMergeAccount(deviceDb, { serverId: 's1', userId: 'A' });
+
+    await signIn(sessionOf('B'));
+    await firstPullDrains();
+    expect(openOwner()).toMatchObject({ kind: 'account', userId: 'B' });
+    expect(await assets()).toHaveLength(0);
+    expect(libraryIds()).toContain(deviceId);
+    expect(await assetIdsIn(deviceId)).toEqual([photo.id]);
+
+    await signIn(sessionOf('A')); // a new library of A's: the device library joins it
+    await firstPullDrains();
+    expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
+    expect(libraryIds()).not.toContain(deviceId);
   });
 });

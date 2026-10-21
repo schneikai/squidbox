@@ -12,6 +12,7 @@ const OWNER_KEY = 'owner'; // whose library this database is (JSON), so the libr
 const MERGE_TARGET_KEY = 'mergedInto'; // the library a merge pass copied this one's records into
 const MARKS_KEY = 'mergeMarks:'; // + a source library's database name (getMergeMarks)
 const KEPT_FOR_KEY = 'keptFor'; // the library a kept source library joined (getKeptFor)
+const MERGE_ACCOUNT_KEY = 'mergedIntoAccount'; // the account a merge pass committed this one's records into
 
 export type SyncPhase = 'idle' | 'pushing' | 'pulling' | 'error';
 export interface SyncStatus {
@@ -68,6 +69,18 @@ export async function getMergeTarget(db: SyncDb): Promise<string | null> {
 export async function setMergeTarget(db: SyncDb, targetId: string | null): Promise<void> {
   if (targetId) await setMeta(db, MERGE_TARGET_KEY, targetId);
   else await db.delete(schema.syncMeta).where(eq(schema.syncMeta.key, MERGE_TARGET_KEY));
+}
+// The account whose library a merge pass first committed this (device) library's records into: they
+// are that account's from then on, so the library never joins another account's (mergeRun.ts).
+export type MergeAccount = { serverId: string; userId: string };
+export async function getMergeAccount(db: SyncDb): Promise<MergeAccount | null> {
+  const raw = await getMeta(db, MERGE_ACCOUNT_KEY);
+  return raw ? (JSON.parse(raw) as MergeAccount) : null;
+}
+export async function setMergeAccount(db: SyncDb, account: MergeAccount | null): Promise<void> {
+  if (account)
+    await setMeta(db, MERGE_ACCOUNT_KEY, JSON.stringify({ serverId: account.serverId, userId: account.userId }));
+  else await db.delete(schema.syncMeta).where(eq(schema.syncMeta.key, MERGE_ACCOUNT_KEY));
 }
 /**
  * What a committed merge pass decided for a source record (`collection:id`, library/mergeLibrary.ts),

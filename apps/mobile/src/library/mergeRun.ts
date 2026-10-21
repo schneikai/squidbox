@@ -3,10 +3,20 @@ import { libraryPaths } from './libraryPaths';
 import { addsRecords, applyMerge, mergeWaits, moveMergedFiles, planMerge } from './mergeLibrary';
 import { getRegistry, updateLibrary, type Library } from './registry';
 import { removeLibrary } from './removeLibrary';
+import { sameAccount } from './sameAccount';
 
 import { getDb, withAppDb } from '@/sync/db/client';
 import type { SyncDb } from '@/sync/db/types';
-import { getKeptFor, getMergeTarget, setKeptFor, setMergeMarks, setMergeTarget } from '@/sync/status';
+import {
+  getKeptFor,
+  getMergeAccount,
+  getMergeTarget,
+  setKeptFor,
+  setMergeAccount,
+  setMergeMarks,
+  setMergeTarget,
+  type MergeAccount,
+} from '@/sync/status';
 
 // A library's database for the merge: the open one as it is (never opened a second time), a
 // parked one on its own connection, closed again afterwards.
@@ -31,14 +41,35 @@ function setKept(sourceId: string, targetId: string): Promise<unknown> {
 }
 
 // A kept source is never merged again: what a merge keeps in it goes (the marker, which makes its
-// purges wait, and its marks, which nothing reads any more).
+// purges wait, its account and its marks, which nothing reads any more).
 async function forgetMerge(source: SyncDb, name: string): Promise<void> {
   await setMergeTarget(source, null);
+  await setMergeAccount(source, null);
   await setMergeMarks(source, name, null);
 }
 
+type Joined = { keptFor: string } | { mergedInto: string } | { account: MergeAccount };
+
+/**
+ * What the source library's own database says it joined, when that keeps it from joining the
+ * target: kept for a library (never merged again), committed into another library still listed
+ * (finished there), or into another account's library (its records are that account's: nothing of
+ * it goes to another account, and it waits, files and all, for a library of that account). Reads
+ * only.
+ */
+async function joinedElsewhere(source: SyncDb, target: Library): Promise<Joined | null> {
+  const keptFor = await getKeptFor(source);
+  if (keptFor) return { keptFor };
+  const copiedInto = await getMergeTarget(source);
+  const listed = getRegistry().libraries.some(({ id }) => id === copiedInto);
+  if (copiedInto && copiedInto !== target.id && listed) return { mergedInto: copiedInto };
+  const account = await getMergeAccount(source);
+  const owner = target.owner;
+  return account && !(owner.kind === 'account' && sameAccount(account, owner)) ? { account } : null;
+}
+
 // A pass's end: it waits, completed (the source removed or kept), or found the source joined elsewhere.
-type Outcome = 'waits' | 'done' | 'kept' | { keptFor: string } | { mergedInto: string };
+type Outcome = 'waits' | 'done' | 'kept' | Joined;
 
 /**
  * Adds the source library to the target in resumable stages, inside the caller's paused sync
@@ -55,36 +86,38 @@ type Outcome = 'waits' | 'done' | 'kept' | { keptFor: string } | { mergedInto: s
  * (resumeMerges): planMerge replays what the device changed since along the decisions recorded
  * (getMergeMarks), so every stage is idempotent.
  *
- * The source's database is the authority on what it joined. A list rebuilt from the databases gets
- * its markers back from there (rebuildRegistry), so mergeDeviceLibrary leaves a marked source alone
- * and the boot resumes its merge. The checks here cover a list that is there but disagrees: a source
- * the list doesn't mark as kept, and one the list doesn't mark (or marks for another library) while
- * its database names a library still listed that a pass committed into: the list is pointed back
- * there, and the boot finishes that merge.
+ * The source's database is the authority on what it joined (joinedElsewhere). The list follows it:
+ * a list rebuilt from the databases gets the markers back (rebuildRegistry), and the installed
+ * build's list-only markers went into the databases once (backfillMergeMarkers), so the screens and
+ * mergeDeviceLibrary can read the list alone. Where a list still disagrees, the check here repairs
+ * it: a source kept for a library is recorded so, one committed into another listed library is
+ * pointed back there (the boot finishes that merge), and one committed into another account's
+ * library is left as it is.
  */
 export async function mergeLibrary(sourceId: string, targetId: string): Promise<void> {
   const resumed = Boolean(getRegistry().libraries.find(({ id }) => id === sourceId)?.mergedInto);
   const name = libraryPaths(sourceId).dbName;
   const outcome = await withBothDbs(sourceId, targetId, async (source, target): Promise<Outcome> => {
-    const keptFor = await getKeptFor(source);
-    if (keptFor) {
-      await forgetMerge(source, name); // a kept merge a crash interrupted after recording it
-      return { keptFor };
-    }
-    const copiedInto = await getMergeTarget(source);
-    const listed = getRegistry().libraries.some(({ id }) => id === copiedInto);
-    if (copiedInto && copiedInto !== targetId && listed) return { mergedInto: copiedInto };
+    const targetLibrary = getRegistry().libraries.find(({ id }) => id === targetId);
+    if (!targetLibrary || targetLibrary.owner.kind !== 'account') throw new Error(`No account library ${targetId}`);
+    const joined = await joinedElsewhere(source, targetLibrary);
+    if (joined && 'keptFor' in joined) await forgetMerge(source, name); // a kept merge a crash interrupted
+    if (joined) return joined;
     if (await mergeWaits(source, target)) return 'waits';
+    const copiedInto = await getMergeTarget(source);
+    const account = await getMergeAccount(source);
     const plan = await planMerge(source, target, libraryPaths(sourceId));
     await setMarker(sourceId, targetId);
     try {
       if (addsRecords(plan)) {
         // Set before the target's commit (two databases can't share one): a pass that fails takes it back.
         await setMergeTarget(source, targetId);
+        if (!account) await setMergeAccount(source, targetLibrary.owner);
         await applyMerge(target, plan);
       }
     } catch (error) {
       await setMergeTarget(source, copiedInto);
+      await setMergeAccount(source, account);
       if (!resumed) await setMarker(sourceId, undefined);
       throw error;
     }
@@ -100,7 +133,7 @@ export async function mergeLibrary(sourceId: string, targetId: string): Promise<
   if (outcome === 'done') await removeLibrary(sourceId);
   else if (outcome === 'kept') await setKept(sourceId, targetId);
   else if ('keptFor' in outcome) await setKept(sourceId, outcome.keptFor);
-  else await setMarker(sourceId, outcome.mergedInto);
+  else if ('mergedInto' in outcome) await setMarker(sourceId, outcome.mergedInto);
 }
 
 /**

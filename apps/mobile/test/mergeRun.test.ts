@@ -645,10 +645,9 @@ describe('round 9: records an earlier library never pushed', () => {
 // device photo of a camera-roll item the account has is merged into the account's photo instead of
 // copied beside it. The account's photo can be a record whose file never reached the cloud: it was
 // imported on this iPhone by an install deleted before its backup ran (the camera-roll id is the
-// iPhone's own), and the photo was imported again before the sign-in. The match moves no file (only
-// the assets that keep their id do), and the device library is then removed with its folders: the
-// only copy of the file the app had goes, and the account's photo stays without one, which no
-// backup can upload. Expected: the account's library holds a file for that photo. Actual: none.
+// iPhone's own), and the photo was imported again before the sign-in. The device library is removed
+// with its folders, so the device's file moves into the account's library under the account photo's
+// name, and that library's backup uploads it.
 describe('round 10: a camera-roll match whose account photo has no file in the cloud', () => {
   beforeEach(async () => {
     if (openLibraryId()) await closeLibrary();
@@ -663,7 +662,7 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
     await markFirstSyncDone(getDb()); // the first full pull brought the account's photo
   });
 
-  it.fails('keeps the device’s file for the account’s photo when the cloud has none', async () => {
+  it('keeps the device’s file for the account’s photo when the cloud has none', async () => {
     const accountPhoto = makeAssetRecord({
       ...{ mediaLibraryAssetId: 'm-r', filename: 'r.jpg', thumbnailFilename: 'r-t.jpg' },
       ...{ isFileSynced: false, isThumbnailSynced: false, isSynced: false },
@@ -678,6 +677,8 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
     expect(deleted).toContain(SRC.dbName);
     const live = (await getDb().select().from(schema.assets)).filter((row) => row.deletedAt === null);
     expect(live.map((row) => row.mediaLibraryAssetId)).toEqual(['m-r']); // merged, not copied
-    expect(live.some((row) => files.has(getAssetFileUri(row.filename, TGT)))).toBe(true); // actual: false
+    expect(live.some((row) => files.has(getAssetFileUri(row.filename, TGT)))).toBe(true);
+    expect(files.has(getAssetFileUri('r.jpg', TGT))).toBe(true);
+    expect(files.has(`file:///docs/${TGT.thumbnailsDir}r-t.jpg`)).toBe(true);
   });
 });

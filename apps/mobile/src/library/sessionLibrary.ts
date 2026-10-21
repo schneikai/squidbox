@@ -1,12 +1,13 @@
 import { openLibraryEntry, openLibraryId } from './current';
+import { listDatabaseNames } from './fs';
 import { libraryPaths } from './libraryPaths';
 import { mergeLibrary, resumeMerges } from './mergeRun';
 import { deviceLibrary, getRegistry, type Library } from './registry';
 import type { Session } from './session';
 import { sessionMatches } from './sessionMatches';
 
-import { withAppDb } from '@/sync/db/client';
-import { getKeptFor, getMergeTarget } from '@/sync/status';
+import { getDb, withAppDb } from '@/sync/db/client';
+import { isFirstSyncDone } from '@/sync/status';
 import { withSyncPaused } from '@/sync/worker';
 import { getSession, updateSession } from '@/utils/cloud-api/sessionStore';
 import getNewItemId from '@/utils/getNewItemId';
@@ -23,13 +24,34 @@ export function libraryForSession(session: Session | null): Library {
   return { id: getNewItemId(), owner: { kind: 'account', serverId, userId, email: email ?? '' } };
 }
 
-// At boot: opens the session's library, switching when another one is open.
+// At boot and at a sign-out: opens the session's library (libraryToOpen), switching when another one
+// is open.
 export async function openLibraryForSession(
   session: Session | null,
   switchLibrary: (target: Library) => Promise<void>,
 ): Promise<void> {
-  const target = libraryForSession(session);
+  const target = await libraryToOpen(session);
   if (openLibraryId() !== target.id) await switchLibrary(target);
+}
+
+// The session's library (libraryForSession), unless it would hide this iPhone's photos: while the
+// session can't pull (no tokens: signed out, or the server wants a new sign-in) and its account
+// library hasn't finished its first full pull, which this device's library waits to join (every
+// merge waits for it, mergeWaits), this device's library stays open, until a sign-in lets the pull
+// and the merge run.
+async function libraryToOpen(session: Session | null): Promise<Library> {
+  const own = libraryForSession(session);
+  const device = deviceLibrary(getRegistry().libraries);
+  if (!session || session.tokens || !device || device.keptFor || device.mergedInto) return own;
+  return (await hasPulled(own)) ? own : device;
+}
+
+// Whether the library's first full pull has drained; a library without a database hasn't pulled.
+async function hasPulled(library: Library): Promise<boolean> {
+  if (library.id === openLibraryId()) return isFirstSyncDone(getDb());
+  const { dbName } = libraryPaths(library.id);
+  if (!(await listDatabaseNames()).includes(dbName)) return false;
+  return withAppDb(dbName, isFirstSyncDone);
 }
 
 // A sign-in, inside the caller's paused sync section: the account's library opens, then the session
@@ -48,32 +70,28 @@ export async function openLibraryForSignIn(
   return switched;
 }
 
-// This device's library when it is to join the open library: that is its owner's account library,
-// and neither the list nor the device library's own database says it joined another (mergeRun.ts:
-// kept for a library, or committed into one still listed). A merge already marked for the open
+// This device's library when it is to join the open library, by the list (which follows the device
+// library's own database, mergeRun.ts): the open library is its owner's account library, and the
+// device library isn't kept for a library or merging into another. One already merging into the open
 // library counts (it waits for that library's first pull).
-export async function deviceLibraryToJoin(): Promise<Library | null> {
+export function deviceLibraryToJoin(): Library | null {
   const source = deviceLibrary(getRegistry().libraries);
   const target = openLibraryEntry();
   if (!source || !target || source.id === target.id || !sessionMatches(target, getSession())) return null;
-  if (source.keptFor || (source.mergedInto && source.mergedInto !== target.id)) return null;
-  const { keptFor, copiedInto } = await withAppDb(libraryPaths(source.id).dbName, async (db) => ({
-    keptFor: await getKeptFor(db),
-    copiedInto: await getMergeTarget(db),
-  }));
-  const listed = getRegistry().libraries.some(({ id }) => id === copiedInto);
-  return keptFor || (copiedInto && copiedInto !== target.id && listed) ? null : source;
+  return source.keptFor || (source.mergedInto && source.mergedInto !== target.id) ? null : source;
 }
 
 // Whatever this device's library holds (added before any sign-in) joins the open library when that
 // is its owner's account library: at the sign-in, at every boot and at the end of the open library's
-// first full pull (runPendingMerges), so a merge that waited, failed or was interrupted is tried
-// again (mergeRun.ts, crash-safe and idempotent). A failure doesn't fail the sign-in or the boot: the
-// device library stays parked until the next try.
+// first full pull (runPendingMerges), so a merge that waited or failed is tried again (mergeRun.ts,
+// crash-safe and idempotent). One already marked is resumeMerges', so a boot never runs a merge
+// twice. A failure doesn't fail the sign-in or the boot: the device library stays parked until the
+// next try.
 export async function mergeDeviceLibrary(): Promise<void> {
+  const source = deviceLibraryToJoin();
+  if (!source || source.mergedInto) return;
   try {
-    const source = await deviceLibraryToJoin();
-    if (source) await mergeLibrary(source.id, openLibraryEntry()!.id);
+    await mergeLibrary(source.id, openLibraryEntry()!.id);
   } catch (error) {
     console.warn('Could not add this device’s library to the account', error);
   }
