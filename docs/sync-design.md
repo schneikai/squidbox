@@ -52,12 +52,12 @@ Every synced record, on server and client, carries:
 Server-only columns, never accepted from the client and never selected for pull and push responses
 (`wireColumns`, the schema's fields):
 
-| Column             | Type   | Purpose                                                                                       |
-| ------------------ | ------ | --------------------------------------------------------------------------------------------- |
-| `user_id`          | uuid   | Owner. Always taken from the auth token.                                                      |
-| `server_seq`       | bigint | Per-write monotonic sequence. The pull cursor is based on it (§3).                            |
-| `field_clock`      | jsonb  | Each clocked field's clock, `{ field: epochMs }` (§7). NULL when each is `updated_at`.        |
-| `restored_through` | bigint | Assets (the final field's collection): the largest `deletedAt` a restore undid (§7), or NULL. |
+| Column               | Type   | Purpose                                                                                      |
+| -------------------- | ------ | -------------------------------------------------------------------------------------------- |
+| `user_id`            | uuid   | Owner. Always taken from the auth token.                                                     |
+| `server_seq`         | bigint | Per-write monotonic sequence. The pull cursor is based on it (§3).                           |
+| `field_clock`        | jsonb  | Each clocked field's clock, `{ field: epochMs }` (§7). NULL when each is `updated_at`.       |
+| `restored_deletions` | jsonb  | Assets (the final field's collection): the last ten `deletedAt` values a restore undid (§7). |
 
 Client-only fields live only in local SQLite and are never synced (§4).
 
@@ -199,7 +199,8 @@ stays valid and late devices always learn about deletes. Per-user data is small.
 Each mutation carries the **whole record** (the full schema validates it, and an insert needs every
 column) and `fields`: the fields its edits changed, each with its clock. The server merges only
 those, field by field; a mutation without `fields` is a whole-record push (§7). A request holds at
-most 500 mutations; the client splits its outbox into batches of 500.
+most 500 mutations; the client splits its outbox into batches of 500, and of at most 512 KB, half the
+server's 1 MiB body limit, so a batch of large records is never refused for good.
 
 ```jsonc
 // request
@@ -345,14 +346,16 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
   a newer one undeletes). Restoring a deleted asset clears `deletedAt`.
 - **Purges** ("Delete permanently", §7a) set `purgedAt`, the write-once `finalField`, sent with
   its deletion as one group (`mergeDeletion` in `mergeRecord.ts` has the cases):
-  - **A restore beats a purge made of a deletion it undid.** A restore raises the row's
-    `restored_through` to the `deletedAt` it undid; on a live row, a purge whose `deletedAt` is at
-    most that loses with its `deletedAt`, whatever the clocks, so neither a clock running ahead nor
-    skew can lose a restored photo. Once the row is deleted again, purges go by the clocks again.
+  - **A restore beats a purge made of a deletion it undid.** A restore adds the `deletedAt` it undid
+    to the row's `restored_deletions` (the last ten); on a live row, a purge whose `deletedAt` is
+    exactly one of them loses with its `deletedAt`, whatever the clocks, so a clock running ahead
+    can't lose a restored photo. Any other purge goes by the clocks, so a restore by a fast clock
+    can't make another device's later real delete and purge lose either. Once the row is deleted
+    again, purges go by the clocks again.
   - Otherwise the pair goes by `deletedAt`'s clock, a purge also applies to a record still deleted,
     and a purged row is frozen, so a later restore loses.
   - A push without `fields` (the installed app, which removes its files at once, and its outbox rows
-    carried over) gets no `restored_through` check: it keeps its whole-record rule.
+    carried over) gets no `restored_deletions` check: it keeps its whole-record rule.
 - **Membership** (which assets are in an album or post, and their order) is stored as separate
   edge records in `album_assets` and `post_assets` (§10), not as arrays on the parent. Add,
   remove and reorder each write their own edge rows, so concurrent membership changes on two
@@ -396,10 +399,14 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
   purge followed by a new one is swept again), once the purge is confirmed (`confirmedPurges`): in a
   library that syncs, the server has it and the library is fully pulled, so a live asset not
   pulled back yet keeps a shared name; in a device library, at once, unless a merge pass has copied
-  its records into an account (§8). A name another asset still uses is kept, as on the server. It
-  runs at the end of every sync run, after a purge and, without holding it up, when a library
-  opens; an asset whose files can't be removed waits for the next sweep without holding up the
-  others, and the run only notes it.
+  its records into an account (§8). A name another asset still uses is kept, as on the server. An
+  account library sweeps at the end of its sync runs only, inside the sync queue, so a full resync
+  never interleaves with a sweep; a device library at its open (without holding it up) and after a
+  purge (`sweepOpenLibrary` in `library/current.ts`). A sweep lists the library's folders once and
+  stops between batches when the run stops or the library closes; an asset whose files can't be
+  removed waits for the next sweep without holding up the others, and the run only notes it. The
+  app from before this recorded no removals, so the first sweep after the update goes over every
+  purge once (a removal that finds nothing costs nothing).
 - **The S3 file and thumbnail** of a purged asset are deleted by the server, after each push
   reply, one cleanup at a time per user (`cleanUpPurgedFiles` → `deletePurgedFiles` in
   `sync/purgedFiles.ts`). It selects the purged assets whose files it hasn't deleted yet by a
@@ -483,7 +490,7 @@ miss it.
 
 **Sync worker** (`apps/mobile/src/sync/worker.ts`). One run is push, then pull:
 
-1. Push all outbox rows in batches of 500 and handle each result (§6).
+1. Push all outbox rows in batches of 500, and of at most 512 KB, and handle each result (§6).
 2. Pull from the stored cursor until `hasMore` is false, applying the pages in batches of about
    5,000 records (§5). Then set `firstSyncDone`.
 
@@ -533,7 +540,8 @@ backs it up and keeps it in sync, and signing out only pauses that.
   parked one from an earlier sign-in, or a new empty one. Then whatever the device library holds
   joins it at once, with no prompt (`library/mergeRun.ts`, crash-safe and idempotent: the
   `mergedInto` marker on the source, in the list and, from the first pass that copies records, in
-  its own database until the merge is done or given up; every record in one transaction of the
+  its own database; only a completed merge clears them, and a pass that fails before its commit
+  leaves both as they were before it; every record in one transaction of the
   target with its outbox row; files, found by listing the source's folders, moved into missing
   destinations after the commit; the source removed when nothing is left in it. A pending edit of a
   record the target has is merged into the target's row with `mergeRecord` against the target's
