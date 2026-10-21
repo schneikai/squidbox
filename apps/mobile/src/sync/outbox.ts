@@ -54,14 +54,21 @@ function recordsIn(collection: string, recordIds: string[]) {
   return and(eq(schema.outbox.collection, collection), inJson(schema.outbox.recordId, recordIds));
 }
 
-/** The pending edits of these records, by record id: their changed fields and updatedAt. Records without one are left out. */
+export type PendingEdit = Pick<schema.OutboxRow, 'fields' | 'payload' | 'updatedAt'>;
+
+/** The pending edits of these records, by record id: their changed fields, payload and updatedAt. Records without one are left out. */
 export async function pendingEdits(
   db: SyncDb,
   collection: string,
   recordIds: string[],
-): Promise<Map<string, { fields: FieldClocks; updatedAt: number }>> {
+): Promise<Map<string, PendingEdit>> {
   const rows = await db
-    .select({ recordId: schema.outbox.recordId, fields: schema.outbox.fields, updatedAt: schema.outbox.updatedAt })
+    .select({
+      recordId: schema.outbox.recordId,
+      fields: schema.outbox.fields,
+      payload: schema.outbox.payload,
+      updatedAt: schema.outbox.updatedAt,
+    })
     .from(schema.outbox)
     .where(recordsIn(collection, recordIds));
   return new Map(rows.map(({ recordId, ...edit }) => [recordId, edit]));

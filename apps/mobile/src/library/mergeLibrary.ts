@@ -1,4 +1,4 @@
-import { collectionsByName, mergeFields, mergeRecord } from '@squidbox/shared';
+import { clockedFields, collectionsByName, mergeRecord, type FieldClocks } from '@squidbox/shared';
 import { and, isNull } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
@@ -11,7 +11,7 @@ import { nextVersion } from '@/sync/clock';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
-import { pendingEdits } from '@/sync/outbox';
+import { pendingEdits, type PendingEdit } from '@/sync/outbox';
 import { readByIdMap, readByIds } from '@/sync/readByIds';
 import { saveRecords } from '@/sync/saveRecords';
 import getAssetFileUri from '@/utils/assets/files/getAssetFileUri';
@@ -43,6 +43,9 @@ const FILE_OPS = 50; // file-system calls in flight at once
 
 const live = <R extends { deletedAt: number | null }>(rows: R[]) => rows.filter((row) => row.deletedAt === null);
 
+// A purge that waits for the server: the pending edit names the final field (sync-design §7a).
+const purgeWaits = (final: string | undefined, fields: FieldClocks = {}) => final !== undefined && final in fields;
+
 /**
  * What adding `source` (this device's library) to `target` (the account's) would do, without
  * writing anything. Tombstones are left behind; a record the target has by id is skipped (its
@@ -53,36 +56,30 @@ const live = <R extends { deletedAt: number | null }>(rows: R[]) => rows.filter(
 export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: LibraryPaths): Promise<MergePlan> {
   const replays: schema.OutboxRow[] = [];
   const sourceOutbox = await source.select().from(schema.outbox);
+  const targetPending = new Map<string, Map<string, PendingEdit>>(); // by collection, then record id
 
   // A source outbox row for a record the target has is merged into the target's row as the server
   // would merge it (mergeRecord, sync-design §7), against the target's pending edits (a field the
   // target hasn't edited goes to the source, and the server settles it); what applies is replayed
   // with the source's clocks.
+  // The target's pending edits of the records it has are read here, for the files too.
   async function collectReplays(collection: string, targetRows: Map<string, Row>) {
+    const pending = await pendingEdits(target, collection, [...targetRows.keys()]);
+    targetPending.set(collection, pending);
     const candidates = sourceOutbox.filter((row) => row.collection === collection && targetRows.has(row.recordId));
     if (candidates.length === 0) return;
     const descriptor = collectionsByName[collection]!;
-    const final = descriptor.finalField;
-    const unedited = Object.fromEntries(
-      mergeFields(descriptor)
-        .filter((field) => field !== final)
-        .map((field) => [field, 0]),
-    );
-    const pending = await pendingEdits(
-      target,
-      collection,
-      candidates.map((row) => row.recordId),
-    );
+    const unedited = Object.fromEntries(clockedFields(descriptor).map((field) => [field, 0]));
     for (const row of candidates) {
-      const targetPending = pending.get(row.recordId)?.fields ?? {};
-      const storedClocks = { ...unedited, ...targetPending };
+      const edited = pending.get(row.recordId)?.fields;
+      const storedClocks = { ...unedited, ...edited };
       const sentClocks = row.fields; // widened to their groups when saved
       const { record, applied } = mergeRecord(descriptor, {
         stored: targetRows.get(row.recordId)!,
         storedClocks,
         sent: row.payload as Row,
         sentClocks,
-        storedPurgeFinal: !(final && final in targetPending),
+        storedPurgeFinal: !purgeWaits(descriptor.finalField, edited),
       });
       if (applied.length === 0) continue;
       // The newer clock of the two, so the target's own pending edit isn't set back by the replay.
@@ -162,12 +159,12 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
   // The files of the assets that end in the target by the same id (the copied ones, and those the
   // target has unless their purge there is confirmed: the sweep, not a move, settles those, §7a).
   const sourceThumbnails = await listFiles(getAssetThumbnailsDirectory(sourcePaths));
-  const pendingInTarget = await pendingEdits(target, 'assets', [...targetById.keys()]);
+  const pendingAssets = targetPending.get('assets')!;
   const assetReplays = new Map(replays.filter((row) => row.collection === 'assets').map((row) => [row.recordId, row]));
   const confirmedPurge = (id: string) => {
-    const state = (assetReplays.get(id)?.payload ?? targetById.get(id)) as Record<string, unknown>;
-    const pendingPurge = 'purgedAt' in { ...pendingInTarget.get(id)?.fields, ...assetReplays.get(id)?.fields };
-    return state.purgedAt != null && !pendingPurge;
+    const replay = assetReplays.get(id);
+    const state = (replay?.payload ?? targetById.get(id)) as Record<string, unknown>;
+    return state.purgedAt != null && !purgeWaits('purgedAt', { ...pendingAssets.get(id)?.fields, ...replay?.fields });
   };
   const sameId = allSourceAssets.filter((asset) =>
     targetById.has(asset.id) ? !confirmedPurge(asset.id) : assetIdMap.get(asset.id) === asset.id,

@@ -50,7 +50,7 @@ vi.mock('../src/library/fs', () => ({
 const TEST_URL = process.env.TEST_DATABASE_URL;
 const d = TEST_URL ? describe : describe.skip;
 
-const USER = '33333333-3333-3333-3333-333333333333';
+const USER = randomUUID(); // per run, so runs sharing the test database never meet
 
 d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
   let pool: pg.Pool;
@@ -78,7 +78,7 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
     pgDb = pgDrizzle(pool, { schema: serverSchema });
     await pgDb
       .insert(serverSchema.users)
-      .values({ id: USER, email: 'twodevice@test.local', passwordDigest: 'x', storageBucket: null })
+      .values({ id: USER, email: `twodevice-${USER}@test.local`, passwordDigest: 'x', storageBucket: null })
       .onConflictDoNothing();
   });
   async function clearServer() {
@@ -90,6 +90,7 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
   }
   afterAll(async () => {
     await clearServer();
+    await pgDb.delete(serverSchema.users).where(eq(serverSchema.users.id, USER));
     await pool.end();
   });
   beforeEach(async () => {

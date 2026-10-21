@@ -1,13 +1,18 @@
-import type { PushMutation, PushResult } from '@squidbox/shared';
+import { lostFields, type FieldClocks, type PushMutation, type PushResult } from '@squidbox/shared';
 import { and, gt } from 'drizzle-orm';
 
 import { clientCollectionTables } from './clientCollections';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
-import { clearOutboxRows, pendingEdits, pushableOutboxRows, retryFailures, setOutboxError } from './outbox';
-import { overwrittenNote } from './overwrittenNote';
+import {
+  clearOutboxRows,
+  pendingEdits,
+  pushableOutboxRows,
+  retryFailures,
+  setOutboxError,
+  type PendingEdit,
+} from './outbox';
 import { planPushOutcome } from './pushPlan';
-import { readByIdMap } from './readByIds';
 import { pauseRuns, startRun } from './runGate';
 import { createSingleFlight } from './singleFlight';
 import { getCursor, setCursor, patchStatus, appendSyncLog, markFirstSyncDone, clearFirstSyncDone } from './status';
@@ -165,6 +170,19 @@ async function applyPushResults(
   return notes;
 }
 
+// The sync log's note for a push that lost to the server (sync-design §13): the pushed fields whose
+// value the server's `current` replaced, e.g. `albums <id>: name overwritten by server`.
+function overwrittenNote(
+  collection: string,
+  id: string,
+  fields: FieldClocks,
+  payload: Record<string, unknown>,
+  current: Record<string, unknown>,
+): string {
+  const lost = lostFields(Object.keys(fields), payload, current);
+  return `${collection} ${id}: ${lost.length > 0 ? lost.join(', ') : 'local change'} overwritten by server`;
+}
+
 function groupByCollection(results: PushResult[]): Map<string, PushResult[]> {
   const groups = new Map<string, PushResult[]>();
   for (const result of results)
@@ -255,12 +273,9 @@ async function applyChanges(
         name,
         changes[name].map((record) => String(record.id)),
       );
-      const local = await readByIdMap(tx, table, [...pending.keys()]);
-      const rows = changes[name].flatMap((record) => {
+      const rows = changes[name].map((record) => {
         const edit = pending.get(String(record.id));
-        if (!edit) return [record];
-        const row = local.get(String(record.id));
-        return row ? [withPendingFields(record, row, Object.keys(edit.fields))] : [];
+        return edit ? withPendingFields(record, edit) : record;
       });
       await upsertRows(tx, name, table, rows);
       applied += rows.length;
@@ -270,15 +285,15 @@ async function applyChanges(
   });
 }
 
-// The pulled record with the local values of the pending fields (already widened to their groups when
+// The pulled record with the pending edit's values of its fields (already widened to their groups when
 // saved) and the newer updatedAt, so this device's next edit gets a clock above the pulled one (§5).
-function withPendingFields(
-  record: Record<string, unknown>,
-  local: Record<string, unknown>,
-  fields: string[],
-): Record<string, unknown> {
-  const kept = Object.fromEntries(fields.filter((field) => field in local).map((field) => [field, local[field]]));
-  return { ...record, ...kept, updatedAt: Math.max(Number(record.updatedAt), Number(local.updatedAt)) };
+function withPendingFields(record: Record<string, unknown>, edit: PendingEdit): Record<string, unknown> {
+  const kept = Object.fromEntries(
+    Object.keys(edit.fields)
+      .filter((field) => field in edit.payload)
+      .map((field) => [field, edit.payload[field]]),
+  );
+  return { ...record, ...kept, updatedAt: Math.max(Number(record.updatedAt), edit.updatedAt) };
 }
 
 async function applyRecord(db: SyncDb, collection: string, record: Record<string, unknown>): Promise<void> {
