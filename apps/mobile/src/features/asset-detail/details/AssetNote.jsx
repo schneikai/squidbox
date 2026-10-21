@@ -5,7 +5,6 @@ import Textarea from '@/components/Textarea';
 import useAssets from '@/features/assets-context/useAssets';
 import { colors } from '@/styles/designTokens';
 import textareaTextStyle from '@/styles/textareaTextStyle';
-import changedValues from '@/utils/changedValues';
 import noteText from '@/utils/noteText';
 
 /**
@@ -32,8 +31,8 @@ export default function AssetNote({ asset, isEditable, guardPress, onEditingBott
     if (!edit) return;
     editing.current = null;
     latest.current.onEditingBottomChange(0);
-    const changes = changedValues({ notes: edit.original }, { notes: noteText(edit.draft) });
-    if ('notes' in changes) latest.current.updateAsset(edit.assetId, changes);
+    const notes = noteText(edit.draft);
+    if (notes !== edit.original) latest.current.updateAsset(edit.assetId, { notes });
   }
 
   function handleEdit() {

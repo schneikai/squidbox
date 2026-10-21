@@ -1,3 +1,4 @@
+import { keyBetween } from '@squidbox/shared';
 import { and, eq, isNull } from 'drizzle-orm';
 import { describe, it, expect, beforeEach } from 'vitest';
 
@@ -158,7 +159,10 @@ describe('edgesRepository (album_assets)', () => {
         { id: 'r3', assetId: 'a3' },
         { id: 'r2', assetId: 'a2' },
       ],
-      [{ id: 'r1' }, { id: 'r2' }],
+      [
+        { id: 'r1', assetId: 'a1' },
+        { id: 'r2', assetId: 'a2' },
+      ],
     );
     const rows = await db.select().from(schema.postAssets);
     const live = rows.filter((r) => r.deletedAt == null).sort((a, b) => (a.position < b.position ? -1 : 1));
@@ -166,7 +170,7 @@ describe('edgesRepository (album_assets)', () => {
     expect(rows.find((r) => r.id === 'r1')?.deletedAt).toBeTruthy(); // r1 tombstoned
   });
 
-  it('setRefs restores an edge removed meanwhile as its next version, even if that removal looks newer', async () => {
+  it('setRefs keeps out a seed edge removed meanwhile, and restores one the user added back as its next version', async () => {
     const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
     await posts.createFromRefs(db, 'post-1', [{ id: 'r1', assetId: 'a1' }]);
     // Another device removed r1, with a clock ahead of ours.
@@ -175,21 +179,62 @@ describe('edgesRepository (album_assets)', () => {
       .update(schema.postAssets)
       .set({ deletedAt: removedAt, updatedAt: removedAt })
       .where(eq(schema.postAssets.id, 'r1'));
+    const r1 = async () => (await db.select().from(schema.postAssets).where(eq(schema.postAssets.id, 'r1')))[0]!;
 
-    await posts.setRefs(db, 'post-1', [{ id: 'r1', assetId: 'a1' }], [{ id: 'r1' }]);
-    const r1 = (await db.select().from(schema.postAssets).where(eq(schema.postAssets.id, 'r1')))[0]!;
-    expect(r1.deletedAt).toBeNull();
-    expect(r1.updatedAt).toBeGreaterThan(removedAt); // wins LWW against the removal
+    // The editor was seeded with r1 and the user kept it: the other device's removal stands.
+    await posts.setRefs(db, 'post-1', [{ id: 'r1', assetId: 'a1' }], [{ id: 'r1', assetId: 'a1' }]);
+    expect((await r1()).deletedAt).toBe(removedAt);
+    // Added back to an editor that didn't have it: restored, winning LWW against the removal.
+    await posts.setRefs(db, 'post-1', [{ id: 'r1', assetId: 'a1' }], []);
+    expect((await r1()).deletedAt).toBeNull();
+    expect((await r1()).updatedAt).toBeGreaterThan(removedAt);
   });
 
-  it('setRefs keeps the live edges its seed didn’t have, after the list, and removes only those taken out', async () => {
+  it('setRefs gives new keys only to the listed edges out of order: the others keep their places', async () => {
+    const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
+    await posts.createFromRefs(db, 'post-1', [
+      { id: 'r1', assetId: 'a1' },
+      { id: 'r2', assetId: 'a2' },
+      { id: 'r3', assetId: 'a3' },
+    ]);
+    const before = new Map((await db.select().from(schema.postAssets)).map((r) => [r.id, r.position]));
+    // A photo hidden from the editor (its purge waits) between a1 and a2.
+    await db.insert(schema.postAssets).values({
+      id: 'rh',
+      createdAt: 1,
+      updatedAt: 1,
+      deletedAt: null,
+      postId: 'post-1',
+      assetId: 'ah',
+      position: keyBetween(before.get('r1')!, before.get('r2')!),
+    });
+    const seed = [
+      { id: 'r1', assetId: 'a1' },
+      { id: 'r2', assetId: 'a2' },
+      { id: 'r3', assetId: 'a3' },
+    ];
+    await posts.setRefs(db, 'post-1', [seed[0]!, seed[2]!, seed[1]!], seed); // a3 moved before a2
+    const rows = await db.select().from(schema.postAssets);
+    const live = rows.filter((r) => r.deletedAt == null).sort((a, b) => (a.position < b.position ? -1 : 1));
+    expect(live.map((r) => r.assetId).filter((id) => id !== 'ah')).toEqual(['a1', 'a3', 'a2']);
+    const after = new Map(rows.map((r) => [r.id, r.position]));
+    expect(after.get('rh')).toBe(keyBetween(before.get('r1')!, before.get('r2')!)); // where it was
+    expect(after.get('r1')).toBe(before.get('r1'));
+    expect(rows.filter((r) => r.position !== (before.get(r.id) ?? r.position)).map((r) => r.id)).toHaveLength(1);
+  });
+
+  it('setRefs keeps the live edges its seed didn’t have, where they are, and removes only those taken out', async () => {
     const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
     await posts.createFromRefs(db, 'post-1', [
       { id: 'r1', assetId: 'a1' },
       { id: 'r2', assetId: 'a2' },
     ]);
-    const seed = [{ id: 'r1' }, { id: 'r2' }];
+    const seed = [
+      { id: 'r1', assetId: 'a1' },
+      { id: 'r2', assetId: 'a2' },
+    ];
     await posts.add(db, 'post-1', ['a9'], () => 'r9'); // another device's, or hidden from the editor
+    const a9 = (await db.select().from(schema.postAssets).where(eq(schema.postAssets.id, 'r9')))[0]!;
     await posts.setRefs(
       db,
       'post-1',
@@ -201,7 +246,8 @@ describe('edgesRepository (album_assets)', () => {
     );
     const rows = await db.select().from(schema.postAssets);
     const live = rows.filter((r) => r.deletedAt == null).sort((a, b) => (a.position < b.position ? -1 : 1));
-    expect(live.map((r) => r.assetId)).toEqual(['a2', 'a3', 'a9']);
+    expect(live.map((r) => r.assetId).filter((id) => id !== 'a9')).toEqual(['a2', 'a3']);
+    expect(rows.find((r) => r.id === 'r9')).toEqual(a9); // untouched, where it was
   });
 
   it('creating edges with ids that already exist fails instead of moving them to another post', async () => {

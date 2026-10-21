@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic over any edge table */
-import { keyBetween, initialKeys, movePositions } from '@squidbox/shared';
+import { keyBetween, initialKeys, keysBetween, movePositions } from '@squidbox/shared';
 import { and, eq, gt, isNull, max, ne } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
@@ -145,33 +145,41 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
 
     /**
      * Save an editor's ordered ref list (`refs`, {id, assetId}[], e.g. a post editor save) over the one
-     * it was seeded with (`seed`): the edges the user took out are tombstoned, the ones added created,
-     * and the list put in its order. Live edges the seed didn't have (added on another device while
-     * the editor was open, or hidden from it, like a photo whose purge waits) stay, after the list in
-     * their order, as a reorder keeps the edges it wasn't given (sync-design §7). Matches by edge id
-     * (existing refs keep their id; new ones carry a fresh id from the editor).
+     * it was seeded with (`seed`), as edits of that seed (sync-design §7):
+     * - a photo the user took out loses every live edge to it (an offline add on two devices makes two);
+     * - a ref the user added is created, or restored as its edge's next version if it was removed;
+     * - a seed ref whose edge is gone was removed elsewhere meanwhile, and stays out;
+     * - the listed edges go in the list's order, with new keys only for those out of order, so the
+     *   live edges the seed didn't have (another device's add, a photo hidden from the editor because
+     *   its purge waits) keep their places, as a reorder keeps the edges it wasn't given.
+     * Matches by edge id (existing refs keep their id; new ones carry a fresh id from the editor).
      */
     async setRefs(
       db: SyncDb,
       parentId: string,
       refs: { id: string; assetId: string }[],
-      seed: { id: string }[],
+      seed: { id: string; assetId: string }[],
     ): Promise<void> {
       await db.transaction(async (tx) => {
         const live = await liveSorted(tx, parentId);
         const liveById = new Map(live.map((e) => [e.id, e]));
-        const listed = new Set(refs.map((r) => r.id));
-        const takenOut = new Set(seed.map((r) => r.id).filter((id) => !listed.has(id)));
-        const kept = live.filter((e) => !listed.has(e.id) && !takenOut.has(e.id));
-        const order = [...refs, ...kept.map((e) => ({ id: e.id as string, assetId: e.assetId as string }))];
-        const keys = initialKeys(order.length);
+        const listedIds = new Set(refs.map((r) => r.id));
+        const listedAssets = new Set(refs.map((r) => r.assetId));
+        const seedIds = new Set(seed.map((r) => r.id));
+        const takenOutAssets = new Set(seed.map((r) => r.assetId).filter((assetId) => !listedAssets.has(assetId)));
+        const takenOut = live.filter(
+          (e) => takenOutAssets.has(e.assetId) || (seedIds.has(e.id) && !listedIds.has(e.id)),
+        );
+        const wanted = refs.filter((r) => liveById.has(r.id) || !seedIds.has(r.id));
+        const removedById = await readByIdMap(
+          tx,
+          table,
+          wanted.filter((r) => !liveById.has(r.id)).map((r) => r.id),
+        );
+        const keys = positionsInOrder(wanted.map((r) => liveById.get(r.id)?.position ?? null));
         const now = Date.now();
-        // A ref can name an edge that was removed meanwhile (e.g. on another device): it is restored as
-        // that edge's next version, so the clock still moves forward.
-        const removedIds = refs.map((r) => r.id).filter((id) => !liveById.has(id));
-        const removedById = await readByIdMap(tx, table, removedIds);
-        const changed = live.filter((e) => takenOut.has(e.id)).map(tombstone);
-        for (const [i, ref] of order.entries()) {
+        const changed = takenOut.map(tombstone);
+        for (const [i, ref] of wanted.entries()) {
           const existing = liveById.get(ref.id);
           const removed = removedById.get(ref.id);
           if (existing) {
@@ -198,4 +206,46 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
       await db.transaction(async (tx) => tombstoneAll(tx, await liveSorted(tx, parentId)));
     },
   };
+}
+
+// Keys for a list in its order, from the keys its entries have (null for a new one): the longest run
+// of keys already increasing stays, and the others get keys between their neighbours in that run.
+function positionsInOrder(current: (string | null)[]): string[] {
+  const kept = longestIncreasing(current);
+  const keys: string[] = [];
+  let prev: string | null = null;
+  for (let i = 0; i < current.length;) {
+    if (kept.has(i)) {
+      prev = current[i]!;
+      keys.push(prev);
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j < current.length && !kept.has(j)) j++;
+    keys.push(...keysBetween(prev, j < current.length ? current[j]! : null, j - i));
+    i = j;
+  }
+  return keys;
+}
+
+// The indices of a longest strictly increasing run of the non-null keys (patience sorting, n log n).
+function longestIncreasing(keys: (string | null)[]): Set<number> {
+  const tails: number[] = []; // index of the smallest tail of each run length
+  const previous = new Array<number>(keys.length).fill(-1);
+  for (const [i, key] of keys.entries()) {
+    if (key === null) continue;
+    let lo = 0;
+    let hi = tails.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (keys[tails[mid]!]! < key) lo = mid + 1;
+      else hi = mid;
+    }
+    previous[i] = lo > 0 ? tails[lo - 1]! : -1;
+    tails[lo] = i;
+  }
+  const run = new Set<number>();
+  for (let i = tails.length > 0 ? tails[tails.length - 1]! : -1; i !== -1; i = previous[i]!) run.add(i);
+  return run;
 }

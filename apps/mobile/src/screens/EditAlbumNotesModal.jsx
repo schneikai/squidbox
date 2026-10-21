@@ -11,7 +11,6 @@ import Textarea from '@/components/Textarea';
 import { SCREEN_PADDING } from '@/constants';
 import useAlbums from '@/features/albums-context/useAlbums';
 import { colors } from '@/styles/designTokens';
-import changedValues from '@/utils/changedValues';
 import noteText from '@/utils/noteText';
 
 // An album's notes (an asset's are edited in its details, AssetNote).
@@ -24,7 +23,7 @@ export default function EditAlbumNotesModal({ route, navigation }) {
 
   // Saved only when changed, so a notes edit another device made meanwhile isn't sent back.
   async function saveNotes(value) {
-    await updateAlbum(id, changedValues({ notes: noteText(initialNotes) }, { notes: value }));
+    if (value !== noteText(initialNotes)) await updateAlbum(id, { notes: value });
     navigation.goBack();
   }
 
