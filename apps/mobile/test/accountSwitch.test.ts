@@ -216,6 +216,41 @@ describe('switching libraries with the session', () => {
     expect(await assetIdsIn(deviceId)).toEqual([photo.id, cloudOnly.id]);
   });
 
+  // Round 8 (pre-existing on main): `keptFor` lives only in the library list. A corrupt list is
+  // rebuilt from the databases' owners (rebuildRegistry), which carry no `keptFor` (and the kept
+  // device library's own merge marker was cleared when it was kept). Signed in as B at that boot,
+  // mergeDeviceLibrary merges the device library, A's already, into B's library.
+  // Expected: B's library gets nothing of A's (sync-design: a kept device library "never joins a
+  // second account"). Actual: A's photo and album are copied into B's library and pushed to B.
+  it.fails('a kept device library joins no second account after the library list is rebuilt', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    const deviceId = getLibrary().id;
+    await repo.createAsset(
+      getDb(),
+      makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+    );
+    await repo.createAsset(getDb(), makeAssetRecord({ filename: 'c.jpg', isFileSynced: true }));
+    await albums.create(getDb(), makeAlbumRecord({ name: 'Trip' }));
+    await signIn(sessionOf('A'));
+    const aId = getLibrary().id;
+    await signIn(sessionOf('B'));
+    const bId = getLibrary().id;
+    expect(await assets()).toHaveLength(0);
+
+    // The app is closed; the stored list doesn't parse at the next launch, signed in as B.
+    await closeLibrary();
+    storage.set('libraries', '{not json');
+    dbNames.push(...[deviceId, aId, bId].map((id) => `library-${id}.db`));
+    await bootLibrary(switchLibrary);
+    expect(getLibrary().id).toBe(bId);
+    await resumeMerges(); // what LibraryProvider runs after the boot
+    await mergeDeviceLibrary();
+
+    expect(await assets()).toHaveLength(0); // actual: A's photo
+    expect(await getDb().select().from(schema.albums)).toHaveLength(0); // actual: A's album
+  });
+
   it('a merge that fails leaves the device library parked, signed in anyway; the next boot retries it', async () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(null);

@@ -468,3 +468,99 @@ describe('a merge pass run again (a crash, a failed file move)', () => {
     expect(live.map((edge) => edge.assetId)).toEqual([photo.id]);
   });
 });
+
+// Round 8: a photo an earlier pass merged into the account's photo of the same camera-roll item
+// (matched, not copied: its mark is in the target) is matched again by every later pass. Once the
+// account's photo is gone from the live photos (deleted or purged there since, by the user or a
+// sync), the pass finds no match and copies the device's photo whole, with its file.
+describe('round 8: a resumed pass and a matched photo the account deleted since', () => {
+  beforeEach(async () => {
+    if (openLibraryId()) await closeLibrary();
+    stores.clear();
+    files.clear();
+    storage.clear();
+    applyMergeImpl.fail = false;
+    await loadRegistry(async () => ({ libraries: [DEV, ACC] }));
+    stores.set(SRC.dbName, makeTestDb());
+    await openLibrary(ACC);
+  });
+
+  // Pass 1 merges the device's photo into the account's (favorite OR'd), commits, then the app
+  // crashes before the files move (or a file move fails). The user then deletes that photo in the
+  // account (it is in the account's trash). The boot's pass runs again.
+  // Expected: the deleted photo stays deleted; the device's photo, already merged into it, isn't
+  // copied in as a new live photo. Actual: no live photo matches m-x any more, so the device's photo
+  // is copied whole (new id, its file moved into the account, uploaded by the backup): the photo the
+  // user deleted is back in the library.
+  it.fails('a photo the account deleted after a pass merged the device’s copy into it stays deleted', async () => {
+    const { applyMerge, planMerge } = await import('../src/library/mergeLibrary');
+    const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-x', filename: 'p.jpg', isFavorite: false });
+    await upsertRows(getDb(), 'assets', schema.assets, [{ ...accountPhoto, syncError: null }]); // synced
+    const devicePhotoRow = await devicePhoto({ mediaLibraryAssetId: 'm-x', filename: 'd.jpg', isFavorite: true });
+    // Pass 1: the markers, the commit, then the crash.
+    await updateLibrary('dev', (library) => ({ ...library, mergedInto: 'acc' }));
+    await setMergeTarget(sourceDb(), 'acc');
+    await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC));
+    expect((await getDb().select().from(schema.assets)).map((row) => row.id)).toEqual([accountPhoto.id]);
+
+    await repo.deleteAssets(getDb(), [accountPhoto.id]); // the user deletes it in the account
+
+    await resumeMerges();
+    expect(entry('dev')).toBeUndefined();
+    const live = await getDb().select().from(schema.assets).where(isNull(schema.assets.deletedAt));
+    expect(live.map((row) => row.id)).toEqual([]); // actual: [devicePhotoRow.id]
+    expect(files.has(getAssetFileUri('d.jpg', TGT))).toBe(false);
+    expect(devicePhotoRow.id).not.toBe(accountPhoto.id);
+  });
+});
+
+// Round 8: the device library's own marker (getMergeTarget) names the library an earlier pass
+// committed into; mergeLibrary waits only while the new target's first full pull hasn't drained,
+// whether or not that earlier library is gone. With the list rebuilt from the databases (a corrupt
+// list: rebuildRegistry keeps no `mergedInto`), the device library is unmarked in the list and
+// mergeDeviceLibrary merges it into the open library of whatever account is signed in.
+describe('round 8: a device library an earlier pass copied into a library that is still there', () => {
+  const ACC2 = { id: 'acc2', owner: { kind: 'account' as const, serverId: 's1', userId: 'u2', email: 'u2@test' } };
+  const TGT2 = libraryPaths('acc2');
+
+  beforeEach(async () => {
+    if (openLibraryId()) await closeLibrary();
+    stores.clear();
+    files.clear();
+    storage.clear();
+    applyMergeImpl.fail = false;
+    await loadRegistry(async () => ({ libraries: [DEV, ACC, ACC2] }));
+    stores.set(SRC.dbName, makeTestDb());
+    await openLibrary(ACC);
+  });
+
+  // Pass 1 copies the device's photo into the account library `acc` (its file waits in the device
+  // library's folder, to be uploaded by acc's backup) and crashes before the move. The list is then
+  // rebuilt, and the user signs in to another account, whose library `acc2` has synced before:
+  // mergeDeviceLibrary runs mergeLibrary('dev', 'acc2').
+  // Expected: the photo `acc` holds keeps its file (the merge finishes into `acc`, or waits, or
+  // leaves the device library). Actual: the pass into `acc2` moves the file into acc2's folder and
+  // removes the device library; acc's photo, never uploaded, has no file anywhere for acc's backup.
+  it.fails(
+    'a photo copied into the earlier library keeps its file when the device library is merged elsewhere',
+    async () => {
+      const { applyMerge, planMerge } = await import('../src/library/mergeLibrary');
+      const photo = await devicePhoto({ filename: 'a.jpg', mediaLibraryAssetId: 'm-a' });
+      await updateLibrary('dev', (library) => ({ ...library, mergedInto: 'acc' }));
+      await setMergeTarget(sourceDb(), 'acc');
+      await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC)); // committed, then the crash
+      expect((await getDb().select().from(schema.assets))[0]).toMatchObject({ id: photo.id, isFileSynced: false });
+
+      storage.clear(); // the list is lost and rebuilt from the databases' owners
+      await loadRegistry(async () => ({ libraries: [DEV, ACC, ACC2] }));
+      await closeLibrary();
+      stores.set(TGT2.dbName, makeTestDb());
+      await openLibrary(ACC2);
+      await markFirstSyncDone(getDb()); // acc2 has synced before
+      await mergeLibrary('dev', 'acc2'); // mergeDeviceLibrary, signed in as u2
+
+      const inAcc = files.has(getAssetFileUri('a.jpg', TGT)) || files.has(getAssetFileUri('a.jpg', SRC));
+      expect(inAcc).toBe(true); // actual: only in acc2's folder, and the device library is gone
+    },
+  );
+});

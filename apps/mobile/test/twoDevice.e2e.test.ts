@@ -1087,6 +1087,35 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
         isFavorite: true,
       });
     });
+
+    // Round 8: a save is an edit of its seed (edgesRepository setRefs), but the listed edges are put
+    // in the list's order against their current keys, not against the seed's. B drags z to the front
+    // of the post while A's editor is open; A, seeded before that arrived, only adds w. A's list still
+    // has z after y (as its seed did), so setRefs re-keys z after y with a newer clock, which wins on
+    // the server. Expected: B's move and A's add both survive, [z, x, y, w]. Actual: [x, y, z, w],
+    // B's reorder is undone by a save that never moved z.
+    it.fails(
+      'a photo another device moved while the editor was open stays where it moved it after a save that only adds one',
+      async () => {
+        const [x, y, z, w] = [await seedAsset(), await seedAsset(), await seedAsset(), await seedAsset()];
+        at(S);
+        const postId = randomUUID();
+        await createPost(A, { id: postId, createdAt: S, updatedAt: S, text: 'trip', postedAt: null }, [x, y, z]);
+        await settle();
+        const seedA = await openEditor(A, postId);
+        const seedB = await openEditor(B, postId);
+        const [rx, ry, rz] = seedB.assetRefs;
+        await edit(B, S + 100, () => savePost(B, postId, seedB, { ...seedB, assetRefs: [rz, rx, ry] }));
+        await sync(B);
+        await sync(A); // arrives while A's editor is open
+        for (const device of [A, B]) expect(await postAssetIds(device, postId)).toEqual([z, x, y]);
+        await edit(A, S + 200, () =>
+          savePost(A, postId, seedA, { ...seedA, assetRefs: [...seedA.assetRefs, { id: randomUUID(), assetId: w }] }),
+        );
+        await settle();
+        for (const device of [A, B]) expect(await postAssetIds(device, postId)).toEqual([z, x, y, w]);
+      },
+    );
   });
 
   describe('a device library merged into the account library', () => {
@@ -1209,6 +1238,32 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
         oldFileId: 'later',
       });
     });
+
+    // Round 8 (pre-existing on main): the sign-in merges the device library right after the switch
+    // (openLibraryForSignIn → mergeDeviceLibrary), into the account's library as it is then. On a
+    // phone signing in to the account for the first time that library is new and empty, so the
+    // camera-roll match (an asset the account has from the same camera-roll item is matched, not
+    // copied) finds nothing: the account's photo arrives with the first full pull, beside the copy.
+    // The wait for the first full pull (mergeRun) covers only a source copied into a library that is
+    // gone. Expected: one photo of the camera-roll item in the account. Actual: two.
+    it.fails(
+      'a photo the account has from the same camera-roll item isn’t duplicated by a sign-in on a new phone',
+      async () => {
+        await seedAsset({ mediaLibraryAssetId: 'camera-roll-1', filename: 'from-a.jpg' }); // on the account
+        const D = makeTestDb(); // the new phone's device library, before the sign-in
+        await setOwner(D, { kind: 'device' });
+        at(S + 100);
+        await repo.createAsset(
+          D,
+          makeAssetRecord({ mediaLibraryAssetId: 'camera-roll-1', filename: 'on-phone.jpg', isFileSynced: false }),
+        );
+        const N = makeTestDb(); // the account's library on the new phone, just created by the switch
+        await mergeInto(N, D, S + 200);
+        await settle([A, B, N]);
+        const live = (await N.select().from(clientSchema.assets)).filter((row) => row.deletedAt === null);
+        expect(live.map((row) => row.mediaLibraryAssetId)).toEqual(['camera-roll-1']); // actual: twice
+      },
+    );
 
     it('a device purge older than the account’s pending restore loses to it everywhere', async () => {
       const id = await seedAsset();
