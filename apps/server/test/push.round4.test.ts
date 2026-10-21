@@ -8,6 +8,7 @@ import * as schema from '../src/db/schema.js';
 import { serverCollections } from '../src/sync/collections.js';
 import { push } from '../src/sync/push.js';
 import { pull } from '../src/sync/pull.js';
+import { importLegacy } from '../src/convert/legacy.js';
 
 // Round 4 (adversarial): the one multi-row upsert per collection, against the same pushes one by
 // one; duplicate ids, the savepoint fallback, server_seq per row, the upsert's guard, upper-case ids.
@@ -293,6 +294,50 @@ d('push, round 4 (adversarial): one upsert per collection', () => {
     expect(await raw('albums', a.id)).toMatchObject({ name: 'renamed', position: 'a0' });
     expect(await raw('albums', b.id)).toMatchObject({ position: 'b1' });
   });
+
+  // BUG (round 4): one push now reads its records with one IN list and writes each collection with one
+  // multi-row upsert, so a push's size is bounded by Postgres' 65,535 bind parameters (about 3,000 assets
+  // at 21-22 parameters each; the parameter count wraps at 2^16). The route caps a request at 500 mutations, but the legacy importer
+  // (src/convert/legacy.ts importLegacy, scripts/convert-legacy.ts) pushes each collection whole in one
+  // push() call: a library of 5,000 photos fails as a whole with 08P01 ("bind message has 39464
+  // parameter formats but 0 parameters"). On main, push wrote one row per statement and imported it.
+  it.fails(
+    'the legacy importer imports a library of 5,000 photos',
+    async () => {
+      const legacy = Object.fromEntries(
+        Array.from({ length: 5000 }, (_, i) => {
+          const id = randomUUID();
+          const entry = {
+            id,
+            mediaLibraryAssetId: `m${i}`,
+            mediaType: 'image',
+            width: 10,
+            height: 10,
+            fileSize: 100,
+            duration: null,
+            filename: `${i}.jpg`,
+            thumbnailFilename: `t${i}.jpg`,
+            isFileSynced: true,
+            isThumbnailSynced: true,
+            isSynced: true,
+            syncError: null,
+            isFavorite: false,
+            isDeleted: false,
+            createdAt: 1000,
+            updatedAt: 1000,
+            postHistory: [],
+            lastPostedAt: null,
+            oldFileId: null,
+            notes: null,
+          };
+          return [id, entry];
+        }),
+      );
+      const results = await importLegacy(db as any, ME, { assets: legacy } as any);
+      expect(results.find((r) => r.collection === 'assets')).toMatchObject({ applied: 5000, rejected: 0 });
+    },
+    60_000,
+  );
 
   it('field_clock is null exactly when every clock is updated_at, and reads back the same', async () => {
     const r = asset();
