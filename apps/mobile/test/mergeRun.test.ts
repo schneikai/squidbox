@@ -640,3 +640,44 @@ describe('round 9: records an earlier library never pushed', () => {
     expect(await getDb().select().from(schema.outbox)).toHaveLength(5); // all of it pushes
   });
 });
+
+// Round 10: a merge into the account's library waits for its first full pull (mergeWaits) so that a
+// device photo of a camera-roll item the account has is merged into the account's photo instead of
+// copied beside it. The account's photo can be a record whose file never reached the cloud: it was
+// imported on this iPhone by an install deleted before its backup ran (the camera-roll id is the
+// iPhone's own), and the photo was imported again before the sign-in. The match moves no file (only
+// the assets that keep their id do), and the device library is then removed with its folders: the
+// only copy of the file the app had goes, and the account's photo stays without one, which no
+// backup can upload. Expected: the account's library holds a file for that photo. Actual: none.
+describe('round 10: a camera-roll match whose account photo has no file in the cloud', () => {
+  beforeEach(async () => {
+    if (openLibraryId()) await closeLibrary();
+    stores.clear();
+    deleted.length = 0;
+    files.clear();
+    storage.clear();
+    applyMergeImpl.fail = false;
+    await loadRegistry(async () => ({ libraries: [DEV, ACC] }));
+    stores.set(SRC.dbName, makeTestDb());
+    await openLibrary(ACC);
+    await markFirstSyncDone(getDb()); // the first full pull brought the account's photo
+  });
+
+  it.fails('keeps the device’s file for the account’s photo when the cloud has none', async () => {
+    const accountPhoto = makeAssetRecord({
+      ...{ mediaLibraryAssetId: 'm-r', filename: 'r.jpg', thumbnailFilename: 'r-t.jpg' },
+      ...{ isFileSynced: false, isThumbnailSynced: false, isSynced: false },
+    });
+    await upsertRows(getDb(), 'assets', schema.assets, [{ ...accountPhoto, syncError: null }]); // pulled
+    const again = await devicePhoto({ mediaLibraryAssetId: 'm-r', filename: 'r2.jpg', thumbnailFilename: 'r2-t.jpg' });
+    expect(files.has(getAssetFileUri(again.filename, SRC))).toBe(true);
+
+    await mergeLibrary('dev', 'acc');
+
+    expect(entry('dev')).toBeUndefined(); // the device library and its folders are gone
+    expect(deleted).toContain(SRC.dbName);
+    const live = (await getDb().select().from(schema.assets)).filter((row) => row.deletedAt === null);
+    expect(live.map((row) => row.mediaLibraryAssetId)).toEqual(['m-r']); // merged, not copied
+    expect(live.some((row) => files.has(getAssetFileUri(row.filename, TGT)))).toBe(true); // actual: false
+  });
+});

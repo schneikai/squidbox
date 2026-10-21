@@ -453,4 +453,29 @@ describe('switching libraries with the session', () => {
     expect(await assets()).toHaveLength(0);
     expect(await getDb().select().from(schema.albums)).toHaveLength(0);
   });
+
+  // Round 10: the setup screen (FirstSyncScreen) offers Sign out while the account's first pull runs,
+  // and the device library's merge waits for that pull (mergeWaits). A sign-out there keeps the
+  // session, so the account's library stays the open one at every launch, with only what it pulled;
+  // the device library is parked, and nothing opens it again: this iPhone's photos, which the user
+  // saw a minute ago, are out of reach until that account signs in again and its first pull drains
+  // (before the merge waited, they joined at the sign-in). Expected: after the sign-out (and a
+  // relaunch, which runs the pending merges) the open library shows the device's photo. Actual: the
+  // account's library, without it.
+  it.fails('a sign-out on the setup screen leaves this iPhone’s photos in reach', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    const photo = await repo.createAsset(
+      getDb(),
+      makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+    );
+    await signIn(sessionOf('A')); // the setup screen: the merge waits for the first pull
+    expect(await signOut()).toEqual(tokens); // its Sign out, before the pull drained
+
+    await closeLibrary(); // the app is closed and opened again
+    await open(store.session);
+    await runPendingMerges(); // what LibraryProvider runs after the boot
+
+    expect((await assets()).map(({ id }) => id)).toEqual([photo.id]); // actual: []
+  });
 });
