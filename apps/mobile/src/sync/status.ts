@@ -57,7 +57,8 @@ export async function setOwner(db: SyncDb, owner: Owner): Promise<void> {
   await setMeta(db, OWNER_KEY, JSON.stringify(owner));
 }
 // The merge marker in the source library's own database (library/mergeRun.ts): set before a merge pass
-// copies its records into another library, cleared only once a merge that keeps the source is done.
+// copies its records into another library, cleared with the list's marker (a merge given up) or once
+// a merge that keeps the source is done.
 // Until then a restore there can beat this library's purges, which keep their files (sweepPurgedFiles).
 export async function getMergeTarget(db: SyncDb): Promise<string | null> {
   return getMeta(db, MERGE_TARGET_KEY);

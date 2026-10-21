@@ -31,7 +31,7 @@ export const assetCollection = defineCollection({
   }),
   localOnly: {
     syncError: z.string().nullable(),
-    filesRemovedAt: timestampSchema.nullable(), // when this device removed a purged asset's files
+    filesRemovedFor: timestampSchema.nullable(), // the purgedAt this device removed a purged asset's files for
   },
   // isSynced is derived from the file flags, and a purge only goes with a deletion: each set merges
   // as one (sync-design §7).

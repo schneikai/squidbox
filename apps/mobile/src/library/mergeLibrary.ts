@@ -62,11 +62,12 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
   // would merge it (mergeRecord, sync-design §7), against the target's pending edits (a field the
   // target hasn't edited goes to the source, and the server settles it); what applies is replayed
   // with the source's clocks.
-  // The target's pending edits of the records it has are read here, for the files too.
+  // The target's pending edits of the records replayed, and of every asset it has (for the files).
   async function collectReplays(collection: string, targetRows: Map<string, Row>) {
-    const pending = await pendingEdits(target, collection, [...targetRows.keys()]);
-    targetPending.set(collection, pending);
     const candidates = sourceOutbox.filter((row) => row.collection === collection && targetRows.has(row.recordId));
+    const ids = collection === 'assets' ? [...targetRows.keys()] : candidates.map((row) => row.recordId);
+    const pending = ids.length > 0 ? await pendingEdits(target, collection, ids) : new Map<string, PendingEdit>();
+    targetPending.set(collection, pending);
     if (candidates.length === 0) return;
     const descriptor = collectionsByName[collection]!;
     const unedited = Object.fromEntries(clockedFields(descriptor).map((field) => [field, 0]));

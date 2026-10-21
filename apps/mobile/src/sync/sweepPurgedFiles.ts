@@ -1,4 +1,4 @@
-import { and, isNotNull, isNull, not, or, sql, type SQL } from 'drizzle-orm';
+import { and, gt, isNotNull, not, or, sql, type SQL } from 'drizzle-orm';
 
 import { SQL_BATCH } from './chunk';
 import * as schema from './db/schema';
@@ -14,15 +14,28 @@ export type RemoveFiles = (files: AssetFileNames[]) => Promise<void>;
 const pendingPurge = sql`exists (select 1 from ${schema.outbox} where ${schema.outbox.collection} = 'assets'
   and ${schema.outbox.recordId} = ${schema.assets.id} and json_extract(${schema.outbox.fields}, '$.purgedAt') is not null)`;
 
+// A purged asset whose files this device hasn't removed for this purge yet (an undone purge's mark
+// doesn't count for a later one).
+const filesToRemove = sql`${schema.assets.filesRemovedFor} is not ${schema.assets.purgedAt}`;
+
 /**
  * Removes this device's copies of the purged assets whose files it still has, once their purge is
- * confirmed (sync-design §7a), and marks each `filesRemovedAt`. Only the names no other asset still
- * uses go. Runs at the end of every sync run, when a library opens and after a purge.
+ * confirmed (sync-design §7a), and marks each with the purge it removed them for (`filesRemovedFor`).
+ * Only the names no other asset still uses go. An asset whose files can't be removed is left for the
+ * next sweep and holds up no other; the sweep throws once it has gone through them all. It stops
+ * between batches once `signal` aborts. Runs at the end of every sync run, when a library opens and
+ * after a purge.
  */
-export async function sweepPurgedFiles(db: SyncDb, removeFiles: RemoveFiles): Promise<void> {
+export async function sweepPurgedFiles(
+  db: SyncDb,
+  removeFiles: RemoveFiles,
+  { signal }: { signal?: AbortSignal } = {},
+): Promise<void> {
   const confirmed = await confirmedPurges(db);
   if (!confirmed) return;
-  for (;;) {
+  const failures: unknown[] = [];
+  let after = '';
+  while (!signal?.aborted) {
     const rows = await db
       .select({
         id: schema.assets.id,
@@ -30,12 +43,46 @@ export async function sweepPurgedFiles(db: SyncDb, removeFiles: RemoveFiles): Pr
         thumbnailFilename: schema.assets.thumbnailFilename,
       })
       .from(schema.assets)
-      .where(and(confirmed, isNull(schema.assets.filesRemovedAt)))
+      .where(and(confirmed, filesToRemove, gt(schema.assets.id, after)))
+      .orderBy(schema.assets.id)
       .limit(SQL_BATCH);
-    if (rows.length === 0) return;
-    const ids = rows.map((row) => row.id);
-    await removeFiles(await unsharedFiles(db, rows, ids, not(confirmed)));
-    await db.update(schema.assets).set({ filesRemovedAt: Date.now() }).where(inJson(schema.assets.id, ids));
+    if (rows.length === 0) break;
+    after = rows[rows.length - 1]!.id;
+    const removed = await removeEach(removeFiles, rows, await unsharedFiles(db, rows, not(confirmed)), failures);
+    if (removed.length > 0)
+      await db
+        .update(schema.assets)
+        .set({ filesRemovedFor: sql`${schema.assets.purgedAt}` })
+        .where(inJson(schema.assets.id, removed));
+  }
+  if (failures.length > 0) {
+    const first = failures[0] instanceof Error ? failures[0].message : String(failures[0]);
+    throw new Error(`Could not remove the files of ${failures.length} purged assets: ${first}`);
+  }
+}
+
+// Removes a batch's files in one call; when that fails, asset by asset, so one file that can't go
+// holds up none of the others. Returns the ids whose files are gone.
+async function removeEach(
+  removeFiles: RemoveFiles,
+  rows: { id: string }[],
+  files: AssetFileNames[],
+  failures: unknown[],
+): Promise<string[]> {
+  try {
+    await removeFiles(files);
+    return rows.map((row) => row.id);
+  } catch {
+    const removed: string[] = [];
+    for (const [i, row] of rows.entries()) {
+      try {
+        await removeFiles([files[i]!]);
+        removed.push(row.id);
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+    return removed;
   }
 }
 
@@ -57,8 +104,7 @@ async function confirmedPurges(db: SyncDb): Promise<SQL | null> {
 // keeps a key in use (§7a).
 async function unsharedFiles(
   db: SyncDb,
-  rows: { filename: string; thumbnailFilename: string }[],
-  ids: string[],
+  rows: { id: string; filename: string; thumbnailFilename: string }[],
   inUse: SQL,
 ): Promise<AssetFileNames[]> {
   const names = [...new Set(rows.flatMap((row) => [row.filename, row.thumbnailFilename]))];
@@ -68,7 +114,12 @@ async function unsharedFiles(
     .where(
       and(
         inUse,
-        not(inJson(schema.assets.id, ids)),
+        not(
+          inJson(
+            schema.assets.id,
+            rows.map((row) => row.id),
+          ),
+        ),
         or(inJson(schema.assets.filename, names), inJson(schema.assets.thumbnailFilename, names)),
       ),
     );

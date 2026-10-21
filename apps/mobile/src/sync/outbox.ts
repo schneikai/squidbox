@@ -74,6 +74,19 @@ export async function pendingEdits(
   return new Map(rows.map(({ recordId, ...edit }) => [recordId, edit]));
 }
 
+/** The updatedAt of these records' pending edits, by record id, without reading their payloads. */
+export async function pendingUpdatedAt(
+  db: SyncDb,
+  collection: string,
+  recordIds: string[],
+): Promise<Map<string, number>> {
+  const rows = await db
+    .select({ recordId: schema.outbox.recordId, updatedAt: schema.outbox.updatedAt })
+    .from(schema.outbox)
+    .where(recordsIn(collection, recordIds));
+  return new Map(rows.map(({ recordId, updatedAt }) => [recordId, updatedAt]));
+}
+
 export async function clearOutboxRows(db: SyncDb, collection: string, recordIds: string[]): Promise<void> {
   await db.delete(schema.outbox).where(recordsIn(collection, recordIds));
 }

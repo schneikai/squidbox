@@ -35,7 +35,8 @@ function setKept(sourceId: string, targetId: string): Promise<unknown> {
  * section: the marker, every record in one transaction of the target, the files of the assets
  * that are in the target by id, then the source is removed, unless photos living in another
  * account's storage keep it, recorded as kept for the target (`keptFor`), so it is never merged
- * again and never joins another account. A throw before the commit clears the marker; a crash
+ * again and never joins another account. A throw before the commit clears the marker, in the list
+ * and in the source's database (its purges are its own again, §7a); a crash
  * leaves it, and the boot runs the merge again (resumeMerges): planMerge finds what is left to
  * add, so every stage is idempotent.
  */
@@ -50,6 +51,7 @@ export async function mergeLibrary(sourceId: string, targetId: string): Promise<
         await applyMerge(target, plan);
       }
     } catch (error) {
+      await setMergeTarget(source, null);
       await setMarker(sourceId, undefined);
       throw error;
     }
@@ -77,7 +79,10 @@ export async function resumeMerges(): Promise<void> {
     if (source.id === openLibraryId()) continue;
     try {
       if (libraries.some(({ id }) => id === source.mergedInto)) await mergeLibrary(source.id, source.mergedInto);
-      else await setMarker(source.id, undefined);
+      else {
+        await withLibraryDb(source.id, (db) => setMergeTarget(db, null));
+        await setMarker(source.id, undefined);
+      }
     } catch (error) {
       console.warn(`Could not resume the merge of library ${source.id}`, error);
     }

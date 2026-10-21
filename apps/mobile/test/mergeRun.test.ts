@@ -7,7 +7,7 @@ import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import { makeRepository } from '../src/sync/repository';
-import { getMergeTarget } from '../src/sync/status';
+import { getMergeTarget, setMergeTarget } from '../src/sync/status';
 import getAssetFileUri from '../src/utils/assets/files/getAssetFileUri';
 
 // The device: databases by name (a store survives close and reopen), files by uri, the list.
@@ -126,8 +126,8 @@ describe('mergeLibrary / resumeMerges', () => {
     expect(entry('dev')).toEqual(DEV);
     expect(await getDb().select().from(schema.assets)).toHaveLength(0);
     expect(stores.has(SRC.dbName)).toBe(true);
-    // The source's own marker stays: an earlier pass may have committed, so its purges keep waiting.
-    expect(await getMergeTarget(sourceDb())).toBe('acc');
+    // The marker in the source's database goes with the list's: its purges are its own again.
+    expect(await getMergeTarget(sourceDb())).toBeNull();
   });
 
   it('a crash between the marker and the commit, then boot: the merge runs again and finishes', async () => {
@@ -206,7 +206,9 @@ describe('mergeLibrary / resumeMerges', () => {
   it('a marker whose target is gone is just cleared', async () => {
     storage.clear();
     await loadRegistry(async () => ({ libraries: [{ ...DEV, mergedInto: 'gone' }, ACC] }));
+    await setMergeTarget(sourceDb(), 'gone'); // a pass had copied records
     await resumeMerges();
     expect(entry('dev')).toEqual(DEV);
+    expect(await getMergeTarget(sourceDb())).toBeNull(); // so the device library sweeps its purges again
   });
 });

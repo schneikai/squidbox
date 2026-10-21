@@ -1463,7 +1463,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
             rows
               .map(
                 (r) =>
-                  `${ids.indexOf(r.id)}:${r.deletedAt ? 'd' : ''}${r.purgedAt ? 'p' : ''}${r.filesRemovedAt ? 'r' : ''}`,
+                  `${ids.indexOf(r.id)}:${r.deletedAt ? 'd' : ''}${r.purgedAt ? 'p' : ''}${r.purgedAt && r.filesRemovedFor === r.purgedAt ? 'r' : ''}`,
               )
               .join(' '),
             JSON.stringify(

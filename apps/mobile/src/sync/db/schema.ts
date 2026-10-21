@@ -31,8 +31,9 @@ export const assets = sqliteTable(
     purgedAt: integer('purged_at'), // "Delete permanently", final (sync-design §7)
     // local-only (never synced)
     syncError: text('sync_error'),
-    // When this device removed a purged asset's files (§7a); a trigger clears it when the purge is undone.
-    filesRemovedAt: integer('files_removed_at'),
+    // The purge (its purgedAt) this device removed the asset's files for (§7a): a later purge, after
+    // one was undone, differs, so its copies are removed again.
+    filesRemovedFor: integer('files_removed_for'),
   },
   // Partial indexes for the screens' reads (docs/paged-reads-plan.md §2). A query uses one only when
   // its WHERE implies the index's, so keep the predicates in step with the queries.
@@ -56,7 +57,7 @@ export const assets = sqliteTable(
     // The purged assets whose files this device still has: the sweep's work (sweepPurgedFiles).
     purgedFiles: index('assets_purged_files_idx')
       .on(t.id)
-      .where(sql`${t.purgedAt} is not null and ${t.filesRemovedAt} is null`),
+      .where(sql`${t.purgedAt} is not null and ${t.filesRemovedFor} is not ${t.purgedAt}`),
   }),
 );
 export type AssetRow = typeof assets.$inferSelect;

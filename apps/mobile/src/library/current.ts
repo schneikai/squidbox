@@ -13,6 +13,8 @@ export interface OpenLibrary extends LibraryPaths {
 
 // The one open library: the only code that sets the database behind getDb().
 let current: OpenLibrary | null = null;
+// The sweep an open starts, stopped when the library closes.
+let openSweep: AbortController | null = null;
 
 export async function openLibrary(library: Library): Promise<void> {
   if (current) throw new Error(`Library ${current.id} is still open`);
@@ -21,19 +23,23 @@ export async function openLibrary(library: Library): Promise<void> {
   try {
     // A new database learns its owner here; an existing one keeps what it recorded itself.
     if (!(await getOwner(db))) await setOwner(db, library.owner);
-    // Each open (a launch, a switch) gives the failed pushes another try (sync-design §6), and removes
-    // the files of the purged assets whose purge is confirmed (§7a); the file system needs the native
-    // modules the tests lack.
+    // Each open (a launch, a switch) gives the failed pushes another try (sync-design §6).
     await retryFailures(db);
-    await import('./fs')
-      .then(({ removeAssetFiles }) => sweepPurgedFiles(db, (files) => removeAssetFiles(files, paths)))
-      .catch((error) => console.warn('Could not remove the files of the purged assets', error));
   } catch (error) {
     await db.close().catch(() => {}); // not published yet: closeLibrary wouldn't see it
     throw error;
   }
   setOpenDb(db);
   current = { id: library.id, ...paths };
+  // Then, without holding up the open, it removes the files of the purged assets whose purge is
+  // confirmed (§7a); the file system needs the native modules the tests lack.
+  const sweep = new AbortController();
+  openSweep = sweep;
+  import('./fs')
+    .then(({ removeAssetFiles }) =>
+      sweepPurgedFiles(db, (files) => removeAssetFiles(files, paths), { signal: sweep.signal }),
+    )
+    .catch((error) => console.warn('Could not remove the files of the purged assets', error));
 }
 
 // Closes the open library once the statements queued before have run; everything queued after
@@ -42,6 +48,8 @@ export async function openLibrary(library: Library): Promise<void> {
 export async function closeLibrary(): Promise<void> {
   if (!current) return;
   const db = getDb();
+  openSweep?.abort();
+  openSweep = null;
   setOpenDb(null);
   current = null;
   webThumbnailUrls.clear();

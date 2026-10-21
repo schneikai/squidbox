@@ -7,6 +7,7 @@ import type { SyncDb } from './db/types';
 import {
   clearOutboxRows,
   pendingEdits,
+  pendingUpdatedAt,
   pushableOutboxRows,
   retryFailures,
   setOutboxError,
@@ -63,7 +64,11 @@ export async function runSyncOnce(
       pulled = pull.pulled;
       if (pull.stopped) notes.push('stopped during pull');
     }
-    if (removeFiles) await sweepPurgedFiles(db, removeFiles); // the purges this run confirmed, and any a sweep left
+    // The purges this run confirmed, and any a sweep left; a file that can't go is noted, not a failed run.
+    if (removeFiles)
+      await sweepPurgedFiles(db, removeFiles, { signal }).catch((err) =>
+        notes.push(err instanceof Error ? err.message : String(err)),
+      );
   } catch (err) {
     error = err instanceof Error ? err.message : String(err);
     throw err;
@@ -129,7 +134,7 @@ async function applyPushResults(
 ): Promise<string[]> {
   const notes: string[] = [];
   for (const [collection, group] of groupByCollection(results)) {
-    const current = await pendingEdits(
+    const current = await pendingUpdatedAt(
       tx,
       collection,
       group.map((result) => result.id),
@@ -143,7 +148,7 @@ async function applyPushResults(
       const plan = planPushOutcome({
         status: result.status,
         pushedUpdatedAt: row?.updatedAt ?? 0,
-        currentOutboxUpdatedAt: current.get(result.id)?.updatedAt ?? null,
+        currentOutboxUpdatedAt: current.get(result.id) ?? null,
       });
       if (plan.adoptCurrent && result.current) {
         try {
@@ -311,7 +316,7 @@ export async function clearOutbox(db: SyncDb): Promise<void> {
  * Full resync (sync-design §13): wipe the collection tables, the cursor and the first-sync flag (the
  * setup gate shows again), then re-run sync (push any pending, then a fresh full pull from
  * cursor=0). The outbox stays and its edits are put back: the pull keeps their fields from the
- * local row, and an edit the server keeps rejecting would otherwise vanish from the app. Warn on a
+ * outbox payload, and an edit the server keeps rejecting would otherwise vanish from the app. Warn on a
  * non-empty outbox before calling (this rebuilds local state from the server).
  */
 export async function fullResync(db: SyncDb, transport: SyncTransport, options: SyncRunOptions = {}): Promise<void> {

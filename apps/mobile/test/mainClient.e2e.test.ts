@@ -313,10 +313,14 @@ d('the installed app (main’s client code) against this server', () => {
       [fresh.id, 1, null],
     ]);
     for (const row of rows) expect(Object.keys(JSON.parse(row.fields))).toContain('notes');
-    const removedAt = (id: string) =>
-      (M.sqlite.prepare('SELECT files_removed_at AS at FROM assets WHERE id = ?').get(id) as { at: number | null }).at;
-    expect(removedAt(purgedHere)).toBe(S + 120);
-    expect(removedAt(confirmed)).toBe(S + 60);
+    const removedFor = (id: string) =>
+      (
+        M.sqlite.prepare('SELECT files_removed_for AS purge FROM assets WHERE id = ?').get(id) as {
+          purge: number | null;
+        }
+      ).purge;
+    expect(removedFor(purgedHere)).toBe(S + 120);
+    expect(removedFor(confirmed)).toBe(S + 60);
 
     // A pull before the push (its push refused): the whole rows keep every field of their payload.
     at(S + 300);
@@ -343,7 +347,7 @@ d('the installed app (main’s client code) against this server', () => {
     // The installed app's whole-record purge is older than the restore: it loses, the photo is back
     // (without its files on M, which the installed app removed at once, as it always did).
     expect(await serverAsset(purgedHere)).toMatchObject({ deletedAt: null, purgedAt: null });
-    expect(removedAt(purgedHere)).toBeNull(); // the trigger: un-purged, so a later purge removes new copies
+    expect(removedFor(purgedHere)).toBe(S + 120); // the undone purge's: a later purge removes the new copies
     expect(M.removed).toEqual([]); // nothing removed twice, nothing of a live photo
 
     // Purged again on the new app: the updated app removes the copies made since, once.

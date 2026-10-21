@@ -327,8 +327,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "files_removed_at": {
-          "name": "files_removed_at",
+        "files_removed_for": {
+          "name": "files_removed_for",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -388,7 +388,7 @@
             "id"
           ],
           "isUnique": false,
-          "where": "\"assets\".\"purged_at\" is not null and \"assets\".\"files_removed_at\" is null"
+          "where": "\"assets\".\"purged_at\" is not null and \"assets\".\"files_removed_for\" is not \"assets\".\"purged_at\""
         }
       },
       "foreignKeys": {},
