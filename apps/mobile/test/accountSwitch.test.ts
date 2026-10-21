@@ -98,6 +98,13 @@ async function open(session: Session | null) {
   await openLibraryForSession(session, switchLibrary);
 }
 const signIn = (session: Session) => openLibraryForSignIn(session, switchLibrary);
+// The open account library's first full pull drains: the merges that waited for it run, as
+// useMergeAfterFirstSync runs them.
+async function firstPullDrains() {
+  await markFirstSyncDone(getDb());
+  await resumeMerges();
+  await mergeDeviceLibrary();
+}
 const albums = makeRepository('albums', schema.albums);
 const libraryIds = () => getRegistry().libraries.map(({ id }) => id);
 const openOwner = () => getRegistry().libraries.find(({ id }) => id === getLibrary().id)!.owner;
@@ -200,8 +207,16 @@ describe('switching libraries with the session', () => {
     await albums.create(getDb(), makeAlbumRecord({ name: 'Trip' }));
 
     await signIn(sessionOf('A'));
-
     expect(openOwner()).toMatchObject({ kind: 'account', userId: 'A' });
+    // Nothing joins before the account's library has pulled what the account holds: no camera-roll
+    // item would match yet. The device library waits, free.
+    expect(await assets()).toHaveLength(0);
+    expect(getRegistry().libraries.find(({ id }) => id === deviceId)).toEqual({
+      id: deviceId,
+      owner: { kind: 'device' },
+    });
+    await firstPullDrains();
+
     expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
     expect(await getDb().select().from(schema.albums)).toHaveLength(1);
     expect(await outbox()).toHaveLength(2); // the photo and the album push with the next sync
@@ -211,18 +226,16 @@ describe('switching libraries with the session', () => {
 
     // The kept device library is A's now: another account gets nothing of it.
     await signIn(sessionOf('B'));
+    await firstPullDrains();
     expect(await assets()).toHaveLength(0);
     expect(libraryIds()).toContain(deviceId);
     expect(await assetIdsIn(deviceId)).toEqual([photo.id, cloudOnly.id]);
   });
 
-  // Round 8 (pre-existing on main): `keptFor` lives only in the library list. A corrupt list is
-  // rebuilt from the databases' owners (rebuildRegistry), which carry no `keptFor` (and the kept
-  // device library's own merge marker was cleared when it was kept). Signed in as B at that boot,
-  // mergeDeviceLibrary merges the device library, A's already, into B's library.
-  // Expected: B's library gets nothing of A's (sync-design: a kept device library "never joins a
-  // second account"). Actual: A's photo and album are copied into B's library and pushed to B.
-  it.fails('a kept device library joins no second account after the library list is rebuilt', async () => {
+  // Round 8 (was on main): `keptFor` lived only in the library list, so a corrupt list rebuilt from
+  // the databases' owners lost it, and the device library, A's already, joined B's library. The
+  // device library's own database keeps it now, and the rebuilt list takes it from there.
+  it('a kept device library joins no second account after the library list is rebuilt', async () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(null);
     const deviceId = getLibrary().id;
@@ -233,8 +246,10 @@ describe('switching libraries with the session', () => {
     await repo.createAsset(getDb(), makeAssetRecord({ filename: 'c.jpg', isFileSynced: true }));
     await albums.create(getDb(), makeAlbumRecord({ name: 'Trip' }));
     await signIn(sessionOf('A'));
+    await firstPullDrains();
     const aId = getLibrary().id;
     await signIn(sessionOf('B'));
+    await firstPullDrains();
     const bId = getLibrary().id;
     expect(await assets()).toHaveLength(0);
 
@@ -247,8 +262,9 @@ describe('switching libraries with the session', () => {
     await resumeMerges(); // what LibraryProvider runs after the boot
     await mergeDeviceLibrary();
 
-    expect(await assets()).toHaveLength(0); // actual: A's photo
-    expect(await getDb().select().from(schema.albums)).toHaveLength(0); // actual: A's album
+    expect(getRegistry().libraries.find(({ id }) => id === deviceId)).toMatchObject({ keptFor: aId });
+    expect(await assets()).toHaveLength(0);
+    expect(await getDb().select().from(schema.albums)).toHaveLength(0);
   });
 
   it('a merge that fails leaves the device library parked, signed in anyway; the next boot retries it', async () => {
@@ -268,6 +284,7 @@ describe('switching libraries with the session', () => {
     failing.clear();
     await closeLibrary(); // the app is closed and opened again
     await open(store.session);
+    await markFirstSyncDone(getDb()); // the account's library pulled meanwhile
     await resumeMerges(); // what the boot runs after the library opened
     await mergeDeviceLibrary();
     expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);

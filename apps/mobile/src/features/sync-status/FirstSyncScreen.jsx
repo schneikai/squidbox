@@ -1,9 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { StyleSheet, Text } from 'react-native';
 
 import StatusScreen from '@/components/StatusScreen';
 import TextButton from '@/components/TextButton';
 import useCloud from '@/features/cloud/useCloud';
+import { openLibraryId } from '@/library/current';
+import { deviceLibrary, getRegistry, onRegistryChange } from '@/library/registry';
 import { schema } from '@/sync/db/client';
 import { useRecordCounts } from '@/sync/useRecordCounts';
 import { useSyncStatus } from '@/sync/useSyncStatus';
@@ -13,6 +15,13 @@ import { requestSync } from '@/sync/worker';
 // behind this (a) tells the user it's intentional and one-time, and (b) keeps the heavy asset
 // grids unmounted during the bulk load so the sync isn't fighting the UI. Shows live counts, not rows.
 const RETRY_MS = 5_000;
+
+// This device's library, waiting to join the open one (a merge waits for the first pull, mergeRun.ts).
+function deviceLibraryWaits() {
+  const device = deviceLibrary(getRegistry().libraries);
+  const open = openLibraryId();
+  return Boolean(device && device.id !== open && !device.keptFor && (!device.mergedInto || device.mergedInto === open));
+}
 
 function useTotal(table) {
   const { records, tombstones } = useRecordCounts(table);
@@ -25,6 +34,7 @@ export default function FirstSyncScreen() {
   const posts = useTotal(schema.posts);
   const { phase, lastError } = useSyncStatus();
   const { logoutAsync } = useCloud();
+  const addsDevicePhotos = useSyncExternalStore(onRegistryChange, deviceLibraryWaits);
 
   const hasError = phase === 'error' && !!lastError;
   const started = assets + albums + posts > 0;
@@ -52,6 +62,7 @@ export default function FirstSyncScreen() {
       ) : (
         <Text style={styles.hint}>Please keep the app open — it'll finish shortly.</Text>
       )}
+      {addsDevicePhotos && <Text style={styles.hint}>This iPhone’s photos are added once this is done.</Text>}
       {/* A sign-out stops the pull at its next batch; the library stays open with what it pulled. */}
       <TextButton label="Sign out" onPress={() => logoutAsync()} muted />
     </StatusScreen>

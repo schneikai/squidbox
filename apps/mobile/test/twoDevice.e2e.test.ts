@@ -1239,31 +1239,28 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       });
     });
 
-    // Round 8 (pre-existing on main): the sign-in merges the device library right after the switch
-    // (openLibraryForSignIn → mergeDeviceLibrary), into the account's library as it is then. On a
-    // phone signing in to the account for the first time that library is new and empty, so the
-    // camera-roll match (an asset the account has from the same camera-roll item is matched, not
-    // copied) finds nothing: the account's photo arrives with the first full pull, beside the copy.
-    // The wait for the first full pull (mergeRun) covers only a source copied into a library that is
-    // gone. Expected: one photo of the camera-roll item in the account. Actual: two.
-    it.fails(
-      'a photo the account has from the same camera-roll item isn’t duplicated by a sign-in on a new phone',
-      async () => {
-        await seedAsset({ mediaLibraryAssetId: 'camera-roll-1', filename: 'from-a.jpg' }); // on the account
-        const D = makeTestDb(); // the new phone's device library, before the sign-in
-        await setOwner(D, { kind: 'device' });
-        at(S + 100);
-        await repo.createAsset(
-          D,
-          makeAssetRecord({ mediaLibraryAssetId: 'camera-roll-1', filename: 'on-phone.jpg', isFileSynced: false }),
-        );
-        const N = makeTestDb(); // the account's library on the new phone, just created by the switch
-        await mergeInto(N, D, S + 200);
-        await settle([A, B, N]);
-        const live = (await N.select().from(clientSchema.assets)).filter((row) => row.deletedAt === null);
-        expect(live.map((row) => row.mediaLibraryAssetId)).toEqual(['camera-roll-1']); // actual: twice
-      },
-    );
+    // Round 8 (was on main): the sign-in merged the device library right after the switch, into the
+    // account's library on a new phone, new and empty: the camera-roll match found nothing, and the
+    // account's photo arrived with the first full pull beside the copy. Every merge waits for the
+    // target's first full pull now, and runs when it drains (useMergeAfterFirstSync).
+    it('a photo the account has from the same camera-roll item isn’t duplicated by a sign-in on a new phone', async () => {
+      await seedAsset({ mediaLibraryAssetId: 'camera-roll-1', filename: 'from-a.jpg' }); // on the account
+      const D = makeTestDb(); // the new phone's device library, before the sign-in
+      await setOwner(D, { kind: 'device' });
+      at(S + 100);
+      await repo.createAsset(
+        D,
+        makeAssetRecord({ mediaLibraryAssetId: 'camera-roll-1', filename: 'on-phone.jpg', isFileSynced: false }),
+      );
+      const N = makeTestDb(); // the account's library on the new phone, just created by the switch
+      await mergeInto(N, D, S + 200); // the sign-in: waits
+      expect(await N.select().from(clientSchema.assets)).toEqual([]);
+      await sync(N); // the first full pull
+      await mergeInto(N, D, S + 300);
+      await settle([A, B, N]);
+      const live = (await N.select().from(clientSchema.assets)).filter((row) => row.deletedAt === null);
+      expect(live.map((row) => row.mediaLibraryAssetId)).toEqual(['camera-roll-1']);
+    });
 
     it('a device purge older than the account’s pending restore loses to it everywhere', async () => {
       const id = await seedAsset();

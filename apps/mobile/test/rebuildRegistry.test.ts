@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { makeTestDb } from './helpers/testDb';
 import type { AppDb } from '../src/sync/db/driver';
-import { getOwner, setOwner } from '../src/sync/status';
+import { getOwner, setKeptFor, setMergeTarget, setOwner } from '../src/sync/status';
 
 const device: { names: string[] } = { names: [] };
 // Databases by name: each test's "disk". A rebuild opens and closes them, so every open hands out a
@@ -53,6 +53,22 @@ describe('rebuildRegistry', () => {
       { id: 'squidbox', owner: { kind: 'device' } },
     ]);
     expect(opened).toEqual(['library-abc.db', 'closed library-abc.db', 'squidbox.db', 'closed squidbox.db']);
+  });
+
+  // The device library's own markers are the authority (mergeRun.ts): one joined to a library stays
+  // with it, never merged into whatever account is signed in at the rebuild.
+  it('restores what a device library joins or joined, from its own database', async () => {
+    const merging = disk('library-dev.db');
+    await setOwner(merging, { kind: 'device' });
+    await setMergeTarget(merging, 'acc');
+    const kept = disk('library-old.db');
+    await setOwner(kept, { kind: 'device' });
+    await setKeptFor(kept, 'acc');
+
+    expect((await rebuildRegistry()).libraries).toEqual([
+      { id: 'dev', owner: { kind: 'device' }, mergedInto: 'acc' },
+      { id: 'old', owner: { kind: 'device' }, keptFor: 'acc' },
+    ]);
   });
 
   it("makes a database without an owner this device's library, so its data stays in reach", async () => {

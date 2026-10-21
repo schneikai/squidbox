@@ -186,6 +186,7 @@ async function scenario(step: string, crash: boolean, keepsSource: boolean): Pro
       isFileSynced: true,
     });
   await openLibrary(ACC);
+  await status.markFirstSyncDone(getDb());
 
   const hasFile = () => files.has(getAssetFileUri('p.jpg', SRC)) || files.has(getAssetFileUri('p.jpg', TGT));
   const inAccount = async () =>
@@ -296,6 +297,7 @@ describe('a device library’s sweep running when the sign-in merges it', () => 
     // The sign-in: the switch closes the device library, then its records join the account's.
     await closeLibrary();
     await openLibrary(ACC);
+    await status.markFirstSyncDone(getDb());
     await mergeLibrary('dev', 'acc');
     await new Promise((resolve) => setTimeout(resolve, 100)); // a batch in flight at the switch finishes
     inject.sweepDelay = 0;

@@ -11,6 +11,7 @@ const FIRST_SYNC_KEY = 'firstSyncDone'; // '1' once the initial full pull has dr
 const OWNER_KEY = 'owner'; // whose library this database is (JSON), so the library list is rebuildable
 const MERGE_TARGET_KEY = 'mergedInto'; // the library a merge pass copied this one's records into
 const MARKS_KEY = 'mergeMarks:'; // + a source library's database name (getMergeMarks)
+const KEPT_FOR_KEY = 'keptFor'; // the library a kept source library joined (getKeptFor)
 
 export type SyncPhase = 'idle' | 'pushing' | 'pulling' | 'error';
 export interface SyncStatus {
@@ -68,15 +69,36 @@ export async function setMergeTarget(db: SyncDb, targetId: string | null): Promi
   if (targetId) await setMeta(db, MERGE_TARGET_KEY, targetId);
   else await db.delete(schema.syncMeta).where(eq(schema.syncMeta.key, MERGE_TARGET_KEY));
 }
-// In a merge's target, per source library (by its database name): the newest clock a committed merge
-// pass merged of each source record (`collection:id`, library/mergeLibrary.ts), so a pass run again
-// merges only what the source edited since. Clocks are monotonic per record, not across a library.
-export async function getMergeMarks(db: SyncDb, source: string): Promise<Record<string, number>> {
+/**
+ * What a committed merge pass decided for a source record (`collection:id`, library/mergeLibrary.ts),
+ * and the record's updatedAt then: copied as itself (or the target had it by id), merged into the
+ * target's record `into` (a camera-roll match), or skipped (an edge whose membership the target had).
+ * A later pass never decides again: it only replays the record's newer edits along that decision.
+ */
+export type MergeMark = { at: number } & ({ as: 'copy' } | { as: 'match'; into: string } | { as: 'skip' });
+
+// The marks of a source library (by its database name), kept in the target (committed with each
+// pass) and in the source itself (after it), so they survive a change of target.
+export async function getMergeMarks(db: SyncDb, source: string): Promise<Record<string, MergeMark>> {
   const raw = await getMeta(db, `${MARKS_KEY}${source}`);
-  return raw ? (JSON.parse(raw) as Record<string, number>) : {};
+  return raw ? (JSON.parse(raw) as Record<string, MergeMark>) : {};
 }
-export async function setMergeMarks(db: SyncDb, source: string, marks: Record<string, number>): Promise<void> {
-  await setMeta(db, `${MARKS_KEY}${source}`, JSON.stringify(marks));
+export async function setMergeMarks(
+  db: SyncDb,
+  source: string,
+  marks: Record<string, MergeMark> | null,
+): Promise<void> {
+  if (marks) await setMeta(db, `${MARKS_KEY}${source}`, JSON.stringify(marks));
+  else await db.delete(schema.syncMeta).where(eq(schema.syncMeta.key, `${MARKS_KEY}${source}`));
+}
+
+// The library a source library joined and stays beside (mergeRun), in its own database: with the
+// merge marker, the authority the library list is rebuilt from, so it never joins a second account.
+export async function getKeptFor(db: SyncDb): Promise<string | null> {
+  return getMeta(db, KEPT_FOR_KEY);
+}
+export async function setKeptFor(db: SyncDb, targetId: string): Promise<void> {
+  await setMeta(db, KEPT_FOR_KEY, targetId);
 }
 export async function isFirstSyncDone(db: SyncDb): Promise<boolean> {
   return (await getMeta(db, FIRST_SYNC_KEY)) === '1';

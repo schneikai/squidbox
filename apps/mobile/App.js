@@ -31,6 +31,7 @@ import SwitchingScreen from '@/library/SwitchingScreen';
 import { getLibrary } from '@/library/current';
 import { currentSyncIdentity } from '@/library/currentSyncIdentity';
 import useLibrary from '@/library/useLibrary';
+import useMergeAfterFirstSync from '@/library/useMergeAfterFirstSync';
 import RootNavigator from '@/navigators/RootNavigator';
 import { navigationRef, flushPendingNavigation } from '@/navigators/navigationRef';
 import { colors } from '@/styles/designTokens';
@@ -162,6 +163,7 @@ function LibraryGate({ children }) {
 function AppGate() {
   const { isAuthenticated } = useCloud();
   const firstSyncDone = useFirstSyncDone();
+  useMergeAfterFirstSync(firstSyncDone);
   const showApp = use(AppShownContext);
   const showing = firstSyncDone !== undefined;
 

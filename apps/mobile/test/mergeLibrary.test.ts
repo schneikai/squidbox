@@ -1,3 +1,4 @@
+import { isNull } from 'drizzle-orm';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { createPost, makeAlbumRecord, makeAssetRecord } from './helpers/factory';
@@ -9,7 +10,7 @@ import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
 import { makeRepository } from '../src/sync/repository';
-import { setOwner } from '../src/sync/status';
+import { clearFirstSyncDone, markFirstSyncDone, setMergeMarks, setOwner } from '../src/sync/status';
 import { sweepPurgedFiles } from '../src/sync/sweepPurgedFiles';
 import { upsertRows } from '../src/sync/upsertRows';
 import getAssetFileUri from '../src/utils/assets/files/getAssetFileUri';
@@ -48,9 +49,10 @@ const newEdgeId = () => `edge-${++edgeIds}`;
 
 let source: SyncDb;
 let target: SyncDb;
-beforeEach(() => {
+beforeEach(async () => {
   source = makeTestDb();
   target = makeTestDb();
+  await markFirstSyncDone(target); // the account's library has synced: merges wait for its first pull
   files.clear();
   moves.length = 0;
   lose.clear();
@@ -375,6 +377,7 @@ describe('replays against a pending edit of the target (adversarial)', () => {
       for (const purging of ['source', 'target'] as const) {
         source = makeTestDb();
         target = makeTestDb();
+        await markFirstSyncDone(target);
         const shared = await sharedDeletedAsset();
         const [purger, restorer] = purging === 'source' ? [source, target] : [target, source];
         const purge = () => repo.purgeAssets(purger, [shared.id]);
@@ -512,6 +515,55 @@ describe('a device library merged again', () => {
     await applyMerge(target, plan);
     expect((await targetRow()).purgedAt).toBe(6000);
     expect([plan.files, plan.thumbnails]).toEqual([[], []]);
+  });
+});
+
+// A committed pass records per source record what it decided (getMergeMarks): copied, merged into
+// a camera-roll match, or skipped. Later passes only replay newer edits along that decision.
+describe('the decisions of a committed pass', () => {
+  // mergeRun writes the marks into the source after the target's commit: a new target (the earlier
+  // library went, and the account's next one pulled) finds them there.
+  it('survive a change of target: a matched photo the account deleted since isn’t copied back', async () => {
+    const theirs = makeAssetRecord({ mediaLibraryAssetId: 'm-1' });
+    await upsertRows(target, 'assets', schema.assets, [{ ...theirs, syncError: null }]);
+    await devicePhoto({ mediaLibraryAssetId: 'm-1', filename: 'mine.jpg' });
+    const plan = await planMerge(source, target, SRC);
+    await applyMerge(target, plan);
+    await setMergeMarks(source, plan.marks.source, plan.marks.decided);
+
+    const next = makeTestDb();
+    await markFirstSyncDone(next);
+    await upsertRows(next, 'assets', schema.assets, [{ ...theirs, deletedAt: 9, updatedAt: 9, syncError: null }]);
+    const again = await planMerge(source, next, SRC);
+    expect([again.assets, again.duplicates, again.files]).toEqual([[], [], []]);
+  });
+
+  // Two device photos of one camera-roll item in one album: one membership in the account, the
+  // other edge skipped. Taken out of the album in the account, the photo stays out.
+  it('a membership skipped as a duplicate isn’t copied once the account removed the one it had', async () => {
+    const theirs = await repo.createAsset(target, makeAssetRecord({ mediaLibraryAssetId: 'm-1' }));
+    const album = await albums.create(source, makeAlbumRecord({ name: 'Trip' }));
+    const a = await devicePhoto({ mediaLibraryAssetId: 'm-1' });
+    const b = await devicePhoto({ mediaLibraryAssetId: 'm-1' });
+    await albumEdges.add(source, album.id, [a.id, b.id], newEdgeId);
+    const plan = await planMerge(source, target, SRC);
+    expect(plan.albumAssets.map((edge) => edge.assetId)).toEqual([theirs.id]);
+    await applyMerge(target, plan);
+
+    await albumEdges.remove(target, album.id, [theirs.id]);
+    const again = await planMerge(source, target, SRC);
+    expect(again.albumAssets).toEqual([]);
+    await applyMerge(target, again);
+    const live = await target.select().from(schema.albumAssets).where(isNull(schema.albumAssets.deletedAt));
+    expect(live).toEqual([]);
+  });
+
+  it('nothing is planned before the target’s first full pull, unless the source holds nothing', async () => {
+    await clearFirstSyncDone(target);
+    expect((await planMerge(source, target, SRC)).waits).toBe(false); // an empty library: done at once
+    await devicePhoto();
+    const plan = await planMerge(source, target, SRC);
+    expect([plan.waits, addsRecords(plan)]).toEqual([true, false]);
   });
 });
 
