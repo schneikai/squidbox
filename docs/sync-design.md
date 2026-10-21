@@ -369,13 +369,14 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
   remove and reorder each write their own edge rows, so concurrent membership changes on two
   devices compose instead of one overwriting the other.
   - `position` is a fractional-index string key (`packages/shared/fractionalIndex.ts`). Edges
-    sort by plain string comparison. Adding appends with `keyBetween(last, null)`. Every re-key
-    goes through one function, `keysInOrder`: given the target order with each edge's current key,
-    it keeps the keys of a longest strictly increasing run (so of tied keys at most one stays) and
-    gives every other edge a key between the kept keys around it (`keysBetween`), so the keys are
-    distinct and in the target order by construction, and as few edges as possible are written.
-    A reorder (`reorder`) passes the given order; a move (`move`, `movePositions`) the moved edge
-    and the edges tied with the one it was dropped after, between that one and the next.
+    sort by plain string comparison. Adding appends with `keyBetween(last, null)`. A re-key of a
+    list goes through `keysInOrder`: given the target order with each edge's current key, it keeps
+    the keys of a longest strictly increasing run (so of tied keys at most one stays) and gives every
+    other edge a key between the kept keys around it (`keysBetween`), so the keys are distinct and in
+    the target order by construction, and as few edges as possible are written. A reorder
+    (`reorder`) and the albums' sort by name pass their order; a move (`move`, `movePositions`) keys
+    the moved edge and the edges tied with the one it was dropped after with `keysBetween`, between
+    that one and the next.
   - A post editor's save (`setRefs`) is an edit of the photo list it was seeded with: a photo the
     user took out loses every live edge to it, a ref they added is created, and a seed edge removed
     elsewhere meanwhile stays out. A ref is moved by the user when its order relative to the others
@@ -480,7 +481,8 @@ Tables (`apps/mobile/src/sync/db/schema.ts`):
 - `sync_meta(key, value)`: `cursor`, `status`, `firstSyncDone`, `owner` (whose library this
   database is, JSON, so the library list can be rebuilt from the databases), and in a device
   library merged into an account's: `mergedInto` (the library a merge pass committed into, §7a),
-  `keptFor` (the library it joined and stays beside) and `mergeMarks:<its database>` (the decisions
+  `mergedIntoAccount` (that library's account, JSON, kept until the merge completes), `keptFor`
+  (the library it joined and stays beside) and `mergeMarks:<its database>` (the decisions
   of its merge passes, kept until the merge completes); a target holds the marks until then too.
   `lastSyncUserId`, from before libraries, is left unread.
 - `outbox(id, collection, record_id, op, payload, fields, whole_record, updated_at, created_at,
@@ -556,7 +558,7 @@ with or without tokens (`library/sessionLibrary.ts`). The library lives on the d
 backs it up and keeps it in sync, and signing out only pauses that.
 
 - **Without an account** the app fills the device library (`owner: { kind: 'device' }`), created on
-  demand. It exists only before the first sign-in.
+  demand. It exists until it has joined an account's library (or is kept beside one).
 - **Signing in** switches libraries and then stores the session, inside one `withSyncPaused`
   section (`library/sessionLibrary.ts`; `library/switchLibrary.ts`: the closing library's database
   closed, the next one opened, the previous one reopened if the next won't open), so no run spans
@@ -566,11 +568,14 @@ backs it up and keeps it in sync, and signing out only pauses that.
   joins it, with no prompt, once that library's first full pull has drained: before it, no
   camera-roll item would match (the account's photo arriving beside the copy), and the records an
   earlier pass pushed aren't there to replay onto. Until then the setup screen says this iPhone's
-  photos are added after it (`FirstSyncScreen`, with the same check as `mergeDeviceLibrary`:
-  `deviceLibraryToJoin`), the device library is held by nothing (a sign-out or another account leaves
-  it free), and the end of that pull runs the merges due (`runPendingMerges`, from
-  `useMergeAfterFirstSync` in `AppGate`); a device library holding nothing joins at once
-  (`mergeWaits`).
+  photos are added after it (`FirstSyncScreen`, with the list-only check `mergeDeviceLibrary` uses:
+  `deviceLibraryToJoin`), the device library is held by nothing (another account leaves it free),
+  and the end of that pull runs the merges due (`runPendingMerges`, from `useMergeAfterFirstSync` in
+  `AppGate`); a device library holding nothing joins at once (`mergeWaits`). The device library
+  stays the open library until the merge has happened: while the session can't pull (signed out, or
+  a re-auth needed) and its account library hasn't finished its first pull, the boot and a sign-out
+  open the device library (`libraryToOpen`), so its photos are never hidden behind a half-pulled
+  library. The setup screen's Sign out asks first.
   The merge (`library/mergeRun.ts`) is crash-safe and idempotent: the `mergedInto` marker on the
   source, in the list and, from the first pass that copies records, in its own database; only a
   completed merge clears them, and a pass that fails before its commit leaves both as they were
@@ -595,24 +600,36 @@ backs it up and keeps it in sync, and signing out only pauses that.
     whose target record has no row at all, not even a tombstone (the server keeps those, and a
     full resync puts pending edits back), went into a library that never pushed it and is gone: it
     is made again, so those records and their files are copied rather than lost with the source.
+    That holds within one account only: the first pass that commits records the account
+    (`mergedIntoAccount`), and a source committed into one account's library never merges into
+    another's; it waits, files and all, for a library of that account.
   - **The source's own database is the authority** on what it joined (`mergedInto`, `keptFor`):
     `rebuildRegistry` restores both into a rebuilt list, and a source committed into a library that
     is still there joins no other (its list marker is set back to that library, whose merge the boot
-    finishes). The installed build kept them in the list only: every boot copies the list's into a
-    database lacking them before any merge runs (`backfillMergeMarkers`, to delete once the phone has
-    run this build). A source whose earlier target is gone joins the new one by the rules above.
-    A kept source keeps no marks (nothing reads them), and the target's go before `keptFor` is set.
-  The files moved are those of the assets that end in the target live or with a purge still
-  pending, never of one purged there for good. The same merge runs again at every boot while an
+    finishes). The list follows the database, so the screens and `mergeDeviceLibrary` read the list
+    alone, and `mergeLibrary` checks the database (`joinedElsewhere`) and repairs the list. The
+    installed build kept the markers in the list only: the first boot of this build copies the
+    list's into each existing database lacking them before any merge runs, once
+    (`backfillMergeMarkers`, to delete once the phone has run this build). A source whose earlier
+    target is gone joins a new library of the same account by the rules above. A kept source keeps
+    no marks (nothing reads them), and the target's go before `keptFor` is set.
+  Before the source is removed, every file it holds for a record that ends up in the account is in
+  the target's folders or in the cloud: the files of the assets that end in the target by id, live
+  or with a purge still pending (never of one purged there for good), and, for a camera-roll match
+  whose record has no file or thumbnail in the cloud, the device's copy, moved under the record's
+  names (its backup uploads it). The same merge runs again at every boot while an
   unmerged device library exists (`runPendingMerges`: `resumeMerges`, which skips a marked source
-  that is the open library and goes on after a failed one, then `mergeDeviceLibrary`, inside
-  `withSyncPaused`), so one that failed or that a crash interrupted finishes then. A device library with photos
+  that is the open library and goes on after a failed one, then `mergeDeviceLibrary`, which leaves
+  a marked source to it, inside `withSyncPaused`), so one that failed or that a crash interrupted
+  finishes then. A device library with photos
   whose file lives in another account's storage is kept, recorded as `keptFor` the account once its
   merge completed, and never merged again, so it never joins a second account.
 - **Signing out** drops the tokens and nothing else (`dropTokensAsync`, then a best-effort
   revoke): the same library stays open and editable, writes queue in its outbox and photos wait for
   the backup, and all of it uploads when its owner signs in again. Settings asks once, and only
-  when something is pending or not backed up.
+  when something is pending or not backed up. The one exception is a sign-out before the account
+  library's first pull drained while the device library waits to join it: the device library opens
+  again (see Signing in).
 - **Signing in as another account** opens that account's library and parks the current one with
   its pending changes, until its owner signs in again. Nothing is wiped and nothing in the UI
   removes a library.

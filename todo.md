@@ -301,9 +301,11 @@ module-global. Closing a library already makes a late write fail, so this is tid
 ### [ ] A parked device library says nothing outside the first sync
 
 The setup screen says this iPhone's photos join after the first sync (`FirstSyncScreen`), but a
-device library whose merge failed (it retries at each boot, `mergeDeviceLibrary`), or that waits to
-finish into another account's library (`joinedElsewhere` in `library/mergeRun.ts`), shows nothing in
+device library whose merge failed (it retries at each boot, `mergeDeviceLibrary`), or that waits for
+another library or account it joined (`joinedElsewhere` in `library/mergeRun.ts`), shows nothing in
 the app, so its photos are out of sight until it completes. Show it in the sync status or Settings.
+The setup screen's hint reads the list alone, so for a device library its database ties to another
+account it says the photos join, though they won't.
 
 ### [ ] Merge marks are one JSON value per source library
 
