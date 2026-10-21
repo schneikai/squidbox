@@ -82,6 +82,9 @@ vi.mock('../src/library/fs', () => ({
 }));
 const ids = vi.hoisted(() => ({ n: 0 }));
 vi.mock('../src/utils/getNewItemId', () => ({ default: () => `id-${++ids.n}` }));
+// The token refresh's request (refreshAccessTokenAsync), for a session the server rejects.
+const api = vi.hoisted(() => ({ post: async (..._args: unknown[]): Promise<unknown> => ({}) }));
+vi.mock('../src/utils/cloud-api/api', () => ({ default: api }));
 
 const { bootLibrary } = await import('../src/library/bootLibrary');
 const { closeLibrary, getLibrary, openLibraryId } = await import('../src/library/current');
@@ -92,6 +95,8 @@ const { libraryForSession, mergeDeviceLibrary, openLibraryForSession, openLibrar
 const { switchLibrary } = await import('../src/library/switchLibrary');
 const { getDb, openAppDb } = await import('../src/sync/db/client');
 const { dropTokensAsync: signOut } = await import('../src/utils/cloud-api/sessionStore');
+const { default: refreshAccessTokenAsync } =
+  await import('../src/utils/cloud-api/authentication/refreshAccessTokenAsync');
 
 const tokens = { accessToken: 'a', refreshToken: 'r' };
 const sessionOf = (userId: string, serverId = 's1'): Session => ({
@@ -513,5 +518,89 @@ describe('switching libraries with the session', () => {
     await firstPullDrains();
     expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
     expect(libraryIds()).not.toContain(deviceId);
+  });
+
+  // Round 11: the server rejects the session while the account's first pull runs (a refresh token
+  // revoked by a password change, or one that expired while the app sat closed mid-setup): the pull's
+  // token refresh gets a 401 and the tokens go (refreshAccessTokenAsync), as at a sign-out. Nothing
+  // opens this device's library then (only the boot and CloudProvider's logoutAsync ask
+  // libraryToOpen), so the app leaves the setup screen (isAuthenticated is false) for the account's
+  // half-pulled library, and this iPhone's photos, which the setup screen said would be added, are
+  // out of sight until a relaunch, though libraryToOpen's rule (no tokens, no first pull) says the
+  // device library is the one to show. Expected: the open library shows the device's photo. Actual:
+  // the account's half-pulled library, without it.
+  it.fails('a session rejected during the first pull leaves this iPhone’s photos in reach', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    const photo = await repo.createAsset(
+      getDb(),
+      makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+    );
+    await signIn(sessionOf('A')); // the setup screen: the merge waits for the first pull
+    api.post = async () => {
+      throw Object.assign(new Error('HTTP 401'), { response: { status: 401 } });
+    };
+    await expect(refreshAccessTokenAsync({ serverId: 's1', userId: 'A' })).rejects.toThrow('rejected');
+    expect(store.session).toMatchObject({ userId: 'A', tokens: null });
+
+    expect((await assets()).map(({ id }) => id)).toEqual([photo.id]); // actual: []
+  });
+
+  // Round 11: the same rejection, and the user goes on in the library the app shows (the account's
+  // half-pulled one: the setup screen is gone) and adds a photo. At the next launch the boot's
+  // libraryToOpen opens this device's library instead (no tokens, the first pull not drained), so the
+  // photo just added vanishes from the app until the account signs in again; at a sign-in as another
+  // account it stays parked out of reach. Expected: a photo added in the open library is still in the
+  // open library after a relaunch. Actual: it isn't.
+  it.fails('a photo added after a session was rejected mid-setup is still there at the next launch', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    await repo.createAsset(
+      getDb(),
+      makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+    );
+    await signIn(sessionOf('A'));
+    api.post = async () => {
+      throw Object.assign(new Error('HTTP 401'), { response: { status: 401 } });
+    };
+    await expect(refreshAccessTokenAsync({ serverId: 's1', userId: 'A' })).rejects.toThrow('rejected');
+    const added = await repo.createAsset(
+      getDb(),
+      makeAssetRecord({ filename: 'b.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+    );
+
+    await closeLibrary(); // the app is closed and opened again
+    await bootLibrary(switchLibrary);
+    await runPendingMerges();
+
+    expect((await assets()).map(({ id }) => id)).toContain(added.id); // actual: the device library opened
+  });
+
+  // Round 11: a sign-out on the setup screen switches to this device's library (libraryToOpen); when
+  // that library's database won't open (a failed migration after an update, a damaged file), the
+  // sign-out's switch fails, is caught, and the account's library stays open. At every launch after,
+  // the boot picks the device library again, its switch throws with nothing open, and bootLibrary
+  // rejects: LibraryProvider shows the boot error ("close and reopen the app ... reinstall") at every
+  // launch, with no way to sign in, though the account's library opens fine (before round 10 the
+  // boot opened it). Expected: the boot opens a library (the account's, as the sign-out left it).
+  // Actual: the boot fails.
+  it.fails('a device library that won’t open doesn’t stop the boot after a setup sign-out', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    const deviceId = getLibrary().id;
+    await repo.createAsset(
+      getDb(),
+      makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+    );
+    await signIn(sessionOf('A'));
+    const aId = getLibrary().id;
+    failing.add(`library-${deviceId}.db`);
+    await signOut();
+    await open(store.session).catch(() => {}); // logoutAsync catches the failed switch
+    expect(getLibrary().id).toBe(aId);
+
+    await closeLibrary(); // the app is closed and opened again
+    await bootLibrary(switchLibrary); // actual: rejects with "cannot open library-….db"
+    expect(getLibrary().id).toBe(aId);
   });
 });
