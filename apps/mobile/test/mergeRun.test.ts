@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { and, eq, isNull } from 'drizzle-orm';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
@@ -319,4 +320,157 @@ describe('the sweep at a library’s open', () => {
     await settled();
     expect(files.has(getAssetFileUri('acc.jpg', TGT))).toBe(true);
   });
+});
+
+const { makeEdgeRepository } = await import('../src/sync/edgesRepository');
+const { upsertRows } = await import('../src/sync/upsertRows');
+
+// Round 7: a pass that committed, then a crash (or a failed file move) before the source went; the
+// device library may be opened and edited again meanwhile (the session was lost), and the account's
+// library syncs. The boot's resumed pass must add what the device did since, and only that.
+describe('round 7: a merge pass run again (a crash, a failed file move)', () => {
+  const albumEdges = makeEdgeRepository('album_assets', schema.albumAssets, 'albumId');
+  let edgeIds = 0;
+  const newEdgeId = () => `00000000-0000-4000-8000-${String(++edgeIds).padStart(12, '0')}`;
+
+  beforeEach(async () => {
+    if (openLibraryId()) await closeLibrary();
+    stores.clear();
+    files.clear();
+    storage.clear();
+    applyMergeImpl.fail = false;
+    await loadRegistry(async () => ({ libraries: [DEV, ACC] }));
+    stores.set(SRC.dbName, makeTestDb());
+    await openLibrary(ACC);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // The sign-in's pass: the markers, every record committed into the account, then the crash.
+  async function firstPassThenCrash() {
+    const { applyMerge, planMerge } = await import('../src/library/mergeLibrary');
+    await updateLibrary('dev', (library) => ({ ...library, mergedInto: 'acc' }));
+    await setMergeTarget(sourceDb(), 'acc');
+    await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC));
+  }
+  async function openDevice() {
+    await closeLibrary();
+    await openLibrary(DEV);
+  }
+  async function openAccount() {
+    await closeLibrary();
+    await openLibrary(ACC);
+  }
+  const accountAsset = async (id: string) =>
+    (await getDb().select().from(schema.assets).where(eq(schema.assets.id, id)))[0]!;
+
+  // The resumed pass replays only source clocks above `replayedThrough:<source>`, the newest clock of
+  // the source's whole outbox at the last commit. Clocks are per record (nextUpdatedAt), not across a
+  // library: a device clock that ran ahead when one record was written (set by hand, then corrected)
+  // puts the mark above every later edit of the others. Expected: the note made on the device after
+  // the first pass reaches the account. Actual: its clock is below the mark, the pass skips it, the
+  // merge completes and removes the device library: the note is gone for good. A mark per record
+  // (the replayed row's newest clock, which nextUpdatedAt keeps monotonic for that record) would hold;
+  // a global outbox sequence would not tell which fields of a coalesced row are new (an upsert keeps
+  // the row's id), so it would replay them all.
+  it.fails(
+    'an edit made on the device after the pass, stamped below the pass’s mark (the clock went back), reaches the account',
+    async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-21T10:00:00Z'));
+      const kept = await devicePhoto({ filename: 'k.jpg', mediaLibraryAssetId: 'm-k' });
+      vi.setSystemTime(new Date('2026-10-22T10:00:00Z')); // the clock a day ahead for a while
+      await devicePhoto({ filename: 'f.jpg', mediaLibraryAssetId: 'm-f' });
+      await firstPassThenCrash();
+
+      vi.setSystemTime(new Date('2026-10-21T10:05:00Z')); // set right again
+      await openDevice();
+      await repo.updateAsset(getDb(), kept.id, { notes: 'The one for the cover' });
+
+      await openAccount();
+      await resumeMerges();
+      expect(entry('dev')).toBeUndefined(); // complete: the device library is gone
+      expect((await accountAsset(kept.id)).notes).toBe('The one for the cover');
+    },
+  );
+
+  // A device photo of a camera-roll item the account has is merged into the account's photo
+  // (favorite OR'd, notes appended), not copied. That merge isn't a replay of the outbox, so the mark
+  // doesn't cover it: every pass does it again from the device's values. Expected: the account's
+  // unfavorite, made after the first pass, stays. Actual: the resumed pass favorites the photo again,
+  // at a new clock, which wins in the account too.
+  it.fails('a resumed pass doesn’t merge a matched photo again over what the account changed since', async () => {
+    const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-x', filename: 'p.jpg', isFavorite: false });
+    await upsertRows(getDb(), 'assets', schema.assets, [{ ...accountPhoto, syncError: null }]); // synced
+    await devicePhoto({ mediaLibraryAssetId: 'm-x', filename: 'd.jpg', isFavorite: true });
+    await firstPassThenCrash();
+    expect((await accountAsset(accountPhoto.id)).isFavorite).toBe(true);
+
+    // The account library pushes that, then pulls the unfavorite another device made later.
+    await getDb().delete(schema.outbox);
+    const later = (await accountAsset(accountPhoto.id)).updatedAt + 60_000;
+    await upsertRows(getDb(), 'assets', schema.assets, [
+      { ...(await accountAsset(accountPhoto.id)), isFavorite: false, updatedAt: later },
+    ]);
+
+    await resumeMerges();
+    expect(entry('dev')).toBeUndefined();
+    expect((await accountAsset(accountPhoto.id)).isFavorite).toBe(false);
+  });
+
+  // An album add creates a new edge, so taking a photo out of an album and putting it back makes a
+  // new edge beside the tombstone. The resumed pass replays the old edge's removal (the account has
+  // it by id) and skips the new one as a membership the account already has: the old edge, live
+  // in the account at planning, which the same commit then tombstones. Expected: the photo is in the
+  // album in the account, as on the device. Actual: it is in no album, and the device library is gone.
+  it.fails('a photo taken out of an album on the device and put back after the pass stays in the album', async () => {
+    const photo = await devicePhoto({ filename: 'a.jpg', mediaLibraryAssetId: 'm-a' });
+    const album = await albums.create(sourceDb(), makeAlbumRecord({ name: 'Trip' }));
+    await albumEdges.add(sourceDb(), album.id, [photo.id], newEdgeId);
+    await firstPassThenCrash();
+
+    await openDevice();
+    await albumEdges.remove(getDb(), album.id, [photo.id]);
+    await albumEdges.add(getDb(), album.id, [photo.id], newEdgeId);
+
+    await openAccount();
+    await resumeMerges();
+    expect(entry('dev')).toBeUndefined();
+    const live = await getDb()
+      .select()
+      .from(schema.albumAssets)
+      .where(and(eq(schema.albumAssets.albumId, album.id), isNull(schema.albumAssets.deletedAt)));
+    expect(live.map((edge) => edge.assetId)).toEqual([photo.id]);
+  });
+
+  // A source with its merge marker carries its tombstones (round 6), edges included, and planEdges
+  // copies one edge per membership: the first it meets, tombstone or not, then skips the rest of that
+  // membership as one "the target has". A photo taken out of an album and put back has a tombstone
+  // and a live edge (an add makes a new edge), the tombstone first. Here the sign-in's pass crashed
+  // between the source's marker and the commit, so the boot's pass is the first commit but carries.
+  // Expected: the photo is in the album in the account. Actual: only the tombstone is copied, the
+  // photo is in no album, and the device library is gone. (The same happens to edges made between
+  // two passes.)
+  it.fails(
+    'a photo taken out of an album and put back is in the album after a merge resumed from a crash before its commit',
+    async () => {
+      const photo = await devicePhoto({ filename: 'a.jpg', mediaLibraryAssetId: 'm-a' });
+      const album = await albums.create(sourceDb(), makeAlbumRecord({ name: 'Trip' }));
+      await albumEdges.add(sourceDb(), album.id, [photo.id], newEdgeId);
+      await albumEdges.remove(sourceDb(), album.id, [photo.id]);
+      await albumEdges.add(sourceDb(), album.id, [photo.id], newEdgeId);
+      // mergeLibrary's markers, then the crash before the target's commit.
+      await updateLibrary('dev', (library) => ({ ...library, mergedInto: 'acc' }));
+      await setMergeTarget(sourceDb(), 'acc');
+
+      await resumeMerges();
+      expect(entry('dev')).toBeUndefined();
+      const live = await getDb()
+        .select()
+        .from(schema.albumAssets)
+        .where(and(eq(schema.albumAssets.albumId, album.id), isNull(schema.albumAssets.deletedAt)));
+      expect(live.map((edge) => edge.assetId)).toEqual([photo.id]);
+    },
+  );
 });
