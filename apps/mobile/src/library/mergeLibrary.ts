@@ -23,7 +23,9 @@ import getAssetThumbnailsDirectory from '@/utils/assets/thumbnails/getAssetThumb
 type AssetRow = schema.AssetRow;
 type Row = { id: string; updatedAt: number; deletedAt: number | null };
 type Edge = Row & { assetId: string } & Record<string, unknown>;
-type Replay = schema.OutboxRow & { sent: Pick<schema.OutboxRow, 'payload' | 'fields'> };
+type Replay = Pick<schema.OutboxRow, 'collection' | 'recordId' | 'payload' | 'fields'> & {
+  sent: Pick<schema.OutboxRow, 'payload' | 'fields'>;
+};
 type Duplicate = {
   id: string;
   isFavorite: boolean;
@@ -83,8 +85,19 @@ const purgeWaits = (final: string | undefined, fields: FieldClocks = {}) => fina
  * among matchesBefore (mergeLibrary plans a source only into a library of the account it joined).
  * Every file the source holds for a record that ends up in the account is moved into the target's
  * folders unless the cloud has it.
+ *
+ * Decisions made in another library (`decidedElsewhere`: the source's marker names another one, lost
+ * before it may have pushed them) are kept, but a match's merge goes again, stamped at the device
+ * photo's own field clocks, never now: per-field LWW then settles it (the account's later change, or
+ * the earlier library's pushed merge, wins; one never pushed is made again). Notes already there
+ * aren't appended twice.
  */
-export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: LibraryPaths): Promise<MergePlan> {
+export async function planMerge(
+  source: SyncDb,
+  target: SyncDb,
+  sourcePaths: LibraryPaths,
+  { decidedElsewhere = false }: { decidedElsewhere?: boolean } = {},
+): Promise<MergePlan> {
   const name = sourcePaths.dbName;
   const replays: Replay[] = [];
   const sourceOutbox = await source.select().from(schema.outbox);
@@ -172,6 +185,20 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
   const matched = new Map<string, AssetRow>(); // the target assets those were merged into
   const assetIdMap = new Map<string, string>(); // source asset id → the id it has in the target
   let keepsSource = false;
+  // The device's own clock of a field of a photo: its pending edit's, else its updatedAt.
+  const ownClock = (asset: AssetRow, field: string) =>
+    outboxOf.get(`assets:${asset.id}`)?.fields[field] ?? asset.updatedAt;
+  // Matches decided elsewhere, by target asset: what the device's photos bring, at their own clocks.
+  const redone = new Map<string, { match: AssetRow; favorite: number | null; notes: string[]; notesAt: number }>();
+  const mergeAgain = (asset: AssetRow, match: AssetRow) => {
+    const sofar = redone.get(match.id) ?? { match, favorite: null, notes: [], notesAt: 0 };
+    if (asset.isFavorite) sofar.favorite = Math.max(sofar.favorite ?? 0, ownClock(asset, 'isFavorite'));
+    if (asset.notes) {
+      sofar.notes.push(asset.notes);
+      sofar.notesAt = Math.max(sofar.notesAt, ownClock(asset, 'notes'));
+    }
+    redone.set(match.id, sofar);
+  };
   const mergeInto = (match: AssetRow, from: Duplicate['from']) => {
     matched.set(match.id, match);
     const sofar = merged.get(match.id) ?? { favorite: false, notes: [] };
@@ -192,6 +219,10 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
       if (earlier.deletedAt !== null) continue;
       assetIdMap.set(asset.id, earlier.id);
       mark('assets', asset, { as: 'match', into: earlier.id });
+      if (decidedElsewhere) {
+        mergeAgain(asset, earlier);
+        continue;
+      }
       const since = newEdits('assets', asset.id);
       mergeInto(earlier, {
         favorite: 'isFavorite' in since && asset.isFavorite,
@@ -222,18 +253,32 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
   const duplicates = [...merged]
     .map(([id, from]) => ({ id, ...withDuplicates(matched.get(id)!, from), from }))
     .filter((d) => d.isFavorite !== matched.get(d.id)!.isFavorite || d.notes !== matched.get(d.id)!.notes);
+  for (const { match, favorite, notes, notesAt } of redone.values()) {
+    const values = withDuplicates(match, { favorite: favorite !== null, notes });
+    const fields: FieldClocks = {
+      ...(values.isFavorite !== match.isFavorite && { isFavorite: favorite! }),
+      ...(values.notes !== match.notes && { notes: notesAt }),
+    };
+    if (Object.keys(fields).length === 0) continue;
+    const sent = { payload: { ...match, ...values }, fields };
+    replays.push({ collection: 'assets', recordId: match.id, ...sent, sent }); // replayed onto it at the commit
+  }
 
   // The files of the assets that end in the target by the same id (the copied ones, and those the
   // target has unless their purge there is confirmed: the sweep, not a move, settles those, §7a).
   const assetReplays = new Map(replays.filter((row) => row.collection === 'assets').map((row) => [row.recordId, row]));
   const final = assetCollection.finalField!;
-  const confirmedPurge = (id: string) => {
+  const confirmedPurge = (state: object, fields: FieldClocks | undefined) =>
+    (state as Record<string, unknown>)[final] != null && !purgeWaits(final, fields);
+  const keptById = (id: string) => {
     const replay = assetReplays.get(id);
-    const state = (replay?.payload ?? targetById.get(id)) as Record<string, unknown>;
-    return state[final] != null && !purgeWaits(final, { ...pendingAssets.get(id)?.fields, ...replay?.fields });
+    return !confirmedPurge(replay?.payload ?? targetById.get(id)!, {
+      ...pendingAssets.get(id)?.fields,
+      ...replay?.fields,
+    });
   };
   const sameId = allSourceAssets.filter((asset) =>
-    targetById.has(asset.id) ? !confirmedPurge(asset.id) : assetIdMap.get(asset.id) === asset.id,
+    targetById.has(asset.id) ? keptById(asset.id) : assetIdMap.get(asset.id) === asset.id,
   );
   const files = new Moves(sourceFiles);
   const thumbnails = new Moves(sourceThumbnails);
@@ -245,20 +290,14 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
   // keeps a file once the source goes (its backup uploads it), unless its purge is confirmed; a
   // target's own copy stays (only missing destinations are moved into), and the first of several
   // matching photos gives it.
-  const pendingMatches = await pendingEdits(
-    target,
-    'assets',
-    matchCopies.map(([, match]) => match.id),
-    { fields: true },
-  );
+  const purgedMatches = matchCopies.filter(([, match]) => match.purgedAt !== null).map(([, match]) => match.id);
+  const pendingMatches = await pendingEdits(target, 'assets', purgedMatches, { fields: true });
   const retried = new Set<string>();
   for (const [asset, match] of matchCopies) {
-    if (match.purgedAt !== null && !purgeWaits(final, pendingMatches.get(match.id)?.fields)) continue;
-    const copied = [
-      !match.isFileSynced && files.add(asset.filename, match.filename),
-      !match.isThumbnailSynced && thumbnails.add(asset.thumbnailFilename, match.thumbnailFilename),
-    ];
-    if (copied.some(Boolean) && match.syncError !== null) retried.add(match.id);
+    if (confirmedPurge(match, pendingMatches.get(match.id)?.fields)) continue;
+    const fileGiven = !match.isFileSynced && files.add(asset.filename, match.filename);
+    const thumbnailGiven = !match.isThumbnailSynced && thumbnails.add(asset.thumbnailFilename, match.thumbnailFilename);
+    if ((fileGiven || thumbnailGiven) && match.syncError !== null) retried.add(match.id);
   }
 
   // Albums and posts.
@@ -421,7 +460,7 @@ class Moves {
 }
 
 /** Whether the plan writes to the target (a plan with nothing costs nothing to apply or move). */
-export function addsRecords(plan: MergePlan): boolean {
+export function writesTarget(plan: MergePlan): boolean {
   return [
     plan.assets,
     plan.albums,

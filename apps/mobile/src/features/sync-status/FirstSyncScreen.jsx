@@ -46,8 +46,8 @@ export default function FirstSyncScreen() {
     return () => clearInterval(id);
   }, [hasError]);
 
-  // Signing out stops the first pull, so it asks first; openLibraryForSignOut then opens the library
-  // to show.
+  // Signing out stops the first pull, so it asks first; watchTokenDrops then opens the library to
+  // show.
   async function handleSignOut() {
     const message = addsDevicePhotos
       ? 'This iPhone’s photos stay here and join your account the next time you sign in.'

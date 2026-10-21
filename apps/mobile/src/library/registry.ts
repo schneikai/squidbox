@@ -56,19 +56,13 @@ export function updateLibrary(id: string, change: (library: Library) => Library)
   });
 }
 
-export function deviceLibrary(libraries: Library[]): Library | undefined {
-  return libraries.find(({ owner }) => owner.kind === 'device');
+// Whether a library of this id is in the list.
+export function isListed(id: string): boolean {
+  return getRegistry().libraries.some((library) => library.id === id);
 }
 
-// The installed build (df33378) stored a merge marker as the target library's id: it takes the
-// account of that library, and goes when the library is gone or its owner unresolved (no serverId).
-function withMarker(library: Library, _index: number, libraries: Library[]): Library {
-  const marker = library.mergedInto as MergeMarker | string | undefined;
-  if (typeof marker !== 'string') return library;
-  const { mergedInto: _legacy, ...rest } = library;
-  const owner = libraries.find(({ id }) => id === marker)?.owner;
-  if (owner?.kind !== 'account' || !owner.serverId) return rest;
-  return { ...rest, mergedInto: { library: marker, serverId: owner.serverId, userId: owner.userId } };
+export function deviceLibrary(libraries: Library[]): Library | undefined {
+  return libraries.find(({ owner }) => owner.kind === 'device');
 }
 
 function parseRegistry(raw: string): Registry | null {
@@ -77,7 +71,7 @@ function parseRegistry(raw: string): Registry | null {
     if (!Array.isArray(parsed?.libraries)) return null;
     if (!parsed.libraries.every((library: Library) => typeof library?.id === 'string' && library.owner?.kind))
       return null;
-    return { libraries: parsed.libraries.map(withMarker) };
+    return parsed as Registry;
   } catch {
     return null;
   }

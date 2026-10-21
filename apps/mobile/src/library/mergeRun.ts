@@ -1,10 +1,9 @@
 import { openLibraryId } from './current';
 import { libraryPaths } from './libraryPaths';
-import { addsRecords, applyMerge, mergeWaits, moveMergedFiles, planMerge } from './mergeLibrary';
-import type { MergeMarker } from './mergeMarker';
-import { getRegistry, updateLibrary, type Library } from './registry';
+import { applyMerge, mergeWaits, moveMergedFiles, planMerge, writesTarget } from './mergeLibrary';
+import { joinedElsewhere, type MergeMarker } from './mergeMarker';
+import { getRegistry, isListed, updateLibrary } from './registry';
 import { removeLibrary } from './removeLibrary';
-import { sameAccount } from './sameAccount';
 import { withLibraryDb } from './withLibraryDb';
 
 import type { SyncDb } from '@/sync/db/types';
@@ -32,24 +31,8 @@ async function forgetMerge(source: SyncDb, name: string): Promise<void> {
   await setMergeMarks(source, name, null);
 }
 
-// What the source library's own database holds of its merges.
-type Markers = { keptFor: string | null; mergedInto: MergeMarker | null };
-
-/**
- * What the source's markers say it joined, when that keeps it from joining `target`: kept for a
- * library (never merged again), merging into another library still listed (finished there), or
- * into another account's library, gone since (its records are that account's: nothing of it goes to
- * another account, and it waits, files and all, for a library of that account).
- */
-function joinedElsewhere({ keptFor, mergedInto }: Markers, target: Library): 'kept' | 'elsewhere' | 'account' | null {
-  if (keptFor) return 'kept';
-  if (!mergedInto || mergedInto.library === target.id) return null;
-  if (getRegistry().libraries.some(({ id }) => id === mergedInto.library)) return 'elsewhere';
-  return target.owner.kind === 'account' && sameAccount(mergedInto, target.owner) ? null : 'account';
-}
-
 // A pass's end: it waits, completed (the source removed or kept), or found the source joined elsewhere.
-type Outcome = 'waits' | 'done' | 'kept' | 'account' | { keptFor: string } | { mergedInto: MergeMarker };
+type Outcome = 'waits' | 'done' | 'kept' | { keptFor: string } | { mergedInto: MergeMarker };
 
 /**
  * Adds the source library to the target in resumable stages, inside the caller's paused sync
@@ -83,17 +66,16 @@ export async function mergeLibrary(sourceId: string, targetId: string): Promise<
   const outcome = await withBothDbs(sourceId, targetId, async (sourceDb, targetDb): Promise<Outcome> => {
     const markers = { keptFor: await getKeptFor(sourceDb), mergedInto: await getMergeTarget(sourceDb) };
     const joined = joinedElsewhere(markers, target);
-    if (joined === 'kept') {
-      await forgetMerge(sourceDb, name); // a kept merge a crash interrupted
-      return { keptFor: markers.keptFor! };
-    }
-    if (joined === 'elsewhere') return { mergedInto: markers.mergedInto! };
-    if (joined === 'account') return 'account';
+    if (joined === 'waits') return 'waits'; // for a library of the account it joined
+    if (joined && 'keptFor' in joined) await forgetMerge(sourceDb, name); // a kept merge a crash interrupted
+    if (joined) return joined;
     if (await mergeWaits(sourceDb, targetDb)) return 'waits';
-    const plan = await planMerge(sourceDb, targetDb, libraryPaths(sourceId));
+    // Decisions made in another library (gone since, or the list rebuilt): their matches go again.
+    const decidedElsewhere = markers.mergedInto !== null && markers.mergedInto.library !== targetId;
+    const plan = await planMerge(sourceDb, targetDb, libraryPaths(sourceId), { decidedElsewhere });
     await setMarker(sourceId, marker);
     try {
-      if (addsRecords(plan)) {
+      if (writesTarget(plan)) {
         // Set before the target's commit (two databases can't share one): a pass that fails takes it back.
         await setMergeTarget(sourceDb, marker);
         await applyMerge(targetDb, plan);
@@ -111,7 +93,7 @@ export async function mergeLibrary(sourceId: string, targetId: string): Promise<
     await forgetMerge(sourceDb, name);
     return 'kept';
   });
-  if (outcome === 'waits' || outcome === 'account') return;
+  if (outcome === 'waits') return;
   if (outcome === 'done') await removeLibrary(sourceId);
   else if (outcome === 'kept') await setKept(sourceId, targetId);
   else if ('keptFor' in outcome) await setKept(sourceId, outcome.keptFor);
@@ -130,7 +112,7 @@ export async function resumeMerges(): Promise<void> {
   const { libraries } = getRegistry();
   for (const source of libraries) {
     const marker = source.mergedInto;
-    if (!marker || source.id === openLibraryId() || !libraries.some(({ id }) => id === marker.library)) continue;
+    if (!marker || source.id === openLibraryId() || !isListed(marker.library)) continue;
     try {
       await mergeLibrary(source.id, marker.library);
     } catch (error) {

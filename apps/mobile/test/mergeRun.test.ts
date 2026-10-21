@@ -723,10 +723,10 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
 // device's favorite and note go onto X), commits into `acc`, records its marks in the source, then the
 // app stops before the files move. `acc` is lost before it pushed anything (as in round 9), and the
 // device library joins `acc2`, a new library of the same account, whose first pull brought X as the
-// server has it: not a favorite, no note. The match decision stands (X has a row), and only the
-// device's edits newer than the mark are replayed, so the favorite and the note, made before pass 1,
-// never reach the account.
-// Expected: X in acc2 is a favorite with the device's note. Actual: neither, and the source is gone.
+// server has it: not a favorite, no note. The match decision stands (X has a row), and as it was made
+// in another library, its merge goes again, stamped at the device photo's own clocks (planMerge's
+// `decidedElsewhere`): per-field LWW settles it, so a merge acc never pushed is made again, and a
+// later change of the account wins.
 describe('round 12: a camera-roll match an earlier library never pushed', () => {
   const ACC2 = { id: 'acc2', owner: { kind: 'account' as const, serverId: 's1', userId: 'u1', email: 'u1@test' } };
   const TGT2 = libraryPaths('acc2');
@@ -743,7 +743,53 @@ describe('round 12: a camera-roll match an earlier library never pushed', () => 
     await markFirstSyncDone(getDb());
   });
 
-  it.fails('merges the device’s favorite and note into the account’s photo again', async () => {
+  // Pass 1 into acc, its marks in the source, acc lost; acc2's first pull brings X as `pulled`.
+  async function passIntoAccThenLost(accountPhoto: ReturnType<typeof makeAssetRecord>, pulled = accountPhoto) {
+    const { applyMerge, planMerge } = await import('../src/library/mergeLibrary');
+    await upsertRows(getDb(), 'assets', schema.assets, [{ ...accountPhoto, syncError: null }]);
+    await updateLibrary('dev', (library) => ({ ...library, mergedInto: marker('acc') }));
+    await setMergeTarget(sourceDb(), marker('acc'));
+    const plan = await planMerge(sourceDb(), getDb(), SRC);
+    await applyMerge(getDb(), plan);
+    await setMergeMarks(sourceDb(), SRC.dbName, plan.marks.decided);
+    await closeLibrary();
+    stores.delete(TGT.dbName);
+    await updateRegistry(() => ({ libraries: [{ ...DEV, mergedInto: marker('acc') }, ACC2] }));
+    stores.set(TGT2.dbName, makeTestDb());
+    await openLibrary(ACC2);
+    await upsertRows(getDb(), 'assets', schema.assets, [{ ...pulled, syncError: null }]);
+    await markFirstSyncDone(getDb());
+  }
+
+  // The account noted the photo on this phone after the device did (pending in acc2): it keeps its
+  // note; the device's favorite, which nothing changed since, comes again.
+  it('lets the account’s later change of a field win', async () => {
+    const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-x', isFavorite: false, notes: null });
+    await devicePhoto({ mediaLibraryAssetId: 'm-x', filename: 'd.jpg', isFavorite: true, notes: 'from the beach' });
+    await passIntoAccThenLost(accountPhoto);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await repo.updateAsset(getDb(), accountPhoto.id, { notes: 'the account’s own' });
+
+    await mergeLibrary('dev', 'acc2');
+
+    const [row] = await getDb().select().from(schema.assets);
+    expect(row).toMatchObject({ isFavorite: true, notes: 'the account’s own' });
+  });
+
+  // acc did push its merge: the pull brought it, and nothing is merged twice.
+  it('changes nothing when the account has the merge already', async () => {
+    const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-x', isFavorite: false, notes: 'theirs' });
+    await devicePhoto({ mediaLibraryAssetId: 'm-x', filename: 'd.jpg', isFavorite: true, notes: 'from the beach' });
+    await passIntoAccThenLost(accountPhoto, { ...accountPhoto, isFavorite: true, notes: 'theirs\nfrom the beach' });
+
+    await mergeLibrary('dev', 'acc2');
+
+    const [row] = await getDb().select().from(schema.assets);
+    expect(row).toMatchObject({ isFavorite: true, notes: 'theirs\nfrom the beach' });
+    expect(await getDb().select().from(schema.outbox)).toHaveLength(0);
+  });
+
+  it('merges the device’s favorite and note into the account’s photo again', async () => {
     const { applyMerge, planMerge } = await import('../src/library/mergeLibrary');
     const accountPhoto = makeAssetRecord({
       mediaLibraryAssetId: 'm-x',

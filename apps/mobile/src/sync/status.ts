@@ -63,9 +63,10 @@ export async function setOwner(db: SyncDb, owner: Owner): Promise<void> {
 // merge pass that copies its records into another library, cleared only once a merge that keeps the
 // source is done. Until then a restore there can beat this library's purges, which keep their files
 // (sweepPurgedFiles).
+// A bare library id, as earlier builds of this branch (never released) wrote, counts as no marker.
 export async function getMergeTarget(db: SyncDb): Promise<MergeMarker | null> {
   const raw = await getMeta(db, MERGE_TARGET_KEY);
-  return raw ? (JSON.parse(raw) as MergeMarker) : null;
+  return raw?.startsWith('{') ? (JSON.parse(raw) as MergeMarker) : null;
 }
 export async function setMergeTarget(db: SyncDb, marker: MergeMarker | null): Promise<void> {
   if (marker) await setMeta(db, MERGE_TARGET_KEY, JSON.stringify(marker));

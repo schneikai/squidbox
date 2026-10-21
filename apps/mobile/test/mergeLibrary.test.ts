@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createPost, makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
 import { libraryPaths } from '../src/library/libraryPaths';
-import { addsRecords, applyMerge, mergeWaits, moveMergedFiles, planMerge } from '../src/library/mergeLibrary';
+import { writesTarget, applyMerge, mergeWaits, moveMergedFiles, planMerge } from '../src/library/mergeLibrary';
 import * as repo from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
@@ -91,7 +91,7 @@ describe('planMerge + applyMerge', () => {
     expect([plan.assets.length, plan.albums.length, plan.posts.length]).toEqual([2, 1, 1]);
     expect(plan.keepsSource).toBe(true);
     expect(plan.albumAssets.map((edge) => edge.assetId).sort()).toEqual([a.id, b.id].sort()); // not the deleted one
-    expect(addsRecords(plan)).toBe(true);
+    expect(writesTarget(plan)).toBe(true);
 
     await applyMerge(target, plan);
     expect((await target.select().from(schema.assets)).map((row) => row.id).sort()).toEqual([a.id, b.id].sort());
@@ -103,7 +103,7 @@ describe('planMerge + applyMerge', () => {
 
     // Nothing left to add but the photo that lives elsewhere; the copied ones' files are still here.
     const again = await planMerge(source, target, SRC);
-    expect(addsRecords(again)).toBe(false);
+    expect(writesTarget(again)).toBe(false);
     expect(again.keepsSource).toBe(true);
     expect(again.files.sort()).toEqual(same('a.jpg', 'b.jpg'));
     expect(again.thumbnails.sort()).toEqual(same('at.jpg', 'bt.jpg'));
@@ -126,7 +126,7 @@ describe('planMerge + applyMerge', () => {
     // The target shows the edit at once, not after a push and pull.
     const [targetRow] = await target.select().from(schema.assets);
     expect(targetRow).toMatchObject({ notes: 'edited on the device', updatedAt: plan.replays[0]!.updatedAt });
-    expect(addsRecords(await planMerge(source, target, SRC))).toBe(false);
+    expect(writesTarget(await planMerge(source, target, SRC))).toBe(false);
   });
 
   it('a replay pushes the fields the device changed, keeping the account’s newer values of the others', async () => {
@@ -191,7 +191,7 @@ describe('planMerge + applyMerge', () => {
 
     const plan = await planMerge(source, target, SRC);
     expect(plan.replays).toEqual([]);
-    expect(addsRecords(plan)).toBe(false);
+    expect(writesTarget(plan)).toBe(false);
   });
 
   it('an edit made on the target between the plan and its commit isn’t set back by the replay', async () => {
@@ -242,7 +242,7 @@ describe('planMerge + applyMerge', () => {
     await moveMergedFiles(plan, SRC, TGT);
     expect(moves).toEqual([]);
     expect(files.has(getAssetFileUri('mine.jpg', SRC))).toBe(true);
-    expect(addsRecords(await planMerge(source, target, SRC))).toBe(false);
+    expect(writesTarget(await planMerge(source, target, SRC))).toBe(false);
   });
 
   it('keeps same-name albums separate', async () => {
@@ -307,7 +307,7 @@ describe('planMerge + applyMerge', () => {
     await applyMerge(target, plan);
     const [row] = await target.select().from(schema.assets);
     expect(row).toMatchObject({ isFavorite: true, notes: 'first\nsecond' });
-    expect(addsRecords(await planMerge(source, target, SRC))).toBe(false);
+    expect(writesTarget(await planMerge(source, target, SRC))).toBe(false);
   });
 
   it('a copied photo whose file is on the device is backed up to the account again', async () => {
@@ -340,7 +340,7 @@ describe('planMerge + applyMerge', () => {
     expect(row!.payload).toMatchObject({ deletedAt: expect.any(Number) });
     const [edge] = await target.select().from(schema.albumAssets);
     expect(edge!.deletedAt).toEqual(expect.any(Number));
-    expect(addsRecords(await planMerge(source, target, SRC))).toBe(false);
+    expect(writesTarget(await planMerge(source, target, SRC))).toBe(false);
   });
 });
 

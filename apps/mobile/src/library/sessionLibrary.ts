@@ -1,19 +1,17 @@
 import { openLibraryEntry, openLibraryId } from './current';
-import { databaseExists } from './fs';
-import { libraryPaths } from './libraryPaths';
+import { joinedElsewhere } from './mergeMarker';
 import { mergeLibrary, resumeMerges } from './mergeRun';
-import { deviceLibrary, getRegistry, type Library } from './registry';
-import { sameAccount } from './sameAccount';
+import { deviceLibrary, getRegistry, isListed, type Library } from './registry';
 import type { Session } from './session';
 import { sessionMatches } from './sessionMatches';
 import { withLibraryDb } from './withLibraryDb';
 
 import { isFirstSyncDone } from '@/sync/status';
 import { withSyncPaused } from '@/sync/worker';
-import { dropTokensAsync, getSession, onSessionChange, updateSession } from '@/utils/cloud-api/sessionStore';
+import { getSession, onSessionChange, updateSession } from '@/utils/cloud-api/sessionStore';
 import getNewItemId from '@/utils/getNewItemId';
 
-type SwitchLibrary = (target: Library) => Promise<void>;
+export type SwitchLibrary = (target: Library) => Promise<void>;
 
 // The session's own library: no session means this device's library, a session its owner's (both
 // created when missing, by the switch), with or without tokens. Which one opens is libraryToOpen's.
@@ -26,49 +24,44 @@ export function libraryForSession(session: Session | null): Library {
   return { id: getNewItemId(), owner: { kind: 'account', serverId, userId, email: email ?? '' } };
 }
 
-// Whether this device's library waits to join `target`, by the list (which follows the device
-// library's own database, mergeRun.ts): `target` is an account library of the account the device
-// library may join (any, until a merge pass recorded one, mergeMarker.ts), and the device library
-// isn't kept for a library or merging into another one still listed.
+// Whether this device's library waits to join `target`, an account library, by the list (which
+// follows the device library's own database, mergeRun.ts): its markers keep it from no other
+// library (joinedElsewhere).
 function waitsToJoin(device: Library | undefined, target: Library): device is Library {
-  if (!device || device.id === target.id || device.keptFor || target.owner.kind !== 'account') return false;
-  const marker = device.mergedInto;
-  if (!marker) return true;
-  const listed = getRegistry().libraries.some(({ id }) => id === marker.library);
-  return sameAccount(marker, target.owner) && (marker.library === target.id || !listed);
+  if (!device || device.id === target.id || target.owner.kind !== 'account') return false;
+  return joinedElsewhere(device, target) === null;
 }
 
-// At boot, and whenever the tokens go (openLibraryForSignOut): opens libraryToOpen, switching when
+// At boot and at every loss of the tokens (watchTokenDrops): opens libraryToOpen, switching when
 // another library is open. One that won't open gives way to the session's own library, so a damaged
 // device library never keeps the app from booting or the user from signing in.
 export async function openLibraryForSession(session: Session | null, switchLibrary: SwitchLibrary): Promise<void> {
-  const target = await libraryToOpen(session);
+  const { target, own } = await libraryToOpen(session);
   if (openLibraryId() === target.id) return;
   try {
     await switchLibrary(target);
   } catch (error) {
-    const own = libraryForSession(session);
     if (own.id === target.id) throw error;
     console.warn(`Could not open library ${target.id}; opening the session's own`, error);
     if (openLibraryId() !== own.id) await switchLibrary(own);
   }
 }
 
-// The session's own library, unless it would hide this iPhone's photos: while the session can't
-// pull (no tokens: signed out, or the server wants a new sign-in) and its account library hasn't
-// finished its first full pull, which this device's library waits to join (every merge waits for
-// it, mergeWaits), this device's library stays open, until a sign-in lets the pull and the merge run.
-async function libraryToOpen(session: Session | null): Promise<Library> {
+// The session's own library (`own`), unless it would hide this iPhone's photos: while the session
+// can't pull (no tokens: signed out, or the server wants a new sign-in) and its account library
+// hasn't finished its first full pull, which this device's library waits to join (every merge waits
+// for it, mergeWaits), this device's library stays open, until a sign-in lets the pull and the merge
+// run.
+async function libraryToOpen(session: Session | null): Promise<{ target: Library; own: Library }> {
   const own = libraryForSession(session);
   const device = deviceLibrary(getRegistry().libraries);
-  if (!session || session.tokens || !waitsToJoin(device, own)) return own;
-  return (await hasPulled(own)) ? own : device;
+  if (!session || session.tokens || !waitsToJoin(device, own)) return { target: own, own };
+  return { target: (await hasPulled(own)) ? own : device, own };
 }
 
-// Whether the library's first full pull has drained; a library without a database hasn't pulled.
+// Whether the library's first full pull has drained; one not in the list (new) hasn't pulled.
 async function hasPulled(library: Library): Promise<boolean> {
-  if (library.id !== openLibraryId() && !(await databaseExists(libraryPaths(library.id).dbName))) return false;
-  return withLibraryDb(library.id, isFirstSyncDone);
+  return isListed(library.id) && withLibraryDb(library.id, isFirstSyncDone);
 }
 
 // A sign-in, inside the caller's paused sync section: the account's library opens, then the session
@@ -85,24 +78,18 @@ export async function openLibraryForSignIn(session: Session, switchLibrary: Swit
   return switched;
 }
 
-// A sign-out, or any other loss of the tokens, inside the caller's paused sync section: the tokens go
-// (if still there), and libraryToOpen opens. Resolves the dropped tokens, for the caller to revoke.
-export async function openLibraryForSignOut(switchLibrary: SwitchLibrary): Promise<Session['tokens']> {
-  const dropped = await dropTokensAsync();
-  await openLibraryForSession(getSession(), switchLibrary);
-  return dropped;
-}
-
-// Tokens that go anywhere else (the server rejecting a refresh, inside a sync run; a changed server
-// at the cloud init) run openLibraryForSignOut too, in a paused section of their own, started
-// outside the code that dropped them (a sync run can't wait for a pause). Returns the unsubscribe.
+// Every loss of the tokens once the boot is done (a sign-out, the server rejecting a refresh inside a
+// sync run, a changed server) opens the library for the session without them (openLibraryForSession),
+// in a paused section of its own, started outside the code that dropped them (a sync run can't wait
+// for a pause). The boot does the same itself for a drop before this is installed (bootLibrary).
+// Returns the unsubscribe.
 export function watchTokenDrops(switchLibrary: SwitchLibrary): () => void {
   let hadTokens = Boolean(getSession()?.tokens);
   return onSessionChange((session) => {
     const dropped = hadTokens && session !== null && !session.tokens;
     hadTokens = Boolean(session?.tokens);
     if (!dropped) return;
-    withSyncPaused(() => openLibraryForSignOut(switchLibrary)).catch((error) =>
+    withSyncPaused(() => openLibraryForSession(getSession(), switchLibrary)).catch((error) =>
       console.warn('Could not open the library for a session without tokens', error),
     );
   });
@@ -125,8 +112,7 @@ export function deviceLibraryToJoin(): Library | null {
 // parked until the next try.
 export async function mergeDeviceLibrary(): Promise<void> {
   const source = deviceLibraryToJoin();
-  const marker = source?.mergedInto;
-  if (!source || (marker && getRegistry().libraries.some(({ id }) => id === marker.library))) return;
+  if (!source || source.mergedInto?.library === openLibraryId()) return;
   try {
     await mergeLibrary(source.id, openLibraryEntry()!.id);
   } catch (error) {

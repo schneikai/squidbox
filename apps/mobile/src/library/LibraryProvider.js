@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import LibraryContext from './LibraryContext';
 import { bootLibrary } from './bootLibrary';
-import { openLibraryEntry, openLibraryId } from './current';
+import { openLibraryEntry } from './current';
+import { isFatalSwitchFailure } from './isFatalSwitchFailure';
 import { libraryPaths } from './libraryPaths';
 import { onRegistryChange } from './registry';
 import { runPendingMerges, watchTokenDrops } from './sessionLibrary';
@@ -15,6 +16,7 @@ export default function LibraryProvider({ children }) {
   const openLibrary = useSyncExternalStore(onRegistryChange, openLibraryEntry);
   const [next, setNext] = useState(null);
   const [booted, setBooted] = useState(false);
+  const bootDone = useRef(false); // for the switch effect, which the boot's own switches run through
   const [error, setError] = useState(null);
 
   // Resolves once the target is open (or rejects with the previous library open again). Call it
@@ -26,6 +28,7 @@ export default function LibraryProvider({ children }) {
 
   useEffect(() => {
     bootLibrary(switchLibrary).then(() => {
+      bootDone.current = true;
       setBooted(true);
       // A merge a crash interrupted finishes now, and this device's library joins the account's if
       // it hasn't yet, serialized with every switch; a failure waits for the next boot.
@@ -46,9 +49,9 @@ export default function LibraryProvider({ children }) {
       (switchError) => {
         setNext(null);
         next.reject(switchError);
-        // The previous library couldn't be reopened either: with none open the gate would render
-        // nothing, so the boot error asks for a restart (which opens the session's library again).
-        if (!openLibraryId()) setError(switchError);
+        // With none open the gate would render nothing: the boot error, once booted (during the boot,
+        // bootLibrary's fallback runs, and its rejection is the boot error).
+        if (isFatalSwitchFailure(bootDone.current)) setError(switchError);
       },
     );
   }, [next]);

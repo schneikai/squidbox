@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { makeTestDb } from './helpers/testDb';
 import type { AppDb } from '../src/sync/db/driver';
+import * as schema from '../src/sync/db/schema';
 import { getOwner, setKeptFor, setMergeTarget, setOwner } from '../src/sync/status';
 
 const device: { names: string[] } = { names: [] };
@@ -69,6 +70,14 @@ describe('rebuildRegistry', () => {
       { id: 'dev', owner: { kind: 'device' }, mergedInto: { library: 'acc', serverId: 's1', userId: 'u1' } },
       { id: 'old', owner: { kind: 'device' }, keptFor: 'acc' },
     ]);
+  });
+
+  // Earlier builds of this branch (never released) wrote the marker as a bare library id.
+  it('reads a bare-id merge marker as none', async () => {
+    const dev = disk('library-dev.db');
+    await setOwner(dev, { kind: 'device' });
+    await dev.insert(schema.syncMeta).values({ key: 'mergedInto', value: 'acc' });
+    expect((await rebuildRegistry()).libraries).toEqual([{ id: 'dev', owner: { kind: 'device' } }]);
   });
 
   it("makes a database without an owner this device's library, so its data stays in reach", async () => {

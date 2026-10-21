@@ -1,10 +1,11 @@
 import { eq } from 'drizzle-orm';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { sessionStoreMock } from './helpers/sessionStoreMock';
 import { makeTestDb } from './helpers/testDb';
 import type { Owner } from '../src/library/owner';
+import type { Library } from '../src/library/registry';
 import type { Session } from '../src/library/session';
 import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
@@ -14,6 +15,7 @@ import { makeRepository } from '../src/sync/repository';
 import {
   getCursor,
   getKeptFor,
+  getMergeTarget,
   getOwner,
   isFirstSyncDone,
   markFirstSyncDone,
@@ -100,6 +102,7 @@ const {
   watchTokenDrops,
 } = await import('../src/library/sessionLibrary');
 const { switchLibrary } = await import('../src/library/switchLibrary');
+const { isFatalSwitchFailure } = await import('../src/library/isFatalSwitchFailure');
 const { getDb, openAppDb } = await import('../src/sync/db/client');
 const { dropTokensAsync: signOut } = await import('../src/utils/cloud-api/sessionStore');
 const { default: refreshAccessTokenAsync } =
@@ -136,6 +139,11 @@ const assetIdsIn = async (libraryId: string) =>
   (await (await openAppDb(`library-${libraryId}.db`)).select().from(schema.assets)).map(({ id }) => id);
 
 describe('switching libraries with the session', () => {
+  const watching: (() => void)[] = []; // watchTokenDrops subscriptions, ended after each test
+  afterEach(() => {
+    for (const stop of watching.splice(0)) stop();
+  });
+
   beforeEach(async () => {
     if (openLibraryId()) await closeLibrary();
     stores.clear();
@@ -526,6 +534,32 @@ describe('switching libraries with the session', () => {
     expect(libraryIds()).not.toContain(deviceId);
   });
 
+  // The installed build stored a merge marker as the target library's id: at the first boot of this
+  // build it takes that library's account (or goes, the library gone or its owner unresolved), in the
+  // list, and is copied into the device library's database.
+  it('the boot gives the installed build’s merge markers their account, in the list and the database', async () => {
+    const acc = { id: 'acc', owner: { kind: 'account' as const, serverId: 's1', userId: 'u1', email: '' } };
+    const unresolved = { id: 'old', owner: { kind: 'account', serverId: null, userId: 'u2', email: '' } };
+    const legacy = [
+      { id: 'dev', owner: { kind: 'device' }, mergedInto: 'acc' },
+      { id: 'dev-2', owner: { kind: 'device' }, mergedInto: 'gone' },
+      { id: 'dev-3', owner: { kind: 'device' }, mergedInto: 'old' },
+      acc,
+      unresolved,
+    ];
+    storage.set('libraries', JSON.stringify({ libraries: legacy }));
+    dbNames.push('library-dev.db');
+    await bootLibrary(switchLibrary);
+
+    const marker = { library: 'acc', serverId: 's1', userId: 'u1' };
+    expect(getRegistry().libraries.slice(0, 3)).toEqual([
+      { id: 'dev', owner: { kind: 'device' }, mergedInto: marker },
+      { id: 'dev-2', owner: { kind: 'device' } },
+      { id: 'dev-3', owner: { kind: 'device' } },
+    ]);
+    expect(await getMergeTarget(await openAppDb('library-dev.db'))).toEqual(marker);
+  });
+
   // Round 11: a merge marked for A's library (a pass that committed, then failed or crashed) resumes at
   // A's next sign-in, not only at the next launch.
   it('a sign-in resumes a merge marked for the account’s library', async () => {
@@ -579,7 +613,7 @@ describe('switching libraries with the session', () => {
       makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
     );
     await signIn(sessionOf('A')); // the setup screen: the merge waits for the first pull
-    const stop = watchTokenDrops(switchLibrary);
+    watching.push(watchTokenDrops(switchLibrary));
     api.post = async () => {
       throw Object.assign(new Error('HTTP 401'), { response: { status: 401 } });
     };
@@ -588,7 +622,6 @@ describe('switching libraries with the session', () => {
 
     await vi.waitFor(() => expect(openOwner()).toEqual({ kind: 'device' }));
     expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
-    stop();
   });
 
   // Round 11: the same rejection, and the user goes on in the library the app shows and adds a photo.
@@ -602,13 +635,12 @@ describe('switching libraries with the session', () => {
       makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
     );
     await signIn(sessionOf('A'));
-    const stop = watchTokenDrops(switchLibrary);
+    watching.push(watchTokenDrops(switchLibrary));
     api.post = async () => {
       throw Object.assign(new Error('HTTP 401'), { response: { status: 401 } });
     };
     await expect(refreshAccessTokenAsync({ serverId: 's1', userId: 'A' })).rejects.toThrow('rejected');
     await vi.waitFor(() => expect(openOwner()).toEqual({ kind: 'device' }));
-    stop();
     const added = await repo.createAsset(
       getDb(),
       makeAssetRecord({ filename: 'b.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
@@ -637,11 +669,23 @@ describe('switching libraries with the session', () => {
     const aId = getLibrary().id;
     failing.add(`library-${deviceId}.db`);
     await signOut();
-    await open(store.session); // logoutAsync's openLibraryForSignOut
+    await open(store.session); // what watchTokenDrops runs after the drop
     expect(getLibrary().id).toBe(aId);
 
-    await closeLibrary(); // the app is closed and opened again
-    await bootLibrary(switchLibrary);
+    // The app is closed and opened again, LibraryProvider's switch reporting a failure as the boot
+    // error only once booted (isFatalSwitchFailure): the boot's fallback runs.
+    await closeLibrary();
+    const bootErrors: unknown[] = [];
+    const providerSwitch = async (target: Library) => {
+      try {
+        await switchLibrary(target);
+      } catch (error) {
+        if (isFatalSwitchFailure(false)) bootErrors.push(error);
+        throw error;
+      }
+    };
+    await bootLibrary(providerSwitch);
     expect(getLibrary().id).toBe(aId);
+    expect(bootErrors).toEqual([]);
   });
 });
