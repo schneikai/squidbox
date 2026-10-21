@@ -199,9 +199,10 @@ stays valid and late devices always learn about deletes. Per-user data is small.
 Each mutation carries the **whole record** (the full schema validates it, and an insert needs every
 column) and `fields`: the fields its edits changed, each with its clock. The server merges only
 those, field by field; a mutation without `fields` is a whole-record push (§7). A request holds at
-most 500 mutations; the client splits its outbox into batches of 500, and of at most half the
-server's body limit (`PUSH_BODY_LIMIT` in `packages/shared/contracts/sync.ts`), so a batch of large
-records is never refused for good.
+most `PUSH_MAX_MUTATIONS` (500) mutations, in a body of at most `PUSH_BODY_LIMIT` (1 MiB, the push
+route's `bodyLimit`; both in `packages/shared/contracts/sync.ts`); the client splits its outbox into
+batches of at most that many mutations and half that body, so a batch of large records is never
+refused for good.
 
 ```jsonc
 // request
@@ -311,8 +312,10 @@ from losing to this device's own earlier write.
 goes through, compares each record with the stored row its caller read and names the merge fields
 that changed, widened to their field group, at the record's new `updatedAt`; a new record names
 every field. A record that changes no synced field is neither written nor enqueued. An editor seeded
-when it opens saves only the fields that differ from its seed (`changedValues`), so a field another
-device changed meanwhile isn't sent back with a fresh clock.
+when it opens saves only the fields that differ from its seed, so a field another device changed
+meanwhile isn't sent back with a fresh clock: the single-field editors (an album's name or notes, an
+asset's note) compare their value with the seed's, and the post editor, which edits several fields,
+uses `changedValues`.
 
 **Outbox coalescing.** The outbox holds at most one row per `(collection, record_id)`; a newer
 write replaces the payload, and its `fields` are merged into the row's with `json_patch`, so each
@@ -367,13 +370,17 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
   devices compose instead of one overwriting the other.
   - `position` is a fractional-index string key (`packages/shared/fractionalIndex.ts`). Edges
     sort by plain string comparison. Adding appends with `keyBetween(last, null)`. Reordering
-    (and saving a post's asset list) assigns `initialKeys(n)` across the list and rewrites only
-    the edges whose key changed.
+    (`reorder`) assigns `initialKeys(n)` across the list and rewrites only the edges whose key
+    changed; a move (`move`) gives the moved edge one key between its new neighbours.
   - A post editor's save (`setRefs`) is an edit of the photo list it was seeded with: a photo the
     user took out loses every live edge to it, a ref they added is created, a seed edge removed
-    elsewhere meanwhile stays out, and only the listed edges out of order get new keys, so the live
+    elsewhere meanwhile stays out, and only the refs the user moved get new keys. A ref is moved
+    when its order relative to the others differs from the seed's (outside a longest run in the
+    seed's order), and its new key goes after the kept keys before it and before those after it, as
+    they are now. So a reorder another device made while the editor was open stays, and the live
     edges the seed didn't have (another device's add, a photo hidden from the editor because its
-    purge waits) keep their places.
+    purge waits) keep their places. A moved photo's duplicate edges are tombstoned, as `reorder` and
+    `move` do.
   - Removing tombstones the edge. Deleting an album or post tombstones its edges too
     (`tombstoneParent`). Deleting or purging an asset does not touch its edges, so a restore puts
     it back where it was. Readers resolve edges through the asset: albums skip deleted assets, a
@@ -466,9 +473,11 @@ Tables (`apps/mobile/src/sync/db/schema.ts`):
 
 - One table per collection: synced fields plus local-only fields.
 - `sync_meta(key, value)`: `cursor`, `status`, `firstSyncDone`, `owner` (whose library this
-  database is, JSON, so the library list can be rebuilt from the databases), `mergedInto` (the merge
-  marker of a device library a merge pass copied, §7a). `lastSyncUserId`, from before libraries, is
-  left unread.
+  database is, JSON, so the library list can be rebuilt from the databases), and in a device
+  library merged into an account's: `mergedInto` (the library a merge pass committed into, §7a),
+  `keptFor` (the library it joined and stays beside) and `mergeMarks:<its database>` (the decisions
+  of its merge passes); a target holds the last until the merge completes. `lastSyncUserId`, from
+  before libraries, is left unread.
 - `outbox(id, collection, record_id, op, payload, fields, whole_record, updated_at, created_at,
   error)`: pending mutations, one row per record. `op` is `delete` when the payload has
   `deletedAt`, otherwise `upsert`. `fields` is the changed fields with their clocks (§6);
@@ -500,7 +509,8 @@ miss it.
 
 **Sync worker** (`apps/mobile/src/sync/worker.ts`). One run is push, then pull:
 
-1. Push all outbox rows in batches of 500, and of at most 512 KB, and handle each result (§6).
+1. Push all outbox rows in batches of `PUSH_MAX_MUTATIONS`, and of at most half `PUSH_BODY_LIMIT`,
+   and handle each result (§6).
 2. Pull from the stored cursor until `hasMore` is false, applying the pages in batches of about
    5,000 records (§5). Then set `firstSyncDone`.
 
@@ -548,29 +558,47 @@ backs it up and keeps it in sync, and signing out only pauses that.
   a session or library change, and a failed switch leaves the old session untouched, with nothing
   to revert. `CloudProvider.loginAsync` then navigates to Settings. The account's library is the
   parked one from an earlier sign-in, or a new empty one. Then whatever the device library holds
-  joins it at once, with no prompt (`library/mergeRun.ts`, crash-safe and idempotent: the
-  `mergedInto` marker on the source, in the list and, from the first pass that copies records, in
-  its own database; only a completed merge clears them, and a pass that fails before its commit
-  leaves both as they were before it; every record in one transaction of the
-  target with its outbox row; files, found by listing the source's folders, moved into missing
-  destinations after the commit; the source removed when nothing is left in it. A pending edit of a
-  record the target has is merged into the target's row with `mergeRecord` against the target's
-  pending clocks, and what applies goes into its outbox through `saveRecords` with the source's
-  clocks; it and the camera-roll matches' merges are made again inside the commit's transaction,
-  onto the rows as they are then, so an edit made on the open target meanwhile isn't set back. The
-  source's outbox is never cleared, so the commit records in the target, per source record, the
-  newest clock it merged (`mergeMarks:<source>`; clocks are monotonic per record, not across a
-  library), and a pass run again merges only what the device edited since, a matched photo's
-  favorite and notes included. A source copied into an earlier library that is gone waits for the
-  new target's first full pull, which brings what the earlier one pushed, so its edits and deletions
-  replay by id. The files moved are those of the assets that end in the target live or with a purge
-  still pending, never of one purged there for good). The same merge runs again at every boot while
-  an unmerged device library exists
-  (`mergeDeviceLibrary`, inside `withSyncPaused` after `resumeMerges`, which skips a marked source
-  that is the open library and goes on after a failed one), so one that failed or that a crash
-  interrupted finishes then. A device library with photos whose file lives in another account's
-  storage is kept, recorded as `keptFor` the account once its merge completed, and never merged
-  again, so it never joins a second account.
+  joins it, with no prompt, once that library's first full pull has drained: before it, no
+  camera-roll item would match (the account's photo arriving beside the copy), and the records an
+  earlier pass pushed aren't there to replay onto. Until then the setup screen says this iPhone's
+  photos are added after it (`FirstSyncScreen`), the device library is held by nothing (a sign-out
+  or another account leaves it free), and the end of that pull runs the merge
+  (`useMergeAfterFirstSync`, in `AppGate`); a device library holding nothing joins at once.
+  The merge (`library/mergeRun.ts`) is crash-safe and idempotent: the `mergedInto` marker on the
+  source, in the list and, from the first pass that copies records, in its own database; only a
+  completed merge clears them, and a pass that fails before its commit leaves both as they were
+  before it; every record in one transaction of the target with its outbox row; files, found by
+  listing the source's folders, moved into missing destinations after the commit; the source
+  removed when nothing is left in it. A pending edit of a record the target has is merged into the
+  target's row with `mergeRecord` against the target's pending clocks, and what applies goes into
+  its outbox through `saveRecords` with the source's clocks; it and the camera-roll matches' merges
+  are made again inside the commit's transaction, onto the rows as they are then, so an edit made
+  on the open target meanwhile isn't set back.
+  - **Decisions are made once.** Every source record a committed pass decided on keeps a mark of the
+    decision and the record's `updatedAt` then (`mergeMarks:<source>`, `MergeMark` in
+    `sync/status.ts`): copied (or the target had it by id), merged into target record X (a
+    camera-roll match), or skipped (an edge whose membership the target had). The marks are
+    committed with the target's records and written into the source after the commit, so they
+    survive a change of target; the target's copy goes once the merge completes. A later pass (a
+    crash, a failed file move, a new target after the earlier one went) never decides again: it
+    only replays the record's edits newer than its mark (the source's outbox is never cleared;
+    clocks are monotonic per record, not across a library) along the decision: onto the record, or
+    onto X, and nowhere when X is gone (deleted, purged, or not pulled), so a photo the account
+    deleted is never copied back, and a skipped membership is never added once the account removed
+    the one it had.
+  - **The source's own database is the authority** on what it joined (`mergedInto`, `keptFor`):
+    `rebuildRegistry` restores both into the list, and a source committed into a library that is
+    still there joins no other (its list marker is set back to that library, whose merge the boot
+    finishes). A source whose earlier target is gone joins the new one by the rules above: its
+    records reached the account, and the new library's first pull brings them, so the device's
+    edits and deletions of them replay by id.
+  The files moved are those of the assets that end in the target live or with a purge still
+  pending, never of one purged there for good. The same merge runs again at every boot while an
+  unmerged device library exists (`mergeDeviceLibrary`, inside `withSyncPaused` after
+  `resumeMerges`, which skips a marked source that is the open library and goes on after a failed
+  one), so one that failed or that a crash interrupted finishes then. A device library with photos
+  whose file lives in another account's storage is kept, recorded as `keptFor` the account once its
+  merge completed, and never merged again, so it never joins a second account.
 - **Signing out** drops the tokens and nothing else (`dropTokensAsync`, then a best-effort
   revoke): the same library stays open and editable, writes queue in its outbox and photos wait for
   the backup, and all of it uploads when its owner signs in again. Settings asks once, and only

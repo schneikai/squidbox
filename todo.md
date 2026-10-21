@@ -290,6 +290,19 @@ Only the asset path helpers lost their `getLibrary()` fallback. `AppInit` still 
 from `getDb()`/`getLibrary()`, `switchLibrary` uses `getLibrary()`, and the web thumbnail cache is
 module-global. Closing a library already makes a late write fail, so this is tidiness, not safety.
 
+### [ ] A parked device library says nothing outside the first sync
+
+The setup screen says this iPhone's photos join after the first sync (`FirstSyncScreen`), but a
+device library whose merge failed (it retries at each boot, `mergeDeviceLibrary`), or that waits to
+finish into another account's library (`joinedElsewhere` in `library/mergeRun.ts`), shows nothing in
+the app, so its photos are out of sight until it completes. Show it in the sync status or Settings.
+
+### [ ] Merge marks are one JSON value per source library
+
+`mergeMarks:<source>` (`sync/status.ts`) holds a decision per merged record in one `sync_meta` value,
+read and written whole by every pass: about 100 bytes per record, so ~1 MB for a 10,000-photo device
+library. Fine for a few passes; a table keyed by record would scale if passes get frequent.
+
 ## Ideas
 
 - **Background sync.** Sync runs only while the app is open. A background task or a silent push
