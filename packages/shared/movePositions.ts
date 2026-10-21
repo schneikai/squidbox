@@ -1,4 +1,4 @@
-import { keysBetween } from './fractionalIndex';
+import { keysInOrder } from './fractionalIndex';
 
 /**
  * The new positions, as `{ [id]: { position } }`, that put item `id` right after item `afterId`
@@ -24,6 +24,10 @@ export function movePositions(
   const upper = others[end]?.position ?? null;
 
   const placed = [moved, ...others.slice(at, end)];
-  const keys = keysBetween(lower, upper, placed.length);
+  const keys = keysInOrder(
+    placed.map((item) => (item === moved ? null : item.position)),
+    lower,
+    upper,
+  );
   return Object.fromEntries(placed.map((item, i) => [item.id, { position: keys[i]! }]));
 }

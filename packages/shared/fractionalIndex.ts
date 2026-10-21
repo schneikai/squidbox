@@ -61,3 +61,57 @@ export function initialKeys(n: number): string[] {
   }
   return keys;
 }
+
+/**
+ * Keys that put a sequence in its order, strictly between `lower` and `upper` (null: open), changing
+ * as few as possible. `current` is each item's key now (null: none). The items whose keys form a
+ * longest strictly increasing run inside the bounds keep them (of tied keys at most one stays); every
+ * other item gets a key from `keysBetween` over its gap, between the kept keys (or bounds) around it.
+ * So the keys are distinct and in the sequence's order by construction.
+ */
+export function keysInOrder(
+  current: (string | null)[],
+  lower: string | null = null,
+  upper: string | null = null,
+): string[] {
+  const inside = current.map((key) =>
+    key !== null && (lower === null || key > lower) && (upper === null || key < upper) ? key : null,
+  );
+  const kept = longestIncreasing(inside);
+  const keys: string[] = [];
+  let prev = lower;
+  for (let i = 0; i < current.length;) {
+    if (kept.has(i)) {
+      prev = inside[i]!;
+      keys.push(prev);
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j < current.length && !kept.has(j)) j++;
+    keys.push(...keysBetween(prev, j < current.length ? inside[j]! : upper, j - i));
+    i = j;
+  }
+  return keys;
+}
+
+/** The indices of a longest strictly increasing run of the non-null values (patience sorting, n log n). */
+export function longestIncreasing<K extends string | number>(keys: (K | null)[]): Set<number> {
+  const tails: number[] = []; // index of the smallest tail of each run length
+  const previous = new Array<number>(keys.length).fill(-1);
+  for (const [i, key] of keys.entries()) {
+    if (key === null) continue;
+    let lo = 0;
+    let hi = tails.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (keys[tails[mid]!]! < key) lo = mid + 1;
+      else hi = mid;
+    }
+    previous[i] = lo > 0 ? tails[lo - 1]! : -1;
+    tails[lo] = i;
+  }
+  const run = new Set<number>();
+  for (let i = tails.length > 0 ? tails[tails.length - 1]! : -1; i !== -1; i = previous[i]!) run.add(i);
+  return run;
+}

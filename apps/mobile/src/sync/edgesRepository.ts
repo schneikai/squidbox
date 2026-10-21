@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic over any edge table */
-import { keyBetween, initialKeys, keysBetween, movePositions } from '@squidbox/shared';
+import { keyBetween, initialKeys, keysInOrder, longestIncreasing, movePositions } from '@squidbox/shared';
 import { and, eq, gt, isNull, max, ne } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
@@ -57,7 +57,7 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
   /**
    * Reassign positions to match `orderedAssetIds`, with the parent's other live edges (assets not
    * given, e.g. soft-deleted ones a grid doesn't show) after them in their current order. Only
-   * rewrites edges whose position changed, and tombstones duplicate edges.
+   * rewrites the edges out of that order (keysInOrder), and tombstones duplicate edges.
    */
   async function reorder(db: SyncDb, parentId: string, orderedAssetIds: string[]): Promise<void> {
     await db.transaction(async (tx) => {
@@ -66,7 +66,7 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
       const given = new Set(orderedAssetIds);
       const order = [...given].filter((id) => canonical.has(id));
       for (const id of canonical.keys()) if (!given.has(id)) order.push(id);
-      const keys = initialKeys(order.length);
+      const keys = keysInOrder(order.map((assetId) => canonical.get(assetId).position));
       const changed = duplicates.map(tombstone);
       for (const [i, assetId] of order.entries()) {
         const e = canonical.get(assetId);
@@ -149,11 +149,13 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
      * - a photo the user took out loses every live edge to it (an offline add on two devices makes two);
      * - a ref the user added is created, or restored as its edge's next version if it was removed;
      * - a seed ref whose edge is gone was removed elsewhere meanwhile, and stays out;
-     * - only the refs the user moved get new keys, between the keys their neighbours in the list have
-     *   now: a ref is moved when its order relative to the others changed from the seed's (outside a
-     *   longest run in the seed's order), so a reorder made elsewhere while the editor was open stays,
-     *   and so do the places of the live edges the seed didn't have (another device's add, a photo
-     *   hidden from the editor because its purge waits), as a reorder keeps the edges it wasn't given;
+     * - a ref is moved by the user when its order relative to the others differs from the seed's
+     *   (outside a longest run in the seed's order). The final order is every other live edge (the
+     *   unmoved refs, and those the seed didn't have: another device's add, a photo hidden from the
+     *   editor because its purge waits) in its current order, with each moved or new ref right after
+     *   the ref before it in the list (first when none), and those ending the list at the end (an
+     *   append, as add() does); keysInOrder then re-keys as few edges as that order needs, so a
+     *   reorder made elsewhere while the editor was open stays, and no keys tie;
      * - a moved photo's duplicate edges are tombstoned, as reorder() and move() do.
      * Matches by edge id (existing refs keep their id; new ones carry a fresh id from the editor).
      */
@@ -166,44 +168,51 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
       await db.transaction(async (tx) => {
         const live = await liveSorted(tx, parentId);
         const liveById = new Map(live.map((e) => [e.id, e]));
-        const listedIds = new Set(refs.map((r) => r.id));
+        const refById = new Map(refs.map((r) => [r.id, r]));
         const listedAssets = new Set(refs.map((r) => r.assetId));
-        const seedIds = new Set(seed.map((r) => r.id));
+        const seedIndex = new Map(seed.map((r, i) => [r.id, i]));
         const takenOutAssets = new Set(seed.map((r) => r.assetId).filter((assetId) => !listedAssets.has(assetId)));
         const takenOut = live.filter(
-          (e) => takenOutAssets.has(e.assetId) || (seedIds.has(e.id) && !listedIds.has(e.id)),
+          (e) => takenOutAssets.has(e.assetId) || (seedIndex.has(e.id) && !refById.has(e.id)),
         );
-        const wanted = refs.filter((r) => liveById.has(r.id) || !seedIds.has(r.id));
+        const wanted = refs.filter((r) => liveById.has(r.id) || !seedIndex.has(r.id));
+        const unmoved = longestIncreasing(
+          wanted.map((r) => (liveById.has(r.id) ? (seedIndex.get(r.id) ?? null) : null)),
+        );
+        const moved = wanted.filter((_, i) => !unmoved.has(i));
+        const movedIds = new Set(moved.map((r) => r.id));
+        const movedAssets = new Set(moved.filter((r) => liveById.has(r.id)).map((r) => r.assetId));
+        const duplicates = live.filter((e) => movedAssets.has(e.assetId) && !refById.has(e.id));
+        const out = new Set([...takenOut, ...duplicates].map((e) => e.id));
+
+        const order = live.filter((e) => !out.has(e.id) && !movedIds.has(e.id)).map((e) => e.id);
+        let trailing = wanted.length; // where the run of moved refs ending the list starts
+        while (trailing > 0 && movedIds.has(wanted[trailing - 1]!.id)) trailing--;
+        for (const [i, ref] of wanted.entries()) {
+          if (!movedIds.has(ref.id)) continue;
+          if (i >= trailing) order.push(ref.id);
+          else order.splice(i === 0 ? 0 : order.indexOf(wanted[i - 1]!.id) + 1, 0, ref.id);
+        }
+        const keys = keysInOrder(order.map((id) => liveById.get(id)?.position ?? null));
+
         const removedById = await readByIdMap(
           tx,
           table,
           wanted.filter((r) => !liveById.has(r.id)).map((r) => r.id),
         );
-        const seedIndex = new Map(seed.map((r, i) => [r.id, i]));
-        const unmoved = longestIncreasing(
-          wanted.map((r) => (liveById.has(r.id) ? (seedIndex.get(r.id) ?? null) : null)),
-        );
-        const keys = positionsBetween(
-          wanted.map((r, i) => (unmoved.has(i) ? liveById.get(r.id).position : null)),
-          live.map((e) => e.position),
-        );
         const now = Date.now();
-        const changed = takenOut.map(tombstone);
-        const rekeyed = new Set<string>();
-        for (const [i, ref] of wanted.entries()) {
-          const existing = liveById.get(ref.id);
-          const removed = removedById.get(ref.id);
+        const changed = [...takenOut, ...duplicates].map(tombstone);
+        for (const [i, id] of order.entries()) {
+          const position = keys[i]!;
+          const assetId = refById.get(id)?.assetId;
+          const existing = liveById.get(id);
+          const removed = removedById.get(id);
           if (existing) {
-            if (existing.position === keys[i] && existing.assetId === ref.assetId) continue;
-            if (existing.position !== keys[i]) rekeyed.add(ref.assetId);
-            changed.push(nextVersion(existing, { assetId: ref.assetId, position: keys[i] }));
-          } else if (removed) {
-            changed.push(nextVersion(removed, { deletedAt: null, assetId: ref.assetId, position: keys[i] }));
-          } else changed.push(newEdge(ref.id, parentId, ref.assetId, keys[i]!, now));
+            if (existing.position === position && (assetId === undefined || existing.assetId === assetId)) continue;
+            changed.push(nextVersion(existing, { assetId: assetId ?? existing.assetId, position }));
+          } else if (removed) changed.push(nextVersion(removed, { deletedAt: null, assetId, position }));
+          else changed.push(newEdge(id, parentId, assetId!, position, now));
         }
-        const out = new Set(takenOut.map((e) => e.id));
-        const duplicates = live.filter((e) => rekeyed.has(e.assetId) && !listedIds.has(e.id) && !out.has(e.id));
-        changed.push(...duplicates.map(tombstone));
         await save(tx, changed, [...live, ...removedById.values()]);
       });
     },
@@ -221,57 +230,4 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
       await db.transaction(async (tx) => tombstoneAll(tx, await liveSorted(tx, parentId)));
     },
   };
-}
-
-// Keys for a list in its order: the entries that keep theirs (a key), and the others (null), which
-// get keys after every kept key before them and before every kept key after them. Where the kept
-// keys aren't in that order (moved elsewhere), or there are none after, a run goes right after the
-// highest kept key before it (the front when none), below the next key any live edge has
-// (`liveKeys`), so it ties with none.
-function positionsBetween(kept: (string | null)[], liveKeys: string[]): string[] {
-  const sorted = [...liveKeys].sort();
-  const nextAfter = (key: string | null) => sorted.find((other) => key === null || other > key) ?? null;
-  const lowestAfter: (string | null)[] = [];
-  for (let i = kept.length - 1, low: string | null = null; i >= 0; i--) {
-    lowestAfter[i] = low;
-    if (kept[i] !== null && (low === null || kept[i]! < low)) low = kept[i]!;
-  }
-  const keys: string[] = [];
-  let highest: string | null = null;
-  for (let i = 0; i < kept.length;) {
-    if (kept[i] !== null) {
-      keys.push(kept[i]!);
-      if (highest === null || kept[i]! > highest) highest = kept[i]!;
-      i++;
-      continue;
-    }
-    let j = i;
-    while (j < kept.length && kept[j] === null) j++;
-    const low = lowestAfter[j - 1]!;
-    const upper = low !== null && (highest === null || low > highest) ? low : nextAfter(highest);
-    keys.push(...keysBetween(highest, upper, j - i));
-    i = j;
-  }
-  return keys;
-}
-
-// The indices of a longest strictly increasing run of the non-null keys (patience sorting, n log n).
-function longestIncreasing<K extends string | number>(keys: (K | null)[]): Set<number> {
-  const tails: number[] = []; // index of the smallest tail of each run length
-  const previous = new Array<number>(keys.length).fill(-1);
-  for (const [i, key] of keys.entries()) {
-    if (key === null) continue;
-    let lo = 0;
-    let hi = tails.length;
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1;
-      if (keys[tails[mid]!]! < key) lo = mid + 1;
-      else hi = mid;
-    }
-    previous[i] = lo > 0 ? tails[lo - 1]! : -1;
-    tails[lo] = i;
-  }
-  const run = new Set<number>();
-  for (let i = tails.length > 0 ? tails[tails.length - 1]! : -1; i !== -1; i = previous[i]!) run.add(i);
-  return run;
 }
