@@ -14,6 +14,7 @@ import {
   getMergeMarks,
   getMergeTarget,
   markFirstSyncDone,
+  setMergeMarks,
   setMergeTarget,
 } from '../src/sync/status';
 import getAssetFileUri from '../src/utils/assets/files/getAssetFileUri';
@@ -85,7 +86,7 @@ vi.mock('../src/library/mergeLibrary', async (importOriginal) => {
 });
 
 const { closeLibrary, openLibrary, openLibraryId, sweepOpenLibrary } = await import('../src/library/current');
-const { getRegistry, loadRegistry, updateLibrary } = await import('../src/library/registry');
+const { getRegistry, loadRegistry, updateLibrary, updateRegistry } = await import('../src/library/registry');
 const { mergeLibrary, resumeMerges } = await import('../src/library/mergeRun');
 const { getDb } = await import('../src/sync/db/client');
 
@@ -177,7 +178,7 @@ describe('mergeLibrary / resumeMerges', () => {
   });
 
   it("keeps a source that holds photos living in another account's storage, recorded as kept for the account", async () => {
-    const photo = await devicePhoto({ filename: 'a.jpg', mediaLibraryAssetId: 'm-a' });
+    await devicePhoto({ filename: 'a.jpg', mediaLibraryAssetId: 'm-a' });
     await repo.createAsset(
       sourceDb(),
       makeAssetRecord({ mediaLibraryAssetId: 'm-cloud', filename: 'cloud.jpg', isFileSynced: true }),
@@ -189,8 +190,8 @@ describe('mergeLibrary / resumeMerges', () => {
     expect(stores.has(SRC.dbName)).toBe(true);
     expect(await getMergeTarget(sourceDb())).toBeNull(); // done: its purges are its own again
     expect(await getKeptFor(sourceDb())).toBe('acc'); // the list is rebuilt from it (rebuildRegistry)
-    // The decisions stay with the source only: the account's library holds no marks of it.
-    expect(Object.keys(await getMergeMarks(sourceDb(), SRC.dbName))).toEqual([`assets:${photo.id}`]);
+    // Never merged again: neither library keeps its marks (the account's go before keptFor is set).
+    expect(await getMergeMarks(sourceDb(), SRC.dbName)).toEqual({});
     expect(await getMergeMarks(getDb(), SRC.dbName)).toEqual({});
     expect(await getDb().select().from(schema.assets)).toHaveLength(1);
     expect(files.has(getAssetFileUri('a.jpg', TGT))).toBe(true);
@@ -577,5 +578,65 @@ describe('round 8: a device library an earlier pass copied into a library that i
     expect(inAcc).toBe(true);
     expect(await getDb().select().from(schema.assets)).toEqual([]);
     expect(entry('dev')).toEqual({ ...DEV, mergedInto: 'acc' });
+  });
+});
+
+// Round 9: a pass committed into `acc`, then `acc` was lost before it pushed anything (removed from
+// the device), and the device library joins another library of the account, `acc2`, whose first pull
+// brought none of it. A copy decided by that pass whose record `acc2` has no row of, not even a
+// tombstone, is copied again, with its files; new edges to such an album have their album.
+describe('round 9: records an earlier library never pushed', () => {
+  const ACC2 = { id: 'acc2', owner: { kind: 'account' as const, serverId: 's1', userId: 'u1', email: 'u1@test' } };
+  const TGT2 = libraryPaths('acc2');
+  const albumEdges = makeEdgeRepository('album_assets', schema.albumAssets, 'albumId');
+  let edgeIds = 0;
+  const newEdgeId = () => `00000000-0000-4000-8000-${String(++edgeIds).padStart(12, '0')}`;
+
+  beforeEach(async () => {
+    if (openLibraryId()) await closeLibrary();
+    stores.clear();
+    files.clear();
+    storage.clear();
+    applyMergeImpl.fail = false;
+    await loadRegistry(async () => ({ libraries: [DEV, ACC, ACC2] }));
+    stores.set(SRC.dbName, makeTestDb());
+    await openLibrary(ACC);
+    await markFirstSyncDone(getDb());
+  });
+
+  it('copies them again into the new library, files included, and orphans no edge', async () => {
+    const { applyMerge, planMerge } = await import('../src/library/mergeLibrary');
+    const photo = await devicePhoto({ filename: 'p.jpg', mediaLibraryAssetId: 'm-p' });
+    const album = await albums.create(sourceDb(), makeAlbumRecord({ name: 'Trip' }));
+    await albumEdges.add(sourceDb(), album.id, [photo.id], newEdgeId);
+    // The pass into acc: the markers, the commit, the source's marks, then the crash before the move.
+    await updateLibrary('dev', (library) => ({ ...library, mergedInto: 'acc' }));
+    await setMergeTarget(sourceDb(), 'acc');
+    const plan = await planMerge(sourceDb(), getDb(), SRC);
+    await applyMerge(getDb(), plan);
+    await setMergeMarks(sourceDb(), SRC.dbName, plan.marks.decided);
+
+    // acc is lost before any push; the device adds a photo to the album meanwhile.
+    await closeLibrary();
+    stores.delete(TGT.dbName);
+    await updateRegistry(() => ({ libraries: [{ ...DEV, mergedInto: 'acc' }, ACC2] }));
+    const added = await devicePhoto({ filename: 'q.jpg', mediaLibraryAssetId: 'm-q' });
+    await albumEdges.add(sourceDb(), album.id, [added.id], newEdgeId);
+    stores.set(TGT2.dbName, makeTestDb());
+    await openLibrary(ACC2);
+    await markFirstSyncDone(getDb()); // its first pull brought nothing of acc's
+
+    await resumeMerges(); // acc is gone: the list's marker goes
+    await mergeLibrary('dev', 'acc2');
+
+    expect(entry('dev')).toBeUndefined();
+    const assetIds = (await getDb().select().from(schema.assets)).map((row) => row.id).sort();
+    expect(assetIds).toEqual([photo.id, added.id].sort());
+    expect((await getDb().select().from(schema.albums)).map((row) => row.id)).toEqual([album.id]);
+    const edges = await getDb().select().from(schema.albumAssets).where(isNull(schema.albumAssets.deletedAt));
+    expect(edges.map((edge) => edge.assetId).sort()).toEqual(assetIds);
+    expect(edges.every((edge) => edge.albumId === album.id)).toBe(true);
+    for (const name of ['p.jpg', 'q.jpg']) expect(files.has(getAssetFileUri(name, TGT2))).toBe(true);
+    expect(await getDb().select().from(schema.outbox)).toHaveLength(5); // all of it pushes
   });
 });

@@ -4,12 +4,9 @@ import LibraryContext from './LibraryContext';
 import { bootLibrary } from './bootLibrary';
 import { openLibraryEntry, openLibraryId } from './current';
 import { libraryPaths } from './libraryPaths';
-import { resumeMerges } from './mergeRun';
 import { onRegistryChange } from './registry';
-import { mergeDeviceLibrary } from './sessionLibrary';
+import { runPendingMerges } from './sessionLibrary';
 import { switchLibrary as performSwitch } from './switchLibrary';
-
-import { withSyncPaused } from '@/sync/worker';
 
 // The open library. A switch sets `next`: LibraryGate (App.js) then shows the switching screen, so
 // everything below unmounts and its effects clean up, and the effect here runs the switch after
@@ -32,10 +29,7 @@ export default function LibraryProvider({ children }) {
       setBooted(true);
       // A merge a crash interrupted finishes now, and this device's library joins the account's if
       // it hasn't yet, serialized with every switch; a failure waits for the next boot.
-      withSyncPaused(async () => {
-        await resumeMerges();
-        await mergeDeviceLibrary();
-      }).catch((resumeError) => console.warn('Could not resume a merge', resumeError));
+      runPendingMerges().catch((resumeError) => console.warn('Could not resume a merge', resumeError));
     }, setError);
   }, [switchLibrary]);
 

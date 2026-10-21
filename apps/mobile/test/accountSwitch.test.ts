@@ -11,7 +11,15 @@ import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import { setOutboxError } from '../src/sync/outbox';
 import { makeRepository } from '../src/sync/repository';
-import { getCursor, getOwner, isFirstSyncDone, markFirstSyncDone, setCursor, setOwner } from '../src/sync/status';
+import {
+  getCursor,
+  getKeptFor,
+  getOwner,
+  isFirstSyncDone,
+  markFirstSyncDone,
+  setCursor,
+  setOwner,
+} from '../src/sync/status';
 
 // The device: its databases by name (a store survives close and reopen, like a file), the stored
 // session and the library list in AsyncStorage.
@@ -77,7 +85,7 @@ const { bootLibrary } = await import('../src/library/bootLibrary');
 const { closeLibrary, getLibrary, openLibraryId } = await import('../src/library/current');
 const { resumeMerges } = await import('../src/library/mergeRun');
 const { getRegistry, loadRegistry } = await import('../src/library/registry');
-const { libraryForSession, mergeDeviceLibrary, openLibraryForSession, openLibraryForSignIn } =
+const { libraryForSession, mergeDeviceLibrary, openLibraryForSession, openLibraryForSignIn, runPendingMerges } =
   await import('../src/library/sessionLibrary');
 const { switchLibrary } = await import('../src/library/switchLibrary');
 const { getDb, openAppDb } = await import('../src/sync/db/client');
@@ -103,8 +111,7 @@ const signIn = (session: Session) => openLibraryForSignIn(session, switchLibrary
 // useMergeAfterFirstSync runs them.
 async function firstPullDrains() {
   await markFirstSyncDone(getDb());
-  await resumeMerges();
-  await mergeDeviceLibrary();
+  await runPendingMerges();
 }
 const albums = makeRepository('albums', schema.albums);
 const libraryIds = () => getRegistry().libraries.map(({ id }) => id);
@@ -404,46 +411,46 @@ describe('switching libraries with the session', () => {
 
   // Round 9: the installed build (df33378, mainClient.e2e's INSTALLED) recorded a kept device library
   // only in the library list (`keptFor`); its databases have no such key (its sync/status.ts writes
-  // none). The source's database became the authority in round 8, but nothing copies a list's
-  // `keptFor` into it on the update. A list lost after it (missing or corrupt at a launch) is rebuilt
-  // without it, and the device library, A's already, joins B's library: its photo and album are
-  // copied into another account. Expected: it stays kept for A.
-  it.fails(
-    'a device library kept by the installed build joins no second account after the list is rebuilt',
-    async () => {
-      await loadRegistry(async () => ({ libraries: [] }));
-      await open(null);
-      const deviceId = getLibrary().id;
-      await repo.createAsset(
-        getDb(),
-        makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
-      );
-      await repo.createAsset(getDb(), makeAssetRecord({ filename: 'c.jpg', isFileSynced: true }));
-      await albums.create(getDb(), makeAlbumRecord({ name: 'Trip' }));
-      await signIn(sessionOf('A'));
-      await firstPullDrains();
-      const aId = getLibrary().id;
-      expect(getRegistry().libraries.find(({ id }) => id === deviceId)).toMatchObject({ keptFor: aId });
-      // As the installed build left the device library's database: kept in the list only, no merge
-      // keys (`keptFor`, `mergeMarks:<db>`) in it.
-      const deviceDb = await openAppDb(`library-${deviceId}.db`);
-      for (const key of ['keptFor', `mergeMarks:library-${deviceId}.db`])
-        await deviceDb.delete(schema.syncMeta).where(eq(schema.syncMeta.key, key));
-      await signIn(sessionOf('B'));
-      await firstPullDrains();
-      const bId = getLibrary().id;
+  // none). The update's first boot copies the list's markers into the databases (backfillMergeMarkers),
+  // so a list lost after it (missing or corrupt at a launch) is rebuilt with them, and the device
+  // library, A's already, stays kept for A instead of joining B's library.
+  it('a device library kept by the installed build joins no second account after the list is rebuilt', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    const deviceId = getLibrary().id;
+    await repo.createAsset(
+      getDb(),
+      makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+    );
+    await repo.createAsset(getDb(), makeAssetRecord({ filename: 'c.jpg', isFileSynced: true }));
+    await albums.create(getDb(), makeAlbumRecord({ name: 'Trip' }));
+    await signIn(sessionOf('A'));
+    await firstPullDrains();
+    const aId = getLibrary().id;
+    expect(getRegistry().libraries.find(({ id }) => id === deviceId)).toMatchObject({ keptFor: aId });
+    // As the installed build left the device library's database: kept in the list only, no merge
+    // keys (`keptFor`, `mergeMarks:<db>`) in it.
+    const deviceDb = await openAppDb(`library-${deviceId}.db`);
+    for (const key of ['keptFor', `mergeMarks:library-${deviceId}.db`])
+      await deviceDb.delete(schema.syncMeta).where(eq(schema.syncMeta.key, key));
+    await signIn(sessionOf('B'));
+    await firstPullDrains();
+    const bId = getLibrary().id;
 
-      // The update is installed; the stored list doesn't parse at a later launch, signed in as B.
-      await closeLibrary();
-      storage.set('libraries', '{not json');
-      dbNames.push(...[deviceId, aId, bId].map((id) => `library-${id}.db`));
-      await bootLibrary(switchLibrary);
-      expect(getLibrary().id).toBe(bId);
-      await resumeMerges(); // what LibraryProvider runs after the boot
-      await mergeDeviceLibrary();
+    // The update is installed and launched: the list's marker goes into the device library's database.
+    await closeLibrary();
+    await bootLibrary(switchLibrary);
+    expect(await getKeptFor(deviceDb)).toBe(aId);
+    // The stored list doesn't parse at a later launch, signed in as B.
+    await closeLibrary();
+    storage.set('libraries', '{not json');
+    dbNames.push(...[deviceId, aId, bId].map((id) => `library-${id}.db`));
+    await bootLibrary(switchLibrary);
+    expect(getLibrary().id).toBe(bId);
+    await runPendingMerges(); // what LibraryProvider runs after the boot
 
-      expect(await assets()).toHaveLength(0); // actual: the device's photo, copied into B
-      expect(await getDb().select().from(schema.albums)).toHaveLength(0); // actual: its album too
-    },
-  );
+    expect(getRegistry().libraries.find(({ id }) => id === deviceId)).toMatchObject({ keptFor: aId });
+    expect(await assets()).toHaveLength(0);
+    expect(await getDb().select().from(schema.albums)).toHaveLength(0);
+  });
 });

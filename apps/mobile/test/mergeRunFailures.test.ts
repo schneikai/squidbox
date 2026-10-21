@@ -225,6 +225,8 @@ async function scenario(step: string, crash: boolean, keepsSource: boolean): Pro
   if (dev?.mergedInto) problems.push(`${at}: the list's marker stays after the merge completed`);
   if (stores.has(SRC.dbName) && dev && (await status.getMergeTarget(stores.get(SRC.dbName)!)))
     problems.push(`${at}: the source's marker stays after the merge completed`);
+  if (Object.keys(await status.getMergeMarks(stores.get(TGT.dbName)!, SRC.dbName)).length > 0)
+    problems.push(`${at}: the account's library keeps the merge's marks after it completed`);
   if ((await inAccount()) && !hasFile()) problems.push(`${at}: the account holds the photo without its file`);
   return problems;
 }

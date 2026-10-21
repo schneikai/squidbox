@@ -18,7 +18,7 @@ import { push as serverPush } from '../../server/src/sync/push.js';
 import { sentFields } from '../../server/src/sync/sentFields.js';
 import readPost from '../src/features/post-detail/readPost';
 import { libraryPaths } from '../src/library/libraryPaths';
-import { applyMerge, planMerge } from '../src/library/mergeLibrary';
+import { applyMerge, mergeWaits, planMerge } from '../src/library/mergeLibrary';
 import * as repo from '../src/sync/assetsRepository';
 import type { RemoveFiles } from '../src/sync/assetsRepository';
 import { clientCollectionTables } from '../src/sync/clientCollections';
@@ -1249,9 +1249,9 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
         makeAssetRecord({ mediaLibraryAssetId: 'camera-roll-1', filename: 'on-phone.jpg', isFileSynced: false }),
       );
       const N = makeTestDb(); // the account's library on the new phone, just created by the switch
-      await mergeInto(N, D, S + 200); // the sign-in: waits
-      expect(await N.select().from(clientSchema.assets)).toEqual([]);
+      expect(await mergeWaits(D, N)).toBe(true); // the sign-in: the merge waits
       await sync(N); // the first full pull
+      expect(await mergeWaits(D, N)).toBe(false);
       await mergeInto(N, D, S + 300);
       await settle([A, B, N]);
       const live = (await N.select().from(clientSchema.assets)).filter((row) => row.deletedAt === null);

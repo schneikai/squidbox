@@ -75,7 +75,8 @@ export async function setMergeTarget(db: SyncDb, targetId: string | null): Promi
  * target's record `into` (a camera-roll match), or skipped (an edge whose membership the target had).
  * A later pass never decides again: it only replays the record's newer edits along that decision.
  */
-export type MergeMark = { at: number } & ({ as: 'copy' } | { as: 'match'; into: string } | { as: 'skip' });
+export type MergeDecision = { as: 'copy' } | { as: 'match'; into: string } | { as: 'skip' };
+export type MergeMark = MergeDecision & { at: number };
 
 // The marks of a source library (by its database name), kept in the target (committed with each
 // pass) and in the source itself (after it), so they survive a change of target.

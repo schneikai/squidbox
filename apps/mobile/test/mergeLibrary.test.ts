@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createPost, makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
 import { libraryPaths } from '../src/library/libraryPaths';
-import { addsRecords, applyMerge, moveMergedFiles, planMerge } from '../src/library/mergeLibrary';
+import { addsRecords, applyMerge, mergeWaits, moveMergedFiles, planMerge } from '../src/library/mergeLibrary';
 import * as repo from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
@@ -558,12 +558,13 @@ describe('the decisions of a committed pass', () => {
     expect(live).toEqual([]);
   });
 
-  it('nothing is planned before the target’s first full pull, unless the source holds nothing', async () => {
+  it('waits for the target’s first full pull, unless the source holds nothing', async () => {
     await clearFirstSyncDone(target);
-    expect((await planMerge(source, target, SRC)).waits).toBe(false); // an empty library: done at once
+    expect(await mergeWaits(source, target)).toBe(false); // an empty library: done at once
     await devicePhoto();
-    const plan = await planMerge(source, target, SRC);
-    expect([plan.waits, addsRecords(plan)]).toEqual([true, false]);
+    expect(await mergeWaits(source, target)).toBe(true);
+    await markFirstSyncDone(target);
+    expect(await mergeWaits(source, target)).toBe(false);
   });
 });
 

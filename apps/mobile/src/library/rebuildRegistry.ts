@@ -8,8 +8,9 @@ import type { SyncDb } from '@/sync/db/types';
 import { getKeptFor, getMergeTarget, getOwner } from '@/sync/status';
 
 // Recreates the library list from the databases on the device: each one's owner is stored inside
-// it, and a device library's merge markers too (what it joins or joined, mergeRun.ts). One without (a library from before owners were stored) becomes this device's library, so its
-// photos stay in reach; any further one is skipped. Nothing on disk is moved or deleted.
+// it, and a device library's merge markers too (what it joins or joined, mergeRun.ts). One without an
+// owner (a library from before owners were stored) becomes this device's library, so its photos
+// stay in reach; any further one is skipped. Nothing on disk is moved or deleted.
 export async function rebuildRegistry(): Promise<Registry> {
   const libraries: Library[] = [];
   const ownerless: Library[] = [];

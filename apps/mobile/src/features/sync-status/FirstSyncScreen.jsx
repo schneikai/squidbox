@@ -1,11 +1,11 @@
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 
 import StatusScreen from '@/components/StatusScreen';
 import TextButton from '@/components/TextButton';
 import useCloud from '@/features/cloud/useCloud';
-import { openLibraryId } from '@/library/current';
-import { deviceLibrary, getRegistry, onRegistryChange } from '@/library/registry';
+import { onRegistryChange } from '@/library/registry';
+import { deviceLibraryToJoin } from '@/library/sessionLibrary';
 import { schema } from '@/sync/db/client';
 import { useRecordCounts } from '@/sync/useRecordCounts';
 import { useSyncStatus } from '@/sync/useSyncStatus';
@@ -16,11 +16,25 @@ import { requestSync } from '@/sync/worker';
 // grids unmounted during the bulk load so the sync isn't fighting the UI. Shows live counts, not rows.
 const RETRY_MS = 5_000;
 
-// This device's library, waiting to join the open one (a merge waits for the first pull, mergeRun.ts).
-function deviceLibraryWaits() {
-  const device = deviceLibrary(getRegistry().libraries);
-  const open = openLibraryId();
-  return Boolean(device && device.id !== open && !device.keptFor && (!device.mergedInto || device.mergedInto === open));
+// Whether this device's library waits to join the open one (every merge waits for the first pull:
+// mergeWaits in library/mergeLibrary.ts), checked again when the library list changes.
+function useDeviceLibraryWaits() {
+  const [waits, setWaits] = useState(false);
+  useEffect(() => {
+    let current = true;
+    const check = () =>
+      deviceLibraryToJoin().then(
+        (source) => current && setWaits(Boolean(source)),
+        () => current && setWaits(false),
+      );
+    check();
+    const unsubscribe = onRegistryChange(check);
+    return () => {
+      current = false;
+      unsubscribe();
+    };
+  }, []);
+  return waits;
 }
 
 function useTotal(table) {
@@ -34,7 +48,7 @@ export default function FirstSyncScreen() {
   const posts = useTotal(schema.posts);
   const { phase, lastError } = useSyncStatus();
   const { logoutAsync } = useCloud();
-  const addsDevicePhotos = useSyncExternalStore(onRegistryChange, deviceLibraryWaits);
+  const addsDevicePhotos = useDeviceLibraryWaits();
 
   const hasError = phase === 'error' && !!lastError;
   const started = assets + albums + posts > 0;
