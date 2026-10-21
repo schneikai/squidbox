@@ -510,3 +510,18 @@ describe('a device library merged again (adversarial, round 2)', () => {
     expect([plan.files, plan.thumbnails]).toEqual([[], []]);
   });
 });
+
+describe('a device library that never synced (no account)', () => {
+  it('keeps the files of its purged photos until it joins an account, then leaves them behind with the source', async () => {
+    const kept = await devicePhoto({ filename: 'k.jpg', thumbnailFilename: 'kt.jpg', mediaLibraryAssetId: 'm-k' });
+    const gone = await devicePhoto({ filename: 'g.jpg', thumbnailFilename: 'gt.jpg', mediaLibraryAssetId: 'm-g' });
+    await repo.deleteAssets(source, [gone.id]);
+    await repo.purgeAssets(source, [gone.id]); // no sync ever confirms it: the files stay on the device
+    expect(files.has(getAssetFileUri('g.jpg', SRC))).toBe(true);
+
+    const plan = await planMerge(source, target, SRC);
+    expect(plan.assets.map((asset) => asset.id)).toEqual([kept.id]); // the purged one is a tombstone left behind
+    expect([plan.files, plan.thumbnails]).toEqual([['k.jpg'], ['kt.jpg']]); // its files go with the source
+    expect(plan.keepsSource).toBe(false);
+  });
+});
