@@ -369,18 +369,23 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
   remove and reorder each write their own edge rows, so concurrent membership changes on two
   devices compose instead of one overwriting the other.
   - `position` is a fractional-index string key (`packages/shared/fractionalIndex.ts`). Edges
-    sort by plain string comparison. Adding appends with `keyBetween(last, null)`. Reordering
-    (`reorder`) assigns `initialKeys(n)` across the list and rewrites only the edges whose key
-    changed; a move (`move`) gives the moved edge one key between its new neighbours.
+    sort by plain string comparison. Adding appends with `keyBetween(last, null)`. Every re-key
+    goes through one function, `keysInOrder`: given the target order with each edge's current key,
+    it keeps the keys of a longest strictly increasing run (so of tied keys at most one stays) and
+    gives every other edge a key between the kept keys around it (`keysBetween`), so the keys are
+    distinct and in the target order by construction, and as few edges as possible are written.
+    A reorder (`reorder`) passes the given order; a move (`move`, `movePositions`) the moved edge
+    and the edges tied with the one it was dropped after, between that one and the next.
   - A post editor's save (`setRefs`) is an edit of the photo list it was seeded with: a photo the
-    user took out loses every live edge to it, a ref they added is created, a seed edge removed
-    elsewhere meanwhile stays out, and only the refs the user moved get new keys. A ref is moved
-    when its order relative to the others differs from the seed's (outside a longest run in the
-    seed's order), and its new key goes after the kept keys before it and before those after it, as
-    they are now. So a reorder another device made while the editor was open stays, and the live
-    edges the seed didn't have (another device's add, a photo hidden from the editor because its
-    purge waits) keep their places. A moved photo's duplicate edges are tombstoned, as `reorder` and
-    `move` do.
+    user took out loses every live edge to it, a ref they added is created, and a seed edge removed
+    elsewhere meanwhile stays out. A ref is moved by the user when its order relative to the others
+    differs from the seed's (outside a longest run in the seed's order). The target order is every
+    other live edge in its current order (the unmoved refs, and the live edges the seed didn't have:
+    another device's add, a photo hidden from the editor because its purge waits), with each moved
+    or new ref right after the ref before it in the list (first when none) and the run ending the
+    list appended at the end; `keysInOrder` then keys it. So a reorder another device made while the
+    editor was open stays, and no keys tie. A moved photo's duplicate edges are tombstoned, as
+    `reorder` and `move` do.
   - Removing tombstones the edge. Deleting an album or post tombstones its edges too
     (`tombstoneParent`). Deleting or purging an asset does not touch its edges, so a restore puts
     it back where it was. Readers resolve edges through the asset: albums skip deleted assets, a
@@ -476,8 +481,8 @@ Tables (`apps/mobile/src/sync/db/schema.ts`):
   database is, JSON, so the library list can be rebuilt from the databases), and in a device
   library merged into an account's: `mergedInto` (the library a merge pass committed into, §7a),
   `keptFor` (the library it joined and stays beside) and `mergeMarks:<its database>` (the decisions
-  of its merge passes); a target holds the last until the merge completes. `lastSyncUserId`, from
-  before libraries, is left unread.
+  of its merge passes, kept until the merge completes); a target holds the marks until then too.
+  `lastSyncUserId`, from before libraries, is left unread.
 - `outbox(id, collection, record_id, op, payload, fields, whole_record, updated_at, created_at,
   error)`: pending mutations, one row per record. `op` is `delete` when the payload has
   `deletedAt`, otherwise `upsert`. `fields` is the changed fields with their clocks (§6);
@@ -561,9 +566,11 @@ backs it up and keeps it in sync, and signing out only pauses that.
   joins it, with no prompt, once that library's first full pull has drained: before it, no
   camera-roll item would match (the account's photo arriving beside the copy), and the records an
   earlier pass pushed aren't there to replay onto. Until then the setup screen says this iPhone's
-  photos are added after it (`FirstSyncScreen`), the device library is held by nothing (a sign-out
-  or another account leaves it free), and the end of that pull runs the merge
-  (`useMergeAfterFirstSync`, in `AppGate`); a device library holding nothing joins at once.
+  photos are added after it (`FirstSyncScreen`, with the same check as `mergeDeviceLibrary`:
+  `deviceLibraryToJoin`), the device library is held by nothing (a sign-out or another account leaves
+  it free), and the end of that pull runs the merges due (`runPendingMerges`, from
+  `useMergeAfterFirstSync` in `AppGate`); a device library holding nothing joins at once
+  (`mergeWaits`).
   The merge (`library/mergeRun.ts`) is crash-safe and idempotent: the `mergedInto` marker on the
   source, in the list and, from the first pass that copies records, in its own database; only a
   completed merge clears them, and a pass that fails before its commit leaves both as they were
@@ -583,20 +590,23 @@ backs it up and keeps it in sync, and signing out only pauses that.
     crash, a failed file move, a new target after the earlier one went) never decides again: it
     only replays the record's edits newer than its mark (the source's outbox is never cleared;
     clocks are monotonic per record, not across a library) along the decision: onto the record, or
-    onto X, and nowhere when X is gone (deleted, purged, or not pulled), so a photo the account
-    deleted is never copied back, and a skipped membership is never added once the account removed
-    the one it had.
+    onto X, and nowhere when X is deleted or purged, so a photo the account deleted is never copied
+    back, and a skipped membership is never added once the account removed the one it had. A decision
+    whose target record has no row at all, not even a tombstone (the server keeps those, and a
+    full resync puts pending edits back), went into a library that never pushed it and is gone: it
+    is made again, so those records and their files are copied rather than lost with the source.
   - **The source's own database is the authority** on what it joined (`mergedInto`, `keptFor`):
-    `rebuildRegistry` restores both into the list, and a source committed into a library that is
-    still there joins no other (its list marker is set back to that library, whose merge the boot
-    finishes). A source whose earlier target is gone joins the new one by the rules above: its
-    records reached the account, and the new library's first pull brings them, so the device's
-    edits and deletions of them replay by id.
+    `rebuildRegistry` restores both into a rebuilt list, and a source committed into a library that
+    is still there joins no other (its list marker is set back to that library, whose merge the boot
+    finishes). The installed build kept them in the list only: every boot copies the list's into a
+    database lacking them before any merge runs (`backfillMergeMarkers`, to delete once the phone has
+    run this build). A source whose earlier target is gone joins the new one by the rules above.
+    A kept source keeps no marks (nothing reads them), and the target's go before `keptFor` is set.
   The files moved are those of the assets that end in the target live or with a purge still
   pending, never of one purged there for good. The same merge runs again at every boot while an
-  unmerged device library exists (`mergeDeviceLibrary`, inside `withSyncPaused` after
-  `resumeMerges`, which skips a marked source that is the open library and goes on after a failed
-  one), so one that failed or that a crash interrupted finishes then. A device library with photos
+  unmerged device library exists (`runPendingMerges`: `resumeMerges`, which skips a marked source
+  that is the open library and goes on after a failed one, then `mergeDeviceLibrary`, inside
+  `withSyncPaused`), so one that failed or that a crash interrupted finishes then. A device library with photos
   whose file lives in another account's storage is kept, recorded as `keptFor` the account once its
   merge completed, and never merged again, so it never joins a second account.
 - **Signing out** drops the tokens and nothing else (`dropTokensAsync`, then a best-effort

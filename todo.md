@@ -214,9 +214,11 @@ originals that aren't uploaded yet.
 
 ### [ ] Find duplicates by content when the device library joins an account
 
-The sign-in merge (`src/library/mergeLibrary.ts`) only spots a camera-roll photo the account already
-holds if this phone's account library pulled it before. A content hash per asset would catch the
-rest. Only worth it if duplicates show up in practice; a wrong match would hide a distinct photo.
+The sign-in merge (`src/library/mergeLibrary.ts`) matches a photo the account already holds by its
+camera-roll id, after the account library's first full pull (every merge waits for it). A photo whose
+camera-roll id differs (imported on another device, or re-saved) still comes in twice. A content hash
+per asset would catch those. Only worth it if duplicates show up in practice; a wrong match would hide
+a distinct photo.
 
 ### [ ] Web preview gaps
 
@@ -275,6 +277,12 @@ React hook result or an unresolved import that the worklet calls. An audit proto
 
 Node 20 reached end of life in April 2026. `mise.toml` pins 20.19.4 and the server image uses
 `node:20-slim`. Move both to the current LTS and run the tests.
+
+### [ ] Delete `backfillMergeMarkers` once the phone has booted this build
+
+`src/library/backfillMergeMarkers.ts` and its call in `bootLibrary.ts` (the round 9 boot test in
+`accountSwitch.test.ts` boots once with it). It copies the merge markers the installed build (df33378)
+kept only in the library list into the device library's database, the authority from this build on.
 
 ### [ ] Delete `resolveOwners` once the phone has booted this build
 
