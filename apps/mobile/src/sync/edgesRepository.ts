@@ -144,23 +144,34 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
     },
 
     /**
-     * Reconcile a parent's edges to exactly `refs` (an ordered {id, assetId}[], e.g. a post editor
-     * save): tombstone edges no longer present, upsert the rest at their new positions. Matches by
-     * edge id (existing refs keep their id; new ones carry a fresh id from the editor).
+     * Save an editor's ordered ref list (`refs`, {id, assetId}[], e.g. a post editor save) over the one
+     * it was seeded with (`seed`): the edges the user took out are tombstoned, the ones added created,
+     * and the list put in its order. Live edges the seed didn't have (added on another device while
+     * the editor was open, or hidden from it, like a photo whose purge waits) stay, after the list in
+     * their order, as a reorder keeps the edges it wasn't given (sync-design §7). Matches by edge id
+     * (existing refs keep their id; new ones carry a fresh id from the editor).
      */
-    async setRefs(db: SyncDb, parentId: string, refs: { id: string; assetId: string }[]): Promise<void> {
+    async setRefs(
+      db: SyncDb,
+      parentId: string,
+      refs: { id: string; assetId: string }[],
+      seed: { id: string }[],
+    ): Promise<void> {
       await db.transaction(async (tx) => {
         const live = await liveSorted(tx, parentId);
         const liveById = new Map(live.map((e) => [e.id, e]));
-        const targetIds = new Set(refs.map((r) => r.id));
-        const keys = initialKeys(refs.length);
+        const listed = new Set(refs.map((r) => r.id));
+        const takenOut = new Set(seed.map((r) => r.id).filter((id) => !listed.has(id)));
+        const kept = live.filter((e) => !listed.has(e.id) && !takenOut.has(e.id));
+        const order = [...refs, ...kept.map((e) => ({ id: e.id as string, assetId: e.assetId as string }))];
+        const keys = initialKeys(order.length);
         const now = Date.now();
         // A ref can name an edge that was removed meanwhile (e.g. on another device): it is restored as
         // that edge's next version, so the clock still moves forward.
         const removedIds = refs.map((r) => r.id).filter((id) => !liveById.has(id));
         const removedById = await readByIdMap(tx, table, removedIds);
-        const changed = live.filter((e) => !targetIds.has(e.id)).map(tombstone);
-        for (const [i, ref] of refs.entries()) {
+        const changed = live.filter((e) => takenOut.has(e.id)).map(tombstone);
+        for (const [i, ref] of order.entries()) {
           const existing = liveById.get(ref.id);
           const removed = removedById.get(ref.id);
           if (existing) {

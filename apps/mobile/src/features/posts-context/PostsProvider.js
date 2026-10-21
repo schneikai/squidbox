@@ -30,9 +30,10 @@ export default function PostsProvider({ children }) {
         requestSync();
         return { ...post, assetRefs: refs };
       },
-      updatePost: async (id, updates) => {
+      // `seed`: the post an editor was seeded with, whose photo list a changed `assetRefs` is saved over.
+      updatePost: async (id, updates, seed) => {
         await db.transaction(async (tx) => {
-          if ('assetRefs' in updates) await edges.setRefs(tx, id, updates.assetRefs ?? []);
+          if ('assetRefs' in updates) await edges.setRefs(tx, id, updates.assetRefs ?? [], seed?.assetRefs ?? []);
           await repo.updatePost(tx, id, toModernChanges(updates)); // `assetRefs` stripped by toModernChanges
         });
         requestSync();

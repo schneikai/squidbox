@@ -5,6 +5,8 @@ import Textarea from '@/components/Textarea';
 import useAssets from '@/features/assets-context/useAssets';
 import { colors } from '@/styles/designTokens';
 import textareaTextStyle from '@/styles/textareaTextStyle';
+import changedValues from '@/utils/changedValues';
+import noteText from '@/utils/noteText';
 
 /**
  * The asset's note at the top of its details, as Apple Photos shows a caption: its text, or "Add a
@@ -30,12 +32,12 @@ export default function AssetNote({ asset, isEditable, guardPress, onEditingBott
     if (!edit) return;
     editing.current = null;
     latest.current.onEditingBottomChange(0);
-    const notes = edit.draft.trim() || null;
-    if (notes !== edit.original) latest.current.updateAsset(edit.assetId, { notes });
+    const changes = changedValues({ notes: edit.original }, { notes: noteText(edit.draft) });
+    if ('notes' in changes) latest.current.updateAsset(edit.assetId, changes);
   }
 
   function handleEdit() {
-    editing.current = { assetId: asset.id, original: asset.notes?.trim() || null, draft: asset.notes ?? '' };
+    editing.current = { assetId: asset.id, original: noteText(asset.notes), draft: asset.notes ?? '' };
     setDraft(editing.current.draft);
   }
 

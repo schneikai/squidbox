@@ -59,12 +59,13 @@ describe('postQuery', () => {
     await postEdgeRows.createMany(db, [
       { id: 'dup', createdAt: 1, updatedAt: 1, deletedAt: null, postId: 'p1', assetId: 'a1', position: 'zz' },
     ]);
-    await postEdges.setRefs(db, 'p1', [
+    const refs = [
       { id: 'id-2', assetId: 'a1' },
       { id: 'id-1', assetId: 'a3' },
       { id: 'id-3', assetId: 'a2' },
       { id: 'id-4', assetId: 'gone' },
-    ]);
+    ];
+    await postEdges.setRefs(db, 'p1', refs, refs);
     const [post] = (await postQuery({ scope: 'all' }).read(db, { limit: 10 })).rows;
     expect(post.postAssets.map((pa: { id: string; asset: { id: string } }) => [pa.id, pa.asset.id])).toEqual([
       ['id-2', 'a1'],
