@@ -1088,34 +1088,28 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       });
     });
 
-    // Round 8: a save is an edit of its seed (edgesRepository setRefs), but the listed edges are put
-    // in the list's order against their current keys, not against the seed's. B drags z to the front
-    // of the post while A's editor is open; A, seeded before that arrived, only adds w. A's list still
-    // has z after y (as its seed did), so setRefs re-keys z after y with a newer clock, which wins on
-    // the server. Expected: B's move and A's add both survive, [z, x, y, w]. Actual: [x, y, z, w],
-    // B's reorder is undone by a save that never moved z.
-    it.fails(
-      'a photo another device moved while the editor was open stays where it moved it after a save that only adds one',
-      async () => {
-        const [x, y, z, w] = [await seedAsset(), await seedAsset(), await seedAsset(), await seedAsset()];
-        at(S);
-        const postId = randomUUID();
-        await createPost(A, { id: postId, createdAt: S, updatedAt: S, text: 'trip', postedAt: null }, [x, y, z]);
-        await settle();
-        const seedA = await openEditor(A, postId);
-        const seedB = await openEditor(B, postId);
-        const [rx, ry, rz] = seedB.assetRefs;
-        await edit(B, S + 100, () => savePost(B, postId, seedB, { ...seedB, assetRefs: [rz, rx, ry] }));
-        await sync(B);
-        await sync(A); // arrives while A's editor is open
-        for (const device of [A, B]) expect(await postAssetIds(device, postId)).toEqual([z, x, y]);
-        await edit(A, S + 200, () =>
-          savePost(A, postId, seedA, { ...seedA, assetRefs: [...seedA.assetRefs, { id: randomUUID(), assetId: w }] }),
-        );
-        await settle();
-        for (const device of [A, B]) expect(await postAssetIds(device, postId)).toEqual([z, x, y, w]);
-      },
-    );
+    // Round 8: a save is an edit of its seed (edgesRepository setRefs), and what the user moved is read
+    // against the seed's order, not the edges' current keys. B drags z to the front of the post while
+    // A's editor is open; A, seeded before that arrived, only adds w: B's move and A's add both survive.
+    it('a photo another device moved while the editor was open stays where it moved it after a save that only adds one', async () => {
+      const [x, y, z, w] = [await seedAsset(), await seedAsset(), await seedAsset(), await seedAsset()];
+      at(S);
+      const postId = randomUUID();
+      await createPost(A, { id: postId, createdAt: S, updatedAt: S, text: 'trip', postedAt: null }, [x, y, z]);
+      await settle();
+      const seedA = await openEditor(A, postId);
+      const seedB = await openEditor(B, postId);
+      const [rx, ry, rz] = seedB.assetRefs;
+      await edit(B, S + 100, () => savePost(B, postId, seedB, { ...seedB, assetRefs: [rz, rx, ry] }));
+      await sync(B);
+      await sync(A); // arrives while A's editor is open
+      for (const device of [A, B]) expect(await postAssetIds(device, postId)).toEqual([z, x, y]);
+      await edit(A, S + 200, () =>
+        savePost(A, postId, seedA, { ...seedA, assetRefs: [...seedA.assetRefs, { id: randomUUID(), assetId: w }] }),
+      );
+      await settle();
+      for (const device of [A, B]) expect(await postAssetIds(device, postId)).toEqual([z, x, y, w]);
+    });
   });
 
   describe('a device library merged into the account library', () => {

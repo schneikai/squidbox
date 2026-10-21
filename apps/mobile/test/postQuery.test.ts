@@ -65,7 +65,8 @@ describe('postQuery', () => {
       { id: 'id-3', assetId: 'a2' },
       { id: 'id-4', assetId: 'gone' },
     ];
-    await postEdges.setRefs(db, 'p1', refs, refs);
+    const seed = [refs[1]!, refs[0]!, refs[2]!, refs[3]!]; // the post's order, as the editor opened it
+    await postEdges.setRefs(db, 'p1', refs, seed);
     const [post] = (await postQuery({ scope: 'all' }).read(db, { limit: 10 })).rows;
     expect(post.postAssets.map((pa: { id: string; asset: { id: string } }) => [pa.id, pa.asset.id])).toEqual([
       ['id-2', 'a1'],

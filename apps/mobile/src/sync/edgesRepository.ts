@@ -149,9 +149,12 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
      * - a photo the user took out loses every live edge to it (an offline add on two devices makes two);
      * - a ref the user added is created, or restored as its edge's next version if it was removed;
      * - a seed ref whose edge is gone was removed elsewhere meanwhile, and stays out;
-     * - the listed edges go in the list's order, with new keys only for those out of order, so the
-     *   live edges the seed didn't have (another device's add, a photo hidden from the editor because
-     *   its purge waits) keep their places, as a reorder keeps the edges it wasn't given.
+     * - only the refs the user moved get new keys, between the keys their neighbours in the list have
+     *   now: a ref is moved when its order relative to the others changed from the seed's (outside a
+     *   longest run in the seed's order), so a reorder made elsewhere while the editor was open stays,
+     *   and so do the places of the live edges the seed didn't have (another device's add, a photo
+     *   hidden from the editor because its purge waits), as a reorder keeps the edges it wasn't given;
+     * - a moved photo's duplicate edges are tombstoned, as reorder() and move() do.
      * Matches by edge id (existing refs keep their id; new ones carry a fresh id from the editor).
      */
     async setRefs(
@@ -176,19 +179,31 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
           table,
           wanted.filter((r) => !liveById.has(r.id)).map((r) => r.id),
         );
-        const keys = positionsInOrder(wanted.map((r) => liveById.get(r.id)?.position ?? null));
+        const seedIndex = new Map(seed.map((r, i) => [r.id, i]));
+        const unmoved = longestIncreasing(
+          wanted.map((r) => (liveById.has(r.id) ? (seedIndex.get(r.id) ?? null) : null)),
+        );
+        const keys = positionsBetween(
+          wanted.map((r, i) => (unmoved.has(i) ? liveById.get(r.id).position : null)),
+          live.map((e) => e.position),
+        );
         const now = Date.now();
         const changed = takenOut.map(tombstone);
+        const rekeyed = new Set<string>();
         for (const [i, ref] of wanted.entries()) {
           const existing = liveById.get(ref.id);
           const removed = removedById.get(ref.id);
           if (existing) {
             if (existing.position === keys[i] && existing.assetId === ref.assetId) continue;
+            if (existing.position !== keys[i]) rekeyed.add(ref.assetId);
             changed.push(nextVersion(existing, { assetId: ref.assetId, position: keys[i] }));
           } else if (removed) {
             changed.push(nextVersion(removed, { deletedAt: null, assetId: ref.assetId, position: keys[i] }));
           } else changed.push(newEdge(ref.id, parentId, ref.assetId, keys[i]!, now));
         }
+        const out = new Set(takenOut.map((e) => e.id));
+        const duplicates = live.filter((e) => rekeyed.has(e.assetId) && !listedIds.has(e.id) && !out.has(e.id));
+        changed.push(...duplicates.map(tombstone));
         await save(tx, changed, [...live, ...removedById.values()]);
       });
     },
@@ -208,29 +223,40 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
   };
 }
 
-// Keys for a list in its order, from the keys its entries have (null for a new one): the longest run
-// of keys already increasing stays, and the others get keys between their neighbours in that run.
-function positionsInOrder(current: (string | null)[]): string[] {
-  const kept = longestIncreasing(current);
+// Keys for a list in its order: the entries that keep theirs (a key), and the others (null), which
+// get keys after every kept key before them and before every kept key after them. Where the kept
+// keys aren't in that order (moved elsewhere), or there are none after, a run goes right after the
+// highest kept key before it (the front when none), below the next key any live edge has
+// (`liveKeys`), so it ties with none.
+function positionsBetween(kept: (string | null)[], liveKeys: string[]): string[] {
+  const sorted = [...liveKeys].sort();
+  const nextAfter = (key: string | null) => sorted.find((other) => key === null || other > key) ?? null;
+  const lowestAfter: (string | null)[] = [];
+  for (let i = kept.length - 1, low: string | null = null; i >= 0; i--) {
+    lowestAfter[i] = low;
+    if (kept[i] !== null && (low === null || kept[i]! < low)) low = kept[i]!;
+  }
   const keys: string[] = [];
-  let prev: string | null = null;
-  for (let i = 0; i < current.length;) {
-    if (kept.has(i)) {
-      prev = current[i]!;
-      keys.push(prev);
+  let highest: string | null = null;
+  for (let i = 0; i < kept.length;) {
+    if (kept[i] !== null) {
+      keys.push(kept[i]!);
+      if (highest === null || kept[i]! > highest) highest = kept[i]!;
       i++;
       continue;
     }
     let j = i;
-    while (j < current.length && !kept.has(j)) j++;
-    keys.push(...keysBetween(prev, j < current.length ? current[j]! : null, j - i));
+    while (j < kept.length && kept[j] === null) j++;
+    const low = lowestAfter[j - 1]!;
+    const upper = low !== null && (highest === null || low > highest) ? low : nextAfter(highest);
+    keys.push(...keysBetween(highest, upper, j - i));
     i = j;
   }
   return keys;
 }
 
 // The indices of a longest strictly increasing run of the non-null keys (patience sorting, n log n).
-function longestIncreasing(keys: (string | null)[]): Set<number> {
+function longestIncreasing<K extends string | number>(keys: (K | null)[]): Set<number> {
   const tails: number[] = []; // index of the smallest tail of each run length
   const previous = new Array<number>(keys.length).fill(-1);
   for (const [i, key] of keys.entries()) {

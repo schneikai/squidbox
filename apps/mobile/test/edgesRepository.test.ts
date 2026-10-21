@@ -250,6 +250,49 @@ describe('edgesRepository (album_assets)', () => {
     expect(rows.find((r) => r.id === 'r9')).toEqual(a9); // untouched, where it was
   });
 
+  // The user's moves are read against the seed: a reorder another device made while the editor was
+  // open (synced in before the save) stays, and the photo the user added goes after the listed ones.
+  it('setRefs keeps a reorder made elsewhere while the editor was open, re-keying only what the user moved', async () => {
+    const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
+    const seed = [
+      { id: 'r1', assetId: 'a1' },
+      { id: 'r2', assetId: 'a2' },
+      { id: 'r3', assetId: 'a3' },
+    ];
+    await posts.createFromRefs(db, 'post-1', seed);
+    await posts.move(db, 'post-1', 'a3', null); // another device's, synced in
+    const before = new Map((await db.select().from(schema.postAssets)).map((r) => [r.id, r.position]));
+    await posts.setRefs(db, 'post-1', [...seed, { id: 'r4', assetId: 'a4' }], seed);
+    const rows = await db.select().from(schema.postAssets);
+    const live = rows.filter((r) => r.deletedAt == null).sort((a, b) => (a.position < b.position ? -1 : 1));
+    expect(live.map((r) => r.assetId)).toEqual(['a3', 'a1', 'a2', 'a4']);
+    for (const id of ['r1', 'r2', 'r3']) expect(rows.find((r) => r.id === id)!.position).toBe(before.get(id));
+  });
+
+  it('setRefs tombstones the duplicate edges of a photo the user moved, as a reorder does', async () => {
+    const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
+    const seed = [
+      { id: 'r1', assetId: 'a1' },
+      { id: 'r2', assetId: 'a2' },
+      { id: 'r3', assetId: 'a3' },
+    ];
+    await posts.createFromRefs(db, 'post-1', seed);
+    // A concurrent offline add of a1 on another device left a second live edge, early in the post.
+    await db.insert(schema.postAssets).values({
+      id: 'rd',
+      createdAt: 1,
+      updatedAt: 1,
+      deletedAt: null,
+      postId: 'post-1',
+      assetId: 'a1',
+      position: '0',
+    });
+    await posts.setRefs(db, 'post-1', [seed[1]!, seed[2]!, seed[0]!], seed); // a1 moved to the end
+    const rows = await db.select().from(schema.postAssets);
+    const live = rows.filter((r) => r.deletedAt == null).sort((a, b) => (a.position < b.position ? -1 : 1));
+    expect(live.map((r) => r.id)).toEqual(['r2', 'r3', 'r1']);
+  });
+
   it('creating edges with ids that already exist fails instead of moving them to another post', async () => {
     const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
     const refs = [{ id: 'r1', assetId: 'a1' }];
