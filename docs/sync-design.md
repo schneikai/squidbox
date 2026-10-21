@@ -576,13 +576,16 @@ backs it up and keeps it in sync, and signing out only pauses that.
   the merge has happened: while the session can't pull (signed out, or a re-auth needed) and its
   account library hasn't finished its first pull, the device library opens (`libraryToOpen`, with
   the same "waits to join" rule as `deviceLibraryToJoin`), so its photos are never hidden behind a
-  half-pulled library. That is decided at the boot (again after the cloud init, if it dropped the
-  tokens) and at every loss of the tokens: a sign-out (`openLibraryForSignOut`, which drops them and
-  opens `libraryToOpen`), and a session the server rejects or a changed server, which
-  `watchTokenDrops` (installed by `LibraryProvider` after the boot) answers with the same call in a
-  paused section of its own, started outside the sync run that dropped them. A library that won't
-  open gives way to the session's own (`openLibraryForSession`), so a damaged device library never
-  stops the boot. The setup screen's Sign out asks first (`confirmSignOutAsync`).
+  half-pulled library. That is decided at the boot, and at every later loss of the tokens: a
+  sign-out (`logoutAsync` only drops them), a session the server rejects, a changed server. One
+  subscriber, `watchTokenDrops` (installed by `LibraryProvider` after the boot), answers each with
+  `openLibraryForSession` in a paused section of its own, started outside the code that dropped
+  them (a sync run can't wait for a pause); a drop during the boot (the cloud init) is answered by
+  `bootLibrary` itself, which runs it again after the init. A library that won't open gives way to
+  the session's own (`openLibraryForSession`), so a damaged device library never stops the boot (the
+  provider reports a failed switch as the boot error only once booted, `isFatalSwitchFailure`). An
+  account library not in the list yet hasn't pulled; a listed one is asked. The setup screen's Sign
+  out asks first (`confirmSignOutAsync`).
   The merge (`library/mergeRun.ts`) is crash-safe and idempotent: the `mergedInto` marker
   (`{ library, serverId, userId }`) on the source, in the list and, from the first pass that copies
   records, in its own database; only a
@@ -610,18 +613,24 @@ backs it up and keeps it in sync, and signing out only pauses that.
     is made again, so those records and their files are copied rather than lost with the source.
     That holds within one account only: the marker records the account, and a source committed into
     one account's library never merges into another's; it waits, files and all, for a library of that
-    account. A marker whose library is gone stays, in the list too, for that rule.
+    account. A marker whose library is gone stays, in the list too, for that rule. When the decisions
+    were made in another library (the source's marker names another one: lost before it may have
+    pushed), a match's merge goes again, stamped at the device photo's own field clocks, never now:
+    per-field LWW settles it (the account's later change, or the earlier library's pushed merge,
+    wins; a merge never pushed is made again), and a note already there isn't appended twice.
   - **The source's own database is the authority** on what it joined (`mergedInto`, `keptFor`):
     `rebuildRegistry` restores both into a rebuilt list, and a source committed into a library that
     is still there joins no other (its list marker is set back to that library, whose merge the boot
     finishes). The list follows the database, so the screens, `libraryToOpen` and
     `mergeDeviceLibrary` read the list alone, account rule included, and `mergeLibrary` checks the
-    database (`joinedElsewhere`, on the markers it read once) and repairs the list. The installed
-    build kept the markers in the list only, as a library id: they take that library's account as
-    the list loads (dropped when it is gone or its owner unresolved), and the first boot of this
-    build copies them into each existing database lacking them before any merge runs, once
+    database (`joinedElsewhere` in `mergeMarker.ts`, the one rule both read, on the markers it read
+    once) and repairs the list. The installed build kept the markers in the list only, the marker as
+    a library id: the first boot of this build, after `resolveOwners` and before any merge runs,
+    gives each that library's account in the list (dropping it when the library is gone or its
+    owner unresolved) and copies the markers into each existing database lacking them, once
     (`backfillMergeMarkers`, to delete once the phone has run this build; on web, where databases
-    can't be listed, a listed library's database counts as existing). A source whose earlier
+    can't be listed, a listed library's database counts as existing). A marker a database holds as
+    a bare id (earlier builds of this branch) reads as none. A source whose earlier
     target is gone joins a new library of the same account by the rules above. A kept source keeps
     no marks (nothing reads them), and the target's go before `keptFor` is set.
   Before the source is removed, every file it holds for a record that ends up in the account is in
@@ -701,7 +710,9 @@ the tokens; network errors keep them. A rejected session keeps its owner and lib
 sign-out: the library stays open and editable, writes queue in its outbox, nothing syncs, and the
 only signs are the badge on the header avatar and Settings' "Backup paused · Sign in to continue"
 row above the pre-filled sign-in form (`needsReauth`; "Sign in as someone else" opens that
-account's library instead). No alert.
+account's library instead). No alert. The one exception, as for a sign-out, is a session rejected
+before its account library's first pull drained while this device's library waits to join it: the
+device library opens (§8, Signing in).
 
 **First sync.** A new device or account starts at `cursor = 0` and pulls everything. While
 signed in and `firstSyncDone` is not set, `AppGate` (`App.js`) shows `FirstSyncScreen` and does

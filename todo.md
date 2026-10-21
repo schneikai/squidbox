@@ -280,9 +280,9 @@ Node 20 reached end of life in April 2026. `mise.toml` pins 20.19.4 and the serv
 
 ### [ ] Delete `backfillMergeMarkers` once the phone has booted this build
 
-`src/library/backfillMergeMarkers.ts` and its call in `bootLibrary.ts` (the round 9 boot test in
-`accountSwitch.test.ts` boots once with it). It copies the merge markers the installed build (df33378)
-kept only in the library list into the device library's database, the authority from this build on.
+`src/library/backfillMergeMarkers.ts` and its call in `bootLibrary.ts` (and its boot tests in
+`accountSwitch.test.ts`). It gives the installed build's (df33378) id-only list markers their account
+and copies them into the device library's database, the authority from this build on.
 
 ### [ ] Delete `resolveOwners` once the phone has booted this build
 
@@ -304,6 +304,13 @@ The setup screen says this iPhone's photos join after the first sync (`FirstSync
 device library whose merge failed (it retries at each boot, `mergeDeviceLibrary`), or that waits for
 another library or account it joined (`joinedElsewhere` in `library/mergeRun.ts`), shows nothing in
 the app, so its photos are out of sight until it completes. Show it in the sync status or Settings.
+
+### [ ] Tell the user when this iPhone's library won't open
+
+A device library whose database won't open (a failed migration, a damaged file) is passed over
+silently: `openLibraryForSession` opens the session's own library instead, and the setup screen still
+says this iPhone's photos join after the first sync. Say that its photos can't be opened, and how
+to get help.
 
 ### [ ] Merge marks are one JSON value per source library
 
