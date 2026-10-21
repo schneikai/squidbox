@@ -31,7 +31,8 @@ export const assets = sqliteTable(
     purgedAt: integer('purged_at'), // "Delete permanently", final (sync-design §7)
     // local-only (never synced)
     syncError: text('sync_error'),
-    filesRemovedAt: integer('files_removed_at'), // when this device removed a purged asset's files (§7a)
+    // When this device removed a purged asset's files (§7a); a trigger clears it when the purge is undone.
+    filesRemovedAt: integer('files_removed_at'),
   },
   // Partial indexes for the screens' reads (docs/paged-reads-plan.md §2). A query uses one only when
   // its WHERE implies the index's, so keep the predicates in step with the queries.
@@ -165,6 +166,8 @@ export const outbox = sqliteTable(
     payload: text('payload', { mode: 'json' }).$type<Record<string, unknown>>().notNull(),
     // changed fields → clock (sync-design §6)
     fields: text('fields', { mode: 'json' }).$type<FieldClocks>().notNull().default({}),
+    // A row from before per-field merge (migration 0011): pushed without fields, as that app pushed it.
+    wholeRecord: integer('whole_record', { mode: 'boolean' }).notNull().default(false),
     updatedAt: integer('updated_at').notNull(),
     createdAt: integer('created_at')
       .notNull()

@@ -12,14 +12,6 @@ when the owner defers something, or when an idea comes up. Remove an entry once 
 not yet re-pulled photo shares with a purged one as unused, and removes that photo's copy, its
 original too if not backed up. Test: `purge.test.ts`, "a full resync stopped after its first page".
 
-### [ ] An installed app's offline purge pushed after the upgrade can lose to a restore without its files
-
-Migration 0011 gives the installed app's outbox rows `fields`, so its purge gets the restore-beats-
-purge rule the server spares pushes without fields (that app removed the files at once). The asset
-comes back here without files, and the 0012 backfill's `filesRemovedAt` stays set (nothing clears it
-when a purge is undone), so a later purge never sweeps its new copies. Tests: `mergeRecord.test.ts`,
-`purge.test.ts` ("an offline purge from before the upgrade").
-
 ### [ ] A device library merged in part still removes a purged photo's files at once
 
 `hasAccount` is `owner.kind !== 'device'` (`library/current.ts`, `AssetsProvider`), but once a merge

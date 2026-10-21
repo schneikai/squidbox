@@ -427,6 +427,14 @@
           "autoincrement": false,
           "default": "'{}'"
         },
+        "whole_record": {
+          "name": "whole_record",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
         "updated_at": {
           "name": "updated_at",
           "type": "integer",

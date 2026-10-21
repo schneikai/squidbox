@@ -98,10 +98,11 @@ async function pushPhase(
     if (pushed === 0) await patchStatus(db, { phase: 'pushing' });
     lastId = batch[batch.length - 1]!.id;
 
+    // A row from before per-field merge goes without fields: the server merges it as that app's push.
     const mutations: PushMutation[] = batch.map((row) => ({
       collection: row.collection,
       record: row.payload,
-      fields: row.fields,
+      ...(!row.wholeRecord && { fields: row.fields }),
     }));
     const { results } = await transport.push({ mutations });
     const pushedRows = new Map(batch.map((row) => [`${row.collection}:${row.recordId}`, row]));

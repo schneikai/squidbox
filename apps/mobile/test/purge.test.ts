@@ -1,3 +1,4 @@
+import type { PushMutation } from '@squidbox/shared';
 import Database from 'better-sqlite3';
 import { eq } from 'drizzle-orm';
 import { readMigrationFiles } from 'drizzle-orm/migrator';
@@ -402,7 +403,8 @@ describe('migration 0012_purged_files on a database from before it', () => {
       return { rows: method === 'get' ? (rows[0] as unknown[]) : rows };
     };
   // The installed app's database: an asset purged offline (its files already removed, as that app
-  // does at once) with its whole-record outbox row, one purged and pushed, one live, one trashed.
+  // does at once) with its whole-record outbox row, one purged and pushed, one live with a pending
+  // notes edit, one trashed.
   function installedAppDb() {
     const sqlite = new Database(':memory:');
     run(sqlite, 0, at('0011_outbox_fields'));
@@ -428,6 +430,12 @@ describe('migration 0012_purged_files on a database from before it', () => {
         `INSERT INTO outbox (collection, record_id, op, payload, updated_at) VALUES ('assets', 'offline', 'delete', ?, 2000)`,
       )
       .run(JSON.stringify(payload));
+    const edit = { ...payload, id: 'live', filename: 'l.jpg', thumbnailFilename: 'l-t.jpg', deletedAt: null };
+    sqlite
+      .prepare(
+        `INSERT INTO outbox (collection, record_id, op, payload, updated_at) VALUES ('assets', 'live', 'upsert', ?, 1000)`,
+      )
+      .run(JSON.stringify({ ...edit, updatedAt: 1000, purgedAt: null, notes: 'installed' }));
     run(sqlite, at('0011_outbox_fields'), migrations.length);
     return { sqlite, db: createDb(executor(sqlite)) as SyncDb };
   }
@@ -443,44 +451,65 @@ describe('migration 0012_purged_files on a database from before it', () => {
     ]);
   });
 
-  // BUG (round 3): an installed app's offline purge reaches the new server through migration 0011
-  // with `fields` (every merge field at its updatedAt), so the restore-beats-purge rule applies to
-  // it, which the server spares pushes without fields because that app removed its files at once
-  // (sync-design §7). When it loses, the asset comes back here without its files, and
-  // `filesRemovedAt` from the 0012 backfill stays set on the live asset: nothing clears it
-  // (sweepPurgedFiles, upsertRows of the adopted current). Purged again later, its copies made since
-  // (a thumbnail made again, a download) are never swept. Expected: a purge undone clears
-  // filesRemovedAt, so the next confirmed purge removes the copies again.
-  it.fails(
-    'an offline purge from before the upgrade that loses to a restore: purged again later, its copies are swept',
-    async () => {
-      const { db: upgraded } = installedAppDb();
-      const restored = {
-        ...makeAssetRecord({ id: 'offline', filename: 'o.jpg', thumbnailFilename: 'o-t.jpg' }),
-        createdAt: 1000,
-        updatedAt: 2500,
-        mediaLibraryAssetId: 'm',
-        deletedAt: null,
-        purgedAt: null,
-      };
-      const lost = fakeTransport({
-        push: async (req) => ({
-          results: req.mutations.map((m) => ({
-            id: String(m.record.id),
-            collection: m.collection,
-            status: 'skipped-lww' as const,
-            current: restored,
-          })),
-        }),
-      });
-      await runSyncOnce(upgraded, lost);
-      const row = () => upgraded.select().from(schema.assets).where(eq(schema.assets.id, 'offline')).get();
-      expect(await row()).toMatchObject({ deletedAt: null, purgedAt: null }); // back, live
-      await repo.deleteAssets(upgraded, ['offline']);
-      await repo.purgeAssets(upgraded, ['offline']);
-      const { removed, removeFiles } = recording();
-      await runSyncOnce(upgraded, fakeTransport(), { removeFiles });
-      expect(removed).toEqual(['o.jpg', 'o-t.jpg']); // actual: [] (filesRemovedAt still 2000)
-    },
-  );
+  it('pushes the installed app’s pending rows without fields, an edit on top of one too, and a new one with them', async () => {
+    const { db: upgraded } = installedAppDb();
+    await repo.toggleFavorite(upgraded, 'live'); // coalesces into the installed app's row
+    await repo.updateAllAssets(upgraded, ['trashed'], { deletedAt: null });
+    const sent: PushMutation[] = [];
+    await runSyncOnce(
+      upgraded,
+      fakeTransport({
+        push: async (req) => {
+          sent.push(...req.mutations);
+          return fakeTransport().push(req);
+        },
+      }),
+    );
+    const byId = new Map(sent.map((mutation) => [mutation.record.id, mutation]));
+    expect(byId.get('offline')).not.toHaveProperty('fields');
+    expect(byId.get('live')).not.toHaveProperty('fields');
+    expect(byId.get('live')!.record).toMatchObject({ isFavorite: true });
+    expect(byId.get('trashed')!.fields).toMatchObject({ deletedAt: expect.any(Number) });
+  });
+
+  // An installed app's offline purge reaches the new server as that app pushed it: without fields
+  // (outbox.whole_record, set by migration 0011), so the server spares it the restored_through check,
+  // as that app removed its files at once (sync-design §7). Should it lose anyway (a newer restore),
+  // the asset comes back live, and `filesRemovedAt` from the 0012 backfill is cleared with the purge
+  // (a trigger), so its copies made since are swept when it is purged again.
+  it('an offline purge from before the upgrade that loses to a restore: purged again later, its copies are swept', async () => {
+    const { db: upgraded } = installedAppDb();
+    const restored = {
+      ...makeAssetRecord({ id: 'offline', filename: 'o.jpg', thumbnailFilename: 'o-t.jpg' }),
+      createdAt: 1000,
+      updatedAt: 2500,
+      mediaLibraryAssetId: 'm',
+      deletedAt: null,
+      purgedAt: null,
+    };
+    const sent: PushMutation[] = [];
+    const lost = fakeTransport({
+      push: async (req) => {
+        sent.push(...req.mutations);
+        return {
+          results: req.mutations.map((m) =>
+            m.record.id === 'offline'
+              ? { id: 'offline', collection: m.collection, status: 'skipped-lww' as const, current: restored }
+              : { id: String(m.record.id), collection: m.collection, status: 'applied' as const },
+          ),
+        };
+      },
+    });
+    await runSyncOnce(upgraded, lost);
+    const purge = sent.find((m) => m.record.id === 'offline');
+    expect(purge).toBeDefined();
+    expect(purge).not.toHaveProperty('fields'); // pushed as the installed app pushed it
+    const row = () => upgraded.select().from(schema.assets).where(eq(schema.assets.id, 'offline')).get();
+    expect(await row()).toMatchObject({ deletedAt: null, purgedAt: null, filesRemovedAt: null }); // back, live
+    await repo.deleteAssets(upgraded, ['offline']);
+    await repo.purgeAssets(upgraded, ['offline']);
+    const { removed, removeFiles } = recording();
+    await runSyncOnce(upgraded, fakeTransport(), { removeFiles });
+    expect(removed).toEqual(['o.jpg', 'o-t.jpg']);
+  });
 });
