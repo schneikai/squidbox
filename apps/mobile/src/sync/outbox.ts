@@ -70,6 +70,7 @@ export async function pendingEdits<P extends EditParts = Record<never, never>>(
   recordIds: string[],
   parts?: P,
 ): Promise<Map<string, PendingEdit<P>>> {
+  if (recordIds.length === 0) return new Map();
   const rows = await db
     .select({
       recordId: schema.outbox.recordId,
@@ -80,16 +81,6 @@ export async function pendingEdits<P extends EditParts = Record<never, never>>(
     .from(schema.outbox)
     .where(recordsIn(collection, recordIds));
   return new Map(rows.map(({ recordId, ...edit }) => [recordId, edit as PendingEdit<P>]));
-}
-
-/** Whether the record has a pending edit (one waiting after a failure included). */
-export async function hasPendingEdit(db: SyncDb, collection: string, recordId: string): Promise<boolean> {
-  const rows = await db
-    .select({ id: schema.outbox.id })
-    .from(schema.outbox)
-    .where(recordsIn(collection, [recordId]))
-    .limit(1);
-  return rows.length > 0;
 }
 
 export async function clearOutboxRows(db: SyncDb, collection: string, recordIds: string[]): Promise<void> {
