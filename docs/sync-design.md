@@ -168,9 +168,9 @@ Client apply (`apps/mobile/src/sync/worker.ts`) is **server-authoritative and ou
 an incoming record with a pending outbox row takes every field except the ones that row's `fields`
 names, widened to their field groups (`overlayFields`), with the newer of the two `updatedAt`s, so
 this device's next edit gets a clock above the pulled one; the pending push re-asserts those fields
-and the push result settles them (§6). A purge is final: an incoming purged record keeps its
-deletion group over a pending one without the purge. So another device's favorite
-shows while a rename made here waits to be pushed.
+and the push result settles them (§6). A purge the server has is final: an incoming purged record
+keeps its deletion group over a pending one without the purge. So another device's favorite shows
+while a rename made here waits to be pushed.
 The client pulls pages until it holds about 5,000 records (or the server has no more), then
 applies them in one SQLite transaction, as multi-row upserts by `id`, together with the new cursor.
 Few big transactions matter on web, where every page a transaction touches is written again. A
@@ -333,9 +333,11 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
   which sends a newer `deletedAt: null`, does (a whole-record push still carries `deletedAt`, so
   a newer one undeletes). Restoring a deleted asset clears `deletedAt`.
 - **Purges** ("Delete permanently", §7a) set `purgedAt`, the write-once `finalField`, sent with
-  its deletion as one group: it has no clock, applies only to a record still deleted after the
-  push's `deletedAt`, and freezes the row. So a purge beats any edit, and a restore it hadn't seen
-  only when that restore is the later of the two.
+  its deletion as one group. A purge applies to a record still deleted once merged, whatever its
+  clock, and freezes the row; a restore it hadn't seen (a row live again since the deletion the
+  purge was made of) beats it, whatever the clocks, and its `deletedAt` doesn't re-delete either.
+  Permanent deletion is irreversible, so when the two clash the photo is kept. A purge that reached
+  the server first is final: a later restore loses.
 - **Membership** (which assets are in an album or post, and their order) is stored as separate
   edge records in `album_assets` and `post_assets` (§10), not as arrays on the parent. Add,
   remove and reorder each write their own edge rows, so concurrent membership changes on two
@@ -370,15 +372,18 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
   in S3 and on every device (file, thumbnail and downloaded copy), also when the delete arrives
   through sync: a deleted asset can be restored, and the Deleted album shows its thumbnail.
 - **Deleting permanently** in the Deleted album (`deleteAssetsPermanently` → `purgeAssets`) sets
-  `purgedAt` (synced, final: §7); the record stays as a permanent tombstone (§5). A purged asset
-  shows nowhere, the Deleted album included. The device first removes its copies
-  (`removeAssetFiles` in `library/fs.ts`: file, thumbnail and downloaded copy), then commits the
-  purge, so a crash can't leave files no asset names; a crash in between leaves the asset in the
-  Deleted album without its copies on this device, which is acceptable for an asset being deleted.
-- **A purge arriving through sync** (pulled, or adopted as the `current` of a `skipped-lww`)
-  removes this device's copies before the batch commits, so a crash in between redoes it. Only
-  for assets this device holds and hasn't purged yet, so an echo costs nothing. The worker gets
-  the removal for the library it syncs (`removeFiles`, from the sync target's library).
+  `purgedAt` (synced, final once the server has it: §7); the record stays as a permanent tombstone
+  (§5). A purged asset shows nowhere, the Deleted album included. Its copies on this device (file,
+  thumbnail and downloaded copy, `removeAssetFiles` in `library/fs.ts`) stay until the server
+  confirms the purge: a restore on another device it hadn't seen beats it, and the asset then comes
+  back here, files included, which matters for a photo whose only copy is on this device.
+- **A confirmed purge** removes this device's copies before the confirmation commits, so a crash in
+  between redoes it: the push applies this device's purge or answers with a purge (the `current` of
+  a `skipped-lww`), or a pull brings one for an asset this device holds, hasn't purged and has
+  nothing pending for (a pending edit's push confirms it instead). So an echo costs nothing, and a
+  failed removal keeps the outbox row for the next push. The worker gets the removal for the library
+  it syncs (`removeFiles`, from the sync target's library). A library that never syncs (no account)
+  keeps the copies of its purged assets until it joins an account.
 - Either way, a name that another asset not purged still uses is kept (`unsharedFiles`, one
   statement per batch), as on the server.
 - **The S3 file and thumbnail** of a purged asset are deleted by the server, after each push
@@ -516,7 +521,9 @@ backs it up and keeps it in sync, and signing out only pauses that.
   folders, moved into missing destinations after the commit, the source removed when nothing is left
   in it; a pending edit of a record the target has is replayed field by field, a field group as
   one, each with its own clock unless the target's own pending edit of it is as new, onto the
-  target's row and outbox through `saveRecords`). The same merge runs again at every boot while an unmerged device library exists
+  target's row and outbox through `saveRecords`; a purge and a restore are settled as on the
+  server, the restore winning a pending purge from either side). The same merge runs again at
+  every boot while an unmerged device library exists
   (`mergeDeviceLibrary`, inside `withSyncPaused` after `resumeMerges`, which skips a marked source
   that is the open library and goes on after a failed one), so one that failed or that a crash
   interrupted finishes then. A device library with photos whose file lives in another account's
@@ -705,7 +712,8 @@ Runbook: [`legacy-import.md`](./legacy-import.md), or the `/legacy-import` skill
 - Pull apply is server-authoritative and outbox-guarded per field (§5).
 - Pushes without `fields` merge as whole records, so the server ships before the app (§7).
 - `skipped-lww` returns the winning record, and the client adopts it (§6).
-- Tombstones are kept forever (§5); a purge is a final tombstone that wins over LWW (§7).
+- Tombstones are kept forever (§5); a purge is a final tombstone that wins over LWW, except over a
+  restore it hadn't seen (§7).
 - Asset file flags are synced; only `syncError` is local-only (§4).
 - A rejected push waits on its outbox row, with its reason; it is retried on launch and when the
   app returns to the foreground, on a new edit, or Retry All (§6).
