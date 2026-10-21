@@ -1,4 +1,4 @@
-import { collectionsByName, widenToGroups } from '@squidbox/shared';
+import { collectionsByName, widenToGroups, type CollectionDescriptor, type FieldClocks } from '@squidbox/shared';
 import { and, isNull } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
@@ -58,9 +58,10 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
   // A source outbox row for a record the target has replays each of its fields with its own clock,
   // unless the target's own pending edit of that field is as new: the server's per-field merge
   // settles the rest against what it holds. Both sides are widened to their field groups first, so a
-  // group (a deletion and its purge) is replayed or kept whole.
-  async function collectReplays(collection: string, targetIds: Set<string>) {
-    const candidates = sourceOutbox.filter((row) => row.collection === collection && targetIds.has(row.recordId));
+  // group (a deletion and its purge) is replayed or kept whole; a purge and a restore are settled
+  // as the server would (deletionSide).
+  async function collectReplays(collection: string, targetRows: Map<string, Record<string, unknown>>) {
+    const candidates = sourceOutbox.filter((row) => row.collection === collection && targetRows.has(row.recordId));
     if (candidates.length === 0) return;
     const descriptor = collectionsByName[collection]!;
     const pending = await pendingEdits(
@@ -71,7 +72,10 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
     for (const row of candidates) {
       const fields = widenToGroups(descriptor, row.fields);
       const targetClocks = widenToGroups(descriptor, pending.get(row.recordId)?.fields ?? {});
-      const replayed = Object.entries(fields).filter(([field, clock]) => (targetClocks[field] ?? -1) < clock);
+      const side = deletionSide(descriptor, row.payload, fields, targetRows.get(row.recordId)!, targetClocks);
+      const replayed = Object.entries(fields).filter(([field, clock]) =>
+        side && deletionGroup(descriptor).includes(field) ? side === 'source' : (targetClocks[field] ?? -1) < clock,
+      );
       if (replayed.length > 0) replays.push({ ...row, fields: Object.fromEntries(replayed) });
     }
   }
@@ -88,7 +92,7 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
       table,
       sourceRows.map((row) => row.id),
     );
-    await collectReplays(collection, new Set(targetRows.keys()));
+    await collectReplays(collection, targetRows);
     return { fresh: live(sourceRows).filter((row) => !targetRows.has(row.id)), targetRows };
   }
 
@@ -251,12 +255,41 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<void>
       );
       const records = replays.flatMap((row) => {
         const targetRow = targetRows.get(row.recordId);
-        return targetRow ? [overlayFields(collection, targetRow, row.payload as Row, row.fields)] : [];
+        return targetRow
+          ? [overlayFields(collection, targetRow, row.payload as Row, row.fields, { keepBasePurge: false })]
+          : [];
       });
       const clocks = new Map(replays.map((row) => [row.recordId, row.fields]));
       await saveRecords(tx, collection, table, records, { clocks });
     }
   });
+}
+
+// deletedAt with the collection's final field (a purge), the group a deletion replays as.
+function deletionGroup(descriptor: CollectionDescriptor): readonly string[] {
+  const final = descriptor.finalField;
+  if (!final) return ['deletedAt'];
+  return descriptor.fieldGroups.find((group) => group.includes(final)) ?? ['deletedAt', final];
+}
+
+// Which side's deletion group wins when the source replays one, if the clocks don't decide it (as on
+// the server, sync-design §7): a purge is final, so a purged target keeps its purge over a deletion,
+// and over a restore once the server has the purge; a restore beats a purge that hadn't seen it, so
+// a pending purge loses to the source's restore and a source purge to the target's pending restore.
+function deletionSide(
+  descriptor: CollectionDescriptor,
+  payload: Record<string, unknown>,
+  fields: FieldClocks,
+  targetRow: Record<string, unknown>,
+  targetClocks: FieldClocks,
+): 'source' | 'target' | undefined {
+  const final = descriptor.finalField;
+  if (!final || !('deletedAt' in fields)) return undefined;
+  const sourcePurge = payload[final] != null;
+  const sourceRestore = payload.deletedAt == null;
+  if (targetRow[final] != null && !sourcePurge) return sourceRestore && final in targetClocks ? 'source' : 'target';
+  if (sourcePurge && targetRow.deletedAt == null && 'deletedAt' in targetClocks) return 'target';
+  return undefined;
 }
 
 /**

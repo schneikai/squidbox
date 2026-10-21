@@ -29,7 +29,8 @@ export const APPLY_BATCH = 5000;
 
 // An aborted `signal` ends the run between push batches, or in a pull after the page at hand, with
 // everything so far committed (the cursor moves per applied batch, so the next run resumes).
-// `removeFiles` removes this device's copies of assets purged elsewhere, before the purge commits (§7a).
+// `removeFiles` removes this device's copies of assets whose purge the server confirmed, before that
+// commits here (§7a).
 interface SyncRunOptions {
   signal?: AbortSignal;
   removeFiles?: RemoveFiles;
@@ -104,13 +105,25 @@ async function pushPhase(
       fields: row.fields,
     }));
     const { results } = await transport.push({ mutations });
-    // A purge that beat this device's edit comes back as the current record to adopt.
-    await removeNewlyPurgedFiles(
-      db,
-      results.filter((result) => result.collection === 'assets').map((result) => result.current),
-      removeFiles,
-    );
     const pushedRows = new Map(batch.map((row) => [`${row.collection}:${row.recordId}`, row]));
+    // The server confirmed these purges: this device's own that applied, or one it comes back with.
+    const confirmedPurges = results.filter(
+      (result) =>
+        result.collection === 'assets' &&
+        (result.current
+          ? result.current.purgedAt != null
+          : result.status === 'applied' && pushedRows.get(`assets:${result.id}`)?.payload.purgedAt != null),
+    );
+    await removeFiles(
+      await unsharedFiles(
+        db,
+        await readByIds<schema.AssetRow>(
+          db,
+          schema.assets,
+          confirmedPurges.map((result) => result.id),
+        ),
+      ),
+    );
     notes.push(...(await db.transaction((tx) => applyPushResults(tx, results, pushedRows))));
     pushed += results.length;
   }
@@ -277,16 +290,20 @@ async function applyChanges(
   });
 }
 
-// The files of the purged assets among these records that aren't purged here yet, so an echo or an
-// asset this device never had costs no file work, and only the names no other asset uses (§7a).
+// The files of the purged assets among these pulled records that this device holds, isn't purged here
+// and has no pending edit of (its push confirms a purge for those, and removes the files then), so an
+// echo or an asset this device never had costs no file work; only the names no other asset uses (§7a).
 async function removeNewlyPurgedFiles(
   db: SyncDb,
-  records: (Record<string, unknown> | undefined)[],
+  records: Record<string, unknown>[] | undefined,
   removeFiles: RemoveFiles,
 ): Promise<void> {
-  const ids = records.flatMap((record) => (record?.purgedAt != null ? [String(record.id)] : []));
+  const ids = (records ?? []).flatMap((record) => (record.purgedAt != null ? [String(record.id)] : []));
   if (ids.length === 0) return;
-  const rows = (await readByIds<schema.AssetRow>(db, schema.assets, ids)).filter((row) => row.purgedAt === null);
+  const pending = await pendingEdits(db, 'assets', ids);
+  const rows = (await readByIds<schema.AssetRow>(db, schema.assets, ids)).filter(
+    (row) => row.purgedAt === null && !pending.has(row.id),
+  );
   if (rows.length > 0) await removeFiles(await unsharedFiles(db, rows));
 }
 

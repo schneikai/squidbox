@@ -539,6 +539,33 @@ d('sync engine (Postgres)', () => {
       expect((await stored(r.id)).fieldClock).toMatchObject({ notes: 5000, isFavorite: 2000 });
     });
 
+    it('a restore beats a purge that hadn’t seen it, whatever the purge’s clock, and isn’t re-deleted', async () => {
+      const r = { ...assetRecord({ deletedAt: 1000 }), purgedAt: null as number | null };
+      await push(db, USER_A, [mut(r)]);
+      await push(db, USER_A, [edit({ ...r, updatedAt: 3000, deletedAt: null }, ['deletedAt', 'purgedAt'])]);
+      const seq = await serverSeqOf(USER_A, r.id);
+      // Made later than the restore, on a device that only saw the deletion at 1000.
+      const purge = edit({ ...r, updatedAt: 5000, purgedAt: 5000 }, ['deletedAt', 'purgedAt']);
+      expect((await push(db, USER_A, [purge]))[0]).toMatchObject({
+        status: 'skipped-lww',
+        current: { deletedAt: null, purgedAt: null },
+      });
+      expect(await serverSeqOf(USER_A, r.id)).toBe(seq);
+      // A deletion after the restore, then a purge of it, applies.
+      const deletion = { ...r, updatedAt: 6000, deletedAt: 6000 };
+      await push(db, USER_A, [edit(deletion, ['deletedAt', 'purgedAt'])]);
+      const purgeAgain = edit({ ...deletion, updatedAt: 7000, purgedAt: 7000 }, ['deletedAt', 'purgedAt']);
+      expect((await push(db, USER_A, [purgeAgain]))[0].status).toBe('applied');
+    });
+
+    it('an offline deletion and purge of a row the server never saw deleted apply together', async () => {
+      const r = { ...assetRecord(), purgedAt: null as number | null };
+      await push(db, USER_A, [mut(r)]);
+      const gone = { ...r, updatedAt: 3000, deletedAt: 2000, purgedAt: 3000 };
+      expect((await push(db, USER_A, [edit(gone, ['deletedAt', 'purgedAt'])]))[0].status).toBe('applied');
+      expect(await stored(r.id)).toMatchObject({ deletedAt: 2000, purgedAt: 3000 });
+    });
+
     it('a push to a purged asset that doesn’t have the purge is skipped with it, even if every sent field holds', async () => {
       const r = { ...assetRecord({ deletedAt: 1000 }), purgedAt: null as number | null };
       await push(db, USER_A, [mut(r)]);
@@ -692,14 +719,13 @@ d('sync engine (Postgres)', () => {
       expect(results[2]).toMatchObject({ status: 'skipped-lww', current: { deletedAt: 3000, purgedAt: 2500 } });
     });
 
-    it('a purge alone on a live row doesn’t apply; its deletion pair merges the live deletedAt', async () => {
+    it('a purge alone on a live row changes nothing', async () => {
       const r = assetRecord();
       await push(db, USER_A, [mut(r)]);
       const before = await raw(r.id);
       const [result] = await push(db, USER_A, [at({ ...r, updatedAt: 2000, purgedAt: 2000 }, 2000, ['purgedAt'])]);
       expect(result).toMatchObject({ status: 'skipped-lww', current: { purgedAt: null } });
-      // deletedAt and purgedAt are one field group: the pushed (null) deletedAt is merged at the purge's clock.
-      expect(await raw(r.id)).toMatchObject({ ...before, fieldClock: { ...before.fieldClock, deletedAt: 2000 }, updatedAt: 2000, serverSeq: expect.any(Number) });
+      expect(await raw(r.id)).toEqual(before);
     });
 
     it('an edge removal stays removed when a newer reorder of it arrives, and keeps the new position', async () => {

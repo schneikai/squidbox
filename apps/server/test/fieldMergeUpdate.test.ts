@@ -36,15 +36,16 @@ describe('fieldMergeUpdate', () => {
     );
   });
 
-  it('never updates a purged asset, and purges once, only an asset that stays deleted, with no clock', () => {
+  it('never updates a purged asset; a purge applies once, to an asset still deleted, not over a later restore', () => {
     const fields = serverCollections.assets.clockedFields;
     expect(fields).not.toContain('purgedAt');
     const purge = fieldMergeUpdate(serverCollections.assets, ['deletedAt', 'purgedAt']);
-    const mergedDeletedAt = `(case when ${wins('assets', fields, 'deletedAt')} then excluded."deleted_at" else "assets"."deleted_at" end)`;
+    const storedDeletedAt = `coalesce(("assets"."field_clock"->>'deletedAt')::bigint, "assets"."updated_at")`;
+    const restoredSince = `(excluded."purged_at" is not null and "assets"."deleted_at" is null and coalesce(${storedDeletedAt} > excluded."deleted_at", true))`;
+    const appliesDeletedAt = `(${wins('assets', fields, 'deletedAt')} and not ${restoredSince})`;
+    const mergedDeletedAt = `(case when ${appliesDeletedAt} then excluded."deleted_at" else "assets"."deleted_at" end)`;
     const appliesPurge = `(excluded."purged_at" is not null and "assets"."purged_at" is null and ${mergedDeletedAt} is not null)`;
-    expect(render(purge.setWhere)).toBe(
-      `"assets"."purged_at" is null and (${wins('assets', fields, 'deletedAt')} or ${appliesPurge})`,
-    );
+    expect(render(purge.setWhere)).toBe(`"assets"."purged_at" is null and (${appliesDeletedAt} or ${appliesPurge})`);
     expect(render(purge.set.fieldClock)).not.toContain(`'purgedAt'`);
   });
 
@@ -53,5 +54,4 @@ describe('fieldMergeUpdate', () => {
     expect(render(setWhere)).toBe('false');
     for (const part of [...Object.values(set), setWhere]) expect(dialect.sqlToQuery(part).params).toEqual([]);
   });
-
 });

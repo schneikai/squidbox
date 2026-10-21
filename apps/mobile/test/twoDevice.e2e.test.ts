@@ -228,18 +228,20 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
     await runSyncOnce(deviceA, transport);
     await runSyncOnce(deviceB, transport);
 
-    // B restores it while offline, after A purged it (B's clock is later).
+    // B restores it while offline, after A purged it (B's clock is later); A's purge reaches the server first.
     const removedOnA: string[] = [];
-    await repo.purgeAssets(deviceA, [rec.id], async (files) => {
-      removedOnA.push(
-        ...files.flatMap((file) => [file.filename, file.thumbnailFilename]).filter((n) => n !== undefined),
-      );
-    });
-    expect(removedOnA).toEqual(['p.jpg', 'p-t.jpg']);
+    await repo.purgeAssets(deviceA, [rec.id]);
     await new Promise((resolve) => setTimeout(resolve, 2));
     await repo.updateAllAssets(deviceB, [rec.id], { deletedAt: null });
 
-    await runSyncOnce(deviceA, transport); // the purge; the server deletes its files after the push
+    await runSyncOnce(deviceA, transport, {
+      removeFiles: async (files) => {
+        removedOnA.push(
+          ...files.flatMap((file) => [file.filename, file.thumbnailFilename]).filter((n) => n !== undefined),
+        );
+      },
+    }); // the purge; A's copies go once the server has it, the cloud's after the push
+    expect(removedOnA).toEqual(['p.jpg', 'p-t.jpg']);
     expect(deletedKeys).toEqual(['p.jpg', 'p-t.jpg']);
     const removedOnB: string[] = [];
     const removeFiles = async (assets: { filename?: string }[]) => {
@@ -263,7 +265,7 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
     await runSyncOnce(deviceA, transport);
     await runSyncOnce(deviceB, transport);
 
-    await repo.purgeAssets(deviceA, [rec.id], async () => {}); // A, offline
+    await repo.purgeAssets(deviceA, [rec.id]); // A, offline
     await new Promise((resolve) => setTimeout(resolve, 2));
     await repo.updateAllAssets(deviceB, [rec.id], { deletedAt: null }); // B restores it later
     await runSyncOnce(deviceB, transport);
@@ -632,7 +634,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
         const id = await seedAsset({ notes: 'orig' });
         await edit(A, S + 100, () => repo.deleteAssets(A, [id]));
         await settle();
-        await edit(A, S + 200, () => repo.purgeAssets(A, [id], async () => {}));
+        await edit(A, S + 200, () => repo.purgeAssets(A, [id]));
         await edit(B, S + 300, () => repo.updateAsset(B, id, { notes: 'B, newer' }));
         const removed: string[] = [];
         const removeFiles: RemoveFiles = async (files) => {
@@ -653,37 +655,49 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       }
     });
 
-    // deletedAt and purgedAt are one field group: a purge carries the deletion at its own clock, so
-    // against a restore it hadn't seen the later of the two wins, like any write of one field.
-    it('a purge and a restore it hadn’t seen: the later one wins', async () => {
+    // A purge is irreversible: against a restore it hadn't seen, the restore wins whatever the clocks,
+    // and the purging device keeps its files and gets the asset back.
+    it('a purge and a restore it hadn’t seen: the restore wins in either order, the files stay', async () => {
       for (const purgeLater of [true, false]) {
         const id = await seedAsset();
         await edit(B, S + 100, () => repo.deleteAssets(B, [id]));
         await settle();
         await edit(B, purgeLater ? S + 200 : S + 400, () => repo.updateAllAssets(B, [id], { deletedAt: null }));
         await sync(B);
-        await edit(A, S + 300, () => repo.purgeAssets(A, [id], async () => {}));
+        await edit(A, S + 300, () => repo.purgeAssets(A, [id]));
+        const removed: string[] = [];
+        await sync(A, {
+          removeFiles: async (files) => {
+            removed.push(...files.flatMap((f) => (f.filename ? [f.filename] : [])));
+          },
+        }); // the purge loses: A gets the asset back, its files never went
         await settle();
-        expect(await expectConverged('assets', id)).toMatchObject(
-          purgeLater ? { deletedAt: S + 100, purgedAt: S + 300 } : { deletedAt: null, purgedAt: null },
-        );
+        expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: null, purgedAt: null });
+        expect(removed).toEqual([]);
       }
     });
 
-    it('an offline delete and purge coalesced in one push go as one group, at the purge’s clock', async () => {
+    it('an offline delete and purge coalesced in one push still lose to a restore they hadn’t seen', async () => {
       const id = await seedAsset();
       await edit(B, S + 100, () => repo.deleteAssets(B, [id]));
       await sync(B);
       await edit(B, S + 300, () => repo.updateAllAssets(B, [id], { deletedAt: null }));
       await sync(B);
       await edit(A, S + 200, () => repo.deleteAssets(A, [id])); // A saw neither
-      await edit(A, S + 400, () => repo.purgeAssets(A, [id], async () => {}));
+      await edit(A, S + 400, () => repo.purgeAssets(A, [id]));
       expect((await A.select().from(clientSchema.outbox))[0]!.fields).toEqual({
         deletedAt: S + 400,
         purgedAt: S + 400,
       });
       await settle();
-      // Newer than the restore it hadn't seen, so it wins (an older one loses, as above).
+      expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: null, purgedAt: null });
+    });
+
+    it('an offline delete and purge of an asset no device restored apply', async () => {
+      const id = await seedAsset();
+      await edit(A, S + 200, () => repo.deleteAssets(A, [id]));
+      await edit(A, S + 400, () => repo.purgeAssets(A, [id]));
+      await settle();
       expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: S + 200, purgedAt: S + 400 });
     });
 
@@ -710,7 +724,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       });
       await retryFailures(B);
       await sync(A);
-      await edit(A, S + 200, () => repo.purgeAssets(A, [id], async () => {}));
+      await edit(A, S + 200, () => repo.purgeAssets(A, [id]));
       await sync(A);
 
       const removed: string[] = [];
@@ -732,7 +746,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       const id = await seedAsset();
       await edit(A, S + 100, () => repo.deleteAssets(A, [id]));
       await settle();
-      await edit(A, S + 200, () => repo.purgeAssets(A, [id], async () => {}));
+      await edit(A, S + 200, () => repo.purgeAssets(A, [id]));
       await sync(A);
       const frozen = await serverRaw('assets', id);
 
@@ -752,7 +766,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       await settle();
       await edit(B, S + 150, () => repo.updateAsset(B, id, { notes: 'B notes', isFavorite: true }));
       await edit(B, S + 250, () => repo.updateAllAssets(B, [id], { deletedAt: null })); // and a restore, newer
-      await edit(A, S + 200, () => repo.purgeAssets(A, [id], async () => {}));
+      await edit(A, S + 200, () => repo.purgeAssets(A, [id]));
       await sync(A);
       const removed: string[] = [];
       await sync(B, {
@@ -836,7 +850,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       await edit(A, S + 100, () => repo.deleteAssets(A, [id]));
       await settle();
       await edit(C, S + 900, () => repo.updateAllAssets(C, [id], { deletedAt: null, notes: 'C' })); // newer even
-      await edit(A, S + 200, () => repo.purgeAssets(A, [id], async () => {}));
+      await edit(A, S + 200, () => repo.purgeAssets(A, [id]));
       await sync(A);
       await settle();
       expect(await expectConverged('assets', id)).toMatchObject({ purgedAt: S + 200, deletedAt: S + 100 });
@@ -969,7 +983,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       await edit(A, S + 50, () => repo.deleteAssets(A, [id]));
       await settle();
       const D = await deviceLibraryWith(id);
-      await edit(D, S + 100, () => repo.purgeAssets(D, [id], async () => {}));
+      await edit(D, S + 100, () => repo.purgeAssets(D, [id]));
       await edit(A, S + 200, () => repo.updateAllAssets(A, [id], { deletedAt: null }));
       await mergeInto(A, D, S + 300);
       await settle();

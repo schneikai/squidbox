@@ -31,10 +31,9 @@ function recording() {
     },
   };
 }
-const ignoreFiles = async () => {};
 
 describe('Delete permanently', () => {
-  it('purges the asset for good: out of the Deleted album and every album, once', async () => {
+  it('purges the asset for good: out of the Deleted album and every album, its files once the server has it', async () => {
     const albums = makeRepository('albums', schema.albums);
     const albumEdges = makeEdgeRepository('album_assets', schema.albumAssets, 'albumId');
     const asset = await repo.createAsset(db, makeAssetRecord());
@@ -45,11 +44,9 @@ describe('Delete permanently', () => {
     const trashedAt = (await assetRow(asset.id))!.deletedAt;
     expect(await assetQuery({ scope: 'deleted' }).ids(db)).toEqual([asset.id]);
 
-    const { removed, removeFiles } = recording();
-    const purged = await repo.purgeAssets(db, [asset.id], removeFiles);
+    const purged = await repo.purgeAssets(db, [asset.id]);
 
     expect(purged.map((row) => row.id)).toEqual([asset.id]);
-    expect(removed).toEqual(['a.jpg', 't.jpg']);
     const row = await assetRow(asset.id);
     expect(row?.purgedAt).not.toBeNull();
     expect(row?.deletedAt).toBe(trashedAt); // still deleted when it was trashed
@@ -57,34 +54,59 @@ describe('Delete permanently', () => {
     expect(await assetQuery({ scope: { albumId: album.id } }).ids(db)).toEqual([]);
     const pending = await db.select().from(schema.outbox).where(eq(schema.outbox.collection, 'assets'));
     expect(pending[0]?.payload).toMatchObject({ purgedAt: row?.purgedAt });
-    expect(await repo.purgeAssets(db, [asset.id], removeFiles)).toEqual([]); // once purged, nothing more to do
+    expect(await repo.purgeAssets(db, [asset.id])).toEqual([]); // once purged, nothing more to do
+
+    const { removed, removeFiles } = recording();
+    await runSyncOnce(db, fakeTransport(), { removeFiles }); // the server applies it
+    expect(removed).toEqual(['a.jpg', 't.jpg']);
+    await runSyncOnce(db, fakeTransport(), { removeFiles });
     expect(removed).toEqual(['a.jpg', 't.jpg']);
   });
 
-  it('removes the files first, and only the names no other asset still uses', async () => {
+  it('removes only the names no other asset still uses, and again after a failed removal', async () => {
     const [mine, other, alsoPurged, before] = await repo.createAssets(db, [
       makeAssetRecord({ filename: 'shared.jpg', thumbnailFilename: 'mine-t.jpg' }),
       makeAssetRecord({ filename: 'other.jpg', thumbnailFilename: 'shared.jpg' }), // a live asset naming it
       makeAssetRecord({ filename: 'both.jpg', thumbnailFilename: 'both-t.jpg' }),
       makeAssetRecord({ filename: 'both.jpg', thumbnailFilename: 'gone-t.jpg' }),
     ]);
-    await repo.purgeAssets(db, [before!.id], ignoreFiles); // a purged asset uses no name any more
-    const { removed, removeFiles } = recording();
-    const whileRemoving: (number | null | undefined)[] = [];
-
-    await repo.purgeAssets(db, [mine!.id, alsoPurged!.id], async (files) => {
-      whileRemoving.push((await assetRow(mine!.id))?.purgedAt);
-      await removeFiles(files);
-    });
-
-    expect(whileRemoving).toEqual([null]); // not purged yet: a crash then leaves no files behind
-    expect(removed).toEqual(['mine-t.jpg', 'both.jpg', 'both-t.jpg']);
-    expect((await assetRow(mine!.id))?.purgedAt).not.toBeNull();
-    expect((await assetRow(other!.id))?.purgedAt).toBeNull();
+    await repo.purgeAssets(db, [before!.id]); // a purged asset uses no name any more
+    await runSyncOnce(db, fakeTransport());
+    await repo.purgeAssets(db, [mine!.id, alsoPurged!.id]);
 
     const failure = new Error('disk full');
-    await expect(repo.purgeAssets(db, [other!.id], async () => Promise.reject(failure))).rejects.toBe(failure);
-    expect((await assetRow(other!.id))?.purgedAt).toBeNull(); // the files weren't removed: no purge
+    await expect(runSyncOnce(db, fakeTransport(), { removeFiles: async () => Promise.reject(failure) })).rejects.toBe(
+      failure,
+    );
+    expect(await db.select().from(schema.outbox)).toHaveLength(2); // still to settle: the next push removes them
+    const { removed, removeFiles } = recording();
+    await runSyncOnce(db, fakeTransport(), { removeFiles });
+    expect(removed).toEqual(['mine-t.jpg', 'both.jpg', 'both-t.jpg']);
+    expect((await assetRow(other!.id))?.purgedAt).toBeNull();
+  });
+
+  it('a purge that loses to a restore elsewhere keeps the files, and the asset comes back', async () => {
+    const asset = await repo.createAsset(db, makeAssetRecord({ deletedAt: 1000 }));
+    await runSyncOnce(db, fakeTransport());
+    await repo.purgeAssets(db, [asset.id]);
+    const restored = { ...asset, deletedAt: null, purgedAt: null, updatedAt: Date.now() + 1000 };
+    const { removed, removeFiles } = recording();
+    const transport = fakeTransport({
+      push: async (req) => ({
+        results: req.mutations.map((m) => ({
+          id: String(m.record.id),
+          collection: m.collection,
+          status: 'skipped-lww' as const,
+          current: restored,
+        })),
+      }),
+    });
+
+    await runSyncOnce(db, transport, { removeFiles });
+
+    expect(removed).toEqual([]);
+    expect(await assetRow(asset.id)).toMatchObject({ deletedAt: null, purgedAt: null });
+    expect(await db.select().from(schema.outbox)).toEqual([]);
   });
 
   it('a post shows a trashed asset but never a purged one', async () => {
@@ -96,7 +118,7 @@ describe('Delete permanently', () => {
         (ref: { asset: { id: string } }) => ref.asset.id,
       );
     expect(await showing()).toEqual([kept!.id, gone!.id]); // a trashed asset can come back
-    await repo.purgeAssets(db, [gone!.id], ignoreFiles);
+    await repo.purgeAssets(db, [gone!.id]);
     expect(await showing()).toEqual([kept!.id]);
   });
 });
@@ -126,7 +148,7 @@ describe('local files of a purge that arrives through sync', () => {
 
   it('cost nothing for an echo of a purge made here, or an asset this device never had', async () => {
     const asset = await repo.createAsset(db, makeAssetRecord());
-    await repo.purgeAssets(db, [asset.id], ignoreFiles);
+    await repo.purgeAssets(db, [asset.id]);
     await runSyncOnce(db, fakeTransport());
     const { removed, removeFiles } = recording();
     const echo = { ...(await assetRow(asset.id)), notes: 'echo' };

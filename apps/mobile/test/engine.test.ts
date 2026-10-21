@@ -92,7 +92,7 @@ describe('outbox fields (per-field merge)', () => {
     expect(await fieldsOf(rec.id)).toEqual({ deletedAt, purgedAt: deletedAt }); // one field group
     await settled();
 
-    await repo.purgeAssets(db, [rec.id], async () => {});
+    await repo.purgeAssets(db, [rec.id]);
     const purgedAt = (await assetRow(rec.id))!.updatedAt;
     expect(await fieldsOf(rec.id)).toEqual({ deletedAt: purgedAt, purgedAt });
   });
@@ -318,7 +318,7 @@ describe('worker pull', () => {
     const rec = await repo.createAsset(db, makeAssetRecord());
     await repo.deleteAssets(db, [rec.id]);
     await runSyncOnce(db, fakeTransport());
-    await repo.purgeAssets(db, [rec.id], async () => {}); // pending: { purgedAt }
+    await repo.purgeAssets(db, [rec.id]); // pending: { purgedAt }
     const restored = makeAssetRecord({ id: rec.id, deletedAt: null, updatedAt: Date.now() + 60_000 });
     await runSyncOnce(db, pendingAndPulling({ ...restored, purgedAt: null } as unknown as Record<string, unknown>));
     const row = await assetRow(rec.id);

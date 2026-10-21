@@ -318,7 +318,6 @@ describe('planMerge + applyMerge', () => {
 // or the server merges one side's value under the other side's clock.
 describe('replays against a pending edit of the target (adversarial)', () => {
   const tick = () => new Promise((resolve) => setTimeout(resolve, 3));
-  const noFiles = async () => {};
 
   // One asset in both libraries, deleted in both (synced: no outbox rows).
   async function sharedDeletedAsset() {
@@ -335,7 +334,7 @@ describe('replays against a pending edit of the target (adversarial)', () => {
   // so the restore is lost and the stale purge applies on the server.
   it('a device purge does not undo the account’s newer pending restore', async () => {
     const shared = await sharedDeletedAsset();
-    await repo.purgeAssets(source, [shared.id], noFiles); // the device purges it, not pushed
+    await repo.purgeAssets(source, [shared.id]); // the device purges it, not pushed
     await tick();
     await repo.updateAllAssets(target, [shared.id], { deletedAt: null }); // the account restores it later
 
@@ -347,6 +346,32 @@ describe('replays against a pending edit of the target (adversarial)', () => {
     expect(pending!.payload).toMatchObject({ deletedAt: null });
   });
 
+  it('a restore beats a purge that hadn’t seen it, whichever library made it and in either order', async () => {
+    for (const restoreLater of [true, false]) {
+      for (const purging of ['source', 'target'] as const) {
+        source = makeTestDb();
+        target = makeTestDb();
+        const shared = await sharedDeletedAsset();
+        const [purger, restorer] = purging === 'source' ? [source, target] : [target, source];
+        const purge = () => repo.purgeAssets(purger, [shared.id]);
+        const restore = () => repo.updateAllAssets(restorer, [shared.id], { deletedAt: null });
+        for (const write of restoreLater ? [purge, restore] : [restore, purge]) {
+          await write();
+          await tick();
+        }
+
+        await applyMerge(target, await planMerge(source, target, SRC));
+        const [row] = await target.select().from(schema.assets);
+        const [pending] = await outbox(target);
+        expect(row, `${purging} purges, restore ${restoreLater ? 'later' : 'earlier'}`).toMatchObject({
+          deletedAt: null,
+          purgedAt: null,
+        });
+        expect(pending!.payload).toMatchObject({ deletedAt: null, purgedAt: null });
+      }
+    }
+  });
+
   // BUG (same root cause): the source's delete replays and drags its purgedAt (null) over the
   // target's pending purge; the outbox keeps the purge's clock but pushes purgedAt=null, so the purge
   // (whose files this device already removed) never reaches the server and the asset is un-purged here.
@@ -354,7 +379,7 @@ describe('replays against a pending edit of the target (adversarial)', () => {
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, deletedAt: 5000, syncError: null }]);
-    await repo.purgeAssets(target, [shared.id], noFiles); // the account purges it, not pushed
+    await repo.purgeAssets(target, [shared.id]); // the account purges it, not pushed
     await tick();
     await repo.deleteAssets(source, [shared.id]); // the device deletes it later
 
@@ -370,7 +395,7 @@ describe('replays against a pending edit of the target (adversarial)', () => {
     const shared = await sharedDeletedAsset();
     await repo.updateAsset(source, shared.id, { notes: 'device notes' });
     await tick();
-    await repo.purgeAssets(target, [shared.id], noFiles);
+    await repo.purgeAssets(target, [shared.id]);
 
     await applyMerge(target, await planMerge(source, target, SRC));
     const [row] = await target.select().from(schema.assets);

@@ -8,7 +8,7 @@ const jsonKey = (field: string) => sql.raw(`'${field}'`);
  * The DO UPDATE of a push (sync-design §6, §7): each sent field applies when its clock is newer than
  * the stored one (strict >, so a replay changes nothing), the others keep their value and clock, and
  * `updated_at` is the newest clock. A field without a stored clock takes the row's updated_at. The
- * final field follows its own rule (appliesFinal) and a row that has it is frozen. The row is
+ * deletion group follows its own rule (below) and a row with the final field is frozen. The row is
  * updated, and gets a new server_seq, only when a field applies. `sent` holds merge fields only, in
  * schema order: they are written into the SQL as names.
  */
@@ -17,15 +17,27 @@ export function fieldMergeUpdate(col: ServerCollection, sent: string[]): { set: 
   const clocked = sent.filter((field) => col.clockedFields.includes(field));
   const sentClock = (field: string) => sql`(excluded.field_clock->>${jsonKey(field)})::bigint`;
   const sentValue = (field: string) => sql`excluded.${sql.identifier(table[field].name)}`;
-  const wins = (field: string) =>
-    sql`(${sentClock(field)} > coalesce((${table.fieldClock}->>${jsonKey(field)})::bigint, ${table.updatedAt}))`;
+  const storedClock = (field: string) =>
+    sql`coalesce((${table.fieldClock}->>${jsonKey(field)})::bigint, ${table.updatedAt})`;
+  const wins = (field: string) => sql`(${sentClock(field)} > ${storedClock(field)})`;
+  // The deletion group (deletedAt with the final field, a purge): a purge loses, with its deletedAt,
+  // to a restore it hadn't seen, i.e. a row live again since after the deletion the purge was made of,
+  // whatever its clock; the photo is kept. Otherwise deletedAt merges by clock, and the purge applies
+  // to a row deleted once merged. A purged row is frozen (setWhere).
+  const final = col.finalField && sent.includes(col.finalField) ? col.finalField : undefined;
+  const restoredSince = final
+    ? sql`(${sentValue(final)} is not null and ${table.deletedAt} is null and coalesce(${storedClock('deletedAt')} > ${sentValue('deletedAt')}, true))`
+    : sql`false`;
+  const appliesDeletedAt = final ? sql`(${wins('deletedAt')} and not ${restoredSince})` : wins('deletedAt');
   const mergedDeletedAt = clocked.includes('deletedAt')
-    ? sql`(case when ${wins('deletedAt')} then ${sentValue('deletedAt')} else ${table.deletedAt} end)`
+    ? sql`(case when ${appliesDeletedAt} then ${sentValue('deletedAt')} else ${table.deletedAt} end)`
     : sql`${table.deletedAt}`;
   // Write-once: set on a record that is deleted once this push merged, never changed after.
   const appliesFinal = (field: string) =>
     sql`(${sentValue(field)} is not null and ${table[field]} is null and ${mergedDeletedAt} is not null)`;
-  const applies = new Map(sent.map((field) => [field, field === col.finalField ? appliesFinal(field) : wins(field)]));
+  const appliesTo = (field: string) =>
+    field === col.finalField ? appliesFinal(field) : field === 'deletedAt' ? appliesDeletedAt : wins(field);
+  const applies = new Map(sent.map((field) => [field, appliesTo(field)]));
 
   const set: Record<string, SQL> = {};
   for (const field of sent)

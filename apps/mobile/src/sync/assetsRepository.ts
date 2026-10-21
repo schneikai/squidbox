@@ -25,19 +25,14 @@ export const updateAllAssets = repository.updateAll;
 export const deleteAssets = repository.remove;
 
 /**
- * "Delete permanently": removes this device's copies of the assets' files, then sets purgedAt,
- * which no later version undoes (sync-design §7). The files go first, as with a purge arriving
- * through sync, so a crash can't leave files that no asset names any more; a crash in between leaves
- * an asset in the Deleted album without its copies here (it was being deleted). Resolves to the
- * newly purged rows.
+ * "Delete permanently": sets purgedAt, which no later version undoes once the server has it (sync-design
+ * §7). The files stay until the server confirms the purge (worker.ts): a restore on another device it
+ * hadn't seen beats it, and the asset then comes back here with its files. Resolves to the newly
+ * purged rows.
  */
-export async function purgeAssets(db: SyncDb, ids: string[], removeFiles: RemoveFiles): Promise<schema.AssetRow[]> {
-  const notPurged = (rows: schema.AssetRow[]) => rows.filter((row) => row.purgedAt === null);
-  const rows = notPurged(await readByIds(db, schema.assets, ids));
-  if (rows.length === 0) return [];
-  await removeFiles(await unsharedFiles(db, rows));
+export async function purgeAssets(db: SyncDb, ids: string[]): Promise<schema.AssetRow[]> {
   return db.transaction(async (tx) => {
-    const previous = notPurged(await readByIds(tx, schema.assets, ids));
+    const previous = (await readByIds<schema.AssetRow>(tx, schema.assets, ids)).filter((row) => row.purgedAt === null);
     const purgedRows = previous.map(purged);
     await saveRecords(tx, 'assets', schema.assets, purgedRows, { previous });
     return purgedRows;
