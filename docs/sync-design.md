@@ -199,8 +199,9 @@ stays valid and late devices always learn about deletes. Per-user data is small.
 Each mutation carries the **whole record** (the full schema validates it, and an insert needs every
 column) and `fields`: the fields its edits changed, each with its clock. The server merges only
 those, field by field; a mutation without `fields` is a whole-record push (§7). A request holds at
-most 500 mutations; the client splits its outbox into batches of 500, and of at most 512 KB, half the
-server's 1 MiB body limit, so a batch of large records is never refused for good.
+most 500 mutations; the client splits its outbox into batches of 500, and of at most half the
+server's body limit (`PUSH_BODY_LIMIT` in `packages/shared/contracts/sync.ts`), so a batch of large
+records is never refused for good.
 
 ```jsonc
 // request
@@ -286,7 +287,7 @@ Client handling of each result (`planPushOutcome` in `apps/mobile/src/sync/pushP
 
 **Failed rows wait.** The push skips outbox rows with an `error`. Every per-row failure is
 deterministic (a schema or database rejection, a `current` this device can't store, a row whose
-mutation alone is over the server's 1 MiB body limit, which the client holds back as `too-large`
+mutation alone is over `PUSH_BODY_LIMIT`, which the client settles as a `too-large` rejection
 instead of sending a request the server refuses whole on every run): pushing the
 same payload to the same server fails the same way, so retrying it on every sync, or with backoff,
 only repeats the failure. A failed row is pushed again when a new local edit replaces its payload
@@ -323,7 +324,7 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
 ## 7. Conflict resolution
 
 - **Granularity:** per-field last-writer-wins. The **merge fields** are every synced field but
-  `id`, `createdAt` and `updatedAt` (`mergeFields` in `packages/shared`), `deletedAt` included. The
+  `id`, `createdAt` and `updatedAt` (a descriptor's `mergeFields`), `deletedAt` included. The
   server keeps each field's clock in `field_clock`; a field without one (every field of a row
   written before per-field merge) takes the row's `updated_at`, so no data needed migrating, and the
   next write pins it. So does every field of a row whose `updated_at` is newer than all its clocks:
@@ -368,10 +369,11 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
     sort by plain string comparison. Adding appends with `keyBetween(last, null)`. Reordering
     (and saving a post's asset list) assigns `initialKeys(n)` across the list and rewrites only
     the edges whose key changed.
-  - A post editor's save (`setRefs`) writes its photo list over the one it was seeded with: it
-    removes only the edges the user took out and adds the ones they added, and keeps the live edges
-    the seed didn't have (one another device added meanwhile, or a photo hidden from the editor
-    because its purge waits), after the list, as a reorder keeps the edges it wasn't given.
+  - A post editor's save (`setRefs`) is an edit of the photo list it was seeded with: a photo the
+    user took out loses every live edge to it, a ref they added is created, a seed edge removed
+    elsewhere meanwhile stays out, and only the listed edges out of order get new keys, so the live
+    edges the seed didn't have (another device's add, a photo hidden from the editor because its
+    purge waits) keep their places.
   - Removing tombstones the edge. Deleting an album or post tombstones its edges too
     (`tombstoneParent`). Deleting or purging an asset does not touch its edges, so a restore puts
     it back where it was. Readers resolve edges through the asset: albums skip deleted assets, a
@@ -554,12 +556,16 @@ backs it up and keeps it in sync, and signing out only pauses that.
   destinations after the commit; the source removed when nothing is left in it. A pending edit of a
   record the target has is merged into the target's row with `mergeRecord` against the target's
   pending clocks, and what applies goes into its outbox through `saveRecords` with the source's
-  clocks. The source's outbox is never cleared, so the commit records in the target the newest
-  source clock it replayed (`replayedThrough:<source>`), and a pass run again replays only what the
-  device edited since. A source an earlier pass copied (its marker) carries its tombstones too, as
-  they may be in the account. The files moved are those of the assets that end in the target live,
-  trashed or with a purge still pending, never of one purged there for good). The same merge runs
-  again at every boot while an unmerged device library exists
+  clocks; it and the camera-roll matches' merges are made again inside the commit's transaction,
+  onto the rows as they are then, so an edit made on the open target meanwhile isn't set back. The
+  source's outbox is never cleared, so the commit records in the target, per source record, the
+  newest clock it merged (`mergeMarks:<source>`; clocks are monotonic per record, not across a
+  library), and a pass run again merges only what the device edited since, a matched photo's
+  favorite and notes included. A source copied into an earlier library that is gone waits for the
+  new target's first full pull, which brings what the earlier one pushed, so its edits and deletions
+  replay by id. The files moved are those of the assets that end in the target live or with a purge
+  still pending, never of one purged there for good). The same merge runs again at every boot while
+  an unmerged device library exists
   (`mergeDeviceLibrary`, inside `withSyncPaused` after `resumeMerges`, which skips a marked source
   that is the open library and goes on after a failed one), so one that failed or that a crash
   interrupted finishes then. A device library with photos whose file lives in another account's

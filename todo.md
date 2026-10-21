@@ -126,12 +126,11 @@ providers, utils, styles) and merge what repeats into the existing components an
 AGENTS.md. A copy-paste detector such as [jscpd](https://github.com/kucherenko/jscpd) finds the
 literal copies; the near-copies need reading.
 
-### [ ] Bump the installed-app pin with each preview build
+### [ ] Bump INSTALLED with each preview build
 
-`apps/mobile/test/mainClient.e2e.test.ts` (`INSTALLED`) and the `git fetch` step in
-`.github/workflows/ci.yml` pin the commit of the preview build on the owner's phone (df33378). Move
-both to the new build's commit whenever a preview build is installed, so the suite tests the real
-upgrade path.
+`INSTALLED` in `apps/mobile/test/mainClient.e2e.test.ts` is the commit of the preview build on the
+owner's phone (df33378): move it to the new build's commit whenever a preview build is installed, so
+the suite tests the real upgrade path.
 
 ### [ ] Widen what CI checks
 
