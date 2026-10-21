@@ -27,6 +27,7 @@ import { makeEdgeRepository } from '../src/sync/edgesRepository';
 import { toModernChanges } from '../src/sync/legacyBase';
 import { retryFailures } from '../src/sync/outbox';
 import { makeRepository } from '../src/sync/repository';
+import { sweepPurgedFiles } from '../src/sync/sweepPurgedFiles';
 import type { SyncTransport } from '../src/sync/transport';
 import { upsertRows } from '../src/sync/upsertRows';
 import { runSyncOnce } from '../src/sync/worker';
@@ -286,7 +287,8 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
 // is faked so each edit gets the clock the scenario names; the server's clock is SERVER_NOW unless a
 // scenario sets it. Every push is checked as it lands: `applied` means every field it merged holds
 // the pushed value, `skipped-lww` carries the merged server row as `current` and lost something.
-const USER2 = '55555555-5555-5555-5555-555555555555';
+// A user of its own per run, so a run beside another (another checkout's, on the same Postgres) can't see its rows.
+const USER2 = randomUUID();
 const S = 1_800_000_000_000; // the clock's origin: device edits happen at S + offset
 const SERVER_NOW = S + 10_000_000; // after every edit, so nothing is clamped
 const HOUR = 3_600_000;
@@ -438,11 +440,12 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     pgDb = pgDrizzle(pool, { schema: serverSchema });
     await pgDb
       .insert(serverSchema.users)
-      .values({ id: USER2, email: 'fieldmerge@test.local', passwordDigest: 'x', storageBucket: null })
+      .values({ id: USER2, email: `fieldmerge-${USER2}@test.local`, passwordDigest: 'x', storageBucket: null })
       .onConflictDoNothing();
   });
   afterAll(async () => {
     await clearServer();
+    await pgDb.delete(serverSchema.users).where(eq(serverSchema.users.id, USER2));
     await pool.end();
   });
   beforeEach(async () => {
@@ -977,6 +980,46 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       });
     });
 
+    // BUG (round 3), an edge: a device library sweeps a purge at once (`hasAccount: false` for an owner
+    // of kind 'device', library/current.ts and AssetsProvider), "which nothing can restore" (§7a). That
+    // stops being true once a merge pass has copied its records into the account and left the marker
+    // (a file move that failed, a crash): the device library opens again while the session is lost
+    // (resumeMerges skips it then), and its purge of a copied photo reaches the account only with the
+    // next pass, where a later restore on another device beats it. The photo is then live in the
+    // account, but the device library already removed its files, the original included if it was
+    // never uploaded. Expected: a device library with a pending merge keeps a purged photo's files.
+    it.fails(
+      'a purge in a device library already merged in part loses to a later restore: its files must still be there',
+      async () => {
+        const id = await seedAsset({
+          filename: 'only-here.jpg',
+          thumbnailFilename: 'only-here-t.jpg',
+          isFileSynced: false,
+          isThumbnailSynced: false,
+          isSynced: false,
+        });
+        const D = await deviceLibraryWith(id); // a first merge pass copied it into the account
+        await edit(D, S + 100, () => repo.deleteAssets(D, [id]));
+        await edit(D, S + 200, () => repo.purgeAssets(D, [id]));
+        const removed: string[] = [];
+        await sweepPurgedFiles(
+          D,
+          async (files) => {
+            removed.push(...files.flatMap((f) => [f.filename, f.thumbnailFilename].filter((n): n is string => !!n)));
+          },
+          { hasAccount: false },
+        ); // the device library's own sweep, at its open and after the purge
+        await edit(B, S + 150, () => repo.deleteAssets(B, [id]));
+        await sync(B);
+        await edit(B, S + 300, () => repo.updateAllAssets(B, [id], { deletedAt: null }));
+        await sync(B);
+        await mergeInto(A, D, S + 400); // the next pass
+        await settle();
+        expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: null, purgedAt: null });
+        expect(removed).toEqual([]); // actual: the only copies of a live photo
+      },
+    );
+
     it('a device purge older than the account’s pending restore loses to it everywhere', async () => {
       const id = await seedAsset();
       await edit(A, S + 50, () => repo.deleteAssets(A, [id]));
@@ -1312,6 +1355,245 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
         expect(row.isFavorite).toBe(restored.has(id) && i % 13 === 0);
       }
     }, 120_000);
+  });
+
+  describe('random interleavings, round 3 (seeded, the real client and server)', () => {
+    function prng(seed: number) {
+      let a = seed >>> 0;
+      const next = () => {
+        a = (a + 0x6d2b79f5) >>> 0;
+        let t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+      return {
+        pick: <T>(list: readonly T[]): T => list[Math.floor(next() * list.length)]!,
+        chance: (p: number) => next() < p,
+      };
+    }
+
+    // One seeded case: four photos (two share a file), devices A and B, C an old app half the time,
+    // random clock skew, edits, deletes, restores and purges, syncs, pushes whose answer is lost and
+    // pulls around a waiting edit. Then every device syncs until quiet.
+    async function fuzzCase(seed: number, steps: number): Promise<string[]> {
+      const rand = prng(seed);
+      const problems: string[] = [];
+      const fail = (step: number, message: string) => problems.push(`seed ${seed} step ${step}: ${message}`);
+      await clearServer();
+      A = makeTestDb();
+      B = makeTestDb();
+      C = makeTestDb();
+      const devices = [A, B, C];
+      const names = new Map<SyncDb, string>([
+        [A, 'A'],
+        [B, 'B'],
+        [C, 'C'],
+      ]);
+      oldApps.clear();
+      if (rand.chance(0.5)) oldApps.add(C);
+      const skews = [0, 0, HOUR, -HOUR, 2_000, -2_000];
+      const skew = new Map(devices.map((device) => [device, rand.pick(skews)]));
+      const removed = new Map(devices.map((device) => [device, [] as string[]]));
+      const removeFilesOf =
+        (device: SyncDb): RemoveFiles =>
+        async (files) => {
+          const names = new Set(
+            files.flatMap((f) => [f.filename, f.thumbnailFilename].filter((n): n is string => !!n)),
+          );
+          removed.get(device)!.push(...names);
+        };
+
+      at(S);
+      const created = await repo.createAssets(
+        A,
+        [0, 1, 2, 3].map((i) =>
+          makeAssetRecord({
+            createdAt: S,
+            updatedAt: S,
+            filename: i < 2 ? 'shared.jpg' : `own${i}.jpg`,
+            thumbnailFilename: `thumb${i}.jpg`,
+          }),
+        ),
+      );
+      const ids = created.map((r) => r.id);
+      let t = S + 10;
+      const syncAt = async (device: SyncDb, now: number) => {
+        at(now);
+        await runSyncOnce(device, transportOf(device), { removeFiles: removeFilesOf(device) });
+      };
+      for (let round = 0; round < 2; round++) for (const device of devices) await syncAt(device, t);
+
+      // The server rows, raw (server_seq and field_clock included), to check every step against.
+      const rawRows = async () =>
+        new Map(
+          (await pgDb.select().from(serverSchema.assets).where(eq(serverSchema.assets.userId, USER2))).map((row) => [
+            row.id,
+            row as Record<string, any>,
+          ]),
+        );
+      let before = await rawRows();
+      const unanswered = new Set<SyncDb>();
+      const ops = [
+        'delete',
+        'restore',
+        'purge',
+        'favorite',
+        'notes',
+        'sync',
+        'sync',
+        'sync',
+        'lost',
+        'pullOnly',
+      ] as const;
+
+      for (let step = 0; step < steps; step++) {
+        t += rand.pick([1, 5, 50, 300]);
+        const device = rand.pick(devices);
+        const subset = ids.filter(() => rand.chance(0.5));
+        const rows = (await device.select().from(clientSchema.assets)).filter((row) => subset.includes(row.id));
+        const alive = rows.filter((row) => row.purgedAt === null);
+        const deleted = alive.filter((row) => row.deletedAt !== null);
+        const op = rand.pick(ops);
+        if (process.env.FUZZ_LOG)
+          console.log(
+            step,
+            t - S,
+            names.get(device),
+            op,
+            rows
+              .map(
+                (r) =>
+                  `${ids.indexOf(r.id)}:${r.deletedAt ? 'd' : ''}${r.purgedAt ? 'p' : ''}${r.filesRemovedAt ? 'r' : ''}`,
+              )
+              .join(' '),
+            JSON.stringify(
+              (await device.select().from(clientSchema.outbox)).map((o) => [
+                ids.indexOf(o.recordId),
+                Object.keys(o.fields).join(','),
+                o.error,
+              ]),
+            ),
+          );
+        at(t + skew.get(device)!);
+        if (op === 'delete')
+          await repo.deleteAssets(
+            device,
+            alive.filter((row) => row.deletedAt === null).map((row) => row.id),
+          );
+        if (op === 'restore')
+          await repo.updateAllAssets(
+            device,
+            deleted.map((row) => row.id),
+            { deletedAt: null },
+          );
+        if (op === 'purge')
+          await repo.purgeAssets(
+            device,
+            deleted.map((row) => row.id),
+          );
+        if (op === 'favorite' && alive[0]) await repo.toggleFavorite(device, alive[0].id);
+        if (op === 'notes' && alive[0])
+          await repo.updateAsset(device, alive[0].id, { notes: `${names.get(device)}${step}` });
+        if (op === 'sync' || (op === 'pullOnly' && unanswered.has(device))) {
+          unanswered.delete(device);
+          await syncAt(device, t);
+        }
+        if (op === 'lost') {
+          // The push lands, but the device never hears back: the run fails, and the next one pushes again.
+          at(t);
+          const base = transportOf(device);
+          await runSyncOnce(
+            device,
+            {
+              ...base,
+              push: async (req) => {
+                await base.push(req);
+                throw new Error('no answer');
+              },
+            },
+            { removeFiles: removeFilesOf(device) },
+          ).catch(() => {});
+          unanswered.add(device);
+        }
+        if (op === 'pullOnly' && !unanswered.has(device)) {
+          // Offline for pushes (each refused), so the pull applies around the waiting edits (§5).
+          at(t);
+          await runSyncOnce(
+            device,
+            {
+              ...transportOf(device),
+              push: async (req) => ({
+                results: req.mutations.map((m) => ({
+                  id: String(m.record.id),
+                  collection: m.collection,
+                  status: 'rejected' as const,
+                  reason: 'offline',
+                })),
+              }),
+            },
+            { removeFiles: removeFilesOf(device) },
+          );
+          await retryFailures(device);
+        }
+
+        const after = await rawRows();
+        for (const [id, row] of after) {
+          const prev = before.get(id)!;
+          if (prev.purgedAt !== null && JSON.stringify(row) !== JSON.stringify(prev))
+            fail(step, `the purged row ${id} changed: ${JSON.stringify(prev)} → ${JSON.stringify(row)}`);
+          const { serverSeq: _s, ...rest } = row;
+          const { serverSeq: _p, ...restBefore } = prev;
+          if (row.serverSeq !== prev.serverSeq && JSON.stringify(rest) === JSON.stringify(restBefore))
+            fail(step, `a new server_seq for an unchanged row ${id}`);
+        }
+        before = after;
+      }
+
+      for (let round = 0; round < 4; round++) for (const device of devices) await syncAt(device, t + 10_000_000);
+
+      const server = await rawRows();
+      for (const id of ids) {
+        const expected = synced('assets', server.get(id));
+        for (const device of devices) {
+          const local = synced('assets', await localRow(device, 'assets', id));
+          if (JSON.stringify(local) !== JSON.stringify(expected))
+            fail(
+              steps,
+              `${names.get(device)} diverged on ${id}: ${JSON.stringify(local)} vs ${JSON.stringify(expected)}`,
+            );
+        }
+      }
+      for (const device of devices)
+        if ((await device.select().from(clientSchema.outbox)).length > 0)
+          fail(steps, `${names.get(device)} has pending rows`);
+
+      // Files: each device removed, once, exactly the names only purged photos use.
+      const live = [...server.values()].filter((row) => row.purgedAt === null);
+      const inUse = new Set(live.flatMap((row) => [row.filename, row.thumbnailFilename]));
+      const gone = new Set(
+        [...server.values()]
+          .filter((row) => row.purgedAt !== null)
+          .flatMap((row) => [row.filename, row.thumbnailFilename])
+          .filter((name) => !inUse.has(name)),
+      );
+      for (const device of devices) {
+        const list = removed.get(device)!;
+        if (new Set(list).size !== list.length) fail(steps, `${names.get(device)} removed a file twice: ${list}`);
+        if (JSON.stringify([...new Set(list)].sort()) !== JSON.stringify([...gone].sort()))
+          fail(steps, `${names.get(device)} removed ${[...list].sort()}, expected ${[...gone].sort()}`);
+      }
+      return problems;
+    }
+
+    it('60 seeded cases of 30 steps converge, keep purged rows frozen and remove each purged file once per device', async () => {
+      const problems: string[] = [];
+      const only = Number(process.env.FUZZ_SEED);
+      const cases = Number(process.env.FUZZ_CASES ?? 60);
+      for (let seed = 1; seed <= cases; seed++)
+        if (!only || seed === only) problems.push(...(await fuzzCase(seed, 30)));
+      expect(problems.slice(0, 8)).toEqual([]);
+    }, 300_000);
   });
 
   describe('many records', () => {

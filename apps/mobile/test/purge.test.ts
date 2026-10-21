@@ -1,4 +1,7 @@
+import Database from 'better-sqlite3';
 import { eq } from 'drizzle-orm';
+import { readMigrationFiles } from 'drizzle-orm/migrator';
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import { createPost, makeAlbumRecord, makeAssetRecord } from './helpers/factory';
@@ -7,10 +10,13 @@ import { makeTestDb } from './helpers/testDb';
 import assetQuery from '../src/features/asset-list/assetQuery';
 import postQuery from '../src/features/post-list/postQuery';
 import * as repo from '../src/sync/assetsRepository';
+import { createDb, type Execute } from '../src/sync/db/driver';
+import journal from '../src/sync/db/migrations/meta/_journal.json';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
 import { makeRepository } from '../src/sync/repository';
+import { sweepPurgedFiles } from '../src/sync/sweepPurgedFiles';
 import { fullResync, runSyncOnce } from '../src/sync/worker';
 
 let db: SyncDb;
@@ -243,4 +249,238 @@ describe('local files of a purge that arrives through sync', () => {
     expect(removed).toEqual(['mine.jpg', 'mine-t.jpg']);
     expect(await assetRow(asset.id)).toMatchObject({ purgedAt: 3000, notes: null });
   });
+});
+
+describe('the sweep, round 3 (adversarial)', () => {
+  const applied = fakeTransport();
+  const refused = fakeTransport({
+    push: async (req) => ({
+      results: req.mutations.map((m) => ({
+        id: String(m.record.id),
+        collection: m.collection,
+        status: 'rejected' as const,
+        reason: 'schema:notes',
+      })),
+    }),
+  });
+  async function trashed(over: Record<string, unknown>) {
+    const asset = await repo.createAsset(db, makeAssetRecord(over));
+    await repo.deleteAssets(db, [asset.id]);
+    return asset;
+  }
+
+  it('a crash between removing the files and marking them: the next sweep removes them again and marks them once', async () => {
+    const asset = await trashed({ filename: 'c.jpg', thumbnailFilename: 'c-t.jpg' });
+    await repo.purgeAssets(db, [asset.id]);
+    const { removed, removeFiles } = recording();
+    const crash = new Error('killed');
+    // The files go, then the app dies before the marking write.
+    await expect(
+      runSyncOnce(db, applied, {
+        removeFiles: async (files) => {
+          await removeFiles(files);
+          throw crash;
+        },
+      }),
+    ).rejects.toBe(crash);
+    expect((await assetRow(asset.id))?.filesRemovedAt).toBeNull();
+    await sweepPurgedFiles(db, removeFiles); // the next launch
+    await sweepPurgedFiles(db, removeFiles);
+    expect(removed).toEqual(['c.jpg', 'c-t.jpg', 'c.jpg', 'c-t.jpg']); // a removal that finds nothing, once
+    expect((await assetRow(asset.id))?.filesRemovedAt).not.toBeNull();
+  });
+
+  it('a name shared by a confirmed purge, a pending purge, a trashed and a live photo goes with the last of them', async () => {
+    const confirmed = await trashed({ filename: 'f.jpg', thumbnailFilename: 'confirmed-t.jpg' });
+    const pending = await trashed({ filename: 'f.jpg', thumbnailFilename: 'g.jpg' });
+    const inTrash = await trashed({ filename: 'trash.jpg', thumbnailFilename: 'g.jpg' });
+    const live = await repo.createAsset(
+      db,
+      makeAssetRecord({ filename: 'live.jpg', thumbnailFilename: 'confirmed-t.jpg' }),
+    );
+    await runSyncOnce(db, applied);
+    await repo.purgeAssets(db, [confirmed.id]);
+    await runSyncOnce(db, applied); // confirmed
+    await repo.purgeAssets(db, [pending.id]); // waits: its push is refused
+    const { removed, removeFiles } = recording();
+    await runSyncOnce(db, refused, { removeFiles });
+    expect(removed).toEqual([]); // f.jpg: the pending purge's; confirmed-t.jpg: the live photo's
+    await repo.purgeAssets(db, [inTrash.id]);
+    await runSyncOnce(db, applied, { removeFiles }); // the refused row waits (its error)
+    expect(removed).toEqual(['trash.jpg']); // g.jpg: still the pending purge's
+    await db.update(schema.outbox).set({ error: null });
+    await runSyncOnce(db, applied, { removeFiles });
+    expect(removed.sort()).toEqual(['f.jpg', 'g.jpg', 'trash.jpg']);
+    await repo.deleteAssets(db, [live.id]);
+    await repo.purgeAssets(db, [live.id]);
+    await runSyncOnce(db, applied, { removeFiles });
+    expect(removed.sort()).toEqual(['confirmed-t.jpg', 'f.jpg', 'g.jpg', 'live.jpg', 'trash.jpg']);
+  });
+
+  it('without an account a pending purge counts as done, but a trashed or live photo still keeps a shared name', async () => {
+    const a = await trashed({ filename: 'f.jpg', thumbnailFilename: 'a-t.jpg' });
+    const b = await trashed({ filename: 'f.jpg', thumbnailFilename: 'b-t.jpg' });
+    await trashed({ filename: 'other.jpg', thumbnailFilename: 'a-t.jpg' });
+    await repo.purgeAssets(db, [a.id, b.id]);
+    const { removed, removeFiles } = recording();
+    await sweepPurgedFiles(db, removeFiles, { hasAccount: false });
+    expect([...new Set(removed)].sort()).toEqual(['b-t.jpg', 'f.jpg']);
+  });
+
+  it('a rejected edit waiting on an asset purged elsewhere: the pull brings the purge and its files go', async () => {
+    const asset = await repo.createAsset(db, makeAssetRecord({ filename: 'r.jpg', thumbnailFilename: 'r-t.jpg' }));
+    await runSyncOnce(db, applied);
+    await repo.updateAsset(db, asset.id, { notes: 'bad' });
+    const { removed, removeFiles } = recording();
+    const purged = { ...asset, deletedAt: 2000, purgedAt: 3000, updatedAt: 3000 };
+    await runSyncOnce(
+      db,
+      fakeTransport({
+        ...refused,
+        pull: async () => ({ changes: { assets: { records: [purged] } }, cursor: 9, hasMore: false }),
+      }),
+      {
+        removeFiles,
+      },
+    );
+    expect(await assetRow(asset.id)).toMatchObject({ purgedAt: 3000, notes: 'bad' });
+    expect(removed).toEqual(['r.jpg', 'r-t.jpg']);
+    expect((await db.select().from(schema.outbox))[0]?.error).toBe('schema:notes');
+  });
+
+  // BUG (round 3): the sweep trusts the local table, which a full resync empties. A full resync
+  // stopped after its first page (a sign-out, a library switch: withSyncPaused) still sweeps at the
+  // end of the run (worker.ts runSyncOnce), and so does the library open after a resync the app was
+  // killed in (library/current.ts). A name a purged photo on that page shares with a live photo not
+  // pulled back yet then counts as unused, and the live photo's copy goes: its original too, if it
+  // isn't backed up yet. Expected: the shared name stays until the live photo is back.
+  it.fails(
+    'a full resync stopped after its first page keeps a name a live photo not pulled back yet uses',
+    async () => {
+      const purged = await trashed({ filename: 'shared.jpg', thumbnailFilename: 'p-t.jpg' });
+      const live = await repo.createAsset(
+        db,
+        makeAssetRecord({ filename: 'shared.jpg', thumbnailFilename: 'l-t.jpg', isFileSynced: false, isSynced: false }),
+      );
+      await runSyncOnce(db, applied);
+      const firstPage = { ...(await assetRow(purged.id))!, purgedAt: 3000, updatedAt: 3000 };
+      const { syncError: _e, filesRemovedAt: _f, ...wire } = firstPage;
+      const secondPage = await assetRow(live.id);
+      const stop = new AbortController();
+      const { removed, removeFiles } = recording();
+      await fullResync(
+        db,
+        fakeTransport({
+          pull: async ({ cursor }) => {
+            if (cursor === 0) {
+              stop.abort(); // the run is paused while the first page downloads
+              return { changes: { assets: { records: [wire] } }, cursor: 1, hasMore: true };
+            }
+            return { changes: { assets: { records: [secondPage] } }, cursor: 2, hasMore: false };
+          },
+        }),
+        { removeFiles, signal: stop.signal },
+      );
+      expect(removed).toEqual(['p-t.jpg']); // actual: ['shared.jpg', 'p-t.jpg']
+    },
+  );
+});
+
+describe('migration 0012_purged_files on a database from before it', () => {
+  const migrationsFolder = fileURLToPath(new URL('../src/sync/db/migrations', import.meta.url));
+  const migrations = readMigrationFiles({ migrationsFolder });
+  const at = (tag: string) => journal.entries.findIndex((entry) => entry.tag === tag);
+  const run = (sqlite: Database.Database, from: number, to: number) => {
+    for (const migration of migrations.slice(from, to)) for (const statement of migration.sql) sqlite.exec(statement);
+  };
+  const executor =
+    (sqlite: Database.Database): Execute =>
+    async (sql, params, method) => {
+      const statement = sqlite.prepare(sql);
+      if (method === 'run') return { rows: [], changes: statement.run(...params).changes };
+      const rows = statement.raw().all(...params);
+      return { rows: method === 'get' ? (rows[0] as unknown[]) : rows };
+    };
+  // The installed app's database: an asset purged offline (its files already removed, as that app
+  // does at once) with its whole-record outbox row, one purged and pushed, one live, one trashed.
+  function installedAppDb() {
+    const sqlite = new Database(':memory:');
+    run(sqlite, 0, at('0011_outbox_fields'));
+    const insert = sqlite.prepare(
+      `INSERT INTO assets (id, created_at, updated_at, deleted_at, media_library_asset_id, media_type, width, height,
+        file_size, duration, filename, thumbnail_filename, is_favorite, notes, old_file_id, is_file_synced,
+        is_thumbnail_synced, is_synced, purged_at) VALUES (?, 1000, ?, ?, 'm', 'photo', 1, 1, 1, NULL, ?, ?, 0, NULL, NULL, 1, 1, 1, ?)`,
+    );
+    insert.run('offline', 2000, 1500, 'o.jpg', 'o-t.jpg', 2000);
+    insert.run('pushed', 2000, 1500, 'p.jpg', 'p-t.jpg', 2000);
+    insert.run('live', 1000, null, 'l.jpg', 'l-t.jpg', null);
+    insert.run('trashed', 1500, 1500, 't.jpg', 't-t.jpg', null);
+    const payload = {
+      ...makeAssetRecord({ id: 'offline', filename: 'o.jpg', thumbnailFilename: 'o-t.jpg' }),
+      createdAt: 1000,
+      updatedAt: 2000,
+      deletedAt: 1500,
+      purgedAt: 2000,
+      mediaLibraryAssetId: 'm',
+    };
+    sqlite
+      .prepare(
+        `INSERT INTO outbox (collection, record_id, op, payload, updated_at) VALUES ('assets', 'offline', 'delete', ?, 2000)`,
+      )
+      .run(JSON.stringify(payload));
+    run(sqlite, at('0011_outbox_fields'), migrations.length);
+    return { sqlite, db: createDb(executor(sqlite)) as SyncDb };
+  }
+
+  it('marks the files of every purged asset removed, as the installed app removed them at once, and no other', async () => {
+    const { sqlite } = installedAppDb();
+    const rows = sqlite.prepare('SELECT id, files_removed_at FROM assets ORDER BY id').all();
+    expect(rows).toEqual([
+      { id: 'live', files_removed_at: null },
+      { id: 'offline', files_removed_at: 2000 },
+      { id: 'pushed', files_removed_at: 2000 },
+      { id: 'trashed', files_removed_at: null },
+    ]);
+  });
+
+  // BUG (round 3): an installed app's offline purge reaches the new server through migration 0011
+  // with `fields` (every merge field at its updatedAt), so the restore-beats-purge rule applies to
+  // it, which the server spares pushes without fields because that app removed its files at once
+  // (sync-design §7). When it loses, the asset comes back here without its files, and
+  // `filesRemovedAt` from the 0012 backfill stays set on the live asset: nothing clears it
+  // (sweepPurgedFiles, upsertRows of the adopted current). Purged again later, its copies made since
+  // (a thumbnail made again, a download) are never swept. Expected: a purge undone clears
+  // filesRemovedAt, so the next confirmed purge removes the copies again.
+  it.fails(
+    'an offline purge from before the upgrade that loses to a restore: purged again later, its copies are swept',
+    async () => {
+      const { db: upgraded } = installedAppDb();
+      const restored = {
+        ...makeAssetRecord({ id: 'offline', filename: 'o.jpg', thumbnailFilename: 'o-t.jpg' }),
+        createdAt: 1000,
+        updatedAt: 2500,
+        mediaLibraryAssetId: 'm',
+        deletedAt: null,
+        purgedAt: null,
+      };
+      const lost = fakeTransport({
+        push: async (req) => ({
+          results: req.mutations.map((m) => ({
+            id: String(m.record.id),
+            collection: m.collection,
+            status: 'skipped-lww' as const,
+            current: restored,
+          })),
+        }),
+      });
+      await runSyncOnce(upgraded, lost);
+      const row = () => upgraded.select().from(schema.assets).where(eq(schema.assets.id, 'offline')).get();
+      expect(await row()).toMatchObject({ deletedAt: null, purgedAt: null }); // back, live
+      await repo.deleteAssets(upgraded, ['offline']);
+      await repo.purgeAssets(upgraded, ['offline']);
+      const { removed, removeFiles } = recording();
+      await runSyncOnce(upgraded, fakeTransport(), { removeFiles });
+      expect(removed).toEqual(['o.jpg', 'o-t.jpg']); // actual: [] (filesRemovedAt still 2000)
+    },
+  );
 });
