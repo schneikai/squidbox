@@ -436,3 +436,77 @@ describe('replays against a pending edit of the target (adversarial)', () => {
     expect(pending!.fields.isSynced).toBe(sourcePending!.fields.isFileSynced);
   });
 });
+
+// Round 2: a device library that never synced holds a pending insert for every asset it made (the
+// insert names every field, deletedAt and purgedAt included), and its files are the only copy.
+describe('a device library merged again (adversarial, round 2)', () => {
+  const tick = () => new Promise((resolve) => setTimeout(resolve, 3));
+  const targetRow = async () => (await target.select().from(schema.assets))[0]!;
+
+  // BUG (mergeLibrary.ts deletionSide): the target's pending insert (from the first pass) names
+  // deletedAt, so it counts as a "pending restore" of the live row, and the device's later delete
+  // and purge lose to it whatever the clocks. The purge is dropped: the asset stays live in the
+  // account, while its files, not live in the source any more, aren't moved, so they go with the
+  // source and the account is left with a live photo without a file.
+  it.fails('a delete and purge made on the device after a first pass reach the account', async () => {
+    const asset = await devicePhoto({ filename: 'x.jpg', thumbnailFilename: 'xt.jpg', mediaLibraryAssetId: 'm-x' });
+    await applyMerge(target, await planMerge(source, target, SRC)); // the first pass; its file move never ran
+    await tick();
+    await repo.deleteAssets(source, [asset.id]);
+    await tick();
+    await repo.purgeAssets(source, [asset.id]);
+
+    await applyMerge(target, await planMerge(source, target, SRC));
+    expect(await targetRow()).toMatchObject({ deletedAt: expect.any(Number), purgedAt: expect.any(Number) });
+  });
+
+  // BUG (mergeLibrary.ts planMerge): the files moved are those of the live source assets only, so a
+  // photo the target has by id (a first pass copied it) and that the device deleted since keeps its
+  // only file in the source, which is removed after the merge. The account's photo, in its Deleted
+  // album, can be restored but has no file anywhere.
+  it.fails('a photo deleted on the device after a first pass still has its file moved', async () => {
+    const asset = await devicePhoto({ filename: 'x.jpg', thumbnailFilename: 'xt.jpg', mediaLibraryAssetId: 'm-x' });
+    await applyMerge(target, await planMerge(source, target, SRC));
+    await tick();
+    await repo.deleteAssets(source, [asset.id]);
+
+    const plan = await planMerge(source, target, SRC);
+    await applyMerge(target, plan);
+    expect((await targetRow()).deletedAt).toEqual(expect.any(Number)); // in the account's Deleted album
+    expect([plan.files, plan.thumbnails]).toEqual([['x.jpg'], ['xt.jpg']]);
+  });
+
+  // BUG (mergeLibrary.ts deletionSide): the device's pending insert of its copy names deletedAt
+  // (null), so it counts as a restore and beats the account's pending purge, although the copy is
+  // older than the deletion the purge was made of. On the server that purge wins (a restore beats
+  // only a purge whose deletion came before it), so the merge undoes a purge the server would keep.
+  it.fails('a device copy older than the account’s pending delete and purge does not undo them', async () => {
+    const asset = await devicePhoto({ mediaLibraryAssetId: 'm-x' }); // pending insert in the source
+    await upsertRows(target, 'assets', schema.assets, [{ ...asset, syncError: null }]); // synced in the account
+    await tick();
+    await repo.deleteAssets(target, [asset.id]);
+    await tick();
+    await repo.purgeAssets(target, [asset.id]); // pending in the account
+
+    await applyMerge(target, await planMerge(source, target, SRC));
+    expect(await targetRow()).toMatchObject({ deletedAt: expect.any(Number), purgedAt: expect.any(Number) });
+    const [pending] = await outbox(target);
+    expect(pending!.payload).toMatchObject({ purgedAt: expect.any(Number) });
+  });
+
+  // BUG (mergeLibrary.ts planMerge): a source asset the target has by id has its files moved
+  // whatever the target holds, so the files of an asset the account purged (and whose purge the server
+  // confirmed, removing this device's copies) come back into the account's folders, where nothing
+  // removes them again: the pull skips an asset purged here, and nothing is pending.
+  it.fails('the files of a photo the account purged are not moved into its folders', async () => {
+    const asset = await devicePhoto({ filename: 'x.jpg', thumbnailFilename: 'xt.jpg', mediaLibraryAssetId: 'm-x' });
+    await upsertRows(target, 'assets', schema.assets, [
+      { ...asset, deletedAt: 5000, purgedAt: 6000, updatedAt: 6000, syncError: null },
+    ]); // purged in the account, confirmed: nothing pending
+
+    const plan = await planMerge(source, target, SRC);
+    await applyMerge(target, plan);
+    expect((await targetRow()).purgedAt).toBe(6000);
+    expect([plan.files, plan.thumbnails]).toEqual([[], []]);
+  });
+});

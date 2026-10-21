@@ -1097,6 +1097,167 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     });
   });
 
+  describe('a restore beats a purge, round 2 (adversarial)', () => {
+    function recorder() {
+      const removed: string[] = [];
+      const removeFiles: RemoveFiles = async (files) => {
+        removed.push(...files.flatMap((f) => [f.filename, f.thumbnailFilename].filter((n): n is string => !!n)));
+      };
+      return { removed, removeFiles };
+    }
+
+    // BUG (fieldMergeUpdate.ts restoredSince): "restored since the deletion the purge was made of"
+    // compares the stored deletedAt *clock* (clamped to server time) with the purge's deletedAt
+    // *value* (the deleting device's own clock, never clamped). B's clock is an hour ahead, so its
+    // deletion carries a value an hour past every clock the server stores, A's restore looks older
+    // than that deletion, and B's later purge, which never saw the restore, applies by clock. The
+    // photo is purged everywhere and A, which restored it, removes its files on the next pull.
+    it.fails('a restore beats a purge that hadn’t seen it when the deleting device’s clock is ahead', async () => {
+      const id = await seedAsset({ filename: 'skew.jpg', thumbnailFilename: 'skew-t.jpg' });
+      await edit(B, S + HOUR + 100, () => repo.deleteAssets(B, [id])); // B's clock is an hour ahead
+      await sync(B, { now: S + 100 });
+      await sync(A, { now: S + 150 });
+      await edit(A, S + 200, () => repo.updateAllAssets(A, [id], { deletedAt: null }));
+      await sync(A, { now: S + 200 });
+      await edit(B, S + HOUR + 300, () => repo.purgeAssets(B, [id])); // B never pulled the restore
+      await sync(B, { now: S + 300 });
+      const { removed, removeFiles } = recorder();
+      await sync(A, { now: S + 400, removeFiles });
+      await settle();
+      expect(removed).toEqual([]);
+      expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: null, purgedAt: null });
+    });
+
+    // BUG (worker.ts pushPhase → unsharedFiles): the names a confirmed purge may remove are checked
+    // against the local assets that aren't purged, and an asset whose own purge is still pending
+    // counts as purged. x and y share a file; A purges both, x's purge applies and y's loses to B's
+    // restore in the same push, but the shared file is removed for x before y comes back.
+    it.fails('a purge that loses keeps a file it shares with a purge that wins in the same push', async () => {
+      const x = await seedAsset({ filename: 'shared.jpg', thumbnailFilename: 'x-t.jpg' });
+      const y = await seedAsset({ filename: 'shared.jpg', thumbnailFilename: 'y-t.jpg' });
+      await edit(A, S + 100, () => repo.deleteAssets(A, [x, y]));
+      await settle();
+      await edit(B, S + 200, () => repo.updateAllAssets(B, [y], { deletedAt: null }));
+      await sync(B);
+      await edit(A, S + 300, () => repo.purgeAssets(A, [x, y])); // A never saw y restored
+      const { removed, removeFiles } = recorder();
+      await sync(A, { removeFiles });
+      expect(await localRow(A, 'assets', y)).toMatchObject({ deletedAt: null, purgedAt: null });
+      expect(removed).toEqual(['x-t.jpg']); // shared.jpg is y's file too, and y is back
+      await settle();
+      expect(await expectConverged('assets', x)).toMatchObject({ purgedAt: S + 300 });
+      expect(await expectConverged('assets', y)).toMatchObject({ deletedAt: null, purgedAt: null });
+    });
+
+    it('purge, restore, delete again, purge again across three devices: the last deletion is purged, files go once per device', async () => {
+      const id = await seedAsset({ filename: 'cycle.jpg', thumbnailFilename: 'cycle-t.jpg' });
+      await edit(A, S + 100, () => repo.deleteAssets(A, [id]));
+      await settle();
+      await edit(A, S + 200, () => repo.purgeAssets(A, [id])); // A, offline
+      await edit(B, S + 300, () => repo.updateAllAssets(B, [id], { deletedAt: null }));
+      await sync(B);
+      await edit(C, S + 50, () => repo.toggleFavorite(C, id)); // the old app, older than everything
+      await sync(C);
+      const onA = recorder();
+      await sync(A, { removeFiles: onA.removeFiles }); // A's purge loses to the restore it hadn't seen
+      expect(onA.removed).toEqual([]);
+      expect(await localRow(A, 'assets', id)).toMatchObject({ deletedAt: null, purgedAt: null });
+      await settle();
+      await edit(B, S + 400, () => repo.deleteAssets(B, [id]));
+      await settle();
+      await edit(A, S + 500, () => repo.purgeAssets(A, [id])); // this one saw the restore and the delete
+      await edit(B, S + 600, () => repo.purgeAssets(B, [id])); // and B purges too, unaware
+      const onB = recorder();
+      await sync(A, { removeFiles: onA.removeFiles });
+      await sync(B, { removeFiles: onB.removeFiles });
+      for (let i = 0; i < 3; i++)
+        for (const [device, removeFiles] of [
+          [A, onA.removeFiles],
+          [B, onB.removeFiles],
+        ] as const)
+          await sync(device, { removeFiles });
+      await settle();
+      expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: S + 400, purgedAt: S + 500 });
+      expect(onA.removed).toEqual(['cycle.jpg', 'cycle-t.jpg']);
+      expect(onB.removed).toEqual(['cycle.jpg', 'cycle-t.jpg']);
+    });
+
+    it('an old app’s stale whole record re-deletes a restored photo, and a purge that hadn’t seen the restore then applies', async () => {
+      const id = await seedAsset();
+      await edit(A, S + 100, () => repo.deleteAssets(A, [id]));
+      await settle();
+      await edit(B, S + 200, () => repo.updateAllAssets(B, [id], { deletedAt: null }));
+      await sync(B);
+      await edit(C, S + 300, () => repo.updateAsset(C, id, { notes: 'C, in the Deleted album' })); // stale: deleted
+      await sync(C); // its whole record re-deletes the photo at S+300 (§7)
+      await edit(A, S + 250, () => repo.purgeAssets(A, [id])); // A never saw the restore
+      await settle();
+      // C's stale deletedAt (S+100) is newer by clock than B's restore, so A's purge of it applies.
+      expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: S + 100, purgedAt: S + 250 });
+    });
+
+    it('purges and restores across push batches of 500 and pull pages with pending edits converge; files go only for the purges that won', async () => {
+      const n = 1100;
+      at(S);
+      const created = await repo.createAssets(
+        A,
+        Array.from({ length: n }, (_, i) =>
+          makeAssetRecord({ createdAt: S, updatedAt: S, filename: `g${i}.jpg`, thumbnailFilename: `g${i}-t.jpg` }),
+        ),
+      );
+      const ids = created.map((r) => r.id);
+      await settle([A, B]);
+      await edit(A, S + 100, () => repo.deleteAssets(A, ids));
+      await settle([A, B]);
+      const restored = new Set(ids.filter((_, i) => i % 7 === 0));
+      await edit(B, S + 200, () => repo.updateAllAssets(B, [...restored], { deletedAt: null }));
+      await edit(B, S + 250, () => repo.updateAllAssets(B, ids.filter((_, i) => i % 11 === 0), { notes: 'B' }));
+      await sync(B);
+      await edit(A, S + 300, () => repo.purgeAssets(A, ids)); // A never saw the restores
+      const pending = ids.filter((_, i) => i % 13 === 0);
+      await edit(B, S + 350, () => repo.updateAllAssets(B, pending, { isFavorite: true })); // B, still offline
+      const onA = recorder();
+      await sync(A, { removeFiles: onA.removeFiles });
+      const onB = recorder();
+      // B pulls the purges around its pending favorites (its push refused), then pushes them.
+      const refused: SyncTransport['push'] = async (req) => ({
+        results: req.mutations.map((m) => ({
+          id: String(m.record.id),
+          collection: m.collection,
+          status: 'rejected' as const,
+          reason: 'offline',
+        })),
+      });
+      at(SERVER_NOW);
+      await runSyncOnce(B, { ...transportOf(B), push: refused }, { removeFiles: onB.removeFiles });
+      await retryFailures(B);
+      await runSyncOnce(B, transportOf(B), { removeFiles: onB.removeFiles });
+      await settle([A, B]);
+      const won = ids.filter((id) => !restored.has(id));
+      const files = (list: string[]) =>
+        list.flatMap((id) => {
+          const i = ids.indexOf(id);
+          return [`g${i}.jpg`, `g${i}-t.jpg`];
+        });
+      expect(onA.removed.sort()).toEqual(files(won).sort());
+      expect(onB.removed.sort()).toEqual(files(won).sort());
+      const serverRows = await pgDb.select().from(serverSchema.assets).where(eq(serverSchema.assets.userId, USER2));
+      const server = new Map(serverRows.map((row) => [row.id, synced('assets', row)]));
+      for (const device of [A, B]) {
+        const local = new Map((await device.select().from(clientSchema.assets)).map((row) => [row.id, synced('assets', row)]));
+        expect(local).toEqual(server);
+        expect(await device.select().from(clientSchema.outbox)).toEqual([]);
+      }
+      for (const [i, id] of ids.entries()) {
+        const row = server.get(id)!;
+        if (restored.has(id)) expect(row).toMatchObject({ deletedAt: null, purgedAt: null, notes: i % 11 === 0 ? 'B' : null });
+        else expect(row).toMatchObject({ deletedAt: S + 100, purgedAt: S + 300 });
+        // B's favorite survives on a restored photo; a purged one is frozen without it.
+        expect(row.isFavorite).toBe(restored.has(id) && i % 13 === 0);
+      }
+    }, 120_000);
+  });
+
   describe('many records', () => {
     it('1,200 records across push batches of 500, mixed with conflicts and an edit during the push, converge', async () => {
       const n = 1200;
