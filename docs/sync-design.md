@@ -285,7 +285,9 @@ Client handling of each result (`planPushOutcome` in `apps/mobile/src/sync/pushP
   and gets an `error` and a log note, while the rest of the batch and the pull go on.
 
 **Failed rows wait.** The push skips outbox rows with an `error`. Every per-row failure is
-deterministic (a schema or database rejection, a `current` this device can't store): pushing the
+deterministic (a schema or database rejection, a `current` this device can't store, a row whose
+mutation alone is over the server's 1 MiB body limit, which the client holds back as `too-large`
+instead of sending a request the server refuses whole on every run): pushing the
 same payload to the same server fails the same way, so retrying it on every sync, or with backoff,
 only repeats the failure. A failed row is pushed again when a new local edit replaces its payload
 (`enqueueMutations` clears the `error`), and `retryFailures` (`outbox.ts`) clears every `error` on
@@ -351,7 +353,9 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
     exactly one of them loses with its `deletedAt`, whatever the clocks, so a clock running ahead
     can't lose a restored photo. Any other purge goes by the clocks, so a restore by a fast clock
     can't make another device's later real delete and purge lose either. Once the row is deleted
-    again, purges go by the clocks again.
+    again, purges go by the clocks again. A restore a server rolled back to one without
+    `restored_deletions` applies isn't recorded: after rolling forward, a stale purge of that
+    deletion from a clock running ahead can beat it.
   - Otherwise the pair goes by `deletedAt`'s clock, a purge also applies to a record still deleted,
     and a purged row is frozen, so a later restore loses.
   - A push without `fields` (the installed app, which removes its files at once, and its outbox rows
@@ -364,6 +368,10 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
     sort by plain string comparison. Adding appends with `keyBetween(last, null)`. Reordering
     (and saving a post's asset list) assigns `initialKeys(n)` across the list and rewrites only
     the edges whose key changed.
+  - A post editor's save (`setRefs`) writes its photo list over the one it was seeded with: it
+    removes only the edges the user took out and adds the ones they added, and keeps the live edges
+    the seed didn't have (one another device added meanwhile, or a photo hidden from the editor
+    because its purge waits), after the list, as a reorder keeps the edges it wasn't given.
   - Removing tombstones the edge. Deleting an album or post tombstones its edges too
     (`tombstoneParent`). Deleting or purging an asset does not touch its edges, so a restore puts
     it back where it was. Readers resolve edges through the asset: albums skip deleted assets, a
@@ -546,9 +554,12 @@ backs it up and keeps it in sync, and signing out only pauses that.
   destinations after the commit; the source removed when nothing is left in it. A pending edit of a
   record the target has is merged into the target's row with `mergeRecord` against the target's
   pending clocks, and what applies goes into its outbox through `saveRecords` with the source's
-  clocks; the files moved are those of the assets that end in the target live or with a purge still
-  pending, never of one purged there for good). The same merge runs again at every boot while an
-  unmerged device library exists
+  clocks. The source's outbox is never cleared, so the commit records in the target the newest
+  source clock it replayed (`replayedThrough:<source>`), and a pass run again replays only what the
+  device edited since. A source an earlier pass copied (its marker) carries its tombstones too, as
+  they may be in the account. The files moved are those of the assets that end in the target live,
+  trashed or with a purge still pending, never of one purged there for good). The same merge runs
+  again at every boot while an unmerged device library exists
   (`mergeDeviceLibrary`, inside `withSyncPaused` after `resumeMerges`, which skips a marked source
   that is the open library and goes on after a failed one), so one that failed or that a crash
   interrupted finishes then. A device library with photos whose file lives in another account's
