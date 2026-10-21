@@ -89,6 +89,13 @@ Two parts:
 - **The album's other posts.** Below it, list the other posts made with media from this album, like
   the photo details list an asset's posts (`AssetDetailsPanel`). Reuse that list.
 
+### [ ] Remove deleted items for good after 30 days
+
+Like Apple Photos: an item in the Deleted album is removed for good 30 days after it was deleted,
+and each tile shows the days left (`DeletedAssetsAlbum`). Today it stays until "Delete permanently".
+Best run on the server (a daily job purging assets deleted 30+ days ago, then the file cleanup), so
+it works with no device open and can't clash with a restore made on another device.
+
 ### [ ] Context menus on long press (photo, album, post)
 
 Apple-Photos-style menu on long press: a preview with actions such as Share, Save, Add to album,
