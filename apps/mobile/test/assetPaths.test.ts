@@ -5,6 +5,7 @@ import { libraryPaths } from '../src/library/libraryPaths';
 // A record of the file-system calls the file helpers make.
 const fs: string[] = [];
 const folders: Record<string, string[]> = {}; // what readDirectoryAsync lists, by folder
+const failing = new Set<string>(); // folders whose next listing fails
 
 vi.mock('expo-file-system/legacy', () => ({
   documentDirectory: 'file:///documents/',
@@ -18,6 +19,7 @@ vi.mock('expo-file-system/legacy', () => ({
   getInfoAsync: async (uri: string) => ({ exists: uri.endsWith('present.jpg') || uri in folders }),
   readDirectoryAsync: async (uri: string) => {
     fs.push(`list ${uri}`);
+    if (failing.delete(uri)) throw new Error(`cannot list ${uri}`);
     return folders[uri];
   },
 }));
@@ -34,7 +36,7 @@ const { default: createAssetThumbnailDirectory } =
 const { default: hasThumbnailAsync } = await import('../src/utils/assets/thumbnails/hasThumbnailAsync');
 const { default: getAssetThumbnailStatusAsync } =
   await import('../src/utils/assets/thumbnails/getAssetThumbnailStatusAsync');
-const { removeAssetFiles } = await import('../src/library/fs');
+const { purgedFilesRemover, removeAssetFiles } = await import('../src/library/fs');
 
 const abc = libraryPaths('abc');
 
@@ -114,6 +116,18 @@ describe('asset file and thumbnail paths', () => {
       `delete file:///caches/downloads/abc/a.jpg-${uuid}/`,
     ]);
     delete folders['file:///caches/downloads/abc/'];
+  });
+
+  it('a remover whose listing failed lists again at its next call, instead of failing every one', async () => {
+    const downloads = 'file:///caches/downloads/abc/';
+    folders[downloads] = [];
+    failing.add(downloads);
+    const remove = purgedFilesRemover(abc);
+    await expect(remove([{ filename: 'a.jpg' }])).rejects.toThrow('cannot list');
+    fs.length = 0;
+    await remove([{ filename: 'a.jpg' }]);
+    expect(fs).toEqual([`list ${downloads}`, 'delete file:///documents/libraries/abc/files/a.jpg']);
+    delete folders[downloads];
   });
 
   it('refuse to resolve without a library, instead of guessing the open one', () => {

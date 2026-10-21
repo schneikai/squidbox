@@ -54,29 +54,42 @@ function recordsIn(collection: string, recordIds: string[]) {
   return and(eq(schema.outbox.collection, collection), inJson(schema.outbox.recordId, recordIds));
 }
 
-export type PendingEdit = Pick<schema.OutboxRow, 'fields' | 'updatedAt'> & { payload?: schema.OutboxRow['payload'] };
+type EditParts = { fields?: true; payload?: true };
+/** A pending edit's updatedAt, with the parts asked for: its changed fields, its payload. */
+export type PendingEdit<P extends EditParts = EditParts> = Pick<schema.OutboxRow, 'updatedAt'> &
+  (P['fields'] extends true ? Pick<schema.OutboxRow, 'fields'> : unknown) &
+  (P['payload'] extends true ? Pick<schema.OutboxRow, 'payload'> : unknown);
 
 /**
- * The pending edits of these records, by record id: their changed fields and updatedAt, and their
- * payload only when asked (it is the big one). Records without one are left out.
+ * The pending edits of these records, by record id: their updatedAt, and their changed fields and
+ * payload when asked (the payload is the big one). Records without one are left out.
  */
-export async function pendingEdits(
+export async function pendingEdits<P extends EditParts = Record<never, never>>(
   db: SyncDb,
   collection: string,
   recordIds: string[],
-  { payload = false }: { payload?: boolean } = {},
-): Promise<Map<string, PendingEdit>> {
-  if (recordIds.length === 0) return new Map();
+  parts?: P,
+): Promise<Map<string, PendingEdit<P>>> {
   const rows = await db
     .select({
       recordId: schema.outbox.recordId,
-      fields: schema.outbox.fields,
       updatedAt: schema.outbox.updatedAt,
-      ...(payload && { payload: schema.outbox.payload }),
+      ...(parts?.fields && { fields: schema.outbox.fields }),
+      ...(parts?.payload && { payload: schema.outbox.payload }),
     })
     .from(schema.outbox)
     .where(recordsIn(collection, recordIds));
-  return new Map(rows.map(({ recordId, ...edit }) => [recordId, edit]));
+  return new Map(rows.map(({ recordId, ...edit }) => [recordId, edit as PendingEdit<P>]));
+}
+
+/** Whether the record has a pending edit (one waiting after a failure included). */
+export async function hasPendingEdit(db: SyncDb, collection: string, recordId: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: schema.outbox.id })
+    .from(schema.outbox)
+    .where(recordsIn(collection, [recordId]))
+    .limit(1);
+  return rows.length > 0;
 }
 
 export async function clearOutboxRows(db: SyncDb, collection: string, recordIds: string[]): Promise<void> {

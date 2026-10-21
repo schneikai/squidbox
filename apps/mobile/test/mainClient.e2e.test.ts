@@ -36,24 +36,23 @@ const INSTALLED = 'df3337856e3c801b097384ce8e5ed30a9bee289c';
 const TEST_URL = process.env.TEST_DATABASE_URL;
 const here = fileURLToPath(new URL('.', import.meta.url));
 const mainRoot = `${here}.main-client`;
-const git = (args: string[]) => execFileSync('git', args, { cwd: here, stdio: 'ignore' });
-const hasInstalled = (() => {
-  if (!TEST_URL) return false;
+// git's output, run in this checkout (or `cwd`), and whether a git command succeeds.
+const git = (args: string[], cwd = here) =>
+  execFileSync('git', args, { cwd, maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'ignore'] });
+function gitOk(args: string[]): boolean {
   try {
-    git(['cat-file', '-e', `${INSTALLED}^{commit}`]);
+    git(args);
     return true;
   } catch {
-    try {
-      git(['fetch', '--depth=1', 'origin', INSTALLED]);
-      return true;
-    } catch {
-      return false;
-    }
+    return false;
   }
-})();
+}
+const hasInstalled =
+  Boolean(TEST_URL) &&
+  (gitOk(['cat-file', '-e', `${INSTALLED}^{commit}`]) || gitOk(['fetch', '--depth=1', 'origin', INSTALLED]));
 if (TEST_URL && !hasInstalled && process.env.CI)
   throw new Error(`mainClient.e2e: commit ${INSTALLED} (the installed app) could not be fetched from origin`);
-const d = TEST_URL && hasInstalled ? describe : describe.skip;
+const d = hasInstalled ? describe : describe.skip;
 
 const USER = randomUUID();
 const S = 1_800_000_000_000;
@@ -61,11 +60,8 @@ const S = 1_800_000_000_000;
 function extractMain() {
   rmSync(mainRoot, { recursive: true, force: true });
   mkdirSync(mainRoot, { recursive: true });
-  const top = execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: here }).toString().trim();
-  const archive = execFileSync('git', ['archive', INSTALLED, 'apps/mobile/src/sync'], {
-    cwd: top,
-    maxBuffer: 1 << 28,
-  });
+  const top = git(['rev-parse', '--show-toplevel']).toString().trim();
+  const archive = git(['archive', INSTALLED, 'apps/mobile/src/sync'], top);
   execFileSync('tar', ['-x', '-C', mainRoot, '--strip-components=3'], { input: archive });
   if (!existsSync(`${mainRoot}/sync/worker.ts`)) throw new Error(`${INSTALLED} has no apps/mobile/src/sync/worker.ts`);
 }

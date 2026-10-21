@@ -197,17 +197,24 @@ async function readStored(tx: Tx, userId: string, entries: Prepared[]): Promise<
 // Every clocked field's clock, one missing at the row's updated_at. A row without clocks (written
 // before per-field merge, or with every clock at its updated_at), or written since by a server without
 // them (a rollback: its updated_at is newer than every clock), takes its updated_at for each (§7).
-function storedClocks(col: ServerCollection, updatedAt: number, fieldClock: FieldClocks | null): FieldClocks {
-  const known = col.descriptor.clockedFields.flatMap((field) => (fieldClock && field in fieldClock ? [fieldClock[field]!] : []));
+export function storedClocks(col: ServerCollection, updatedAt: number, fieldClock: FieldClocks | null): FieldClocks {
+  const clocked = col.descriptor.clockedFields;
+  const known = clocked.flatMap((field) => (fieldClock && field in fieldClock ? [fieldClock[field]!] : []));
   const legacy = known.length === 0 || updatedAt > Math.max(...known);
-  return Object.fromEntries(
-    col.descriptor.clockedFields.map((field) => [field, legacy ? updatedAt : (fieldClock![field] ?? updatedAt)]),
-  );
+  return Object.fromEntries(clocked.map((field) => [field, legacy ? updatedAt : (fieldClock![field] ?? updatedAt)]));
 }
 
-// Upserts these rows (sync-design §6), as many per statement as Postgres' bind parameters allow:
-// field_clock null when every clock is the row's updated_at, as storedClocks reads it. The guard keeps
-// a purged row and a newer updated_at.
+// The field_clock column for a row's clocks: null when every clock is its updated_at, as storedClocks
+// reads it back.
+export function fieldClockColumn(col: ServerCollection, updatedAt: number, clocks: FieldClocks): FieldClocks | null {
+  const clocked = col.descriptor.clockedFields;
+  return clocked.every((field) => (clocks[field] ?? updatedAt) === updatedAt)
+    ? null
+    : Object.fromEntries(clocked.map((field) => [field, clocks[field] ?? updatedAt]));
+}
+
+// Upserts these rows (sync-design §6), as many per statement as Postgres' bind parameters allow. The
+// guard keeps a purged row and a newer updated_at.
 async function writeRows(tx: Tx, col: ServerCollection, userId: string, rows: Stored[]): Promise<void> {
   const table = col.table as any;
   for (const batch of chunk(rows, Math.floor(MAX_PARAMS / col.columnCount)))
@@ -217,9 +224,7 @@ async function writeRows(tx: Tx, col: ServerCollection, userId: string, rows: St
         batch.map(({ record, clocks, restoredDeletions }) => ({
           ...record,
           userId,
-          fieldClock: col.descriptor.clockedFields.every((field) => (clocks[field] ?? record.updatedAt) === record.updatedAt)
-            ? null
-            : Object.fromEntries(col.descriptor.clockedFields.map((field) => [field, clocks[field] ?? record.updatedAt])),
+          fieldClock: fieldClockColumn(col, record.updatedAt, clocks),
           ...(col.restoredDeletions && { restoredDeletions: restoredDeletions.length > 0 ? restoredDeletions : null }),
         })),
       )

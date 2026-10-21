@@ -33,11 +33,13 @@ export const pushMutationSchema = z.object({
 });
 export type PushMutation = z.infer<typeof pushMutationSchema>;
 
-/** The largest push request body the server takes, in bytes (its bodyLimit). */
+/** The largest push request body the server takes, in bytes (the push route's bodyLimit). */
 export const PUSH_BODY_LIMIT = 1024 * 1024;
+/** The most mutations one push request may carry. */
+export const PUSH_MAX_MUTATIONS = 500;
 
 export const pushRequestSchema = z.object({
-  mutations: z.array(pushMutationSchema).min(1).max(500),
+  mutations: z.array(pushMutationSchema).min(1).max(PUSH_MAX_MUTATIONS),
 });
 export type PushRequest = z.infer<typeof pushRequestSchema>;
 

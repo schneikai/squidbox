@@ -1,7 +1,6 @@
 import Fastify, { type FastifyServerOptions } from 'fastify';
 import rateLimit from '@fastify/rate-limit';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
-import { PUSH_BODY_LIMIT } from '@squidbox/shared';
 import { loadConfig } from './config.js';
 import { registerErrorHandler } from './plugins/errorHandler.js';
 import { authRoutes } from './auth/routes.js';
@@ -26,7 +25,7 @@ export async function buildApp(opts: { logger?: FastifyServerOptions['logger'] }
       },
     },
     // We stream large uploads through request.raw; the body is never buffered by Fastify.
-    bodyLimit: PUSH_BODY_LIMIT, // JSON routes only (the upload route streams; see storage/routes.ts)
+    bodyLimit: 1024 * 1024, // JSON routes only (the upload route streams; see storage/routes.ts)
   });
 
   app.setValidatorCompiler(validatorCompiler);

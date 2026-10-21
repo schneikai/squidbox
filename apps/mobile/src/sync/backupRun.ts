@@ -1,7 +1,7 @@
 import { isUnsynced, readUnsyncedIds, setSyncError, updateAsset } from './assetsRepository';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
-import { pendingEdits } from './outbox';
+import { hasPendingEdit } from './outbox';
 import { readByIds } from './readByIds';
 import { startRun } from './runGate';
 import { requestSync } from './worker';
@@ -73,7 +73,7 @@ async function backupAssets(
 // (§6). Such an asset waits: its original is deleted once uploaded, so the server must have its
 // record first, and a push that keeps failing would otherwise upload the file on every run.
 async function isUnconfirmed(db: SyncDb, id: string): Promise<boolean> {
-  return (await pendingEdits(db, 'assets', [id])).has(id);
+  return hasPendingEdit(db, 'assets', id);
 }
 
 // Resolves whether the run was aborted on this asset.

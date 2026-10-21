@@ -1,4 +1,11 @@
-import { lostFields, PUSH_BODY_LIMIT, type FieldClocks, type PushMutation, type PushResult } from '@squidbox/shared';
+import {
+  lostFields,
+  PUSH_BODY_LIMIT,
+  PUSH_MAX_MUTATIONS,
+  type FieldClocks,
+  type PushMutation,
+  type PushResult,
+} from '@squidbox/shared';
 import { and, gt } from 'drizzle-orm';
 
 import { clientCollectionTables } from './clientCollections';
@@ -23,14 +30,12 @@ import type { LibraryPaths } from '../library/libraryPaths';
 import type { SyncIdentity } from '../library/sessionMatches';
 
 const PULL_LIMIT = 1000; // server/contract cap
-const PUSH_BATCH = 500; // server caps pushRequest mutations at 500
 // Bytes of mutations per request: half the server's body limit, so a batch of large records never
 // gets the push stuck on a refused request. A row the server can't take at all (its mutation alone
 // over the limit) fails as a rejected one does (§6).
 const PUSH_BYTES = PUSH_BODY_LIMIT / 2;
 const ENVELOPE = '{"mutations":[]}'.length;
 const TOO_LARGE = `too-large: over the server's ${PUSH_BODY_LIMIT}-byte request limit`;
-const utf8 = new TextEncoder();
 // Records per apply transaction (and per bulk-action transaction, see writeInBatches). Each
 // transaction writes every database page it touches once more (the rollback journal), and with random
 // ids a transaction touches most index pages, so a few big transactions are much faster than one per
@@ -97,22 +102,25 @@ async function pushPhase(
   let pushed = 0;
   const notes: string[] = [];
   let lastId = 0;
+  let carried: schema.OutboxRow[] = []; // read, not sent yet: the next request's first rows
   let stopped = false;
   for (;;) {
     if (signal.aborted) {
       stopped = true;
       break;
     }
-    const rows = await db
+    const more = await db
       .select()
       .from(schema.outbox)
       .where(and(gt(schema.outbox.id, lastId), pushableOutboxRows))
       .orderBy(schema.outbox.id)
-      .limit(PUSH_BATCH);
+      .limit(PUSH_MAX_MUTATIONS - carried.length);
+    const rows = [...carried, ...more];
     if (rows.length === 0) break;
     if (pushed === 0) await patchStatus(db, { phase: 'pushing' });
+    lastId = rows.at(-1)!.id;
     const { batch, mutations, tooLarge, scanned } = request(rows);
-    lastId = scanned;
+    carried = rows.filter((row) => row.id > scanned);
     const { results } = mutations.length > 0 ? await transport.push({ mutations }) : { results: [] };
     const refused = tooLarge.map((row) => ({
       id: row.recordId,
@@ -149,7 +157,7 @@ function request(rows: schema.OutboxRow[]): {
       record: row.payload,
       ...(!row.wholeRecord && { fields: row.fields }),
     };
-    const size = utf8.encode(JSON.stringify(mutation)).length + 1; // and its comma
+    const size = utf8Bytes(JSON.stringify(mutation)) + 1; // and its comma
     if (size + ENVELOPE > PUSH_BODY_LIMIT) tooLarge.push(row);
     else if (batch.length > 0 && bytes + size > PUSH_BYTES) break;
     else {
@@ -160,6 +168,21 @@ function request(rows: schema.OutboxRow[]): {
     scanned = row.id;
   }
   return { batch, mutations, tooLarge, scanned };
+}
+
+// The UTF-8 size of a string, counted without encoding it (JSON.stringify leaves no lone surrogate).
+function utf8Bytes(text: string): number {
+  let bytes = text.length;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code < 0x80) continue;
+    if (code < 0x800) bytes += 1;
+    else if (code >= 0xd800 && code <= 0xdbff) {
+      bytes += 2; // a surrogate pair: four bytes for its two code units
+      i++;
+    } else bytes += 2;
+  }
+  return bytes;
 }
 
 // Settle a batch's push results (sync-design §6), a few statements per collection. Adopting the
@@ -316,7 +339,7 @@ async function applyChanges(
         tx,
         name,
         changes[name].map((record) => String(record.id)),
-        { payload: true },
+        { fields: true, payload: true },
       );
       const rows = changes[name].map((record) => {
         const edit = pending.get(String(record.id));
@@ -332,14 +355,16 @@ async function applyChanges(
 
 // The pulled record with the pending edit's values of its fields (already widened to their groups when
 // saved) and the newer updatedAt, so this device's next edit gets a clock above the pulled one (§5).
-function withPendingFields(record: Record<string, unknown>, edit: PendingEdit): Record<string, unknown> {
-  const payload = edit.payload ?? {};
+function withPendingFields(
+  record: Record<string, unknown>,
+  { fields, payload, updatedAt }: PendingEdit<{ fields: true; payload: true }>,
+): Record<string, unknown> {
   const kept = Object.fromEntries(
-    Object.keys(edit.fields)
+    Object.keys(fields)
       .filter((field) => field in payload)
       .map((field) => [field, payload[field]]),
   );
-  return { ...record, ...kept, updatedAt: Math.max(Number(record.updatedAt), edit.updatedAt) };
+  return { ...record, ...kept, updatedAt: Math.max(Number(record.updatedAt), updatedAt) };
 }
 
 async function applyRecord(db: SyncDb, collection: string, record: Record<string, unknown>): Promise<void> {

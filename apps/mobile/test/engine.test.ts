@@ -1,4 +1,4 @@
-import type { PushMutation } from '@squidbox/shared';
+import { PUSH_BODY_LIMIT, PUSH_MAX_MUTATIONS, type PushMutation } from '@squidbox/shared';
 import { eq } from 'drizzle-orm';
 import { describe, it, expect, beforeEach } from 'vitest';
 
@@ -157,8 +157,8 @@ describe('worker push', () => {
     expect(await outboxRows()).toHaveLength(0);
   });
 
-  it('splits a push by size too: no request carries more than 512 KB of mutations, each row is pushed once', async () => {
-    const notes = 'é'.repeat(60_000); // 120 KB in UTF-8
+  it('splits a push by size too: no request carries more than half the body limit of mutations, each row is pushed once', async () => {
+    const notes = 'é'.repeat(PUSH_BODY_LIMIT / 16); // an eighth of the limit in UTF-8
     const records = Array.from({ length: 12 }, () => makeAssetRecord({ notes }));
     await repo.createAssets(db, records);
     const sizes: number[] = [];
@@ -172,48 +172,50 @@ describe('worker push', () => {
     });
     await runSyncOnce(db, counting);
     expect(sizes.length).toBeGreaterThan(2);
-    for (const size of sizes) expect(size).toBeLessThanOrEqual(512 * 1024);
+    for (const size of sizes) expect(size).toBeLessThanOrEqual(PUSH_BODY_LIMIT / 2);
     expect(ids.sort()).toEqual(records.map((r) => r.id).sort());
     expect(await outboxRows()).toHaveLength(0);
   });
 
-  // Round 6. A transport with the server's real limits: at most 500 mutations, and a request body
-  // (`{"mutations":[…]}` in UTF-8) of at most 1 MiB, else Fastify answers 413 before the handler
-  // (test/routes.sync.test.ts in apps/server), which fails the request whole.
-  const MiB = 1024 * 1024;
+  // Round 6. A transport with the server's real limits: at most PUSH_MAX_MUTATIONS mutations, and a
+  // request body (`{"mutations":[…]}` in UTF-8) of at most PUSH_BODY_LIMIT, else Fastify answers 413
+  // before the handler (test/routes.sync.test.ts in apps/server), which fails the request whole.
   function serverLimits(sentBodies: number[] = []) {
     return fakeTransport({
       push: async (req) => {
         const body = new TextEncoder().encode(JSON.stringify(req)).length;
         sentBodies.push(body);
-        if (req.mutations.length > 500) throw new Error('400: more than 500 mutations');
-        if (body > MiB) throw new Error('Request failed with status code 413');
+        if (req.mutations.length > PUSH_MAX_MUTATIONS) throw new Error('400: too many mutations');
+        if (body > PUSH_BODY_LIMIT) throw new Error('Request failed with status code 413');
         return fakeTransport().push(req);
       },
     });
   }
 
-  it('by count and by bytes at once: 1,200 small rows, a 600 KB one and 4-byte emoji, none refused', async () => {
-    const small = Array.from({ length: 1200 }, (_, i) => makeAssetRecord({ notes: `😀${i}` }));
-    const big = makeAssetRecord({ notes: '😀'.repeat(150_000) }); // 600 KB in UTF-8, 300,000 UTF-16 units
-    const mid = Array.from({ length: 3 }, () => makeAssetRecord({ notes: '中'.repeat(100_000) })); // 300 KB each
-    await repo.createAssets(db, small.slice(0, 600));
+  it('by count and by bytes at once: more small rows than a request takes, one over half the limit and 4-byte emoji, none refused', async () => {
+    const small = Array.from({ length: PUSH_MAX_MUTATIONS * 2 + 200 }, (_, i) => makeAssetRecord({ notes: `😀${i}` }));
+    // 0.6 of the limit in UTF-8 (4 bytes, 2 UTF-16 units each), and three of 0.3 (3 bytes, 1 unit each).
+    const big = makeAssetRecord({ notes: '😀'.repeat(Math.floor((0.6 * PUSH_BODY_LIMIT) / 4)) });
+    const mid = Array.from({ length: 3 }, () =>
+      makeAssetRecord({ notes: '中'.repeat(Math.floor((0.3 * PUSH_BODY_LIMIT) / 3)) }),
+    );
+    await repo.createAssets(db, small.slice(0, small.length / 2));
     await repo.createAssets(db, [big, ...mid]);
-    await repo.createAssets(db, small.slice(600));
+    await repo.createAssets(db, small.slice(small.length / 2));
     const bodies: number[] = [];
     await runSyncOnce(db, serverLimits(bodies));
     expect(await outboxRows()).toHaveLength(0);
-    expect(Math.max(...bodies)).toBeLessThanOrEqual(MiB);
-    // A request over 512 KB is one row alone (the 600 KB one).
-    expect(bodies.filter((b) => b > 512 * 1024 + 1024)).toHaveLength(1);
+    expect(Math.max(...bodies)).toBeLessThanOrEqual(PUSH_BODY_LIMIT);
+    // A request over half the limit is one row alone (the big one).
+    expect(bodies.filter((b) => b > PUSH_BODY_LIMIT / 2 + 1024)).toHaveLength(1);
   });
 
-  // A single row over the server's 1 MiB body limit (a post or a note with ~1 MB of text; no schema
-  // bounds a text field) would be refused with a 413 on every run, failing the request whole. It is
-  // held back as a per-row failure instead (an `error` on its outbox row, shown like a rejected
-  // push), and the other rows and the pull go on.
-  it('a single row over the 1 MiB body limit fails alone; the other rows and the pull go on', async () => {
-    const huge = await repo.createAsset(db, makeAssetRecord({ notes: 'é'.repeat(600_000) })); // 1.2 MB
+  // A single row over the server's body limit (a post or a note with ~1 MB of text; no schema bounds
+  // a text field) would be refused with a 413 on every run, failing the request whole. It is never
+  // sent: it gets a too-large rejection, as a row the server refused does (an `error` on its outbox
+  // row, shown like a rejected push), and the other rows and the pull go on.
+  it('a single row over the body limit fails alone; the other rows and the pull go on', async () => {
+    const huge = await repo.createAsset(db, makeAssetRecord({ notes: 'é'.repeat(Math.floor(0.6 * PUSH_BODY_LIMIT)) })); // 1.2x
     await repo.createAsset(db, makeAssetRecord({ notes: 'small' }));
     let pulls = 0;
     const limits = serverLimits();

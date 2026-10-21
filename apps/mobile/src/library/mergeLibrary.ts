@@ -101,7 +101,7 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
   async function collectReplays(collection: string, sourceRows: Row[], targetRows: Map<string, Row>) {
     const replayable = sourceRows.filter((row) => targetRows.has(row.id));
     const ids = collection === 'assets' ? [...targetRows.keys()] : replayable.map((row) => row.id);
-    const pending = await pendingEdits(target, collection, ids);
+    const pending = await pendingEdits(target, collection, ids, { fields: true });
     for (const sourceRow of replayable) {
       mark(collection, sourceRow, { as: 'copy' });
       const fields = newEdits(collection, sourceRow.id);
@@ -409,7 +409,7 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<void>
       );
       const ids = [...sent.keys()];
       const stored = await readByIdMap<Row>(tx, table, ids);
-      const pending = await pendingEdits(tx, collection, ids);
+      const pending = await pendingEdits(tx, collection, ids, { fields: true });
       const replays = ids.flatMap((id) => {
         const row = stored.get(id);
         const replay = row && replayOnto(collection, row, pending.get(id)?.fields, sent.get(id)!);

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { assetCollection, mergeRecord, widenToGroups, type FieldClocks } from '@squidbox/shared';
 import { serverCollections } from '../src/sync/collections.js';
+import { fieldClockColumn, storedClocks } from '../src/sync/push.js';
 import { sentFields } from '../src/sync/sentFields.js';
 
 // Property-style tests of the merge (sync-design §5–§7): random edits, deletes, restores and purges
@@ -41,17 +42,6 @@ function prng(seed: number) {
     pick: <T>(list: readonly T[]): T => list[Math.floor(next() * list.length)]!,
     chance: (p: number) => next() < p,
   };
-}
-
-// The server's stored clocks (push.ts `storedClocks`): a clocked field without one, or every one
-// when a server without clocks wrote the row since (its updated_at is newer than all of them), takes
-// updated_at.
-function storedClocks(updatedAt: number, fieldClock: FieldClocks | null): FieldClocks {
-  const known = col.descriptor.clockedFields.flatMap((field) => (fieldClock && field in fieldClock ? [fieldClock[field]!] : []));
-  const legacy = known.length === 0 || updatedAt > Math.max(...known);
-  return Object.fromEntries(
-    col.descriptor.clockedFields.map((field) => [field, legacy ? updatedAt : (fieldClock![field] ?? updatedAt)]),
-  );
 }
 
 const synced = (record: Record<string, unknown>) =>
@@ -169,7 +159,7 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
     if (server.old) return oldServerPush(record);
     const fields = sentFields(col, mutation.record as never, mutation.fields, now);
     const before = server.record;
-    const clocksBefore = storedClocks(before.updatedAt, server.fieldClock);
+    const clocksBefore = storedClocks(col, before.updatedAt, server.fieldClock);
     const wholeRecord = mutation.fields === undefined;
     log?.push(
       `  push ${JSON.stringify({ u: record.updatedAt - T0, d: record.deletedAt, p: record.purgedAt, fields })} onto ${JSON.stringify({ u: server.record.updatedAt - T0, d: server.record.deletedAt, p: server.record.purgedAt })}`,
@@ -268,12 +258,7 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
           fail(step, `restoredDeletions ${merged.restoredDeletions}, expected ${expected}`);
       }
       server.record = { ...(merged.record as Rec), purgedAt: (merged.record.purgedAt as number | null) ?? null }; // a column: null when unsent
-      // push.ts writeRows: null when every clock is updated_at (storedClocks reads it back the same).
-      server.fieldClock = col.descriptor.clockedFields.every(
-        (f) => (merged.clocks[f] ?? merged.record.updatedAt) === merged.record.updatedAt,
-      )
-        ? null
-        : Object.fromEntries(col.descriptor.clockedFields.map((f) => [f, merged.clocks[f] ?? merged.record.updatedAt]));
+      server.fieldClock = fieldClockColumn(col, merged.record.updatedAt, merged.clocks); // as push.ts writes it
       server.restoredDeletions = merged.restoredDeletions;
       server.seq = ++seq;
     }

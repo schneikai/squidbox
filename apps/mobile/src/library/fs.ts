@@ -61,17 +61,18 @@ export async function removeAssetFiles(assets: AssetFileNames[], library: Librar
 // A remover of a library's files for many calls (a sweep's batches and its asset-by-asset retry):
 // deleting an absent file succeeds, so while it has no listing a call for a few assets deletes
 // blind; one for many lists the file and thumbnail folders once, and from then on deletes only the
-// copies present. The downloads folder is listed once.
+// copies present. The downloads folder is listed once. A listing that fails is listed again by the
+// next call.
 export function purgedFilesRemover(library: LibraryPaths): (assets: AssetFileNames[]) => Promise<void> {
   let present: Promise<Set<string>> | null = null;
-  let downloads: Promise<string[]> | null = null;
+  let downloads: Promise<Set<string>> | null = null;
   return async (assets) => {
-    if (!present && assets.length >= LIST_FROM) present = listFolders(library);
-    downloads ??= listFiles(getDownloadsDirectory(library)).then((names) => [...names]);
-    const listed = present && (await present);
+    if (!present && assets.length >= LIST_FROM) present = unlessFailed(listFolders(library), () => (present = null));
+    downloads ??= unlessFailed(listFiles(getDownloadsDirectory(library)), () => (downloads = null));
+    const [listed, folders] = await Promise.all([present, downloads]);
     const uris = [
       ...copies(assets, library).filter((uri) => !listed || listed.has(uri)),
-      ...downloadFolders(assets, library, await downloads),
+      ...downloadFolders(assets, library, folders),
     ];
     await deleteAll(uris);
     for (const uri of uris) listed?.delete(uri);
@@ -88,10 +89,20 @@ function copies(assets: AssetFileNames[], library: LibraryPaths): string[] {
 
 // The download folders of these assets (kept for a share sheet): `<filename>-<uuid>/`, see
 // withAssetFileAsync.
-function downloadFolders(assets: AssetFileNames[], library: LibraryPaths, folders: string[]): string[] {
+function downloadFolders(assets: AssetFileNames[], library: LibraryPaths, folders: Set<string>): string[] {
   const filenames = new Set(assets.map(({ filename }) => filename));
   const directory = getDownloadsDirectory(library);
-  return folders.filter((name) => filenames.has(name.slice(0, -UUID_SUFFIX))).map((name) => `${directory}${name}/`);
+  return [...folders]
+    .filter((name) => filenames.has(name.slice(0, -UUID_SUFFIX)))
+    .map((name) => `${directory}${name}/`);
+}
+
+// A listing kept for later calls, forgotten if it fails.
+function unlessFailed<T>(listing: Promise<T>, forget: () => void): Promise<T> {
+  return listing.catch((error: unknown) => {
+    forget();
+    throw error;
+  });
 }
 
 const UUID_SUFFIX = '-00000000-0000-0000-0000-000000000000'.length;

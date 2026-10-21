@@ -34,6 +34,7 @@ import type { SyncTransport } from '../src/sync/transport';
 import { upsertRows } from '../src/sync/upsertRows';
 import { runSyncOnce } from '../src/sync/worker';
 import changedValues from '../src/utils/changedValues';
+import noteText from '../src/utils/noteText';
 import postAssetsToAssetRefs from '../src/utils/posts/postAssetsToAssetRefs';
 
 const albumRepo = makeRepository('albums', clientSchema.albums);
@@ -1074,11 +1075,12 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       await sync(B);
       await sync(A);
       await edit(A, S + 200, async () => {
-        const rename = changedValues({ name: seed.name }, { name: 'Summer trip' });
-        await albumRepo.update(A, id, rename);
+        // As the editors do (MoreAction's rename, EditAlbumNotesModal): write a field that changed.
+        const name = 'Summer trip';
+        if (name !== seed.name) await albumRepo.update(A, id, { name });
         // The notes modal opened before B's edit arrived and saved it unchanged: nothing to write.
-        const notes = changedValues({ notes: (seed.notes ?? '') || null }, { notes: null });
-        expect(notes).toEqual({});
+        const notes = noteText(seed.notes ?? '');
+        if (notes !== noteText(seed.notes)) await albumRepo.update(A, id, { notes });
       });
       await settle();
       expect(await expectConverged('albums', id)).toMatchObject({

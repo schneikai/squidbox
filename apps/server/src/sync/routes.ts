@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
-import { pullRequestSchema, pushRequestSchema } from '@squidbox/shared';
+import { PUSH_BODY_LIMIT, pullRequestSchema, pushRequestSchema } from '@squidbox/shared';
 import { getDb } from '../db/client.js';
 import { requireUser, authenticate } from '../auth/authenticate.js';
 import { loadConfig } from '../config.js';
@@ -37,6 +37,7 @@ export async function syncRoutes(app: FastifyInstance): Promise<void> {
   r.route({
     method: 'POST',
     url: '/sync/push',
+    bodyLimit: PUSH_BODY_LIMIT, // the client sizes its pushes to it
     preHandler: authenticate(),
     schema: { body: pushRequestSchema },
     handler: async (request) => {

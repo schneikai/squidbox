@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import { postCollection } from '@squidbox/shared';
+import { postCollection, PUSH_BODY_LIMIT } from '@squidbox/shared';
 
 vi.mock('../src/db/client.js', () => ({ getDb: () => ({}), closeDb: async () => {} }));
 vi.mock('../src/users.js', () => ({
@@ -20,10 +20,9 @@ vi.mock('../src/sync/purgedFiles.js', () => ({ cleanUpPurgedFiles: () => {} }));
 import { buildApp } from '../src/app.js';
 import { signAccessToken } from '../src/auth/jwt.js';
 
-// Round 6: the client splits its pushes at 512 KB of mutations, "half the server's 1 MiB body limit,
-// so a batch of large records is never refused for good" (sync-design §6). A single record over the
-// limit still goes alone, and the server refuses it before the handler, whatever its schema says.
-describe('POST /sync/push and the 1 MiB body limit', () => {
+// Round 6: the client sizes its pushes to PUSH_BODY_LIMIT, the push route's bodyLimit (sync-design
+// §6). A request over it is refused before the handler, whatever its schema says.
+describe('POST /sync/push and its body limit (PUSH_BODY_LIMIT)', () => {
   const headers = { authorization: `Bearer ${signAccessToken('u1')}`, 'content-type': 'application/json' };
   const post = (text: string) => ({
     id: randomUUID(),
@@ -46,12 +45,12 @@ describe('POST /sync/push and the 1 MiB body limit', () => {
       payload: JSON.stringify({ mutations: [{ collection: 'posts', record, fields: { text: 2 } }] }),
     });
 
-  it('takes one post of 900 KB of text, and refuses one of 1.1 MB with a 413 its schema would accept', async () => {
-    const fits = post('x'.repeat(900 * 1024));
+  it('takes a post of 0.9 of the limit, and refuses one of 1.1 times it with a 413 its schema would accept', async () => {
+    const fits = post('x'.repeat(Math.floor(0.9 * PUSH_BODY_LIMIT)));
     expect((await push(fits)).statusCode).toBe(200);
     expect(pushed.count).toBe(1);
 
-    const tooBig = post('é'.repeat(560 * 1024)); // 1.1 MB in UTF-8
+    const tooBig = post('é'.repeat(Math.ceil(0.55 * PUSH_BODY_LIMIT))); // 2 bytes each in UTF-8
     expect(postCollection.schema.safeParse(tooBig).success).toBe(true);
     const res = await push(tooBig);
     expect(res.statusCode).toBe(413);
