@@ -1196,6 +1196,63 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: S + 100, purgedAt: S + 250 });
     });
 
+    // An app from before "Delete permanently": no `fields`, and no purgedAt in its records.
+    async function syncAsPrePurgeApp(device: SyncDb) {
+      at(SERVER_NOW);
+      const base = transportOf(device);
+      await runSyncOnce(device, {
+        ...base,
+        push: (req) =>
+          base.push({
+            mutations: req.mutations.map((m) => {
+              const { purgedAt: _purgedAt, ...record } = m.record as Record<string, unknown>;
+              return { ...m, record: record as PushMutation['record'] };
+            }),
+          }),
+      });
+    }
+
+    it('old apps against the purge rule: a whole-record purge loses to a restore it hadn’t seen, a pre-purge restore beats a later purge', async () => {
+      // C (no fields) purges, unaware of B's restore.
+      const first = await seedAsset();
+      await edit(A, S + 100, () => repo.deleteAssets(A, [first]));
+      await settle();
+      await edit(B, S + 200, () => repo.updateAllAssets(B, [first], { deletedAt: null }));
+      await sync(B);
+      await edit(C, S + 300, () => repo.purgeAssets(C, [first]));
+      await sync(C);
+      expect(pushLog.at(-1)!.results[0]!.status).toBe('skipped-lww');
+      await settle();
+      expect(await expectConverged('assets', first)).toMatchObject({ deletedAt: null, purgedAt: null });
+
+      // C, as an app from before purges, restores; A, unaware, purges later by clock.
+      const second = await seedAsset();
+      await edit(A, S + 100, () => repo.deleteAssets(A, [second]));
+      await settle();
+      await edit(C, S + 200, () => repo.updateAllAssets(C, [second], { deletedAt: null }));
+      await syncAsPrePurgeApp(C);
+      await edit(A, S + 300, () => repo.purgeAssets(A, [second]));
+      await settle([A, B]);
+      await syncAsPrePurgeApp(C);
+      await settle();
+      expect(await expectConverged('assets', second)).toMatchObject({ deletedAt: null, purgedAt: null });
+    });
+
+    it('an app from before purges pushing a stale record to a purged row: frozen, told so, and it converges', async () => {
+      const id = await seedAsset();
+      await edit(A, S + 100, () => repo.deleteAssets(A, [id]));
+      await settle();
+      await edit(A, S + 200, () => repo.purgeAssets(A, [id]));
+      await sync(A);
+      const frozen = await serverRaw('assets', id);
+      await edit(C, S + 900, () => repo.updateAllAssets(C, [id], { deletedAt: null, notes: 'C' }));
+      await syncAsPrePurgeApp(C);
+      expect(pushLog.at(-1)!.results[0]).toMatchObject({ status: 'skipped-lww', current: { purgedAt: S + 200 } });
+      expect(await serverRaw('assets', id)).toEqual(frozen);
+      await settle();
+      expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: S + 100, purgedAt: S + 200, notes: null });
+    });
+
     it('purges and restores across push batches of 500 and pull pages with pending edits converge; files go only for the purges that won', async () => {
       const n = 1100;
       at(S);
@@ -1211,7 +1268,13 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       await settle([A, B]);
       const restored = new Set(ids.filter((_, i) => i % 7 === 0));
       await edit(B, S + 200, () => repo.updateAllAssets(B, [...restored], { deletedAt: null }));
-      await edit(B, S + 250, () => repo.updateAllAssets(B, ids.filter((_, i) => i % 11 === 0), { notes: 'B' }));
+      await edit(B, S + 250, () =>
+        repo.updateAllAssets(
+          B,
+          ids.filter((_, i) => i % 11 === 0),
+          { notes: 'B' },
+        ),
+      );
       await sync(B);
       await edit(A, S + 300, () => repo.purgeAssets(A, ids)); // A never saw the restores
       const pending = ids.filter((_, i) => i % 13 === 0);
@@ -1244,13 +1307,16 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       const serverRows = await pgDb.select().from(serverSchema.assets).where(eq(serverSchema.assets.userId, USER2));
       const server = new Map(serverRows.map((row) => [row.id, synced('assets', row)]));
       for (const device of [A, B]) {
-        const local = new Map((await device.select().from(clientSchema.assets)).map((row) => [row.id, synced('assets', row)]));
+        const local = new Map(
+          (await device.select().from(clientSchema.assets)).map((row) => [row.id, synced('assets', row)]),
+        );
         expect(local).toEqual(server);
         expect(await device.select().from(clientSchema.outbox)).toEqual([]);
       }
       for (const [i, id] of ids.entries()) {
         const row = server.get(id)!;
-        if (restored.has(id)) expect(row).toMatchObject({ deletedAt: null, purgedAt: null, notes: i % 11 === 0 ? 'B' : null });
+        if (restored.has(id))
+          expect(row).toMatchObject({ deletedAt: null, purgedAt: null, notes: i % 11 === 0 ? 'B' : null });
         else expect(row).toMatchObject({ deletedAt: S + 100, purgedAt: S + 300 });
         // B's favorite survives on a restored photo; a purged one is frozen without it.
         expect(row.isFavorite).toBe(restored.has(id) && i % 13 === 0);

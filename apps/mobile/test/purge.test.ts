@@ -11,7 +11,7 @@ import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
 import { makeRepository } from '../src/sync/repository';
-import { runSyncOnce } from '../src/sync/worker';
+import { fullResync, runSyncOnce } from '../src/sync/worker';
 
 let db: SyncDb;
 beforeEach(() => {
@@ -158,6 +158,59 @@ describe('local files of a purge that arrives through sync', () => {
 
     expect(removed).toEqual([]);
     expect((await assetRow(asset.id))?.notes).toBe('echo');
+  });
+
+  // BUG (worker.ts fullResync + removeNewlyPurgedFiles): a full resync wipes the local tables before it
+  // pulls from 0, and the pull removes files only for assets it finds here unpurged. An asset purged
+  // on another device since the last pull arrives with no local row, so its files on this device are
+  // never removed: no later path does it (the asset is purged here now and nothing is pending).
+  it.fails('a full resync still removes the files of an asset purged elsewhere meanwhile', async () => {
+    const asset = await repo.createAsset(db, makeAssetRecord({ filename: 'r.jpg', thumbnailFilename: 'r-t.jpg' }));
+    await runSyncOnce(db, fakeTransport());
+    const { removed, removeFiles } = recording();
+
+    await fullResync(db, pulling([{ ...asset, deletedAt: 2000, purgedAt: 3000, updatedAt: 3000 }]), { removeFiles });
+
+    expect((await assetRow(asset.id))?.purgedAt).toBe(3000);
+    expect(removed).toEqual(['r.jpg', 'r-t.jpg']);
+  });
+
+  it('a purge pulled while this device’s own purge of it waits for its push: no removal then, once at the push', async () => {
+    const asset = await repo.createAsset(db, makeAssetRecord({ filename: 'w.jpg', thumbnailFilename: 'w-t.jpg' }));
+    await repo.deleteAssets(db, [asset.id]);
+    await runSyncOnce(db, fakeTransport());
+    await repo.purgeAssets(db, [asset.id]);
+    const { removed, removeFiles } = recording();
+    const elsewhere = { ...(await assetRow(asset.id))!, purgedAt: 1, updatedAt: 3000 };
+    const refused = fakeTransport({
+      push: async (req) => ({
+        results: req.mutations.map((m) => ({
+          id: String(m.record.id),
+          collection: m.collection,
+          status: 'rejected' as const,
+          reason: 'offline',
+        })),
+      }),
+      pull: async () => ({ changes: { assets: { records: [elsewhere] } }, cursor: 5, hasMore: false }),
+    });
+    await runSyncOnce(db, refused, { removeFiles });
+    expect(removed).toEqual([]);
+    await db.update(schema.outbox).set({ error: null });
+    const frozen = fakeTransport({
+      push: async (req) => ({
+        results: req.mutations.map((m) => ({
+          id: String(m.record.id),
+          collection: m.collection,
+          status: 'skipped-lww' as const,
+          current: elsewhere,
+        })),
+      }),
+    });
+    await runSyncOnce(db, frozen, { removeFiles });
+    await runSyncOnce(db, fakeTransport(), { removeFiles });
+    expect(removed).toEqual(['w.jpg', 'w-t.jpg']);
+    expect(await assetRow(asset.id)).toMatchObject({ purgedAt: 1 });
+    expect(await db.select().from(schema.outbox)).toEqual([]);
   });
 
   it('go when a purge beats this device’s own edit, which then adopts it', async () => {

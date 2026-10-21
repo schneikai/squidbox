@@ -719,6 +719,45 @@ d('sync engine (Postgres)', () => {
       expect(results[2]).toMatchObject({ status: 'skipped-lww', current: { deletedAt: 3000, purgedAt: 2500 } });
     });
 
+    // BUG (fieldMergeUpdate.ts restoredSince): "live again since the deletion the purge was made of"
+    // compares the stored deletedAt clock, clamped to server time, with the purge's deletedAt value,
+    // which is the deleting device's own clock and never clamped. A deletion from a device whose clock
+    // is an hour ahead makes every later restore look older than it, so a purge that never saw the
+    // restore applies by clock.
+    it.fails('a restore beats a purge that hadn’t seen it when the deletion came from a fast clock', async () => {
+      const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
+      const r = { ...assetRecord(), purgedAt: null as number | null };
+      await push(db, USER_A, [mut(r)]);
+      const fastDeletion = Date.now() + 3_600_000; // the deleting device is an hour ahead
+      const deleted = { ...r, updatedAt: fastDeletion, deletedAt: fastDeletion };
+      expect((await push(db, USER_A, [at(deleted, fastDeletion, ['deletedAt'])]))[0].status).toBe('applied');
+      await tick();
+      const restoredAt = Date.now();
+      await push(db, USER_A, [at({ ...r, updatedAt: restoredAt, deletedAt: null }, restoredAt, ['deletedAt'])]);
+      expect(await raw(r.id)).toMatchObject({ deletedAt: null });
+      await tick();
+      const purgedAt = Date.now(); // made on a device that only saw the deletion
+      const [result] = await push(db, USER_A, [at({ ...deleted, updatedAt: purgedAt, purgedAt }, purgedAt, ['deletedAt', 'purgedAt'])]);
+      expect(result).toMatchObject({ status: 'skipped-lww', current: { deletedAt: null, purgedAt: null } });
+    });
+
+    it('a restore and a purge of one record in one push: the restore first beats the purge, the purge first is final', async () => {
+      const restoredFirst = { ...assetRecord({ deletedAt: 1000 }), purgedAt: null as number | null };
+      const purgedFirst = { ...assetRecord({ deletedAt: 1000 }), purgedAt: null as number | null };
+      await push(db, USER_A, [mut(restoredFirst), mut(purgedFirst)]);
+      const restore = (r: Record<string, unknown>) => at({ ...r, updatedAt: 3000, deletedAt: null }, 3000, ['deletedAt']);
+      const purge = (r: Record<string, unknown>) => at({ ...r, updatedAt: 2000, purgedAt: 2000 }, 2000, ['purgedAt']);
+      const results = await push(db, USER_A, [
+        restore(restoredFirst),
+        purge(restoredFirst),
+        purge(purgedFirst),
+        restore(purgedFirst),
+      ]);
+      expect(results.map((result) => result.status)).toEqual(['applied', 'skipped-lww', 'applied', 'skipped-lww']);
+      expect(await raw(restoredFirst.id)).toMatchObject({ deletedAt: null, purgedAt: null });
+      expect(await raw(purgedFirst.id)).toMatchObject({ deletedAt: 1000, purgedAt: 2000 });
+    });
+
     it('a purge alone on a live row changes nothing', async () => {
       const r = assetRecord();
       await push(db, USER_A, [mut(r)]);
