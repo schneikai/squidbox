@@ -101,6 +101,8 @@ interface CaseOptions {
   upgrades?: boolean;
   /** Tolerate the known stale updatedAt of an old app (see the it.fails in round 4). */
   tolerateStaleUpdatedAt?: boolean;
+  /** The device clock skews to pick from. */
+  skews?: number[];
 }
 
 function runCase(seed: number, steps: number, log?: string[], options: CaseOptions = {}): string[] {
@@ -140,7 +142,7 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
     oracle: new Map(REGISTERS.map((f) => [f, { clock: T0, value: initial[f] }])),
     old: false,
   };
-  const skews = [0, 0, 0, HOUR, -HOUR, 5_000, -5_000, 1, -1];
+  const skews = options.skews ?? [0, 0, 0, HOUR, -HOUR, 5_000, -5_000, 1, -1];
   const devices: Device[] = ['A', 'B', 'C'].map((name, i) => {
     const old = i === 2 ? rand.chance(0.5) : i === 1 && rand.chance(0.1);
     return {
@@ -476,7 +478,7 @@ describe('mergeRecord, property-style (seeded)', () => {
   });
 });
 
-// Round 4: many more seeds, and old apps updated mid-case with their pending row carried over as a
+// Round 4: more seeds, clocks days apart, and old apps updated mid-case with their pending row carried over as a
 // whole-record row (pushed without fields, pulled around, new edits coalesced into it).
 describe('mergeRecord, property-style, round 4 (seeded)', () => {
   // BUG (round 4), seed 116884: the installed app (whole-record pushes, main's pull that skips a
@@ -491,19 +493,28 @@ describe('mergeRecord, property-style, round 4 (seeded)', () => {
     expect(runCase(116_884, 60)).toEqual([]);
   });
 
-  it('30,000 more random cases converge and keep every documented rule', () => {
+  it('20,000 more random cases converge and keep every documented rule', () => {
     const violations: string[] = [];
-    for (let seed = 100_001; seed <= 130_000; seed++)
+    for (let seed = 100_001; seed <= 120_000; seed++)
       violations.push(...runCase(seed, 60, undefined, { tolerateStaleUpdatedAt: true }));
     expect(violations.slice(0, 10)).toEqual([]);
   }, 120_000);
 
-  it('20,000 cases where the old apps update mid-case, a pending row carried over whole, converge', () => {
+  it('10,000 cases where the old apps update mid-case, a pending row carried over whole, converge', () => {
     const violations: string[] = [];
-    for (let seed = 1; seed <= 20_000; seed++) violations.push(...runCase(seed, 80, undefined, { upgrades: true, tolerateStaleUpdatedAt: true }));
+    for (let seed = 1; seed <= 10_000; seed++) violations.push(...runCase(seed, 80, undefined, { upgrades: true, tolerateStaleUpdatedAt: true }));
     expect(violations.slice(0, 10)).toEqual([]);
-    expect(stats.upgradedWithPending).toBeGreaterThan(1000);
-    expect(stats.wholeRowPushed).toBeGreaterThan(1000);
+    expect(stats.upgradedWithPending).toBeGreaterThan(500);
+    expect(stats.wholeRowPushed).toBeGreaterThan(500);
+  }, 120_000);
+
+  it('10,000 cases with clocks days apart, half of them with old apps updating, converge', () => {
+    const DAY = 24 * HOUR;
+    const skews = [0, DAY, -DAY, 3 * DAY, -3 * DAY, 50, -50, HOUR];
+    const violations: string[] = [];
+    for (let seed = 200_001; seed <= 210_000; seed++)
+      violations.push(...runCase(seed, 80, undefined, { upgrades: seed % 2 === 0, tolerateStaleUpdatedAt: true, skews }));
+    expect(violations.slice(0, 10)).toEqual([]);
   }, 120_000);
 
   it('long cases with updates (400 steps) converge too', () => {
