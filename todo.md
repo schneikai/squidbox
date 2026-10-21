@@ -5,6 +5,39 @@ when the owner defers something, or when an idea comes up. Remove an entry once 
 
 ## Bugs
 
+### [ ] The purged-files sweep runs on a half-pulled full resync
+
+`sweepPurgedFiles` trusts the local table, which `fullResync` empties. A resync stopped after a page
+(`runSyncOnce` sweeps even when stopped) or killed (the sweep at library open) treats a name a live,
+not yet re-pulled photo shares with a purged one as unused, and removes that photo's copy, its
+original too if not backed up. Test: `purge.test.ts`, "a full resync stopped after its first page".
+
+### [ ] An installed app's offline purge pushed after the upgrade can lose to a restore without its files
+
+Migration 0011 gives the installed app's outbox rows `fields`, so its purge gets the restore-beats-
+purge rule the server spares pushes without fields (that app removed the files at once). The asset
+comes back here without files, and the 0012 backfill's `filesRemovedAt` stays set (nothing clears it
+when a purge is undone), so a later purge never sweeps its new copies. Tests: `mergeRecord.test.ts`,
+`purge.test.ts` ("an offline purge from before the upgrade").
+
+### [ ] A device library merged in part still removes a purged photo's files at once
+
+`hasAccount` is `owner.kind !== 'device'` (`library/current.ts`, `AssetsProvider`), but once a merge
+pass has copied its records into an account (marker left), a restore there can beat its purge. Then the
+account has a live photo whose only files the device library removed. Test: `twoDevice.e2e.test.ts`,
+"a purge in a device library already merged in part".
+
+### [ ] mergeRecord leaves `purgedAt: undefined` for a record sent without it
+
+A pre-purge app's restore sets the final field to `undefined` in the merged record; within one push
+batch the next mutation of that record then counts `purgedAt: null` as lost (`skipped-lww` with
+nothing lost) and its `current` lacks `purgedAt`. Tests: `mergeRecord.test.ts`, `sync.test.ts` round 3.
+
+### [ ] Restore marks grow without bound
+
+Every restored deletion adds a `deletedAt:restored:<value>` key to `field_clock`, forever
+(`mergeRecord.ts`). Harmless at a few cycles; a row toggled thousands of times keeps thousands.
+
 ## Features
 
 ### [ ] Share several assets at once
