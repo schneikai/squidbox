@@ -123,8 +123,8 @@ is never pulled. Together with "no hard deletes" (§7), this is a code-review ru
   clock, so they never mix two devices' values, and an edit of another field on another device
   leaves them alone. Two devices marking the same asset resolve by the last writer; at worst that
   re-queues an upload to the same S3 key.
-- `syncError` (this device's last upload error) and `filesRemovedAt` (when this device removed a
-  purged asset's files, §7a) are **local-only**, on `assets`.
+- `syncError` (this device's last upload error) and `filesRemovedFor` (the purge this device
+  removed a purged asset's files for, §7a) are **local-only**, on `assets`.
 - Whether a file is cached on this device is not a field. It is read from the filesystem.
 
 The descriptor's `localOnly` lists local-only fields. They are stripped before an outbox row is
@@ -243,18 +243,21 @@ advisory lock (§3), for each mutation:
    name. So an optional column an older app doesn't send (e.g. `albums.position`) keeps its stored
    value; a new synced column is added as optional, and the server ships before the app.
    After the merges, the batch writes one multi-row upsert per collection (a row merged twice is
-   written once, with its last merge), in one savepoint; `field_clock` is NULL when every clock is
-   the row's `updated_at`, which reads back the same. The upsert never un-purges a row or sets its
-   `updated_at` back, whatever it is given. A database error caused by a row itself (SQLSTATE class
-   22 or 23, e.g. a constraint the schema doesn't mirror) rolls that savepoint back (the advisory
-   lock, taken before it, stays held) and reruns the batch writing each row in its own savepoint,
-   so that row alone is rejected as `db:<sqlstate>` and only such pushes pay the extra round trips.
+   written once, with its last merge), in one savepoint; reads and upserts are split to stay within
+   Postgres' 65,535 bind parameters, so a push of any size works. `field_clock` is NULL when every
+   clock is the row's `updated_at`, which reads back the same. The upsert never un-purges a row or
+   sets its `updated_at` back, whatever it is given. A database error caused by a row itself
+   (SQLSTATE class 22 or 23, e.g. a constraint the schema doesn't mirror) rolls that savepoint back
+   (the advisory lock, taken before it, stays held) and reruns the batch writing each row in its own
+   savepoint, so that row alone is rejected as `db:<sqlstate>` and only such pushes pay the extra
+   round trips.
    Any other error fails the whole push, which the client retries, and so does a violated `user_id`
    foreign key (the user was deleted mid-push).
 4. A named field is lost when the row then holds another value for it (`lostFields`), and a push to
-   a purged row whose record lacks that purge counts as lost too. None lost: `applied`. Any lost:
-   `skipped-lww` with the merged row as `current`, which already holds the fields that applied, so
-   the client adopts it.
+   a purged row whose record lacks that purge counts as lost too, as does a push without `fields`
+   whose row ends with a newer `updatedAt` than it sent (an older app then adopts the row, as a
+   whole-record server answered). None lost: `applied`. Any lost: `skipped-lww` with the merged
+   row as `current`, which already holds the fields that applied, so the client adopts it.
 
 The comparison is strict `>`. The trigger re-stamps `server_seq` on every UPDATE, so an equal
 timestamp must not count as newer; with `>` a replay is a true no-op (and `applied`) and pushes can
@@ -341,23 +344,15 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
   which sends a newer `deletedAt: null`, does (a whole-record push still carries `deletedAt`, so
   a newer one undeletes). Restoring a deleted asset clears `deletedAt`.
 - **Purges** ("Delete permanently", §7a) set `purgedAt`, the write-once `finalField`, sent with
-  its deletion as one group, the deletion pair (`mergeRecord`):
-  - **A restore beats a purge made of a deletion it undid.** A restore (a merge that takes
-    `deletedAt` from a value to null) raises the row's `restored_through` to the `deletedAt` it
-    undid. When the stored row is live (`deletedAt` null) and a purge's `deletedAt` is at most
-    `restored_through`, the purge loses with its `deletedAt`, whatever the clocks: a device clock
-    running ahead can't defeat a restore, and under clock skew a purge of an older deletion loses
-    too, which keeps the photo. `restored_through` only grows. A restore a server without it took
-    (a rollback) raises nothing, so a purge of that deletion then goes by its clock.
-  - **A re-delete** lifts it: once the row is deleted again, a purge goes by the rules below,
-    whether it was made of the new deletion or of one a restore undid.
-  - Otherwise the pair goes by `deletedAt`'s clock (an offline delete and purge the server never had
-    included); a purge older than the stored deletion still applies to a record still deleted,
-    keeping the newer `deletedAt`; a purge without its deletion changes nothing.
-  - A purged row is frozen, so a later restore loses.
-  - A push without `fields` (the installed app, which removes its files at once, and its outbox
-    rows carried over) gets no `restored_through` check: it keeps its whole-record rule. A record
-    without `purgedAt` (an app from before purges) leaves the stored one.
+  its deletion as one group (`mergeDeletion` in `mergeRecord.ts` has the cases):
+  - **A restore beats a purge made of a deletion it undid.** A restore raises the row's
+    `restored_through` to the `deletedAt` it undid; on a live row, a purge whose `deletedAt` is at
+    most that loses with its `deletedAt`, whatever the clocks, so neither a clock running ahead nor
+    skew can lose a restored photo. Once the row is deleted again, purges go by the clocks again.
+  - Otherwise the pair goes by `deletedAt`'s clock, a purge also applies to a record still deleted,
+    and a purged row is frozen, so a later restore loses.
+  - A push without `fields` (the installed app, which removes its files at once, and its outbox rows
+    carried over) gets no `restored_through` check: it keeps its whole-record rule.
 - **Membership** (which assets are in an album or post, and their order) is stored as separate
   edge records in `album_assets` and `post_assets` (§10), not as arrays on the parent. Add,
   remove and reorder each write their own edge rows, so concurrent membership changes on two
@@ -396,21 +391,15 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
   (§5). A purged asset shows nowhere, the Deleted album included. Its copies on this device (file,
   thumbnail and downloaded copy, `removeAssetFiles` in `library/fs.ts`) stay until the purge is
   confirmed: a restore can beat it (§7), and the asset then comes back here, files included.
-- **One sweep removes the copies** (`sweepPurgedFiles`), by state: every purged asset this device
-  hasn't removed the files of yet (`filesRemovedAt`, local-only), once its purge is confirmed. The
-  sweep reads what that means from the library's database:
-  - In a library that syncs, the purge came from the server (no pending outbox row carries its
-    deletion pair), and nothing is swept until the library is fully pulled (`firstSyncDone`, which a
-    full resync clears): before that, a live asset not pulled back yet could share a purged one's
-    file name.
-  - In a device library, at once, as nothing can restore it, unless a merge pass has copied its
-    records into an account (the merge marker in its database, §8): then its purges wait like an
-    account's.
-  - A name another asset still uses (one whose purge isn't confirmed) is kept, as on the server.
-  - It runs at the end of every sync run, after a purge and when a library opens; a failed removal
-    leaves the asset for the next sweep, and a full resync sweeps again what it pulls. A purge
-    undone (a pull, an adopted `current`, a library merge) clears `filesRemovedAt` (a trigger), so a
-    later purge removes the copies made since.
+- **One sweep removes the copies** (`sweepPurgedFiles`), by state: every purged asset whose files
+  this device hasn't removed for its current purge (`filesRemovedFor`, local-only, so an undone
+  purge followed by a new one is swept again), once the purge is confirmed (`confirmedPurges`): in a
+  library that syncs, the server has it and the library is fully pulled, so a live asset not
+  pulled back yet keeps a shared name; in a device library, at once, unless a merge pass has copied
+  its records into an account (§8). A name another asset still uses is kept, as on the server. It
+  runs at the end of every sync run, after a purge and, without holding it up, when a library
+  opens; an asset whose files can't be removed waits for the next sweep without holding up the
+  others, and the run only notes it.
 - **The S3 file and thumbnail** of a purged asset are deleted by the server, after each push
   reply, one cleanup at a time per user (`cleanUpPurgedFiles` → `deletePurgedFiles` in
   `sync/purgedFiles.ts`). It selects the purged assets whose files it hasn't deleted yet by a
@@ -544,7 +533,7 @@ backs it up and keeps it in sync, and signing out only pauses that.
   parked one from an earlier sign-in, or a new empty one. Then whatever the device library holds
   joins it at once, with no prompt (`library/mergeRun.ts`, crash-safe and idempotent: the
   `mergedInto` marker on the source, in the list and, from the first pass that copies records, in
-  its own database until a merge that keeps it is done; every record in one transaction of the
+  its own database until the merge is done or given up; every record in one transaction of the
   target with its outbox row; files, found by listing the source's folders, moved into missing
   destinations after the commit; the source removed when nothing is left in it. A pending edit of a
   record the target has is merged into the target's row with `mergeRecord` against the target's
@@ -745,7 +734,7 @@ Runbook: [`legacy-import.md`](./legacy-import.md), or the `/legacy-import` skill
 - `skipped-lww` returns the winning record, and the client adopts it (§6).
 - Tombstones are kept forever (§5); a purge is a final tombstone that wins over LWW, except over a
   restore it hadn't seen (§7).
-- Asset file flags are synced; `syncError` and `filesRemovedAt` are local-only (§4).
+- Asset file flags are synced; `syncError` and `filesRemovedFor` are local-only (§4).
 - A rejected push waits on its outbox row, with its reason; it is retried on launch and when the
   app returns to the foreground, on a new edit, or Retry All (§6).
 - Sync runs in the foreground and on each local write (§8).
