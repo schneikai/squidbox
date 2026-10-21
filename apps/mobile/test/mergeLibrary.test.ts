@@ -509,3 +509,21 @@ describe('a device library that never synced (no account)', () => {
     expect(plan.keepsSource).toBe(false);
   });
 });
+
+describe('round 7: a big device library', () => {
+  // planMerge's replay mark is `Math.max(replayedThrough, ...every clock of the source's outbox)`:
+  // one argument per field of every pending row, and a device library that never synced holds an
+  // insert naming all 16 asset fields for every photo. Spread into a call, ~8,000 photos pass the
+  // engine's argument limit (about 125,000 in Node; Hermes has one too), so the planning throws a
+  // RangeError on every pass and the sign-in's merge never completes: nothing of the device library
+  // reaches the account. Expected: the plan copies the 10,000 photos. Actual: "Maximum call stack
+  // size exceeded".
+  it.fails('plans the merge of 10,000 photos', async () => {
+    const photos = Array.from({ length: 10_000 }, (_, i) =>
+      makeAssetRecord({ mediaLibraryAssetId: `m-${i}`, filename: `f${i}.jpg`, isFileSynced: false }),
+    );
+    await repo.createAssets(source, photos);
+    const plan = await planMerge(source, target, SRC);
+    expect(plan.assets).toHaveLength(10_000);
+  });
+});
