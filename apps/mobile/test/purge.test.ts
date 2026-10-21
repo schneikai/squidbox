@@ -17,7 +17,9 @@ import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
 import { makeRepository } from '../src/sync/repository';
+import { clearFirstSyncDone, setMergeTarget, setOwner } from '../src/sync/status';
 import { sweepPurgedFiles } from '../src/sync/sweepPurgedFiles';
+import { upsertRows } from '../src/sync/upsertRows';
 import { fullResync, runSyncOnce } from '../src/sync/worker';
 
 let db: SyncDb;
@@ -78,7 +80,7 @@ describe('Delete permanently', () => {
       makeAssetRecord({ filename: 'both.jpg', thumbnailFilename: 'gone-t.jpg' }),
     ]);
     await repo.purgeAssets(db, [before!.id]); // a purged asset uses no name any more
-    await runSyncOnce(db, fakeTransport());
+    await runSyncOnce(db, fakeTransport(), { removeFiles: async () => {} });
     await repo.purgeAssets(db, [mine!.id, alsoPurged!.id]);
 
     const failure = new Error('disk full');
@@ -157,7 +159,7 @@ describe('local files of a purge that arrives through sync', () => {
   it('cost nothing for an echo of a purge made here; an asset this device never had is swept once', async () => {
     const asset = await repo.createAsset(db, makeAssetRecord());
     await repo.purgeAssets(db, [asset.id]);
-    await runSyncOnce(db, fakeTransport());
+    await runSyncOnce(db, fakeTransport(), { removeFiles: async () => {} });
     const { removed, removeFiles } = recording();
     const echo = { ...(await assetRow(asset.id)), notes: 'echo' };
     // Its files aren't here (a full resync can't tell it from one whose files are), so one removal that finds nothing.
@@ -319,13 +321,49 @@ describe('the sweep, round 3 (adversarial)', () => {
   });
 
   it('without an account a pending purge counts as done, but a trashed or live photo still keeps a shared name', async () => {
+    await setOwner(db, { kind: 'device' });
     const a = await trashed({ filename: 'f.jpg', thumbnailFilename: 'a-t.jpg' });
     const b = await trashed({ filename: 'f.jpg', thumbnailFilename: 'b-t.jpg' });
     await trashed({ filename: 'other.jpg', thumbnailFilename: 'a-t.jpg' });
     await repo.purgeAssets(db, [a.id, b.id]);
     const { removed, removeFiles } = recording();
-    await sweepPurgedFiles(db, removeFiles, { hasAccount: false });
+    await sweepPurgedFiles(db, removeFiles);
     expect([...new Set(removed)].sort()).toEqual(['b-t.jpg', 'f.jpg']);
+  });
+
+  it('a device library a merge pass copied into an account keeps a pending purge’s files, as an account does', async () => {
+    await setOwner(db, { kind: 'device' });
+    await setMergeTarget(db, 'account');
+    const asset = await trashed({ filename: 'm.jpg', thumbnailFilename: 'm-t.jpg' });
+    await repo.purgeAssets(db, [asset.id]);
+    const { removed, removeFiles } = recording();
+    await sweepPurgedFiles(db, removeFiles);
+    expect(removed).toEqual([]);
+    await setMergeTarget(db, null); // a merge that keeps the source is done
+    await sweepPurgedFiles(db, removeFiles);
+    expect(removed).toEqual(['m.jpg', 'm-t.jpg']);
+  });
+
+  it('nothing is swept until the library is fully pulled again (a full resync clears the first-sync flag)', async () => {
+    const asset = await trashed({ filename: 'n.jpg', thumbnailFilename: 'n-t.jpg' });
+    await runSyncOnce(db, applied);
+    await upsertRows(db, 'assets', schema.assets, [{ ...(await assetRow(asset.id))!, purgedAt: 3000 }]); // pulled
+    await clearFirstSyncDone(db);
+    const { removed, removeFiles } = recording();
+    await sweepPurgedFiles(db, removeFiles);
+    expect(removed).toEqual([]);
+    await runSyncOnce(db, applied, { removeFiles }); // the pull drains
+    expect(removed).toEqual(['n.jpg', 'n-t.jpg']);
+  });
+
+  it('a sync run without removeFiles leaves the files and their mark for a run with it', async () => {
+    const asset = await trashed({ filename: 'r.jpg', thumbnailFilename: 'r-t.jpg' });
+    await repo.purgeAssets(db, [asset.id]);
+    await runSyncOnce(db, applied);
+    expect((await assetRow(asset.id))?.filesRemovedAt).toBeNull();
+    const { removed, removeFiles } = recording();
+    await runSyncOnce(db, applied, { removeFiles });
+    expect(removed).toEqual(['r.jpg', 'r-t.jpg']);
   });
 
   it('a rejected edit waiting on an asset purged elsewhere: the pull brings the purge and its files go', async () => {
@@ -349,42 +387,47 @@ describe('the sweep, round 3 (adversarial)', () => {
     expect((await db.select().from(schema.outbox))[0]?.error).toBe('schema:notes');
   });
 
-  // BUG (round 3): the sweep trusts the local table, which a full resync empties. A full resync
-  // stopped after its first page (a sign-out, a library switch: withSyncPaused) still sweeps at the
-  // end of the run (worker.ts runSyncOnce), and so does the library open after a resync the app was
-  // killed in (library/current.ts). A name a purged photo on that page shares with a live photo not
-  // pulled back yet then counts as unused, and the live photo's copy goes: its original too, if it
-  // isn't backed up yet. Expected: the shared name stays until the live photo is back.
-  it.fails(
-    'a full resync stopped after its first page keeps a name a live photo not pulled back yet uses',
-    async () => {
-      const purged = await trashed({ filename: 'shared.jpg', thumbnailFilename: 'p-t.jpg' });
-      const live = await repo.createAsset(
-        db,
-        makeAssetRecord({ filename: 'shared.jpg', thumbnailFilename: 'l-t.jpg', isFileSynced: false, isSynced: false }),
-      );
-      await runSyncOnce(db, applied);
-      const firstPage = { ...(await assetRow(purged.id))!, purgedAt: 3000, updatedAt: 3000 };
-      const { syncError: _e, filesRemovedAt: _f, ...wire } = firstPage;
-      const secondPage = await assetRow(live.id);
-      const stop = new AbortController();
-      const { removed, removeFiles } = recording();
-      await fullResync(
-        db,
-        fakeTransport({
-          pull: async ({ cursor }) => {
-            if (cursor === 0) {
-              stop.abort(); // the run is paused while the first page downloads
-              return { changes: { assets: { records: [wire] } }, cursor: 1, hasMore: true };
-            }
-            return { changes: { assets: { records: [secondPage] } }, cursor: 2, hasMore: false };
-          },
-        }),
-        { removeFiles, signal: stop.signal },
-      );
-      expect(removed).toEqual(['p-t.jpg']); // actual: ['shared.jpg', 'p-t.jpg']
-    },
-  );
+  // The sweep trusts the local table, which a full resync empties: a name a purged photo on the first
+  // page shares with a live photo not pulled back yet would count as unused. So nothing is swept until
+  // the resync has drained (the first-sync flag), even when it stops after a page (a sign-out, a
+  // library switch: withSyncPaused) or the app is killed in it (the sweep at the library's next open).
+  it('a full resync stopped after its first page keeps a name a live photo not pulled back yet uses', async () => {
+    const purged = await trashed({ filename: 'shared.jpg', thumbnailFilename: 'p-t.jpg' });
+    const live = await repo.createAsset(
+      db,
+      makeAssetRecord({ filename: 'shared.jpg', thumbnailFilename: 'l-t.jpg', isFileSynced: false, isSynced: false }),
+    );
+    await runSyncOnce(db, applied);
+    const firstPage = { ...(await assetRow(purged.id))!, purgedAt: 3000, updatedAt: 3000 };
+    const { syncError: _e, filesRemovedAt: _f, ...wire } = firstPage;
+    const secondPage = await assetRow(live.id);
+    const stop = new AbortController();
+    const { removed, removeFiles } = recording();
+    await fullResync(
+      db,
+      fakeTransport({
+        pull: async ({ cursor }) => {
+          if (cursor === 0) {
+            stop.abort(); // the run is paused while the first page downloads
+            return { changes: { assets: { records: [wire] } }, cursor: 1, hasMore: true };
+          }
+          return { changes: { assets: { records: [secondPage] } }, cursor: 2, hasMore: false };
+        },
+      }),
+      { removeFiles, signal: stop.signal },
+    );
+    expect(removed).toEqual([]);
+    await sweepPurgedFiles(db, removeFiles); // the library opens again
+    expect(removed).toEqual([]);
+    await runSyncOnce(
+      db,
+      fakeTransport({
+        pull: async () => ({ changes: { assets: { records: [secondPage] } }, cursor: 2, hasMore: false }),
+      }),
+      { removeFiles },
+    );
+    expect(removed).toEqual(['p-t.jpg']); // shared.jpg: the live photo's, back
+  });
 });
 
 describe('migration 0012_purged_files on a database from before it', () => {

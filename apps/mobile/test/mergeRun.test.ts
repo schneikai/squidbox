@@ -7,6 +7,7 @@ import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import { makeRepository } from '../src/sync/repository';
+import { getMergeTarget } from '../src/sync/status';
 import getAssetFileUri from '../src/utils/assets/files/getAssetFileUri';
 
 // The device: databases by name (a store survives close and reopen), files by uri, the list.
@@ -125,6 +126,8 @@ describe('mergeLibrary / resumeMerges', () => {
     expect(entry('dev')).toEqual(DEV);
     expect(await getDb().select().from(schema.assets)).toHaveLength(0);
     expect(stores.has(SRC.dbName)).toBe(true);
+    // The source's own marker stays: an earlier pass may have committed, so its purges keep waiting.
+    expect(await getMergeTarget(sourceDb())).toBe('acc');
   });
 
   it('a crash between the marker and the commit, then boot: the merge runs again and finishes', async () => {
@@ -166,6 +169,7 @@ describe('mergeLibrary / resumeMerges', () => {
 
     expect(entry('dev')).toEqual({ ...DEV, keptFor: 'acc' });
     expect(stores.has(SRC.dbName)).toBe(true);
+    expect(await getMergeTarget(sourceDb())).toBeNull(); // done: its purges are its own again
     expect(await getDb().select().from(schema.assets)).toHaveLength(1);
     expect(files.has(getAssetFileUri('a.jpg', TGT))).toBe(true);
 

@@ -8,7 +8,6 @@ import { inJson } from './inJson';
 import { readByIds } from './readByIds';
 import { makeRepository } from './repository';
 import { saveRecords } from './saveRecords';
-import type { AssetFileNames } from '../library/fs';
 
 const repository = makeRepository<AssetRecord>('assets', schema.assets);
 
@@ -26,7 +25,7 @@ export const deleteAssets = repository.remove;
 
 /**
  * "Delete permanently": sets purgedAt, which no later version undoes once the server has it (sync-design
- * §7). The files stay until the server confirms the purge (worker.ts): a restore on another device it
+ * §7). The files stay until the server confirms the purge (sweepPurgedFiles): a restore on another device it
  * hadn't seen beats it, and the asset then comes back here with its files. Resolves to the newly
  * purged rows.
  */
@@ -38,8 +37,6 @@ export async function purgeAssets(db: SyncDb, ids: string[]): Promise<schema.Ass
     return purgedRows;
   });
 }
-
-export type RemoveFiles = (files: AssetFileNames[]) => Promise<void>;
 
 function purged(row: schema.AssetRow): schema.AssetRow {
   const ts = nextUpdatedAt(row.updatedAt);

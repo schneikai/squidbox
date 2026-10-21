@@ -27,6 +27,7 @@ import { makeEdgeRepository } from '../src/sync/edgesRepository';
 import { toModernChanges } from '../src/sync/legacyBase';
 import { retryFailures } from '../src/sync/outbox';
 import { makeRepository } from '../src/sync/repository';
+import { setMergeTarget, setOwner } from '../src/sync/status';
 import { sweepPurgedFiles } from '../src/sync/sweepPurgedFiles';
 import type { SyncTransport } from '../src/sync/transport';
 import { upsertRows } from '../src/sync/upsertRows';
@@ -980,45 +981,39 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       });
     });
 
-    // BUG (round 3), an edge: a device library sweeps a purge at once (`hasAccount: false` for an owner
-    // of kind 'device', library/current.ts and AssetsProvider), "which nothing can restore" (§7a). That
-    // stops being true once a merge pass has copied its records into the account and left the marker
-    // (a file move that failed, a crash): the device library opens again while the session is lost
-    // (resumeMerges skips it then), and its purge of a copied photo reaches the account only with the
-    // next pass, where a later restore on another device beats it. The photo is then live in the
-    // account, but the device library already removed its files, the original included if it was
-    // never uploaded. Expected: a device library with a pending merge keeps a purged photo's files.
-    it.fails(
-      'a purge in a device library already merged in part loses to a later restore: its files must still be there',
-      async () => {
-        const id = await seedAsset({
-          filename: 'only-here.jpg',
-          thumbnailFilename: 'only-here-t.jpg',
-          isFileSynced: false,
-          isThumbnailSynced: false,
-          isSynced: false,
-        });
-        const D = await deviceLibraryWith(id); // a first merge pass copied it into the account
-        await edit(D, S + 100, () => repo.deleteAssets(D, [id]));
-        await edit(D, S + 200, () => repo.purgeAssets(D, [id]));
-        const removed: string[] = [];
-        await sweepPurgedFiles(
-          D,
-          async (files) => {
-            removed.push(...files.flatMap((f) => [f.filename, f.thumbnailFilename].filter((n): n is string => !!n)));
-          },
-          { hasAccount: false },
-        ); // the device library's own sweep, at its open and after the purge
-        await edit(B, S + 150, () => repo.deleteAssets(B, [id]));
-        await sync(B);
-        await edit(B, S + 300, () => repo.updateAllAssets(B, [id], { deletedAt: null }));
-        await sync(B);
-        await mergeInto(A, D, S + 400); // the next pass
-        await settle();
-        expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: null, purgedAt: null });
-        expect(removed).toEqual([]); // actual: the only copies of a live photo
-      },
-    );
+    // A device library sweeps a purge at once, "which nothing can restore" (§7a), but not once a merge
+    // pass has copied its records into the account (the merge marker in its database): opened again
+    // while the session is lost (resumeMerges skips it then), its purge of a copied photo reaches the
+    // account only with the next pass, where a later restore on another device beats it. The photo is
+    // then live in the account, and its files must still be there, the original included if it was
+    // never uploaded.
+    it('a purge in a device library already merged in part loses to a later restore: its files must still be there', async () => {
+      const id = await seedAsset({
+        filename: 'only-here.jpg',
+        thumbnailFilename: 'only-here-t.jpg',
+        isFileSynced: false,
+        isThumbnailSynced: false,
+        isSynced: false,
+      });
+      const D = await deviceLibraryWith(id); // a first merge pass copied it into the account
+      await setOwner(D, { kind: 'device' });
+      await setMergeTarget(D, 'account');
+      await edit(D, S + 100, () => repo.deleteAssets(D, [id]));
+      await edit(D, S + 200, () => repo.purgeAssets(D, [id]));
+      const removed: string[] = [];
+      // The device library's own sweep, at its open and after the purge.
+      await sweepPurgedFiles(D, async (files) => {
+        removed.push(...files.flatMap((f) => [f.filename, f.thumbnailFilename].filter((n): n is string => !!n)));
+      });
+      await edit(B, S + 150, () => repo.deleteAssets(B, [id]));
+      await sync(B);
+      await edit(B, S + 300, () => repo.updateAllAssets(B, [id], { deletedAt: null }));
+      await sync(B);
+      await mergeInto(A, D, S + 400); // the next pass
+      await settle();
+      expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: null, purgedAt: null });
+      expect(removed).toEqual([]);
+    });
 
     it('a device purge older than the account’s pending restore loses to it everywhere', async () => {
       const id = await seedAsset();

@@ -9,6 +9,7 @@ const CURSOR_KEY = 'cursor';
 const STATUS_KEY = 'status';
 const FIRST_SYNC_KEY = 'firstSyncDone'; // '1' once the initial full pull has drained
 const OWNER_KEY = 'owner'; // whose library this database is (JSON), so the library list is rebuildable
+const MERGE_TARGET_KEY = 'mergedInto'; // the library a merge pass copied this one's records into
 
 export type SyncPhase = 'idle' | 'pushing' | 'pulling' | 'error';
 export interface SyncStatus {
@@ -54,6 +55,16 @@ export async function getOwner(db: SyncDb): Promise<Owner | null> {
 }
 export async function setOwner(db: SyncDb, owner: Owner): Promise<void> {
   await setMeta(db, OWNER_KEY, JSON.stringify(owner));
+}
+// The merge marker in the source library's own database (library/mergeRun.ts): set before a merge pass
+// copies its records into another library, cleared only once a merge that keeps the source is done.
+// Until then a restore there can beat this library's purges, which keep their files (sweepPurgedFiles).
+export async function getMergeTarget(db: SyncDb): Promise<string | null> {
+  return getMeta(db, MERGE_TARGET_KEY);
+}
+export async function setMergeTarget(db: SyncDb, targetId: string | null): Promise<void> {
+  if (targetId) await setMeta(db, MERGE_TARGET_KEY, targetId);
+  else await db.delete(schema.syncMeta).where(eq(schema.syncMeta.key, MERGE_TARGET_KEY));
 }
 export async function isFirstSyncDone(db: SyncDb): Promise<boolean> {
   return (await getMeta(db, FIRST_SYNC_KEY)) === '1';

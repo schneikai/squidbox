@@ -1,7 +1,6 @@
 import type { PushMutation, PushResult } from '@squidbox/shared';
 import { and, gt } from 'drizzle-orm';
 
-import type { RemoveFiles } from './assetsRepository';
 import { clientCollectionTables } from './clientCollections';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
@@ -12,7 +11,7 @@ import { readByIdMap } from './readByIds';
 import { pauseRuns, startRun } from './runGate';
 import { createSingleFlight } from './singleFlight';
 import { getCursor, setCursor, patchStatus, appendSyncLog, markFirstSyncDone, clearFirstSyncDone } from './status';
-import { sweepPurgedFiles } from './sweepPurgedFiles';
+import { sweepPurgedFiles, type RemoveFiles } from './sweepPurgedFiles';
 import type { SyncTransport } from './transport';
 import { upsertRows } from './upsertRows';
 import type { AssetFileNames } from '../library/fs';
@@ -29,7 +28,8 @@ export const APPLY_BATCH = 5000;
 
 // An aborted `signal` ends the run between push batches, or in a pull after the page at hand, with
 // everything so far committed (the cursor moves per applied batch, so the next run resumes).
-// `removeFiles` removes this device's copies of assets whose purge the server confirmed (§7a).
+// `removeFiles` removes this device's copies of assets whose purge the server confirmed (§7a); a run
+// without it leaves them for one with it.
 interface SyncRunOptions {
   signal?: AbortSignal;
   removeFiles?: RemoveFiles;
@@ -41,7 +41,7 @@ interface SyncRunOptions {
 export async function runSyncOnce(
   db: SyncDb,
   transport: SyncTransport,
-  { signal = new AbortController().signal, removeFiles = async () => {} }: SyncRunOptions = {},
+  { signal = new AbortController().signal, removeFiles }: SyncRunOptions = {},
 ): Promise<void> {
   const ranAt = Date.now();
   let pushed = 0;
@@ -58,7 +58,7 @@ export async function runSyncOnce(
       pulled = pull.pulled;
       if (pull.stopped) notes.push('stopped during pull');
     }
-    await sweepPurgedFiles(db, removeFiles); // the purges this run confirmed, and any a sweep left
+    if (removeFiles) await sweepPurgedFiles(db, removeFiles); // the purges this run confirmed, and any a sweep left
   } catch (err) {
     error = err instanceof Error ? err.message : String(err);
     throw err;

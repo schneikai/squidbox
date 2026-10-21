@@ -14,8 +14,7 @@ import { writeInBatches } from '@/sync/writeInBatches';
 // The asset writes: each goes through the repository and then starts a sync. Screens read assets
 // through their own live queries (assetQuery, readByIds).
 export default function AssetsProvider({ children }) {
-  const { library, paths } = useLibrary();
-  const hasAccount = library.owner.kind !== 'device';
+  const { paths } = useLibrary();
   const value = useMemo(
     () => ({
       addAssetsAsync: async (list) => {
@@ -69,14 +68,14 @@ export default function AssetsProvider({ children }) {
             batchOptions,
           );
         } finally {
-          await sweepPurgedFiles(getDb(), (files) => removeAssetFiles(files, paths), { hasAccount }).catch((error) =>
+          await sweepPurgedFiles(getDb(), (files) => removeAssetFiles(files, paths)).catch((error) =>
             console.warn('Could not remove the files of the purged assets', error),
           );
           requestSync();
         }
       },
     }),
-    [paths, hasAccount],
+    [paths],
   );
 
   return <AssetsContext.Provider value={value}>{children}</AssetsContext.Provider>;

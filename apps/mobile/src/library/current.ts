@@ -26,11 +26,7 @@ export async function openLibrary(library: Library): Promise<void> {
     // modules the tests lack.
     await retryFailures(db);
     await import('./fs')
-      .then(({ removeAssetFiles }) =>
-        sweepPurgedFiles(db, (files) => removeAssetFiles(files, paths), {
-          hasAccount: library.owner.kind !== 'device',
-        }),
-      )
+      .then(({ removeAssetFiles }) => sweepPurgedFiles(db, (files) => removeAssetFiles(files, paths)))
       .catch((error) => console.warn('Could not remove the files of the purged assets', error));
   } catch (error) {
     await db.close().catch(() => {}); // not published yet: closeLibrary wouldn't see it

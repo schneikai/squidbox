@@ -6,6 +6,7 @@ import { removeLibrary } from './removeLibrary';
 
 import { getDb, withAppDb } from '@/sync/db/client';
 import type { SyncDb } from '@/sync/db/types';
+import { setMergeTarget } from '@/sync/status';
 
 // A library's database for the merge: the open one as it is (never opened a second time), a
 // parked one on its own connection, closed again afterwards.
@@ -44,12 +45,16 @@ export async function mergeLibrary(sourceId: string, targetId: string): Promise<
     let plan: MergePlan;
     try {
       plan = await planMerge(source, target, libraryPaths(sourceId));
-      if (addsRecords(plan)) await applyMerge(target, plan);
+      if (addsRecords(plan)) {
+        await setMergeTarget(source, targetId); // its purges wait from here (sweepPurgedFiles)
+        await applyMerge(target, plan);
+      }
     } catch (error) {
       await setMarker(sourceId, undefined);
       throw error;
     }
     await moveMergedFiles(plan, libraryPaths(sourceId), libraryPaths(targetId));
+    if (plan.keepsSource) await setMergeTarget(source, null); // done: what it copied has its files in the target
     return plan.keepsSource;
   });
   if (keepsSource) await setKept(sourceId, targetId);

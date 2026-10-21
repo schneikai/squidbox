@@ -9,6 +9,7 @@ import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
 import { makeRepository } from '../src/sync/repository';
+import { setOwner } from '../src/sync/status';
 import { sweepPurgedFiles } from '../src/sync/sweepPurgedFiles';
 import { upsertRows } from '../src/sync/upsertRows';
 import getAssetFileUri from '../src/utils/assets/files/getAssetFileUri';
@@ -495,14 +496,11 @@ describe('a device library that never synced (no account)', () => {
     const gone = await devicePhoto({ filename: 'g.jpg', thumbnailFilename: 'gt.jpg', mediaLibraryAssetId: 'm-g' });
     await repo.deleteAssets(source, [gone.id]);
     await repo.purgeAssets(source, [gone.id]);
+    await setOwner(source, { kind: 'device' });
     const removed: string[] = [];
-    await sweepPurgedFiles(
-      source,
-      async (names) => {
-        removed.push(...names.flatMap((f) => [f.filename, f.thumbnailFilename].filter((n): n is string => !!n)));
-      },
-      { hasAccount: false },
-    );
+    await sweepPurgedFiles(source, async (names) => {
+      removed.push(...names.flatMap((f) => [f.filename, f.thumbnailFilename].filter((n): n is string => !!n)));
+    });
     expect(removed).toEqual(['g.jpg', 'gt.jpg']);
 
     const plan = await planMerge(source, target, SRC);

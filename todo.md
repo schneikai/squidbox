@@ -5,20 +5,6 @@ when the owner defers something, or when an idea comes up. Remove an entry once 
 
 ## Bugs
 
-### [ ] The purged-files sweep runs on a half-pulled full resync
-
-`sweepPurgedFiles` trusts the local table, which `fullResync` empties. A resync stopped after a page
-(`runSyncOnce` sweeps even when stopped) or killed (the sweep at library open) treats a name a live,
-not yet re-pulled photo shares with a purged one as unused, and removes that photo's copy, its
-original too if not backed up. Test: `purge.test.ts`, "a full resync stopped after its first page".
-
-### [ ] A device library merged in part still removes a purged photo's files at once
-
-`hasAccount` is `owner.kind !== 'device'` (`library/current.ts`, `AssetsProvider`), but once a merge
-pass has copied its records into an account (marker left), a restore there can beat its purge. Then the
-account has a live photo whose only files the device library removed. Test: `twoDevice.e2e.test.ts`,
-"a purge in a device library already merged in part".
-
 ## Features
 
 ### [ ] Share several assets at once
