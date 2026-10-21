@@ -78,10 +78,11 @@ describe('Delete permanently', () => {
     await expect(runSyncOnce(db, fakeTransport(), { removeFiles: async () => Promise.reject(failure) })).rejects.toBe(
       failure,
     );
-    expect(await db.select().from(schema.outbox)).toHaveLength(2); // still to settle: the next push removes them
+    expect((await assetRow(mine!.id))?.filesRemovedAt).toBeNull(); // still to remove: the next sweep does
     const { removed, removeFiles } = recording();
     await runSyncOnce(db, fakeTransport(), { removeFiles });
-    expect(removed).toEqual(['mine-t.jpg', 'both.jpg', 'both-t.jpg']);
+    expect((await assetRow(mine!.id))?.filesRemovedAt).toEqual(expect.any(Number));
+    expect(removed.sort()).toEqual(['both-t.jpg', 'both.jpg', 'mine-t.jpg']);
     expect((await assetRow(other!.id))?.purgedAt).toBeNull();
   });
 
@@ -146,25 +147,29 @@ describe('local files of a purge that arrives through sync', () => {
     expect((await assetRow(purged.id))?.purgedAt).toBe(3000);
   });
 
-  it('cost nothing for an echo of a purge made here, or an asset this device never had', async () => {
+  it('cost nothing for an echo of a purge made here; an asset this device never had is swept once', async () => {
     const asset = await repo.createAsset(db, makeAssetRecord());
     await repo.purgeAssets(db, [asset.id]);
     await runSyncOnce(db, fakeTransport());
     const { removed, removeFiles } = recording();
     const echo = { ...(await assetRow(asset.id)), notes: 'echo' };
-    const unknown = makeAssetRecord({ deletedAt: 2000, purgedAt: 2000, updatedAt: 2000 });
+    // Its files aren't here (a full resync can't tell it from one whose files are), so one removal that finds nothing.
+    const unknown = makeAssetRecord({
+      filename: 'u.jpg',
+      thumbnailFilename: 'u-t.jpg',
+      deletedAt: 2000,
+      purgedAt: 2000,
+      updatedAt: 2000,
+    });
 
     await runSyncOnce(db, pulling([echo, unknown]), { removeFiles });
+    await runSyncOnce(db, pulling([echo, unknown]), { removeFiles });
 
-    expect(removed).toEqual([]);
+    expect(removed).toEqual(['u.jpg', 'u-t.jpg']);
     expect((await assetRow(asset.id))?.notes).toBe('echo');
   });
 
-  // BUG (worker.ts fullResync + removeNewlyPurgedFiles): a full resync wipes the local tables before it
-  // pulls from 0, and the pull removes files only for assets it finds here unpurged. An asset purged
-  // on another device since the last pull arrives with no local row, so its files on this device are
-  // never removed: no later path does it (the asset is purged here now and nothing is pending).
-  it.fails('a full resync still removes the files of an asset purged elsewhere meanwhile', async () => {
+  it('a full resync still removes the files of an asset purged elsewhere meanwhile', async () => {
     const asset = await repo.createAsset(db, makeAssetRecord({ filename: 'r.jpg', thumbnailFilename: 'r-t.jpg' }));
     await runSyncOnce(db, fakeTransport());
     const { removed, removeFiles } = recording();

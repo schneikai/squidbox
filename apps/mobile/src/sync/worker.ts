@@ -1,18 +1,18 @@
 import type { PushMutation, PushResult } from '@squidbox/shared';
 import { and, gt } from 'drizzle-orm';
 
-import { unsharedFiles, type RemoveFiles } from './assetsRepository';
+import type { RemoveFiles } from './assetsRepository';
 import { clientCollectionTables } from './clientCollections';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { clearOutboxRows, pendingEdits, pushableOutboxRows, retryFailures, setOutboxError } from './outbox';
-import { overlayFields } from './overlayFields';
 import { overwrittenNote } from './overwrittenNote';
 import { planPushOutcome } from './pushPlan';
-import { readByIdMap, readByIds } from './readByIds';
+import { readByIdMap } from './readByIds';
 import { pauseRuns, startRun } from './runGate';
 import { createSingleFlight } from './singleFlight';
 import { getCursor, setCursor, patchStatus, appendSyncLog, markFirstSyncDone, clearFirstSyncDone } from './status';
+import { sweepPurgedFiles } from './sweepPurgedFiles';
 import type { SyncTransport } from './transport';
 import { upsertRows } from './upsertRows';
 import type { AssetFileNames } from '../library/fs';
@@ -29,8 +29,7 @@ export const APPLY_BATCH = 5000;
 
 // An aborted `signal` ends the run between push batches, or in a pull after the page at hand, with
 // everything so far committed (the cursor moves per applied batch, so the next run resumes).
-// `removeFiles` removes this device's copies of assets whose purge the server confirmed, before that
-// commits here (§7a).
+// `removeFiles` removes this device's copies of assets whose purge the server confirmed (§7a).
 interface SyncRunOptions {
   signal?: AbortSignal;
   removeFiles?: RemoveFiles;
@@ -50,15 +49,16 @@ export async function runSyncOnce(
   const notes: string[] = [];
   let error: string | null = null;
   try {
-    const p = await pushPhase(db, transport, signal, removeFiles);
+    const p = await pushPhase(db, transport, signal);
     pushed = p.pushed;
     notes.push(...p.notes);
     if (p.stopped) notes.push('stopped during push');
     else {
-      const pull = await pullPhase(db, transport, signal, removeFiles);
+      const pull = await pullPhase(db, transport, signal);
       pulled = pull.pulled;
       if (pull.stopped) notes.push('stopped during pull');
     }
+    await sweepPurgedFiles(db, removeFiles); // the purges this run confirmed, and any a sweep left
   } catch (err) {
     error = err instanceof Error ? err.message : String(err);
     throw err;
@@ -78,7 +78,6 @@ async function pushPhase(
   db: SyncDb,
   transport: SyncTransport,
   signal: AbortSignal,
-  removeFiles: RemoveFiles,
 ): Promise<{ pushed: number; notes: string[]; stopped: boolean }> {
   let pushed = 0;
   const notes: string[] = [];
@@ -106,24 +105,6 @@ async function pushPhase(
     }));
     const { results } = await transport.push({ mutations });
     const pushedRows = new Map(batch.map((row) => [`${row.collection}:${row.recordId}`, row]));
-    // The server confirmed these purges: this device's own that applied, or one it comes back with.
-    const confirmedPurges = results.filter(
-      (result) =>
-        result.collection === 'assets' &&
-        (result.current
-          ? result.current.purgedAt != null
-          : result.status === 'applied' && pushedRows.get(`assets:${result.id}`)?.payload.purgedAt != null),
-    );
-    await removeFiles(
-      await unsharedFiles(
-        db,
-        await readByIds<schema.AssetRow>(
-          db,
-          schema.assets,
-          confirmedPurges.map((result) => result.id),
-        ),
-      ),
-    );
     notes.push(...(await db.transaction((tx) => applyPushResults(tx, results, pushedRows))));
     pushed += results.length;
   }
@@ -202,7 +183,6 @@ async function pullPhase(
   db: SyncDb,
   transport: SyncTransport,
   signal: AbortSignal,
-  removeFiles: RemoveFiles,
 ): Promise<{ pulled: number; stopped: boolean }> {
   await patchStatus(db, { phase: 'pulling' });
   if (signal.aborted) return { pulled: 0, stopped: true };
@@ -217,7 +197,6 @@ async function pullPhase(
       const batch: PulledBatch = await next;
       next = batch.hasMore && !signal.aborted ? fetchBatch(transport, batch.cursor, stop) : null;
       next?.catch(() => {}); // awaited next round, unless this apply fails or the run stops
-      await removeNewlyPurgedFiles(db, batch.changes.assets, removeFiles);
       if (batch.buffered > 0 || batch.cursor !== cursor) pulled += await applyChanges(db, batch.changes, batch.cursor);
       cursor = batch.cursor;
       if (batch.hasMore && signal.aborted) return { pulled, stopped: true };
@@ -280,7 +259,7 @@ async function applyChanges(
         const edit = pending.get(String(record.id));
         if (!edit) return [record];
         const row = local.get(String(record.id));
-        return row ? [overlayFields(name, record as { updatedAt: number }, row, edit.fields)] : [];
+        return row ? [withPendingFields(record, row, Object.keys(edit.fields))] : [];
       });
       await upsertRows(tx, name, table, rows);
       applied += rows.length;
@@ -290,21 +269,15 @@ async function applyChanges(
   });
 }
 
-// The files of the purged assets among these pulled records that this device holds, isn't purged here
-// and has no pending edit of (its push confirms a purge for those, and removes the files then), so an
-// echo or an asset this device never had costs no file work; only the names no other asset uses (§7a).
-async function removeNewlyPurgedFiles(
-  db: SyncDb,
-  records: Record<string, unknown>[] | undefined,
-  removeFiles: RemoveFiles,
-): Promise<void> {
-  const ids = (records ?? []).flatMap((record) => (record.purgedAt != null ? [String(record.id)] : []));
-  if (ids.length === 0) return;
-  const pending = await pendingEdits(db, 'assets', ids);
-  const rows = (await readByIds<schema.AssetRow>(db, schema.assets, ids)).filter(
-    (row) => row.purgedAt === null && !pending.has(row.id),
-  );
-  if (rows.length > 0) await removeFiles(await unsharedFiles(db, rows));
+// The pulled record with the local values of the pending fields (already widened to their groups when
+// saved) and the newer updatedAt, so this device's next edit gets a clock above the pulled one (§5).
+function withPendingFields(
+  record: Record<string, unknown>,
+  local: Record<string, unknown>,
+  fields: string[],
+): Record<string, unknown> {
+  const kept = Object.fromEntries(fields.filter((field) => field in local).map((field) => [field, local[field]]));
+  return { ...record, ...kept, updatedAt: Math.max(Number(record.updatedAt), Number(local.updatedAt)) };
 }
 
 async function applyRecord(db: SyncDb, collection: string, record: Record<string, unknown>): Promise<void> {

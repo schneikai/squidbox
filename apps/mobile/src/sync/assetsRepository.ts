@@ -1,5 +1,5 @@
 import type { AssetRecord } from '@squidbox/shared';
-import { and, asc, count, eq, isNotNull, isNull, not, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, eq, isNotNull, isNull, sql, type SQL } from 'drizzle-orm';
 
 import { nextUpdatedAt } from './clock';
 import * as schema from './db/schema';
@@ -40,29 +40,6 @@ export async function purgeAssets(db: SyncDb, ids: string[]): Promise<schema.Ass
 }
 
 export type RemoveFiles = (files: AssetFileNames[]) => Promise<void>;
-
-/**
- * The file names of these assets that no other asset that isn't purged names, in one statement:
- * what removing their copies may delete, as the server keeps a key in use (§7a). One scan of the
- * assets per call (~20 ms for 50k on a laptop), cheaper than two more indexes every insert pays for.
- */
-export async function unsharedFiles(db: SyncDb, rows: schema.AssetRow[]): Promise<AssetFileNames[]> {
-  const ids = rows.map((row) => row.id);
-  const names = [...new Set(rows.flatMap((row) => [row.filename, row.thumbnailFilename]))];
-  const sharing = await db
-    .select({ filename: schema.assets.filename, thumbnailFilename: schema.assets.thumbnailFilename })
-    .from(schema.assets)
-    .where(
-      and(
-        isNull(schema.assets.purgedAt),
-        not(inJson(schema.assets.id, ids)),
-        or(inJson(schema.assets.filename, names), inJson(schema.assets.thumbnailFilename, names)),
-      ),
-    );
-  const inUse = new Set(sharing.flatMap((row) => [row.filename, row.thumbnailFilename]));
-  const unshared = (name: string) => (name && !inUse.has(name) ? name : undefined);
-  return rows.map((row) => ({ filename: unshared(row.filename), thumbnailFilename: unshared(row.thumbnailFilename) }));
-}
 
 function purged(row: schema.AssetRow): schema.AssetRow {
   const ts = nextUpdatedAt(row.updatedAt);

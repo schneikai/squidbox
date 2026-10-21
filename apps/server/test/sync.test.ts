@@ -579,6 +579,25 @@ d('sync engine (Postgres)', () => {
       expect((await push(db, USER_A, [purge]))[0].status).toBe('applied'); // the purge's own replay
     });
 
+    it('a bad field clock rejects its mutation alone', async () => {
+      const [good, bad] = [assetRecord(), assetRecord()];
+      const res = await push(db, USER_A, [mut(good), { collection: 'assets', record: bad, fields: { notes: 1.5 } }]);
+      expect(res.map((r) => r.reason ?? r.status)).toEqual(['applied', 'schema:fields']);
+    });
+
+    it('a row written since by a server without clocks (a rollback) takes its updated_at for every field', async () => {
+      const r = assetRecord();
+      await push(db, USER_A, [mut(r)]);
+      await push(db, USER_A, [edit({ ...r, updatedAt: 2000, notes: 'n' }, ['notes'])]);
+      // An older server writes a whole record at 5000 and leaves field_clock as it was.
+      await pool.query(`UPDATE assets SET updated_at = 5000, is_favorite = true WHERE user_id = $1 AND id = $2`, [USER_A, r.id]);
+      const [older] = await push(db, USER_A, [edit({ ...r, updatedAt: 4000, isFavorite: false }, ['isFavorite'])]);
+      expect(older).toMatchObject({ status: 'skipped-lww', current: { isFavorite: true } });
+      const [newer] = await push(db, USER_A, [edit({ ...r, updatedAt: 6000, notes: 'm' }, ['notes'])]);
+      expect(newer.status).toBe('applied');
+      expect((await stored(r.id)).fieldClock).toMatchObject({ notes: 6000, isFavorite: 5000 });
+    });
+
     it('clamps a future field clock to server time', async () => {
       const r = assetRecord();
       await push(db, USER_A, [mut(r)]);
@@ -719,12 +738,8 @@ d('sync engine (Postgres)', () => {
       expect(results[2]).toMatchObject({ status: 'skipped-lww', current: { deletedAt: 3000, purgedAt: 2500 } });
     });
 
-    // BUG (fieldMergeUpdate.ts restoredSince): "live again since the deletion the purge was made of"
-    // compares the stored deletedAt clock, clamped to server time, with the purge's deletedAt value,
-    // which is the deleting device's own clock and never clamped. A deletion from a device whose clock
-    // is an hour ahead makes every later restore look older than it, so a purge that never saw the
-    // restore applies by clock.
-    it.fails('a restore beats a purge that hadn’t seen it when the deletion came from a fast clock', async () => {
+    // The restore remembers the deletion value it undid, so a purge made of it loses whatever the clocks.
+    it('a restore beats a purge that hadn’t seen it when the deletion came from a fast clock', async () => {
       const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
       const r = { ...assetRecord(), purgedAt: null as number | null };
       await push(db, USER_A, [mut(r)]);

@@ -372,8 +372,11 @@ describe('plan guard', () => {
 });
 
 // Small tables (outbox, sync_meta, sync_log) may be scanned.
+// The purged-files index holds only the sweep's work (sweepPurgedFiles), so a scan of it is no big scan.
 function isBigTableScan(detail: string): boolean {
-  return /^SCAN (assets|albums|album_assets|posts|post_assets)\b/.test(detail);
+  return (
+    /^SCAN (assets|albums|album_assets|posts|post_assets)\b/.test(detail) && !detail.includes('assets_purged_files_idx')
+  );
 }
 
 // The table scans without an index; a list of ids passed as JSON (json_each) is the input, not a table.

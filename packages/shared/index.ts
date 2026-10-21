@@ -19,6 +19,7 @@ export * from './collections/registry';
 export * from './collections/mergeFields';
 export * from './collections/widenToGroups';
 export * from './collections/lostFields';
+export * from './collections/mergeRecord';
 export * from './fractionalIndex';
 export * from './movePositions';
 

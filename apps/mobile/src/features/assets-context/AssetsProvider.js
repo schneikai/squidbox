@@ -2,15 +2,20 @@ import { useMemo } from 'react';
 
 import AssetsContext from './AssetsContext';
 
+import { removeAssetFiles } from '@/library/fs';
+import useLibrary from '@/library/useLibrary';
 import * as repo from '@/sync/assetsRepository';
 import { getDb } from '@/sync/db/client';
 import { toAssetRecord, toAssetChanges } from '@/sync/legacyAsset';
+import { sweepPurgedFiles } from '@/sync/sweepPurgedFiles';
 import { requestSync } from '@/sync/worker';
 import { writeInBatches } from '@/sync/writeInBatches';
 
 // The asset writes: each goes through the repository and then starts a sync. Screens read assets
 // through their own live queries (assetQuery, readByIds).
 export default function AssetsProvider({ children }) {
+  const { library, paths } = useLibrary();
+  const hasAccount = library.owner.kind !== 'device';
   const value = useMemo(
     () => ({
       addAssetsAsync: async (list) => {
@@ -53,7 +58,7 @@ export default function AssetsProvider({ children }) {
           requestSync();
         }
       },
-      // Gone for good once the server has the purge: then its files go, here and in the cloud (sync-design §7a).
+      // Gone for good once the purge is confirmed: then its files go, here and in the cloud (sync-design §7a).
       deleteAssetsPermanently: async (assetIds, batchOptions) => {
         try {
           return await writeInBatches(
@@ -64,11 +69,14 @@ export default function AssetsProvider({ children }) {
             batchOptions,
           );
         } finally {
+          await sweepPurgedFiles(getDb(), (files) => removeAssetFiles(files, paths), { hasAccount }).catch((error) =>
+            console.warn('Could not remove the files of the purged assets', error),
+          );
           requestSync();
         }
       },
     }),
-    [],
+    [paths, hasAccount],
   );
 
   return <AssetsContext.Provider value={value}>{children}</AssetsContext.Provider>;

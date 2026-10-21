@@ -1,4 +1,4 @@
-import { collectionsByName, widenToGroups, type CollectionDescriptor, type FieldClocks } from '@squidbox/shared';
+import { collectionsByName, mergeFields, mergeRecord } from '@squidbox/shared';
 import { and, isNull } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
@@ -12,7 +12,6 @@ import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
 import { pendingEdits } from '@/sync/outbox';
-import { overlayFields } from '@/sync/overlayFields';
 import { readByIdMap, readByIds } from '@/sync/readByIds';
 import { saveRecords } from '@/sync/saveRecords';
 import getAssetFileUri from '@/utils/assets/files/getAssetFileUri';
@@ -32,7 +31,7 @@ export interface MergePlan {
   postAssets: schema.PostAssetRow[];
   // Target assets that match a source asset by camera-roll item: favorite merged as OR, notes kept.
   duplicates: { id: string; isFavorite: boolean; notes: string | null }[];
-  // Source outbox rows for records the target already has, narrowed to the fields to replay.
+  // Source outbox rows for records the target already has: the target's row with what applies, and its clocks.
   replays: schema.OutboxRow[];
   // What is still in the source's folders of the assets the target has (by id, once applied).
   files: string[];
@@ -55,28 +54,40 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
   const replays: schema.OutboxRow[] = [];
   const sourceOutbox = await source.select().from(schema.outbox);
 
-  // A source outbox row for a record the target has replays each of its fields with its own clock,
-  // unless the target's own pending edit of that field is as new: the server's per-field merge
-  // settles the rest against what it holds. Both sides are widened to their field groups first, so a
-  // group (a deletion and its purge) is replayed or kept whole; a purge and a restore are settled
-  // as the server would (deletionSide).
-  async function collectReplays(collection: string, targetRows: Map<string, Record<string, unknown>>) {
+  // A source outbox row for a record the target has is merged into the target's row as the server
+  // would merge it (mergeRecord, sync-design §7), against the target's pending edits (a field the
+  // target hasn't edited goes to the source, and the server settles it); what applies is replayed
+  // with the source's clocks.
+  async function collectReplays(collection: string, targetRows: Map<string, Row>) {
     const candidates = sourceOutbox.filter((row) => row.collection === collection && targetRows.has(row.recordId));
     if (candidates.length === 0) return;
     const descriptor = collectionsByName[collection]!;
+    const final = descriptor.finalField;
+    const unedited = Object.fromEntries(
+      mergeFields(descriptor)
+        .filter((field) => field !== final)
+        .map((field) => [field, 0]),
+    );
     const pending = await pendingEdits(
       target,
       collection,
       candidates.map((row) => row.recordId),
     );
     for (const row of candidates) {
-      const fields = widenToGroups(descriptor, row.fields);
-      const targetClocks = widenToGroups(descriptor, pending.get(row.recordId)?.fields ?? {});
-      const side = deletionSide(descriptor, row.payload, fields, targetRows.get(row.recordId)!, targetClocks);
-      const replayed = Object.entries(fields).filter(([field, clock]) =>
-        side && deletionGroup(descriptor).includes(field) ? side === 'source' : (targetClocks[field] ?? -1) < clock,
-      );
-      if (replayed.length > 0) replays.push({ ...row, fields: Object.fromEntries(replayed) });
+      const targetPending = pending.get(row.recordId)?.fields ?? {};
+      const storedClocks = { ...unedited, ...targetPending };
+      const sentClocks = row.fields; // widened to their groups when saved
+      const { record, applied } = mergeRecord(descriptor, {
+        stored: targetRows.get(row.recordId)!,
+        storedClocks,
+        sent: row.payload as Row,
+        sentClocks,
+        storedPurgeFinal: !(final && final in targetPending),
+      });
+      if (applied.length === 0) continue;
+      // The newer clock of the two, so the target's own pending edit isn't set back by the replay.
+      const clocks = applied.map((field) => [field, Math.max(sentClocks[field]!, storedClocks[field] ?? 0)]);
+      replays.push({ ...row, payload: record, fields: Object.fromEntries(clocks) });
     }
   }
 
@@ -148,9 +159,19 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
     })
     .map(([id, change]) => ({ id, ...change }));
 
-  // The files of the assets that are in the target by the same id, the copied ones included.
+  // The files of the assets that end in the target by the same id (the copied ones, and those the
+  // target has unless their purge there is confirmed: the sweep, not a move, settles those, §7a).
   const sourceThumbnails = await listFiles(getAssetThumbnailsDirectory(sourcePaths));
-  const sameId = allSourceAssets.filter((asset) => assetIdMap.get(asset.id) === asset.id);
+  const pendingInTarget = await pendingEdits(target, 'assets', [...targetById.keys()]);
+  const assetReplays = new Map(replays.filter((row) => row.collection === 'assets').map((row) => [row.recordId, row]));
+  const confirmedPurge = (id: string) => {
+    const state = (assetReplays.get(id)?.payload ?? targetById.get(id)) as Record<string, unknown>;
+    const pendingPurge = 'purgedAt' in { ...pendingInTarget.get(id)?.fields, ...assetReplays.get(id)?.fields };
+    return state.purgedAt != null && !pendingPurge;
+  };
+  const sameId = allSourceAssets.filter((asset) =>
+    targetById.has(asset.id) ? !confirmedPurge(asset.id) : assetIdMap.get(asset.id) === asset.id,
+  );
   const files = sameId.map((asset) => asset.filename).filter((name) => sourceFiles.has(name));
   const thumbnails = sameId.map((asset) => asset.thumbnailFilename).filter((name) => sourceThumbnails.has(name));
 
@@ -243,53 +264,19 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<void>
       );
     }
     // A replayed edit is written to the target's row as well as its outbox: a push alone would leave
-    // the row stale, and the pull keeps a pending record's fields local. Its fields go onto the
-    // target's row and into the target's outbox with the source's own clocks, for the server to merge.
+    // the row stale, and the pull keeps a pending record's fields local.
     for (const collection of new Set(plan.replays.map((row) => row.collection))) {
-      const table = clientCollectionTables[collection]!;
       const replays = plan.replays.filter((row) => row.collection === collection);
-      const targetRows = await readByIdMap<Row>(
-        tx,
-        table,
-        replays.map((row) => row.recordId),
-      );
-      const records = replays.flatMap((row) => {
-        const targetRow = targetRows.get(row.recordId);
-        return targetRow
-          ? [overlayFields(collection, targetRow, row.payload as Row, row.fields, { keepBasePurge: false })]
-          : [];
-      });
       const clocks = new Map(replays.map((row) => [row.recordId, row.fields]));
-      await saveRecords(tx, collection, table, records, { clocks });
+      await saveRecords(
+        tx,
+        collection,
+        clientCollectionTables[collection]!,
+        replays.map((row) => row.payload as Row),
+        { clocks },
+      );
     }
   });
-}
-
-// deletedAt with the collection's final field (a purge), the group a deletion replays as.
-function deletionGroup(descriptor: CollectionDescriptor): readonly string[] {
-  const final = descriptor.finalField;
-  if (!final) return ['deletedAt'];
-  return descriptor.fieldGroups.find((group) => group.includes(final)) ?? ['deletedAt', final];
-}
-
-// Which side's deletion group wins when the source replays one, if the clocks don't decide it (as on
-// the server, sync-design §7): a purge is final, so a purged target keeps its purge over a deletion,
-// and over a restore once the server has the purge; a restore beats a purge that hadn't seen it, so
-// a pending purge loses to the source's restore and a source purge to the target's pending restore.
-function deletionSide(
-  descriptor: CollectionDescriptor,
-  payload: Record<string, unknown>,
-  fields: FieldClocks,
-  targetRow: Record<string, unknown>,
-  targetClocks: FieldClocks,
-): 'source' | 'target' | undefined {
-  const final = descriptor.finalField;
-  if (!final || !('deletedAt' in fields)) return undefined;
-  const sourcePurge = payload[final] != null;
-  const sourceRestore = payload.deletedAt == null;
-  if (targetRow[final] != null && !sourcePurge) return sourceRestore && final in targetClocks ? 'source' : 'target';
-  if (sourcePurge && targetRow.deletedAt == null && 'deletedAt' in targetClocks) return 'target';
-  return undefined;
 }
 
 /**

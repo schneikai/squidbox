@@ -53,16 +53,15 @@ export async function saveRecords<R extends SavedRecord>(
 // their field groups; records that change none are left out. A field the record leaves out is unchanged.
 function changedFields(
   descriptor: CollectionDescriptor,
-  records: SavedRecord[],
+  records: readonly SavedRecord[],
   previous: Map<string, StoredRow>,
 ): Map<string, FieldClocks> {
   const names = mergeFields(descriptor);
   const changes = new Map<string, FieldClocks>();
-  for (const record of records as (SavedRecord & Record<string, unknown>)[]) {
+  for (const record of records) {
     const prev = previous.get(record.id);
-    const changed = names.filter(
-      (name) => record[name] !== undefined && (!prev || !Object.is(prev[name], record[name])),
-    );
+    const value = (name: string) => (record as Record<string, unknown>)[name];
+    const changed = names.filter((name) => value(name) !== undefined && (!prev || !Object.is(prev[name], value(name))));
     if (changed.length > 0)
       changes.set(
         record.id,

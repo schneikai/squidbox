@@ -3,6 +3,7 @@ import { getTableColumns } from 'drizzle-orm';
 import {
   assetCollection,
   collections,
+  fieldClocksSchema,
   lostFields,
   mergeFields,
   widenToGroups,
@@ -49,11 +50,13 @@ describe('push contract', () => {
     expect(pushMutationSchema.parse({ collection: 'assets', record })).toEqual({ collection: 'assets', record });
   });
 
-  it('fields map each changed field to its clock, a whole epoch-ms number', () => {
+  it('fields map each changed field to its clock, a whole epoch-ms number, checked per mutation', () => {
     const mutation = { collection: 'assets', record, fields: { notes: 2000 } };
     expect(pushMutationSchema.parse(mutation)).toEqual(mutation);
-    expect(pushMutationSchema.safeParse({ ...mutation, fields: { notes: 1.5 } }).success).toBe(false);
-    expect(pushMutationSchema.safeParse({ ...mutation, fields: { notes: 'x' } }).success).toBe(false);
+    // A bad clock doesn't fail the request: the push rejects that mutation alone.
+    expect(pushMutationSchema.safeParse({ ...mutation, fields: { notes: 1.5 } }).success).toBe(true);
+    expect(fieldClocksSchema.safeParse({ notes: 1.5 }).success).toBe(false);
+    expect(fieldClocksSchema.safeParse({ notes: 'x' }).success).toBe(false);
   });
 });
 

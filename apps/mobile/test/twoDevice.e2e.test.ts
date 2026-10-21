@@ -339,7 +339,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       const merged = Object.keys(sentFields(col, record as never, mutation.fields, Number.MAX_SAFE_INTEGER));
       const row = await serverRow(mutation.collection, result.id);
       const lost = merged.filter((field) => !Object.is(row?.[field], record[field]));
-      const final = col.finalField;
+      const final = col.descriptor.finalField;
       const purgeMissing = !!final && row?.[final] != null && !Object.is(row[final], record[final] ?? null);
       const where = `${mutation.collection} ${result.id}`;
       if (result.status === 'applied' && (lost.length > 0 || purgeMissing))
@@ -677,7 +677,9 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       }
     });
 
-    it('an offline delete and purge coalesced in one push still lose to a restore they hadn’t seen', async () => {
+    // A's deletion is its own, never on the server, so it isn't one B's restore undid: the pair goes by
+    // clock (a restore beats only a purge of the deletion it undid, sync-design §7).
+    it('an offline delete and purge coalesced in one push go by clock against a restore of another deletion', async () => {
       const id = await seedAsset();
       await edit(B, S + 100, () => repo.deleteAssets(B, [id]));
       await sync(B);
@@ -690,7 +692,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
         purgedAt: S + 400,
       });
       await settle();
-      expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: null, purgedAt: null });
+      expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: S + 200, purgedAt: S + 400 });
     });
 
     it('an offline delete and purge of an asset no device restored apply', async () => {
@@ -733,7 +735,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       };
       at(SERVER_NOW);
       await runSyncOnce(B, { push: async (req) => refused(req), pull }, { removeFiles }); // pulls the purge
-      expect(await localRow(B, 'assets', id)).toMatchObject({ purgedAt: S + 200 });
+      expect(await localRow(B, 'assets', id)).toMatchObject({ purgedAt: null }); // its deletion still waits
       await retryFailures(B);
       await sync(B, { removeFiles }); // its deletion again: the server answers with the purge
       expect(pushLog.at(-1)!.results[0]!.status).toBe('skipped-lww');
@@ -975,9 +977,6 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       });
     });
 
-    // BUG (mergeLibrary.ts replayed() + withDeletionPair): see mergeLibrary.test.ts. The device's
-    // older purge replays with its old deletedAt under the account's newer restore clock, so the
-    // server takes the stale delete, applies the purge, and the restore is lost on every device.
     it('a device purge older than the account’s pending restore loses to it everywhere', async () => {
       const id = await seedAsset();
       await edit(A, S + 50, () => repo.deleteAssets(A, [id]));
@@ -1106,13 +1105,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       return { removed, removeFiles };
     }
 
-    // BUG (fieldMergeUpdate.ts restoredSince): "restored since the deletion the purge was made of"
-    // compares the stored deletedAt *clock* (clamped to server time) with the purge's deletedAt
-    // *value* (the deleting device's own clock, never clamped). B's clock is an hour ahead, so its
-    // deletion carries a value an hour past every clock the server stores, A's restore looks older
-    // than that deletion, and B's later purge, which never saw the restore, applies by clock. The
-    // photo is purged everywhere and A, which restored it, removes its files on the next pull.
-    it.fails('a restore beats a purge that hadn’t seen it when the deleting device’s clock is ahead', async () => {
+    it('a restore beats a purge that hadn’t seen it when the deleting device’s clock is ahead', async () => {
       const id = await seedAsset({ filename: 'skew.jpg', thumbnailFilename: 'skew-t.jpg' });
       await edit(B, S + HOUR + 100, () => repo.deleteAssets(B, [id])); // B's clock is an hour ahead
       await sync(B, { now: S + 100 });
@@ -1128,11 +1121,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: null, purgedAt: null });
     });
 
-    // BUG (worker.ts pushPhase → unsharedFiles): the names a confirmed purge may remove are checked
-    // against the local assets that aren't purged, and an asset whose own purge is still pending
-    // counts as purged. x and y share a file; A purges both, x's purge applies and y's loses to B's
-    // restore in the same push, but the shared file is removed for x before y comes back.
-    it.fails('a purge that loses keeps a file it shares with a purge that wins in the same push', async () => {
+    it('a purge that loses keeps a file it shares with a purge that wins in the same push', async () => {
       const x = await seedAsset({ filename: 'shared.jpg', thumbnailFilename: 'x-t.jpg' });
       const y = await seedAsset({ filename: 'shared.jpg', thumbnailFilename: 'y-t.jpg' });
       await edit(A, S + 100, () => repo.deleteAssets(A, [x, y]));
@@ -1212,8 +1201,9 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       });
     }
 
-    it('old apps against the purge rule: a whole-record purge loses to a restore it hadn’t seen, a pre-purge restore beats a later purge', async () => {
-      // C (no fields) purges, unaware of B's restore.
+    it('old apps against the purge rule: a whole-record purge keeps its whole-record rule, a pre-purge restore beats a later purge', async () => {
+      // C (no fields) purges, unaware of B's restore: newer, its whole record re-deletes and purges (the
+      // installed app removed its files at once, so refusing it would strand a live photo without them).
       const first = await seedAsset();
       await edit(A, S + 100, () => repo.deleteAssets(A, [first]));
       await settle();
@@ -1221,9 +1211,9 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       await sync(B);
       await edit(C, S + 300, () => repo.purgeAssets(C, [first]));
       await sync(C);
-      expect(pushLog.at(-1)!.results[0]!.status).toBe('skipped-lww');
+      expect(pushLog.at(-1)!.results[0]!.status).toBe('applied');
       await settle();
-      expect(await expectConverged('assets', first)).toMatchObject({ deletedAt: null, purgedAt: null });
+      expect(await expectConverged('assets', first)).toMatchObject({ deletedAt: S + 100, purgedAt: S + 300 });
 
       // C, as an app from before purges, restores; A, unaware, purges later by clock.
       const second = await seedAsset();

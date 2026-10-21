@@ -4,6 +4,7 @@ import { getRegistry, type Library } from './registry';
 import { getDb, openAppDb, setOpenDb } from '@/sync/db/client';
 import { retryFailures } from '@/sync/outbox';
 import { getOwner, setOwner } from '@/sync/status';
+import { sweepPurgedFiles } from '@/sync/sweepPurgedFiles';
 import webThumbnailUrls from '@/utils/assets/thumbnails/webThumbnailUrls';
 
 export interface OpenLibrary extends LibraryPaths {
@@ -20,8 +21,17 @@ export async function openLibrary(library: Library): Promise<void> {
   try {
     // A new database learns its owner here; an existing one keeps what it recorded itself.
     if (!(await getOwner(db))) await setOwner(db, library.owner);
-    // Each open (a launch, a switch) gives the failed pushes another try (sync-design §6).
+    // Each open (a launch, a switch) gives the failed pushes another try (sync-design §6), and removes
+    // the files of the purged assets whose purge is confirmed (§7a); the file system needs the native
+    // modules the tests lack.
     await retryFailures(db);
+    await import('./fs')
+      .then(({ removeAssetFiles }) =>
+        sweepPurgedFiles(db, (files) => removeAssetFiles(files, paths), {
+          hasAccount: library.owner.kind !== 'device',
+        }),
+      )
+      .catch((error) => console.warn('Could not remove the files of the purged assets', error));
   } catch (error) {
     await db.close().catch(() => {}); // not published yet: closeLibrary wouldn't see it
     throw error;

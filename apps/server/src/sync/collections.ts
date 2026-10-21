@@ -12,20 +12,18 @@ import {
 } from '@squidbox/shared';
 import { assets, albums, posts, albumAssets, postAssets } from '../db/schema.js';
 
-// Server-side view of a syncable collection: its Drizzle table + the shared Zod schema, the columns
-// of the client-facing record (the schema's fields; user_id, server_seq, field_clock and an asset's
-// files_deleted_at stay on the server), the fields a push may change (mergeFields), those of them
-// merged by clock, the write-once one and the field groups (sync-design §7). Derived from the
-// descriptor so it stays in lockstep with the contract.
+// Server-side view of a syncable collection: its Drizzle table, its shared descriptor and Zod schema,
+// the columns of the client-facing record (the schema's fields; user_id, server_seq, field_clock and an
+// asset's files_deleted_at stay on the server), the fields a push may change (mergeFields) and those of
+// them merged by clock (all but the final field, sync-design §7).
 export interface ServerCollection {
   name: string;
   table: PgTable;
+  descriptor: CollectionDescriptor;
   schema: z.ZodObject<z.ZodRawShape>;
   wireColumns: Record<string, PgColumn>;
   mergeFields: string[];
   clockedFields: string[];
-  finalField?: string;
-  fieldGroups: readonly (readonly string[])[];
 }
 
 function serverCollection(table: PgTable, descriptor: CollectionDescriptor): ServerCollection {
@@ -34,12 +32,11 @@ function serverCollection(table: PgTable, descriptor: CollectionDescriptor): Ser
   return {
     name: descriptor.name,
     table,
+    descriptor,
     schema,
     wireColumns: Object.fromEntries(Object.entries(getTableColumns(table)).filter(([key]) => key in schema.shape)),
     mergeFields: fields,
     clockedFields: fields.filter((field) => field !== descriptor.finalField),
-    finalField: descriptor.finalField,
-    fieldGroups: descriptor.fieldGroups,
   };
 }
 

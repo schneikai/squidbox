@@ -15,7 +15,7 @@ export function sentFields(
 ): FieldClocks {
   const carried = col.mergeFields.filter((field) => field in record);
   const clocks = widenToGroups(
-    col,
+    col.descriptor,
     fields
       ? Object.fromEntries(carried.filter((field) => field in fields).map((field) => [field, fields[field]!]))
       : Object.fromEntries(carried.map((field) => [field, record.updatedAt])),

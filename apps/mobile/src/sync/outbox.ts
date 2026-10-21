@@ -1,5 +1,5 @@
 import type { FieldClocks } from '@squidbox/shared';
-import { and, count, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, count, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 
 import { chunk, SQL_BATCH } from './chunk';
 import * as schema from './db/schema';
@@ -51,7 +51,7 @@ function withoutKeys(record: object, keys: Set<string>): Record<string, unknown>
 }
 
 function recordsIn(collection: string, recordIds: string[]) {
-  return and(eq(schema.outbox.collection, collection), inArray(schema.outbox.recordId, recordIds));
+  return and(eq(schema.outbox.collection, collection), inJson(schema.outbox.recordId, recordIds));
 }
 
 /** The pending edits of these records, by record id: their changed fields and updatedAt. Records without one are left out. */
@@ -63,14 +63,12 @@ export async function pendingEdits(
   const rows = await db
     .select({ recordId: schema.outbox.recordId, fields: schema.outbox.fields, updatedAt: schema.outbox.updatedAt })
     .from(schema.outbox)
-    .where(and(eq(schema.outbox.collection, collection), inJson(schema.outbox.recordId, recordIds)));
+    .where(recordsIn(collection, recordIds));
   return new Map(rows.map(({ recordId, ...edit }) => [recordId, edit]));
 }
 
 export async function clearOutboxRows(db: SyncDb, collection: string, recordIds: string[]): Promise<void> {
-  for (const batch of chunk(recordIds, SQL_BATCH)) {
-    await db.delete(schema.outbox).where(recordsIn(collection, batch));
-  }
+  await db.delete(schema.outbox).where(recordsIn(collection, recordIds));
 }
 
 /** Records why the server rejected these records' pending payloads; a failed row waits (§6). */
@@ -80,9 +78,7 @@ export async function setOutboxError(
   recordIds: string[],
   error: string,
 ): Promise<void> {
-  for (const batch of chunk(recordIds, SQL_BATCH)) {
-    await db.update(schema.outbox).set({ error }).where(recordsIn(collection, batch));
-  }
+  await db.update(schema.outbox).set({ error }).where(recordsIn(collection, recordIds));
 }
 
 // The push sends only the pushable rows; a failed one waits (§6).
