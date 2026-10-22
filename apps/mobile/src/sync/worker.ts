@@ -460,12 +460,16 @@ async function withSyncRun(work: SyncWork): Promise<void> {
   const { httpTransport } = await import('./transport');
   const { purgedFilesRemover } = await import('../library/fs');
   const removeFiles = purgedFilesRemover(library);
-  let stop: AbortSignal | undefined;
-  const run = startRun((signal) => {
-    stop = signal;
-    return work(db, httpTransport(identity), { signal, removeFiles });
+  let signal: AbortSignal | undefined;
+  const run = startRun((runSignal) => {
+    signal = runSignal;
+    return work(db, httpTransport(identity), { signal: runSignal, removeFiles });
   });
-  if (!run) return;
+  // Paused: the section is queued in the same flight, so this request runs after it.
+  if (!run) {
+    requestSync();
+    return;
+  }
   try {
     await run;
     await patchStatus(db, { phase: 'idle', lastError: null });
@@ -473,7 +477,7 @@ async function withSyncRun(work: SyncWork): Promise<void> {
     await patchStatus(db, { phase: 'error', lastError: err instanceof Error ? err.message : String(err) });
   }
   // A run a paused section cut short runs again after it (the request trails this run and the section).
-  if (stop?.aborted) requestSync();
+  if (signal?.aborted) requestSync();
 }
 
 // Bound Inspector actions (the open library + HTTP transport).

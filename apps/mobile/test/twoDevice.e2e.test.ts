@@ -1131,7 +1131,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     }
     async function mergeInto(target: SyncDb, D: SyncDb, t: number) {
       at(t);
-      await applyMerge(target, await planMerge(D, target, libraryPaths('device')));
+      await applyMerge(target, await planMerge(D, target, libraryPaths('device'), libraryPaths('account')));
     }
 
     it('replays the device’s edits field by field against the account’s newer pending edit and another device’s', async () => {
@@ -1202,7 +1202,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       const T2 = makeTestDb(); // the account's new library
       await settle([A, B, T2]); // its first full pull
       at(S + 200);
-      const plan = await planMerge(D, T2, libraryPaths('device'));
+      const plan = await planMerge(D, T2, libraryPaths('device'), libraryPaths('account'));
       await applyMerge(T2, plan);
       await settle([A, B, T2]);
       expect(await expectConverged('assets', id, [A, B, T2])).toMatchObject({ deletedAt: S + 100 });
@@ -1225,13 +1225,13 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       await edit(B, S + 310, () => repo.updateAllAssets(B, [id], { deletedAt: null }));
       await sync(B);
       await settle();
-      const again = await planMerge(D, A, libraryPaths('device'));
+      const again = await planMerge(D, A, libraryPaths('device'), libraryPaths('account'));
       expect(again.replays).toEqual([]);
       await applyMerge(A, again);
       expect(await localRow(A, 'assets', id)).toMatchObject({ notes: 'account', deletedAt: null }); // not set back
       // An edit the device makes after the commit still replays.
       await edit(D, S + 600, () => repo.updateAsset(D, id, { oldFileId: 'later' }));
-      const later = await planMerge(D, A, libraryPaths('device'));
+      const later = await planMerge(D, A, libraryPaths('device'), libraryPaths('account'));
       expect(later.replays.map((row) => Object.keys(row.fields))).toEqual([['oldFileId']]);
       await applyMerge(A, later);
       await settle();

@@ -90,6 +90,18 @@ describe('withSyncPaused', () => {
     await withSyncPaused(async () => setSyncTarget(null));
   });
 
+  // Round 19: a sync queued just before a paused section starts finds the runs paused: it asks
+  // again, and runs after the section.
+  it('a sync held back by a pause runs after the section', async () => {
+    await repo.createAsset(db, makeAssetRecord());
+    transportImpl.current = server(0);
+    setSyncTarget({ db, identity: {}, library: {} } as SyncTarget); // queues a run
+    await withSyncPaused(async () => {}); // paused before that run starts
+
+    await vi.waitFor(async () => expect(await db.select().from(schema.outbox)).toHaveLength(0));
+    await withSyncPaused(async () => setSyncTarget(null));
+  });
+
   it('a session that changed under a run ends it like an abort, not as a failure', async () => {
     await expect(startRun(async () => Promise.reject(new SessionChangedError()))).resolves.toBeUndefined();
     await expect(startRun(async () => Promise.reject(new Error('boom')))).rejects.toThrow('boom');

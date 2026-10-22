@@ -110,13 +110,16 @@ export async function getMergeCommit(db: SyncDb, source: string): Promise<MergeC
 export async function setMergeCommit(db: SyncDb, source: string, commit: MergeCommit): Promise<void> {
   await setMeta(db, `${COMMITTED_KEY}${source}`, JSON.stringify(commit));
 }
-// A pass's commit into the target, inside its transaction: its marks, and what it waits for (returned).
+// A pass's commit into the target, inside its transaction: its marks, and what it waits for
+// (returned): the newest outbox row when it queued rows, else what the earlier passes wait for.
 export async function commitMergeMarks(
   tx: SyncDb,
   source: string,
   marks: Record<string, MergeMark>,
+  queuedRows: boolean,
 ): Promise<MergeCommit> {
-  const commit = { through: await newestOutboxId(tx) };
+  const through = queuedRows ? await newestOutboxId(tx) : ((await getMergeCommit(tx, source))?.through ?? 0);
+  const commit = { through };
   await setMergeMarks(tx, source, marks);
   await setMergeCommit(tx, source, commit);
   return commit;
@@ -135,7 +138,8 @@ const pushedBy = (oldest: number | null, commit: MergeCommit) => oldest === null
 export async function isPushed(db: SyncDb, commit: MergeCommit): Promise<boolean> {
   return pushedBy(await oldestOutboxId(db), commit);
 }
-// Whether some source's committed passes have all pushed, its merge left to finish (usePendingMerges).
+// Whether some source's committed passes have all pushed, its merge left to finish (usePendingMerges):
+// a commit whose pass hasn't moved its files yet (no `source`) is still that pass's.
 export async function anyMergePushed(db: SyncDb): Promise<boolean> {
   const rows = await db
     .select()
@@ -145,7 +149,7 @@ export async function anyMergePushed(db: SyncDb): Promise<boolean> {
   const oldest = await oldestOutboxId(db);
   return rows.some(({ value }) => {
     const commit = parseCommit(value);
-    return commit !== null && pushedBy(oldest, commit);
+    return commit?.source !== undefined && pushedBy(oldest, commit);
   });
 }
 

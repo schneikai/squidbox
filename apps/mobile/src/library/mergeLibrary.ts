@@ -81,7 +81,12 @@ const purgeWaits = (final: string | undefined, fields: FieldClocks = {}) => fina
  *
  * Every decision is made once (sync-design §8, "the merge model").
  */
-export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: LibraryPaths): Promise<MergePlan> {
+export async function planMerge(
+  source: SyncDb,
+  target: SyncDb,
+  sourcePaths: LibraryPaths,
+  targetPaths: LibraryPaths,
+): Promise<MergePlan> {
   const name = sourcePaths.dbName;
   const sourceOutbox = await source.select().from(schema.outbox);
   const outboxOf = new Map(sourceOutbox.map((row) => [`${row.collection}:${row.recordId}`, row]));
@@ -170,6 +175,8 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
   }
   const sourceFiles = await listFiles(getAssetFilesDirectory(sourcePaths));
   const sourceThumbnails = await listFiles(getAssetThumbnailsDirectory(sourcePaths));
+  const targetFiles = await listFiles(getAssetFilesDirectory(targetPaths));
+  const targetThumbnails = await listFiles(getAssetThumbnailsDirectory(targetPaths));
   const matchCopies: [AssetRow, AssetRow][] = []; // [device photo, the record it was merged into]
   const assets: AssetRow[] = [];
   const merged = new Map<string, { row: AssetRow; photos: Photo[] }>(); // merged at the commit, at now
@@ -237,8 +244,8 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
   const sameId = allSourceAssets.filter((asset) =>
     targetById.has(asset.id) ? keptById(asset.id) : assetIdMap.get(asset.id) === asset.id,
   );
-  const files = new Moves(sourceFiles);
-  const thumbnails = new Moves(sourceThumbnails);
+  const files = new Moves(sourceFiles, targetFiles);
+  const thumbnails = new Moves(sourceThumbnails, targetThumbnails);
   for (const asset of sameId) {
     files.add(asset.filename, asset.filename);
     thumbnails.add(asset.thumbnailFilename, asset.thumbnailFilename);
@@ -405,43 +412,52 @@ function mergedNotes(target: string | null, source: string | null): string | nul
   return target ? `${target}\n${source}` : source;
 }
 
-// [from, to] moves out of a folder: only what it holds, each destination once.
+// [from, to] moves out of a folder into another: only what the first holds, into what the second
+// lacks, each destination once (a move skipped for a destination there would be planned again).
 class Moves {
   readonly list: [string, string][] = [];
   private readonly destinations = new Set<string>();
-  constructor(private readonly held: Set<string>) {}
+  constructor(
+    private readonly held: Set<string>,
+    private readonly present: Set<string>,
+  ) {}
   add(from: string, to: string): boolean {
-    if (!this.held.has(from) || this.destinations.has(to)) return false;
+    if (!this.held.has(from) || this.present.has(to) || this.destinations.has(to)) return false;
     this.destinations.add(to);
     this.list.push([from, to]);
     return true;
   }
 }
 
-/** Whether the plan moves files or thumbnails into the target's folders. */
-export function movesFiles(plan: MergePlan): boolean {
-  return plan.files.length > 0 || plan.thumbnails.length > 0;
-}
+// The plan's lists whose records are written with an outbox row each.
+const queued = (plan: MergePlan) => [
+  plan.assets,
+  plan.albums,
+  plan.posts,
+  plan.albumAssets,
+  plan.postAssets,
+  plan.duplicates,
+  plan.replays,
+];
 
-/** Whether the plan writes to the target (a plan with nothing costs nothing to apply or move). */
+/** Whether the plan writes to the target's records. */
 export function writesTarget(plan: MergePlan): boolean {
-  return [
-    plan.assets,
-    plan.albums,
-    plan.posts,
-    plan.albumAssets,
-    plan.postAssets,
-    plan.duplicates,
-    plan.replays,
-    plan.retried,
-  ].some((list) => list.length > 0);
+  return [...queued(plan), plan.retried].some((list) => list.length > 0);
 }
 
 /**
- * Writes the plan into the target in one transaction, with its marks and the outbox row the pass is
- * pushed through (sync-design §8), and returns that commit. Every copied record gets its outbox row. The replays and the
- * matches' merges are made again onto the rows as they are now, so an edit made on the target since
- * the plan isn't set back.
+ * Whether a pass commits into the target: one that writes, or that moves files into its folders (it
+ * commits its decisions first, so a retry after a failed move makes the same ones).
+ */
+export function commitsTarget(plan: MergePlan): boolean {
+  return writesTarget(plan) || plan.files.length > 0 || plan.thumbnails.length > 0;
+}
+
+/**
+ * Writes the plan into the target in one transaction, with its marks and the outbox row the passes
+ * are pushed through (sync-design §8), and returns that commit. Every copied record gets its outbox
+ * row. The replays and the matches' merges are made again onto the rows as they are now, so an edit
+ * made on the target since the plan isn't set back.
  */
 export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<MergeCommit> {
   return target.transaction(async (tx) => {
@@ -491,7 +507,8 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<Merge
       clocks.set(id, Object.fromEntries(Object.keys(changes).map((field) => [field, written.updatedAt])));
     }
     await saveRecords(tx, 'assets', schema.assets, next, { clocks });
-    return commitMergeMarks(tx, plan.marks.source, plan.marks.decided);
+    const queuesRows = queued(plan).some((list) => list.length > 0);
+    return commitMergeMarks(tx, plan.marks.source, plan.marks.decided, queuesRows);
   });
 }
 

@@ -6,9 +6,8 @@ import { sameAccount } from './sameAccount';
  * database: the library a merge is adding it to, and that library's account. From the first pass that
  * commits records, the device library belongs to that account: it never joins another account's
  * library, and a library of the same account that replaces a lost one takes it over. `committed`
- * once a pass committed into that library (one that only moves files commits its decisions first):
- * the device library has joined it, whose folders may hold its files, and waits only for its push
- * (sync-design §8).
+ * once a pass committed into that library (mergeLibrary.ts commitsTarget): the device library has
+ * joined it, whose folders may hold its files, and waits only for its push (sync-design §8).
  */
 export type MergeMarker = { library: string; serverId: string; userId: string; committed?: true };
 

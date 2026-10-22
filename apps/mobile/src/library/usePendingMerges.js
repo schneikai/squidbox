@@ -13,7 +13,7 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
 // covers a pull that drained before (LibraryProvider), and a merge that can't finish isn't tried
 // again until the next boot or commit. A push may land before the first read, so that change counts
 // from any other value; a second run finds nothing to do. A sync run the merges cut short runs again
-// after them (withSyncPaused).
+// after them (withSyncRun).
 export default function usePendingMerges(firstSyncDone) {
   const pushed = useLiveQuery(anyMergePushed, [schema.outbox, schema.syncMeta], [], {
     minInterval: MIN_REREAD_INTERVAL,
