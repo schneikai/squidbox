@@ -28,7 +28,7 @@ import { makeEdgeRepository } from '../src/sync/edgesRepository';
 import { toModernChanges } from '../src/sync/legacyBase';
 import { retryFailures } from '../src/sync/outbox';
 import { makeRepository } from '../src/sync/repository';
-import { setMergeTarget, setOwner } from '../src/sync/status';
+import { setMergeMarks, setMergeTarget, setOwner } from '../src/sync/status';
 import { sweepPurgedFiles } from '../src/sync/sweepPurgedFiles';
 import type { SyncTransport } from '../src/sync/transport';
 import { upsertRows } from '../src/sync/upsertRows';
@@ -1256,6 +1256,58 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       await settle([A, B, N]);
       const live = (await N.select().from(clientSchema.assets)).filter((row) => row.deletedAt === null);
       expect(live.map((row) => row.mediaLibraryAssetId)).toEqual(['camera-roll-1']);
+    });
+
+    // Round 13: the iPhone's device library has its copy of camera-roll item x, a favorite with a note
+    // (S+100). Later, the iPad (B) notes the account's photo of x and favorites it and takes that back
+    // (S+200..S+220). At the sign-in on the iPhone, pass 1 into the account's library T1 merges the
+    // device's photo into it at S+300 (the iPad's note, then the iPhone's; a favorite) and commits,
+    // and T1 is lost before it pushes. The pass into the next library T2 redoes the match
+    // (decidedElsewhere, as mergeLibrary passes it when the marker names T1), stamped at the device
+    // photo's own clocks (S+100): the server holds the iPad's notes and favorite at S+200/S+220, newer,
+    // so the redo loses on both fields, although pass 1 had merged them after the iPad's edits.
+    // Expected: both notes and the favorite, everywhere. Actual: the iPad's note only, not a favorite;
+    // the iPhone's note and favorite are gone with the device library.
+    it.fails('round 13: a redone match keeps what pass 1 merged after an earlier edit of the account', async () => {
+      const id = await seedAsset({ mediaLibraryAssetId: 'camera-roll-x', notes: null, isFavorite: false });
+      const D = makeTestDb(); // the iPhone's device library, before the sign-in
+      await setOwner(D, { kind: 'device' });
+      at(S + 100);
+      await repo.createAsset(
+        D,
+        makeAssetRecord({
+          ...{ mediaLibraryAssetId: 'camera-roll-x', filename: 'on-phone.jpg', isFileSynced: false },
+          ...{ isFavorite: true, notes: 'from the iPhone' },
+        }),
+      );
+      await edit(B, S + 200, () => repo.updateAsset(B, id, { notes: 'from the iPad' }));
+      await edit(B, S + 210, () => repo.toggleFavorite(B, id));
+      await edit(B, S + 220, () => repo.toggleFavorite(B, id));
+      await sync(B);
+
+      // Pass 1 into T1 after its first pull: the marker, the commit, the marks in the source; T1 is lost.
+      const T1 = makeTestDb();
+      await sync(T1);
+      at(S + 300);
+      const plan = await planMerge(D, T1, libraryPaths('device'));
+      await setMergeTarget(D, { library: 'T1', serverId: 's1', userId: 'u1' });
+      await applyMerge(T1, plan);
+      await setMergeMarks(D, libraryPaths('device').dbName, plan.marks.decided);
+      expect(await localRow(T1, 'assets', id)).toMatchObject({
+        notes: 'from the iPad\nfrom the iPhone',
+        isFavorite: true,
+      });
+
+      const T2 = makeTestDb();
+      await settle([A, B, T2]); // its first full pull
+      at(S + 400);
+      await applyMerge(T2, await planMerge(D, T2, libraryPaths('device'), { decidedElsewhere: true }));
+      await settle([A, B, T2]);
+
+      expect(await expectConverged('assets', id, [A, B, T2])).toMatchObject({
+        notes: 'from the iPad\nfrom the iPhone',
+        isFavorite: true,
+      });
     });
 
     it('a device purge older than the account’s pending restore loses to it everywhere', async () => {

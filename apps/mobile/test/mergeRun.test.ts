@@ -717,6 +717,22 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
     expect(entry('dev')).toBeUndefined();
     expect(files.has(getAssetFileUri('r.jpg', TGT))).toBe(true);
   });
+
+  // Round 13: a camera-roll match appends the device photo's note to the account photo's unless it is
+  // "already there" (mergedNotes), which tests a substring: the device's note "Mom" counts as there
+  // in the account's "Mom's birthday". The device library is removed after the merge.
+  // Expected: X keeps the account's note and gains the device's. Actual: the device's note is dropped.
+  it.fails('round 13: a device note that is part of a word or line of the account’s note is still merged', async () => {
+    const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-r', notes: 'Mom’s birthday', ...unsynced });
+    await upsertRows(getDb(), 'assets', schema.assets, [{ ...accountPhoto, syncError: null }]);
+    await devicePhoto({ mediaLibraryAssetId: 'm-r', filename: 'r2.jpg', notes: 'Mom' });
+
+    await mergeLibrary('dev', 'acc');
+
+    expect(entry('dev')).toBeUndefined();
+    const [row] = await getDb().select().from(schema.assets);
+    expect(row!.notes).toBe('Mom’s birthday\nMom');
+  });
 });
 
 // Round 12: pass 1 merges the device's photo into the account's photo X (a camera-roll match: the
@@ -787,6 +803,60 @@ describe('round 12: a camera-roll match an earlier library never pushed', () => 
     const [row] = await getDb().select().from(schema.assets);
     expect(row).toMatchObject({ isFavorite: true, notes: 'theirs\nfrom the beach' });
     expect(await getDb().select().from(schema.outbox)).toHaveLength(0);
+  });
+
+  // Round 13: while acc2 hadn't pulled yet and the session had no tokens, the device library was open
+  // again (libraryToOpen) and the same camera-roll item was imported a second time (imports don't
+  // dedupe). The pass into acc2 merges the new photo into X as a fresh match (a duplicate, written at
+  // now) and the first photo's merge again (a replay at the device's clocks). applyMerge writes the
+  // duplicate first, so X's notes are pending at now when the replay comes, and the older replayed
+  // note loses to it.
+  // Expected: X has both notes. Actual: only the new photo's; the first photo's note is gone with the
+  // device library.
+  it.fails('round 13: a photo of the same item imported again keeps the redone note', async () => {
+    const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-x', isFavorite: false, notes: null });
+    await devicePhoto({ mediaLibraryAssetId: 'm-x', filename: 'd.jpg', isFavorite: true, notes: 'from the beach' });
+    await passIntoAccThenLost(accountPhoto);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await devicePhoto({ mediaLibraryAssetId: 'm-x', filename: 'd2.jpg', notes: 'imported again' });
+
+    await mergeLibrary('dev', 'acc2');
+
+    expect(entry('dev')).toBeUndefined();
+    const [row] = await getDb().select().from(schema.assets);
+    expect(row!.isFavorite).toBe(true);
+    expect(row!.notes?.split('\n').sort()).toEqual(['from the beach', 'imported again']);
+  });
+
+  // Round 13: the pass into acc2 that redoes the match (decidedElsewhere: the source's database marker
+  // names acc) sets the source's marker to acc2 before its commit (mergeRun.ts). The app is stopped
+  // inside that commit (a large transaction, rolled back): the source's marker now names acc2 while
+  // acc2 holds nothing of the pass. At the next launch resumeMerges runs the merge again; with the
+  // marker naming acc2 it is no longer "decided elsewhere", so only edits newer than the marks
+  // replay and the match's merge is never redone.
+  // Expected: X is a favorite with the device's note. Actual: neither, and the device library is gone.
+  it.fails('round 13: a redo pass stopped inside its commit is redone at the next launch', async () => {
+    const { applyMerge } = await import('../src/library/mergeLibrary');
+    const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-x', isFavorite: false, notes: null });
+    await devicePhoto({ mediaLibraryAssetId: 'm-x', filename: 'd.jpg', isFavorite: true, notes: 'from the beach' });
+    await passIntoAccThenLost(accountPhoto);
+    let inCommit!: () => void;
+    const committing = new Promise<void>((resolve) => (inCommit = resolve));
+    vi.mocked(applyMerge).mockImplementationOnce(() => {
+      inCommit();
+      return new Promise<void>(() => {}); // the app is stopped: the transaction never commits
+    });
+    mergeLibrary('dev', 'acc2'); // never settles: the app stops inside it
+    await committing;
+
+    // The next launch: the same databases and list; the boot resumes the merge.
+    await closeLibrary();
+    await openLibrary(ACC2);
+    await resumeMerges();
+
+    expect(entry('dev')).toBeUndefined();
+    const [row] = await getDb().select().from(schema.assets);
+    expect(row).toMatchObject({ id: accountPhoto.id, isFavorite: true, notes: 'from the beach' });
   });
 
   it('merges the device’s favorite and note into the account’s photo again', async () => {
