@@ -91,10 +91,27 @@ vi.mock('../src/sync/status', async (importOriginal) => {
       reach('readMarker');
       return original.getMergeTarget(...args);
     },
-    setMergeTarget: async (db: Parameters<typeof original.setMergeTarget>[0], target: string | null) => {
+    setMergeTarget: async (...args: Parameters<typeof original.setMergeTarget>) => {
       if (inject.dead) return;
-      reach(target ? 'setMarker' : 'clearMarker');
-      return original.setMergeTarget(db, target);
+      const [, marker] = args;
+      reach(marker ? (marker.committed ? 'commitMarker' : 'setMarker') : 'clearMarker');
+      return original.setMergeTarget(...args);
+    },
+    // The finish (finishMerge) and what the pass records after its move.
+    setMergeMarks: async (...args: Parameters<typeof original.setMergeMarks>) => {
+      if (inject.dead) return;
+      reach(args[2] ? 'sourceMarks' : 'forgetMarks');
+      return original.setMergeMarks(...args);
+    },
+    clearMergeMarks: async (...args: Parameters<typeof original.clearMergeMarks>) => {
+      if (inject.dead) return;
+      reach('clearTargetMarks');
+      return original.clearMergeMarks(...args);
+    },
+    setMergeCommit: async (...args: Parameters<typeof original.setMergeCommit>) => {
+      if (inject.dead) return;
+      reach('movedFlag');
+      return original.setMergeCommit(...args);
     },
   };
 });
@@ -122,7 +139,8 @@ vi.mock('../src/library/registry', async (importOriginal) => {
       if (inject.dead) return original.getRegistry();
       const before = original.getRegistry().libraries.find((library) => library.id === args[0]);
       const after = args[1](before!);
-      reach(after.mergedInto ? 'listMarker' : after.keptFor ? 'listKept' : 'listClear');
+      const marker = after.mergedInto;
+      reach(marker ? (marker.committed ? 'listCommitted' : 'listMarker') : after.keptFor ? 'listKept' : 'listClear');
       return original.updateLibrary(...args);
     },
   };
@@ -154,8 +172,14 @@ const STEPS = [
   'setMarker',
   'apply',
   'afterCommit',
+  'commitMarker',
+  'listCommitted',
   'move',
+  'movedFlag',
+  'sourceMarks',
+  'clearTargetMarks',
   'clearMarker',
+  'forgetMarks',
   'listKept',
   'deleteDb',
   'listClear',
@@ -235,6 +259,8 @@ async function scenario(step: string, crash: boolean, keepsSource: boolean): Pro
     problems.push(`${at}: the source's marker stays after the merge completed`);
   if (Object.keys(await status.getMergeMarks(stores.get(TGT.dbName)!, SRC.dbName)).length > 0)
     problems.push(`${at}: the account's library keeps the merge's marks after it completed`);
+  if (await status.getMergeCommit(stores.get(TGT.dbName)!, SRC.dbName))
+    problems.push(`${at}: the account's library keeps the merge's commit after it completed`);
   if ((await inAccount()) && !hasFile()) problems.push(`${at}: the account holds the photo without its file`);
   return problems;
 }
@@ -249,7 +275,7 @@ describe('a merge pass failing or crashing at each step, then a purge on the dev
     for (const keepsSource of [false, true])
       for (const step of STEPS) problems.push(...(await scenario(step, true, keepsSource)));
     expect(problems).toEqual([]);
-    expect([...reached].filter((at) => at.startsWith('crash'))).toHaveLength(9 + 8); // the steps each shape reaches
+    expect([...reached].filter((at) => at.startsWith('crash'))).toHaveLength(13 + 15); // the steps each shape reaches
   });
 
   // A throw after the commit (`afterCommit`) is left out: the catch block can't tell it from one
@@ -262,7 +288,7 @@ describe('a merge pass failing or crashing at each step, then a purge on the dev
       for (const step of STEPS.filter((s) => s !== 'afterCommit'))
         problems.push(...(await scenario(step, false, keepsSource)));
     expect(problems).toEqual([]);
-    expect([...reached].filter((at) => at.startsWith('throw'))).toHaveLength(7 + 8); // the steps each shape reaches
+    expect([...reached].filter((at) => at.startsWith('throw'))).toHaveLength(12 + 14); // the steps each shape reaches
   });
 });
 

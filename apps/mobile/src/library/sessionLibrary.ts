@@ -25,10 +25,12 @@ export function libraryForSession(session: Session | null): Library {
 }
 
 // Whether this device's library waits to join `target`, an account library, by the list (which
-// follows the device library's own database, mergeRun.ts): its markers keep it from no other
+// follows the device library's own database, mergeRun.ts): it hasn't joined it yet (a pass committed
+// into it: its files are there, only the push is awaited), and its markers keep it from no other
 // library (joinedElsewhere).
 function waitsToJoin(device: Library | undefined, target: Library): device is Library {
   if (!device || device.id === target.id || target.owner.kind !== 'account') return false;
+  if (device.mergedInto?.library === target.id && device.mergedInto.committed) return false;
   return joinedElsewhere(device, target) === null;
 }
 
@@ -105,9 +107,9 @@ export function deviceLibraryToJoin(): Library | null {
 }
 
 // Whatever this device's library holds (added before any sign-in) joins the open library when that
-// is its owner's account library: at the sign-in, at every boot and at the end of the open library's
-// first full pull (runPendingMerges), so a merge that waited or failed is tried again (mergeRun.ts,
-// crash-safe and idempotent). One marked for a library still listed is resumeMerges', so a boot never
+// is its owner's account library: at the sign-in, at every boot, at the end of the open library's
+// first full pull and at the end of the push a committed merge waits for (runPendingMerges), so a
+// merge that waited or failed is tried again (mergeRun.ts, crash-safe and idempotent). One marked for a library still listed is resumeMerges', so a boot never
 // runs a merge twice. A failure doesn't fail the sign-in or the boot: the device library stays
 // parked until the next try.
 export async function mergeDeviceLibrary(): Promise<void> {

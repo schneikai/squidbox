@@ -5,9 +5,11 @@ import { sameAccount } from './sameAccount';
  * A device library's merge marker (library/mergeRun.ts), in the library list and in the library's own
  * database: the library a merge is adding it to, and that library's account. From the first pass that
  * commits records, the device library belongs to that account: it never joins another account's
- * library, and a library of the same account that replaces a lost one takes it over.
+ * library, and a library of the same account that replaces a lost one takes it over. `committed`
+ * once a pass committed into that library: the device library has joined it, and waits only for its
+ * push (sync-design §8).
  */
-export type MergeMarker = { library: string; serverId: string; userId: string };
+export type MergeMarker = { library: string; serverId: string; userId: string; committed?: true };
 
 // What a library holds of its merges: in the list (Library), or read from its database.
 type Markers = { keptFor?: string | null; mergedInto?: MergeMarker | null };

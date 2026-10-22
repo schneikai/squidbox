@@ -18,7 +18,7 @@ import { push as serverPush } from '../../server/src/sync/push.js';
 import { sentFields } from '../../server/src/sync/sentFields.js';
 import readPost from '../src/features/post-detail/readPost';
 import { libraryPaths } from '../src/library/libraryPaths';
-import { applyMerge, mergeWaits, planMerge } from '../src/library/mergeLibrary';
+import { applyMerge, finishMerge, mergeWaits, planMerge } from '../src/library/mergeLibrary';
 import * as repo from '../src/sync/assetsRepository';
 import type { RemoveFiles } from '../src/sync/assetsRepository';
 import { clientCollectionTables } from '../src/sync/clientCollections';
@@ -28,7 +28,7 @@ import { makeEdgeRepository } from '../src/sync/edgesRepository';
 import { toModernChanges } from '../src/sync/legacyBase';
 import { retryFailures } from '../src/sync/outbox';
 import { makeRepository } from '../src/sync/repository';
-import { getMergeMarks, setMergeMarks, setMergeTarget, setOwner } from '../src/sync/status';
+import { setMergeTarget, setOwner } from '../src/sync/status';
 import { sweepPurgedFiles } from '../src/sync/sweepPurgedFiles';
 import type { SyncTransport } from '../src/sync/transport';
 import { upsertRows } from '../src/sync/upsertRows';
@@ -1120,15 +1120,10 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     // A pass committed into the account's library T after its first pull: the marker, then the commit.
     // The source learns the pass's marks once T has pushed it (finishPass, as mergeRun does then).
     async function commitPass(D: SyncDb, T: SyncDb, t: number) {
-      at(t);
-      const plan = await planMerge(D, T, libraryPaths('device'));
       await setMergeTarget(D, { library: 'T', serverId: 's1', userId: 'u1' });
-      await applyMerge(T, plan);
+      await mergeInto(T, D, t);
     }
-    async function finishPass(D: SyncDb, T: SyncDb) {
-      const name = libraryPaths('device').dbName;
-      await setMergeMarks(D, name, await getMergeMarks(T, name));
-    }
+    const finishPass = (D: SyncDb, T: SyncDb) => finishMerge(D, T, libraryPaths('device').dbName);
     async function deviceLibraryWith(id: string) {
       const D = makeTestDb();
       await upsertRows(D, 'assets', clientSchema.assets, [{ ...(await localRow(A, 'assets', id))!, syncError: null }]);
@@ -1305,8 +1300,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
 
       const T2 = makeTestDb();
       await settle([A, B, T2]); // its first full pull
-      at(S + 400);
-      await applyMerge(T2, await planMerge(D, T2, libraryPaths('device')));
+      await mergeInto(T2, D, S + 400);
       await settle([A, B, T2]);
 
       expect(await expectConverged('assets', id, [A, B, T2])).toMatchObject({
@@ -1346,8 +1340,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
 
       const T2 = makeTestDb();
       await settle([A, B, T2]);
-      at(S + 600);
-      await applyMerge(T2, await planMerge(D, T2, libraryPaths('device')));
+      await mergeInto(T2, D, S + 600);
       await settle([A, B, T2]);
 
       expect(await expectConverged('assets', id, [A, B, T2])).toMatchObject({
@@ -1390,8 +1383,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       );
       const T2 = makeTestDb();
       await settle([A, B, T2]);
-      at(S + 600);
-      await applyMerge(T2, await planMerge(D, T2, libraryPaths('device')));
+      await mergeInto(T2, D, S + 600);
       await settle([A, B, T2]);
       return expectConverged('assets', id, [A, B, T2]);
     }
@@ -1468,8 +1460,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
 
       const T2 = makeTestDb();
       await settle([A, B, T2]);
-      at(S + 400);
-      await applyMerge(T2, await planMerge(D, T2, libraryPaths('device')));
+      await mergeInto(T2, D, S + 400);
       await settle([A, B, T2]);
 
       expect(await expectConverged('assets', id, [A, B, T2])).toMatchObject({ notes: 'device' });
@@ -1502,8 +1493,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       await edit(D, S + 500, () => repo.toggleFavorite(D, id));
       const T2 = makeTestDb();
       await settle([A, B, T2]);
-      at(S + 600);
-      await applyMerge(T2, await planMerge(D, T2, libraryPaths('device')));
+      await mergeInto(T2, D, S + 600);
       await settle([A, B, T2]);
 
       expect(await expectConverged('assets', id, [A, B, T2])).toMatchObject({

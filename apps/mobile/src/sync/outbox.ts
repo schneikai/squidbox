@@ -1,5 +1,5 @@
 import { chunk, type FieldClocks } from '@squidbox/shared';
-import { and, count, eq, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, count, eq, isNotNull, isNull, max, min, sql, sum } from 'drizzle-orm';
 
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
@@ -112,4 +112,33 @@ export async function countOutbox(db: SyncDb): Promise<{ pending: number; failed
     .select({ pending: count(), failed: db.$count(schema.outbox, failedOutboxRows) })
     .from(schema.outbox);
   return { pending: row?.pending ?? 0, failed: row?.failed ?? 0 };
+}
+
+/** The newest outbox row's id, 0 when the outbox is empty. */
+export async function newestOutboxId(db: SyncDb): Promise<number> {
+  const [row] = await db.select({ id: max(schema.outbox.id) }).from(schema.outbox);
+  return row?.id ?? 0;
+}
+
+/** The oldest outbox row's id, null when the outbox is empty (pushedThrough). */
+export async function oldestOutboxId(db: SyncDb): Promise<number | null> {
+  const [row] = await db.select({ id: min(schema.outbox.id) }).from(schema.outbox);
+  return row?.id ?? null;
+}
+
+/**
+ * Whether no outbox row up to `id` is left, given the oldest row's id: the rows of one record
+ * coalesce in place and keep their id, so what was written by the time `id` was the newest has pushed.
+ */
+export const pushedThrough = (oldest: number | null, id: number) => oldest === null || oldest > id;
+
+/**
+ * The outbox's state as a string that changes with every write enqueued: a new row, or a record's
+ * next updatedAt (which only grows) on its row.
+ */
+export async function outboxVersion(db: SyncDb): Promise<string> {
+  const [row] = await db
+    .select({ rows: count(), newest: max(schema.outbox.id), clocks: sum(schema.outbox.updatedAt) })
+    .from(schema.outbox);
+  return `${row?.rows ?? 0}:${row?.newest ?? 0}:${row?.clocks ?? 0}`;
 }

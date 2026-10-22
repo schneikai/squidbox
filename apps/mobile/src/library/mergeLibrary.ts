@@ -11,13 +11,14 @@ import { nextVersion } from '@/sync/clock';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
-import { pendingEdits } from '@/sync/outbox';
+import { outboxVersion, pendingEdits } from '@/sync/outbox';
 import { readByIdMap } from '@/sync/readByIds';
 import { saveRecords } from '@/sync/saveRecords';
 import {
+  clearMergeMarks,
+  commitMergeMarks,
   getMergeMarks,
   isFirstSyncDone,
-  setMergeCommitted,
   setMergeMarks,
   type MergeDecision,
   type MergeMark,
@@ -57,6 +58,7 @@ export interface MergePlan {
   // Matched records whose backup failed before: it tries again, with the device's copy.
   retried: string[];
   keepsSource: boolean; // a photo whose file is in another account's storage stays in the source
+  sourceVersion: string; // the source's outbox as planned (outboxVersion)
 }
 
 const FILE_OPS = 50; // file-system calls in flight at once
@@ -83,7 +85,8 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
   const name = sourcePaths.dbName;
   const sourceOutbox = await source.select().from(schema.outbox);
   const outboxOf = new Map(sourceOutbox.map((row) => [`${row.collection}:${row.recordId}`, row]));
-  const decided = newerOf(await getMergeMarks(source, name), await getMergeMarks(target, name));
+  // The source's marks are those of passes that pushed; the target's, of this library's, made since.
+  const decided = { ...(await getMergeMarks(source, name)), ...(await getMergeMarks(target, name)) };
   const marks = { ...decided };
   const mark = (collection: string, row: Row, made: MergeDecision) => {
     marks[`${collection}:${row.id}`] = { ...made, at: row.updatedAt };
@@ -329,19 +332,15 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
     thumbnails: thumbnails.list,
     retried: [...retried],
     keepsSource,
+    sourceVersion: await outboxVersion(source),
   };
 }
 
 // The replay of a source outbox row (its fields edited since the last commit) onto the target's row,
 // as the server would merge it (mergeRecord, sync-design §7), against the target's pending clocks (0
 // for a field the target hasn't edited: the server settles it), a pending purge not final. Null when
-// nothing applies or changes; the clocks are the newer of the two, so a pending edit isn't set back.
-function replayOnto(
-  collection: string,
-  stored: Row,
-  pending: FieldClocks | undefined,
-  sent: Replay['sent'],
-): Pick<schema.OutboxRow, 'payload' | 'fields'> | null {
+// nothing applies; the clocks are the newer of the two, so a pending edit isn't set back.
+function replayOnto(collection: string, stored: Row, pending: FieldClocks | undefined, sent: Sent): Sent | null {
   const descriptor = collectionsByName[collection]!;
   const storedClocks = { ...Object.fromEntries(descriptor.clockedFields.map((field) => [field, 0])), ...pending };
   const { record, applied } = mergeRecord(descriptor, {
@@ -392,14 +391,6 @@ async function isEmpty(db: SyncDb): Promise<boolean> {
     if ((await db.select().from(table).limit(1)).length > 0) return false;
   }
   return true;
-}
-
-// Each record's newer decision of two sets of marks (the source's and the target's).
-function newerOf(...sets: Record<string, MergeMark>[]): Record<string, MergeMark> {
-  const out: Record<string, MergeMark> = {};
-  for (const set of sets)
-    for (const [key, made] of Object.entries(set)) if (!out[key] || made.at > out[key].at) out[key] = made;
-  return out;
 }
 
 // A note appended to another unless it is there already: the same note, or whole lines of it,
@@ -496,9 +487,17 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<void>
       clocks.set(id, Object.fromEntries(Object.keys(changes).map((field) => [field, written.updatedAt])));
     }
     await saveRecords(tx, 'assets', schema.assets, next, { clocks });
-    await setMergeMarks(tx, plan.marks.source, plan.marks.decided);
-    await setMergeCommitted(tx, plan.marks.source);
+    await commitMergeMarks(tx, plan.marks.source, plan.marks.decided, plan.sourceVersion);
   });
+}
+
+/**
+ * The merge's finish, once the target has pushed its passes (sync-design §8): the source learns
+ * their decisions, then the target's marks go.
+ */
+export async function finishMerge(source: SyncDb, target: SyncDb, sourceName: string): Promise<void> {
+  await setMergeMarks(source, sourceName, await getMergeMarks(target, sourceName));
+  await clearMergeMarks(target, sourceName);
 }
 
 /**

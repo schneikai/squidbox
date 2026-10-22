@@ -9,7 +9,7 @@ export interface Library {
   id: string;
   owner: Owner;
   // The library this one is joining, and its account (mergeMarker.ts): set while the merge runs, so a
-  // boot finishes one a crash interrupted.
+  // boot finishes one a crash interrupted or one waiting for its push (`committed`).
   mergedInto?: MergeMarker;
   // The library this one joined and stays beside, for photos in another account's storage: never
   // merged again, never into another one.

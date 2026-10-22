@@ -85,10 +85,18 @@ vi.mock('../src/library/mergeLibrary', async (importOriginal) => {
   };
 });
 
+vi.mock('../src/sync/worker', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/sync/worker')>()),
+  requestSync: vi.fn(),
+}));
+
 const { closeLibrary, openLibrary, openLibraryId, sweepOpenLibrary } = await import('../src/library/current');
 const { getRegistry, loadRegistry, updateLibrary, updateRegistry } = await import('../src/library/registry');
 const { mergeLibrary, resumeMerges } = await import('../src/library/mergeRun');
 const { getDb } = await import('../src/sync/db/client');
+const { requestSync } = await import('../src/sync/worker');
+const { planMerge: plannedMerge } = await import('../src/library/mergeLibrary');
+const plans = () => vi.mocked(plannedMerge).mock.calls.length;
 
 const albums = makeRepository('albums', schema.albums);
 const DEV = { id: 'dev', owner: { kind: 'device' as const } };
@@ -145,23 +153,29 @@ describe('mergeLibrary / resumeMerges', () => {
     const a = await devicePhoto({ filename: 'a.jpg', mediaLibraryAssetId: 'm-a' });
     await albums.create(sourceDb(), makeAlbumRecord({ name: 'Trip' }));
 
+    vi.mocked(requestSync).mockClear();
     await mergeLibrary('dev', 'acc');
 
+    expect(requestSync).toHaveBeenCalled(); // the pass's rows push right after it
     expect((await getDb().select().from(schema.assets)).map((row) => row.id)).toEqual([a.id]);
     expect(await getDb().select().from(schema.albums)).toHaveLength(1);
     expect(files.has(getAssetFileUri('a.jpg', TGT))).toBe(true);
     expect(files.has(getAssetFileUri('a.jpg', SRC))).toBe(false);
     const waiting = async () => {
-      expect(entry('dev')).toEqual({ ...DEV, mergedInto: marker('acc') });
+      expect(entry('dev')).toEqual({ ...DEV, mergedInto: { ...marker('acc'), committed: true } });
+      expect(await getMergeTarget(sourceDb())).toEqual({ ...marker('acc'), committed: true });
       expect(stores.has(SRC.dbName)).toBe(true);
       expect(await getMergeMarks(sourceDb(), SRC.dbName)).toEqual({});
     };
     await waiting();
 
-    // A relaunch before the push: the boot's pass finds nothing new, and the source still waits.
+    // A relaunch before the push: with the source as the pass left it, the boot plans nothing, and
+    // the source still waits.
     await closeLibrary();
     await openLibrary(ACC);
+    const planned = plans();
     await resumeMerges();
+    expect(plans()).toBe(planned);
     await waiting();
 
     // The push: what usePendingMerges watches turns true, and the merges due run.
@@ -185,6 +199,32 @@ describe('mergeLibrary / resumeMerges', () => {
 
     await resumeMerges();
 
+    expect(entry('dev')).toBeUndefined();
+  });
+
+  // While the push waits, a pass plans again only for what it hasn't done: files a crash kept from
+  // moving, or a source edited since (opened again while the session had no tokens).
+  it('plans again while the push waits only for files left to move or an edited source', async () => {
+    const a = await devicePhoto({ filename: 'a.jpg', mediaLibraryAssetId: 'm-a' });
+    await commitPass(); // committed, then the app stopped before the move
+    let planned = plans();
+    await resumeMerges();
+    expect(plans()).toBe(planned + 1);
+    expect(files.has(getAssetFileUri('a.jpg', TGT))).toBe(true);
+    expect(entry('dev')).toEqual({ ...DEV, mergedInto: { ...marker('acc'), committed: true } });
+
+    planned = plans();
+    await resumeMerges();
+    expect(plans()).toBe(planned);
+
+    await repo.updateAsset(sourceDb(), a.id, { notes: 'edited on the device' });
+    await resumeMerges();
+    expect(plans()).toBe(planned + 1);
+    expect((await getDb().select().from(schema.assets))[0]!.notes).toBe('edited on the device');
+    await resumeMerges();
+    expect(plans()).toBe(planned + 1);
+
+    await pushAndFinish();
     expect(entry('dev')).toBeUndefined();
   });
 

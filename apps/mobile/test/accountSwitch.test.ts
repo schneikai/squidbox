@@ -704,38 +704,34 @@ describe('switching libraries with the session', () => {
   // file into A's folders; the device library waits, marked, for A's push (offline, or a row the
   // server keeps rejecting). The user taps "Rebuild from server" (Library sync → Troubleshooting),
   // which clears A's first-sync flag and shows the setup screen again, and signs out there (or the
-  // server rejects the session during that pull). libraryToOpen sees A's library "not pulled" and the
-  // device library waiting to join it, and opens the device library: its photo's file is in A's
-  // folders now, so the photo shows without its file, while A's library, which holds it, is hidden.
-  // Expected: the library shown holds the photo with its file. Actual: the device library opens, and
-  // the photo's file is not in its folders.
-  it.fails(
-    'round 16: a rebuild while a merge waits for its push, then a setup sign-out: the photo shown keeps its file',
-    async () => {
-      await loadRegistry(async () => ({ libraries: [] }));
-      await open(null);
-      const deviceId = getLibrary().id;
-      const photo = await repo.createAsset(
-        getDb(),
-        makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
-      );
-      files.add(getAssetFileUri('a.jpg', libraryPaths(deviceId)));
-      await signIn(sessionOf('A'));
-      const aId = getLibrary().id;
-      await firstPullDrains(); // the pass commits and moves the file; the push hasn't happened
-      expect(files.has(getAssetFileUri('a.jpg', libraryPaths(aId)))).toBe(true);
-      expect(getRegistry().libraries.find(({ id }) => id === deviceId)?.mergedInto?.library).toBe(aId);
+  // server rejects the session during that pull). libraryToOpen sees A's library "not pulled", but
+  // the device library's marker says committed: it has joined A's library, which holds its photo and
+  // the photo's file, and A's library stays open. The setup screen counts no photos to add.
+  it('round 16: a rebuild while a merge waits for its push, then a setup sign-out: the photo shown keeps its file', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    const deviceId = getLibrary().id;
+    const photo = await repo.createAsset(
+      getDb(),
+      makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+    );
+    files.add(getAssetFileUri('a.jpg', libraryPaths(deviceId)));
+    await signIn(sessionOf('A'));
+    const aId = getLibrary().id;
+    await firstPullDrains(); // the pass commits and moves the file; the push hasn't happened
+    expect(files.has(getAssetFileUri('a.jpg', libraryPaths(aId)))).toBe(true);
+    expect(getRegistry().libraries.find(({ id }) => id === deviceId)?.mergedInto?.library).toBe(aId);
 
-      const offline = {
-        push: async () => Promise.reject(new Error('offline')),
-        pull: async () => Promise.reject(new Error('offline')),
-      };
-      await expect(fullResync(getDb(), offline)).rejects.toThrow('offline'); // Rebuild from server
-      await signOut(); // the setup screen's Sign out
-      await open(store.session); // what watchTokenDrops runs after the drop
+    const offline = {
+      push: async () => Promise.reject(new Error('offline')),
+      pull: async () => Promise.reject(new Error('offline')),
+    };
+    await expect(fullResync(getDb(), offline)).rejects.toThrow('offline'); // Rebuild from server
+    await signOut(); // the setup screen's Sign out
+    await open(store.session); // what watchTokenDrops runs after the drop
 
-      expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
-      expect(files.has(getAssetFileUri('a.jpg', libraryPaths(getLibrary().id)))).toBe(true);
-    },
-  );
+    expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
+    expect(files.has(getAssetFileUri('a.jpg', libraryPaths(getLibrary().id)))).toBe(true);
+    expect(deviceLibraryToJoin()).toBeNull();
+  });
 });
