@@ -134,7 +134,11 @@ export async function moveFile(from: string, to: string): Promise<void> {
   await FileSystem.moveAsync({ from, to });
 }
 
-// Copies a file into a destination that doesn't exist yet.
+// Copies a file into a destination that doesn't exist yet, whole or not at all: to a temporary name
+// next to it (a copy cut off there before is removed first), then renamed into place.
 export async function copyFile(from: string, to: string): Promise<void> {
-  await FileSystem.copyAsync({ from, to });
+  const partial = `${to}.partial`;
+  await FileSystem.deleteAsync(partial, { idempotent: true });
+  await FileSystem.copyAsync({ from, to: partial });
+  await FileSystem.moveAsync({ from: partial, to });
 }

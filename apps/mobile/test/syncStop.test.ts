@@ -109,9 +109,9 @@ describe('withSyncPaused', () => {
     await withSyncPaused(async () => setSyncTarget(null));
   });
 
-  // Round 21: a full resync tapped just before a paused section starts finds the runs paused: it is
-  // asked again, and the full resync (not a plain sync) runs after the section.
-  it('a full resync held back by a pause runs after the section', async () => {
+  // Round 21: a full resync tapped just before a paused section starts finds the runs paused: it fails
+  // with a message to try again (the section may switch libraries), and nothing runs in its place.
+  it('a full resync held back by a pause fails, to be tapped again', async () => {
     await setCursor(db, 5000); // a sync pulls from here, a full resync from the start
     const pulls: number[] = [];
     transportImpl.current = {
@@ -124,10 +124,11 @@ describe('withSyncPaused', () => {
     await withSyncPaused(async () => setSyncTarget({ db, identity: {}, library: {} } as SyncTarget));
     await vi.waitFor(() => expect(pulls).toEqual([5000])); // the sync setting the target asks for
 
-    runFullResync().catch(() => {});
+    const resync = runFullResync();
     await withSyncPaused(async () => {}); // paused before the full resync starts
 
-    await vi.waitFor(() => expect(pulls).toEqual([5000, 0]));
+    await expect(resync).rejects.toThrow('Sync is busy right now, try again in a moment');
+    expect(pulls).toEqual([5000]);
     await withSyncPaused(async () => setSyncTarget(null));
   });
 

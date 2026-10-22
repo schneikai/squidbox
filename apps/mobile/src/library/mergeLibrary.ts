@@ -5,7 +5,6 @@ import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import { copyFile, fileExists, listFiles, moveFile } from './fs';
 import type { LibraryPaths } from './libraryPaths';
 
-import { setSyncError } from '@/sync/assetsRepository';
 import { clientCollectionTables } from '@/sync/clientCollections';
 import { nextVersion } from '@/sync/clock';
 import * as schema from '@/sync/db/schema';
@@ -57,8 +56,8 @@ export interface MergePlan {
   // several entries (a file records share, from earlier builds) is copied to all but its last.
   files: [string, string][];
   thumbnails: [string, string][];
-  // Records with a sync error whose file the target holds once the files moved (moveMergedFiles): their
-  // backup tries again, with the device's copy (retryBackups).
+  // Records with a sync error whose original file this pass delivers: once moveMergedFiles has
+  // verified it, their backup tries again, with the device's copy.
   retried: string[];
   keepsSource: boolean; // a photo whose file is in another account's storage stays in the source
 }
@@ -256,14 +255,14 @@ export async function planMerge(
   );
   const files = new Moves(sourceFiles, targetFiles);
   const thumbnails = new Moves(sourceThumbnails, targetThumbnails);
-  // A record whose file or thumbnail the target holds once the files moved tries its backup again (a
-  // sync error from a backup made while the file was still in the device library's folder goes).
+  // A record whose original file this pass delivers tries its backup again (a sync error from a backup
+  // made while the file was still in the device library's folder goes).
   const retried = new Set<string>();
   for (const asset of sameId) {
     const fileGiven = files.add(asset.filename, asset.filename);
-    const thumbnailGiven = thumbnails.add(asset.thumbnailFilename, asset.thumbnailFilename);
+    thumbnails.add(asset.thumbnailFilename, asset.thumbnailFilename);
     const syncError = targetById.get(asset.id)?.syncError ?? null;
-    if ((fileGiven || thumbnailGiven) && syncError !== null) retried.add(asset.id);
+    if (fileGiven && syncError !== null) retried.add(asset.id);
   }
   // The device's copies of a matched record that the cloud hasn't, under its names, so the record
   // keeps a file once the source goes (its backup uploads it), unless its purge is confirmed; a
@@ -272,8 +271,8 @@ export async function planMerge(
   for (const [asset, match] of matchCopies) {
     if (confirmedPurge(match, pendingMatches.get(match.id)?.fields)) continue;
     const fileGiven = !match.isFileSynced && files.add(asset.filename, match.filename);
-    const thumbnailGiven = !match.isThumbnailSynced && thumbnails.add(asset.thumbnailFilename, match.thumbnailFilename);
-    if ((fileGiven || thumbnailGiven) && match.syncError !== null) retried.add(match.id);
+    if (!match.isThumbnailSynced) thumbnails.add(asset.thumbnailFilename, match.thumbnailFilename);
+    if (fileGiven && match.syncError !== null) retried.add(match.id);
   }
 
   // Albums and posts.
@@ -429,7 +428,7 @@ function mergedNotes(target: string | null, source: string | null): string | nul
 // [from, to] moves out of a folder into another: only what the first holds, into what the second
 // lacks (a move skipped for a destination there would be planned again), each destination once; a
 // source in several (a file records share, from earlier builds) is copied to all but its last.
-// `add` says whether the destination holds the file once the moves are made.
+// `add` says whether it planned the move.
 class Moves {
   readonly list: [string, string][] = [];
   private readonly destinations = new Set<string>();
@@ -438,8 +437,7 @@ class Moves {
     private readonly present: Set<string>,
   ) {}
   add(from: string, to: string): boolean {
-    if (this.present.has(to) || this.destinations.has(to)) return true;
-    if (!this.held.has(from)) return false;
+    if (!this.held.has(from) || this.present.has(to) || this.destinations.has(to)) return false;
     this.destinations.add(to);
     this.list.push([from, to]);
     return true;
@@ -550,29 +548,27 @@ export async function moveMergedFiles(plan: MergePlan, sourcePaths: LibraryPaths
   await transferAll(
     moves.filter(([from], i) => last.get(from) !== i),
     copyFile,
+    'copy',
   );
   await transferAll(
     moves.filter(([from], i) => last.get(from) === i),
     moveFile,
+    'move',
   );
 }
 
-async function transferAll(pairs: [string, string][], transfer: (from: string, to: string) => Promise<void>) {
+async function transferAll(
+  pairs: [string, string][],
+  transfer: (from: string, to: string) => Promise<void>,
+  verb: 'copy' | 'move',
+) {
   for (const batch of chunk(pairs, FILE_OPS)) {
     await Promise.all(
       batch.map(async ([from, to]) => {
         if (await fileExists(to)) return;
         await transfer(from, to);
-        if (!(await fileExists(to))) throw new Error(`Could not move ${from} to ${to}`);
+        if (!(await fileExists(to))) throw new Error(`Could not ${verb} ${from} to ${to}`);
       }),
     );
   }
-}
-
-/**
- * After the moves: the retried records' backups try again (their sync errors go), now that the
- * target holds their files.
- */
-export async function retryBackups(target: SyncDb, plan: MergePlan): Promise<void> {
-  await setSyncError(target, plan.retried, null);
 }

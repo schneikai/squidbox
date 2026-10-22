@@ -595,9 +595,11 @@ backs it up and keeps it in sync, and signing out only pauses that.
   before); every record in one transaction of the target with its outbox row; files, found by
   listing the source's folders and the target's, moved into missing destinations after the commit
   (only those are planned, so a move once made is never planned again; a file records share, from
-  earlier builds, is copied to all its destinations but the last, moved to that one); once the files
-  arrived, a record holding its file there has its sync error cleared, so its backup tries again
-  (`retryBackups`); the source removed when nothing is left in it, once the target has pushed. A
+  earlier builds, is copied to all its destinations but the last, moved to that one, each copy made
+  under a temporary name and renamed into place, so a destination holds the whole file or none);
+  once the moves are verified, a record whose original file this pass delivered has its sync error
+  cleared, so its backup tries again (a crash between the move and that leaves the error, for Retry
+  all); the source removed when nothing is left in it, once the target has pushed. A
   pending edit of a record the target has is merged into the target's row with `mergeRecord` against
   the target's pending clocks, and what applies goes into its outbox through `saveRecords` with the
   source's clocks; it and the camera-roll matches' merges are made again inside the commit's
@@ -634,7 +636,8 @@ backs it up and keeps it in sync, and signing out only pauses that.
       true, once per change: a merge that can't finish waits for the next boot or commit; a commit
       whose files haven't moved yet is its pass's and doesn't count). A sync run a paused section cut
       short requests a sync after the section (a full resync's pull resumes from its cursor), and a
-      run a paused section kept from starting asks for the same run again after it (`withSyncRun`).
+      sync a paused section kept from starting asks again after it (`withSyncRun`); a full resync kept
+      from starting fails with "Sync is busy right now" instead, as the section may switch libraries.
       Until the push, a run whose files moved, with the source's outbox as the last pass saw it,
       plans nothing; the finish plans once more.
     - A target lost before it pushed leaves the source with no marks of it, or only those of earlier

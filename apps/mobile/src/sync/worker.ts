@@ -408,6 +408,8 @@ export interface SyncTarget {
   library: LibraryPaths;
 }
 
+// A sync a pause kept from starting asks again: the section is queued in the same flight, so it runs
+// after it.
 const syncFlight = createSingleFlight(() => withSyncRun(runSyncOnce, requestSync));
 let syncTarget: SyncTarget | null = null;
 
@@ -453,8 +455,8 @@ type SyncWork = (db: SyncDb, transport: SyncTransport, options: SyncRunOptions) 
 // identity on every request (so a mid-run refresh is picked up and another user's session is
 // refused, which ends the run like an abort), and record the run's terminal status (idle on
 // success, error on throw). Callers run it through syncFlight so it never overlaps another sync.
-// `again` asks for the same run once more, when a paused section keeps this one from starting.
-async function withSyncRun(work: SyncWork, again: () => void): Promise<void> {
+// `blocked` answers a paused section keeping this run from starting.
+async function withSyncRun(work: SyncWork, blocked: () => void): Promise<void> {
   if (!syncTarget) return;
   const { db, identity, library } = syncTarget;
   // Their session store and file system need the native modules the tests lack.
@@ -466,9 +468,8 @@ async function withSyncRun(work: SyncWork, again: () => void): Promise<void> {
     signal = runSignal;
     return work(db, httpTransport(identity), { signal: runSignal, removeFiles });
   });
-  // Paused: the section is queued in the same flight, so the run asked for again now runs after it.
   if (!run) {
-    again();
+    blocked();
     return;
   }
   try {
@@ -483,10 +484,12 @@ async function withSyncRun(work: SyncWork, again: () => void): Promise<void> {
 }
 
 // Bound Inspector actions (the open library + HTTP transport).
+// A full resync a pause kept from starting fails instead of running later: the section may switch the
+// library (a sign-in, a sign-out), and it would wipe that one's tables without its warning.
 export function runFullResync(): Promise<void> {
   return syncFlight.exclusive(() =>
     withSyncRun(fullResync, () => {
-      runFullResync().catch(() => {});
+      throw new Error('Sync is busy right now, try again in a moment');
     }),
   );
 }
