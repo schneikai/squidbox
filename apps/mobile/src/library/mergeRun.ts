@@ -70,20 +70,21 @@ export async function mergeLibrary(sourceId: string, targetId: string): Promise<
     if (joined && 'keptFor' in joined) await forgetMerge(sourceDb, name); // a kept merge a crash interrupted
     if (joined) return joined;
     if (await mergeWaits(sourceDb, targetDb)) return 'waits';
-    const plan = await planMerge(sourceDb, targetDb, libraryPaths(sourceId));
+    const plan = await planMerge(sourceDb, targetDb, libraryPaths(sourceId), targetId);
+    let committed = plan.marks.decided;
     await setMarker(sourceId, marker);
     try {
       if (writesTarget(plan)) {
         // Set before the target's commit (two databases can't share one): a pass that fails takes it back.
         await setMergeTarget(sourceDb, marker);
-        await applyMerge(targetDb, plan);
+        committed = await applyMerge(targetDb, plan);
       }
     } catch (error) {
       await setMergeTarget(sourceDb, markers.mergedInto);
       await setMarker(sourceId, before);
       throw error;
     }
-    await setMergeMarks(sourceDb, name, plan.marks.decided);
+    await setMergeMarks(sourceDb, name, committed);
     await moveMergedFiles(plan, libraryPaths(sourceId), libraryPaths(targetId));
     await setMergeMarks(targetDb, name, null); // complete: before keptFor, which ends every later pass
     if (!plan.keepsSource) return 'done';

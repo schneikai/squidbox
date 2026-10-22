@@ -73,16 +73,15 @@ export async function setMergeTarget(db: SyncDb, marker: MergeMarker | null): Pr
   else await db.delete(schema.syncMeta).where(eq(schema.syncMeta.key, MERGE_TARGET_KEY));
 }
 /**
- * What a committed merge pass decided for a source record (`collection:id`, library/mergeLibrary.ts),
- * and the record's updatedAt then: copied as itself (or the target had it by id), merged into the
- * target's record `into` (a camera-roll match), or skipped (an edge whose membership the target had).
- * A later pass never decides again: it only replays the record's newer edits along that decision.
+ * What a committed merge pass decided for a source record (`collection:id`, library/mergeLibrary.ts,
+ * sync-design §8 "the merge model"): copied as itself (or the target had it by id), merged into the
+ * target's record `into` (a camera-roll match), or skipped (an edge whose membership the target had);
+ * with the record's updatedAt then and the library it was made in (`in`; none from earlier builds).
+ * A match records what its passes brought to `into` and the clock each was written at (`brought`).
  */
-export type MergeDecision =
-  | { as: 'copy' }
-  | { as: 'match'; into: string; mergedAt?: number } // mergedAt: the clock its values went into `into` at
-  | { as: 'skip' };
-export type MergeMark = MergeDecision & { at: number };
+export type MergeBrought = { isFavorite?: number; notes?: { text: string; at: number } };
+export type MergeDecision = { as: 'copy' } | { as: 'match'; into: string; brought?: MergeBrought } | { as: 'skip' };
+export type MergeMark = MergeDecision & { at: number; in?: string };
 
 // The marks of a source library (by its database name), kept in the target (committed with each
 // pass) and in the source itself (after it), so they survive a change of target.

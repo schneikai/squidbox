@@ -16,9 +16,9 @@ const DONE_KEY = 'mergeMarkersBackfilled';
 // (mergeMarker.ts) and takes the markers from the library's own database (mergeRun.ts), which a list
 // rebuilt from the databases restores them from (rebuildRegistry). Once, at the first boot of this
 // build, after resolveOwners and before any merge runs: the list's markers take the account of the
-// library they name (and go when it is gone), then they are copied into each
-// existing database that lacks them, so a list lost later can't let a kept library join a second
-// account. Until a run completes, every boot tries.
+// library they name (and go when it is gone), then they are copied into each existing database that
+// lacks them, so a list lost later can't let a kept library join a second account. Until a run
+// completes, every boot tries.
 export async function backfillMergeMarkers(): Promise<void> {
   if (await AsyncStorage.getItem(DONE_KEY)) return;
   await updateRegistry((registry) => {

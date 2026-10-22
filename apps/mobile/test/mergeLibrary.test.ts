@@ -87,7 +87,7 @@ describe('planMerge + applyMerge', () => {
     await albumEdges.add(source, album.id, [a.id, b.id, gone.id], newEdgeId);
     await createPost(source, { text: 'hello' }, [a.id]);
 
-    const plan = await planMerge(source, target, SRC);
+    const plan = await planMerge(source, target, SRC, 'tgt');
     expect([plan.assets.length, plan.albums.length, plan.posts.length]).toEqual([2, 1, 1]);
     expect(plan.keepsSource).toBe(true);
     expect(plan.albumAssets.map((edge) => edge.assetId).sort()).toEqual([a.id, b.id].sort()); // not the deleted one
@@ -102,7 +102,7 @@ describe('planMerge + applyMerge', () => {
     expect((await target.select().from(schema.assets)).every((row) => row.syncError === null)).toBe(true);
 
     // Nothing left to add but the photo that lives elsewhere; the copied ones' files are still here.
-    const again = await planMerge(source, target, SRC);
+    const again = await planMerge(source, target, SRC, 'tgt');
     expect(writesTarget(again)).toBe(false);
     expect(again.keepsSource).toBe(true);
     expect(again.files.sort()).toEqual(same('a.jpg', 'b.jpg'));
@@ -115,18 +115,22 @@ describe('planMerge + applyMerge', () => {
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await repo.updateAsset(source, shared.id, { notes: 'edited on the device' }); // outbox row, updatedAt now
 
-    const plan = await planMerge(source, target, SRC);
+    const plan = await planMerge(source, target, SRC, 'tgt');
     expect(plan.assets).toEqual([]);
     expect(plan.files).toEqual([]);
     expect(plan.replays.map((row) => row.recordId)).toEqual([shared.id]);
     await applyMerge(target, plan);
     const [row] = await outbox(target);
-    expect(row).toMatchObject({ collection: 'assets', recordId: shared.id, updatedAt: plan.replays[0]!.updatedAt });
+    expect(row).toMatchObject({
+      collection: 'assets',
+      recordId: shared.id,
+      updatedAt: plan.replays[0]!.payload.updatedAt,
+    });
     expect(row!.payload).toMatchObject({ notes: 'edited on the device' });
     // The target shows the edit at once, not after a push and pull.
     const [targetRow] = await target.select().from(schema.assets);
-    expect(targetRow).toMatchObject({ notes: 'edited on the device', updatedAt: plan.replays[0]!.updatedAt });
-    expect(writesTarget(await planMerge(source, target, SRC))).toBe(false);
+    expect(targetRow).toMatchObject({ notes: 'edited on the device', updatedAt: plan.replays[0]!.payload.updatedAt });
+    expect(writesTarget(await planMerge(source, target, SRC, 'tgt'))).toBe(false);
   });
 
   it('a replay pushes the fields the device changed, keeping the account’s newer values of the others', async () => {
@@ -135,11 +139,11 @@ describe('planMerge + applyMerge', () => {
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, isFavorite: true, syncError: null }]);
     await repo.updateAsset(source, shared.id, { notes: 'edited on the device' });
 
-    const plan = await planMerge(source, target, SRC);
+    const plan = await planMerge(source, target, SRC, 'tgt');
     await applyMerge(target, plan);
     const [row] = await outbox(target);
     expect(row!.fields).toEqual(plan.replays[0]!.fields);
-    expect(row!.fields).toEqual({ notes: plan.replays[0]!.updatedAt });
+    expect(row!.fields).toEqual({ notes: plan.replays[0]!.payload.updatedAt });
     const [targetRow] = await target.select().from(schema.assets);
     expect(targetRow).toMatchObject({ notes: 'edited on the device', isFavorite: true });
     expect(row!.payload).toMatchObject({ notes: 'edited on the device', isFavorite: true });
@@ -158,7 +162,7 @@ describe('planMerge + applyMerge', () => {
       { ...shared, filename: 'b.jpg', updatedAt: later, syncError: null },
     ]);
 
-    await applyMerge(target, await planMerge(source, target, SRC));
+    await applyMerge(target, await planMerge(source, target, SRC, 'tgt'));
     const [row] = await outbox(target);
     expect(row!.fields).toEqual(sourceRow!.fields);
     expect(await target.select().from(schema.assets)).toMatchObject([
@@ -174,7 +178,7 @@ describe('planMerge + applyMerge', () => {
     await new Promise((resolve) => setTimeout(resolve, 5));
     await repo.updateAsset(target, shared.id, { notes: 'newer' });
 
-    const plan = await planMerge(source, target, SRC);
+    const plan = await planMerge(source, target, SRC, 'tgt');
     expect(Object.keys(plan.replays[0]!.fields)).toEqual(['isFavorite']);
     await applyMerge(target, plan);
     expect(await target.select().from(schema.assets)).toMatchObject([{ notes: 'newer', isFavorite: true }]);
@@ -189,7 +193,7 @@ describe('planMerge + applyMerge', () => {
     await new Promise((resolve) => setTimeout(resolve, 5));
     await repo.updateAsset(target, shared.id, { notes: 'newer' });
 
-    const plan = await planMerge(source, target, SRC);
+    const plan = await planMerge(source, target, SRC, 'tgt');
     expect(plan.replays).toEqual([]);
     expect(writesTarget(plan)).toBe(false);
   });
@@ -199,7 +203,7 @@ describe('planMerge + applyMerge', () => {
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await repo.updateAsset(source, shared.id, { notes: 'device', oldFileId: 'device' });
-    const plan = await planMerge(source, target, SRC);
+    const plan = await planMerge(source, target, SRC, 'tgt');
     await new Promise((resolve) => setTimeout(resolve, 5));
     await repo.updateAsset(target, shared.id, { notes: 'account, meanwhile', isFavorite: true }); // the app is in use
     await applyMerge(target, plan);
@@ -210,9 +214,9 @@ describe('planMerge + applyMerge', () => {
   it('a photo matched by an earlier pass, then deleted on the device, doesn’t come in as a trashed copy', async () => {
     const theirs = await repo.createAsset(target, makeAssetRecord({ mediaLibraryAssetId: 'm-1' }));
     const mine = await devicePhoto({ mediaLibraryAssetId: 'm-1', isFavorite: true });
-    await applyMerge(target, await planMerge(source, target, SRC));
+    await applyMerge(target, await planMerge(source, target, SRC, 'tgt'));
     await repo.deleteAssets(source, [mine.id]);
-    const again = await planMerge(source, target, SRC);
+    const again = await planMerge(source, target, SRC, 'tgt');
     expect([again.assets, again.duplicates]).toEqual([[], []]);
     expect((await target.select().from(schema.assets)).map((row) => [row.id, row.deletedAt])).toEqual([
       [theirs.id, null],
@@ -230,7 +234,7 @@ describe('planMerge + applyMerge', () => {
     const album = await albums.create(source, makeAlbumRecord({ name: 'Trip' }));
     await albumEdges.add(source, album.id, [mine.id], newEdgeId);
 
-    const plan = await planMerge(source, target, SRC);
+    const plan = await planMerge(source, target, SRC, 'tgt');
     expect([plan.assets.length, plan.albums.length]).toEqual([0, 1]);
     expect(plan.duplicates).toMatchObject([{ id: theirs.id, isFavorite: true, notes: 'theirs\nmine' }]);
     expect(plan.albumAssets.map((edge) => edge.assetId)).toEqual([theirs.id]);
@@ -242,13 +246,13 @@ describe('planMerge + applyMerge', () => {
     await moveMergedFiles(plan, SRC, TGT);
     expect(moves).toEqual([]);
     expect(files.has(getAssetFileUri('mine.jpg', SRC))).toBe(true);
-    expect(writesTarget(await planMerge(source, target, SRC))).toBe(false);
+    expect(writesTarget(await planMerge(source, target, SRC, 'tgt'))).toBe(false);
   });
 
   it('keeps same-name albums separate', async () => {
     await albums.create(target, makeAlbumRecord({ name: 'Trip' }));
     await albums.create(source, makeAlbumRecord({ name: 'Trip' }));
-    const plan = await planMerge(source, target, SRC);
+    const plan = await planMerge(source, target, SRC, 'tgt');
     await applyMerge(target, plan);
     expect((await target.select().from(schema.albums)).map((row) => row.name)).toEqual(['Trip', 'Trip']);
   });
@@ -256,7 +260,7 @@ describe('planMerge + applyMerge', () => {
   it('copies in one transaction: a failure leaves the target untouched', async () => {
     const a = await devicePhoto();
     await albums.create(source, makeAlbumRecord({ name: 'Trip' }));
-    const plan = await planMerge(source, target, SRC);
+    const plan = await planMerge(source, target, SRC, 'tgt');
     // The target gets a record with that id meanwhile: the copy's insert conflicts.
     await upsertRows(target, 'assets', schema.assets, [{ ...a, syncError: null }]);
 
@@ -269,10 +273,10 @@ describe('planMerge + applyMerge', () => {
     await devicePhoto({ filename: 'a.jpg', thumbnailFilename: 'at.jpg', mediaLibraryAssetId: 'm-a' });
     await devicePhoto({ filename: 'b.jpg', thumbnailFilename: 'bt.jpg', mediaLibraryAssetId: 'm-b' });
     files.add(getAssetFileUri('b.jpg', TGT)); // the target already has b's file
-    const plan = await planMerge(source, target, SRC);
+    const plan = await planMerge(source, target, SRC, 'tgt');
     await applyMerge(target, plan);
 
-    const resumed = await planMerge(source, target, SRC); // the plan of a boot after a crash
+    const resumed = await planMerge(source, target, SRC, 'tgt'); // the plan of a boot after a crash
     expect([resumed.files.sort(), resumed.thumbnails.sort()]).toEqual([plan.files.sort(), plan.thumbnails.sort()]);
     await moveMergedFiles(resumed, SRC, TGT);
     expect(moves.sort()).toEqual(
@@ -286,12 +290,12 @@ describe('planMerge + applyMerge', () => {
     const before = [...files].sort();
     await moveMergedFiles(resumed, SRC, TGT);
     expect([...files].sort()).toEqual(before);
-    expect((await planMerge(source, target, SRC)).files).toEqual(same('b.jpg'));
+    expect((await planMerge(source, target, SRC, 'tgt')).files).toEqual(same('b.jpg'));
   });
 
   it('a move whose destination is then missing is an error, so the source is never removed on it', async () => {
     await devicePhoto({ filename: 'a.jpg', thumbnailFilename: 'at.jpg', mediaLibraryAssetId: 'm-a' });
-    const plan = await planMerge(source, target, SRC);
+    const plan = await planMerge(source, target, SRC, 'tgt');
     await applyMerge(target, plan);
     lose.add(getAssetFileUri('a.jpg', SRC));
     await expect(moveMergedFiles(plan, SRC, TGT)).rejects.toThrow('Could not move');
@@ -302,12 +306,12 @@ describe('planMerge + applyMerge', () => {
     await devicePhoto({ mediaLibraryAssetId: 'm-1', isFavorite: true, notes: 'first', filename: 'one.jpg' });
     await devicePhoto({ mediaLibraryAssetId: 'm-1', isFavorite: false, notes: 'second', filename: 'two.jpg' });
 
-    const plan = await planMerge(source, target, SRC);
+    const plan = await planMerge(source, target, SRC, 'tgt');
     expect(plan.duplicates).toMatchObject([{ id: theirs.id, isFavorite: true, notes: 'first\nsecond' }]);
     await applyMerge(target, plan);
     const [row] = await target.select().from(schema.assets);
     expect(row).toMatchObject({ isFavorite: true, notes: 'first\nsecond' });
-    expect(writesTarget(await planMerge(source, target, SRC))).toBe(false);
+    expect(writesTarget(await planMerge(source, target, SRC, 'tgt'))).toBe(false);
   });
 
   it('a copied photo whose file is on the device is backed up to the account again', async () => {
@@ -318,7 +322,7 @@ describe('planMerge + applyMerge', () => {
       isThumbnailSynced: true,
       isSynced: true,
     });
-    const plan = await planMerge(source, target, SRC);
+    const plan = await planMerge(source, target, SRC, 'tgt');
     expect(plan.keepsSource).toBe(false);
     await applyMerge(target, plan);
     const [row] = await target.select().from(schema.assets);
@@ -329,18 +333,18 @@ describe('planMerge + applyMerge', () => {
     const a = await devicePhoto({ mediaLibraryAssetId: 'm-a' });
     const album = await albums.create(source, makeAlbumRecord({ name: 'Trip' }));
     await albumEdges.add(source, album.id, [a.id], newEdgeId);
-    await applyMerge(target, await planMerge(source, target, SRC)); // the edge is in the target now
+    await applyMerge(target, await planMerge(source, target, SRC, 'tgt')); // the edge is in the target now
     await new Promise((resolve) => setTimeout(resolve, 5));
     await albumEdges.remove(source, album.id, [a.id]); // removed on the device afterwards, not pushed
 
-    const plan = await planMerge(source, target, SRC);
+    const plan = await planMerge(source, target, SRC, 'tgt');
     expect(plan.replays.map((row) => row.collection)).toEqual(['album_assets']);
     await applyMerge(target, plan);
     const [row] = await outbox(target).then((rows) => rows.filter((r) => r.collection === 'album_assets'));
     expect(row!.payload).toMatchObject({ deletedAt: expect.any(Number) });
     const [edge] = await target.select().from(schema.albumAssets);
     expect(edge!.deletedAt).toEqual(expect.any(Number));
-    expect(writesTarget(await planMerge(source, target, SRC))).toBe(false);
+    expect(writesTarget(await planMerge(source, target, SRC, 'tgt'))).toBe(false);
   });
 });
 
@@ -364,7 +368,7 @@ describe('replays against a pending edit of the target (adversarial)', () => {
     await tick();
     await repo.updateAllAssets(target, [shared.id], { deletedAt: null }); // the account restores it later
 
-    await applyMerge(target, await planMerge(source, target, SRC));
+    await applyMerge(target, await planMerge(source, target, SRC, 'tgt'));
     const [row] = await target.select().from(schema.assets);
     const [pending] = await outbox(target);
     // The newer restore stands, and the outbox pushes it with its clock.
@@ -389,7 +393,7 @@ describe('replays against a pending edit of the target (adversarial)', () => {
           await tick();
         }
 
-        await applyMerge(target, await planMerge(source, target, SRC));
+        await applyMerge(target, await planMerge(source, target, SRC, 'tgt'));
         const [row] = await target.select().from(schema.assets);
         const [pending] = await outbox(target);
         const outcome = restoreLater
@@ -409,7 +413,7 @@ describe('replays against a pending edit of the target (adversarial)', () => {
     await tick();
     await repo.deleteAssets(source, [shared.id]); // the device deletes it later
 
-    await applyMerge(target, await planMerge(source, target, SRC));
+    await applyMerge(target, await planMerge(source, target, SRC, 'tgt'));
     const [row] = await target.select().from(schema.assets);
     const [pending] = await outbox(target);
     expect(row!.purgedAt).toEqual(expect.any(Number));
@@ -423,7 +427,7 @@ describe('replays against a pending edit of the target (adversarial)', () => {
     await tick();
     await repo.purgeAssets(target, [shared.id]);
 
-    await applyMerge(target, await planMerge(source, target, SRC));
+    await applyMerge(target, await planMerge(source, target, SRC, 'tgt'));
     const [row] = await target.select().from(schema.assets);
     const [pending] = await outbox(target);
     expect(row).toMatchObject({ notes: 'device notes', deletedAt: 5000, purgedAt: expect.any(Number) });
@@ -442,7 +446,7 @@ describe('replays against a pending edit of the target (adversarial)', () => {
     await repo.updateAsset(source, shared.id, { isFileSynced: true, isThumbnailSynced: true, isSynced: true });
     await repo.updateAsset(source, shared.id, { oldFileId: 'x' }); // the newest edit
 
-    await applyMerge(target, await planMerge(source, target, SRC));
+    await applyMerge(target, await planMerge(source, target, SRC, 'tgt'));
     const [row] = await target.select().from(schema.assets);
     const [pending] = await outbox(target);
     const [sourcePending] = await outbox(source);
@@ -471,23 +475,23 @@ describe('a device library merged again', () => {
 
   it('a delete and purge made on the device after a first pass reach the account', async () => {
     const asset = await devicePhoto({ filename: 'x.jpg', thumbnailFilename: 'xt.jpg', mediaLibraryAssetId: 'm-x' });
-    await applyMerge(target, await planMerge(source, target, SRC)); // the first pass; its file move never ran
+    await applyMerge(target, await planMerge(source, target, SRC, 'tgt')); // the first pass; its file move never ran
     await tick();
     await repo.deleteAssets(source, [asset.id]);
     await tick();
     await repo.purgeAssets(source, [asset.id]);
 
-    await applyMerge(target, await planMerge(source, target, SRC));
+    await applyMerge(target, await planMerge(source, target, SRC, 'tgt'));
     expect(await targetRow()).toMatchObject({ deletedAt: expect.any(Number), purgedAt: expect.any(Number) });
   });
 
   it('a photo deleted on the device after a first pass still has its file moved', async () => {
     const asset = await devicePhoto({ filename: 'x.jpg', thumbnailFilename: 'xt.jpg', mediaLibraryAssetId: 'm-x' });
-    await applyMerge(target, await planMerge(source, target, SRC));
+    await applyMerge(target, await planMerge(source, target, SRC, 'tgt'));
     await tick();
     await repo.deleteAssets(source, [asset.id]);
 
-    const plan = await planMerge(source, target, SRC);
+    const plan = await planMerge(source, target, SRC, 'tgt');
     await applyMerge(target, plan);
     expect((await targetRow()).deletedAt).toEqual(expect.any(Number)); // in the account's Deleted album
     expect([plan.files, plan.thumbnails]).toEqual([same('x.jpg'), same('xt.jpg')]);
@@ -501,7 +505,7 @@ describe('a device library merged again', () => {
     await tick();
     await repo.purgeAssets(target, [asset.id]); // pending in the account
 
-    await applyMerge(target, await planMerge(source, target, SRC));
+    await applyMerge(target, await planMerge(source, target, SRC, 'tgt'));
     expect(await targetRow()).toMatchObject({ deletedAt: expect.any(Number), purgedAt: expect.any(Number) });
     const [pending] = await outbox(target);
     expect(pending!.payload).toMatchObject({ purgedAt: expect.any(Number) });
@@ -513,7 +517,7 @@ describe('a device library merged again', () => {
       { ...asset, deletedAt: 5000, purgedAt: 6000, updatedAt: 6000, syncError: null },
     ]); // purged in the account, confirmed: nothing pending
 
-    const plan = await planMerge(source, target, SRC);
+    const plan = await planMerge(source, target, SRC, 'tgt');
     await applyMerge(target, plan);
     expect((await targetRow()).purgedAt).toBe(6000);
     expect([plan.files, plan.thumbnails]).toEqual([[], []]);
@@ -523,20 +527,41 @@ describe('a device library merged again', () => {
 // A committed pass records per source record what it decided (getMergeMarks): copied, merged into
 // a camera-roll match, or skipped. Later passes only replay newer edits along that decision.
 describe('the decisions of a committed pass', () => {
+  // A mark records the library it was made in: a crash after a completed merge cleared the target's
+  // copy of the marks makes nothing "elsewhere", so the account's later changes aren't undone.
+  it('a mark made in this library re-sends nothing, with the target’s marks cleared', async () => {
+    const theirs = await repo.createAsset(target, makeAssetRecord({ mediaLibraryAssetId: 'm-1', notes: null }));
+    await devicePhoto({ mediaLibraryAssetId: 'm-1', isFavorite: true, notes: 'mine' });
+    const plan = await planMerge(source, target, SRC, 'tgt');
+    await setMergeMarks(source, plan.marks.source, await applyMerge(target, plan));
+    await setMergeMarks(target, plan.marks.source, null); // completed, then a crash before the source went
+    // The account takes it back on another device; the pull brings that.
+    const [merged] = await target.select().from(schema.assets);
+    await target.delete(schema.outbox);
+    await upsertRows(target, 'assets', schema.assets, [
+      { ...merged!, notes: null, isFavorite: false, updatedAt: Date.now() + 1000 },
+    ]);
+
+    const again = await planMerge(source, target, SRC, 'tgt');
+    expect([again.replays, again.duplicates]).toEqual([[], []]);
+    // Taken as made elsewhere, what that pass brought would go again (the server settling its clock).
+    expect((await planMerge(source, target, SRC, 'other')).replays).toHaveLength(1);
+    expect(theirs.id).toBe(merged!.id);
+  });
+
   // mergeRun writes the marks into the source after the target's commit: a new target (the earlier
   // library went, and the account's next one pulled) finds them there.
   it('survive a change of target: a matched photo the account deleted since isn’t copied back', async () => {
     const theirs = makeAssetRecord({ mediaLibraryAssetId: 'm-1' });
     await upsertRows(target, 'assets', schema.assets, [{ ...theirs, syncError: null }]);
     await devicePhoto({ mediaLibraryAssetId: 'm-1', filename: 'mine.jpg' });
-    const plan = await planMerge(source, target, SRC);
-    await applyMerge(target, plan);
-    await setMergeMarks(source, plan.marks.source, plan.marks.decided);
+    const plan = await planMerge(source, target, SRC, 'tgt');
+    await setMergeMarks(source, plan.marks.source, await applyMerge(target, plan));
 
     const next = makeTestDb();
     await markFirstSyncDone(next);
     await upsertRows(next, 'assets', schema.assets, [{ ...theirs, deletedAt: 9, updatedAt: 9, syncError: null }]);
-    const again = await planMerge(source, next, SRC);
+    const again = await planMerge(source, next, SRC, 'next');
     expect([again.assets, again.duplicates, again.files]).toEqual([[], [], []]);
   });
 
@@ -548,12 +573,12 @@ describe('the decisions of a committed pass', () => {
     const a = await devicePhoto({ mediaLibraryAssetId: 'm-1' });
     const b = await devicePhoto({ mediaLibraryAssetId: 'm-1' });
     await albumEdges.add(source, album.id, [a.id, b.id], newEdgeId);
-    const plan = await planMerge(source, target, SRC);
+    const plan = await planMerge(source, target, SRC, 'tgt');
     expect(plan.albumAssets.map((edge) => edge.assetId)).toEqual([theirs.id]);
     await applyMerge(target, plan);
 
     await albumEdges.remove(target, album.id, [theirs.id]);
-    const again = await planMerge(source, target, SRC);
+    const again = await planMerge(source, target, SRC, 'tgt');
     expect(again.albumAssets).toEqual([]);
     await applyMerge(target, again);
     const live = await target.select().from(schema.albumAssets).where(isNull(schema.albumAssets.deletedAt));
@@ -583,7 +608,7 @@ describe('a device library that never synced (no account)', () => {
     });
     expect(removed).toEqual(['g.jpg', 'gt.jpg']);
 
-    const plan = await planMerge(source, target, SRC);
+    const plan = await planMerge(source, target, SRC, 'tgt');
     expect(plan.assets.map((asset) => asset.id)).toEqual([kept.id]); // the purged one is a tombstone left behind
     expect([plan.files, plan.thumbnails]).toEqual([same('k.jpg'), same('kt.jpg')]); // its files go with the source
     expect(plan.keepsSource).toBe(false);
@@ -599,7 +624,7 @@ describe('a big device library', () => {
       makeAssetRecord({ mediaLibraryAssetId: `m-${i}`, filename: `f${i}.jpg`, isFileSynced: false }),
     );
     await repo.createAssets(source, photos);
-    const plan = await planMerge(source, target, SRC);
+    const plan = await planMerge(source, target, SRC, 'tgt');
     expect(plan.assets).toHaveLength(10_000);
   });
 });

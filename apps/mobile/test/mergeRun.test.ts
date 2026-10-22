@@ -167,7 +167,7 @@ describe('mergeLibrary / resumeMerges', () => {
     const { applyMerge, planMerge } = await import('../src/library/mergeLibrary');
     const a = await devicePhoto({ filename: 'a.jpg', mediaLibraryAssetId: 'm-a' });
     await updateLibrary('dev', (library) => ({ ...library, mergedInto: marker('acc') }));
-    await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC)); // committed, then the crash
+    await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC, 'acc')); // committed, then the crash
     const later = await devicePhoto({ filename: 'later.jpg', mediaLibraryAssetId: 'm-later' });
 
     await resumeMerges();
@@ -270,7 +270,7 @@ describe('a failed pass after an earlier one committed', () => {
     // Pass 1: the markers, every record committed into the account, then the crash.
     await updateLibrary('dev', (library) => ({ ...library, mergedInto: marker('acc') }));
     await setMergeTarget(sourceDb(), marker('acc'));
-    await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC));
+    await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC, 'acc'));
 
     // The session is lost: the device library opens again, and its photo is purged there.
     await closeLibrary();
@@ -369,7 +369,7 @@ describe('a merge pass run again (a crash, a failed file move)', () => {
     const { applyMerge, planMerge } = await import('../src/library/mergeLibrary');
     await updateLibrary('dev', (library) => ({ ...library, mergedInto: marker('acc') }));
     await setMergeTarget(sourceDb(), marker('acc'));
-    await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC));
+    await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC, 'acc'));
   }
   async function openDevice() {
     await closeLibrary();
@@ -521,7 +521,7 @@ describe('round 8: a resumed pass and a matched photo the account deleted since'
     // Pass 1: the markers, the commit, then the crash.
     await updateLibrary('dev', (library) => ({ ...library, mergedInto: marker('acc') }));
     await setMergeTarget(sourceDb(), marker('acc'));
-    await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC));
+    await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC, 'acc'));
     expect((await getDb().select().from(schema.assets)).map((row) => row.id)).toEqual([accountPhoto.id]);
 
     await repo.deleteAssets(getDb(), [accountPhoto.id]); // the user deletes it in the account
@@ -564,7 +564,7 @@ describe('round 8: a device library an earlier pass copied into a library that i
     const photo = await devicePhoto({ filename: 'a.jpg', mediaLibraryAssetId: 'm-a' });
     await updateLibrary('dev', (library) => ({ ...library, mergedInto: marker('acc') }));
     await setMergeTarget(sourceDb(), marker('acc'));
-    await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC)); // committed, then the crash
+    await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC, 'acc')); // committed, then the crash
     expect((await getDb().select().from(schema.assets))[0]).toMatchObject({ id: photo.id, isFileSynced: false });
 
     storage.clear(); // the list is lost and rebuilt from the databases' owners
@@ -613,9 +613,9 @@ describe('round 9: records an earlier library never pushed', () => {
     // The pass into acc: the markers, the commit, the source's marks, then the crash before the move.
     await updateLibrary('dev', (library) => ({ ...library, mergedInto: marker('acc') }));
     await setMergeTarget(sourceDb(), marker('acc'));
-    const plan = await planMerge(sourceDb(), getDb(), SRC);
-    await applyMerge(getDb(), plan);
-    await setMergeMarks(sourceDb(), SRC.dbName, plan.marks.decided);
+    const plan = await planMerge(sourceDb(), getDb(), SRC, 'acc');
+    const committed = await applyMerge(getDb(), plan);
+    await setMergeMarks(sourceDb(), SRC.dbName, committed);
 
     // acc is lost before any push; the device adds a photo to the album meanwhile.
     await closeLibrary();
@@ -708,7 +708,7 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
     await devicePhoto({ mediaLibraryAssetId: 'm-r', filename: 'r2.jpg' });
     await updateLibrary('dev', (library) => ({ ...library, mergedInto: marker('acc') }));
     await setMergeTarget(sourceDb(), marker('acc'));
-    await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC)); // committed, then the crash
+    await applyMerge(getDb(), await planMerge(sourceDb(), getDb(), SRC, 'acc')); // committed, then the crash
     await repo.deleteAssets(getDb(), [accountPhoto.id]);
     await repo.purgeAssets(getDb(), [accountPhoto.id]); // pending in the account's outbox
 
@@ -739,9 +739,9 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
 // app stops before the files move. `acc` is lost before it pushed anything (as in round 9), and the
 // device library joins `acc2`, a new library of the same account, whose first pull brought X as the
 // server has it: not a favorite, no note. The match decision stands (X has a row), and as it was made
-// in another library (acc2's marks don't hold it), its merge goes again, stamped at the clock pass 1
-// merged it at (`mergedAt`): per-field LWW settles it, so a merge acc never pushed is made again, and
-// a later change of the account wins.
+// in another library (its mark's `in` is acc), what pass 1 brought goes again, at the clock pass 1
+// wrote it at (`brought`): per-field LWW settles it, so a merge acc never pushed is made again, and a
+// later change of the account wins.
 describe('round 12: a camera-roll match an earlier library never pushed', () => {
   const ACC2 = { id: 'acc2', owner: { kind: 'account' as const, serverId: 's1', userId: 'u1', email: 'u1@test' } };
   const TGT2 = libraryPaths('acc2');
@@ -764,14 +764,15 @@ describe('round 12: a camera-roll match an earlier library never pushed', () => 
     await upsertRows(getDb(), 'assets', schema.assets, [{ ...accountPhoto, syncError: null }]);
     await updateLibrary('dev', (library) => ({ ...library, mergedInto: marker('acc') }));
     await setMergeTarget(sourceDb(), marker('acc'));
-    const plan = await planMerge(sourceDb(), getDb(), SRC);
-    await applyMerge(getDb(), plan);
-    await setMergeMarks(sourceDb(), SRC.dbName, plan.marks.decided);
-    // The match's mark holds the clock its merge went into the account's photo at.
-    const mergedAt = Object.values(plan.marks.decided).find((made) => made.as === 'match');
-    expect(mergedAt).toMatchObject({
+    const plan = await planMerge(sourceDb(), getDb(), SRC, 'acc');
+    const committed = await applyMerge(getDb(), plan);
+    await setMergeMarks(sourceDb(), SRC.dbName, committed);
+    // The match's mark holds what its merge brought to the account's photo, and the clock it did.
+    const matchMark = Object.values(committed).find((made) => made.as === 'match');
+    expect(matchMark).toMatchObject({
       as: 'match',
-      mergedAt: (await getDb().select().from(schema.assets))[0]!.updatedAt,
+      in: 'acc',
+      brought: { isFavorite: (await getDb().select().from(schema.assets))[0]!.updatedAt },
     });
     await closeLibrary();
     stores.delete(TGT.dbName);
@@ -812,10 +813,12 @@ describe('round 12: a camera-roll match an earlier library never pushed', () => 
 
   // Round 13: while acc2 hadn't pulled yet and the session had no tokens, the device library was open
   // again (libraryToOpen) and the same camera-roll item was imported a second time (imports don't
-  // dedupe). The pass into acc2 merges the new photo into X as a fresh match (a duplicate, written at
-  // now) and the first photo's merge again (a replay at pass 1's clock). applyMerge replays first, so
-  // the duplicate adds to the redone note instead of beating it: X has both.
-  it('round 13: a photo of the same item imported again keeps the redone note', async () => {
+  // dedupe). The pass into acc2 merges the new photo into X as a fresh match (written at now) and
+  // the first photo's merge again (a replay at pass 1's clock). The fresh merge brings only the new
+  // photo's values onto X as it was before the replay, so the redone note never rides along at now
+  // (round 14: it would come back after the account deleted it); on the notes field the fresh merge,
+  // at now, wins. The redone favorite, a field the fresh merge doesn't touch, keeps pass 1's clock.
+  it('round 13: a photo of the same item imported again: the redone favorite stays, the fresh note wins', async () => {
     const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-x', isFavorite: false, notes: null });
     await devicePhoto({ mediaLibraryAssetId: 'm-x', filename: 'd.jpg', isFavorite: true, notes: 'from the beach' });
     await passIntoAccThenLost(accountPhoto);
@@ -826,13 +829,12 @@ describe('round 12: a camera-roll match an earlier library never pushed', () => 
 
     expect(entry('dev')).toBeUndefined();
     const [row] = await getDb().select().from(schema.assets);
-    expect(row!.isFavorite).toBe(true);
-    expect(row!.notes?.split('\n').sort()).toEqual(['from the beach', 'imported again']);
+    expect(row).toMatchObject({ isFavorite: true, notes: 'imported again' });
   });
 
   // Round 13: the pass into acc2 that redoes the match sets the source's marker to acc2 before its
   // commit (mergeRun.ts). The app is stopped inside that commit (rolled back): the marker names acc2
-  // while acc2 holds nothing of the pass. "Elsewhere" is a mark acc2's committed marks don't hold, not
+  // while acc2 holds nothing of the pass. "Elsewhere" is a mark made in another library (`in`), not
   // the marker, so the next launch redoes the match.
   it('round 13: a redo pass stopped inside its commit is redone at the next launch', async () => {
     const { applyMerge } = await import('../src/library/mergeLibrary');

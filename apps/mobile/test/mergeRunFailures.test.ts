@@ -108,8 +108,9 @@ vi.mock('../src/library/mergeLibrary', async (importOriginal) => {
     },
     applyMerge: async (...args: Parameters<typeof original.applyMerge>) => {
       reach('apply');
-      await original.applyMerge(...args);
+      const committed = await original.applyMerge(...args);
       reach('afterCommit'); // the transaction committed, and its promise still rejects
+      return committed;
     },
   };
 });

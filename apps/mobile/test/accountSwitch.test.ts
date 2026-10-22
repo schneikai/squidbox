@@ -671,8 +671,7 @@ describe('switching libraries with the session', () => {
     await open(store.session); // what watchTokenDrops runs after the drop
     expect(getLibrary().id).toBe(aId);
 
-    // The app is closed and opened again: the boot's fallback opens the account's library
-    // (LibraryProvider reports a failed switch as the boot error only once booted).
+    // The app is closed and opened again: the boot's fallback opens the account's library.
     await closeLibrary();
     await bootLibrary(switchLibrary);
     expect(getLibrary().id).toBe(aId);
