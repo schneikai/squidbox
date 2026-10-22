@@ -592,8 +592,8 @@ backs it up and keeps it in sync, and signing out only pauses that.
   (`{ library, serverId, userId }`) on the source, in the list and, from the first pass that copies
   records, in its own database; only a completed merge clears them, and a pass that fails before its
   commit leaves both as they were before it; every record in one transaction of the target with its
-  outbox row; files, found by listing the source's folders, moved into missing destinations after
-  the commit; the source removed when nothing is left in it, once the target has pushed. A pending
+  outbox row; files, found by listing the source's folders and the target's, moved into missing
+  destinations after the commit (only those are planned, so a move once made is never planned again); the source removed when nothing is left in it, once the target has pushed. A pending
   edit of a record the target has is merged into the target's row with `mergeRecord` against the
   target's pending clocks, and what applies goes into its outbox through `saveRecords` with the
   source's clocks; it and the camera-roll matches' merges are made again inside the commit's
@@ -605,8 +605,9 @@ backs it up and keeps it in sync, and signing out only pauses that.
       `sync/status.ts`): copied (or the target had it by id), merged into target record X (a
       camera-roll match), or skipped (an edge whose membership the target had), with the record's
       `updatedAt` then. The marks are committed in the target with its records, and with the newest
-      outbox row then (`mergeCommitted:<source>`, `MergeCommit.through`; once the pass's files moved,
-      `source`, the source's outbox as the pass saw it). There they are the authority: a pass run
+      outbox row then (`mergeCommitted:<source>`, `MergeCommit.through`; a pass that queues no row
+      keeps the earlier passes' row, or none; once the pass's files moved, `source`, the source's
+      outbox as the pass saw it). There they are the authority: a pass run
       again (a crash, a failed file move, a boot) replays only the record's edits after its mark. A
       sync is requested after the commit, so its rows push when the paused section ends.
     - A pass that writes nothing but moves files into the target's folders (a match with nothing to
@@ -626,8 +627,9 @@ backs it up and keeps it in sync, and signing out only pauses that.
       finish run again after a crash before the source went finds the target's cleared), the
       target's commit and marks go, and the source is removed or kept. The boot, a sign-in and the
       end of the push run it (`runPendingMerges`, from `usePendingMerges` when `anyMergePushed` turns
-      true, once per change: a merge that can't finish waits for the next boot or commit). A sync run
-      a paused section cut short requests another, which runs after the section (`withSyncRun`).
+      true, once per change: a merge that can't finish waits for the next boot or commit; a commit
+      whose files haven't moved yet is its pass's and doesn't count). A sync run a paused section cut
+      short, or kept from starting, requests another, which runs after the section (`withSyncRun`).
       Until the push, a run whose files moved, with the source's outbox as the last pass saw it,
       plans nothing; the finish plans once more.
     - A target lost before it pushed leaves the source with no marks of it, or only those of earlier
