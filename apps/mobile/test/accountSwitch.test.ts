@@ -71,14 +71,20 @@ vi.mock('@sentry/react-native', () => ({ captureException: () => {}, captureMess
 // The boot's network check: the stored session as it is (offline).
 vi.mock('../src/utils/cloud-api/initializeCloudAsync', () => ({ default: async () => store.session }));
 const dbNames: string[] = []; // the databases on disk, for a registry rebuild
+// The files on disk by uri: none unless a test adds them.
+const files = vi.hoisted(() => new Set<string>());
 vi.mock('../src/library/fs', () => ({
   listDatabaseNames: async () => dbNames,
   databaseExists: async (name: string) => dbNames.includes(name),
-  listFiles: async () => new Set(),
+  listFiles: async (dir: string) =>
+    new Set([...files].filter((uri) => uri.startsWith(dir)).map((uri) => uri.slice(dir.length))),
   createLibraryFolders: async () => {},
   removeLibraryFolders: async () => {},
-  fileExists: async () => false,
-  moveFile: async () => {},
+  fileExists: async (uri: string) => files.has(uri),
+  moveFile: async (from: string, to: string) => {
+    files.delete(from);
+    files.add(to);
+  },
   libraryLimitMessage: (error: Error) => (error.message.startsWith('no room') ? 'No more libraries' : null),
 }));
 const ids = vi.hoisted(() => ({ n: 0 }));
@@ -102,6 +108,9 @@ const {
 } = await import('../src/library/sessionLibrary');
 const { switchLibrary } = await import('../src/library/switchLibrary');
 const { getDb, openAppDb } = await import('../src/sync/db/client');
+const { fullResync } = await import('../src/sync/worker');
+const { libraryPaths } = await import('../src/library/libraryPaths');
+const { default: getAssetFileUri } = await import('../src/utils/assets/files/getAssetFileUri');
 const { dropTokensAsync: signOut } = await import('../src/utils/cloud-api/sessionStore');
 const { default: refreshAccessTokenAsync } =
   await import('../src/utils/cloud-api/authentication/refreshAccessTokenAsync');
@@ -157,6 +166,7 @@ describe('switching libraries with the session', () => {
     storage.clear();
     store.session = null;
     dbNames.length = 0;
+    files.clear();
     ids.n = 0;
   });
 
@@ -689,4 +699,43 @@ describe('switching libraries with the session', () => {
     await bootLibrary(switchLibrary);
     expect(getLibrary().id).toBe(aId);
   });
+
+  // Round 16: the sign-in's pass committed the device library into A's library and moved the photo's
+  // file into A's folders; the device library waits, marked, for A's push (offline, or a row the
+  // server keeps rejecting). The user taps "Rebuild from server" (Library sync → Troubleshooting),
+  // which clears A's first-sync flag and shows the setup screen again, and signs out there (or the
+  // server rejects the session during that pull). libraryToOpen sees A's library "not pulled" and the
+  // device library waiting to join it, and opens the device library: its photo's file is in A's
+  // folders now, so the photo shows without its file, while A's library, which holds it, is hidden.
+  // Expected: the library shown holds the photo with its file. Actual: the device library opens, and
+  // the photo's file is not in its folders.
+  it.fails(
+    'round 16: a rebuild while a merge waits for its push, then a setup sign-out: the photo shown keeps its file',
+    async () => {
+      await loadRegistry(async () => ({ libraries: [] }));
+      await open(null);
+      const deviceId = getLibrary().id;
+      const photo = await repo.createAsset(
+        getDb(),
+        makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+      );
+      files.add(getAssetFileUri('a.jpg', libraryPaths(deviceId)));
+      await signIn(sessionOf('A'));
+      const aId = getLibrary().id;
+      await firstPullDrains(); // the pass commits and moves the file; the push hasn't happened
+      expect(files.has(getAssetFileUri('a.jpg', libraryPaths(aId)))).toBe(true);
+      expect(getRegistry().libraries.find(({ id }) => id === deviceId)?.mergedInto?.library).toBe(aId);
+
+      const offline = {
+        push: async () => Promise.reject(new Error('offline')),
+        pull: async () => Promise.reject(new Error('offline')),
+      };
+      await expect(fullResync(getDb(), offline)).rejects.toThrow('offline'); // Rebuild from server
+      await signOut(); // the setup screen's Sign out
+      await open(store.session); // what watchTokenDrops runs after the drop
+
+      expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
+      expect(files.has(getAssetFileUri('a.jpg', libraryPaths(getLibrary().id)))).toBe(true);
+    },
+  );
 });
