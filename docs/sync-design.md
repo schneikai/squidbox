@@ -589,12 +589,14 @@ backs it up and keeps it in sync, and signing out only pauses that.
   the list yet hasn't pulled; a listed one is asked. The setup screen's Sign out asks first
   (`confirmSignOutAsync`).
   The merge (`library/mergeRun.ts`) is crash-safe and idempotent: the `mergedInto` marker
-  (`{ library, serverId, userId }`) on the source, in the list and, from the first pass that copies
-  records, in its own database; only a completed merge clears them, and a pass that fails before its
-  commit leaves both as they were before it; every record in one transaction of the target with its
-  outbox row; files, found by listing the source's folders and the target's, moved into missing
-  destinations after the commit (only those are planned, so a move once made is never planned again); the source removed when nothing is left in it, once the target has pushed. A pending
-  edit of a record the target has is merged into the target's row with `mergeRecord` against the
+  (`{ library, serverId, userId, committed? }`) on the source, in the list and, from the commit of
+  any pass that writes or moves files, in its own database; only a completed merge clears them, and
+  a pass that fails before its commit leaves both as they were before it (joined, if it had joined
+  before); every record in one transaction of the target with its outbox row; files, found by
+  listing the source's folders and the target's, moved into missing destinations after the commit
+  (only those are planned, each file once, so a move once made is never planned again; a record
+  whose file moves has its sync error cleared, its backup tries again); the source removed when
+  nothing is left in it, once the target has pushed. A pending edit of a record the target has is merged into the target's row with `mergeRecord` against the
   target's pending clocks, and what applies goes into its outbox through `saveRecords` with the
   source's clocks; it and the camera-roll matches' merges are made again inside the commit's
   transaction, onto the rows as they are then, so an edit made on the open target meanwhile isn't
@@ -607,9 +609,9 @@ backs it up and keeps it in sync, and signing out only pauses that.
       `updatedAt` then. The marks are committed in the target with its records, and with the newest
       outbox row then (`mergeCommitted:<source>`, `MergeCommit.through`; a pass that queues no row
       keeps the earlier passes' row, or none; once the pass's files moved, `source`, the source's
-      outbox as the pass saw it). There they are the authority: a pass run
-      again (a crash, a failed file move, a boot) replays only the record's edits after its mark. A
-      sync is requested after the commit, so its rows push when the paused section ends.
+      outbox as the pass saw it). There they are the authority: a pass run again (a crash, a failed
+      file move, a boot) replays only the record's edits after its mark. A sync is requested after
+      the commit, so its rows push when the paused section ends.
     - A pass that writes nothing but moves files into the target's folders (a match with nothing to
       merge, whose record has no file in the cloud) commits its decisions all the same, so a retry
       after a failed move makes the same ones.
@@ -629,7 +631,8 @@ backs it up and keeps it in sync, and signing out only pauses that.
       end of the push run it (`runPendingMerges`, from `usePendingMerges` when `anyMergePushed` turns
       true, once per change: a merge that can't finish waits for the next boot or commit; a commit
       whose files haven't moved yet is its pass's and doesn't count). A sync run a paused section cut
-      short, or kept from starting, requests another, which runs after the section (`withSyncRun`).
+      short, or a sync kept from starting, requests another, which runs after the section
+      (`withSyncRun`; a full resync kept from starting isn't asked again: its user taps it again).
       Until the push, a run whose files moved, with the source's outbox as the last pass saw it,
       plans nothing; the finish plans once more.
     - A target lost before it pushed leaves the source with no marks of it, or only those of earlier
