@@ -481,10 +481,12 @@ Tables (`apps/mobile/src/sync/db/schema.ts`):
 - `sync_meta(key, value)`: `cursor`, `status`, `firstSyncDone`, `owner` (whose library this
   database is, JSON, so the library list can be rebuilt from the databases), and in a device
   library merged into an account's: `mergedInto` (the merge marker, JSON `{ library, serverId,
-  userId }`: the library a merge pass committed into and its account, §7a, `library/mergeMarker.ts`),
-  `keptFor` (the library it joined and stays beside) and `mergeMarks:<its database>` (the decisions
-  of its merge passes, kept until the merge completes); a target holds the marks until then too.
-  `lastSyncUserId`, from before libraries, is left unread.
+  userId, committed? }`: the library a merge pass is adding it to and its account, `committed` once
+  a pass committed there, §7a, `library/mergeMarker.ts`), `keptFor` (the library it joined and stays
+  beside) and, once the target has pushed, `mergeMarks:<its database>` (the decisions of its merge
+  passes, until the source goes). The target holds `mergeMarks:<source>` from each pass's commit,
+  and `mergeCommitted:<source>` (what the merge waits for, `MergeCommit`), until the merge finishes
+  (§8). `lastSyncUserId`, from before libraries, is left unread.
 - `outbox(id, collection, record_id, op, payload, fields, whole_record, updated_at, created_at,
   error)`: pending mutations, one row per record. `op` is `delete` when the payload has
   `deletedAt`, otherwise `upsert`. `fields` is the changed fields with their clocks (§6);
@@ -603,14 +605,22 @@ backs it up and keeps it in sync, and signing out only pauses that.
       `sync/status.ts`): copied (or the target had it by id), merged into target record X (a
       camera-roll match), or skipped (an edge whose membership the target had), with the record's
       `updatedAt` then. The marks are committed in the target with its records, and with the newest
-      outbox row then (`mergeCommitted:<source>`). There they are the authority: a pass run again (a
-      crash, a failed file move, a boot) replays only the record's edits after its mark.
-    - The source stays, marked and holding no marks, until no outbox row up to that one is left
+      outbox row then (`mergeCommitted:<source>`, with the source's outbox as the pass saw it and
+      whether its files moved). There they are the authority: a pass run again (a crash, a failed
+      file move, a boot) replays only the record's edits after its mark. A sync is requested after
+      the commit, so its rows push when the paused section ends.
+    - The source's marker says `committed` from then on, in its database and the list
+      (`rebuildRegistry` restores it): it has joined the target, whose folders hold its files, so
+      `libraryToOpen` never opens it for the target and the setup screen counts nothing to add
+      (`waitsToJoin`), a rebuild of the target included.
+    - The source stays, holding no marks, until no outbox row up to that one is left
       (`isMergePushed`; the rows of one record coalesce in place and keep their id, so an edit of
       the account made since doesn't hold the merge back, except one of a record the pass wrote,
-      until it pushes). Then the merge finishes: the source gets the marks, the target's go, and the
-      source is removed or kept. The boot runs it, and the end of the push (`runPendingMerges`, from
-      `usePendingMerges` when `anyMergePushed` turns true).
+      until it pushes). Then the merge finishes (`finishMerge`): the source gets the marks, the
+      target's go, and the source is removed or kept. The boot, a sign-in and the end of the push run
+      it (`runPendingMerges`, from `usePendingMerges` once `anyMergePushed` holds and the sync run
+      has ended, a sync requested after). Until the push, a run with the files moved and the source's
+      outbox unchanged since the last pass plans nothing; the finish plans once more.
     - A target lost before it pushed leaves the source with no marks of it, or only those of earlier
       passes that pushed: the pass into the account's next library is an ordinary one. A record with
       no decision is fresh, a match is made at now (nothing of the lost pass reached the server), and
