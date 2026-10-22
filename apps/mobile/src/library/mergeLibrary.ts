@@ -27,7 +27,7 @@ type Sent = Pick<schema.OutboxRow, 'payload' | 'fields'>;
 type Replay = Pick<schema.OutboxRow, 'collection' | 'recordId' | 'payload' | 'fields'> & { sent: Sent };
 // A device photo merged into a target asset at the commit: its mark, and what it brings.
 type Photo = { key: string; favorite: boolean; note: string | null };
-type Duplicate = { id: string; isFavorite: boolean; notes: string | null; photos: Photo[] };
+type Duplicate = { id: string; isFavorite: boolean; notes: string | null; photos: Photo[]; broughtAt: number };
 
 export interface MergePlan {
   assets: AssetRow[];
@@ -36,7 +36,8 @@ export interface MergePlan {
   albumAssets: schema.AlbumAssetRow[];
   postAssets: schema.PostAssetRow[];
   // Target assets that match a source asset by camera-roll item: favorite merged as OR, notes kept;
-  // `photos` is what the device's photos bring, merged again onto the row as it is at the commit.
+  // `photos` is what the device's photos bring, merged again onto the row as it is at the commit;
+  // `broughtAt`, the newest clock a pass made elsewhere brought to the row at (0: none).
   duplicates: Duplicate[];
   // Edits replayed onto records the target has, one per record: the target's row with what applies,
   // and its clocks; `sent` is what was sent (several sources combined per field, the newest clock
@@ -189,6 +190,7 @@ export async function planMerge(
   const assets: AssetRow[] = [];
   const merged = new Map<string, { row: AssetRow; photos: Photo[] }>(); // merged at the commit, at now
   const redone: [AssetRow, Sent][] = []; // matches made elsewhere: sent again (replay)
+  const broughtAt = new Map<string, number>(); // per redone record, the newest clock a pass brought
   const assetIdMap = new Map<string, string>(); // source asset id → the id it has in the target
   let keepsSource = false;
   const mergeNow = (row: AssetRow, photo: Photo) => {
@@ -221,6 +223,8 @@ export async function planMerge(
       // Made elsewhere: what its pass brought, at the clock it brought it at, and the photo's pending
       // edits at their own clocks; the newest per field wins.
       const { brought = {} } = decision;
+      const newest = Math.max(brought.isFavorite ?? 0, brought.notes?.at ?? 0);
+      broughtAt.set(earlier.id, Math.max(broughtAt.get(earlier.id) ?? 0, newest));
       const sends: [string, boolean | string | null, number | undefined][] = [
         ['isFavorite', true, brought.isFavorite],
         ['notes', mergedNotes(earlier.notes, brought.notes?.text ?? null), brought.notes?.at],
@@ -263,7 +267,7 @@ export async function planMerge(
   const duplicates = [...merged.values()].flatMap(({ row, photos }) => {
     const values = withDuplicates(row, photos);
     const changed = values.isFavorite !== row.isFavorite || values.notes !== row.notes;
-    return changed ? [{ id: row.id, ...values, photos }] : [];
+    return changed ? [{ id: row.id, ...values, photos, broughtAt: broughtAt.get(row.id) ?? 0 }] : [];
   });
 
   // The files of the assets that end in the target by the same id (the copied ones, and those the
@@ -504,8 +508,11 @@ export function writesTarget(plan: MergePlan): boolean {
  * duplicates' merges are made again onto the rows as they are now, so an edit made on the target
  * since the plan isn't set back. A duplicate merges what its photos bring, at now, onto the row as it
  * was before this plan's replays, so a value replayed at an older clock (a redone match) never rides
- * along at now; on a field both touch, the duplicate's now wins. A photo that brought something to a
- * row written here gets it in its mark, with the clock it was written at (`brought`, planMerge).
+ * along at now; on a field both touch, the duplicate's now wins. Unless the row (as pulled) is older
+ * than what a pass made elsewhere brought to it: that library never pushed the pass and the account
+ * hasn't changed the row since, so the merge stacks on the replayed row and keeps what it redid. A
+ * photo that brought something to a row written here gets it in its mark, with the clock it was
+ * written at (`brought`, planMerge).
  */
 export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<Record<string, MergeMark>> {
   const marks = { ...plan.marks.decided };
@@ -545,10 +552,11 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<Recor
     const rows = await readByIdMap<AssetRow>(tx, schema.assets, duplicateIds);
     const previous: AssetRow[] = [];
     const next: AssetRow[] = [];
-    for (const { id, photos } of plan.duplicates) {
+    for (const { id, photos, broughtAt } of plan.duplicates) {
       const row = rows.get(id);
-      const base = beforeReplays.get(id);
-      if (!row || !base) continue;
+      const pulled = beforeReplays.get(id);
+      if (!row || !pulled) continue;
+      const base = pulled.updatedAt < broughtAt ? row : pulled;
       const notes = withDuplicates(base, photos).notes;
       const values = { isFavorite: row.isFavorite || photos.some((photo) => photo.favorite) };
       const written = nextVersion(row, notes === base.notes ? values : { ...values, notes });

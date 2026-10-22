@@ -313,6 +313,14 @@ silently: `openLibraryForSession` opens the session's own library instead, and t
 says this iPhone's photos join after the first sync. Say that its photos can't be opened, and how
 to get help.
 
+### [ ] A redone match's note can be lost to a photo imported again
+
+`applyMerge` (`src/library/mergeLibrary.ts`) stacks a camera-roll match merged at now on a redone
+match's values only when the account's photo, as pulled, is older than what the lost pass brought
+(`broughtAt`). If that library never pushed, the account changed another field of the photo since,
+and the same item was imported again, the fresh note at now replaces the redone one. Rare (three
+events in a row); exact per-field clocks in the pull would fix it.
+
 ### [ ] Merge marks are one JSON value per source library
 
 `mergeMarks:<source>` (`sync/status.ts`) holds a decision per merged record in one `sync_meta` value,

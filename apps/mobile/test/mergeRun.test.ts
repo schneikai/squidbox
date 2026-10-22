@@ -814,11 +814,9 @@ describe('round 12: a camera-roll match an earlier library never pushed', () => 
   // Round 13: while acc2 hadn't pulled yet and the session had no tokens, the device library was open
   // again (libraryToOpen) and the same camera-roll item was imported a second time (imports don't
   // dedupe). The pass into acc2 merges the new photo into X as a fresh match (written at now) and
-  // the first photo's merge again (a replay at pass 1's clock). The fresh merge brings only the new
-  // photo's values onto X as it was before the replay, so the redone note never rides along at now
-  // (round 14: it would come back after the account deleted it); on the notes field the fresh merge,
-  // at now, wins. The redone favorite, a field the fresh merge doesn't touch, keeps pass 1's clock.
-  it('round 13: a photo of the same item imported again: the redone favorite stays, the fresh note wins', async () => {
+  // the first photo's merge again (a replay at pass 1's clock). acc never pushed (X as pulled is
+  // older than pass 1's clock), so the fresh merge stacks on the redone values: both notes.
+  it('round 13: a photo of the same item imported again keeps the redone note', async () => {
     const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-x', isFavorite: false, notes: null });
     await devicePhoto({ mediaLibraryAssetId: 'm-x', filename: 'd.jpg', isFavorite: true, notes: 'from the beach' });
     await passIntoAccThenLost(accountPhoto);
@@ -829,7 +827,8 @@ describe('round 12: a camera-roll match an earlier library never pushed', () => 
 
     expect(entry('dev')).toBeUndefined();
     const [row] = await getDb().select().from(schema.assets);
-    expect(row).toMatchObject({ isFavorite: true, notes: 'imported again' });
+    expect(row!.isFavorite).toBe(true);
+    expect(row!.notes?.split('\n').sort()).toEqual(['from the beach', 'imported again']);
   });
 
   // Round 13: the pass into acc2 that redoes the match sets the source's marker to acc2 before its

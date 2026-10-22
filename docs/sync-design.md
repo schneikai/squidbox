@@ -634,7 +634,12 @@ backs it up and keeps it in sync, and signing out only pauses that.
       photo's edits after its pass in the same library) is written at now with only its photos'
       values, onto the row as it was before this plan's replays: a replayed value never rides along
       at now, so a note the account deleted after a lost pass never comes back; on a field both touch,
-      the merge at now wins. A match goes only into a record still live once the plan's own replays
+      the merge at now wins. Unless the row as pulled is older than the newest clock a lost pass
+      brought to it (`broughtAt`): that library never pushed it and the account hasn't changed the row
+      since, so the merge stacks on the replayed row (a photo of the same item imported again keeps
+      the redone note). The pull carries no field clocks, so the rule is per row: when the library
+      never pushed but the account changed another field of the row since, the merge at now goes onto
+      the pulled row and a redone note on the same field is lost (todo.md). A match goes only into a record still live once the plan's own replays
       apply (a device deleting X by id and keeping P has P copied). A note is appended unless the same
       note, or the same whole lines (trailing spaces and blank lines aside), are there already
       (`mergedNotes`).
