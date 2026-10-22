@@ -70,9 +70,7 @@ export async function mergeLibrary(sourceId: string, targetId: string): Promise<
     if (joined && 'keptFor' in joined) await forgetMerge(sourceDb, name); // a kept merge a crash interrupted
     if (joined) return joined;
     if (await mergeWaits(sourceDb, targetDb)) return 'waits';
-    // Decisions made in another library (gone since, or the list rebuilt): their matches go again.
-    const decidedElsewhere = markers.mergedInto !== null && markers.mergedInto.library !== targetId;
-    const plan = await planMerge(sourceDb, targetDb, libraryPaths(sourceId), { decidedElsewhere });
+    const plan = await planMerge(sourceDb, targetDb, libraryPaths(sourceId));
     await setMarker(sourceId, marker);
     try {
       if (writesTarget(plan)) {

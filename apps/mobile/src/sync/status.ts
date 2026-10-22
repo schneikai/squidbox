@@ -78,7 +78,10 @@ export async function setMergeTarget(db: SyncDb, marker: MergeMarker | null): Pr
  * target's record `into` (a camera-roll match), or skipped (an edge whose membership the target had).
  * A later pass never decides again: it only replays the record's newer edits along that decision.
  */
-export type MergeDecision = { as: 'copy' } | { as: 'match'; into: string } | { as: 'skip' };
+export type MergeDecision =
+  | { as: 'copy' }
+  | { as: 'match'; into: string; mergedAt?: number } // mergedAt: the clock its values went into `into` at
+  | { as: 'skip' };
 export type MergeMark = MergeDecision & { at: number };
 
 // The marks of a source library (by its database name), kept in the target (committed with each

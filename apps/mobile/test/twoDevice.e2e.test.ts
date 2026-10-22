@@ -1262,13 +1262,10 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     // (S+100). Later, the iPad (B) notes the account's photo of x and favorites it and takes that back
     // (S+200..S+220). At the sign-in on the iPhone, pass 1 into the account's library T1 merges the
     // device's photo into it at S+300 (the iPad's note, then the iPhone's; a favorite) and commits,
-    // and T1 is lost before it pushes. The pass into the next library T2 redoes the match
-    // (decidedElsewhere, as mergeLibrary passes it when the marker names T1), stamped at the device
-    // photo's own clocks (S+100): the server holds the iPad's notes and favorite at S+200/S+220, newer,
-    // so the redo loses on both fields, although pass 1 had merged them after the iPad's edits.
-    // Expected: both notes and the favorite, everywhere. Actual: the iPad's note only, not a favorite;
-    // the iPhone's note and favorite are gone with the device library.
-    it.fails('round 13: a redone match keeps what pass 1 merged after an earlier edit of the account', async () => {
+    // and T1 is lost before it pushes. The pass into the next library T2 redoes the match (T2's marks
+    // don't hold it), stamped at the clock pass 1 merged it at (S+300), newer than the iPad's edits:
+    // both notes and the favorite, everywhere.
+    it('round 13: a redone match keeps what pass 1 merged after an earlier edit of the account', async () => {
       const id = await seedAsset({ mediaLibraryAssetId: 'camera-roll-x', notes: null, isFavorite: false });
       const D = makeTestDb(); // the iPhone's device library, before the sign-in
       await setOwner(D, { kind: 'device' });
@@ -1301,7 +1298,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       const T2 = makeTestDb();
       await settle([A, B, T2]); // its first full pull
       at(S + 400);
-      await applyMerge(T2, await planMerge(D, T2, libraryPaths('device'), { decidedElsewhere: true }));
+      await applyMerge(T2, await planMerge(D, T2, libraryPaths('device')));
       await settle([A, B, T2]);
 
       expect(await expectConverged('assets', id, [A, B, T2])).toMatchObject({

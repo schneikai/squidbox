@@ -10,7 +10,7 @@ import { sameAccount } from './sameAccount';
 export type MergeMarker = { library: string; serverId: string; userId: string };
 
 // What a library holds of its merges: in the list (Library), or read from its database.
-export type Markers = { keptFor?: string | null; mergedInto?: MergeMarker | null };
+type Markers = { keptFor?: string | null; mergedInto?: MergeMarker | null };
 
 /**
  * What the markers say the library joined, when that keeps it from joining `target` now: kept for a

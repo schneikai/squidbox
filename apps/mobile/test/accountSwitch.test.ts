@@ -5,7 +5,6 @@ import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { sessionStoreMock } from './helpers/sessionStoreMock';
 import { makeTestDb } from './helpers/testDb';
 import type { Owner } from '../src/library/owner';
-import type { Library } from '../src/library/registry';
 import type { Session } from '../src/library/session';
 import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
@@ -102,7 +101,6 @@ const {
   watchTokenDrops,
 } = await import('../src/library/sessionLibrary');
 const { switchLibrary } = await import('../src/library/switchLibrary');
-const { isFatalSwitchFailure } = await import('../src/library/isFatalSwitchFailure');
 const { getDb, openAppDb } = await import('../src/sync/db/client');
 const { dropTokensAsync: signOut } = await import('../src/utils/cloud-api/sessionStore');
 const { default: refreshAccessTokenAsync } =
@@ -535,8 +533,9 @@ describe('switching libraries with the session', () => {
   });
 
   // The installed build stored a merge marker as the target library's id: at the first boot of this
-  // build it takes that library's account (or goes, the library gone or its owner unresolved), in the
-  // list, and is copied into the device library's database.
+  // build it takes that library's account (or goes, the library gone; an unresolved owner's stays, so
+  // its merge resumes into that library), in the list, and is copied into the device library's
+  // database.
   it('the boot gives the installed build’s merge markers their account, in the list and the database', async () => {
     const acc = { id: 'acc', owner: { kind: 'account' as const, serverId: 's1', userId: 'u1', email: '' } };
     const unresolved = { id: 'old', owner: { kind: 'account', serverId: null, userId: 'u2', email: '' } };
@@ -555,7 +554,7 @@ describe('switching libraries with the session', () => {
     expect(getRegistry().libraries.slice(0, 3)).toEqual([
       { id: 'dev', owner: { kind: 'device' }, mergedInto: marker },
       { id: 'dev-2', owner: { kind: 'device' } },
-      { id: 'dev-3', owner: { kind: 'device' } },
+      { id: 'dev-3', owner: { kind: 'device' }, mergedInto: { library: 'old', serverId: null, userId: 'u2' } },
     ]);
     expect(await getMergeTarget(await openAppDb('library-dev.db'))).toEqual(marker);
   });
@@ -672,20 +671,10 @@ describe('switching libraries with the session', () => {
     await open(store.session); // what watchTokenDrops runs after the drop
     expect(getLibrary().id).toBe(aId);
 
-    // The app is closed and opened again, LibraryProvider's switch reporting a failure as the boot
-    // error only once booted (isFatalSwitchFailure): the boot's fallback runs.
+    // The app is closed and opened again: the boot's fallback opens the account's library
+    // (LibraryProvider reports a failed switch as the boot error only once booted).
     await closeLibrary();
-    const bootErrors: unknown[] = [];
-    const providerSwitch = async (target: Library) => {
-      try {
-        await switchLibrary(target);
-      } catch (error) {
-        if (isFatalSwitchFailure(false)) bootErrors.push(error);
-        throw error;
-      }
-    };
-    await bootLibrary(providerSwitch);
+    await bootLibrary(switchLibrary);
     expect(getLibrary().id).toBe(aId);
-    expect(bootErrors).toEqual([]);
   });
 });

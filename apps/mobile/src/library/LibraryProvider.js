@@ -2,8 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 
 import LibraryContext from './LibraryContext';
 import { bootLibrary } from './bootLibrary';
-import { openLibraryEntry } from './current';
-import { isFatalSwitchFailure } from './isFatalSwitchFailure';
+import { openLibraryEntry, openLibraryId } from './current';
 import { libraryPaths } from './libraryPaths';
 import { onRegistryChange } from './registry';
 import { runPendingMerges, watchTokenDrops } from './sessionLibrary';
@@ -51,7 +50,7 @@ export default function LibraryProvider({ children }) {
         next.reject(switchError);
         // With none open the gate would render nothing: the boot error, once booted (during the boot,
         // bootLibrary's fallback runs, and its rejection is the boot error).
-        if (isFatalSwitchFailure(bootDone.current)) setError(switchError);
+        if (bootDone.current && !openLibraryId()) setError(switchError);
       },
     );
   }, [next]);

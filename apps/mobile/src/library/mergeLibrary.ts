@@ -1,4 +1,4 @@
-import { assetCollection, chunk, collectionsByName, mergeRecord, type FieldClocks } from '@squidbox/shared';
+import { chunk, collectionsByName, mergeRecord, type FieldClocks } from '@squidbox/shared';
 import { and, isNull } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
@@ -30,7 +30,8 @@ type Duplicate = {
   id: string;
   isFavorite: boolean;
   notes: string | null;
-  from: { favorite: boolean; notes: (string | null)[] };
+  // `marks`: the marks of the device's photos merged in, which the commit stamps with its clock.
+  from: { favorite: boolean; notes: (string | null)[]; marks: string[] };
 };
 
 export interface MergePlan {
@@ -86,23 +87,21 @@ const purgeWaits = (final: string | undefined, fields: FieldClocks = {}) => fina
  * Every file the source holds for a record that ends up in the account is moved into the target's
  * folders unless the cloud has it.
  *
- * Decisions made in another library (`decidedElsewhere`: the source's marker names another one, lost
- * before it may have pushed them) are kept, but a match's merge goes again, stamped at the device
- * photo's own field clocks, never now: per-field LWW then settles it (the account's later change, or
- * the earlier library's pushed merge, wins; one never pushed is made again). Notes already there
- * aren't appended twice.
+ * A decision made in another library (a mark the source holds and the target's committed marks
+ * don't: that library was lost, maybe before it pushed) stands, but a match's merge goes again,
+ * stamped at the clock its pass merged it at there (`mergedAt`), never now: per-field LWW then makes
+ * it again unless the account changed the field since (the earlier library's pushed merge already
+ * has that clock, and a later change beats it). A mark without that clock (earlier builds) goes at
+ * the device photo's updatedAt, older still: it can only lose more often. It is replayed before
+ * this pass's merges of the same photos, which add to it at now.
  */
-export async function planMerge(
-  source: SyncDb,
-  target: SyncDb,
-  sourcePaths: LibraryPaths,
-  { decidedElsewhere = false }: { decidedElsewhere?: boolean } = {},
-): Promise<MergePlan> {
+export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: LibraryPaths): Promise<MergePlan> {
   const name = sourcePaths.dbName;
   const replays: Replay[] = [];
   const sourceOutbox = await source.select().from(schema.outbox);
   const outboxOf = new Map(sourceOutbox.map((row) => [`${row.collection}:${row.recordId}`, row]));
-  const decided = newerOf(await getMergeMarks(source, name), await getMergeMarks(target, name));
+  const targetMarks = await getMergeMarks(target, name);
+  const decided = newerOf(await getMergeMarks(source, name), targetMarks);
   const marks = { ...decided };
   const mark = (collection: string, row: Row, made: MergeDecision) => {
     marks[`${collection}:${row.id}`] = { ...made, at: row.updatedAt };
@@ -185,46 +184,44 @@ export async function planMerge(
   const matched = new Map<string, AssetRow>(); // the target assets those were merged into
   const assetIdMap = new Map<string, string>(); // source asset id → the id it has in the target
   let keepsSource = false;
-  // The device's own clock of a field of a photo: its pending edit's, else its updatedAt.
-  const ownClock = (asset: AssetRow, field: string) =>
-    outboxOf.get(`assets:${asset.id}`)?.fields[field] ?? asset.updatedAt;
-  // Matches decided elsewhere, by target asset: what the device's photos bring, at their own clocks.
-  const redone = new Map<string, { match: AssetRow; favorite: number | null; notes: string[]; notesAt: number }>();
-  const mergeAgain = (asset: AssetRow, match: AssetRow) => {
-    const sofar = redone.get(match.id) ?? { match, favorite: null, notes: [], notesAt: 0 };
-    if (asset.isFavorite) sofar.favorite = Math.max(sofar.favorite ?? 0, ownClock(asset, 'isFavorite'));
-    if (asset.notes) {
-      sofar.notes.push(asset.notes);
-      sofar.notesAt = Math.max(sofar.notesAt, ownClock(asset, 'notes'));
-    }
-    redone.set(match.id, sofar);
-  };
-  const mergeInto = (match: AssetRow, from: Duplicate['from']) => {
-    matched.set(match.id, match);
-    const sofar = merged.get(match.id) ?? { favorite: false, notes: [] };
+  // What the device's photos bring to a matched record, by its id: merged at now (`merged`), or, for
+  // matches decided in another library, again at the clock they were merged at there (`redone`).
+  const redone = new Map<string, { from: Duplicate['from']; at: number }>();
+  const add = (sofar: Duplicate['from'], asset: AssetRow, from: Omit<Duplicate['from'], 'marks'>) => {
     sofar.favorite ||= from.favorite;
     sofar.notes.push(...from.notes);
+    if (from.favorite || from.notes.some(Boolean)) sofar.marks.push(`assets:${asset.id}`); // it brings something
+  };
+  const mergeInto = (match: AssetRow, asset: AssetRow, from: Omit<Duplicate['from'], 'marks'>) => {
+    matched.set(match.id, match);
+    const sofar = merged.get(match.id) ?? { favorite: false, notes: [], marks: [] };
+    add(sofar, asset, from);
     merged.set(match.id, sofar);
+  };
+  const mergeAgain = (match: AssetRow, asset: AssetRow, at: number) => {
+    matched.set(match.id, match);
+    const sofar = redone.get(match.id) ?? { from: { favorite: false, notes: [], marks: [] }, at: 0 };
+    add(sofar.from, asset, { favorite: asset.isFavorite, notes: [asset.notes] });
+    sofar.at = Math.max(sofar.at, at);
+    redone.set(match.id, sofar);
   };
   for (const asset of live(allSourceAssets)) {
     if (targetById.has(asset.id)) {
       assetIdMap.set(asset.id, asset.id);
       continue;
     }
-    const made = decided[`assets:${asset.id}`];
+    const key = `assets:${asset.id}`;
+    const made = decided[key];
     const earlier = made?.as === 'match' ? matchesBefore.get(made.into) : undefined;
-    if (earlier) {
+    if (made?.as === 'match' && earlier) {
       // Merged before: its newer favorite and notes go to that record, while it is live.
       matchCopies.push([asset, earlier]);
       if (earlier.deletedAt !== null) continue;
       assetIdMap.set(asset.id, earlier.id);
-      mark('assets', asset, { as: 'match', into: earlier.id });
-      if (decidedElsewhere) {
-        mergeAgain(asset, earlier);
-        continue;
-      }
+      mark('assets', asset, made); // keeps the clock it was merged at, which a new merge here moves
+      if (!(key in targetMarks)) mergeAgain(earlier, asset, made.mergedAt ?? made.at);
       const since = newEdits('assets', asset.id);
-      mergeInto(earlier, {
+      mergeInto(earlier, asset, {
         favorite: 'isFavorite' in since && asset.isFavorite,
         notes: 'notes' in since ? [asset.notes] : [],
       });
@@ -240,7 +237,7 @@ export async function planMerge(
       // Several source assets can match one target asset: merge them all into it.
       assetIdMap.set(asset.id, match.id);
       mark('assets', asset, { as: 'match', into: match.id });
-      mergeInto(match, { favorite: asset.isFavorite, notes: [asset.notes] });
+      mergeInto(match, asset, { favorite: asset.isFavorite, notes: [asset.notes] });
       matchCopies.push([asset, match]);
       continue;
     }
@@ -250,29 +247,37 @@ export async function planMerge(
     const flags = hasFile ? { isFileSynced: false, isThumbnailSynced: false, isSynced: false } : {};
     assets.push({ ...asset, ...flags, syncError: null });
   }
-  const duplicates = [...merged]
-    .map(([id, from]) => ({ id, ...withDuplicates(matched.get(id)!, from), from }))
-    .filter((d) => d.isFavorite !== matched.get(d.id)!.isFavorite || d.notes !== matched.get(d.id)!.notes);
-  for (const { match, favorite, notes, notesAt } of redone.values()) {
-    const values = withDuplicates(match, { favorite: favorite !== null, notes });
+  const changes = (id: string, from: Duplicate['from']) => {
+    const row = matched.get(id)!;
+    const values = withDuplicates(row, from);
+    return { values, changed: values.isFavorite !== row.isFavorite || values.notes !== row.notes };
+  };
+  // The redone merges, as replays at their clocks (applyMerge runs them before the duplicates).
+  const pendingRedone = await pendingEdits(target, 'assets', [...redone.keys()], { fields: true });
+  for (const [id, { from, at }] of redone) {
+    const { values } = changes(id, from);
+    const row = matched.get(id)!;
     const fields: FieldClocks = {
-      ...(values.isFavorite !== match.isFavorite && { isFavorite: favorite! }),
-      ...(values.notes !== match.notes && { notes: notesAt }),
+      ...(values.isFavorite !== row.isFavorite && { isFavorite: at }),
+      ...(values.notes !== row.notes && { notes: at }),
     };
-    if (Object.keys(fields).length === 0) continue;
-    const sent = { payload: { ...match, ...values }, fields };
-    replays.push({ collection: 'assets', recordId: match.id, ...sent, sent }); // replayed onto it at the commit
+    const sent = { payload: { ...row, ...values }, fields };
+    const replay = Object.keys(fields).length > 0 && replayOnto('assets', row, pendingRedone.get(id)?.fields, sent);
+    if (replay) replays.push({ collection: 'assets', recordId: id, ...replay, sent });
   }
+  const duplicates = [...merged]
+    .map(([id, from]) => ({ id, ...changes(id, from), from }))
+    .filter((d) => d.changed)
+    .map(({ id, values, from }) => ({ id, ...values, from }));
 
   // The files of the assets that end in the target by the same id (the copied ones, and those the
   // target has unless their purge there is confirmed: the sweep, not a move, settles those, §7a).
   const assetReplays = new Map(replays.filter((row) => row.collection === 'assets').map((row) => [row.recordId, row]));
-  const final = assetCollection.finalField!;
-  const confirmedPurge = (state: object, fields: FieldClocks | undefined) =>
-    (state as Record<string, unknown>)[final] != null && !purgeWaits(final, fields);
+  const confirmedPurge = (state: { purgedAt?: unknown }, fields: FieldClocks | undefined) =>
+    state.purgedAt != null && !purgeWaits('purgedAt', fields);
   const keptById = (id: string) => {
     const replay = assetReplays.get(id);
-    return !confirmedPurge(replay?.payload ?? targetById.get(id)!, {
+    return !confirmedPurge((replay?.payload ?? targetById.get(id))!, {
       ...pendingAssets.get(id)?.fields,
       ...replay?.fields,
     });
@@ -441,8 +446,9 @@ function newerOf(...sets: Record<string, MergeMark>[]): Record<string, MergeMark
   return out;
 }
 
+// A note appended to another unless it is there already: the same note, or whole lines of it.
 function mergedNotes(target: string | null, source: string | null): string | null {
-  if (!source || (target ?? '').includes(source)) return target;
+  if (!source || `\n${target ?? ''}\n`.includes(`\n${source}\n`)) return target;
   return target ? `${target}\n${source}` : source;
 }
 
@@ -475,29 +481,20 @@ export function writesTarget(plan: MergePlan): boolean {
 
 /**
  * Writes the plan into the target in one transaction: every copied record gets its outbox row, and
- * the source's marks are recorded with it. The replays and the duplicates' merges are made again onto
- * the rows as they are now, so an edit made on the target since the plan isn't set back.
+ * the source's marks are recorded with it, a match's stamped with the clock the device's values were
+ * merged into its record at (`mergedAt`, also in `plan.marks`, which the caller records in the
+ * source). The replays and the duplicates' merges are made again onto the rows as they are now, so an
+ * edit made on the target since the plan isn't set back; the replays first, so a duplicate merged at
+ * now adds to a match redone at its older clock instead of beating it.
  */
 export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<void> {
   await target.transaction(async (tx) => {
-    await setMergeMarks(tx, plan.marks.source, plan.marks.decided);
     await saveRecords(tx, 'assets', schema.assets, plan.assets, { isNew: true });
     await saveRecords(tx, 'albums', schema.albums, plan.albums, { isNew: true });
     await saveRecords(tx, 'posts', schema.posts, plan.posts, { isNew: true });
     await setSyncError(tx, plan.retried, null);
     await saveRecords(tx, 'album_assets', schema.albumAssets, plan.albumAssets, { isNew: true });
     await saveRecords(tx, 'post_assets', schema.postAssets, plan.postAssets, { isNew: true });
-    if (plan.duplicates.length > 0) {
-      const from = new Map(plan.duplicates.map((d) => [d.id, d.from]));
-      const previous = await readByIds<AssetRow>(tx, schema.assets, [...from.keys()]);
-      await saveRecords(
-        tx,
-        'assets',
-        schema.assets,
-        previous.map((row) => nextVersion(row, withDuplicates(row, from.get(row.id)!))),
-        { previous },
-      );
-    }
     // A replayed edit is written to the target's row as well as its outbox: a push alone would leave
     // the row stale, and the pull keeps a pending record's fields local.
     for (const collection of new Set(plan.replays.map((row) => row.collection))) {
@@ -522,6 +519,19 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<void>
         { clocks },
       );
     }
+    if (plan.duplicates.length > 0) {
+      const from = new Map(plan.duplicates.map((d) => [d.id, d.from]));
+      const previous = await readByIds<AssetRow>(tx, schema.assets, [...from.keys()]);
+      const next = previous.map((row) => nextVersion(row, withDuplicates(row, from.get(row.id)!)));
+      await saveRecords(tx, 'assets', schema.assets, next, { previous });
+      for (const row of next) {
+        for (const key of from.get(row.id)!.marks) {
+          const made = plan.marks.decided[key];
+          if (made?.as === 'match') plan.marks.decided[key] = { ...made, mergedAt: row.updatedAt };
+        }
+      }
+    }
+    await setMergeMarks(tx, plan.marks.source, plan.marks.decided);
   });
 }
 
