@@ -24,6 +24,7 @@ const stores = new Map<string, AppDb>();
 const deleted: string[] = [];
 const files = new Set<string>();
 const storage = new Map<string, string>();
+const failingMoves = vi.hoisted(() => new Set<string>()); // moves that throw
 
 vi.mock('expo-file-system/legacy', () => ({ documentDirectory: 'file:///docs/' }));
 vi.mock('../src/sync/db/client', () => {
@@ -58,6 +59,7 @@ vi.mock('../src/library/fs', () => ({
     new Set([...files].filter((uri) => uri.startsWith(dir)).map((uri) => uri.slice(dir.length))),
   fileExists: async (uri: string) => files.has(uri),
   moveFile: async (from: string, to: string) => {
+    if (failingMoves.has(from)) throw new Error(`could not move ${from}`);
     files.delete(from);
     files.add(to);
   },
@@ -762,6 +764,26 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
   const unsynced = { isFileSynced: false, isThumbnailSynced: false, isSynced: false };
 
   // Its backup failed before (no file on this phone): with the device's copy there, it tries again.
+  // Round 17: a pass that writes nothing but moves the device's file into the account's folders (a
+  // match with nothing to merge) has joined the account's library as much as one that commits: the
+  // marker says so before the move, so a move that fails half-way never reopens the device library.
+  it('a pass that only moves files marks the device library committed before the move', async () => {
+    const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-r', filename: 'r.jpg', ...unsynced });
+    await upsertRows(getDb(), 'assets', schema.assets, [{ ...accountPhoto, syncError: null }]);
+    await devicePhoto({ mediaLibraryAssetId: 'm-r', filename: 'r2.jpg', thumbnailFilename: 'r2-t.jpg' });
+    failingMoves.add(`file:///docs/${SRC.thumbnailsDir}r2-t.jpg`);
+
+    await expect(mergeLibrary('dev', 'acc')).rejects.toThrow('could not move');
+
+    expect(await getDb().select().from(schema.outbox)).toEqual([]); // nothing written
+    expect(entry('dev')).toEqual({ ...DEV, mergedInto: { ...marker('acc'), committed: true } });
+    expect(await getMergeTarget(sourceDb())).toEqual({ ...marker('acc'), committed: true });
+    failingMoves.clear();
+    await resumeMerges();
+    expect(entry('dev')).toBeUndefined();
+    expect(files.has(getAssetFileUri('r.jpg', TGT))).toBe(true);
+  });
+
   it('clears the sync error of the account’s photo the device’s copy goes to', async () => {
     const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-r', filename: 'r.jpg', ...unsynced });
     await upsertRows(getDb(), 'assets', schema.assets, [{ ...accountPhoto, syncError: 'No file on this device' }]);

@@ -7,12 +7,12 @@ import { removeLibrary } from './removeLibrary';
 import { withLibraryDb } from './withLibraryDb';
 
 import type { SyncDb } from '@/sync/db/types';
-import { oldestOutboxId, outboxVersion, pushedThrough } from '@/sync/outbox';
+import { outboxVersion } from '@/sync/outbox';
 import {
   getKeptFor,
   getMergeCommit,
   getMergeTarget,
-  isMergePushed,
+  isPushed,
   setKeptFor,
   setMergeCommit,
   setMergeMarks,
@@ -24,10 +24,13 @@ function withBothDbs<T>(sourceId: string, targetId: string, use: (source: SyncDb
   return withLibraryDb(sourceId, (source) => withLibraryDb(targetId, (target) => use(source, target)));
 }
 
+// The list's marker; the list is written only when it changes.
 function setMarker(sourceId: string, marker: MergeMarker | undefined): Promise<unknown> {
-  return updateLibrary(sourceId, ({ mergedInto: _mergedInto, ...library }) =>
-    marker ? { ...library, mergedInto: marker } : library,
-  );
+  return updateLibrary(sourceId, (library) => {
+    if (JSON.stringify(library.mergedInto) === JSON.stringify(marker)) return library;
+    const { mergedInto: _mergedInto, ...rest } = library;
+    return marker ? { ...rest, mergedInto: marker } : rest;
+  });
 }
 
 // The merge is complete and the source stays: the marker gives way to the record of what it joined.
@@ -51,8 +54,9 @@ type Outcome = 'waits' | 'done' | 'kept' | { keptFor: string } | { mergedInto: M
  * that end up in the target, then, once the target has pushed what its passes wrote (sync-design
  * §8), the source learns their decisions and is removed, unless photos living in another account's
  * storage keep it, recorded as kept for the target (`keptFor`), so it is never merged again and
- * never joins another account. Until that push the source waits, its marker `committed` (it has
- * joined the target: it never opens again for it, sessionLibrary.ts); the boot, a sign-in and the end
+ * never joins another account. Once a pass committed or moved files into the target, the source's
+ * marker says `committed` (it has joined the target: it never opens again for it, sessionLibrary.ts).
+ * Until the push the source waits; the boot, a sign-in and the end
  * of the push run this again (runPendingMerges), which plans nothing while the push waits and the
  * source is as the last pass saw it.
  *
@@ -86,21 +90,21 @@ export async function mergeLibrary(sourceId: string, targetId: string): Promise<
     if (joined) return joined;
     if (await mergeWaits(sourceDb, targetDb)) return 'waits';
     const commit = await getMergeCommit(targetDb, name);
-    if (
-      commit?.moved &&
-      !pushedThrough(await oldestOutboxId(targetDb), commit.through) &&
-      commit.source === (await outboxVersion(sourceDb))
-    )
-      return 'waits'; // for the push, with nothing new to plan
+    const sourceVersion = await outboxVersion(sourceDb);
+    if (commit?.source === sourceVersion && !(await isPushed(targetDb, commit))) return 'waits'; // nothing new
     const plan = await planMerge(sourceDb, targetDb, libraryPaths(sourceId));
     const joinedTarget = { ...marker, committed: true as const };
-    const passMarker = commit ? joinedTarget : marker;
+    // Joined already: a pass committed here (its commit waits, or the finish ran and the source stayed).
+    const hasJoined = Boolean(commit) || (markers.mergedInto?.library === targetId && markers.mergedInto.committed);
+    const passMarker = hasJoined ? joinedTarget : marker;
     await setMarker(sourceId, passMarker);
+    let committed = commit;
     try {
       if (writesTarget(plan)) {
         // Set before the target's commit (two databases can't share one): a pass that fails takes it back.
         await setMergeTarget(sourceDb, passMarker);
         await applyMerge(targetDb, plan);
+        committed = await getMergeCommit(targetDb, name);
         requestSync(); // its rows push once this paused section ends
       }
     } catch (error) {
@@ -108,14 +112,16 @@ export async function mergeLibrary(sourceId: string, targetId: string): Promise<
       await setMarker(sourceId, before);
       throw error;
     }
-    const committed = await getMergeCommit(targetDb, name);
-    if (committed) {
+    // Committed, or moving files into the target's folders: the source has joined the target.
+    if (!hasJoined && (committed || plan.files.length > 0 || plan.thumbnails.length > 0)) {
       await setMergeTarget(sourceDb, joinedTarget);
       await setMarker(sourceId, joinedTarget);
     }
     await moveMergedFiles(plan, libraryPaths(sourceId), libraryPaths(targetId));
-    if (committed) await setMergeCommit(targetDb, name, { ...committed, source: plan.sourceVersion, moved: true });
-    if (!(await isMergePushed(targetDb, name))) return 'waits';
+    if (committed) {
+      await setMergeCommit(targetDb, name, { ...committed, source: sourceVersion });
+      if (!(await isPushed(targetDb, committed))) return 'waits';
+    }
     await finishMerge(sourceDb, targetDb, name); // complete: before keptFor, which ends every later pass
     if (!plan.keepsSource) return 'done';
     await setKeptFor(sourceDb, targetId);

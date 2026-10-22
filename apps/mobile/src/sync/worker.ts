@@ -436,7 +436,8 @@ export function requestSync(): void {
 // Run `work` with syncing paused: aborts the running sync (it stops at its next batch or page) and backup
 // (at its next step), waits for both, and starts no run until `work` finishes. Use it for anything
 // that must not interleave with them, like changing the session or the open library. Sections run
-// one after another, with the sync requests made meanwhile honored after.
+// one after another, with the sync requests made meanwhile honored after, and a sync after one that
+// aborted a run (what it cut short runs again).
 export function withSyncPaused<T>(work: () => Promise<T>): Promise<T> {
   const pause = pauseRuns();
   return syncFlight
@@ -444,7 +445,10 @@ export function withSyncPaused<T>(work: () => Promise<T>): Promise<T> {
       await pause.stopped;
       return work();
     })
-    .finally(pause.resume);
+    .finally(() => {
+      pause.resume();
+      if (pause.aborted) syncFlight.request();
+    });
 }
 
 type SyncWork = (db: SyncDb, transport: SyncTransport, options: SyncRunOptions) => Promise<void>;

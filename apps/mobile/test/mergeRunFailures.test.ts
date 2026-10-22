@@ -103,10 +103,10 @@ vi.mock('../src/sync/status', async (importOriginal) => {
       reach(args[2] ? 'sourceMarks' : 'forgetMarks');
       return original.setMergeMarks(...args);
     },
-    clearMergeMarks: async (...args: Parameters<typeof original.clearMergeMarks>) => {
+    clearMergeCommit: async (...args: Parameters<typeof original.clearMergeCommit>) => {
       if (inject.dead) return;
       reach('clearTargetMarks');
-      return original.clearMergeMarks(...args);
+      return original.clearMergeCommit(...args);
     },
     setMergeCommit: async (...args: Parameters<typeof original.setMergeCommit>) => {
       if (inject.dead) return;
@@ -348,19 +348,16 @@ describe('a device library’s sweep running when the sign-in merges it', () => 
   });
 });
 
-// Round 17: the finish (finishMerge) gives the source the target's marks, whatever they are. After a
-// crash between the finish and the source's removal, the target holds no marks any more, so the next
-// pass (which plans from the source's marks and writes nothing) gives the source an empty set. A
-// second crash in the same spot then leaves the source with no decision at all, and the pass after it
-// makes every decision again, over what the account changed since.
+// Round 17: after a crash between the finish (finishMerge) and the source's removal, the target holds
+// no marks any more; the next finish adds the target's marks to the source's, so a second crash there
+// leaves the source's decisions as they were.
 // Scenario: the device's photo is merged into the account's copy of the same camera-roll item (its
 // favorite OR'd in), the account pushes, the finish runs, and the app dies before the device library's
 // database is deleted, twice in a row. Meanwhile another device deletes the account's photo (pulled
-// as a tombstone). Expected: the match stands (sync-design §8: "a decision that was pushed stands
-// ... a tombstone included"), so the deleted photo stays deleted. Actual: the device's photo is
-// copied into the account as a new live photo, undoing the deletion.
+// as a tombstone). The match stands (sync-design §8: "a decision that was pushed stands ... a
+// tombstone included"), so the deleted photo stays deleted.
 describe('round 17: two crashes between a merge’s finish and the device library’s removal', () => {
-  it.fails('a photo the account deleted since the match stays deleted', async () => {
+  it('a photo the account deleted since the match stays deleted', async () => {
     const { upsertRows } = await import('../src/sync/upsertRows');
     if (openLibraryId()) await closeLibrary();
     stores.clear();
@@ -386,6 +383,9 @@ describe('round 17: two crashes between a merge’s finish and the device librar
     expect(inject.dead).toBe(true);
     inject.dead = false;
     expect(entry('dev')).toBeDefined();
+    // The pass after the finish keeps the list's marker committed, as the source's database says.
+    expect(entry('dev')?.mergedInto?.committed).toBe(true);
+    expect((await status.getMergeTarget(stores.get(SRC.dbName)!))?.committed).toBe(true);
 
     // Another device deletes the account's photo; this one pulls the tombstone.
     await upsertRows(getDb(), 'assets', schema.assets, [

@@ -98,7 +98,8 @@ export function watchTokenDrops(switchLibrary: SwitchLibrary): () => void {
 }
 
 // This device's library when it waits to join the open library (waitsToJoin), its owner's account
-// library. One already marked for it counts (it waits for that library's first pull).
+// library. One marked for it counts until a pass commits there (it waits for that library's first
+// pull); a committed one has joined it.
 export function deviceLibraryToJoin(): Library | null {
   const source = deviceLibrary(getRegistry().libraries);
   const target = openLibraryEntry();
@@ -109,9 +110,9 @@ export function deviceLibraryToJoin(): Library | null {
 // Whatever this device's library holds (added before any sign-in) joins the open library when that
 // is its owner's account library: at the sign-in, at every boot, at the end of the open library's
 // first full pull and at the end of the push a committed merge waits for (runPendingMerges), so a
-// merge that waited or failed is tried again (mergeRun.ts, crash-safe and idempotent). One marked for a library still listed is resumeMerges', so a boot never
-// runs a merge twice. A failure doesn't fail the sign-in or the boot: the device library stays
-// parked until the next try.
+// merge that waited or failed is tried again (mergeRun.ts, crash-safe and idempotent). One marked for
+// a library still listed is resumeMerges', so a boot never runs a merge twice. A failure doesn't fail
+// the sign-in or the boot: the device library stays parked until the next try.
 export async function mergeDeviceLibrary(): Promise<void> {
   const source = deviceLibraryToJoin();
   if (!source || source.mergedInto?.library === openLibraryId()) return;

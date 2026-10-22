@@ -2,7 +2,7 @@ import { eq, like, sql } from 'drizzle-orm';
 
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
-import { newestOutboxId, oldestOutboxId, pushedThrough } from './outbox';
+import { newestOutboxId, outboxPushedThrough } from './outbox';
 import type { MergeMarker } from '../library/mergeMarker';
 import type { Owner } from '../library/owner';
 
@@ -27,6 +27,10 @@ export interface SyncStatus {
 async function getMeta(db: SyncDb, key: string): Promise<string | null> {
   const [row] = await db.select().from(schema.syncMeta).where(eq(schema.syncMeta.key, key));
   return row?.value ?? null;
+}
+
+async function deleteMeta(db: SyncDb, key: string): Promise<void> {
+  await db.delete(schema.syncMeta).where(eq(schema.syncMeta.key, key));
 }
 
 // Writes only when the value changes, so an idle sync pass doesn't wake every sync_meta reader.
@@ -72,7 +76,7 @@ export async function getMergeTarget(db: SyncDb): Promise<MergeMarker | null> {
 }
 export async function setMergeTarget(db: SyncDb, marker: MergeMarker | null): Promise<void> {
   if (marker) await setMeta(db, MERGE_TARGET_KEY, JSON.stringify(marker));
-  else await db.delete(schema.syncMeta).where(eq(schema.syncMeta.key, MERGE_TARGET_KEY));
+  else await deleteMeta(db, MERGE_TARGET_KEY);
 }
 /** What a committed merge pass decided for a source record (`collection:id`, sync-design §8). */
 export type MergeDecision = { as: 'copy' } | { as: 'match'; into: string } | { as: 'skip' };
@@ -90,43 +94,37 @@ export async function setMergeMarks(
   marks: Record<string, MergeMark> | null,
 ): Promise<void> {
   if (marks) await setMeta(db, `${MARKS_KEY}${source}`, JSON.stringify(marks));
-  else await db.delete(schema.syncMeta).where(eq(schema.syncMeta.key, `${MARKS_KEY}${source}`));
+  else await deleteMeta(db, `${MARKS_KEY}${source}`);
 }
 
 /**
  * In the target, what a source's committed passes wait for (mergeRun, sync-design §8): the outbox row
- * they are pushed through (the newest at the last commit), the source's outbox as the last pass saw
- * it (outboxVersion), and whether that pass's files moved.
+ * they are pushed through (the newest at the last commit) and, once that pass's files moved, the
+ * source's outbox as it saw it (outboxVersion).
  */
-export type MergeCommit = { through: number; source: string; moved: boolean };
+export type MergeCommit = { through: number; source?: string };
+const parseCommit = (raw: string | null) => (raw ? (JSON.parse(raw) as MergeCommit) : null);
 export async function getMergeCommit(db: SyncDb, source: string): Promise<MergeCommit | null> {
-  const raw = await getMeta(db, `${COMMITTED_KEY}${source}`);
-  return raw ? (JSON.parse(raw) as MergeCommit) : null;
+  return parseCommit(await getMeta(db, `${COMMITTED_KEY}${source}`));
 }
 export async function setMergeCommit(db: SyncDb, source: string, commit: MergeCommit): Promise<void> {
   await setMeta(db, `${COMMITTED_KEY}${source}`, JSON.stringify(commit));
 }
 // A pass's commit into the target, inside its transaction: its marks, and what it waits for.
-export async function commitMergeMarks(
-  tx: SyncDb,
-  source: string,
-  marks: Record<string, MergeMark>,
-  sourceVersion: string,
-): Promise<void> {
+export async function commitMergeMarks(tx: SyncDb, source: string, marks: Record<string, MergeMark>): Promise<void> {
   await setMergeMarks(tx, source, marks);
-  await setMergeCommit(tx, source, { through: await newestOutboxId(tx), source: sourceVersion, moved: false });
+  await setMergeCommit(tx, source, { through: await newestOutboxId(tx) });
 }
-// The merge finished: the target's marks and commit go.
-export async function clearMergeMarks(db: SyncDb, source: string): Promise<void> {
+// The merge finished: the target's commit goes, with its marks.
+export async function clearMergeCommit(db: SyncDb, source: string): Promise<void> {
   await db.transaction(async (tx) => {
     await setMergeMarks(tx, source, null);
-    await tx.delete(schema.syncMeta).where(eq(schema.syncMeta.key, `${COMMITTED_KEY}${source}`));
+    await deleteMeta(tx, `${COMMITTED_KEY}${source}`);
   });
 }
-// Whether every committed pass of the source has pushed (true when none committed).
-export async function isMergePushed(db: SyncDb, source: string): Promise<boolean> {
-  const commit = await getMergeCommit(db, source);
-  return !commit || pushedThrough(await oldestOutboxId(db), commit.through);
+// Whether the passes of a commit have pushed.
+export function isPushed(db: SyncDb, commit: MergeCommit): Promise<boolean> {
+  return outboxPushedThrough(db, commit.through);
 }
 // Whether some source's committed passes have all pushed, its merge left to finish (usePendingMerges).
 export async function anyMergePushed(db: SyncDb): Promise<boolean> {
@@ -134,9 +132,11 @@ export async function anyMergePushed(db: SyncDb): Promise<boolean> {
     .select()
     .from(schema.syncMeta)
     .where(like(schema.syncMeta.key, `${COMMITTED_KEY}%`));
-  if (rows.length === 0) return false;
-  const oldest = await oldestOutboxId(db);
-  return rows.some(({ value }) => value && pushedThrough(oldest, (JSON.parse(value) as MergeCommit).through));
+  for (const { value } of rows) {
+    const commit = parseCommit(value);
+    if (commit && (await isPushed(db, commit))) return true;
+  }
+  return false;
 }
 
 // The library a source library joined and stays beside (mergeRun), in its own database: with the

@@ -11,11 +11,11 @@ import { nextVersion } from '@/sync/clock';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
-import { outboxVersion, pendingEdits } from '@/sync/outbox';
+import { pendingEdits } from '@/sync/outbox';
 import { readByIdMap } from '@/sync/readByIds';
 import { saveRecords } from '@/sync/saveRecords';
 import {
-  clearMergeMarks,
+  clearMergeCommit,
   commitMergeMarks,
   getMergeMarks,
   isFirstSyncDone,
@@ -58,7 +58,6 @@ export interface MergePlan {
   // Matched records whose backup failed before: it tries again, with the device's copy.
   retried: string[];
   keepsSource: boolean; // a photo whose file is in another account's storage stays in the source
-  sourceVersion: string; // the source's outbox as planned (outboxVersion)
 }
 
 const FILE_OPS = 50; // file-system calls in flight at once
@@ -332,7 +331,6 @@ export async function planMerge(source: SyncDb, target: SyncDb, sourcePaths: Lib
     thumbnails: thumbnails.list,
     retried: [...retried],
     keepsSource,
-    sourceVersion: await outboxVersion(source),
   };
 }
 
@@ -487,17 +485,19 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<void>
       clocks.set(id, Object.fromEntries(Object.keys(changes).map((field) => [field, written.updatedAt])));
     }
     await saveRecords(tx, 'assets', schema.assets, next, { clocks });
-    await commitMergeMarks(tx, plan.marks.source, plan.marks.decided, plan.sourceVersion);
+    await commitMergeMarks(tx, plan.marks.source, plan.marks.decided);
   });
 }
 
 /**
  * The merge's finish, once the target has pushed its passes (sync-design §8): the source learns
- * their decisions, then the target's marks go.
+ * their decisions, added to those it holds (a finish run again after a crash finds the target's
+ * cleared), then the target's commit goes, with its marks.
  */
 export async function finishMerge(source: SyncDb, target: SyncDb, sourceName: string): Promise<void> {
-  await setMergeMarks(source, sourceName, await getMergeMarks(target, sourceName));
-  await clearMergeMarks(target, sourceName);
+  const marks = { ...(await getMergeMarks(source, sourceName)), ...(await getMergeMarks(target, sourceName)) };
+  await setMergeMarks(source, sourceName, marks);
+  await clearMergeCommit(target, sourceName);
 }
 
 /**
