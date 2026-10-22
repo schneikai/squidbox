@@ -465,9 +465,10 @@ async function withSyncRun(work: SyncWork): Promise<void> {
     signal = runSignal;
     return work(db, httpTransport(identity), { signal: runSignal, removeFiles });
   });
-  // Paused: the section is queued in the same flight, so this request runs after it.
+  // Paused: the section is queued in the same flight, so a sync asked for now runs after it. A full
+  // resync kept from starting isn't asked again: its user taps it again.
   if (!run) {
-    requestSync();
+    if (work === runSyncOnce) requestSync();
     return;
   }
   try {

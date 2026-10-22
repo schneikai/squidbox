@@ -7,6 +7,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } 
 
 import { albumOrder } from './helpers/albumOrder';
 import { createPost, makeAlbumRecord, makeAssetRecord, makePostRecord } from './helpers/factory';
+import { prng } from './helpers/prng';
 import { readLiveAsset } from './helpers/readLiveAsset';
 import { makeTestDb } from './helpers/testDb';
 // Real server engine (against docker Postgres) — the other side of the round-trip.
@@ -1867,21 +1868,6 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
   });
 
   describe('random interleavings (seeded, the real client and server)', () => {
-    function prng(seed: number) {
-      let a = seed >>> 0;
-      const next = () => {
-        a = (a + 0x6d2b79f5) >>> 0;
-        let t = a;
-        t = Math.imul(t ^ (t >>> 15), t | 1);
-        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-      };
-      return {
-        pick: <T>(list: readonly T[]): T => list[Math.floor(next() * list.length)]!,
-        chance: (p: number) => next() < p,
-      };
-    }
-
     // One seeded case: four photos (two share a file), devices A and B, C an old app half the time,
     // random clock skew, edits, deletes, restores and purges, syncs, pushes whose answer is lost and
     // pulls around a waiting edit. Then every device syncs until quiet.

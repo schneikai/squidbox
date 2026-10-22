@@ -89,7 +89,8 @@ export async function mergeLibrary(sourceId: string, targetId: string): Promise<
   const target = libraries.find(({ id }) => id === targetId);
   if (target?.owner.kind !== 'account') throw new Error(`No account library ${targetId}`);
   const marker: MergeMarker = { library: targetId, serverId: target.owner.serverId, userId: target.owner.userId };
-  const name = libraryPaths(sourceId).dbName;
+  const [sourcePaths, targetPaths] = [libraryPaths(sourceId), libraryPaths(targetId)];
+  const name = sourcePaths.dbName;
   const outcome = await withBothDbs(sourceId, targetId, async (sourceDb, targetDb): Promise<Outcome> => {
     const markers = { keptFor: await getKeptFor(sourceDb), mergedInto: await getMergeTarget(sourceDb) };
     const joined = joinedElsewhere(markers, target);
@@ -100,8 +101,7 @@ export async function mergeLibrary(sourceId: string, targetId: string): Promise<
     const commit = await getMergeCommit(targetDb, name);
     const sourceVersion = await outboxVersion(sourceDb);
     if (commit?.source === sourceVersion && !(await isPushed(targetDb, commit))) return 'waits'; // nothing new
-    const plan = await planMerge(sourceDb, targetDb, libraryPaths(sourceId), libraryPaths(targetId));
-    const writes = writesTarget(plan);
+    const plan = await planMerge(sourceDb, targetDb, sourcePaths, targetPaths);
     const joinedTarget = { ...marker, committed: true as const };
     // Joined already: a pass committed here (its commit waits, or the finish ran and the source stayed).
     const joinedBefore = Boolean(commit) || hasJoined(markers.mergedInto, targetId);
@@ -113,7 +113,7 @@ export async function mergeLibrary(sourceId: string, targetId: string): Promise<
         // Set before the target's commit (two databases can't share one): a pass that fails takes it back.
         await setMergeTarget(sourceDb, passMarker);
         committed = await applyMerge(targetDb, plan);
-        if (writes) requestSync(); // its rows push once this paused section ends
+        if (writesTarget(plan)) requestSync(); // its rows push once this paused section ends
       }
     } catch (error) {
       if (!joinedBefore) {
@@ -128,7 +128,7 @@ export async function mergeLibrary(sourceId: string, targetId: string): Promise<
       await setMergeTarget(sourceDb, joinedTarget);
       await setMarker(sourceId, joinedTarget);
     }
-    await moveMergedFiles(plan, libraryPaths(sourceId), libraryPaths(targetId));
+    await moveMergedFiles(plan, sourcePaths, targetPaths);
     if (committed) {
       await setMergeCommit(targetDb, name, { ...committed, source: sourceVersion });
       if (!(await isPushed(targetDb, committed))) return 'waits';

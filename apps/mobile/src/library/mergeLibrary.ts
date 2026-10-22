@@ -173,10 +173,18 @@ export async function planMerge(
     for (const row of rows)
       if (afterReplays('assets', row).deletedAt === null) targetByMediaId.set(row.mediaLibraryAssetId, row);
   }
-  const sourceFiles = await listFiles(getAssetFilesDirectory(sourcePaths));
-  const sourceThumbnails = await listFiles(getAssetThumbnailsDirectory(sourcePaths));
-  const targetFiles = await listFiles(getAssetFilesDirectory(targetPaths));
-  const targetThumbnails = await listFiles(getAssetThumbnailsDirectory(targetPaths));
+  const [sourceFiles, sourceThumbnails] = await Promise.all([
+    listFiles(getAssetFilesDirectory(sourcePaths)),
+    listFiles(getAssetThumbnailsDirectory(sourcePaths)),
+  ]);
+  // The target's folders, for the moves (only into what they lack): none when there is nothing to move.
+  const nothingToMove = sourceFiles.size === 0 && sourceThumbnails.size === 0;
+  const [targetFiles, targetThumbnails] = nothingToMove
+    ? [new Set<string>(), new Set<string>()]
+    : await Promise.all([
+        listFiles(getAssetFilesDirectory(targetPaths)),
+        listFiles(getAssetThumbnailsDirectory(targetPaths)),
+      ]);
   const matchCopies: [AssetRow, AssetRow][] = []; // [device photo, the record it was merged into]
   const assets: AssetRow[] = [];
   const merged = new Map<string, { row: AssetRow; photos: Photo[] }>(); // merged at the commit, at now
@@ -246,15 +254,19 @@ export async function planMerge(
   );
   const files = new Moves(sourceFiles, targetFiles);
   const thumbnails = new Moves(sourceThumbnails, targetThumbnails);
+  // A record whose file or thumbnail moves into the target's folders tries its backup again (a sync
+  // error from a backup made while the file was still in the device library's folder goes).
+  const retried = new Set<string>();
   for (const asset of sameId) {
-    files.add(asset.filename, asset.filename);
-    thumbnails.add(asset.thumbnailFilename, asset.thumbnailFilename);
+    const fileGiven = files.add(asset.filename, asset.filename);
+    const thumbnailGiven = thumbnails.add(asset.thumbnailFilename, asset.thumbnailFilename);
+    const stored = targetById.get(asset.id) as AssetRow | undefined;
+    if ((fileGiven || thumbnailGiven) && stored?.syncError) retried.add(asset.id);
   }
   // The device's copies of a matched record that the cloud hasn't, under its names, so the record
   // keeps a file once the source goes (its backup uploads it), unless its purge is confirmed; a
   // target's own copy stays (only missing destinations are moved into), and the first of several
   // matching photos gives it.
-  const retried = new Set<string>();
   for (const [asset, match] of matchCopies) {
     if (confirmedPurge(match, pendingMatches.get(match.id)?.fields)) continue;
     const fileGiven = !match.isFileSynced && files.add(asset.filename, match.filename);
@@ -413,36 +425,35 @@ function mergedNotes(target: string | null, source: string | null): string | nul
 }
 
 // [from, to] moves out of a folder into another: only what the first holds, into what the second
-// lacks, each destination once (a move skipped for a destination there would be planned again).
+// lacks (a move skipped for a destination there would be planned again), each source and each
+// destination once (a file two records share, from earlier builds, goes to the first).
 class Moves {
   readonly list: [string, string][] = [];
+  private readonly sources = new Set<string>();
   private readonly destinations = new Set<string>();
   constructor(
     private readonly held: Set<string>,
     private readonly present: Set<string>,
   ) {}
   add(from: string, to: string): boolean {
-    if (!this.held.has(from) || this.present.has(to) || this.destinations.has(to)) return false;
+    if (!this.held.has(from) || this.present.has(to) || this.sources.has(from) || this.destinations.has(to))
+      return false;
+    this.sources.add(from);
     this.destinations.add(to);
     this.list.push([from, to]);
     return true;
   }
 }
 
-// The plan's lists whose records are written with an outbox row each.
-const queued = (plan: MergePlan) => [
-  plan.assets,
-  plan.albums,
-  plan.posts,
-  plan.albumAssets,
-  plan.postAssets,
-  plan.duplicates,
-  plan.replays,
-];
+// Whether the plan writes records with an outbox row each.
+const queuesRows = (plan: MergePlan) =>
+  [plan.assets, plan.albums, plan.posts, plan.albumAssets, plan.postAssets, plan.duplicates, plan.replays].some(
+    (list) => list.length > 0,
+  );
 
 /** Whether the plan writes to the target's records. */
 export function writesTarget(plan: MergePlan): boolean {
-  return [...queued(plan), plan.retried].some((list) => list.length > 0);
+  return queuesRows(plan) || plan.retried.length > 0;
 }
 
 /**
@@ -507,8 +518,7 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<Merge
       clocks.set(id, Object.fromEntries(Object.keys(changes).map((field) => [field, written.updatedAt])));
     }
     await saveRecords(tx, 'assets', schema.assets, next, { clocks });
-    const queuesRows = queued(plan).some((list) => list.length > 0);
-    return commitMergeMarks(tx, plan.marks.source, plan.marks.decided, queuesRows);
+    return commitMergeMarks(tx, plan.marks.source, plan.marks.decided, queuesRows(plan));
   });
 }
 
@@ -524,9 +534,10 @@ export async function finishMerge(source: SyncDb, target: SyncDb, sourceName: st
 }
 
 /**
- * Moves the plan's files and thumbnails from the source's folders into the target's, each unless
- * the target has it already, so a second pass moves nothing and deletes nothing. A move whose
- * destination is then missing throws, so the source is never removed on an unverified move.
+ * Moves the plan's files and thumbnails from the source's folders into the target's (the plan has
+ * only destinations the target lacked). A destination there by now is left as it is, a safety net
+ * that never overwrites; a move whose destination is then missing throws, so the source is never
+ * removed on an unverified move.
  */
 export async function moveMergedFiles(plan: MergePlan, sourcePaths: LibraryPaths, targetPaths: LibraryPaths) {
   const moves = [

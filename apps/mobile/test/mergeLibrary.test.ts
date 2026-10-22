@@ -337,6 +337,22 @@ describe('planMerge + applyMerge', () => {
     expect((await planMerge(source, target, SRC, TGT)).files).toEqual([]);
   });
 
+  // Round 20: earlier builds could give two records one file name. A file is planned once, to the
+  // first that takes it: a second move of it could never succeed.
+  it('plans a file two records share into one destination', async () => {
+    const theirs = await repo.createAsset(
+      target,
+      makeAssetRecord({ mediaLibraryAssetId: 'm-1', filename: 'x.jpg', isFileSynced: false }),
+    );
+    await devicePhoto({ mediaLibraryAssetId: 'm-0', filename: 'shared.jpg', thumbnailFilename: 's0-t.jpg' });
+    await devicePhoto({ mediaLibraryAssetId: 'm-1', filename: 'shared.jpg', thumbnailFilename: 's1-t.jpg' });
+
+    const plan = await planMerge(source, target, SRC, TGT);
+
+    expect(plan.files).toEqual(same('shared.jpg')); // the copy's, not also the match's under x.jpg
+    expect(plan.files.map(([, to]) => to)).not.toContain(theirs.filename);
+  });
+
   it('a move whose destination is then missing is an error, so the source is never removed on it', async () => {
     await devicePhoto({ filename: 'a.jpg', thumbnailFilename: 'at.jpg', mediaLibraryAssetId: 'm-a' });
     const plan = await planMerge(source, target, SRC, TGT);
