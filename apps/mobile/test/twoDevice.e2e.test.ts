@@ -1307,6 +1307,161 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       });
     });
 
+    // Round 14: pass 1 into T1 merges the iPhone's note into the account's photo of item x at S+300,
+    // and T1 is lost before it pushes. The iPad then notes the photo, and favorites it and takes that
+    // back (S+400..S+420). With T1 gone and no tokens, the device library is open again (libraryToOpen)
+    // and the user edits the iPhone's photo at S+500: a new note, and a favorite. The pass into T2
+    // (S+600) redoes pass 1's match at its clock (S+300), but with the photo's values as they are now,
+    // the S+500 edits included; this pass's merge of those edits at now then finds nothing left to
+    // change, so they only go at S+300 and lose to the iPad's older edits on the server.
+    // Expected: the edits made on the iPhone after the iPad's (S+500) win: a favorite, and the new note.
+    // Actual: the server keeps the iPad's (not a favorite, 'from the iPad'); the iPhone's edits are gone.
+    it.fails(
+      'round 14: an edit made on the device after a lost pass beats an earlier edit of the account',
+      async () => {
+        const id = await seedAsset({ mediaLibraryAssetId: 'camera-roll-x', notes: null, isFavorite: false });
+        const D = makeTestDb();
+        await setOwner(D, { kind: 'device' });
+        at(S + 100);
+        const photo = await repo.createAsset(
+          D,
+          makeAssetRecord({
+            ...{ mediaLibraryAssetId: 'camera-roll-x', filename: 'on-phone.jpg', isFileSynced: false },
+            ...{ isFavorite: false, notes: 'from the iPhone' },
+          }),
+        );
+
+        const T1 = makeTestDb();
+        await sync(T1);
+        at(S + 300);
+        const plan = await planMerge(D, T1, libraryPaths('device'));
+        await setMergeTarget(D, { library: 'T1', serverId: 's1', userId: 'u1' });
+        await applyMerge(T1, plan);
+        await setMergeMarks(D, libraryPaths('device').dbName, plan.marks.decided);
+
+        await edit(B, S + 400, () => repo.updateAsset(B, id, { notes: 'from the iPad' }));
+        await edit(B, S + 410, () => repo.toggleFavorite(B, id));
+        await edit(B, S + 420, () => repo.toggleFavorite(B, id));
+        await sync(B);
+        await edit(D, S + 500, () => repo.updateAsset(D, photo.id, { notes: 'from the iPhone, later' }));
+        await edit(D, S + 510, () => repo.toggleFavorite(D, photo.id));
+
+        const T2 = makeTestDb();
+        await settle([A, B, T2]);
+        at(S + 600);
+        await applyMerge(T2, await planMerge(D, T2, libraryPaths('device')));
+        await settle([A, B, T2]);
+
+        expect(await expectConverged('assets', id, [A, B, T2])).toMatchObject({
+          notes: 'from the iPad\nfrom the iPhone, later',
+          isFavorite: true,
+        });
+      },
+    );
+
+    // Round 14: D holds the account's photo by id (an earlier library's pass copied it and pushed it,
+    // then that library was lost; as in deviceLibraryWith). Opened again while the session had no
+    // tokens, D notes the photo (S+100). Pass 1 into T1 replays that note onto T1's row (by id) and
+    // commits; the source records the copy decision at the note's clock. T1 is lost before it pushes.
+    // The pass into T2 (whose first pull brought the photo without the note) replays only edits newer
+    // than the mark, so nothing: the replay T1 never pushed isn't made again, unlike a match's merge.
+    // Expected: the device's note reaches the account. Actual: the account keeps 'orig'.
+    it.fails('round 14: an edit replayed by id into a library lost before it pushed is replayed again', async () => {
+      const id = await seedAsset({ notes: 'orig' });
+      const D = await deviceLibraryWith(id);
+      await setOwner(D, { kind: 'device' });
+      await edit(D, S + 100, () => repo.updateAsset(D, id, { notes: 'device' }));
+
+      const T1 = makeTestDb();
+      await sync(T1);
+      at(S + 300);
+      const plan = await planMerge(D, T1, libraryPaths('device'));
+      await setMergeTarget(D, { library: 'T1', serverId: 's1', userId: 'u1' });
+      await applyMerge(T1, plan);
+      await setMergeMarks(D, libraryPaths('device').dbName, plan.marks.decided);
+      expect(await localRow(T1, 'assets', id)).toMatchObject({ notes: 'device' });
+
+      const T2 = makeTestDb();
+      await settle([A, B, T2]);
+      at(S + 400);
+      await applyMerge(T2, await planMerge(D, T2, libraryPaths('device')));
+      await settle([A, B, T2]);
+
+      expect(await expectConverged('assets', id, [A, B, T2])).toMatchObject({ notes: 'device' });
+    });
+
+    // Round 14: D holds the account's photo X of camera-roll item x by id (as in deviceLibraryWith), and
+    // the same item imported again as P (S+100). Pass 1 into T1 matches P into X (S+300) and commits;
+    // T1 is lost before it pushes. Opened again, D favorites X (S+500). The pass into T2 plans two
+    // replays of X: the device's favorite (by id) and pass 1's redone match of P. applyMerge keys the
+    // replays by record id (`sent`, a Map), so the redo replaces the by-id replay and the favorite
+    // never reaches X.
+    // Expected: X is a favorite with P's note. Actual: X has P's note but isn't a favorite.
+    it.fails('round 14: a redone match of a record the device also edited by id keeps that edit', async () => {
+      const id = await seedAsset({ mediaLibraryAssetId: 'camera-roll-x', notes: 'orig', isFavorite: false });
+      const D = await deviceLibraryWith(id);
+      await setOwner(D, { kind: 'device' });
+      at(S + 100);
+      await repo.createAsset(
+        D,
+        makeAssetRecord({
+          mediaLibraryAssetId: 'camera-roll-x',
+          filename: 'again.jpg',
+          isFileSynced: false,
+          notes: 'imported again',
+        }),
+      );
+
+      const T1 = makeTestDb();
+      await sync(T1);
+      at(S + 300);
+      const plan = await planMerge(D, T1, libraryPaths('device'));
+      await setMergeTarget(D, { library: 'T1', serverId: 's1', userId: 'u1' });
+      await applyMerge(T1, plan);
+      await setMergeMarks(D, libraryPaths('device').dbName, plan.marks.decided);
+      expect(await localRow(T1, 'assets', id)).toMatchObject({ notes: 'orig\nimported again' });
+
+      await edit(D, S + 500, () => repo.toggleFavorite(D, id));
+      const T2 = makeTestDb();
+      await settle([A, B, T2]);
+      at(S + 600);
+      await applyMerge(T2, await planMerge(D, T2, libraryPaths('device')));
+      await settle([A, B, T2]);
+
+      expect(await expectConverged('assets', id, [A, B, T2])).toMatchObject({
+        notes: 'orig\nimported again',
+        isFavorite: true,
+      });
+    });
+
+    // Round 14: D holds the account's photo X of camera-roll item x by id (as in deviceLibraryWith),
+    // and the same item imported again as P with a note (imports don't dedupe). The user deletes the
+    // duplicate X on the device and keeps P. The merge plans P as a match of X (live in the account at
+    // plan time) and replays X's deletion by id: applyMerge deletes X, then merges P's note into it.
+    // P is gone with the source, so the photo the user kept is in the account's trash.
+    // Expected: a live photo of item x with P's note. Actual: none; X is deleted, P's note on it.
+    it.fails('round 14: a photo kept on the device isn’t merged into its duplicate the device deleted', async () => {
+      const id = await seedAsset({ mediaLibraryAssetId: 'camera-roll-x', notes: null });
+      const D = await deviceLibraryWith(id);
+      await setOwner(D, { kind: 'device' });
+      at(S + 100);
+      await repo.createAsset(
+        D,
+        makeAssetRecord({ mediaLibraryAssetId: 'camera-roll-x', filename: 'kept.jpg', isFileSynced: false }),
+      );
+      await edit(D, S + 150, async () => {
+        const [kept] = (await D.select().from(clientSchema.assets)).filter((row) => row.id !== id);
+        await repo.updateAsset(D, kept!.id, { notes: 'the one I kept' });
+      });
+      await edit(D, S + 200, () => repo.deleteAssets(D, [id]));
+
+      await mergeInto(A, D, S + 300);
+      await settle();
+
+      const live = (await A.select().from(clientSchema.assets)).filter((row) => row.deletedAt === null);
+      expect(live.map((row) => [row.mediaLibraryAssetId, row.notes])).toEqual([['camera-roll-x', 'the one I kept']]);
+    });
+
     it('a device purge older than the account’s pending restore loses to it everywhere', async () => {
       const id = await seedAsset();
       await edit(A, S + 50, () => repo.deleteAssets(A, [id]));
