@@ -570,7 +570,7 @@ backs it up and keeps it in sync, and signing out only pauses that.
   earlier pass pushed aren't there to replay onto. Until then the setup screen says this iPhone's
   photos are added after it (`FirstSyncScreen`, with the list-only check `mergeDeviceLibrary` uses:
   `deviceLibraryToJoin`), the device library is held by nothing (another account leaves it free),
-  and the end of that pull runs the merges due (`runPendingMerges`, from `useMergeAfterFirstSync` in
+  and the end of that pull runs the merges due (`runPendingMerges`, from `usePendingMerges` in
   `AppGate`); a device library holding nothing joins at once (`mergeWaits`). A sign-in also resumes
   a merge already marked for the account's library. The device library stays the open library until
   the merge has happened: while the session can't pull (signed out, or a re-auth needed) and its
@@ -588,61 +588,51 @@ backs it up and keeps it in sync, and signing out only pauses that.
   (`confirmSignOutAsync`).
   The merge (`library/mergeRun.ts`) is crash-safe and idempotent: the `mergedInto` marker
   (`{ library, serverId, userId }`) on the source, in the list and, from the first pass that copies
-  records, in its own database; only a
-  completed merge clears them, and a pass that fails before its commit leaves both as they were
-  before it; every record in one transaction of the target with its outbox row; files, found by
-  listing the source's folders, moved into missing destinations after the commit; the source
-  removed when nothing is left in it. A pending edit of a record the target has is merged into the
-  target's row with `mergeRecord` against the target's pending clocks, and what applies goes into
-  its outbox through `saveRecords` with the source's clocks; it and the camera-roll matches' merges
-  are made again inside the commit's transaction, onto the rows as they are then, so an edit made
-  on the open target meanwhile isn't set back.
-  - **The merge model** (`planMerge`, `applyMerge`). Every decision is made once, and a library lost
-    before it pushed loses nothing:
-    - **A.** Each source record a committed pass decided on keeps a mark (`mergeMarks:<source>`,
-      `MergeMark` in `sync/status.ts`): copied (or the target had it by id), merged into target
-      record X (a camera-roll match), or skipped (an edge whose membership the target had); with
-      the record's `updatedAt` then and the library it was made in (`in`). The marks are committed
-      with the target's records and written into the source after the commit, so they survive a
-      change of target. "Elsewhere" means `in` isn't the target: the source's marker and the
-      target's copy of the marks don't decide it, so a pass stopped inside its commit, or a crash
-      after a completed merge cleared the target's marks, changes nothing. A mark without `in` (from
-      earlier builds of this branch) counts as made elsewhere: re-sending at old clocks is the safe
-      side. A decision stands while its target row exists, a tombstone included (the server keeps
-      those, and the first pull brings them); one whose row is gone went into a library that never
-      pushed it and is gone, and is made again (a copy is copied again, with its files). That holds
-      within one account only: the marker records the account, and a source committed into one
-      account's library never merges into another's; it waits, files and all, for a library of that
-      account. A marker whose library is gone stays, in the list too, for that rule.
-    - **B.** In the library it was made in, a mark limits replays to the record's edits after it.
-      Made elsewhere, the mark's `at` is ignored: every pending edit of the record goes again at its
-      own clock (the source's outbox is never cleared, and per-field LWW makes old clocks harmless).
-      One rule for copies, by-id replays, albums, posts and edges; a matched photo's pending edits go
-      onto X the same way (favorite as OR, a note appended). A field sent with the value the row has
-      changes nothing locally (the server settles its clock).
-    - **C.** A match records what each of its passes brought to X and the clock it was written at
-      (`brought`: the favorite, the note). Made elsewhere, it re-sends exactly that, at that clock,
-      never the photo's current values: per-field LWW makes it again unless the account changed the
-      field since (the earlier library's pushed merge already has that clock, an account change
-      after it beats it, one before it loses, as it did to that pass). Edits of the photo after that
-      pass are ordinary pending edits (B).
-    - **D.** `applyMerge` stamps `brought` per device photo from the rows it actually wrote, with the
-      clock of that write, and returns the marks it committed (the caller records them in the
-      source).
-    - **E.** Replays come first, combined per record and field, the newest clock winning (a by-id edit
-      and a redone match of one record). A match merged at the commit (a new camera-roll match, or a
-      photo's edits after its pass in the same library) is written at now with only its photos'
-      values, onto the row as it was before this plan's replays: a replayed value never rides along
-      at now, so a note the account deleted after a lost pass never comes back; on a field both touch,
-      the merge at now wins. Unless the row as pulled is older than the newest clock a lost pass
-      brought to it (`broughtAt`): that library never pushed it and the account hasn't changed the row
-      since, so the merge stacks on the replayed row (a photo of the same item imported again keeps
-      the redone note). The pull carries no field clocks, so the rule is per row: when the library
-      never pushed but the account changed another field of the row since, the merge at now goes onto
-      the pulled row and a redone note on the same field is lost (todo.md). A match goes only into a record still live once the plan's own replays
-      apply (a device deleting X by id and keeping P has P copied). A note is appended unless the same
-      note, or the same whole lines (trailing spaces and blank lines aside), are there already
-      (`mergedNotes`).
+  records, in its own database; only a completed merge clears them, and a pass that fails before its
+  commit leaves both as they were before it; every record in one transaction of the target with its
+  outbox row; files, found by listing the source's folders, moved into missing destinations after
+  the commit; the source removed when nothing is left in it, once the target has pushed. A pending
+  edit of a record the target has is merged into the target's row with `mergeRecord` against the
+  target's pending clocks, and what applies goes into its outbox through `saveRecords` with the
+  source's clocks; it and the camera-roll matches' merges are made again inside the commit's
+  transaction, onto the rows as they are then, so an edit made on the open target meanwhile isn't
+  set back.
+  - **The merge model** (`planMerge`, `applyMerge`, `mergeLibrary`): the source learns a decision
+    only once the target has pushed it.
+    - A committed pass marks each source record it decided on (`mergeMarks:<source>`, `MergeMark` in
+      `sync/status.ts`): copied (or the target had it by id), merged into target record X (a
+      camera-roll match), or skipped (an edge whose membership the target had), with the record's
+      `updatedAt` then. The marks are committed in the target with its records, and with the newest
+      outbox row then (`mergeCommitted:<source>`). There they are the authority: a pass run again (a
+      crash, a failed file move, a boot) replays only the record's edits after its mark.
+    - The source stays, marked and holding no marks, until no outbox row up to that one is left
+      (`isMergePushed`; the rows of one record coalesce in place and keep their id, so an edit of
+      the account made since doesn't hold the merge back, except one of a record the pass wrote,
+      until it pushes). Then the merge finishes: the source gets the marks, the target's go, and the
+      source is removed or kept. The boot runs it, and the end of the push (`runPendingMerges`, from
+      `usePendingMerges` when `anyMergePushed` turns true).
+    - A target lost before it pushed leaves the source with no marks of it, or only those of earlier
+      passes that pushed: the pass into the account's next library is an ordinary one. A record with
+      no decision is fresh, a match is made at now (nothing of the lost pass reached the server), and
+      a decision that was pushed stands, its `at` limiting replays. A decision stands while its target
+      row exists, a tombstone included (the server keeps those, and the first pull brings them); one
+      whose row is gone is made again. That holds within one account only: the marker records the
+      account, and a source committed into one account's library never merges into another's; it
+      waits, files and all, for a library of that account. A marker whose library is gone stays, in
+      the list too, for that rule.
+    - A camera-roll match merges its photos' favorite (OR) and notes (appended unless the same note,
+      or the same whole lines, trailing spaces and blank lines aside, are there: `mergedNotes`) onto
+      the row as the plan's replays leave it, and writes every field it brings at now, even one a
+      replay set (a replay at its older clock can lose on the server). A new match goes only into a
+      record still live once the plan's replays apply (a device deleting X by id and keeping P has P
+      copied).
+    - Left open: a target lost after it pushed but before the merge finished leaves the source
+      without the marks, so the next library's pass makes the matches again at now, over what the
+      account changed since (a match whose photo the account deleted since comes back as a copy); the
+      window is between the push and the merge's next run. The files move into the target's folders
+      at the commit, so a target lost with its folders after that takes them along, as before: its
+      records reach the next library without their files. A pass's row the server keeps rejecting
+      holds the source parked (todo.md).
   - **The source's own database is the authority** on what it joined (`mergedInto`, `keptFor`):
     `rebuildRegistry` restores both into a rebuilt list, and a source committed into a library that
     is still there joins no other (its list marker is set back to that library, whose merge the boot
