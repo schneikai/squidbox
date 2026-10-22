@@ -436,8 +436,7 @@ export function requestSync(): void {
 // Run `work` with syncing paused: aborts the running sync (it stops at its next batch or page) and backup
 // (at its next step), waits for both, and starts no run until `work` finishes. Use it for anything
 // that must not interleave with them, like changing the session or the open library. Sections run
-// one after another, with the sync requests made meanwhile honored after, and a sync after one that
-// aborted a run (what it cut short runs again).
+// one after another, with the sync requests made meanwhile honored after.
 export function withSyncPaused<T>(work: () => Promise<T>): Promise<T> {
   const pause = pauseRuns();
   return syncFlight
@@ -445,10 +444,7 @@ export function withSyncPaused<T>(work: () => Promise<T>): Promise<T> {
       await pause.stopped;
       return work();
     })
-    .finally(() => {
-      pause.resume();
-      if (pause.aborted) syncFlight.request();
-    });
+    .finally(pause.resume);
 }
 
 type SyncWork = (db: SyncDb, transport: SyncTransport, options: SyncRunOptions) => Promise<void>;
@@ -464,7 +460,11 @@ async function withSyncRun(work: SyncWork): Promise<void> {
   const { httpTransport } = await import('./transport');
   const { purgedFilesRemover } = await import('../library/fs');
   const removeFiles = purgedFilesRemover(library);
-  const run = startRun((signal) => work(db, httpTransport(identity), { signal, removeFiles }));
+  let stop: AbortSignal | undefined;
+  const run = startRun((signal) => {
+    stop = signal;
+    return work(db, httpTransport(identity), { signal, removeFiles });
+  });
   if (!run) return;
   try {
     await run;
@@ -472,6 +472,8 @@ async function withSyncRun(work: SyncWork): Promise<void> {
   } catch (err) {
     await patchStatus(db, { phase: 'error', lastError: err instanceof Error ? err.message : String(err) });
   }
+  // A run a paused section cut short runs again after it (the request trails this run and the section).
+  if (stop?.aborted) requestSync();
 }
 
 // Bound Inspector actions (the open library + HTTP transport).

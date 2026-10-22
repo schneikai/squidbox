@@ -105,7 +105,7 @@ vi.mock('../src/sync/status', async (importOriginal) => {
     },
     clearMergeCommit: async (...args: Parameters<typeof original.clearMergeCommit>) => {
       if (inject.dead) return;
-      reach('clearTargetMarks');
+      reach('clearCommit');
       return original.clearMergeCommit(...args);
     },
     setMergeCommit: async (...args: Parameters<typeof original.setMergeCommit>) => {
@@ -125,9 +125,10 @@ vi.mock('../src/library/mergeLibrary', async (importOriginal) => {
     },
     applyMerge: async (...args: Parameters<typeof original.applyMerge>) => {
       reach('apply');
-      await original.applyMerge(...args);
+      const commit = await original.applyMerge(...args);
       reach('afterCommit'); // the transaction committed, and its promise still rejects
       await pushAll(args[0]); // the account's library pushes at once, so the pass goes on to finish
+      return commit;
     },
   };
 });
@@ -177,7 +178,7 @@ const STEPS = [
   'move',
   'movedFlag',
   'sourceMarks',
-  'clearTargetMarks',
+  'clearCommit',
   'clearMarker',
   'forgetMarks',
   'listKept',
@@ -396,5 +397,43 @@ describe('round 17: two crashes between a merge’s finish and the device librar
     expect(entry('dev')).toBeUndefined();
     const live = (await getDb().select().from(schema.assets)).filter((row) => row.deletedAt === null);
     expect(live.map((row) => row.mediaLibraryAssetId)).toEqual(['m-o']);
+  });
+});
+
+// Round 18: the app dies right after pass 1's commit, before the device library's marker says
+// committed. The next pass writes nothing (the account holds the photo), but has joined the account's
+// library all the same: it marks the device library's database committed too, not only the list, so
+// a list rebuilt from it, or a pass after the finish, keeps it committed.
+describe('round 18: a crash between the commit and the committed marker', () => {
+  it('the next pass marks the device library committed in its database, before the files move', async () => {
+    if (openLibraryId()) await closeLibrary();
+    stores.clear();
+    files.clear();
+    storage.clear();
+    Object.assign(inject, { step: null, crash: false, dead: false });
+    await loadRegistry(async () => ({ libraries: [DEV, ACC] }));
+    stores.set(SRC.dbName, makeTestDb());
+    await devicePhoto(stores.get(SRC.dbName)!, { filename: 'p.jpg', mediaLibraryAssetId: 'm-p' });
+    await openLibrary(ACC);
+    await status.markFirstSyncDone(getDb());
+    const markerInDb = async () => (await status.getMergeTarget(stores.get(SRC.dbName)!))?.committed;
+
+    Object.assign(inject, { step: 'afterCommit', crash: true });
+    await mergeLibrary('dev', 'acc').catch(() => {});
+    expect(inject.dead).toBe(true);
+    inject.dead = false;
+    expect(await markerInDb()).toBeUndefined();
+
+    // The next launches: the pass moves the file, the account pushes, the finish runs, and the app
+    // dies before the device library's deletion, twice.
+    for (let crash = 0; crash < 2; crash++) {
+      Object.assign(inject, { step: 'deleteDb', crash: true });
+      await resumeMerges();
+      expect(inject.dead).toBe(true);
+      inject.dead = false;
+      expect(entry('dev')?.mergedInto?.committed).toBe(true);
+      expect(await markerInDb()).toBe(true);
+      expect(files.has(getAssetFileUri('p.jpg', TGT))).toBe(true);
+    }
   });
 });

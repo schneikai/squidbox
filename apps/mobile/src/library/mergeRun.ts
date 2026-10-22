@@ -1,7 +1,15 @@
 import { openLibraryId } from './current';
 import { libraryPaths } from './libraryPaths';
-import { applyMerge, finishMerge, mergeWaits, moveMergedFiles, planMerge, writesTarget } from './mergeLibrary';
-import { joinedElsewhere, type MergeMarker } from './mergeMarker';
+import {
+  applyMerge,
+  finishMerge,
+  mergeWaits,
+  moveMergedFiles,
+  movesFiles,
+  planMerge,
+  writesTarget,
+} from './mergeLibrary';
+import { hasJoined, joinedElsewhere, type MergeMarker } from './mergeMarker';
 import { getRegistry, isListed, updateLibrary } from './registry';
 import { removeLibrary } from './removeLibrary';
 import { withLibraryDb } from './withLibraryDb';
@@ -54,11 +62,11 @@ type Outcome = 'waits' | 'done' | 'kept' | { keptFor: string } | { mergedInto: M
  * that end up in the target, then, once the target has pushed what its passes wrote (sync-design
  * §8), the source learns their decisions and is removed, unless photos living in another account's
  * storage keep it, recorded as kept for the target (`keptFor`), so it is never merged again and
- * never joins another account. Once a pass committed or moved files into the target, the source's
- * marker says `committed` (it has joined the target: it never opens again for it, sessionLibrary.ts).
- * Until the push the source waits; the boot, a sign-in and the end
- * of the push run this again (runPendingMerges), which plans nothing while the push waits and the
- * source is as the last pass saw it.
+ * never joins another account. Once a pass committed into the target (a pass that only moves files
+ * commits its decisions first), the source's marker says `committed`: it has joined the target and
+ * never opens again for it (sessionLibrary.ts). Until the push the source waits; the boot, a sign-in
+ * and the end of the push run this again (runPendingMerges), which plans nothing while the push
+ * waits and the source is as the last pass saw it.
  *
  * Nothing happens before the target's first full pull has drained (mergeWaits): the boot and the end
  * of that pull try again (runPendingMerges). The marker (mergeMarker.ts) is in the list (what the
@@ -95,25 +103,27 @@ export async function mergeLibrary(sourceId: string, targetId: string): Promise<
     const plan = await planMerge(sourceDb, targetDb, libraryPaths(sourceId));
     const joinedTarget = { ...marker, committed: true as const };
     // Joined already: a pass committed here (its commit waits, or the finish ran and the source stayed).
-    const hasJoined = Boolean(commit) || (markers.mergedInto?.library === targetId && markers.mergedInto.committed);
-    const passMarker = hasJoined ? joinedTarget : marker;
+    const joinedBefore = Boolean(commit) || hasJoined(markers.mergedInto, targetId);
+    const passMarker = joinedBefore ? joinedTarget : marker;
     await setMarker(sourceId, passMarker);
     let committed = commit;
     try {
-      if (writesTarget(plan)) {
+      // A pass that only moves files commits its decisions too, so a retry after a failed move makes
+      // the same ones (a match whose record the account deleted meanwhile isn't copied).
+      if (writesTarget(plan) || movesFiles(plan)) {
         // Set before the target's commit (two databases can't share one): a pass that fails takes it back.
         await setMergeTarget(sourceDb, passMarker);
-        await applyMerge(targetDb, plan);
-        committed = await getMergeCommit(targetDb, name);
-        requestSync(); // its rows push once this paused section ends
+        committed = await applyMerge(targetDb, plan);
+        if (writesTarget(plan)) requestSync(); // its rows push once this paused section ends
       }
     } catch (error) {
-      await setMergeTarget(sourceDb, markers.mergedInto);
-      await setMarker(sourceId, before);
+      await setMergeTarget(sourceDb, joinedBefore ? passMarker : markers.mergedInto);
+      await setMarker(sourceId, joinedBefore ? passMarker : before);
       throw error;
     }
-    // Committed, or moving files into the target's folders: the source has joined the target.
-    if (!hasJoined && (committed || plan.files.length > 0 || plan.thumbnails.length > 0)) {
+    // Committed: the source has joined the target, in its database and the list (each written only
+    // when it changes), before any file moves into the target's folders.
+    if (committed) {
       await setMergeTarget(sourceDb, joinedTarget);
       await setMarker(sourceId, joinedTarget);
     }

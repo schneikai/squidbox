@@ -1,5 +1,5 @@
 import { openLibraryEntry, openLibraryId } from './current';
-import { joinedElsewhere } from './mergeMarker';
+import { hasJoined, joinedElsewhere } from './mergeMarker';
 import { mergeLibrary, resumeMerges } from './mergeRun';
 import { deviceLibrary, getRegistry, isListed, type Library } from './registry';
 import type { Session } from './session';
@@ -30,7 +30,7 @@ export function libraryForSession(session: Session | null): Library {
 // library (joinedElsewhere).
 function waitsToJoin(device: Library | undefined, target: Library): device is Library {
   if (!device || device.id === target.id || target.owner.kind !== 'account') return false;
-  if (device.mergedInto?.library === target.id && device.mergedInto.committed) return false;
+  if (hasJoined(device.mergedInto, target.id)) return false;
   return joinedElsewhere(device, target) === null;
 }
 

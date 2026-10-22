@@ -6,10 +6,16 @@ import { sameAccount } from './sameAccount';
  * database: the library a merge is adding it to, and that library's account. From the first pass that
  * commits records, the device library belongs to that account: it never joins another account's
  * library, and a library of the same account that replaces a lost one takes it over. `committed`
- * once a pass committed into that library: the device library has joined it, and waits only for its
- * push (sync-design §8).
+ * once a pass committed into that library (one that only moves files commits its decisions first):
+ * the device library has joined it, whose folders may hold its files, and waits only for its push
+ * (sync-design §8).
  */
 export type MergeMarker = { library: string; serverId: string; userId: string; committed?: true };
+
+// Whether the marker says the library has joined `libraryId` (a pass committed there).
+export function hasJoined(marker: MergeMarker | null | undefined, libraryId: string): boolean {
+  return marker?.library === libraryId && marker.committed === true;
+}
 
 // What a library holds of its merges: in the list (Library), or read from its database.
 type Markers = { keptFor?: string | null; mergedInto?: MergeMarker | null };

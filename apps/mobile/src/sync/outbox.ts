@@ -120,13 +120,10 @@ export async function newestOutboxId(db: SyncDb): Promise<number> {
   return row?.id ?? 0;
 }
 
-/**
- * Whether no outbox row up to `id` is left: the rows of one record coalesce in place and keep their
- * id, so what was written by the time `id` was the newest has pushed.
- */
-export async function outboxPushedThrough(db: SyncDb, id: number): Promise<boolean> {
-  const [row] = await db.select({ oldest: min(schema.outbox.id) }).from(schema.outbox);
-  return row?.oldest == null || row.oldest > id;
+/** The oldest outbox row's id, null when the outbox is empty. */
+export async function oldestOutboxId(db: SyncDb): Promise<number | null> {
+  const [row] = await db.select({ id: min(schema.outbox.id) }).from(schema.outbox);
+  return row?.id ?? null;
 }
 
 /**

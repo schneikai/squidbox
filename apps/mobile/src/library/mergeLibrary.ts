@@ -20,6 +20,7 @@ import {
   getMergeMarks,
   isFirstSyncDone,
   setMergeMarks,
+  type MergeCommit,
   type MergeDecision,
   type MergeMark,
 } from '@/sync/status';
@@ -417,6 +418,11 @@ class Moves {
   }
 }
 
+/** Whether the plan moves files or thumbnails into the target's folders. */
+export function movesFiles(plan: MergePlan): boolean {
+  return plan.files.length > 0 || plan.thumbnails.length > 0;
+}
+
 /** Whether the plan writes to the target (a plan with nothing costs nothing to apply or move). */
 export function writesTarget(plan: MergePlan): boolean {
   return [
@@ -433,12 +439,12 @@ export function writesTarget(plan: MergePlan): boolean {
 
 /**
  * Writes the plan into the target in one transaction, with its marks and the outbox row the pass is
- * pushed through (sync-design §8). Every copied record gets its outbox row. The replays and the
+ * pushed through (sync-design §8), and returns that commit. Every copied record gets its outbox row. The replays and the
  * matches' merges are made again onto the rows as they are now, so an edit made on the target since
  * the plan isn't set back.
  */
-export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<void> {
-  await target.transaction(async (tx) => {
+export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<MergeCommit> {
+  return target.transaction(async (tx) => {
     await saveRecords(tx, 'assets', schema.assets, plan.assets, { isNew: true });
     await saveRecords(tx, 'albums', schema.albums, plan.albums, { isNew: true });
     await saveRecords(tx, 'posts', schema.posts, plan.posts, { isNew: true });
@@ -485,7 +491,7 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<void>
       clocks.set(id, Object.fromEntries(Object.keys(changes).map((field) => [field, written.updatedAt])));
     }
     await saveRecords(tx, 'assets', schema.assets, next, { clocks });
-    await commitMergeMarks(tx, plan.marks.source, plan.marks.decided);
+    return commitMergeMarks(tx, plan.marks.source, plan.marks.decided);
   });
 }
 

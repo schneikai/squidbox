@@ -316,9 +316,10 @@ to get help.
 ### [ ] A merge waits for its target's push; a rejected row holds it
 
 `mergeLibrary` (`src/library/mergeRun.ts`) removes the device library only once the account's library
-has pushed every outbox row the merge's commit wrote (`isMergePushed`, sync-design §8). A row the
+has no outbox row left up to the newest at the merge's commit (`isPushed`, sync-design §8). A row the
 server keeps rejecting (too large, invalid) holds the device library parked, with nothing said in the
-app. Its data is safe there; show it, or let the merge finish past a rejected row.
+app, whether the merge wrote it or it was an older failed row of the account's. Its data is safe
+there; show it, or let the merge finish past a rejected row.
 
 ### [ ] Merge marks are one JSON value per source library
 

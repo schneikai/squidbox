@@ -24,15 +24,11 @@ export function startRun(work: (signal: AbortSignal) => Promise<void>): Promise<
   return result;
 }
 
-/**
- * Aborts every registered run and holds new ones until `resume`; `stopped` resolves once they ended,
- * and `aborted` says whether there were any.
- */
-export function pauseRuns(): { stopped: Promise<void>; aborted: boolean; resume(): void } {
+/** Aborts every registered run and holds new ones until `resume`; `stopped` resolves once they ended. */
+export function pauseRuns(): { stopped: Promise<void>; resume(): void } {
   pauses += 1;
   for (const run of runs) run.controller.abort();
   return {
-    aborted: runs.size > 0,
     stopped: Promise.all([...runs].map((run) => run.done)).then(() => {}),
     resume() {
       pauses -= 1;
