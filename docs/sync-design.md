@@ -583,9 +583,9 @@ backs it up and keeps it in sync, and signing out only pauses that.
   them (a sync run can't wait for a pause); a drop during the boot (the cloud init) is answered by
   `bootLibrary` itself, which runs it again after the init. A library that won't open gives way to
   the session's own (`openLibraryForSession`), so a damaged device library never stops the boot (the
-  provider reports a failed switch as the boot error only once booted). An
-  account library not in the list yet hasn't pulled; a listed one is asked. The setup screen's Sign
-  out asks first (`confirmSignOutAsync`).
+  provider reports a failed switch as the boot error only once booted). An account library not in
+  the list yet hasn't pulled; a listed one is asked. The setup screen's Sign out asks first
+  (`confirmSignOutAsync`).
   The merge (`library/mergeRun.ts`) is crash-safe and idempotent: the `mergedInto` marker
   (`{ library, serverId, userId }`) on the source, in the list and, from the first pass that copies
   records, in its own database; only a
@@ -597,34 +597,47 @@ backs it up and keeps it in sync, and signing out only pauses that.
   its outbox through `saveRecords` with the source's clocks; it and the camera-roll matches' merges
   are made again inside the commit's transaction, onto the rows as they are then, so an edit made
   on the open target meanwhile isn't set back.
-  - **Decisions are made once.** Every source record a committed pass decided on keeps a mark of the
-    decision and the record's `updatedAt` then (`mergeMarks:<source>`, `MergeMark` in
-    `sync/status.ts`): copied (or the target had it by id), merged into target record X (a
-    camera-roll match), or skipped (an edge whose membership the target had). The marks are
-    committed with the target's records and written into the source after the commit, so they
-    survive a change of target; the target's copy goes once the merge completes. A later pass (a
-    crash, a failed file move, a new target after the earlier one went) never decides again: it
-    only replays the record's edits newer than its mark (the source's outbox is never cleared;
-    clocks are monotonic per record, not across a library) along the decision: onto the record, or
-    onto X, and nowhere when X is deleted or purged, so a photo the account deleted is never copied
-    back, and a skipped membership is never added once the account removed the one it had. A decision
-    whose target record has no row at all, not even a tombstone (the server keeps those, and a
-    full resync puts pending edits back), went into a library that never pushed it and is gone: it
-    is made again, so those records and their files are copied rather than lost with the source.
-    That holds within one account only: the marker records the account, and a source committed into
-    one account's library never merges into another's; it waits, files and all, for a library of that
-    account. A marker whose library is gone stays, in the list too, for that rule.
-  - **A match decided in another library is merged again at its own clock.** A match's mark records
-    the clock its pass merged the device's values into the target's record at (`mergedAt`, the
-    commit's stamp of the fields it wrote, applyMerge). A mark the source holds and the target's
-    committed marks don't was made in another library (lost since, maybe before it pushed; the
-    source's marker doesn't decide it, so a pass stopped inside its commit changes nothing). Its
-    merge goes again, stamped at `mergedAt`, never now, so per-field LWW makes it again unless the
-    account changed the field since: the earlier library's pushed merge already has that clock, an
-    account change after it beats it, and one before it loses, as it did to pass 1. A mark without
-    the clock (earlier builds) goes at the device photo's `updatedAt`, older still. It is replayed
-    before this pass's merges of the same record, which add to it at now. A note is appended unless
-    the same note, or the same whole lines, are there already (`mergedNotes`).
+  - **The merge model** (`planMerge`, `applyMerge`). Every decision is made once, and a library lost
+    before it pushed loses nothing:
+    - **A.** Each source record a committed pass decided on keeps a mark (`mergeMarks:<source>`,
+      `MergeMark` in `sync/status.ts`): copied (or the target had it by id), merged into target
+      record X (a camera-roll match), or skipped (an edge whose membership the target had); with
+      the record's `updatedAt` then and the library it was made in (`in`). The marks are committed
+      with the target's records and written into the source after the commit, so they survive a
+      change of target. "Elsewhere" means `in` isn't the target: the source's marker and the
+      target's copy of the marks don't decide it, so a pass stopped inside its commit, or a crash
+      after a completed merge cleared the target's marks, changes nothing. A mark without `in` (from
+      earlier builds of this branch) counts as made elsewhere: re-sending at old clocks is the safe
+      side. A decision stands while its target row exists, a tombstone included (the server keeps
+      those, and the first pull brings them); one whose row is gone went into a library that never
+      pushed it and is gone, and is made again (a copy is copied again, with its files). That holds
+      within one account only: the marker records the account, and a source committed into one
+      account's library never merges into another's; it waits, files and all, for a library of that
+      account. A marker whose library is gone stays, in the list too, for that rule.
+    - **B.** In the library it was made in, a mark limits replays to the record's edits after it.
+      Made elsewhere, the mark's `at` is ignored: every pending edit of the record goes again at its
+      own clock (the source's outbox is never cleared, and per-field LWW makes old clocks harmless).
+      One rule for copies, by-id replays, albums, posts and edges; a matched photo's pending edits go
+      onto X the same way (favorite as OR, a note appended). A field sent with the value the row has
+      changes nothing locally (the server settles its clock).
+    - **C.** A match records what each of its passes brought to X and the clock it was written at
+      (`brought`: the favorite, the note). Made elsewhere, it re-sends exactly that, at that clock,
+      never the photo's current values: per-field LWW makes it again unless the account changed the
+      field since (the earlier library's pushed merge already has that clock, an account change
+      after it beats it, one before it loses, as it did to that pass). Edits of the photo after that
+      pass are ordinary pending edits (B).
+    - **D.** `applyMerge` stamps `brought` per device photo from the rows it actually wrote, with the
+      clock of that write, and returns the marks it committed (the caller records them in the
+      source).
+    - **E.** Replays come first, combined per record and field, the newest clock winning (a by-id edit
+      and a redone match of one record). A match merged at the commit (a new camera-roll match, or a
+      photo's edits after its pass in the same library) is written at now with only its photos'
+      values, onto the row as it was before this plan's replays: a replayed value never rides along
+      at now, so a note the account deleted after a lost pass never comes back; on a field both touch,
+      the merge at now wins. A match goes only into a record still live once the plan's own replays
+      apply (a device deleting X by id and keeping P has P copied). A note is appended unless the same
+      note, or the same whole lines (trailing spaces and blank lines aside), are there already
+      (`mergedNotes`).
   - **The source's own database is the authority** on what it joined (`mergedInto`, `keptFor`):
     `rebuildRegistry` restores both into a rebuilt list, and a source committed into a library that
     is still there joins no other (its list marker is set back to that library, whose merge the boot
@@ -633,8 +646,9 @@ backs it up and keeps it in sync, and signing out only pauses that.
     database (`joinedElsewhere` in `mergeMarker.ts`, the one rule both read, on the markers it read
     once) and repairs the list. The installed build kept the markers in the list only, the marker as
     a library id: the first boot of this build, after `resolveOwners` and before any merge runs,
-    gives each that library's account in the list (dropping it when the library is gone or its
-    owner unresolved) and copies the markers into each existing database lacking them, once
+    gives each that library's account in the list (dropping it when the library is gone; one whose
+    owner is unresolved keeps the id, so its merge resumes there) and copies the markers into each
+    existing database lacking them, once
     (`backfillMergeMarkers`, to delete once the phone has run this build; on web, where databases
     can't be listed, a listed library's database counts as existing). A marker a database holds as
     a bare id (earlier builds of this branch) reads as none. A source whose earlier
