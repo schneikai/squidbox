@@ -609,23 +609,27 @@ backs it up and keeps it in sync, and signing out only pauses that.
       `source`, the source's outbox as the pass saw it). There they are the authority: a pass run
       again (a crash, a failed file move, a boot) replays only the record's edits after its mark. A
       sync is requested after the commit, so its rows push when the paused section ends.
-    - The source's marker says `committed` once a pass committed into the target or is about to move
-      files into its folders (a match with nothing to write can), in its database and the list
-      (`rebuildRegistry` restores it), and every later pass into that library keeps it: the source
+    - A pass that writes nothing but moves files into the target's folders (a match with nothing to
+      merge, whose record has no file in the cloud) commits its decisions all the same, so a retry
+      after a failed move makes the same ones.
+    - The source's marker says `committed` once a pass committed into the target, before any file
+      moves, in its database and the list (`rebuildRegistry` restores it; each pass that has joined
+      writes both, only when they change), and every later pass into that library keeps it: the source
       has joined the target, whose folders hold its files, so `libraryToOpen` never opens it for the
       target and the setup screen counts nothing to add (`waitsToJoin`), a rebuild of the target
       included.
     - The source stays, holding no marks, until no outbox row up to that one is left (`isPushed`;
       the rows of one record coalesce in place and keep their id, so an edit of the account made
-      since doesn't hold the merge back, except one of a record the pass wrote, until it pushes).
+      since doesn't hold the merge back, except one of a record the pass wrote, until it pushes; an
+      older failed row of the account's does, todo.md).
       Then the merge finishes (`finishMerge`): the target's marks are added to the source's (a
       finish run again after a crash before the source went finds the target's cleared), the
       target's commit and marks go, and the source is removed or kept. The boot, a sign-in and the
       end of the push run it (`runPendingMerges`, from `usePendingMerges` when `anyMergePushed` turns
-      true, once per change: a merge that can't finish waits for the next boot or commit). A paused
-      section that cut a sync run short requests another after it (`withSyncPaused`). Until the push,
-      a run whose files moved, with the source's outbox as the last pass saw it, plans nothing; the
-      finish plans once more.
+      true, once per change: a merge that can't finish waits for the next boot or commit). A sync run
+      a paused section cut short requests another, which runs after the section (`withSyncRun`).
+      Until the push, a run whose files moved, with the source's outbox as the last pass saw it,
+      plans nothing; the finish plans once more.
     - A target lost before it pushed leaves the source with no marks of it, or only those of earlier
       passes that pushed: the pass into the account's next library is an ordinary one. A record with
       no decision is fresh, a match is made at now (nothing of the lost pass reached the server), and
