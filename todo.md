@@ -282,7 +282,8 @@ Node 20 reached end of life in April 2026. `mise.toml` pins 20.19.4 and the serv
 
 `src/library/backfillMergeMarkers.ts` and its call in `bootLibrary.ts` (and its boot tests in
 `accountSwitch.test.ts`). It gives the installed build's (df33378) id-only list markers their account
-and copies them into the device library's database, the authority from this build on.
+and copies them into the device library's database, the authority from this build on. The bare-id
+fallback in `getMergeTarget` (`sync/status.ts`, for earlier builds of this branch) goes with it.
 
 ### [ ] Delete `resolveOwners` once the phone has booted this build
 
@@ -302,7 +303,7 @@ module-global. Closing a library already makes a late write fail, so this is tid
 
 The setup screen says this iPhone's photos join after the first sync (`FirstSyncScreen`), but a
 device library whose merge failed (it retries at each boot, `mergeDeviceLibrary`), or that waits for
-another library or account it joined (`joinedElsewhere` in `library/mergeRun.ts`), shows nothing in
+another library or account it joined (`joinedElsewhere` in `library/mergeMarker.ts`), shows nothing in
 the app, so its photos are out of sight until it completes. Show it in the sync status or Settings.
 
 ### [ ] Tell the user when this iPhone's library won't open

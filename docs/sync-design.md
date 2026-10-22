@@ -583,7 +583,7 @@ backs it up and keeps it in sync, and signing out only pauses that.
   them (a sync run can't wait for a pause); a drop during the boot (the cloud init) is answered by
   `bootLibrary` itself, which runs it again after the init. A library that won't open gives way to
   the session's own (`openLibraryForSession`), so a damaged device library never stops the boot (the
-  provider reports a failed switch as the boot error only once booted, `isFatalSwitchFailure`). An
+  provider reports a failed switch as the boot error only once booted). An
   account library not in the list yet hasn't pulled; a listed one is asked. The setup screen's Sign
   out asks first (`confirmSignOutAsync`).
   The merge (`library/mergeRun.ts`) is crash-safe and idempotent: the `mergedInto` marker
@@ -613,11 +613,18 @@ backs it up and keeps it in sync, and signing out only pauses that.
     is made again, so those records and their files are copied rather than lost with the source.
     That holds within one account only: the marker records the account, and a source committed into
     one account's library never merges into another's; it waits, files and all, for a library of that
-    account. A marker whose library is gone stays, in the list too, for that rule. When the decisions
-    were made in another library (the source's marker names another one: lost before it may have
-    pushed), a match's merge goes again, stamped at the device photo's own field clocks, never now:
-    per-field LWW settles it (the account's later change, or the earlier library's pushed merge,
-    wins; a merge never pushed is made again), and a note already there isn't appended twice.
+    account. A marker whose library is gone stays, in the list too, for that rule.
+  - **A match decided in another library is merged again at its own clock.** A match's mark records
+    the clock its pass merged the device's values into the target's record at (`mergedAt`, the
+    commit's stamp of the fields it wrote, applyMerge). A mark the source holds and the target's
+    committed marks don't was made in another library (lost since, maybe before it pushed; the
+    source's marker doesn't decide it, so a pass stopped inside its commit changes nothing). Its
+    merge goes again, stamped at `mergedAt`, never now, so per-field LWW makes it again unless the
+    account changed the field since: the earlier library's pushed merge already has that clock, an
+    account change after it beats it, and one before it loses, as it did to pass 1. A mark without
+    the clock (earlier builds) goes at the device photo's `updatedAt`, older still. It is replayed
+    before this pass's merges of the same record, which add to it at now. A note is appended unless
+    the same note, or the same whole lines, are there already (`mergedNotes`).
   - **The source's own database is the authority** on what it joined (`mergedInto`, `keptFor`):
     `rebuildRegistry` restores both into a rebuilt list, and a source committed into a library that
     is still there joins no other (its list marker is set back to that library, whose merge the boot
