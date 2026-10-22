@@ -347,3 +347,54 @@ describe('a device library’s sweep running when the sign-in merges it', () => 
     expect(entry('dev')).toBeUndefined();
   });
 });
+
+// Round 17: the finish (finishMerge) gives the source the target's marks, whatever they are. After a
+// crash between the finish and the source's removal, the target holds no marks any more, so the next
+// pass (which plans from the source's marks and writes nothing) gives the source an empty set. A
+// second crash in the same spot then leaves the source with no decision at all, and the pass after it
+// makes every decision again, over what the account changed since.
+// Scenario: the device's photo is merged into the account's copy of the same camera-roll item (its
+// favorite OR'd in), the account pushes, the finish runs, and the app dies before the device library's
+// database is deleted, twice in a row. Meanwhile another device deletes the account's photo (pulled
+// as a tombstone). Expected: the match stands (sync-design §8: "a decision that was pushed stands
+// ... a tombstone included"), so the deleted photo stays deleted. Actual: the device's photo is
+// copied into the account as a new live photo, undoing the deletion.
+describe('round 17: two crashes between a merge’s finish and the device library’s removal', () => {
+  it.fails('a photo the account deleted since the match stays deleted', async () => {
+    const { upsertRows } = await import('../src/sync/upsertRows');
+    if (openLibraryId()) await closeLibrary();
+    stores.clear();
+    files.clear();
+    storage.clear();
+    Object.assign(inject, { step: null, crash: false, dead: false });
+    await loadRegistry(async () => ({ libraries: [DEV, ACC] }));
+    stores.set(SRC.dbName, makeTestDb());
+    await openLibrary(ACC);
+    await status.markFirstSyncDone(getDb());
+    const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-x', filename: 'p.jpg', isFavorite: false });
+    await upsertRows(getDb(), 'assets', schema.assets, [{ ...accountPhoto, syncError: null }]); // pulled, in the cloud
+    await devicePhoto(stores.get(SRC.dbName)!, { mediaLibraryAssetId: 'm-x', filename: 'd.jpg', isFavorite: true });
+    await devicePhoto(stores.get(SRC.dbName)!, { mediaLibraryAssetId: 'm-o', filename: 'o.jpg' });
+
+    // Pass 1: the match and the copy commit, the account pushes, the finish runs, then the app dies.
+    Object.assign(inject, { step: 'deleteDb', crash: true });
+    await mergeLibrary('dev', 'acc').catch(() => {});
+    expect(inject.dead).toBe(true);
+    // The next launch: the pass plans from the source's marks, finishes, and the app dies again there.
+    Object.assign(inject, { step: 'deleteDb', crash: true, dead: false });
+    await resumeMerges();
+    expect(inject.dead).toBe(true);
+    inject.dead = false;
+    expect(entry('dev')).toBeDefined();
+
+    // Another device deletes the account's photo; this one pulls the tombstone.
+    await upsertRows(getDb(), 'assets', schema.assets, [
+      { ...accountPhoto, isFavorite: true, deletedAt: 5000, updatedAt: 5000, syncError: null },
+    ]);
+
+    await resumeMerges(); // the next launch
+    expect(entry('dev')).toBeUndefined();
+    const live = (await getDb().select().from(schema.assets)).filter((row) => row.deletedAt === null);
+    expect(live.map((row) => row.mediaLibraryAssetId)).toEqual(['m-o']);
+  });
+});
