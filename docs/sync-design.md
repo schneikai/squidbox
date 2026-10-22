@@ -594,10 +594,12 @@ backs it up and keeps it in sync, and signing out only pauses that.
   a pass that fails before its commit leaves both as they were before it (joined, if it had joined
   before); every record in one transaction of the target with its outbox row; files, found by
   listing the source's folders and the target's, moved into missing destinations after the commit
-  (only those are planned, each file once, so a move once made is never planned again; a record
-  whose file moves has its sync error cleared, its backup tries again); the source removed when
-  nothing is left in it, once the target has pushed. A pending edit of a record the target has is merged into the target's row with `mergeRecord` against the
-  target's pending clocks, and what applies goes into its outbox through `saveRecords` with the
+  (only those are planned, so a move once made is never planned again; a file records share, from
+  earlier builds, is copied to all its destinations but the last, moved to that one); once the files
+  arrived, a record holding its file there has its sync error cleared, so its backup tries again
+  (`retryBackups`); the source removed when nothing is left in it, once the target has pushed. A
+  pending edit of a record the target has is merged into the target's row with `mergeRecord` against
+  the target's pending clocks, and what applies goes into its outbox through `saveRecords` with the
   source's clocks; it and the camera-roll matches' merges are made again inside the commit's
   transaction, onto the rows as they are then, so an edit made on the open target meanwhile isn't
   set back.
@@ -631,8 +633,8 @@ backs it up and keeps it in sync, and signing out only pauses that.
       end of the push run it (`runPendingMerges`, from `usePendingMerges` when `anyMergePushed` turns
       true, once per change: a merge that can't finish waits for the next boot or commit; a commit
       whose files haven't moved yet is its pass's and doesn't count). A sync run a paused section cut
-      short, or a sync kept from starting, requests another, which runs after the section
-      (`withSyncRun`; a full resync kept from starting isn't asked again: its user taps it again).
+      short requests a sync after the section (a full resync's pull resumes from its cursor), and a
+      run a paused section kept from starting asks for the same run again after it (`withSyncRun`).
       Until the push, a run whose files moved, with the source's outbox as the last pass saw it,
       plans nothing; the finish plans once more.
     - A target lost before it pushed leaves the source with no marks of it, or only those of earlier
