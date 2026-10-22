@@ -408,7 +408,7 @@ export interface SyncTarget {
   library: LibraryPaths;
 }
 
-const syncFlight = createSingleFlight(() => withSyncRun(runSyncOnce));
+const syncFlight = createSingleFlight(() => withSyncRun(runSyncOnce, requestSync));
 let syncTarget: SyncTarget | null = null;
 
 export function setSyncTarget(target: SyncTarget | null): void {
@@ -453,7 +453,8 @@ type SyncWork = (db: SyncDb, transport: SyncTransport, options: SyncRunOptions) 
 // identity on every request (so a mid-run refresh is picked up and another user's session is
 // refused, which ends the run like an abort), and record the run's terminal status (idle on
 // success, error on throw). Callers run it through syncFlight so it never overlaps another sync.
-async function withSyncRun(work: SyncWork): Promise<void> {
+// `again` asks for the same run once more, when a paused section keeps this one from starting.
+async function withSyncRun(work: SyncWork, again: () => void): Promise<void> {
   if (!syncTarget) return;
   const { db, identity, library } = syncTarget;
   // Their session store and file system need the native modules the tests lack.
@@ -465,10 +466,9 @@ async function withSyncRun(work: SyncWork): Promise<void> {
     signal = runSignal;
     return work(db, httpTransport(identity), { signal: runSignal, removeFiles });
   });
-  // Paused: the section is queued in the same flight, so a sync asked for now runs after it. A full
-  // resync kept from starting isn't asked again: its user taps it again.
+  // Paused: the section is queued in the same flight, so the run asked for again now runs after it.
   if (!run) {
-    if (work === runSyncOnce) requestSync();
+    again();
     return;
   }
   try {
@@ -477,13 +477,18 @@ async function withSyncRun(work: SyncWork): Promise<void> {
   } catch (err) {
     await patchStatus(db, { phase: 'error', lastError: err instanceof Error ? err.message : String(err) });
   }
-  // A run a paused section cut short runs again after it (the request trails this run and the section).
+  // A run a paused section cut short goes on after it as a sync (the request trails this run and the
+  // section): a full resync's pull resumes from its cursor.
   if (signal?.aborted) requestSync();
 }
 
 // Bound Inspector actions (the open library + HTTP transport).
 export function runFullResync(): Promise<void> {
-  return syncFlight.exclusive(() => withSyncRun(fullResync));
+  return syncFlight.exclusive(() =>
+    withSyncRun(fullResync, () => {
+      runFullResync().catch(() => {});
+    }),
+  );
 }
 export function runClearOutbox(db: SyncDb): Promise<void> {
   return withSyncPaused(() => clearOutbox(db));

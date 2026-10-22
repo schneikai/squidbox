@@ -46,6 +46,7 @@ vi.mock('../src/library/fs', () => ({
   listFiles: async () => new Set<string>(),
   fileExists: async () => false,
   moveFile: async () => {},
+  copyFile: async () => {},
 }));
 
 // Headless two-device end-to-end: two better-sqlite3 "devices" + the real server sync engine

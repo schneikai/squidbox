@@ -2,8 +2,9 @@ import { eq, lte } from 'drizzle-orm';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
-import { FUZZ_MEDIA, mergeLosses, seedAccountPhotos } from './helpers/mergeFuzz';
+import { mergeLosses } from './helpers/mergeLosses';
 import { prng } from './helpers/prng';
+import { seedAccountPhotos } from './helpers/seedAccountPhotos';
 import { makeTestDb } from './helpers/testDb';
 import { purgedFilesRemover } from '../src/library/fs';
 import { libraryPaths } from '../src/library/libraryPaths';
@@ -78,6 +79,10 @@ vi.mock('../src/library/fs', () => ({
   moveFile: async (from: string, to: string) => {
     reach('move');
     files.delete(from);
+    files.add(to);
+  },
+  copyFile: async (_from: string, to: string) => {
+    reach('move');
     files.add(to);
   },
   removeLibraryFolders: async () => {},
@@ -443,7 +448,7 @@ describe('round 18: a crash between the commit and the committed marker', () => 
 describe('round 19: seeded crashes', () => {
   const albumEdges = makeEdgeRepository('album_assets', schema.albumAssets, 'albumId');
   const albums = makeRepository('albums', schema.albums);
-  const SEEDS = 150;
+  const SEEDS = Number(process.env.FUZZ_SEEDS ?? 150);
   async function reboot() {
     Object.assign(inject, { step: null, dead: false });
     if (openLibraryId()) await closeLibrary();
@@ -460,13 +465,29 @@ describe('round 19: seeded crashes', () => {
     await openLibrary(ACC);
     await status.markFirstSyncDone(getDb());
     const accountRows = await seedAccountPhotos(getDb(), rand, (name) => files.add(getAssetFileUri(name, TGT)));
+    const media = ['m0', 'm1', 'm2', 'm3', 'm4', 'm5'];
+    const problems: string[] = [];
+    // A record whose backup found no file loses that error only once its file is here.
+    const missingFile = new Set<string>();
+    const errorGoneTooSoon = async () => {
+      for (const row of await getDb().select().from(schema.assets))
+        if (missingFile.has(row.id) && row.syncError === null && !files.has(getAssetFileUri(row.filename, TGT)))
+          problems.push(`seed ${seed}: ${row.filename} lost its sync error before its file arrived`);
+    };
     const device: schema.AssetRow[] = [];
     for (let i = 0; i < 5; i++) {
+      // Now and then the file name of an earlier photo (earlier builds could give two one name).
+      const name = i > 0 && r() < 0.2 ? `dev${Math.floor(r() * i)}` : `dev${i}`;
       const photo = await devicePhoto(source, {
-        ...{ mediaLibraryAssetId: pick(FUZZ_MEDIA), filename: `dev${i}.jpg`, thumbnailFilename: `dev${i}-t.jpg` },
+        ...{ mediaLibraryAssetId: pick(media), filename: `${name}.jpg`, thumbnailFilename: `${name}-t.jpg` },
         ...{ isFavorite: r() < 0.3, notes: r() < 0.3 ? `dev note ${i}` : null },
       });
       device.push(photo as schema.AssetRow);
+      // Now and then one an earlier library copied and pushed, whose backup there found no file.
+      if (r() < 0.2) {
+        await upsertRows(getDb(), 'assets', schema.assets, [{ ...photo, syncError: 'No file on this device' }]);
+        missingFile.add(photo.id);
+      }
     }
     const keeps = r() < 0.3;
     if (keeps) await devicePhoto(source, { mediaLibraryAssetId: 'mk', filename: 'kept.jpg', isFileSynced: true });
@@ -482,6 +503,7 @@ describe('round 19: seeded crashes', () => {
     const accountAssets = () => getDb().select().from(schema.assets);
 
     for (let step = 0; step < 10; step++) {
+      await errorGoneTooSoon();
       const op = r();
       if (op < 0.45) {
         Object.assign(inject, { step: r() < 0.5 ? pick(STEPS) : null, crash: true });
@@ -556,7 +578,6 @@ describe('round 19: seeded crashes', () => {
     }
 
     // The account pushes, then the user edits a photo there (a row after every pass's), at each boot.
-    const problems: string[] = [];
     for (let boot = 0; boot < 4 && entry('dev') && !entry('dev')!.keptFor; boot++) {
       await pushAll(getDb());
       await getDb()

@@ -133,3 +133,8 @@ export async function fileExists(uri: string): Promise<boolean> {
 export async function moveFile(from: string, to: string): Promise<void> {
   await FileSystem.moveAsync({ from, to });
 }
+
+// Copies a file into a destination that doesn't exist yet.
+export async function copyFile(from: string, to: string): Promise<void> {
+  await FileSystem.copyAsync({ from, to });
+}

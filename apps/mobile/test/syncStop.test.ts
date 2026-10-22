@@ -7,9 +7,16 @@ import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import { startRun } from '../src/sync/runGate';
-import { getCursor, isFirstSyncDone } from '../src/sync/status';
+import { getCursor, isFirstSyncDone, setCursor } from '../src/sync/status';
 import type { SyncTransport } from '../src/sync/transport';
-import { APPLY_BATCH, runSyncOnce, setSyncTarget, withSyncPaused, type SyncTarget } from '../src/sync/worker';
+import {
+  APPLY_BATCH,
+  runFullResync,
+  runSyncOnce,
+  setSyncTarget,
+  withSyncPaused,
+  type SyncTarget,
+} from '../src/sync/worker';
 import SessionChangedError from '../src/utils/cloud-api/SessionChangedError';
 
 // The production sync runs' transport and file removal (withSyncRun).
@@ -99,6 +106,28 @@ describe('withSyncPaused', () => {
     await withSyncPaused(async () => {}); // paused before that run starts
 
     await vi.waitFor(async () => expect(await db.select().from(schema.outbox)).toHaveLength(0));
+    await withSyncPaused(async () => setSyncTarget(null));
+  });
+
+  // Round 21: a full resync tapped just before a paused section starts finds the runs paused: it is
+  // asked again, and the full resync (not a plain sync) runs after the section.
+  it('a full resync held back by a pause runs after the section', async () => {
+    await setCursor(db, 5000); // a sync pulls from here, a full resync from the start
+    const pulls: number[] = [];
+    transportImpl.current = {
+      push: async () => ({ results: [] }),
+      pull: async ({ cursor }: { cursor: number }) => {
+        pulls.push(cursor);
+        return { changes: {}, cursor, hasMore: false };
+      },
+    };
+    await withSyncPaused(async () => setSyncTarget({ db, identity: {}, library: {} } as SyncTarget));
+    await vi.waitFor(() => expect(pulls).toEqual([5000])); // the sync setting the target asks for
+
+    runFullResync().catch(() => {});
+    await withSyncPaused(async () => {}); // paused before the full resync starts
+
+    await vi.waitFor(() => expect(pulls).toEqual([5000, 0]));
     await withSyncPaused(async () => setSyncTarget(null));
   });
 

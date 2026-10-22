@@ -85,6 +85,9 @@ vi.mock('../src/library/fs', () => ({
     files.delete(from);
     files.add(to);
   },
+  copyFile: async (_from: string, to: string) => {
+    files.add(to);
+  },
   libraryLimitMessage: (error: Error) => (error.message.startsWith('no room') ? 'No more libraries' : null),
 }));
 const ids = vi.hoisted(() => ({ n: 0 }));

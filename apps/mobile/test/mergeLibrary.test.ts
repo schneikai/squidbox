@@ -31,6 +31,11 @@ vi.mock('../src/library/fs', () => ({
     if (!lose.has(from)) files.add(to);
     moves.push(`${from} -> ${to}`);
   },
+  copyFile: async (from: string, to: string) => {
+    if (!files.has(from) || files.has(to)) throw new Error(`bad copy ${from} -> ${to}`);
+    files.add(to);
+    moves.push(`${from} => ${to}`);
+  },
 }));
 
 vi.mock('../src/sync/db/client', () => ({
@@ -337,9 +342,9 @@ describe('planMerge + applyMerge', () => {
     expect((await planMerge(source, target, SRC, TGT)).files).toEqual([]);
   });
 
-  // Round 20: earlier builds could give two records one file name. A file is planned once, to the
-  // first that takes it: a second move of it could never succeed.
-  it('plans a file two records share into one destination', async () => {
+  // Round 20: earlier builds could give two records one file name. Each destination gets the file:
+  // a copy to all but the last, made before the move.
+  it('a file two records share is copied to the first destination and moved to the last', async () => {
     const theirs = await repo.createAsset(
       target,
       makeAssetRecord({ mediaLibraryAssetId: 'm-1', filename: 'x.jpg', isFileSynced: false }),
@@ -348,9 +353,18 @@ describe('planMerge + applyMerge', () => {
     await devicePhoto({ mediaLibraryAssetId: 'm-1', filename: 'shared.jpg', thumbnailFilename: 's1-t.jpg' });
 
     const plan = await planMerge(source, target, SRC, TGT);
+    await applyMerge(target, plan);
+    await moveMergedFiles(plan, SRC, TGT);
 
-    expect(plan.files).toEqual(same('shared.jpg')); // the copy's, not also the match's under x.jpg
-    expect(plan.files.map(([, to]) => to)).not.toContain(theirs.filename);
+    expect(plan.files).toEqual([
+      ['shared.jpg', 'shared.jpg'],
+      ['shared.jpg', theirs.filename],
+    ]);
+    expect(moves.filter((move) => move.includes('shared.jpg'))).toEqual([
+      `${getAssetFileUri('shared.jpg', SRC)} => ${getAssetFileUri('shared.jpg', TGT)}`,
+      `${getAssetFileUri('shared.jpg', SRC)} -> ${getAssetFileUri(theirs.filename, TGT)}`,
+    ]);
+    expect(files.has(getAssetFileUri('shared.jpg', SRC))).toBe(false);
   });
 
   it('a move whose destination is then missing is an error, so the source is never removed on it', async () => {

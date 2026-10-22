@@ -63,3 +63,5 @@ export async function fileExists(): Promise<boolean> {
 }
 
 export async function moveFile(): Promise<void> {}
+
+export async function copyFile(): Promise<void> {}

@@ -2,8 +2,9 @@ import { and, eq, isNull, lte } from 'drizzle-orm';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
-import { FUZZ_MEDIA, mergeLosses, seedAccountPhotos } from './helpers/mergeFuzz';
+import { mergeLosses } from './helpers/mergeLosses';
 import { prng } from './helpers/prng';
+import { seedAccountPhotos } from './helpers/seedAccountPhotos';
 import { makeTestDb } from './helpers/testDb';
 import { libraryPaths } from '../src/library/libraryPaths';
 import type { Registry } from '../src/library/registry';
@@ -64,6 +65,10 @@ vi.mock('../src/library/fs', () => ({
   moveFile: async (from: string, to: string) => {
     if (failingMoves.has(from)) throw new Error(`could not move ${from}`);
     files.delete(from);
+    files.add(to);
+  },
+  copyFile: async (from: string, to: string) => {
+    if (failingMoves.has(from)) throw new Error(`could not copy ${from}`);
     files.add(to);
   },
   removeLibraryFolders: async () => {},
@@ -801,18 +806,44 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
   });
 
   // Round 20: a copied photo whose move failed, backed up by hand before the next launch (its backup
-  // found no file there): the next pass moves its file, and its backup tries again.
-  it('a copied photo’s sync error goes once the next pass moves its file', async () => {
+  // found no file there): the sync error stays while the move keeps failing, and goes once a pass
+  // has moved the file, so its backup tries again.
+  it('a copied photo’s sync error goes once a pass has moved its file, not before', async () => {
     const photo = await devicePhoto({ mediaLibraryAssetId: 'm-a', filename: 'a.jpg' });
     failingMoves.add(getAssetFileUri('a.jpg', SRC));
     await expect(mergeLibrary('dev', 'acc')).rejects.toThrow('could not move');
     await repo.setSyncError(getDb(), [photo.id], 'No file on this device');
+    const syncError = async () => (await getDb().select().from(schema.assets))[0]!.syncError;
+
+    await resumeMerges(); // the move fails again
+    expect(await syncError()).toBe('No file on this device');
+
     failingMoves.clear();
-
     await resumeMerges();
-
     expect(files.has(getAssetFileUri('a.jpg', TGT))).toBe(true);
-    expect((await getDb().select().from(schema.assets))[0]).toMatchObject({ id: photo.id, syncError: null });
+    expect(await syncError()).toBeNull();
+  });
+
+  // Round 21: a device photo deleted on the device that the account keeps by id, and a live device
+  // photo of an item whose account photo has no file in the cloud, share one file (earlier builds):
+  // the file is copied to one and moved to the other, so both records keep it.
+  it('a file a kept record and a live match share reaches both', async () => {
+    const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-r', filename: 'r.jpg', ...unsynced });
+    const kept = makeAssetRecord({ mediaLibraryAssetId: 'm-k', filename: 'shared.jpg', ...unsynced });
+    await upsertRows(getDb(), 'assets', schema.assets, [
+      { ...accountPhoto, syncError: null },
+      { ...kept, syncError: null },
+    ]);
+    await upsertRows(sourceDb(), 'assets', schema.assets, [{ ...kept, syncError: null }]);
+    await repo.deleteAssets(sourceDb(), [kept.id]);
+    await devicePhoto({ mediaLibraryAssetId: 'm-r', filename: 'shared.jpg' });
+
+    await mergeLibrary('dev', 'acc');
+    await pushAndFinish();
+
+    expect(entry('dev')).toBeUndefined();
+    expect(files.has(getAssetFileUri('r.jpg', TGT))).toBe(true);
+    expect(files.has(getAssetFileUri('shared.jpg', TGT))).toBe(true);
   });
 
   // Its backup failed before (no file on this phone): with the device's copy there, it tries again.
@@ -975,7 +1006,7 @@ describe('round 15: a camera-roll match an earlier library never pushed', () => 
 // Then the account pushes and a later edit of the account waits in its outbox, which holds no merge
 // (only the rows the passes wrote do). The merge completes and nothing of the device library is lost.
 describe('round 19: seeded merges', () => {
-  const SEEDS = 150;
+  const SEEDS = Number(process.env.FUZZ_SEEDS ?? 150);
 
   async function seeded(seed: number): Promise<string[]> {
     const rand = prng(seed);
@@ -985,13 +1016,29 @@ describe('round 19: seeded merges', () => {
     applyMergeImpl.fail = false;
     await resetToAccount();
     const accountRows = await seedAccountPhotos(getDb(), rand, (name) => files.add(getAssetFileUri(name, TGT)));
+    const media = ['m0', 'm1', 'm2', 'm3', 'm4', 'm5'];
+    const problems: string[] = [];
+    // A record whose backup found no file loses that error only once its file is here.
+    const missingFile = new Set<string>();
+    const errorGoneTooSoon = async () => {
+      for (const row of await getDb().select().from(schema.assets))
+        if (missingFile.has(row.id) && row.syncError === null && !files.has(getAssetFileUri(row.filename, TGT)))
+          problems.push(`seed ${seed}: ${row.filename} lost its sync error before its file arrived`);
+    };
     const device: schema.AssetRow[] = [];
     for (let i = 0; i < 5; i++) {
+      // Now and then the file name of an earlier photo (earlier builds could give two one name).
+      const name = i > 0 && r() < 0.2 ? `dev${Math.floor(r() * i)}` : `dev${i}`;
       const photo = await devicePhoto({
-        ...{ mediaLibraryAssetId: pick(FUZZ_MEDIA), filename: `dev${i}.jpg`, thumbnailFilename: `dev${i}-t.jpg` },
+        ...{ mediaLibraryAssetId: pick(media), filename: `${name}.jpg`, thumbnailFilename: `${name}-t.jpg` },
         ...{ isFavorite: r() < 0.3, notes: r() < 0.3 ? `dev note ${i}` : null },
       });
       device.push(photo as schema.AssetRow);
+      // Now and then one an earlier library copied and pushed, whose backup there found no file.
+      if (r() < 0.2) {
+        await upsertRows(getDb(), 'assets', schema.assets, [{ ...photo, syncError: 'No file on this device' }]);
+        missingFile.add(photo.id);
+      }
     }
     if (r() < 0.3) await repo.deleteAssets(sourceDb(), [device[4]!.id]);
     const album = makeAlbumRecord({ name: 'Trip' });
@@ -1006,6 +1053,7 @@ describe('round 19: seeded merges', () => {
     const accountAssets = () => getDb().select().from(schema.assets);
 
     for (let step = 0; step < 8; step++) {
+      await errorGoneTooSoon();
       const op = r();
       if (op < 0.35) {
         if (r() < 0.3) failingMoves.add(getAssetFileUri(pick(device).filename, SRC));
@@ -1075,7 +1123,6 @@ describe('round 19: seeded merges', () => {
     }
 
     // The account pushes, then the user edits a photo there (a row after every pass's), at each boot.
-    const problems: string[] = [];
     for (let boot = 0; boot < 4 && entry('dev'); boot++) {
       await getDb().delete(schema.outbox);
       await getDb()

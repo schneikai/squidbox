@@ -14,5 +14,3 @@ export function prng(seed: number) {
     chance: (p: number) => next() < p,
   };
 }
-
-export type Prng = ReturnType<typeof prng>;

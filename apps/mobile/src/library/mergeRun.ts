@@ -7,6 +7,7 @@ import {
   mergeWaits,
   moveMergedFiles,
   planMerge,
+  retryBackups,
   writesTarget,
 } from './mergeLibrary';
 import { hasJoined, joinedElsewhere, type MergeMarker } from './mergeMarker';
@@ -129,6 +130,7 @@ export async function mergeLibrary(sourceId: string, targetId: string): Promise<
       await setMarker(sourceId, joinedTarget);
     }
     await moveMergedFiles(plan, sourcePaths, targetPaths);
+    await retryBackups(targetDb, plan); // only once their files arrived
     if (committed) {
       await setMergeCommit(targetDb, name, { ...committed, source: sourceVersion });
       if (!(await isPushed(targetDb, committed))) return 'waits';
