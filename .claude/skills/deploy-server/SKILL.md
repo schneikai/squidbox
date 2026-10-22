@@ -74,6 +74,19 @@ deploys. No separate "setup" vs "deploy" skill to choose.
 
 From the repo root: `fly deploy . --config apps/server/fly.toml --dockerfile apps/server/Dockerfile`
 Migrations run automatically. Verify: `curl https://<app>.fly.dev/up` → `{"status":"ok","serverId":"<uuid>"}`.
+
+**Cloud workspace (agent proxy):** Fly's Depot builder talks gRPC, which the workspace proxy can't
+carry ("x509: certificate signed by unknown authority"). Build locally and deploy the image instead:
+start `dockerd` with `SSL_CERT_FILE=/root/.ccr/ca-bundle.crt` (and the shell's `HTTPS_PROXY`), then
+build with a copy of `apps/server/Dockerfile` whose `npm install` step bind-mounts the CA only for
+that step (`RUN --mount=type=bind,from=ca,source=ca.crt,target=/tmp/ca.crt NODE_EXTRA_CA_CERTS=/tmp/ca.crt npm_config_cafile=/tmp/ca.crt npm …`):
+```bash
+docker build --network host --build-arg HTTPS_PROXY="$HTTPS_PROXY" --build-arg HTTP_PROXY="$HTTPS_PROXY" \
+  --build-context ca=<dir holding ca.crt> -f <that Dockerfile> -t registry.fly.io/<app>:<tag> .
+fly auth docker && docker push registry.fly.io/<app>:<tag>
+fly deploy --config apps/server/fly.toml --image registry.fly.io/<app>:<tag>
+```
+The CA never lands in the image, and the release command still runs the migrations.
 `SERVER_ID` must be set as a secret before the deploy that first needs it; the server refuses to
 boot without it. Check it with `fly secrets list --app <app>` before deploying, and never re-set
 it to a new value (see step 3).
