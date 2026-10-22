@@ -108,9 +108,9 @@ vi.mock('../src/library/mergeLibrary', async (importOriginal) => {
     },
     applyMerge: async (...args: Parameters<typeof original.applyMerge>) => {
       reach('apply');
-      const committed = await original.applyMerge(...args);
+      await original.applyMerge(...args);
       reach('afterCommit'); // the transaction committed, and its promise still rejects
-      return committed;
+      await pushAll(args[0]); // the account's library pushes at once, so the pass goes on to finish
     },
   };
 });
@@ -140,6 +140,11 @@ const SRC = libraryPaths('dev');
 const TGT = libraryPaths('acc');
 const entry = (id: string) => getRegistry().libraries.find((library) => library.id === id);
 const settled = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+// The account's library pushes everything (the server took it all).
+async function pushAll(db: AppDb) {
+  await db.delete(schema.outbox);
+}
 
 const reached = new Set<string>();
 const STEPS = [
@@ -216,8 +221,10 @@ async function scenario(step: string, crash: boolean, keepsSource: boolean): Pro
     await openLibrary(ACC);
   }
 
-  // Boots, signed in: the resume, then this device's library joins (mergeDeviceLibrary's conditions).
+  // Boots, signed in, the account's library pushed: the resume, then this device's library joins
+  // (mergeDeviceLibrary's conditions).
   for (let boot = 0; boot < 2; boot++) {
+    await pushAll(getDb());
     await resumeMerges();
     const dev = entry('dev');
     if (dev && !dev.mergedInto && !dev.keptFor) await mergeLibrary('dev', 'acc');
@@ -301,7 +308,7 @@ describe('a device library’s sweep running when the sign-in merges it', () => 
     await closeLibrary();
     await openLibrary(ACC);
     await status.markFirstSyncDone(getDb());
-    await mergeLibrary('dev', 'acc');
+    await mergeLibrary('dev', 'acc'); // committed, and the account's library pushes it
     await new Promise((resolve) => setTimeout(resolve, 100)); // a batch in flight at the switch finishes
     inject.sweepDelay = 0;
     // The sweep stopped at the switch (a second batch at most): the rest goes with the source's folders.

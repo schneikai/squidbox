@@ -123,9 +123,15 @@ async function open(session: Session | null) {
 }
 const signIn = (session: Session) => openLibraryForSignIn(session, switchLibrary);
 // The open account library's first full pull drains: the merges that waited for it run, as
-// useMergeAfterFirstSync runs them.
+// usePendingMerges runs them.
 async function firstPullDrains() {
   await markFirstSyncDone(getDb());
+  await runPendingMerges();
+}
+// The open account library pushes everything: a merge waiting for that push finishes, as
+// usePendingMerges runs it.
+async function pushes() {
+  await getDb().delete(schema.outbox);
   await runPendingMerges();
 }
 const albums = makeRepository('albums', schema.albums);
@@ -248,6 +254,8 @@ describe('switching libraries with the session', () => {
     expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
     expect(await getDb().select().from(schema.albums)).toHaveLength(1);
     expect(await outbox()).toHaveLength(2); // the photo and the album push with the next sync
+    await pushes(); // then the merge finishes: the device library is kept for A
+    expect(getRegistry().libraries.find(({ id }) => id === deviceId)).toMatchObject({ keptFor: getLibrary().id });
     // The photo in another account's storage stays where it was, in the parked device library.
     expect(libraryIds()).toContain(deviceId);
     expect(await assetIdsIn(deviceId)).toEqual([photo.id, cloudOnly.id]);
@@ -275,6 +283,7 @@ describe('switching libraries with the session', () => {
     await albums.create(getDb(), makeAlbumRecord({ name: 'Trip' }));
     await signIn(sessionOf('A'));
     await firstPullDrains();
+    await pushes();
     const aId = getLibrary().id;
     await signIn(sessionOf('B'));
     await firstPullDrains();
@@ -316,6 +325,7 @@ describe('switching libraries with the session', () => {
     await resumeMerges(); // what the boot runs after the library opened
     await mergeDeviceLibrary();
     expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
+    await pushes();
     expect(libraryIds()).not.toContain(deviceId);
   });
 
@@ -446,6 +456,7 @@ describe('switching libraries with the session', () => {
     await albums.create(getDb(), makeAlbumRecord({ name: 'Trip' }));
     await signIn(sessionOf('A'));
     await firstPullDrains();
+    await pushes();
     const aId = getLibrary().id;
     expect(getRegistry().libraries.find(({ id }) => id === deviceId)).toMatchObject({ keptFor: aId });
     // As the installed build left the device library's database: kept in the list only, no merge
@@ -529,6 +540,7 @@ describe('switching libraries with the session', () => {
     await signIn(sessionOf('A')); // a new library of A's: the device library joins it
     await firstPullDrains();
     expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
+    await pushes();
     expect(libraryIds()).not.toContain(deviceId);
   });
 
@@ -579,6 +591,7 @@ describe('switching libraries with the session', () => {
     await signIn(sessionOf('A'));
 
     expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
+    await pushes();
     expect(libraryIds()).not.toContain(deviceId);
   });
 

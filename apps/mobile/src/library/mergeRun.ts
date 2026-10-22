@@ -7,7 +7,15 @@ import { removeLibrary } from './removeLibrary';
 import { withLibraryDb } from './withLibraryDb';
 
 import type { SyncDb } from '@/sync/db/types';
-import { getKeptFor, getMergeTarget, setKeptFor, setMergeMarks, setMergeTarget } from '@/sync/status';
+import {
+  clearMergeCommitted,
+  getKeptFor,
+  getMergeTarget,
+  isMergePushed,
+  setKeptFor,
+  setMergeMarks,
+  setMergeTarget,
+} from '@/sync/status';
 
 function withBothDbs<T>(sourceId: string, targetId: string, use: (source: SyncDb, target: SyncDb) => Promise<T>) {
   return withLibraryDb(sourceId, (source) => withLibraryDb(targetId, (target) => use(source, target)));
@@ -37,9 +45,11 @@ type Outcome = 'waits' | 'done' | 'kept' | { keptFor: string } | { mergedInto: M
 /**
  * Adds the source library to the target in resumable stages, inside the caller's paused sync
  * section: the marker, every record in one transaction of the target, the files of the assets
- * that end up in the target, then the source is removed, unless photos living in another account's
+ * that end up in the target, then, once the target has pushed what its passes wrote (sync-design
+ * §8), the source learns their decisions and is removed, unless photos living in another account's
  * storage keep it, recorded as kept for the target (`keptFor`), so it is never merged again and
- * never joins another account.
+ * never joins another account. Until that push the source waits, marked; the boot and the end of
+ * the push run this again (runPendingMerges).
  *
  * Nothing happens before the target's first full pull has drained (mergeWaits): the boot and the end
  * of that pull try again (runPendingMerges). The marker (mergeMarker.ts) is in the list (what the
@@ -70,23 +80,24 @@ export async function mergeLibrary(sourceId: string, targetId: string): Promise<
     if (joined && 'keptFor' in joined) await forgetMerge(sourceDb, name); // a kept merge a crash interrupted
     if (joined) return joined;
     if (await mergeWaits(sourceDb, targetDb)) return 'waits';
-    const plan = await planMerge(sourceDb, targetDb, libraryPaths(sourceId), targetId);
-    let committed = plan.marks.decided;
+    const plan = await planMerge(sourceDb, targetDb, libraryPaths(sourceId));
     await setMarker(sourceId, marker);
     try {
       if (writesTarget(plan)) {
         // Set before the target's commit (two databases can't share one): a pass that fails takes it back.
         await setMergeTarget(sourceDb, marker);
-        committed = await applyMerge(targetDb, plan);
+        await applyMerge(targetDb, plan);
       }
     } catch (error) {
       await setMergeTarget(sourceDb, markers.mergedInto);
       await setMarker(sourceId, before);
       throw error;
     }
-    await setMergeMarks(sourceDb, name, committed);
     await moveMergedFiles(plan, libraryPaths(sourceId), libraryPaths(targetId));
+    if (!(await isMergePushed(targetDb, name))) return 'waits';
+    await setMergeMarks(sourceDb, name, plan.marks.decided);
     await setMergeMarks(targetDb, name, null); // complete: before keptFor, which ends every later pass
+    await clearMergeCommitted(targetDb, name);
     if (!plan.keepsSource) return 'done';
     await setKeptFor(sourceDb, targetId);
     await forgetMerge(sourceDb, name);

@@ -127,7 +127,7 @@ async function mergesDue(): Promise<void> {
 }
 
 // mergesDue, serialized with every switch and sync run: at the boot, and when the open library's
-// first full pull drains (useMergeAfterFirstSync), as every merge waits for it.
+// first full pull drains or a merge's passes into it have pushed (usePendingMerges).
 export function runPendingMerges(): Promise<void> {
   return withSyncPaused(mergesDue);
 }

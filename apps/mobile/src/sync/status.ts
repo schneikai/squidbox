@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { count, eq, like, lte, max, sql } from 'drizzle-orm';
 
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
@@ -12,6 +12,7 @@ const FIRST_SYNC_KEY = 'firstSyncDone'; // '1' once the initial full pull has dr
 const OWNER_KEY = 'owner'; // whose library this database is (JSON), so the library list is rebuildable
 const MERGE_TARGET_KEY = 'mergedInto'; // the merge marker: the library (and account) a merge pass copied this one's records into
 const MARKS_KEY = 'mergeMarks:'; // + a source library's database name (getMergeMarks)
+const COMMITTED_KEY = 'mergeCommitted:'; // + a source library's database name (isMergePushed)
 const KEPT_FOR_KEY = 'keptFor'; // the library a kept source library joined (getKeptFor)
 
 export type SyncPhase = 'idle' | 'pushing' | 'pulling' | 'error';
@@ -72,19 +73,12 @@ export async function setMergeTarget(db: SyncDb, marker: MergeMarker | null): Pr
   if (marker) await setMeta(db, MERGE_TARGET_KEY, JSON.stringify(marker));
   else await db.delete(schema.syncMeta).where(eq(schema.syncMeta.key, MERGE_TARGET_KEY));
 }
-/**
- * What a committed merge pass decided for a source record (`collection:id`, library/mergeLibrary.ts,
- * sync-design §8 "the merge model"): copied as itself (or the target had it by id), merged into the
- * target's record `into` (a camera-roll match), or skipped (an edge whose membership the target had);
- * with the record's updatedAt then and the library it was made in (`in`; none from earlier builds).
- * A match records what its passes brought to `into` and the clock each was written at (`brought`).
- */
-export type MergeBrought = { isFavorite?: number; notes?: { text: string; at: number } };
-export type MergeDecision = { as: 'copy' } | { as: 'match'; into: string; brought?: MergeBrought } | { as: 'skip' };
-export type MergeMark = MergeDecision & { at: number; in?: string };
+/** What a committed merge pass decided for a source record (`collection:id`, sync-design §8). */
+export type MergeDecision = { as: 'copy' } | { as: 'match'; into: string } | { as: 'skip' };
+export type MergeMark = MergeDecision & { at: number };
 
-// The marks of a source library (by its database name), kept in the target (committed with each
-// pass) and in the source itself (after it), so they survive a change of target.
+// The marks of a source library (by its database name): in the target, committed with each pass; in
+// the source once the target has pushed them (sync-design §8).
 export async function getMergeMarks(db: SyncDb, source: string): Promise<Record<string, MergeMark>> {
   const raw = await getMeta(db, `${MARKS_KEY}${source}`);
   return raw ? (JSON.parse(raw) as Record<string, MergeMark>) : {};
@@ -96,6 +90,34 @@ export async function setMergeMarks(
 ): Promise<void> {
   if (marks) await setMeta(db, `${MARKS_KEY}${source}`, JSON.stringify(marks));
   else await db.delete(schema.syncMeta).where(eq(schema.syncMeta.key, `${MARKS_KEY}${source}`));
+}
+
+// In the target, with a merge pass's commit: the newest outbox row then. The source's passes are
+// pushed once no outbox row up to it is left (rows of one record coalesce in place, keeping their id).
+export async function setMergeCommitted(tx: SyncDb, source: string): Promise<void> {
+  const [row] = await tx.select({ id: max(schema.outbox.id) }).from(schema.outbox);
+  await setMeta(tx, `${COMMITTED_KEY}${source}`, String(row?.id ?? 0));
+}
+export async function clearMergeCommitted(db: SyncDb, source: string): Promise<void> {
+  await db.delete(schema.syncMeta).where(eq(schema.syncMeta.key, `${COMMITTED_KEY}${source}`));
+}
+// Whether every committed pass of the source has pushed (true when none committed).
+export async function isMergePushed(db: SyncDb, source: string): Promise<boolean> {
+  const raw = await getMeta(db, `${COMMITTED_KEY}${source}`);
+  return raw === null || (await pushedThrough(db, Number(raw)));
+}
+// Whether a source's committed passes have all pushed, waiting for the merge to finish (usePendingMerges).
+export async function anyMergePushed(db: SyncDb): Promise<boolean> {
+  const rows = await db
+    .select()
+    .from(schema.syncMeta)
+    .where(like(schema.syncMeta.key, `${COMMITTED_KEY}%`));
+  for (const { value } of rows) if (await pushedThrough(db, Number(value))) return true;
+  return false;
+}
+async function pushedThrough(db: SyncDb, id: number): Promise<boolean> {
+  const [row] = await db.select({ left: count() }).from(schema.outbox).where(lte(schema.outbox.id, id));
+  return (row?.left ?? 0) === 0;
 }
 
 // The library a source library joined and stays beside (mergeRun), in its own database: with the
