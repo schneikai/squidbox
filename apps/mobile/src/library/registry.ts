@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import type { MergeMarker } from './mergeMarker';
 import type { Owner } from './owner';
 
 import { createPersistedStore } from '@/utils/persistedStore';
@@ -7,9 +8,9 @@ import { createPersistedStore } from '@/utils/persistedStore';
 export interface Library {
   id: string;
   owner: Owner;
-  // The library this one is joining: set while the merge runs, so a boot finishes one a crash
-  // interrupted.
-  mergedInto?: string;
+  // The library this one is joining, and its account (mergeMarker.ts): set while the merge runs, so a
+  // boot finishes one a crash interrupted or one waiting for its push (`committed`).
+  mergedInto?: MergeMarker;
   // The library this one joined and stays beside, for photos in another account's storage: never
   // merged again, never into another one.
   keptFor?: string;
@@ -53,6 +54,11 @@ export function updateLibrary(id: string, change: (library: Library) => Library)
     if (changed === library) return current;
     return { libraries: current.libraries.map((entry) => (entry === library ? changed : entry)) };
   });
+}
+
+// Whether a library of this id is in the list.
+export function isListed(id: string): boolean {
+  return getRegistry().libraries.some((library) => library.id === id);
 }
 
 export function deviceLibrary(libraries: Library[]): Library | undefined {

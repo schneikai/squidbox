@@ -1,5 +1,5 @@
 import type { PullResponse, PushRequest, PushResponse } from '@squidbox/shared';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
@@ -7,10 +7,22 @@ import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import { startRun } from '../src/sync/runGate';
-import { getCursor, isFirstSyncDone } from '../src/sync/status';
+import { getCursor, isFirstSyncDone, setCursor } from '../src/sync/status';
 import type { SyncTransport } from '../src/sync/transport';
-import { APPLY_BATCH, runSyncOnce, withSyncPaused } from '../src/sync/worker';
+import {
+  APPLY_BATCH,
+  runFullResync,
+  runSyncOnce,
+  setSyncTarget,
+  withSyncPaused,
+  type SyncTarget,
+} from '../src/sync/worker';
 import SessionChangedError from '../src/utils/cloud-api/SessionChangedError';
+
+// The production sync runs' transport and file removal (withSyncRun).
+const transportImpl = vi.hoisted(() => ({ current: null as unknown }));
+vi.mock('../src/sync/transport', () => ({ httpTransport: () => transportImpl.current }));
+vi.mock('../src/library/fs', () => ({ purgedFilesRemover: () => async () => {} }));
 
 let db: AppDb;
 beforeEach(() => {
@@ -54,6 +66,70 @@ describe('withSyncPaused', () => {
     expect(during).toBeNull();
     await expect(withSyncPaused(() => Promise.reject(new Error('boom')))).rejects.toThrow('boom');
     expect(startRun(async () => {})).not.toBeNull();
+  });
+
+  // A merge's paused section (usePendingMerges) can start while a sync run pushes: the run stops,
+  // and a new one runs what it cut short once the section ends.
+  it('runs a sync again after the section when it aborted one', async () => {
+    await repo.createAssets(
+      db,
+      Array.from({ length: 1001 }, () => makeAssetRecord()),
+    );
+    const base = server(0);
+    let pushing!: () => void;
+    const firstPush = new Promise<void>((resolve) => (pushing = resolve));
+    transportImpl.current = {
+      ...base,
+      push: async (req: PushRequest) => {
+        pushing();
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        return base.push(req);
+      },
+    };
+    setSyncTarget({ db, identity: {}, library: {} } as SyncTarget); // starts a run
+
+    await firstPush;
+    await withSyncPaused(async () => {
+      expect(await db.select().from(schema.outbox)).toHaveLength(501); // stopped after its first batch
+    });
+
+    await vi.waitFor(async () => expect(await db.select().from(schema.outbox)).toHaveLength(0));
+    await withSyncPaused(async () => setSyncTarget(null));
+  });
+
+  // Round 19: a sync queued just before a paused section starts finds the runs paused: it asks
+  // again, and runs after the section.
+  it('a sync held back by a pause runs after the section', async () => {
+    await repo.createAsset(db, makeAssetRecord());
+    transportImpl.current = server(0);
+    setSyncTarget({ db, identity: {}, library: {} } as SyncTarget); // queues a run
+    await withSyncPaused(async () => {}); // paused before that run starts
+
+    await vi.waitFor(async () => expect(await db.select().from(schema.outbox)).toHaveLength(0));
+    await withSyncPaused(async () => setSyncTarget(null));
+  });
+
+  // Round 21: a full resync tapped just before a paused section starts finds the runs paused: it fails
+  // with a message to try again (the section may switch libraries), and nothing runs in its place.
+  it('a full resync held back by a pause fails, to be tapped again', async () => {
+    await setCursor(db, 5000); // a sync pulls from here, a full resync from the start
+    const pulls: number[] = [];
+    transportImpl.current = {
+      push: async () => ({ results: [] }),
+      pull: async ({ cursor }: { cursor: number }) => {
+        pulls.push(cursor);
+        return { changes: {}, cursor, hasMore: false };
+      },
+    };
+    await withSyncPaused(async () => setSyncTarget({ db, identity: {}, library: {} } as SyncTarget));
+    await vi.waitFor(() => expect(pulls).toEqual([5000])); // the sync setting the target asks for
+
+    const resync = runFullResync();
+    await withSyncPaused(async () => {}); // paused before the full resync starts
+
+    await expect(resync).rejects.toThrow('Sync is busy right now, try again in a moment');
+    expect(pulls).toEqual([5000]);
+    await withSyncPaused(async () => setSyncTarget(null));
   });
 
   it('a session that changed under a run ends it like an abort, not as a failure', async () => {

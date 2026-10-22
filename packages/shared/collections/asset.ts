@@ -31,7 +31,15 @@ export const assetCollection = defineCollection({
   }),
   localOnly: {
     syncError: z.string().nullable(),
+    filesRemovedFor: timestampSchema.nullable(), // the purgedAt this device removed a purged asset's files for
   },
+  // isSynced is derived from the file flags, and a purge only goes with a deletion: each set merges
+  // as one (sync-design §7).
+  fieldGroups: [
+    ['isFileSynced', 'isThumbnailSynced', 'isSynced'],
+    ['deletedAt', 'purgedAt'],
+  ],
+  finalField: 'purgedAt',
 });
 
 export type AssetRecord = z.infer<typeof assetCollection.schema>;

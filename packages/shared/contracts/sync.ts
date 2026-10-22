@@ -1,6 +1,7 @@
 // Sync protocol wire contract (sync-design §5/§6). Per-collection record validation happens
 // server-side against each collection's descriptor schema, so records are loosely typed here.
 import { z } from 'zod';
+import { timestampSchema } from '../collections/define';
 
 const syncRecord = z.record(z.string(), z.unknown());
 
@@ -19,14 +20,26 @@ export const pullResponseSchema = z.object({
 export type PullResponse = z.infer<typeof pullResponseSchema>;
 
 // --- Push ---
+// Each changed field's clock, { field: epochMs }.
+export const fieldClocksSchema = z.record(z.string(), timestampSchema);
+export type FieldClocks = z.infer<typeof fieldClocksSchema>;
+
 export const pushMutationSchema = z.object({
   collection: z.string(),
-  record: syncRecord, // whole-record upsert of synced fields
+  record: syncRecord, // the whole record, validated as a whole
+  // The fields this edit changed → clock (sync-design §6); validated per mutation on the server, so a
+  // bad clock rejects only its mutation. Without it (older apps), every field the record carries.
+  fields: z.record(z.string(), z.unknown()).optional(),
 });
 export type PushMutation = z.infer<typeof pushMutationSchema>;
 
+/** The largest push request body the server takes, in bytes (the push route's bodyLimit). */
+export const PUSH_BODY_LIMIT = 1024 * 1024;
+/** The most mutations one push request may carry. */
+export const PUSH_MAX_MUTATIONS = 500;
+
 export const pushRequestSchema = z.object({
-  mutations: z.array(pushMutationSchema).min(1).max(500),
+  mutations: z.array(pushMutationSchema).min(1).max(PUSH_MAX_MUTATIONS),
 });
 export type PushRequest = z.infer<typeof pushRequestSchema>;
 

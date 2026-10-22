@@ -57,6 +57,20 @@
       "when": 1792169136810,
       "tag": "0007_purged_assets",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792321952158,
+      "tag": "0008_field_clock",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792605786729,
+      "tag": "0009_restored_deletions",
+      "breakpoints": true
     }
   ]
 }

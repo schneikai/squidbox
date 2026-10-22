@@ -1,31 +1,41 @@
-import type { PushMutation, PushResult } from '@squidbox/shared';
+import {
+  lostFields,
+  PUSH_BODY_LIMIT,
+  PUSH_MAX_MUTATIONS,
+  type FieldClocks,
+  type PushMutation,
+  type PushResult,
+} from '@squidbox/shared';
 import { and, gt } from 'drizzle-orm';
 
-import { unsharedFiles, type RemoveFiles } from './assetsRepository';
 import { clientCollectionTables } from './clientCollections';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import {
   clearOutboxRows,
-  outboxUpdatedAts,
-  pendingRecordIds,
+  pendingEdits,
   pushableOutboxRows,
   retryFailures,
   setOutboxError,
+  type PendingEdit,
 } from './outbox';
 import { planPushOutcome } from './pushPlan';
-import { readByIds } from './readByIds';
 import { pauseRuns, startRun } from './runGate';
 import { createSingleFlight } from './singleFlight';
 import { getCursor, setCursor, patchStatus, appendSyncLog, markFirstSyncDone, clearFirstSyncDone } from './status';
+import { sweepPurgedFiles, type RemoveFiles } from './sweepPurgedFiles';
 import type { SyncTransport } from './transport';
 import { upsertRows } from './upsertRows';
-import type { AssetFileNames } from '../library/fs';
 import type { LibraryPaths } from '../library/libraryPaths';
 import type { SyncIdentity } from '../library/sessionMatches';
 
 const PULL_LIMIT = 1000; // server/contract cap
-const PUSH_BATCH = 500; // server caps pushRequest mutations at 500
+// Bytes of mutations per request: half the server's body limit, so a batch of large records never
+// gets the push stuck on a refused request. A row the server can't take at all (its mutation alone
+// over the limit) fails as a rejected one does (§6).
+const PUSH_BYTES = PUSH_BODY_LIMIT / 2;
+const ENVELOPE = '{"mutations":[]}'.length;
+const TOO_LARGE = `too-large: over the server's ${PUSH_BODY_LIMIT}-byte request limit`;
 // Records per apply transaction (and per bulk-action transaction, see writeInBatches). Each
 // transaction writes every database page it touches once more (the rollback journal), and with random
 // ids a transaction touches most index pages, so a few big transactions are much faster than one per
@@ -34,7 +44,8 @@ export const APPLY_BATCH = 5000;
 
 // An aborted `signal` ends the run between push batches, or in a pull after the page at hand, with
 // everything so far committed (the cursor moves per applied batch, so the next run resumes).
-// `removeFiles` removes this device's copies of assets purged elsewhere, before the purge commits (§7a).
+// `removeFiles` removes this device's copies of assets whose purge the server confirmed (§7a); a run
+// without it leaves them for one with it.
 interface SyncRunOptions {
   signal?: AbortSignal;
   removeFiles?: RemoveFiles;
@@ -46,7 +57,7 @@ interface SyncRunOptions {
 export async function runSyncOnce(
   db: SyncDb,
   transport: SyncTransport,
-  { signal = new AbortController().signal, removeFiles = async () => {} }: SyncRunOptions = {},
+  { signal = new AbortController().signal, removeFiles }: SyncRunOptions = {},
 ): Promise<void> {
   const ranAt = Date.now();
   let pushed = 0;
@@ -54,15 +65,20 @@ export async function runSyncOnce(
   const notes: string[] = [];
   let error: string | null = null;
   try {
-    const p = await pushPhase(db, transport, signal, removeFiles);
+    const p = await pushPhase(db, transport, signal);
     pushed = p.pushed;
     notes.push(...p.notes);
     if (p.stopped) notes.push('stopped during push');
     else {
-      const pull = await pullPhase(db, transport, signal, removeFiles);
+      const pull = await pullPhase(db, transport, signal);
       pulled = pull.pulled;
       if (pull.stopped) notes.push('stopped during pull');
     }
+    // The purges this run confirmed, and any a sweep left; a file that can't go is noted, not a failed run.
+    if (removeFiles)
+      await sweepPurgedFiles(db, removeFiles, { signal }).catch((err) =>
+        notes.push(err instanceof Error ? err.message : String(err)),
+      );
   } catch (err) {
     error = err instanceof Error ? err.message : String(err);
     throw err;
@@ -82,41 +98,91 @@ async function pushPhase(
   db: SyncDb,
   transport: SyncTransport,
   signal: AbortSignal,
-  removeFiles: RemoveFiles,
 ): Promise<{ pushed: number; notes: string[]; stopped: boolean }> {
   let pushed = 0;
   const notes: string[] = [];
   let lastId = 0;
+  let carried: schema.OutboxRow[] = []; // read, not sent yet: the next request's first rows
   let stopped = false;
   for (;;) {
     if (signal.aborted) {
       stopped = true;
       break;
     }
-    const batch = await db
+    const more = await db
       .select()
       .from(schema.outbox)
       .where(and(gt(schema.outbox.id, lastId), pushableOutboxRows))
       .orderBy(schema.outbox.id)
-      .limit(PUSH_BATCH);
-    if (batch.length === 0) break;
+      .limit(PUSH_MAX_MUTATIONS - carried.length);
+    const rows = [...carried, ...more];
+    if (rows.length === 0) break;
     if (pushed === 0) await patchStatus(db, { phase: 'pushing' });
-    lastId = batch[batch.length - 1]!.id;
-
-    const mutations: PushMutation[] = batch.map((row) => ({ collection: row.collection, record: row.payload }));
-    const { results } = await transport.push({ mutations });
-    // A purge that beat this device's edit comes back as the current record to adopt.
-    await removeNewlyPurgedFiles(
-      db,
-      results.filter((result) => result.collection === 'assets').map((result) => result.current),
-      removeFiles,
-    );
-    const pushedUpdatedAt = new Map(batch.map((row) => [`${row.collection}:${row.recordId}`, row.updatedAt]));
-    notes.push(...(await db.transaction((tx) => applyPushResults(tx, results, pushedUpdatedAt))));
+    lastId = rows.at(-1)!.id;
+    const { batch, mutations, tooLarge, scanned } = request(rows);
+    carried = rows.filter((row) => row.id > scanned);
+    const { results } = mutations.length > 0 ? await transport.push({ mutations }) : { results: [] };
+    const refused = tooLarge.map((row) => ({
+      id: row.recordId,
+      collection: row.collection,
+      status: 'rejected' as const,
+      reason: TOO_LARGE,
+    }));
+    const pushedRows = new Map([...batch, ...tooLarge].map((row) => [`${row.collection}:${row.recordId}`, row]));
+    notes.push(...(await db.transaction((tx) => applyPushResults(tx, [...results, ...refused], pushedRows))));
     pushed += results.length;
   }
   if (pushed > 0) await patchStatus(db, { lastPushAt: Date.now() });
   return { pushed, notes, stopped };
+}
+
+// The leading rows whose mutations fit in PUSH_BYTES (at least one, when any fits the server at all)
+// and their mutations, the rows among them too large for any request, and the id of the last row
+// looked at. A row from before per-field merge goes without fields: the server merges it as that
+// app's push.
+function request(rows: schema.OutboxRow[]): {
+  batch: schema.OutboxRow[];
+  mutations: PushMutation[];
+  tooLarge: schema.OutboxRow[];
+  scanned: number;
+} {
+  const batch: schema.OutboxRow[] = [];
+  const mutations: PushMutation[] = [];
+  const tooLarge: schema.OutboxRow[] = [];
+  let bytes = 0;
+  let scanned = 0;
+  for (const row of rows) {
+    const mutation: PushMutation = {
+      collection: row.collection,
+      record: row.payload,
+      ...(!row.wholeRecord && { fields: row.fields }),
+    };
+    const size = utf8Bytes(JSON.stringify(mutation)) + 1; // and its comma
+    if (size + ENVELOPE > PUSH_BODY_LIMIT) tooLarge.push(row);
+    else if (batch.length > 0 && bytes + size > PUSH_BYTES) break;
+    else {
+      bytes += size;
+      batch.push(row);
+      mutations.push(mutation);
+    }
+    scanned = row.id;
+  }
+  return { batch, mutations, tooLarge, scanned };
+}
+
+// The UTF-8 size of a string, counted without encoding it (JSON.stringify leaves no lone surrogate).
+function utf8Bytes(text: string): number {
+  let bytes = text.length;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code < 0x80) continue;
+    if (code < 0x800) bytes += 1;
+    else if (code >= 0xd800 && code <= 0xdbff) {
+      bytes += 2; // a surrogate pair: four bytes for its two code units
+      i++;
+    } else bytes += 2;
+  }
+  return bytes;
 }
 
 // Settle a batch's push results (sync-design §6), a few statements per collection. Adopting the
@@ -126,11 +192,11 @@ async function pushPhase(
 async function applyPushResults(
   tx: SyncDb,
   results: PushResult[],
-  pushedUpdatedAt: Map<string, number>,
+  pushed: Map<string, schema.OutboxRow>,
 ): Promise<string[]> {
   const notes: string[] = [];
   for (const [collection, group] of groupByCollection(results)) {
-    const current = await outboxUpdatedAts(
+    const current = await pendingEdits(
       tx,
       collection,
       group.map((result) => result.id),
@@ -140,16 +206,17 @@ async function applyPushResults(
     const flag = (id: string, error: string) => pushTo(errors, error, id);
 
     for (const result of group) {
+      const row = pushed.get(`${collection}:${result.id}`);
       const plan = planPushOutcome({
         status: result.status,
-        pushedUpdatedAt: pushedUpdatedAt.get(`${collection}:${result.id}`) ?? 0,
-        currentOutboxUpdatedAt: current.get(result.id) ?? null,
+        pushedUpdatedAt: row?.updatedAt ?? 0,
+        currentOutboxUpdatedAt: current.get(result.id)?.updatedAt ?? null,
       });
       if (plan.adoptCurrent && result.current) {
         try {
           await tx.transaction((savepoint) => applyRecord(savepoint, collection, result.current!));
-          // Conflict/rebase visibility (sync-design §13): a local change lost LWW and was overwritten.
-          notes.push(`${collection} ${result.id}: local change overwritten by server`);
+          // Conflict/rebase visibility (sync-design §13): a local change lost and was overwritten.
+          notes.push(overwrittenNote(collection, result.id, row?.fields ?? {}, row?.payload ?? {}, result.current));
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           flag(result.id, message);
@@ -168,6 +235,19 @@ async function applyPushResults(
     for (const [error, ids] of errors) await setOutboxError(tx, collection, ids, error);
   }
   return notes;
+}
+
+// The sync log's note for a push that lost to the server (sync-design §13): the pushed fields whose
+// value the server's `current` replaced, e.g. `albums <id>: name overwritten by server`.
+function overwrittenNote(
+  collection: string,
+  id: string,
+  fields: FieldClocks,
+  payload: Record<string, unknown>,
+  current: Record<string, unknown>,
+): string {
+  const lost = lostFields(Object.keys(fields), payload, current);
+  return `${collection} ${id}: ${lost.length > 0 ? lost.join(', ') : 'local change'} overwritten by server`;
 }
 
 function groupByCollection(results: PushResult[]): Map<string, PushResult[]> {
@@ -189,7 +269,6 @@ async function pullPhase(
   db: SyncDb,
   transport: SyncTransport,
   signal: AbortSignal,
-  removeFiles: RemoveFiles,
 ): Promise<{ pulled: number; stopped: boolean }> {
   await patchStatus(db, { phase: 'pulling' });
   if (signal.aborted) return { pulled: 0, stopped: true };
@@ -204,7 +283,6 @@ async function pullPhase(
       const batch: PulledBatch = await next;
       next = batch.hasMore && !signal.aborted ? fetchBatch(transport, batch.cursor, stop) : null;
       next?.catch(() => {}); // awaited next round, unless this apply fails or the run stops
-      await removeNewlyPurgedFiles(db, batch.changes.assets, removeFiles);
       if (batch.buffered > 0 || batch.cursor !== cursor) pulled += await applyChanges(db, batch.changes, batch.cursor);
       cursor = batch.cursor;
       if (batch.hasMore && signal.aborted) return { pulled, stopped: true };
@@ -244,9 +322,10 @@ async function fetchBatch(transport: SyncTransport, cursor: number, stop: () => 
   return { changes, buffered, cursor, hasMore };
 }
 
-// Outbox-guarded apply (sync-design §5): apply an incoming record only if it has no pending
-// local mutation. Never timestamp-compare against committed local state. The records of several
-// pages and their cursor commit in one transaction. Returns the number of records actually applied.
+// Outbox-guarded apply (sync-design §5): an incoming record with a pending local mutation keeps the
+// fields that mutation changed (and its updatedAt), which re-assert via push. Never timestamp-compare
+// against committed local state. The records of several pages and their cursor commit in one
+// transaction. Returns the number of records actually applied.
 async function applyChanges(
   db: SyncDb,
   changes: Record<string, Record<string, unknown>[]>,
@@ -256,27 +335,36 @@ async function applyChanges(
     let applied = 0;
     for (const [name, table] of Object.entries(clientCollectionTables)) {
       if (changes[name].length === 0) continue;
-      const pending = await pendingRecordIds(tx, name);
-      const incoming = changes[name].filter((record) => !pending.has(String(record.id))); // local edits re-assert via push
-      await upsertRows(tx, name, table, incoming);
-      applied += incoming.length;
+      const pending = await pendingEdits(
+        tx,
+        name,
+        changes[name].map((record) => String(record.id)),
+        { fields: true, payload: true },
+      );
+      const rows = changes[name].map((record) => {
+        const edit = pending.get(String(record.id));
+        return edit ? withPendingFields(record, edit) : record;
+      });
+      await upsertRows(tx, name, table, rows);
+      applied += rows.length;
     }
     await setCursor(tx, cursor);
     return applied;
   });
 }
 
-// The files of the purged assets among these records that aren't purged here yet, so an echo or an
-// asset this device never had costs no file work, and only the names no other asset uses (§7a).
-async function removeNewlyPurgedFiles(
-  db: SyncDb,
-  records: (Record<string, unknown> | undefined)[],
-  removeFiles: RemoveFiles,
-): Promise<void> {
-  const ids = records.flatMap((record) => (record?.purgedAt != null ? [String(record.id)] : []));
-  if (ids.length === 0) return;
-  const rows = (await readByIds<schema.AssetRow>(db, schema.assets, ids)).filter((row) => row.purgedAt === null);
-  if (rows.length > 0) await removeFiles(await unsharedFiles(db, rows));
+// The pulled record with the pending edit's values of its fields (already widened to their groups when
+// saved) and the newer updatedAt, so this device's next edit gets a clock above the pulled one (§5).
+function withPendingFields(
+  record: Record<string, unknown>,
+  { fields, payload, updatedAt }: PendingEdit<{ fields: true; payload: true }>,
+): Record<string, unknown> {
+  const kept = Object.fromEntries(
+    Object.keys(fields)
+      .filter((field) => field in payload)
+      .map((field) => [field, payload[field]]),
+  );
+  return { ...record, ...kept, updatedAt: Math.max(Number(record.updatedAt), updatedAt) };
 }
 
 async function applyRecord(db: SyncDb, collection: string, record: Record<string, unknown>): Promise<void> {
@@ -293,8 +381,8 @@ export async function clearOutbox(db: SyncDb): Promise<void> {
 /**
  * Full resync (sync-design §13): wipe the collection tables, the cursor and the first-sync flag (the
  * setup gate shows again), then re-run sync (push any pending, then a fresh full pull from
- * cursor=0). The outbox stays and its edits are put back, since the pull skips records with an
- * outbox row and one the server keeps rejecting would otherwise vanish from the app. Warn on a
+ * cursor=0). The outbox stays and its edits are put back: the pull keeps their fields from the
+ * outbox payload, and an edit the server keeps rejecting would otherwise vanish from the app. Warn on a
  * non-empty outbox before calling (this rebuilds local state from the server).
  */
 export async function fullResync(db: SyncDb, transport: SyncTransport, options: SyncRunOptions = {}): Promise<void> {
@@ -320,7 +408,9 @@ export interface SyncTarget {
   library: LibraryPaths;
 }
 
-const syncFlight = createSingleFlight(() => withSyncRun(runSyncOnce));
+// A sync a pause kept from starting asks again: the section is queued in the same flight, so it runs
+// after it.
+const syncFlight = createSingleFlight(() => withSyncRun(runSyncOnce, requestSync));
 let syncTarget: SyncTarget | null = null;
 
 export function setSyncTarget(target: SyncTarget | null): void {
@@ -365,26 +455,43 @@ type SyncWork = (db: SyncDb, transport: SyncTransport, options: SyncRunOptions) 
 // identity on every request (so a mid-run refresh is picked up and another user's session is
 // refused, which ends the run like an abort), and record the run's terminal status (idle on
 // success, error on throw). Callers run it through syncFlight so it never overlaps another sync.
-async function withSyncRun(work: SyncWork): Promise<void> {
+// `blocked` answers a paused section keeping this run from starting.
+async function withSyncRun(work: SyncWork, blocked: () => void): Promise<void> {
   if (!syncTarget) return;
   const { db, identity, library } = syncTarget;
   // Their session store and file system need the native modules the tests lack.
   const { httpTransport } = await import('./transport');
-  const { removeAssetFiles } = await import('../library/fs');
-  const removeFiles = (assets: AssetFileNames[]) => removeAssetFiles(assets, library);
-  const run = startRun((signal) => work(db, httpTransport(identity), { signal, removeFiles }));
-  if (!run) return;
+  const { purgedFilesRemover } = await import('../library/fs');
+  const removeFiles = purgedFilesRemover(library);
+  let signal: AbortSignal | undefined;
+  const run = startRun((runSignal) => {
+    signal = runSignal;
+    return work(db, httpTransport(identity), { signal: runSignal, removeFiles });
+  });
+  if (!run) {
+    blocked();
+    return;
+  }
   try {
     await run;
     await patchStatus(db, { phase: 'idle', lastError: null });
   } catch (err) {
     await patchStatus(db, { phase: 'error', lastError: err instanceof Error ? err.message : String(err) });
   }
+  // A run a paused section cut short goes on after it as a sync (the request trails this run and the
+  // section): a full resync's pull resumes from its cursor.
+  if (signal?.aborted) requestSync();
 }
 
 // Bound Inspector actions (the open library + HTTP transport).
+// A full resync a pause kept from starting fails instead of running later: the section may switch the
+// library (a sign-in, a sign-out), and it would wipe that one's tables without its warning.
 export function runFullResync(): Promise<void> {
-  return syncFlight.exclusive(() => withSyncRun(fullResync));
+  return syncFlight.exclusive(() =>
+    withSyncRun(fullResync, () => {
+      throw new Error('Sync is busy right now, try again in a moment');
+    }),
+  );
 }
 export function runClearOutbox(db: SyncDb): Promise<void> {
   return withSyncPaused(() => clearOutbox(db));

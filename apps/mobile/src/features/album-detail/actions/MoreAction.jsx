@@ -29,7 +29,7 @@ export default function MoreAction({ album, afterDelete, onSelect }) {
       'Album name',
       '',
       async (name) => {
-        await updateAlbum(album.id, { name });
+        if (name !== album.name) await updateAlbum(album.id, { name });
       },
       'plain-text',
       album.name,

@@ -1,15 +1,12 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import LibraryContext from './LibraryContext';
 import { bootLibrary } from './bootLibrary';
 import { openLibraryEntry, openLibraryId } from './current';
 import { libraryPaths } from './libraryPaths';
-import { resumeMerges } from './mergeRun';
 import { onRegistryChange } from './registry';
-import { mergeDeviceLibrary } from './sessionLibrary';
+import { runPendingMerges, watchTokenDrops } from './sessionLibrary';
 import { switchLibrary as performSwitch } from './switchLibrary';
-
-import { withSyncPaused } from '@/sync/worker';
 
 // The open library. A switch sets `next`: LibraryGate (App.js) then shows the switching screen, so
 // everything below unmounts and its effects clean up, and the effect here runs the switch after
@@ -18,6 +15,7 @@ export default function LibraryProvider({ children }) {
   const openLibrary = useSyncExternalStore(onRegistryChange, openLibraryEntry);
   const [next, setNext] = useState(null);
   const [booted, setBooted] = useState(false);
+  const bootDone = useRef(false); // for the switch effect, which the boot's own switches run through
   const [error, setError] = useState(null);
 
   // Resolves once the target is open (or rejects with the previous library open again). Call it
@@ -29,15 +27,16 @@ export default function LibraryProvider({ children }) {
 
   useEffect(() => {
     bootLibrary(switchLibrary).then(() => {
+      bootDone.current = true;
       setBooted(true);
       // A merge a crash interrupted finishes now, and this device's library joins the account's if
       // it hasn't yet, serialized with every switch; a failure waits for the next boot.
-      withSyncPaused(async () => {
-        await resumeMerges();
-        await mergeDeviceLibrary();
-      }).catch((resumeError) => console.warn('Could not resume a merge', resumeError));
+      runPendingMerges().catch((resumeError) => console.warn('Could not resume a merge', resumeError));
     }, setError);
   }, [switchLibrary]);
+
+  // From the boot on, a session that loses its tokens anywhere opens the library for it.
+  useEffect(() => (booted ? watchTokenDrops(switchLibrary) : undefined), [booted, switchLibrary]);
 
   useEffect(() => {
     if (!next) return;
@@ -49,9 +48,9 @@ export default function LibraryProvider({ children }) {
       (switchError) => {
         setNext(null);
         next.reject(switchError);
-        // The previous library couldn't be reopened either: with none open the gate would render
-        // nothing, so the boot error asks for a restart (which opens the session's library again).
-        if (!openLibraryId()) setError(switchError);
+        // With none open the gate would render nothing: the boot error, once booted (during the boot,
+        // bootLibrary's fallback runs, and its rejection is the boot error).
+        if (bootDone.current && !openLibraryId()) setError(switchError);
       },
     );
   }, [next]);

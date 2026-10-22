@@ -35,8 +35,8 @@ export default function CloudProvider({ children }) {
     if (switched) navigateToTab('SettingsTab');
   }
 
-  // Signs out: the sync and backup stop and the tokens go, the library stays open as it is. The
-  // refresh token is then revoked as best effort, outside the paused section.
+  // Signs out: the sync and backup stop and the tokens go; watchTokenDrops then opens the library for
+  // the session without them. The refresh token is revoked as best effort, outside the paused section.
   async function logoutAsync() {
     let tokens;
     try {

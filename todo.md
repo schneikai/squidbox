@@ -142,6 +142,12 @@ providers, utils, styles) and merge what repeats into the existing components an
 AGENTS.md. A copy-paste detector such as [jscpd](https://github.com/kucherenko/jscpd) finds the
 literal copies; the near-copies need reading.
 
+### [ ] Bump INSTALLED with each preview build
+
+`INSTALLED` in `apps/mobile/test/mainClient.e2e.test.ts` is the commit of the preview build on the
+owner's phone (df33378): move it to the new build's commit whenever a preview build is installed, so
+the suite tests the real upgrade path.
+
 ### [ ] Widen what CI checks
 
 `.github/workflows/ci.yml` lints only `apps/mobile`; `apps/server` and `packages/shared` have no
@@ -224,15 +230,11 @@ originals that aren't uploaded yet.
 
 ### [ ] Find duplicates by content when the device library joins an account
 
-The sign-in merge (`src/library/mergeLibrary.ts`) only spots a camera-roll photo the account already
-holds if this phone's account library pulled it before. A content hash per asset would catch the
-rest. Only worth it if duplicates show up in practice; a wrong match would hide a distinct photo.
-
-### [ ] Concurrent edits from two devices overwrite each other
-
-Sync resolves conflicts per record by last writer wins (`apps/server/src/sync/push.ts`): editing the
-same album or post on two devices before either syncs keeps only the later edit, silently. Fine for
-one person on one phone; per-field merge would fix it if it bites.
+The sign-in merge (`src/library/mergeLibrary.ts`) matches a photo the account already holds by its
+camera-roll id, after the account library's first full pull (every merge waits for it). A photo whose
+camera-roll id differs (imported on another device, or re-saved) still comes in twice. A content hash
+per asset would catch those. Only worth it if duplicates show up in practice; a wrong match would hide
+a distinct photo.
 
 ### [ ] Web preview gaps
 
@@ -292,6 +294,13 @@ React hook result or an unresolved import that the worklet calls. An audit proto
 Node 20 reached end of life in April 2026. `mise.toml` pins 20.19.4 and the server image uses
 `node:20-slim`. Move both to the current LTS and run the tests.
 
+### [ ] Delete `backfillMergeMarkers` once the phone has booted this build
+
+`src/library/backfillMergeMarkers.ts` and its call in `bootLibrary.ts` (and its boot tests in
+`accountSwitch.test.ts`). It gives the installed build's (df33378) id-only list markers their account
+and copies them into the device library's database, the authority from this build on. The bare-id
+fallback in `getMergeTarget` (`sync/status.ts`, for earlier builds of this branch) goes with it.
+
 ### [ ] Delete `resolveOwners` once the phone has booted this build
 
 `src/library/resolveOwners.ts`, its call in `bootLibrary.ts`, `test/resolveOwners.test.ts` and its
@@ -305,6 +314,34 @@ session without ids, which now matches no library.
 Only the asset path helpers lost their `getLibrary()` fallback. `AppInit` still builds the sync target
 from `getDb()`/`getLibrary()`, `switchLibrary` uses `getLibrary()`, and the web thumbnail cache is
 module-global. Closing a library already makes a late write fail, so this is tidiness, not safety.
+
+### [ ] A parked device library says nothing outside the first sync
+
+The setup screen says this iPhone's photos join after the first sync (`FirstSyncScreen`), but a
+device library whose merge failed (it retries at each boot, `mergeDeviceLibrary`), or that waits for
+another library or account it joined (`joinedElsewhere` in `library/mergeMarker.ts`), shows nothing in
+the app, so its photos are out of sight until it completes. Show it in the sync status or Settings.
+
+### [ ] Tell the user when this iPhone's library won't open
+
+A device library whose database won't open (a failed migration, a damaged file) is passed over
+silently: `openLibraryForSession` opens the session's own library instead, and the setup screen still
+says this iPhone's photos join after the first sync. Say that its photos can't be opened, and how
+to get help.
+
+### [ ] A merge waits for its target's push; a rejected row holds it
+
+`mergeLibrary` (`src/library/mergeRun.ts`) removes the device library only once the account's library
+has no outbox row left up to the newest at the merge's commit (`isPushed`, sync-design §8). A row the
+server keeps rejecting (too large, invalid) holds the device library parked, with nothing said in the
+app, whether the merge wrote it or it was an older failed row of the account's. Its data is safe
+there; show it, or let the merge finish past a rejected row.
+
+### [ ] Merge marks are one JSON value per source library
+
+`mergeMarks:<source>` (`sync/status.ts`) holds a decision per merged record in one `sync_meta` value,
+read and written whole by every pass: about 100 bytes per record, so ~1 MB for a 10,000-photo device
+library. Fine for a few passes; a table keyed by record would scale if passes get frequent.
 
 ## Ideas
 

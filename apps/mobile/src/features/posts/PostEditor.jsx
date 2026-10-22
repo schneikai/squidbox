@@ -20,7 +20,8 @@ import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
 import postSchema from '@/utils/posts/postSchema';
 
 // Edits a post seeded from `post` ({ text, postAssets, postedAt }) and holds the draft; Save hands
-// `onSave` the post the posts store takes ({ text, assetRefs, postedAt }), allowed once it is valid.
+// `onSave` the post the posts store takes ({ text, assetRefs, postedAt }), allowed once it is valid,
+// and the seed in the same shape, so an edit can save only what changed.
 export default function PostEditor({ post, navigation, onSave }) {
   const scrollY = useSharedValue(0);
   const [isSaving, setIsSaving] = useState(false);
@@ -33,7 +34,7 @@ export default function PostEditor({ post, navigation, onSave }) {
   const [showAiChat, setShowAiChat] = useState(false);
   const { openRandomSuggestions } = useRandomSuggestions();
 
-  const data = { text, assetRefs: postAssetsToAssetRefs(postAssets), postedAt };
+  const data = postData({ text, postAssets, postedAt });
   const canSave = postSchema.isValidSync(data);
 
   async function handleOpenSuggestions() {
@@ -46,7 +47,7 @@ export default function PostEditor({ post, navigation, onSave }) {
   async function handleSave() {
     setIsSaving(true);
     try {
-      await onSave(data);
+      await onSave(data, postData(post));
     } finally {
       setIsSaving(false);
     }
@@ -98,6 +99,11 @@ export default function PostEditor({ post, navigation, onSave }) {
       <AiChatModal visible={showAiChat} onClose={() => setShowAiChat(false)} onSelect={setText} existingText={text} />
     </ModalSheet>
   );
+}
+
+// The post as the posts store takes it.
+function postData({ text, postAssets, postedAt }) {
+  return { text, assetRefs: postAssetsToAssetRefs(postAssets), postedAt };
 }
 
 const styles = StyleSheet.create({

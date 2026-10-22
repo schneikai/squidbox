@@ -1,9 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { StyleSheet, Text } from 'react-native';
 
 import StatusScreen from '@/components/StatusScreen';
 import TextButton from '@/components/TextButton';
+import confirmSignOutAsync from '@/features/cloud/confirmSignOutAsync';
 import useCloud from '@/features/cloud/useCloud';
+import { onRegistryChange } from '@/library/registry';
+import { deviceLibraryToJoin } from '@/library/sessionLibrary';
 import { schema } from '@/sync/db/client';
 import { useRecordCounts } from '@/sync/useRecordCounts';
 import { useSyncStatus } from '@/sync/useSyncStatus';
@@ -13,6 +16,10 @@ import { requestSync } from '@/sync/worker';
 // behind this (a) tells the user it's intentional and one-time, and (b) keeps the heavy asset
 // grids unmounted during the bulk load so the sync isn't fighting the UI. Shows live counts, not rows.
 const RETRY_MS = 5_000;
+
+// Whether this device's library waits to join the open one: every merge waits for the first pull
+// (mergeWaits in library/mergeLibrary.ts).
+const deviceLibraryWaits = () => Boolean(deviceLibraryToJoin());
 
 function useTotal(table) {
   const { records, tombstones } = useRecordCounts(table);
@@ -25,6 +32,7 @@ export default function FirstSyncScreen() {
   const posts = useTotal(schema.posts);
   const { phase, lastError } = useSyncStatus();
   const { logoutAsync } = useCloud();
+  const addsDevicePhotos = useSyncExternalStore(onRegistryChange, deviceLibraryWaits);
 
   const hasError = phase === 'error' && !!lastError;
   const started = assets + albums + posts > 0;
@@ -37,6 +45,15 @@ export default function FirstSyncScreen() {
     const id = setInterval(() => requestSync(), RETRY_MS);
     return () => clearInterval(id);
   }, [hasError]);
+
+  // Signing out stops the first pull, so it asks first; watchTokenDrops then opens the library to
+  // show.
+  async function handleSignOut() {
+    const message = addsDevicePhotos
+      ? 'This iPhone’s photos stay here and join your account the next time you sign in.'
+      : 'Setting up your library goes on the next time you sign in.';
+    if (await confirmSignOutAsync({ title: 'Sign out before setup finishes?', message })) await logoutAsync();
+  }
 
   function subtitle() {
     if (hasError) return "We'll keep trying automatically. Check your connection — your data is safe.";
@@ -52,8 +69,9 @@ export default function FirstSyncScreen() {
       ) : (
         <Text style={styles.hint}>Please keep the app open — it'll finish shortly.</Text>
       )}
-      {/* A sign-out stops the pull at its next batch; the library stays open with what it pulled. */}
-      <TextButton label="Sign out" onPress={() => logoutAsync()} muted />
+      {addsDevicePhotos && <Text style={styles.hint}>This iPhone’s photos are added once this is done.</Text>}
+      {/* A sign-out stops the pull at its next batch; the library keeps what it pulled. */}
+      <TextButton label="Sign out" onPress={handleSignOut} muted />
     </StatusScreen>
   );
 }

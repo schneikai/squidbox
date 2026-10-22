@@ -1,18 +1,21 @@
-import { and, count, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
+import { chunk, type FieldClocks } from '@squidbox/shared';
+import { and, count, eq, isNotNull, isNull, max, min, sql, sum } from 'drizzle-orm';
 
-import { chunk, SQL_BATCH } from './chunk';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
+import { inJson } from './inJson';
 import { localOnlyKeys } from './localOnlyKeys';
+import { SQL_BATCH } from './sqlBatch';
 
-// Enqueue whole-record mutations, coalesced to one row per (collection, recordId): the latest
-// payload wins (sync-design §6). `op` is 'delete' for a tombstone, else 'upsert'. The payload leaves
-// out the collection's local-only fields; a new payload clears the error of the one it replaces (§6).
-// Called inside the transaction that writes the records.
+// Enqueue whole-record mutations with their changed fields, coalesced to one row per (collection,
+// recordId): the latest payload wins and each field keeps its own last clock (sync-design §6). `op`
+// is 'delete' for a tombstone, else 'upsert'. The payload leaves out local-only fields; a new payload
+// clears the error of the one it replaces. Called inside the transaction that writes the records.
 export async function enqueueMutations(
   tx: SyncDb,
   collection: string,
   records: { id: string; updatedAt: number; deletedAt?: number | null }[],
+  fieldsById: Map<string, FieldClocks>,
 ): Promise<void> {
   const localOnly = localOnlyKeys(collection);
   for (const batch of chunk(records, SQL_BATCH)) {
@@ -24,6 +27,7 @@ export async function enqueueMutations(
           recordId: record.id,
           op: record.deletedAt != null ? ('delete' as const) : ('upsert' as const),
           payload: withoutKeys(record, localOnly),
+          fields: fieldsById.get(record.id)!,
           updatedAt: record.updatedAt,
         })),
       )
@@ -32,6 +36,7 @@ export async function enqueueMutations(
         set: {
           op: sql`excluded."op"`,
           payload: sql`excluded."payload"`,
+          fields: sql`json_patch(${schema.outbox.fields}, excluded."fields")`,
           updatedAt: sql`excluded."updated_at"`,
           error: null,
         },
@@ -46,38 +51,40 @@ function withoutKeys(record: object, keys: Set<string>): Record<string, unknown>
 }
 
 function recordsIn(collection: string, recordIds: string[]) {
-  return and(eq(schema.outbox.collection, collection), inArray(schema.outbox.recordId, recordIds));
+  return and(eq(schema.outbox.collection, collection), inJson(schema.outbox.recordId, recordIds));
 }
 
-export async function pendingRecordIds(db: SyncDb, collection: string): Promise<Set<string>> {
-  const rows = await db
-    .select({ recordId: schema.outbox.recordId })
-    .from(schema.outbox)
-    .where(eq(schema.outbox.collection, collection));
-  return new Set(rows.map((r) => r.recordId));
-}
+type EditParts = { fields?: true; payload?: true };
+/** A pending edit's updatedAt, with the parts asked for: its changed fields, its payload. */
+export type PendingEdit<P extends EditParts = EditParts> = Pick<schema.OutboxRow, 'updatedAt'> &
+  (P['fields'] extends true ? Pick<schema.OutboxRow, 'fields'> : unknown) &
+  (P['payload'] extends true ? Pick<schema.OutboxRow, 'payload'> : unknown);
 
-/** The outbox rows' updatedAt of these records, by record id; records without a pending row are left out. */
-export async function outboxUpdatedAts(
+/**
+ * The pending edits of these records, by record id: their updatedAt, and their changed fields and
+ * payload when asked (the payload is the big one). Records without one are left out.
+ */
+export async function pendingEdits<P extends EditParts = Record<never, never>>(
   db: SyncDb,
   collection: string,
   recordIds: string[],
-): Promise<Map<string, number>> {
-  const updatedAts = new Map<string, number>();
-  for (const batch of chunk(recordIds, SQL_BATCH)) {
-    const rows = await db
-      .select({ recordId: schema.outbox.recordId, updatedAt: schema.outbox.updatedAt })
-      .from(schema.outbox)
-      .where(recordsIn(collection, batch));
-    for (const row of rows) updatedAts.set(row.recordId, row.updatedAt);
-  }
-  return updatedAts;
+  parts?: P,
+): Promise<Map<string, PendingEdit<P>>> {
+  if (recordIds.length === 0) return new Map();
+  const rows = await db
+    .select({
+      recordId: schema.outbox.recordId,
+      updatedAt: schema.outbox.updatedAt,
+      ...(parts?.fields && { fields: schema.outbox.fields }),
+      ...(parts?.payload && { payload: schema.outbox.payload }),
+    })
+    .from(schema.outbox)
+    .where(recordsIn(collection, recordIds));
+  return new Map(rows.map(({ recordId, ...edit }) => [recordId, edit as PendingEdit<P>]));
 }
 
 export async function clearOutboxRows(db: SyncDb, collection: string, recordIds: string[]): Promise<void> {
-  for (const batch of chunk(recordIds, SQL_BATCH)) {
-    await db.delete(schema.outbox).where(recordsIn(collection, batch));
-  }
+  await db.delete(schema.outbox).where(recordsIn(collection, recordIds));
 }
 
 /** Records why the server rejected these records' pending payloads; a failed row waits (§6). */
@@ -87,9 +94,7 @@ export async function setOutboxError(
   recordIds: string[],
   error: string,
 ): Promise<void> {
-  for (const batch of chunk(recordIds, SQL_BATCH)) {
-    await db.update(schema.outbox).set({ error }).where(recordsIn(collection, batch));
-  }
+  await db.update(schema.outbox).set({ error }).where(recordsIn(collection, recordIds));
 }
 
 // The push sends only the pushable rows; a failed one waits (§6).
@@ -107,4 +112,27 @@ export async function countOutbox(db: SyncDb): Promise<{ pending: number; failed
     .select({ pending: count(), failed: db.$count(schema.outbox, failedOutboxRows) })
     .from(schema.outbox);
   return { pending: row?.pending ?? 0, failed: row?.failed ?? 0 };
+}
+
+/** The newest outbox row's id, 0 when the outbox is empty. */
+export async function newestOutboxId(db: SyncDb): Promise<number> {
+  const [row] = await db.select({ id: max(schema.outbox.id) }).from(schema.outbox);
+  return row?.id ?? 0;
+}
+
+/** The oldest outbox row's id, null when the outbox is empty. */
+export async function oldestOutboxId(db: SyncDb): Promise<number | null> {
+  const [row] = await db.select({ id: min(schema.outbox.id) }).from(schema.outbox);
+  return row?.id ?? null;
+}
+
+/**
+ * The outbox's state as a string that changes with every write enqueued: a new row, or a record's
+ * next updatedAt (which only grows) on its row.
+ */
+export async function outboxVersion(db: SyncDb): Promise<string> {
+  const [row] = await db
+    .select({ rows: count(), newest: max(schema.outbox.id), clocks: sum(schema.outbox.updatedAt) })
+    .from(schema.outbox);
+  return `${row?.rows ?? 0}:${row?.newest ?? 0}:${row?.clocks ?? 0}`;
 }

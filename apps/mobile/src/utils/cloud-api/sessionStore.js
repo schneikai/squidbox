@@ -28,8 +28,8 @@ export function loadSessionAsync() {
 
 /**
  * Signs out, or records a session the server rejected: the tokens go, the session keeps its owner
- * (so its library stays open). Resolves the dropped tokens, for the caller to revoke, null when
- * there were none.
+ * (which library opens then is libraryToOpen's, library/sessionLibrary.ts). Resolves the dropped
+ * tokens, for the caller to revoke, null when there were none.
  * @returns {Promise<Session['tokens']>}
  */
 export async function dropTokensAsync() {

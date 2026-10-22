@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { getTableColumns } from 'drizzle-orm';
 import {
+  assetCollection,
+  collections,
+  fieldClocksSchema,
+  lostFields,
+  widenToGroups,
+  pushMutationSchema,
   resolveExpiresIn,
   PRESIGN_DEFAULT_EXPIRES_IN,
   PRESIGN_MAX_EXPIRES_IN,
@@ -15,7 +21,7 @@ const INTEGER_MAX: Record<string, number> = { integer: 2 ** 31 - 1, bigint: Numb
 
 describe('sync record schemas', () => {
   // The schema rejects up front what a column can't store, so the push rejects it per record.
-  for (const { name, table, schema } of Object.values(serverCollections)) {
+  for (const { descriptor: { name }, table, schema } of Object.values(serverCollections)) {
     it(`${name}: rejects a fraction or an out-of-range integer, and NUL in text`, () => {
       for (const [key, column] of Object.entries(getTableColumns(table))) {
         const field = schema.shape[key];
@@ -34,6 +40,69 @@ describe('sync record schemas', () => {
       }
     });
   }
+});
+
+describe('push contract', () => {
+  const record = { id: 'x', updatedAt: 1 };
+
+  it('fields are optional, so an older app’s push still parses', () => {
+    expect(pushMutationSchema.parse({ collection: 'assets', record })).toEqual({ collection: 'assets', record });
+  });
+
+  it('fields map each changed field to its clock, a whole epoch-ms number, checked per mutation', () => {
+    const mutation = { collection: 'assets', record, fields: { notes: 2000 } };
+    expect(pushMutationSchema.parse(mutation)).toEqual(mutation);
+    // A bad clock doesn't fail the request: the push rejects that mutation alone.
+    expect(pushMutationSchema.safeParse({ ...mutation, fields: { notes: 1.5 } }).success).toBe(true);
+    expect(fieldClocksSchema.safeParse({ notes: 1.5 }).success).toBe(false);
+    expect(fieldClocksSchema.safeParse({ notes: 'x' }).success).toBe(false);
+  });
+});
+
+describe('merge fields', () => {
+  it('are every synced field but the id and the two creation and version clocks', () => {
+    const fields = assetCollection.mergeFields;
+    expect(fields).toContain('deletedAt');
+    expect(fields).toContain('purgedAt');
+    expect(fields).toContain('isFavorite');
+    expect(fields).not.toContain('id');
+    expect(fields).not.toContain('createdAt');
+    expect(fields).not.toContain('updatedAt');
+    expect(fields).not.toContain('syncError'); // local-only
+  });
+
+  it('field groups name merge fields only', () => {
+    for (const collection of collections) {
+      for (const group of collection.fieldGroups) {
+        for (const field of group) expect(collection.mergeFields, `${collection.name}.${field}`).toContain(field);
+      }
+    }
+    expect(assetCollection.fieldGroups).toEqual([
+      ['isFileSynced', 'isThumbnailSynced', 'isSynced'],
+      ['deletedAt', 'purgedAt'],
+    ]);
+  });
+
+  it('widen a group with a member among the clocks to all its members, at its newest clock', () => {
+    expect(widenToGroups(assetCollection, { notes: 1, isSynced: 2, isFileSynced: 3 })).toEqual({
+      notes: 1,
+      isFileSynced: 3,
+      isThumbnailSynced: 3,
+      isSynced: 3,
+    });
+    expect(widenToGroups(assetCollection, { purgedAt: 4 })).toEqual({ deletedAt: 4, purgedAt: 4 });
+    expect(widenToGroups(assetCollection, { notes: 1 })).toEqual({ notes: 1 });
+  });
+});
+
+describe('lost fields', () => {
+  it('are the sent fields the merged record holds with another value', () => {
+    const current = { notes: 'server', isFavorite: true, deletedAt: null };
+    expect(lostFields(['notes', 'isFavorite', 'deletedAt'], { notes: 'mine', isFavorite: true, deletedAt: null }, current)).toEqual([
+      'notes',
+    ]);
+    expect(lostFields(['filename'], { filename: 'a' }, current)).toEqual([]); // not in current
+  });
 });
 
 describe('presign expiry rules', () => {

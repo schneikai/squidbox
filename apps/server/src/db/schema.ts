@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import type { FieldClocks } from '@squidbox/shared';
 import {
   pgTable,
   uuid,
@@ -51,6 +52,12 @@ export type User = typeof users.$inferSelect;
 export type RefreshToken = typeof refreshTokens.$inferSelect;
 
 // --- Syncable collections ---
+// Server-only, never on the wire: each merge field's clock. NULL for a row last written before
+// per-field merge, whose fields all take its updated_at (sync-design §7).
+function fieldClock() {
+  return jsonb('field_clock').$type<FieldClocks>();
+}
+
 // `assets` — asset metadata (sync-design §10). Composite PK (user_id, id): id is
 // client-generated, so a plain-id PK would let a colliding uuid touch another tenant's row
 // (§2a). server_seq is stamped by a BEFORE INSERT/UPDATE trigger (created in migrate.ts).
@@ -68,6 +75,7 @@ export const assets = pgTable(
     updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
     deletedAt: bigint('deleted_at', { mode: 'number' }),
     serverSeq: bigint('server_seq', { mode: 'number' }), // set by trigger
+    fieldClock: fieldClock(),
     mediaLibraryAssetId: text('media_library_asset_id').notNull(),
     mediaType: text('media_type').notNull(), // 'photo' | 'video' (validated via Zod)
     width: integer('width').notNull(),
@@ -83,6 +91,8 @@ export const assets = pgTable(
     isThumbnailSynced: boolean('is_thumbnail_synced').notNull(),
     isSynced: boolean('is_synced').notNull(),
     purgedAt: bigint('purged_at', { mode: 'number' }), // "Delete permanently", final (sync-design §7)
+    // Server-only: the last deletedAt values a restore undid; a purge of one of them loses (§7).
+    restoredDeletions: jsonb('restored_deletions').$type<number[]>(),
     // Server-only, never on the wire: when the purge cleanup deleted the asset's S3 files (§7a).
     filesDeletedAt: bigint('files_deleted_at', { mode: 'number' }),
   },
@@ -113,6 +123,7 @@ function syncableBase() {
     updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
     deletedAt: bigint('deleted_at', { mode: 'number' }),
     serverSeq: bigint('server_seq', { mode: 'number' }),
+    fieldClock: fieldClock(),
   };
 }
 

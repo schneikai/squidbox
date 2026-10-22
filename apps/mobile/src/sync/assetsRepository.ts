@@ -1,5 +1,5 @@
 import type { AssetRecord } from '@squidbox/shared';
-import { and, asc, count, eq, isNotNull, isNull, not, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, eq, isNotNull, isNull, sql, type SQL } from 'drizzle-orm';
 
 import { nextUpdatedAt } from './clock';
 import * as schema from './db/schema';
@@ -8,7 +8,6 @@ import { inJson } from './inJson';
 import { readByIds } from './readByIds';
 import { makeRepository } from './repository';
 import { saveRecords } from './saveRecords';
-import type { AssetFileNames } from '../library/fs';
 
 const repository = makeRepository<AssetRecord>('assets', schema.assets);
 
@@ -25,47 +24,18 @@ export const updateAllAssets = repository.updateAll;
 export const deleteAssets = repository.remove;
 
 /**
- * "Delete permanently": removes this device's copies of the assets' files, then sets purgedAt,
- * which no later version undoes (sync-design §7). The files go first, as with a purge arriving
- * through sync, so a crash can't leave files that no asset names any more; a crash in between leaves
- * an asset in the Deleted album without its copies here (it was being deleted). Resolves to the
- * newly purged rows.
+ * "Delete permanently": sets purgedAt, which no later version undoes once the server has it (sync-design
+ * §7). The files stay until the server confirms the purge (sweepPurgedFiles): a restore on another device it
+ * hadn't seen beats it, and the asset then comes back here with its files. Resolves to the newly
+ * purged rows.
  */
-export async function purgeAssets(db: SyncDb, ids: string[], removeFiles: RemoveFiles): Promise<schema.AssetRow[]> {
-  const notPurged = (rows: schema.AssetRow[]) => rows.filter((row) => row.purgedAt === null);
-  const rows = notPurged(await readByIds(db, schema.assets, ids));
-  if (rows.length === 0) return [];
-  await removeFiles(await unsharedFiles(db, rows));
+export async function purgeAssets(db: SyncDb, ids: string[]): Promise<schema.AssetRow[]> {
   return db.transaction(async (tx) => {
-    const purgedRows = notPurged(await readByIds(tx, schema.assets, ids)).map(purged);
-    await saveRecords(tx, 'assets', schema.assets, purgedRows);
+    const previous = (await readByIds<schema.AssetRow>(tx, schema.assets, ids)).filter((row) => row.purgedAt === null);
+    const purgedRows = previous.map(purged);
+    await saveRecords(tx, 'assets', schema.assets, purgedRows, { previous });
     return purgedRows;
   });
-}
-
-export type RemoveFiles = (files: AssetFileNames[]) => Promise<void>;
-
-/**
- * The file names of these assets that no other asset that isn't purged names, in one statement:
- * what removing their copies may delete, as the server keeps a key in use (§7a). One scan of the
- * assets per call (~20 ms for 50k on a laptop), cheaper than two more indexes every insert pays for.
- */
-export async function unsharedFiles(db: SyncDb, rows: schema.AssetRow[]): Promise<AssetFileNames[]> {
-  const ids = rows.map((row) => row.id);
-  const names = [...new Set(rows.flatMap((row) => [row.filename, row.thumbnailFilename]))];
-  const sharing = await db
-    .select({ filename: schema.assets.filename, thumbnailFilename: schema.assets.thumbnailFilename })
-    .from(schema.assets)
-    .where(
-      and(
-        isNull(schema.assets.purgedAt),
-        not(inJson(schema.assets.id, ids)),
-        or(inJson(schema.assets.filename, names), inJson(schema.assets.thumbnailFilename, names)),
-      ),
-    );
-  const inUse = new Set(sharing.flatMap((row) => [row.filename, row.thumbnailFilename]));
-  const unshared = (name: string) => (name && !inUse.has(name) ? name : undefined);
-  return rows.map((row) => ({ filename: unshared(row.filename), thumbnailFilename: unshared(row.thumbnailFilename) }));
 }
 
 function purged(row: schema.AssetRow): schema.AssetRow {

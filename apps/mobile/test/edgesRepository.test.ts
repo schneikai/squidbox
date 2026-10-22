@@ -1,3 +1,4 @@
+import { keyBetween } from '@squidbox/shared';
 import { and, eq, isNull } from 'drizzle-orm';
 import { describe, it, expect, beforeEach } from 'vitest';
 
@@ -144,24 +145,32 @@ describe('edgesRepository (album_assets)', () => {
     expect(albumOrder(rows, 'album-2')).toEqual(['x']); // other album intact
   });
 
-  it('setRefs reconciles to exactly the target list (add + remove + reorder in one)', async () => {
+  it('setRefs saves the list over its seed (add + remove + reorder in one)', async () => {
     const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
     await posts.createFromRefs(db, 'post-1', [
       { id: 'r1', assetId: 'a1' },
       { id: 'r2', assetId: 'a2' },
     ]);
     // Drop r1, keep r2, add r3 — and put r3 first.
-    await posts.setRefs(db, 'post-1', [
-      { id: 'r3', assetId: 'a3' },
-      { id: 'r2', assetId: 'a2' },
-    ]);
+    await posts.setRefs(
+      db,
+      'post-1',
+      [
+        { id: 'r3', assetId: 'a3' },
+        { id: 'r2', assetId: 'a2' },
+      ],
+      [
+        { id: 'r1', assetId: 'a1' },
+        { id: 'r2', assetId: 'a2' },
+      ],
+    );
     const rows = await db.select().from(schema.postAssets);
     const live = rows.filter((r) => r.deletedAt == null).sort((a, b) => (a.position < b.position ? -1 : 1));
     expect(live.map((r) => r.assetId)).toEqual(['a3', 'a2']);
     expect(rows.find((r) => r.id === 'r1')?.deletedAt).toBeTruthy(); // r1 tombstoned
   });
 
-  it('setRefs restores an edge removed meanwhile as its next version, even if that removal looks newer', async () => {
+  it('setRefs keeps out a seed edge removed meanwhile, and restores one the user added back as its next version', async () => {
     const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
     await posts.createFromRefs(db, 'post-1', [{ id: 'r1', assetId: 'a1' }]);
     // Another device removed r1, with a clock ahead of ours.
@@ -170,11 +179,252 @@ describe('edgesRepository (album_assets)', () => {
       .update(schema.postAssets)
       .set({ deletedAt: removedAt, updatedAt: removedAt })
       .where(eq(schema.postAssets.id, 'r1'));
+    const r1 = async () => (await db.select().from(schema.postAssets).where(eq(schema.postAssets.id, 'r1')))[0]!;
 
-    await posts.setRefs(db, 'post-1', [{ id: 'r1', assetId: 'a1' }]);
-    const r1 = (await db.select().from(schema.postAssets).where(eq(schema.postAssets.id, 'r1')))[0]!;
-    expect(r1.deletedAt).toBeNull();
-    expect(r1.updatedAt).toBeGreaterThan(removedAt); // wins LWW against the removal
+    // The editor was seeded with r1 and the user kept it: the other device's removal stands.
+    await posts.setRefs(db, 'post-1', [{ id: 'r1', assetId: 'a1' }], [{ id: 'r1', assetId: 'a1' }]);
+    expect((await r1()).deletedAt).toBe(removedAt);
+    // Added back to an editor that didn't have it: restored, winning LWW against the removal.
+    await posts.setRefs(db, 'post-1', [{ id: 'r1', assetId: 'a1' }], []);
+    expect((await r1()).deletedAt).toBeNull();
+    expect((await r1()).updatedAt).toBeGreaterThan(removedAt);
+  });
+
+  it('setRefs gives new keys only to the listed edges out of order: the others keep their places', async () => {
+    const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
+    await posts.createFromRefs(db, 'post-1', [
+      { id: 'r1', assetId: 'a1' },
+      { id: 'r2', assetId: 'a2' },
+      { id: 'r3', assetId: 'a3' },
+    ]);
+    const before = new Map((await db.select().from(schema.postAssets)).map((r) => [r.id, r.position]));
+    // A photo hidden from the editor (its purge waits) between a1 and a2.
+    await db.insert(schema.postAssets).values({
+      id: 'rh',
+      createdAt: 1,
+      updatedAt: 1,
+      deletedAt: null,
+      postId: 'post-1',
+      assetId: 'ah',
+      position: keyBetween(before.get('r1')!, before.get('r2')!),
+    });
+    const seed = [
+      { id: 'r1', assetId: 'a1' },
+      { id: 'r2', assetId: 'a2' },
+      { id: 'r3', assetId: 'a3' },
+    ];
+    await posts.setRefs(db, 'post-1', [seed[0]!, seed[2]!, seed[1]!], seed); // a3 moved before a2
+    const rows = await db.select().from(schema.postAssets);
+    const live = rows.filter((r) => r.deletedAt == null).sort((a, b) => (a.position < b.position ? -1 : 1));
+    expect(live.map((r) => r.assetId).filter((id) => id !== 'ah')).toEqual(['a1', 'a3', 'a2']);
+    const after = new Map(rows.map((r) => [r.id, r.position]));
+    expect(after.get('rh')).toBe(keyBetween(before.get('r1')!, before.get('r2')!)); // where it was
+    expect(after.get('r1')).toBe(before.get('r1'));
+    expect(rows.filter((r) => r.position !== (before.get(r.id) ?? r.position)).map((r) => r.id)).toHaveLength(1);
+  });
+
+  it('setRefs keeps the live edges its seed didn’t have, where they are, and removes only those taken out', async () => {
+    const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
+    await posts.createFromRefs(db, 'post-1', [
+      { id: 'r1', assetId: 'a1' },
+      { id: 'r2', assetId: 'a2' },
+    ]);
+    const seed = [
+      { id: 'r1', assetId: 'a1' },
+      { id: 'r2', assetId: 'a2' },
+    ];
+    await posts.add(db, 'post-1', ['a9'], () => 'r9'); // another device's, or hidden from the editor
+    const a9 = (await db.select().from(schema.postAssets).where(eq(schema.postAssets.id, 'r9')))[0]!;
+    await posts.setRefs(
+      db,
+      'post-1',
+      [
+        { id: 'r2', assetId: 'a2' },
+        { id: 'r3', assetId: 'a3' },
+      ],
+      seed,
+    );
+    const rows = await db.select().from(schema.postAssets);
+    const live = rows.filter((r) => r.deletedAt == null).sort((a, b) => (a.position < b.position ? -1 : 1));
+    expect(live.map((r) => r.assetId).filter((id) => id !== 'a9')).toEqual(['a2', 'a3']);
+    expect(rows.find((r) => r.id === 'r9')).toEqual(a9); // untouched, where it was
+  });
+
+  // The user's moves are read against the seed: a reorder another device made while the editor was
+  // open (synced in before the save) stays, and the photo the user added goes after the listed ones.
+  it('setRefs keeps a reorder made elsewhere while the editor was open, re-keying only what the user moved', async () => {
+    const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
+    const seed = [
+      { id: 'r1', assetId: 'a1' },
+      { id: 'r2', assetId: 'a2' },
+      { id: 'r3', assetId: 'a3' },
+    ];
+    await posts.createFromRefs(db, 'post-1', seed);
+    await posts.move(db, 'post-1', 'a3', null); // another device's, synced in
+    const before = new Map((await db.select().from(schema.postAssets)).map((r) => [r.id, r.position]));
+    await posts.setRefs(db, 'post-1', [...seed, { id: 'r4', assetId: 'a4' }], seed);
+    const rows = await db.select().from(schema.postAssets);
+    const live = rows.filter((r) => r.deletedAt == null).sort((a, b) => (a.position < b.position ? -1 : 1));
+    expect(live.map((r) => r.assetId)).toEqual(['a3', 'a1', 'a2', 'a4']);
+    for (const id of ['r1', 'r2', 'r3']) expect(rows.find((r) => r.id === id)!.position).toBe(before.get(id));
+  });
+
+  it('setRefs tombstones the duplicate edges of a photo the user moved, as a reorder does', async () => {
+    const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
+    const seed = [
+      { id: 'r1', assetId: 'a1' },
+      { id: 'r2', assetId: 'a2' },
+      { id: 'r3', assetId: 'a3' },
+    ];
+    await posts.createFromRefs(db, 'post-1', seed);
+    // A concurrent offline add of a1 on another device left a second live edge, early in the post.
+    await db.insert(schema.postAssets).values({
+      id: 'rd',
+      createdAt: 1,
+      updatedAt: 1,
+      deletedAt: null,
+      postId: 'post-1',
+      assetId: 'a1',
+      position: '0',
+    });
+    await posts.setRefs(db, 'post-1', [seed[1]!, seed[2]!, seed[0]!], seed); // a1 moved to the end
+    const rows = await db.select().from(schema.postAssets);
+    const live = rows.filter((r) => r.deletedAt == null).sort((a, b) => (a.position < b.position ? -1 : 1));
+    expect(live.map((r) => r.id)).toEqual(['r2', 'r3', 'r1']);
+  });
+
+  // Round 9: two photos tied at one key (two devices appended one each offline, `keyBetween(last,
+  // null)` is deterministic) show in id order. The user puts a new photo between them in the editor:
+  // it lands between them (keysInOrder keeps one of the tied keys and re-keys around it).
+  it('setRefs puts a photo added between two tied photos between them', async () => {
+    const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
+    await posts.createFromRefs(db, 'post-1', [{ id: 'r1', assetId: 'a1' }]);
+    const k1 = (await db.select().from(schema.postAssets))[0]!.position;
+    const tied = keyBetween(k1, null);
+    for (const [id, assetId] of [
+      ['r2', 'a2'],
+      ['r3', 'a3'],
+    ])
+      await db.insert(schema.postAssets).values({
+        ...{ id, assetId, postId: 'post-1', position: tied },
+        ...{ createdAt: 1, updatedAt: 1, deletedAt: null },
+      });
+    const seed = [
+      { id: 'r1', assetId: 'a1' },
+      { id: 'r2', assetId: 'a2' },
+      { id: 'r3', assetId: 'a3' },
+    ];
+    await posts.setRefs(db, 'post-1', [seed[0]!, seed[1]!, { id: 'rx', assetId: 'ax' }, seed[2]!], seed);
+    const rows = await db.select().from(schema.postAssets);
+    const live = rows
+      .filter((r) => r.deletedAt == null)
+      .sort((a, b) => (a.position < b.position || (a.position === b.position && a.id < b.id) ? -1 : 1));
+    expect(live.map((r) => r.assetId)).toEqual(['a1', 'a2', 'ax', 'a3']);
+  });
+
+  // Round 9: another device moved a1 to the end while the editor was open (synced in before the
+  // save), and the user added X right after a1 and Y at the end: X follows a1, Y is appended after
+  // it, each with its own key.
+  it('setRefs gives two photos added in one save distinct keys in their order after a reorder made elsewhere', async () => {
+    const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
+    const seed = [
+      { id: 'r1', assetId: 'a1' },
+      { id: 'r2', assetId: 'a2' },
+      { id: 'r3', assetId: 'a3' },
+    ];
+    await posts.createFromRefs(db, 'post-1', seed);
+    await posts.move(db, 'post-1', 'a1', 'a3'); // another device's, synced in
+    const x = { id: 'r9', assetId: 'ax' };
+    const y = { id: 'r5', assetId: 'ay' };
+    await posts.setRefs(db, 'post-1', [seed[0]!, x, seed[1]!, seed[2]!, y], seed);
+    const rows = await db.select().from(schema.postAssets);
+    const position = (id: string) => rows.find((r) => r.id === id)!.position;
+    expect(position('r9')).not.toBe(position('r5'));
+    expect(position('r9') < position('r5')).toBe(true);
+  });
+
+  // Round 9: another device put a photo at the front of the post (its editor's insert, or a drag:
+  // keyBetween(null, k1)), synced in while this editor was open. The user, whose seed hasn't that
+  // photo, adds one at the front: it gets a key of its own, before the other device's.
+  it('setRefs keys a photo added at the front apart from a live photo another device put there', async () => {
+    const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
+    const seed = [
+      { id: 'r1', assetId: 'a1' },
+      { id: 'r2', assetId: 'a2' },
+    ];
+    await posts.createFromRefs(db, 'post-1', seed);
+    await posts.setRefs(db, 'post-1', [{ id: 'rz', assetId: 'az' }, ...seed], seed); // the other device's, synced in
+    await posts.setRefs(db, 'post-1', [{ id: 'rx', assetId: 'ax' }, ...seed], seed);
+    const rows = await db.select().from(schema.postAssets);
+    const position = (id: string) => rows.find((r) => r.id === id)!.position;
+    expect(position('rx')).not.toBe(position('rz'));
+  });
+
+  // Fuzz: random editor saves over seeds another device changed meanwhile (moves, adds, appends tied
+  // on one key, removals). Every live key stays distinct; the save keeps what it doesn't list where
+  // it was (another device's adds in their order), takes out what the user took out, and, with
+  // nothing changed elsewhere, gives exactly the user's list.
+  it('setRefs keeps keys distinct and the order the editor and the other devices made (fuzz)', async () => {
+    const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
+    for (let run = 1; run <= 150; run++) {
+      let a = run;
+      const int = (k: number) => {
+        a = (a * 1103515245 + 12345) % 2147483648;
+        return Math.floor((a / 2147483648) * k);
+      };
+      db = makeTestDb();
+      const liveRows = async () =>
+        (await db.select().from(schema.postAssets).where(isNull(schema.postAssets.deletedAt))).sort((x, y) =>
+          x.position < y.position || (x.position === y.position && x.id < y.id) ? -1 : 1,
+        );
+      let ids = 0;
+      const fresh = () => ({ id: `n${run}-${++ids}`, assetId: `na${run}-${ids}` });
+      const seed = Array.from({ length: 3 + int(4) }, (_, i) => ({ id: `r${i}`, assetId: `a${i}` }));
+      await posts.createFromRefs(db, 'p', seed);
+
+      const elsewhere = int(4);
+      for (let op = 0; op < elsewhere; op++) {
+        const rows = await liveRows();
+        const pick = () => rows[int(rows.length)];
+        const kind = int(4);
+        if (kind === 0 && rows.length > 1) await posts.move(db, 'p', pick()!.assetId, int(3) ? pick()!.assetId : null);
+        else if (kind === 1) await posts.add(db, 'p', [fresh().assetId], () => fresh().id);
+        else if (kind === 2 && rows.length > 0) {
+          const ref = fresh();
+          await db.insert(schema.postAssets).values({
+            ...{ id: ref.id, assetId: ref.assetId, postId: 'p', position: pick()!.position },
+            ...{ createdAt: 1, updatedAt: 1, deletedAt: null },
+          });
+        } else if (rows.length > 0) await posts.remove(db, 'p', [pick()!.assetId]);
+      }
+
+      const list = [...seed];
+      for (let op = 1 + int(4); op > 0; op--) {
+        const kind = int(3);
+        if (kind === 0 && list.length > 0) list.splice(int(list.length), 1);
+        else if (kind === 1) list.splice(int(list.length + 1), 0, fresh());
+        else if (list.length > 1) list.splice(int(list.length), 0, list.splice(int(list.length), 1)[0]!);
+      }
+      const before = await liveRows();
+      await posts.setRefs(db, 'p', list, seed);
+      const after = await liveRows();
+      const context = `run ${run}: ${JSON.stringify({ seed, list, before: before.map((r) => [r.id, r.position]) })}`;
+
+      expect(new Set(after.map((r) => r.position)).size, context).toBe(after.length);
+      const listed = new Set(list.map((r) => r.id));
+      const takenOut = new Set(seed.filter((r) => !list.some((l) => l.assetId === r.assetId)).map((r) => r.assetId));
+      const seedIds = new Set(seed.map((r) => r.id));
+      const unlisted = before.filter((r) => !listed.has(r.id) && !takenOut.has(r.assetId) && !seedIds.has(r.id));
+      const wanted = list.filter((r) => before.some((b) => b.id === r.id) || !seedIds.has(r.id));
+      expect(after.map((r) => r.id).sort(), context).toEqual([...unlisted, ...wanted].map((r) => r.id).sort());
+      const stayed = after.filter((r) => unlisted.some((u) => u.id === r.id)).map((r) => r.id);
+      expect(stayed, context).toEqual(unlisted.map((r) => r.id));
+      if (elsewhere === 0)
+        expect(
+          after.map((r) => r.id),
+          context,
+        ).toEqual(wanted.map((r) => r.id));
+    }
   });
 
   it('creating edges with ids that already exist fails instead of moving them to another post', async () => {

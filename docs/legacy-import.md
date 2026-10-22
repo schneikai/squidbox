@@ -59,7 +59,8 @@ applied, skipped and rejected count per collection. It ends with:
 OK — all ids canonical uuids and all references resolve.
 ```
 
-On a re-run without truncating, every record reports as skipped.
+On a re-run without truncating, nothing changes: a replay holds. Every record reports as applied,
+except one edited since in the app, which reports as skipped (skipped-lww: the newer row stays).
 
 ## Code map
 

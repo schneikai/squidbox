@@ -16,8 +16,12 @@ export * from './collections/post';
 export * from './collections/albumAsset';
 export * from './collections/postAsset';
 export * from './collections/registry';
+export * from './collections/widenToGroups';
+export * from './collections/lostFields';
+export * from './collections/mergeRecord';
 export * from './fractionalIndex';
 export * from './movePositions';
+export * from './chunk';
 
 // Wire contracts shared between the mobile app and the server.
 export * from './contracts/auth';

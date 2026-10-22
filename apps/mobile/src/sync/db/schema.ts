@@ -1,3 +1,4 @@
+import type { FieldClocks } from '@squidbox/shared';
 import { sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, real, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
@@ -30,6 +31,9 @@ export const assets = sqliteTable(
     purgedAt: integer('purged_at'), // "Delete permanently", final (sync-design §7)
     // local-only (never synced)
     syncError: text('sync_error'),
+    // The purge (its purgedAt) this device removed the asset's files for (§7a): a later purge, after
+    // one was undone, differs, so its copies are removed again.
+    filesRemovedFor: integer('files_removed_for'),
   },
   // Partial indexes for the screens' reads (docs/paged-reads-plan.md §2). A query uses one only when
   // its WHERE implies the index's, so keep the predicates in step with the queries.
@@ -50,6 +54,10 @@ export const assets = sqliteTable(
     notes: index('assets_notes_idx')
       .on(t.id, t.notes)
       .where(sql`${t.notes} is not null and ${t.deletedAt} is null`),
+    // The purged assets whose files this device still has: the sweep's work (sweepPurgedFiles).
+    purgedFiles: index('assets_purged_files_idx')
+      .on(t.id)
+      .where(sql`${t.purgedAt} is not null and ${t.filesRemovedFor} is not ${t.purgedAt}`),
   }),
 );
 export type AssetRow = typeof assets.$inferSelect;
@@ -147,8 +155,8 @@ export const syncMeta = sqliteTable('sync_meta', {
   value: text('value'),
 });
 
-// Outbox: pending local mutations to push. Coalesced to one row per (collection, recordId)
-// — the latest whole-record payload wins (sync-design §6). `error`: why this payload failed; it waits (§6).
+// Outbox: pending local mutations to push, one row per (collection, recordId) (sync-design §6).
+// `error`: why this payload failed; it waits (§6).
 export const outbox = sqliteTable(
   'outbox',
   {
@@ -157,6 +165,10 @@ export const outbox = sqliteTable(
     recordId: text('record_id').notNull(),
     op: text('op', { enum: ['upsert', 'delete'] }).notNull(),
     payload: text('payload', { mode: 'json' }).$type<Record<string, unknown>>().notNull(),
+    // changed fields → clock (sync-design §6)
+    fields: text('fields', { mode: 'json' }).$type<FieldClocks>().notNull().default({}),
+    // A row from before per-field merge (migration 0011): pushed without fields, as that app pushed it.
+    wholeRecord: integer('whole_record', { mode: 'boolean' }).notNull().default(false),
     updatedAt: integer('updated_at').notNull(),
     createdAt: integer('created_at')
       .notNull()

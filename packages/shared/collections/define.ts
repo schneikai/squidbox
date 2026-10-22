@@ -26,6 +26,14 @@ export interface CollectionDescriptor<
   schema: S;
   /** Client-only fields, never sent over the wire (e.g. per-device syncError). */
   localOnly: L;
+  /** Synced fields that change together: an edit of one sends the whole group with one clock. */
+  fieldGroups: readonly (readonly string[])[];
+  /** A write-once field set only on a deleted record, which it freezes (e.g. purgedAt, sync-design §7). */
+  finalField?: string;
+  /** The fields that merge one by one: every synced field but `id`, `createdAt` and `updatedAt`. */
+  readonly mergeFields: readonly string[];
+  /** The merge fields with a clock of their own: all but the final field, which goes with deletedAt. */
+  readonly clockedFields: readonly string[];
 }
 
 /** Define a sync collection once — the single source of truth shared by app and server. */
@@ -33,6 +41,18 @@ export function defineCollection<S extends z.ZodTypeAny, L extends z.ZodRawShape
   name: string;
   schema: S;
   localOnly?: L;
+  fieldGroups?: readonly (readonly string[])[];
+  finalField?: string;
 }): CollectionDescriptor<S, L> {
-  return { name: config.name, schema: config.schema, localOnly: (config.localOnly ?? {}) as L };
+  const { shape } = config.schema as unknown as z.ZodObject<z.ZodRawShape>;
+  const mergeFields = Object.keys(shape).filter((key) => key !== 'id' && key !== 'createdAt' && key !== 'updatedAt');
+  return {
+    name: config.name,
+    schema: config.schema,
+    localOnly: (config.localOnly ?? {}) as L,
+    fieldGroups: config.fieldGroups ?? [],
+    finalField: config.finalField,
+    mergeFields: Object.freeze(mergeFields),
+    clockedFields: Object.freeze(mergeFields.filter((field) => field !== config.finalField)),
+  };
 }

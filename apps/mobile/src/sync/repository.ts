@@ -20,10 +20,9 @@ export function makeRepository<R extends SyncRecord = SyncRecord>(collection: st
   /** Patch records, by id. Ids without a row are skipped. */
   async function updateMany(db: SyncDb, changesById: Record<string, Partial<R>>): Promise<void> {
     await db.transaction(async (tx) => {
-      const rows = (await readByIds<R>(tx, table, Object.keys(changesById))).map((prev) =>
-        nextVersion(prev, changesById[prev.id]),
-      );
-      await saveRecords(tx, collection, table, rows);
+      const previous = await readByIds<R>(tx, table, Object.keys(changesById));
+      const rows = previous.map((prev) => nextVersion(prev, changesById[prev.id]));
+      await saveRecords(tx, collection, table, rows, { previous });
     });
   }
 
@@ -46,13 +45,16 @@ export function makeRepository<R extends SyncRecord = SyncRecord>(collection: st
       await db.transaction(async (tx) => {
         const [prev] = await readByIds<R>(tx, table, [id]);
         if (prev)
-          await saveRecords(tx, collection, table, [nextVersion(prev, { [field]: !prev[field] } as Partial<R>)]);
+          await saveRecords(tx, collection, table, [nextVersion(prev, { [field]: !prev[field] } as Partial<R>)], {
+            previous: [prev],
+          });
       });
     },
     /** Tombstone records, by id. */
     async remove(db: SyncDb, ids: string[]): Promise<void> {
       await db.transaction(async (tx) => {
-        await saveRecords(tx, collection, table, (await readByIds<R>(tx, table, ids)).map(tombstone));
+        const previous = await readByIds<R>(tx, table, ids);
+        await saveRecords(tx, collection, table, previous.map(tombstone), { previous });
       });
     },
   };

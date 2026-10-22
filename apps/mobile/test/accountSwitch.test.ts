@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { eq } from 'drizzle-orm';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { sessionStoreMock } from './helpers/sessionStoreMock';
@@ -10,7 +11,17 @@ import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import { setOutboxError } from '../src/sync/outbox';
 import { makeRepository } from '../src/sync/repository';
-import { getCursor, getOwner, isFirstSyncDone, markFirstSyncDone, setCursor, setOwner } from '../src/sync/status';
+import {
+  getCursor,
+  getKeptFor,
+  getMergeTarget,
+  getOwner,
+  isFirstSyncDone,
+  markFirstSyncDone,
+  setCursor,
+  setMergeTarget,
+  setOwner,
+} from '../src/sync/status';
 
 // The device: its databases by name (a store survives close and reopen, like a file), the stored
 // session and the library list in AsyncStorage.
@@ -60,27 +71,52 @@ vi.mock('@sentry/react-native', () => ({ captureException: () => {}, captureMess
 // The boot's network check: the stored session as it is (offline).
 vi.mock('../src/utils/cloud-api/initializeCloudAsync', () => ({ default: async () => store.session }));
 const dbNames: string[] = []; // the databases on disk, for a registry rebuild
+// The files on disk by uri: none unless a test adds them.
+const files = vi.hoisted(() => new Set<string>());
 vi.mock('../src/library/fs', () => ({
   listDatabaseNames: async () => dbNames,
-  listFiles: async () => new Set(),
+  databaseExists: async (name: string) => dbNames.includes(name),
+  listFiles: async (dir: string) =>
+    new Set([...files].filter((uri) => uri.startsWith(dir)).map((uri) => uri.slice(dir.length))),
   createLibraryFolders: async () => {},
   removeLibraryFolders: async () => {},
-  fileExists: async () => false,
-  moveFile: async () => {},
+  fileExists: async (uri: string) => files.has(uri),
+  moveFile: async (from: string, to: string) => {
+    files.delete(from);
+    files.add(to);
+  },
+  copyFile: async (_from: string, to: string) => {
+    files.add(to);
+  },
   libraryLimitMessage: (error: Error) => (error.message.startsWith('no room') ? 'No more libraries' : null),
 }));
 const ids = vi.hoisted(() => ({ n: 0 }));
 vi.mock('../src/utils/getNewItemId', () => ({ default: () => `id-${++ids.n}` }));
+// The token refresh's request (refreshAccessTokenAsync), for a session the server rejects.
+const api = vi.hoisted(() => ({ post: async (..._args: unknown[]): Promise<unknown> => ({}) }));
+vi.mock('../src/utils/cloud-api/api', () => ({ default: api }));
 
 const { bootLibrary } = await import('../src/library/bootLibrary');
 const { closeLibrary, getLibrary, openLibraryId } = await import('../src/library/current');
 const { resumeMerges } = await import('../src/library/mergeRun');
-const { getRegistry, loadRegistry } = await import('../src/library/registry');
-const { libraryForSession, mergeDeviceLibrary, openLibraryForSession, openLibraryForSignIn } =
-  await import('../src/library/sessionLibrary');
+const { getRegistry, loadRegistry, updateLibrary } = await import('../src/library/registry');
+const {
+  deviceLibraryToJoin,
+  libraryForSession,
+  mergeDeviceLibrary,
+  openLibraryForSession,
+  openLibraryForSignIn,
+  runPendingMerges,
+  watchTokenDrops,
+} = await import('../src/library/sessionLibrary');
 const { switchLibrary } = await import('../src/library/switchLibrary');
 const { getDb, openAppDb } = await import('../src/sync/db/client');
+const { fullResync } = await import('../src/sync/worker');
+const { libraryPaths } = await import('../src/library/libraryPaths');
+const { default: getAssetFileUri } = await import('../src/utils/assets/files/getAssetFileUri');
 const { dropTokensAsync: signOut } = await import('../src/utils/cloud-api/sessionStore');
+const { default: refreshAccessTokenAsync } =
+  await import('../src/utils/cloud-api/authentication/refreshAccessTokenAsync');
 
 const tokens = { accessToken: 'a', refreshToken: 'r' };
 const sessionOf = (userId: string, serverId = 's1'): Session => ({
@@ -98,6 +134,18 @@ async function open(session: Session | null) {
   await openLibraryForSession(session, switchLibrary);
 }
 const signIn = (session: Session) => openLibraryForSignIn(session, switchLibrary);
+// The open account library's first full pull drains: the merges that waited for it run, as
+// usePendingMerges runs them.
+async function firstPullDrains() {
+  await markFirstSyncDone(getDb());
+  await runPendingMerges();
+}
+// The open account library pushes everything: a merge waiting for that push finishes, as
+// usePendingMerges runs it.
+async function pushes() {
+  await getDb().delete(schema.outbox);
+  await runPendingMerges();
+}
 const albums = makeRepository('albums', schema.albums);
 const libraryIds = () => getRegistry().libraries.map(({ id }) => id);
 const openOwner = () => getRegistry().libraries.find(({ id }) => id === getLibrary().id)!.owner;
@@ -107,6 +155,11 @@ const assetIdsIn = async (libraryId: string) =>
   (await (await openAppDb(`library-${libraryId}.db`)).select().from(schema.assets)).map(({ id }) => id);
 
 describe('switching libraries with the session', () => {
+  const watching: (() => void)[] = []; // watchTokenDrops subscriptions, ended after each test
+  afterEach(() => {
+    for (const stop of watching.splice(0)) stop();
+  });
+
   beforeEach(async () => {
     if (openLibraryId()) await closeLibrary();
     stores.clear();
@@ -116,6 +169,7 @@ describe('switching libraries with the session', () => {
     storage.clear();
     store.session = null;
     dbNames.length = 0;
+    files.clear();
     ids.n = 0;
   });
 
@@ -200,20 +254,67 @@ describe('switching libraries with the session', () => {
     await albums.create(getDb(), makeAlbumRecord({ name: 'Trip' }));
 
     await signIn(sessionOf('A'));
-
     expect(openOwner()).toMatchObject({ kind: 'account', userId: 'A' });
+    // Nothing joins before the account's library has pulled what the account holds: no camera-roll
+    // item would match yet. The device library waits, free.
+    expect(await assets()).toHaveLength(0);
+    expect(getRegistry().libraries.find(({ id }) => id === deviceId)).toEqual({
+      id: deviceId,
+      owner: { kind: 'device' },
+    });
+    await firstPullDrains();
+
     expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
     expect(await getDb().select().from(schema.albums)).toHaveLength(1);
     expect(await outbox()).toHaveLength(2); // the photo and the album push with the next sync
+    await pushes(); // then the merge finishes: the device library is kept for A
+    expect(getRegistry().libraries.find(({ id }) => id === deviceId)).toMatchObject({ keptFor: getLibrary().id });
     // The photo in another account's storage stays where it was, in the parked device library.
     expect(libraryIds()).toContain(deviceId);
     expect(await assetIdsIn(deviceId)).toEqual([photo.id, cloudOnly.id]);
 
     // The kept device library is A's now: another account gets nothing of it.
     await signIn(sessionOf('B'));
+    await firstPullDrains();
     expect(await assets()).toHaveLength(0);
     expect(libraryIds()).toContain(deviceId);
     expect(await assetIdsIn(deviceId)).toEqual([photo.id, cloudOnly.id]);
+  });
+
+  // Round 8 (was on main): `keptFor` lived only in the library list, so a corrupt list rebuilt from
+  // the databases' owners lost it, and the device library, A's already, joined B's library. The
+  // device library's own database keeps it now, and the rebuilt list takes it from there.
+  it('a kept device library joins no second account after the library list is rebuilt', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    const deviceId = getLibrary().id;
+    await repo.createAsset(
+      getDb(),
+      makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+    );
+    await repo.createAsset(getDb(), makeAssetRecord({ filename: 'c.jpg', isFileSynced: true }));
+    await albums.create(getDb(), makeAlbumRecord({ name: 'Trip' }));
+    await signIn(sessionOf('A'));
+    await firstPullDrains();
+    await pushes();
+    const aId = getLibrary().id;
+    await signIn(sessionOf('B'));
+    await firstPullDrains();
+    const bId = getLibrary().id;
+    expect(await assets()).toHaveLength(0);
+
+    // The app is closed; the stored list doesn't parse at the next launch, signed in as B.
+    await closeLibrary();
+    storage.set('libraries', '{not json');
+    dbNames.push(...[deviceId, aId, bId].map((id) => `library-${id}.db`));
+    await bootLibrary(switchLibrary);
+    expect(getLibrary().id).toBe(bId);
+    await resumeMerges(); // what LibraryProvider runs after the boot
+    await mergeDeviceLibrary();
+
+    expect(getRegistry().libraries.find(({ id }) => id === deviceId)).toMatchObject({ keptFor: aId });
+    expect(await assets()).toHaveLength(0);
+    expect(await getDb().select().from(schema.albums)).toHaveLength(0);
   });
 
   it('a merge that fails leaves the device library parked, signed in anyway; the next boot retries it', async () => {
@@ -233,9 +334,11 @@ describe('switching libraries with the session', () => {
     failing.clear();
     await closeLibrary(); // the app is closed and opened again
     await open(store.session);
+    await markFirstSyncDone(getDb()); // the account's library pulled meanwhile
     await resumeMerges(); // what the boot runs after the library opened
     await mergeDeviceLibrary();
     expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
+    await pushes();
     expect(libraryIds()).not.toContain(deviceId);
   });
 
@@ -347,5 +450,291 @@ describe('switching libraries with the session', () => {
     expect(libraryForSession(sessionOf('A', 's2'))).toMatchObject({
       owner: { kind: 'account', serverId: 's2', userId: 'A' },
     });
+  });
+
+  // Round 9: the installed build (df33378, mainClient.e2e's INSTALLED) recorded a kept device library
+  // only in the library list (`keptFor`); its databases have no such key (its sync/status.ts writes
+  // none). The update's first boot copies the list's markers into the databases (backfillMergeMarkers),
+  // so a list lost after it (missing or corrupt at a launch) is rebuilt with them, and the device
+  // library, A's already, stays kept for A instead of joining B's library.
+  it('a device library kept by the installed build joins no second account after the list is rebuilt', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    const deviceId = getLibrary().id;
+    await repo.createAsset(
+      getDb(),
+      makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+    );
+    await repo.createAsset(getDb(), makeAssetRecord({ filename: 'c.jpg', isFileSynced: true }));
+    await albums.create(getDb(), makeAlbumRecord({ name: 'Trip' }));
+    await signIn(sessionOf('A'));
+    await firstPullDrains();
+    await pushes();
+    const aId = getLibrary().id;
+    expect(getRegistry().libraries.find(({ id }) => id === deviceId)).toMatchObject({ keptFor: aId });
+    // As the installed build left the device library's database: kept in the list only, no merge
+    // keys (`keptFor`, `mergeMarks:<db>`) in it.
+    const deviceDb = await openAppDb(`library-${deviceId}.db`);
+    for (const key of ['keptFor', `mergeMarks:library-${deviceId}.db`])
+      await deviceDb.delete(schema.syncMeta).where(eq(schema.syncMeta.key, key));
+    await signIn(sessionOf('B'));
+    await firstPullDrains();
+    const bId = getLibrary().id;
+
+    // The update is installed and launched: the list's marker goes into the device library's database,
+    // once.
+    await closeLibrary();
+    dbNames.push(...[deviceId, aId, bId].map((id) => `library-${id}.db`));
+    await bootLibrary(switchLibrary);
+    expect(await getKeptFor(deviceDb)).toBe(aId);
+    expect(storage.get('mergeMarkersBackfilled')).toBe('1');
+    // The stored list doesn't parse at a later launch, signed in as B.
+    await closeLibrary();
+    storage.set('libraries', '{not json');
+    await bootLibrary(switchLibrary);
+    expect(getLibrary().id).toBe(bId);
+    await runPendingMerges(); // what LibraryProvider runs after the boot
+
+    expect(getRegistry().libraries.find(({ id }) => id === deviceId)).toMatchObject({ keptFor: aId });
+    expect(await assets()).toHaveLength(0);
+    expect(await getDb().select().from(schema.albums)).toHaveLength(0);
+  });
+
+  // Round 10: the setup screen (FirstSyncScreen) offers Sign out while the account's first pull runs,
+  // and the device library's merge waits for that pull (mergeWaits). The session stays, without
+  // tokens, but its account library would hide this iPhone's photos until it pulls: this device's
+  // library opens instead (libraryToOpen), at the sign-out and at every launch, until a sign-in.
+  it('a sign-out on the setup screen leaves this iPhone’s photos in reach', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    const photo = await repo.createAsset(
+      getDb(),
+      makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+    );
+    await signIn(sessionOf('A')); // the setup screen: the merge waits for the first pull
+    expect(await signOut()).toEqual(tokens); // its Sign out, before the pull drained
+    await open(store.session); // what CloudProvider's logoutAsync runs after dropping the tokens
+    expect(openOwner()).toEqual({ kind: 'device' });
+
+    await closeLibrary(); // the app is closed and opened again
+    await open(store.session);
+    await runPendingMerges(); // what LibraryProvider runs after the boot
+
+    expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
+
+    await signIn(sessionOf('A')); // the merge waits again, and runs once the pull drained
+    await firstPullDrains();
+    expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
+    expect(openOwner()).toMatchObject({ kind: 'account', userId: 'A' });
+  });
+
+  // Round 10: a device library a merge pass committed into account A's library is A's from then on.
+  // A's library is gone from the phone (web storage evicted, the list rebuilt) and B signs in: the
+  // device library joins nothing of B's, and keeps its files, waiting for a library of A's.
+  it('a device library committed into one account’s library never joins another account', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    const deviceId = getLibrary().id;
+    const photo = await repo.createAsset(
+      getDb(),
+      makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+    );
+    const deviceDb = await openAppDb(`library-${deviceId}.db`);
+    // A's pass committed, then the app stopped before the files moved; A's library is lost since.
+    await setMergeTarget(deviceDb, { library: 'gone', serverId: 's1', userId: 'A' });
+
+    await signIn(sessionOf('B'));
+    await firstPullDrains();
+    expect(openOwner()).toMatchObject({ kind: 'account', userId: 'B' });
+    expect(await assets()).toHaveLength(0);
+    expect(libraryIds()).toContain(deviceId);
+    expect(await assetIdsIn(deviceId)).toEqual([photo.id]);
+
+    await signIn(sessionOf('A')); // a new library of A's: the device library joins it
+    await firstPullDrains();
+    expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
+    await pushes();
+    expect(libraryIds()).not.toContain(deviceId);
+  });
+
+  // The installed build stored a merge marker as the target library's id: at the first boot of this
+  // build it takes that library's account (or goes, the library gone; an unresolved owner's stays, so
+  // its merge resumes into that library), in the list, and is copied into the device library's
+  // database.
+  it('the boot gives the installed build’s merge markers their account, in the list and the database', async () => {
+    const acc = { id: 'acc', owner: { kind: 'account' as const, serverId: 's1', userId: 'u1', email: '' } };
+    const unresolved = { id: 'old', owner: { kind: 'account', serverId: null, userId: 'u2', email: '' } };
+    const legacy = [
+      { id: 'dev', owner: { kind: 'device' }, mergedInto: 'acc' },
+      { id: 'dev-2', owner: { kind: 'device' }, mergedInto: 'gone' },
+      { id: 'dev-3', owner: { kind: 'device' }, mergedInto: 'old' },
+      acc,
+      unresolved,
+    ];
+    storage.set('libraries', JSON.stringify({ libraries: legacy }));
+    dbNames.push('library-dev.db');
+    await bootLibrary(switchLibrary);
+
+    const marker = { library: 'acc', serverId: 's1', userId: 'u1' };
+    expect(getRegistry().libraries.slice(0, 3)).toEqual([
+      { id: 'dev', owner: { kind: 'device' }, mergedInto: marker },
+      { id: 'dev-2', owner: { kind: 'device' } },
+      { id: 'dev-3', owner: { kind: 'device' }, mergedInto: { library: 'old', serverId: null, userId: 'u2' } },
+    ]);
+    expect(await getMergeTarget(await openAppDb('library-dev.db'))).toEqual(marker);
+  });
+
+  // Round 11: a merge marked for A's library (a pass that committed, then failed or crashed) resumes at
+  // A's next sign-in, not only at the next launch.
+  it('a sign-in resumes a merge marked for the account’s library', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    const deviceId = getLibrary().id;
+    const photo = await repo.createAsset(
+      getDb(),
+      makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+    );
+    await signIn(sessionOf('A')); // the merge waits for the first pull
+    const aId = getLibrary().id;
+    await markFirstSyncDone(getDb());
+    const marker = { library: aId, serverId: 's1', userId: 'A' };
+    await setMergeTarget(await openAppDb(`library-${deviceId}.db`), marker);
+    await updateLibrary(deviceId, (library) => ({ ...library, mergedInto: marker })); // a pass that failed
+
+    await signIn(sessionOf('A'));
+
+    expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
+    await pushes();
+    expect(libraryIds()).not.toContain(deviceId);
+  });
+
+  // The list's marker carries the account (mergeMarker.ts), so the list-only checks keep the one-account
+  // rule: a device library tied to A waits to join no library of B's, and does join A's.
+  it('a device library marked for one account waits to join no other account’s library, by the list', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    const deviceId = getLibrary().id;
+    await repo.createAsset(getDb(), makeAssetRecord({ isFileSynced: false, isSynced: false }));
+    await updateLibrary(deviceId, (library) => ({
+      ...library,
+      mergedInto: { library: 'gone', serverId: 's1', userId: 'A' },
+    }));
+    await signIn(sessionOf('B'));
+    expect(deviceLibraryToJoin()).toBeNull();
+    await signIn(sessionOf('A')); // its merge waits for A's first pull
+    expect(deviceLibraryToJoin()?.id).toBe(deviceId);
+  });
+
+  // Round 11: the server rejects the session while the account's first pull runs (a refresh token
+  // revoked by a password change, or one that expired while the app sat closed mid-setup): the pull's
+  // token refresh gets a 401 and the tokens go (refreshAccessTokenAsync), as at a sign-out. Every loss
+  // of the tokens opens the library for the session without them (watchTokenDrops, which
+  // LibraryProvider runs from the boot on): this device's library, as the account's hasn't pulled.
+  it('a session rejected during the first pull leaves this iPhone’s photos in reach', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    const photo = await repo.createAsset(
+      getDb(),
+      makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+    );
+    await signIn(sessionOf('A')); // the setup screen: the merge waits for the first pull
+    watching.push(watchTokenDrops(switchLibrary));
+    api.post = async () => {
+      throw Object.assign(new Error('HTTP 401'), { response: { status: 401 } });
+    };
+    await expect(refreshAccessTokenAsync({ serverId: 's1', userId: 'A' })).rejects.toThrow('rejected');
+    expect(store.session).toMatchObject({ userId: 'A', tokens: null });
+
+    await vi.waitFor(() => expect(openOwner()).toEqual({ kind: 'device' }));
+    expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
+  });
+
+  // Round 11: the same rejection, and the user goes on in the library the app shows and adds a photo.
+  // That library is this device's from the rejection on, as it is at the next launch: the photo stays
+  // in the open library.
+  it('a photo added after a session was rejected mid-setup is still there at the next launch', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    await repo.createAsset(
+      getDb(),
+      makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+    );
+    await signIn(sessionOf('A'));
+    watching.push(watchTokenDrops(switchLibrary));
+    api.post = async () => {
+      throw Object.assign(new Error('HTTP 401'), { response: { status: 401 } });
+    };
+    await expect(refreshAccessTokenAsync({ serverId: 's1', userId: 'A' })).rejects.toThrow('rejected');
+    await vi.waitFor(() => expect(openOwner()).toEqual({ kind: 'device' }));
+    const added = await repo.createAsset(
+      getDb(),
+      makeAssetRecord({ filename: 'b.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+    );
+
+    await closeLibrary(); // the app is closed and opened again
+    await bootLibrary(switchLibrary);
+    await runPendingMerges();
+
+    expect((await assets()).map(({ id }) => id)).toContain(added.id);
+  });
+
+  // Round 11: a sign-out on the setup screen switches to this device's library (libraryToOpen); when
+  // that library's database won't open (a failed migration after an update, a damaged file), the
+  // session's own library opens instead (openLibraryForSession), at the sign-out and at every boot,
+  // so the app boots and the user can sign in.
+  it('a device library that won’t open doesn’t stop the boot after a setup sign-out', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    const deviceId = getLibrary().id;
+    await repo.createAsset(
+      getDb(),
+      makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+    );
+    await signIn(sessionOf('A'));
+    const aId = getLibrary().id;
+    failing.add(`library-${deviceId}.db`);
+    await signOut();
+    await open(store.session); // what watchTokenDrops runs after the drop
+    expect(getLibrary().id).toBe(aId);
+
+    // The app is closed and opened again: the boot's fallback opens the account's library.
+    await closeLibrary();
+    await bootLibrary(switchLibrary);
+    expect(getLibrary().id).toBe(aId);
+  });
+
+  // Round 16: the sign-in's pass committed the device library into A's library and moved the photo's
+  // file into A's folders; the device library waits, marked, for A's push (offline, or a row the
+  // server keeps rejecting). The user taps "Rebuild from server" (Library sync → Troubleshooting),
+  // which clears A's first-sync flag and shows the setup screen again, and signs out there (or the
+  // server rejects the session during that pull). libraryToOpen sees A's library "not pulled", but
+  // the device library's marker says committed: it has joined A's library, which holds its photo and
+  // the photo's file, and A's library stays open. The setup screen counts no photos to add.
+  it('round 16: a rebuild while a merge waits for its push, then a setup sign-out: the photo shown keeps its file', async () => {
+    await loadRegistry(async () => ({ libraries: [] }));
+    await open(null);
+    const deviceId = getLibrary().id;
+    const photo = await repo.createAsset(
+      getDb(),
+      makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
+    );
+    files.add(getAssetFileUri('a.jpg', libraryPaths(deviceId)));
+    await signIn(sessionOf('A'));
+    const aId = getLibrary().id;
+    await firstPullDrains(); // the pass commits and moves the file; the push hasn't happened
+    expect(files.has(getAssetFileUri('a.jpg', libraryPaths(aId)))).toBe(true);
+    expect(getRegistry().libraries.find(({ id }) => id === deviceId)?.mergedInto?.library).toBe(aId);
+
+    const offline = {
+      push: async () => Promise.reject(new Error('offline')),
+      pull: async () => Promise.reject(new Error('offline')),
+    };
+    await expect(fullResync(getDb(), offline)).rejects.toThrow('offline'); // Rebuild from server
+    await signOut(); // the setup screen's Sign out
+    await open(store.session); // what watchTokenDrops runs after the drop
+
+    expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
+    expect(files.has(getAssetFileUri('a.jpg', libraryPaths(getLibrary().id)))).toBe(true);
+    expect(deviceLibraryToJoin()).toBeNull();
   });
 });
