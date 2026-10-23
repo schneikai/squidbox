@@ -95,6 +95,7 @@ Like Apple Photos: an item in the Deleted album is removed for good 30 days afte
 and each tile shows the days left (`DeletedAssetsAlbum`). Today it stays until "Delete permanently".
 Best run on the server (a daily job purging assets deleted 30+ days ago, then the file cleanup), so
 it works with no device open and can't clash with a restore made on another device.
+Possible paid tier later: 3 days' retention by default, 30 days for paying users.
 
 ### [ ] Context menus on long press (photo, album, post)
 
@@ -107,12 +108,34 @@ Native menus were checked: `@expo/ui` `ContextMenu` ships with the SDK but is iO
 touch, so drag-to-reorder can't follow it (fine later for screens that don't drag, like a post);
 `zeego` and `react-native-ios-context-menu` would make SDK upgrades harder.
 
-### [ ] More AI tools
+### [ ] AI assistant rework
 
-- Generate a few PPV message texts from a post.
-- Quoted RTs, a follow-up tweet with the OF address, and other predefined prompts, for example as
-  buttons after a reply.
+Where AI is needed:
+- Create a PPV message from an existing post, for sending the post as a PPV.
+- Create fresh ideas from an existing post, for reposting.
+- Create a follow-up tweet with the OnlyFans URL. Also quoted RTs and other predefined prompts, for
+  example as buttons after a reply.
 - Suggest @ mentions from the album's posts, or more generally from the post history.
+- The post suggestions (`features/ai-suggestions`) work well but have no idea what's in the pictures,
+  so caption suggestions don't always fit.
+
+General ideas:
+- **One assistant** for all these use cases, with a similar interface where possible, so it can also
+  cover other use cases users might have.
+- **Onboarding with a persona.** The user creates a persona so the assistant writes content that
+  fits their content and tone.
+- **Know what the content is about.** Image recognition of the user's media, and it must be very
+  specific: for the owner's media, tags like blowjob, deepthroat, facefuck, throatfuck, etc. Let the
+  user also enter tags for what their content is about, and set how detailed or broad to be about a
+  topic.
+- **Favorite suggestions** to teach the assistant which style and tone the user prefers.
+- **Memory.** What the user tells the assistant is remembered, e.g. "make it more about the action
+  and less about the filming", "less influencer style, more guy next door".
+
+### [ ] Alternative texts for a post
+
+Save variations of a post's text for a different audience or purpose, e.g. when it's sent as a PPV
+or posted on another platform.
 
 ### [ ] Recreate thumbnails
 
@@ -140,7 +163,10 @@ private copies of components (`PillButton` twice), hand-styled buttons next to t
 does it, two screens that were one. Go through `apps/mobile/src` feature by feature (screens,
 providers, utils, styles) and merge what repeats into the existing components and hooks, per
 AGENTS.md. A copy-paste detector such as [jscpd](https://github.com/kucherenko/jscpd) finds the
-literal copies; the near-copies need reading.
+literal copies; the near-copies need reading. Also look for reusable components and compositions
+that could move into `src/components` and be used by the features. `ProgressRing` is already a
+component but lives inside `components/progress-overlay` and is used only there; move it up if
+another screen needs a ring.
 
 ### [ ] Bump INSTALLED with each preview build
 
@@ -346,7 +372,8 @@ library. Fine for a few passes; a table keyed by record would scale if passes ge
 ## Ideas
 
 - **Background sync.** Sync runs only while the app is open. A background task or a silent push
-  from the backend could keep the library fresh.
+  from the backend could keep the library fresh. Owner asks: real background sync via a native
+  module?
 - **Thumbnail backfill.** Thumbnails load lazily, so one you never scrolled to is blank offline.
   A low-priority background backfill after the first sync would close that gap, using the existing
   queue's concurrency cap. Decide first: Wi-Fi only (recommended), any network, or stay lazy.
