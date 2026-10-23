@@ -10,7 +10,7 @@ import isPresent from '@/utils/isPresent';
 
 // `post` is a postQuery row: it carries its `postAssets` ([{ id, asset }]).
 export default function PostListItem({ post }) {
-  const { text, postAssets, isFavorite, postedAt, suggestRepostAt } = post;
+  const { text, postAssets, isFavorite, postedAt } = post;
 
   return (
     <View style={styles.container}>
@@ -20,12 +20,6 @@ export default function PostListItem({ post }) {
 
       <View style={styles.postInfos}>
         <PostPostedAt postedAt={postedAt} style={styles.postedAt} />
-        {suggestRepostAt > Date.now() && (
-          <View style={styles.postponedBadge}>
-            <Icon name="clock" size={11} color={colors.textInverse} />
-            <Text style={styles.postponedBadgeText}>Postponed</Text>
-          </View>
-        )}
       </View>
 
       <View style={styles.indicators}>
@@ -59,21 +53,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  postponedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: colors.textTertiary,
-    borderRadius: 10,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-  },
-  postponedBadgeText: {
-    fontSize: typography.xs,
-    color: colors.textInverse,
-    fontWeight: '600',
   },
   postedAt: {
     fontSize: scale(12),
