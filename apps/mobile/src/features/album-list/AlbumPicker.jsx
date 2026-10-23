@@ -1,4 +1,3 @@
-import { useCallback } from 'react';
 import { TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -6,14 +5,10 @@ import SearchSortFilterBar, { SEARCH_SORT_FILTER_BAR_CLEARANCE } from '@/compone
 import AlbumList from '@/features/album-list/AlbumList';
 import AlbumListItem from '@/features/album-list/AlbumListItem';
 import albumFilterOptions from '@/features/album-list/actions/filter-albums-action/albumFilterOptions';
-import useFilterAlbumsAction from '@/features/album-list/actions/filter-albums-action/useFilterAlbumsAction';
 import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
 import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
-import useListScrollTop from '@/hooks/useListScrollTop';
-import useSearch from '@/hooks/useSearch';
-import useSearchMode from '@/hooks/useSearchMode';
-import isDeletedAssetsAlbum from '@/utils/albums/isDeletedAssetsAlbum';
+import useListControls from '@/hooks/useListControls';
 
 // The albums of a modal to pick one from, with search, sort and filter; a tap hands the album to
 // `onPick`. Smart albums show with `showSmartAlbums` (to pick assets from Favorites, not to add to
@@ -22,20 +17,9 @@ import isDeletedAssetsAlbum from '@/utils/albums/isDeletedAssetsAlbum';
 export default function AlbumPicker({ onPick, showSmartAlbums = false, paddingTop, onScroll, expandProgress }) {
   const { bottom } = useSafeAreaInsets();
 
-  const { listRef, listScrollTop } = useListScrollTop();
-  const { sortOrder, sortFunction, sortAlbums, isSortedByLastPosted } = useSortAlbumsAction({
-    afterSort: listScrollTop,
-  });
-  const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterFilter: listScrollTop });
-  const { searchBar, query: searchText } = useSearchMode(useSearch());
-  const matchPickable = useCallback((album) => !isDeletedAssetsAlbum(album) && matchFilter(album), [matchFilter]);
-
-  const { albums } = usePreparedAlbums({
-    sortFn: sortFunction,
-    filterFn: matchPickable,
-    searchText,
-    showSmartAlbums,
-  });
+  const { sortOrder, sortAlbums, isSortedByLastPosted } = useSortAlbumsAction();
+  const { listRef, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls({ onSort: sortAlbums });
+  const { albums } = usePreparedAlbums({ sortOrder, activeFilter, searchText, showSmartAlbums, showDeleted: false });
 
   return (
     <>
@@ -61,7 +45,7 @@ export default function AlbumPicker({ onPick, showSmartAlbums = false, paddingTo
         sortOptions={albumSortOptions}
         activeFilter={activeFilter}
         filterOptions={albumFilterOptions}
-        onSort={sortAlbums}
+        onSort={sort}
         onFilter={toggleFilter}
       />
     </>

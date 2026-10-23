@@ -9,28 +9,23 @@ import reorderUnderSort from '@/components/sortable-grid/reorderUnderSort';
 import AlbumListItem from '@/features/album-list/AlbumListItem';
 import SortableAlbumList from '@/features/album-list/SortableAlbumList';
 import albumFilterOptions from '@/features/album-list/actions/filter-albums-action/albumFilterOptions';
-import useFilterAlbumsAction from '@/features/album-list/actions/filter-albums-action/useFilterAlbumsAction';
 import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
 import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
 import useAlbums from '@/features/albums-context/useAlbums';
-import useListScrollTop from '@/hooks/useListScrollTop';
+import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
-import useSearch from '@/hooks/useSearch';
-import useSearchMode from '@/hooks/useSearchMode';
 
 export default function AlbumsScreen({ navigation }) {
   const { toggleFavoriteAlbum, addAlbum, moveAlbum } = useAlbums();
   const { paddingTop, paddingBottom } = useScreenPadding('main');
 
-  const { listRef, listScrollTop } = useListScrollTop();
-  const { sortOrder, sortFunction, sortAlbums, isSortedByLastPosted } = useSortAlbumsAction();
-  const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterFilter: listScrollTop });
+  const { sortOrder, sortAlbums, isSortedByLastPosted } = useSortAlbumsAction();
+  const { listRef, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls({ onSort: sortAlbums });
 
-  const { searchBar, query: searchText } = useSearchMode(useSearch());
   const scrollHandler = useFloatingBarScrollHandler();
 
-  const { albums, readAt } = usePreparedAlbums({ sortFn: sortFunction, filterFn: matchFilter, searchText });
+  const { albums, readAt } = usePreparedAlbums({ sortOrder, activeFilter, searchText });
 
   const renderItem = useCallback(
     ({ album, elementWidth }) => (
@@ -46,11 +41,6 @@ export default function AlbumsScreen({ navigation }) {
 
   // Dragging arranges the whole list, so it runs unfiltered and unsearched only.
   const reorderEnabled = activeFilter.length === 0 && !searchText.trim();
-
-  function handleSort(order) {
-    sortAlbums(order);
-    listScrollTop();
-  }
 
   // A drag under another sort makes the order on screen the custom one (reorderUnderSort).
   function handleReorder(change) {
@@ -88,7 +78,7 @@ export default function AlbumsScreen({ navigation }) {
         sortOptions={albumSortOptions}
         activeFilter={activeFilter}
         filterOptions={albumFilterOptions}
-        onSort={handleSort}
+        onSort={sort}
         onFilter={toggleFilter}
       />
     </View>

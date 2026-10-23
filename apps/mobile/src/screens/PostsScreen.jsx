@@ -9,12 +9,8 @@ import postFilterOptions from '@/features/post-list/actions/filter-posts-action/
 import postSortOptions from '@/features/post-list/actions/sort-posts-action/postSortOptions';
 import postQuery from '@/features/post-list/postQuery';
 import usePosts from '@/features/posts-context/usePosts';
-import useFilter from '@/hooks/useFilter';
-import useListScrollTop from '@/hooks/useListScrollTop';
+import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
-import useSearch from '@/hooks/useSearch';
-import useSearchMode from '@/hooks/useSearchMode';
-import useSort from '@/hooks/useSort';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
 export default function PostsScreen() {
@@ -22,15 +18,13 @@ export default function PostsScreen() {
   const { toggleFavoritePost } = usePosts();
   const { paddingTop, paddingBottom } = useScreenPadding('main');
 
-  const { listRef, listScrollTop } = useListScrollTop();
-  const { sortOrder, sort } = useSort('postedAt:desc', { afterSort: listScrollTop });
-  const { activeFilter, toggleFilter } = useFilter({ afterFilter: listScrollTop });
-
-  const { searchBar, query: postsSearchText } = useSearchMode(useSearch());
+  const { listRef, sortOrder, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls({
+    defaultSort: 'postedAt:desc',
+  });
 
   const scrollHandler = useFloatingBarScrollHandler();
 
-  const query = postQuery({ scope: 'all', sort: sortOrder, filter: activeFilter, search: postsSearchText });
+  const query = postQuery({ scope: 'all', sort: sortOrder, filter: activeFilter, search: searchText });
   const { rows, loadMore } = usePagedQuery(query, 20);
 
   function handleAdd() {

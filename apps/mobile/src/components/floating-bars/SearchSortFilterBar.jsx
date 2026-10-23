@@ -13,7 +13,7 @@ export const SEARCH_SORT_FILTER_BAR_CLEARANCE = spacing.iconButtonSize + spacing
 
 /**
  * The bottom-left search + options bar of a screen, with its own sort / filter popover (the main tabs
- * use it through FloatingActionsBar). `search` is the `searchBar` from useSearchMode; pass
+ * use it through FloatingActionsBar). `search` is the `searchBar` from useListControls; pass
  * `expandProgress` to animate a sibling (a segment pill) with the search field. The other props go to
  * SortFilterModal; the options button lights up while `activeFilter` holds a filter.
  */

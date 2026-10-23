@@ -24,7 +24,7 @@ import { colors, glass, motion, scale, spacing } from '@/styles/designTokens';
  *     the keyboard. The sort/filter button shows only while search is closed (as in Photos).
  *   • Scrolling the list hides the keyboard but keeps the query (lists use keyboardDismissMode).
  *   • Leaving the screen hides the keyboard; coming back keeps the query without reopening it.
- * Screens get these props as `searchBar` from `useSearchMode`.
+ * Screens get these props as `searchBar` from `useListControls`.
  *
  * The parent owns `expandProgress` (a Reanimated shared value) so it can
  * animate sibling elements (e.g. a segment pill on the right) in sync.

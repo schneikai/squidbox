@@ -23,11 +23,8 @@ import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-se
 import assetQuery from '@/features/asset-list/assetQuery';
 import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
 import useAssets from '@/features/assets-context/useAssets';
-import useFilter from '@/hooks/useFilter';
-import useListScrollTop from '@/hooks/useListScrollTop';
+import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
-import useSearch from '@/hooks/useSearch';
-import useSearchMode from '@/hooks/useSearchMode';
 import { colors, typography } from '@/styles/designTokens';
 import { countByMediaType } from '@/sync/assetsRepository';
 import { getDb } from '@/sync/db/client';
@@ -57,17 +54,15 @@ export default function Album({ album }) {
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
   const { showActionSheetWithOptions } = useActionSheet();
 
-  const { listRef, listScrollTop } = useListScrollTop();
+  const { listRef, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls({ onSort: applySort });
   const runWithProgress = useRunWithProgress();
   const selection = useToggleSelectAssetsAction();
   const { isSelectMode, selectedAssetIds, isAssetSelected, toggleSelectMode, exitSelectMode, selectAssets } = selection;
   // A per-session override lets the open album react immediately to sort/reorder changes.
   const [sessionSortOrder, setSessionSortOrder] = useState(null);
   const sortOrder = sessionSortOrder ?? getAlbumSortOrder(album, albumSortOrder);
-  const { activeFilter, toggleFilter } = useFilter({ afterFilter: listScrollTop });
   const [activeTab, setActiveTab] = useState('Assets');
   const [postCount, setPostCount] = useState();
-  const { searchBar, query: searchText } = useSearchMode(useSearch());
   const expandProgress = useSharedValue(0);
 
   const query = assetQuery({
@@ -90,7 +85,7 @@ export default function Album({ album }) {
   // Smart albums (Favorites/Deleted) have no stored order, so hide "Custom".
   const sortOptions = isSmart ? ASSET_SORT_OPTIONS.filter((option) => option.key !== 'custom') : ASSET_SORT_OPTIONS;
 
-  function handleSort(order) {
+  function applySort(order) {
     if (order === 'custom') {
       // Custom is per-album: flag this album and leave the global sort alone.
       updateAlbum(album.id, { sortOrder: 'custom' });
@@ -101,7 +96,6 @@ export default function Album({ album }) {
       updateAlbum(album.id, { sortOrder: null });
     }
     setSessionSortOrder(order);
-    listScrollTop();
   }
 
   // A drag under another sort adopts the order on screen and switches the album to Custom
@@ -232,7 +226,7 @@ export default function Album({ album }) {
           sortOptions={sortOptions}
           activeFilter={activeFilter}
           filterOptions={assetFilterOptions}
-          onSort={handleSort}
+          onSort={sort}
           onFilter={toggleFilter}
           showViewOptions
         />

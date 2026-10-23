@@ -5,7 +5,7 @@ import FloatingBarsContext from './FloatingBarsContext';
 
 export default function FloatingBarsProvider({ children }) {
   // ── Search ────────────────────────────────────────────────────────────────
-  // Each main screen owns its search (see useSearchMode). The visible one reports whether its search
+  // Each main screen owns its search (see useListControls). The visible one reports whether its search
   // bar is open, so the navigation bar can make room for it.
   const [isSearchActive, setIsSearchActive] = useState(false);
 

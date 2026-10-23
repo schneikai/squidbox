@@ -5,21 +5,16 @@ import SearchSortFilterBar, { SEARCH_SORT_FILTER_BAR_CLEARANCE } from '@/compone
 import AssetGrid from '@/features/asset-list/AssetGrid';
 import assetFilterOptions from '@/features/asset-list/actions/filter-assets-action/assetFilterOptions';
 import assetQuery from '@/features/asset-list/assetQuery';
-import useFilter from '@/hooks/useFilter';
-import useListScrollTop from '@/hooks/useListScrollTop';
-import useSearch from '@/hooks/useSearch';
-import useSearchMode from '@/hooks/useSearchMode';
-import useSort from '@/hooks/useSort';
+import useListControls from '@/hooks/useListControls';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
 // The picker's grid of the library or of one album (`scope`, see assetQuery), always selecting, with
 // search, sort and filter. `selection` comes from useToggleSelectAssetsAction and outlives the grid.
 export default function AssetPickerGrid({ scope, exclude, selection, onScroll, scrollY, expandProgress }) {
   const { bottom } = useSafeAreaInsets();
-  const { listRef, listScrollTop } = useListScrollTop();
-  const { sortOrder, sort } = useSort('createdAt:desc', { afterSort: listScrollTop });
-  const { activeFilter, toggleFilter } = useFilter({ afterFilter: listScrollTop });
-  const { searchBar, query: searchText } = useSearchMode(useSearch());
+  const { listRef, sortOrder, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls({
+    defaultSort: 'createdAt:desc',
+  });
 
   const query = assetQuery({
     scope,

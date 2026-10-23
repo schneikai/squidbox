@@ -14,12 +14,8 @@ import assetQuery from '@/features/asset-list/assetQuery';
 import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
 import useAddAssetsFromCameraRoll from '@/features/assets-context/useAddAssetsFromCameraRoll';
 import useAssets from '@/features/assets-context/useAssets';
-import useFilter from '@/hooks/useFilter';
-import useListScrollTop from '@/hooks/useListScrollTop';
+import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
-import useSearch from '@/hooks/useSearch';
-import useSearchMode from '@/hooks/useSearchMode';
-import useSort from '@/hooks/useSort';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 import confirmAsync from '@/utils/confirmAsync';
 import pluralizeText from '@/utils/pluralizeText';
@@ -28,16 +24,15 @@ export default function AssetsScreen({ route }) {
   const { setAssetsDeleted } = useAssets();
   const { paddingTop, paddingBottom } = useScreenPadding('main');
 
-  const { listRef, listScrollTop } = useListScrollTop();
-  const { sortOrder, sort } = useSort('createdAt:desc', { afterSort: listScrollTop });
-  const { activeFilter, toggleFilter } = useFilter({ afterFilter: listScrollTop });
+  const { listRef, sortOrder, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls({
+    defaultSort: 'createdAt:desc',
+  });
 
   const { setIsSelectMode, scrollY } = useFloatingBars();
   const selection = useToggleSelectAssetsAction();
   const { isSelectMode, selectedAssetIds, isAssetSelected, selectAssets, exitSelectMode } = selection;
   // The floating bars only need to know whether select mode is on (the navigation bar hides).
   useEffect(() => setIsSelectMode(isSelectMode), [isSelectMode]);
-  const { searchBar, query: searchText } = useSearchMode(useSearch());
 
   const scrollHandler = useFloatingBarScrollHandler();
 

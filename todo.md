@@ -157,8 +157,9 @@ error, and could be made from the cloud original.
 ### [ ] Finish the component consolidation
 
 Plan: https://claude.ai/artifact/KfDvwcHGxAeorqs3KeGWKV. Hooks, utils, buttons, popovers, badges,
-grouped surfaces and tokens are done (typography follows Apple's text styles, `caption2` to `title1`).
-Still to do, the bigger refactors: `useListControls`, a shared grid long-press pan, one
+grouped surfaces and tokens are done (typography follows Apple's text styles, `caption2` to `title1`),
+and every list's search, sort and filter runs on `useListControls`. Still to do, the bigger
+refactors: a shared grid long-press pan, one
 `assetStorage` module, one way to call the repositories, and retiring the Yup schemas and legacy
 adapters for the shared zod collections. The AI screens (`AiChatModal`, `RandomSuggestionsScreen`,
 `ModelSelectorButton`) are best done with the AI assistant rework: their chat-bubble shadows and
