@@ -272,8 +272,9 @@ files or pinch. Web versions exist only for tokens and thumbnails. Extend them i
 flows in the browser becomes worth it. The photo viewer also doesn't follow a scroll on web:
 react-native-web's ScrollView never fires `onMomentumScrollEnd`/`onScrollEndDrag`, so
 `AssetPager` never learns the new page (header, actions, notes and the swipe-up details stay on the
-first photo, and only that photo zooms). The mock data has no video, and Playwright's Chromium can't decode H.264 or HEVC,
-so only a WebM plays in the preview (an iPhone's HEVC `.mov` may not play in desktop Chrome either).
+first photo, and only that photo zooms). Playwright's Chromium can't decode H.264 or HEVC, so the
+mock videos (H.264) don't play in the preview; only a WebM would (an iPhone's HEVC `.mov` may not
+play in desktop Chrome either).
 
 ### [ ] Sentry receives events from development
 
