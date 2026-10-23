@@ -7,8 +7,11 @@ import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import PrimaryButton from '@/components/PrimaryButton';
+import { Section } from '@/components/settings-list/SettingsList';
+import { SCREEN_PADDING } from '@/constants';
 import useScrollY from '@/hooks/useScrollY';
-import { colors, radii, scale } from '@/styles/designTokens';
+import { colors, typography } from '@/styles/designTokens';
+import listTextStyles from '@/styles/listTextStyles';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
 // The failures a paged `query` reads, as `{ id, title, error }` rows: what failed and why. `onRetryAll`
@@ -42,18 +45,20 @@ export default function SyncErrorViewer({ query, onRetryAll, close }) {
           data={rows}
           keyExtractor={(row) => String(row.id)}
           renderItem={({ item: row }) => (
-            <View style={styles.errorRow}>
-              <Text style={styles.errorTitle} numberOfLines={1}>
-                {row.title}
-              </Text>
-              <Text style={styles.errorMessage}>{row.error}</Text>
-            </View>
+            <Section>
+              <View style={styles.errorRow}>
+                <Text style={[listTextStyles.caption, styles.errorTitle]} numberOfLines={1}>
+                  {row.title}
+                </Text>
+                <Text style={styles.errorMessage}>{row.error}</Text>
+              </View>
+            </Section>
           )}
           onEndReached={loadMore}
           onEndReachedThreshold={2}
           onScroll={onScroll}
           scrollEventThrottle={16}
-          contentContainerStyle={[styles.list, { paddingTop: MODAL_HEADER_HEIGHT }]}
+          contentContainerStyle={[styles.list, { paddingTop: MODAL_HEADER_HEIGHT + SCREEN_PADDING }]}
         />
 
         <View style={styles.footer}>
@@ -66,21 +71,18 @@ export default function SyncErrorViewer({ query, onRetryAll, close }) {
 
 const styles = StyleSheet.create({
   list: {
-    padding: 16,
-    gap: 10,
+    padding: SCREEN_PADDING,
+    gap: 6,
   },
   errorRow: {
-    backgroundColor: colors.glassSurface,
-    borderRadius: radii.card,
-    padding: 12,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingVertical: 12,
   },
   errorTitle: {
-    fontSize: scale(12),
-    color: colors.textSecondary,
     marginBottom: 4,
   },
   errorMessage: {
-    fontSize: scale(14),
+    fontSize: typography.subheadline,
     color: colors.danger,
     lineHeight: 20,
   },

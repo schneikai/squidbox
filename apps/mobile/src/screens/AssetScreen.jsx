@@ -20,6 +20,7 @@ import useAssetVideo from '@/features/asset-detail/useAssetVideo';
 import useChromeInsets from '@/features/asset-detail/useChromeInsets';
 import assetQuery from '@/features/asset-list/assetQuery';
 import useAssets from '@/features/assets-context/useAssets';
+import { colors } from '@/styles/designTokens';
 import { getDb, schema } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import formatDetailHeaderDate from '@/utils/date-time/formatDetailHeaderDate';
@@ -222,7 +223,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fullscreenBackdrop: {
-    backgroundColor: '#000',
+    backgroundColor: colors.mediaBackdrop,
   },
   // Above the actions, at their left.
   noteButton: {

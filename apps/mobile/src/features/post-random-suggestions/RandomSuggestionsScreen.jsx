@@ -19,6 +19,7 @@ import ModalSheet from '@/components/ModalSheet';
 import PrimaryButton from '@/components/PrimaryButton';
 import SuperPressable from '@/components/SuperPressable';
 import Textarea from '@/components/Textarea';
+import ThumbnailBadge from '@/components/ThumbnailBadge';
 import ThumbnailRow from '@/components/ThumbnailRow';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { MIN_REREAD_INTERVAL, SCREEN_PADDING } from '@/constants';
@@ -324,12 +325,11 @@ export default function RandomSuggestionsScreen({ route, navigation }) {
             >
               <AssetImage asset={currentAsset} contentFit="contain" placeholderColor="transparent" />
               {currentAsset.mediaType === MEDIA_TYPES.VIDEO && (
-                <View style={styles.videoBadge}>
-                  <Icon name="video" size={scale(11)} color={colors.textInverse} />
-                  {!!currentAsset.duration && (
-                    <Text style={styles.videoBadgeText}>{formatVideoDuration(currentAsset.duration)}</Text>
-                  )}
-                </View>
+                <ThumbnailBadge
+                  icon="video"
+                  label={currentAsset.duration && formatVideoDuration(currentAsset.duration)}
+                  style={styles.videoBadge}
+                />
               )}
             </SuperPressable>
           ) : (
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
   },
   filterPillText: {
-    fontSize: scale(15),
+    fontSize: typography.subheadline,
     fontWeight: '500',
     color: colors.text,
   },
@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: colors.glassSurface,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: -18,
@@ -516,18 +516,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 10,
     right: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.overlayDark,
-    borderRadius: 10,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-  },
-  videoBadgeText: {
-    color: colors.textInverse,
-    fontSize: scale(11),
-    fontWeight: '600',
   },
 
   // --- Last posted ---
@@ -556,7 +544,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   captionText: {
-    fontSize: typography.input,
+    fontSize: typography.body,
     color: colors.text,
   },
   captionPlaceholder: {

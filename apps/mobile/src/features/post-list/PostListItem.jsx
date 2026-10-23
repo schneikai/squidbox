@@ -5,7 +5,7 @@ import PostImage from './PostImage';
 import Icon from '@/components/Icon';
 import { SCREEN_PADDING } from '@/constants';
 import PostPostedAt from '@/features/posts/PostPostedAt';
-import { colors, scale, typography } from '@/styles/designTokens';
+import { colors, spacing, typography } from '@/styles/designTokens';
 import isPresent from '@/utils/isPresent';
 
 // `post` is a postQuery row: it carries its `postAssets` ([{ id, asset }]).
@@ -19,7 +19,7 @@ export default function PostListItem({ post }) {
       {isPresent(text) && <Text style={styles.postText}>{text}</Text>}
 
       <View style={styles.postInfos}>
-        <PostPostedAt postedAt={postedAt} style={styles.postedAt} />
+        <PostPostedAt postedAt={postedAt} />
       </View>
 
       <View style={styles.indicators}>
@@ -32,7 +32,7 @@ export default function PostListItem({ post }) {
 function FavoritePostIndicator({ isFavorite }) {
   if (!isFavorite) return;
 
-  return <Icon name="heart" filled size={typography.lg} color={colors.textInverse} />;
+  return <Icon name="heart" filled size={spacing.iconSize} color={colors.textInverse} />;
 }
 
 const styles = StyleSheet.create({
@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
     paddingBottom: SCREEN_PADDING * 2,
   },
   postText: {
-    fontSize: scale(15),
+    fontSize: typography.subheadline,
     marginTop: 10,
     lineHeight: 22,
   },
@@ -53,11 +53,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  postedAt: {
-    fontSize: scale(12),
-    color: colors.textSecondary,
-    fontWeight: 'bold',
   },
 
   indicators: {

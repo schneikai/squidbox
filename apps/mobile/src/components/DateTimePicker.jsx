@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   label: {
-    fontSize: typography.input,
+    fontSize: typography.body,
     color: colors.text,
     fontWeight: '500',
   },

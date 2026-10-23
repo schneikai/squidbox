@@ -8,11 +8,9 @@ import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import PrimaryButton from '@/components/PrimaryButton';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
-import SuperPressable from '@/components/SuperPressable';
 import TextButton from '@/components/TextButton';
 import { SCREEN_PADDING } from '@/constants';
 import PostList from '@/features/post-list/PostList';
-import PostListItem from '@/features/post-list/PostListItem';
 import postQuery from '@/features/post-list/postQuery';
 import useRandomSuggestions from '@/features/post-random-suggestions/useRandomSuggestions';
 import usePosts from '@/features/posts-context/usePosts';
@@ -102,18 +100,13 @@ export default function CreatePostScreen({ navigation }) {
             />
           </View>
         }
-        renderListItem={(post) => {
-          return (
-            <SuperPressable onPress={() => navigation.navigate('PostScreen', { postId: post.id })} style={{ flex: 1 }}>
-              <PostListItem post={post} />
-              <PostActions
-                onRepost={() => handleRepost(post)}
-                onPostpone={() => handlePostpone(post)}
-                onIgnore={() => handleIgnore(post)}
-              />
-            </SuperPressable>
-          );
-        }}
+        renderPostActions={(post) => (
+          <PostActions
+            onRepost={() => handleRepost(post)}
+            onPostpone={() => handlePostpone(post)}
+            onIgnore={() => handleIgnore(post)}
+          />
+        )}
       />
     </ModalSheet>
   );

@@ -6,7 +6,8 @@ import PostAsset from './PostAsset';
 
 import AddMediaMenu from '@/features/asset-picker/AddMediaMenu';
 import useHaptics from '@/hooks/useHaptics';
-import { colors, scale } from '@/styles/designTokens';
+import { colors } from '@/styles/designTokens';
+import listTextStyles from '@/styles/listTextStyles';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
@@ -64,7 +65,7 @@ export default function PostAssetsEditor({ postAssets, onChange }) {
           />
         }
       />
-      {postAssets.length > 0 && <Text style={styles.assetCountInfo}>{assetCountInfo}</Text>}
+      {postAssets.length > 0 && <Text style={[listTextStyles.caption, styles.assetCountInfo]}>{assetCountInfo}</Text>}
     </View>
   );
 }
@@ -77,8 +78,5 @@ const styles = StyleSheet.create({
   },
   assetCountInfo: {
     paddingLeft: 5,
-    fontSize: scale(12),
-    color: colors.textSecondary,
-    fontWeight: 'bold',
   },
 });

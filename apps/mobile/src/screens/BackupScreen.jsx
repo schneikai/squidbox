@@ -95,7 +95,7 @@ export default function BackupScreen() {
 
 const styles = StyleSheet.create({
   intro: {
-    fontSize: typography.sm,
+    fontSize: typography.footnote,
     color: colors.textSecondary,
     paddingHorizontal: SCREEN_PADDING,
     paddingBottom: 12,
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     paddingBottom: 15,
     gap: 4,
   },
-  line: { fontSize: typography.sm, color: colors.text, lineHeight: 18 },
+  line: { fontSize: typography.footnote, color: colors.text, lineHeight: 18 },
   bold: { fontWeight: '600', color: colors.text },
   muted: { color: colors.textSecondary },
   danger: { color: colors.danger },

@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import Icon from '@/components/Icon';
-import { colors, scale } from '@/styles/designTokens';
+import { colors, scale, typography } from '@/styles/designTokens';
 
 const TONE_COLORS = { accent: colors.accent, muted: colors.textSecondary, inverse: colors.textInverse };
 
@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
   },
   small: { paddingVertical: 4, paddingHorizontal: 4 },
   pressed: { opacity: 0.6 },
-  label: { fontSize: scale(15), fontWeight: '500' },
-  smallLabel: { fontSize: scale(13) },
+  label: { fontSize: typography.subheadline, fontWeight: '500' },
+  smallLabel: { fontSize: typography.footnote },
   muted: { fontWeight: '400' },
 });

@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     left: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: colors.scrim,
     zIndex: 9999,
   },
   cancel: {

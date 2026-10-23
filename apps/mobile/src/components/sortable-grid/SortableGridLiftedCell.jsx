@@ -1,5 +1,7 @@
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
+import { shadows } from '@/styles/designTokens';
+
 // The cell a drag lifted, drawn once above the grid: it follows the finger (`activeX`/`activeY`,
 // content space) and pops (`activeScale`), so the resting cells don't read those on every frame. It
 // shows once it has laid out (`shownLiftedId`), and its resting cell hides then; until that frame the
@@ -38,11 +40,8 @@ export default function SortableGridLiftedCell({
           height: layout.cellHeight,
           padding: cellPadding,
           zIndex: 10,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 6 },
-          shadowRadius: 12,
-          shadowOpacity: 0.35,
         },
+        shadows.lifted,
         style,
       ]}
     >

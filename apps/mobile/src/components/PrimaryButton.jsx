@@ -2,7 +2,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
 import GradientFill from '@/components/GradientFill';
 import Icon from '@/components/Icon';
-import { colors, radii, scale, spacing } from '@/styles/designTokens';
+import { colors, radii, scale, spacing, typography } from '@/styles/designTokens';
 
 /**
  * The violet primary action with a label: `large` fills the width of a form or list ("Sign In",
@@ -85,11 +85,11 @@ const styles = StyleSheet.create({
   },
   label: {
     color: colors.textInverse,
-    fontSize: scale(16),
+    fontSize: typography.callout,
     fontWeight: '600',
   },
   compactLabel: {
-    fontSize: scale(15),
+    fontSize: typography.subheadline,
   },
   pressed: {
     opacity: 0.85,

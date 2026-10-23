@@ -1,11 +1,12 @@
 import { useState, useTransition } from 'react';
-import { Alert, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 
-import ListDivider from '@/components/ListDivider';
 import PrimaryButton from '@/components/PrimaryButton';
 import TextButton from '@/components/TextButton';
+import TextInput from '@/components/TextInput';
+import { Section } from '@/components/settings-list/SettingsList';
 import useCloud from '@/features/cloud/useCloud';
-import { colors, radii, scale, spacing } from '@/styles/designTokens';
+import { colors, spacing } from '@/styles/designTokens';
 import isBlank from '@/utils/isBlank';
 
 // `ownerEmail`: the account this library belongs to, pre-filled and kept until the user asks to sign
@@ -39,33 +40,30 @@ export default function LoginForm({ ownerEmail }) {
 
   return (
     <>
-      <View style={styles.section}>
+      <Section>
         <TextInput
           style={[styles.input, isOwnerEmail && styles.inputLocked]}
           onChangeText={setEmail}
           value={email}
           editable={!isOwnerEmail}
           placeholder="Email"
-          placeholderTextColor={colors.textTertiary}
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
           returnKeyType="next"
         />
-        <ListDivider />
         <TextInput
           style={styles.input}
           onChangeText={setPassword}
           value={password}
           placeholder="Password"
-          placeholderTextColor={colors.textTertiary}
           secureTextEntry
           returnKeyType="done"
           onSubmitEditing={handleSubmit}
         />
-      </View>
+      </Section>
 
-      <PrimaryButton label="Sign In" onPress={handleSubmit} loading={isPending} />
+      <PrimaryButton label="Sign In" onPress={handleSubmit} loading={isPending} style={styles.submit} />
 
       {isOwnerEmail && <TextButton label="Sign in as someone else" onPress={handleSomeoneElse} />}
     </>
@@ -73,17 +71,12 @@ export default function LoginForm({ ownerEmail }) {
 }
 
 const styles = StyleSheet.create({
-  section: {
-    backgroundColor: colors.glassSurface,
-    borderRadius: radii.card,
-    overflow: 'hidden',
-    marginBottom: 16,
-  },
   input: {
     height: spacing.iconButtonSize,
-    paddingHorizontal: spacing.floatingBarSide,
-    fontSize: scale(16),
-    color: colors.text,
+    paddingHorizontal: spacing.floatingBarSide, // ListDivider's inset
+  },
+  submit: {
+    marginTop: 12,
   },
   inputLocked: {
     color: colors.textSecondary,

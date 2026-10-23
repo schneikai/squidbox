@@ -122,9 +122,9 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   time: {
-    minWidth: typography.sm * 3,
+    minWidth: typography.footnote * 3,
     marginHorizontal: scale(4),
-    fontSize: typography.sm,
+    fontSize: typography.footnote,
     color: colors.textSecondary,
     fontVariant: ['tabular-nums'],
     textAlign: 'center',

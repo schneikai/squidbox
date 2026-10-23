@@ -1,9 +1,10 @@
-import { Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { StyleSheet, TouchableOpacity } from 'react-native';
 import { ScaleDecorator } from 'react-native-draggable-flatlist';
 
 import AssetImage from '@/components/AssetImage';
 import IconButton from '@/components/IconButton';
-import { colors, scale, spacing } from '@/styles/designTokens';
+import ThumbnailBadge from '@/components/ThumbnailBadge';
+import { spacing } from '@/styles/designTokens';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
 export default function PostAsset({ postAsset, onDelete, onLongPress, isActive, itemDimension }) {
@@ -20,7 +21,9 @@ export default function PostAsset({ postAsset, onDelete, onLongPress, isActive, 
           accessibilityLabel="Remove from post"
           style={styles.deleteButton}
         />
-        {!!asset.duration && <Text style={styles.videoDuration}>{formatVideoDuration(asset.duration)}</Text>}
+        {!!asset.duration && (
+          <ThumbnailBadge label={formatVideoDuration(asset.duration)} style={styles.videoDuration} />
+        )}
         <AssetImage asset={asset} />
       </TouchableOpacity>
     </ScaleDecorator>
@@ -42,8 +45,5 @@ const styles = StyleSheet.create({
     bottom: 10,
     right: 10,
     zIndex: 10,
-    color: colors.textInverse,
-    fontSize: scale(12),
-    fontWeight: 'bold',
   },
 });

@@ -1,16 +1,18 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { colors, radii, shadows, typography } from '@/styles/designTokens';
+import { Section } from './SettingsList';
 
-// A grouped-list "card" holding a fixed-height, internally-scrolling log (sync runs, backup runs).
-// Matches the Section card look so it sits naturally in a Settings-style screen.
+import { SCREEN_PADDING } from '@/constants';
+import { colors, typography } from '@/styles/designTokens';
+
+// A Section holding a fixed-height, internally-scrolling log (sync runs, backup runs).
 export function LogBlock({ children, maxHeight = 200 }) {
   return (
-    <View style={styles.card}>
+    <Section>
       <ScrollView style={{ maxHeight }} nestedScrollEnabled contentContainerStyle={styles.inner}>
         {children}
       </ScrollView>
-    </View>
+    </Section>
   );
 }
 
@@ -29,18 +31,10 @@ export function LogEmpty({ text }) {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.glassSurface,
-    borderRadius: radii.card,
-    marginBottom: 4,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    ...shadows.section,
-  },
-  inner: { gap: 8 },
+  inner: { gap: 8, paddingHorizontal: SCREEN_PADDING, paddingVertical: 12 },
   entry: { gap: 1 },
-  primary: { fontSize: typography.sm, color: colors.text, fontVariant: ['tabular-nums'] },
-  secondary: { fontSize: typography.xs, color: colors.textSecondary },
-  error: { fontSize: typography.xs, color: colors.danger },
-  empty: { fontSize: typography.sm, color: colors.textTertiary },
+  primary: { fontSize: typography.footnote, color: colors.text, fontVariant: ['tabular-nums'] },
+  secondary: { fontSize: typography.caption2, color: colors.textSecondary },
+  error: { fontSize: typography.caption2, color: colors.danger },
+  empty: { fontSize: typography.footnote, color: colors.textTertiary },
 });

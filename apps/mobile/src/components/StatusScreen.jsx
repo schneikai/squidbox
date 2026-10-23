@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import Page from '@/components/Page';
 import Octopus from '@/components/octopus/Octopus';
 import useReduceMotion from '@/hooks/useReduceMotion';
-import { scale } from '@/styles/designTokens';
+import { scale, typography } from '@/styles/designTokens';
 
 const OCTOPUS_SIZE = scale(150);
 
@@ -32,5 +32,5 @@ export default function StatusScreen({ busy = false, title, children }) {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 12 },
   busy: { alignItems: 'center', gap: 12 },
-  title: { fontSize: 22, fontWeight: '700', marginTop: 16, textAlign: 'center' },
+  title: { fontSize: typography.title2, fontWeight: '700', marginTop: 16, textAlign: 'center' },
 });

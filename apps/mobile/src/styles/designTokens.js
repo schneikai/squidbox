@@ -40,6 +40,8 @@ export const colors = {
   accentLight: 'rgba(124,58,237,0.12)',
   accentSurface: '#EFE7FD', // accentLight over white, opaque for a surface over content (the account avatar)
 
+  success: '#34C759', // a confirmation that just happened (copied)
+
   danger: '#E11D48',
   dangerLight: 'rgba(225,29,72,0.1)',
 
@@ -59,6 +61,10 @@ export const colors = {
 
   // Generic overlays for thumbnail badges etc.
   overlayDark: 'rgba(0,0,0,0.35)',
+  scrim: 'rgba(0,0,0,0.8)', // dims the whole app behind a blocking overlay
+  placeholder: '#D3D3D3', // a picture's spot before it loads
+  shimmer: '#FFFFFF', // the pulse over a loading picture's placeholder
+  mediaBackdrop: '#000000', // behind a photo or video shown full screen
 };
 
 export const shadows = {
@@ -77,6 +83,13 @@ export const shadows = {
     shadowRadius: 20,
     elevation: 4,
   },
+  // A grid cell lifted under the finger while it's dragged
+  lifted: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+  },
   subtle: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -91,7 +104,6 @@ export const radii = {
   card: 16,
   cover: 10, // album covers and the thumbnails of list rows (CoverImage)
   modal: 20,
-  icon: 40,
 };
 
 export const spacing = {
@@ -122,15 +134,16 @@ export const spacing = {
   popoverWidth: Math.min(scale(230), SCREEN_WIDTH - 2 * SIDE_GUTTER),
 };
 
+// Apple's iOS text styles at their default (Large) sizes, so text keeps the HIG's hierarchy.
 export const typography = {
-  xs: scale(11),
-  sm: scale(13),
-  base: scale(17),
-  lg: scale(20),
-  xl: scale(24),
-  xxl: scale(28),
-  // Semantic token — used for all text inputs (search, notes, post text, etc.)
-  input: scale(17),
+  caption2: scale(11), // the smallest text: badges over thumbnails
+  caption: scale(12), // secondary details under a title (counts, dates)
+  footnote: scale(13),
+  subheadline: scale(15),
+  callout: scale(16),
+  body: scale(17), // the default for text and inputs
+  title2: scale(22),
+  title1: scale(28),
 };
 
 export const glass = {

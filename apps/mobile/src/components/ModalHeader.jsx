@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, interpolate, Extrapolation, useSharedValue } from 'react-native-reanimated';
 
 import FloatingPill from '@/components/floating-bars/FloatingPill';
-import { colors, scale, spacing } from '@/styles/designTokens';
+import { colors, spacing, typography } from '@/styles/designTokens';
 
 /**
  * Unified floating header for modal screens — matches the floating-bar visual language.
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.iconButtonSize + spacing.floatingBarSide,
   },
   centerTitle: {
-    fontSize: scale(17),
+    fontSize: typography.body,
     fontWeight: '600',
     color: colors.text,
   },

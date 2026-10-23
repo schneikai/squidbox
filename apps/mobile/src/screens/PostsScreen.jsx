@@ -1,12 +1,10 @@
 import { useNavigation } from '@react-navigation/native';
 import { View } from 'react-native';
 
-import SuperPressable from '@/components/SuperPressable';
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
 import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
 import PostList from '@/features/post-list/PostList';
-import PostListItem from '@/features/post-list/PostListItem';
 import postFilterOptions from '@/features/post-list/actions/filter-posts-action/postFilterOptions';
 import postSortOptions from '@/features/post-list/actions/sort-posts-action/postSortOptions';
 import postQuery from '@/features/post-list/postQuery';
@@ -48,15 +46,7 @@ export default function PostsScreen() {
         loadMore={loadMore}
         contentContainerStyle={{ paddingTop, paddingBottom }}
         onScroll={scrollHandler}
-        renderListItem={(post) => (
-          <SuperPressable
-            onPress={() => navigation.navigate('PostScreen', { postId: post.id })}
-            onDoublePress={() => toggleFavoritePost(post)}
-            style={{ flex: 1 }}
-          >
-            <PostListItem post={post} />
-          </SuperPressable>
-        )}
+        onDoublePressPost={toggleFavoritePost}
       />
       <FloatingActionsBar
         search={searchBar}

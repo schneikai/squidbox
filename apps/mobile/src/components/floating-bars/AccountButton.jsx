@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Icon from '@/components/Icon';
 import useCloud from '@/features/cloud/useCloud';
-import { colors, scale, shadows, spacing } from '@/styles/designTokens';
+import { colors, scale, shadows, spacing, typography } from '@/styles/designTokens';
 
 const SIZE = scale(34);
 // Brings the tap target to the 44pt minimum.
@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
   },
   initial: {
     color: colors.accent,
-    fontSize: scale(15),
+    fontSize: typography.subheadline,
     fontWeight: '700',
   },
   badge: {

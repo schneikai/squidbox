@@ -23,9 +23,9 @@ export default function ScreenSectionHeader({ title, rightSlot, isFlush = false 
   );
 }
 
-export const styles = StyleSheet.create({
+const styles = StyleSheet.create({
   label: {
-    fontSize: typography.base,
+    fontSize: typography.body,
     fontWeight: '600',
     color: colors.textSecondary,
     marginBottom: 8,
@@ -34,7 +34,7 @@ export const styles = StyleSheet.create({
   },
   labelInRow: {
     flex: 1,
-    fontSize: typography.base,
+    fontSize: typography.body,
     fontWeight: '600',
     color: colors.textSecondary,
     marginLeft: 4,

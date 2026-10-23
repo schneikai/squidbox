@@ -30,12 +30,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   label: {
-    fontSize: typography.sm,
+    fontSize: typography.footnote,
     fontWeight: '600',
     color: colors.textSecondary,
   },
   description: {
-    fontSize: typography.sm,
+    fontSize: typography.footnote,
     color: colors.textSecondary,
     lineHeight: 20,
   },

@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     flex: 1,
-    fontSize: typography.base,
+    fontSize: typography.body,
     color: colors.text,
   },
   rowLabelDestructive: {
@@ -85,13 +85,13 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   rowValue: {
-    fontSize: typography.base,
+    fontSize: typography.body,
     color: colors.textSecondary,
     textAlign: 'right',
     flexShrink: 1,
   },
   footer: {
-    fontSize: typography.sm,
+    fontSize: typography.footnote,
     color: colors.textTertiary,
     marginTop: 8,
     marginLeft: 4,

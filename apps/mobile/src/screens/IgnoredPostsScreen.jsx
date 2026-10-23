@@ -6,10 +6,8 @@ import IconButton from '@/components/IconButton';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
-import SuperPressable from '@/components/SuperPressable';
 import { SCREEN_PADDING } from '@/constants';
 import PostList from '@/features/post-list/PostList';
-import PostListItem from '@/features/post-list/PostListItem';
 import postQuery from '@/features/post-list/postQuery';
 import usePosts from '@/features/posts-context/usePosts';
 import useScrollY from '@/hooks/useScrollY';
@@ -49,18 +47,15 @@ export default function IgnoredPostsScreen({ navigation }) {
           loadMore={loadMore}
           contentContainerStyle={{ paddingTop: MODAL_HEADER_HEIGHT + SCREEN_PADDING, paddingBottom: bottom + 16 }}
           onScroll={onScroll}
-          renderListItem={(post) => (
-            <SuperPressable onPress={() => navigation.navigate('PostScreen', { postId: post.id })} style={{ flex: 1 }}>
-              <PostListItem post={post} />
-              <View style={styles.actionContainer}>
-                <IconButton
-                  variant="tinted"
-                  icon="eye"
-                  onPress={() => handleRestore(post)}
-                  accessibilityLabel="Restore to the repost queue"
-                />
-              </View>
-            </SuperPressable>
+          renderPostActions={(post) => (
+            <View style={styles.actionContainer}>
+              <IconButton
+                variant="tinted"
+                icon="eye"
+                onPress={() => handleRestore(post)}
+                accessibilityLabel="Restore to the repost queue"
+              />
+            </View>
           )}
         />
       )}

@@ -44,7 +44,7 @@ import Switch from '@/components/Switch';
 import Textarea from '@/components/Textarea';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useScrollY from '@/hooks/useScrollY';
-import { colors, radii, scale } from '@/styles/designTokens';
+import { colors, radii, scale, typography } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { readPostTexts } from '@/sync/postsRepository';
 import confirmAsync from '@/utils/confirmAsync';
@@ -220,7 +220,7 @@ export default function AiChatModal({ visible, onClose, onSelect, existingText }
           <IconButton
             icon={copiedKey === key ? 'check' : 'copy'}
             size={scale(15)}
-            color={copiedKey === key ? '#34C759' : colors.textTertiary}
+            color={copiedKey === key ? colors.success : colors.textTertiary}
             onPress={() => handleCopy(item.content, key)}
             accessibilityLabel="Copy message"
             style={styles.userCopyButton}
@@ -241,7 +241,7 @@ export default function AiChatModal({ visible, onClose, onSelect, existingText }
                 <IconButton
                   icon={copiedKey === key ? 'check' : 'copy'}
                   size={scale(16)}
-                  color={copiedKey === key ? '#34C759' : colors.textTertiary}
+                  color={copiedKey === key ? colors.success : colors.textTertiary}
                   onPress={() => handleCopy(suggestion, key)}
                   accessibilityLabel="Copy message"
                 />
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
 
   emptyHint: {
     color: colors.textTertiary,
-    fontSize: scale(14),
+    fontSize: typography.subheadline,
     textAlign: 'center',
     marginTop: 40,
     paddingHorizontal: 24,
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
   },
   userBubbleText: {
     color: colors.textInverse,
-    fontSize: scale(15),
+    fontSize: typography.subheadline,
     lineHeight: 21,
   },
 
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
   },
   suggestionText: {
     flex: 1,
-    fontSize: scale(14),
+    fontSize: typography.subheadline,
     lineHeight: 20,
     color: colors.text,
   },
@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
   },
   useButtonText: {
     color: colors.textInverse,
-    fontSize: scale(12),
+    fontSize: typography.caption,
     fontWeight: '600',
   },
 
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     color: colors.textSecondary,
-    fontSize: scale(14),
+    fontSize: typography.subheadline,
   },
 
   refModalContainer: {
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.appBackground[0],
   },
   refModalSubtitle: {
-    fontSize: scale(13),
+    fontSize: typography.footnote,
     color: colors.textSecondary,
     textAlign: 'center',
     paddingHorizontal: 24,
@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
   },
   refModalText: {
     flex: 1,
-    fontSize: scale(15),
+    fontSize: typography.subheadline,
     color: colors.text,
     lineHeight: 22,
   },
@@ -540,7 +540,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   referenceLabel: {
-    fontSize: scale(13),
+    fontSize: typography.footnote,
     color: colors.text,
   },
   referenceSwitch: {
@@ -566,7 +566,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingTop: Platform.OS === 'ios' ? 10 : 8,
     paddingBottom: Platform.OS === 'ios' ? 10 : 8,
-    fontSize: scale(15),
+    fontSize: typography.subheadline,
     color: colors.text,
   },
   sendButton: {

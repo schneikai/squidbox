@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
   },
   value: {
     color: colors.textInverse,
-    fontSize: typography.base,
+    fontSize: typography.body,
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },

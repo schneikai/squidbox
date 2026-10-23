@@ -20,7 +20,7 @@ import getAssetThumbnailUri from '@/utils/assets/thumbnails/getAssetThumbnailUri
 export default function AssetImage({
   asset = {},
   contentFit,
-  placeholderColor = 'lightgrey',
+  placeholderColor = colors.placeholder,
   renderOverlay,
   showNotUploaded = true,
 }) {
@@ -144,7 +144,7 @@ function LoadingPlaceholder({ color, style, still = false, children }) {
 
   return (
     <View style={[{ flex: 1, backgroundColor: color }, style]}>
-      <Animated.View style={{ flex: 1, backgroundColor: 'white', opacity: overlayOpacity }} />
+      <Animated.View style={{ flex: 1, backgroundColor: colors.shimmer, opacity: overlayOpacity }} />
       {children}
     </View>
   );

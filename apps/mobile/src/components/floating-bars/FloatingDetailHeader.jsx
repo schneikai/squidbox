@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.barPaddingX * 2,
   },
   title: {
-    fontSize: scale(14),
+    fontSize: typography.subheadline,
     lineHeight: scale(17),
     fontWeight: '600',
     color: colors.text,
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   subtitle: {
-    fontSize: typography.xs,
+    fontSize: typography.caption2,
     lineHeight: scale(13),
     color: colors.textSecondary,
     textAlign: 'center',

@@ -6,6 +6,7 @@ import TextButton from '@/components/TextButton';
 import useCloud from '@/features/cloud/useCloud';
 import { onRegistryChange } from '@/library/registry';
 import { deviceLibraryToJoin } from '@/library/sessionLibrary';
+import { typography } from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
 import { useRecordCounts } from '@/sync/useRecordCounts';
 import { useSyncStatus } from '@/sync/useSyncStatus';
@@ -78,7 +79,7 @@ export default function FirstSyncScreen() {
 }
 
 const styles = StyleSheet.create({
-  subtitle: { fontSize: 15, opacity: 0.7, textAlign: 'center' },
-  count: { fontSize: 16, fontWeight: '600', marginTop: 8, textAlign: 'center' },
-  hint: { fontSize: 13, opacity: 0.5, textAlign: 'center', marginTop: 4 },
+  subtitle: { fontSize: typography.subheadline, opacity: 0.7, textAlign: 'center' },
+  count: { fontSize: typography.callout, fontWeight: '600', marginTop: 8, textAlign: 'center' },
+  hint: { fontSize: typography.footnote, opacity: 0.5, textAlign: 'center', marginTop: 4 },
 });

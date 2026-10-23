@@ -3,41 +3,35 @@ import { StyleSheet, View, Text } from 'react-native';
 import CoverImage from '@/components/CoverImage';
 import FavoriteAlbumIndicator from '@/components/FavoriteAlbumIndicator';
 import AlbumLastPostedAt from '@/features/album-list/AlbumLastPostedAt';
-import { colors, scale } from '@/styles/designTokens';
+import ArchivedBadge from '@/features/album-list/ArchivedBadge';
+import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
 
 // `album` is an albumQuery row: it carries its cover and stats.
 export default function AlbumListItem({ album, elementWidth, showLastPostedAt }) {
   return (
-    <View style={[styles.album, { width: elementWidth }]}>
+    <View style={{ width: elementWidth }}>
       <CoverImage asset={album.cover} style={{ height: elementWidth }}>
         <View style={styles.indicators}>
           <FavoriteAlbumIndicator isFavorite={album.isFavorite} />
         </View>
       </CoverImage>
 
-      {Boolean(album.archivedAt) && (
-        <View style={{ alignSelf: 'left' }}>
-          <Text style={styles.isArchived}>Archived</Text>
-        </View>
-      )}
+      {Boolean(album.archivedAt) && <ArchivedBadge style={styles.archived} />}
       <Text style={styles.albumTitle} numberOfLines={1} ellipsizeMode="tail">
         {album.name}
       </Text>
       <View style={styles.metaRow}>
-        <Text style={[styles.albumInfo, styles.metaCount]} numberOfLines={1}>
+        <Text style={[listTextStyles.caption, styles.metaCount]} numberOfLines={1}>
           {pluralizeText('1 Asset', '%{count} Assets', album.assetCount)}
         </Text>
-        {showLastPostedAt && (
-          <AlbumLastPostedAt album={album} style={[styles.albumInfo, styles.metaPosted]} numberOfLines={1} />
-        )}
+        {showLastPostedAt && <AlbumLastPostedAt album={album} style={styles.metaPosted} numberOfLines={1} />}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  album: {},
   albumTitle: {
     marginTop: 4,
     fontWeight: '600',
@@ -47,11 +41,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'baseline',
     gap: 6,
-  },
-  albumInfo: {
-    color: colors.textSecondary,
-    fontSize: scale(12),
-    fontWeight: '500',
   },
   metaCount: {
     flexShrink: 0,
@@ -68,15 +57,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
   },
-  isArchived: {
+  archived: {
     marginTop: 4,
-    marginBottom: -2,
-    backgroundColor: 'pink',
-    paddingHorizontal: 3,
-    paddingVertical: 2,
-    fontSize: scale(9),
-    textTransform: 'uppercase',
-    fontWeight: '800',
-    zIndex: 1,
   },
 });

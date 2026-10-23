@@ -3,7 +3,7 @@ import { Image, View, StyleSheet, Text } from 'react-native';
 
 import AssetImage from '@/components/AssetImage';
 import Icon from '@/components/Icon';
-import { colors, scale, typography } from '@/styles/designTokens';
+import { colors, scale, spacing, typography } from '@/styles/designTokens';
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
@@ -93,13 +93,13 @@ function VideoDuration({ duration }) {
 function FavoriteAssetIndicator({ isFavorite }) {
   if (!isFavorite) return;
 
-  return <Icon name="heart" filled size={typography.lg} color={colors.textInverse} />;
+  return <Icon name="heart" filled size={spacing.iconSize} color={colors.textInverse} />;
 }
 
 function CloudIndicator({ isSynced }) {
   const iconName = isSynced ? 'cloud-check' : 'cloud-offline';
 
-  return <Icon name={iconName} size={typography.lg} color={colors.textInverse} />;
+  return <Icon name={iconName} size={spacing.iconSize} color={colors.textInverse} />;
 }
 
 function NoteIndicator({ hasNote }) {
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     bottom: 6,
     right: 6,
     color: colors.textInverse,
-    fontSize: typography.xs,
+    fontSize: typography.caption2,
     fontWeight: '600',
   },
 
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     bottom: 5,
     left: 5,
     color: colors.textInverse,
-    fontSize: scale(10),
+    fontSize: typography.caption2,
     fontWeight: 'bold',
   },
 

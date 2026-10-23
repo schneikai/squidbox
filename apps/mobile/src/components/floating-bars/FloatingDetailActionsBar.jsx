@@ -6,7 +6,7 @@ import FloatingPill from './FloatingPill';
 import IconButton from '@/components/IconButton';
 import useAssets from '@/features/assets-context/useAssets';
 import useDeletedAssetsActions from '@/features/assets-context/useDeletedAssetsActions';
-import { colors, scale, spacing } from '@/styles/designTokens';
+import { colors, spacing, typography } from '@/styles/designTokens';
 import humanizeMediaType from '@/utils/assets/humanizeMediaType';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 import useShareAsset from '@/utils/assets/useShareAsset';
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   deletedLabel: {
     paddingHorizontal: spacing.barPaddingX * 2,
     lineHeight: spacing.iconButtonSize,
-    fontSize: scale(13),
+    fontSize: typography.footnote,
     fontWeight: '600',
     color: colors.danger,
   },

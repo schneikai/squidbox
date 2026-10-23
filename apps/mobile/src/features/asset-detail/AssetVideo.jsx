@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
   messageText: {
     flexShrink: 1,
     paddingHorizontal: spacing.barPaddingX,
-    fontSize: typography.sm,
+    fontSize: typography.footnote,
     color: colors.text,
   },
 });

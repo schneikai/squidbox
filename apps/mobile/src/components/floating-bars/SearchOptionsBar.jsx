@@ -14,7 +14,7 @@ import FloatingPill from './FloatingPill';
 
 import IconButton from '@/components/IconButton';
 import AppTextInput from '@/components/TextInput';
-import { colors, glass, motion, scale, spacing, typography } from '@/styles/designTokens';
+import { colors, glass, motion, scale, spacing } from '@/styles/designTokens';
 
 /**
  * Reusable bottom-left floating search + options bar, following the iOS search pattern:
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    lineHeight: typography.lg,
+    lineHeight: scale(20),
     paddingLeft: scale(4),
     paddingRight: scale(12),
     paddingVertical: 0,

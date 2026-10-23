@@ -13,6 +13,7 @@ import reorderUnderSort from '@/components/sortable-grid/reorderUnderSort';
 import AlbumPostsView from '@/features/album-detail/AlbumPostsView';
 import AddAssetAction from '@/features/album-detail/actions/AddAssetAction';
 import MoreAction from '@/features/album-detail/actions/MoreAction';
+import ArchivedBadge from '@/features/album-list/ArchivedBadge';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useAppSettings from '@/features/app-settings/useAppSettings';
 import AssetGrid from '@/features/asset-list/AssetGrid';
@@ -27,7 +28,7 @@ import useListScrollTop from '@/hooks/useListScrollTop';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useSearch from '@/hooks/useSearch';
 import useSearchMode from '@/hooks/useSearchMode';
-import { colors, scale, typography } from '@/styles/designTokens';
+import { colors, typography } from '@/styles/designTokens';
 import { countByMediaType } from '@/sync/assetsRepository';
 import { getDb } from '@/sync/db/client';
 import { usePagedQuery } from '@/sync/usePagedQuery';
@@ -171,7 +172,7 @@ export default function Album({ album }) {
       {/* Sub-header — only shown when there's an archived badge or notes */}
       {hasSubHeader && (
         <View style={[styles.subHeader, { marginTop: paddingTop }]}>
-          {!!album.archivedAt && <Text style={styles.archivedBadge}>Archived</Text>}
+          {!!album.archivedAt && <ArchivedBadge />}
           {!!album.notes && (
             <TouchableOpacity
               onPress={() => navigation.navigate('EditAlbumNotesModal', { id: album.id, notes: album.notes })}
@@ -246,19 +247,8 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     gap: 4,
   },
-  archivedBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,200,200,0.8)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    fontSize: scale(10),
-    textTransform: 'uppercase',
-    fontWeight: '800',
-    color: colors.danger,
-  },
   notesText: {
-    fontSize: typography.sm,
+    fontSize: typography.footnote,
     color: colors.textSecondary,
     lineHeight: 18,
   },

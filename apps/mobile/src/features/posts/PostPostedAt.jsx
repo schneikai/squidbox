@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Text, Pressable } from 'react-native';
 
+import listTextStyles from '@/styles/listTextStyles';
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
 import formatDateTime from '@/utils/date-time/formatDateTime';
 
 // Tap toggles between "3 days ago" and the exact date and time. Nothing for a post never posted.
+// A caption; `style` adds layout.
 export default function PostPostedAt({ postedAt, style }) {
   const [format, setFormat] = useState('inWords');
 
@@ -18,7 +20,7 @@ export default function PostPostedAt({ postedAt, style }) {
 
   return (
     <Pressable onPress={toggleFormat}>
-      <Text style={style}>Posted {formatted}</Text>
+      <Text style={[listTextStyles.caption, style]}>Posted {formatted}</Text>
     </Pressable>
   );
 }

@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   title: {
-    fontSize: typography.xxl,
+    fontSize: typography.title1,
     fontWeight: '700',
     color: colors.text,
     flex: 1,

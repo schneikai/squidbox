@@ -17,7 +17,7 @@ export default function TextInput({ style, ...rest }) {
 
 const styles = StyleSheet.create({
   base: {
-    fontSize: typography.input,
+    fontSize: typography.body,
     color: colors.text,
   },
 });

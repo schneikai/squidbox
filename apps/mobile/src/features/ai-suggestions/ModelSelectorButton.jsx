@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
     maxWidth: 200,
   },
   triggerText: {
-    fontSize: scale(14),
+    fontSize: typography.subheadline,
     fontWeight: '500',
     color: colors.text,
     flexShrink: 1,
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     color: colors.textSecondary,
-    fontSize: typography.base,
+    fontSize: typography.body,
   },
   emptyFull: {
     flex: 1,
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   },
   optionLabel: {
     flex: 1,
-    fontSize: typography.base,
+    fontSize: typography.body,
     color: colors.text,
   },
   optionLabelSelected: {
@@ -222,6 +222,6 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(0,0,0,0.12)',
+    backgroundColor: colors.divider,
   },
 });
