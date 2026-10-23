@@ -154,16 +154,16 @@ error, and could be made from the cloud original.
 
 ## Code quality
 
-### [ ] Scan the rest of the app for duplication
+### [ ] Finish the component consolidation
 
-The floating bars, buttons and cards are consolidated (`IconButton`, `SegmentedPill`, `Card`,
-`shadows.section`); a copy detector ([jscpd](https://github.com/kucherenko/jscpd)) finds only small
-literal copies left. Still to read for near-copies: providers, hooks and utils (e.g.
-`useAssetList` / `usePostList`, `useDragReorder` / `useDragSelect`, `albumSchema` / `assetSchema`),
-the hand-styled `TouchableOpacity` buttons (`CreatePostScreen`, `IgnoredPostsScreen`, `Album`'s
-notes, `LoginForm`, the AI screens), and the two popover systems (`MenuButton` and
-`SortFilterModal`), which could be one. The AI screens (`AiChatModal`, `RandomSuggestionsScreen`)
-are best done with the AI assistant rework.
+Plan: https://claude.ai/artifact/KfDvwcHGxAeorqs3KeGWKV. Hooks and utils are done (`useScrollY`,
+`useListScrollTop`, `writeInBatches` syncs, no pass-through sort/filter/search hooks). Still to do:
+the hand-styled buttons (`PrimaryButton`, `IconButton` variants), one surface and row for both
+popovers (`MenuButton` and `SortFilterModal`), badges, grouped surfaces, typography and color
+tokens, then the bigger refactors: `useListControls`, a shared grid long-press pan, one
+`assetStorage` module, one way to call the repositories, and retiring the Yup schemas and legacy
+adapters for the shared zod collections. The AI screens (`AiChatModal`, `RandomSuggestionsScreen`,
+`ModelSelectorButton`) are best done with the AI assistant rework.
 
 ### [ ] Bump INSTALLED with each preview build
 

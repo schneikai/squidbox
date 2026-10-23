@@ -15,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { MenuProvider } from 'react-native-popup-menu';
-import Reanimated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
+import Reanimated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ModelSelectorButton from './ModelSelectorButton';
@@ -43,6 +43,7 @@ import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import Switch from '@/components/Switch';
 import Textarea from '@/components/Textarea';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
+import useScrollY from '@/hooks/useScrollY';
 import { colors, radii, scale } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { readPostTexts } from '@/sync/postsRepository';
@@ -72,11 +73,7 @@ export default function AiChatModal({ visible, onClose, onSelect, existingText }
   const copiedKeyTimerRef = useRef(null);
   const keyboardHeightAnim = useRef(new Animated.Value(0)).current;
   const modelPickerRef = useRef(null);
-  const scrollY = useSharedValue(0);
-
-  const scrollHandler = useAnimatedScrollHandler((event) => {
-    scrollY.value = event.contentOffset.y;
-  });
+  const { scrollY, onScroll } = useScrollY();
 
   useEffect(() => {
     if (visible) {
@@ -332,7 +329,7 @@ export default function AiChatModal({ visible, onClose, onSelect, existingText }
             style={styles.messageListContainer}
             contentContainerStyle={styles.messageList}
             onContentSizeChange={scrollToEnd}
-            onScroll={scrollHandler}
+            onScroll={onScroll}
             scrollEventThrottle={16}
             ListFooterComponent={renderLoadingBubble}
             ListEmptyComponent={

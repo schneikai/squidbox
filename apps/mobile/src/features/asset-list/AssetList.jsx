@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
-import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
 import useDragSelect from '@/components/sortable-grid/useDragSelect';
+import useScrollY from '@/hooks/useScrollY';
 
 // Constant props, so FlatList's own memo isn't defeated on every render of the screen.
 const keyExtractor = (asset) => asset.id;
@@ -37,12 +38,9 @@ export default function AssetList({
   // Track scroll offset internally when the screen doesn't already provide a
   // handler (e.g. album detail). When one is provided (library floating bars) we
   // reuse its shared value so drag-select reads an always-current offset.
-  const internalScrollY = useSharedValue(0);
-  const internalScrollHandler = useAnimatedScrollHandler((event) => {
-    internalScrollY.value = event.contentOffset.y;
-  });
-  const effectiveScrollY = scrollY ?? internalScrollY;
-  const effectiveOnScroll = onScroll ?? internalScrollHandler;
+  const internal = useScrollY();
+  const effectiveScrollY = scrollY ?? internal.scrollY;
+  const effectiveOnScroll = onScroll ?? internal.onScroll;
 
   const selectedIdsRef = useRef(selectedAssetIds);
   selectedIdsRef.current = selectedAssetIds;

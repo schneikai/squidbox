@@ -10,15 +10,15 @@ import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingB
 import PostList from '@/features/post-list/PostList';
 import PostListItem from '@/features/post-list/PostListItem';
 import postFilterOptions from '@/features/post-list/actions/filter-posts-action/postFilterOptions';
-import useFilterPostsAction from '@/features/post-list/actions/filter-posts-action/useFilterPostsAction';
 import postSortOptions from '@/features/post-list/actions/sort-posts-action/postSortOptions';
-import useSortPostsAction from '@/features/post-list/actions/sort-posts-action/useSortPostsAction';
 import postQuery from '@/features/post-list/postQuery';
-import usePostList from '@/features/post-list/usePostList';
 import usePosts from '@/features/posts-context/usePosts';
+import useFilter from '@/hooks/useFilter';
+import useListScrollTop from '@/hooks/useListScrollTop';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useSearch from '@/hooks/useSearch';
 import useSearchMode from '@/hooks/useSearchMode';
+import useSort from '@/hooks/useSort';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
 export default function PostsScreen() {
@@ -26,9 +26,9 @@ export default function PostsScreen() {
   const { toggleFavoritePost } = usePosts();
   const { paddingTop, paddingBottom } = useScreenPadding('main');
 
-  const { listRef, listScrollTop } = usePostList();
-  const { sortOrder, sortPosts } = useSortPostsAction({ afterSort: listScrollTop });
-  const { activeFilter, toggleFilter } = useFilterPostsAction({ afterFilter: listScrollTop });
+  const { listRef, listScrollTop } = useListScrollTop();
+  const { sortOrder, sort } = useSort('postedAt:desc', { afterSort: listScrollTop });
+  const { activeFilter, toggleFilter } = useFilter({ afterFilter: listScrollTop });
 
   const { searchBar, query: postsSearchText } = useSearchMode(useSearch());
 
@@ -48,7 +48,7 @@ export default function PostsScreen() {
       activeFilter,
       sortOptions: postSortOptions,
       filterOptions: postFilterOptions,
-      onSort: sortPosts,
+      onSort: sort,
       onFilter: toggleFilter,
     });
   }, [sortOrder, activeFilter]);

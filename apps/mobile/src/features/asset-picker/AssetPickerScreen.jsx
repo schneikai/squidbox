@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
-import { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
+import { useSharedValue } from 'react-native-reanimated';
 
 import GradientPillButton from '@/components/GradientPillButton';
 import IconButton from '@/components/IconButton';
@@ -13,6 +13,7 @@ import AlbumPicker from '@/features/album-list/AlbumPicker';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import AssetPickerGrid from '@/features/asset-picker/AssetPickerGrid';
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';
+import useScrollY from '@/hooks/useScrollY';
 import { getDb, schema } from '@/sync/db/client';
 import { readByIds } from '@/sync/readByIds';
 import getAlbumAssetScope from '@/utils/albums/getAlbumAssetScope';
@@ -32,10 +33,7 @@ export default function AssetPickerScreen({ route, navigation }) {
   const liveAlbum = useAlbum(pickedAlbum?.id);
   const [isAdding, setIsAdding] = useState(false);
   const expandProgress = useSharedValue(0);
-  const scrollY = useSharedValue(0);
-  const onScroll = useAnimatedScrollHandler((e) => {
-    scrollY.value = e.contentOffset.y;
-  });
+  const { scrollY, onScroll } = useScrollY();
 
   // Closing the picker without Add (the close button, a swipe down) picks nothing.
   useEffect(() => () => finishAssetPicking([]), [finishAssetPicking]);

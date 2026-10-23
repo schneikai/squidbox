@@ -18,12 +18,12 @@ import useAppSettings from '@/features/app-settings/useAppSettings';
 import AssetGrid from '@/features/asset-list/AssetGrid';
 import SelectionActions from '@/features/asset-list/SelectionActions';
 import assetFilterOptions from '@/features/asset-list/actions/filter-assets-action/assetFilterOptions';
-import useFilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/useFilterAssetsAction';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import assetQuery from '@/features/asset-list/assetQuery';
-import useAssetList from '@/features/asset-list/useAssetList';
 import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
 import useAssets from '@/features/assets-context/useAssets';
+import useFilter from '@/hooks/useFilter';
+import useListScrollTop from '@/hooks/useListScrollTop';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useSearch from '@/hooks/useSearch';
 import useSearchMode from '@/hooks/useSearchMode';
@@ -56,14 +56,14 @@ export default function Album({ album }) {
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
   const { showActionSheetWithOptions } = useActionSheet();
 
-  const { listRef, listScrollTop } = useAssetList();
+  const { listRef, listScrollTop } = useListScrollTop();
   const runWithProgress = useRunWithProgress();
   const selection = useToggleSelectAssetsAction();
   const { isSelectMode, selectedAssetIds, isAssetSelected, toggleSelectMode, exitSelectMode, selectAssets } = selection;
   // A per-session override lets the open album react immediately to sort/reorder changes.
   const [sessionSortOrder, setSessionSortOrder] = useState(null);
   const sortOrder = sessionSortOrder ?? getAlbumSortOrder(album, albumSortOrder);
-  const { activeFilter, toggleFilter } = useFilterAssetsAction({ afterFilter: listScrollTop });
+  const { activeFilter, toggleFilter } = useFilter({ afterFilter: listScrollTop });
   const [activeTab, setActiveTab] = useState('Assets');
   const [postCount, setPostCount] = useState();
   const { searchBar, query: searchText } = useSearchMode(useSearch());

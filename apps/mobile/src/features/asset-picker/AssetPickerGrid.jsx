@@ -4,21 +4,21 @@ import { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import SearchSortFilterBar, { SEARCH_SORT_FILTER_BAR_CLEARANCE } from '@/components/floating-bars/SearchSortFilterBar';
 import AssetGrid from '@/features/asset-list/AssetGrid';
 import assetFilterOptions from '@/features/asset-list/actions/filter-assets-action/assetFilterOptions';
-import useFilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/useFilterAssetsAction';
-import useSortAssetsAction from '@/features/asset-list/actions/sort-assets-action/useSortAssetsAction';
 import assetQuery from '@/features/asset-list/assetQuery';
-import useAssetList from '@/features/asset-list/useAssetList';
+import useFilter from '@/hooks/useFilter';
+import useListScrollTop from '@/hooks/useListScrollTop';
 import useSearch from '@/hooks/useSearch';
 import useSearchMode from '@/hooks/useSearchMode';
+import useSort from '@/hooks/useSort';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
 // The picker's grid of the library or of one album (`scope`, see assetQuery), always selecting, with
 // search, sort and filter. `selection` comes from useToggleSelectAssetsAction and outlives the grid.
 export default function AssetPickerGrid({ scope, exclude, selection, onScroll, scrollY, expandProgress }) {
   const { bottom } = useSafeAreaInsets();
-  const { listRef, listScrollTop } = useAssetList();
-  const { sortOrder, sortAssets } = useSortAssetsAction({ afterSort: listScrollTop });
-  const { activeFilter, toggleFilter } = useFilterAssetsAction({ afterFilter: listScrollTop });
+  const { listRef, listScrollTop } = useListScrollTop();
+  const { sortOrder, sort } = useSort('createdAt:desc', { afterSort: listScrollTop });
+  const { activeFilter, toggleFilter } = useFilter({ afterFilter: listScrollTop });
   const { searchBar, query: searchText } = useSearchMode(useSearch());
 
   const query = assetQuery({
@@ -55,7 +55,7 @@ export default function AssetPickerGrid({ scope, exclude, selection, onScroll, s
         sortOrder={sortOrder}
         activeFilter={activeFilter}
         filterOptions={assetFilterOptions}
-        onSort={sortAssets}
+        onSort={sort}
         onFilter={toggleFilter}
         showViewOptions
       />

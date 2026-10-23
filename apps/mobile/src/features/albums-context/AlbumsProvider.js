@@ -57,23 +57,14 @@ export default function AlbumsProvider({ children }) {
         await repo.toggle(db, album.id, 'isFavorite');
         requestSync();
       },
-      // Both take the batch options of writeInBatches ({ onProgress, signal }), resolve to whether
-      // every batch was written, and push what committed even after a failure or a Cancel.
+      // Both take the batch options of writeInBatches ({ onProgress, signal }) and resolve to whether
+      // every batch was written.
       addAssetsToAlbum: async (album, assetsOrAssetIds, batchOptions) => {
         const assetIds = assetsOrAssetIds.map((a) => (typeof a === 'string' ? a : a.id));
-        try {
-          return await writeInBatches(assetIds, (ids) => edges.add(db, album.id, ids, getNewItemId), batchOptions);
-        } finally {
-          requestSync();
-        }
+        return writeInBatches(assetIds, (ids) => edges.add(db, album.id, ids, getNewItemId), batchOptions);
       },
-      removeAssetsFromAlbum: async (album, assetIds, batchOptions) => {
-        try {
-          return await writeInBatches(assetIds, (ids) => edges.remove(db, album.id, ids), batchOptions);
-        } finally {
-          requestSync();
-        }
-      },
+      removeAssetsFromAlbum: async (album, assetIds, batchOptions) =>
+        writeInBatches(assetIds, (ids) => edges.remove(db, album.id, ids), batchOptions),
       // A drag under a date sort adopts the order on screen (`sort`) and puts the album on custom
       // order; from then on each drag is one edge write. `afterId: null` drops at the front. Resolves
       // to the write's committed-write count (AppDb.committedWrites), read before anything else runs.

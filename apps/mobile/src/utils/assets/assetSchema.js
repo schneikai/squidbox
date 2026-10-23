@@ -1,13 +1,13 @@
 import * as Yup from 'yup';
 
 import { MEDIA_TYPES } from './constants';
-import getNewAssetId from './getNewAssetId';
 
 import getTimestamp from '@/utils/date-time/getTimestamp';
+import getNewItemId from '@/utils/getNewItemId';
 
 const assetSchema = Yup.object()
   .shape({
-    id: Yup.string().default(getNewAssetId),
+    id: Yup.string().default(getNewItemId),
     // Heads-up: Some older assets have __UNKNOWN__ here because
     // we didn't save the mediaLibraryAssetId in the past.
     mediaLibraryAssetId: Yup.string().required(),

@@ -34,26 +34,12 @@ export default function AssetsProvider({ children }) {
         await repo.toggleFavorite(getDb(), asset.id);
         requestSync();
       },
-      // The bulk methods take the batch options of writeInBatches ({ onProgress, signal }), resolve
-      // to whether every batch was written, and push what committed even after a failure or a Cancel.
-      setAssetsDeleted: async (assetIds, batchOptions) => {
-        try {
-          return await writeInBatches(assetIds, (ids) => repo.deleteAssets(getDb(), ids), batchOptions);
-        } finally {
-          requestSync();
-        }
-      },
-      restoreDeletedAssets: async (assetIds, batchOptions) => {
-        try {
-          return await writeInBatches(
-            assetIds,
-            (ids) => repo.updateAllAssets(getDb(), ids, { deletedAt: null }),
-            batchOptions,
-          );
-        } finally {
-          requestSync();
-        }
-      },
+      // The bulk methods take the batch options of writeInBatches ({ onProgress, signal }) and resolve
+      // to whether every batch was written.
+      setAssetsDeleted: async (assetIds, batchOptions) =>
+        writeInBatches(assetIds, (ids) => repo.deleteAssets(getDb(), ids), batchOptions),
+      restoreDeletedAssets: async (assetIds, batchOptions) =>
+        writeInBatches(assetIds, (ids) => repo.updateAllAssets(getDb(), ids, { deletedAt: null }), batchOptions),
       // Gone for good once the purge is confirmed: then its files go, here and in the cloud (sync-design §7a).
       deleteAssetsPermanently: async (assetIds, batchOptions) => {
         try {
@@ -66,7 +52,6 @@ export default function AssetsProvider({ children }) {
           );
         } finally {
           sweepOpenLibrary();
-          requestSync();
         }
       },
     }),

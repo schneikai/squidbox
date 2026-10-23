@@ -1,5 +1,4 @@
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import EmptyState from '@/components/EmptyState';
@@ -13,6 +12,7 @@ import PostList from '@/features/post-list/PostList';
 import PostListItem from '@/features/post-list/PostListItem';
 import postQuery from '@/features/post-list/postQuery';
 import usePosts from '@/features/posts-context/usePosts';
+import useScrollY from '@/hooks/useScrollY';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors } from '@/styles/designTokens';
 import { usePagedQuery } from '@/sync/usePagedQuery';
@@ -22,10 +22,7 @@ const ignored = postQuery({ scope: 'ignored', sort: 'updatedAt:desc' });
 export default function IgnoredPostsScreen({ navigation }) {
   const { updatePost } = usePosts();
   const { bottom } = useSafeAreaInsets();
-  const scrollY = useSharedValue(0);
-  const onScroll = useAnimatedScrollHandler((e) => {
-    scrollY.value = e.contentOffset.y;
-  });
+  const { scrollY, onScroll } = useScrollY();
 
   const { rows, count, loadMore } = usePagedQuery(ignored, 20);
 

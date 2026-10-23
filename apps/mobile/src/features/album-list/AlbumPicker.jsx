@@ -7,11 +7,11 @@ import AlbumList from '@/features/album-list/AlbumList';
 import AlbumListItem from '@/features/album-list/AlbumListItem';
 import albumFilterOptions from '@/features/album-list/actions/filter-albums-action/albumFilterOptions';
 import useFilterAlbumsAction from '@/features/album-list/actions/filter-albums-action/useFilterAlbumsAction';
-import useSearchAlbumsAction from '@/features/album-list/actions/search-albums-action/useSearchAlbumsAction';
 import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
-import useAlbumList from '@/features/album-list/useAlbumList';
 import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
+import useListScrollTop from '@/hooks/useListScrollTop';
+import useSearch from '@/hooks/useSearch';
 import useSearchMode from '@/hooks/useSearchMode';
 import isDeletedAssetsAlbum from '@/utils/albums/isDeletedAssetsAlbum';
 
@@ -22,12 +22,12 @@ import isDeletedAssetsAlbum from '@/utils/albums/isDeletedAssetsAlbum';
 export default function AlbumPicker({ onPick, showSmartAlbums = false, paddingTop, onScroll, expandProgress }) {
   const { bottom } = useSafeAreaInsets();
 
-  const { listRef, listScrollTop } = useAlbumList();
+  const { listRef, listScrollTop } = useListScrollTop();
   const { sortOrder, sortFunction, sortAlbums, isSortedByLastPosted } = useSortAlbumsAction({
     afterSort: listScrollTop,
   });
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterFilter: listScrollTop });
-  const { searchBar, query: searchText } = useSearchMode(useSearchAlbumsAction());
+  const { searchBar, query: searchText } = useSearchMode(useSearch());
   const matchPickable = useCallback((album) => !isDeletedAssetsAlbum(album) && matchFilter(album), [matchFilter]);
 
   const { albums } = usePreparedAlbums({

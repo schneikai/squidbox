@@ -9,17 +9,17 @@ import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay
 import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
 import AssetGrid from '@/features/asset-list/AssetGrid';
 import assetFilterOptions from '@/features/asset-list/actions/filter-assets-action/assetFilterOptions';
-import useFilterAssetsAction from '@/features/asset-list/actions/filter-assets-action/useFilterAssetsAction';
-import useSortAssetsAction from '@/features/asset-list/actions/sort-assets-action/useSortAssetsAction';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import assetQuery from '@/features/asset-list/assetQuery';
-import useAssetList from '@/features/asset-list/useAssetList';
 import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
 import useAddAssetsFromCameraRoll from '@/features/assets-context/useAddAssetsFromCameraRoll';
 import useAssets from '@/features/assets-context/useAssets';
+import useFilter from '@/hooks/useFilter';
+import useListScrollTop from '@/hooks/useListScrollTop';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useSearch from '@/hooks/useSearch';
 import useSearchMode from '@/hooks/useSearchMode';
+import useSort from '@/hooks/useSort';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 import pluralizeText from '@/utils/pluralizeText';
 
@@ -27,9 +27,9 @@ export default function AssetsScreen({ route }) {
   const { setAssetsDeleted } = useAssets();
   const { paddingTop, paddingBottom } = useScreenPadding('main');
 
-  const { listRef, listScrollTop } = useAssetList();
-  const { sortOrder, sortAssets } = useSortAssetsAction({ afterSort: listScrollTop });
-  const { activeFilter, toggleFilter } = useFilterAssetsAction({ afterFilter: listScrollTop });
+  const { listRef, listScrollTop } = useListScrollTop();
+  const { sortOrder, sort } = useSort('createdAt:desc', { afterSort: listScrollTop });
+  const { activeFilter, toggleFilter } = useFilter({ afterFilter: listScrollTop });
 
   const { registerScreenOptions, setIsSelectMode, scrollY } = useFloatingBars();
   const selection = useToggleSelectAssetsAction();
@@ -82,7 +82,7 @@ export default function AssetsScreen({ route }) {
       activeFilter,
       filterOptions: assetFilterOptions,
       showViewOptions: true,
-      onSort: sortAssets,
+      onSort: sort,
       onFilter: toggleFilter,
     });
   }, [sortOrder, activeFilter]);

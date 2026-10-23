@@ -11,25 +11,25 @@ import AlbumListItemWithEditMode from '@/features/album-list/AlbumListItemWithEd
 import SortableAlbumList from '@/features/album-list/SortableAlbumList';
 import albumFilterOptions from '@/features/album-list/actions/filter-albums-action/albumFilterOptions';
 import useFilterAlbumsAction from '@/features/album-list/actions/filter-albums-action/useFilterAlbumsAction';
-import useSearchAlbumsAction from '@/features/album-list/actions/search-albums-action/useSearchAlbumsAction';
 import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
-import useAlbumList from '@/features/album-list/useAlbumList';
 import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
 import useAlbums from '@/features/albums-context/useAlbums';
+import useListScrollTop from '@/hooks/useListScrollTop';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import useSearch from '@/hooks/useSearch';
 import useSearchMode from '@/hooks/useSearchMode';
 
 export default function AlbumsScreen({ navigation }) {
   const { toggleFavoriteAlbum, addAlbum, moveAlbum } = useAlbums();
   const { paddingTop, paddingBottom } = useScreenPadding('main');
 
-  const { listRef, listScrollTop } = useAlbumList();
+  const { listRef, listScrollTop } = useListScrollTop();
   const { sortOrder, sortFunction, sortAlbums, isSortedByLastPosted } = useSortAlbumsAction();
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterFilter: listScrollTop });
 
   const { registerScreenOptions } = useFloatingBars();
-  const { searchBar, query: searchText } = useSearchMode(useSearchAlbumsAction());
+  const { searchBar, query: searchText } = useSearchMode(useSearch());
   const scrollHandler = useFloatingBarScrollHandler();
 
   const { albums, readAt } = usePreparedAlbums({ sortFn: sortFunction, filterFn: matchFilter, searchText });

@@ -1,5 +1,4 @@
 import { Alert, View } from 'react-native';
-import { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 
 import GradientButton from '@/components/GradientButton';
 import Icon from '@/components/Icon';
@@ -8,16 +7,14 @@ import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
 import AlbumPicker from '@/features/album-list/AlbumPicker';
 import useAlbums from '@/features/albums-context/useAlbums';
+import useScrollY from '@/hooks/useScrollY';
 import { colors } from '@/styles/designTokens';
 
 export default function AddToAlbumScreen({ route, navigation }) {
   const { addAlbum, addAssetsToAlbum } = useAlbums();
   const runWithProgress = useRunWithProgress();
 
-  const scrollY = useSharedValue(0);
-  const onScroll = useAnimatedScrollHandler((e) => {
-    scrollY.value = e.contentOffset.y;
-  });
+  const { scrollY, onScroll } = useScrollY();
 
   async function handleAddAssetsToAlbum(album) {
     // After a failure or a Cancel the screen stays, so the user can go on (what was added stays).

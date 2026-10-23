@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Icon from '@/components/Icon';
@@ -15,6 +14,7 @@ import PostListItem from '@/features/post-list/PostListItem';
 import postQuery from '@/features/post-list/postQuery';
 import useRandomSuggestions from '@/features/post-random-suggestions/useRandomSuggestions';
 import usePosts from '@/features/posts-context/usePosts';
+import useScrollY from '@/hooks/useScrollY';
 import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, radii, scale, typography } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
@@ -26,10 +26,7 @@ const candidates = postQuery({ scope: 'repostCandidates', sort: 'suggestRepostAt
 export default function CreatePostScreen({ navigation }) {
   const { updatePost } = usePosts();
   const { bottom } = useSafeAreaInsets();
-  const scrollY = useSharedValue(0);
-  const onScroll = useAnimatedScrollHandler((e) => {
-    scrollY.value = e.contentOffset.y;
-  });
+  const { scrollY, onScroll } = useScrollY();
   const { openRandomSuggestions } = useRandomSuggestions();
 
   const { rows, count, loadMore } = usePagedQuery(candidates, 20);

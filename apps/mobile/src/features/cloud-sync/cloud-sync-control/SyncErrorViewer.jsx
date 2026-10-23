@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import Animated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
+import useScrollY from '@/hooks/useScrollY';
 import { colors, radii, scale } from '@/styles/designTokens';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
@@ -13,10 +14,7 @@ import { usePagedQuery } from '@/sync/usePagedQuery';
 // retries every one of them, not just the loaded page. Closes itself once none are left.
 export default function SyncErrorViewer({ query, onRetryAll, close }) {
   const { bottom } = useSafeAreaInsets();
-  const scrollY = useSharedValue(0);
-  const onScroll = useAnimatedScrollHandler((e) => {
-    scrollY.value = e.contentOffset.y;
-  });
+  const { scrollY, onScroll } = useScrollY();
   const { rows, count, loadMore } = usePagedQuery(query, 50);
 
   useEffect(() => {

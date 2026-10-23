@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { useSharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
 import Card from '@/components/Card';
 import DateTimePicker from '@/components/DateTimePicker';
@@ -14,6 +14,7 @@ import { SCREEN_PADDING } from '@/constants';
 import AiChatModal from '@/features/ai-suggestions/AiChatModal';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import useRandomSuggestions from '@/features/post-random-suggestions/useRandomSuggestions';
+import useScrollY from '@/hooks/useScrollY';
 import { colors } from '@/styles/designTokens';
 import buildPostAsset from '@/utils/posts/buildPostAsset';
 import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
@@ -23,11 +24,8 @@ import postSchema from '@/utils/posts/postSchema';
 // `onSave` the post the posts store takes ({ text, assetRefs, postedAt }), allowed once it is valid,
 // and the seed in the same shape, so an edit can save only what changed.
 export default function PostEditor({ post, navigation, onSave }) {
-  const scrollY = useSharedValue(0);
+  const { scrollY, onScroll } = useScrollY();
   const [isSaving, setIsSaving] = useState(false);
-  const onScroll = useAnimatedScrollHandler((e) => {
-    scrollY.value = e.contentOffset.y;
-  });
   const [text, setText] = useState(post.text);
   const [postAssets, setPostAssets] = useState(post.postAssets);
   const [postedAt, setPostedAt] = useState(post.postedAt);
