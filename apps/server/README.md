@@ -60,9 +60,15 @@ MinIO console: http://localhost:9001 (minioadmin / minioadmin). Tear down with
 
 ### Mock data and the phone dev client
 
-`npm run seed:mock` fills the local account (SEED_USER_EMAIL) with stock photos from picsum.photos,
-albums (including Favorites and Deleted) and posts. Ids are deterministic, so re-running resets the
-account to exactly that set. It refuses to run against a non-local API.
+`npm run seed:mock` fills the local account (SEED_USER_EMAIL) with stock photos from picsum.photos
+(landscape and portrait), short stock videos with music, albums (including Favorites and Deleted) and
+posts. Ids are deterministic, so re-running resets the account to exactly that set. It refuses to run
+against a non-local API.
+
+The videos are committed in `scripts/mock-videos/`: Mixkit clips with a Mixkit music track under
+them, cut to 12 seconds, with their thumbnails and a `videos.json` of sizes and durations. To change
+the set, edit `scripts/bake-mock-videos.sh` (needs ffmpeg) and run it, then the `MEDIA` list in
+`scripts/seed-mock.ts`.
 
 `S3_PUBLIC_ENDPOINT` makes the server sign download URLs for a public address (Metro's tunnel) while
 it still talks to MinIO on localhost. `npm run dev:local` at the repo root sets it and starts the

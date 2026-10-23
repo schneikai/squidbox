@@ -78,11 +78,23 @@ export default function AssetImage({
   const hasPicture = !!thumbnailUri && loadedUri === thumbnailUri;
   const showNotUploadedIcon = showNotUploaded && current?.status === 'notUploaded';
 
-  if (!thumbnailUri) {
-    return (
-      <>
+  const styleProps = {
+    flex: 1,
+    resizeMode: contentFit || thumbnailStyle,
+    backgroundColor: placeholderColor !== 'transparent' ? placeholderColor : undefined,
+  };
+
+  // One tree for every state, so the placeholder keeps pulsing and the overlay stays mounted while
+  // the picture loads.
+  return (
+    <>
+      {!!thumbnailUri && (
+        <Image source={{ uri: thumbnailUri }} style={styleProps} onLoad={() => setLoadedUri(thumbnailUri)} />
+      )}
+      {!hasPicture && (
         <LoadingPlaceholder
           color={placeholderColor}
+          style={!!thumbnailUri && StyleSheet.absoluteFill}
           still={!asset.thumbnailFilename || current?.status === 'signedOut' || current?.status === 'failed'}
         >
           {showNotUploadedIcon && (
@@ -100,21 +112,7 @@ export default function AssetImage({
             </View>
           )}
         </LoadingPlaceholder>
-        {renderOverlay?.(false)}
-      </>
-    );
-  }
-
-  const styleProps = {
-    flex: 1,
-    resizeMode: contentFit || thumbnailStyle,
-    backgroundColor: placeholderColor !== 'transparent' ? placeholderColor : undefined,
-  };
-
-  return (
-    <>
-      <Image source={{ uri: thumbnailUri }} style={styleProps} onLoad={() => setLoadedUri(thumbnailUri)} />
-      {!hasPicture && <LoadingPlaceholder color={placeholderColor} style={StyleSheet.absoluteFill} />}
+      )}
       {renderOverlay?.(hasPicture)}
     </>
   );

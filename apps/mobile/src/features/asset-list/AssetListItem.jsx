@@ -13,16 +13,14 @@ export default memo(AssetListItem);
 function AssetListItem({ asset, selection, showLastPostedAt }) {
   const { lastPostedAt, duration, isFavorite, isSynced, notes } = asset;
   // The glows darken the corners behind the indicators, so they only show over a loaded picture, as
-  // does the cloud badge: the placeholder says itself when a picture isn't uploaded yet.
+  // does the cloud badge: the placeholder says itself when a picture isn't uploaded yet. They are
+  // mounted from the start and only hidden: an image appears a few frames after it mounts, so
+  // mounting them with the picture, or on the select-mode toggle, would pop them in late.
   const renderOverlay = (hasPicture) => (
     <>
-      {hasPicture && (
-        <>
-          <CornerGlow corner="topRight" size={80} />
-          {!!duration && <CornerGlow corner="bottomRight" size={80} />}
-          {selection && <SelectGlow selection={selection} assetId={asset.id} />}
-        </>
-      )}
+      <CornerGlow corner="topRight" size={90} isHidden={!hasPicture} />
+      {!!duration && <CornerGlow corner="bottomRight" size={90} isHidden={!hasPicture} />}
+      {selection && <SelectGlow selection={selection} assetId={asset.id} hasPicture={hasPicture} />}
       <View style={styles.indicators}>
         <FavoriteAssetIndicator isFavorite={isFavorite} />
         {hasPicture && <CloudIndicator isSynced={isSynced} />}
@@ -48,11 +46,9 @@ function useSelectionState(selection, assetId) {
   return useSyncExternalStore(selection.subscribe, () => selection.stateOf(assetId));
 }
 
-// Stays mounted while select mode is off, only hidden: an image appears a few frames after it mounts,
-// so mounting it on the toggle would show the ring before its glow.
-function SelectGlow({ selection, assetId }) {
+function SelectGlow({ selection, assetId, hasPicture }) {
   const state = useSelectionState(selection, assetId);
-  return <CornerGlow corner="topLeft" size={60} isHidden={state === 'off'} />;
+  return <CornerGlow corner="topLeft" size={60} isHidden={!hasPicture || state === 'off'} />;
 }
 
 function SelectRing({ selection, assetId }) {
@@ -69,9 +65,9 @@ function LastPostedAt({ lastPostedAt }) {
   return <Text style={styles.lastPostedAt}>{dateToTimeAgo(lastPostedAt)}</Text>;
 }
 
-// One pre-rendered radial fade (black at 52% in the top-left corner to transparent), flipped for the
-// other corners: an image per cell is far cheaper to mount than an SVG gradient, and every grid cell
-// shows one or more.
+// One pre-rendered radial fade (black at 42% in the top-left corner, easing out to transparent with no
+// visible edge), flipped for the other corners: an image per cell is far cheaper to mount than an SVG
+// gradient, and every grid cell shows one or more.
 const CORNER_GLOW = require('../../../assets/corner-glow.png');
 const CORNER_STYLES = {
   topLeft: { top: 0, left: 0 },

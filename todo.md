@@ -148,6 +148,9 @@ error, and could be made from the cloud original.
 
 - **Asset detail background:** a blurred background in the asset's colors.
 - **Albums list:** a better layout for name, asset count and last posted.
+- **Toolbar look.** The owner isn't fully happy with the toolbars yet (2pt frame, settings avatar
+  outside the header pill) but has no better idea for now. Tried and dropped: a 3pt frame with the
+  avatar inside the pill. Revisit when an idea comes up.
 
 ## Code quality
 
@@ -365,8 +368,6 @@ library. Fine for a few passes; a table keyed by record would scale if passes ge
 - **Thumbnail backfill.** Thumbnails load lazily, so one you never scrolled to is blank offline.
   A low-priority background backfill after the first sync would close that gap, using the existing
   queue's concurrency cap. Decide first: Wi-Fi only (recommended), any network, or stay lazy.
-- **Mock videos.** `npm run seed:mock` creates photos only. Adding a few short videos would cover
-  the video player and controls.
 - **Server env precedence.** `node --env-file` never overrides variables already in the shell, so
   exported AWS credentials silently win over `apps/server/.env`. `npm run dev:local` strips them;
   plain `npm run dev` in `apps/server` doesn't. Loading `.env` with override semantics for local

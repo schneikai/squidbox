@@ -1,14 +1,17 @@
 /**
  * Fills the LOCAL backend with a fixed set of mock data for the dev client: stock photos from
- * picsum.photos, albums (including the smart Favorites/Deleted albums) and posts. Re-running
- * resets the account to exactly this set: ids are deterministic and anything else is tombstoned.
+ * picsum.photos, stock videos with music from mixkit.co (all free to use, baked into
+ * scripts/mock-videos by bake-mock-videos.sh), albums (including the smart Favorites/Deleted albums)
+ * and posts. Re-running resets the account to exactly this set: ids are deterministic and anything
+ * else is tombstoned.
  *
  * Run: npm run seed:mock   (from apps/server, with the local stack and `npm run dev` running)
  *      npm run seed:mock -- --assets 50000   (pad the library to that size, for performance tests:
- *                                              the extra assets reuse the 30 photos' files)
+ *                                              the extra assets reuse the mock media's files)
  * Logs in as SEED_USER_EMAIL / SEED_USER_PASSWORD and refuses any non-local API URL.
  */
 import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import {
   collectionsByName,
   initialKeys,
@@ -29,32 +32,85 @@ const password = process.env.SEED_USER_PASSWORD;
 const DAY = 24 * 60 * 60 * 1000;
 const FULL_SIZE = 2048;
 const THUMBNAIL_SIZE = 1000; // matches the app's createImageThumbnail
-// Albums, posts and DELETED_PHOTOS refer to photos by their index in this list.
-const PICSUM_IDS = [
-  10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 25, 27, 28, 29, 36, 37, 39, 42, 43, 49, 50, 53, 54, 57, 58, 63,
-  64, 65,
-];
-const DELETED_PHOTOS = [28, 29];
-const assetsFlag = process.argv.indexOf('--assets');
-const ASSET_COUNT = assetsFlag === -1 ? PICSUM_IDS.length : Number(process.argv[assetsFlag + 1]);
+const MOCK_VIDEOS = new URL('./mock-videos/', import.meta.url);
+// Mixkit clip ids, each baked into scripts/mock-videos.
+type MockMedia = ({ picsum: number } | { video: number }) & { deleted?: boolean };
 
-const ALBUMS: { name: string; photos?: number[]; smartAlbumType?: 'FAVORITES' | 'DELETED' }[] = [
+// Newest first, landscape and portrait photos mixed with videos. Albums and posts refer to media by
+// their index in this list; `deleted` ones are in the Deleted album.
+const MEDIA: MockMedia[] = [
+  { picsum: 10 },
+  { picsum: 11 },
+  { picsum: 195 },
+  { picsum: 13 },
+  { video: 808 },
+  { picsum: 14 },
+  { picsum: 260 },
+  { picsum: 15 },
+  { picsum: 16 },
+  { picsum: 520 },
+  { picsum: 17 },
+  { video: 1183 },
+  { picsum: 18 },
+  { picsum: 613 },
+  { picsum: 19 },
+  { picsum: 20 },
+  { picsum: 638 },
+  { picsum: 22 },
+  { video: 4646 },
+  { picsum: 24 },
+  { picsum: 722 },
+  { picsum: 25 },
+  { picsum: 27 },
+  { picsum: 735 },
+  { picsum: 28 },
+  { video: 1197 },
+  { picsum: 29 },
+  { picsum: 776 },
+  { picsum: 36 },
+  { picsum: 37 },
+  { picsum: 842 },
+  { picsum: 39 },
+  { video: 529 },
+  { picsum: 42 },
+  { picsum: 870 },
+  { picsum: 43 },
+  { picsum: 49 },
+  { picsum: 873 },
+  { picsum: 50 },
+  { video: 1214 },
+  { picsum: 53 },
+  { picsum: 1003 },
+  { picsum: 54 },
+  { picsum: 57 },
+  { picsum: 1065 },
+  { picsum: 58 },
+  { video: 4132 },
+  { picsum: 63 },
+  { picsum: 64, deleted: true },
+  { picsum: 65, deleted: true },
+  { video: 1164 },
+];
+const assetsFlag = process.argv.indexOf('--assets');
+const ASSET_COUNT = assetsFlag === -1 ? MEDIA.length : Number(process.argv[assetsFlag + 1]);
+
+const ALBUMS: { name: string; media?: number[]; smartAlbumType?: 'FAVORITES' | 'DELETED' }[] = [
   { name: 'Favorites', smartAlbumType: 'FAVORITES' },
   { name: 'Deleted', smartAlbumType: 'DELETED' },
-  { name: 'Summer trip', photos: [0, 1, 2, 3, 4, 5, 6, 7] },
-  { name: 'Weekend walks', photos: [8, 9, 10, 11, 12, 13] },
-  { name: 'Inspiration', photos: [14, 15, 16, 17, 18, 2, 9] },
-  { name: 'To post', photos: [19, 20, 21, 22, 23] },
+  { name: 'Summer trip', media: [0, 1, 2, 3, 5, 6, 7, 8, 11, 25] },
+  { name: 'Weekend walks', media: [14, 15, 16, 17, 19, 20, 32] },
+  { name: 'Inspiration', media: [24, 26, 27, 28, 29, 30, 31, 3, 15, 18] },
+  { name: 'To post', media: [33, 34, 35, 36, 37, 38, 40, 4] },
 ];
 
-const POSTS: { text: string; photos: number[]; postedDaysAgo: number | null; isFavorite?: boolean }[] = [
-  { text: 'First light over the hills ☀️', photos: [0, 1], postedDaysAgo: 40, isFavorite: true },
-  { text: 'Lost in the forest for a day 🌲', photos: [8, 9, 10], postedDaysAgo: 32 },
-  { text: 'Coffee and a view. That is all.', photos: [14], postedDaysAgo: 21 },
-  { text: 'Summer recap, part 1', photos: [2, 3, 4, 5], postedDaysAgo: 12 },
-  { text: 'Quiet roads, loud thoughts.', photos: [11], postedDaysAgo: 5, isFavorite: true },
-  { text: 'Draft: weekend dump', photos: [19, 20, 21], postedDaysAgo: null },
-  { text: 'Draft: which one should I post?', photos: [22, 23], postedDaysAgo: null },
+const POSTS: { text: string; media: number[]; postedDaysAgo: number | null; isFavorite?: boolean }[] = [
+  { text: 'First light over the hills ☀️', media: [0, 1], postedDaysAgo: 40, isFavorite: true },
+  { text: 'Lost in the forest for a day 🌲', media: [14, 15, 17, 32], postedDaysAgo: 32 },
+  { text: 'Coffee and a view. That is all.', media: [4, 33], postedDaysAgo: 21 },
+  { text: 'Summer recap, part 1', media: [3, 5, 7, 8, 11], postedDaysAgo: 12 },
+  { text: 'Quiet roads, loud thoughts.', media: [19], postedDaysAgo: 5, isFavorite: true },
+  { text: 'Draft: weekend dump', media: [35, 36, 37], postedDaysAgo: null },
+  { text: 'Draft: which one should I post?', media: [38, 40], postedDaysAgo: null },
 ];
 
 if (!email || !password) throw new Error('SEED_USER_EMAIL and SEED_USER_PASSWORD must be set (see .env.docker)');
@@ -63,12 +119,17 @@ if (!['localhost', '127.0.0.1'].includes(new URL(API_URL).hostname)) {
 }
 
 const now = Date.now();
+// Size and duration (ms) per clip, as bake-mock-videos.sh measured them.
+const videoInfo = JSON.parse(await readFile(new URL('videos.json', MOCK_VIDEOS), 'utf8')) as Record<
+  number,
+  { width: number; height: number; duration: number }
+>;
 const token = await login(email, password);
 
 const assets: AssetRecord[] = [];
-for (const [index, picsumId] of PICSUM_IDS.entries()) {
-  assets.push(await createPhotoAsset(index, picsumId));
-  console.log(`Uploaded photo ${index + 1}/${PICSUM_IDS.length}`);
+for (const [index, media] of MEDIA.entries()) {
+  assets.push('video' in media ? await createVideoAsset(index, media) : await createPhotoAsset(index, media));
+  console.log(`Uploaded media ${index + 1}/${MEDIA.length}`);
 }
 const assetAt = (index: number) => assets[index]!;
 for (let index = assets.length; index < ASSET_COUNT; index++) assets.push(paddingAsset(index));
@@ -86,12 +147,12 @@ const albums: AlbumRecord[] = ALBUMS.map((album, index) => ({
 }));
 
 const albumAssets: AlbumAssetRecord[] = ALBUMS.flatMap((album, albumIndex) => {
-  const photos = album.photos ?? [];
-  const positions = initialKeys(photos.length);
-  return photos.map((photo, i) => ({
-    ...baseRecord(`album:${albumIndex}:asset:${photo}`, now),
+  const media = album.media ?? [];
+  const positions = initialKeys(media.length);
+  return media.map((item, i) => ({
+    ...baseRecord(`album:${albumIndex}:asset:${item}`, now),
     albumId: albums[albumIndex]!.id,
-    assetId: assetAt(photo).id,
+    assetId: assetAt(item).id,
     position: positions[i]!,
   }));
 });
@@ -111,11 +172,11 @@ const posts: PostRecord[] = POSTS.map((post, index) => {
 });
 
 const postAssets: PostAssetRecord[] = POSTS.flatMap((post, postIndex) => {
-  const positions = initialKeys(post.photos.length);
-  return post.photos.map((photo, i) => ({
-    ...baseRecord(`post:${postIndex}:asset:${photo}`, now),
+  const positions = initialKeys(post.media.length);
+  return post.media.map((item, i) => ({
+    ...baseRecord(`post:${postIndex}:asset:${item}`, now),
     postId: posts[postIndex]!.id,
-    assetId: assetAt(photo).id,
+    assetId: assetAt(item).id,
     position: positions[i]!,
   }));
 });
@@ -131,34 +192,85 @@ const mutations = [...toMutations(mockRecords), ...(await tombstonesForOtherReco
 await push(mutations);
 
 console.log(
-  `Mock data ready: ${assets.length} photos, ${albums.length} albums, ${posts.length} posts` +
+  `Mock data ready: ${assets.length} assets, ${albums.length} albums, ${posts.length} posts` +
     ` (${mutations.length} records pushed).`
 );
 
-async function createPhotoAsset(index: number, picsumId: number): Promise<AssetRecord> {
+async function createPhotoAsset(
+  index: number,
+  { picsum: picsumId, deleted }: { picsum: number; deleted?: boolean }
+): Promise<AssetRecord> {
   const { width, height } = (await fetchJson(`https://picsum.photos/id/${picsumId}/info`)) as {
     width: number;
     height: number;
   };
   const full = fitWithin(width, height, FULL_SIZE);
   const thumbnail = fitWithin(width, height, THUMBNAIL_SIZE);
-  const record = baseRecord(`asset:${picsumId}`, now - index * 2.5 * DAY);
-  const filename = `${record.id}.jpg`;
-  const thumbnailFilename = `${record.id}thumb.jpg`;
-
-  const file = await downloadPhoto(picsumId, full);
-  await upload(filename, file);
-  await upload(thumbnailFilename, await downloadPhoto(picsumId, thumbnail));
-
+  const url = `https://picsum.photos/id/${picsumId}`;
+  const [file, thumbnailFile] = await Promise.all([
+    download(`${url}/${full.width}/${full.height}.jpg`),
+    download(`${url}/${thumbnail.width}/${thumbnail.height}.jpg`),
+  ]);
   return {
-    ...record,
-    deletedAt: DELETED_PHOTOS.includes(index) ? now : null,
+    ...(await uploadMedia(index, `asset:${picsumId}`, {
+      extension: 'jpg',
+      contentType: 'image/jpeg',
+      file,
+      thumbnailFile,
+      deleted,
+    })),
     mediaLibraryAssetId: `mock-${picsumId}`,
     mediaType: 'photo',
     width: full.width,
     height: full.height,
-    fileSize: file.length,
     duration: null,
+  };
+}
+
+async function createVideoAsset(
+  index: number,
+  { video: clip, deleted }: { video: number; deleted?: boolean }
+): Promise<AssetRecord> {
+  const info = videoInfo[clip];
+  if (!info) throw new Error(`Mock video ${clip} isn't baked: add it to scripts/bake-mock-videos.sh and run it`);
+  const [file, thumbnailFile] = await Promise.all([
+    readFile(new URL(`${clip}.mp4`, MOCK_VIDEOS)),
+    readFile(new URL(`${clip}.jpg`, MOCK_VIDEOS)),
+  ]);
+  return {
+    ...(await uploadMedia(index, `asset:video:${clip}`, {
+      extension: 'mp4',
+      contentType: 'video/mp4',
+      file,
+      thumbnailFile,
+      deleted,
+    })),
+    mediaLibraryAssetId: `mock-video-${clip}`,
+    mediaType: 'video',
+    ...info,
+  };
+}
+
+// Uploads a mock asset's file and thumbnail, and returns the fields photos and videos share.
+async function uploadMedia(
+  index: number,
+  seed: string,
+  {
+    extension,
+    contentType,
+    file,
+    thumbnailFile,
+    deleted = false,
+  }: { extension: string; contentType: string; file: Buffer; thumbnailFile: Buffer; deleted?: boolean }
+) {
+  const record = baseRecord(seed, now - index * 2.5 * DAY);
+  const filename = `${record.id}.${extension}`;
+  const thumbnailFilename = `${record.id}thumb.jpg`;
+  await Promise.all([upload(filename, file, contentType), upload(thumbnailFilename, thumbnailFile, 'image/jpeg')]);
+  return {
+    ...record,
+    deletedAt: deleted ? now : null,
+    fileSize: file.length,
     filename,
     thumbnailFilename,
     isFavorite: index % 4 === 0,
@@ -170,11 +282,11 @@ async function createPhotoAsset(index: number, picsumId: number): Promise<AssetR
   };
 }
 
-// A copy of one of the real photos under its own id, spread back in time behind them.
+// A copy of one of the mock media under its own id, spread back in time behind them.
 function paddingAsset(index: number): AssetRecord {
-  const photo = assetAt(index % PICSUM_IDS.length);
+  const media = assetAt(index % MEDIA.length);
   return {
-    ...photo,
+    ...media,
     ...baseRecord(`asset:padding:${index}`, now - index * 60 * 60 * 1000),
     mediaLibraryAssetId: `mock-padding-${index}`,
     isFavorite: index % 9 === 0,
@@ -255,23 +367,21 @@ async function request(
   return res.json();
 }
 
-async function upload(key: string, bytes: Buffer): Promise<void> {
+async function upload(key: string, bytes: Buffer, contentType: string): Promise<void> {
   const res = await fetch(`${API_URL}/assets/upload/${encodeURIComponent(key)}`, {
     method: 'PUT',
-    headers: { authorization: `Bearer ${token}`, 'content-type': 'image/jpeg' },
+    headers: { authorization: `Bearer ${token}`, 'content-type': contentType },
     body: bytes,
   });
   if (!res.ok) throw new Error(`Upload of ${key} failed: ${res.status} ${await res.text()}`);
 }
 
-async function downloadPhoto(picsumId: number, { width, height }: { width: number; height: number }) {
-  const res = await fetch(`https://picsum.photos/id/${picsumId}/${width}/${height}.jpg`);
-  if (!res.ok) throw new Error(`Download of picsum photo ${picsumId} failed: ${res.status}`);
+async function download(url: string): Promise<Buffer> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Download of ${url} failed: ${res.status}`);
   return Buffer.from(await res.arrayBuffer());
 }
 
 async function fetchJson(url: string): Promise<unknown> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`GET ${url} failed: ${res.status}`);
-  return res.json();
+  return JSON.parse((await download(url)).toString());
 }
