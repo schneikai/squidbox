@@ -284,8 +284,7 @@ describe('plan guard', () => {
     // Not table scans: the albums themselves, the cover ids passed as JSON, each cover's one-row result.
     const scans = work.fullScans.filter((line) => line !== 'SCAN al' && !/^SCAN (json_each|\(subquery-)/.test(line));
     expect(scans).toEqual(
-      // The Favorites count and its cover either way: an ordered walk each (only one cover branch runs)
-      Array(3).fill('SCAN a USING INDEX assets_live_created_idx'),
+      Array(2).fill('SCAN a USING INDEX assets_live_created_idx'), // the Favorites count and cover: an ordered walk, once each
     );
     expect(work.plans).toContain('SEARCH a USING COVERING INDEX assets_deleted_idx (deleted_at>?)');
     expect(work.plans).toContain('SEARCH e USING INDEX album_assets_album_position_idx (album_id=?)');

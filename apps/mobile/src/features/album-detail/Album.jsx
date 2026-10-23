@@ -55,7 +55,8 @@ export default function Album({ album }) {
   const runWithProgress = useRunWithProgress();
   const selection = useToggleSelectAssetsAction();
   const { isSelectMode, selectedAssetIds, isAssetSelected, toggleSelectMode, exitSelectMode, selectAssets } = selection;
-  // A per-session override lets the open album react immediately to sort/reorder changes.
+  // The open album's sort until its synced Custom order flag catches up (a pick, or a drop that
+  // switches to it) or a failed drop reverts it.
   const [sessionSortOrder, setSessionSortOrder] = useState(null);
   const sortOrder = sessionSortOrder ?? getAlbumSortOrder(album, albumSortOrders);
   const [activeTab, setActiveTab] = useState('Assets');
@@ -88,7 +89,7 @@ export default function Album({ album }) {
     if (order === 'custom') {
       updateAlbum(album.id, { sortOrder: 'custom' });
     } else {
-      setAlbumSortOrders({ ...albumSortOrders, [album.id]: order });
+      setAlbumSortOrders((current) => withAlbumSortOrder(current, album.id, order));
       if (album.sortOrder === 'custom') updateAlbum(album.id, { sortOrder: null });
     }
     setSessionSortOrder(order);
@@ -228,6 +229,12 @@ export default function Album({ album }) {
       )}
     </Page>
   );
+}
+
+// Only sorts other than the default Newest first are kept.
+function withAlbumSortOrder(albumSortOrders, albumId, order) {
+  const { [albumId]: _previous, ...others } = albumSortOrders;
+  return order === 'createdAt:desc' ? others : { ...others, [albumId]: order };
 }
 
 const styles = StyleSheet.create({

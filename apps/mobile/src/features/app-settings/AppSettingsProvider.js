@@ -11,7 +11,7 @@ const DEFAULTS = {
   thumbnailStyle: 'cover',
   // The Library's sort.
   librarySortOrder: 'createdAt:desc',
-  // Each album's sort on this device, by album id, for albums not on Custom order (getAlbumSortOrder).
+  // Each album's sort on this device, by album id, when it isn't Newest first (getAlbumSortOrder).
   albumSortOrders: {},
   // The albums list's sort (useSortAlbumsAction), shared by the Albums tab and the album picker.
   albumListSortOrder: 'createdAt:desc',
@@ -22,7 +22,8 @@ const DEFAULTS = {
 };
 const KEYS = Object.keys(DEFAULTS);
 
-// The context holds each setting with its setter, e.g. `isHapticsOn` and `setIsHapticsOn`.
+// The context holds each setting with its setter, e.g. `isHapticsOn` and `setIsHapticsOn`. A setter
+// takes the new value or, like useState's, a function of the current one.
 const setterName = (key) => `set${key[0].toUpperCase()}${key.slice(1)}`;
 
 export default function AppSettingsProvider({ children }) {
@@ -56,7 +57,14 @@ export default function AppSettingsProvider({ children }) {
   const setters = useMemo(
     () =>
       Object.fromEntries(
-        KEYS.map((key) => [setterName(key), (value) => setSettings((current) => ({ ...current, [key]: value }))]),
+        KEYS.map((key) => [
+          setterName(key),
+          (value) =>
+            setSettings((current) => ({
+              ...current,
+              [key]: typeof value === 'function' ? value(current[key]) : value,
+            })),
+        ]),
       ),
     [],
   );

@@ -9,7 +9,11 @@ import { useLiveQueryState } from '@/sync/useLiveQuery';
  */
 export default function useAlbumRows(scope, { withLastPostedAt, isLive } = {}) {
   const { albumSortOrders } = useAppSettings();
-  const query = albumQuery({ scope, albumSortOrders, withLastPostedAt });
+  // Only the ids the query reads, so another album sort change doesn't re-read the albums.
+  const oldestFirstIds = Object.keys(albumSortOrders)
+    .filter((id) => albumSortOrders[id] === 'createdAt:asc')
+    .sort();
+  const query = albumQuery({ scope, oldestFirstIds, withLastPostedAt });
   const { data, readAt } = useLiveQueryState(query.read, query.tables, [query.descriptor], {
     minInterval: MIN_REREAD_INTERVAL,
     isLive,

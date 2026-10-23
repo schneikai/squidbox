@@ -31,25 +31,27 @@ function firstOf(scope, sort) {
  * Sort, filter and search stay in JS (prepareAlbums), albums being hundreds.
  * @param {object} descriptor
  * @param {'all' | { assetIds: string[] }} [descriptor.scope] albums holding any of these assets
- * @param {Record<string, 'createdAt:asc' | 'createdAt:desc'>} [descriptor.albumSortOrders] each album's sort
- *   by id (getAlbumSortOrder), which decides the cover of albums not on custom order
+ * @param {string[]} [descriptor.oldestFirstIds] the albums sorted Oldest first (getAlbumSortOrder), whose
+ *   cover is then their oldest asset unless they are on custom order
  * @param {boolean} [descriptor.withLastPostedAt]
  */
-export default function albumQuery({ scope = 'all', albumSortOrders = {}, withLastPostedAt = true }) {
+export default function albumQuery({ scope = 'all', oldestFirstIds = [], withLastPostedAt = true }) {
   const assetCount = sql`case al.smart_album_type
     when 'FAVORITES' then ${countOf('favorites')}
     when 'DELETED' then ${countOf('deleted')}
     else ${countOf(thisAlbum)}
   end`;
-  const oldestFirstIds = Object.keys(albumSortOrders).filter((id) => albumSortOrders[id] === 'createdAt:asc');
-  const isOldestFirst = inJson(sql.raw('al.id'), oldestFirstIds);
+  // The first asset under the album's date sort: Newest first unless it is one of `oldestFirstIds`.
+  function firstByDate(scope) {
+    const newest = firstOf(scope, 'createdAt:desc');
+    if (!oldestFirstIds.length) return newest;
+    return sql`case when ${inJson(sql.raw('al.id'), oldestFirstIds)} then ${firstOf(scope, 'createdAt:asc')} else ${newest} end`;
+  }
   const coverAssetId = sql`case
-    when al.smart_album_type = 'FAVORITES' and ${isOldestFirst} then ${firstOf('favorites', 'createdAt:asc')}
-    when al.smart_album_type = 'FAVORITES' then ${firstOf('favorites', 'createdAt:desc')}
+    when al.smart_album_type = 'FAVORITES' then ${firstByDate('favorites')}
     when al.smart_album_type = 'DELETED' then ${firstOf('deleted')}
     when al.sort_order = 'custom' then ${firstOf(thisAlbum, 'custom')}
-    when ${isOldestFirst} then ${firstOf(thisAlbum, 'createdAt:asc')}
-    else ${firstOf(thisAlbum, 'createdAt:desc')}
+    else ${firstByDate(thisAlbum)}
   end`;
   const newestPostedAt = sql`case when al.smart_album_type is null then ${albumLastPostedAt(thisAlbum.albumId)} end`;
   const inScope =
@@ -61,7 +63,7 @@ export default function albumQuery({ scope = 'all', albumSortOrders = {}, withLa
   if (withLastPostedAt) tables.push(schema.posts, schema.postAssets);
 
   return {
-    descriptor: { scope, albumSortOrders, withLastPostedAt },
+    descriptor: { scope, oldestFirstIds, withLastPostedAt },
     tables,
     read(db) {
       return db.transaction(async (tx) => {

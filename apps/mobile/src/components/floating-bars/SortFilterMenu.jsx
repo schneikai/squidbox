@@ -74,7 +74,9 @@ export default function SortFilterMenu({
       <MenuOption
         onPress={() => showPanel(true)}
         label="Filter"
-        trailing={<TrailingIcon name="chevron-right" color={colors.text.secondary} />}
+        trailing={
+          <Icon name="chevron-right" size={sizes.menuIcon} color={colors.text.secondary} style={styles.chevron} />
+        }
       />
       {activeFilter.length > 0 && (
         <MenuOption onPress={() => {
@@ -98,12 +100,8 @@ export default function SortFilterMenu({
   );
 }
 
-function TrailingIcon({ name, color }) {
-  return <Icon name={name} size={sizes.menuIcon} color={color} style={styles.trailingIcon} />;
-}
-
 const styles = StyleSheet.create({
-  trailingIcon: {
+  chevron: {
     marginLeft: 8,
   },
 });

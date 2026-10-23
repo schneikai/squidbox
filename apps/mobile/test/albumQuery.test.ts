@@ -75,8 +75,7 @@ describe('albumQuery', () => {
     expect(rows.regular.cover.id).toBe('asset-3');
     expect(rows.custom.cover.id).toBe('asset-3'); // the first edge's asset-4 is deleted
     expect(rows.favorites.cover.id).toBe('asset-5');
-    const oldestFirst = { regular: 'createdAt:asc', custom: 'createdAt:asc', favorites: 'createdAt:asc' } as const;
-    rows = await byId(albumQuery({ scope: 'all', albumSortOrders: oldestFirst }));
+    rows = await byId(albumQuery({ scope: 'all', oldestFirstIds: ['regular', 'custom', 'favorites'] }));
     expect(rows.regular.cover.id).toBe('asset-1');
     expect(rows.custom.cover.id).toBe('asset-3');
     expect(rows.favorites.cover.id).toBe('asset-2');
@@ -93,8 +92,10 @@ describe('albumQuery', () => {
     await createPost(db, { postedAt: 10 }, ['asset-1']);
     await createPost(db, { postedAt: 20 }, ['asset-3', 'asset-5']);
     for (const order of ['createdAt:asc', 'createdAt:desc'] as const) {
-      const albumSortOrders = { regular: order, custom: order, favorites: order, empty: order };
-      for (const row of await albumQuery({ scope: 'all', albumSortOrders }).read(db)) {
+      const albumSortOrders =
+        order === 'createdAt:asc' ? { regular: order, custom: order, favorites: order, empty: order } : {};
+      const oldestFirstIds = Object.keys(albumSortOrders);
+      for (const row of await albumQuery({ scope: 'all', oldestFirstIds }).read(db)) {
         const sort = getAlbumSortOrder(row, albumSortOrders);
         const { rows } = await assetQuery({ scope: getAlbumAssetScope(row), sort }).read(db, { limit: 1 });
         expect(row.cover?.id, `${row.id} under ${sort}`).toBe(rows[0]?.id);
