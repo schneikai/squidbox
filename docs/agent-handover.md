@@ -6,15 +6,15 @@ session. It points to where things live and covers what isn't obvious from the c
 
 ## Read first
 
-| What | Where |
-|---|---|
-| Coding rules, conventions, build invariants | `AGENTS.md` (always follow it) |
-| Setup, env files, builds, dev client, local backend, web preview | `README.md` |
-| Open work, ideas, owner-only steps | `todo.md`, the single list. Add an entry when you find something you won't fix now, and remove it in the same commit that does the work |
-| How sync works: per-field merge, restores vs purges, the device-library merge model | `docs/sync-design.md` (§8 = the merge model and what's left open) |
-| Device library vs account libraries, sign-in and sign-out | `docs/library-ownership-plan.md` |
-| Runbooks | Skills in `.claude/skills/`: `build` (iOS builds), `deploy-server` (Fly + Neon), `legacy-import` |
-| DB backups | `docs/ops/db-backup.md` |
+| What                                                                                | Where                                                                                                                                   |
+| ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Coding rules, conventions, build invariants                                         | `AGENTS.md` (always follow it)                                                                                                          |
+| Setup, env files, builds, dev client, local backend, web preview                    | `README.md`                                                                                                                             |
+| Open work, ideas, owner-only steps                                                  | `todo.md`, the single list. Add an entry when you find something you won't fix now, and remove it in the same commit that does the work |
+| How sync works: per-field merge, restores vs purges, the device-library merge model | `docs/sync-design.md` (§8 = the merge model and what's left open)                                                                       |
+| Device library vs account libraries, sign-in and sign-out                           | `docs/library-ownership-plan.md`                                                                                                        |
+| Runbooks                                                                            | Skills in `.claude/skills/`: `build` (iOS builds), `deploy-server` (Fly + Neon), `legacy-import`                                        |
+| DB backups                                                                          | `docs/ops/db-backup.md`                                                                                                                 |
 
 ## How the owner likes to work
 
@@ -65,7 +65,7 @@ Keep secrets outside the repo, e.g. a scratch `env.sh` you source. Refer to vari
   `<url>/status` returns 200, and give the owner only that URL. `tunnel.js` (ngrok free plan) doesn't
   work behind the proxy.
 - **iOS builds:** `EAS_BUILD_PROFILE=<preview|development> npx eas-cli build -p ios -e <profile>
-  --non-interactive --no-wait`, then poll about every 5 minutes. Hand over the build page URL plus a
+--non-interactive --no-wait`, then poll about every 5 minutes. Hand over the build page URL plus a
   QR code (see the `build` skill).
 - **Worktrees:** subagents work in `.claude/worktrees/<name>` with `node_modules` symlinked. Never run
   `npm install` / `expo install` inside a worktree; it once pruned the shared `node_modules`. Fix:
