@@ -23,7 +23,7 @@ describe('runBackup', () => {
 
   // An asset whose record the server has (pushed: no outbox row left), so the backup takes it.
   async function pushedAsset(fields: Parameters<typeof makeAssetRecord>[0]) {
-    const asset = await repo.createAsset(db, makeAssetRecord(fields));
+    const asset = await repo.create(db, makeAssetRecord(fields));
     await db.delete(schema.outbox);
     return asset;
   }
@@ -285,8 +285,8 @@ describe('runBackup', () => {
     await runBackup(db, {
       uploads: uploads({
         uploadFile: async (asset) => {
-          if (asset.id === gone.id) await repo.deleteAssets(db, [gone.id]);
-          else await repo.updateAsset(db, purged.id, { purgedAt: 1 });
+          if (asset.id === gone.id) await repo.remove(db, [gone.id]);
+          else await repo.update(db, purged.id, { purgedAt: 1 });
         },
       }),
     });
@@ -349,9 +349,9 @@ describe('runBackup', () => {
     const run = runBackup(db, { uploads: uploads() }); // reads the ids, then each row again
     // Queued right behind the ids' read, so they land before the first row's.
     await Promise.all([
-      repo.updateAsset(db, a.id, { isFileSynced: true, isThumbnailSynced: true, isSynced: true }),
-      repo.deleteAssets(db, [gone.id]),
-      repo.updateAsset(db, purged.id, { purgedAt: 1 }),
+      repo.update(db, a.id, { isFileSynced: true, isThumbnailSynced: true, isSynced: true }),
+      repo.remove(db, [gone.id]),
+      repo.update(db, purged.id, { purgedAt: 1 }),
     ]);
 
     await run;
@@ -360,8 +360,8 @@ describe('runBackup', () => {
 
   it('skips an asset whose record the server has yet to confirm: its push pending or failed', async () => {
     const unsynced = () => makeAssetRecord({ isFileSynced: false, isThumbnailSynced: false, isSynced: false });
-    const pending = await repo.createAsset(db, unsynced());
-    const failed = await repo.createAsset(db, unsynced());
+    const pending = await repo.create(db, unsynced());
+    const failed = await repo.create(db, unsynced());
     await setOutboxError(db, 'assets', [failed.id], 'schema:boom');
 
     await runBackup(db, { uploads: uploads() });

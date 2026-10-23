@@ -26,8 +26,8 @@ beforeEach(() => {
   n = 0;
 });
 
-function createAssets(overrides: Partial<AssetRecord>[]): Promise<AssetRecord[]> {
-  return repo.createAssets(
+function seedAssets(overrides: Partial<AssetRecord>[]): Promise<AssetRecord[]> {
+  return repo.createMany(
     db,
     overrides.map((over, i) => makeAssetRecord({ id: `asset-${i}`, createdAt: 1000 + i, ...over })),
   );
@@ -37,7 +37,7 @@ const rowIds = (rows: { id: string }[]) => rows.map((row) => row.id);
 
 describe('assetQuery', () => {
   it('lists the library newest first, with an id tie-break that holds across refreshes and pages', async () => {
-    await createAssets([{ createdAt: 5 }, { createdAt: 7 }, { createdAt: 7 }, { createdAt: 7 }, { createdAt: 6 }]);
+    await seedAssets([{ createdAt: 5 }, { createdAt: 7 }, { createdAt: 7 }, { createdAt: 7 }, { createdAt: 6 }]);
     const desc = assetQuery({ scope: 'library', sort: 'createdAt:desc' });
     const first = await desc.read(db, { limit: 10 });
     expect(rowIds(first.rows)).toEqual(['asset-3', 'asset-2', 'asset-1', 'asset-4', 'asset-0']);
@@ -51,7 +51,7 @@ describe('assetQuery', () => {
   });
 
   it('sorts by lastPostedAt with never-posted assets in date order, as the comparators did', async () => {
-    await createAssets([{}, {}, {}, {}]);
+    await seedAssets([{}, {}, {}, {}]);
     await createPost(db, { id: 'p1', postedAt: 10 }, ['asset-0']);
     await createPost(db, { id: 'p2', postedAt: 30 }, ['asset-0']);
     await createPost(db, { id: 'p3', postedAt: 20 }, ['asset-1']);
@@ -69,7 +69,7 @@ describe('assetQuery', () => {
   });
 
   it('filters by favorites and media type like the grid did', async () => {
-    await createAssets([
+    await seedAssets([
       { isFavorite: true, mediaType: 'photo' },
       { isFavorite: false, mediaType: 'video' },
       { isFavorite: true, mediaType: 'video' },
@@ -83,7 +83,7 @@ describe('assetQuery', () => {
   });
 
   it('leaves out the excluded ids in every scope, the count included', async () => {
-    await createAssets([{}, { notes: 'beach' }, {}, { notes: 'beach' }]);
+    await seedAssets([{}, { notes: 'beach' }, {}, { notes: 'beach' }]);
     await albumEdges.add(db, AL, ['asset-0', 'asset-1', 'asset-2'], newId);
     const exclude = ['asset-1', 'asset-2', 'gone'];
     expect(await assetQuery({ scope: 'library', exclude }).ids(db)).toEqual(['asset-3', 'asset-0']);
@@ -93,7 +93,7 @@ describe('assetQuery', () => {
   });
 
   it("leaves out an album's live assets, the count included, and shows them again once removed", async () => {
-    await createAssets([{}, { notes: 'beach' }, {}, { notes: 'beach' }]);
+    await seedAssets([{}, { notes: 'beach' }, {}, { notes: 'beach' }]);
     await albumEdges.add(db, AL, ['asset-0', 'asset-1', 'asset-2'], newId);
     await albumEdges.add(db, 'album-2', ['asset-1'], newId);
     const exclude = { albumId: AL };
@@ -107,7 +107,7 @@ describe('assetQuery', () => {
   });
 
   it('matches the search Unicode-aware, literally and once per read', async () => {
-    await createAssets([{ notes: 'Über 50% done' }, { notes: 'under_score' }, { notes: 'plain' }, { notes: null }]);
+    await seedAssets([{ notes: 'Über 50% done' }, { notes: 'under_score' }, { notes: 'plain' }, { notes: null }]);
     const search = (text: string) => assetQuery({ scope: 'library', search: text });
     expect(await search('über').ids(db)).toEqual(['asset-0']);
     expect(await search('%').ids(db)).toEqual(['asset-0']);
@@ -121,7 +121,7 @@ describe('assetQuery', () => {
   });
 
   it('scopes to favorites, deleted (most recently deleted first) and an album', async () => {
-    await createAssets([{ isFavorite: true }, {}, { deletedAt: 20 }, { deletedAt: 30 }, { deletedAt: 30 }, {}]);
+    await seedAssets([{ isFavorite: true }, {}, { deletedAt: 20 }, { deletedAt: 30 }, { deletedAt: 30 }, {}]);
     await albumEdges.add(db, AL, ['asset-1', 'asset-5', 'asset-2'], newId);
     expect(await assetQuery({ scope: 'favorites' }).ids(db)).toEqual(['asset-0']);
     expect(await assetQuery({ scope: 'deleted', sort: 'createdAt:asc' }).ids(db)).toEqual([
@@ -135,7 +135,7 @@ describe('assetQuery', () => {
   });
 
   it('scopes to one live asset alone, whatever the sort', async () => {
-    await createAssets([{}, {}, { deletedAt: 5 }]);
+    await seedAssets([{}, {}, { deletedAt: 5 }]);
     await createPost(db, { id: 'p1', postedAt: 10 }, ['asset-1']);
     const one = assetQuery({ scope: { assetId: 'asset-1' } });
     const { rows, count } = await one.read(db, { limit: 10 });
@@ -147,7 +147,7 @@ describe('assetQuery', () => {
   });
 
   it('shows an album in custom order once per asset, at its earliest edge, with a double edge', async () => {
-    await createAssets([{}, {}, {}]);
+    await seedAssets([{}, {}, {}]);
     await albumEdges.add(db, AL, ['asset-0', 'asset-1', 'asset-2'], newId);
     // A second live edge for asset-2 at the front (two offline devices adding it), ordered by (position, id).
     const edge = (id: string) => ({
@@ -173,8 +173,8 @@ describe('assetQuery', () => {
   });
 
   it('shows a post in its order once per asset, a trashed asset too, whatever the sort', async () => {
-    await createAssets([{ createdAt: 1 }, { createdAt: 3, deletedAt: 5 }, { createdAt: 2 }, {}, {}]);
-    await repo.updateAsset(db, 'asset-3', { deletedAt: 6, purgedAt: 7 });
+    await seedAssets([{ createdAt: 1 }, { createdAt: 3, deletedAt: 5 }, { createdAt: 2 }, {}, {}]);
+    await repo.update(db, 'asset-3', { deletedAt: 6, purgedAt: 7 });
     await createPost(db, { id: 'p1' }, ['asset-2', 'asset-0', 'asset-1', 'asset-3', 'asset-4'], newId);
     await createPost(db, { id: 'p2' }, ['asset-0'], newId);
     // A second live edge for asset-1 at the front (two offline devices adding it), and asset-4's
@@ -195,8 +195,8 @@ describe('assetQuery', () => {
   });
 
   it('reads rows by id as the scope keeps them by deletion, matching it or not', async () => {
-    await createAssets([{ isFavorite: true }, { deletedAt: 5 }, { deletedAt: 5 }, {}]);
-    await repo.updateAsset(db, 'asset-2', { purgedAt: 6 });
+    await seedAssets([{ isFavorite: true }, { deletedAt: 5 }, { deletedAt: 5 }, {}]);
+    await repo.update(db, 'asset-2', { purgedAt: 6 });
     const ids = ['asset-0', 'asset-1', 'asset-2', 'asset-3', 'gone'];
     const kept = async (scope: Descriptor['scope']) => rowIds(await assetQuery({ scope }).rowsByIds(db, ids)).sort();
     expect(await kept('favorites')).toEqual(['asset-0', 'asset-3']);
@@ -205,7 +205,7 @@ describe('assetQuery', () => {
   });
 
   it('agrees between count and ids for every descriptor', async () => {
-    await createAssets([
+    await seedAssets([
       { isFavorite: true, notes: 'one' },
       { mediaType: 'video', notes: 'two' },
       { deletedAt: 1 },
@@ -241,7 +241,7 @@ describe('assetQuery', () => {
   });
 
   it('reads a random sample of the limit with the full count', async () => {
-    await createAssets(Array.from({ length: 20 }, () => ({})));
+    await seedAssets(Array.from({ length: 20 }, () => ({})));
     const random = assetQuery({ scope: 'library', sort: 'random' });
     const { rows, count } = await random.read(db, { limit: 5 });
     expect(rows).toHaveLength(5);

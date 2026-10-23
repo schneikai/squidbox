@@ -52,7 +52,7 @@ describe('watchQuery', () => {
     await settle();
     expect(results).toHaveLength(1);
 
-    await repo.createAsset(db, makeAssetRecord({ filename: 'a.jpg' }));
+    await repo.create(db, makeAssetRecord({ filename: 'a.jpg' }));
     await settle();
     expect(results).toHaveLength(2);
     expect(results[1]!.map((row) => row.filename)).toEqual(['a.jpg']);
@@ -67,8 +67,8 @@ describe('watchQuery', () => {
     await settle();
     expect(gate.runs).toBe(1);
 
-    await repo.createAsset(db, makeAssetRecord({ filename: 'a.jpg' }));
-    await repo.createAsset(db, makeAssetRecord({ filename: 'b.jpg' }));
+    await repo.create(db, makeAssetRecord({ filename: 'a.jpg' }));
+    await repo.create(db, makeAssetRecord({ filename: 'b.jpg' }));
     await settle();
     expect(gate.runs).toBe(1); // still the first read
     gate.release();
@@ -94,13 +94,13 @@ describe('watchQuery', () => {
     expect(gate.runs).toBe(1);
     expect(results).toEqual([]);
 
-    await repo.createAsset(db, makeAssetRecord());
+    await repo.create(db, makeAssetRecord());
     await settle();
     expect(gate.runs).toBe(1);
   });
 
   it('keeps the objects of rows a write did not touch, and the whole result when nothing changed', async () => {
-    const [a, b] = await repo.createAssets(db, [makeAssetRecord({ id: 'a' }), makeAssetRecord({ id: 'b' })]);
+    const [a, b] = await repo.createMany(db, [makeAssetRecord({ id: 'a' }), makeAssetRecord({ id: 'b' })]);
     const results: Row[][] = [];
     const watch = watchQuery(db, readAssets, [schema.assets], (rows) => results.push(rows));
     watch.setEnabled(true);
@@ -114,7 +114,7 @@ describe('watchQuery', () => {
     expect(second![1]).not.toBe(first![1]);
     expect(second![1]!.isFavorite).toBe(true);
 
-    await repo.updateAsset(db, a!.id, { notes: 'not a field the read selects' });
+    await repo.update(db, a!.id, { notes: 'not a field the read selects' });
     await settle();
     expect(results).toHaveLength(3);
     expect(results[2]).toBe(second);
@@ -122,7 +122,7 @@ describe('watchQuery', () => {
   });
 
   it('reuses the rows of the data a replaced watch delivered (a load-more, a changed query)', async () => {
-    await repo.createAssets(db, [makeAssetRecord({ id: 'a' }), makeAssetRecord({ id: 'b' })]);
+    await repo.createMany(db, [makeAssetRecord({ id: 'a' }), makeAssetRecord({ id: 'b' })]);
     const first: Row[][] = [];
     const firstWatch = watchQuery(
       db,
@@ -144,7 +144,7 @@ describe('watchQuery', () => {
   });
 
   it('reuses nested rows and a { rows, count } result', async () => {
-    await repo.createAssets(db, [makeAssetRecord({ id: 'a' }), makeAssetRecord({ id: 'b' })]);
+    await repo.createMany(db, [makeAssetRecord({ id: 'a' }), makeAssetRecord({ id: 'b' })]);
     const read = async (db: AppDb) => {
       const rows = await readAssets(db);
       return {
@@ -156,7 +156,7 @@ describe('watchQuery', () => {
     const watch = watchQuery(db, read, [schema.assets], (data) => results.push(data));
     watch.setEnabled(true);
     await settle();
-    await repo.updateAsset(db, 'a', { notes: 'unselected field' });
+    await repo.update(db, 'a', { notes: 'unselected field' });
     await settle();
     expect(results[1]).toBe(results[0]);
 
@@ -172,7 +172,7 @@ describe('watchQuery', () => {
   it('skips reads while disabled and catches up once on enable, only if a write happened', async () => {
     const { gate, gated } = gatedRead(readAssets);
     const watch = watchQuery(db, gated, [schema.assets], () => {});
-    await repo.createAsset(db, makeAssetRecord());
+    await repo.create(db, makeAssetRecord());
     await settle();
     expect(gate.runs).toBe(0);
     watch.setEnabled(true);
@@ -181,8 +181,8 @@ describe('watchQuery', () => {
     expect(gate.runs).toBe(1); // the first read, due since the start
 
     watch.setEnabled(false);
-    await repo.createAsset(db, makeAssetRecord());
-    await repo.createAsset(db, makeAssetRecord());
+    await repo.create(db, makeAssetRecord());
+    await repo.create(db, makeAssetRecord());
     await settle();
     expect(gate.runs).toBe(1);
     watch.setEnabled(true);
@@ -202,7 +202,7 @@ describe('watchQuery', () => {
     const watch = watchQuery(db, gated, [schema.assets], () => {});
     watch.setEnabled(true);
     await settle();
-    await repo.createAsset(db, makeAssetRecord());
+    await repo.create(db, makeAssetRecord());
     watch.setEnabled(false);
     gate.release();
     await settle();
@@ -224,7 +224,7 @@ describe('watchQuery', () => {
     // A read already queued, then a write: the read runs first, so it can't show the write.
     const queued = db.committedWrites();
     const read = db.transaction((tx) => tx.select({ id: schema.assets.id }).from(schema.assets));
-    await repo.createAssets(db, [makeAssetRecord({ id: 'a' })]);
+    await repo.createMany(db, [makeAssetRecord({ id: 'a' })]);
     const writtenAt = db.committedWrites();
     expect(await read).toEqual([]);
     expect(queued).toBeLessThan(writtenAt);
@@ -245,7 +245,7 @@ describe('watchQuery', () => {
     watch.setEnabled(true);
     await settle();
     expect(seen).toEqual([]);
-    await repo.createAssets(db, [makeAssetRecord({ id: 'a' })]);
+    await repo.createMany(db, [makeAssetRecord({ id: 'a' })]);
     await settle();
     expect(seen.map((rows) => rows.map((row) => row.id))).toEqual([['a']]);
     watch.stop();
@@ -298,12 +298,12 @@ describe('watchQuery', () => {
       expect(results).toHaveLength(1); // the first read doesn't wait
 
       vi.advanceTimersByTime(2000);
-      await repo.createAsset(db, makeAssetRecord({ filename: 'quiet.jpg' }));
+      await repo.create(db, makeAssetRecord({ filename: 'quiet.jpg' }));
       await settle();
       expect(results).toHaveLength(2); // a write after a quiet second shows right away
 
       for (let i = 0; i < 5; i++) {
-        await repo.createAsset(db, makeAssetRecord({ filename: `burst${i}.jpg` }));
+        await repo.create(db, makeAssetRecord({ filename: `burst${i}.jpg` }));
         await settle();
         vi.advanceTimersByTime(100);
       }
@@ -316,7 +316,7 @@ describe('watchQuery', () => {
       expect(results).toHaveLength(3); // one read for the whole burst, a second after the last one began
       expect(results[2]).toHaveLength(6);
 
-      await repo.createAsset(db, makeAssetRecord());
+      await repo.create(db, makeAssetRecord());
       watch.stop();
       expect(vi.getTimerCount()).toBe(0);
       vi.advanceTimersByTime(1000);
@@ -331,7 +331,7 @@ describe('watchQuery', () => {
       });
       watch.setEnabled(true);
       await settle();
-      await repo.createAsset(db, makeAssetRecord());
+      await repo.create(db, makeAssetRecord());
       await settle();
       expect(vi.getTimerCount()).toBe(1); // the re-read waits for the interval
 
@@ -352,7 +352,7 @@ describe('watchQuery', () => {
       expect(gate.runs).toBe(1);
 
       watch.setEnabled(false);
-      await repo.createAsset(db, makeAssetRecord());
+      await repo.create(db, makeAssetRecord());
       await settle();
       watch.setEnabled(true);
       await settle();
@@ -368,7 +368,7 @@ describe('watchQuery', () => {
       await settle();
       watch.setEnabled(false);
       watch.setEnabled(true); // a quick blur and focus while the first read runs
-      await repo.createAsset(db, makeAssetRecord());
+      await repo.create(db, makeAssetRecord());
       gate.release();
       await settle();
       expect(gate.runs).toBe(1); // the write's re-read waits for the interval

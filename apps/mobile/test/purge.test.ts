@@ -45,11 +45,11 @@ describe('Delete permanently', () => {
   it('purges the asset for good: out of the Deleted album and every album, its files once the server has it', async () => {
     const albums = makeRepository('albums', schema.albums);
     const albumEdges = makeEdgeRepository('album_assets', schema.albumAssets, 'albumId');
-    const asset = await repo.createAsset(db, makeAssetRecord());
+    const asset = await repo.create(db, makeAssetRecord());
     const album = makeAlbumRecord();
     await albums.create(db, album);
     await albumEdges.add(db, album.id, [asset.id], () => 'edge-1');
-    await repo.deleteAssets(db, [asset.id]);
+    await repo.remove(db, [asset.id]);
     const trashedAt = (await assetRow(asset.id))!.deletedAt;
     expect(await assetQuery({ scope: 'deleted' }).ids(db)).toEqual([asset.id]);
 
@@ -73,7 +73,7 @@ describe('Delete permanently', () => {
   });
 
   it('removes only the names no other asset still uses, and again after a failed removal', async () => {
-    const [mine, other, alsoPurged, before] = await repo.createAssets(db, [
+    const [mine, other, alsoPurged, before] = await repo.createMany(db, [
       makeAssetRecord({ filename: 'shared.jpg', thumbnailFilename: 'mine-t.jpg' }),
       makeAssetRecord({ filename: 'other.jpg', thumbnailFilename: 'shared.jpg' }), // a live asset naming it
       makeAssetRecord({ filename: 'both.jpg', thumbnailFilename: 'both-t.jpg' }),
@@ -96,7 +96,7 @@ describe('Delete permanently', () => {
   });
 
   it('a purge that loses to a restore elsewhere keeps the files, and the asset comes back', async () => {
-    const asset = await repo.createAsset(db, makeAssetRecord({ deletedAt: 1000 }));
+    const asset = await repo.create(db, makeAssetRecord({ deletedAt: 1000 }));
     await runSyncOnce(db, fakeTransport());
     await repo.purgeAssets(db, [asset.id]);
     const restored = { ...asset, deletedAt: null, purgedAt: null, updatedAt: Date.now() + 1000 };
@@ -120,9 +120,9 @@ describe('Delete permanently', () => {
   });
 
   it('a post shows a trashed asset but never a purged one', async () => {
-    const [kept, gone] = await repo.createAssets(db, [makeAssetRecord(), makeAssetRecord()]);
+    const [kept, gone] = await repo.createMany(db, [makeAssetRecord(), makeAssetRecord()]);
     await createPost(db, { id: 'p1' }, [kept!.id, gone!.id]);
-    await repo.deleteAssets(db, [gone!.id]);
+    await repo.remove(db, [gone!.id]);
     const showing = async () =>
       (await postQuery({ scope: { postId: 'p1' } }).read(db, { limit: 1 })).rows[0].postAssets.map(
         (ref: { asset: { id: string } }) => ref.asset.id,
@@ -138,11 +138,8 @@ describe('local files of a purge that arrives through sync', () => {
     fakeTransport({ pull: async () => ({ changes: { assets: { records } }, cursor: 5, hasMore: false }) });
 
   it('go when a pulled asset is purged, and stay while it is only in the Deleted album', async () => {
-    const trashed = await repo.createAsset(
-      db,
-      makeAssetRecord({ filename: 'trashed.jpg', thumbnailFilename: 'tt.jpg' }),
-    );
-    const purged = await repo.createAsset(db, makeAssetRecord({ filename: 'purged.jpg', thumbnailFilename: 'tt.jpg' }));
+    const trashed = await repo.create(db, makeAssetRecord({ filename: 'trashed.jpg', thumbnailFilename: 'tt.jpg' }));
+    const purged = await repo.create(db, makeAssetRecord({ filename: 'purged.jpg', thumbnailFilename: 'tt.jpg' }));
     await runSyncOnce(db, fakeTransport());
     const { removed, removeFiles } = recording();
     const transport = pulling([
@@ -157,7 +154,7 @@ describe('local files of a purge that arrives through sync', () => {
   });
 
   it('cost nothing for an echo of a purge made here; an asset this device never had is swept once', async () => {
-    const asset = await repo.createAsset(db, makeAssetRecord());
+    const asset = await repo.create(db, makeAssetRecord());
     await repo.purgeAssets(db, [asset.id]);
     await runSyncOnce(db, fakeTransport(), { removeFiles: async () => {} });
     const { removed, removeFiles } = recording();
@@ -179,7 +176,7 @@ describe('local files of a purge that arrives through sync', () => {
   });
 
   it('a full resync still removes the files of an asset purged elsewhere meanwhile', async () => {
-    const asset = await repo.createAsset(db, makeAssetRecord({ filename: 'r.jpg', thumbnailFilename: 'r-t.jpg' }));
+    const asset = await repo.create(db, makeAssetRecord({ filename: 'r.jpg', thumbnailFilename: 'r-t.jpg' }));
     await runSyncOnce(db, fakeTransport());
     const { removed, removeFiles } = recording();
 
@@ -190,8 +187,8 @@ describe('local files of a purge that arrives through sync', () => {
   });
 
   it('a purge pulled while this device’s own purge of it waits for its push: no removal then, once at the push', async () => {
-    const asset = await repo.createAsset(db, makeAssetRecord({ filename: 'w.jpg', thumbnailFilename: 'w-t.jpg' }));
-    await repo.deleteAssets(db, [asset.id]);
+    const asset = await repo.create(db, makeAssetRecord({ filename: 'w.jpg', thumbnailFilename: 'w-t.jpg' }));
+    await repo.remove(db, [asset.id]);
     await runSyncOnce(db, fakeTransport());
     await repo.purgeAssets(db, [asset.id]);
     const { removed, removeFiles } = recording();
@@ -228,12 +225,9 @@ describe('local files of a purge that arrives through sync', () => {
   });
 
   it('go when a purge beats this device’s own edit, which then adopts it', async () => {
-    const asset = await repo.createAsset(
-      db,
-      makeAssetRecord({ filename: 'mine.jpg', thumbnailFilename: 'mine-t.jpg' }),
-    );
+    const asset = await repo.create(db, makeAssetRecord({ filename: 'mine.jpg', thumbnailFilename: 'mine-t.jpg' }));
     await runSyncOnce(db, fakeTransport());
-    await repo.updateAsset(db, asset.id, { notes: 'edited offline' });
+    await repo.update(db, asset.id, { notes: 'edited offline' });
     const current = { ...asset, deletedAt: 3000, purgedAt: 3000, updatedAt: 3000 }; // purged on another device
     const { removed, removeFiles } = recording();
     const transport = fakeTransport({
@@ -267,8 +261,8 @@ describe('the sweep: crashes, shared names, resyncs, device libraries', () => {
     }),
   });
   async function trashed(over: Record<string, unknown>) {
-    const asset = await repo.createAsset(db, makeAssetRecord(over));
-    await repo.deleteAssets(db, [asset.id]);
+    const asset = await repo.create(db, makeAssetRecord(over));
+    await repo.remove(db, [asset.id]);
     return asset;
   }
 
@@ -337,10 +331,7 @@ describe('the sweep: crashes, shared names, resyncs, device libraries', () => {
     const confirmed = await trashed({ filename: 'f.jpg', thumbnailFilename: 'confirmed-t.jpg' });
     const pending = await trashed({ filename: 'f.jpg', thumbnailFilename: 'g.jpg' });
     const inTrash = await trashed({ filename: 'trash.jpg', thumbnailFilename: 'g.jpg' });
-    const live = await repo.createAsset(
-      db,
-      makeAssetRecord({ filename: 'live.jpg', thumbnailFilename: 'confirmed-t.jpg' }),
-    );
+    const live = await repo.create(db, makeAssetRecord({ filename: 'live.jpg', thumbnailFilename: 'confirmed-t.jpg' }));
     await runSyncOnce(db, applied);
     await repo.purgeAssets(db, [confirmed.id]);
     await runSyncOnce(db, applied); // confirmed
@@ -354,7 +345,7 @@ describe('the sweep: crashes, shared names, resyncs, device libraries', () => {
     await db.update(schema.outbox).set({ error: null });
     await runSyncOnce(db, applied, { removeFiles });
     expect(removed.sort()).toEqual(['f.jpg', 'g.jpg', 'trash.jpg']);
-    await repo.deleteAssets(db, [live.id]);
+    await repo.remove(db, [live.id]);
     await repo.purgeAssets(db, [live.id]);
     await runSyncOnce(db, applied, { removeFiles });
     expect(removed.sort()).toEqual(['confirmed-t.jpg', 'f.jpg', 'g.jpg', 'live.jpg', 'trash.jpg']);
@@ -407,9 +398,9 @@ describe('the sweep: crashes, shared names, resyncs, device libraries', () => {
   });
 
   it('a rejected edit waiting on an asset purged elsewhere: the pull brings the purge and its files go', async () => {
-    const asset = await repo.createAsset(db, makeAssetRecord({ filename: 'r.jpg', thumbnailFilename: 'r-t.jpg' }));
+    const asset = await repo.create(db, makeAssetRecord({ filename: 'r.jpg', thumbnailFilename: 'r-t.jpg' }));
     await runSyncOnce(db, applied);
-    await repo.updateAsset(db, asset.id, { notes: 'bad' });
+    await repo.update(db, asset.id, { notes: 'bad' });
     const { removed, removeFiles } = recording();
     const purged = { ...asset, deletedAt: 2000, purgedAt: 3000, updatedAt: 3000 };
     await runSyncOnce(
@@ -433,7 +424,7 @@ describe('the sweep: crashes, shared names, resyncs, device libraries', () => {
   // library switch: withSyncPaused) or the app is killed in it (the sweep at the library's next open).
   it('a full resync stopped after its first page keeps a name a live photo not pulled back yet uses', async () => {
     const purged = await trashed({ filename: 'shared.jpg', thumbnailFilename: 'p-t.jpg' });
-    const live = await repo.createAsset(
+    const live = await repo.create(
       db,
       makeAssetRecord({ filename: 'shared.jpg', thumbnailFilename: 'l-t.jpg', isFileSynced: false, isSynced: false }),
     );
@@ -473,15 +464,15 @@ describe('the sweep: crashes, shared names, resyncs, device libraries', () => {
 describe('the sweep: concurrent sweeps, aborts, stuck assets, resyncs', () => {
   const applied = fakeTransport();
   async function trashed(over: Record<string, unknown>) {
-    const asset = await repo.createAsset(db, makeAssetRecord(over));
-    await repo.deleteAssets(db, [asset.id]);
+    const asset = await repo.create(db, makeAssetRecord(over));
+    await repo.remove(db, [asset.id]);
     return asset;
   }
   async function manyPurged(n: number, name: (i: number) => { filename: string; thumbnailFilename: string }) {
     const records = Array.from({ length: n }, (_, i) => makeAssetRecord(name(i)));
-    await repo.createAssets(db, records);
+    await repo.createMany(db, records);
     const ids = records.map((record) => record.id);
-    await repo.deleteAssets(db, ids);
+    await repo.remove(db, ids);
     await repo.purgeAssets(db, ids);
     await runSyncOnce(db, applied);
     return ids;
@@ -532,7 +523,7 @@ describe('the sweep: concurrent sweeps, aborts, stuck assets, resyncs', () => {
       filename: 'same.jpg',
       thumbnailFilename: i === 2 ? 'stuck.jpg' : `s${i}.jpg`,
     }));
-    const live = await repo.createAsset(db, makeAssetRecord({ filename: 'other.jpg', thumbnailFilename: 'stuck.jpg' }));
+    const live = await repo.create(db, makeAssetRecord({ filename: 'other.jpg', thumbnailFilename: 'stuck.jpg' }));
     await runSyncOnce(db, applied);
     const removed: string[] = [];
     const removeFiles: RemoveFiles = async (files) => {
@@ -544,7 +535,7 @@ describe('the sweep: concurrent sweeps, aborts, stuck assets, resyncs', () => {
     await expect(sweepPurgedFiles(db, removeFiles)).rejects.toThrow('1 purged assets: locked');
     expect((await unswept()).map((row) => row.id)).toEqual([ids[2]]);
     expect(removed).not.toContain('stuck.jpg'); // the live photo's
-    await repo.deleteAssets(db, [live.id]);
+    await repo.remove(db, [live.id]);
     await repo.purgeAssets(db, [live.id]);
     await runSyncOnce(db, applied);
     await sweepPurgedFiles(db, async (files) => {
@@ -570,7 +561,7 @@ describe('the sweep: concurrent sweeps, aborts, stuck assets, resyncs', () => {
       filename: 'shared.jpg',
       thumbnailFilename: 'p2-t.jpg',
     });
-    const live = await repo.createAsset(
+    const live = await repo.create(
       db,
       makeAssetRecord({ filename: 'shared.jpg', thumbnailFilename: 'l-t.jpg', isFileSynced: false, isSynced: false }),
     );
@@ -694,7 +685,7 @@ describe('migration 0012_purged_files on a database from before it', () => {
   it('pushes the installed app’s pending rows without fields, an edit on top of one too, and a new one with them', async () => {
     const { db: upgraded } = installedAppDb();
     await repo.toggleFavorite(upgraded, 'live'); // coalesces into the installed app's row
-    await repo.updateAllAssets(upgraded, ['trashed'], { deletedAt: null });
+    await repo.updateAll(upgraded, ['trashed'], { deletedAt: null });
     const sent: PushMutation[] = [];
     await runSyncOnce(
       upgraded,
@@ -745,7 +736,7 @@ describe('migration 0012_purged_files on a database from before it', () => {
     expect(purge).not.toHaveProperty('fields'); // pushed as the installed app pushed it
     const row = () => upgraded.select().from(schema.assets).where(eq(schema.assets.id, 'offline')).get();
     expect(await row()).toMatchObject({ deletedAt: null, purgedAt: null, filesRemovedFor: null }); // back, live
-    await repo.deleteAssets(upgraded, ['offline']);
+    await repo.remove(upgraded, ['offline']);
     await repo.purgeAssets(upgraded, ['offline']);
     const { removed, removeFiles } = recording();
     await runSyncOnce(upgraded, fakeTransport(), { removeFiles });

@@ -214,7 +214,7 @@ const STEPS = [
 ];
 
 async function devicePhoto(db: AppDb, over: Record<string, unknown>) {
-  const asset = await repo.createAsset(
+  const asset = await repo.create(
     db,
     makeAssetRecord({ isFileSynced: false, isThumbnailSynced: false, isSynced: false, ...over }),
   );
@@ -256,7 +256,7 @@ async function scenario(step: string, crash: boolean, keepsSource: boolean): Pro
   if (entry('dev')) {
     await closeLibrary();
     await openLibrary(DEV);
-    await repo.deleteAssets(getDb(), [photo.id]);
+    await repo.remove(getDb(), [photo.id]);
     await repo.purgeAssets(getDb(), [photo.id]);
     sweepOpenLibrary();
     await settled();
@@ -320,14 +320,14 @@ describe('a merge pass failing or crashing at each step, then a purge on the dev
 describe('a device library’s sweep running when the sign-in merges it', () => {
   it('stops at the switch, never touches a live photo’s file, and the merge completes', async () => {
     const source = await resetLibraries();
-    const purged = await repo.createAssets(
+    const purged = await repo.createMany(
       source,
       Array.from({ length: 2000 }, (_, i) =>
         makeAssetRecord({ filename: `gone${i}.jpg`, thumbnailFilename: `gone${i}-t.jpg`, isFileSynced: false }),
       ),
     );
     for (const asset of purged) files.add(getAssetFileUri(asset.filename, SRC));
-    await repo.deleteAssets(
+    await repo.remove(
       source,
       purged.map((a) => a.id),
     );
@@ -543,7 +543,7 @@ describe('round 19: seeded crashes', () => {
       } else if (op < 0.9) {
         const rows = (await accountAssets()).filter((row) => row.deletedAt === null && !row.isFileSynced);
         if (rows.length)
-          await repo.updateAsset(getDb(), pick(rows).id, {
+          await repo.update(getDb(), pick(rows).id, {
             isFileSynced: true,
             isThumbnailSynced: true,
             isSynced: true,
@@ -558,11 +558,11 @@ describe('round 19: seeded crashes', () => {
           if (rows.length) {
             const photo = pick(rows);
             const edit = r();
-            if (edit < 0.3) await repo.updateAsset(getDb(), photo.id, { notes: `dev edit ${step}` });
+            if (edit < 0.3) await repo.update(getDb(), photo.id, { notes: `dev edit ${step}` });
             else if (edit < 0.6) await repo.toggleFavorite(getDb(), photo.id);
-            else if (edit < 0.8) await repo.deleteAssets(getDb(), [photo.id]);
+            else if (edit < 0.8) await repo.remove(getDb(), [photo.id]);
             else {
-              await repo.deleteAssets(getDb(), [photo.id]);
+              await repo.remove(getDb(), [photo.id]);
               await repo.purgeAssets(getDb(), [photo.id]);
               sweepOpenLibrary();
               await settled();

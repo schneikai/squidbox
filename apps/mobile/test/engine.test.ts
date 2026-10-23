@@ -22,18 +22,18 @@ const outboxRows = () => db.select().from(schema.outbox);
 const assetRow = (id: string) => db.select().from(schema.assets).where(eq(schema.assets.id, id)).get();
 
 describe('repository (real SQLite)', () => {
-  it('createAsset writes the row and one outbox row; the row reads back', async () => {
-    const rec = await repo.createAsset(db, makeAssetRecord({ filename: 'x.jpg' }));
+  it('create writes the row and one outbox row; the row reads back', async () => {
+    const rec = await repo.create(db, makeAssetRecord({ filename: 'x.jpg' }));
     expect(await readLiveAsset(db, rec.id)).toMatchObject({ id: rec.id, filename: 'x.jpg' });
     const ob = await outboxRows();
     expect(ob).toHaveLength(1);
     expect(ob[0]).toMatchObject({ collection: 'assets', recordId: rec.id, op: 'upsert' });
   });
 
-  it('updateAsset bumps updatedAt monotonically and coalesces the outbox to one row', async () => {
-    const rec = await repo.createAsset(db, makeAssetRecord({ updatedAt: 1000 }));
-    await repo.updateAsset(db, rec.id, { isFavorite: true });
-    await repo.updateAsset(db, rec.id, { notes: 'hi' });
+  it('update bumps updatedAt monotonically and coalesces the outbox to one row', async () => {
+    const rec = await repo.create(db, makeAssetRecord({ updatedAt: 1000 }));
+    await repo.update(db, rec.id, { isFavorite: true });
+    await repo.update(db, rec.id, { notes: 'hi' });
     const row = await assetRow(rec.id);
     expect(row?.isFavorite).toBe(true);
     expect(row?.notes).toBe('hi');
@@ -42,14 +42,14 @@ describe('repository (real SQLite)', () => {
   });
 
   it('two toggles in flight together leave the favorite as it was', async () => {
-    const rec = await repo.createAsset(db, makeAssetRecord({ isFavorite: false }));
+    const rec = await repo.create(db, makeAssetRecord({ isFavorite: false }));
     await Promise.all([repo.toggleFavorite(db, rec.id), repo.toggleFavorite(db, rec.id)]);
     expect((await assetRow(rec.id))?.isFavorite).toBe(false);
   });
 
-  it('deleteAssets tombstones (excluded from the live map) and enqueues a delete', async () => {
-    const rec = await repo.createAsset(db, makeAssetRecord());
-    await repo.deleteAssets(db, [rec.id]);
+  it('remove tombstones (excluded from the live map) and enqueues a delete', async () => {
+    const rec = await repo.create(db, makeAssetRecord());
+    await repo.remove(db, [rec.id]);
     expect(await readLiveAsset(db, rec.id)).toBeUndefined();
     const row = await assetRow(rec.id);
     expect(row?.deletedAt).not.toBeNull();
@@ -66,7 +66,7 @@ describe('outbox fields (per-field merge)', () => {
   };
 
   it('a create names every field at its clock', async () => {
-    const rec = await repo.createAsset(db, makeAssetRecord());
+    const rec = await repo.create(db, makeAssetRecord());
     expect(await fieldsOf(rec.id)).toMatchObject({
       notes: rec.updatedAt,
       deletedAt: rec.updatedAt,
@@ -76,10 +76,10 @@ describe('outbox fields (per-field merge)', () => {
   });
 
   it('an update, a toggle, a delete and a purge name only what they change', async () => {
-    const rec = await repo.createAsset(db, makeAssetRecord({ notes: 'same' }));
+    const rec = await repo.create(db, makeAssetRecord({ notes: 'same' }));
     await settled();
 
-    await repo.updateAsset(db, rec.id, { notes: 'same', filename: 'b.jpg' }); // the whole form, one change
+    await repo.update(db, rec.id, { notes: 'same', filename: 'b.jpg' }); // the whole form, one change
     expect(await fieldsOf(rec.id)).toEqual({ filename: (await assetRow(rec.id))!.updatedAt });
     await settled();
 
@@ -87,7 +87,7 @@ describe('outbox fields (per-field merge)', () => {
     expect(await fieldsOf(rec.id)).toEqual({ isFavorite: (await assetRow(rec.id))!.updatedAt });
     await settled();
 
-    await repo.deleteAssets(db, [rec.id]);
+    await repo.remove(db, [rec.id]);
     const deletedAt = (await assetRow(rec.id))!.updatedAt;
     expect(await fieldsOf(rec.id)).toEqual({ deletedAt, purgedAt: deletedAt }); // one field group
     await settled();
@@ -98,13 +98,13 @@ describe('outbox fields (per-field merge)', () => {
   });
 
   it('coalesced edits keep each field’s own clock, the payload the latest record', async () => {
-    const rec = await repo.createAsset(db, makeAssetRecord());
+    const rec = await repo.create(db, makeAssetRecord());
     await settled();
-    await repo.updateAsset(db, rec.id, { notes: 'first' });
+    await repo.update(db, rec.id, { notes: 'first' });
     const first = (await assetRow(rec.id))!.updatedAt;
-    await repo.updateAsset(db, rec.id, { isFavorite: true });
+    await repo.update(db, rec.id, { isFavorite: true });
     const second = (await assetRow(rec.id))!.updatedAt;
-    await repo.updateAsset(db, rec.id, { notes: 'again' });
+    await repo.update(db, rec.id, { notes: 'again' });
     const third = (await assetRow(rec.id))!.updatedAt;
 
     const [row] = await outboxRows();
@@ -114,27 +114,27 @@ describe('outbox fields (per-field merge)', () => {
   });
 
   it('a save that changes nothing writes nothing', async () => {
-    const rec = await repo.createAsset(db, makeAssetRecord({ notes: 'same' }));
+    const rec = await repo.create(db, makeAssetRecord({ notes: 'same' }));
     await settled();
     const before = await assetRow(rec.id);
-    await repo.updateAsset(db, rec.id, { notes: 'same' });
+    await repo.update(db, rec.id, { notes: 'same' });
     expect(await assetRow(rec.id)).toEqual(before);
     expect(await outboxRows()).toHaveLength(0);
   });
 
   it('the file flags are sent together', async () => {
-    const rec = await repo.createAsset(
+    const rec = await repo.create(
       db,
       makeAssetRecord({ isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
     );
     await settled();
-    await repo.updateAsset(db, rec.id, { isThumbnailSynced: true });
+    await repo.update(db, rec.id, { isThumbnailSynced: true });
     const ts = (await assetRow(rec.id))!.updatedAt;
     expect(await fieldsOf(rec.id)).toEqual({ isFileSynced: ts, isThumbnailSynced: ts, isSynced: ts });
   });
 
   it('the push sends the fields', async () => {
-    const edited = await repo.createAsset(db, makeAssetRecord());
+    const edited = await repo.create(db, makeAssetRecord());
     const sent: PushMutation[] = [];
     await runSyncOnce(
       db,
@@ -151,8 +151,8 @@ describe('outbox fields (per-field merge)', () => {
 
 describe('worker push', () => {
   it('drains the outbox when everything is applied', async () => {
-    await repo.createAsset(db, makeAssetRecord());
-    await repo.createAsset(db, makeAssetRecord());
+    await repo.create(db, makeAssetRecord());
+    await repo.create(db, makeAssetRecord());
     await runSyncOnce(db, fakeTransport());
     expect(await outboxRows()).toHaveLength(0);
   });
@@ -160,7 +160,7 @@ describe('worker push', () => {
   it('splits a push by size too: no request carries more than half the body limit of mutations, each row is pushed once', async () => {
     const notes = 'é'.repeat(PUSH_BODY_LIMIT / 16); // an eighth of the limit in UTF-8
     const records = Array.from({ length: 12 }, () => makeAssetRecord({ notes }));
-    await repo.createAssets(db, records);
+    await repo.createMany(db, records);
     const sizes: number[] = [];
     const ids: string[] = [];
     const counting = fakeTransport({
@@ -199,9 +199,9 @@ describe('worker push', () => {
     const mid = Array.from({ length: 3 }, () =>
       makeAssetRecord({ notes: '中'.repeat(Math.floor((0.3 * PUSH_BODY_LIMIT) / 3)) }),
     );
-    await repo.createAssets(db, small.slice(0, small.length / 2));
-    await repo.createAssets(db, [big, ...mid]);
-    await repo.createAssets(db, small.slice(small.length / 2));
+    await repo.createMany(db, small.slice(0, small.length / 2));
+    await repo.createMany(db, [big, ...mid]);
+    await repo.createMany(db, small.slice(small.length / 2));
     const bodies: number[] = [];
     await runSyncOnce(db, serverLimits(bodies));
     expect(await outboxRows()).toHaveLength(0);
@@ -215,8 +215,8 @@ describe('worker push', () => {
   // sent: it gets a too-large rejection, as a row the server refused does (an `error` on its outbox
   // row, shown like a rejected push), and the other rows and the pull go on.
   it('a single row over the body limit fails alone; the other rows and the pull go on', async () => {
-    const huge = await repo.createAsset(db, makeAssetRecord({ notes: 'é'.repeat(Math.floor(0.6 * PUSH_BODY_LIMIT)) })); // 1.2x
-    await repo.createAsset(db, makeAssetRecord({ notes: 'small' }));
+    const huge = await repo.create(db, makeAssetRecord({ notes: 'é'.repeat(Math.floor(0.6 * PUSH_BODY_LIMIT)) })); // 1.2x
+    await repo.create(db, makeAssetRecord({ notes: 'small' }));
     let pulls = 0;
     const limits = serverLimits();
     const transport = fakeTransport({
@@ -234,7 +234,7 @@ describe('worker push', () => {
   });
 
   it('an applied push changes no asset row, so live reads of assets are not re-run', async () => {
-    await repo.createAsset(db, makeAssetRecord());
+    await repo.create(db, makeAssetRecord());
     const changed: string[] = [];
     (db as AppDb).onTablesChanged((tables) => changed.push(...tables));
     await runSyncOnce(db, fakeTransport());
@@ -242,7 +242,7 @@ describe('worker push', () => {
   });
 
   it('adopts the server current on skipped-lww and clears the outbox', async () => {
-    const rec = await repo.createAsset(db, makeAssetRecord({ notes: 'mine', updatedAt: 1000 }));
+    const rec = await repo.create(db, makeAssetRecord({ notes: 'mine', updatedAt: 1000 }));
     const serverWins = makeAssetRecord({ id: rec.id, notes: 'server', updatedAt: 5000 });
     await runSyncOnce(
       db,
@@ -264,7 +264,7 @@ describe('worker push', () => {
   });
 
   it('keeps the outbox row on rejected and records the reason there, not as an upload error', async () => {
-    const rec = await repo.createAsset(db, makeAssetRecord());
+    const rec = await repo.create(db, makeAssetRecord());
     await runSyncOnce(
       db,
       fakeTransport({
@@ -284,8 +284,8 @@ describe('worker push', () => {
   });
 
   it('a push result that cannot be applied is flagged alone; the rest of the batch and the pull go on', async () => {
-    const bad = await repo.createAsset(db, makeAssetRecord());
-    const good = await repo.createAsset(db, makeAssetRecord());
+    const bad = await repo.create(db, makeAssetRecord());
+    const good = await repo.create(db, makeAssetRecord());
     await runSyncOnce(
       db,
       fakeTransport({
@@ -324,7 +324,7 @@ describe('worker pull', () => {
   });
 
   it('is outbox-guarded: a pulled record with a pending local edit is NOT overwritten', async () => {
-    const rec = await repo.createAsset(db, makeAssetRecord({ notes: 'local' }));
+    const rec = await repo.create(db, makeAssetRecord({ notes: 'local' }));
     const stale = makeAssetRecord({ id: rec.id, notes: 'stale-from-server' });
     await runSyncOnce(
       db,
@@ -363,9 +363,9 @@ describe('worker pull', () => {
     });
 
   it('a pulled record with a pending edit takes every field but the ones that edit changed', async () => {
-    const rec = await repo.createAsset(db, makeAssetRecord());
+    const rec = await repo.create(db, makeAssetRecord());
     await runSyncOnce(db, fakeTransport());
-    await repo.updateAsset(db, rec.id, { notes: 'local' });
+    await repo.update(db, rec.id, { notes: 'local' });
     const local = await assetRow(rec.id);
     const incoming = makeAssetRecord({
       id: rec.id,
@@ -378,21 +378,21 @@ describe('worker pull', () => {
   });
 
   it('an edit right after the pull of a newer field gets a clock above it', async () => {
-    const rec = await repo.createAsset(db, makeAssetRecord());
+    const rec = await repo.create(db, makeAssetRecord());
     await runSyncOnce(db, fakeTransport());
-    await repo.updateAsset(db, rec.id, { filename: 'renamed.jpg' }); // pending
+    await repo.update(db, rec.id, { filename: 'renamed.jpg' }); // pending
     const pulledAt = Date.now() + 60_000; // another device's clock runs ahead
     const incoming = makeAssetRecord({ id: rec.id, notes: 'from the other device', updatedAt: pulledAt });
     await runSyncOnce(db, pendingAndPulling(incoming as unknown as Record<string, unknown>));
-    await repo.updateAsset(db, rec.id, { notes: 'edited here after' });
+    await repo.update(db, rec.id, { notes: 'edited here after' });
     const [row] = await outboxRows();
     expect(row!.fields.notes).toBeGreaterThan(pulledAt);
     expect(await assetRow(rec.id)).toMatchObject({ filename: 'renamed.jpg', notes: 'edited here after' });
   });
 
   it('a pending purge keeps the asset deleted when a restore is pulled', async () => {
-    const rec = await repo.createAsset(db, makeAssetRecord());
-    await repo.deleteAssets(db, [rec.id]);
+    const rec = await repo.create(db, makeAssetRecord());
+    await repo.remove(db, [rec.id]);
     await runSyncOnce(db, fakeTransport());
     await repo.purgeAssets(db, [rec.id]); // pending: { purgedAt }
     const restored = makeAssetRecord({ id: rec.id, deletedAt: null, updatedAt: Date.now() + 60_000 });
@@ -403,7 +403,7 @@ describe('worker pull', () => {
   });
 
   it('keeps a local column the incoming record does not carry', async () => {
-    const rec = await repo.createAsset(db, makeAssetRecord({ notes: 'mine' }));
+    const rec = await repo.create(db, makeAssetRecord({ notes: 'mine' }));
     await runSyncOnce(db, fakeTransport()); // pushed and settled
     const { notes: _notes, ...withoutNotes } = makeAssetRecord({
       id: rec.id,

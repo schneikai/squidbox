@@ -30,14 +30,14 @@ describe('driver (createDb)', () => {
   });
 
   it('notifies once per committed transaction, with the tables it wrote', async () => {
-    await repo.createAsset(db, makeAssetRecord({ filename: 'a.jpg' })); // asset row + outbox row
+    await repo.create(db, makeAssetRecord({ filename: 'a.jpg' })); // asset row + outbox row
     expect(changes).toEqual([['assets', 'outbox']]);
   });
 
   it('commits a bulk update as one unit', async () => {
-    const [a, b] = await repo.createAssets(db, [makeAssetRecord(), makeAssetRecord()]);
+    const [a, b] = await repo.createMany(db, [makeAssetRecord(), makeAssetRecord()]);
     changes = [];
-    await repo.updateAssets(db, { [a!.id]: { isFavorite: true }, [b!.id]: { isFavorite: true } });
+    await repo.updateMany(db, { [a!.id]: { isFavorite: true }, [b!.id]: { isFavorite: true } });
     expect(changes).toEqual([['assets', 'outbox']]);
   });
 
@@ -52,7 +52,7 @@ describe('driver (createDb)', () => {
   });
 
   it('does not notify for a write that changed no rows', async () => {
-    const [a] = await repo.createAssets(db, [makeAssetRecord()]);
+    const [a] = await repo.createMany(db, [makeAssetRecord()]);
     changes = [];
     await repo.setSyncError(db, [a!.id], null); // already null: the update matches nothing
     expect(changes).toEqual([]);
@@ -74,17 +74,17 @@ describe('driver (createDb)', () => {
   });
 
   it('commits repository writes made inside a transaction once, as savepoints', async () => {
-    const [a] = await repo.createAssets(db, [makeAssetRecord()]);
+    const [a] = await repo.createMany(db, [makeAssetRecord()]);
     changes = [];
     await db.transaction(async (tx) => {
-      await repo.updateAsset(tx, a!.id, { notes: 'one' });
+      await repo.update(tx, a!.id, { notes: 'one' });
       await repo.toggleFavorite(tx, a!.id);
     });
     expect(changes).toEqual([['assets', 'outbox']]);
   });
 
   it('close waits for the queued work and refuses what is queued after it', async () => {
-    const created = repo.createAsset(db, makeAssetRecord({ filename: 'before-close.jpg' }));
+    const created = repo.create(db, makeAssetRecord({ filename: 'before-close.jpg' }));
     const closing = db.close();
     const after = db.select().from(schema.assets);
     await expect(created).resolves.toMatchObject({ filename: 'before-close.jpg' });
@@ -123,7 +123,7 @@ describe('driver (createDb)', () => {
     db.onTablesChanged((tables) => changed.push(tables));
 
     await expect(setCursor(reads, 1)).rejects.toThrow('only reads');
-    await expect(repo.createAsset(reads, makeAssetRecord())).rejects.toThrow('only reads');
+    await expect(repo.create(reads, makeAssetRecord())).rejects.toThrow('only reads');
 
     expect(changed).toEqual([]);
     expect(await db.select().from(schema.assets)).toEqual([]);

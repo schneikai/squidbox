@@ -29,7 +29,7 @@ beforeEach(() => {
 
 // Six assets, asset-0 the oldest; asset-2 and asset-5 favorites; asset-4 deleted.
 async function library() {
-  await repo.createAssets(
+  await repo.createMany(
     db,
     Array.from({ length: 6 }, (_, i) =>
       makeAssetRecord({

@@ -11,17 +11,8 @@ import { saveRecords } from './saveRecords';
 
 const repository = makeRepository<AssetRecord>('assets', schema.assets);
 
-/** Create new assets (full synced records). */
-export const createAssets = repository.createMany;
-export const createAsset = repository.create;
-
-/** Patch synced fields of assets, by id. */
-export const updateAssets = repository.updateMany;
-export const updateAsset = repository.update;
-export const updateAllAssets = repository.updateAll;
-
-/** Move to the Deleted album (tombstone: set deletedAt). The files stay, so a restore is complete. */
-export const deleteAssets = repository.remove;
+// `remove` moves to the Deleted album (tombstone: set deletedAt). The files stay, so a restore is complete.
+export const { create, createMany, update, updateMany, updateAll, remove } = repository;
 
 /**
  * "Delete permanently": sets purgedAt, which no later version undoes once the server has it (sync-design

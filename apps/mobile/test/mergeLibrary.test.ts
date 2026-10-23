@@ -64,7 +64,7 @@ beforeEach(async () => {
 
 // A photo on the device: its file and thumbnail in the source's folders, never uploaded.
 async function devicePhoto(over: Record<string, unknown> = {}) {
-  const asset = await repo.createAsset(
+  const asset = await repo.create(
     source,
     makeAssetRecord({ isFileSynced: false, isThumbnailSynced: false, isSynced: false, ...over }),
   );
@@ -87,8 +87,8 @@ describe('planMerge + applyMerge', () => {
     const a = await devicePhoto({ filename: 'a.jpg', thumbnailFilename: 'at.jpg', mediaLibraryAssetId: 'm-a' });
     const b = await devicePhoto({ filename: 'b.jpg', thumbnailFilename: 'bt.jpg', mediaLibraryAssetId: 'm-b' });
     const gone = await devicePhoto({ mediaLibraryAssetId: 'm-gone' });
-    await repo.deleteAssets(source, [gone.id]);
-    await repo.createAsset(
+    await repo.remove(source, [gone.id]);
+    await repo.create(
       source,
       makeAssetRecord({ mediaLibraryAssetId: 'm-cloud', filename: 'cloud.jpg', isFileSynced: true }),
     ); // file elsewhere
@@ -123,7 +123,7 @@ describe('planMerge + applyMerge', () => {
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
-    await repo.updateAsset(source, shared.id, { notes: 'edited on the device' }); // outbox row, updatedAt now
+    await repo.update(source, shared.id, { notes: 'edited on the device' }); // outbox row, updatedAt now
 
     const plan = await planMerge(source, target, SRC, TGT);
     expect(plan.assets).toEqual([]);
@@ -147,7 +147,7 @@ describe('planMerge + applyMerge', () => {
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, isFavorite: true, syncError: null }]);
-    await repo.updateAsset(source, shared.id, { notes: 'edited on the device' });
+    await repo.update(source, shared.id, { notes: 'edited on the device' });
 
     const plan = await planMerge(source, target, SRC, TGT);
     await applyMerge(target, plan);
@@ -162,7 +162,7 @@ describe('planMerge + applyMerge', () => {
   it('a replay keeps each field’s own clock, also for a target row edited later', async () => {
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
-    await repo.updateAsset(source, shared.id, { notes: 'first on the device' });
+    await repo.update(source, shared.id, { notes: 'first on the device' });
     await new Promise((resolve) => setTimeout(resolve, 2));
     await repo.toggleFavorite(source, shared.id);
     const [sourceRow] = await outbox(source);
@@ -184,9 +184,9 @@ describe('planMerge + applyMerge', () => {
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
-    await repo.updateAsset(source, shared.id, { notes: 'older', isFavorite: true });
+    await repo.update(source, shared.id, { notes: 'older', isFavorite: true });
     await new Promise((resolve) => setTimeout(resolve, 5));
-    await repo.updateAsset(target, shared.id, { notes: 'newer' });
+    await repo.update(target, shared.id, { notes: 'newer' });
 
     const plan = await planMerge(source, target, SRC, TGT);
     expect(Object.keys(plan.replays[0]!.fields)).toEqual(['isFavorite']);
@@ -199,9 +199,9 @@ describe('planMerge + applyMerge', () => {
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
-    await repo.updateAsset(source, shared.id, { notes: 'older' });
+    await repo.update(source, shared.id, { notes: 'older' });
     await new Promise((resolve) => setTimeout(resolve, 5));
-    await repo.updateAsset(target, shared.id, { notes: 'newer' });
+    await repo.update(target, shared.id, { notes: 'newer' });
 
     const plan = await planMerge(source, target, SRC, TGT);
     expect(plan.replays).toEqual([]);
@@ -212,20 +212,20 @@ describe('planMerge + applyMerge', () => {
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
-    await repo.updateAsset(source, shared.id, { notes: 'device', oldFileId: 'device' });
+    await repo.update(source, shared.id, { notes: 'device', oldFileId: 'device' });
     const plan = await planMerge(source, target, SRC, TGT);
     await new Promise((resolve) => setTimeout(resolve, 5));
-    await repo.updateAsset(target, shared.id, { notes: 'account, meanwhile', isFavorite: true }); // the app is in use
+    await repo.update(target, shared.id, { notes: 'account, meanwhile', isFavorite: true }); // the app is in use
     await applyMerge(target, plan);
     const [row] = await target.select().from(schema.assets);
     expect(row).toMatchObject({ notes: 'account, meanwhile', isFavorite: true, oldFileId: 'device' });
   });
 
   it('a photo matched by an earlier pass, then deleted on the device, doesn’t come in as a trashed copy', async () => {
-    const theirs = await repo.createAsset(target, makeAssetRecord({ mediaLibraryAssetId: 'm-1' }));
+    const theirs = await repo.create(target, makeAssetRecord({ mediaLibraryAssetId: 'm-1' }));
     const mine = await devicePhoto({ mediaLibraryAssetId: 'm-1', isFavorite: true });
     await commitPass();
-    await repo.deleteAssets(source, [mine.id]);
+    await repo.remove(source, [mine.id]);
     const again = await planMerge(source, target, SRC, TGT);
     expect([again.assets, again.duplicates]).toEqual([[], []]);
     expect((await target.select().from(schema.assets)).map((row) => [row.id, row.deletedAt])).toEqual([
@@ -234,7 +234,7 @@ describe('planMerge + applyMerge', () => {
   });
 
   it('matches a photo the account has from the same camera-roll item: edges re-pointed, favorite OR, notes kept, no file', async () => {
-    const theirs = await repo.createAsset(target, makeAssetRecord({ mediaLibraryAssetId: 'm-1', notes: 'theirs' }));
+    const theirs = await repo.create(target, makeAssetRecord({ mediaLibraryAssetId: 'm-1', notes: 'theirs' }));
     const mine = await devicePhoto({
       mediaLibraryAssetId: 'm-1',
       isFavorite: true,
@@ -265,7 +265,7 @@ describe('planMerge + applyMerge', () => {
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-1', notes: 'orig', updatedAt: 5000 });
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
-    await repo.updateAsset(source, shared.id, { notes: 'orig, noted on the device' });
+    await repo.update(source, shared.id, { notes: 'orig, noted on the device' });
     await devicePhoto({ mediaLibraryAssetId: 'm-1', notes: 'P' });
 
     await commitPass();
@@ -344,7 +344,7 @@ describe('planMerge + applyMerge', () => {
   // Round 20: earlier builds could give two records one file name. Each destination gets the file:
   // a copy to all but the last, made before the move.
   it('a file two records share is copied to the first destination and moved to the last', async () => {
-    const theirs = await repo.createAsset(
+    const theirs = await repo.create(
       target,
       makeAssetRecord({ mediaLibraryAssetId: 'm-1', filename: 'x.jpg', isFileSynced: false }),
     );
@@ -375,7 +375,7 @@ describe('planMerge + applyMerge', () => {
   });
 
   it("merges several source photos of one camera-roll item into the account's photo, once", async () => {
-    const theirs = await repo.createAsset(target, makeAssetRecord({ mediaLibraryAssetId: 'm-1', notes: null }));
+    const theirs = await repo.create(target, makeAssetRecord({ mediaLibraryAssetId: 'm-1', notes: null }));
     await devicePhoto({ mediaLibraryAssetId: 'm-1', isFavorite: true, notes: 'first', filename: 'one.jpg' });
     await devicePhoto({ mediaLibraryAssetId: 'm-1', isFavorite: false, notes: 'second', filename: 'two.jpg' });
 
@@ -437,7 +437,7 @@ describe('replays against a pending edit of the target (adversarial)', () => {
     const shared = await sharedDeletedAsset();
     await repo.purgeAssets(source, [shared.id]); // the device purges it, not pushed
     await tick();
-    await repo.updateAllAssets(target, [shared.id], { deletedAt: null }); // the account restores it later
+    await repo.updateAll(target, [shared.id], { deletedAt: null }); // the account restores it later
 
     await commitPass();
     const [row] = await target.select().from(schema.assets);
@@ -458,7 +458,7 @@ describe('replays against a pending edit of the target (adversarial)', () => {
         const shared = await sharedDeletedAsset();
         const [purger, restorer] = purging === 'source' ? [source, target] : [target, source];
         const purge = () => repo.purgeAssets(purger, [shared.id]);
-        const restore = () => repo.updateAllAssets(restorer, [shared.id], { deletedAt: null });
+        const restore = () => repo.updateAll(restorer, [shared.id], { deletedAt: null });
         for (const write of restoreLater ? [purge, restore] : [restore, purge]) {
           await write();
           await tick();
@@ -482,7 +482,7 @@ describe('replays against a pending edit of the target (adversarial)', () => {
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, deletedAt: 5000, syncError: null }]);
     await repo.purgeAssets(target, [shared.id]); // the account purges it, not pushed
     await tick();
-    await repo.deleteAssets(source, [shared.id]); // the device deletes it later
+    await repo.remove(source, [shared.id]); // the device deletes it later
 
     await commitPass();
     const [row] = await target.select().from(schema.assets);
@@ -494,7 +494,7 @@ describe('replays against a pending edit of the target (adversarial)', () => {
 
   it('a device edit of another field replays beside the account’s pending purge, which stays', async () => {
     const shared = await sharedDeletedAsset();
-    await repo.updateAsset(source, shared.id, { notes: 'device notes' });
+    await repo.update(source, shared.id, { notes: 'device notes' });
     await tick();
     await repo.purgeAssets(target, [shared.id]);
 
@@ -510,12 +510,12 @@ describe('replays against a pending edit of the target (adversarial)', () => {
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000, isFileSynced: false });
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
-    await repo.updateAsset(source, shared.id, { notes: 'device, older' });
+    await repo.update(source, shared.id, { notes: 'device, older' });
     await tick();
-    await repo.updateAsset(target, shared.id, { notes: 'account, newer', isFavorite: true });
+    await repo.update(target, shared.id, { notes: 'account, newer', isFavorite: true });
     await tick();
-    await repo.updateAsset(source, shared.id, { isFileSynced: true, isThumbnailSynced: true, isSynced: true });
-    await repo.updateAsset(source, shared.id, { oldFileId: 'x' }); // the newest edit
+    await repo.update(source, shared.id, { isFileSynced: true, isThumbnailSynced: true, isSynced: true });
+    await repo.update(source, shared.id, { oldFileId: 'x' }); // the newest edit
 
     await commitPass();
     const [row] = await target.select().from(schema.assets);
@@ -548,7 +548,7 @@ describe('a device library merged again', () => {
     const asset = await devicePhoto({ filename: 'x.jpg', thumbnailFilename: 'xt.jpg', mediaLibraryAssetId: 'm-x' });
     await commitPass(); // the first pass; its file move never ran
     await tick();
-    await repo.deleteAssets(source, [asset.id]);
+    await repo.remove(source, [asset.id]);
     await tick();
     await repo.purgeAssets(source, [asset.id]);
 
@@ -560,7 +560,7 @@ describe('a device library merged again', () => {
     const asset = await devicePhoto({ filename: 'x.jpg', thumbnailFilename: 'xt.jpg', mediaLibraryAssetId: 'm-x' });
     await commitPass();
     await tick();
-    await repo.deleteAssets(source, [asset.id]);
+    await repo.remove(source, [asset.id]);
 
     const plan = await planMerge(source, target, SRC, TGT);
     await applyMerge(target, plan);
@@ -572,7 +572,7 @@ describe('a device library merged again', () => {
     const asset = await devicePhoto({ mediaLibraryAssetId: 'm-x' }); // pending insert in the source
     await upsertRows(target, 'assets', schema.assets, [{ ...asset, syncError: null }]); // synced in the account
     await tick();
-    await repo.deleteAssets(target, [asset.id]);
+    await repo.remove(target, [asset.id]);
     await tick();
     await repo.purgeAssets(target, [asset.id]); // pending in the account
 
@@ -602,7 +602,7 @@ describe('the decisions of a committed pass', () => {
   // target's are cleared, then a crash before the source went. The account took the merge back since
   // on another device: the resumed pass replays nothing and merges nothing again.
   it('a pass finished after its push: the source’s marks keep the account’s later changes', async () => {
-    await repo.createAsset(target, makeAssetRecord({ mediaLibraryAssetId: 'm-1', notes: null }));
+    await repo.create(target, makeAssetRecord({ mediaLibraryAssetId: 'm-1', notes: null }));
     await devicePhoto({ mediaLibraryAssetId: 'm-1', isFavorite: true, notes: 'mine' });
     const plan = await commitPass();
     await setMergeMarks(source, plan.marks.source, plan.marks.decided);
@@ -636,7 +636,7 @@ describe('the decisions of a committed pass', () => {
   // Two device photos of one camera-roll item in one album: one membership in the account, the
   // other edge skipped. Taken out of the album in the account, the photo stays out.
   it('a membership skipped as a duplicate isn’t copied once the account removed the one it had', async () => {
-    const theirs = await repo.createAsset(target, makeAssetRecord({ mediaLibraryAssetId: 'm-1' }));
+    const theirs = await repo.create(target, makeAssetRecord({ mediaLibraryAssetId: 'm-1' }));
     const album = await albums.create(source, makeAlbumRecord({ name: 'Trip' }));
     const a = await devicePhoto({ mediaLibraryAssetId: 'm-1' });
     const b = await devicePhoto({ mediaLibraryAssetId: 'm-1' });
@@ -667,7 +667,7 @@ describe('a device library that never synced (no account)', () => {
   it('removes the files of its purged photos at once, nothing being able to restore them; a merge leaves the purged ones behind', async () => {
     const kept = await devicePhoto({ filename: 'k.jpg', thumbnailFilename: 'kt.jpg', mediaLibraryAssetId: 'm-k' });
     const gone = await devicePhoto({ filename: 'g.jpg', thumbnailFilename: 'gt.jpg', mediaLibraryAssetId: 'm-g' });
-    await repo.deleteAssets(source, [gone.id]);
+    await repo.remove(source, [gone.id]);
     await repo.purgeAssets(source, [gone.id]);
     await setOwner(source, { kind: 'device' });
     const removed: string[] = [];
@@ -691,7 +691,7 @@ describe('a big device library', () => {
     const photos = Array.from({ length: 10_000 }, (_, i) =>
       makeAssetRecord({ mediaLibraryAssetId: `m-${i}`, filename: `f${i}.jpg`, isFileSynced: false }),
     );
-    await repo.createAssets(source, photos);
+    await repo.createMany(source, photos);
     const plan = await planMerge(source, target, SRC, TGT);
     expect(plan.assets).toHaveLength(10_000);
   });

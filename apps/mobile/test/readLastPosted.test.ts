@@ -18,7 +18,7 @@ const newId = () => `id-${++n}`;
 beforeEach(async () => {
   db = makeTestDb();
   n = 0;
-  await repo.createAssets(
+  await repo.createMany(
     db,
     ['asset-0', 'asset-1', 'asset-2'].map((id) => makeAssetRecord({ id })),
   );

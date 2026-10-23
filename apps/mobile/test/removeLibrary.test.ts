@@ -61,7 +61,7 @@ describe('removeLibrary', () => {
     storage.clear();
     await loadRegistry(async () => ({ libraries: [open, parked] }));
     await openLibrary(open);
-    await repo.createAsset(getDb(), makeAssetRecord({ isSynced: false })); // the open library has its own data
+    await repo.create(getDb(), makeAssetRecord({ isSynced: false })); // the open library has its own data
   });
 
   it('deletes the database, the folders and the entry', async () => {

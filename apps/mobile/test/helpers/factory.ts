@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import * as schema from '../../src/sync/db/schema';
 import type { SyncDb } from '../../src/sync/db/types';
 import { makeEdgeRepository } from '../../src/sync/edgesRepository';
-import { makeRepository } from '../../src/sync/repository';
+import * as posts from '../../src/sync/postsRepository';
 
 export function makeAssetRecord(over: Partial<AssetRecord> = {}): AssetRecord {
   return {
@@ -66,7 +66,6 @@ export function makePostRecord(over: Partial<PostRecord> = {}) {
   };
 }
 
-const posts = makeRepository('posts', schema.posts);
 const postEdges = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
 
 /** A post with edges to `assetIds`, in that order; `newEdgeId` names the edges. */

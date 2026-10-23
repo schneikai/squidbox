@@ -15,12 +15,12 @@ export default function AssetsProvider({ children }) {
   const value = useMemo(
     () => ({
       addAssetsAsync: async (list) => {
-        const records = await repo.createAssets(getDb(), list.map(toAssetRecord));
+        const records = await repo.createMany(getDb(), list.map(toAssetRecord));
         requestSync();
         return records;
       },
       updateAsset: async (id, updates) => {
-        await repo.updateAsset(getDb(), id, toAssetChanges(updates));
+        await repo.update(getDb(), id, toAssetChanges(updates));
         requestSync();
       },
       // Local-only marker for failed file uploads (never synced); clearing them all retries every upload.
@@ -37,9 +37,9 @@ export default function AssetsProvider({ children }) {
       // The bulk methods take the batch options of writeInBatches ({ onProgress, signal }) and resolve
       // to whether every batch was written.
       setAssetsDeleted: async (assetIds, batchOptions) =>
-        writeInBatches(assetIds, (ids) => repo.deleteAssets(getDb(), ids), batchOptions),
+        writeInBatches(assetIds, (ids) => repo.remove(getDb(), ids), batchOptions),
       restoreDeletedAssets: async (assetIds, batchOptions) =>
-        writeInBatches(assetIds, (ids) => repo.updateAllAssets(getDb(), ids, { deletedAt: null }), batchOptions),
+        writeInBatches(assetIds, (ids) => repo.updateAll(getDb(), ids, { deletedAt: null }), batchOptions),
       // Gone for good once the purge is confirmed: then its files go, here and in the cloud (sync-design §7a).
       deleteAssetsPermanently: async (assetIds, batchOptions) => {
         try {

@@ -160,8 +160,9 @@ Plan: https://claude.ai/artifact/KfDvwcHGxAeorqs3KeGWKV. Hooks, utils, buttons, 
 grouped surfaces and tokens are done (typography follows Apple's text styles, `caption2` to `title1`),
 every list's search, sort and filter runs on `useListControls`, and the grids' drag-select and
 drag-reorder share one long-press pan (`useGridLongPressPan`), and asset paths and checks live in
-`utils/assets/assetStorage`. Still to do, the bigger refactors: one way to call the repositories, and retiring the Yup schemas and legacy
-adapters for the shared zod collections. The AI screens (`AiChatModal`, `RandomSuggestionsScreen`,
+`utils/assets/assetStorage`, and every repository is called with the same verbs (`repo.create`,
+`repo.update`, `repo.remove`). Still to do: retiring the Yup schemas and legacy adapters for the
+shared zod collections. The AI screens (`AiChatModal`, `RandomSuggestionsScreen`,
 `ModelSelectorButton`) are best done with the AI assistant rework: their chat-bubble shadows and
 `ModelSelectorButton`'s own divider (not `ListDivider`) are still hand-written. Left from the
 popovers: `SortFilterModal` drives the open and close animation itself (`BlurPopoverRenderer` does

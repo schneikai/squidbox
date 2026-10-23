@@ -9,7 +9,7 @@ import { readByIds } from '../src/sync/readByIds';
 describe('assetsRepository', () => {
   it('counts the photos and videos among the given ids in one statement', async () => {
     const { db, measure } = makeMeasuredTestDb();
-    const assets = await repo.createAssets(db, [
+    const assets = await repo.createMany(db, [
       makeAssetRecord({ mediaType: 'photo' }),
       makeAssetRecord({ mediaType: 'video' }),
       makeAssetRecord({ mediaType: 'photo', deletedAt: 1 }),
@@ -25,7 +25,7 @@ describe('assetsRepository', () => {
 
   it('snapshots the ids to upload and counts them, and the failed ones, in one statement through the partial indexes', async () => {
     const { db, measure } = makeMeasuredTestDb();
-    await repo.createAssets(
+    await repo.createMany(
       db,
       Array.from({ length: 9 }, (_, i) =>
         makeAssetRecord({
@@ -56,7 +56,7 @@ describe('assetsRepository', () => {
 
   it('clears every sync error of the live assets in one statement', async () => {
     const { db, measure } = makeMeasuredTestDb();
-    await repo.createAssets(db, [
+    await repo.createMany(db, [
       makeAssetRecord({ id: 'a1' }),
       makeAssetRecord({ id: 'a2' }),
       makeAssetRecord({ id: 'a3', deletedAt: 1 }),
@@ -68,7 +68,7 @@ describe('assetsRepository', () => {
     expect(work.statements).toBe(1);
     expect(notifications).toEqual([['assets']]);
     expect(await repo.countSyncErrors(db)).toBe(0);
-    await repo.updateAssets(db, { a3: { deletedAt: null } });
+    await repo.updateMany(db, { a3: { deletedAt: null } });
     expect(await repo.countSyncErrors(db)).toBe(1); // a deleted asset keeps its error
   });
 });

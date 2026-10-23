@@ -32,7 +32,7 @@ export function toAssetRecord(input: AnyAsset): AssetRecord {
   };
 }
 
-/** Translate a partial legacy "changes" object into modern-field changes for updateAsset. */
+/** Translate a partial legacy "changes" object into modern-field changes for the assets repository's update. */
 export function toAssetChanges(changes: AnyAsset): Partial<AssetRecord> {
   const out: AnyAsset = { ...changes };
   if ('isDeleted' in out) {

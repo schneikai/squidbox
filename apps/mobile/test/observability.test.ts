@@ -19,7 +19,7 @@ const lastLog = () => db.select().from(schema.syncLog).orderBy(desc(schema.syncL
 
 describe('sync_log observability', () => {
   it('writes a log row with push/pull counts after each run', async () => {
-    await repo.createAsset(db, makeAssetRecord());
+    await repo.create(db, makeAssetRecord());
     await runSyncOnce(db, fakeTransport());
     const row = await lastLog();
     expect(row).toBeTruthy();
@@ -28,7 +28,7 @@ describe('sync_log observability', () => {
   });
 
   it('records a conflict note when a local change loses LWW (skipped-lww)', async () => {
-    const rec = await repo.createAsset(db, makeAssetRecord({ notes: 'mine' }));
+    const rec = await repo.create(db, makeAssetRecord({ notes: 'mine' }));
     const serverWins = makeAssetRecord({ id: rec.id, notes: 'server', updatedAt: 9999 });
     await runSyncOnce(db, {
       push: async (req) => ({
@@ -46,7 +46,7 @@ describe('sync_log observability', () => {
   });
 
   it('records an error in the log when a phase throws', async () => {
-    await repo.createAsset(db, makeAssetRecord());
+    await repo.create(db, makeAssetRecord());
     await expect(
       runSyncOnce(db, {
         push: async () => {
@@ -62,14 +62,14 @@ describe('sync_log observability', () => {
 
 describe('dev operations', () => {
   it('clearOutbox empties the outbox', async () => {
-    await repo.createAsset(db, makeAssetRecord());
+    await repo.create(db, makeAssetRecord());
     expect(await db.select().from(schema.outbox)).toHaveLength(1);
     await clearOutbox(db);
     expect(await db.select().from(schema.outbox)).toHaveLength(0);
   });
 
   it('fullResync wipes local tables, keeps pending edits and repulls from the server', async () => {
-    const local = await repo.createAsset(db, makeAssetRecord({ notes: 'local-only' }));
+    const local = await repo.create(db, makeAssetRecord({ notes: 'local-only' }));
     const server = makeAssetRecord({ notes: 'from-server' });
     await fullResync(db, {
       push: async (req) => ({
@@ -90,7 +90,7 @@ describe('dev operations', () => {
   });
 
   it('fullResync keeps showing a pending edit the server keeps rejecting', async () => {
-    const local = await repo.createAsset(db, makeAssetRecord({ notes: 'rejected' }));
+    const local = await repo.create(db, makeAssetRecord({ notes: 'rejected' }));
     await fullResync(db, {
       push: async (req) => ({
         results: req.mutations.map((m) => ({

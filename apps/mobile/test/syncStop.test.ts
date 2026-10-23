@@ -71,7 +71,7 @@ describe('withSyncPaused', () => {
   // A merge's paused section (usePendingMerges) can start while a sync run pushes: the run stops,
   // and a new one runs what it cut short once the section ends.
   it('runs a sync again after the section when it aborted one', async () => {
-    await repo.createAssets(
+    await repo.createMany(
       db,
       Array.from({ length: 1001 }, () => makeAssetRecord()),
     );
@@ -100,7 +100,7 @@ describe('withSyncPaused', () => {
   // Round 19: a sync queued just before a paused section starts finds the runs paused: it asks
   // again, and runs after the section.
   it('a sync held back by a pause runs after the section', async () => {
-    await repo.createAsset(db, makeAssetRecord());
+    await repo.create(db, makeAssetRecord());
     transportImpl.current = server(0);
     setSyncTarget({ db, identity: {}, library: {} } as SyncTarget); // queues a run
     await withSyncPaused(async () => {}); // paused before that run starts
@@ -160,7 +160,7 @@ describe('an aborted run', () => {
   });
 
   it('ends a push between batches, keeping the rest of the outbox', async () => {
-    await repo.createAssets(
+    await repo.createMany(
       db,
       Array.from({ length: 1001 }, () => makeAssetRecord()),
     );

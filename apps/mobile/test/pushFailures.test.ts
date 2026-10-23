@@ -90,7 +90,7 @@ describe('push failures of albums, posts and edges', () => {
   });
 
   it("retrying leaves the failed uploads alone: they are the Backup screen's", async () => {
-    const photo = await assets.createAsset(db, makeAssetRecord());
+    const photo = await assets.create(db, makeAssetRecord());
     await runSyncOnce(db, server(['assets']).transport);
     await assets.setSyncError(db, [photo.id], 'upload failed');
 
@@ -149,7 +149,7 @@ describe('push failures of albums, posts and edges', () => {
   });
 
   it('names each failure after its record: posts by caption, edges by their album or post', async () => {
-    const photo = await assets.createAsset(db, makeAssetRecord({ filename: 'IMG_1.jpg' }));
+    const photo = await assets.create(db, makeAssetRecord({ filename: 'IMG_1.jpg' }));
     const album = await albums.create(db, makeAlbumRecord({ name: 'Trips' }));
     await albumEdges.add(db, album.id, [photo.id], () => crypto.randomUUID());
     const caption = 'A very long caption that goes on and on about the sunset\nsecond line';
@@ -176,7 +176,7 @@ describe('push failures of albums, posts and edges', () => {
 
 describe('upload failures', () => {
   it('are named after their asset', async () => {
-    const video = await assets.createAsset(db, makeAssetRecord({ filename: 'IMG_2.mov', mediaType: 'video' }));
+    const video = await assets.create(db, makeAssetRecord({ filename: 'IMG_2.mov', mediaType: 'video' }));
     await assets.setSyncError(db, [video.id], 'upload failed');
 
     expect(await readUploadFailures(db, { limit: 50 })).toEqual({

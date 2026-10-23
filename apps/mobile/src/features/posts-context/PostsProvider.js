@@ -23,7 +23,7 @@ export default function PostsProvider({ children }) {
         const casted = postSchema.cast(data);
         const refs = casted.assetRefs ?? [];
         const post = await db.transaction(async (tx) => {
-          const created = await repo.createPost(tx, toModernRecord(casted)); // `assetRefs` stripped by toModernRecord
+          const created = await repo.create(tx, toModernRecord(casted)); // `assetRefs` stripped by toModernRecord
           await edges.createFromRefs(tx, created.id, refs);
           return created;
         });
@@ -34,7 +34,7 @@ export default function PostsProvider({ children }) {
       updatePost: async (id, updates, seed) => {
         await db.transaction(async (tx) => {
           if ('assetRefs' in updates) await edges.setRefs(tx, id, updates.assetRefs ?? [], seed?.assetRefs ?? []);
-          await repo.updatePost(tx, id, toModernChanges(updates)); // `assetRefs` stripped by toModernChanges
+          await repo.update(tx, id, toModernChanges(updates)); // `assetRefs` stripped by toModernChanges
         });
         requestSync();
       },
@@ -44,7 +44,7 @@ export default function PostsProvider({ children }) {
       },
       deletePost: async (id) => {
         await db.transaction(async (tx) => {
-          await repo.deletePosts(tx, [id]);
+          await repo.remove(tx, [id]);
           await edges.tombstoneParent(tx, id);
         });
         requestSync();

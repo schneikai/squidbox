@@ -6,9 +6,7 @@ import { makeRepository } from './repository';
 
 const repository = makeRepository('posts', schema.posts);
 
-export const createPost = repository.create;
-export const updatePost = repository.update;
-export const deletePosts = repository.remove;
+export const { create, update, remove } = repository;
 export const toggleFavorite = (db: SyncDb, id: string) => repository.toggle(db, id, 'isFavorite');
 
 /** The non-empty texts of the non-deleted posts, newest first (the AI's style reference). */

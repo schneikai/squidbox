@@ -9,7 +9,7 @@ import { readByIdMap, readByIds } from '../src/sync/readByIds';
 describe('readByIds', () => {
   it('reads the rows once each, in the order of the ids, tombstones included and unknown ids left out, in one statement', async () => {
     const { db, measure } = makeMeasuredTestDb();
-    await repo.createAssets(db, [
+    await repo.createMany(db, [
       makeAssetRecord({ id: 'a' }),
       makeAssetRecord({ id: 'b', deletedAt: 5 }),
       makeAssetRecord({ id: 'c' }),
@@ -25,7 +25,7 @@ describe('readByIds', () => {
 
   it('reads them by id as a map', async () => {
     const { db } = makeMeasuredTestDb();
-    await repo.createAssets(db, [makeAssetRecord({ id: 'a' }), makeAssetRecord({ id: 'b' })]);
+    await repo.createMany(db, [makeAssetRecord({ id: 'a' }), makeAssetRecord({ id: 'b' })]);
     const byId = await readByIdMap<{ id: string }>(db, schema.assets, ['b', 'b', 'x']);
     expect([...byId.keys()]).toEqual(['b']);
   });

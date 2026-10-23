@@ -182,7 +182,7 @@ d('the installed app (its client code, as built) against this server', () => {
   async function seed(phones: Phone[], over: Partial<AssetRecord> = {}) {
     at(S);
     const [first] = phones;
-    const record = await assetsOf(first!).createAsset(
+    const record = await assetsOf(first!).create(
       first!.db,
       makeAssetRecord({ createdAt: S, updatedAt: S, purgedAt: null, ...over } as Partial<AssetRecord>),
     );
@@ -194,7 +194,7 @@ d('the installed app (its client code, as built) against this server', () => {
     extractMain();
     main = {
       worker: await import(/* @vite-ignore */ `${mainRoot}/sync/worker.ts`),
-      assets: await import(/* @vite-ignore */ `${mainRoot}/sync/assetsRepository.ts`),
+      assets: withVerbs(await import(/* @vite-ignore */ `${mainRoot}/sync/assetsRepository.ts`)),
       driver: await import(/* @vite-ignore */ `${mainRoot}/sync/db/driver.ts`),
       schema: await import(/* @vite-ignore */ `${mainRoot}/sync/db/schema.ts`),
     };
@@ -226,7 +226,7 @@ d('the installed app (its client code, as built) against this server', () => {
     const M = installedPhone();
     const N = newPhone();
     const id = await seed([M, N]);
-    await edit(M, S + 100, (a) => a.updateAsset(M.db, id, { notes: 'from the installed app' }));
+    await edit(M, S + 100, (a) => a.update(M.db, id, { notes: 'from the installed app' }));
     await edit(N, S + 200, (a) => a.toggleFavorite(N.db, id));
     await sync(N);
     await sync(M);
@@ -239,7 +239,7 @@ d('the installed app (its client code, as built) against this server', () => {
     const N = newPhone();
     const id = await seed([M, N], { deletedAt: S });
     await purge(M, S + 100, id);
-    await edit(N, S + 200, (a) => a.updateAsset(N.db, id, { deletedAt: null }));
+    await edit(N, S + 200, (a) => a.update(N.db, id, { deletedAt: null }));
     await sync(N);
     await sync(M);
     await settle([M, N]);
@@ -252,7 +252,7 @@ d('the installed app (its client code, as built) against this server', () => {
     const M = installedPhone();
     const N = newPhone();
     const id = await seed([M, N]);
-    await edit(N, S + 100, (a) => a.deleteAssets(N.db, [id]));
+    await edit(N, S + 100, (a) => a.remove(N.db, [id]));
     await purge(N, S + 200, id);
     await settle([N, M]);
     expect(await expectConverged(id, [M, N])).toMatchObject({ purgedAt: S + 200 });
@@ -265,7 +265,7 @@ d('the installed app (its client code, as built) against this server', () => {
     const N = newPhone();
     const id = await seed([M, N], { deletedAt: S });
     await purge(N, S + 100, id);
-    await edit(M, S + 200, (a) => a.updateAsset(M.db, id, { deletedAt: null }));
+    await edit(M, S + 200, (a) => a.update(M.db, id, { deletedAt: null }));
     await sync(M);
     await sync(N);
     await settle([M, N]);
@@ -305,10 +305,10 @@ d('the installed app (its client code, as built) against this server', () => {
         trail.push(
           `${phones.indexOf(phone)}${phone.old ? 'o' : 'n'} ${action}${skipped ? ' (not deleted: none)' : ''} ${ids.indexOf(id)} @${Date.now()}`,
         );
-        if (action === 'notes') await a.updateAsset(phone.db, id, { notes: `n${t}` });
+        if (action === 'notes') await a.update(phone.db, id, { notes: `n${t}` });
         else if (action === 'favorite') await a.toggleFavorite(phone.db, id);
-        else if (action === 'delete') await a.deleteAssets(phone.db, [id]);
-        else if (action === 'restore' && row.deletedAt !== null) await a.updateAsset(phone.db, id, { deletedAt: null });
+        else if (action === 'delete') await a.remove(phone.db, [id]);
+        else if (action === 'restore' && row.deletedAt !== null) await a.update(phone.db, id, { deletedAt: null });
         else if (action === 'purge' && row.deletedAt !== null) await a.purgeAssets(phone.db, [id]);
       };
       for (let step = 0; step < Number(process.env.RUNS_STEPS ?? 40); step++) {
@@ -403,3 +403,17 @@ d('the installed app (its client code, as built) against this server', () => {
     }
   }, 240_000);
 });
+
+// INSTALLED predates the repositories' shared verbs and names them after the collection; delete this
+// once INSTALLED is a commit with `create`, `update`, `remove` and the rest.
+function withVerbs(assets: any) {
+  return {
+    ...assets,
+    create: assets.create ?? assets.createAsset,
+    createMany: assets.createMany ?? assets.createAssets,
+    update: assets.update ?? assets.updateAsset,
+    updateMany: assets.updateMany ?? assets.updateAssets,
+    updateAll: assets.updateAll ?? assets.updateAllAssets,
+    remove: assets.remove ?? assets.deleteAssets,
+  };
+}

@@ -50,7 +50,7 @@ describe('postQuery', () => {
   });
 
   it('carries each post its assets through its live edges, one per asset, deleted assets included', async () => {
-    await repo.createAssets(db, [
+    await repo.createMany(db, [
       makeAssetRecord({ id: 'a1' }),
       makeAssetRecord({ id: 'a2', deletedAt: 9 }),
       makeAssetRecord({ id: 'a3' }),
@@ -77,7 +77,7 @@ describe('postQuery', () => {
   });
 
   it('reads the count, the posts and their edges with their assets in one transaction', async () => {
-    await repo.createAssets(db, [makeAssetRecord({ id: 'a1' })]);
+    await repo.createMany(db, [makeAssetRecord({ id: 'a1' })]);
     await createPost('p1', {}, ['a1']);
     const work = await measure(() => postQuery({ scope: 'all' }).read(db, { limit: 20 }));
     expect(work.commits).toBe(1);
@@ -85,7 +85,7 @@ describe('postQuery', () => {
   });
 
   it('reads one post without the count', async () => {
-    await repo.createAssets(db, [makeAssetRecord({ id: 'a1' })]);
+    await repo.createMany(db, [makeAssetRecord({ id: 'a1' })]);
     await createPost('p1', {}, ['a1']);
     let post: { id: string } | null = null;
     const work = await measure(async () => (post = await readPost(db, 'p1')));
@@ -109,7 +109,7 @@ describe('postQuery', () => {
   });
 
   it("reads all of an asset's posts without a limit, newest first and never-posted ones last, or just their first assets", async () => {
-    await repo.createAssets(db, [makeAssetRecord({ id: 'a1' }), makeAssetRecord({ id: 'a2' })]);
+    await repo.createMany(db, [makeAssetRecord({ id: 'a1' }), makeAssetRecord({ id: 'a2' })]);
     await createPost('p1', { postedAt: 20 }, ['a1']);
     await createPost('p2', { postedAt: null }, ['a1', 'a2']);
     await createPost('p3', { postedAt: 30 }, ['a1']);
@@ -125,7 +125,7 @@ describe('postQuery', () => {
   });
 
   it("reads each post's first asset with firstAssetOnly: past a purged one, a trashed one included, by id on a tied position, an asset once", async () => {
-    await repo.createAssets(db, [
+    await repo.createMany(db, [
       makeAssetRecord({ id: 'a1' }),
       makeAssetRecord({ id: 'a2' }),
       makeAssetRecord({ id: 'trashed', deletedAt: 3 }),
@@ -187,7 +187,7 @@ describe('postQuery', () => {
   });
 
   it('filters favorites and matches the search Unicode-aware, literally and once per read', async () => {
-    await repo.createAssets(db, [makeAssetRecord({ id: 'a1' })]);
+    await repo.createMany(db, [makeAssetRecord({ id: 'a1' })]);
     await createPost('p1', { text: 'Über 50% done', isFavorite: true }, ['a1']);
     await createPost('p2', { text: 'under_score' });
     await createPost('p3', { text: 'plain', isFavorite: true });

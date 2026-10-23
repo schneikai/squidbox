@@ -194,7 +194,7 @@ describe('switching libraries with the session', () => {
     expect(openOwner()).toEqual({ kind: 'account', serverId: 's1', userId: 'A', email: 'A@test' });
     expect(await getOwner(getDb())).toEqual(openOwner());
     const aId = getLibrary().id;
-    await repo.createAsset(getDb(), makeAssetRecord({ filename: 'a.jpg', isSynced: false })); // row + outbox row
+    await repo.create(getDb(), makeAssetRecord({ filename: 'a.jpg', isSynced: false })); // row + outbox row
     await setCursor(getDb(), 42);
     await markFirstSyncDone(getDb());
 
@@ -224,11 +224,11 @@ describe('switching libraries with the session', () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(null);
     const deviceId = getLibrary().id;
-    const photo = await repo.createAsset(
+    const photo = await repo.create(
       getDb(),
       makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
     );
-    const cloudOnly = await repo.createAsset(getDb(), makeAssetRecord({ filename: 'c.jpg', isFileSynced: true }));
+    const cloudOnly = await repo.create(getDb(), makeAssetRecord({ filename: 'c.jpg', isFileSynced: true }));
     await albums.create(getDb(), makeAlbumRecord({ name: 'Trip' }));
 
     await signIn(sessionOf('A'));
@@ -266,11 +266,11 @@ describe('switching libraries with the session', () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(null);
     const deviceId = getLibrary().id;
-    await repo.createAsset(
+    await repo.create(
       getDb(),
       makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
     );
-    await repo.createAsset(getDb(), makeAssetRecord({ filename: 'c.jpg', isFileSynced: true }));
+    await repo.create(getDb(), makeAssetRecord({ filename: 'c.jpg', isFileSynced: true }));
     await albums.create(getDb(), makeAlbumRecord({ name: 'Trip' }));
     await signIn(sessionOf('A'));
     await firstPullDrains();
@@ -299,7 +299,7 @@ describe('switching libraries with the session', () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(null);
     const deviceId = getLibrary().id;
-    const photo = await repo.createAsset(getDb(), makeAssetRecord({ isFileSynced: false, isSynced: false }));
+    const photo = await repo.create(getDb(), makeAssetRecord({ isFileSynced: false, isSynced: false }));
     failing.add(`library-${deviceId}.db`); // the merge's second connection to it
 
     await signIn(sessionOf('A'));
@@ -331,7 +331,7 @@ describe('switching libraries with the session', () => {
     expect(store.session).toEqual({ ...sessionOf('A'), tokens: null });
     expect(getLibrary().id).toBe(aId);
     expect(libraryIds()).toEqual([aId]); // no device library comes back
-    await repo.createAsset(getDb(), makeAssetRecord({ isSynced: false })); // while signed out
+    await repo.create(getDb(), makeAssetRecord({ isSynced: false })); // while signed out
     expect(await signOut()).toBeNull(); // nothing more to revoke
 
     await closeLibrary(); // the app is closed and opened again
@@ -349,7 +349,7 @@ describe('switching libraries with the session', () => {
   it('opening a library gives its failed pushes another try, and leaves its failed uploads', async () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(null);
-    const photo = await repo.createAsset(getDb(), makeAssetRecord({ isSynced: false }));
+    const photo = await repo.create(getDb(), makeAssetRecord({ isSynced: false }));
     await setOutboxError(getDb(), 'assets', [photo.id], 'schema:boom');
     await repo.setSyncError(getDb(), [photo.id], 'upload failed');
 
@@ -364,7 +364,7 @@ describe('switching libraries with the session', () => {
     await open(null);
     await signIn(sessionOf('A'));
     const aId = getLibrary().id;
-    await repo.createAsset(getDb(), makeAssetRecord({ isSynced: false }));
+    await repo.create(getDb(), makeAssetRecord({ isSynced: false }));
     await signOut();
 
     await signIn(sessionOf('B'));
@@ -437,7 +437,7 @@ describe('switching libraries with the session', () => {
   it('a sign-out on the setup screen leaves this iPhone’s photos in reach', async () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(null);
-    const photo = await repo.createAsset(
+    const photo = await repo.create(
       getDb(),
       makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
     );
@@ -465,7 +465,7 @@ describe('switching libraries with the session', () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(null);
     const deviceId = getLibrary().id;
-    const photo = await repo.createAsset(
+    const photo = await repo.create(
       getDb(),
       makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
     );
@@ -493,7 +493,7 @@ describe('switching libraries with the session', () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(null);
     const deviceId = getLibrary().id;
-    const photo = await repo.createAsset(
+    const photo = await repo.create(
       getDb(),
       makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
     );
@@ -517,7 +517,7 @@ describe('switching libraries with the session', () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(null);
     const deviceId = getLibrary().id;
-    await repo.createAsset(getDb(), makeAssetRecord({ isFileSynced: false, isSynced: false }));
+    await repo.create(getDb(), makeAssetRecord({ isFileSynced: false, isSynced: false }));
     await updateLibrary(deviceId, (library) => ({
       ...library,
       mergedInto: { library: 'gone', serverId: 's1', userId: 'A' },
@@ -536,7 +536,7 @@ describe('switching libraries with the session', () => {
   it('a session rejected during the first pull leaves this iPhone’s photos in reach', async () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(null);
-    const photo = await repo.createAsset(
+    const photo = await repo.create(
       getDb(),
       makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
     );
@@ -558,7 +558,7 @@ describe('switching libraries with the session', () => {
   it('a photo added after a session was rejected mid-setup is still there at the next launch', async () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(null);
-    await repo.createAsset(
+    await repo.create(
       getDb(),
       makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
     );
@@ -569,7 +569,7 @@ describe('switching libraries with the session', () => {
     };
     await expect(refreshAccessTokenAsync({ serverId: 's1', userId: 'A' })).rejects.toThrow('rejected');
     await vi.waitFor(() => expect(openOwner()).toEqual({ kind: 'device' }));
-    const added = await repo.createAsset(
+    const added = await repo.create(
       getDb(),
       makeAssetRecord({ filename: 'b.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
     );
@@ -589,7 +589,7 @@ describe('switching libraries with the session', () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(null);
     const deviceId = getLibrary().id;
-    await repo.createAsset(
+    await repo.create(
       getDb(),
       makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
     );
@@ -617,7 +617,7 @@ describe('switching libraries with the session', () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(null);
     const deviceId = getLibrary().id;
-    const photo = await repo.createAsset(
+    const photo = await repo.create(
       getDb(),
       makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
     );

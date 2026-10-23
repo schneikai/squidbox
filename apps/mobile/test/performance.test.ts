@@ -132,7 +132,7 @@ describe('performance at library scale', () => {
     const { db, assets } = await syncedLibrary(1_000);
     const notified: string[][] = [];
     db.onTablesChanged((tables) => notified.push([...tables]));
-    await repo.updateAssets(db, Object.fromEntries(assets.map((asset) => [asset.id, { notes: 'edited' }])));
+    await repo.updateMany(db, Object.fromEntries(assets.map((asset) => [asset.id, { notes: 'edited' }])));
     await runSyncOnce(db, acceptingTransport); // settles the push without an assets row changing
     expect(notified.filter((tables) => tables.includes('assets'))).toHaveLength(1);
   });
@@ -140,7 +140,7 @@ describe('performance at library scale', () => {
   it('a bulk delete is one transaction per 5,000 ids', async () => {
     const { db, measure, assets } = await syncedLibrary(12_000);
     const ids = assets.map((asset) => asset.id);
-    const work = await measure(() => writeInBatches(ids, (batch) => repo.deleteAssets(db, batch)));
+    const work = await measure(() => writeInBatches(ids, (batch) => repo.remove(db, batch)));
     expect(work.commits).toBe(3);
     expect((await assetQuery({ scope: 'deleted' }).read(db, { limit: 1 })).count).toBe(12_000);
   });
@@ -149,9 +149,9 @@ describe('performance at library scale', () => {
     const { db, measure, assets } = await syncedLibrary(2_000);
     const ids = assets.map((asset) => asset.id);
     const favorite = await measure(() =>
-      repo.updateAssets(db, Object.fromEntries(ids.map((id) => [id, { isFavorite: true }]))),
+      repo.updateMany(db, Object.fromEntries(ids.map((id) => [id, { isFavorite: true }]))),
     );
-    const remove = await measure(() => repo.deleteAssets(db, ids));
+    const remove = await measure(() => repo.remove(db, ids));
     // per 500: read, upsert, outbox; plus BEGIN/COMMIT
     expect(favorite.statements).toBeLessThanOrEqual(2 + 3 * 4);
     expect(remove.statements).toBeLessThanOrEqual(2 + 3 * 4);
@@ -159,7 +159,7 @@ describe('performance at library scale', () => {
 
   it('push results are applied in one transaction per batch of 500', async () => {
     const { db, measure, assets } = await syncedLibrary(1_000);
-    await repo.updateAssets(db, Object.fromEntries(assets.map((asset) => [asset.id, { notes: 'edited' }])));
+    await repo.updateMany(db, Object.fromEntries(assets.map((asset) => [asset.id, { notes: 'edited' }])));
     const work = await measure(() => runSyncOnce(db, acceptingTransport));
     expect(work.commits).toBeLessThanOrEqual(10); // one per push batch plus status and log writes, not one or more per result
   });
@@ -196,7 +196,7 @@ describe('performance at library scale', () => {
 describe('plan guard', () => {
   async function library() {
     const { db, measure } = makeMeasuredTestDb();
-    const assets = await repo.createAssets(
+    const assets = await repo.createMany(
       db,
       Array.from({ length: 30 }, (_, i) =>
         makeAssetRecord({

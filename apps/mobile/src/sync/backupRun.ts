@@ -1,4 +1,4 @@
-import { isUnsynced, readUnsyncedIds, setSyncError, updateAsset } from './assetsRepository';
+import * as repo from './assetsRepository';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { pendingEdits } from './outbox';
@@ -45,7 +45,7 @@ export function isBackupRunning(): boolean {
  */
 export function runBackup(db: SyncDb, options: BackupRunOptions): Promise<void> | null {
   if (running) throw new Error('A backup is already running');
-  const run = startRun(async (signal) => backupAssets(db, await readUnsyncedIds(db), signal, options));
+  const run = startRun(async (signal) => backupAssets(db, await repo.readUnsyncedIds(db), signal, options));
   if (!run) return null;
   running = true;
   return run.finally(() => {
@@ -64,7 +64,7 @@ async function backupAssets(
     if (signal.aborted) return;
     onProgress?.({ index, total: ids.length });
     const [asset] = await readByIds<BackupAsset>(db, schema.assets, [id]);
-    if (!asset || !isUnsynced(asset) || (await isUnconfirmed(db, id))) continue;
+    if (!asset || !repo.isUnsynced(asset) || (await isUnconfirmed(db, id))) continue;
     if (await backupAsset(db, asset, bound, signal)) return;
   }
 }
@@ -106,7 +106,7 @@ async function backupAsset(db: SyncDb, asset: BackupAsset, uploads: BackupUpload
   } catch (error) {
     if (signal.aborted) return true;
     // The other assets still get their turn; the error shows in the UI with a retry.
-    await setSyncError(db, [asset.id], errorMessage(error));
+    await repo.setSyncError(db, [asset.id], errorMessage(error));
   }
   return signal.aborted;
 }
@@ -145,11 +145,11 @@ async function markAsset(
     if (uploaded.thumbnail && !row.isThumbnailSynced) changes.isThumbnailSynced = true;
     const marked = Object.keys(changes).length > 0;
     if (marked)
-      await updateAsset(tx, id, {
+      await repo.update(tx, id, {
         ...changes,
         isSynced: (row.isFileSynced || uploaded.file) && (row.isThumbnailSynced || uploaded.thumbnail),
       });
-    if (failures.length > 0) await setSyncError(tx, [id], errorMessage(failures[0]));
+    if (failures.length > 0) await repo.setSyncError(tx, [id], errorMessage(failures[0]));
     return marked;
   });
 }

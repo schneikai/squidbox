@@ -106,7 +106,7 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
   });
 
   it('propagates a create from A to B', async () => {
-    const rec = await repo.createAsset(deviceA, makeAssetRecord({ filename: 'from-a.jpg' }));
+    const rec = await repo.create(deviceA, makeAssetRecord({ filename: 'from-a.jpg' }));
     await runSyncOnce(deviceA, transport); // A pushes
     await runSyncOnce(deviceB, transport); // B pulls
     const onB = await readLiveAsset(deviceB, rec.id);
@@ -115,13 +115,13 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
 
   it('converges under concurrent edits of the same field (last writer wins)', async () => {
     // Both devices start with the same synced asset.
-    const rec = await repo.createAsset(deviceA, makeAssetRecord({ notes: 'orig' }));
+    const rec = await repo.create(deviceA, makeAssetRecord({ notes: 'orig' }));
     await runSyncOnce(deviceA, transport);
     await runSyncOnce(deviceB, transport);
 
     // Concurrent offline edits to the same record.
-    await repo.updateAsset(deviceA, rec.id, { notes: 'edited-on-A' });
-    await repo.updateAsset(deviceB, rec.id, { notes: 'edited-on-B' });
+    await repo.update(deviceA, rec.id, { notes: 'edited-on-A' });
+    await repo.update(deviceB, rec.id, { notes: 'edited-on-B' });
 
     // Drain both a couple of times so push/adopt/pull settle.
     await runSyncOnce(deviceA, transport);
@@ -163,13 +163,13 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
   });
 
   it('notes added on A to a photo deleted on B: it stays deleted, with the notes', async () => {
-    const rec = await repo.createAsset(deviceA, makeAssetRecord());
+    const rec = await repo.create(deviceA, makeAssetRecord());
     await settle();
 
-    await repo.deleteAssets(deviceB, [rec.id]);
+    await repo.remove(deviceB, [rec.id]);
     await runSyncOnce(deviceB, transport);
     await new Promise((resolve) => setTimeout(resolve, 2));
-    await repo.updateAsset(deviceA, rec.id, { notes: 'written offline' }); // newer, but no restore
+    await repo.update(deviceA, rec.id, { notes: 'written offline' }); // newer, but no restore
     await settle();
 
     for (const device of [deviceA, deviceB]) {
@@ -219,20 +219,20 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
   });
 
   it('propagates a tombstone from A to B', async () => {
-    const rec = await repo.createAsset(deviceA, makeAssetRecord());
+    const rec = await repo.create(deviceA, makeAssetRecord());
     await runSyncOnce(deviceA, transport);
     await runSyncOnce(deviceB, transport);
     expect(await readLiveAsset(deviceB, rec.id)).toBeDefined();
 
-    await repo.deleteAssets(deviceA, [rec.id]);
+    await repo.remove(deviceA, [rec.id]);
     await runSyncOnce(deviceA, transport); // push tombstone
     await runSyncOnce(deviceB, transport); // pull tombstone
     expect(await readLiveAsset(deviceB, rec.id)).toBeUndefined();
   });
 
   it('a permanent delete wins over a stale restore: the cloud files go once and the asset stays gone on both', async () => {
-    const rec = await repo.createAsset(deviceA, makeAssetRecord({ filename: 'p.jpg', thumbnailFilename: 'p-t.jpg' }));
-    await repo.deleteAssets(deviceA, [rec.id]);
+    const rec = await repo.create(deviceA, makeAssetRecord({ filename: 'p.jpg', thumbnailFilename: 'p-t.jpg' }));
+    await repo.remove(deviceA, [rec.id]);
     await runSyncOnce(deviceA, transport);
     await runSyncOnce(deviceB, transport);
 
@@ -240,7 +240,7 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
     const removedOnA: string[] = [];
     await repo.purgeAssets(deviceA, [rec.id]);
     await new Promise((resolve) => setTimeout(resolve, 2));
-    await repo.updateAllAssets(deviceB, [rec.id], { deletedAt: null });
+    await repo.updateAll(deviceB, [rec.id], { deletedAt: null });
 
     await runSyncOnce(deviceA, transport, {
       removeFiles: async (files) => {
@@ -268,14 +268,14 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
   });
 
   it('an offline device’s purge loses to a restore another device pushed first: the asset and its cloud files stay', async () => {
-    const rec = await repo.createAsset(deviceA, makeAssetRecord({ filename: 'r.jpg', thumbnailFilename: 'r-t.jpg' }));
-    await repo.deleteAssets(deviceA, [rec.id]);
+    const rec = await repo.create(deviceA, makeAssetRecord({ filename: 'r.jpg', thumbnailFilename: 'r-t.jpg' }));
+    await repo.remove(deviceA, [rec.id]);
     await runSyncOnce(deviceA, transport);
     await runSyncOnce(deviceB, transport);
 
     await repo.purgeAssets(deviceA, [rec.id]); // A, offline
     await new Promise((resolve) => setTimeout(resolve, 2));
-    await repo.updateAllAssets(deviceB, [rec.id], { deletedAt: null }); // B restores it later
+    await repo.updateAll(deviceB, [rec.id], { deletedAt: null }); // B restores it later
     await runSyncOnce(deviceB, transport);
 
     await runSyncOnce(deviceA, transport); // A's older purge loses, A adopts the restore
@@ -424,7 +424,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
 
   async function seedAsset(over: Partial<AssetRecord> = {}) {
     at(S);
-    const rec = await repo.createAsset(A, makeAssetRecord({ createdAt: S, updatedAt: S, ...over }));
+    const rec = await repo.create(A, makeAssetRecord({ createdAt: S, updatedAt: S, ...over }));
     await settle();
     return rec.id;
   }
@@ -482,7 +482,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
         [B, A],
       ]) {
         const id = await seedAsset();
-        await edit(A, S + 100, () => repo.updateAsset(A, id, { notes: 'from A' }));
+        await edit(A, S + 100, () => repo.update(A, id, { notes: 'from A' }));
         await edit(B, S + 200, () => repo.toggleFavorite(B, id));
         await sync(order[0]!);
         await sync(order[1]!);
@@ -509,8 +509,8 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
         [B, A],
       ]) {
         const id = await seedAsset();
-        await edit(A, S + 100, () => repo.updateAsset(A, id, { notes: 'older, A' }));
-        await edit(B, S + 200, () => repo.updateAsset(B, id, { notes: 'newer, B' }));
+        await edit(A, S + 100, () => repo.update(A, id, { notes: 'older, A' }));
+        await edit(B, S + 200, () => repo.update(B, id, { notes: 'newer, B' }));
         await sync(order[0]!);
         await sync(order[1]!);
         await settle();
@@ -521,8 +521,8 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
 
     it('edits of the same field in the same millisecond keep the first one pushed', async () => {
       const id = await seedAsset();
-      await edit(A, S + 100, () => repo.updateAsset(A, id, { notes: 'A' }));
-      await edit(B, S + 100, () => repo.updateAsset(B, id, { notes: 'B' }));
+      await edit(A, S + 100, () => repo.update(A, id, { notes: 'A' }));
+      await edit(B, S + 100, () => repo.update(B, id, { notes: 'B' }));
       await sync(B);
       await sync(A);
       await settle();
@@ -531,16 +531,16 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
 
     it('a device whose clock is an hour ahead is clamped: a later edit elsewhere still wins, and its own later edit too', async () => {
       const id = await seedAsset();
-      await edit(A, S + 1000 + HOUR, () => repo.updateAsset(A, id, { notes: 'A, clock ahead' }));
+      await edit(A, S + 1000 + HOUR, () => repo.update(A, id, { notes: 'A, clock ahead' }));
       await sync(A, { now: S + 1000 }); // clamped to the server's clock
       expect((await serverRaw('assets', id))!.fieldClock.notes).toBe(S + 1000);
-      await edit(B, S + 2000, () => repo.updateAsset(B, id, { notes: 'B, later' }));
+      await edit(B, S + 2000, () => repo.update(B, id, { notes: 'B, later' }));
       await sync(B, { now: S + 3000 });
       await settle([A, B, C], S + 4000);
       expect((await expectConverged('assets', id)).notes).toBe('B, later');
 
       // A edits again, an hour ahead still: clamped to the server's time, it's the newest edit.
-      await edit(A, S + 5000 + HOUR, () => repo.updateAsset(A, id, { notes: 'A again', isFavorite: true }));
+      await edit(A, S + 5000 + HOUR, () => repo.update(A, id, { notes: 'A again', isFavorite: true }));
       await settle([A, B, C], S + 6000);
       expect(await expectConverged('assets', id)).toMatchObject({ notes: 'A again', isFavorite: true });
       expect((await serverRaw('assets', id))!.fieldClock).toMatchObject({ notes: S + 6000, isFavorite: S + 6000 });
@@ -548,15 +548,15 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
 
     it('a device whose clock is an hour behind loses an edit it made unseen, but wins once it pulled', async () => {
       const id = await seedAsset();
-      await edit(A, S + 1000, () => repo.updateAsset(A, id, { notes: 'A' }));
+      await edit(A, S + 1000, () => repo.update(A, id, { notes: 'A' }));
       await sync(A, { now: S + 1100 });
       // B, an hour behind, edits before pulling A's edit: its clock says it is older (§7, a known limit).
-      await edit(B, S + 2000 - HOUR, () => repo.updateAsset(B, id, { notes: 'B, clock behind' }));
+      await edit(B, S + 2000 - HOUR, () => repo.update(B, id, { notes: 'B, clock behind' }));
       await settle([A, B, C], S + 2100);
       expect((await expectConverged('assets', id)).notes).toBe('A');
 
       // Having pulled, B's next edit gets a clock above the record's: it wins.
-      await edit(B, S + 3000 - HOUR, () => repo.updateAsset(B, id, { notes: 'B, after the pull' }));
+      await edit(B, S + 3000 - HOUR, () => repo.update(B, id, { notes: 'B, after the pull' }));
       await edit(C, S + 3000, () => posts.create(C, makePostRecord({ createdAt: S, text: 'unrelated' })));
       await settle([A, B, C], S + 3100);
       expect((await expectConverged('assets', id)).notes).toBe('B, after the pull');
@@ -564,7 +564,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
 
     it('an edit of a field just pulled around a pending edit gets a clock above the pulled one', async () => {
       const id = await seedAsset();
-      await edit(A, S + 100, () => repo.updateAsset(A, id, { notes: 'A, pending' }));
+      await edit(A, S + 100, () => repo.update(A, id, { notes: 'A, pending' }));
       await edit(B, S + 500, () => repo.toggleFavorite(B, id)); // true, at S+500
       await sync(B);
       await pullOnly(A);
@@ -611,8 +611,8 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
         [S + 200, [B, A]],
       ] as const) {
         const id = await seedAsset();
-        await edit(A, S + 100, () => repo.deleteAssets(A, [id]));
-        await edit(B, notesAt, () => repo.updateAsset(B, id, { notes: 'B notes' }));
+        await edit(A, S + 100, () => repo.remove(A, [id]));
+        await edit(B, notesAt, () => repo.update(B, id, { notes: 'B notes' }));
         await sync(order[0]);
         await sync(order[1]);
         await settle();
@@ -622,22 +622,22 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
 
     it('a restore beats an older delete pushed after it', async () => {
       const id = await seedAsset();
-      await edit(B, S + 100, () => repo.deleteAssets(B, [id]));
+      await edit(B, S + 100, () => repo.remove(B, [id]));
       await sync(B);
-      await edit(B, S + 300, () => repo.updateAllAssets(B, [id], { deletedAt: null }));
+      await edit(B, S + 300, () => repo.updateAll(B, [id], { deletedAt: null }));
       await sync(B);
-      await edit(A, S + 200, () => repo.deleteAssets(A, [id])); // A never saw either, its delete is older
+      await edit(A, S + 200, () => repo.remove(A, [id])); // A never saw either, its delete is older
       await settle();
       expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: null });
     });
 
     it('a delete newer than a restore wins over it', async () => {
       const id = await seedAsset();
-      await edit(B, S + 100, () => repo.deleteAssets(B, [id]));
+      await edit(B, S + 100, () => repo.remove(B, [id]));
       await sync(B);
-      await edit(B, S + 200, () => repo.updateAllAssets(B, [id], { deletedAt: null }));
+      await edit(B, S + 200, () => repo.updateAll(B, [id], { deletedAt: null }));
       await sync(B);
-      await edit(A, S + 300, () => repo.deleteAssets(A, [id]));
+      await edit(A, S + 300, () => repo.remove(A, [id]));
       await settle();
       expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: S + 300 });
     });
@@ -645,10 +645,10 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     it('a purge vs a concurrent edit in the Deleted album: the purge is final either way, and an edit pushed first stays in it', async () => {
       for (const purgeFirst of [true, false]) {
         const id = await seedAsset({ notes: 'orig' });
-        await edit(A, S + 100, () => repo.deleteAssets(A, [id]));
+        await edit(A, S + 100, () => repo.remove(A, [id]));
         await settle();
         await edit(A, S + 200, () => repo.purgeAssets(A, [id]));
-        await edit(B, S + 300, () => repo.updateAsset(B, id, { notes: 'B, newer' }));
+        await edit(B, S + 300, () => repo.update(B, id, { notes: 'B, newer' }));
         const removed: string[] = [];
         const removeFiles: RemoveFiles = async (files) => {
           removed.push(...files.flatMap((f) => (f.filename ? [f.filename] : [])));
@@ -673,9 +673,9 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     it('a purge and a restore it hadn’t seen: the restore wins in either order, the files stay', async () => {
       for (const purgeLater of [true, false]) {
         const id = await seedAsset();
-        await edit(B, S + 100, () => repo.deleteAssets(B, [id]));
+        await edit(B, S + 100, () => repo.remove(B, [id]));
         await settle();
-        await edit(B, purgeLater ? S + 200 : S + 400, () => repo.updateAllAssets(B, [id], { deletedAt: null }));
+        await edit(B, purgeLater ? S + 200 : S + 400, () => repo.updateAll(B, [id], { deletedAt: null }));
         await sync(B);
         await edit(A, S + 300, () => repo.purgeAssets(A, [id]));
         const removed: string[] = [];
@@ -694,11 +694,11 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     // clock (a restore beats only a purge of the deletion it undid, sync-design §7).
     it('an offline delete and purge coalesced in one push go by clock against a restore of another deletion', async () => {
       const id = await seedAsset();
-      await edit(B, S + 100, () => repo.deleteAssets(B, [id]));
+      await edit(B, S + 100, () => repo.remove(B, [id]));
       await sync(B);
-      await edit(B, S + 300, () => repo.updateAllAssets(B, [id], { deletedAt: null }));
+      await edit(B, S + 300, () => repo.updateAll(B, [id], { deletedAt: null }));
       await sync(B);
-      await edit(A, S + 200, () => repo.deleteAssets(A, [id])); // A saw neither
+      await edit(A, S + 200, () => repo.remove(A, [id])); // A saw neither
       await edit(A, S + 400, () => repo.purgeAssets(A, [id]));
       expect((await A.select().from(clientSchema.outbox))[0]!.fields).toEqual({
         deletedAt: S + 400,
@@ -710,7 +710,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
 
     it('an offline delete and purge of an asset no device restored apply', async () => {
       const id = await seedAsset();
-      await edit(A, S + 200, () => repo.deleteAssets(A, [id]));
+      await edit(A, S + 200, () => repo.remove(A, [id]));
       await edit(A, S + 400, () => repo.purgeAssets(A, [id]));
       await settle();
       expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: S + 200, purgedAt: S + 400 });
@@ -728,7 +728,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       });
       const pull: SyncTransport['pull'] = (req) =>
         serverPull(pgDb as any, USER2, { cursor: req.cursor, limit: req.limit });
-      await edit(B, S + 100, () => repo.deleteAssets(B, [id]));
+      await edit(B, S + 100, () => repo.remove(B, [id]));
       at(SERVER_NOW);
       await runSyncOnce(B, {
         push: async (req) => {
@@ -759,14 +759,14 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
 
     it('pushes to a purged row stay frozen: new apps, an old app, a restore, nothing moves it', async () => {
       const id = await seedAsset();
-      await edit(A, S + 100, () => repo.deleteAssets(A, [id]));
+      await edit(A, S + 100, () => repo.remove(A, [id]));
       await settle();
       await edit(A, S + 200, () => repo.purgeAssets(A, [id]));
       await sync(A);
       const frozen = await serverRaw('assets', id);
 
-      await edit(B, S + 300, () => repo.updateAsset(B, id, { notes: 'B' }));
-      await edit(C, S + 400, () => repo.updateAllAssets(C, [id], { deletedAt: null, isFavorite: true }));
+      await edit(B, S + 300, () => repo.update(B, id, { notes: 'B' }));
+      await edit(C, S + 400, () => repo.updateAll(C, [id], { deletedAt: null, isFavorite: true }));
       await sync(B);
       await sync(C);
       expect(pushLog.slice(-2).map((entry) => entry.results[0]!.status)).toEqual(['skipped-lww', 'skipped-lww']);
@@ -777,10 +777,10 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
 
     it('a purge on one device while the other has pending edits: the other adopts it and removes its files', async () => {
       const id = await seedAsset({ filename: 'k.jpg', thumbnailFilename: 'k-t.jpg' });
-      await edit(A, S + 100, () => repo.deleteAssets(A, [id]));
+      await edit(A, S + 100, () => repo.remove(A, [id]));
       await settle();
-      await edit(B, S + 150, () => repo.updateAsset(B, id, { notes: 'B notes', isFavorite: true }));
-      await edit(B, S + 250, () => repo.updateAllAssets(B, [id], { deletedAt: null })); // and a restore, newer
+      await edit(B, S + 150, () => repo.update(B, id, { notes: 'B notes', isFavorite: true }));
+      await edit(B, S + 250, () => repo.updateAll(B, [id], { deletedAt: null })); // and a restore, newer
       await edit(A, S + 200, () => repo.purgeAssets(A, [id]));
       await sync(A);
       const removed: string[] = [];
@@ -804,7 +804,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     it('an older old-app edit keeps its field and loses its stale others: skipped-lww with the merged current', async () => {
       const id = await seedAsset({ notes: 'orig' });
       await edit(C, S + 100, () => repo.toggleFavorite(C, id));
-      await edit(A, S + 200, () => repo.updateAsset(A, id, { notes: 'A' }));
+      await edit(A, S + 200, () => repo.update(A, id, { notes: 'A' }));
       await sync(A);
       await sync(C);
       const [result] = pushLog.at(-1)!.results;
@@ -815,7 +815,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
 
     it('a newer old-app edit stamps every field it carries, so it rewrites an older edit of another field (§7)', async () => {
       const id = await seedAsset({ notes: 'orig' });
-      await edit(A, S + 100, () => repo.updateAsset(A, id, { notes: 'A' }));
+      await edit(A, S + 100, () => repo.update(A, id, { notes: 'A' }));
       await sync(A);
       await edit(C, S + 200, () => repo.toggleFavorite(C, id)); // C never pulled A's notes
       await sync(C);
@@ -851,20 +851,20 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
 
     it('an old-app restore with a stale record undeletes, and a new device’s newer delete beats it back', async () => {
       const id = await seedAsset();
-      await edit(A, S + 100, () => repo.deleteAssets(A, [id]));
+      await edit(A, S + 100, () => repo.remove(A, [id]));
       await settle();
-      await edit(C, S + 200, () => repo.updateAllAssets(C, [id], { deletedAt: null }));
+      await edit(C, S + 200, () => repo.updateAll(C, [id], { deletedAt: null }));
       await sync(C);
-      await edit(B, S + 300, () => repo.deleteAssets(B, [id]));
+      await edit(B, S + 300, () => repo.remove(B, [id]));
       await settle();
       expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: S + 300 });
     });
 
     it('an old-app edit older than a purge never brings the record back', async () => {
       const id = await seedAsset();
-      await edit(A, S + 100, () => repo.deleteAssets(A, [id]));
+      await edit(A, S + 100, () => repo.remove(A, [id]));
       await settle();
-      await edit(C, S + 900, () => repo.updateAllAssets(C, [id], { deletedAt: null, notes: 'C' })); // newer even
+      await edit(C, S + 900, () => repo.updateAll(C, [id], { deletedAt: null, notes: 'C' })); // newer even
       await edit(A, S + 200, () => repo.purgeAssets(A, [id]));
       await sync(A);
       await settle();
@@ -877,10 +877,10 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       for (const aNewer of [false, true]) {
         const id = await seedAsset({ isFileSynced: false, isThumbnailSynced: false, isSynced: false });
         await edit(A, aNewer ? S + 300 : S + 100, () =>
-          repo.updateAsset(A, id, { isFileSynced: true, isThumbnailSynced: true, isSynced: true }),
+          repo.update(A, id, { isFileSynced: true, isThumbnailSynced: true, isSynced: true }),
         );
-        await edit(B, S + 200, () => repo.updateAsset(B, id, { isThumbnailSynced: true }));
-        await edit(C, S + 50, () => repo.updateAsset(C, id, { notes: 'C, oldest' })); // an old app, stale flags
+        await edit(B, S + 200, () => repo.update(B, id, { isThumbnailSynced: true }));
+        await edit(C, S + 50, () => repo.update(C, id, { notes: 'C, oldest' })); // an old app, stale flags
         await sync(B);
         await sync(A);
         await sync(C);
@@ -989,9 +989,9 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       at(S);
       const postId = randomUUID();
       await createPost(A, { id: postId, createdAt: S, updatedAt: S, text: 'trip', postedAt: null }, [x, y]);
-      await edit(A, S + 50, () => repo.deleteAssets(A, [x]));
+      await edit(A, S + 50, () => repo.remove(A, [x]));
       await settle();
-      await edit(B, S + 100, () => repo.updateAllAssets(B, [x], { deletedAt: null })); // B restores x
+      await edit(B, S + 100, () => repo.updateAll(B, [x], { deletedAt: null })); // B restores x
       await sync(B);
       await edit(A, S + 200, () => repo.purgeAssets(A, [x])); // A, not having pulled the restore
       const seed = await openEditor(A, postId);
@@ -1139,12 +1139,12 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     it('replays the device’s edits field by field against the account’s newer pending edit and another device’s', async () => {
       const id = await seedAsset({ notes: 'orig' });
       const D = await deviceLibraryWith(id);
-      await edit(D, S + 100, () => repo.updateAsset(D, id, { notes: 'device' }));
-      await edit(D, S + 400, () => repo.updateAsset(D, id, { oldFileId: 'device' }));
-      await edit(D, S + 450, () => repo.updateAsset(D, id, { mediaLibraryAssetId: 'device' }));
-      await edit(A, S + 300, () => repo.updateAsset(A, id, { notes: 'account' }));
+      await edit(D, S + 100, () => repo.update(D, id, { notes: 'device' }));
+      await edit(D, S + 400, () => repo.update(D, id, { oldFileId: 'device' }));
+      await edit(D, S + 450, () => repo.update(D, id, { mediaLibraryAssetId: 'device' }));
+      await edit(A, S + 300, () => repo.update(A, id, { notes: 'account' }));
       await edit(B, S + 200, () => repo.toggleFavorite(B, id));
-      await edit(B, S + 500, () => repo.updateAsset(B, id, { oldFileId: 'B' }));
+      await edit(B, S + 500, () => repo.update(B, id, { oldFileId: 'B' }));
       await sync(B);
       await mergeInto(A, D, S + 600);
       await settle();
@@ -1173,16 +1173,16 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       const D = await deviceLibraryWith(id); // a first merge pass copied it into the account
       await setOwner(D, { kind: 'device' });
       await setMergeTarget(D, { library: 'account', serverId: 's1', userId: 'u1' });
-      await edit(D, S + 100, () => repo.deleteAssets(D, [id]));
+      await edit(D, S + 100, () => repo.remove(D, [id]));
       await edit(D, S + 200, () => repo.purgeAssets(D, [id]));
       const removed: string[] = [];
       // The device library's own sweep, at its open and after the purge.
       await sweepPurgedFiles(D, async (files) => {
         removed.push(...files.flatMap((f) => [f.filename, f.thumbnailFilename].filter((n): n is string => !!n)));
       });
-      await edit(B, S + 150, () => repo.deleteAssets(B, [id]));
+      await edit(B, S + 150, () => repo.remove(B, [id]));
       await sync(B);
-      await edit(B, S + 300, () => repo.updateAllAssets(B, [id], { deletedAt: null }));
+      await edit(B, S + 300, () => repo.updateAll(B, [id], { deletedAt: null }));
       await sync(B);
       await mergeInto(A, D, S + 400); // the next pass
       await settle();
@@ -1200,7 +1200,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       const D = await deviceLibraryWith(id);
       await setOwner(D, { kind: 'device' });
       await setMergeTarget(D, { library: 'gone', serverId: 's1', userId: 'u1' });
-      await edit(D, S + 100, () => repo.deleteAssets(D, [id]));
+      await edit(D, S + 100, () => repo.remove(D, [id]));
       const T2 = makeTestDb(); // the account's new library
       await settle([A, B, T2]); // its first full pull
       at(S + 200);
@@ -1218,13 +1218,13 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     it('a pass run again replays nothing a committed pass did, only what the device edited since', async () => {
       const id = await seedAsset({ notes: 'orig' });
       const D = await deviceLibraryWith(id);
-      await edit(D, S + 100, () => repo.updateAsset(D, id, { notes: 'device' }));
-      await edit(D, S + 110, () => repo.updateAllAssets(D, [id], { deletedAt: S + 110 }));
+      await edit(D, S + 100, () => repo.update(D, id, { notes: 'device' }));
+      await edit(D, S + 110, () => repo.updateAll(D, [id], { deletedAt: S + 110 }));
       await mergeInto(A, D, S + 200);
       await settle();
       expect(await expectConverged('assets', id)).toMatchObject({ notes: 'device', deletedAt: S + 110 });
-      await edit(B, S + 300, () => repo.updateAsset(B, id, { notes: 'account' }));
-      await edit(B, S + 310, () => repo.updateAllAssets(B, [id], { deletedAt: null }));
+      await edit(B, S + 300, () => repo.update(B, id, { notes: 'account' }));
+      await edit(B, S + 310, () => repo.updateAll(B, [id], { deletedAt: null }));
       await sync(B);
       await settle();
       const again = await planMerge(D, A, libraryPaths('device'), libraryPaths('account'));
@@ -1232,7 +1232,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       await applyMerge(A, again);
       expect(await localRow(A, 'assets', id)).toMatchObject({ notes: 'account', deletedAt: null }); // not set back
       // An edit the device makes after the commit still replays.
-      await edit(D, S + 600, () => repo.updateAsset(D, id, { oldFileId: 'later' }));
+      await edit(D, S + 600, () => repo.update(D, id, { oldFileId: 'later' }));
       const later = await planMerge(D, A, libraryPaths('device'), libraryPaths('account'));
       expect(later.replays.map((row) => Object.keys(row.fields))).toEqual([['oldFileId']]);
       await applyMerge(A, later);
@@ -1253,7 +1253,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       const D = makeTestDb(); // the new phone's device library, before the sign-in
       await setOwner(D, { kind: 'device' });
       at(S + 100);
-      await repo.createAsset(
+      await repo.create(
         D,
         makeAssetRecord({ mediaLibraryAssetId: 'camera-roll-1', filename: 'on-phone.jpg', isFileSynced: false }),
       );
@@ -1279,14 +1279,14 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       const D = makeTestDb(); // the iPhone's device library, before the sign-in
       await setOwner(D, { kind: 'device' });
       at(S + 100);
-      await repo.createAsset(
+      await repo.create(
         D,
         makeAssetRecord({
           ...{ mediaLibraryAssetId: 'camera-roll-x', filename: 'on-phone.jpg', isFileSynced: false },
           ...{ isFavorite: true, notes: 'from the iPhone' },
         }),
       );
-      await edit(B, S + 200, () => repo.updateAsset(B, id, { notes: 'from the iPad' }));
+      await edit(B, S + 200, () => repo.update(B, id, { notes: 'from the iPad' }));
       await edit(B, S + 210, () => repo.toggleFavorite(B, id));
       await edit(B, S + 220, () => repo.toggleFavorite(B, id));
       await sync(B);
@@ -1321,7 +1321,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       const D = makeTestDb();
       await setOwner(D, { kind: 'device' });
       at(S + 100);
-      const photo = await repo.createAsset(
+      const photo = await repo.create(
         D,
         makeAssetRecord({
           ...{ mediaLibraryAssetId: 'camera-roll-x', filename: 'on-phone.jpg', isFileSynced: false },
@@ -1333,11 +1333,11 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       await sync(T1);
       await commitPass(D, T1, S + 300);
 
-      await edit(B, S + 400, () => repo.updateAsset(B, id, { notes: 'from the iPad' }));
+      await edit(B, S + 400, () => repo.update(B, id, { notes: 'from the iPad' }));
       await edit(B, S + 410, () => repo.toggleFavorite(B, id));
       await edit(B, S + 420, () => repo.toggleFavorite(B, id));
       await sync(B);
-      await edit(D, S + 500, () => repo.updateAsset(D, photo.id, { notes: 'from the iPhone, later' }));
+      await edit(D, S + 500, () => repo.update(D, photo.id, { notes: 'from the iPhone, later' }));
       await edit(D, S + 510, () => repo.toggleFavorite(D, photo.id));
 
       const T2 = makeTestDb();
@@ -1360,7 +1360,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       const D = makeTestDb();
       await setOwner(D, { kind: 'device' });
       at(S + 100);
-      await repo.createAsset(
+      await repo.create(
         D,
         makeAssetRecord({
           ...{ mediaLibraryAssetId: 'camera-roll-x', filename: 'on-phone.jpg', isFileSynced: false },
@@ -1376,7 +1376,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       }
       await after(id);
       at(S + 500);
-      await repo.createAsset(
+      await repo.create(
         D,
         makeAssetRecord({
           ...{ mediaLibraryAssetId: 'camera-roll-x', filename: 'again.jpg', isFileSynced: false },
@@ -1400,7 +1400,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     it('round 15: a photo imported again doesn’t bring back a note the account deleted after a pushed pass', async () => {
       const deleteOnIpad = async (id: string) => {
         await sync(B);
-        await edit(B, S + 400, () => repo.updateAsset(B, id, { notes: null }));
+        await edit(B, S + 400, () => repo.update(B, id, { notes: null }));
         await sync(B);
       };
       expect(await importedAgainAfterPass1(true, deleteOnIpad)).toMatchObject({
@@ -1419,7 +1419,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       await setOwner(D, { kind: 'device' });
       at(S + 100);
       const photo = (filename: string, over: Partial<AssetRecord>) =>
-        repo.createAsset(
+        repo.create(
           D,
           makeAssetRecord({ mediaLibraryAssetId: 'camera-roll-x', filename, isFileSynced: false, ...over }),
         );
@@ -1431,8 +1431,8 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       await commitPass(D, T1, S + 300);
       expect(await localRow(T1, 'assets', id)).toMatchObject({ notes: 'one\ntwo\nthree', isFavorite: true });
 
-      await edit(D, S + 400, () => repo.updateAsset(D, p2.id, { notes: 'two, later' }));
-      await edit(D, S + 410, () => repo.deleteAssets(D, [p3.id]));
+      await edit(D, S + 400, () => repo.update(D, p2.id, { notes: 'two, later' }));
+      await edit(D, S + 410, () => repo.remove(D, [p3.id]));
       const T2 = makeTestDb();
       await settle([A, B, T2]);
       await commitPass(D, T2, S + 500);
@@ -1453,7 +1453,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       const id = await seedAsset({ notes: 'orig' });
       const D = await deviceLibraryWith(id);
       await setOwner(D, { kind: 'device' });
-      await edit(D, S + 100, () => repo.updateAsset(D, id, { notes: 'device' }));
+      await edit(D, S + 100, () => repo.update(D, id, { notes: 'device' }));
 
       const T1 = makeTestDb();
       await sync(T1);
@@ -1477,7 +1477,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       const D = await deviceLibraryWith(id);
       await setOwner(D, { kind: 'device' });
       at(S + 100);
-      await repo.createAsset(
+      await repo.create(
         D,
         makeAssetRecord({
           mediaLibraryAssetId: 'camera-roll-x',
@@ -1514,15 +1514,15 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       const D = await deviceLibraryWith(id);
       await setOwner(D, { kind: 'device' });
       at(S + 100);
-      await repo.createAsset(
+      await repo.create(
         D,
         makeAssetRecord({ mediaLibraryAssetId: 'camera-roll-x', filename: 'kept.jpg', isFileSynced: false }),
       );
       await edit(D, S + 150, async () => {
         const [kept] = (await D.select().from(clientSchema.assets)).filter((row) => row.id !== id);
-        await repo.updateAsset(D, kept!.id, { notes: 'the one I kept' });
+        await repo.update(D, kept!.id, { notes: 'the one I kept' });
       });
-      await edit(D, S + 200, () => repo.deleteAssets(D, [id]));
+      await edit(D, S + 200, () => repo.remove(D, [id]));
 
       await mergeInto(A, D, S + 300);
       await settle();
@@ -1533,11 +1533,11 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
 
     it('a device purge older than the account’s pending restore loses to it everywhere', async () => {
       const id = await seedAsset();
-      await edit(A, S + 50, () => repo.deleteAssets(A, [id]));
+      await edit(A, S + 50, () => repo.remove(A, [id]));
       await settle();
       const D = await deviceLibraryWith(id);
       await edit(D, S + 100, () => repo.purgeAssets(D, [id]));
-      await edit(A, S + 200, () => repo.updateAllAssets(A, [id], { deletedAt: null }));
+      await edit(A, S + 200, () => repo.updateAll(A, [id], { deletedAt: null }));
       await mergeInto(A, D, S + 300);
       await settle();
       expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: null, purgedAt: null });
@@ -1597,7 +1597,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
   describe('idempotency', () => {
     it('a replayed push (the request sent twice) is applied twice and changes nothing more', async () => {
       const id = await seedAsset();
-      await edit(A, S + 100, () => repo.updateAsset(A, id, { notes: 'A', isFavorite: true }));
+      await edit(A, S + 100, () => repo.update(A, id, { notes: 'A', isFavorite: true }));
       at(SERVER_NOW);
       let seqAfterFirst: unknown;
       await runSyncOnce(A, {
@@ -1619,8 +1619,8 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     it('an outbox pushed again after a crash before its results were applied converges, a newer edit elsewhere included', async () => {
       const contested = await seedAsset();
       const quiet = await seedAsset();
-      await edit(A, S + 100, () => repo.updateAsset(A, contested, { notes: 'A' }));
-      await edit(A, S + 110, () => repo.updateAsset(A, quiet, { notes: 'A quiet' }));
+      await edit(A, S + 100, () => repo.update(A, contested, { notes: 'A' }));
+      await edit(A, S + 110, () => repo.update(A, quiet, { notes: 'A quiet' }));
       at(SERVER_NOW);
       await expect(
         runSyncOnce(A, {
@@ -1634,7 +1634,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       expect(await A.select().from(clientSchema.outbox)).toHaveLength(2);
       const quietSeq = (await serverRaw('assets', quiet))!.serverSeq;
 
-      await edit(B, S + 200, () => repo.updateAsset(B, contested, { notes: 'B, newer' }));
+      await edit(B, S + 200, () => repo.update(B, contested, { notes: 'B, newer' }));
       await sync(B);
       await sync(A); // the re-push: the contested edit loses now, the other is a replay
       const replay = pushLog.at(-1)!.results;
@@ -1661,10 +1661,10 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
 
     it('a restore beats a purge that hadn’t seen it when the deleting device’s clock is ahead', async () => {
       const id = await seedAsset({ filename: 'skew.jpg', thumbnailFilename: 'skew-t.jpg' });
-      await edit(B, S + HOUR + 100, () => repo.deleteAssets(B, [id])); // B's clock is an hour ahead
+      await edit(B, S + HOUR + 100, () => repo.remove(B, [id])); // B's clock is an hour ahead
       await sync(B, { now: S + 100 });
       await sync(A, { now: S + 150 });
-      await edit(A, S + 200, () => repo.updateAllAssets(A, [id], { deletedAt: null }));
+      await edit(A, S + 200, () => repo.updateAll(A, [id], { deletedAt: null }));
       await sync(A, { now: S + 200 });
       await edit(B, S + HOUR + 300, () => repo.purgeAssets(B, [id])); // B never pulled the restore
       await sync(B, { now: S + 300 });
@@ -1678,9 +1678,9 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     it('a purge that loses keeps a file it shares with a purge that wins in the same push', async () => {
       const x = await seedAsset({ filename: 'shared.jpg', thumbnailFilename: 'x-t.jpg' });
       const y = await seedAsset({ filename: 'shared.jpg', thumbnailFilename: 'y-t.jpg' });
-      await edit(A, S + 100, () => repo.deleteAssets(A, [x, y]));
+      await edit(A, S + 100, () => repo.remove(A, [x, y]));
       await settle();
-      await edit(B, S + 200, () => repo.updateAllAssets(B, [y], { deletedAt: null }));
+      await edit(B, S + 200, () => repo.updateAll(B, [y], { deletedAt: null }));
       await sync(B);
       await edit(A, S + 300, () => repo.purgeAssets(A, [x, y])); // A never saw y restored
       const { removed, removeFiles } = recorder();
@@ -1694,10 +1694,10 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
 
     it('purge, restore, delete again, purge again across three devices: the last deletion is purged, files go once per device', async () => {
       const id = await seedAsset({ filename: 'cycle.jpg', thumbnailFilename: 'cycle-t.jpg' });
-      await edit(A, S + 100, () => repo.deleteAssets(A, [id]));
+      await edit(A, S + 100, () => repo.remove(A, [id]));
       await settle();
       await edit(A, S + 200, () => repo.purgeAssets(A, [id])); // A, offline
-      await edit(B, S + 300, () => repo.updateAllAssets(B, [id], { deletedAt: null }));
+      await edit(B, S + 300, () => repo.updateAll(B, [id], { deletedAt: null }));
       await sync(B);
       await edit(C, S + 50, () => repo.toggleFavorite(C, id)); // the old app, older than everything
       await sync(C);
@@ -1706,7 +1706,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       expect(onA.removed).toEqual([]);
       expect(await localRow(A, 'assets', id)).toMatchObject({ deletedAt: null, purgedAt: null });
       await settle();
-      await edit(B, S + 400, () => repo.deleteAssets(B, [id]));
+      await edit(B, S + 400, () => repo.remove(B, [id]));
       await settle();
       await edit(A, S + 500, () => repo.purgeAssets(A, [id])); // this one saw the restore and the delete
       await edit(B, S + 600, () => repo.purgeAssets(B, [id])); // and B purges too, unaware
@@ -1727,11 +1727,11 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
 
     it('an old app’s stale whole record re-deletes a restored photo, and a purge that hadn’t seen the restore then applies', async () => {
       const id = await seedAsset();
-      await edit(A, S + 100, () => repo.deleteAssets(A, [id]));
+      await edit(A, S + 100, () => repo.remove(A, [id]));
       await settle();
-      await edit(B, S + 200, () => repo.updateAllAssets(B, [id], { deletedAt: null }));
+      await edit(B, S + 200, () => repo.updateAll(B, [id], { deletedAt: null }));
       await sync(B);
-      await edit(C, S + 300, () => repo.updateAsset(C, id, { notes: 'C, in the Deleted album' })); // stale: deleted
+      await edit(C, S + 300, () => repo.update(C, id, { notes: 'C, in the Deleted album' })); // stale: deleted
       await sync(C); // its whole record re-deletes the photo at S+300 (§7)
       await edit(A, S + 250, () => repo.purgeAssets(A, [id])); // A never saw the restore
       await settle();
@@ -1759,9 +1759,9 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       // C (no fields) purges, unaware of B's restore: newer, its whole record re-deletes and purges (the
       // installed app removed its files at once, so refusing it would strand a live photo without them).
       const first = await seedAsset();
-      await edit(A, S + 100, () => repo.deleteAssets(A, [first]));
+      await edit(A, S + 100, () => repo.remove(A, [first]));
       await settle();
-      await edit(B, S + 200, () => repo.updateAllAssets(B, [first], { deletedAt: null }));
+      await edit(B, S + 200, () => repo.updateAll(B, [first], { deletedAt: null }));
       await sync(B);
       await edit(C, S + 300, () => repo.purgeAssets(C, [first]));
       await sync(C);
@@ -1771,9 +1771,9 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
 
       // C, as an app from before purges, restores; A, unaware, purges later by clock.
       const second = await seedAsset();
-      await edit(A, S + 100, () => repo.deleteAssets(A, [second]));
+      await edit(A, S + 100, () => repo.remove(A, [second]));
       await settle();
-      await edit(C, S + 200, () => repo.updateAllAssets(C, [second], { deletedAt: null }));
+      await edit(C, S + 200, () => repo.updateAll(C, [second], { deletedAt: null }));
       await syncAsPrePurgeApp(C);
       await edit(A, S + 300, () => repo.purgeAssets(A, [second]));
       await settle([A, B]);
@@ -1784,12 +1784,12 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
 
     it('an app from before purges pushing a stale record to a purged row: frozen, told so, and it converges', async () => {
       const id = await seedAsset();
-      await edit(A, S + 100, () => repo.deleteAssets(A, [id]));
+      await edit(A, S + 100, () => repo.remove(A, [id]));
       await settle();
       await edit(A, S + 200, () => repo.purgeAssets(A, [id]));
       await sync(A);
       const frozen = await serverRaw('assets', id);
-      await edit(C, S + 900, () => repo.updateAllAssets(C, [id], { deletedAt: null, notes: 'C' }));
+      await edit(C, S + 900, () => repo.updateAll(C, [id], { deletedAt: null, notes: 'C' }));
       await syncAsPrePurgeApp(C);
       expect(pushLog.at(-1)!.results[0]).toMatchObject({ status: 'skipped-lww', current: { purgedAt: S + 200 } });
       expect(await serverRaw('assets', id)).toEqual(frozen);
@@ -1800,7 +1800,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     it('purges and restores across push batches of 500 and pull pages with pending edits converge; files go only for the purges that won', async () => {
       const n = 1100;
       at(S);
-      const created = await repo.createAssets(
+      const created = await repo.createMany(
         A,
         Array.from({ length: n }, (_, i) =>
           makeAssetRecord({ createdAt: S, updatedAt: S, filename: `g${i}.jpg`, thumbnailFilename: `g${i}-t.jpg` }),
@@ -1808,12 +1808,12 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       );
       const ids = created.map((r) => r.id);
       await settle([A, B]);
-      await edit(A, S + 100, () => repo.deleteAssets(A, ids));
+      await edit(A, S + 100, () => repo.remove(A, ids));
       await settle([A, B]);
       const restored = new Set(ids.filter((_, i) => i % 7 === 0));
-      await edit(B, S + 200, () => repo.updateAllAssets(B, [...restored], { deletedAt: null }));
+      await edit(B, S + 200, () => repo.updateAll(B, [...restored], { deletedAt: null }));
       await edit(B, S + 250, () =>
-        repo.updateAllAssets(
+        repo.updateAll(
           B,
           ids.filter((_, i) => i % 11 === 0),
           { notes: 'B' },
@@ -1822,7 +1822,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       await sync(B);
       await edit(A, S + 300, () => repo.purgeAssets(A, ids)); // A never saw the restores
       const pending = ids.filter((_, i) => i % 13 === 0);
-      await edit(B, S + 350, () => repo.updateAllAssets(B, pending, { isFavorite: true })); // B, still offline
+      await edit(B, S + 350, () => repo.updateAll(B, pending, { isFavorite: true })); // B, still offline
       const onA = recorder();
       await sync(A, { removeFiles: onA.removeFiles });
       const onB = recorder();
@@ -1901,7 +1901,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
         };
 
       at(S);
-      const created = await repo.createAssets(
+      const created = await repo.createMany(
         A,
         [0, 1, 2, 3].map((i) =>
           makeAssetRecord({
@@ -1973,12 +1973,12 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
           );
         at(t + skew.get(device)!);
         if (op === 'delete')
-          await repo.deleteAssets(
+          await repo.remove(
             device,
             alive.filter((row) => row.deletedAt === null).map((row) => row.id),
           );
         if (op === 'restore')
-          await repo.updateAllAssets(
+          await repo.updateAll(
             device,
             deleted.map((row) => row.id),
             { deletedAt: null },
@@ -1990,7 +1990,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
           );
         if (op === 'favorite' && alive[0]) await repo.toggleFavorite(device, alive[0].id);
         if (op === 'notes' && alive[0])
-          await repo.updateAsset(device, alive[0].id, { notes: `${names.get(device)}${step}` });
+          await repo.update(device, alive[0].id, { notes: `${names.get(device)}${step}` });
         if (op === 'sync' || (op === 'pullOnly' && unanswered.has(device))) {
           unanswered.delete(device);
           await syncAt(device, t);
@@ -2096,24 +2096,24 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     it('1,200 records across push batches of 500, mixed with conflicts and an edit during the push, converge', async () => {
       const n = 1200;
       at(S);
-      const created = await repo.createAssets(
+      const created = await repo.createMany(
         A,
         Array.from({ length: n }, (_, i) => makeAssetRecord({ createdAt: S, updatedAt: S, filename: `f${i}.jpg` })),
       );
       const ids = created.map((r) => r.id);
       await settle([A, B]);
 
-      await edit(A, S + 100, () => repo.updateAllAssets(A, ids, { notes: 'A' }));
-      await edit(B, S + 200, () => repo.updateAllAssets(B, ids, { isFavorite: true }));
+      await edit(A, S + 100, () => repo.updateAll(A, ids, { notes: 'A' }));
+      await edit(B, S + 200, () => repo.updateAll(B, ids, { isFavorite: true }));
       await edit(B, S + 300, () =>
-        repo.updateAllAssets(
+        repo.updateAll(
           B,
           ids.filter((_, i) => i % 3 === 0),
           { notes: 'B' },
         ),
       );
       await edit(A, S + 400, () =>
-        repo.deleteAssets(
+        repo.remove(
           A,
           ids.filter((_, i) => i % 5 === 0),
         ),
@@ -2133,7 +2133,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
           if (pushes === 1) {
             const pushedId = String(req.mutations[9]!.record.id);
             at(S + 500);
-            await repo.updateAsset(A, pushedId, { notes: 'A, during the push' });
+            await repo.update(A, pushedId, { notes: 'A, during the push' });
             at(SERVER_NOW);
           }
           return response;
