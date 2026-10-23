@@ -201,8 +201,8 @@ gestures, which only a phone can test. Revisit only if the two drift apart.
 
 ### [ ] Rewrite the app in TypeScript
 
-The app is mostly JavaScript (`.js` / `.jsx`); only `src/sync` is TypeScript, and only that part
-is typechecked (`npm run typecheck`). Convert the rest gradually, feature by feature, and widen
+The app is mostly JavaScript (`.js` / `.jsx`); only `src/sync` and `src/library` are mostly
+TypeScript, and only their `.ts` files are typechecked (`npm run typecheck`). Convert the rest gradually, feature by feature, and widen
 the typecheck to the whole app.
 
 ### [ ] Share models between backend and app
@@ -385,20 +385,6 @@ library. Fine for a few passes; a table keyed by record would scale if passes ge
   runs would remove the pitfall.
 
 ## Owner-side (needs a device, infra or secrets)
-
-### [ ] Retire the old Rails droplet
-
-The old Rails server still runs on a DigitalOcean droplet. Its library is already in the backend.
-Decommission the droplet once the photo upload test passes.
-
-### [ ] Rotate credentials shared in chats
-
-Treat these as exposed and rotate them:
-
-- AWS access keys used for deploying and the legacy import.
-- From the October 2026 build sessions: the Expo access token, the App Store Connect API key, the
-  ngrok authtoken, the OpenAI API key, the Docker Hub password, and the Squidbox account password.
-  Update `.env.local`, the password manager, and EAS (`EXPO_PUBLIC_OPENAI_API_KEY`) afterwards.
 
 ### [ ] Renew iOS signing before Oct 10, 2027
 
