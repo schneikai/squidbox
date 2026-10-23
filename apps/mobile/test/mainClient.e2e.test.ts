@@ -31,7 +31,7 @@ import { runSyncOnce } from '../src/sync/worker';
 // this branch's new migrations on that same database and goes on with this branch's code. Needs the
 // docker Postgres and that commit, which the suite fetches (depth 1) when the checkout lacks it: in CI
 // one it can't get fails the suite instead of skipping it.
-const INSTALLED = 'b972efb29097d5494b00648f870ce97549867dcc';
+const INSTALLED = '9526d68faad08e29437c5cf246ddad994ebd2009';
 const TEST_URL = process.env.TEST_DATABASE_URL;
 const here = fileURLToPath(new URL('.', import.meta.url));
 const mainRoot = `${here}.main-client`;
