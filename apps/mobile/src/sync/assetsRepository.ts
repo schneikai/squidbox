@@ -34,7 +34,9 @@ function purged(row: schema.AssetRow): schema.AssetRow {
   return { ...row, updatedAt: ts, deletedAt: row.deletedAt ?? ts, purgedAt: ts };
 }
 
-export const toggleFavorite = (db: SyncDb, id: string) => repository.toggle(db, id, 'isFavorite');
+// favoritedAt is the time of the favoriting, null once unfavorited.
+export const toggleFavorite = (db: SyncDb, id: string) =>
+  repository.toggle(db, id, 'isFavorite', (row) => ({ favoritedAt: row.isFavorite ? row.updatedAt : null }));
 
 // The local-only sync-error marker (never synced) of the assets matching `where`, written only where
 // it changes.

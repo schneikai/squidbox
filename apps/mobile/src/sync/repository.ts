@@ -40,14 +40,16 @@ export function makeRepository<R extends SyncRecord = SyncRecord>(collection: st
     updateAll(db: SyncDb, ids: string[], changes: Partial<R>): Promise<void> {
       return updateMany(db, Object.fromEntries(ids.map((id) => [id, changes])) as Record<string, Partial<R>>);
     },
-    /** Flip a boolean field, read inside the write's transaction so two quick toggles can't both flip the same value. */
-    async toggle(db: SyncDb, id: string, field: keyof R & string): Promise<void> {
+    /**
+     * Flip a boolean field, read inside the write's transaction so two quick toggles can't both flip the
+     * same value. `derive(row)` gives fields that follow from the flipped row.
+     */
+    async toggle(db: SyncDb, id: string, field: keyof R & string, derive?: (row: R) => Partial<R>): Promise<void> {
       await db.transaction(async (tx) => {
         const [prev] = await readByIds<R>(tx, table, [id]);
-        if (prev)
-          await saveRecords(tx, collection, table, [nextVersion(prev, { [field]: !prev[field] } as Partial<R>)], {
-            previous: [prev],
-          });
+        if (!prev) return;
+        const row = nextVersion(prev, { [field]: !prev[field] } as Partial<R>);
+        await saveRecords(tx, collection, table, [{ ...row, ...derive?.(row) }], { previous: [prev] });
       });
     },
     /** Tombstone records, by id. */

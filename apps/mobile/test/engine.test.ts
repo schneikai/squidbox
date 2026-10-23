@@ -47,6 +47,15 @@ describe('repository (real SQLite)', () => {
     expect((await assetRow(rec.id))?.isFavorite).toBe(false);
   });
 
+  it('a favoriting records when, an unfavoriting clears it', async () => {
+    const rec = await repo.create(db, makeAssetRecord({ isFavorite: false }));
+    await repo.toggleFavorite(db, rec.id);
+    const favorited = await assetRow(rec.id);
+    expect(favorited?.favoritedAt).toBe(favorited!.updatedAt);
+    await repo.toggleFavorite(db, rec.id);
+    expect((await assetRow(rec.id))?.favoritedAt).toBeNull();
+  });
+
   it('remove tombstones (excluded from the live map) and enqueues a delete', async () => {
     const rec = await repo.create(db, makeAssetRecord());
     await repo.remove(db, [rec.id]);
@@ -84,7 +93,8 @@ describe('outbox fields (per-field merge)', () => {
     await settled();
 
     await repo.toggleFavorite(db, rec.id);
-    expect(await fieldsOf(rec.id)).toEqual({ isFavorite: (await assetRow(rec.id))!.updatedAt });
+    const favoritedAt = (await assetRow(rec.id))!.updatedAt;
+    expect(await fieldsOf(rec.id)).toEqual({ isFavorite: favoritedAt, favoritedAt });
     await settled();
 
     await repo.remove(db, [rec.id]);
@@ -108,7 +118,7 @@ describe('outbox fields (per-field merge)', () => {
     const third = (await assetRow(rec.id))!.updatedAt;
 
     const [row] = await outboxRows();
-    expect(row?.fields).toEqual({ isFavorite: second, notes: third });
+    expect(row?.fields).toEqual({ isFavorite: second, favoritedAt: second, notes: third }); // one field group
     expect(second).toBeGreaterThan(first);
     expect(row?.payload).toMatchObject({ notes: 'again', isFavorite: true, updatedAt: third });
   });

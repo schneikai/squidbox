@@ -79,6 +79,7 @@ describe('merge fields', () => {
     }
     expect(assetCollection.fieldGroups).toEqual([
       ['isFileSynced', 'isThumbnailSynced', 'isSynced'],
+      ['isFavorite', 'favoritedAt'],
       ['deletedAt', 'purgedAt'],
     ]);
   });

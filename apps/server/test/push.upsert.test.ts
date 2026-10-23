@@ -45,6 +45,11 @@ d('push: one upsert per collection', () => {
     isThumbnailSynced: true,
     isSynced: true,
     purgedAt: null,
+    favoritedAt: null,
+    takenAt: null,
+    originalFilename: null,
+    latitude: null,
+    longitude: null,
     ...over,
   });
   const album = (over: Record<string, unknown> = {}): Rec => ({

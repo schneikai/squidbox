@@ -189,10 +189,10 @@ describe('planMerge + applyMerge', () => {
     await repo.update(target, shared.id, { notes: 'newer' });
 
     const plan = await planMerge(source, target, SRC, TGT);
-    expect(Object.keys(plan.replays[0]!.fields)).toEqual(['isFavorite']);
+    expect(Object.keys(plan.replays[0]!.fields)).toEqual(['isFavorite', 'favoritedAt']);
     await applyMerge(target, plan);
     expect(await target.select().from(schema.assets)).toMatchObject([{ notes: 'newer', isFavorite: true }]);
-    expect(Object.keys((await outbox(target))[0]!.fields).sort()).toEqual(['isFavorite', 'notes']);
+    expect(Object.keys((await outbox(target))[0]!.fields).sort()).toEqual(['favoritedAt', 'isFavorite', 'notes']);
   });
 
   it('does not replay over a newer pending edit of the target', async () => {

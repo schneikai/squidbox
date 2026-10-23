@@ -48,6 +48,11 @@ d('push: split statements', () => {
     isThumbnailSynced: true,
     isSynced: true,
     purgedAt: null,
+    favoritedAt: null,
+    takenAt: null,
+    originalFilename: null,
+    latitude: null,
+    longitude: null,
     ...over,
   });
   const edge = (over: Record<string, unknown> = {}): Rec => ({

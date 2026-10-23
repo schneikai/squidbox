@@ -28,15 +28,22 @@ export const assetCollection = defineCollection({
     isSynced: z.boolean(),
     // "Delete permanently", final (sync-design §7). Optional: older apps don't send it.
     purgedAt: timestampSchema.nullable().optional(),
+    // Recorded for later use (sync-design §10). Optional: older apps don't send them.
+    favoritedAt: timestampSchema.nullable().optional(),
+    takenAt: timestampSchema.nullable().optional(),
+    originalFilename: textSchema.nullable().optional(),
+    latitude: z.number().nullable().optional(),
+    longitude: z.number().nullable().optional(),
   }),
   localOnly: {
     syncError: z.string().nullable(),
     filesRemovedFor: timestampSchema.nullable(), // the purgedAt this device removed a purged asset's files for
   },
-  // isSynced is derived from the file flags, and a purge only goes with a deletion: each set merges
-  // as one (sync-design §7).
+  // isSynced is derived from the file flags, favoritedAt from isFavorite, and a purge only goes with a
+  // deletion: each set merges as one (sync-design §7).
   fieldGroups: [
     ['isFileSynced', 'isThumbnailSynced', 'isSynced'],
+    ['isFavorite', 'favoritedAt'],
     ['deletedAt', 'purgedAt'],
   ],
   finalField: 'purgedAt',

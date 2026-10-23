@@ -49,18 +49,12 @@ The app is built and tested only for iOS. Needed:
   reorder.
 - Pairs with the Android half of "Share several assets at once". Test on an emulator or a phone.
 
-### [ ] Record when a photo was favorited and taken, its original filename and location
+### [ ] Show the recorded photo details
 
-Next up. Nothing reads them yet, but they can't be recovered later. New synced, nullable fields on
-assets (shared collection schema, client and server migrations; deploy the server before the app
-sends them):
-- `favoritedAt`, set when a photo is favorited, cleared when it's unfavorited.
-- `takenAt`, the capture date from the picker at import (Newest/Oldest could follow Apple's later).
-- `originalFilename`: imports rename the file to `<id>.<ext>` (`buildAssetAsync.js`) and drop the
-  name the picker returns (e.g. `IMG_1234.HEIC`). Show it in the details panel's info block.
-- Location (latitude/longitude) from the picker, for grouping or search later.
-
-Older assets stay without them unless the camera roll or the legacy backups still have them.
+Assets now record `favoritedAt`, `takenAt`, `originalFilename`, `latitude` and `longitude`
+(sync-design §10), but nothing shows or sorts by them yet. Ideas: the original name and place in
+the details panel's info block, a Newest/Oldest by capture date like Apple's, a Recently favorited
+sort. Older assets have none of them unless the camera roll or the legacy backups still do.
 
 ### [ ] Share links (like iCloud links)
 

@@ -29,6 +29,11 @@ export const assets = sqliteTable(
     isThumbnailSynced: integer('is_thumbnail_synced', { mode: 'boolean' }).notNull(),
     isSynced: integer('is_synced', { mode: 'boolean' }).notNull(),
     purgedAt: integer('purged_at'), // "Delete permanently", final (sync-design §7)
+    favoritedAt: integer('favorited_at'),
+    takenAt: integer('taken_at'),
+    originalFilename: text('original_filename'),
+    latitude: real('latitude'),
+    longitude: real('longitude'),
     // local-only (never synced)
     syncError: text('sync_error'),
     // The purge (its purgedAt) this device removed the asset's files for (§7a): a later purge, after

@@ -20,17 +20,13 @@ export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFini
       const imagePickerResults = await pickImageFromMediaLibrary({ onOpen: onStart });
       if (!imagePickerResults || imagePickerResults.length === 0) return [];
 
-      for (const result of imagePickerResults) {
-        // Null for a picked photo outside a Limited Photos selection.
-        const assetInfo = await MediaLibrary.getAssetInfoAsync(result.assetId);
-        result.isFavorite = assetInfo?.isFavorite ?? false;
-      }
-
       // The files go into this screen's library; the records must too (a sign-in meanwhile would
       // open another one), else the files are removed again.
       const newAssets = [];
       try {
         for (const result of imagePickerResults) {
+          // Its metadata only (the picker exported the file); null outside a Limited Photos selection.
+          const assetInfo = await MediaLibrary.getAssetInfoAsync(result.assetId, { shouldDownloadFromNetwork: false });
           const newAsset = await buildAssetAsync(
             {
               mediaLibraryAssetId: result.assetId,
@@ -41,7 +37,11 @@ export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFini
               width: Math.round(result.width),
               height: Math.round(result.height),
               duration: result.duration,
-              isFavorite: result.isFavorite,
+              isFavorite: assetInfo?.isFavorite ?? false,
+              takenAt: assetInfo?.creationTime ?? null,
+              originalFilename: assetInfo?.filename ?? result.fileName ?? null,
+              latitude: assetInfo?.location?.latitude ?? null,
+              longitude: assetInfo?.location?.longitude ?? null,
             },
             library,
           );

@@ -18,6 +18,11 @@ const ASSET_DEFAULTS = {
   isFileSynced: false,
   isThumbnailSynced: false,
   isSynced: false,
+  favoritedAt: null,
+  takenAt: null,
+  originalFilename: null,
+  latitude: null,
+  longitude: null,
 };
 
 // Moves a picked file into `library`'s folders, makes its thumbnail and resolves the new asset

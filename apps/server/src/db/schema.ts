@@ -91,6 +91,11 @@ export const assets = pgTable(
     isThumbnailSynced: boolean('is_thumbnail_synced').notNull(),
     isSynced: boolean('is_synced').notNull(),
     purgedAt: bigint('purged_at', { mode: 'number' }), // "Delete permanently", final (sync-design §7)
+    favoritedAt: bigint('favorited_at', { mode: 'number' }),
+    takenAt: bigint('taken_at', { mode: 'number' }),
+    originalFilename: text('original_filename'),
+    latitude: doublePrecision('latitude'),
+    longitude: doublePrecision('longitude'),
     // Server-only: the last deletedAt values a restore undid; a purge of one of them loses (§7).
     restoredDeletions: jsonb('restored_deletions').$type<number[]>(),
     // Server-only, never on the wire: when the purge cleanup deleted the asset's S3 files (§7a).

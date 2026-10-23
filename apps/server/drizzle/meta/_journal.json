@@ -71,6 +71,13 @@
       "when": 1792605786729,
       "tag": "0009_restored_deletions",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792775687998,
+      "tag": "0010_asset_details",
+      "breakpoints": true
     }
   ]
 }

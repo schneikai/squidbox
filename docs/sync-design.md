@@ -338,8 +338,8 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
 - **Field groups:** fields that must change together are declared as a group on the descriptor
   (`fieldGroups`). An edit of one sends the whole group with one clock, and the server widens a
   partly sent group the same way (both through `widenToGroups`), so the group never mixes two
-  devices' values. Assets have two: `isFileSynced`, `isThumbnailSynced`, `isSynced` (§4), and
-  `deletedAt`, `purgedAt`.
+  devices' values. Assets have three: `isFileSynced`, `isThumbnailSynced`, `isSynced` (§4),
+  `isFavorite`, `favoritedAt`, and `deletedAt`, `purgedAt`.
 - **Whole-record pushes** (an app from before per-field merge, the legacy importer) send no
   `fields`; the server merges every field they carry at their `updatedAt`, so they win or lose
   field by field like any push. Outbox rows from before per-field merge are marked `whole_record`
@@ -779,6 +779,7 @@ export const assetCollection = defineCollection({
   },
   fieldGroups: [
     ['isFileSynced', 'isThumbnailSynced', 'isSynced'], // each group merges as one (§7)
+    ['isFavorite', 'favoritedAt'],
     ['deletedAt', 'purgedAt'],
   ],
   finalField: 'purgedAt', // write-once, freezes the record (§7)
@@ -819,7 +820,11 @@ stores them in bigint columns). Booleans are integers in SQLite.
 **assets** (asset metadata). Synced: `mediaLibraryAssetId`, `mediaType` (`photo` | `video`),
 `width`, `height`, `fileSize`, `duration`, `filename`, `thumbnailFilename`, `isFavorite`,
 `notes`, `oldFileId`, `isFileSynced`, `isThumbnailSynced`, `isSynced`, `purgedAt` (optional,
-null | epoch ms: deleted permanently, §7), plus the base columns. Local-only: `syncError`.
+null | epoch ms: deleted permanently, §7), and, recorded for later use, all optional and nullable:
+`favoritedAt` (epoch ms of the last favoriting, null once unfavorited or when unknown), `takenAt`
+(epoch ms, the camera roll's creation time at import), `originalFilename` (the camera roll's file
+name), `latitude` and `longitude` (where it was taken), plus the base columns. Local-only:
+`syncError`.
 
 **albums**. Synced: `name`, `isFavorite`, `archivedAt`, `showInPostSuggestionsAfter`,
 `oldCollectionName`, `notes`, `sortOrder` (null | `custom`), `smartAlbumType`

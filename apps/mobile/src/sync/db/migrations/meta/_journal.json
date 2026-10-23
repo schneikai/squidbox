@@ -92,6 +92,13 @@
       "when": 1792595426671,
       "tag": "0012_purged_files",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1792775689147,
+      "tag": "0013_asset_details",
+      "breakpoints": true
     }
   ]
 }
