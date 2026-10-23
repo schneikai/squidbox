@@ -28,7 +28,7 @@ export default function MoreAction({ asset, navigation }) {
     <IconMenuButton>
       <MenuOption label="Add to album" icon="library" onPress={handleAddToAlbum} />
       <MenuOption label="Create post" icon="edit" onPress={handleCreatePost} />
-      <MenuOption label="Copy file URL" icon="link" onPress={handleCopyFileUrl} isLast />
+      <MenuOption label="Copy file URL" icon="link" onPress={handleCopyFileUrl} />
     </IconMenuButton>
   );
 }

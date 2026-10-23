@@ -1,4 +1,4 @@
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
@@ -10,6 +10,7 @@ import { colors, scale, spacing } from '@/styles/designTokens';
 import humanizeMediaType from '@/utils/assets/humanizeMediaType';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 import useShareAsset from '@/utils/assets/useShareAsset';
+import confirmAsync from '@/utils/confirmAsync';
 import canShareFiles from '@/utils/files/canShareFiles';
 
 /**
@@ -59,22 +60,12 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
     });
   }
 
-  function handleDelete() {
-    Alert.alert(
-      `Delete ${humanizeMediaType(asset.mediaType)}`,
-      `Are you sure you want to delete this ${humanizeMediaType(asset.mediaType)}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            onDeleteAsset(asset);
-            navigation.goBack();
-          },
-        },
-      ],
-    );
+  async function handleDelete() {
+    const mediaType = humanizeMediaType(asset.mediaType);
+    const message = `Are you sure you want to delete this ${mediaType}?`;
+    if (!(await confirmAsync({ title: `Delete ${mediaType}`, message, action: 'Delete', destructive: true }))) return;
+    onDeleteAsset(asset);
+    navigation.goBack();
   }
 
   return (

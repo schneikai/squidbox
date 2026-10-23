@@ -3,9 +3,8 @@ import DraggableFlatList from 'react-native-draggable-flatlist';
 
 import AddAssetButton from './AddAssetButton';
 import PostAsset from './PostAsset';
-import useAssetPickerHandler from './useAssetPickerHandler';
 
-import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
+import AddMediaMenu from '@/features/asset-picker/AddMediaMenu';
 import useHaptics from '@/hooks/useHaptics';
 import { colors, scale } from '@/styles/designTokens';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
@@ -17,15 +16,7 @@ const LIST_VERTICAL_PADDING = 80;
 // The post's assets ([{ id, asset }]) as an orderable strip; `onChange` gets the new list.
 export default function PostAssetsEditor({ postAssets, onChange }) {
   const { width } = useWindowDimensions();
-  const { show, hide, updateProgress } = useProgressOverlay();
   const haptics = useHaptics();
-  const handleAddAssets = useAssetPickerHandler({
-    addAssetsToPost: addPostAssets,
-    postAssetIds: postAssets.map((postAsset) => postAsset.asset.id),
-    onStart: show,
-    onProgress: updateProgress,
-    onFinish: hide,
-  });
 
   const itemDimension = {
     width: width / 2.5,
@@ -65,7 +56,13 @@ export default function PostAssetsEditor({ postAssets, onChange }) {
             itemDimension={itemDimension}
           />
         )}
-        ListFooterComponent={<AddAssetButton onAdd={handleAddAssets} itemDimension={itemDimension} />}
+        ListFooterComponent={
+          <AddMediaMenu
+            trigger={({ toggle }) => <AddAssetButton onPress={toggle} itemDimension={itemDimension} />}
+            exclude={postAssets.map((postAsset) => postAsset.asset.id)}
+            onAdd={addPostAssets}
+          />
+        }
       />
       {postAssets.length > 0 && <Text style={styles.assetCountInfo}>{assetCountInfo}</Text>}
     </View>

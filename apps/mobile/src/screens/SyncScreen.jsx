@@ -15,6 +15,7 @@ import { readPushFailures } from '@/sync/readPushFailures';
 import { useCollectionStats, useSyncLogRows } from '@/sync/useInspector';
 import { useSyncStatus } from '@/sync/useSyncStatus';
 import { requestSync, runClearOutbox, runFullResync } from '@/sync/worker';
+import confirmAsync from '@/utils/confirmAsync';
 import formatErrorCount from '@/utils/formatErrorCount';
 import relativeTime from '@/utils/relativeTime';
 
@@ -41,36 +42,22 @@ export default function SyncScreen() {
     requestSync();
   }
 
-  function confirmFullResync() {
-    Alert.alert(
-      'Rebuild from server?',
+  async function confirmFullResync() {
+    const title = 'Rebuild from server?';
+    const message =
       pendingCount > 0
         ? `This rebuilds your local library from the server. You have ${pendingCount} pending change(s) — they'll be pushed first. Your photos are safe.`
-        : 'This rebuilds your local library from the server. Your photos are safe.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Rebuild',
-          style: 'destructive',
-          onPress: () => runFullResync().catch((e) => Alert.alert('Failed', String(e))),
-        },
-      ],
-    );
+        : 'This rebuilds your local library from the server. Your photos are safe.';
+    if (!(await confirmAsync({ title, message, action: 'Rebuild', destructive: true }))) return;
+    runFullResync().catch((e) => Alert.alert('Failed', String(e)));
   }
 
-  function confirmClearOutbox() {
-    Alert.alert(
-      'Discard pending changes?',
-      'Drops local edits that have not synced yet. Can strand never-pushed records.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Discard',
-          style: 'destructive',
-          onPress: () => runClearOutbox(getDb()).catch((e) => Alert.alert('Failed', String(e))),
-        },
-      ],
-    );
+  async function confirmClearOutbox() {
+    const message = 'Drops local edits that have not synced yet. Can strand never-pushed records.';
+    if (!(await confirmAsync({ title: 'Discard pending changes?', message, action: 'Discard', destructive: true }))) {
+      return;
+    }
+    runClearOutbox(getDb()).catch((e) => Alert.alert('Failed', String(e)));
   }
 
   return (

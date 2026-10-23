@@ -1,16 +1,17 @@
-import { BlurView } from 'expo-blur';
 import React from 'react';
-import { Animated, I18nManager, StyleSheet, View } from 'react-native';
+import { Animated, I18nManager } from 'react-native';
 
-import { colors, motion, radii, shadows, spacing } from '@/styles/designTokens';
+import PopoverSurface from './PopoverSurface';
+
+import { motion, spacing } from '@/styles/designTokens';
 
 /**
  * Custom react-native-popup-menu renderer.
  *
  * Positions the menu below the trigger (flips above when there is insufficient
- * space) with a small gap, using BlurView + a light overlay for the frosted-glass
- * appearance that matches the sort/filter panel. It opens by growing out of the
- * trigger's corner with a soft spring and shrinks back into it on close.
+ * space) with a small gap, on the same PopoverSurface as the sort/filter panel.
+ * It opens by growing out of the trigger's corner with a soft spring and shrinks
+ * back into it on close.
  *
  * The renderer interface requires:
  *   - render()  — must apply the computed position to the outermost View
@@ -60,10 +61,12 @@ function computePlacement(layouts) {
   return { top, left, isRightAligned, opensBelow };
 }
 
+function positionFor({ top, left }, isRTL) {
+  return { top, [isRTL ? 'right' : 'left']: left };
+}
+
 function computePosition(layouts, isRTL) {
-  const { top, left } = computePlacement(layouts);
-  const start = isRTL ? 'right' : 'left';
-  return { top, [start]: left };
+  return positionFor(computePlacement(layouts), isRTL);
 }
 
 // The menu's corner nearest the trigger, so it grows out of (and shrinks back into) the button.
@@ -93,36 +96,18 @@ export default class BlurPopoverRenderer extends React.Component {
     // Spread `...other` so the library's onLayout (used to measure the
     // options container for positioning) reaches the underlying View.
     const { children, layouts, style, ...other } = this.props;
-    const position = computePosition(layouts, I18nManager.isRTL);
+    const placement = computePlacement(layouts);
+    const position = positionFor(placement, I18nManager.isRTL);
+    const origin = transformOriginFor(placement, I18nManager.isRTL);
 
-    const animatedStyle = {
-      opacity: this.state.anim.interpolate({ inputRange: [0, 0.4], outputRange: [0, 1], extrapolate: 'clamp' }),
-      transformOrigin: transformOriginFor(computePlacement(layouts), I18nManager.isRTL),
-      transform: [{ scale: this.state.anim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }],
-    };
-
+    // Size-affecting styles come in through `style` (popupMenuStyles.menuOptions), so the library
+    // measures the same box that is drawn here.
     return (
-      <Animated.View {...other} style={[styles.container, style, position, animatedStyle]}>
-        <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
-        <View style={[StyleSheet.absoluteFill, styles.overlay]} />
+      <PopoverSurface {...other} progress={this.state.anim} origin={origin} style={[style, position]}>
         {children}
-      </Animated.View>
+      </PopoverSurface>
     );
   }
 }
 
 BlurPopoverRenderer.computePosition = computePosition;
-
-const styles = StyleSheet.create({
-  // Size-affecting styles (min width, padding, border) come from popupMenuStyles.menuOptions so the
-  // library measures the same box that is drawn here.
-  container: {
-    position: 'absolute',
-    borderRadius: radii.modal,
-    overflow: 'hidden',
-    ...shadows.floating,
-  },
-  overlay: {
-    backgroundColor: colors.menuOverlay,
-  },
-});

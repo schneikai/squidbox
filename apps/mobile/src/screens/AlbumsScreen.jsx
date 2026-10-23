@@ -1,9 +1,8 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { Alert, View } from 'react-native';
 
 import SuperPressable from '@/components/SuperPressable';
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
-import { useFloatingBars } from '@/components/floating-bars/FloatingBarsContext';
 import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
 import reorderUnderSort from '@/components/sortable-grid/reorderUnderSort';
@@ -28,7 +27,6 @@ export default function AlbumsScreen({ navigation }) {
   const { sortOrder, sortFunction, sortAlbums, isSortedByLastPosted } = useSortAlbumsAction();
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterFilter: listScrollTop });
 
-  const { registerScreenOptions } = useFloatingBars();
   const { searchBar, query: searchText } = useSearchMode(useSearch());
   const scrollHandler = useFloatingBarScrollHandler();
 
@@ -45,17 +43,6 @@ export default function AlbumsScreen({ navigation }) {
     ),
     [navigation, toggleFavoriteAlbum, isSortedByLastPosted],
   );
-
-  useEffect(() => {
-    registerScreenOptions('albums', {
-      sortOrder,
-      sortOptions: albumSortOptions,
-      activeFilter,
-      filterOptions: albumFilterOptions,
-      onSort: handleSort,
-      onFilter: toggleFilter,
-    });
-  }, [sortOrder, activeFilter]);
 
   // Dragging arranges the whole list, so it runs unfiltered and unsearched only.
   const reorderEnabled = activeFilter.length === 0 && !searchText.trim();
@@ -94,7 +81,16 @@ export default function AlbumsScreen({ navigation }) {
         reorderEnabled={reorderEnabled}
         onReorder={handleReorder}
       />
-      <FloatingActionsBar search={searchBar} placeholder="Search albums…" activeFilter={activeFilter} />
+      <FloatingActionsBar
+        search={searchBar}
+        placeholder="Search albums…"
+        sortOrder={sortOrder}
+        sortOptions={albumSortOptions}
+        activeFilter={activeFilter}
+        filterOptions={albumFilterOptions}
+        onSort={handleSort}
+        onFilter={toggleFilter}
+      />
     </View>
   );
 }

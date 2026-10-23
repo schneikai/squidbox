@@ -1,42 +1,23 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
-import { useWindowDimensions } from 'react-native';
-import { useSharedValue } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useFloatingBars } from './FloatingBarsContext';
-import SearchOptionsBar from './SearchOptionsBar';
-
-import { spacing } from '@/styles/designTokens';
+import SearchSortFilterBar from './SearchSortFilterBar';
 
 /**
- * The search + options bar of a main tab screen. `search` is the `searchBar` from useSearchMode; the
- * options button lights up while `activeFilter` holds a filter.
+ * The search + sort / filter bar of a main tab screen: a SearchSortFilterBar that also tells the
+ * navigation bar, while the screen is visible, whether its search field is open.
  */
-export default function FloatingActionsBar({ search, placeholder, activeFilter = [] }) {
-  const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
-  const { setIsSearchActive, openFilterModal } = useFloatingBars();
-  const expandProgress = useSharedValue(0);
+export default function FloatingActionsBar(props) {
+  const { setIsSearchActive } = useFloatingBars();
+  const { isSearchActive } = props.search;
 
-  // While this screen is visible, tell the navigation bar whether its search bar is open.
   useFocusEffect(
     useCallback(() => {
-      setIsSearchActive(search.isSearchActive);
+      setIsSearchActive(isSearchActive);
       return () => setIsSearchActive(false);
-    }, [search.isSearchActive, setIsSearchActive]),
+    }, [isSearchActive, setIsSearchActive]),
   );
 
-  return (
-    <SearchOptionsBar
-      {...search}
-      expandProgress={expandProgress}
-      placeholder={placeholder}
-      onOpenOptions={openFilterModal}
-      hasActiveState={activeFilter.length > 0}
-      bottom={insets.bottom + spacing.floatingBarBottom}
-      left={spacing.floatingBarSide}
-      maxWidth={screenWidth - spacing.floatingBarSide * 2}
-    />
-  );
+  return <SearchSortFilterBar {...props} />;
 }

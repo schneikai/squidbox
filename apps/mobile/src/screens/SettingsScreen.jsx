@@ -22,6 +22,7 @@ import useLibrary from '@/library/useLibrary';
 import { colors } from '@/styles/designTokens';
 import { useSyncStatus } from '@/sync/useSyncStatus';
 import { SERVER_URL } from '@/utils/cloud-api/apiBaseUrl';
+import confirmAsync from '@/utils/confirmAsync';
 import formatErrorCount from '@/utils/formatErrorCount';
 import useResortAlbumsByName from '@/utils/tools/useResortAlbumsByName';
 
@@ -57,28 +58,19 @@ export default function SettingsScreen() {
     if (await confirmBackupSignOutAsync({ pendingCount, ...counts })) startLogoutTransition(() => logoutAsync());
   }
 
-  function handleResortAlbums() {
-    Alert.alert(
-      'Sort albums by name?',
-      'Reorders numbered albums from highest to lowest (e.g. 230, 220, 210). Albums without a numeric name stay where they are.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sort',
-          onPress: async () => {
-            try {
-              showBlocking();
-              const count = await resortAlbumsByNameAsync();
-              Alert.alert('Done!', `Sorted ${count} album${count === 1 ? '' : 's'}.`);
-            } catch (error) {
-              Alert.alert('Failed', error.message);
-            } finally {
-              hide();
-            }
-          },
-        },
-      ],
-    );
+  async function handleResortAlbums() {
+    const message =
+      'Reorders numbered albums from highest to lowest (e.g. 230, 220, 210). Albums without a numeric name stay where they are.';
+    if (!(await confirmAsync({ title: 'Sort albums by name?', message, action: 'Sort' }))) return;
+    try {
+      showBlocking();
+      const count = await resortAlbumsByNameAsync();
+      Alert.alert('Done!', `Sorted ${count} album${count === 1 ? '' : 's'}.`);
+    } catch (error) {
+      Alert.alert('Failed', error.message);
+    } finally {
+      hide();
+    }
   }
 
   async function handleCheckApi() {

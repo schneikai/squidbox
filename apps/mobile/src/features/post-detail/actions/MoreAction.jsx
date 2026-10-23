@@ -1,10 +1,11 @@
 import { useNavigation } from '@react-navigation/native';
-import { Alert } from 'react-native';
 
 import IconMenuButton from '@/components/IconMenuButton';
+import MenuDivider from '@/components/popup-menu-options/MenuDivider';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import usePosts from '@/features/posts-context/usePosts';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
+import confirmAsync from '@/utils/confirmAsync';
 
 export default function MoreAction({ post, afterDelete }) {
   const { deletePost } = usePosts();
@@ -15,22 +16,11 @@ export default function MoreAction({ post, afterDelete }) {
     navigation.navigate('AddEditPostModal', { postId: post.id });
   }
 
-  function handleDeletePost() {
-    Alert.alert(
-      'Delete Post',
-      'Are you sure you want to delete this post?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'OK',
-          onPress: async () => {
-            await deletePost(post.id);
-            if (afterDelete) afterDelete();
-          },
-        },
-      ],
-      { cancelable: true },
-    );
+  async function handleDeletePost() {
+    const message = 'Are you sure you want to delete this post?';
+    if (!(await confirmAsync({ title: 'Delete Post', message, action: 'Delete', destructive: true }))) return;
+    await deletePost(post.id);
+    if (afterDelete) afterDelete();
   }
 
   function handleRepost() {
@@ -46,7 +36,8 @@ export default function MoreAction({ post, afterDelete }) {
       <MenuOption label="Download assets" icon="cloud-download" onPress={handleDownloadAssets} />
       <MenuOption label="Edit" icon="edit" onPress={handleEditPost} />
       <MenuOption label="Repost" icon="repeat" onPress={handleRepost} />
-      <MenuOption label="Delete" icon="trash" onPress={handleDeletePost} danger isLast />
+      <MenuDivider />
+      <MenuOption label="Delete" icon="trash" onPress={handleDeletePost} danger />
     </IconMenuButton>
   );
 }

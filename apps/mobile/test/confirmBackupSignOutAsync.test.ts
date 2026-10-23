@@ -22,6 +22,7 @@ describe('confirmBackupSignOutAsync (Settings)', () => {
       "You have media that isn't backed up yet",
       'It will upload the next time you sign in.',
       expect.any(Array),
+      expect.any(Object),
     );
     pressed('Cancel');
     await expect(cancelled).resolves.toBe(false);

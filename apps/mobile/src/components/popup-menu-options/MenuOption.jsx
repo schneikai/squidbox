@@ -1,23 +1,18 @@
-import { Text, View } from 'react-native';
 import { MenuOption as MenuOptionBase } from 'react-native-popup-menu';
 
-import Icon from '@/components/Icon';
-import { colors, spacing } from '@/styles/designTokens';
+import MenuItemContent from './MenuItemContent';
+
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
-export default function MenuOption({ label, icon, onPress, isLast = false, danger = false, active = false }) {
+export default function MenuOption({ label, icon, onPress, danger = false, active = false }) {
   return (
-    <MenuOptionBase onSelect={onPress} style={[popupMenuStyles.menuOption, isLast && popupMenuStyles.menuOptionLast]}>
-      {icon && (
-        <Icon
-          name={icon}
-          size={spacing.menuIconSize}
-          color={danger ? colors.danger : active ? colors.accent : colors.menuTextDim}
-          style={popupMenuStyles.menuOptionIcon}
-        />
-      )}
-      <Text style={[popupMenuStyles.menuOptionText, danger && popupMenuStyles.menuOptionTextDanger]}>{label}</Text>
-      {active && <View style={popupMenuStyles.activeDot} />}
+    <MenuOptionBase
+      onSelect={onPress}
+      style={popupMenuStyles.row}
+      accessibilityRole="menuitem"
+      accessibilityState={{ selected: active }}
+    >
+      <MenuItemContent label={label} icon={icon} danger={danger} active={active} />
     </MenuOptionBase>
   );
 }

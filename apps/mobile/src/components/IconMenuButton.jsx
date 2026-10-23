@@ -11,7 +11,7 @@ import MenuButton from './MenuButton';
  * Usage:
  *   <IconMenuButton accessibilityLabel="Post options">
  *     <MenuOption label="..." icon="..." onPress={...} />
- *     <MenuOption label="..." icon="..." onPress={...} isLast />
+ *     <MenuOption label="..." icon="..." onPress={...} />
  *   </IconMenuButton>
  *
  * style — forwarded to MenuButton's triggerContainerStyle. The wrapper is unstyled

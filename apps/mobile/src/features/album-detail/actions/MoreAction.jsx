@@ -2,8 +2,10 @@ import { useNavigation } from '@react-navigation/native';
 import { Alert } from 'react-native';
 
 import IconMenuButton from '@/components/IconMenuButton';
+import MenuDivider from '@/components/popup-menu-options/MenuDivider';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useAlbums from '@/features/albums-context/useAlbums';
+import confirmAsync from '@/utils/confirmAsync';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 
 export default function MoreAction({ album, afterDelete, onSelect }) {
@@ -11,17 +13,9 @@ export default function MoreAction({ album, afterDelete, onSelect }) {
   const navigation = useNavigation();
 
   async function handleDeleteAlbum() {
-    Alert.alert('Delete Album?', '', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await setAlbumDeleted(album);
-          if (afterDelete) afterDelete();
-        },
-      },
-    ]);
+    if (!(await confirmAsync({ title: 'Delete Album?', action: 'Delete', destructive: true }))) return;
+    await setAlbumDeleted(album);
+    if (afterDelete) afterDelete();
   }
 
   async function handleRenameAlbum() {
@@ -55,7 +49,8 @@ export default function MoreAction({ album, afterDelete, onSelect }) {
       <MenuOption label="Rename" icon="pencil" onPress={handleRenameAlbum} />
       {!!album.archivedAt && <MenuOption label="Unarchive" icon="arrow-up-circle" onPress={handleUnarchiveAlbum} />}
       {!album.archivedAt && <MenuOption label="Archive" icon="archive" onPress={handleArchiveAlbum} />}
-      <MenuOption label="Delete" icon="trash" onPress={handleDeleteAlbum} danger isLast />
+      <MenuDivider />
+      <MenuOption label="Delete" icon="trash" onPress={handleDeleteAlbum} danger />
     </IconMenuButton>
   );
 }

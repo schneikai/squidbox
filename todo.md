@@ -156,13 +156,18 @@ error, and could be made from the cloud original.
 
 ### [ ] Finish the component consolidation
 
-Plan: https://claude.ai/artifact/KfDvwcHGxAeorqs3KeGWKV. Hooks, utils and buttons are done
+Plan: https://claude.ai/artifact/KfDvwcHGxAeorqs3KeGWKV. Hooks, utils, buttons and popovers are done
 (`useScrollY`, `useListScrollTop`, `writeInBatches` syncs; `PrimaryButton`, `IconButton` variants,
-`TextButton` tones, `ListDivider`). Still to do: one surface and row for both popovers (`MenuButton` and `SortFilterModal`), badges, grouped surfaces, typography and color
-tokens, then the bigger refactors: `useListControls`, a shared grid long-press pan, one
-`assetStorage` module, one way to call the repositories, and retiring the Yup schemas and legacy
-adapters for the shared zod collections. The AI screens (`AiChatModal`, `RandomSuggestionsScreen`,
-`ModelSelectorButton`) are best done with the AI assistant rework.
+`TextButton` tones, `ListDivider`; `PopoverSurface`, `MenuItemContent`, `MenuDivider`, `confirmAsync`,
+`AddMediaMenu`). Still to do: badges, grouped surfaces, typography and color tokens, then the bigger
+refactors: `useListControls`, a shared grid long-press pan, one `assetStorage` module, one way to call
+the repositories, and retiring the Yup schemas and legacy adapters for the shared zod collections.
+The AI screens (`AiChatModal`, `RandomSuggestionsScreen`, `ModelSelectorButton`) are best done with
+the AI assistant rework. Left from the popovers: `SortFilterModal` drives the open and close
+animation itself (`BlurPopoverRenderer` does the same), and its Modal blocks taps for the ~150 ms of
+its exit; anchoring it to the options button as a `MenuButton` would end both, but its menu must then
+open inside native sheets too and keep its bottom edge when the filter panel changes height. The "New
+album" prompt is written twice (`AlbumsScreen`, `AddToAlbumScreen`).
 
 ### [ ] Bump INSTALLED with each preview build
 

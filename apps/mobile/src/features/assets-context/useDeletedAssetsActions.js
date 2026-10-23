@@ -1,8 +1,7 @@
-import { Alert } from 'react-native';
-
 import useAssets from './useAssets';
 
 import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
+import confirmAsync from '@/utils/confirmAsync';
 
 /**
  * The Deleted album's actions on trashed assets, each behind its confirmation and run with progress:
@@ -13,22 +12,16 @@ export default function useDeletedAssetsActions() {
   const { restoreDeletedAssets, deleteAssetsPermanently } = useAssets();
   const runWithProgress = useRunWithProgress();
 
-  function confirm(action, actionLabel, { title, message, ids, onConfirm }) {
-    Alert.alert(title, message, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: actionLabel,
-        onPress: async () => {
-          const assetIds = typeof ids === 'function' ? await ids() : ids;
-          onConfirm?.();
-          runWithProgress((batchOptions) => action(assetIds, batchOptions));
-        },
-      },
-    ]);
+  async function confirmThenRun(runAction, { ids, onConfirm, ...confirmOptions }) {
+    if (!(await confirmAsync(confirmOptions))) return;
+    const assetIds = typeof ids === 'function' ? await ids() : ids;
+    onConfirm?.();
+    runWithProgress((batchOptions) => runAction(assetIds, batchOptions));
   }
 
   return {
-    restore: (options) => confirm(restoreDeletedAssets, 'Restore', options),
-    deletePermanently: (options) => confirm(deleteAssetsPermanently, 'Delete', options),
+    restore: (options) => confirmThenRun(restoreDeletedAssets, { ...options, action: 'Restore' }),
+    deletePermanently: (options) =>
+      confirmThenRun(deleteAssetsPermanently, { ...options, action: 'Delete', destructive: true }),
   };
 }

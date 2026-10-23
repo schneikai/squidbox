@@ -10,7 +10,6 @@ import { Menu, MenuProvider } from 'react-native-popup-menu';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import FloatingBarsProvider from '@/components/floating-bars/FloatingBarsProvider';
-import FloatingFilterModal from '@/components/floating-bars/FloatingFilterModal';
 import FloatingNavigationBar from '@/components/floating-bars/FloatingNavigationBar';
 import BlurPopoverRenderer from '@/components/popup-menu-options/BlurPopoverRenderer';
 import ProgressOverlayProvider from '@/components/progress-overlay/ProgressOverlayProvider';
@@ -211,7 +210,6 @@ const MainApp = memo(function MainApp() {
                     />
                     <RootNavigator />
                     <FloatingNavigationBar />
-                    <FloatingFilterModal />
                   </View>
                 </FloatingBarsProvider>
               </RandomSuggestionsProvider>

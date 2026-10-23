@@ -1,10 +1,8 @@
 import { useNavigation } from '@react-navigation/native';
-import { useEffect } from 'react';
 import { View } from 'react-native';
 
 import SuperPressable from '@/components/SuperPressable';
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
-import { useFloatingBars } from '@/components/floating-bars/FloatingBarsContext';
 import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
 import PostList from '@/features/post-list/PostList';
@@ -32,7 +30,6 @@ export default function PostsScreen() {
 
   const { searchBar, query: postsSearchText } = useSearchMode(useSearch());
 
-  const { registerScreenOptions } = useFloatingBars();
   const scrollHandler = useFloatingBarScrollHandler();
 
   const query = postQuery({ scope: 'all', sort: sortOrder, filter: activeFilter, search: postsSearchText });
@@ -41,17 +38,6 @@ export default function PostsScreen() {
   function handleAdd() {
     navigation.navigate('CreatePostModal');
   }
-
-  useEffect(() => {
-    registerScreenOptions('posts', {
-      sortOrder,
-      activeFilter,
-      sortOptions: postSortOptions,
-      filterOptions: postFilterOptions,
-      onSort: sort,
-      onFilter: toggleFilter,
-    });
-  }, [sortOrder, activeFilter]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -72,7 +58,16 @@ export default function PostsScreen() {
           </SuperPressable>
         )}
       />
-      <FloatingActionsBar search={searchBar} placeholder="Search posts…" activeFilter={activeFilter} />
+      <FloatingActionsBar
+        search={searchBar}
+        placeholder="Search posts…"
+        sortOrder={sortOrder}
+        sortOptions={postSortOptions}
+        activeFilter={activeFilter}
+        filterOptions={postFilterOptions}
+        onSort={sort}
+        onFilter={toggleFilter}
+      />
     </View>
   );
 }

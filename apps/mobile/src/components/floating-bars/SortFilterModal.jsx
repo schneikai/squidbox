@@ -1,17 +1,12 @@
-// Popover menu system 2 of 2 — fixed-position multi-panel sort/filter modal.
-// Uses React Native's Modal with absolute bottom/left coordinates (not anchored
-// to a trigger). Supports a two-panel drill-down: sort options at root, filter
-// options in a sub-panel with a back button.
-//
-// TODO: Consider unifying with MenuButton/BlurPopoverRenderer into a single system.
-// Would require adding sub-panel navigation support to the popup-menu renderer.
-import { BlurView } from 'expo-blur';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Modal, Pressable, StyleSheet } from 'react-native';
 
 import Icon from '@/components/Icon';
+import MenuDivider from '@/components/popup-menu-options/MenuDivider';
+import MenuItemContent from '@/components/popup-menu-options/MenuItemContent';
+import PopoverSurface from '@/components/popup-menu-options/PopoverSurface';
 import useAppSettings from '@/features/app-settings/useAppSettings';
-import { colors, motion, radii, shadows, spacing } from '@/styles/designTokens';
+import { colors, motion, spacing } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
 const DEFAULT_SORT_OPTIONS = [
@@ -20,7 +15,9 @@ const DEFAULT_SORT_OPTIONS = [
 ];
 
 /**
- * Reusable sort / filter / view-options modal panel.
+ * The sort / filter / view-options popover over the floating bars. Unlike MenuButton's menus it is
+ * not anchored to a trigger: it sits at fixed `bottom`/`left` coordinates in a Modal and drills down
+ * into a filter panel, which the anchored menus can't. It shares their surface and rows.
  *
  * Props:
  *   visible         – boolean
@@ -49,44 +46,45 @@ export default function SortFilterModal({
 }) {
   const { thumbnailStyle, setThumbnailStyle } = useAppSettings();
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
 
+  // Opens at the root panel, and stays mounted until the exit animation has played.
   useEffect(() => {
-    Animated.timing(anim, {
-      toValue: visible ? 1 : 0,
-      ...(visible ? motion.enter : motion.exit),
-      useNativeDriver: true,
-    }).start();
-  }, [visible]);
-
-  function handleClose() {
-    setShowFilterPanel(false);
-    onClose();
-  }
+    if (visible) {
+      setIsMounted(true);
+      setShowFilterPanel(false);
+      Animated.spring(anim, { toValue: 1, ...motion.spring, useNativeDriver: true }).start();
+      return;
+    }
+    Animated.timing(anim, { toValue: 0, ...motion.exit, useNativeDriver: true }).start(({ finished }) => {
+      if (finished) setIsMounted(false);
+    });
+  }, [visible, anim]);
 
   function handleSortSelect(option) {
     if (!onSort) return;
     // Directionless options (e.g. manual "custom" order) have no asc/desc toggle.
     if (option.directional === false) {
       onSort(option.key);
-      handleClose();
+      onClose();
       return;
     }
     const [currentField, currentDir] = sortOrder.split(':');
     const newDir = currentField === option.key && currentDir === 'desc' ? 'asc' : 'desc';
     onSort(`${option.key}:${newDir}`);
-    handleClose();
+    onClose();
   }
 
   function handleFilterSelect(filterKey) {
     if (!onFilter) return;
     onFilter(filterKey);
-    handleClose();
+    onClose();
   }
 
   function handleThumbnailStyleToggle() {
     setThumbnailStyle(thumbnailStyle === 'cover' ? 'contain' : 'cover');
-    handleClose();
+    onClose();
   }
 
   function getSortDirection(sortKey) {
@@ -95,189 +93,105 @@ export default function SortFilterModal({
     return field === sortKey ? dir : null;
   }
 
+  if (!visible && !isMounted) return null;
+
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose} statusBarTranslucent>
-      {/* Backdrop */}
-      <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+    <Modal visible transparent onRequestClose={onClose} statusBarTranslucent>
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 
-      {/* Popover */}
-      <Animated.View
-        style={[
-          styles.popover,
-          {
-            bottom,
-            left,
-            opacity: anim,
-            transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1] }) }],
-          },
-        ]}
+      <PopoverSurface
+        progress={anim}
+        origin="bottom left"
+        style={[popupMenuStyles.frame, { bottom, left }]}
+        accessibilityRole="menu"
       >
-        <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
-        <View style={[StyleSheet.absoluteFill, styles.overlay]} />
-
         {!showFilterPanel ? (
-          // ── Root panel ──────────────────────────────────────────────────────
           <>
             {sortOptions.map((option) => {
               const dir = getSortDirection(option.key);
               const isDirectionless = option.directional === false;
               const isActive = isDirectionless ? sortOrder === option.key : dir !== null;
               return (
-                <Pressable
+                <MenuRow
                   key={option.key}
                   onPress={() => handleSortSelect(option)}
-                  style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-                >
-                  <Text style={styles.rowLabel}>{option.label}</Text>
-                  {isActive && isDirectionless && <View style={popupMenuStyles.activeDot} />}
-                  {isActive && !isDirectionless && (
-                    <Icon
-                      name={dir === 'asc' ? 'arrow-up' : 'arrow-down'}
-                      size={spacing.menuIconSize}
-                      color={colors.accent}
-                      style={styles.rowIcon}
-                    />
-                  )}
-                </Pressable>
+                  label={option.label}
+                  active={isActive}
+                  trailing={
+                    isActive && !isDirectionless ? (
+                      <TrailingIcon name={dir === 'asc' ? 'arrow-up' : 'arrow-down'} color={colors.accent} />
+                    ) : undefined
+                  }
+                />
               );
             })}
 
-            <View style={styles.divider} />
+            <MenuDivider />
 
-            <Pressable
+            <MenuRow
               onPress={() => setShowFilterPanel(true)}
-              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-            >
-              <Text style={styles.rowLabel}>Filter</Text>
-              <Icon
-                name="chevron-right"
-                size={spacing.menuIconSize}
-                color={colors.menuTextDim}
-                style={styles.rowIcon}
-              />
-            </Pressable>
-
-            {/* Clear filter shortcut */}
+              label="Filter"
+              trailing={<TrailingIcon name="chevron-right" color={colors.menuTextDim} />}
+            />
             {activeFilter.length > 0 && (
-              <Pressable
-                onPress={() => handleFilterSelect('all')}
-                style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-              >
-                <Icon
-                  name="close-circle"
-                  size={spacing.menuIconSize}
-                  color={colors.menuTextDim}
-                  style={styles.rowLeadIcon}
-                />
-                <Text style={styles.rowLabel}>Clear filter</Text>
-              </Pressable>
+              <MenuRow onPress={() => handleFilterSelect('all')} label="Clear filter" icon="close-circle" />
             )}
 
-            {/* View options — thumbnail style toggle */}
             {showViewOptions && (
               <>
-                <View style={styles.divider} />
-                <Pressable
+                <MenuDivider />
+                <MenuRow
                   onPress={handleThumbnailStyleToggle}
-                  style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-                >
-                  <Icon
-                    name={thumbnailStyle === 'cover' ? 'expand' : 'grid'}
-                    size={spacing.menuIconSize}
-                    color={colors.menuTextDim}
-                    style={styles.rowLeadIcon}
-                  />
-                  <Text style={styles.rowLabel}>
-                    {thumbnailStyle === 'cover' ? 'Full photo grid' : 'Square photo grid'}
-                  </Text>
-                </Pressable>
+                  label={thumbnailStyle === 'cover' ? 'Full photo grid' : 'Square photo grid'}
+                  icon={thumbnailStyle === 'cover' ? 'expand' : 'grid'}
+                />
               </>
             )}
           </>
         ) : (
-          // ── Filter panel ────────────────────────────────────────────────────
           <>
-            <Pressable
-              onPress={() => setShowFilterPanel(false)}
-              style={({ pressed }) => [styles.row, styles.backRow, pressed && styles.rowPressed]}
-            >
-              <Icon name="chevron-left" size={spacing.menuIconSize} color={colors.menuTextDim} />
-              <Text style={[styles.rowLabel, styles.backLabel]}>Filter</Text>
-            </Pressable>
+            <MenuRow onPress={() => setShowFilterPanel(false)} label="Filter" icon="chevron-left" emphasized />
 
-            <View style={styles.divider} />
+            <MenuDivider />
 
-            {filterOptions.map((option) => {
-              const isActive = option.key === 'all' ? activeFilter.length === 0 : activeFilter.includes(option.key);
-              return (
-                <Pressable
-                  key={option.key}
-                  onPress={() => handleFilterSelect(option.key)}
-                  style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-                >
-                  <Icon
-                    name={option.icon}
-                    size={spacing.menuIconSize}
-                    color={colors.menuTextDim}
-                    style={styles.rowLeadIcon}
-                  />
-                  <Text style={styles.rowLabel}>{option.label}</Text>
-                  {isActive && <View style={popupMenuStyles.activeDot} />}
-                </Pressable>
-              );
-            })}
+            {filterOptions.map((option) => (
+              <MenuRow
+                key={option.key}
+                onPress={() => handleFilterSelect(option.key)}
+                label={option.label}
+                icon={option.icon}
+                active={option.key === 'all' ? activeFilter.length === 0 : activeFilter.includes(option.key)}
+              />
+            ))}
           </>
         )}
-      </Animated.View>
+      </PopoverSurface>
     </Modal>
   );
 }
 
+function MenuRow({ onPress, ...content }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [popupMenuStyles.row, pressed && styles.rowPressed]}
+      accessibilityRole="menuitem"
+      accessibilityState={{ selected: !!content.active }}
+    >
+      <MenuItemContent {...content} />
+    </Pressable>
+  );
+}
+
+function TrailingIcon({ name, color }) {
+  return <Icon name={name} size={spacing.menuIconSize} color={color} style={styles.trailingIcon} />;
+}
+
 const styles = StyleSheet.create({
-  popover: {
-    position: 'absolute',
-    width: 220,
-    borderRadius: radii.modal,
-    borderWidth: 1,
-    borderColor: colors.menuBorder,
-    paddingVertical: spacing.barPaddingY,
-    overflow: 'hidden',
-    ...shadows.floating,
-  },
-  overlay: {
-    backgroundColor: colors.menuOverlay,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.menuRowH,
-    paddingVertical: spacing.menuRowV,
-  },
   rowPressed: {
     backgroundColor: colors.menuHover,
   },
-  rowLabel: {
-    flex: 1,
-    fontSize: spacing.menuFontSize,
-    color: colors.menuText,
-  },
-  rowIcon: {
+  trailingIcon: {
     marginLeft: 8,
-  },
-  rowLeadIcon: {
-    marginRight: 10,
-  },
-  backRow: {
-    gap: 6,
-  },
-  backLabel: {
-    fontWeight: '600',
-    flex: 0,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.menuBorder,
-    marginVertical: 4,
-    marginHorizontal: 10,
   },
 });

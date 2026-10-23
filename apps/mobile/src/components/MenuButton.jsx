@@ -20,7 +20,7 @@ import popupMenuStyles from '@/styles/popupMenuStyles';
  *     )}
  *   >
  *     <MenuOption label="..." onPress={...} />
- *     <MenuOption label="..." onPress={...} isLast />
+ *     <MenuOption label="..." onPress={...} />
  *   </MenuButton>
  *
  * triggerContainerStyle — optional style for the MenuTrigger wrapper. The wrapper

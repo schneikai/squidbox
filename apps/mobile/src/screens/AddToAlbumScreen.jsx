@@ -1,8 +1,9 @@
-import { Alert, View } from 'react-native';
+import { Alert } from 'react-native';
 
 import IconButton from '@/components/IconButton';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import ModalSheet from '@/components/ModalSheet';
 import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
 import AlbumPicker from '@/features/album-list/AlbumPicker';
 import useAlbums from '@/features/albums-context/useAlbums';
@@ -28,7 +29,7 @@ export default function AddToAlbumScreen({ route, navigation }) {
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    <ModalSheet>
       <ModalHeader
         leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />}
         centerSlot="Add to Album"
@@ -36,6 +37,6 @@ export default function AddToAlbumScreen({ route, navigation }) {
         rightSlot={<IconButton variant="primary" icon="add" onPress={handleAddAlbum} accessibilityLabel="New album" />}
       />
       <AlbumPicker onPick={handleAddAssetsToAlbum} paddingTop={MODAL_HEADER_HEIGHT} onScroll={onScroll} />
-    </View>
+    </ModalSheet>
   );
 }

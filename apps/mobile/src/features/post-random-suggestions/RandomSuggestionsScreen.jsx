@@ -292,7 +292,7 @@ export default function RandomSuggestionsScreen({ route, navigation }) {
           <>
             <IconMenuButton accessibilityLabel="Suggestions options">
               <MenuOption label={selectedModel} icon="cpu" onPress={() => modelPickerRef.current?.open()} />
-              <MenuOption label="Edit Prompt" icon="pencil" onPress={openEditPrompt} isLast />
+              <MenuOption label="Edit Prompt" icon="pencil" onPress={openEditPrompt} />
             </IconMenuButton>
             <PrimaryButton
               size="compact"

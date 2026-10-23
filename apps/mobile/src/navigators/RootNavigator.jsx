@@ -1,4 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { MenuProvider } from 'react-native-popup-menu';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import ProgressOverlayHost from '@/components/progress-overlay/ProgressOverlayHost';
@@ -24,7 +25,10 @@ const asModalRoute = (Component) => {
   function ModalRoute(props) {
     return (
       <SafeAreaProvider>
-        <Component {...props} />
+        {/* The root MenuProvider's menus would show behind the sheet too, so it has its own. */}
+        <MenuProvider skipInstanceCheck>
+          <Component {...props} />
+        </MenuProvider>
         {/* This modal is a native sheet presented above the root, so the root's overlay host can't
             cover it. Render a host here too, inside the sheet, so a blocking/progress overlay
             triggered from within the modal covers the modal itself. */}

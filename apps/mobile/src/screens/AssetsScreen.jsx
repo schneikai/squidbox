@@ -21,6 +21,7 @@ import useSearch from '@/hooks/useSearch';
 import useSearchMode from '@/hooks/useSearchMode';
 import useSort from '@/hooks/useSort';
 import { usePagedQuery } from '@/sync/usePagedQuery';
+import confirmAsync from '@/utils/confirmAsync';
 import pluralizeText from '@/utils/pluralizeText';
 
 export default function AssetsScreen({ route }) {
@@ -31,7 +32,7 @@ export default function AssetsScreen({ route }) {
   const { sortOrder, sort } = useSort('createdAt:desc', { afterSort: listScrollTop });
   const { activeFilter, toggleFilter } = useFilter({ afterFilter: listScrollTop });
 
-  const { registerScreenOptions, setIsSelectMode, scrollY } = useFloatingBars();
+  const { setIsSelectMode, scrollY } = useFloatingBars();
   const selection = useToggleSelectAssetsAction();
   const { isSelectMode, selectedAssetIds, isAssetSelected, selectAssets, exitSelectMode } = selection;
   // The floating bars only need to know whether select mode is on (the navigation bar hides).
@@ -61,31 +62,12 @@ export default function AssetsScreen({ route }) {
     }
   }
 
-  function handleDelete() {
-    Alert.alert(pluralizeText('Delete 1 item?', 'Delete %{count} items?', selectedAssetIds.length), '', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          exitSelectMode();
-          runWithProgress((batchOptions) => setAssetsDeleted(selectedAssetIds, batchOptions));
-        },
-      },
-    ]);
+  async function handleDelete() {
+    const title = pluralizeText('Delete 1 item?', 'Delete %{count} items?', selectedAssetIds.length);
+    if (!(await confirmAsync({ title, action: 'Delete', destructive: true }))) return;
+    exitSelectMode();
+    runWithProgress((batchOptions) => setAssetsDeleted(selectedAssetIds, batchOptions));
   }
-
-  // Register this screen's options with the floating bars context.
-  useEffect(() => {
-    registerScreenOptions('assets', {
-      sortOrder,
-      activeFilter,
-      filterOptions: assetFilterOptions,
-      showViewOptions: true,
-      onSort: sort,
-      onFilter: toggleFilter,
-    });
-  }, [sortOrder, activeFilter]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -111,7 +93,16 @@ export default function AssetsScreen({ route }) {
         onPressAsset={actions.openAsset}
         sortOrder={sortOrder}
       />
-      <FloatingActionsBar search={searchBar} placeholder="Search notes…" activeFilter={activeFilter} />
+      <FloatingActionsBar
+        search={searchBar}
+        placeholder="Search notes…"
+        sortOrder={sortOrder}
+        activeFilter={activeFilter}
+        filterOptions={assetFilterOptions}
+        showViewOptions
+        onSort={sort}
+        onFilter={toggleFilter}
+      />
     </View>
   );
 }

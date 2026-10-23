@@ -3,7 +3,6 @@ import { StyleSheet, Text } from 'react-native';
 
 import StatusScreen from '@/components/StatusScreen';
 import TextButton from '@/components/TextButton';
-import confirmSignOutAsync from '@/features/cloud/confirmSignOutAsync';
 import useCloud from '@/features/cloud/useCloud';
 import { onRegistryChange } from '@/library/registry';
 import { deviceLibraryToJoin } from '@/library/sessionLibrary';
@@ -11,6 +10,7 @@ import { schema } from '@/sync/db/client';
 import { useRecordCounts } from '@/sync/useRecordCounts';
 import { useSyncStatus } from '@/sync/useSyncStatus';
 import { requestSync } from '@/sync/worker';
+import confirmAsync from '@/utils/confirmAsync';
 
 // Shown once, right after the first login, while the initial library pull runs. Gating the app
 // behind this (a) tells the user it's intentional and one-time, and (b) keeps the heavy asset
@@ -52,7 +52,8 @@ export default function FirstSyncScreen() {
     const message = addsDevicePhotos
       ? 'This iPhone’s photos stay here and join your account the next time you sign in.'
       : 'Setting up your library goes on the next time you sign in.';
-    if (await confirmSignOutAsync({ title: 'Sign out before setup finishes?', message })) await logoutAsync();
+    const title = 'Sign out before setup finishes?';
+    if (await confirmAsync({ title, message, action: 'Sign Out', destructive: true })) await logoutAsync();
   }
 
   function subtitle() {

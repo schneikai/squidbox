@@ -47,6 +47,7 @@ import useScrollY from '@/hooks/useScrollY';
 import { colors, radii, scale } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { readPostTexts } from '@/sync/postsRepository';
+import confirmAsync from '@/utils/confirmAsync';
 
 // Reads the posts itself rather than using state, so a chat started before they loaded still gets a sample.
 async function drawReferencePosts(includeReference) {
@@ -184,19 +185,12 @@ export default function AiChatModal({ visible, onClose, onSelect, existingText }
   }
 
   async function handleClearChat() {
-    Alert.alert('Clear Chat', 'Start a fresh conversation?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Clear',
-        style: 'destructive',
-        onPress: async () => {
-          await AsyncStorage.removeItem(CHAT_STORAGE_KEY);
-          setMessages([]);
-          setReferencePosts(null);
-          setInputText(defaultPrompt);
-        },
-      },
-    ]);
+    const message = 'Start a fresh conversation?';
+    if (!(await confirmAsync({ title: 'Clear Chat', message, action: 'Clear', destructive: true }))) return;
+    await AsyncStorage.removeItem(CHAT_STORAGE_KEY);
+    setMessages([]);
+    setReferencePosts(null);
+    setInputText(defaultPrompt);
   }
 
   async function handleCopy(text, key) {
@@ -285,7 +279,7 @@ export default function AiChatModal({ visible, onClose, onSelect, existingText }
             rightSlot={
               <IconMenuButton accessibilityLabel="Chat options">
                 <MenuOption label={selectedModel} icon="cpu" onPress={() => modelPickerRef.current?.open()} />
-                <MenuOption label="Clear Chat" icon="trash" onPress={handleClearChat} isLast />
+                <MenuOption label="Clear Chat" icon="trash" onPress={handleClearChat} />
               </IconMenuButton>
             }
           />
