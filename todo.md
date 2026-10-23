@@ -35,7 +35,7 @@ The app is built and tested only for iOS. Needed:
   `useAddAssetsFromCameraRoll` and `copyToMediaLibraryAsync`.
 - Platform differences: edge-to-edge insets, the back button and gesture (closing modals, the
   viewer, select mode), blur (`expo-blur` is slow or flat on Android: FloatingPill,
-  BlurPopoverRenderer, SortFilterModal, AssetQuickViewModal), keyboard events (`AiChatModal`), HEIC
+  BlurPopoverRenderer, AssetQuickViewModal), keyboard events (`AiChatModal`), HEIC
   display.
 - Device checks of the gesture-heavy screens: pager, zoom, swipe-up details, drag-select, album
   reorder.
@@ -131,6 +131,9 @@ General ideas:
 - **Favorite suggestions** to teach the assistant which style and tone the user prefers.
 - **Memory.** What the user tells the assistant is remembered, e.g. "make it more about the action
   and less about the filming", "less influencer style, more guy next door".
+- **Bring the AI screens onto the shared components** (`AiChatModal`, `RandomSuggestionsScreen`,
+  `ModelSelectorButton`): their chat-bubble radii and `ModelSelectorButton`'s own divider (not
+  `ListDivider`) are still hand-written. The rest of the component consolidation is done.
 
 ### [ ] Alternative texts for a post
 
@@ -159,21 +162,6 @@ error, and could be made from the cloud original.
   styles (`{ fontSize, lineHeight }`) would keep them in step.
 
 ## Code quality
-
-### [ ] Finish the component consolidation
-
-Plan: https://claude.ai/artifact/KfDvwcHGxAeorqs3KeGWKV. Phases 1 to 5 are done: shared buttons,
-popovers, badges, grouped surfaces and tokens (Apple's text styles, `caption2` to `title1`),
-`useListControls`, `useGridLongPressPan`, `assetStorage`, one set of repository verbs, and
-`newRecord` on the shared zod collections in place of the Yup schemas and legacy adapters. Left:
-the AI screens (`AiChatModal`, `RandomSuggestionsScreen`,
-`ModelSelectorButton`) are best done with the AI assistant rework: their chat-bubble radii and
-`ModelSelectorButton`'s own divider (not `ListDivider`) are still hand-written. Left from the
-popovers: `SortFilterModal` drives the open and close animation itself (`BlurPopoverRenderer` does
-the same), and its Modal blocks taps for the ~150 ms of its exit; anchoring it to the options button
-as a `MenuButton` would end both, but its menu must then open inside native sheets too and keep its
-bottom edge when the filter panel changes height. The "New album" prompt is written twice
-(`AlbumsScreen`, `AddToAlbumScreen`).
 
 ### [ ] Bump INSTALLED with each preview build
 
@@ -287,7 +275,7 @@ production project. Consider `enabled: !__DEV__`.
 ### [ ] One animation library
 
 Animations use both React Native's `Animated` and Reanimated. Move the `Animated` ones
-(`BlurPopoverRenderer`, `SortFilterModal`, `MainTabNavigator`, `AssetImage`, `AiChatModal`) to
+(`BlurPopoverRenderer`, `MainTabNavigator`, `AssetImage`, `AiChatModal`) to
 Reanimated, so everything runs on the UI thread with one API.
 
 ### [ ] One sync for data and files

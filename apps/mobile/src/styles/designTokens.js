@@ -63,7 +63,7 @@ export const colors = {
     base: palette.gray50, // a sheet or screen without the gradient
     surface: palette.white, // opaque, for a surface over media that mustn't show it through
     glass: alpha(palette.white, 0.95),
-    menu: alpha(palette.white, 0.72), // tint over the BlurView of popover menus and the sort/filter panel
+    menu: alpha(palette.white, 0.72), // tint over the BlurView of popover menus
     muted: palette.gray100, // `overlay.pressed` over white, opaque
     placeholder: palette.gray300, // a picture's spot before it loads
     shimmer: palette.white, // the pulse over a loading picture's placeholder

@@ -1,10 +1,9 @@
-import { useState } from 'react';
 import { useWindowDimensions } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import SearchOptionsBar from './SearchOptionsBar';
-import SortFilterModal from './SortFilterModal';
+import SortFilterMenu from './SortFilterMenu';
 
 import { layout, sizes } from '@/styles/designTokens';
 
@@ -12,10 +11,10 @@ import { layout, sizes } from '@/styles/designTokens';
 export const SEARCH_SORT_FILTER_BAR_CLEARANCE = sizes.iconButton + layout.barBottom * 2 + 16;
 
 /**
- * The bottom-left search + options bar of a screen, with its own sort / filter popover (the main tabs
+ * The bottom-left search + options bar of a screen, with its sort / filter menu (the main tabs
  * use it through FloatingActionsBar). `search` is the `searchBar` from useListControls; pass
  * `expandProgress` to animate a sibling (a segment pill) with the search field. The other props go to
- * SortFilterModal; the options button lights up while `activeFilter` holds a filter.
+ * SortFilterMenu; the options button lights up while `activeFilter` holds a filter.
  */
 export default function SearchSortFilterBar({
   search,
@@ -32,35 +31,27 @@ export default function SearchSortFilterBar({
   const { bottom } = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const ownExpandProgress = useSharedValue(0);
-  const [isSortFilterOpen, setIsSortFilterOpen] = useState(false);
-
-  const barBottom = bottom + layout.barBottom;
 
   return (
-    <>
-      <SearchOptionsBar
-        {...search}
-        expandProgress={expandProgress ?? ownExpandProgress}
-        onOpenOptions={() => setIsSortFilterOpen(true)}
-        hasActiveState={activeFilter.length > 0}
-        placeholder={placeholder}
-        bottom={barBottom}
-        left={layout.sideGutter}
-        maxWidth={screenWidth - layout.sideGutter * 2}
-      />
-      <SortFilterModal
-        visible={isSortFilterOpen}
-        onClose={() => setIsSortFilterOpen(false)}
-        sortOrder={sortOrder}
-        sortOptions={sortOptions}
-        activeFilter={activeFilter}
-        filterOptions={filterOptions}
-        onSort={onSort}
-        onFilter={onFilter}
-        showViewOptions={showViewOptions}
-        bottom={barBottom + sizes.iconButton + layout.popoverGap}
-        left={layout.sideGutter}
-      />
-    </>
+    <SearchOptionsBar
+      {...search}
+      expandProgress={expandProgress ?? ownExpandProgress}
+      optionsMenu={
+        <SortFilterMenu
+          sortOrder={sortOrder}
+          sortOptions={sortOptions}
+          activeFilter={activeFilter}
+          filterOptions={filterOptions}
+          onSort={onSort}
+          onFilter={onFilter}
+          showViewOptions={showViewOptions}
+        />
+      }
+      hasActiveState={activeFilter.length > 0}
+      placeholder={placeholder}
+      bottom={bottom + layout.barBottom}
+      left={layout.sideGutter}
+      maxWidth={screenWidth - layout.sideGutter * 2}
+    />
   );
 }

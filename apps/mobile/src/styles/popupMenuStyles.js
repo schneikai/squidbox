@@ -13,8 +13,6 @@ const frame = {
 };
 
 export default {
-  frame,
-
   // Passed to <MenuOptions customStyles={...}>. Transparent: PopoverSurface draws the surface.
   menuOptions: {
     optionsContainer: { ...frame, backgroundColor: 'transparent' },

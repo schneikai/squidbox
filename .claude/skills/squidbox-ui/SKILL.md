@@ -50,7 +50,7 @@ All paths are under `apps/mobile/src/`.
   - Floating chrome (`floating-bars/`): `FloatingPill` (a toolbar: a glass pill that groups
     buttons), `FloatingHeader` (main screens), `FloatingDetailHeader` (detail screens),
     `FloatingNavigationBar` and `FloatingSegmentPill` (both `SegmentedPill`), `SearchOptionsBar`,
-    `SortFilterModal`.
+    `SortFilterMenu` (its options button's menu, with a drill-down filter panel).
   - Modals: `ModalSheet`, `ModalHeader`, `ModalCloseButton`.
   - Forms and lists: `Field`, `TextInput`, `Textarea`, `SearchInput`, `Switch`, `settings-list/`,
     `ThumbnailRow`, `EmptyState`, `StatusScreen`, `ProgressRing`, `progress-overlay/`.

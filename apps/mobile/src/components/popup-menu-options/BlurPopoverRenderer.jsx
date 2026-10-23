@@ -9,7 +9,7 @@ import { layout, motion } from '@/styles/designTokens';
  * Custom react-native-popup-menu renderer.
  *
  * Positions the menu below the trigger (flips above when there is insufficient
- * space) with a small gap, on the same PopoverSurface as the sort/filter panel.
+ * space) with a small gap, on PopoverSurface.
  * It opens by growing out of the trigger's corner with a soft spring and shrinks
  * back into it on close.
  *
@@ -57,12 +57,16 @@ function computePlacement(layouts) {
   const aboveTop = tY - wY - oHeight - layout.popoverGap;
   const opensBelow = belowTop + oHeight <= wHeight;
   const top = opensBelow ? belowTop : Math.max(0, aboveTop);
+  // A menu above its trigger hangs from its bottom edge, so it stays put when it changes height (the
+  // sort/filter menu's filter panel) instead of growing down for a frame until it is measured again.
+  const bottom = !opensBelow && aboveTop >= 0 ? wHeight - (tY - wY) + layout.popoverGap : undefined;
 
-  return { top, left, isRightAligned, opensBelow };
+  return { top, bottom, left, isRightAligned, opensBelow };
 }
 
-function positionFor({ top, left }, isRTL) {
-  return { top, [isRTL ? 'right' : 'left']: left };
+function positionFor({ top, bottom, left }, isRTL) {
+  const horizontal = { [isRTL ? 'right' : 'left']: left };
+  return bottom === undefined ? { top, ...horizontal } : { bottom, ...horizontal };
 }
 
 function computePosition(layouts, isRTL) {

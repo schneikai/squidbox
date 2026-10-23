@@ -3,7 +3,7 @@ import { Animated, StyleSheet, View } from 'react-native';
 
 import { colors, radii, shadows } from '@/styles/designTokens';
 
-// The frosted surface of every popover: menus and the sort/filter panel. `progress` (an Animated.Value
+// The frosted surface of every popover menu (BlurPopoverRenderer). `progress` (an Animated.Value
 // from 0 to 1) grows it out of its `origin` corner (a CSS transform-origin, e.g. "top right") and
 // fades it in early; the parent drives it and positions the surface through `style`.
 export default function PopoverSurface({ progress, origin, style, children, ...props }) {

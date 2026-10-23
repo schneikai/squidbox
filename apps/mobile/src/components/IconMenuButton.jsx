@@ -14,14 +14,24 @@ import MenuButton from './MenuButton';
  *     <MenuOption label="..." icon="..." onPress={...} />
  *   </IconMenuButton>
  *
+ * Other props (color, isActive) go to the IconButton.
+ *
  * style — forwarded to MenuButton's triggerContainerStyle. The wrapper is unstyled
  *   by default; IconButton owns its own appearance. Only pass style when you need
  *   to constrain the outer wrapper (rare).
  */
-export default function IconMenuButton({ icon = 'menu', accessibilityLabel = 'More options', style, children }) {
+export default function IconMenuButton({
+  icon = 'menu',
+  accessibilityLabel = 'More options',
+  style,
+  children,
+  ...buttonProps
+}) {
   return (
     <MenuButton
-      trigger={({ toggle }) => <IconButton icon={icon} onPress={toggle} accessibilityLabel={accessibilityLabel} />}
+      trigger={({ toggle }) => (
+        <IconButton {...buttonProps} icon={icon} onPress={toggle} accessibilityLabel={accessibilityLabel} />
+      )}
       triggerContainerStyle={style}
     >
       {children}

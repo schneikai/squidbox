@@ -1,16 +1,16 @@
-import { Alert } from 'react-native';
-
 import IconButton from '@/components/IconButton';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
 import AlbumPicker from '@/features/album-list/AlbumPicker';
+import useAddAlbumAction from '@/features/album-list/actions/add-album-action/useAddAlbumAction';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useScrollY from '@/hooks/useScrollY';
 
 export default function AddToAlbumScreen({ route, navigation }) {
-  const { addAlbum, addAssetsToAlbum } = useAlbums();
+  const { addAssetsToAlbum } = useAlbums();
+  const promptAddAlbum = useAddAlbumAction();
   const runWithProgress = useRunWithProgress();
 
   const { scrollY, onScroll } = useScrollY();
@@ -22,19 +22,13 @@ export default function AddToAlbumScreen({ route, navigation }) {
     }
   }
 
-  function handleAddAlbum() {
-    Alert.prompt('Album name', undefined, (name) => {
-      if (name) addAlbum({ name });
-    });
-  }
-
   return (
     <ModalSheet>
       <ModalHeader
         leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />}
         centerSlot="Add to Album"
         scrollY={scrollY}
-        rightSlot={<IconButton variant="primary" icon="add" onPress={handleAddAlbum} accessibilityLabel="New album" />}
+        rightSlot={<IconButton variant="primary" icon="add" onPress={promptAddAlbum} accessibilityLabel="New album" />}
       />
       <AlbumPicker onPick={handleAddAssetsToAlbum} paddingTop={MODAL_HEADER_HEIGHT} onScroll={onScroll} />
     </ModalSheet>

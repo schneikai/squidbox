@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 
 import SuperPressable from '@/components/SuperPressable';
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
@@ -8,6 +8,7 @@ import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingB
 import reorderUnderSort from '@/components/sortable-grid/reorderUnderSort';
 import AlbumListItem from '@/features/album-list/AlbumListItem';
 import SortableAlbumList from '@/features/album-list/SortableAlbumList';
+import useAddAlbumAction from '@/features/album-list/actions/add-album-action/useAddAlbumAction';
 import albumFilterOptions from '@/features/album-list/actions/filter-albums-action/albumFilterOptions';
 import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
@@ -17,7 +18,8 @@ import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
 
 export default function AlbumsScreen({ navigation }) {
-  const { toggleFavoriteAlbum, addAlbum, moveAlbum } = useAlbums();
+  const { toggleFavoriteAlbum, moveAlbum } = useAlbums();
+  const promptAddAlbum = useAddAlbumAction();
   const { paddingTop, paddingBottom } = useScreenPadding('main');
 
   const { sortOrder, sortAlbums, isSortedByLastPosted } = useSortAlbumsAction();
@@ -51,15 +53,9 @@ export default function AlbumsScreen({ navigation }) {
     });
   }
 
-  function handleAdd() {
-    Alert.prompt('Album name', undefined, (name) => {
-      if (name) addAlbum({ name });
-    });
-  }
-
   return (
     <View style={{ flex: 1 }}>
-      <FloatingHeader title="Albums" onAdd={handleAdd} />
+      <FloatingHeader title="Albums" onAdd={promptAddAlbum} />
       <SortableAlbumList
         listRef={listRef}
         albums={albums}

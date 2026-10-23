@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FloatingPill from './FloatingPill';
 
 import IconButton from '@/components/IconButton';
+import IconMenuButton from '@/components/IconMenuButton';
 import AppTextInput from '@/components/TextInput';
 import { colors, glass, layout, motion, scale, sizes } from '@/styles/designTokens';
 
@@ -36,7 +37,7 @@ import { colors, glass, layout, motion, scale, sizes } from '@/styles/designToke
  *   onOpenSearch     – () => void
  *   onCloseSearch    – () => void  (Cancel: leave search and clear the query)
  *   onChangeSearch   – (text: string) => void
- *   onOpenOptions    – () => void
+ *   optionsMenu      – the options button's menu (MenuOption rows)
  *   hasActiveState   – boolean  (options button highlighted while a filter is active)
  *   placeholder      – string   (default "Search…")
  *   bottom           – number
@@ -50,7 +51,7 @@ export default function SearchOptionsBar({
   onOpenSearch,
   onCloseSearch,
   onChangeSearch,
-  onOpenOptions,
+  optionsMenu,
   hasActiveState = false,
   placeholder = 'Search…',
   bottom,
@@ -112,13 +113,14 @@ export default function SearchOptionsBar({
 
         {/* Collapsed: options button */}
         <Animated.View style={collapsedStyle}>
-          <IconButton
+          <IconMenuButton
             icon="options"
-            onPress={onOpenOptions}
             color={colors.text.secondary}
             isActive={hasActiveState}
             accessibilityLabel="Sort and filter"
-          />
+          >
+            {optionsMenu}
+          </IconMenuButton>
         </Animated.View>
 
         {/* Expanded: the field, with the native clear button inside */}
