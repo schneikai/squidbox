@@ -73,11 +73,14 @@ export default function AppSettingsProvider({ children }) {
   return <AppSettingsContext.Provider value={value}>{children}</AppSettingsContext.Provider>;
 }
 
-// The stored settings over the defaults, each only when it has its default's type.
+// The stored settings over the defaults, each only when it has its default's type (a plain object
+// for an object).
 function readStoredSettings(stored) {
   const settings = { ...DEFAULTS };
   for (const key of KEYS) {
-    if (typeof stored[key] === typeof DEFAULTS[key]) settings[key] = stored[key];
+    const value = stored[key];
+    if (typeof value !== typeof DEFAULTS[key] || value === null || Array.isArray(value)) continue;
+    settings[key] = value;
   }
   return settings;
 }

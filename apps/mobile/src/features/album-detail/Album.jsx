@@ -32,6 +32,7 @@ import { getDb } from '@/sync/db/client';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 import getAlbumAssetScope from '@/utils/albums/getAlbumAssetScope';
 import getAlbumSortOrder from '@/utils/albums/getAlbumSortOrder';
+import isDeletedAssetsAlbum from '@/utils/albums/isDeletedAssetsAlbum';
 import isSmartAlbum from '@/utils/albums/isSmartAlbum';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 import pluralizeText from '@/utils/pluralizeText';
@@ -55,8 +56,8 @@ export default function Album({ album }) {
   const runWithProgress = useRunWithProgress();
   const selection = useToggleSelectAssetsAction();
   const { isSelectMode, selectedAssetIds, isAssetSelected, toggleSelectMode, exitSelectMode, selectAssets } = selection;
-  // The open album's sort until its synced Custom order flag catches up (a pick, or a drop that
-  // switches to it) or a failed drop reverts it.
+  // The sort picked on this screen (or a drop's switch to Custom order) wins while it is open, so it
+  // shows at once rather than when the synced Custom order flag catches up.
   const [sessionSortOrder, setSessionSortOrder] = useState(null);
   const sortOrder = sessionSortOrder ?? getAlbumSortOrder(album, albumSortOrders);
   const [activeTab, setActiveTab] = useState('Assets');
@@ -80,8 +81,8 @@ export default function Album({ album }) {
   const reorderEnabled =
     activeTab === 'Assets' && !isSelectMode && !isSmart && activeFilter.length === 0 && !searchText.trim();
 
-  // Smart albums (Favorites/Deleted) have no stored order, so no Custom order.
-  const sortOptions = isSmart ? assetSortOptions : ALBUM_SORT_OPTIONS;
+  // Smart albums have no stored order, so no Custom order; Deleted lists the most recently deleted first.
+  const sortOptions = isDeletedAssetsAlbum(album) ? [] : isSmart ? assetSortOptions : ALBUM_SORT_OPTIONS;
 
   // Custom order is flagged on the album (synced); a date sort is remembered for the album on this
   // device and takes it off Custom order (its edge positions, the custom order, are kept for later).
@@ -90,7 +91,8 @@ export default function Album({ album }) {
       updateAlbum(album.id, { sortOrder: 'custom' });
     } else {
       setAlbumSortOrders((current) => withAlbumSortOrder(current, album.id, order));
-      if (album.sortOrder === 'custom') updateAlbum(album.id, { sortOrder: null });
+      // The album prop may not show a Custom order just picked yet, so the screen's sort counts too.
+      if (album.sortOrder === 'custom' || sortOrder === 'custom') updateAlbum(album.id, { sortOrder: null });
     }
     setSessionSortOrder(order);
   }

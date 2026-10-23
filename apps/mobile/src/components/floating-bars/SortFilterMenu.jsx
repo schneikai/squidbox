@@ -13,7 +13,7 @@ import { colors, sizes } from '@/styles/designTokens';
  *
  * Props:
  *   sortOrder       – string  the active option's key, e.g. "createdAt:desc"
- *   sortOptions     – [{ key, label }], one row per order (Newest first, Oldest first…)
+ *   sortOptions     – [{ key, label }], one row per order (Newest first, Oldest first…); none for a fixed order
  *   activeFilter    – string[]
  *   filterOptions   – [{ key, label, icon }]
  *   onSort          – (sortOrder: string) => void
@@ -69,7 +69,7 @@ export default function SortFilterMenu({
         />
       ))}
 
-      <MenuDivider />
+      {sortOptions.length > 0 && <MenuDivider />}
 
       <MenuOption
         onPress={() => showPanel(true)}

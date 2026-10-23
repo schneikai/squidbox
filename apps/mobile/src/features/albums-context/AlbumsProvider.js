@@ -19,7 +19,7 @@ import newRecord from '@/utils/newRecord';
 const repo = makeRepository('albums', schema.albums);
 const edges = makeEdgeRepository('album_assets', schema.albumAssets, 'albumId');
 
-// A new album follows the shared asset sort (no `sortOrder`) and has no place in the custom order yet.
+// A new album isn't on Custom order (no `sortOrder`) and has no place in the albums' custom order yet.
 const ALBUM_DEFAULTS = {
   name: 'New Album',
   isFavorite: false,
