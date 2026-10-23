@@ -5,6 +5,8 @@
 This project is an Expo React Native application targeting iOS (for now).
 It focuses on content creation, AI-assisted workflows, and media management.
 
+New session? Start with `docs/agent-handover.md`: where things live, the owner's working style, secrets and cloud-workspace gotchas.
+
 The codebase follows a modular, component-driven architecture with an emphasis on:
 
 - composability
