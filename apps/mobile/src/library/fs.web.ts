@@ -22,12 +22,6 @@ export async function listDatabaseNames(): Promise<string[]> {
   return [];
 }
 
-// Web storage can't be listed (listDatabaseNames finds the pre-library name only), so a listed
-// library's database is taken to exist: it was created when the library first opened.
-export async function databaseExists(): Promise<boolean> {
-  return true;
-}
-
 // wa-sqlite's OPFS pool has a fixed number of files (library-ownership plan §1.8); with all taken it
 // reports SQLITE_CANTOPEN, which expo-sqlite passes on as a message only: `sqlite3_open_v2` when the
 // database file itself gets none, "Error code 14" when a write's journal gets none.

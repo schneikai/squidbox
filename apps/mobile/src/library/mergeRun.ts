@@ -78,8 +78,7 @@ type Outcome = 'waits' | 'done' | 'kept' | { keptFor: string } | { mergedInto: M
  * device changed since along the decisions recorded (getMergeMarks), so every stage is idempotent.
  *
  * The source's database is the authority on what it joined (joinedElsewhere). The list follows it:
- * a list rebuilt from the databases gets the markers back (rebuildRegistry), and the installed
- * build's list-only markers went into the databases once (backfillMergeMarkers), so the screens and
+ * a list rebuilt from the databases gets the markers back (rebuildRegistry), so the screens and
  * mergeDeviceLibrary read the list alone. Where a list still disagrees, the check here repairs it:
  * a source kept for a library is recorded so, and one merging into another listed library is
  * pointed back there (the boot finishes that merge).

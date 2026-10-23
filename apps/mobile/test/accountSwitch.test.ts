@@ -1,10 +1,8 @@
-import { eq } from 'drizzle-orm';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { sessionStoreMock } from './helpers/sessionStoreMock';
 import { makeTestDb } from './helpers/testDb';
-import type { Owner } from '../src/library/owner';
 import type { Session } from '../src/library/session';
 import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
@@ -13,8 +11,6 @@ import { setOutboxError } from '../src/sync/outbox';
 import { makeRepository } from '../src/sync/repository';
 import {
   getCursor,
-  getKeptFor,
-  getMergeTarget,
   getOwner,
   isFirstSyncDone,
   markFirstSyncDone,
@@ -75,7 +71,6 @@ const dbNames: string[] = []; // the databases on disk, for a registry rebuild
 const files = vi.hoisted(() => new Set<string>());
 vi.mock('../src/library/fs', () => ({
   listDatabaseNames: async () => dbNames,
-  databaseExists: async (name: string) => dbNames.includes(name),
   listFiles: async (dir: string) =>
     new Set([...files].filter((uri) => uri.startsWith(dir)).map((uri) => uri.slice(dir.length))),
   createLibraryFolders: async () => {},
@@ -185,23 +180,6 @@ describe('switching libraries with the session', () => {
     expect(getLibrary().id).toBe('squidbox');
     expect(libraryIds()).toEqual(['squidbox']);
     expect(store.session).toEqual({ ...sessionOf('A'), tokens: null });
-  });
-
-  it('boots a converted library whose owner has no serverId into it, resolved, not a new one', async () => {
-    // Stored by a build from before every owner had a serverId.
-    const unresolved = { kind: 'account', serverId: null, userId: 'A', email: '' } as unknown as Owner;
-    const migrated = makeTestDb();
-    stores.set('squidbox.db', migrated);
-    await setOwner(migrated, unresolved);
-    await loadRegistry(async () => ({ libraries: [{ id: 'squidbox', owner: unresolved }] }));
-    store.session = sessionOf('A');
-
-    await bootLibrary(switchLibrary);
-
-    expect(getLibrary().id).toBe('squidbox');
-    expect(libraryIds()).toEqual(['squidbox']);
-    expect(openOwner()).toEqual({ kind: 'account', serverId: 's1', userId: 'A', email: 'A@test' });
-    expect(await getOwner(getDb())).toEqual(openOwner());
   });
 
   it('signs in as A, switches to B, and comes back to A with everything intact', async () => {
@@ -452,54 +430,6 @@ describe('switching libraries with the session', () => {
     });
   });
 
-  // Round 9: the installed build (df33378, mainClient.e2e's INSTALLED) recorded a kept device library
-  // only in the library list (`keptFor`); its databases have no such key (its sync/status.ts writes
-  // none). The update's first boot copies the list's markers into the databases (backfillMergeMarkers),
-  // so a list lost after it (missing or corrupt at a launch) is rebuilt with them, and the device
-  // library, A's already, stays kept for A instead of joining B's library.
-  it('a device library kept by the installed build joins no second account after the list is rebuilt', async () => {
-    await loadRegistry(async () => ({ libraries: [] }));
-    await open(null);
-    const deviceId = getLibrary().id;
-    await repo.createAsset(
-      getDb(),
-      makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
-    );
-    await repo.createAsset(getDb(), makeAssetRecord({ filename: 'c.jpg', isFileSynced: true }));
-    await albums.create(getDb(), makeAlbumRecord({ name: 'Trip' }));
-    await signIn(sessionOf('A'));
-    await firstPullDrains();
-    await pushes();
-    const aId = getLibrary().id;
-    expect(getRegistry().libraries.find(({ id }) => id === deviceId)).toMatchObject({ keptFor: aId });
-    // As the installed build left the device library's database: kept in the list only, no merge
-    // keys (`keptFor`, `mergeMarks:<db>`) in it.
-    const deviceDb = await openAppDb(`library-${deviceId}.db`);
-    for (const key of ['keptFor', `mergeMarks:library-${deviceId}.db`])
-      await deviceDb.delete(schema.syncMeta).where(eq(schema.syncMeta.key, key));
-    await signIn(sessionOf('B'));
-    await firstPullDrains();
-    const bId = getLibrary().id;
-
-    // The update is installed and launched: the list's marker goes into the device library's database,
-    // once.
-    await closeLibrary();
-    dbNames.push(...[deviceId, aId, bId].map((id) => `library-${id}.db`));
-    await bootLibrary(switchLibrary);
-    expect(await getKeptFor(deviceDb)).toBe(aId);
-    expect(storage.get('mergeMarkersBackfilled')).toBe('1');
-    // The stored list doesn't parse at a later launch, signed in as B.
-    await closeLibrary();
-    storage.set('libraries', '{not json');
-    await bootLibrary(switchLibrary);
-    expect(getLibrary().id).toBe(bId);
-    await runPendingMerges(); // what LibraryProvider runs after the boot
-
-    expect(getRegistry().libraries.find(({ id }) => id === deviceId)).toMatchObject({ keptFor: aId });
-    expect(await assets()).toHaveLength(0);
-    expect(await getDb().select().from(schema.albums)).toHaveLength(0);
-  });
-
   // Round 10: the setup screen (FirstSyncScreen) offers Sign out while the account's first pull runs,
   // and the device library's merge waits for that pull (mergeWaits). The session stays, without
   // tokens, but its account library would hide this iPhone's photos until it pulls: this device's
@@ -555,33 +485,6 @@ describe('switching libraries with the session', () => {
     expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
     await pushes();
     expect(libraryIds()).not.toContain(deviceId);
-  });
-
-  // The installed build stored a merge marker as the target library's id: at the first boot of this
-  // build it takes that library's account (or goes, the library gone; an unresolved owner's stays, so
-  // its merge resumes into that library), in the list, and is copied into the device library's
-  // database.
-  it('the boot gives the installed build’s merge markers their account, in the list and the database', async () => {
-    const acc = { id: 'acc', owner: { kind: 'account' as const, serverId: 's1', userId: 'u1', email: '' } };
-    const unresolved = { id: 'old', owner: { kind: 'account', serverId: null, userId: 'u2', email: '' } };
-    const legacy = [
-      { id: 'dev', owner: { kind: 'device' }, mergedInto: 'acc' },
-      { id: 'dev-2', owner: { kind: 'device' }, mergedInto: 'gone' },
-      { id: 'dev-3', owner: { kind: 'device' }, mergedInto: 'old' },
-      acc,
-      unresolved,
-    ];
-    storage.set('libraries', JSON.stringify({ libraries: legacy }));
-    dbNames.push('library-dev.db');
-    await bootLibrary(switchLibrary);
-
-    const marker = { library: 'acc', serverId: 's1', userId: 'u1' };
-    expect(getRegistry().libraries.slice(0, 3)).toEqual([
-      { id: 'dev', owner: { kind: 'device' }, mergedInto: marker },
-      { id: 'dev-2', owner: { kind: 'device' } },
-      { id: 'dev-3', owner: { kind: 'device' }, mergedInto: { library: 'old', serverId: null, userId: 'u2' } },
-    ]);
-    expect(await getMergeTarget(await openAppDb('library-dev.db'))).toEqual(marker);
   });
 
   // Round 11: a merge marked for A's library (a pass that committed, then failed or crashed) resumes at
