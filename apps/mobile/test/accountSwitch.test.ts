@@ -108,7 +108,7 @@ const { switchLibrary } = await import('../src/library/switchLibrary');
 const { getDb, openAppDb } = await import('../src/sync/db/client');
 const { fullResync } = await import('../src/sync/worker');
 const { libraryPaths } = await import('../src/library/libraryPaths');
-const { default: getAssetFileUri } = await import('../src/utils/assets/files/getAssetFileUri');
+const { getAssetFileUri } = await import('../src/utils/assets/assetStorage');
 const { dropTokensAsync: signOut } = await import('../src/utils/cloud-api/sessionStore');
 const { default: refreshAccessTokenAsync } =
   await import('../src/utils/cloud-api/authentication/refreshAccessTokenAsync');

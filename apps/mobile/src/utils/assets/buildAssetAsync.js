@@ -1,10 +1,10 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
 import assetSchema from './assetSchema';
-import getAssetFileUri from './files/getAssetFileUri';
 import createAssetThumbnail from './thumbnails/createAssetThumbnail';
 
 import { removeAssetFiles } from '@/library/fs';
+import { getAssetFileUri } from '@/utils/assets/assetStorage';
 import getFileExtension from '@/utils/files/getFileExtension';
 import getNewItemId from '@/utils/getNewItemId';
 

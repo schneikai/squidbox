@@ -1,6 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
-import getDownloadsDirectory from './getDownloadsDirectory';
+import { getDownloadsDirectory } from '@/utils/assets/assetStorage';
 
 const STALE_AFTER = 60 * 60; // s
 

@@ -3,8 +3,6 @@ import { Alert } from 'react-native';
 
 import CloudContext from './CloudContext';
 import preloadAssetThumbnailsAsync from './assets/preloadAssetThumbnailsAsync';
-import uploadAssetFileAsync from './assets/uploadAssetFileAsync';
-import uploadAssetThumbnailAsync from './assets/uploadAssetThumbnailAsync';
 
 import { openLibraryForSignIn } from '@/library/sessionLibrary';
 import { isSessionAuthenticated, needsReauth as sessionNeedsReauth } from '@/library/sessionMatches';
@@ -56,8 +54,6 @@ export default function CloudProvider({ children }) {
       loginAsync,
       logoutAsync,
       preloadAssetThumbnailsAsync,
-      uploadAssetFileAsync,
-      uploadAssetThumbnailAsync,
     }),
     [session, library, switchLibrary],
   );

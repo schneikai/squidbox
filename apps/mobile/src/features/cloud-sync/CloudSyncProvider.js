@@ -2,12 +2,14 @@ import { useState, useRef, useMemo } from 'react';
 
 import CloudSyncContext from './CloudSyncContext';
 
+import uploadFileAsync from '@/features/cloud/assets/uploadFileAsync';
 import useCloud from '@/features/cloud/useCloud';
 import { currentSyncIdentity } from '@/library/currentSyncIdentity';
 import { removeAssetFiles } from '@/library/fs';
 import useLibrary from '@/library/useLibrary';
 import { isBackupRunning, runBackup } from '@/sync/backupRun';
 import { getDb } from '@/sync/db/client';
+import { getAssetFileUri, getAssetThumbnailUri } from '@/utils/assets/assetStorage';
 import ensureAssetThumbnailAsync from '@/utils/assets/thumbnails/ensureAssetThumbnailAsync';
 import fileSizeToHumanReadable from '@/utils/fileSizeToHumanReadable';
 
@@ -18,7 +20,7 @@ const EMA_TAU = 10;
 // The backup's progress state around the run itself (sync/backupRun.ts, which owns the one run and
 // its stop).
 export default function CloudSyncProvider({ children }) {
-  const { isAuthenticated, uploadAssetFileAsync, uploadAssetThumbnailAsync } = useCloud();
+  const { isAuthenticated } = useCloud();
   const { paths } = useLibrary();
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState(null);
@@ -72,7 +74,7 @@ export default function CloudSyncProvider({ children }) {
         lastProgressRef.current = null;
         emaSpeedRef.current = 0;
         let fileTotalBytes = 0;
-        await uploadAssetFileAsync(asset, library, identity, {
+        await uploadFileAsync(asset.filename, getAssetFileUri(asset.filename, library), identity, {
           signal,
           onProgress: (progress) => {
             fileTotalBytes = progress.totalBytesExpectedToSend;
@@ -83,7 +85,10 @@ export default function CloudSyncProvider({ children }) {
         setSyncProgressMessage(null);
         setSyncSpeedMessage(null);
       },
-      uploadThumbnail: (asset) => uploadAssetThumbnailAsync(asset, library, identity, { signal }),
+      uploadThumbnail: (asset) =>
+        uploadFileAsync(asset.thumbnailFilename, getAssetThumbnailUri(asset.thumbnailFilename, library), identity, {
+          signal,
+        }),
       deleteFile: (filename) => removeAssetFiles([{ filename }], library),
     });
   }

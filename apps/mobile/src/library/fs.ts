@@ -4,14 +4,15 @@ import * as FileSystem from 'expo-file-system/legacy';
 import type { OpenLibrary } from './current';
 import type { LibraryPaths } from './libraryPaths';
 
-import createAssetFileDirectory from '@/utils/assets/files/createAssetFileDirectory';
+import {
+  createAssetDirectoriesAsync,
+  getAssetFileUri,
+  getAssetFilesDirectory,
+  getDownloadsDirectory,
+  getAssetThumbnailUri,
+  getAssetThumbnailsDirectory,
+} from '@/utils/assets/assetStorage';
 import deleteStaleDownloadsAsync from '@/utils/assets/files/deleteStaleDownloadsAsync';
-import getAssetFileUri from '@/utils/assets/files/getAssetFileUri';
-import getAssetFilesDirectory from '@/utils/assets/files/getAssetFilesDirectory';
-import getDownloadsDirectory from '@/utils/assets/files/getDownloadsDirectory';
-import createAssetThumbnailDirectory from '@/utils/assets/thumbnails/createAssetThumbnailDirectory';
-import getAssetThumbnailUri from '@/utils/assets/thumbnails/getAssetThumbnailUri';
-import getAssetThumbnailsDirectory from '@/utils/assets/thumbnails/getAssetThumbnailsDirectory';
 
 // expo-sqlite keeps every database under this folder (it exists once a database has been opened).
 const SQLITE_DIR = `${FileSystem.documentDirectory}SQLite/`;
@@ -30,8 +31,7 @@ export async function listFiles(dir: string): Promise<Set<string>> {
 // A library's two folders, ready when it opens, before anything is written into them; downloads over
 // an hour old go.
 export async function createLibraryFolders(library: OpenLibrary): Promise<void> {
-  await createAssetFileDirectory(library);
-  await createAssetThumbnailDirectory(library);
+  await createAssetDirectoriesAsync(library);
   await deleteStaleDownloadsAsync(library);
 }
 

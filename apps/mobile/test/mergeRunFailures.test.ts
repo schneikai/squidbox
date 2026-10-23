@@ -15,7 +15,7 @@ import { makeEdgeRepository } from '../src/sync/edgesRepository';
 import { makeRepository } from '../src/sync/repository';
 import { sweepPurgedFiles } from '../src/sync/sweepPurgedFiles';
 import { upsertRows } from '../src/sync/upsertRows';
-import getAssetFileUri from '../src/utils/assets/files/getAssetFileUri';
+import { getAssetFileUri } from '../src/utils/assets/assetStorage';
 
 // Round 6: a merge pass (mergeRun.ts) failing, or the app dying, at each of its steps, then the
 // device library opened again while the session is lost (its photo purged there, its open-sweep

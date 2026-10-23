@@ -1,7 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
-import getAssetThumbnailUri from './getAssetThumbnailUri';
-
+import { getAssetThumbnailUri } from '@/utils/assets/assetStorage';
 import getFileExtension from '@/utils/files/getFileExtension';
 import createThumbnail from '@/utils/thumbnails/createThumbnail';
 

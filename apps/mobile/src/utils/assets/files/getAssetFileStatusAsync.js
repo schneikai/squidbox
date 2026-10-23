@@ -1,4 +1,4 @@
-import assetFileExistsAsync from './assetFileExistsAsync';
+import { assetFileExistsAsync } from '@/utils/assets/assetStorage';
 
 // Where an asset's full-resolution file can be had, without asking the cloud for it: 'local' (its
 // copy on this device, until the backup has uploaded it; never on web), 'remote' (the cloud copy),

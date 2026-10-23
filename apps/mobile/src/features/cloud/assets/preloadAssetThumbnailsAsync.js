@@ -1,7 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
-import getAssetThumbnailUri from '@/utils/assets/thumbnails/getAssetThumbnailUri';
-import hasThumbnailAsync from '@/utils/assets/thumbnails/hasThumbnailAsync';
+import { getAssetThumbnailUri, hasThumbnailAsync } from '@/utils/assets/assetStorage';
 import getAssetFileDownloadUrlsAsync from '@/utils/cloud-api/assets/getAssetFileDownloadUrlsAsync';
 
 const DOWNLOADS_AT_ONCE = 3; // per batch; the loader runs two

@@ -7,9 +7,9 @@ import useAssetThumbnailLoader from '@/features/asset-thumbnail-loader/useAssetT
 import useCloud from '@/features/cloud/useCloud';
 import useLibrary from '@/library/useLibrary';
 import { colors, motion, spacing } from '@/styles/designTokens';
+import { getAssetThumbnailUri } from '@/utils/assets/assetStorage';
 import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';
 import getAssetThumbnailStatusAsync from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
-import getAssetThumbnailUri from '@/utils/assets/thumbnails/getAssetThumbnailUri';
 
 // contentFit: "cover" | "contain". The placeholder pulses until the picture has loaded (and holds
 // still while nobody is signed in to fetch it, once its download gave up, or without a thumbnail at

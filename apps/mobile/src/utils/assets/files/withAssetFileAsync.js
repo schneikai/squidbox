@@ -1,9 +1,9 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
 import getAssetFileSourceAsync from './getAssetFileSourceAsync';
-import getDownloadsDirectory from './getDownloadsDirectory';
 
 import downloadAssetFileAsync from '@/features/cloud/assets/downloadAssetFileAsync';
+import { getDownloadsDirectory } from '@/utils/assets/assetStorage';
 import getNewItemId from '@/utils/getNewItemId';
 
 // Runs `use` with a local uri of an asset's full-resolution file: the on-device original (kept, the

@@ -1,5 +1,6 @@
 import ensureAssetThumbnailAsync from './ensureAssetThumbnailAsync';
-import hasThumbnailAsync from './hasThumbnailAsync';
+
+import { hasThumbnailAsync } from '@/utils/assets/assetStorage';
 
 let hasWarned = false;
 

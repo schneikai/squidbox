@@ -1,8 +1,6 @@
 import createAssetThumbnail from './createAssetThumbnail';
-import hasThumbnailAsync from './hasThumbnailAsync';
 
-import assetFileExistsAsync from '@/utils/assets/files/assetFileExistsAsync';
-import getAssetFileUri from '@/utils/assets/files/getAssetFileUri';
+import { hasThumbnailAsync, assetFileExistsAsync, getAssetFileUri } from '@/utils/assets/assetStorage';
 
 const MAX_MAKING = 2; // thumbnails made from full-size originals at once
 const jobs = new Map(); // by library and name, waiting or running: a tile and the backup share one

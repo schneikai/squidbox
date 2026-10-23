@@ -23,10 +23,12 @@ import {
   type MergeDecision,
   type MergeMark,
 } from '@/sync/status';
-import getAssetFileUri from '@/utils/assets/files/getAssetFileUri';
-import getAssetFilesDirectory from '@/utils/assets/files/getAssetFilesDirectory';
-import getAssetThumbnailUri from '@/utils/assets/thumbnails/getAssetThumbnailUri';
-import getAssetThumbnailsDirectory from '@/utils/assets/thumbnails/getAssetThumbnailsDirectory';
+import {
+  getAssetFileUri,
+  getAssetFilesDirectory,
+  getAssetThumbnailUri,
+  getAssetThumbnailsDirectory,
+} from '@/utils/assets/assetStorage';
 
 type AssetRow = schema.AssetRow;
 type Row = { id: string; updatedAt: number; deletedAt: number | null };

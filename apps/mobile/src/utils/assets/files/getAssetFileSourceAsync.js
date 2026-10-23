@@ -1,6 +1,6 @@
 import getAssetFileStatusAsync from './getAssetFileStatusAsync';
-import getAssetFileUri from './getAssetFileUri';
 
+import { getAssetFileUri } from '@/utils/assets/assetStorage';
 import getAssetFileDownloadUrlAsync from '@/utils/cloud-api/assets/getAssetFileDownloadUrlAsync';
 
 // Where to read an asset's full-resolution file now (see getAssetFileStatusAsync): resolves

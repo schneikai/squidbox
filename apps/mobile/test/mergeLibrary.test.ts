@@ -13,8 +13,7 @@ import { makeRepository } from '../src/sync/repository';
 import { clearFirstSyncDone, markFirstSyncDone, setMergeMarks, setOwner } from '../src/sync/status';
 import { sweepPurgedFiles } from '../src/sync/sweepPurgedFiles';
 import { upsertRows } from '../src/sync/upsertRows';
-import getAssetFileUri from '../src/utils/assets/files/getAssetFileUri';
-import getAssetThumbnailUri from '../src/utils/assets/thumbnails/getAssetThumbnailUri';
+import { getAssetFileUri, getAssetThumbnailUri } from '../src/utils/assets/assetStorage';
 
 // The device's files, by uri, and every move made (one that `loses` its file reports no error).
 const files = new Set<string>();

@@ -21,7 +21,7 @@ import {
   markFirstSyncDone,
   setMergeTarget,
 } from '../src/sync/status';
-import getAssetFileUri from '../src/utils/assets/files/getAssetFileUri';
+import { getAssetFileUri } from '../src/utils/assets/assetStorage';
 
 // The device: databases by name (a store survives close and reopen), files by uri, the list.
 const stores = new Map<string, AppDb>();
