@@ -3,6 +3,7 @@ import { StyleSheet, View, ScrollView, TouchableOpacity, useWindowDimensions, Te
 
 import AssetImage from '@/components/AssetImage';
 import SuperPressable from '@/components/SuperPressable';
+import { colors } from '@/styles/designTokens';
 
 // `postAssets` are a post's [{ id, asset }], as postQuery reads them; a tap on one calls `onPressAsset(asset)`.
 export default function PostAssets({ postAssets, onPressAsset }) {
@@ -83,7 +84,7 @@ function PaginationIndicator({ entries, currentPage, scrollToItem }) {
 
 const styles = StyleSheet.create({
   scrollView: {
-    backgroundColor: 'lightgray',
+    backgroundColor: colors.mutedSurface,
   },
 
   emptyContainer: {
@@ -105,10 +106,10 @@ const styles = StyleSheet.create({
     height: 10,
     width: 10,
     borderRadius: 5,
-    borderColor: 'white',
+    borderColor: colors.textInverse,
     borderWidth: 1,
   },
   activeDot: {
-    backgroundColor: 'white',
+    backgroundColor: colors.textInverse,
   },
 });

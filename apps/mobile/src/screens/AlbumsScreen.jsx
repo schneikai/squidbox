@@ -1,13 +1,13 @@
 import { useCallback, useEffect } from 'react';
 import { Alert, View } from 'react-native';
 
+import SuperPressable from '@/components/SuperPressable';
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
 import { useFloatingBars } from '@/components/floating-bars/FloatingBarsContext';
 import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
 import reorderUnderSort from '@/components/sortable-grid/reorderUnderSort';
 import AlbumListItem from '@/features/album-list/AlbumListItem';
-import AlbumListItemWithEditMode from '@/features/album-list/AlbumListItemWithEditMode';
 import SortableAlbumList from '@/features/album-list/SortableAlbumList';
 import albumFilterOptions from '@/features/album-list/actions/filter-albums-action/albumFilterOptions';
 import useFilterAlbumsAction from '@/features/album-list/actions/filter-albums-action/useFilterAlbumsAction';
@@ -36,13 +36,12 @@ export default function AlbumsScreen({ navigation }) {
 
   const renderItem = useCallback(
     ({ album, elementWidth }) => (
-      <AlbumListItemWithEditMode
-        isEditMode={false}
-        singleTap={() => navigation.navigate('AlbumScreen', { albumId: album.id })}
-        doubleTap={() => toggleFavoriteAlbum(album)}
+      <SuperPressable
+        onPress={() => navigation.navigate('AlbumScreen', { albumId: album.id })}
+        onDoublePress={() => toggleFavoriteAlbum(album)}
       >
         <AlbumListItem album={album} elementWidth={elementWidth} showLastPostedAt={isSortedByLastPosted} />
-      </AlbumListItemWithEditMode>
+      </SuperPressable>
     ),
     [navigation, toggleFavoriteAlbum, isSortedByLastPosted],
   );

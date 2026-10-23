@@ -117,7 +117,7 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
           <IconButton
             icon="trash"
             onPress={isDeleted ? handleDeletePermanently : handleDelete}
-            danger
+            variant="danger"
             accessibilityLabel={isDeleted ? 'Delete permanently' : 'Delete'}
           />
         </FloatingPill>

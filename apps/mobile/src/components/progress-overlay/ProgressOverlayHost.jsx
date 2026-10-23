@@ -1,10 +1,11 @@
 import { use } from 'react';
-import { View, StyleSheet, ActivityIndicator, Pressable, Text } from 'react-native';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
 
 import ProgressOverlayStateContext from './ProgressOverlayStateContext';
 
 import ProgressRing from '@/components/ProgressRing';
-import { colors, scale, typography } from '@/styles/designTokens';
+import TextButton from '@/components/TextButton';
+import { colors, scale } from '@/styles/designTokens';
 
 // The visual overlay, rendered IN-TREE (never via a native Modal). A native Modal presents from the
 // ROOT view controller, which UIKit refuses while a native-stack sheet is already presented — so the
@@ -18,11 +19,15 @@ export default function ProgressOverlayHost() {
   if (mode === null) return null;
   return (
     <View style={styles.overlay}>
-      {mode === 'progress' ? <ProgressRing value={progress} /> : <ActivityIndicator size="large" color="white" />}
+      {mode === 'progress' ? (
+        <ProgressRing value={progress} />
+      ) : (
+        <ActivityIndicator size="large" color={colors.textInverse} />
+      )}
       {cancel && (
-        <Pressable onPress={cancel} style={({ pressed }) => [styles.cancel, pressed && styles.pressed]} hitSlop={8}>
-          <Text style={styles.cancelLabel}>Cancel</Text>
-        </Pressable>
+        <View style={styles.cancel}>
+          <TextButton label="Cancel" onPress={cancel} tone="inverse" />
+        </View>
       )}
     </View>
   );
@@ -42,15 +47,5 @@ const styles = StyleSheet.create({
   },
   cancel: {
     marginTop: scale(32),
-    paddingHorizontal: scale(24),
-    paddingVertical: scale(12),
-  },
-  pressed: {
-    opacity: 0.6,
-  },
-  cancelLabel: {
-    color: colors.textInverse,
-    fontSize: typography.base,
-    fontWeight: '600',
   },
 });

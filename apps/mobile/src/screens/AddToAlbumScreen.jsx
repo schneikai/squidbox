@@ -1,14 +1,12 @@
 import { Alert, View } from 'react-native';
 
-import GradientButton from '@/components/GradientButton';
-import Icon from '@/components/Icon';
+import IconButton from '@/components/IconButton';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
 import AlbumPicker from '@/features/album-list/AlbumPicker';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useScrollY from '@/hooks/useScrollY';
-import { colors } from '@/styles/designTokens';
 
 export default function AddToAlbumScreen({ route, navigation }) {
   const { addAlbum, addAssetsToAlbum } = useAlbums();
@@ -35,11 +33,7 @@ export default function AddToAlbumScreen({ route, navigation }) {
         leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />}
         centerSlot="Add to Album"
         scrollY={scrollY}
-        rightSlot={
-          <GradientButton onPress={handleAddAlbum}>
-            <Icon name="add" color={colors.textInverse} />
-          </GradientButton>
-        }
+        rightSlot={<IconButton variant="primary" icon="add" onPress={handleAddAlbum} accessibilityLabel="New album" />}
       />
       <AlbumPicker onPick={handleAddAssetsToAlbum} paddingTop={MODAL_HEADER_HEIGHT} onScroll={onScroll} />
     </View>

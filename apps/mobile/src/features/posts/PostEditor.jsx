@@ -4,11 +4,11 @@ import Animated from 'react-native-reanimated';
 
 import Card from '@/components/Card';
 import DateTimePicker from '@/components/DateTimePicker';
-import GradientPillButton from '@/components/GradientPillButton';
 import IconButton from '@/components/IconButton';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
+import PrimaryButton from '@/components/PrimaryButton';
 import Textarea from '@/components/Textarea';
 import { SCREEN_PADDING } from '@/constants';
 import AiChatModal from '@/features/ai-suggestions/AiChatModal';
@@ -59,7 +59,9 @@ export default function PostEditor({ post, navigation, onSave }) {
         rightSlot={
           <>
             <IconButton icon="sparkles" onPress={handleOpenSuggestions} accessibilityLabel="AI suggestions" />
-            {onSave && <GradientPillButton label="Save" onPress={handleSave} disabled={!canSave || isSaving} />}
+            {onSave && (
+              <PrimaryButton size="compact" label="Save" onPress={handleSave} disabled={!canSave || isSaving} />
+            )}
           </>
         }
       />

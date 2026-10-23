@@ -1,8 +1,8 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import Icon from '@/components/Icon';
+import ListDivider from '@/components/ListDivider';
 import { SCREEN_PADDING } from '@/constants';
-import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, radii, shadows, spacing, typography } from '@/styles/designTokens';
 
 // iOS-style grouped-list building blocks shared by the Settings screen and its detail screens
@@ -15,7 +15,7 @@ export function Section({ children }) {
       {kids.map((child, i) => (
         <View key={i}>
           {child}
-          {i < kids.length - 1 && <View style={actionButtonStyles.listDivider} />}
+          {i < kids.length - 1 && <ListDivider />}
         </View>
       ))}
     </View>

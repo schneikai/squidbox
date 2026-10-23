@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Pressable } from 'react-native';
 
 // A pressable that also supports double press and long press. Every handler is optional.
@@ -8,6 +8,8 @@ export default function SuperPressable({ onPress, onDoublePress, onLongPress, on
   const timeoutIdRef = useRef(null);
   const isLongPressRef = useRef(false);
 
+  useEffect(() => () => clearTimeout(timeoutIdRef.current), []);
+
   function handlePress() {
     if (!onDoublePress) return onPress?.(); // no need to wait for a second tap
     const now = Date.now();
@@ -15,13 +17,14 @@ export default function SuperPressable({ onPress, onDoublePress, onLongPress, on
 
     if (now - lastPressRef.current < DOUBLE_PRESS_DELAY) {
       clearTimeout(timeoutIdRef.current);
+      lastPressRef.current = 0; // a third tap starts over instead of making a second double press
       onDoublePress();
-    } else {
-      timeoutIdRef.current = setTimeout(() => {
-        onPress?.();
-      }, DOUBLE_PRESS_DELAY);
+      return;
     }
 
+    timeoutIdRef.current = setTimeout(() => {
+      onPress?.();
+    }, DOUBLE_PRESS_DELAY);
     lastPressRef.current = now;
   }
 

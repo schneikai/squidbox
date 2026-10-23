@@ -1,8 +1,8 @@
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import EmptyState from '@/components/EmptyState';
-import Icon from '@/components/Icon';
+import IconButton from '@/components/IconButton';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
@@ -13,8 +13,6 @@ import PostListItem from '@/features/post-list/PostListItem';
 import postQuery from '@/features/post-list/postQuery';
 import usePosts from '@/features/posts-context/usePosts';
 import useScrollY from '@/hooks/useScrollY';
-import actionButtonStyles from '@/styles/actionButtonStyles';
-import { colors } from '@/styles/designTokens';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
 const ignored = postQuery({ scope: 'ignored', sort: 'updatedAt:desc' });
@@ -55,9 +53,12 @@ export default function IgnoredPostsScreen({ navigation }) {
             <SuperPressable onPress={() => navigation.navigate('PostScreen', { postId: post.id })} style={{ flex: 1 }}>
               <PostListItem post={post} />
               <View style={styles.actionContainer}>
-                <TouchableOpacity style={actionButtonStyles.button} onPress={() => handleRestore(post)}>
-                  <Icon name="eye" color={colors.text} />
-                </TouchableOpacity>
+                <IconButton
+                  variant="tinted"
+                  icon="eye"
+                  onPress={() => handleRestore(post)}
+                  accessibilityLabel="Restore to the repost queue"
+                />
               </View>
             </SuperPressable>
           )}

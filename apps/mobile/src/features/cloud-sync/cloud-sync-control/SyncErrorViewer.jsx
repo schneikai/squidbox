@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
+import PrimaryButton from '@/components/PrimaryButton';
 import useScrollY from '@/hooks/useScrollY';
 import { colors, radii, scale } from '@/styles/designTokens';
 import { usePagedQuery } from '@/sync/usePagedQuery';
@@ -56,9 +57,7 @@ export default function SyncErrorViewer({ query, onRetryAll, close }) {
         />
 
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
-            <Text style={styles.retryButtonText}>Retry All</Text>
-          </TouchableOpacity>
+          <PrimaryButton label="Retry All" onPress={handleRetry} />
         </View>
       </ModalSheet>
     </Modal>
@@ -88,16 +87,5 @@ const styles = StyleSheet.create({
 
   footer: {
     padding: 16,
-  },
-  retryButton: {
-    backgroundColor: colors.accent,
-    borderRadius: radii.card,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  retryButtonText: {
-    color: colors.textInverse,
-    fontSize: scale(16),
-    fontWeight: '600',
   },
 });

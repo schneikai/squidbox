@@ -78,7 +78,12 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
           <>
             <IconButton icon="undo" onPress={handleRestoreAssets} accessibilityLabel="Restore" />
             <IconButton icon="checkbox" onPress={toggleSelectMode} accessibilityLabel="Select" />
-            <IconButton icon="trash" onPress={handleDeleteAssets} danger accessibilityLabel="Delete permanently" />
+            <IconButton
+              icon="trash"
+              onPress={handleDeleteAssets}
+              variant="danger"
+              accessibilityLabel="Delete permanently"
+            />
           </>
         }
       />

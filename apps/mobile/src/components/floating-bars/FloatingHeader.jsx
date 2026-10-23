@@ -7,8 +7,6 @@ import AccountButton from './AccountButton';
 import { useFloatingBars } from './FloatingBarsContext';
 import FloatingPill from './FloatingPill';
 
-import GradientButton from '@/components/GradientButton';
-import Icon from '@/components/Icon';
 import IconButton from '@/components/IconButton';
 import SelectionActions from '@/features/asset-list/SelectionActions';
 import { colors, motion, spacing, typography } from '@/styles/designTokens';
@@ -61,9 +59,7 @@ export default function FloatingHeader({ title, onAdd, selection, selectionActio
           {selection && (
             <IconButton icon="check-circle" onPress={selection.toggleSelectMode} accessibilityLabel="Select" />
           )}
-          <GradientButton onPress={onAdd} accessibilityLabel="Add">
-            <Icon name="add" color={colors.textInverse} />
-          </GradientButton>
+          <IconButton variant="primary" icon="add" onPress={onAdd} accessibilityLabel="Add" />
         </FloatingPill>
         <AccountButton onPress={handleSettings} />
       </Animated.View>

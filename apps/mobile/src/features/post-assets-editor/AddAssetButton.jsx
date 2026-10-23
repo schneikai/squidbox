@@ -1,10 +1,13 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
+
+import Icon from '@/components/Icon';
+import { colors, spacing } from '@/styles/designTokens';
 
 export default function AddAssetButton({ onAdd, itemDimension }) {
   return (
-    <TouchableOpacity onPress={onAdd} style={[styles.rowItem, itemDimension]}>
+    <TouchableOpacity onPress={onAdd} style={[styles.rowItem, itemDimension]} accessibilityLabel="Add photos">
       <View style={styles.addItem}>
-        <Text style={styles.addItemText}>+</Text>
+        <Icon name="add" size={spacing.iconSizeLarge} color={colors.textSecondary} />
       </View>
     </TouchableOpacity>
   );
@@ -18,10 +21,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'gray',
-  },
-  addItemText: {
-    fontSize: 50,
-    color: 'black',
+    backgroundColor: colors.mutedSurface,
   },
 });

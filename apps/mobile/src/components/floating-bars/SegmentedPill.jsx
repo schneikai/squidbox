@@ -1,7 +1,5 @@
 import FloatingPill from './FloatingPill';
 
-import GradientButton from '@/components/GradientButton';
-import Icon from '@/components/Icon';
 import IconButton from '@/components/IconButton';
 import { colors } from '@/styles/designTokens';
 
@@ -14,9 +12,14 @@ export default function SegmentedPill({ items, activeKey, onSelect }) {
     <FloatingPill>
       {items.map(({ key, icon, label }) =>
         key === activeKey ? (
-          <GradientButton key={key} onPress={() => onSelect(key)} accessibilityLabel={label}>
-            <Icon name={icon} color={colors.iconActive} />
-          </GradientButton>
+          <IconButton
+            variant="primary"
+            icon={icon}
+            isActive
+            key={key}
+            onPress={() => onSelect(key)}
+            accessibilityLabel={label}
+          />
         ) : (
           <IconButton
             key={key}

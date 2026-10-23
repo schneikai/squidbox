@@ -71,7 +71,7 @@ export default function FirstSyncScreen() {
       )}
       {addsDevicePhotos && <Text style={styles.hint}>This iPhone’s photos are added once this is done.</Text>}
       {/* A sign-out stops the pull at its next batch; the library keeps what it pulled. */}
-      <TextButton label="Sign out" onPress={handleSignOut} muted />
+      <TextButton label="Sign out" onPress={handleSignOut} tone="muted" />
     </StatusScreen>
   );
 }

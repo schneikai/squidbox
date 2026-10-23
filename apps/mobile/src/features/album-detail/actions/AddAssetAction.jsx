@@ -1,7 +1,6 @@
 import { Alert } from 'react-native';
 
-import GradientButton from '@/components/GradientButton';
-import Icon from '@/components/Icon';
+import IconButton from '@/components/IconButton';
 import MenuButton from '@/components/MenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
@@ -9,7 +8,6 @@ import { UPLOAD_MEDIA_FROM_DEVICE, UPLOAD_MEDIA_FROM_APP } from '@/constants';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';
 import useAddAssetsFromCameraRoll from '@/features/assets-context/useAddAssetsFromCameraRoll';
-import { colors } from '@/styles/designTokens';
 
 export default function AddAssetAction({ album }) {
   const { addAssetsToAlbum } = useAlbums();
@@ -41,11 +39,7 @@ export default function AddAssetAction({ album }) {
 
   return (
     <MenuButton
-      trigger={({ toggle }) => (
-        <GradientButton onPress={toggle} accessibilityLabel="Add">
-          <Icon name="add" color={colors.textInverse} />
-        </GradientButton>
-      )}
+      trigger={({ toggle }) => <IconButton variant="primary" icon="add" onPress={toggle} accessibilityLabel="Add" />}
     >
       <MenuOption label={UPLOAD_MEDIA_FROM_DEVICE} icon="mobile" onPress={handleAddAssetsFromDevice} />
       <MenuOption label={UPLOAD_MEDIA_FROM_APP} icon="library" onPress={handleAddAssetsFromApp} isLast />

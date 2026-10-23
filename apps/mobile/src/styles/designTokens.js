@@ -28,6 +28,7 @@ export const colors = {
   glassSurface: 'rgba(255,255,255,0.95)',
   surface: '#FFFFFF', // opaque, for a surface over media that mustn't show it through (the asset's details)
   glassBorder: 'rgba(0,0,0,0.08)',
+  divider: 'rgba(0,0,0,0.08)', // between the rows of a grouped list (ListDivider)
 
   // Popover menus and the sort/filter panel: a light frosted surface.
   menuOverlay: 'rgba(255,255,255,0.72)', // tint layer on top of the light BlurView
@@ -48,7 +49,6 @@ export const colors = {
   textInverse: '#FFFFFF',
 
   iconInactive: '#6B7280',
-  iconActive: '#FFFFFF',
 
   separator: 'rgba(255,255,255,0.1)',
 
@@ -98,6 +98,7 @@ export const spacing = {
   floatingBarSide: SIDE_GUTTER,
   floatingBarBottom: scale(16),
   iconButtonSize: scale(44), // 44pt baseline (Apple HIG minimum tap target), scales with screen
+  primaryButtonHeight: scale(50), // a large PrimaryButton, the main action of a form or list
   iconSize: scale(20), // standard icon inside a button (~45% of button size)
   iconSizeSmall: scale(18), // compact icon (avatar, secondary indicators)
   iconSizeLarge: scale(32), // standalone icon that stands for content (e.g. a not-uploaded thumbnail)

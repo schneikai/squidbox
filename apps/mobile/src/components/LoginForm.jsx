@@ -1,9 +1,10 @@
 import { useState, useTransition } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, TextInput, View } from 'react-native';
 
+import ListDivider from '@/components/ListDivider';
+import PrimaryButton from '@/components/PrimaryButton';
 import TextButton from '@/components/TextButton';
 import useCloud from '@/features/cloud/useCloud';
-import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, radii, scale, spacing } from '@/styles/designTokens';
 import isBlank from '@/utils/isBlank';
 
@@ -51,7 +52,7 @@ export default function LoginForm({ ownerEmail }) {
           autoCorrect={false}
           returnKeyType="next"
         />
-        <View style={actionButtonStyles.listDivider} />
+        <ListDivider />
         <TextInput
           style={styles.input}
           onChangeText={setPassword}
@@ -64,17 +65,7 @@ export default function LoginForm({ ownerEmail }) {
         />
       </View>
 
-      <TouchableOpacity
-        style={[styles.loginButton, isPending && styles.loginButtonDisabled]}
-        onPress={handleSubmit}
-        disabled={isPending}
-      >
-        {isPending ? (
-          <ActivityIndicator color={colors.textInverse} />
-        ) : (
-          <Text style={styles.loginButtonText}>Sign In</Text>
-        )}
-      </TouchableOpacity>
+      <PrimaryButton label="Sign In" onPress={handleSubmit} loading={isPending} />
 
       {isOwnerEmail && <TextButton label="Sign in as someone else" onPress={handleSomeoneElse} />}
     </>
@@ -96,20 +87,5 @@ const styles = StyleSheet.create({
   },
   inputLocked: {
     color: colors.textSecondary,
-  },
-  loginButton: {
-    backgroundColor: colors.accent,
-    borderRadius: radii.card,
-    height: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loginButtonDisabled: {
-    opacity: 0.6,
-  },
-  loginButtonText: {
-    color: colors.textInverse,
-    fontSize: scale(16),
-    fontWeight: '600',
   },
 });

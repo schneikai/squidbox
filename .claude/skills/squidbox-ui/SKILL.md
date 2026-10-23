@@ -40,8 +40,9 @@ All paths are under `apps/mobile/src/`.
 - `styles/designTokens.js`: colors, shadows, radii, spacing, typography, `glass`, `motion`.
   Sizes scale with the screen through `scale()`.
 - `components/`: shared building blocks. Reuse or extend these before adding new ones:
-  - Buttons: `IconButton` (every icon-only button), `GradientButton` (the purple primary action),
-    `GradientPillButton` (a primary action with a label), `TextButton`, `MenuButton` /
+  - Buttons: `IconButton` (every icon-only button; `variant`: `plain`, `danger`, `primary` for the
+    purple gradient in a toolbar, `tinted`, `destructive` over content), `PrimaryButton` (a purple action with a label: `large` in a form or
+    list, `compact` in a modal header), `TextButton`, `MenuButton` /
     `IconMenuButton` with `popup-menu-options/MenuOption` (anchored menus).
   - Floating chrome (`floating-bars/`): `FloatingPill` (a toolbar: a glass pill that groups
     buttons), `FloatingHeader` (main screens), `FloatingDetailHeader` (detail screens),
@@ -60,12 +61,12 @@ All paths are under `apps/mobile/src/`.
 - A toolbar is one `FloatingPill`: one button tall, with a thin glass frame around its buttons.
   Buttons that belong together share a pill; groups sit apart with a gap. At most three groups
   per bar (HIG `toolbars.md`).
-- One purple `GradientButton` per toolbar at most, on the trailing side. Inside a pill it sits
+- One purple `primary` button per toolbar at most, on the trailing side. Inside a pill it sits
   flat, without a shadow.
 - The account avatar (`AccountButton`) sits on its own at the far right of the main header,
   outside any pill: it stands for the user, not for an action.
 - Icon colors: `colors.text` in the headers, `colors.iconInactive` in the bottom bars,
-  `IconButton`'s `danger` for destructive actions and `isActive` for a setting that is on.
+  `IconButton`'s `variant="danger"` for destructive actions and `isActive` for a setting that is on.
 
 ## Known conflicts: our decision wins
 

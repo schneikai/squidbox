@@ -3,11 +3,11 @@ import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Card from '@/components/Card';
-import GradientPillButton from '@/components/GradientPillButton';
 import IconButton from '@/components/IconButton';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
+import PrimaryButton from '@/components/PrimaryButton';
 import Textarea from '@/components/Textarea';
 import { SCREEN_PADDING } from '@/constants';
 import useAlbums from '@/features/albums-context/useAlbums';
@@ -42,8 +42,8 @@ export default function EditAlbumNotesModal({ route, navigation }) {
         centerSlot="Notes"
         rightSlot={
           <>
-            <IconButton icon="trash" onPress={handleDelete} danger accessibilityLabel="Delete note" />
-            <GradientPillButton label="Save" onPress={handleSave} />
+            <IconButton icon="trash" onPress={handleDelete} variant="danger" accessibilityLabel="Delete note" />
+            <PrimaryButton size="compact" label="Save" onPress={handleSave} />
           </>
         }
       />

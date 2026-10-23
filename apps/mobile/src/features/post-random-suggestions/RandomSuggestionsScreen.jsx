@@ -10,13 +10,13 @@ import useRandomSuggestions from './useRandomSuggestions';
 import AssetImage from '@/components/AssetImage';
 import Card from '@/components/Card';
 import EmptyState from '@/components/EmptyState';
-import GradientPillButton from '@/components/GradientPillButton';
 import Icon from '@/components/Icon';
 import IconButton from '@/components/IconButton';
 import IconMenuButton from '@/components/IconMenuButton';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
+import PrimaryButton from '@/components/PrimaryButton';
 import SuperPressable from '@/components/SuperPressable';
 import Textarea from '@/components/Textarea';
 import ThumbnailRow from '@/components/ThumbnailRow';
@@ -294,7 +294,8 @@ export default function RandomSuggestionsScreen({ route, navigation }) {
               <MenuOption label={selectedModel} icon="cpu" onPress={() => modelPickerRef.current?.open()} />
               <MenuOption label="Edit Prompt" icon="pencil" onPress={openEditPrompt} isLast />
             </IconMenuButton>
-            <GradientPillButton
+            <PrimaryButton
+              size="compact"
               label="Use"
               onPress={handleConfirm}
               disabled={(!currentAsset && !currentText) || isClosing}
@@ -411,7 +412,7 @@ export default function RandomSuggestionsScreen({ route, navigation }) {
           <ModalHeader
             leftSlot={<ModalCloseButton onPress={() => setShowEditPrompt(false)} />}
             centerSlot="Edit Prompt"
-            rightSlot={<GradientPillButton label="Save" onPress={handleSavePrompt} />}
+            rightSlot={<PrimaryButton size="compact" label="Save" onPress={handleSavePrompt} />}
           />
           <Card style={styles.promptInputCard}>
             <Textarea

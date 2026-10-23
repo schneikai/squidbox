@@ -156,10 +156,9 @@ error, and could be made from the cloud original.
 
 ### [ ] Finish the component consolidation
 
-Plan: https://claude.ai/artifact/KfDvwcHGxAeorqs3KeGWKV. Hooks and utils are done (`useScrollY`,
-`useListScrollTop`, `writeInBatches` syncs, no pass-through sort/filter/search hooks). Still to do:
-the hand-styled buttons (`PrimaryButton`, `IconButton` variants), one surface and row for both
-popovers (`MenuButton` and `SortFilterModal`), badges, grouped surfaces, typography and color
+Plan: https://claude.ai/artifact/KfDvwcHGxAeorqs3KeGWKV. Hooks, utils and buttons are done
+(`useScrollY`, `useListScrollTop`, `writeInBatches` syncs; `PrimaryButton`, `IconButton` variants,
+`TextButton` tones, `ListDivider`). Still to do: one surface and row for both popovers (`MenuButton` and `SortFilterModal`), badges, grouped surfaces, typography and color
 tokens, then the bigger refactors: `useListControls`, a shared grid long-press pan, one
 `assetStorage` module, one way to call the repositories, and retiring the Yup schemas and legacy
 adapters for the shared zod collections. The AI screens (`AiChatModal`, `RandomSuggestionsScreen`,
@@ -274,7 +273,8 @@ react-native-web's ScrollView never fires `onMomentumScrollEnd`/`onScrollEndDrag
 `AssetPager` never learns the new page (header, actions, notes and the swipe-up details stay on the
 first photo, and only that photo zooms). Playwright's Chromium can't decode H.264 or HEVC, so the
 mock videos (H.264) don't play in the preview; only a WebM would (an iPhone's HEVC `.mov` may not
-play in desktop Chrome either).
+play in desktop Chrome either). The post editor's date and time pills (`DateTimePicker`) render clipped
+("23," / "10:5 AM").
 
 ### [ ] Sentry receives events from development
 
