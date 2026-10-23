@@ -15,7 +15,7 @@ import { colors } from '@/styles/designTokens';
  */
 export default function Page({ children, style }) {
   return (
-    <LinearGradient colors={colors.appBackground} style={[styles.root, style]}>
+    <LinearGradient colors={colors.background.app} style={[styles.root, style]}>
       {children}
     </LinearGradient>
   );

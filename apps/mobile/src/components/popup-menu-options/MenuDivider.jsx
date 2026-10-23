@@ -10,7 +10,7 @@ export default function MenuDivider() {
 const styles = StyleSheet.create({
   divider: {
     height: 1,
-    backgroundColor: colors.menuBorder,
+    backgroundColor: colors.border.divider,
     marginVertical: 4,
     marginHorizontal: 10,
   },

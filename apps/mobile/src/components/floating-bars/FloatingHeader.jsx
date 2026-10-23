@@ -9,7 +9,7 @@ import FloatingPill from './FloatingPill';
 
 import IconButton from '@/components/IconButton';
 import SelectionActions from '@/features/asset-list/SelectionActions';
-import { colors, motion, spacing, typography } from '@/styles/designTokens';
+import { colors, layout, motion, typography } from '@/styles/designTokens';
 
 // The main screens' header. A screen with select mode passes its `selection`
 // (useToggleSelectAssetsAction), the `selectionActions` (useAssetSelectionActions) and `onDelete`.
@@ -79,8 +79,8 @@ export default function FloatingHeader({ title, onAdd, selection, selectionActio
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: spacing.floatingBarSide,
-    right: spacing.floatingBarSide,
+    left: layout.sideGutter,
+    right: layout.sideGutter,
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: typography.title1,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.text.primary,
     flex: 1,
   },
   rightGroup: {

@@ -1,16 +1,16 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import Icon from '@/components/Icon';
-import { colors, spacing } from '@/styles/designTokens';
+import { colors, layout, radii, sizes, typography } from '@/styles/designTokens';
 
 // A menu row's contents: leading icon, label, and `trailing` (an ActiveDot when `active` and none is
 // given). The row itself (padding, press feedback) belongs to MenuOption or the popover drawing it.
 export default function MenuItemContent({ label, icon, trailing, danger = false, active = false, emphasized = false }) {
-  const iconColor = danger ? colors.danger : active ? colors.accent : colors.menuTextDim;
+  const iconColor = danger ? colors.status.danger : active ? colors.accent.base : colors.text.secondary;
 
   return (
     <>
-      {icon && <Icon name={icon} size={spacing.menuIconSize} color={iconColor} style={styles.icon} />}
+      {icon && <Icon name={icon} size={sizes.menuIcon} color={iconColor} style={styles.icon} />}
       <Text style={[styles.label, danger && styles.labelDanger, emphasized && styles.labelEmphasized]}>{label}</Text>
       {trailing ?? (active && <View style={styles.activeDot} />)}
     </>
@@ -19,8 +19,8 @@ export default function MenuItemContent({ label, icon, trailing, danger = false,
 
 const styles = StyleSheet.create({
   icon: {
-    marginRight: spacing.menuIconGap,
-    width: spacing.menuIconSize,
+    marginRight: layout.menuIconGap,
+    width: sizes.menuIcon,
   },
   // Grows to push the trailing node right, but keeps its natural width as the basis: with `flex: 1`
   // (basis 0) the auto-sized menu ignores label widths, so long labels wrap after the menu's height
@@ -28,12 +28,12 @@ const styles = StyleSheet.create({
   label: {
     flexGrow: 1,
     flexShrink: 1,
-    fontSize: spacing.menuFontSize,
+    fontSize: typography.subheadline,
     fontWeight: '500',
-    color: colors.menuText,
+    color: colors.text.primary,
   },
   labelDanger: {
-    color: colors.danger,
+    color: colors.status.danger,
   },
   labelEmphasized: {
     fontWeight: '600',
@@ -41,8 +41,8 @@ const styles = StyleSheet.create({
   activeDot: {
     width: 7,
     height: 7,
-    borderRadius: 4,
-    backgroundColor: colors.accent,
+    borderRadius: radii.pill,
+    backgroundColor: colors.accent.base,
     marginLeft: 8,
   },
 });

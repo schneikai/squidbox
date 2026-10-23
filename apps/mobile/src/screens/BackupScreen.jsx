@@ -14,7 +14,7 @@ import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorV
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
 import useBackupCounts from '@/features/cloud-sync/useBackupCounts';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
-import { colors, typography } from '@/styles/designTokens';
+import { colors, lineHeights, typography } from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
 import { readUploadFailures } from '@/sync/readUploadFailures';
 
@@ -96,18 +96,18 @@ export default function BackupScreen() {
 const styles = StyleSheet.create({
   intro: {
     fontSize: typography.footnote,
-    color: colors.textSecondary,
+    color: colors.text.secondary,
     paddingHorizontal: SCREEN_PADDING,
     paddingBottom: 12,
-    lineHeight: 18,
+    lineHeight: lineHeights.footnote,
   },
   panel: {
     paddingHorizontal: SCREEN_PADDING,
     paddingBottom: 15,
     gap: 4,
   },
-  line: { fontSize: typography.footnote, color: colors.text, lineHeight: 18 },
-  bold: { fontWeight: '600', color: colors.text },
-  muted: { color: colors.textSecondary },
-  danger: { color: colors.danger },
+  line: { fontSize: typography.footnote, color: colors.text.primary, lineHeight: lineHeights.footnote },
+  bold: { fontWeight: '600', color: colors.text.primary },
+  muted: { color: colors.text.secondary },
+  danger: { color: colors.status.danger },
 });

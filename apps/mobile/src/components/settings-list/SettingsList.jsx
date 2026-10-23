@@ -3,7 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Icon from '@/components/Icon';
 import ListDivider from '@/components/ListDivider';
 import { SCREEN_PADDING } from '@/constants';
-import { colors, radii, shadows, spacing, typography } from '@/styles/designTokens';
+import { colors, lineHeights, radii, shadows, sizes, typography } from '@/styles/designTokens';
 
 // iOS-style grouped-list building blocks shared by the Settings screen and its detail screens
 // (Backup, Sync), so they all look and behave the same.
@@ -35,12 +35,7 @@ export function Row({ label, value, onPress, destructive, chevron, children }) {
         {value ? <Text style={styles.rowValue}>{value}</Text> : null}
         {children}
         {chevron && (
-          <Icon
-            name="chevron-right"
-            size={spacing.iconSizeSmall}
-            color={colors.textTertiary}
-            style={{ marginLeft: 4 }}
-          />
+          <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.tertiary} style={{ marginLeft: 4 }} />
         )}
       </View>
     </View>
@@ -58,7 +53,7 @@ export function Row({ label, value, onPress, destructive, chevron, children }) {
 
 const styles = StyleSheet.create({
   section: {
-    backgroundColor: colors.glassSurface,
+    backgroundColor: colors.background.glass,
     borderRadius: radii.card,
     marginBottom: 4,
     ...shadows.section,
@@ -66,17 +61,17 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: spacing.iconButtonSize,
+    minHeight: sizes.iconButton,
     paddingHorizontal: SCREEN_PADDING,
     paddingVertical: 16,
   },
   rowLabel: {
     flex: 1,
     fontSize: typography.body,
-    color: colors.text,
+    color: colors.text.primary,
   },
   rowLabelDestructive: {
-    color: colors.danger,
+    color: colors.status.danger,
   },
   rowRight: {
     flexDirection: 'row',
@@ -86,16 +81,16 @@ const styles = StyleSheet.create({
   },
   rowValue: {
     fontSize: typography.body,
-    color: colors.textSecondary,
+    color: colors.text.secondary,
     textAlign: 'right',
     flexShrink: 1,
   },
   footer: {
     fontSize: typography.footnote,
-    color: colors.textTertiary,
+    color: colors.text.secondary,
     marginTop: 8,
     marginLeft: 4,
     marginRight: 4,
-    lineHeight: 18,
+    lineHeight: lineHeights.footnote,
   },
 });

@@ -35,7 +35,7 @@ import resolveModel from '@/features/ai-suggestions/resolveModel';
 import sampleReferencePosts from '@/features/ai-suggestions/sampleReferencePosts';
 import sendAiMessageAsync from '@/features/ai-suggestions/sendAiMessageAsync';
 import assetQuery from '@/features/asset-list/assetQuery';
-import { colors, motion, radii, scale, typography } from '@/styles/designTokens';
+import { colors, motion, radii, scale, sizes, typography } from '@/styles/designTokens';
 import { getDb, schema } from '@/sync/db/client';
 import { readPostTexts } from '@/sync/postsRepository';
 import { readByIds } from '@/sync/readByIds';
@@ -344,14 +344,14 @@ export default function RandomSuggestionsScreen({ route, navigation }) {
               onPress={() => navigateAsset('prev')}
               hitSlop={8}
             >
-              <Icon name="chevron-left" size={scale(18)} color={colors.text} />
+              <Icon name="chevron-left" size={sizes.iconSmall} color={colors.text.primary} />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.arrowButton, styles.arrowRight]}
               onPress={() => navigateAsset('next')}
               hitSlop={8}
             >
-              <Icon name="chevron-right" size={scale(18)} color={colors.text} />
+              <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.primary} />
             </TouchableOpacity>
           </>
         )}
@@ -366,15 +366,15 @@ export default function RandomSuggestionsScreen({ route, navigation }) {
         {textPool.length > 1 && (
           <IconButton
             icon="chevron-left"
-            size={scale(20)}
-            color={colors.textSecondary}
+            size={sizes.icon}
+            color={colors.text.secondary}
             onPress={() => navigateText('prev')}
             accessibilityLabel="Previous suggestion"
           />
         )}
         <Animated.View style={[styles.captionContent, textAnimStyle]}>
           {isLoading ? (
-            <ActivityIndicator size="small" color={colors.textTertiary} style={styles.captionSpinner} />
+            <ActivityIndicator size="small" color={colors.text.tertiary} style={styles.captionSpinner} />
           ) : (
             // Read-only: "Use" opens the post editor, where the caption can be edited.
             <Text style={[styles.captionText, !currentText && styles.captionPlaceholder]}>
@@ -385,8 +385,8 @@ export default function RandomSuggestionsScreen({ route, navigation }) {
         {textPool.length > 1 && (
           <IconButton
             icon="chevron-right"
-            size={scale(20)}
-            color={colors.textSecondary}
+            size={sizes.icon}
+            color={colors.text.secondary}
             onPress={() => navigateText('next')}
             accessibilityLabel="Next suggestion"
           />
@@ -473,21 +473,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: scale(16),
     paddingVertical: scale(10),
     borderRadius: radii.pill,
-    backgroundColor: colors.glassSurface,
+    backgroundColor: colors.background.glass,
     borderWidth: 1,
-    borderColor: colors.glassBorder,
+    borderColor: colors.border.glass,
   },
   filterPillActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
+    backgroundColor: colors.accent.base,
+    borderColor: colors.accent.base,
   },
   filterPillText: {
     fontSize: typography.subheadline,
     fontWeight: '500',
-    color: colors.text,
+    color: colors.text.primary,
   },
   filterPillTextActive: {
-    color: colors.textInverse,
+    color: colors.text.inverse,
   },
 
   // --- Media card ---
@@ -500,8 +500,8 @@ const styles = StyleSheet.create({
     top: '50%',
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.glassSurface,
+    borderRadius: radii.pill,
+    backgroundColor: colors.background.glass,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: -18,
@@ -545,10 +545,10 @@ const styles = StyleSheet.create({
   },
   captionText: {
     fontSize: typography.body,
-    color: colors.text,
+    color: colors.text.primary,
   },
   captionPlaceholder: {
-    color: colors.textTertiary,
+    color: colors.text.tertiary,
   },
   captionSpinner: {
     flex: 1,
@@ -558,7 +558,7 @@ const styles = StyleSheet.create({
   // --- Edit prompt modal ---
   promptContainer: {
     flex: 1,
-    backgroundColor: colors.appBackground[0],
+    backgroundColor: colors.background.base,
   },
   promptInputCard: {
     flex: 1,

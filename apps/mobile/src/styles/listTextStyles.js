@@ -7,16 +7,16 @@ import { colors, typography } from '@/styles/designTokens';
 export default StyleSheet.create({
   title: {
     fontSize: typography.body,
-    color: colors.text,
+    color: colors.text.primary,
   },
   subtitle: {
     marginTop: 2,
     fontSize: typography.footnote,
-    color: colors.textSecondary,
+    color: colors.text.secondary,
   },
   caption: {
     fontSize: typography.caption,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: colors.text.secondary,
   },
 });

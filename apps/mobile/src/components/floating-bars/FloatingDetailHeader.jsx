@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FloatingPill from './FloatingPill';
 
 import IconButton from '@/components/IconButton';
-import { colors, motion, scale, spacing, typography } from '@/styles/designTokens';
+import { colors, layout, lineHeights, motion, scale, sizes, typography } from '@/styles/designTokens';
 
 /**
  * Three-part floating header for detail screens, mirroring the main screen
@@ -45,9 +45,9 @@ export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot
   return (
     <View
       // Inside a modal sheet the top safe-area inset is ~0, so insets.top + 8 would leave the pills
-      // hugging the sheet's top edge. Floor the offset at floatingBarBottom so it matches ModalHeader's
+      // hugging the sheet's top edge. Floor the offset at layout.barBottom so it matches ModalHeader's
       // top gap in sheets, while full screens (large insets.top) keep insets.top + 8 unchanged.
-      style={[styles.container, { top: Math.max(insets.top + 8, spacing.floatingBarBottom) }]}
+      style={[styles.container, { top: Math.max(insets.top + 8, layout.barBottom) }]}
       pointerEvents="box-none"
       onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
     >
@@ -105,8 +105,8 @@ export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: spacing.floatingBarSide,
-    right: spacing.floatingBarSide,
+    left: layout.sideGutter,
+    right: layout.sideGutter,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -128,24 +128,24 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   infoContent: {
-    minHeight: spacing.iconButtonSize,
+    minHeight: sizes.iconButton,
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 1,
-    paddingHorizontal: spacing.barPaddingX * 2,
+    paddingHorizontal: layout.barPaddingX * 2,
   },
   title: {
     fontSize: typography.subheadline,
     lineHeight: scale(17),
     fontWeight: '600',
-    color: colors.text,
+    color: colors.text.primary,
     textAlign: 'center',
     flexShrink: 1,
   },
   subtitle: {
     fontSize: typography.caption2,
-    lineHeight: scale(13),
-    color: colors.textSecondary,
+    lineHeight: lineHeights.caption2,
+    color: colors.text.secondary,
     textAlign: 'center',
     flexShrink: 1,
   },

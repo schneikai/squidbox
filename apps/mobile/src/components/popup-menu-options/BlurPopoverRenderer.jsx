@@ -3,7 +3,7 @@ import { Animated, I18nManager } from 'react-native';
 
 import PopoverSurface from './PopoverSurface';
 
-import { motion, spacing } from '@/styles/designTokens';
+import { layout, motion } from '@/styles/designTokens';
 
 /**
  * Custom react-native-popup-menu renderer.
@@ -53,8 +53,8 @@ function computePlacement(layouts) {
   const left = isRightAligned ? rawLeft + HORIZONTAL_NUDGE : rawLeft;
 
   // Vertical — open below trigger, flip above when there is no room
-  const belowTop = tY - wY + tHeight + spacing.popoverGap;
-  const aboveTop = tY - wY - oHeight - spacing.popoverGap;
+  const belowTop = tY - wY + tHeight + layout.popoverGap;
+  const aboveTop = tY - wY - oHeight - layout.popoverGap;
   const opensBelow = belowTop + oHeight <= wHeight;
   const top = opensBelow ? belowTop : Math.max(0, aboveTop);
 

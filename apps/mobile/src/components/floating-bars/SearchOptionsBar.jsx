@@ -14,7 +14,7 @@ import FloatingPill from './FloatingPill';
 
 import IconButton from '@/components/IconButton';
 import AppTextInput from '@/components/TextInput';
-import { colors, glass, motion, scale, spacing } from '@/styles/designTokens';
+import { colors, glass, layout, motion, scale, sizes } from '@/styles/designTokens';
 
 /**
  * Reusable bottom-left floating search + options bar, following the iOS search pattern:
@@ -88,7 +88,7 @@ export default function SearchOptionsBar({
 
   const collapsedStyle = useAnimatedStyle(() => ({
     opacity: interpolate(expandProgress.value, [0, 0.3], [1, 0], Extrapolation.CLAMP),
-    width: interpolate(expandProgress.value, [0, 0.4], [spacing.iconButtonSize, 0], Extrapolation.CLAMP),
+    width: interpolate(expandProgress.value, [0, 0.4], [sizes.iconButton, 0], Extrapolation.CLAMP),
     overflow: 'hidden',
   }));
 
@@ -108,14 +108,14 @@ export default function SearchOptionsBar({
     <Animated.View style={[styles.container, { left }, containerStyle]}>
       <FloatingPill style={styles.pill}>
         {/* Search icon — always visible */}
-        <IconButton icon="search" onPress={handleOpen} color={colors.iconInactive} accessibilityLabel="Search" />
+        <IconButton icon="search" onPress={handleOpen} color={colors.text.secondary} accessibilityLabel="Search" />
 
         {/* Collapsed: options button */}
         <Animated.View style={collapsedStyle}>
           <IconButton
             icon="options"
             onPress={onOpenOptions}
-            color={colors.iconInactive}
+            color={colors.text.secondary}
             isActive={hasActiveState}
             accessibilityLabel="Sort and filter"
           />
@@ -141,7 +141,7 @@ export default function SearchOptionsBar({
           <IconButton
             icon="close"
             onPress={handleCancel}
-            color={colors.iconInactive}
+            color={colors.text.secondary}
             accessibilityLabel="Cancel search"
           />
         </FloatingPill>
@@ -152,9 +152,9 @@ export default function SearchOptionsBar({
 
 const PILL_GAP = 8;
 // A pill's width around its buttons: the frame and the border on each side.
-const PILL_CHROME = (spacing.toolbarFrame + glass.borderWidth) * 2;
-const COLLAPSED_WIDTH = spacing.iconButtonSize * 2 + PILL_CHROME;
-const CANCEL_PILL_WIDTH = spacing.iconButtonSize + PILL_CHROME;
+const PILL_CHROME = (layout.toolbarFrame + glass.borderWidth) * 2;
+const COLLAPSED_WIDTH = sizes.iconButton * 2 + PILL_CHROME;
+const CANCEL_PILL_WIDTH = sizes.iconButton + PILL_CHROME;
 const CANCEL_SLOT_WIDTH = CANCEL_PILL_WIDTH + PILL_GAP;
 
 const styles = StyleSheet.create({

@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native';
 
 import AssetImage from '@/components/AssetImage';
 import Icon from '@/components/Icon';
-import { colors, radii, spacing } from '@/styles/designTokens';
+import { colors, radii, sizes } from '@/styles/designTokens';
 
 /**
  * An album's cover, or the thumbnail of a row that stands for a post: `asset`'s thumbnail with
@@ -15,7 +15,7 @@ export default function CoverImage({ asset, style, children }) {
       <AssetImage asset={asset} />
       {!asset?.thumbnailFilename && (
         <View style={styles.icon} pointerEvents="none">
-          <Icon name="image" size={spacing.iconSizeLarge} color={colors.textTertiary} />
+          <Icon name="image" size={sizes.iconLarge} color={colors.text.tertiary} />
         </View>
       )}
       {children}

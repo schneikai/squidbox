@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import SegmentedPill from './SegmentedPill';
 
-import { spacing } from '@/styles/designTokens';
+import { layout } from '@/styles/designTokens';
 
 /**
  * The bottom-right pill that switches between a screen's views. `tabs` are `{ key, icon, label }`; it
@@ -21,7 +21,7 @@ export default function FloatingSegmentPill({ tabs, activeTab, onTabPress, expan
 
   return (
     <Animated.View
-      style={[styles.container, { bottom: insets.bottom + spacing.floatingBarBottom }, slideStyle]}
+      style={[styles.container, { bottom: insets.bottom + layout.barBottom }, slideStyle]}
       pointerEvents="box-none"
     >
       <SegmentedPill items={tabs} activeKey={activeTab} onSelect={onTabPress} />
@@ -32,7 +32,7 @@ export default function FloatingSegmentPill({ tabs, activeTab, onTabPress, expan
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    right: spacing.floatingBarSide,
+    right: layout.sideGutter,
     zIndex: 100,
   },
 });

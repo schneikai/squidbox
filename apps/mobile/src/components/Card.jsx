@@ -7,7 +7,7 @@ import { glass, radii } from '@/styles/designTokens';
  * Replaces repeated `...glass + borderRadius: radii.card` in content containers.
  *
  * Use for: content cards, input areas, media frames.
- * Do NOT use for: toolbars, chat bubbles, floating pills, borderless glassSurface surfaces.
+ * Do NOT use for: toolbars, chat bubbles, floating pills, borderless glass surfaces.
  */
 export default function Card({ children, style, ...rest }) {
   return (

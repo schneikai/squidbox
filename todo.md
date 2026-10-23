@@ -151,6 +151,12 @@ error, and could be made from the cloud original.
 - **Toolbar look.** The owner isn't fully happy with the toolbars yet (2pt frame, settings avatar
   outside the header pill) but has no better idea for now. Tried and dropped: a 3pt frame with the
   avatar inside the pill. Revisit when an idea comes up.
+- **Dark mode.** The tokens are ready for it (`colors` are semantic roles over a private `palette`
+  in `styles/designTokens.js`), but there is no dark set yet: add one and pick it with
+  `useColorScheme`, then check the screens that hard-code white (the octopus art).
+- **Tokens left to do.** Paddings and gaps are still literals (a 4 pt `spacing` scale would cover
+  most), and `typography` and `lineHeights` are paired by hand at each call site; composite text
+  styles (`{ fontSize, lineHeight }`) would keep them in step.
 
 ## Code quality
 
@@ -161,7 +167,7 @@ popovers, badges, grouped surfaces and tokens (Apple's text styles, `caption2` t
 `useListControls`, `useGridLongPressPan`, `assetStorage`, one set of repository verbs, and
 `newRecord` on the shared zod collections in place of the Yup schemas and legacy adapters. Left:
 the AI screens (`AiChatModal`, `RandomSuggestionsScreen`,
-`ModelSelectorButton`) are best done with the AI assistant rework: their chat-bubble shadows and
+`ModelSelectorButton`) are best done with the AI assistant rework: their chat-bubble radii and
 `ModelSelectorButton`'s own divider (not `ListDivider`) are still hand-written. Left from the
 popovers: `SortFilterModal` drives the open and close animation itself (`BlurPopoverRenderer` does
 the same), and its Modal blocks taps for the ~150 ms of its exit; anchoring it to the options button

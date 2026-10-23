@@ -11,7 +11,7 @@ import ThumbnailRow from '@/components/ThumbnailRow';
 import { MIN_REREAD_INTERVAL, SCREEN_PADDING } from '@/constants';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
 import postQuery from '@/features/post-list/postQuery';
-import { colors, spacing } from '@/styles/designTokens';
+import { colors, layout } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import { MEDIA_TYPES } from '@/utils/assets/constants';
@@ -48,7 +48,7 @@ export default function AssetDetailsPanel({
     <GestureDetector gesture={gesture}>
       <Animated.View style={[styles.panel, style]}>
         <Animated.View
-          style={[styles.content, { paddingBottom: bottom + spacing.floatingBarBottom }, contentStyle]}
+          style={[styles.content, { paddingBottom: bottom + layout.barBottom }, contentStyle]}
           onLayout={onContentLayout}
         >
           <AssetDetails
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   // Opaque: the photo, grown to cover the band above the panel, reaches in behind it.
   panel: {
     overflow: 'hidden',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background.surface,
   },
   content: {
     position: 'absolute',

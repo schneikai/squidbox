@@ -17,7 +17,7 @@ export default function Textarea({ style, minHeight, ...rest }) {
     <RNTextInput
       multiline
       textAlignVertical="top"
-      placeholderTextColor={colors.textTertiary}
+      placeholderTextColor={colors.text.tertiary}
       style={[textareaTextStyle, minHeight != null && { minHeight }, style]}
       {...rest}
     />

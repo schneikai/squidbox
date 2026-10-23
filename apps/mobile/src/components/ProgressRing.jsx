@@ -47,7 +47,7 @@ export default function ProgressRing({ value }) {
           cx={SIZE / 2}
           cy={SIZE / 2}
           r={RADIUS}
-          stroke={colors.separator}
+          stroke={colors.overlay.track}
           strokeWidth={STROKE_WIDTH}
           fill="none"
         />
@@ -55,7 +55,7 @@ export default function ProgressRing({ value }) {
           cx={SIZE / 2}
           cy={SIZE / 2}
           r={RADIUS}
-          stroke={colors.accent}
+          stroke={colors.accent.base}
           strokeWidth={STROKE_WIDTH}
           strokeLinecap="round"
           fill="none"
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   value: {
-    color: colors.textInverse,
+    color: colors.text.inverse,
     fontSize: typography.body,
     fontWeight: '600',
     fontVariant: ['tabular-nums'],

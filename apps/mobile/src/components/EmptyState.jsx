@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 
 import Icon from '@/components/Icon';
-import { colors, scale, typography } from '@/styles/designTokens';
+import { colors, lineHeights, scale, typography } from '@/styles/designTokens';
 
 /**
  * Centred icon + title + optional subtitle.
@@ -12,7 +12,7 @@ import { colors, scale, typography } from '@/styles/designTokens';
 export default function EmptyState({ icon, title, subtitle, style }) {
   return (
     <View style={[styles.container, style]}>
-      <Icon name={icon} size={scale(44)} color={colors.textTertiary} />
+      <Icon name={icon} size={scale(44)} color={colors.text.tertiary} />
       <Text style={styles.title}>{title}</Text>
       {subtitle != null && <Text style={styles.subtitle}>{subtitle}</Text>}
     </View>
@@ -30,13 +30,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: typography.body,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: colors.text.secondary,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: typography.subheadline,
-    color: colors.textTertiary,
+    color: colors.text.secondary,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: lineHeights.subheadline,
   },
 });

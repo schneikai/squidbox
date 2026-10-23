@@ -6,7 +6,7 @@ import PostAssets from './PostAssets';
 
 import AssetAlbums from '@/features/album-list/AssetAlbums';
 import PostPostedAt from '@/features/posts/PostPostedAt';
-import { colors, typography } from '@/styles/designTokens';
+import { colors, lineHeights, typography } from '@/styles/designTokens';
 
 export default function Post({ post, contentPaddingTop = 0 }) {
   const navigation = useNavigation();
@@ -44,12 +44,12 @@ const styles = StyleSheet.create({
   postedAlbums: {
     marginTop: 20,
     borderTopWidth: 1,
-    borderTopColor: colors.glassBorder,
+    borderTopColor: colors.border.glass,
     paddingTop: 15,
   },
   postedAlbumsHeadline: {
     fontSize: typography.callout,
-    fontWeight: 'bold',
+    fontWeight: '700',
     marginBottom: 10,
   },
 
@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
   },
   postText: {
     fontSize: typography.callout,
-    lineHeight: 26,
+    lineHeight: lineHeights.reading,
   },
   postedAt: {
     marginTop: 10,

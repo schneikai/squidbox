@@ -44,7 +44,7 @@ import Switch from '@/components/Switch';
 import Textarea from '@/components/Textarea';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useScrollY from '@/hooks/useScrollY';
-import { colors, radii, scale, typography } from '@/styles/designTokens';
+import { colors, lineHeights, motion, radii, scale, shadows, sizes, typography } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { readPostTexts } from '@/sync/postsRepository';
 import confirmAsync from '@/utils/confirmAsync';
@@ -95,14 +95,14 @@ export default function AiChatModal({ visible, onClose, onSelect, existingText }
     const show = Keyboard.addListener(showEvent, (e) => {
       Animated.timing(keyboardHeightAnim, {
         toValue: e.endCoordinates.height,
-        duration: e.duration ?? 250,
+        duration: e.duration ?? motion.move.duration,
         useNativeDriver: false,
       }).start();
     });
     const hide = Keyboard.addListener(hideEvent, (e) => {
       Animated.timing(keyboardHeightAnim, {
         toValue: 0,
-        duration: e.duration ?? 250,
+        duration: e.duration ?? motion.move.duration,
         useNativeDriver: false,
       }).start();
     });
@@ -220,7 +220,7 @@ export default function AiChatModal({ visible, onClose, onSelect, existingText }
           <IconButton
             icon={copiedKey === key ? 'check' : 'copy'}
             size={scale(15)}
-            color={copiedKey === key ? colors.success : colors.textTertiary}
+            color={copiedKey === key ? colors.status.success : colors.text.tertiary}
             onPress={() => handleCopy(item.content, key)}
             accessibilityLabel="Copy message"
             style={styles.userCopyButton}
@@ -241,7 +241,7 @@ export default function AiChatModal({ visible, onClose, onSelect, existingText }
                 <IconButton
                   icon={copiedKey === key ? 'check' : 'copy'}
                   size={scale(16)}
-                  color={copiedKey === key ? colors.success : colors.textTertiary}
+                  color={copiedKey === key ? colors.status.success : colors.text.tertiary}
                   onPress={() => handleCopy(suggestion, key)}
                   accessibilityLabel="Copy message"
                 />
@@ -261,7 +261,7 @@ export default function AiChatModal({ visible, onClose, onSelect, existingText }
     return (
       <View style={styles.assistantContainer}>
         <View style={styles.loadingBubble}>
-          <ActivityIndicator size="small" color={colors.textSecondary} />
+          <ActivityIndicator size="small" color={colors.text.secondary} />
           <Text style={styles.loadingText}>Generating captions…</Text>
         </View>
       </View>
@@ -355,7 +355,7 @@ export default function AiChatModal({ visible, onClose, onSelect, existingText }
               onPress={handleSend}
               disabled={!inputText.trim() || isLoading}
             >
-              <Icon name="arrow-up" size={scale(20)} color={colors.textInverse} />
+              <Icon name="arrow-up" size={sizes.icon} color={colors.text.inverse} />
             </TouchableOpacity>
           </View>
           {/* Hidden model picker */}
@@ -371,7 +371,7 @@ export default function AiChatModal({ visible, onClose, onSelect, existingText }
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.appBackground[0],
+    backgroundColor: colors.background.base,
   },
 
   hidden: {
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
   },
 
   emptyHint: {
-    color: colors.textTertiary,
+    color: colors.text.secondary,
     fontSize: typography.subheadline,
     textAlign: 'center',
     marginTop: 40,
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
     marginRight: 2,
   },
   userBubble: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.accent.base,
     borderRadius: 18,
     borderBottomRightRadius: 4,
     paddingHorizontal: 14,
@@ -416,21 +416,17 @@ const styles = StyleSheet.create({
     maxWidth: '80%',
   },
   userBubbleText: {
-    color: colors.textInverse,
+    color: colors.text.inverse,
     fontSize: typography.subheadline,
-    lineHeight: 21,
+    lineHeight: lineHeights.subheadline,
   },
 
   assistantBubble: {
-    backgroundColor: colors.glassSurface,
+    backgroundColor: colors.background.glass,
     borderRadius: 14,
     borderBottomLeftRadius: 4,
     marginVertical: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 1,
+    ...shadows.subtle,
     overflow: 'hidden',
   },
 
@@ -443,13 +439,13 @@ const styles = StyleSheet.create({
   },
   suggestionRowDivider: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.glassBorder,
+    borderBottomColor: colors.border.glass,
   },
   suggestionText: {
     flex: 1,
     fontSize: typography.subheadline,
-    lineHeight: 20,
-    color: colors.text,
+    lineHeight: lineHeights.subheadline,
+    color: colors.text.primary,
   },
   suggestionActions: {
     flexDirection: 'row',
@@ -458,13 +454,13 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   useButton: {
-    backgroundColor: colors.accent,
-    borderRadius: 6,
+    backgroundColor: colors.accent.base,
+    borderRadius: radii.badge,
     paddingHorizontal: 10,
     paddingVertical: 3,
   },
   useButtonText: {
-    color: colors.textInverse,
+    color: colors.text.inverse,
     fontSize: typography.caption,
     fontWeight: '600',
   },
@@ -472,31 +468,27 @@ const styles = StyleSheet.create({
   loadingBubble: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.glassSurface,
+    backgroundColor: colors.background.glass,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
     alignSelf: 'flex-start',
     gap: 8,
     marginVertical: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 1,
+    ...shadows.subtle,
   },
   loadingText: {
-    color: colors.textSecondary,
+    color: colors.text.secondary,
     fontSize: typography.subheadline,
   },
 
   refModalContainer: {
     flex: 1,
-    backgroundColor: colors.appBackground[0],
+    backgroundColor: colors.background.base,
   },
   refModalSubtitle: {
     fontSize: typography.footnote,
-    color: colors.textSecondary,
+    color: colors.text.secondary,
     textAlign: 'center',
     paddingHorizontal: 24,
     paddingTop: MODAL_HEADER_HEIGHT + 16,
@@ -508,7 +500,7 @@ const styles = StyleSheet.create({
   refModalRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: colors.glassSurface,
+    backgroundColor: colors.background.glass,
     borderRadius: radii.card,
     padding: 12,
     gap: 10,
@@ -519,8 +511,8 @@ const styles = StyleSheet.create({
   refModalText: {
     flex: 1,
     fontSize: typography.subheadline,
-    color: colors.text,
-    lineHeight: 22,
+    color: colors.text.primary,
+    lineHeight: lineHeights.subheadline,
   },
 
   referenceRow: {
@@ -529,9 +521,9 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 7,
-    backgroundColor: colors.glassSurface,
+    backgroundColor: colors.background.glass,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.glassBorder,
+    borderTopColor: colors.border.glass,
   },
   referenceLabelButton: {
     flex: 1,
@@ -541,7 +533,7 @@ const styles = StyleSheet.create({
   },
   referenceLabel: {
     fontSize: typography.footnote,
-    color: colors.text,
+    color: colors.text.primary,
   },
   referenceSwitch: {
     transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }],
@@ -553,32 +545,32 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     paddingTop: 16,
-    backgroundColor: colors.glassSurface,
+    backgroundColor: colors.background.glass,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.glassBorder,
+    borderTopColor: colors.border.glass,
   },
   input: {
     flex: 1,
     minHeight: 40,
     maxHeight: 120,
-    backgroundColor: colors.appBackground[0],
+    backgroundColor: colors.background.base,
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingTop: Platform.OS === 'ios' ? 10 : 8,
     paddingBottom: Platform.OS === 'ios' ? 10 : 8,
     fontSize: typography.subheadline,
-    color: colors.text,
+    color: colors.text.primary,
   },
   sendButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.accent,
+    borderRadius: radii.pill,
+    backgroundColor: colors.accent.base,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
   },
   sendButtonDisabled: {
-    backgroundColor: colors.textTertiary,
+    backgroundColor: colors.text.tertiary,
   },
 });

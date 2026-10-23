@@ -11,7 +11,7 @@ import Icon from '@/components/Icon';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import SearchInput from '@/components/SearchInput';
-import { colors, radii, scale, shadows, typography } from '@/styles/designTokens';
+import { colors, radii, scale, shadows, sizes, typography } from '@/styles/designTokens';
 
 /**
  * Self-contained model selector. Renders a tappable trigger (model name + chevron)
@@ -82,7 +82,7 @@ const ModelSelectorButton = forwardRef(function ModelSelectorButton({ onChange }
         <Text style={styles.triggerText} numberOfLines={1}>
           {selectedModel}
         </Text>
-        <Icon name="chevron-down" size={scale(14)} color={colors.textSecondary} />
+        <Icon name="chevron-down" size={scale(14)} color={colors.text.secondary} />
       </TouchableOpacity>
 
       <Modal visible={showPicker} transparent animationType="fade" onRequestClose={() => setShowPicker(false)}>
@@ -99,7 +99,7 @@ const ModelSelectorButton = forwardRef(function ModelSelectorButton({ onChange }
 
               {loadingModels ? (
                 <View style={styles.loadingRow}>
-                  <ActivityIndicator size="small" color={colors.textSecondary} />
+                  <ActivityIndicator size="small" color={colors.text.secondary} />
                   <Text style={styles.loadingText}>Loading models…</Text>
                 </View>
               ) : availableModels.length === 0 ? (
@@ -127,7 +127,9 @@ const ModelSelectorButton = forwardRef(function ModelSelectorButton({ onChange }
                       <Text style={[styles.optionLabel, selectedModel === modelId && styles.optionLabelSelected]}>
                         {modelId}
                       </Text>
-                      {selectedModel === modelId && <Icon name="check" size={scale(18)} color={colors.accent} />}
+                      {selectedModel === modelId && (
+                        <Icon name="check" size={sizes.iconSmall} color={colors.accent.base} />
+                      )}
                     </TouchableOpacity>
                   )}
                 />
@@ -154,19 +156,19 @@ const styles = StyleSheet.create({
   triggerText: {
     fontSize: typography.subheadline,
     fontWeight: '500',
-    color: colors.text,
+    color: colors.text.primary,
     flexShrink: 1,
   },
 
   overlay: {
     flex: 1,
-    backgroundColor: colors.overlayDark,
+    backgroundColor: colors.overlay.dim,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
   sheet: {
-    backgroundColor: colors.appBackground[1],
+    backgroundColor: colors.background.surface,
     borderRadius: radii.modal,
     width: '100%',
     height: 440,
@@ -190,7 +192,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   loadingText: {
-    color: colors.textSecondary,
+    color: colors.text.secondary,
     fontSize: typography.body,
   },
   emptyFull: {
@@ -207,21 +209,21 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   optionSelected: {
-    backgroundColor: colors.accentLight,
+    backgroundColor: colors.accent.light,
     paddingHorizontal: 14,
     borderRadius: 8,
   },
   optionLabel: {
     flex: 1,
     fontSize: typography.body,
-    color: colors.text,
+    color: colors.text.primary,
   },
   optionLabelSelected: {
-    color: colors.accent,
+    color: colors.accent.base,
     fontWeight: '500',
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.divider,
+    backgroundColor: colors.border.divider,
   },
 });

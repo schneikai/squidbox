@@ -4,7 +4,7 @@ import { ScaleDecorator } from 'react-native-draggable-flatlist';
 import AssetImage from '@/components/AssetImage';
 import IconButton from '@/components/IconButton';
 import ThumbnailBadge from '@/components/ThumbnailBadge';
-import { spacing } from '@/styles/designTokens';
+import { sizes } from '@/styles/designTokens';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
 export default function PostAsset({ postAsset, onDelete, onLongPress, isActive, itemDimension }) {
@@ -16,7 +16,7 @@ export default function PostAsset({ postAsset, onDelete, onLongPress, isActive, 
         <IconButton
           variant="destructive"
           icon="close"
-          size={spacing.iconSizeSmall}
+          size={sizes.iconSmall}
           onPress={() => onDelete(postAsset)}
           accessibilityLabel="Remove from post"
           style={styles.deleteButton}

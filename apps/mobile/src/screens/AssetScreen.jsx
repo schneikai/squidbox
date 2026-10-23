@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fullscreenBackdrop: {
-    backgroundColor: colors.mediaBackdrop,
+    backgroundColor: colors.background.media,
   },
   // Above the actions, at their left.
   noteButton: {

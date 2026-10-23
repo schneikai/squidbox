@@ -25,6 +25,6 @@ export default function ModalSheet({ children, style }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.appBackground[0],
+    backgroundColor: colors.background.base,
   },
 });

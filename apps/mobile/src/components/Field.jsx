@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 
-import { colors, typography } from '@/styles/designTokens';
+import { colors, lineHeights, typography } from '@/styles/designTokens';
 
 /**
  * A label + children slot + optional description text.
@@ -32,11 +32,11 @@ const styles = StyleSheet.create({
   label: {
     fontSize: typography.footnote,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: colors.text.secondary,
   },
   description: {
     fontSize: typography.footnote,
-    color: colors.textSecondary,
-    lineHeight: 20,
+    color: colors.text.secondary,
+    lineHeight: lineHeights.footnote,
   },
 });

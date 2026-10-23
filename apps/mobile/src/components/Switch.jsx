@@ -6,10 +6,10 @@ import { colors } from '@/styles/designTokens';
 export default function Switch(props) {
   return (
     <NativeSwitch
-      trackColor={{ false: colors.glassBorder, true: colors.accent }}
-      thumbColor={colors.textInverse}
+      trackColor={{ false: colors.border.glass, true: colors.accent.base }}
+      thumbColor={colors.background.surface}
       // react-native-web colors a switched-on thumb with this one instead (teal by default).
-      activeThumbColor={colors.textInverse}
+      activeThumbColor={colors.background.surface}
       {...props}
     />
   );

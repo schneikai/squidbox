@@ -7,7 +7,7 @@ import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated'
 import Icon from '@/components/Icon';
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 import useAppSettings from '@/features/app-settings/useAppSettings';
-import { colors, motion, spacing, typography } from '@/styles/designTokens';
+import { colors, layout, motion, sizes, typography } from '@/styles/designTokens';
 import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';
 
 const MESSAGES = {
@@ -59,7 +59,7 @@ function Playback({ player, isRemote }) {
       </Animated.View>
       {isWaiting && (
         <FloatingPill>
-          <ActivityIndicator color={colors.textSecondary} style={styles.spinner} />
+          <ActivityIndicator color={colors.text.secondary} style={styles.spinner} />
         </FloatingPill>
       )}
       {isFailed && <Message message={MESSAGES.playerError} />}
@@ -78,7 +78,7 @@ function Message({ message }) {
 
   return (
     <FloatingPill style={styles.message}>
-      <Icon name={message.icon} color={colors.textSecondary} style={styles.messageIcon} />
+      <Icon name={message.icon} color={colors.text.secondary} style={styles.messageIcon} />
       <Text style={styles.messageText}>{message.text}</Text>
     </FloatingPill>
   );
@@ -96,21 +96,21 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   spinner: {
-    width: spacing.iconButtonSize,
-    height: spacing.iconButtonSize,
+    width: sizes.iconButton,
+    height: sizes.iconButton,
   },
   message: {
-    marginHorizontal: spacing.floatingBarSide,
+    marginHorizontal: layout.sideGutter,
   },
   // Sits where a button would: a toolbar is one button tall.
   messageIcon: {
-    marginLeft: spacing.barPaddingX,
-    marginVertical: (spacing.iconButtonSize - spacing.iconSize) / 2,
+    marginLeft: layout.barPaddingX,
+    marginVertical: (sizes.iconButton - sizes.icon) / 2,
   },
   messageText: {
     flexShrink: 1,
-    paddingHorizontal: spacing.barPaddingX,
+    paddingHorizontal: layout.barPaddingX,
     fontSize: typography.footnote,
-    color: colors.text,
+    color: colors.text.primary,
   },
 });

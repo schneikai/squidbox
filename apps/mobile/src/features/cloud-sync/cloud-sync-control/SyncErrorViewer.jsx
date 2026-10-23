@@ -10,7 +10,7 @@ import PrimaryButton from '@/components/PrimaryButton';
 import { Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import useScrollY from '@/hooks/useScrollY';
-import { colors, typography } from '@/styles/designTokens';
+import { colors, lineHeights, typography } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
@@ -83,8 +83,8 @@ const styles = StyleSheet.create({
   },
   errorMessage: {
     fontSize: typography.subheadline,
-    color: colors.danger,
-    lineHeight: 20,
+    color: colors.status.danger,
+    lineHeight: lineHeights.subheadline,
   },
 
   footer: {

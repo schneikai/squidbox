@@ -5,7 +5,7 @@ import PostImage from './PostImage';
 import Icon from '@/components/Icon';
 import { SCREEN_PADDING } from '@/constants';
 import PostPostedAt from '@/features/posts/PostPostedAt';
-import { colors, spacing, typography } from '@/styles/designTokens';
+import { colors, lineHeights, sizes, typography } from '@/styles/designTokens';
 import isPresent from '@/utils/isPresent';
 
 // `post` is a postQuery row: it carries its `postAssets` ([{ id, asset }]).
@@ -32,7 +32,7 @@ export default function PostListItem({ post }) {
 function FavoritePostIndicator({ isFavorite }) {
   if (!isFavorite) return;
 
-  return <Icon name="heart" filled size={spacing.iconSize} color={colors.textInverse} />;
+  return <Icon name="heart" filled size={sizes.icon} color={colors.text.inverse} />;
 }
 
 const styles = StyleSheet.create({
@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
   postText: {
     fontSize: typography.subheadline,
     marginTop: 10,
-    lineHeight: 22,
+    lineHeight: lineHeights.subheadline,
   },
 
   postInfos: {

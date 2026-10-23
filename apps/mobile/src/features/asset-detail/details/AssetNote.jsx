@@ -91,7 +91,7 @@ export default function AssetNote({ asset, isEditable, guardPress, onEditingBott
 const styles = StyleSheet.create({
   // As Textarea's placeholder, so it doesn't change shade when the editing starts.
   placeholder: {
-    color: colors.textTertiary,
+    color: colors.text.tertiary,
   },
   input: {
     padding: 0,

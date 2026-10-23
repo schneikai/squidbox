@@ -5,7 +5,7 @@
  *
  * Props:
  *   name   – string key (see ICON_MAP)
- *   size   – defaults to spacing.iconSize
+ *   size   – defaults to sizes.icon
  *   color  – icon stroke color
  *   filled – when true, applies fill={color} (meaningful for heart/star)
  *   style  – layout-only styles (e.g. margin)
@@ -82,7 +82,7 @@ import {
   Wand,
   X,
 } from '@/lib/lucide';
-import { spacing } from '@/styles/designTokens';
+import { sizes } from '@/styles/designTokens';
 
 const ICON_MAP = {
   add: Plus,
@@ -144,7 +144,7 @@ const ICON_MAP = {
   wand: Wand,
 };
 
-export default function Icon({ name, size = spacing.iconSize, color, filled, style }) {
+export default function Icon({ name, size = sizes.icon, color, filled, style }) {
   const IconComponent = ICON_MAP[name];
 
   if (!IconComponent) {

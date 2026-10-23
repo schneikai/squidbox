@@ -1,4 +1,4 @@
-// Matched by colors.splashBackground, for BootScreen, which takes over from the splash.
+// Matched by colors.background.splash, for BootScreen, which takes over from the splash.
 const SPLASH_BACKGROUND = '#B1F1FF';
 
 const baseConfig = {

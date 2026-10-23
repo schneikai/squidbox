@@ -2,7 +2,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
 import GradientFill from '@/components/GradientFill';
 import Icon from '@/components/Icon';
-import { colors, radii, scale, spacing, typography } from '@/styles/designTokens';
+import { colors, radii, scale, sizes, typography } from '@/styles/designTokens';
 
 /**
  * The violet primary action with a label: `large` fills the width of a form or list ("Sign In",
@@ -42,10 +42,10 @@ export default function PrimaryButton({
     >
       <GradientFill style={[styles.fill, size === 'compact' && styles.compactFill, !label && styles.squareFill]}>
         {loading ? (
-          <ActivityIndicator color={colors.textInverse} />
+          <ActivityIndicator color={colors.text.inverse} />
         ) : (
           <>
-            {icon && <Icon name={icon} size={spacing.iconSize} color={colors.textInverse} />}
+            {icon && <Icon name={icon} size={sizes.icon} color={colors.text.inverse} />}
             {!!label && <Text style={[styles.label, size === 'compact' && styles.compactLabel]}>{label}</Text>}
           </>
         )}
@@ -67,11 +67,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: scale(20),
   },
   large: {
-    height: spacing.primaryButtonHeight,
+    height: sizes.primaryButton,
     borderRadius: radii.card,
   },
   compact: {
-    height: spacing.iconButtonSize,
+    height: sizes.iconButton,
     borderRadius: radii.pill,
   },
   square: {
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
   },
   label: {
-    color: colors.textInverse,
+    color: colors.text.inverse,
     fontSize: typography.callout,
     fontWeight: '600',
   },

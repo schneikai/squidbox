@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { clamp, runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
-import { colors, radii, spacing } from '@/styles/designTokens';
+import { colors, layout, radii, sizes } from '@/styles/designTokens';
 
 const TRACK_HEIGHT = 4;
 const THUMB_SIZE = 14;
@@ -57,27 +57,27 @@ const styles = StyleSheet.create({
   touchArea: {
     flex: 1,
     // The thumb overhangs the track ends by half its size; keep a gap to the times beside it.
-    marginHorizontal: spacing.barPaddingX + THUMB_SIZE / 2,
-    height: spacing.iconButtonSize,
+    marginHorizontal: layout.barPaddingX + THUMB_SIZE / 2,
+    height: sizes.iconButton,
     justifyContent: 'center',
   },
   track: {
     height: TRACK_HEIGHT,
     borderRadius: radii.pill,
-    backgroundColor: colors.accentLight,
+    backgroundColor: colors.accent.light,
     overflow: 'hidden',
   },
   fill: {
     height: '100%',
-    backgroundColor: colors.accent,
+    backgroundColor: colors.accent.base,
   },
   thumb: {
     position: 'absolute',
     left: 0,
-    top: (spacing.iconButtonSize - THUMB_SIZE) / 2,
+    top: (sizes.iconButton - THUMB_SIZE) / 2,
     width: THUMB_SIZE,
     height: THUMB_SIZE,
     borderRadius: radii.pill,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.accent.base,
   },
 });

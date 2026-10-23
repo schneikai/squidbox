@@ -6,7 +6,7 @@ import useAppSettings from '@/features/app-settings/useAppSettings';
 import useAssetThumbnailLoader from '@/features/asset-thumbnail-loader/useAssetThumbnailLoader';
 import useCloud from '@/features/cloud/useCloud';
 import useLibrary from '@/library/useLibrary';
-import { colors, motion, spacing } from '@/styles/designTokens';
+import { colors, motion, sizes } from '@/styles/designTokens';
 import { getAssetThumbnailUri } from '@/utils/assets/assetStorage';
 import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';
 import getAssetThumbnailStatusAsync from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
@@ -20,7 +20,7 @@ import getAssetThumbnailStatusAsync from '@/utils/assets/thumbnails/getAssetThum
 export default function AssetImage({
   asset = {},
   contentFit,
-  placeholderColor = colors.placeholder,
+  placeholderColor = colors.background.placeholder,
   renderOverlay,
   showNotUploaded = true,
 }) {
@@ -106,8 +106,8 @@ export default function AssetImage({
             >
               <Icon
                 name={assetFileUnavailableMessages.notUploaded.icon}
-                size={spacing.iconSizeLarge}
-                color={colors.textSecondary}
+                size={sizes.iconLarge}
+                color={colors.text.secondary}
               />
             </View>
           )}
@@ -144,7 +144,7 @@ function LoadingPlaceholder({ color, style, still = false, children }) {
 
   return (
     <View style={[{ flex: 1, backgroundColor: color }, style]}>
-      <Animated.View style={{ flex: 1, backgroundColor: colors.shimmer, opacity: overlayOpacity }} />
+      <Animated.View style={{ flex: 1, backgroundColor: colors.background.shimmer, opacity: overlayOpacity }} />
       {children}
     </View>
   );

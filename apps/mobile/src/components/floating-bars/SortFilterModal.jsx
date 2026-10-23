@@ -6,7 +6,7 @@ import MenuDivider from '@/components/popup-menu-options/MenuDivider';
 import MenuItemContent from '@/components/popup-menu-options/MenuItemContent';
 import PopoverSurface from '@/components/popup-menu-options/PopoverSurface';
 import useAppSettings from '@/features/app-settings/useAppSettings';
-import { colors, motion, spacing } from '@/styles/designTokens';
+import { colors, motion, sizes } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
 const DEFAULT_SORT_OPTIONS = [
@@ -119,7 +119,7 @@ export default function SortFilterModal({
                   active={isActive}
                   trailing={
                     isActive && !isDirectionless ? (
-                      <TrailingIcon name={dir === 'asc' ? 'arrow-up' : 'arrow-down'} color={colors.accent} />
+                      <TrailingIcon name={dir === 'asc' ? 'arrow-up' : 'arrow-down'} color={colors.accent.base} />
                     ) : undefined
                   }
                 />
@@ -131,7 +131,7 @@ export default function SortFilterModal({
             <MenuRow
               onPress={() => setShowFilterPanel(true)}
               label="Filter"
-              trailing={<TrailingIcon name="chevron-right" color={colors.menuTextDim} />}
+              trailing={<TrailingIcon name="chevron-right" color={colors.text.secondary} />}
             />
             {activeFilter.length > 0 && (
               <MenuRow onPress={() => handleFilterSelect('all')} label="Clear filter" icon="close-circle" />
@@ -184,12 +184,12 @@ function MenuRow({ onPress, ...content }) {
 }
 
 function TrailingIcon({ name, color }) {
-  return <Icon name={name} size={spacing.menuIconSize} color={color} style={styles.trailingIcon} />;
+  return <Icon name={name} size={sizes.menuIcon} color={color} style={styles.trailingIcon} />;
 }
 
 const styles = StyleSheet.create({
   rowPressed: {
-    backgroundColor: colors.menuHover,
+    backgroundColor: colors.overlay.pressed,
   },
   trailingIcon: {
     marginLeft: 8,

@@ -103,7 +103,7 @@ export default function SettingsScreen() {
         <Section>
           <Row label="Signed in as" value={user?.email} />
           <Row label="Sign out" onPress={isLoggingOut ? undefined : handleLogout} destructive chevron={!isLoggingOut}>
-            {isLoggingOut && <ActivityIndicator size="small" color={colors.danger} />}
+            {isLoggingOut && <ActivityIndicator size="small" color={colors.status.danger} />}
           </Row>
         </Section>
       );

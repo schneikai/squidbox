@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     minWidth: typography.footnote * 3,
     marginHorizontal: scale(4),
     fontSize: typography.footnote,
-    color: colors.textSecondary,
+    color: colors.text.secondary,
     fontVariant: ['tabular-nums'],
     textAlign: 'center',
   },

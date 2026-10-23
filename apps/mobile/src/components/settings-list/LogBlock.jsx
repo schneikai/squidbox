@@ -33,8 +33,8 @@ export function LogEmpty({ text }) {
 const styles = StyleSheet.create({
   inner: { gap: 8, paddingHorizontal: SCREEN_PADDING, paddingVertical: 12 },
   entry: { gap: 1 },
-  primary: { fontSize: typography.footnote, color: colors.text, fontVariant: ['tabular-nums'] },
-  secondary: { fontSize: typography.caption2, color: colors.textSecondary },
-  error: { fontSize: typography.caption2, color: colors.danger },
-  empty: { fontSize: typography.footnote, color: colors.textTertiary },
+  primary: { fontSize: typography.footnote, color: colors.text.primary, fontVariant: ['tabular-nums'] },
+  secondary: { fontSize: typography.caption2, color: colors.text.secondary },
+  error: { fontSize: typography.caption2, color: colors.status.danger },
+  empty: { fontSize: typography.footnote, color: colors.text.secondary },
 });

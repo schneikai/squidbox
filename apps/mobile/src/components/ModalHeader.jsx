@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, interpolate, Extrapolation, useSharedValue } from 'react-native-reanimated';
 
 import FloatingPill from '@/components/floating-bars/FloatingPill';
-import { colors, spacing, typography } from '@/styles/designTokens';
+import { colors, layout, sizes, typography } from '@/styles/designTokens';
 
 /**
  * Unified floating header for modal screens — matches the floating-bar visual language.
@@ -26,7 +26,7 @@ import { colors, spacing, typography } from '@/styles/designTokens';
  *   scrollY     Reanimated SharedValue<number> (optional) — drives title fade-out on scroll
  */
 
-export const MODAL_HEADER_HEIGHT = spacing.iconButtonSize + spacing.floatingBarBottom * 2 + 8;
+export const MODAL_HEADER_HEIGHT = sizes.iconButton + layout.barBottom * 2 + 8;
 
 export default function ModalHeader({ leftSlot, rightSlot, centerSlot, centerStyle = 'plain', scrollY }) {
   // Stable fallback so animated style always has a value to read
@@ -78,8 +78,8 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.floatingBarSide,
-    paddingVertical: spacing.floatingBarBottom,
+    paddingHorizontal: layout.sideGutter,
+    paddingVertical: layout.barBottom,
     zIndex: 100,
   },
   side: {
@@ -94,11 +94,11 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.iconButtonSize + spacing.floatingBarSide,
+    paddingHorizontal: sizes.iconButton + layout.sideGutter,
   },
   centerTitle: {
     fontSize: typography.body,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.text.primary,
   },
 });

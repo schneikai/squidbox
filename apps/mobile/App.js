@@ -203,7 +203,7 @@ const MainApp = memo(function MainApp() {
                 <FloatingBarsProvider>
                   <View style={styles.root}>
                     <LinearGradient
-                      colors={colors.appBackground}
+                      colors={colors.background.app}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={StyleSheet.absoluteFill}

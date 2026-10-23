@@ -6,7 +6,7 @@ import TextButton from '@/components/TextButton';
 import TextInput from '@/components/TextInput';
 import { Section } from '@/components/settings-list/SettingsList';
 import useCloud from '@/features/cloud/useCloud';
-import { colors, spacing } from '@/styles/designTokens';
+import { colors, layout, sizes } from '@/styles/designTokens';
 import isBlank from '@/utils/isBlank';
 
 // `ownerEmail`: the account this library belongs to, pre-filled and kept until the user asks to sign
@@ -72,13 +72,13 @@ export default function LoginForm({ ownerEmail }) {
 
 const styles = StyleSheet.create({
   input: {
-    height: spacing.iconButtonSize,
-    paddingHorizontal: spacing.floatingBarSide, // ListDivider's inset
+    height: sizes.iconButton,
+    paddingHorizontal: layout.sideGutter, // ListDivider's inset
   },
   submit: {
     marginTop: 12,
   },
   inputLocked: {
-    color: colors.textSecondary,
+    color: colors.text.secondary,
   },
 });

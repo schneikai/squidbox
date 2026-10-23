@@ -37,8 +37,11 @@ screen-local exception.
 
 All paths are under `apps/mobile/src/`.
 
-- `styles/designTokens.js`: colors, shadows, radii, spacing, typography, `glass`, `motion`.
-  Sizes scale with the screen through `scale()`.
+- `styles/designTokens.js`: `colors` (semantic roles in groups: `text`, `accent`, `status`,
+  `background`, `border`, `overlay`; raw values live once in a private `palette`), `shadows`,
+  `radii`, `layout` (gutters, bar and menu paddings), `sizes` (controls and icons), `typography`
+  and `lineHeights` (Apple's text styles), `glass`, `motion`. Sizes scale with the screen
+  through `scale()`. A new color goes into `palette` and gets a role named by purpose.
 - `components/`: shared building blocks. Reuse or extend these before adding new ones:
   - Buttons: `IconButton` (every icon-only button; `variant`: `plain`, `danger`, `primary` for the
     purple gradient in a toolbar, `tinted`, `destructive` over content), `PrimaryButton` (a purple action with a label: `large` in a form or
@@ -65,7 +68,7 @@ All paths are under `apps/mobile/src/`.
   flat, without a shadow.
 - The account avatar (`AccountButton`) sits on its own at the far right of the main header,
   outside any pill: it stands for the user, not for an action.
-- Icon colors: `colors.text` in the headers, `colors.iconInactive` in the bottom bars,
+- Icon colors: `colors.text.primary` in the headers, `colors.text.secondary` in the bottom bars,
   `IconButton`'s `variant="danger"` for destructive actions and `isActive` for a setting that is on.
 
 ## Known conflicts: our decision wins
@@ -94,7 +97,7 @@ All paths are under `apps/mobile/src/`.
 - **Motion.** Respect reduce motion; routine screens just appear.
 - **Press feedback.** Rows highlight, buttons dim or tint; no layout shift on state changes.
 - **Accessibility.** Every icon-only button has an `accessibilityLabel`; targets are at least
-  44 pt (`spacing.iconButtonSize`).
+  44 pt (`sizes.iconButton`).
 
 Report what you ran and what you couldn't (for example, no device check).
 

@@ -8,7 +8,7 @@ import { colors, motion } from '@/styles/designTokens';
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
-const COLORS = { fill: colors.splashBackground, edge: '#8EDDF0', shine: '#FFFFFF' };
+const COLORS = { fill: colors.background.splash, edge: '#8EDDF0', shine: '#FFFFFF' };
 const FILL_OPACITY = 0.35;
 const FAST = motion.duration.fast;
 const [MOUTH_X, MOUTH_Y] = parts.mouthCenter;

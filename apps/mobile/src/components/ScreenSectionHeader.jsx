@@ -27,7 +27,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: typography.body,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: colors.text.secondary,
     marginBottom: 8,
     marginLeft: 4,
     marginTop: 20,
@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: typography.body,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: colors.text.secondary,
     marginLeft: 4,
   },
   flush: {

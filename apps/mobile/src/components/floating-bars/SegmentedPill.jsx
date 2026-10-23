@@ -25,7 +25,7 @@ export default function SegmentedPill({ items, activeKey, onSelect }) {
             key={key}
             icon={icon}
             onPress={() => onSelect(key)}
-            color={colors.iconInactive}
+            color={colors.text.secondary}
             accessibilityLabel={label}
           />
         ),

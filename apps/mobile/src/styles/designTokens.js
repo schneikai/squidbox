@@ -19,57 +19,72 @@ export const scale = (size, min = 0.85, max = 1.15) => Math.round(size * Math.mi
 // Horizontal gutter between floating UI (bars, popovers) and the screen edges.
 const SIDE_GUTTER = scale(16);
 
+// Raw values, each defined once.
+const palette = {
+  white: '#FFFFFF',
+  black: '#000000',
+  gray50: '#F9FAFB',
+  gray100: '#F0F0F0',
+  gray300: '#D3D3D3',
+  gray400: '#9CA3AF',
+  gray500: '#6B7280',
+  gray900: '#111827',
+  violet50: '#F5F3FF',
+  violet100: '#EFE7FD',
+  violet600: '#7C3AED',
+  indigo600: '#4F46E5',
+  rose600: '#E11D48',
+  green500: '#34C759',
+  cyan100: '#B1F1FF',
+};
+
+// Semantic roles, grouped by what they paint. To add a color, add its raw value to `palette` and
+// name it here by purpose.
 export const colors = {
-  gradientStart: '#7C3AED',
-  gradientEnd: '#4F46E5',
-  appBackground: ['#F9FAFB', '#FFFFFF', '#F5F3FF'],
-  splashBackground: '#B1F1FF', // app.config.js `SPLASH_BACKGROUND` (the native splash's), for the boot screen
-
-  glassSurface: 'rgba(255,255,255,0.95)',
-  surface: '#FFFFFF', // opaque, for a surface over media that mustn't show it through (the asset's details)
-  glassBorder: 'rgba(0,0,0,0.08)',
-  divider: 'rgba(0,0,0,0.08)', // between the rows of a grouped list (ListDivider)
-
-  // Popover menus and the sort/filter panel: a light frosted surface.
-  menuOverlay: 'rgba(255,255,255,0.72)', // tint layer on top of the light BlurView
-  menuBorder: 'rgba(0,0,0,0.08)',
-  menuText: '#111827',
-  menuTextDim: '#6B7280',
-
-  accent: '#7C3AED',
-  accentLight: 'rgba(124,58,237,0.12)',
-  accentSurface: '#EFE7FD', // accentLight over white, opaque for a surface over content (the account avatar)
-
-  success: '#34C759', // a confirmation that just happened (copied)
-
-  danger: '#E11D48',
-  dangerLight: 'rgba(225,29,72,0.1)',
-
-  text: '#111827',
-  textSecondary: '#6B7280',
-  textTertiary: '#9CA3AF',
-  textInverse: '#FFFFFF',
-
-  iconInactive: '#6B7280',
-
-  separator: 'rgba(255,255,255,0.1)',
-
-  // Interactive states
-  pressedBg: 'rgba(0,0,0,0.06)', // subtle press overlay on light surfaces
-  mutedSurface: '#F0F0F0', // pressedBg over white, opaque
-  menuHover: 'rgba(0,0,0,0.05)', // highlighted row on menu surfaces
-
-  // Generic overlays for thumbnail badges etc.
-  overlayDark: 'rgba(0,0,0,0.35)',
-  scrim: 'rgba(0,0,0,0.8)', // dims the whole app behind a blocking overlay
-  placeholder: '#D3D3D3', // a picture's spot before it loads
-  shimmer: '#FFFFFF', // the pulse over a loading picture's placeholder
-  mediaBackdrop: '#000000', // behind a photo or video shown full screen
+  text: {
+    primary: palette.gray900,
+    secondary: palette.gray500, // details, inactive icons
+    tertiary: palette.gray400, // placeholders and disabled text only, too faint for copy
+    inverse: palette.white, // text and marks on the accent, danger, dark overlays or pictures
+  },
+  accent: {
+    base: palette.violet600,
+    light: alpha(palette.violet600, 0.12),
+    surface: palette.violet100, // `light` over white, opaque for a surface over content (the account avatar)
+    gradient: [palette.violet600, palette.indigo600],
+  },
+  status: {
+    success: palette.green500, // a confirmation that just happened (copied)
+    danger: palette.rose600,
+    dangerLight: alpha(palette.rose600, 0.1),
+  },
+  background: {
+    app: [palette.gray50, palette.white, palette.violet50], // the page gradient
+    base: palette.gray50, // a sheet or screen without the gradient
+    surface: palette.white, // opaque, for a surface over media that mustn't show it through
+    glass: alpha(palette.white, 0.95),
+    menu: alpha(palette.white, 0.72), // tint over the BlurView of popover menus and the sort/filter panel
+    muted: palette.gray100, // `overlay.pressed` over white, opaque
+    placeholder: palette.gray300, // a picture's spot before it loads
+    shimmer: palette.white, // the pulse over a loading picture's placeholder
+    media: palette.black, // behind a photo or video shown full screen
+    splash: palette.cyan100, // app.config.js `SPLASH_BACKGROUND` (the native splash's), for the boot screen
+  },
+  border: {
+    glass: alpha(palette.black, 0.08),
+    divider: alpha(palette.black, 0.08), // between the rows of a grouped list (ListDivider)
+  },
+  overlay: {
+    pressed: alpha(palette.black, 0.06), // a pressed or highlighted row on a light surface
+    dim: alpha(palette.black, 0.35), // under a badge over a picture, behind a small dialog
+    scrim: alpha(palette.black, 0.8), // dims the whole app behind a blocking overlay
+    track: alpha(palette.white, 0.1), // the empty part of a progress ring on the scrim
+  },
 };
 
 export const shadows = {
   floating: {
-    shadowColor: '#000',
+    shadowColor: palette.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 16,
@@ -77,7 +92,7 @@ export const shadows = {
   },
   // Grouped list sections (settings-list) lifted off the page
   section: {
-    shadowColor: '#000',
+    shadowColor: palette.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 20,
@@ -85,13 +100,13 @@ export const shadows = {
   },
   // A grid cell lifted under the finger while it's dragged
   lifted: {
-    shadowColor: '#000',
+    shadowColor: palette.black,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 12,
   },
   subtle: {
-    shadowColor: '#000',
+    shadowColor: palette.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -104,33 +119,34 @@ export const radii = {
   card: 16,
   cover: 10, // album covers and the thumbnails of list rows (CoverImage)
   modal: 20,
+  badge: 6, // a small label or button inside content (Archived, an AI suggestion's Use)
 };
 
-export const spacing = {
-  floatingBarSide: SIDE_GUTTER,
-  floatingBarBottom: scale(16),
-  iconButtonSize: scale(44), // 44pt baseline (Apple HIG minimum tap target), scales with screen
-  primaryButtonHeight: scale(50), // a large PrimaryButton, the main action of a form or list
-  iconSize: scale(20), // standard icon inside a button (~45% of button size)
-  iconSizeSmall: scale(18), // compact icon (avatar, secondary indicators)
-  iconSizeLarge: scale(32), // standalone icon that stands for content (e.g. a not-uploaded thumbnail)
-  toolbarFrame: 2, // the glass frame around a toolbar's buttons (FloatingPill)
+// The geometry of the app's chrome: gutters, bar and menu paddings, the space content keeps clear
+// of the floating bars.
+export const layout = {
+  sideGutter: SIDE_GUTTER,
+  barBottom: scale(16), // between the bottom bars and the home indicator's safe area
   barPaddingX: scale(8),
   barPaddingY: scale(6),
-  contentPaddingTop: scale(88),
-  contentPaddingBottom: scale(128),
+  toolbarFrame: 2, // the glass frame around a toolbar's buttons (FloatingPill)
+  contentTop: scale(88), // clears the floating header
+  contentBottom: scale(128), // clears the floating bottom bars
+  popoverGap: 25, // between a trigger button and the popover that opens from it
+  menuRowPaddingX: scale(16),
+  menuRowPaddingY: scale(13),
+  menuIconGap: scale(12), // between a menu row's leading icon and its label
+};
 
-  // Popup / popover menu rows
-  menuFontSize: scale(14),
-  menuRowH: scale(16), // horizontal padding inside each row
-  menuRowV: scale(13), // vertical padding inside each row
-  menuIconSize: scale(16),
-  menuIconGap: scale(12), // gap between leading icon and label text
-
-  // Gap between a trigger button and the popover that opens from it
-  popoverGap: 25,
-  // Fixed popover menu width: fits typical labels on one line, never wider than the screen
-  // minus the side gutters.
+// Fixed sizes of controls and icons; they scale with the screen like everything else.
+export const sizes = {
+  iconButton: scale(44), // Apple's minimum tap target
+  primaryButton: scale(50), // the height of a large PrimaryButton, the main action of a form or list
+  icon: scale(20), // inside a button
+  iconSmall: scale(18), // compact: avatars, secondary indicators
+  iconLarge: scale(32), // stands for content (a not-uploaded thumbnail)
+  menuIcon: scale(16),
+  // Fits typical labels on one line, never wider than the screen minus the side gutters.
   popoverWidth: Math.min(scale(230), SCREEN_WIDTH - 2 * SIDE_GUTTER),
 };
 
@@ -146,9 +162,18 @@ export const typography = {
   title1: scale(28),
 };
 
+// The line height of each text style, for text that can wrap. `reading` is looser, for long text
+// someone reads or writes (a post, a note).
+export const lineHeights = {
+  caption2: scale(13),
+  footnote: scale(18),
+  subheadline: scale(20),
+  reading: scale(24),
+};
+
 export const glass = {
-  backgroundColor: colors.glassSurface,
-  borderColor: colors.glassBorder,
+  backgroundColor: colors.background.glass,
+  borderColor: colors.border.glass,
   borderWidth: 1,
 };
 
@@ -175,4 +200,9 @@ function springConfig({ duration, bounce }) {
     stiffness: ((2 * Math.PI) / duration) ** 2,
     damping: (4 * Math.PI * (1 - bounce)) / duration,
   };
+}
+
+function alpha(hex, opacity) {
+  const value = parseInt(hex.slice(1), 16);
+  return `rgba(${value >> 16},${(value >> 8) & 255},${value & 255},${opacity})`;
 }

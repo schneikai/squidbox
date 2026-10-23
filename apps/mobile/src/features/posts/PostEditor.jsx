@@ -86,7 +86,7 @@ export default function PostEditor({ post, navigation, onSave }) {
             <IconButton
               icon="wand"
               onPress={() => setShowAiChat(true)}
-              color={colors.accent}
+              color={colors.accent.base}
               accessibilityLabel="AI caption suggestions"
             />
           </View>
@@ -129,7 +129,6 @@ const styles = StyleSheet.create({
   },
 
   textArea: {
-    lineHeight: 26,
     paddingRight: 56,
     minHeight: 100,
   },

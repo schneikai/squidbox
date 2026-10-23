@@ -3,7 +3,7 @@ import { Image, View, StyleSheet, Text } from 'react-native';
 
 import AssetImage from '@/components/AssetImage';
 import Icon from '@/components/Icon';
-import { colors, scale, spacing, typography } from '@/styles/designTokens';
+import { colors, radii, scale, sizes, typography } from '@/styles/designTokens';
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
@@ -93,25 +93,25 @@ function VideoDuration({ duration }) {
 function FavoriteAssetIndicator({ isFavorite }) {
   if (!isFavorite) return;
 
-  return <Icon name="heart" filled size={spacing.iconSize} color={colors.textInverse} />;
+  return <Icon name="heart" filled size={sizes.icon} color={colors.text.inverse} />;
 }
 
 function CloudIndicator({ isSynced }) {
   const iconName = isSynced ? 'cloud-check' : 'cloud-offline';
 
-  return <Icon name={iconName} size={spacing.iconSize} color={colors.textInverse} />;
+  return <Icon name={iconName} size={sizes.icon} color={colors.text.inverse} />;
 }
 
 function NoteIndicator({ hasNote }) {
   if (!hasNote) return null;
 
-  return <Icon name="document" size={scale(16)} color={colors.textInverse} />;
+  return <Icon name="document" size={scale(16)} color={colors.text.inverse} />;
 }
 
 function SelectIndicator({ isSelected }) {
   return (
     <View style={[styles.selectBadge, isSelected && styles.selectBadgeActive]}>
-      {isSelected ? <Icon name="check" size={15} color={colors.textInverse} /> : null}
+      {isSelected ? <Icon name="check" size={15} color={colors.text.inverse} /> : null}
     </View>
   );
 }
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 6,
     right: 6,
-    color: colors.textInverse,
+    color: colors.text.inverse,
     fontSize: typography.caption2,
     fontWeight: '600',
   },
@@ -141,9 +141,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 5,
     left: 5,
-    color: colors.textInverse,
+    color: colors.text.inverse,
     fontSize: typography.caption2,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
 
   indicators: {
@@ -161,15 +161,15 @@ const styles = StyleSheet.create({
     left: 6,
     width: 22,
     height: 22,
-    borderRadius: 11,
+    borderRadius: radii.pill,
     borderWidth: 2,
-    borderColor: colors.textInverse,
+    borderColor: colors.text.inverse,
     backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
   },
   selectBadgeActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
+    backgroundColor: colors.accent.base,
+    borderColor: colors.accent.base,
   },
 });

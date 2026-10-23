@@ -42,5 +42,5 @@ function hideNativeSplash() {
 }
 
 const styles = StyleSheet.create({
-  root: { backgroundColor: colors.splashBackground },
+  root: { backgroundColor: colors.background.splash },
 });

@@ -30,6 +30,6 @@ const styles = StyleSheet.create({
     ...shadows.floating,
   },
   overlay: {
-    backgroundColor: colors.menuOverlay,
+    backgroundColor: colors.background.menu,
   },
 });

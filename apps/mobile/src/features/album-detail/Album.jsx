@@ -25,7 +25,7 @@ import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionAct
 import useAssets from '@/features/assets-context/useAssets';
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
-import { colors, typography } from '@/styles/designTokens';
+import { colors, lineHeights, typography } from '@/styles/designTokens';
 import { countByMediaType } from '@/sync/assetsRepository';
 import { getDb } from '@/sync/db/client';
 import { usePagedQuery } from '@/sync/usePagedQuery';
@@ -243,8 +243,8 @@ const styles = StyleSheet.create({
   },
   notesText: {
     fontSize: typography.footnote,
-    color: colors.textSecondary,
-    lineHeight: 18,
+    color: colors.text.secondary,
+    lineHeight: lineHeights.footnote,
   },
   content: {
     flex: 1,

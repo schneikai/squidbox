@@ -2,7 +2,7 @@ import { Pressable, StyleSheet } from 'react-native';
 
 import GradientFill from '@/components/GradientFill';
 import Icon from '@/components/Icon';
-import { colors, radii, spacing } from '@/styles/designTokens';
+import { colors, radii, sizes } from '@/styles/designTokens';
 
 /**
  * Standard icon-only pressable with a 44pt tap target, pill clipping, and press feedback. Every
@@ -21,8 +21,8 @@ export default function IconButton({
   icon,
   onPress,
   variant = 'plain',
-  color = colors.text,
-  size = spacing.iconSize,
+  color = colors.text.primary,
+  size = sizes.icon,
   hitSlop = 0,
   disabled = false,
   isActive = false,
@@ -56,17 +56,17 @@ export default function IconButton({
 }
 
 function iconColorFor(variant, { color, disabled, isActive }) {
-  if (variant === 'primary' || variant === 'destructive') return colors.textInverse;
-  if (disabled) return colors.textTertiary;
-  if (variant === 'danger') return colors.danger;
-  if (isActive) return colors.accent;
+  if (variant === 'primary' || variant === 'destructive') return colors.text.inverse;
+  if (disabled) return colors.text.tertiary;
+  if (variant === 'danger') return colors.status.danger;
+  if (isActive) return colors.accent.base;
   return color;
 }
 
 const styles = StyleSheet.create({
   button: {
-    width: spacing.iconButtonSize,
-    height: spacing.iconButtonSize,
+    width: sizes.iconButton,
+    height: sizes.iconButton,
     borderRadius: radii.pill,
     overflow: 'hidden',
     alignItems: 'center',
@@ -78,13 +78,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tinted: {
-    backgroundColor: colors.pressedBg,
+    backgroundColor: colors.overlay.pressed,
   },
   destructive: {
-    backgroundColor: colors.danger,
+    backgroundColor: colors.status.danger,
   },
   active: {
-    backgroundColor: colors.accentLight,
+    backgroundColor: colors.accent.light,
   },
   disabled: {
     opacity: 0.4,
@@ -94,8 +94,8 @@ const styles = StyleSheet.create({
 // A button without a fill tints on press; a disc dims and shrinks.
 const discPressed = { opacity: 0.85, transform: [{ scale: 0.95 }] };
 const pressedStyles = StyleSheet.create({
-  plain: { backgroundColor: colors.pressedBg },
-  danger: { backgroundColor: colors.dangerLight },
+  plain: { backgroundColor: colors.overlay.pressed },
+  danger: { backgroundColor: colors.status.dangerLight },
   tinted: discPressed,
   primary: discPressed,
   destructive: discPressed,

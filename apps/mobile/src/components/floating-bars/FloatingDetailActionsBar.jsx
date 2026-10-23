@@ -6,7 +6,7 @@ import FloatingPill from './FloatingPill';
 import IconButton from '@/components/IconButton';
 import useAssets from '@/features/assets-context/useAssets';
 import useDeletedAssetsActions from '@/features/assets-context/useDeletedAssetsActions';
-import { colors, spacing, typography } from '@/styles/designTokens';
+import { colors, layout, sizes, typography } from '@/styles/designTokens';
 import humanizeMediaType from '@/utils/assets/humanizeMediaType';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 import useShareAsset from '@/utils/assets/useShareAsset';
@@ -69,27 +69,27 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
   }
 
   return (
-    <View style={[styles.container, { bottom: insets.bottom + spacing.floatingBarBottom }]} pointerEvents="box-none">
+    <View style={[styles.container, { bottom: insets.bottom + layout.barBottom }]} pointerEvents="box-none">
       {children}
       <View style={styles.row} pointerEvents="box-none">
         {/* Left pill — share + favorite + download */}
         <FloatingPill>
           {canShareFiles && (
-            <IconButton icon="share" onPress={handleShare} color={colors.iconInactive} accessibilityLabel="Share" />
+            <IconButton icon="share" onPress={handleShare} color={colors.text.secondary} accessibilityLabel="Share" />
           )}
           {!isDeleted && (
             <IconButton
               icon="heart"
               filled={asset.isFavorite}
               onPress={handleToggleFavorite}
-              color={asset.isFavorite ? colors.danger : colors.iconInactive}
+              color={asset.isFavorite ? colors.status.danger : colors.text.secondary}
               accessibilityLabel={asset.isFavorite ? 'Unfavorite' : 'Favorite'}
             />
           )}
           <IconButton
             icon="cloud-download"
             onPress={handleDownload}
-            color={colors.iconInactive}
+            color={colors.text.secondary}
             accessibilityLabel="Save to camera roll"
           />
         </FloatingPill>
@@ -103,7 +103,12 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
         {/* Right pill — delete, or restore + delete permanently */}
         <FloatingPill>
           {isDeleted && (
-            <IconButton icon="undo" onPress={handleRestore} color={colors.iconInactive} accessibilityLabel="Restore" />
+            <IconButton
+              icon="undo"
+              onPress={handleRestore}
+              color={colors.text.secondary}
+              accessibilityLabel="Restore"
+            />
           )}
           <IconButton
             icon="trash"
@@ -120,9 +125,9 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: spacing.floatingBarSide,
-    right: spacing.floatingBarSide,
-    gap: spacing.floatingBarBottom,
+    left: layout.sideGutter,
+    right: layout.sideGutter,
+    gap: layout.barBottom,
     zIndex: 100,
   },
   row: {
@@ -131,10 +136,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deletedLabel: {
-    paddingHorizontal: spacing.barPaddingX * 2,
-    lineHeight: spacing.iconButtonSize,
+    paddingHorizontal: layout.barPaddingX * 2,
+    lineHeight: sizes.iconButton,
     fontSize: typography.footnote,
     fontWeight: '600',
-    color: colors.danger,
+    color: colors.status.danger,
   },
 });

@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
   container: {
     paddingVertical: LIST_VERTICAL_PADDING,
     paddingLeft: 15,
-    backgroundColor: colors.glassSurface,
+    backgroundColor: colors.background.glass,
   },
   assetCountInfo: {
     paddingLeft: 5,

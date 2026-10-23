@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 import Icon from '@/components/Icon';
 import { colors, scale, typography } from '@/styles/designTokens';
 
-const TONE_COLORS = { accent: colors.accent, muted: colors.textSecondary, inverse: colors.textInverse };
+const TONE_COLORS = { accent: colors.accent.base, muted: colors.text.secondary, inverse: colors.text.inverse };
 
 // A secondary action as a line of text ("Sign in as someone else", "Try again"). `tone`: `accent`,
 // `muted` for one that should not draw the eye, or `inverse` on a dark overlay. `size="small"` fits

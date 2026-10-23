@@ -4,7 +4,7 @@ import Card from './Card';
 import TextInput from './TextInput';
 
 import Icon from '@/components/Icon';
-import { colors, spacing } from '@/styles/designTokens';
+import { colors, sizes } from '@/styles/designTokens';
 
 /**
  * A search row for inline list filtering inside modals and sheets.
@@ -17,7 +17,7 @@ import { colors, spacing } from '@/styles/designTokens';
 export default function SearchInput({ style, inputStyle, accessibilityLabel, ...rest }) {
   return (
     <Card style={[styles.row, style]}>
-      <Icon name="search" size={spacing.iconSizeSmall} color={colors.textSecondary} />
+      <Icon name="search" size={sizes.iconSmall} color={colors.text.secondary} />
       <TextInput
         placeholder="Search"
         autoCorrect={false}

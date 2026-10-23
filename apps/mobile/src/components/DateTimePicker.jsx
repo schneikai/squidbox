@@ -5,7 +5,7 @@ import CommunityDateTimePicker from '@react-native-community/datetimepicker';
 import { StyleSheet, View, Text } from 'react-native';
 
 import Icon from '@/components/Icon';
-import { colors, glass, radii, spacing, typography } from '@/styles/designTokens';
+import { colors, glass, radii, sizes, typography } from '@/styles/designTokens';
 
 export default function DateTimePicker({ datetime: dt, timestamp, onChange, style = {} }) {
   const dateTime = dt || new Date(timestamp);
@@ -33,7 +33,7 @@ export default function DateTimePicker({ datetime: dt, timestamp, onChange, styl
           style={styles.nativePicker}
         />
         <View style={[StyleSheet.absoluteFill, styles.overlay]} pointerEvents="none">
-          <Icon name="calendar" size={spacing.iconSizeSmall} color={colors.textSecondary} />
+          <Icon name="calendar" size={sizes.iconSmall} color={colors.text.secondary} />
           <Text style={styles.label}>{dateLabel}</Text>
         </View>
       </View>
@@ -47,7 +47,7 @@ export default function DateTimePicker({ datetime: dt, timestamp, onChange, styl
           style={styles.nativePicker}
         />
         <View style={[StyleSheet.absoluteFill, styles.overlay]} pointerEvents="none">
-          <Icon name="clock" size={spacing.iconSizeSmall} color={colors.textSecondary} />
+          <Icon name="clock" size={sizes.iconSmall} color={colors.text.secondary} />
           <Text style={styles.label}>{timeLabel}</Text>
         </View>
       </View>
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: typography.body,
-    color: colors.text,
+    color: colors.text.primary,
     fontWeight: '500',
   },
 });

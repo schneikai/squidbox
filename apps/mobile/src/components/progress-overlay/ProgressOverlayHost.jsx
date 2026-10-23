@@ -22,7 +22,7 @@ export default function ProgressOverlayHost() {
       {mode === 'progress' ? (
         <ProgressRing value={progress} />
       ) : (
-        <ActivityIndicator size="large" color={colors.textInverse} />
+        <ActivityIndicator size="large" color={colors.text.inverse} />
       )}
       {cancel && (
         <View style={styles.cancel}>
@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     left: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.scrim,
+    backgroundColor: colors.overlay.scrim,
     zIndex: 9999,
   },
   cancel: {

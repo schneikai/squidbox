@@ -9,7 +9,7 @@ import SegmentedPill from './SegmentedPill';
 import { getActiveTabName, isDetailScreenActive } from './navStateHelpers';
 
 import { navigateToTab } from '@/navigators/navigationRef';
-import { motion, spacing } from '@/styles/designTokens';
+import { layout, motion } from '@/styles/designTokens';
 
 const NAV_ITEMS = [
   { key: 'AssetsTab', icon: 'grid', label: 'Library' },
@@ -61,8 +61,8 @@ export default function FloatingNavigationBar() {
       style={[
         styles.container,
         {
-          bottom: insets.bottom + spacing.floatingBarBottom,
-          right: spacing.floatingBarSide,
+          bottom: insets.bottom + layout.barBottom,
+          right: layout.sideGutter,
         },
         navBarStyle,
       ]}

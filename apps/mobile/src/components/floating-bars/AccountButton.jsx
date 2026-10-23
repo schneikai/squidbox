@@ -2,11 +2,11 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Icon from '@/components/Icon';
 import useCloud from '@/features/cloud/useCloud';
-import { colors, scale, shadows, spacing, typography } from '@/styles/designTokens';
+import { colors, radii, scale, shadows, sizes, typography } from '@/styles/designTokens';
 
 const SIZE = scale(34);
 // Brings the tap target to the 44pt minimum.
-const HIT_SLOP = (spacing.iconButtonSize - SIZE) / 2;
+const HIT_SLOP = (sizes.iconButton - SIZE) / 2;
 
 /**
  * The account avatar at the far right of the main header, outside any toolbar: it stands for the
@@ -28,7 +28,7 @@ export default function AccountButton({ onPress }) {
       {initial ? (
         <Text style={styles.initial}>{initial}</Text>
       ) : (
-        <Icon name="user" size={spacing.iconSizeSmall} color={colors.textSecondary} />
+        <Icon name="user" size={sizes.iconSmall} color={colors.text.secondary} />
       )}
       {needsReauth && <View style={styles.badge} />}
     </Pressable>
@@ -40,19 +40,19 @@ const styles = StyleSheet.create({
     width: SIZE,
     height: SIZE,
     borderRadius: SIZE / 2,
-    backgroundColor: colors.accentSurface,
+    backgroundColor: colors.accent.surface,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadows.subtle,
   },
   signedOut: {
-    backgroundColor: colors.mutedSurface,
+    backgroundColor: colors.background.muted,
   },
   pressed: {
     opacity: 0.7,
   },
   initial: {
-    color: colors.accent,
+    color: colors.accent.base,
     fontSize: typography.subheadline,
     fontWeight: '700',
   },
@@ -62,9 +62,9 @@ const styles = StyleSheet.create({
     right: -1,
     width: 12,
     height: 12,
-    borderRadius: 6,
-    backgroundColor: colors.danger,
+    borderRadius: radii.pill,
+    backgroundColor: colors.status.danger,
     borderWidth: 2,
-    borderColor: colors.textInverse,
+    borderColor: colors.text.inverse,
   },
 });

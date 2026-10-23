@@ -1,4 +1,4 @@
-import { colors, spacing } from '@/styles/designTokens';
+import { colors, layout, sizes } from '@/styles/designTokens';
 
 // Everything that affects a popover's SIZE. Menus pass it to <MenuOptions> through `menuOptions`,
 // because the library measures the options with that style before BlurPopoverRenderer draws them;
@@ -6,10 +6,10 @@ import { colors, spacing } from '@/styles/designTokens';
 // fixed (not sized to content), so labels are laid out at their final width in one pass and a label
 // that still wraps is measured with all its lines.
 const frame = {
-  width: spacing.popoverWidth,
-  paddingVertical: spacing.barPaddingY,
+  width: sizes.popoverWidth,
+  paddingVertical: layout.barPaddingY,
   borderWidth: 1,
-  borderColor: colors.menuBorder,
+  borderColor: colors.border.glass,
 };
 
 export default {
@@ -24,7 +24,7 @@ export default {
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.menuRowH,
-    paddingVertical: spacing.menuRowV,
+    paddingHorizontal: layout.menuRowPaddingX,
+    paddingVertical: layout.menuRowPaddingY,
   },
 };

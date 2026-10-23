@@ -6,10 +6,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SearchOptionsBar from './SearchOptionsBar';
 import SortFilterModal from './SortFilterModal';
 
-import { spacing } from '@/styles/designTokens';
+import { layout, sizes } from '@/styles/designTokens';
 
 // The room a list keeps free at its bottom, above the safe-area inset, so its end clears the bar.
-export const SEARCH_SORT_FILTER_BAR_CLEARANCE = spacing.iconButtonSize + spacing.floatingBarBottom * 2 + 16;
+export const SEARCH_SORT_FILTER_BAR_CLEARANCE = sizes.iconButton + layout.barBottom * 2 + 16;
 
 /**
  * The bottom-left search + options bar of a screen, with its own sort / filter popover (the main tabs
@@ -34,7 +34,7 @@ export default function SearchSortFilterBar({
   const ownExpandProgress = useSharedValue(0);
   const [isSortFilterOpen, setIsSortFilterOpen] = useState(false);
 
-  const barBottom = bottom + spacing.floatingBarBottom;
+  const barBottom = bottom + layout.barBottom;
 
   return (
     <>
@@ -45,8 +45,8 @@ export default function SearchSortFilterBar({
         hasActiveState={activeFilter.length > 0}
         placeholder={placeholder}
         bottom={barBottom}
-        left={spacing.floatingBarSide}
-        maxWidth={screenWidth - spacing.floatingBarSide * 2}
+        left={layout.sideGutter}
+        maxWidth={screenWidth - layout.sideGutter * 2}
       />
       <SortFilterModal
         visible={isSortFilterOpen}
@@ -58,8 +58,8 @@ export default function SearchSortFilterBar({
         onSort={onSort}
         onFilter={onFilter}
         showViewOptions={showViewOptions}
-        bottom={barBottom + spacing.iconButtonSize + spacing.popoverGap}
-        left={spacing.floatingBarSide}
+        bottom={barBottom + sizes.iconButton + layout.popoverGap}
+        left={layout.sideGutter}
       />
     </>
   );
