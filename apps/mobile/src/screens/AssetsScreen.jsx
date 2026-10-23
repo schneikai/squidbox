@@ -87,8 +87,6 @@ export default function AssetsScreen({ route }) {
     });
   }, [sortOrder, activeFilter]);
 
-  const hasActiveOptions = activeFilter.length > 0 || sortOrder !== 'createdAt:desc';
-
   return (
     <View style={{ flex: 1 }}>
       <FloatingHeader
@@ -113,7 +111,7 @@ export default function AssetsScreen({ route }) {
         onPressAsset={actions.openAsset}
         sortOrder={sortOrder}
       />
-      <FloatingActionsBar search={searchBar} placeholder="Search notes…" hasActiveState={hasActiveOptions} />
+      <FloatingActionsBar search={searchBar} placeholder="Search notes…" activeFilter={activeFilter} />
     </View>
   );
 }

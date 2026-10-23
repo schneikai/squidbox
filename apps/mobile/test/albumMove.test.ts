@@ -100,18 +100,19 @@ describe('keysBetween', () => {
 });
 
 describe('moveAlbum', () => {
+  const album = (id: string, position: string | null) => ({
+    id,
+    createdAt: 1,
+    updatedAt: 1,
+    deletedAt: null,
+    name: id,
+    isFavorite: false,
+    position,
+  });
+
   it('writes only the moved album through the albums repository, so it lands in the outbox, skipping deleted ones', async () => {
     const db = makeTestDb();
     const albums = makeRepository('albums', schema.albums);
-    const album = (id: string, position: string | null) => ({
-      id,
-      createdAt: 1,
-      updatedAt: 1,
-      deletedAt: null,
-      name: id,
-      isFavorite: false,
-      position,
-    });
     await albums.createMany(db, [album('a', k1), album('b', k2), album('c', k3), album('gone', null)]);
     await albums.remove(db, ['gone']);
     await db.delete(schema.outbox);
@@ -127,18 +128,41 @@ describe('moveAlbum', () => {
     expect(outbox.map((row) => row.recordId)).toEqual(['c']);
   });
 
+  it('makes the order on screen the custom one first when the drag ran under another sort', async () => {
+    const db = makeTestDb();
+    const albums = makeRepository('albums', schema.albums);
+    // Custom order a b c d; the screen shows them by name descending, with d left out.
+    await albums.createMany(db, [album('a', k1), album('b', k2), album('c', k3), album('d', k4)]);
+
+    await db.delete(schema.outbox);
+
+    await moveAlbum(db, albums, { id: 'a', afterId: 'c', order: ['c', 'b', 'a'] });
+
+    const rows = await db.select().from(schema.albums);
+    expect(rows.sort(sortAlbumsByCustomOrder).map((row) => row.id)).toEqual(['c', 'a', 'b', 'd']);
+    // a, b and d already stand in that order, so only c needs a new position.
+    const outbox = await db.select().from(schema.outbox).where(eq(schema.outbox.collection, 'albums'));
+    expect(outbox.map((row) => row.recordId)).toEqual(['c']);
+  });
+
+  it('puts the dragged album first under another sort, and writes nothing when its neighbour is gone', async () => {
+    const db = makeTestDb();
+    const albums = makeRepository('albums', schema.albums);
+    await albums.createMany(db, [album('a', k1), album('b', k2), album('c', k3)]);
+    await db.delete(schema.outbox);
+
+    await moveAlbum(db, albums, { id: 'b', afterId: 'gone', order: ['c', 'b', 'a'] });
+    const outbox = await db.select().from(schema.outbox).where(eq(schema.outbox.collection, 'albums'));
+    expect(outbox).toEqual([]);
+
+    await moveAlbum(db, albums, { id: 'a', afterId: null, order: ['c', 'b', 'a', 'unknown'] });
+    const rows = await db.select().from(schema.albums);
+    expect(rows.sort(sortAlbumsByCustomOrder).map((row) => row.id)).toEqual(['a', 'c', 'b']);
+  });
+
   it('resolves to the count that includes its own write, even when another write commits right after', async () => {
     const db = makeTestDb();
     const albums = makeRepository('albums', schema.albums);
-    const album = (id: string, position: string) => ({
-      id,
-      createdAt: 1,
-      updatedAt: 1,
-      deletedAt: null,
-      name: id,
-      isFavorite: false,
-      position,
-    });
     await albums.createMany(db, [album('a', k1), album('b', k2)]);
     const before = db.committedWrites();
     const moving = moveAlbum(db, albums, { id: 'b', afterId: null });

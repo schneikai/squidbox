@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, View } from 'react-native';
 
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
@@ -24,9 +24,7 @@ export default function AlbumsScreen({ navigation }) {
   const { paddingTop, paddingBottom } = useScreenPadding('main');
 
   const { listRef, listScrollTop } = useAlbumList();
-  const { sortOrder, sortFunction, sortAlbums, isDefaultSortOrder, isSortedByLastPosted } = useSortAlbumsAction({
-    afterSort: listScrollTop,
-  });
+  const { sortOrder, sortFunction, sortAlbums, isSortedByLastPosted } = useSortAlbumsAction();
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterFilter: listScrollTop });
 
   const { registerScreenOptions } = useFloatingBars();
@@ -34,11 +32,8 @@ export default function AlbumsScreen({ navigation }) {
   const scrollHandler = useFloatingBarScrollHandler();
 
   const { albums, readAt } = usePreparedAlbums({ sortFn: sortFunction, filterFn: matchFilter, searchText });
-
-  // Dragging sets the albums' own order, so it runs on that order only, unfiltered: under another
-  // sort a drop would have no place in the custom order (as in Photos, arranging needs Custom).
-  const reorderEnabled = sortOrder === 'custom' && activeFilter.length === 0 && !searchText.trim();
-  const hasActiveOptions = activeFilter.length > 0 || !isDefaultSortOrder;
+  // The drop's write count while a drag under another sort waits to switch to Custom (see below).
+  const [customFrom, setCustomFrom] = useState(null);
 
   const renderItem = useCallback(
     ({ album, elementWidth }) => (
@@ -53,22 +48,49 @@ export default function AlbumsScreen({ navigation }) {
     [navigation, toggleFavoriteAlbum, isSortedByLastPosted],
   );
 
-  function handleAdd() {
-    Alert.prompt('Album name', undefined, (name) => {
-      if (name) addAlbum({ name });
-    });
-  }
-
   useEffect(() => {
     registerScreenOptions('albums', {
       sortOrder,
       sortOptions: albumSortOptions,
       activeFilter,
       filterOptions: albumFilterOptions,
-      onSort: sortAlbums,
+      onSort: handleSort,
       onFilter: toggleFilter,
     });
   }, [sortOrder, activeFilter]);
+
+  // A drag under another sort makes the order on screen the custom one and switches to Custom. The
+  // switch waits for the rows that hold that order (read at or after the drop's write), so the list
+  // never shows the old custom order in between. It happens during render, so React re-renders
+  // sorted by Custom before the stale order paints; sortAlbums must stay a plain state change for
+  // that (no afterSort here).
+  if (customFrom !== null && readAt >= customFrom) {
+    setCustomFrom(null);
+    sortAlbums('custom');
+  }
+
+  // Dragging arranges the whole list, so it runs unfiltered and unsearched only.
+  const reorderEnabled = activeFilter.length === 0 && !searchText.trim();
+
+  function handleSort(order) {
+    setCustomFrom(null);
+    sortAlbums(order);
+    listScrollTop();
+  }
+
+  async function handleReorder(change) {
+    // The custom order already holds the screen's once an earlier drop's switch is pending.
+    if (sortOrder === 'custom' || customFrom !== null) return moveAlbum(change);
+    const writtenAt = await moveAlbum({ ...change, order: albums.map((album) => album.id) });
+    setCustomFrom(writtenAt);
+    return writtenAt;
+  }
+
+  function handleAdd() {
+    Alert.prompt('Album name', undefined, (name) => {
+      if (name) addAlbum({ name });
+    });
+  }
 
   return (
     <View style={{ flex: 1 }}>
@@ -82,9 +104,9 @@ export default function AlbumsScreen({ navigation }) {
         onScroll={scrollHandler}
         renderItem={renderItem}
         reorderEnabled={reorderEnabled}
-        onReorder={moveAlbum}
+        onReorder={handleReorder}
       />
-      <FloatingActionsBar search={searchBar} placeholder="Search albums…" hasActiveState={hasActiveOptions} />
+      <FloatingActionsBar search={searchBar} placeholder="Search albums…" activeFilter={activeFilter} />
     </View>
   );
 }

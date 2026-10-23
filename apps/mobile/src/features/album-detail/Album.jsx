@@ -226,7 +226,6 @@ export default function Album({ album }) {
         <SearchSortFilterBar
           search={searchBar}
           expandProgress={expandProgress}
-          hasActiveState={activeFilter.length > 0 || !sortOrder.startsWith('createdAt')}
           placeholder="Search notes…"
           sortOrder={sortOrder}
           sortOptions={sortOptions}

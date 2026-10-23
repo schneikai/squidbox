@@ -10,9 +10,10 @@ import SearchOptionsBar from './SearchOptionsBar';
 import { spacing } from '@/styles/designTokens';
 
 /**
- * The search + options bar of a main tab screen. `search` is the `searchBar` from useSearchMode.
+ * The search + options bar of a main tab screen. `search` is the `searchBar` from useSearchMode; the
+ * options button lights up while `activeFilter` holds a filter.
  */
-export default function FloatingActionsBar({ search, placeholder, hasActiveState = false }) {
+export default function FloatingActionsBar({ search, placeholder, activeFilter = [] }) {
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const { setIsSearchActive, openFilterModal } = useFloatingBars();
@@ -32,7 +33,7 @@ export default function FloatingActionsBar({ search, placeholder, hasActiveState
       expandProgress={expandProgress}
       placeholder={placeholder}
       onOpenOptions={openFilterModal}
-      hasActiveState={hasActiveState}
+      hasActiveState={activeFilter.length > 0}
       bottom={insets.bottom + spacing.floatingBarBottom}
       left={spacing.floatingBarSide}
       maxWidth={screenWidth - spacing.floatingBarSide * 2}

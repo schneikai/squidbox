@@ -53,8 +53,6 @@ export default function PostsScreen() {
     });
   }, [sortOrder, activeFilter]);
 
-  const hasActiveOptions = activeFilter.length > 0 || sortOrder !== 'postedAt:desc';
-
   return (
     <View style={{ flex: 1 }}>
       <FloatingHeader title="Posts" onAdd={handleAdd} />
@@ -74,7 +72,7 @@ export default function PostsScreen() {
           </SuperPressable>
         )}
       />
-      <FloatingActionsBar search={searchBar} placeholder="Search posts…" hasActiveState={hasActiveOptions} />
+      <FloatingActionsBar search={searchBar} placeholder="Search posts…" activeFilter={activeFilter} />
     </View>
   );
 }

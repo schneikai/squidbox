@@ -37,7 +37,7 @@ import { colors, glass, motion, scale, spacing, typography } from '@/styles/desi
  *   onCloseSearch    – () => void  (Cancel: leave search and clear the query)
  *   onChangeSearch   – (text: string) => void
  *   onOpenOptions    – () => void
- *   hasActiveState   – boolean  (options button highlighted when sort/filter active)
+ *   hasActiveState   – boolean  (options button highlighted while a filter is active)
  *   placeholder      – string   (default "Search…")
  *   bottom           – number
  *   left             – number

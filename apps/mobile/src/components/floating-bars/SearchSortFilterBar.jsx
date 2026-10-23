@@ -14,16 +14,16 @@ export const SEARCH_SORT_FILTER_BAR_CLEARANCE = spacing.iconButtonSize + spacing
 /**
  * The bottom-left search + options bar of a screen outside the main tabs, with its own sort / filter
  * popover. `search` is the `searchBar` from useSearchMode; pass `expandProgress` to animate a sibling
- * (a segment pill) with the search field. The other props go to SortFilterModal.
+ * (a segment pill) with the search field. The other props go to SortFilterModal; the options button
+ * lights up while `activeFilter` holds a filter.
  */
 export default function SearchSortFilterBar({
   search,
   placeholder,
-  hasActiveState,
   expandProgress,
   sortOrder,
   sortOptions,
-  activeFilter,
+  activeFilter = [],
   filterOptions,
   onSort,
   onFilter,
@@ -42,7 +42,7 @@ export default function SearchSortFilterBar({
         {...search}
         expandProgress={expandProgress ?? ownExpandProgress}
         onOpenOptions={() => setIsSortFilterOpen(true)}
-        hasActiveState={hasActiveState}
+        hasActiveState={activeFilter.length > 0}
         placeholder={placeholder}
         bottom={barBottom}
         left={spacing.floatingBarSide}

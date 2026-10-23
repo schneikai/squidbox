@@ -9,7 +9,7 @@ import { colors, spacing } from '@/styles/designTokens';
  * icon-only button uses it, in a toolbar (FloatingPill) or on its own. No hit slop by default:
  * buttons sit flush in a toolbar, so a slop would steal taps from the neighbour.
  *
- * isActive — accent tint, for a control whose setting is on (e.g. a sort or filter is active).
+ * isActive — accent tint, for a control whose setting is on (e.g. a filter is active).
  * danger   — red icon and press tint, for a destructive action.
  * filled   — fills the icon (see Icon), e.g. a favorite's heart.
  *

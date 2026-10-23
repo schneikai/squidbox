@@ -23,7 +23,7 @@ export default function AlbumPicker({ onPick, showSmartAlbums = false, paddingTo
   const { bottom } = useSafeAreaInsets();
 
   const { listRef, listScrollTop } = useAlbumList();
-  const { sortOrder, sortFunction, sortAlbums, isDefaultSortOrder, isSortedByLastPosted } = useSortAlbumsAction({
+  const { sortOrder, sortFunction, sortAlbums, isSortedByLastPosted } = useSortAlbumsAction({
     afterSort: listScrollTop,
   });
   const { activeFilter, toggleFilter, matchFilter } = useFilterAlbumsAction({ afterFilter: listScrollTop });
@@ -56,7 +56,6 @@ export default function AlbumPicker({ onPick, showSmartAlbums = false, paddingTo
       <SearchSortFilterBar
         search={searchBar}
         expandProgress={expandProgress}
-        hasActiveState={activeFilter.length > 0 || !isDefaultSortOrder}
         placeholder="Search albums…"
         sortOrder={sortOrder}
         sortOptions={albumSortOptions}

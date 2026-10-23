@@ -194,6 +194,13 @@ together; an existing local compose volume needs a dump and restore (or a fresh 
 `npm ci` runs ngrok's postinstall, which downloads its binary on every run and fails the install
 when the download fails. CI doesn't need it. Make `ngrok` optional or skip its script in CI.
 
+### [ ] One way to switch to Custom on a drag
+
+A drag under another sort adopts the screen's order and switches to Custom in two ways: album
+detail (`Album.jsx` `handleReorder`) switches before the write and reverts on failure, the albums
+list (`AlbumsScreen.jsx`) waits for rows read at the drop's write count (`customFrom`). Folding the
+wait into `SortableGrid`'s pending moves would serve both and keep them from drifting apart.
+
 ### [ ] One vertical drag per asset page
 
 The photo's drag (`verticalDrag` in `useZoomGesture`) and the details panel's pan

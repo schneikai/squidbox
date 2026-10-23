@@ -51,7 +51,6 @@ export default function AssetPickerGrid({ scope, exclude, selection, onScroll, s
       <SearchSortFilterBar
         search={searchBar}
         expandProgress={expandProgress}
-        hasActiveState={activeFilter.length > 0 || sortOrder !== 'createdAt:desc'}
         placeholder="Search notes…"
         sortOrder={sortOrder}
         activeFilter={activeFilter}
