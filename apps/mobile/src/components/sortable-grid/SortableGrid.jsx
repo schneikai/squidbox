@@ -13,6 +13,8 @@ import Animated, {
 import SortableGridCell from './SortableGridCell';
 import SortableGridLiftedCell from './SortableGridLiftedCell';
 import heldOrder from './heldOrder';
+import sameOrder from './sameOrder';
+import slotPositions from './slotPositions';
 import useDragReorder from './useDragReorder';
 import useDragSelect from './useDragSelect';
 
@@ -199,9 +201,9 @@ export default function SortableGrid({
   // The slots go to the UI thread only when the order changed, not for every new rows array.
   function sendSlots(ids) {
     const sent = sentOrderRef.current;
-    if (sent && sent.length === ids.length && sent.every((id, slot) => id === ids[slot])) return;
+    if (sent && sameOrder(sent, ids)) return;
     sentOrderRef.current = ids;
-    positions.value = Object.fromEntries(ids.map((id, slot) => [id, slot]));
+    positions.value = slotPositions(ids);
   }
 
   function handleDragStart(id) {

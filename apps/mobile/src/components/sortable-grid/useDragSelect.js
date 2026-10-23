@@ -1,9 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
-import { useEffect, useMemo, useRef } from 'react';
-import { Gesture } from 'react-native-gesture-handler';
+import { useEffect, useRef } from 'react';
 
-import gridIndexAtPoint from './gridIndexAtPoint';
-import useEdgeAutoScroll from './useEdgeAutoScroll';
+import useGridLongPressPan from './useGridLongPressPan';
 
 import useHaptics from '@/hooks/useHaptics';
 
@@ -16,7 +14,7 @@ import useHaptics from '@/hooks/useHaptics';
 // range, restoring items to their pre-drag state. The anchor's initial state
 // decides whether the drag adds or removes (select vs deselect).
 //
-// Near the top/bottom edge the list auto-scrolls (useEdgeAutoScroll). `layout`: the grid's cells,
+// Near the top/bottom edge the list auto-scrolls (useGridLongPressPan). `layout`: the grid's cells,
 // see gridSlotOrigin. `locksSwipeBack: false` for a grid that is a sheet's own screen, see below.
 
 const LONG_PRESS_MS = 150; // hold before selecting starts (keeps normal flicks scrolling)
@@ -48,23 +46,40 @@ export default function useDragSelect({
   const anchorIndexRef = useRef(-1);
   const currentIndexRef = useRef(-1);
   const intentRef = useRef(true); // true = add to selection, false = remove
+  // Indices past the loaded rows (a page the auto-scroll is still loading) select nothing.
+  const loadedRows = rows ?? [];
 
-  // The rows are read through the handlers (not the gesture's deps): a page loading mid-drag, e.g.
-  // from the auto-scroll, must not rebuild the gesture. Indices past the loaded rows select nothing.
-  const handlers = useRef({});
-  handlers.current.rows = rows ?? [];
+  const { gesture, onContainerLayout, startAutoScroll, contentPoint, indexAtContent } = useGridLongPressPan({
+    enabled,
+    holdMs: LONG_PRESS_MS,
+    layout,
+    paddingTop,
+    listRef,
+    scrollY,
+    onLift(x, y) {
+      const index = indexAtContent(contentPoint(x, y), loadedRows.length);
+      if (index === -1) return;
+      baseSelectedRef.current = selectedIdsRef.current ?? [];
+      anchorIndexRef.current = index;
+      currentIndexRef.current = index;
+      intentRef.current = !baseSelectedRef.current.includes(loadedRows[index].id);
+      applyRange(index);
+      haptics.selection();
+      startAutoScroll();
+    },
+    onMove(x, y) {
+      const index = indexAtContent(contentPoint(x, y), loadedRows.length);
+      if (index === -1 || index === currentIndexRef.current) return;
+      currentIndexRef.current = index;
+      applyRange(index);
+    },
+    onRelease() {
+      anchorIndexRef.current = -1;
+      currentIndexRef.current = -1;
+    },
+  });
 
-  handlers.current.indexAtPoint = (x, y) =>
-    gridIndexAtPoint({
-      x,
-      y,
-      scrollOffset: scrollY?.value ?? 0,
-      paddingTop,
-      layout,
-      count: handlers.current.rows.length,
-    });
-
-  handlers.current.applyRange = (currentIndex) => {
+  function applyRange(currentIndex) {
     const anchor = anchorIndexRef.current;
     if (anchor === -1 || currentIndex === -1) return;
 
@@ -72,58 +87,13 @@ export default function useDragSelect({
     const hi = Math.max(anchor, currentIndex);
     const set = new Set(baseSelectedRef.current);
     for (let i = lo; i <= hi; i++) {
-      const id = handlers.current.rows[i]?.id;
+      const id = loadedRows[i]?.id;
       if (!id) continue;
       if (intentRef.current) set.add(id);
       else set.delete(id);
     }
     onSelect([...set]);
-  };
+  }
 
-  handlers.current.updateFromPoint = (x, y) => {
-    const index = handlers.current.indexAtPoint(x, y);
-    if (index === -1 || index === currentIndexRef.current) return;
-    currentIndexRef.current = index;
-    handlers.current.applyRange(index);
-  };
-
-  const autoScroll = useEdgeAutoScroll({
-    listRef,
-    scrollY,
-    onScrolled: (x, y) => handlers.current.updateFromPoint(x, y),
-  });
-
-  const gesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .enabled(enabled)
-        .activateAfterLongPress(LONG_PRESS_MS)
-        .runOnJS(true)
-        .onStart((e) => {
-          const index = handlers.current.indexAtPoint(e.x, e.y);
-          if (index === -1) {
-            anchorIndexRef.current = -1;
-            return;
-          }
-          baseSelectedRef.current = selectedIdsRef.current ?? [];
-          anchorIndexRef.current = index;
-          currentIndexRef.current = index;
-          intentRef.current = !baseSelectedRef.current.includes(handlers.current.rows[index].id);
-          handlers.current.applyRange(index);
-          haptics.selection();
-          autoScroll.start(e.x, e.y);
-        })
-        .onUpdate((e) => {
-          autoScroll.move(e.x, e.y);
-          handlers.current.updateFromPoint(e.x, e.y);
-        })
-        .onFinalize(() => {
-          autoScroll.stop();
-          anchorIndexRef.current = -1;
-          currentIndexRef.current = -1;
-        }),
-    [enabled, selectedIdsRef, onSelect, autoScroll, haptics],
-  );
-
-  return { gesture, onContainerLayout: autoScroll.onContainerLayout };
+  return { gesture, onContainerLayout };
 }
