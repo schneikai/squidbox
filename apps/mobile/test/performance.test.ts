@@ -258,17 +258,6 @@ describe('plan guard', () => {
     expect(work.plans).toContain('USE TEMP B-TREE FOR LAST TERM OF ORDER BY');
   });
 
-  it('sorts by lastPostedAt with one correlated probe per row over the index walk', async () => {
-    const { plansOf } = await library();
-    const work = await plansOf({ scope: 'library', sort: 'lastPostedAt:desc' });
-    expect(work.fullScans).toEqual(Array(3).fill('SCAN a USING INDEX assets_live_created_idx')); // count, rows, ids
-    // One subquery per read (rows, ids): the order names the selected column instead of running it again.
-    expect(work.plans.filter((line) => line.startsWith('CORRELATED SCALAR SUBQUERY'))).toHaveLength(2);
-    expect(work.plans).toContain('SEARCH pe USING INDEX post_assets_asset_idx (asset_id=?)');
-    expect(work.plans).toContain('SEARCH p USING INDEX sqlite_autoindex_posts_1 (id=?)');
-    expect(work.plans).toContain('USE TEMP B-TREE FOR ORDER BY');
-  });
-
   it('reads an album by date through its edges and sorts those, not the library', async () => {
     const { plansOf } = await library();
     const work = await plansOf({ scope: { albumId: AL } });
@@ -291,11 +280,12 @@ describe('plan guard', () => {
 
   it('reads the album stats through one index per branch, never scanning the assets', async () => {
     const { measure, db } = await library();
-    const work = await measure(() => albumQuery({ scope: 'all', assetSort: 'lastPostedAt:desc' }).read(db));
+    const work = await measure(() => albumQuery({ scope: 'all' }).read(db));
     // Not table scans: the albums themselves, the cover ids passed as JSON, each cover's one-row result.
     const scans = work.fullScans.filter((line) => line !== 'SCAN al' && !/^SCAN (json_each|\(subquery-)/.test(line));
     expect(scans).toEqual(
-      Array(2).fill('SCAN a USING INDEX assets_live_created_idx'), // the Favorites count and cover: an ordered walk, once each
+      // The Favorites count and its cover either way: an ordered walk each (only one cover branch runs)
+      Array(3).fill('SCAN a USING INDEX assets_live_created_idx'),
     );
     expect(work.plans).toContain('SEARCH a USING COVERING INDEX assets_deleted_idx (deleted_at>?)');
     expect(work.plans).toContain('SEARCH e USING INDEX album_assets_album_position_idx (album_id=?)');

@@ -75,16 +75,8 @@ export function albumLastPostedAt(albumId: string | SQL): SQL<number | null> {
     where pe.asset_id in ${liveAlbumAssetIds(albumId)} and pe.deleted_at is null)`;
 }
 
-// When the asset was last posted: SQLite orders NULL (never posted) first ascending and last
-// descending, as the grid always did. A read under a lastPostedAt sort selects it as
-// `last_posted_at`, and the order names that column, so SQLite runs the subquery once per row (an
-// identical expression in ORDER BY would run it again).
+/** When the asset was last posted: `null` for never. */
 export const lastPostedAt = sql`(select max(p.posted_at) from post_assets pe join posts p on p.id = pe.post_id where pe.asset_id = a.id and pe.deleted_at is null and p.deleted_at is null)`;
-
-/** Whether the scope's order reads `last_posted_at`, which the read then has to select. */
-export function sortsByLastPostedAt(scope: AssetScope, sort: string): boolean {
-  return scope !== 'deleted' && !isPostScope(scope) && sort.startsWith('lastPostedAt');
-}
 
 /** The assets a scope keeps by their deletion: Deleted the trashed, a post all but the purged, the others the live. */
 export function assetDeletionWhere(scope: AssetScope): SQL {
@@ -114,6 +106,5 @@ export function assetOrder(scope: AssetScope, sort = 'createdAt:desc'): SQL {
   if (scopeEdges(scope, sort)) return sql`e.position, e.id`;
   if (sort === 'random') return sql`random()`;
   const direction = sql.raw(sort.endsWith(':asc') ? 'asc' : 'desc');
-  const byDate = sql`a.created_at ${direction}, a.id ${direction}`;
-  return sortsByLastPostedAt(scope, sort) ? sql`last_posted_at ${direction}, ${byDate}` : byDate;
+  return sql`a.created_at ${direction}, a.id ${direction}`;
 }

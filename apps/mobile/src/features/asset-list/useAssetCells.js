@@ -19,7 +19,6 @@ export default function useAssetCells({
   onPress,
   isSelectMode = false,
   isAssetSelected,
-  showLastPostedAt = false,
   canPeek = true,
 }) {
   const { toggleFavoriteAsset } = useAssets();
@@ -53,14 +52,13 @@ export default function useAssetCells({
       <AssetGridCell
         asset={asset}
         selection={selection}
-        showLastPostedAt={showLastPostedAt}
         onPress={hasPress ? stable.onPress : undefined}
         onDoublePress={asset.deletedAt ? undefined : stable.onDoublePress}
         onLongPress={canPeek ? stable.onLongPress : undefined}
         onLongPressOut={stable.endPeek}
       />
     ),
-    [selection, showLastPostedAt, hasPress, canPeek, stable],
+    [selection, hasPress, canPeek, stable],
   );
 
   return {

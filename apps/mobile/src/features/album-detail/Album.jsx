@@ -19,6 +19,7 @@ import useAppSettings from '@/features/app-settings/useAppSettings';
 import AssetGrid from '@/features/asset-list/AssetGrid';
 import SelectionActions from '@/features/asset-list/SelectionActions';
 import assetFilterOptions from '@/features/asset-list/actions/filter-assets-action/assetFilterOptions';
+import assetSortOptions from '@/features/asset-list/actions/sort-assets-action/assetSortOptions';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import assetQuery from '@/features/asset-list/assetQuery';
 import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
@@ -40,16 +41,12 @@ const TABS = [
   { key: 'Posts', icon: 'share-alt', label: 'Posts' },
 ];
 
-const ASSET_SORT_OPTIONS = [
-  { key: 'custom', label: 'Custom', directional: false },
-  { key: 'createdAt', label: 'Created At' },
-  { key: 'lastPostedAt', label: 'Last Posted At' },
-];
+const ALBUM_SORT_OPTIONS = [...assetSortOptions, { key: 'custom', label: 'Custom order' }];
 
 export default function Album({ album }) {
   const { setAssetsDeleted } = useAssets();
   const { removeAssetsFromAlbum, reorderAlbumAssets, updateAlbum } = useAlbums();
-  const { albumSortOrder, setAlbumSortOrder } = useAppSettings();
+  const { albumSortOrders, setAlbumSortOrders } = useAppSettings();
   const navigation = useNavigation();
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
   const { showActionSheetWithOptions } = useActionSheet();
@@ -60,7 +57,7 @@ export default function Album({ album }) {
   const { isSelectMode, selectedAssetIds, isAssetSelected, toggleSelectMode, exitSelectMode, selectAssets } = selection;
   // A per-session override lets the open album react immediately to sort/reorder changes.
   const [sessionSortOrder, setSessionSortOrder] = useState(null);
-  const sortOrder = sessionSortOrder ?? getAlbumSortOrder(album, albumSortOrder);
+  const sortOrder = sessionSortOrder ?? getAlbumSortOrder(album, albumSortOrders);
   const [activeTab, setActiveTab] = useState('Assets');
   const [postCount, setPostCount] = useState();
   const expandProgress = useSharedValue(0);
@@ -82,18 +79,17 @@ export default function Album({ album }) {
   const reorderEnabled =
     activeTab === 'Assets' && !isSelectMode && !isSmart && activeFilter.length === 0 && !searchText.trim();
 
-  // Smart albums (Favorites/Deleted) have no stored order, so hide "Custom".
-  const sortOptions = isSmart ? ASSET_SORT_OPTIONS.filter((option) => option.key !== 'custom') : ASSET_SORT_OPTIONS;
+  // Smart albums (Favorites/Deleted) have no stored order, so no Custom order.
+  const sortOptions = isSmart ? assetSortOptions : ALBUM_SORT_OPTIONS;
 
+  // Custom order is flagged on the album (synced); a date sort is remembered for the album on this
+  // device and takes it off Custom order (its edge positions, the custom order, are kept for later).
   function applySort(order) {
     if (order === 'custom') {
-      // Custom is per-album: flag this album and leave the global sort alone.
       updateAlbum(album.id, { sortOrder: 'custom' });
     } else {
-      // Any date sort becomes the shared default and takes this album off custom
-      // (its edge positions, the custom order, are kept for later).
-      setAlbumSortOrder(order);
-      updateAlbum(album.id, { sortOrder: null });
+      setAlbumSortOrders({ ...albumSortOrders, [album.id]: order });
+      if (album.sortOrder === 'custom') updateAlbum(album.id, { sortOrder: null });
     }
     setSessionSortOrder(order);
   }
@@ -190,7 +186,6 @@ export default function Album({ album }) {
             selectedAssetIds={selectedAssetIds}
             isAssetSelected={isAssetSelected}
             onPressAsset={actions.openAsset}
-            sortOrder={sortOrder}
             listRef={listRef}
             paddingTop={hasSubHeader ? 0 : paddingTop}
             paddingBottom={paddingBottom}

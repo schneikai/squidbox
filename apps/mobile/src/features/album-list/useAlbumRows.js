@@ -8,8 +8,8 @@ import { useLiveQueryState } from '@/sync/useLiveQuery';
  * useLiveQuery's `isLive`): `rows` (`undefined` until read) and their `readAt`.
  */
 export default function useAlbumRows(scope, { withLastPostedAt, isLive } = {}) {
-  const { albumSortOrder } = useAppSettings();
-  const query = albumQuery({ scope, assetSort: albumSortOrder, withLastPostedAt });
+  const { albumSortOrders } = useAppSettings();
+  const query = albumQuery({ scope, albumSortOrders, withLastPostedAt });
   const { data, readAt } = useLiveQueryState(query.read, query.tables, [query.descriptor], {
     minInterval: MIN_REREAD_INTERVAL,
     isLive,

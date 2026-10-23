@@ -7,8 +7,10 @@ import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
+import useAppSettings from '@/features/app-settings/useAppSettings';
 import AssetGrid from '@/features/asset-list/AssetGrid';
 import assetFilterOptions from '@/features/asset-list/actions/filter-assets-action/assetFilterOptions';
+import assetSortOptions from '@/features/asset-list/actions/sort-assets-action/assetSortOptions';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import assetQuery from '@/features/asset-list/assetQuery';
 import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
@@ -24,8 +26,9 @@ export default function AssetsScreen({ route }) {
   const { setAssetsDeleted } = useAssets();
   const { paddingTop, paddingBottom } = useScreenPadding('main');
 
-  const { listRef, sortOrder, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls({
-    defaultSort: 'createdAt:desc',
+  const { librarySortOrder: sortOrder, setLibrarySortOrder } = useAppSettings();
+  const { listRef, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls({
+    onSort: setLibrarySortOrder,
   });
 
   const { setIsSelectMode, scrollY } = useFloatingBars();
@@ -86,12 +89,12 @@ export default function AssetsScreen({ route }) {
         isAssetSelected={isAssetSelected}
         selectAssets={selectAssets}
         onPressAsset={actions.openAsset}
-        sortOrder={sortOrder}
       />
       <FloatingActionsBar
         search={searchBar}
         placeholder="Search notes…"
         sortOrder={sortOrder}
+        sortOptions={assetSortOptions}
         activeFilter={activeFilter}
         filterOptions={assetFilterOptions}
         showViewOptions

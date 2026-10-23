@@ -9,10 +9,12 @@ const STORAGE_KEY = 'app-settings';
 const DEFAULTS = {
   // "cover" | "contain"
   thumbnailStyle: 'cover',
-  // Global album sort applied to every album that isn't on its own custom order.
-  albumSortOrder: 'createdAt:desc',
+  // The Library's sort.
+  librarySortOrder: 'createdAt:desc',
+  // Each album's sort on this device, by album id, for albums not on Custom order (getAlbumSortOrder).
+  albumSortOrders: {},
   // The albums list's sort (useSortAlbumsAction), shared by the Albums tab and the album picker.
-  albumListSortOrder: 'custom',
+  albumListSortOrder: 'createdAt:desc',
   // Whether a video in the asset detail screen starts by itself.
   isVideoAutoplayOn: true,
   // Whether lifts, drops, peeks and outcomes tap back (useHaptics).

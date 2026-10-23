@@ -6,9 +6,7 @@ import {
   assetOrder,
   assetScopeWhere,
   fromScope,
-  lastPostedAt,
   liveAlbumAssetIds,
-  sortsByLastPostedAt,
 } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import { inJson } from '@/sync/inJson';
@@ -24,7 +22,7 @@ import { MEDIA_TYPES } from '@/utils/assets/constants';
  * @param {object} descriptor
  * @param {'library' | 'favorites' | 'deleted' | { albumId: string } | { postId: string } | { assetId: string }} [descriptor.scope]
  *   a post or one asset: see AssetScope
- * @param {'createdAt:asc' | 'createdAt:desc' | 'lastPostedAt:asc' | 'lastPostedAt:desc' | 'custom' | 'random'} [descriptor.sort]
+ * @param {'createdAt:asc' | 'createdAt:desc' | 'custom' | 'random'} [descriptor.sort]
  *   `custom` needs an album scope; the Deleted scope has no sort menu and lists the most recently
  *   deleted first; a post has no sort either and lists in its own order (filter and search still apply)
  * @param {('favorites' | 'images' | 'videos')[]} [descriptor.filter]
@@ -41,12 +39,10 @@ export default function assetQuery({
 }) {
   const isCustom = sort === 'custom';
   if (isCustom && !scope.albumId) throw new Error('The custom sort needs an album scope');
-  const isByLastPosted = sortsByLastPostedAt(scope, sort);
 
   const tables = [schema.assets];
   if (scope.albumId) tables.push(schema.albumAssets);
   if (scope.postId) tables.push(schema.postAssets);
-  if (isByLastPosted) tables.push(schema.postAssets, schema.posts);
   if (exclude.albumId) tables.push(schema.albumAssets);
 
   const filterConditions = [];
@@ -77,8 +73,7 @@ export default function assetQuery({
   }
 
   function ordered(tx, fields, ids) {
-    const selected = isByLastPosted ? { ...fields, lastPostedAt: lastPostedAt.as('last_posted_at') } : fields;
-    return from(tx.select(selected)).where(where(ids)).orderBy(assetOrder(scope, sort));
+    return from(tx.select(fields)).where(where(ids)).orderBy(assetOrder(scope, sort));
   }
 
   return {

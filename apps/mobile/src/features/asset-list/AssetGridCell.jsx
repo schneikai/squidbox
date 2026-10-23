@@ -8,7 +8,7 @@ import SuperPressable from '@/components/SuperPressable';
 // re-renders only the cells whose props changed, not every cell on screen.
 export default memo(AssetGridCell);
 
-function AssetGridCell({ asset, selection, showLastPostedAt, onPress, onDoublePress, onLongPress, onLongPressOut }) {
+function AssetGridCell({ asset, selection, onPress, onDoublePress, onLongPress, onLongPressOut }) {
   return (
     <SuperPressable
       onPress={onPress && (() => onPress(asset))}
@@ -18,7 +18,7 @@ function AssetGridCell({ asset, selection, showLastPostedAt, onPress, onDoublePr
       style={{ flex: 1 }}
       testID="asset-cell"
     >
-      <AssetListItem asset={asset} selection={selection} showLastPostedAt={showLastPostedAt} />
+      <AssetListItem asset={asset} selection={selection} />
     </SuperPressable>
   );
 }

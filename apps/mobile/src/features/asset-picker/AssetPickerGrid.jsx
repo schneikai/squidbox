@@ -4,6 +4,7 @@ import { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import SearchSortFilterBar, { SEARCH_SORT_FILTER_BAR_CLEARANCE } from '@/components/floating-bars/SearchSortFilterBar';
 import AssetGrid from '@/features/asset-list/AssetGrid';
 import assetFilterOptions from '@/features/asset-list/actions/filter-assets-action/assetFilterOptions';
+import assetSortOptions from '@/features/asset-list/actions/sort-assets-action/assetSortOptions';
 import assetQuery from '@/features/asset-list/assetQuery';
 import useListControls from '@/hooks/useListControls';
 import { usePagedQuery } from '@/sync/usePagedQuery';
@@ -41,13 +42,13 @@ export default function AssetPickerGrid({ scope, exclude, selection, onScroll, s
         isAssetSelected={selection.isAssetSelected}
         selectAssets={selection.selectAssets}
         onPressAsset={(asset) => selection.toggleSelectAsset(asset.id)}
-        sortOrder={sortOrder}
       />
       <SearchSortFilterBar
         search={searchBar}
         expandProgress={expandProgress}
         placeholder="Search notes…"
         sortOrder={sortOrder}
+        sortOptions={assetSortOptions}
         activeFilter={activeFilter}
         filterOptions={assetFilterOptions}
         onSort={sort}

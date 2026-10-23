@@ -4,14 +4,13 @@ import { Image, View, StyleSheet, Text } from 'react-native';
 import AssetImage from '@/components/AssetImage';
 import Icon from '@/components/Icon';
 import { colors, radii, scale, sizes, typography } from '@/styles/designTokens';
-import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
 // Memoized: providers keep unchanged assets as the same objects, so a write re-renders only its cells.
 export default memo(AssetListItem);
 
-function AssetListItem({ asset, selection, showLastPostedAt }) {
-  const { lastPostedAt, duration, isFavorite, isSynced, notes } = asset;
+function AssetListItem({ asset, selection }) {
+  const { duration, isFavorite, isSynced, notes } = asset;
   // The glows darken the corners behind the indicators, so they only show over a loaded picture, as
   // does the cloud badge: the placeholder says itself when a picture isn't uploaded yet. They are
   // mounted from the start and only hidden: an image appears a few frames after it mounts, so
@@ -32,7 +31,6 @@ function AssetListItem({ asset, selection, showLastPostedAt }) {
   return (
     <View style={styles.container}>
       <AssetImage asset={asset} renderOverlay={renderOverlay} />
-      {showLastPostedAt && <LastPostedAt lastPostedAt={lastPostedAt} />}
       <VideoDuration duration={duration} />
 
       {/* Top-left: selection indicator (empty ring or filled checkmark) */}
@@ -55,14 +53,6 @@ function SelectRing({ selection, assetId }) {
   const state = useSelectionState(selection, assetId);
   if (state === 'off') return null;
   return <SelectIndicator isSelected={state === 'selected'} />;
-}
-
-function LastPostedAt({ lastPostedAt }) {
-  if (!lastPostedAt) {
-    return <Text style={styles.lastPostedAt}>Never posted</Text>;
-  }
-
-  return <Text style={styles.lastPostedAt}>{dateToTimeAgo(lastPostedAt)}</Text>;
 }
 
 // One pre-rendered radial fade (black at 42% in the top-left corner, easing out to transparent with no
@@ -135,15 +125,6 @@ const styles = StyleSheet.create({
     color: colors.text.inverse,
     fontSize: typography.caption2,
     fontWeight: '600',
-  },
-
-  lastPostedAt: {
-    position: 'absolute',
-    bottom: 5,
-    left: 5,
-    color: colors.text.inverse,
-    fontSize: typography.caption2,
-    fontWeight: '700',
   },
 
   indicators: {

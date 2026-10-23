@@ -50,24 +50,6 @@ describe('assetQuery', () => {
     expect(await asc.ids(db)).toEqual(['asset-0', 'asset-4', 'asset-1', 'asset-2', 'asset-3']);
   });
 
-  it('sorts by lastPostedAt with never-posted assets in date order, as the comparators did', async () => {
-    await seedAssets([{}, {}, {}, {}]);
-    await createPost(db, { id: 'p1', postedAt: 10 }, ['asset-0']);
-    await createPost(db, { id: 'p2', postedAt: 30 }, ['asset-0']);
-    await createPost(db, { id: 'p3', postedAt: 20 }, ['asset-1']);
-    await createPost(db, { id: 'p4', postedAt: 99, deletedAt: 5 }, ['asset-2']); // deleted: doesn't count
-    await createPost(db, { id: 'p5', postedAt: null }, ['asset-3']); // unposted: doesn't count
-
-    const desc = assetQuery({ scope: 'library', sort: 'lastPostedAt:desc' });
-    const { rows } = await desc.read(db, { limit: 10 });
-    expect(rowIds(rows)).toEqual(['asset-0', 'asset-1', 'asset-3', 'asset-2']);
-    expect(rows.map((row: { lastPostedAt: number | null }) => row.lastPostedAt)).toEqual([30, 20, null, null]);
-    expect(await desc.ids(db)).toEqual(rowIds(rows));
-
-    const asc = assetQuery({ scope: 'library', sort: 'lastPostedAt:asc' });
-    expect(await asc.ids(db)).toEqual(['asset-2', 'asset-3', 'asset-1', 'asset-0']);
-  });
-
   it('filters by favorites and media type like the grid did', async () => {
     await seedAssets([
       { isFavorite: true, mediaType: 'photo' },
@@ -141,7 +123,7 @@ describe('assetQuery', () => {
     const { rows, count } = await one.read(db, { limit: 10 });
     expect(rowIds(rows)).toEqual(['asset-1']);
     expect(count).toBe(1);
-    expect(await assetQuery({ scope: { assetId: 'asset-1' }, sort: 'lastPostedAt:desc' }).ids(db)).toEqual(['asset-1']);
+    expect(await assetQuery({ scope: { assetId: 'asset-1' }, sort: 'createdAt:asc' }).ids(db)).toEqual(['asset-1']);
     expect(await assetQuery({ scope: { assetId: 'asset-2' } }).ids(db)).toEqual([]); // deleted
     expect(rowIds(await one.rowsByIds(db, ['asset-0', 'asset-1', 'asset-2'])).sort()).toEqual(['asset-0', 'asset-1']);
   });
@@ -190,7 +172,7 @@ describe('assetQuery', () => {
     expect(count).toBe(3);
     expect(await post.ids(db)).toEqual(rowIds(rows));
     expect(rowIds((await post.read(db, { limit: 2 })).rows)).toEqual(['asset-1', 'asset-2']);
-    expect(await assetQuery({ scope: { postId: 'p1' }, sort: 'lastPostedAt:asc' }).ids(db)).toEqual(rowIds(rows));
+    expect(await assetQuery({ scope: { postId: 'p1' }, sort: 'createdAt:asc' }).ids(db)).toEqual(rowIds(rows));
     expect(await assetQuery({ scope: { postId: 'p2' } }).ids(db)).toEqual(['asset-0']);
   });
 
@@ -218,18 +200,18 @@ describe('assetQuery', () => {
       { scope: 'library' },
       { scope: 'library', filter: ['favorites'] },
       { scope: 'library', filter: ['videos'], search: 'o' },
-      { scope: 'library', sort: 'lastPostedAt:desc', search: 'o' },
+      { scope: 'library', sort: 'createdAt:asc', search: 'o' },
       { scope: 'favorites' },
       { scope: 'deleted' },
       { scope: { albumId: AL } },
       { scope: { albumId: AL }, sort: 'custom', filter: ['images'] },
-      { scope: { albumId: AL }, sort: 'lastPostedAt:asc' },
+      { scope: { albumId: AL }, sort: 'createdAt:asc' },
       { scope: { postId: 'p1' } },
       { scope: { postId: 'p1' }, filter: ['videos'], search: 'o' },
       { scope: { assetId: 'asset-1' }, search: 'o' },
       { scope: 'library', exclude: ['asset-0', 'asset-4'] },
       { scope: { albumId: AL }, exclude: ['asset-1'], search: 'o' },
-      { scope: 'library', exclude: { albumId: AL }, sort: 'lastPostedAt:desc' },
+      { scope: 'library', exclude: { albumId: AL }, sort: 'createdAt:asc' },
     ];
     for (const descriptor of descriptors) {
       const q = assetQuery(descriptor);
@@ -260,11 +242,6 @@ describe('assetQuery', () => {
     expect(assetQuery({ scope: 'library', exclude: { albumId: AL } }).tables).toEqual([
       schema.assets,
       schema.albumAssets,
-    ]);
-    expect(assetQuery({ scope: 'library', sort: 'lastPostedAt:desc' }).tables).toEqual([
-      schema.assets,
-      schema.postAssets,
-      schema.posts,
     ]);
   });
 });

@@ -49,13 +49,18 @@ The app is built and tested only for iOS. Needed:
   reorder.
 - Pairs with the Android half of "Share several assets at once". Test on an emulator or a phone.
 
-### [ ] Keep the original filename
+### [ ] Record when a photo was favorited and taken, its original filename and location
 
-Imports rename the file to `<id>.<ext>` (`buildAssetAsync.js`) and drop the original name, though the
-picker returns it (e.g. `IMG_1234.HEIC`). Store it in a new synced, nullable `originalFilename`
-(shared collection schema, client and server migrations; deploy the server before the app sends
-it) and show it in the details panel's info block. Older assets stay without it unless the legacy
-backups carry names.
+Next up. Nothing reads them yet, but they can't be recovered later. New synced, nullable fields on
+assets (shared collection schema, client and server migrations; deploy the server before the app
+sends them):
+- `favoritedAt`, set when a photo is favorited, cleared when it's unfavorited.
+- `takenAt`, the capture date from the picker at import (Newest/Oldest could follow Apple's later).
+- `originalFilename`: imports rename the file to `<id>.<ext>` (`buildAssetAsync.js`) and drop the
+  name the picker returns (e.g. `IMG_1234.HEIC`). Show it in the details panel's info block.
+- Location (latitude/longitude) from the picker, for grouping or search later.
+
+Older assets stay without them unless the camera roll or the legacy backups still have them.
 
 ### [ ] Share links (like iCloud links)
 

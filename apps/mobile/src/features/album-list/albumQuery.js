@@ -1,15 +1,7 @@
 import { and, getTableColumns, isNull, sql } from 'drizzle-orm';
 import { alias, QueryBuilder } from 'drizzle-orm/sqlite-core';
 
-import {
-  a,
-  albumLastPostedAt,
-  assetOrder,
-  assetScopeWhere,
-  fromScope,
-  lastPostedAt,
-  sortsByLastPostedAt,
-} from '@/sync/assetSql';
+import { a, albumLastPostedAt, assetOrder, assetScopeWhere, fromScope } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import { inJson } from '@/sync/inJson';
 import { readByIdMap } from '@/sync/readByIds';
@@ -22,17 +14,13 @@ const al = alias(schema.albums, 'al');
 // 435 ms per album).
 const thisAlbum = { albumId: sql.raw('al.id') };
 const countOf = (scope) => sql`(select count(*) from assets a where ${assetScopeWhere(scope, 'createdAt:desc')})`;
-// The first asset in the scope's order, as assetQuery reads it: with the `last_posted_at` column the
-// order may name, and one column left for the CASE.
+// The first asset in the scope's order, as assetQuery reads it.
 function firstOf(scope, sort) {
-  const fields = sortsByLastPostedAt(scope, sort)
-    ? { id: a.id, lastPostedAt: lastPostedAt.as('last_posted_at') }
-    : { id: a.id };
-  const first = fromScope(new QueryBuilder().select(fields), scope, sort)
+  const first = fromScope(new QueryBuilder().select({ id: a.id }), scope, sort)
     .where(assetScopeWhere(scope, sort))
     .orderBy(assetOrder(scope, sort))
     .limit(1);
-  return sql`(select id from (${first}))`;
+  return sql`(${first})`;
 }
 
 /**
@@ -43,21 +31,25 @@ function firstOf(scope, sort) {
  * Sort, filter and search stay in JS (prepareAlbums), albums being hundreds.
  * @param {object} descriptor
  * @param {'all' | { assetIds: string[] }} [descriptor.scope] albums holding any of these assets
- * @param {'createdAt:asc' | 'createdAt:desc' | 'lastPostedAt:asc' | 'lastPostedAt:desc'} [descriptor.assetSort]
- *   the shared album-asset sort, which decides the cover of albums not on custom order
+ * @param {Record<string, 'createdAt:asc' | 'createdAt:desc'>} [descriptor.albumSortOrders] each album's sort
+ *   by id (getAlbumSortOrder), which decides the cover of albums not on custom order
  * @param {boolean} [descriptor.withLastPostedAt]
  */
-export default function albumQuery({ scope = 'all', assetSort = 'createdAt:desc', withLastPostedAt = true }) {
+export default function albumQuery({ scope = 'all', albumSortOrders = {}, withLastPostedAt = true }) {
   const assetCount = sql`case al.smart_album_type
     when 'FAVORITES' then ${countOf('favorites')}
     when 'DELETED' then ${countOf('deleted')}
     else ${countOf(thisAlbum)}
   end`;
+  const oldestFirstIds = Object.keys(albumSortOrders).filter((id) => albumSortOrders[id] === 'createdAt:asc');
+  const isOldestFirst = inJson(sql.raw('al.id'), oldestFirstIds);
   const coverAssetId = sql`case
-    when al.smart_album_type = 'FAVORITES' then ${firstOf('favorites', assetSort)}
-    when al.smart_album_type = 'DELETED' then ${firstOf('deleted', assetSort)}
+    when al.smart_album_type = 'FAVORITES' and ${isOldestFirst} then ${firstOf('favorites', 'createdAt:asc')}
+    when al.smart_album_type = 'FAVORITES' then ${firstOf('favorites', 'createdAt:desc')}
+    when al.smart_album_type = 'DELETED' then ${firstOf('deleted')}
     when al.sort_order = 'custom' then ${firstOf(thisAlbum, 'custom')}
-    else ${firstOf(thisAlbum, assetSort)}
+    when ${isOldestFirst} then ${firstOf(thisAlbum, 'createdAt:asc')}
+    else ${firstOf(thisAlbum, 'createdAt:desc')}
   end`;
   const newestPostedAt = sql`case when al.smart_album_type is null then ${albumLastPostedAt(thisAlbum.albumId)} end`;
   const inScope =
@@ -69,7 +61,7 @@ export default function albumQuery({ scope = 'all', assetSort = 'createdAt:desc'
   if (withLastPostedAt) tables.push(schema.posts, schema.postAssets);
 
   return {
-    descriptor: { scope, assetSort, withLastPostedAt },
+    descriptor: { scope, albumSortOrders, withLastPostedAt },
     tables,
     read(db) {
       return db.transaction(async (tx) => {

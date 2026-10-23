@@ -1,4 +1,6 @@
-// An album on custom order shows its own manual order; every other album follows the shared sort.
-export default function getAlbumSortOrder(album, globalSortOrder) {
-  return album.sortOrder === 'custom' ? 'custom' : globalSortOrder;
+// An album on Custom order (synced) shows its own manual order; any other shows the sort picked for
+// it on this device (albumSortOrders, by album id), Newest first until one is.
+export default function getAlbumSortOrder(album, albumSortOrders) {
+  if (album.sortOrder === 'custom') return 'custom';
+  return albumSortOrders[album.id] ?? 'createdAt:desc';
 }

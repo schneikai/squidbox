@@ -69,30 +69,19 @@ describe('albumQuery', () => {
     expect(rows.regular.coverAssetId).toBeUndefined();
   });
 
-  it('covers follow the effective sort: the shared asset sort, or the custom order', async () => {
+  it("covers follow the effective sort: the album's own sort, or the custom order", async () => {
     await library();
-    let rows = await byId(albumQuery({ scope: 'all', assetSort: 'createdAt:desc' }));
+    let rows = await byId(albumQuery({ scope: 'all' }));
     expect(rows.regular.cover.id).toBe('asset-3');
     expect(rows.custom.cover.id).toBe('asset-3'); // the first edge's asset-4 is deleted
     expect(rows.favorites.cover.id).toBe('asset-5');
-    rows = await byId(albumQuery({ scope: 'all', assetSort: 'createdAt:asc' }));
+    const oldestFirst = { regular: 'createdAt:asc', custom: 'createdAt:asc', favorites: 'createdAt:asc' } as const;
+    rows = await byId(albumQuery({ scope: 'all', albumSortOrders: oldestFirst }));
     expect(rows.regular.cover.id).toBe('asset-1');
     expect(rows.custom.cover.id).toBe('asset-3');
     expect(rows.favorites.cover.id).toBe('asset-2');
     expect(rows.deleted.cover.id).toBe('asset-4');
     expect(rows.regular.cover.filename).toBe('a.jpg'); // the whole asset row
-  });
-
-  it('covers under the lastPostedAt sort show the last posted asset first', async () => {
-    await library();
-    await createPost(db, { id: 'p1', postedAt: 10 }, ['asset-1']);
-    await createPost(db, { id: 'p2', postedAt: 20 }, ['asset-2']);
-    let rows = await byId(albumQuery({ scope: 'all', assetSort: 'lastPostedAt:desc' }));
-    expect(rows.regular.cover.id).toBe('asset-2');
-    expect(rows.favorites.cover.id).toBe('asset-2');
-    rows = await byId(albumQuery({ scope: 'all', assetSort: 'lastPostedAt:asc' }));
-    expect(rows.regular.cover.id).toBe('asset-3'); // the never-posted one first
-    expect(rows.favorites.cover.id).toBe('asset-5');
   });
 
   it('a cover is the first cell its album shows, under every asset sort', async () => {
@@ -103,9 +92,10 @@ describe('albumQuery', () => {
     ]);
     await createPost(db, { postedAt: 10 }, ['asset-1']);
     await createPost(db, { postedAt: 20 }, ['asset-3', 'asset-5']);
-    for (const assetSort of ['createdAt:asc', 'createdAt:desc', 'lastPostedAt:asc', 'lastPostedAt:desc'] as const) {
-      for (const row of await albumQuery({ scope: 'all', assetSort }).read(db)) {
-        const sort = getAlbumSortOrder(row, assetSort);
+    for (const order of ['createdAt:asc', 'createdAt:desc'] as const) {
+      const albumSortOrders = { regular: order, custom: order, favorites: order, empty: order };
+      for (const row of await albumQuery({ scope: 'all', albumSortOrders }).read(db)) {
+        const sort = getAlbumSortOrder(row, albumSortOrders);
         const { rows } = await assetQuery({ scope: getAlbumAssetScope(row), sort }).read(db, { limit: 1 });
         expect(row.cover?.id, `${row.id} under ${sort}`).toBe(rows[0]?.id);
       }

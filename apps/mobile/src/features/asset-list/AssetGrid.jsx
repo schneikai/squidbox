@@ -14,7 +14,6 @@ export default function AssetGrid({
   selectedAssetIds,
   isAssetSelected,
   onPressAsset,
-  sortOrder,
   listRef,
   paddingTop,
   paddingBottom,
@@ -32,7 +31,6 @@ export default function AssetGrid({
     onPress: onPressAsset,
     isSelectMode,
     isAssetSelected,
-    showLastPostedAt: sortOrder.includes('lastPostedAt'),
     // Long-press lifts to drag when reordering (and drag-selects in select mode): the grid peeks then.
     canPeek: !reorderEnabled,
   });
