@@ -1,13 +1,6 @@
 import { and, count, eq, getTableColumns, isNotNull, not, sql } from 'drizzle-orm';
 
-import {
-  a,
-  assetDeletionWhere,
-  assetOrder,
-  assetScopeWhere,
-  fromScope,
-  liveAlbumAssetIds,
-} from '@/sync/assetSql';
+import { a, assetDeletionWhere, assetOrder, assetScopeWhere, fromScope, liveAlbumAssetIds } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import { inJson } from '@/sync/inJson';
 import { matchingIds } from '@/sync/matchingIds';
