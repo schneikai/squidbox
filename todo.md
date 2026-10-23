@@ -93,14 +93,11 @@ The photo viewer shows the 1000 px thumbnail, so zoom stops at 4× (`useZoomGest
 well before that. Loading the full-resolution file once zoomed would make deeper zoom worthwhile,
 with the maximum taken from the photo's own size.
 
-### [ ] Show when an album was last posted on a post's screen
+### [ ] List an album's other posts on a post's screen
 
-Two parts:
-- **Last posted on the album row.** The "Posted Albums" rows (`features/post-detail/Post.jsx`) show
-  the album's asset count. Keep it and add when the album was last posted, like the suggestions card
-  does, so a repeat is easy to spot.
-- **The album's other posts.** Below it, list the other posts made with media from this album, like
-  the photo details list an asset's posts (`AssetDetailsPanel`). Reuse that list.
+Below the "Posted Albums" rows (`features/post-detail/Post.jsx`), list the other posts made with
+media from this album, like the photo details list an asset's posts (`AssetDetailsPanel`). Reuse that
+list.
 
 ### [ ] Remove deleted items for good after 30 days
 
