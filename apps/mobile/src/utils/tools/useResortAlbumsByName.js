@@ -1,4 +1,4 @@
-import { keysInOrder } from '@squidbox/shared';
+import { positionsInOrder } from '@squidbox/shared';
 
 import readAlbumsInCustomOrder from '@/features/album-list/readAlbumsInCustomOrder';
 import useAlbums from '@/features/albums-context/useAlbums';
@@ -10,7 +10,7 @@ import { getDb } from '@/sync/db/client';
  * exact position.
  *
  * Works on the albums' custom order (their synced `position`): the numeric albums swap into each
- * other's slots, then the albums out of that order get new positions (keysInOrder); only those are written.
+ * other's slots, then the albums out of that order get new positions (positionsInOrder); only those are written.
  * Returns the number of numeric albums.
  */
 export default function useResortAlbumsByName() {
@@ -26,11 +26,7 @@ export default function useResortAlbumsByName() {
     let next = 0;
     const newOrder = currentOrder.map((album) => (isNumericName(album.name) ? numericDesc[next++] : album));
 
-    const positions = keysInOrder(newOrder.map((album) => album.position));
-    const changed = newOrder.flatMap((album, i) =>
-      album.position === positions[i] ? [] : [[album.id, { position: positions[i] }]],
-    );
-    await updateManyAlbums(Object.fromEntries(changed));
+    await updateManyAlbums(positionsInOrder(newOrder));
 
     return numericDesc.length;
   }

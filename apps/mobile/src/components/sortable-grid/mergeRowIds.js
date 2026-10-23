@@ -1,6 +1,6 @@
 /**
  * A drag's slot order (`order`, ids) brought up to date with the rows (`rowIds`, in their order):
- * ids no longer among them leave, except `keepId` (the lifted one), and new ones go right after the
+ * ids no longer among them leave, except `keepId` (the lifted one, if any), and new ones go right after the
  * row before them in `rowIds` (first if none), so a page the auto-scroll loaded lands at the end and
  * a synced new album among the others.
  */

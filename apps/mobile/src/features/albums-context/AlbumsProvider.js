@@ -46,8 +46,8 @@ export default function AlbumsProvider({ children }) {
         await repo.updateMany(db, Object.fromEntries(changesById));
         requestSync();
       },
-      // A drag in the albums list: `afterId: null` drops at the front. Resolves to the write's
-      // committed-write count, as moveAlbum.
+      // A drag in the albums list under `sort` (see moveAlbum): `afterId: null` drops at the front.
+      // Resolves to the write's committed-write count, as moveAlbum.
       moveAlbum: async (change) => {
         const writtenAt = await moveAlbum(db, repo, change);
         requestSync();

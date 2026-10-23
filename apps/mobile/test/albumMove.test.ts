@@ -118,8 +118,8 @@ describe('moveAlbum', () => {
     await db.delete(schema.outbox);
 
     // A deleted, never-placed album would otherwise sort first and need a key.
-    await moveAlbum(db, albums, { id: 'c', afterId: null });
-    await moveAlbum(db, albums, { id: 'a', afterId: 'gone' });
+    await moveAlbum(db, albums, { id: 'c', afterId: null, sort: 'custom' });
+    await expect(moveAlbum(db, albums, { id: 'a', afterId: 'gone', sort: 'custom' })).rejects.toThrow();
 
     const rows = await db.select().from(schema.albums);
     const live = rows.filter((row) => row.deletedAt === null).sort(sortAlbumsByCustomOrder);
@@ -131,12 +131,12 @@ describe('moveAlbum', () => {
   it('makes the order on screen the custom one first when the drag ran under another sort', async () => {
     const db = makeTestDb();
     const albums = makeRepository('albums', schema.albums);
-    // Custom order a b c d; the screen shows them by name descending, with d left out.
+    // Custom order a b c d; the screen showed c b a (d left out), and a was dropped after c.
     await albums.createMany(db, [album('a', k1), album('b', k2), album('c', k3), album('d', k4)]);
 
     await db.delete(schema.outbox);
 
-    await moveAlbum(db, albums, { id: 'a', afterId: 'c', order: ['c', 'b', 'a'] });
+    await moveAlbum(db, albums, { id: 'a', afterId: 'c', order: ['c', 'a', 'b'], sort: 'name:desc' });
 
     const rows = await db.select().from(schema.albums);
     expect(rows.sort(sortAlbumsByCustomOrder).map((row) => row.id)).toEqual(['c', 'a', 'b', 'd']);
@@ -145,19 +145,33 @@ describe('moveAlbum', () => {
     expect(outbox.map((row) => row.recordId)).toEqual(['c']);
   });
 
-  it('puts the dragged album first under another sort, and writes nothing when its neighbour is gone', async () => {
+  it('throws without writing when the dropped album is gone, so the grid undoes the drop', async () => {
     const db = makeTestDb();
     const albums = makeRepository('albums', schema.albums);
     await albums.createMany(db, [album('a', k1), album('b', k2), album('c', k3)]);
     await db.delete(schema.outbox);
 
-    await moveAlbum(db, albums, { id: 'b', afterId: 'gone', order: ['c', 'b', 'a'] });
+    await expect(
+      moveAlbum(db, albums, { id: 'gone', afterId: 'c', order: ['c', 'gone', 'b', 'a'], sort: 'name:desc' }),
+    ).rejects.toThrow();
     const outbox = await db.select().from(schema.outbox).where(eq(schema.outbox.collection, 'albums'));
     expect(outbox).toEqual([]);
 
-    await moveAlbum(db, albums, { id: 'a', afterId: null, order: ['c', 'b', 'a', 'unknown'] });
+    // Dropped first under another sort, with an id the database doesn't know.
+    await moveAlbum(db, albums, { id: 'a', afterId: null, order: ['a', 'c', 'unknown', 'b'], sort: 'name:desc' });
     const rows = await db.select().from(schema.albums);
     expect(rows.sort(sortAlbumsByCustomOrder).map((row) => row.id)).toEqual(['a', 'c', 'b']);
+  });
+
+  it('keeps a drop under another sort whose neighbour went meanwhile: the order on screen still holds', async () => {
+    const db = makeTestDb();
+    const albums = makeRepository('albums', schema.albums);
+    await albums.createMany(db, [album('a', k1), album('b', k2), album('c', k3)]);
+
+    await moveAlbum(db, albums, { id: 'a', afterId: 'gone', order: ['c', 'gone', 'a', 'b'], sort: 'name:desc' });
+
+    const rows = await db.select().from(schema.albums);
+    expect(rows.sort(sortAlbumsByCustomOrder).map((row) => row.id)).toEqual(['c', 'a', 'b']);
   });
 
   it('resolves to the count that includes its own write, even when another write commits right after', async () => {
@@ -165,7 +179,7 @@ describe('moveAlbum', () => {
     const albums = makeRepository('albums', schema.albums);
     await albums.createMany(db, [album('a', k1), album('b', k2)]);
     const before = db.committedWrites();
-    const moving = moveAlbum(db, albums, { id: 'b', afterId: null });
+    const moving = moveAlbum(db, albums, { id: 'b', afterId: null, sort: 'custom' });
     const other = albums.update(db, 'a', { name: 'renamed' }); // queued right behind the move
     expect(await moving).toBe(before + 1);
     await other;

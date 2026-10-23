@@ -12,8 +12,7 @@ import Animated, {
 
 import SortableGridCell from './SortableGridCell';
 import SortableGridLiftedCell from './SortableGridLiftedCell';
-import applyPendingMoves from './applyPendingMoves';
-import dropLandedMoves from './dropLandedMoves';
+import heldOrder from './heldOrder';
 import useDragReorder from './useDragReorder';
 import useDragSelect from './useDragSelect';
 
@@ -23,7 +22,6 @@ import useHaptics from '@/hooks/useHaptics';
 // albums). Cells are absolutely positioned so they can be dragged and reflowed, and only the rows
 // within WINDOW_SCREENS screens of the viewport are mounted, like a FlatList's window. With `onPeek`,
 // a lifted cell held still peeks instead (see useDragReorder).
-const NO_MOVES = [];
 const WINDOW_SCREENS = 2;
 // How long after a drop its click may still come (it follows the pointer's release at once).
 const CLICK_AFTER_DROP_MS = 500;
@@ -103,24 +101,25 @@ export default function SortableGrid({
   const containerRef = useRef(null);
   const swallowClickUntilRef = useRef(0);
 
-  // The cells and the gestures follow the rows with the drops they don't show yet applied: a drop's
-  // write is re-read after it, and the rows until then would spring the cells back and let the next
-  // drag lift the wrong cell. While a drag runs, the gesture owns the slots; rows arriving meanwhile
-  // apply after it.
-  const [pendingMoves, setPendingMoves] = useState(NO_MOVES);
+  // After a drop the cells and the gestures hold the order it left until rows that include its write
+  // land (heldOrder): the rows until then would spring the cells back and let the next drag lift the
+  // wrong cell. While a drag runs, the gesture owns the slots; rows arriving meanwhile apply after it.
+  const [hold, setHold] = useState(null);
   // One reorder at a time: a drag waits until the previous drop's write has settled, so each drop is
   // made on an order the database has (a failed first drop would leave the second on a guessed one).
   const [isWriting, setIsWriting] = useState(false);
   const isDraggingRef = useRef(false);
   const sentOrderRef = useRef(null);
-  const landed = dropLandedMoves(pendingMoves, rowsReadAt, reorderEnabled);
-  const moves = landed.length === pendingMoves.length ? pendingMoves : landed;
-  if (moves !== pendingMoves) setPendingMoves(moves);
-  const ordered = useMemo(() => rows && applyPendingMoves(rows, moves), [rows, moves]);
+  const ordered = useMemo(() => {
+    const heldIds = rows && heldOrder(hold, rows, rowsReadAt, reorderEnabled);
+    if (!heldIds) return rows;
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    return heldIds.map((id) => byId.get(id));
+  }, [rows, rowsReadAt, hold, reorderEnabled]);
   const orderedRef = useRef(ordered);
   orderedRef.current = ordered;
   useEffect(() => {
-    if (ordered && !isDraggingRef.current) sendSlots(ordered);
+    if (ordered && !isDraggingRef.current) sendSlots(ordered.map((row) => row.id));
   }, [ordered]);
 
   // On web a press ends in a DOM click, which the pan doesn't cancel as it does natively: the click
@@ -198,8 +197,7 @@ export default function SortableGrid({
   const lifted = useMemo(() => liftedId && ordered?.find((row) => row.id === liftedId), [liftedId, ordered]);
 
   // The slots go to the UI thread only when the order changed, not for every new rows array.
-  function sendSlots(list) {
-    const ids = list.map((row) => row.id);
+  function sendSlots(ids) {
     const sent = sentOrderRef.current;
     if (sent && sent.length === ids.length && sent.every((id, slot) => id === ids[slot])) return;
     sentOrderRef.current = ids;
@@ -223,16 +221,21 @@ export default function SortableGrid({
     if (swallowClickUntilRef.current === Infinity) swallowClickUntilRef.current = Date.now() + CLICK_AFTER_DROP_MS;
     // The gesture moved the slots itself: whatever arrived during the drag applies now.
     sentOrderRef.current = null;
-    sendSlots(applyPendingMoves(orderedRef.current, change ? [change] : NO_MOVES));
-    if (!change) return;
-    setPendingMoves((current) => [...current, change]);
+    if (!change) {
+      sendSlots(orderedRef.current.map((row) => row.id));
+      return;
+    }
+    const dropped = { ids: change.order };
+    setHold(dropped);
+    sendSlots(change.order);
     setIsWriting(true);
     try {
       const writtenAt = await onReorder(change);
-      setPendingMoves((current) => current.map((move) => (move === change ? { ...move, writtenAt } : move)));
+      // A drop that reports no write count counts as landed, so the cells follow the rows.
+      setHold((current) => (current === dropped ? { ...dropped, writtenAt: writtenAt ?? -1 } : current));
     } catch (error) {
       console.error('Reorder failed', error);
-      setPendingMoves((current) => current.filter((move) => move !== change));
+      setHold((current) => (current === dropped ? null : current));
       haptics.error();
       Alert.alert(moveFailedTitle, 'The drop was undone.');
     } finally {

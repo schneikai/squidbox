@@ -150,8 +150,9 @@ export default function useDragReorder({
     handlers.current.moveActive(handlers.current.targetIndexAtPoint(x, y));
   };
 
-  // Settles the lifted cell and reports the drop: the moved row and the loaded row above its new
-  // slot (`null` at the top), or `null` when it landed after the same row it started after.
+  // Settles the lifted cell and reports the drop: the moved row, the loaded row above its new slot
+  // (`null` at the top) and the slots' ids in their new order, or `null` when it landed after the
+  // same row it started after.
   handlers.current.settleAndCommit = () => {
     const slot = activeIndexRef.current;
     if (slot === -1) return;
@@ -167,7 +168,7 @@ export default function useDragReorder({
     });
     const order = orderRef.current;
     const afterId = order[slot - 1] ?? null;
-    const change = afterId === startAfterIdRef.current ? null : { id: order[slot], afterId };
+    const change = afterId === startAfterIdRef.current ? null : { id: order[slot], afterId, order: [...order] };
     if (change) haptics.drop();
     handlers.current.onDragEnd?.(change);
   };

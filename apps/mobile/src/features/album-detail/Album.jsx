@@ -9,6 +9,7 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import FloatingSegmentPill from '@/components/floating-bars/FloatingSegmentPill';
 import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar';
 import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
+import reorderUnderSort from '@/components/sortable-grid/reorderUnderSort';
 import AlbumPostsView from '@/features/album-detail/AlbumPostsView';
 import AddAssetAction from '@/features/album-detail/actions/AddAssetAction';
 import MoreAction from '@/features/album-detail/actions/MoreAction';
@@ -102,21 +103,20 @@ export default function Album({ album }) {
     listScrollTop();
   }
 
-  // A drag under any sort adopts the order on screen and switches the album to Custom, like
-  // Reminders; the loaded grid keeps its depth, so no scroll-to-top. A failed write shows the order
-  // the database holds: the album's stored sort (an earlier drag may have made it Custom).
-  async function handleReorder(change) {
-    if (sortOrder !== 'custom') {
-      keepLimit({ ...query.descriptor, sort: 'custom' });
-      setSessionSortOrder('custom');
-    }
-    try {
-      return await reorderAlbumAssets(album, { assetId: change.id, afterId: change.afterId, sort: sortOrder });
-    } catch (error) {
-      keepLimit({ ...query.descriptor, sort: getAlbumSortOrder(album, albumSortOrder) });
-      setSessionSortOrder(null);
-      throw error;
-    }
+  // A drag under another sort adopts the order on screen and switches the album to Custom
+  // (reorderUnderSort); the loaded grid keeps its depth, so no scroll-to-top. A failed write goes back
+  // to the sort it was made on.
+  function handleReorder(change) {
+    return reorderUnderSort(change, {
+      sortOrder,
+      setSortOrder: (order) => {
+        keepLimit({ ...query.descriptor, sort: order });
+        setSessionSortOrder(order);
+      },
+      // The grid is paged, so `change.order` holds only the loaded rows; the write reads the album's
+      // full order under `sort` itself.
+      move: ({ id, afterId }, sort) => reorderAlbumAssets(album, { assetId: id, afterId, sort }),
+    });
   }
 
   const headerSubtitle =

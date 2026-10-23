@@ -1,9 +1,7 @@
 import sortAlbumsByCustomOrder from './sortAlbumsByCustomOrder';
 import sortAlbumsByLastPostedDesc from './sortAlbumsByLastPostedDesc';
 
-import useSort from '@/hooks/useSort';
-
-const DEFAULT_SORT_ORDER = 'custom';
+import useAppSettings from '@/features/app-settings/useAppSettings';
 
 const sortOptions = {
   custom: sortAlbumsByCustomOrder,
@@ -27,12 +25,21 @@ const sortOptions = {
   'lastPostedAt:desc': sortAlbumsByLastPostedDesc,
 };
 
+// The albums list's sort, remembered across launches (albumListSortOrder); a stored key no longer
+// offered falls back to Custom. `afterSort` runs on every change.
 export default function useSortAlbumsAction({ afterSort } = {}) {
-  const { sortOrder, sort } = useSort(DEFAULT_SORT_ORDER, { afterSort });
+  const { albumListSortOrder, setAlbumListSortOrder } = useAppSettings();
+  const sortOrder = sortOptions[albumListSortOrder] ? albumListSortOrder : 'custom';
+
+  function sortAlbums(order) {
+    setAlbumListSortOrder(order);
+    if (afterSort) afterSort();
+  }
+
   return {
     sortOrder,
     sortFunction: sortOptions[sortOrder],
-    sortAlbums: sort,
+    sortAlbums,
     isSortedByLastPosted: sortOrder.startsWith('lastPostedAt'),
   };
 }

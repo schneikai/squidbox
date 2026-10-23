@@ -11,6 +11,8 @@ const DEFAULTS = {
   thumbnailStyle: 'cover',
   // Global album sort applied to every album that isn't on its own custom order.
   albumSortOrder: 'createdAt:desc',
+  // The albums list's sort (useSortAlbumsAction), shared by the Albums tab and the album picker.
+  albumListSortOrder: 'custom',
   // Whether a video in the asset detail screen starts by itself.
   isVideoAutoplayOn: true,
   // Whether lifts, drops, peeks and outcomes tap back (useHaptics).
