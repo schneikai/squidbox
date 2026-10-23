@@ -1,8 +1,8 @@
 import { useNavigation } from '@react-navigation/native';
 import { Alert } from 'react-native';
 
+import IconMenuButton from '@/components/IconMenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
-import PopupMenu from '@/components/popup-menu-options/PopupMenu';
 import useAlbums from '@/features/albums-context/useAlbums';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 
@@ -49,13 +49,13 @@ export default function MoreAction({ album, afterDelete, onSelect }) {
   }
 
   return (
-    <PopupMenu icon="menu" variant="pill">
+    <IconMenuButton>
       {!!onSelect && <MenuOption label="Select" icon="check-circle" onPress={onSelect} />}
       <MenuOption label={album.notes ? 'Edit note' : 'Add note'} icon="document" onPress={handleEditNotes} />
       <MenuOption label="Rename" icon="pencil" onPress={handleRenameAlbum} />
       {!!album.archivedAt && <MenuOption label="Unarchive" icon="arrow-up-circle" onPress={handleUnarchiveAlbum} />}
       {!album.archivedAt && <MenuOption label="Archive" icon="archive" onPress={handleArchiveAlbum} />}
       <MenuOption label="Delete" icon="trash" onPress={handleDeleteAlbum} danger isLast />
-    </PopupMenu>
+    </IconMenuButton>
   );
 }

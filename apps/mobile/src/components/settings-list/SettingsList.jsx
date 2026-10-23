@@ -3,7 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Icon from '@/components/Icon';
 import { SCREEN_PADDING } from '@/constants';
 import actionButtonStyles from '@/styles/actionButtonStyles';
-import { colors, radii, spacing, typography } from '@/styles/designTokens';
+import { colors, radii, shadows, spacing, typography } from '@/styles/designTokens';
 
 // iOS-style grouped-list building blocks shared by the Settings screen and its detail screens
 // (Backup, Sync), so they all look and behave the same.
@@ -61,11 +61,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.glassSurface,
     borderRadius: radii.card,
     marginBottom: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 4,
+    ...shadows.section,
   },
   row: {
     flexDirection: 'row',

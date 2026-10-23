@@ -1,6 +1,6 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { colors, radii, typography } from '@/styles/designTokens';
+import { colors, radii, shadows, typography } from '@/styles/designTokens';
 
 // A grouped-list "card" holding a fixed-height, internally-scrolling log (sync runs, backup runs).
 // Matches the Section card look so it sits naturally in a Settings-style screen.
@@ -35,11 +35,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 4,
+    ...shadows.section,
   },
   inner: { gap: 8 },
   entry: { gap: 1 },

@@ -147,26 +147,20 @@ error, and could be made from the cloud original.
 ## Design
 
 - **Asset detail background:** a blurred background in the asset's colors.
-- **Toolbar:** the floating bars wrap their buttons in a glass pill with padding around them
-  (`FloatingPill`, `spacing.barPaddingY`), so a single button, above all the purple one, sits in a
-  ring and the bar is taller than its buttons. Instead the bar keeps one height and only groups
-  buttons: several sit together with a gap between them, one stands alone without the ring.
-  Consider moving the settings button into the toolbar, in a color other than the primary purple.
 - **Albums list:** a better layout for name, asset count and last posted.
 
 ## Code quality
 
-### [ ] Scan the whole app for duplication
+### [ ] Scan the rest of the app for duplication
 
-Each look at the asset grids found more copies: the same hooks wired the same way per screen,
-private copies of components (`PillButton` twice), hand-styled buttons next to the component that
-does it, two screens that were one. Go through `apps/mobile/src` feature by feature (screens,
-providers, utils, styles) and merge what repeats into the existing components and hooks, per
-AGENTS.md. A copy-paste detector such as [jscpd](https://github.com/kucherenko/jscpd) finds the
-literal copies; the near-copies need reading. Also look for reusable components and compositions
-that could move into `src/components` and be used by the features. `ProgressRing` is already a
-component but lives inside `components/progress-overlay` and is used only there; move it up if
-another screen needs a ring.
+The floating bars, buttons and cards are consolidated (`IconButton`, `SegmentedPill`, `Card`,
+`shadows.section`); a copy detector ([jscpd](https://github.com/kucherenko/jscpd)) finds only small
+literal copies left. Still to read for near-copies: providers, hooks and utils (e.g.
+`useAssetList` / `usePostList`, `useDragReorder` / `useDragSelect`, `albumSchema` / `assetSchema`),
+the hand-styled `TouchableOpacity` buttons (`CreatePostScreen`, `IgnoredPostsScreen`, `Album`'s
+notes, `LoginForm`, the AI screens), and the two popover systems (`MenuButton` and
+`SortFilterModal`), which could be one. The AI screens (`AiChatModal`, `RandomSuggestionsScreen`)
+are best done with the AI assistant rework.
 
 ### [ ] Bump INSTALLED with each preview build
 
@@ -362,6 +356,9 @@ library. Fine for a few passes; a table keyed by record would scale if passes ge
 
 ## Ideas
 
+- **Backup progress ring.** The Backup screen shows a running backup as "sent / total" text.
+  `components/ProgressRing` (now a shared component, used by the progress overlay) could show it
+  there too. Owner to decide.
 - **Background sync.** Sync runs only while the app is open. A background task or a silent push
   from the backend could keep the library fresh. Owner asks: real background sync via a native
   module?

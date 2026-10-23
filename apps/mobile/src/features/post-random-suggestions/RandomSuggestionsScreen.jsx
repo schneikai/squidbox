@@ -289,7 +289,7 @@ export default function RandomSuggestionsScreen({ route, navigation }) {
         leftSlot={<ModalCloseButton onPress={close} />}
         centerSlot="Suggestions"
         rightSlot={
-          <View style={styles.headerRight}>
+          <>
             <IconMenuButton accessibilityLabel="Suggestions options">
               <MenuOption label={selectedModel} icon="cpu" onPress={() => modelPickerRef.current?.open()} />
               <MenuOption label="Edit Prompt" icon="pencil" onPress={openEditPrompt} isLast />
@@ -299,7 +299,7 @@ export default function RandomSuggestionsScreen({ route, navigation }) {
               onPress={handleConfirm}
               disabled={(!currentAsset && !currentText) || isClosing}
             />
-          </View>
+          </>
         }
       />
 
@@ -413,7 +413,7 @@ export default function RandomSuggestionsScreen({ route, navigation }) {
             centerSlot="Edit Prompt"
             rightSlot={<GradientPillButton label="Save" onPress={handleSavePrompt} />}
           />
-          <View style={styles.promptInputCard}>
+          <Card style={styles.promptInputCard}>
             <Textarea
               value={editablePrompt}
               onChangeText={setEditablePrompt}
@@ -421,7 +421,7 @@ export default function RandomSuggestionsScreen({ route, navigation }) {
               ref={promptInputRef}
               style={styles.promptInput}
             />
-          </View>
+          </Card>
         </View>
       </Modal>
     </ModalSheet>
@@ -542,11 +542,6 @@ const styles = StyleSheet.create({
   },
 
   // --- Header right ---
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
 
   // --- Caption card ---
   captionCard: {
@@ -580,15 +575,6 @@ const styles = StyleSheet.create({
     flex: 1,
     margin: SCREEN_PADDING,
     marginTop: MODAL_HEADER_HEIGHT + 8,
-    backgroundColor: colors.glassSurface,
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 1,
   },
   promptInput: {
     flex: 1,

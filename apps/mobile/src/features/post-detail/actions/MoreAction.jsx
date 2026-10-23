@@ -1,8 +1,8 @@
 import { useNavigation } from '@react-navigation/native';
 import { Alert } from 'react-native';
 
+import IconMenuButton from '@/components/IconMenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
-import PopupMenu from '@/components/popup-menu-options/PopupMenu';
 import usePosts from '@/features/posts-context/usePosts';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 
@@ -42,11 +42,11 @@ export default function MoreAction({ post, afterDelete }) {
   }
 
   return (
-    <PopupMenu icon="menu" variant="pill">
+    <IconMenuButton>
       <MenuOption label="Download assets" icon="cloud-download" onPress={handleDownloadAssets} />
       <MenuOption label="Edit" icon="edit" onPress={handleEditPost} />
       <MenuOption label="Repost" icon="repeat" onPress={handleRepost} />
       <MenuOption label="Delete" icon="trash" onPress={handleDeletePost} danger isLast />
-    </PopupMenu>
+    </IconMenuButton>
   );
 }

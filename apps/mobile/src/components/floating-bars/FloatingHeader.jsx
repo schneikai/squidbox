@@ -1,9 +1,9 @@
 import { useNavigation } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, interpolate, Extrapolation, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import AccountButton from './AccountButton';
 import { useFloatingBars } from './FloatingBarsContext';
 import FloatingPill from './FloatingPill';
 
@@ -11,15 +11,13 @@ import GradientButton from '@/components/GradientButton';
 import Icon from '@/components/Icon';
 import IconButton from '@/components/IconButton';
 import SelectionActions from '@/features/asset-list/SelectionActions';
-import useCloud from '@/features/cloud/useCloud';
-import { colors, motion, shadows, spacing, typography } from '@/styles/designTokens';
+import { colors, motion, spacing, typography } from '@/styles/designTokens';
 
 // The main screens' header. A screen with select mode passes its `selection`
 // (useToggleSelectAssetsAction), the `selectionActions` (useAssetSelectionActions) and `onDelete`.
 export default function FloatingHeader({ title, onAdd, selection, selectionActions, onDelete }) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { isAuthenticated, needsReauth } = useCloud();
   const { scrollY } = useFloatingBars();
   const isSelectMode = selection?.isSelectMode ?? false;
 
@@ -34,7 +32,7 @@ export default function FloatingHeader({ title, onAdd, selection, selectionActio
     };
   });
 
-  // Normal controls (avatar + action pill) fade out in select mode
+  // Normal controls (action pill + account) fade out in select mode
   const normalStyle = useAnimatedStyle(() => ({
     opacity: withTiming(isSelectMode ? 0 : 1, motion.move),
     transform: [{ translateX: withTiming(isSelectMode ? 30 : 0, motion.move) }],
@@ -57,40 +55,17 @@ export default function FloatingHeader({ title, onAdd, selection, selectionActio
       {/* Page title */}
       <Animated.Text style={[styles.title, titleStyle]}>{title}</Animated.Text>
 
-      {/* Normal mode: action pill + avatar circle */}
+      {/* Normal mode: action pill + account */}
       <Animated.View style={[styles.rightGroup, normalStyle]}>
-        {/* Action pill: select toggle + add */}
         <FloatingPill>
-          {selection && <IconButton icon="check-circle" onPress={selection.toggleSelectMode} />}
-          <GradientButton onPress={onAdd} style={styles.addButton} accessibilityLabel="Add">
+          {selection && (
+            <IconButton icon="check-circle" onPress={selection.toggleSelectMode} accessibilityLabel="Select" />
+          )}
+          <GradientButton onPress={onAdd} accessibilityLabel="Add">
             <Icon name="add" color={colors.textInverse} />
           </GradientButton>
         </FloatingPill>
-
-        {/* Avatar / account bubble — separate, to the right of the action pill */}
-        <Pressable
-          onPress={handleSettings}
-          accessibilityRole="button"
-          accessibilityLabel="Settings"
-          style={({ pressed }) => [styles.avatarButton, pressed && styles.avatarPressed]}
-        >
-          {isAuthenticated ? (
-            <LinearGradient
-              colors={[colors.gradientStart, colors.gradientEnd]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.avatarGradient}
-            >
-              <Icon name="user" size={spacing.iconSizeSmall} color={colors.textInverse} />
-            </LinearGradient>
-          ) : (
-            <View style={styles.avatarFallback}>
-              <Icon name="user" size={spacing.iconSizeSmall} color={colors.textSecondary} />
-            </View>
-          )}
-          {/* The session ended: a sign-in is needed before anything syncs */}
-          {needsReauth && <View style={styles.avatarBadge} />}
-        </Pressable>
+        <AccountButton onPress={handleSettings} />
       </Animated.View>
 
       {/* Select mode pill */}
@@ -104,8 +79,6 @@ export default function FloatingHeader({ title, onAdd, selection, selectionActio
     </View>
   );
 }
-
-const AVATAR_SIZE = 40;
 
 const styles = StyleSheet.create({
   container: {
@@ -126,54 +99,10 @@ const styles = StyleSheet.create({
   rightGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
   pillWrapper: {
     position: 'absolute',
     right: 0,
-  },
-
-  // ── Avatar / account bubble ──────────────────────────────────────────────
-  avatarButton: {
-    width: AVATAR_SIZE,
-    height: AVATAR_SIZE,
-    borderRadius: AVATAR_SIZE / 2,
-    ...shadows.floating,
-  },
-  avatarPressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.93 }],
-  },
-  avatarGradient: {
-    width: AVATAR_SIZE,
-    height: AVATAR_SIZE,
-    borderRadius: AVATAR_SIZE / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarFallback: {
-    width: AVATAR_SIZE,
-    height: AVATAR_SIZE,
-    borderRadius: AVATAR_SIZE / 2,
-    backgroundColor: colors.glassSurface,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarBadge: {
-    position: 'absolute',
-    top: -1,
-    right: -1,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: colors.danger,
-    borderWidth: 2,
-    borderColor: colors.textInverse,
-  },
-  // ── Pill internals ────────────────────────────────────────────────────────
-  addButton: {
-    marginLeft: 2,
   },
 });

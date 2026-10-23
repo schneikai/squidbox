@@ -1,13 +1,10 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import FloatingPill from './FloatingPill';
+import SegmentedPill from './SegmentedPill';
 
-import GradientButton from '@/components/GradientButton';
-import Icon from '@/components/Icon';
-import actionButtonStyles from '@/styles/actionButtonStyles';
-import { colors, spacing } from '@/styles/designTokens';
+import { spacing } from '@/styles/designTokens';
 
 /**
  * The bottom-right pill that switches between a screen's views. `tabs` are `{ key, icon, label }`; it
@@ -27,32 +24,8 @@ export default function FloatingSegmentPill({ tabs, activeTab, onTabPress, expan
       style={[styles.container, { bottom: insets.bottom + spacing.floatingBarBottom }, slideStyle]}
       pointerEvents="box-none"
     >
-      <FloatingPill>
-        {tabs.map((tab) => (
-          <SegmentButton key={tab.key} tab={tab} isActive={activeTab === tab.key} onPress={() => onTabPress(tab.key)} />
-        ))}
-      </FloatingPill>
+      <SegmentedPill items={tabs} activeKey={activeTab} onSelect={onTabPress} />
     </Animated.View>
-  );
-}
-
-function SegmentButton({ tab, isActive, onPress }) {
-  if (isActive) {
-    return (
-      <GradientButton onPress={onPress} accessibilityLabel={tab.label}>
-        <Icon name={tab.icon} color={colors.iconActive} />
-      </GradientButton>
-    );
-  }
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={tab.label}
-      style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
-    >
-      <Icon name={tab.icon} color={colors.iconInactive} />
-    </Pressable>
   );
 }
 

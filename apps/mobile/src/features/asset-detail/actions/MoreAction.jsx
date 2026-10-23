@@ -1,8 +1,8 @@
 import * as Clipboard from 'expo-clipboard';
 import { Alert } from 'react-native';
 
+import IconMenuButton from '@/components/IconMenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
-import PopupMenu from '@/components/popup-menu-options/PopupMenu';
 import getAssetFileDownloadUrlAsync from '@/utils/cloud-api/assets/getAssetFileDownloadUrlAsync';
 
 export default function MoreAction({ asset, navigation }) {
@@ -25,10 +25,10 @@ export default function MoreAction({ asset, navigation }) {
   }
 
   return (
-    <PopupMenu icon="menu" variant="pill">
+    <IconMenuButton>
       <MenuOption label="Add to album" icon="library" onPress={handleAddToAlbum} />
       <MenuOption label="Create post" icon="edit" onPress={handleCreatePost} />
       <MenuOption label="Copy file URL" icon="link" onPress={handleCopyFileUrl} isLast />
-    </PopupMenu>
+    </IconMenuButton>
   );
 }

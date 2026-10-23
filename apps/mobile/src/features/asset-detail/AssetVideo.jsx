@@ -78,7 +78,7 @@ function Message({ message }) {
 
   return (
     <FloatingPill style={styles.message}>
-      <Icon name={message.icon} color={colors.textSecondary} />
+      <Icon name={message.icon} color={colors.textSecondary} style={styles.messageIcon} />
       <Text style={styles.messageText}>{message.text}</Text>
     </FloatingPill>
   );
@@ -101,6 +101,11 @@ const styles = StyleSheet.create({
   },
   message: {
     marginHorizontal: spacing.floatingBarSide,
+  },
+  // Sits where a button would: a toolbar is one button tall.
+  messageIcon: {
+    marginLeft: spacing.barPaddingX,
+    marginVertical: (spacing.iconButtonSize - spacing.iconSize) / 2,
   },
   messageText: {
     flexShrink: 1,

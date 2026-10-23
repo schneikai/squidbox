@@ -1,5 +1,4 @@
 import { useNavigation } from '@react-navigation/native';
-import { StyleSheet, View } from 'react-native';
 
 import IconButton from '@/components/IconButton';
 import Page from '@/components/Page';
@@ -10,7 +9,6 @@ import assetQuery from '@/features/asset-list/assetQuery';
 import useAssetCells from '@/features/asset-list/useAssetCells';
 import useDeletedAssetsActions from '@/features/assets-context/useDeletedAssetsActions';
 import useScreenPadding from '@/hooks/useScreenPadding';
-import { colors } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 import pluralizeText from '@/utils/pluralizeText';
@@ -77,11 +75,11 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
         title={album.name}
         onBack={() => navigation.goBack()}
         menuSlot={
-          <View style={styles.menuRow}>
-            <IconButton icon="undo" onPress={handleRestoreAssets} />
-            <IconButton icon="checkbox" onPress={toggleSelectMode} />
-            <IconButton icon="trash" onPress={handleDeleteAssets} color={colors.danger} />
-          </View>
+          <>
+            <IconButton icon="undo" onPress={handleRestoreAssets} accessibilityLabel="Restore" />
+            <IconButton icon="checkbox" onPress={toggleSelectMode} accessibilityLabel="Select" />
+            <IconButton icon="trash" onPress={handleDeleteAssets} danger accessibilityLabel="Delete permanently" />
+          </>
         }
       />
       <AssetList
@@ -94,11 +92,3 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
     </Page>
   );
 }
-
-const styles = StyleSheet.create({
-  menuRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-});

@@ -2,8 +2,8 @@ import { use } from 'react';
 import { View, StyleSheet, ActivityIndicator, Pressable, Text } from 'react-native';
 
 import ProgressOverlayStateContext from './ProgressOverlayStateContext';
-import ProgressRing from './ProgressRing';
 
+import ProgressRing from '@/components/ProgressRing';
 import { colors, scale, typography } from '@/styles/designTokens';
 
 // The visual overlay, rendered IN-TREE (never via a native Modal). A native Modal presents from the

@@ -37,6 +37,7 @@ export const colors = {
 
   accent: '#7C3AED',
   accentLight: 'rgba(124,58,237,0.12)',
+  accentSurface: '#EFE7FD', // accentLight over white, opaque for a surface over content (the account avatar)
 
   danger: '#E11D48',
   dangerLight: 'rgba(225,29,72,0.1)',
@@ -53,6 +54,7 @@ export const colors = {
 
   // Interactive states
   pressedBg: 'rgba(0,0,0,0.06)', // subtle press overlay on light surfaces
+  mutedSurface: '#F0F0F0', // pressedBg over white, opaque
   menuHover: 'rgba(0,0,0,0.05)', // highlighted row on menu surfaces
 
   // Generic overlays for thumbnail badges etc.
@@ -67,19 +69,20 @@ export const shadows = {
     shadowRadius: 16,
     elevation: 8,
   },
+  // Grouped list sections (settings-list) lifted off the page
+  section: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 4,
+  },
   subtle: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 4,
-  },
-  accent: {
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
 };
 
@@ -98,6 +101,7 @@ export const spacing = {
   iconSize: scale(20), // standard icon inside a button (~45% of button size)
   iconSizeSmall: scale(18), // compact icon (avatar, secondary indicators)
   iconSizeLarge: scale(32), // standalone icon that stands for content (e.g. a not-uploaded thumbnail)
+  toolbarFrame: 2, // the glass frame around a toolbar's buttons (FloatingPill)
   barPaddingX: scale(8),
   barPaddingY: scale(6),
   contentPaddingTop: scale(88),

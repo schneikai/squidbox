@@ -1,26 +1,23 @@
 import { useNavigationState } from '@react-navigation/native';
 import { useEffect } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming, interpolate } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useFloatingBars } from './FloatingBarsContext';
-import FloatingPill from './FloatingPill';
+import SegmentedPill from './SegmentedPill';
 import { getActiveTabName, isDetailScreenActive } from './navStateHelpers';
 
-import GradientButton from '@/components/GradientButton';
-import Icon from '@/components/Icon';
 import { navigateToTab } from '@/navigators/navigationRef';
-import actionButtonStyles from '@/styles/actionButtonStyles';
-import { colors, motion, spacing } from '@/styles/designTokens';
+import { motion, spacing } from '@/styles/designTokens';
 
 const NAV_ITEMS = [
-  { tab: 'AssetsTab', icon: 'grid', label: 'Library' },
-  { tab: 'AlbumsTab', icon: 'folder', label: 'Albums' },
-  { tab: 'PostsTab', icon: 'share-alt', label: 'Posts' },
+  { key: 'AssetsTab', icon: 'grid', label: 'Library' },
+  { key: 'AlbumsTab', icon: 'folder', label: 'Albums' },
+  { key: 'PostsTab', icon: 'share-alt', label: 'Posts' },
 ];
 
-const MAIN_TABS = NAV_ITEMS.map((item) => item.tab);
+const MAIN_TABS = NAV_ITEMS.map((item) => item.key);
 
 export default function FloatingNavigationBar() {
   const insets = useSafeAreaInsets();
@@ -70,38 +67,8 @@ export default function FloatingNavigationBar() {
         navBarStyle,
       ]}
     >
-      <FloatingPill>
-        {NAV_ITEMS.map(({ tab, icon, label }) => (
-          <NavButton
-            key={tab}
-            icon={icon}
-            label={label}
-            isActive={activeTab === tab}
-            onPress={() => handleNavigate(tab)}
-          />
-        ))}
-      </FloatingPill>
+      <SegmentedPill items={NAV_ITEMS} activeKey={activeTab} onSelect={handleNavigate} />
     </Animated.View>
-  );
-}
-
-function NavButton({ icon, label, isActive, onPress }) {
-  if (isActive) {
-    return (
-      <GradientButton onPress={onPress} accessibilityLabel={label}>
-        <Icon name={icon} color={colors.iconActive} />
-      </GradientButton>
-    );
-  }
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
-    >
-      <Icon name={icon} color={colors.iconInactive} />
-    </Pressable>
   );
 }
 

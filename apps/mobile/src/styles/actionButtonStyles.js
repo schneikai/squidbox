@@ -3,23 +3,8 @@ import { StyleSheet } from 'react-native';
 import { colors, spacing, radii } from '@/styles/designTokens';
 
 /**
- * Props to pass to MenuTrigger's triggerTouchable so the TouchableHighlight
- * that the library renders is itself clipped to a circle.
- *
- * The triggerWrapper style (applied to the inner View) doesn't clip the outer
- * touchable's underlay — this style object targets the TouchableHighlight itself.
- */
-export const menuTriggerTouchable = {
-  underlayColor: colors.pressedBg,
-  style: {
-    borderRadius: radii.pill,
-    overflow: 'hidden',
-  },
-};
-
-/**
- * Shared styles for inline action button components (sort, filter, search icons)
- * used in picker headers and the old-style header actions.
+ * Shared button shapes: `pillButton` is the 44pt round tap target of every IconButton; `button`
+ * adds a grey fill for a round button on its own.
  */
 export default StyleSheet.create({
   button: {
@@ -31,8 +16,6 @@ export default StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.pressedBg,
   },
-  // Used inside a FloatingPill — same shape as button but no background,
-  // since the pill already provides the visual container.
   pillButton: {
     width: spacing.iconButtonSize,
     height: spacing.iconButtonSize,
@@ -40,22 +23,6 @@ export default StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  buttonActive: {
-    backgroundColor: colors.accentLight,
-  },
-  buttonWarning: {
-    backgroundColor: colors.accentLight,
-  },
-  buttonDanger: {
-    backgroundColor: colors.dangerLight,
-  },
-  // Vertical divider between adjacent buttons inside a FloatingPill row
-  pillSeparator: {
-    width: 1,
-    height: 20,
-    backgroundColor: colors.glassBorder,
-    marginHorizontal: 4,
   },
   // iOS hairline divider between rows in a grouped list/settings section
   listDivider: {

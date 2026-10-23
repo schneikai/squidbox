@@ -4,8 +4,8 @@ import { StyleSheet, View } from 'react-native';
 import { glass, radii, shadows, spacing } from '@/styles/designTokens';
 
 /**
- * Base frosted-glass pill container used by all three floating bars.
- * Wraps content in a BlurView + border + shadow.
+ * A toolbar: the frosted-glass pill that groups the buttons that belong together, one button tall
+ * with a thin frame around them. Wraps content in a BlurView + border + shadow.
  */
 export default function FloatingPill({ children, style }) {
   return (
@@ -32,8 +32,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.barPaddingY,
-    gap: 4,
+    padding: spacing.toolbarFrame,
     flexShrink: 1,
   },
 });

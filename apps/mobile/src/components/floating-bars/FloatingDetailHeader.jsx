@@ -1,12 +1,11 @@
 import { useState, useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
 
-import Icon from '@/components/Icon';
-import actionButtonStyles from '@/styles/actionButtonStyles';
+import IconButton from '@/components/IconButton';
 import { colors, motion, scale, spacing } from '@/styles/designTokens';
 
 /**
@@ -80,13 +79,7 @@ export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot
         onLayout={(e) => setLeftWidth(e.nativeEvent.layout.width)}
       >
         <FloatingPill style={styles.backPill}>
-          <Pressable
-            onPress={onBack}
-            style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
-            hitSlop={8}
-          >
-            <Icon name="chevron-left" color={colors.text} />
-          </Pressable>
+          <IconButton icon="chevron-left" onPress={onBack} accessibilityLabel="Back" />
         </FloatingPill>
       </Animated.View>
 
@@ -139,7 +132,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 1,
-    paddingHorizontal: spacing.barPaddingX,
+    paddingHorizontal: spacing.barPaddingX * 2,
   },
   title: {
     fontSize: scale(14),

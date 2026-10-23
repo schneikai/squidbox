@@ -3,7 +3,7 @@
 // to a trigger). Supports a two-panel drill-down: sort options at root, filter
 // options in a sub-panel with a back button.
 //
-// TODO: Consider unifying with PopupMenu/BlurPopoverRenderer into a single system.
+// TODO: Consider unifying with MenuButton/BlurPopoverRenderer into a single system.
 // Would require adding sub-panel navigation support to the popup-menu renderer.
 import { BlurView } from 'expo-blur';
 import { useEffect, useRef, useState } from 'react';

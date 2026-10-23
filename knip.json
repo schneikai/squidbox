@@ -3,7 +3,8 @@
   "ignoreExportsUsedInFile": true,
   "workspaces": {
     ".": {
-      "entry": ["scripts/*.mjs"]
+      "entry": ["scripts/*.mjs"],
+      "ignore": [".claude/skills/apple-design/**"]
     },
     "apps/mobile": {
       "entry": ["metro.config.js", "tunnel.js", "scripts/*.{js,mjs}", "src/**/*.web.{js,ts}"],

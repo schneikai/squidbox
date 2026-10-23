@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useRef } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useAnimatedKeyboard,
@@ -12,10 +12,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
 
-import Icon from '@/components/Icon';
+import IconButton from '@/components/IconButton';
 import AppTextInput from '@/components/TextInput';
-import actionButtonStyles from '@/styles/actionButtonStyles';
-import { colors, motion, scale, spacing, typography } from '@/styles/designTokens';
+import { colors, glass, motion, scale, spacing, typography } from '@/styles/designTokens';
 
 /**
  * Reusable bottom-left floating search + options bar, following the iOS search pattern:
@@ -81,7 +80,7 @@ export default function SearchOptionsBar({
   }
 
   const containerStyle = useAnimatedStyle(() => ({
-    width: interpolate(expandProgress.value, [0, 1], [spacing.iconButtonSize * 2 + 20, maxWidth], Extrapolation.CLAMP),
+    width: interpolate(expandProgress.value, [0, 1], [COLLAPSED_WIDTH, maxWidth], Extrapolation.CLAMP),
     // keyboard.height on iOS includes the bottom safe area inset, which is already
     // baked into the `bottom` prop — subtract it to avoid double-counting.
     bottom: bottom + Math.max(0, keyboard.height.value - bottomInset),
@@ -109,27 +108,17 @@ export default function SearchOptionsBar({
     <Animated.View style={[styles.container, { left }, containerStyle]}>
       <FloatingPill style={styles.pill}>
         {/* Search icon — always visible */}
-        <Pressable
-          onPress={handleOpen}
-          accessibilityLabel="Search"
-          style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
-        >
-          <Icon name="search" color={colors.iconInactive} />
-        </Pressable>
+        <IconButton icon="search" onPress={handleOpen} color={colors.iconInactive} accessibilityLabel="Search" />
 
         {/* Collapsed: options button */}
         <Animated.View style={collapsedStyle}>
-          <Pressable
+          <IconButton
+            icon="options"
             onPress={onOpenOptions}
+            color={colors.iconInactive}
+            isActive={hasActiveState}
             accessibilityLabel="Sort and filter"
-            style={({ pressed }) => [
-              actionButtonStyles.pillButton,
-              hasActiveState && actionButtonStyles.buttonWarning,
-              pressed && { backgroundColor: colors.pressedBg },
-            ]}
-          >
-            <Icon name="options" color={hasActiveState ? colors.accent : colors.iconInactive} />
-          </Pressable>
+          />
         </Animated.View>
 
         {/* Expanded: the field, with the native clear button inside */}
@@ -149,21 +138,23 @@ export default function SearchOptionsBar({
       {/* Cancel: a separate round button next to the field */}
       <Animated.View style={[styles.cancelSlot, cancelStyle]} pointerEvents={isSearchActive ? 'auto' : 'none'}>
         <FloatingPill style={styles.cancelPill}>
-          <Pressable
+          <IconButton
+            icon="close"
             onPress={handleCancel}
+            color={colors.iconInactive}
             accessibilityLabel="Cancel search"
-            style={({ pressed }) => [actionButtonStyles.pillButton, pressed && { backgroundColor: colors.pressedBg }]}
-          >
-            <Icon name="close" color={colors.iconInactive} />
-          </Pressable>
+          />
         </FloatingPill>
       </Animated.View>
     </Animated.View>
   );
 }
 
-const PILL_GAP = 8; // same gap as between the header's pills
-const CANCEL_PILL_WIDTH = spacing.iconButtonSize + spacing.barPaddingY * 2;
+const PILL_GAP = 8;
+// A pill's width around its buttons: the frame and the border on each side.
+const PILL_CHROME = (spacing.toolbarFrame + glass.borderWidth) * 2;
+const COLLAPSED_WIDTH = spacing.iconButtonSize * 2 + PILL_CHROME;
+const CANCEL_PILL_WIDTH = spacing.iconButtonSize + PILL_CHROME;
 const CANCEL_SLOT_WIDTH = CANCEL_PILL_WIDTH + PILL_GAP;
 
 const styles = StyleSheet.create({
@@ -192,7 +183,8 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     lineHeight: typography.lg,
-    paddingHorizontal: scale(4),
+    paddingLeft: scale(4),
+    paddingRight: scale(12),
     paddingVertical: 0,
   },
 });

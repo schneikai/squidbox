@@ -1,8 +1,9 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet } from 'react-native';
 
-import { colors, shadows, spacing, radii } from '@/styles/designTokens';
+import { colors, spacing, radii } from '@/styles/designTokens';
 
+// The purple primary action of a toolbar. It sits flat in its FloatingPill, which casts the shadow.
 export default function GradientButton({ onPress, children, style, disabled = false, accessibilityLabel }) {
   return (
     <Pressable
@@ -29,7 +30,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     width: spacing.iconButtonSize,
     height: spacing.iconButtonSize,
-    ...shadows.accent,
   },
   gradient: {
     flex: 1,

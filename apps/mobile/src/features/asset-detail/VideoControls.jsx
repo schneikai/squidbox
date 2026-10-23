@@ -10,7 +10,7 @@ import playVideo from './playVideo';
 import IconButton from '@/components/IconButton';
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 import useAppSettings from '@/features/app-settings/useAppSettings';
-import { colors, typography } from '@/styles/designTokens';
+import { colors, scale, typography } from '@/styles/designTokens';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
 /**
@@ -123,6 +123,7 @@ const styles = StyleSheet.create({
   },
   time: {
     minWidth: typography.sm * 3,
+    marginHorizontal: scale(4),
     fontSize: typography.sm,
     color: colors.textSecondary,
     fontVariant: ['tabular-nums'],

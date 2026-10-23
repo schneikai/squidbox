@@ -1,12 +1,11 @@
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
 
-import Icon from '@/components/Icon';
+import IconButton from '@/components/IconButton';
 import useAssets from '@/features/assets-context/useAssets';
 import useDeletedAssetsActions from '@/features/assets-context/useDeletedAssetsActions';
-import actionButtonStyles from '@/styles/actionButtonStyles';
 import { colors, scale, spacing } from '@/styles/designTokens';
 import humanizeMediaType from '@/utils/assets/humanizeMediaType';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
@@ -85,22 +84,23 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
         {/* Left pill — share + favorite + download */}
         <FloatingPill>
           {canShareFiles && (
-            <ActionButton onPress={handleShare}>
-              <Icon name="share" color={colors.iconInactive} />
-            </ActionButton>
+            <IconButton icon="share" onPress={handleShare} color={colors.iconInactive} accessibilityLabel="Share" />
           )}
           {!isDeleted && (
-            <ActionButton onPress={handleToggleFavorite}>
-              <Icon
-                name="heart"
-                filled={asset.isFavorite}
-                color={asset.isFavorite ? colors.danger : colors.iconInactive}
-              />
-            </ActionButton>
+            <IconButton
+              icon="heart"
+              filled={asset.isFavorite}
+              onPress={handleToggleFavorite}
+              color={asset.isFavorite ? colors.danger : colors.iconInactive}
+              accessibilityLabel={asset.isFavorite ? 'Unfavorite' : 'Favorite'}
+            />
           )}
-          <ActionButton onPress={handleDownload}>
-            <Icon name="cloud-download" color={colors.iconInactive} />
-          </ActionButton>
+          <IconButton
+            icon="cloud-download"
+            onPress={handleDownload}
+            color={colors.iconInactive}
+            accessibilityLabel="Save to camera roll"
+          />
         </FloatingPill>
 
         {isDeleted && (
@@ -112,30 +112,17 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
         {/* Right pill — delete, or restore + delete permanently */}
         <FloatingPill>
           {isDeleted && (
-            <ActionButton onPress={handleRestore}>
-              <Icon name="undo" color={colors.iconInactive} />
-            </ActionButton>
+            <IconButton icon="undo" onPress={handleRestore} color={colors.iconInactive} accessibilityLabel="Restore" />
           )}
-          <ActionButton onPress={isDeleted ? handleDeletePermanently : handleDelete} danger>
-            <Icon name="trash" color={colors.danger} />
-          </ActionButton>
+          <IconButton
+            icon="trash"
+            onPress={isDeleted ? handleDeletePermanently : handleDelete}
+            danger
+            accessibilityLabel={isDeleted ? 'Delete permanently' : 'Delete'}
+          />
         </FloatingPill>
       </View>
     </View>
-  );
-}
-
-function ActionButton({ onPress, danger = false, children }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        actionButtonStyles.pillButton,
-        pressed && (danger ? actionButtonStyles.buttonDanger : { backgroundColor: colors.pressedBg }),
-      ]}
-    >
-      {children}
-    </Pressable>
   );
 }
 
@@ -153,7 +140,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deletedLabel: {
-    paddingHorizontal: spacing.barPaddingY * 2,
+    paddingHorizontal: spacing.barPaddingX * 2,
+    lineHeight: spacing.iconButtonSize,
     fontSize: scale(13),
     fontWeight: '600',
     color: colors.danger,
