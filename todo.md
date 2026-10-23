@@ -171,8 +171,14 @@ another screen needs a ring.
 ### [ ] Bump INSTALLED with each preview build
 
 `INSTALLED` in `apps/mobile/test/mainClient.e2e.test.ts` is the commit of the preview build on the
-owner's phone (df33378): move it to the new build's commit whenever a preview build is installed, so
+owner's phone (b972efb): move it to the new build's commit whenever a preview build is installed, so
 the suite tests the real upgrade path.
+
+### [ ] Drop the outbox's whole-record rows
+
+`outbox.whole_record` (`sync/db/schema.ts`, the `fields` it leaves out in `sync/worker.ts`) exists
+only for rows queued by a build before per-field sync (0011_outbox_fields). The phone is past it
+and mainClient.e2e no longer covers it: a migration can drop the column once no such row can be left.
 
 ### [ ] Widen what CI checks
 
@@ -319,21 +325,6 @@ React hook result or an unresolved import that the worklet calls. An audit proto
 
 Node 20 reached end of life in April 2026. `mise.toml` pins 20.19.4 and the server image uses
 `node:20-slim`. Move both to the current LTS and run the tests.
-
-### [ ] Delete `backfillMergeMarkers` once the phone has booted this build
-
-`src/library/backfillMergeMarkers.ts` and its call in `bootLibrary.ts` (and its boot tests in
-`accountSwitch.test.ts`). It gives the installed build's (df33378) id-only list markers their account
-and copies them into the device library's database, the authority from this build on. The bare-id
-fallback in `getMergeTarget` (`sync/status.ts`, for earlier builds of this branch) goes with it.
-
-### [ ] Delete `resolveOwners` once the phone has booted this build
-
-`src/library/resolveOwners.ts`, its call in `bootLibrary.ts`, `test/resolveOwners.test.ts` and its
-boot test in `accountSwitch.test.ts`. It only fills in a missing `serverId` on libraries converted by
-older builds; Sentry reports "Resolved the owner of library … at boot" if it ever did.
-Assumes every install has booted df33378 or later with a working `/me`: an older one would keep a
-session without ids, which now matches no library.
 
 ### [ ] Database and caches through the library handle too
 

@@ -668,16 +668,9 @@ backs it up and keeps it in sync, and signing out only pauses that.
     finishes). The list follows the database, so the screens, `libraryToOpen` and
     `mergeDeviceLibrary` read the list alone, account rule included, and `mergeLibrary` checks the
     database (`joinedElsewhere` in `mergeMarker.ts`, the one rule both read, on the markers it read
-    once) and repairs the list. The installed build kept the markers in the list only, the marker as
-    a library id: the first boot of this build, after `resolveOwners` and before any merge runs,
-    gives each that library's account in the list (dropping it when the library is gone; one whose
-    owner is unresolved keeps the id, so its merge resumes there) and copies the markers into each
-    existing database lacking them, once
-    (`backfillMergeMarkers`, to delete once the phone has run this build; on web, where databases
-    can't be listed, a listed library's database counts as existing). A marker a database holds as
-    a bare id (earlier builds of this branch) reads as none. A source whose earlier
-    target is gone joins a new library of the same account by the rules above. A kept source keeps
-    no marks (nothing reads them), and the target's go before `keptFor` is set.
+    once) and repairs the list. A source whose earlier target is gone joins a new library of the
+    same account by the rules above. A kept source keeps no marks (nothing reads them), and the
+    target's go before `keptFor` is set.
   Before the source is removed, every file it holds for a record that ends up in the account is in
   the target's folders or in the cloud: the files of the assets that end in the target by id, live
   or with a purge still pending (never of one purged there for good), and, for a camera-roll match
@@ -727,10 +720,7 @@ beside the library open (`library/bootLibrary.ts`): with the same base URL the a
 once, offline included; a changed base URL (a new dev tunnel) must report the session's `serverId`
 in `/up` before the session rebinds to it, else the tokens are dropped; a network error leaves
 everything for the next launch. Either way the session keeps its owner, so the library opened
-beside the check stays open. Installs converted from before the session record could still hold an
-owner without its `serverId`; until every such phone has booted once, `library/resolveOwners.ts`
-copies the stored session's `serverId` into that user's unresolved owners right after the list
-loads, before any library opens (reported to Sentry when it fires).
+beside the check stays open.
 
 **Photo backup** (`sync/backupRun.ts`, started from `CloudSyncProvider`) uploads the files of the
 assets unsynced at its start, one run at a time, for the library and identity it started with: each
