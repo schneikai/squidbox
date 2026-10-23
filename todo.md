@@ -15,6 +15,12 @@ the touch with the cell. Check on a phone.
 
 ## Features
 
+### [ ] Search suggestions as you type, like Apple Photos
+
+Wanted by the owner, later. While typing in a list's search (`SearchOptionsBar`), show a menu of
+matching terms above the field, each with how many assets it finds (Apple Photos: "mvp 3",
+"mvz 1"). Terms would come from the words of the assets' notes, which is what `assetQuery` searches.
+
 ### [ ] Share several assets at once
 
 Nice to have, deferred. Share is only on the asset detail screen (`useShareAsset`); select mode has
