@@ -7,8 +7,6 @@ import { colors, radii, scale, sizes, typography } from '@/styles/designTokens';
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
-import cornerGlowSource from './cornerGlowSource';
-
 // Memoized: providers keep unchanged assets as the same objects, so a write re-renders only its cells.
 export default memo(AssetListItem);
 
@@ -67,8 +65,10 @@ function LastPostedAt({ lastPostedAt }) {
   return <Text style={styles.lastPostedAt}>{dateToTimeAgo(lastPostedAt)}</Text>;
 }
 
-// One pre-rendered fade (cornerGlowSource), flipped for the other corners: an image per cell is far
-// cheaper to mount than an SVG gradient, and every grid cell shows one or more.
+// One pre-rendered radial fade (black at 42% in the top-left corner, easing out to transparent with no
+// visible edge), flipped for the other corners: an image per cell is far cheaper to mount than an SVG
+// gradient, and every grid cell shows one or more.
+const CORNER_GLOW = require('../../../assets/corner-glow.png');
 const CORNER_STYLES = {
   topLeft: { top: 0, left: 0 },
   topRight: { top: 0, right: 0, transform: [{ scaleX: -1 }] },
@@ -78,7 +78,7 @@ const CORNER_STYLES = {
 function CornerGlow({ corner, size, isHidden = false }) {
   return (
     <Image
-      source={cornerGlowSource}
+      source={CORNER_GLOW}
       style={[styles.cornerGlow, { width: size, height: size }, CORNER_STYLES[corner], isHidden && styles.hidden]}
     />
   );
