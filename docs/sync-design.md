@@ -821,7 +821,8 @@ stores them in bigint columns). Booleans are integers in SQLite.
 `width`, `height`, `fileSize`, `duration`, `filename`, `thumbnailFilename`, `isFavorite`,
 `notes`, `oldFileId`, `isFileSynced`, `isThumbnailSynced`, `isSynced`, `purgedAt` (optional,
 null | epoch ms: deleted permanently, §7), and, recorded for later use, all optional and nullable:
-`favoritedAt` (epoch ms of the last favoriting, null once unfavorited or when unknown), `takenAt`
+`favoritedAt` (epoch ms of the last favoriting, null once unfavorited or when unknown: a favorite
+from the camera roll or a sign-in merge; an app from before it leaves it as it was), `takenAt`
 (epoch ms, the camera roll's creation time at import), `originalFilename` (the camera roll's file
 name), `latitude` and `longitude` (where it was taken), plus the base columns. Local-only:
 `syncError`.

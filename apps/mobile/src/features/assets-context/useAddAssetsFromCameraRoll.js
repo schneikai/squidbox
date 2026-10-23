@@ -25,8 +25,11 @@ export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFini
       const newAssets = [];
       try {
         for (const result of imagePickerResults) {
-          // Its metadata only (the picker exported the file); null outside a Limited Photos selection.
-          const assetInfo = await MediaLibrary.getAssetInfoAsync(result.assetId, { shouldDownloadFromNetwork: false });
+          // Its metadata only (the picker exported the file); null outside a Limited Photos selection
+          // or without access, which only leaves the details out.
+          const assetInfo = await MediaLibrary.getAssetInfoAsync(result.assetId, {
+            shouldDownloadFromNetwork: false,
+          }).catch(() => null);
           const newAsset = await buildAssetAsync(
             {
               mediaLibraryAssetId: result.assetId,
@@ -38,7 +41,7 @@ export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFini
               height: Math.round(result.height),
               duration: result.duration,
               isFavorite: assetInfo?.isFavorite ?? false,
-              takenAt: assetInfo?.creationTime ?? null,
+              takenAt: assetInfo?.creationTime == null ? null : Math.round(assetInfo.creationTime),
               originalFilename: assetInfo?.filename ?? result.fileName ?? null,
               latitude: assetInfo?.location?.latitude ?? null,
               longitude: assetInfo?.location?.longitude ?? null,
