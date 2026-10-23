@@ -26,7 +26,6 @@ import { clientCollectionTables } from '../src/sync/clientCollections';
 import * as clientSchema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
-import { toModernChanges } from '../src/sync/legacyBase';
 import { retryFailures } from '../src/sync/outbox';
 import { makeRepository } from '../src/sync/repository';
 import { setMergeTarget, setOwner } from '../src/sync/status';
@@ -925,8 +924,9 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
         expect(Object.keys(changes).sort()).toEqual(['assetRefs', 'postedAt']);
         const postEdges = makeEdgeRepository('post_assets', clientSchema.postAssets, 'postId');
         await A.transaction(async (tx) => {
-          await postEdges.setRefs(tx, postId, changes.assetRefs, original.assetRefs);
-          await posts.update(tx, postId, toModernChanges(changes));
+          const { assetRefs, ...fields } = changes;
+          await postEdges.setRefs(tx, postId, assetRefs, original.assetRefs);
+          await posts.update(tx, postId, fields);
         });
       });
       await settle();
@@ -949,10 +949,10 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       data: Record<string, unknown>,
     ) {
       const updates = changedValues(seed, data);
+      const { assetRefs, ...fields } = updates;
       await device.transaction(async (tx) => {
-        if ('assetRefs' in updates)
-          await postEdges.setRefs(tx, postId, (updates.assetRefs as never) ?? [], seed.assetRefs as never);
-        await posts.update(tx, postId, toModernChanges(updates));
+        if (assetRefs) await postEdges.setRefs(tx, postId, assetRefs as never, seed.assetRefs as never);
+        await posts.update(tx, postId, fields);
       });
       return updates;
     }

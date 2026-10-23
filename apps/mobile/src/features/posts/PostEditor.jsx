@@ -18,7 +18,6 @@ import useScrollY from '@/hooks/useScrollY';
 import { colors } from '@/styles/designTokens';
 import buildPostAsset from '@/utils/posts/buildPostAsset';
 import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
-import postSchema from '@/utils/posts/postSchema';
 
 // Edits a post seeded from `post` ({ text, postAssets, postedAt }) and holds the draft; Save hands
 // `onSave` the post the posts store takes ({ text, assetRefs, postedAt }), allowed once it is valid,
@@ -33,7 +32,7 @@ export default function PostEditor({ post, navigation, onSave }) {
   const { openRandomSuggestions } = useRandomSuggestions();
 
   const data = postData({ text, postAssets, postedAt });
-  const canSave = postSchema.isValidSync(data);
+  const canSave = hasContent(data);
 
   async function handleOpenSuggestions() {
     const suggestion = await openRandomSuggestions();
@@ -104,6 +103,11 @@ export default function PostEditor({ post, navigation, onSave }) {
 // The post as the posts store takes it.
 function postData({ text, postAssets, postedAt }) {
   return { text, assetRefs: postAssetsToAssetRefs(postAssets), postedAt };
+}
+
+// A post needs text or at least one photo.
+function hasContent({ text, assetRefs }) {
+  return Boolean(text) || assetRefs.length > 0;
 }
 
 const styles = StyleSheet.create({

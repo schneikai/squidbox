@@ -5,7 +5,6 @@ import AssetsContext from './AssetsContext';
 import { sweepOpenLibrary } from '@/library/current';
 import * as repo from '@/sync/assetsRepository';
 import { getDb } from '@/sync/db/client';
-import { toAssetRecord, toAssetChanges } from '@/sync/legacyAsset';
 import { requestSync } from '@/sync/worker';
 import { writeInBatches } from '@/sync/writeInBatches';
 
@@ -15,12 +14,12 @@ export default function AssetsProvider({ children }) {
   const value = useMemo(
     () => ({
       addAssetsAsync: async (list) => {
-        const records = await repo.createMany(getDb(), list.map(toAssetRecord));
+        const records = await repo.createMany(getDb(), list);
         requestSync();
         return records;
       },
       updateAsset: async (id, updates) => {
-        await repo.update(getDb(), id, toAssetChanges(updates));
+        await repo.update(getDb(), id, updates);
         requestSync();
       },
       // Local-only marker for failed file uploads (never synced); clearing them all retries every upload.

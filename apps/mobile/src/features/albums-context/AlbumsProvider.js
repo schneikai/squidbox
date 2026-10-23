@@ -1,3 +1,4 @@
+import { albumCollection } from '@squidbox/shared';
 import { useMemo } from 'react';
 
 import AlbumsContext from './AlbumsContext';
@@ -6,12 +7,11 @@ import moveAlbum from './moveAlbum';
 import assetQuery from '@/features/asset-list/assetQuery';
 import { getDb, schema } from '@/sync/db/client';
 import { makeEdgeRepository } from '@/sync/edgesRepository';
-import { toModernRecord, toModernChanges } from '@/sync/legacyBase';
 import { makeRepository } from '@/sync/repository';
 import { requestSync } from '@/sync/worker';
 import { writeInBatches } from '@/sync/writeInBatches';
-import albumSchema from '@/utils/albums/albumSchema';
 import getNewItemId from '@/utils/getNewItemId';
+import newRecord from '@/utils/newRecord';
 
 // The album writes. Membership lives in the album_assets edge collection (add/remove/reorder are
 // independent edge writes that don't clobber across devices). Screens read albums through their
@@ -19,21 +19,31 @@ import getNewItemId from '@/utils/getNewItemId';
 const repo = makeRepository('albums', schema.albums);
 const edges = makeEdgeRepository('album_assets', schema.albumAssets, 'albumId');
 
+// A new album follows the shared asset sort (no `sortOrder`) and has no place in the custom order yet.
+const ALBUM_DEFAULTS = {
+  name: 'New Album',
+  isFavorite: false,
+  archivedAt: null,
+  showInPostSuggestionsAfter: null,
+  oldCollectionName: null,
+  notes: null,
+  sortOrder: null,
+  smartAlbumType: null,
+};
+
 export default function AlbumsProvider({ children }) {
   // A user action that writes the album and its edges commits once (repository transactions inside
   // `tx` become savepoints), so readers never see half of it.
   const value = useMemo(() => {
     const db = getDb();
     async function updateAlbum(id, updates) {
-      await repo.update(db, id, toModernChanges(updates));
+      await repo.update(db, id, updates);
       requestSync();
     }
     return {
-      addAlbum: async (data) => {
-        const casted = albumSchema.cast(data);
-        const assetIds = casted.assets ?? [];
+      addAlbum: async ({ assets: assetIds = [], ...fields }) => {
         const rec = await db.transaction(async (tx) => {
-          const created = await repo.create(tx, toModernRecord(casted)); // `assets` stripped by toModernRecord
+          const created = await repo.create(tx, newRecord(albumCollection, ALBUM_DEFAULTS, fields));
           if (assetIds.length) await edges.add(tx, created.id, assetIds, getNewItemId);
           return created;
         });
@@ -42,8 +52,7 @@ export default function AlbumsProvider({ children }) {
       },
       updateAlbum,
       updateManyAlbums: async (updatesById) => {
-        const changesById = Object.entries(updatesById).map(([id, updates]) => [id, toModernChanges(updates)]);
-        await repo.updateMany(db, Object.fromEntries(changesById));
+        await repo.updateMany(db, updatesById);
         requestSync();
       },
       // A drag in the albums list under `sort` (see moveAlbum): `afterId: null` drops at the front.

@@ -19,7 +19,7 @@ export default function AddPostScreen({ route, navigation }) {
 
   async function handleAddPost(data) {
     try {
-      await addPost({ ...data, rePostId: rePostId ?? null });
+      await addPost({ ...data, rePostId });
       if (rePostId) await updatePost(rePostId, { hasBeenReposted: true });
       navigation.getParent().goBack(); // closes this editor only, not one it was opened over
     } catch (error) {

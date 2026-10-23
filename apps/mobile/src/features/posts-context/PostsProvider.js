@@ -1,13 +1,13 @@
+import { postCollection } from '@squidbox/shared';
 import { useMemo } from 'react';
 
 import PostsContext from './PostsContext';
 
 import { getDb, schema } from '@/sync/db/client';
 import { makeEdgeRepository } from '@/sync/edgesRepository';
-import { toModernRecord, toModernChanges } from '@/sync/legacyBase';
 import * as repo from '@/sync/postsRepository';
 import { requestSync } from '@/sync/worker';
-import postSchema from '@/utils/posts/postSchema';
+import newRecord from '@/utils/newRecord';
 
 // The post writes. Asset references live in the post_assets edge collection (`assetRefs` in, as the
 // editor emits them). Screens read posts through their own live queries (postQuery).
@@ -19,11 +19,9 @@ export default function PostsProvider({ children }) {
   const value = useMemo(() => {
     const db = getDb();
     return {
-      addPost: async (data) => {
-        const casted = postSchema.cast(data);
-        const refs = casted.assetRefs ?? [];
+      addPost: async ({ assetRefs: refs = [], ...fields }) => {
         const post = await db.transaction(async (tx) => {
-          const created = await repo.create(tx, toModernRecord(casted)); // `assetRefs` stripped by toModernRecord
+          const created = await repo.create(tx, newRecord(postCollection, postDefaults, fields));
           await edges.createFromRefs(tx, created.id, refs);
           return created;
         });
@@ -31,10 +29,10 @@ export default function PostsProvider({ children }) {
         return { ...post, assetRefs: refs };
       },
       // `seed`: the post an editor was seeded with, whose photo list a changed `assetRefs` is saved over.
-      updatePost: async (id, updates, seed) => {
+      updatePost: async (id, { assetRefs, ...changes }, seed) => {
         await db.transaction(async (tx) => {
-          if ('assetRefs' in updates) await edges.setRefs(tx, id, updates.assetRefs ?? [], seed?.assetRefs ?? []);
-          await repo.update(tx, id, toModernChanges(updates)); // `assetRefs` stripped by toModernChanges
+          if (assetRefs !== undefined) await edges.setRefs(tx, id, assetRefs ?? [], seed?.assetRefs ?? []);
+          await repo.update(tx, id, changes);
         });
         requestSync();
       },
@@ -53,4 +51,17 @@ export default function PostsProvider({ children }) {
   }, []);
 
   return <PostsContext.Provider value={value}>{children}</PostsContext.Provider>;
+}
+
+// A new post is unposted and offered for a repost from its creation on.
+function postDefaults({ createdAt }) {
+  return {
+    text: '',
+    isFavorite: false,
+    postedAt: null,
+    rePostId: null,
+    isIgnoredForRepost: false,
+    suggestRepostAt: createdAt,
+    hasBeenReposted: false,
+  };
 }

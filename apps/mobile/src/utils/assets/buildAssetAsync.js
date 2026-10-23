@@ -1,48 +1,42 @@
+import { assetCollection } from '@squidbox/shared';
 import * as FileSystem from 'expo-file-system/legacy';
 
-import assetSchema from './assetSchema';
 import createAssetThumbnail from './thumbnails/createAssetThumbnail';
 
 import { removeAssetFiles } from '@/library/fs';
 import { getAssetFileUri } from '@/utils/assets/assetStorage';
 import getFileExtension from '@/utils/files/getFileExtension';
 import getNewItemId from '@/utils/getNewItemId';
+import newRecord from '@/utils/newRecord';
 
-// `library`: the one whose folders the file and thumbnail go into (a caller adding several assets
-// passes the same one, so they all land in the same library).
-export default async function buildAssetAsync(assetData, library) {
-  const newAsset = { ...assetData };
-  const sourceFileUri = extractSourceFileUri(newAsset);
+// A new asset has no notes and isn't backed up yet.
+const ASSET_DEFAULTS = {
+  duration: null,
+  isFavorite: false,
+  notes: null,
+  oldFileId: null,
+  isFileSynced: false,
+  isThumbnailSynced: false,
+  isSynced: false,
+};
 
-  if (!sourceFileUri) {
-    throw new Error('Build asset failed! Error: sourceFileUri is required');
-  }
+// Moves a picked file into `library`'s folders, makes its thumbnail and resolves the new asset
+// record (a caller adding several assets passes the same library, so they all land in it). An
+// invalid record throws, and its files are removed again.
+export default async function buildAssetAsync({ sourceFileUri, ...fields }, library) {
+  if (!sourceFileUri) throw new Error('Build asset failed! Error: sourceFileUri is required');
 
-  if (!newAsset.id) newAsset.id = getNewItemId();
+  const id = getNewItemId();
+  const filename = `${id}.${getFileExtension(sourceFileUri)}`;
+  const assetFileUri = getAssetFileUri(filename, library);
+  await FileSystem.moveAsync({ from: sourceFileUri, to: assetFileUri });
 
-  newAsset.filename = `${newAsset.id}.${getFileExtension(sourceFileUri)}`;
-  const assetFileUri = getAssetFileUri(newAsset.filename, library);
-
-  await FileSystem.moveAsync({
-    from: sourceFileUri,
-    to: assetFileUri,
-  });
-
+  let thumbnailFilename;
   try {
-    newAsset.thumbnailFilename = await createAssetThumbnail(newAsset.id, assetFileUri, newAsset.mediaType, library);
-
-    // Make sure the new asset is valid before returning it.
-    assetSchema.validateSync(newAsset, { strict: true });
+    thumbnailFilename = await createAssetThumbnail(id, assetFileUri, fields.mediaType, library);
+    return newRecord(assetCollection, ASSET_DEFAULTS, { ...fields, id, filename, thumbnailFilename });
   } catch (e) {
-    await removeAssetFiles([newAsset], library);
+    await removeAssetFiles([{ filename, thumbnailFilename }], library);
     throw e;
   }
-
-  return newAsset;
-}
-
-function extractSourceFileUri(data) {
-  const { sourceFileUri } = data;
-  delete data.sourceFileUri;
-  return sourceFileUri;
 }

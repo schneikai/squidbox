@@ -36,9 +36,10 @@ export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFini
               mediaLibraryAssetId: result.assetId,
               sourceFileUri: result.uri,
               mediaType: imagePickerMediaTypeToAssetMediaType(result.type),
-              fileSize: result.fileSize,
-              width: result.width,
-              height: result.height,
+              // Whole numbers, as the shared asset schema has them.
+              fileSize: Math.round(result.fileSize),
+              width: Math.round(result.width),
+              height: Math.round(result.height),
               duration: result.duration,
               isFavorite: result.isFavorite,
             },
