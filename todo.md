@@ -5,6 +5,14 @@ when the owner defers something, or when an idea comes up. Remove an entry once 
 
 ## Bugs
 
+### [ ] The quick view stayed open once
+
+The owner's long-press preview (`AssetQuickViewModal`) once stayed up after the finger lifted, on the
+dev client. A tap now closes it, but the cause isn't confirmed. Likeliest: the quick view is a
+native `Modal`, which can take the touch from the cell under it, so the cell's press-out
+(`onLongPressOut`) never comes. An overlay inside the screen (`pointerEvents="none"`) would leave
+the touch with the cell. Check on a phone.
+
 ## Features
 
 ### [ ] Share several assets at once
@@ -131,9 +139,12 @@ General ideas:
 - **Favorite suggestions** to teach the assistant which style and tone the user prefers.
 - **Memory.** What the user tells the assistant is remembered, e.g. "make it more about the action
   and less about the filming", "less influencer style, more guy next door".
-- **Bring the AI screens onto the shared components** (`AiChatModal`, `RandomSuggestionsScreen`,
-  `ModelSelectorButton`): their chat-bubble radii and `ModelSelectorButton`'s own divider (not
-  `ListDivider`) are still hand-written. The rest of the component consolidation is done.
+- **The AI screens aren't on the design system yet** (`AiChatModal`, `RandomSuggestionsScreen`,
+  `ModelSelectorButton`). They were left out of the component and token rework: they use the new
+  color and type tokens, but their sizes, paddings and radii are still literals (chat bubbles, send
+  and arrow buttons, the model sheet), their inputs and buttons are hand-built, and
+  `ModelSelectorButton` draws its own divider and sheet instead of `ListDivider` and the shared
+  popovers. Redo them on the shared components with the assistant rework.
 
 ### [ ] Alternative texts for a post
 

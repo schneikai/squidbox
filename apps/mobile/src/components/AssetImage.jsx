@@ -11,6 +11,17 @@ import { getAssetThumbnailUri } from '@/utils/assets/assetStorage';
 import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';
 import getAssetThumbnailStatusAsync from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
 
+// Thumbnails that have loaded on this device since launch. A cell that shows one again (an album
+// opened again, the cell a drag lifts) skips the file check and the placeholder: the picture comes
+// from the image cache within a frame. One that fails to load is checked again.
+const shownUris = new Set();
+const MAX_SHOWN_URIS = 10000;
+
+function rememberShown(uri) {
+  if (shownUris.size >= MAX_SHOWN_URIS) shownUris.delete(shownUris.values().next().value);
+  shownUris.add(uri);
+}
+
 // contentFit: "cover" | "contain". The placeholder pulses until the picture has loaded (and holds
 // still while nobody is signed in to fetch it, once its download gave up, or without a thumbnail at
 // all). `renderOverlay(hasPicture)`
@@ -24,17 +35,18 @@ export default function AssetImage({
   renderOverlay,
   showNotUploaded = true,
 }) {
-  // getAssetThumbnailStatusAsync's for `filename` (or the loader's 'failed'), with the picture's `uri`
-  // once it's 'local'.
+  // getAssetThumbnailStatusAsync's for `filename` (or the loader's 'failed').
   const [found, setFound] = useState(null);
   const [loadedUri, setLoadedUri] = useState(null);
   const { loadThumbnail } = useAssetThumbnailLoader();
   const { isAuthenticated } = useCloud();
   const { paths: library } = useLibrary();
   const { thumbnailStyle } = useAppSettings();
+  const localUri = asset.thumbnailFilename && getAssetThumbnailUri(asset.thumbnailFilename, library);
+  const wasShown = !!localUri && shownUris.has(localUri);
   // A recycled cell must not show the previous asset's status or picture.
   const current = found?.filename === asset.thumbnailFilename ? found : null;
-  const isLocal = current?.status === 'local';
+  const isLocal = wasShown || current?.status === 'local';
 
   useEffect(() => {
     const filename = asset.thumbnailFilename;
@@ -43,7 +55,7 @@ export default function AssetImage({
     let withdraw;
 
     function showLocal() {
-      setFound({ filename, status: 'local', uri: getAssetThumbnailUri(filename, library) });
+      setFound({ filename, status: 'local' });
     }
 
     (async () => {
@@ -74,8 +86,8 @@ export default function AssetImage({
     };
   }, [asset.thumbnailFilename, asset.isThumbnailSynced, isAuthenticated, isLocal, library, loadThumbnail]);
 
-  const thumbnailUri = isLocal ? current.uri : null;
-  const hasPicture = !!thumbnailUri && loadedUri === thumbnailUri;
+  const thumbnailUri = isLocal ? localUri : null;
+  const hasPicture = !!thumbnailUri && (wasShown || loadedUri === thumbnailUri);
   const showNotUploadedIcon = showNotUploaded && current?.status === 'notUploaded';
 
   const styleProps = {
@@ -89,7 +101,23 @@ export default function AssetImage({
   return (
     <>
       {!!thumbnailUri && (
-        <Image source={{ uri: thumbnailUri }} style={styleProps} onLoad={() => setLoadedUri(thumbnailUri)} />
+        <Image
+          // A new picture gets a new view, so a recycled cell never shows the last one while it loads.
+          key={thumbnailUri}
+          source={{ uri: thumbnailUri }}
+          style={styleProps}
+          onLoad={() => {
+            rememberShown(thumbnailUri);
+            setLoadedUri(thumbnailUri);
+          }}
+          onError={() => {
+            shownUris.delete(thumbnailUri);
+            // Shown from memory, it gets the file check a first mount would. A checked file that still
+            // won't load keeps the placeholder, rather than being checked and shown over and over.
+            if (found?.filename !== asset.thumbnailFilename) setFound({ filename: asset.thumbnailFilename });
+            else setFound({ ...found });
+          }}
+        />
       )}
       {!hasPicture && (
         <LoadingPlaceholder
