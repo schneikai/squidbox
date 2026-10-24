@@ -25,5 +25,5 @@ Apply the review findings in [REPORT_FILE]: [all must-fix, and the nice-to-haves
 ```
 
 ```
-Bookkeeping: add these rules via the add-rule skill: [RULES]. Do whatever CLAUDE.md asks for when a change is done; if that needs a tool you lack, return CONCERNS naming the step. Commit; write [REPORT_FILE]; return as before.
+Bookkeeping: do whatever CLAUDE.md asks for when a change is done; if that needs a tool you lack, return CONCERNS naming the step. Commit; write [REPORT_FILE]; return as before.
 ```
