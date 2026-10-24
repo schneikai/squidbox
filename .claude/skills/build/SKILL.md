@@ -29,7 +29,7 @@ Rule on anything the plan leaves open, log it as a `Decision`, and continue. A w
 
 Ask once, batch the questions, recommend an answer for each, log the answers.
 
-One question is always asked, at the start: build straight away (the recommended answer), or present the plan first? If the owner wants to see it, post the plan's Goal and Design with a link to `plan.md` after the plan review and wait. Their feedback goes to the planner as one more revision, then the build starts.
+The run is autonomous by default. Only when the owner asked, when starting it, to see the plan first: post the plan's Goal and Design with a link to `plan.md` after the plan review and wait. Their feedback goes to the planner as one more revision, then the build starts.
 
 ## Why the reviewers are not subagents
 
