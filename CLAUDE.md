@@ -33,7 +33,7 @@ What matters most, in order: a beautiful, intuitive UI, data integrity, performa
 
 `todo.md` is the single list of open work, ideas, and steps only the owner can do. Keep it current:
 
-- Add an entry when you discover a bug, a weakness or missing piece you don't fix right away, or when the owner defers something or mentions an idea
+- Never add an entry on your own. When you find a bug, a weakness or a missing piece you don't fix, propose the entry to the owner and add it only when they say yes
 - Remove an entry when it's done, in the same commit as the work
 - Keep entries short: what's wrong or wanted, where in the code, and why it matters
 - After committing a change to `todo.md`, republish its page as the comment at the top of `todo.md` says

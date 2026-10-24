@@ -9,8 +9,8 @@ else on the page.
 
 # TODO
 
-Open work, ideas, and steps only the owner can do. Add an entry whenever you discover a problem,
-when the owner defers something, or when an idea comes up. Remove an entry once it's done.
+Open work, ideas, and steps only the owner can do. Entries are added only when the owner says so;
+propose, don't add. Remove an entry once it's done.
 
 ## Bugs
 
