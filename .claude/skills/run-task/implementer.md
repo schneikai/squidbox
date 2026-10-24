@@ -7,7 +7,10 @@ You are implementing one task of a plan. Do this task only.
 
 ## Your task
 
-[Task N from plan.md, verbatim, with its done-check. Or: "Apply the review findings in REPORT_FILE; the done-check is that every project check passes."]
+[One of:
+- Task N from plan.md, verbatim, with its done-check.
+- "Apply the review findings in REPORT_FILE. Done-check: every project check passes."
+- "Bookkeeping. Add these rules with the add-rule skill: RULES. Add to the project's open-work list: ITEMS. Remove from it: DONE_ENTRIES. Follow any rule AGENTS.md attaches to these files, including publish or sync steps. Done-check: the project checks pass."]
 
 ## Context
 

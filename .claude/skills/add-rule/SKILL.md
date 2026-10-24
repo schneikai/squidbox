@@ -11,6 +11,7 @@ AGENTS.md holds rules only; see the `tidy-agents-md` skill for what belongs ther
 2. Skip the rule if a lint, a type or a test already enforces it.
 3. Write it as a rule, not a story: what to do or avoid, and in a few words why when the reason is not obvious.
 4. One rule per line, under the existing section it belongs to. Add a section only when none fits.
-5. If it is a fact or a procedure rather than a rule, put it in the README or the matching skill and, if needed, point to it from AGENTS.md in one line.
+5. If it is a fact or a procedure rather than a rule, put it in the README or the matching skill, and point to it from AGENTS.md in one line only if agents need it.
+6. AGENTS.md is for every developer and every tool. A personal or tool-specific preference goes into that tool's own instruction file instead.
 
-Leave existing rules alone in this mode. If you noticed stale, duplicate or misplaced ones while adding yours, mention them in your final report and point to `tidy-agents-md`.
+Leave existing rules alone here. If you noticed stale, duplicate or misplaced ones while adding yours, mention them in your final report and point to `tidy-agents-md`.

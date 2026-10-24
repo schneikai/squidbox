@@ -1,6 +1,6 @@
 # Planner brief
 
-Dispatch read-only (no edits, no commits). Fill the brackets.
+Dispatch read-only in the repository: it writes only the plan file. Fill the brackets.
 
 ```
 You are planning one task in this repository. Write the plan to [PLAN_FILE]. Change nothing else.
@@ -11,7 +11,7 @@ You are planning one task in this repository. Write the plan to [PLAN_FILE]. Cha
 
 ## Revise
 
-[Empty on the first round. Otherwise: "The current plan is at PLAN_FILE. Address every must-change finding in REPORT_FILE, then rewrite the plan in place."]
+[Empty on the first round. Otherwise: "The current plan is at PLAN_FILE. Address every must-change finding in REPORT_FILE, take or decline each preference in one line under Design, then rewrite the plan in place."]
 
 ## Read first
 
@@ -23,7 +23,7 @@ AGENTS.md (the project's rules, checks and conventions), the project's open-work
 
 **Open questions.** Only questions the owner must answer: an unclear goal, two viable paths with a real trade-off, or a fix far bigger than asked. For each, your recommended answer. Leave the section empty when you can decide yourself, and record those decisions under Design instead. If the work needs more than eight tasks, propose a split into separate deliveries here.
 
-**Design.** Which module owns the new behavior. What existing code it reuses, extends or replaces. Where the task touches code that is duplicated or doing two jobs, include fixing that: a cleaner result is worth a bigger diff, and the owner has asked for it. Name the files that change and what each is responsible for.
+**Design.** Which module owns the new behavior. What existing code it reuses, extends or replaces. Where the task touches code that is duplicated or doing two jobs, include fixing that: a cleaner result is worth a bigger diff. Name the files that change and what each is responsible for.
 
 Design against these, in this order of weight:
 - **DRY.** One place for each piece of logic. Duplication is the most common defect in agent-written code; extend the existing helper or component instead of writing a near copy.
