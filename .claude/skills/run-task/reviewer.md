@@ -1,6 +1,6 @@
 # Reviewer brief
 
-One fresh reviewer per pass: quality after the build, correctness after the quality fix, and the confirming pass after the correctness fix. Report only: it changes nothing and runs no project checks. Fill the brackets.
+One pass each, run by the coordinator itself: quality after the build, correctness after the quality fix, and the confirming pass after the correctness fix. Report only: it changes nothing and runs no project checks. Fill the brackets and follow it; dispatch it only when a subagent can spawn the review skill's own agents.
 
 ```
 You are reviewing branch [BRANCH] against [BASE] for [quality | correctness]. The diff is `git diff [BASE]...[BRANCH]`. Read [LEDGER] for decisions and the implementers' notes. Apply nothing; write your findings to [REPORT_FILE].
@@ -11,9 +11,9 @@ Never reproduce the skill's process by hand. Check that its findings, or its "no
 
 [Empty except on the confirming pass: "This is the confirming pass. The previous report is PREVIOUS_REPORT, the fix commits are FIX_COMMITS. Report as must-fix only its findings that were not applied and regressions in those commits; everything else goes under nice-to-have."]
 
-Already ruled by the coordinator, do not count again: [RULED_FINDINGS or "none"].
+Already ruled by the coordinator, do not count again: [RULED_FINDINGS or "none"]. The open-work list update is not a finding; the ship step owns it.
 
 Write [REPORT_FILE]: one finding per line with file and line, what is wrong, the fix; must-fix first, nice-to-have after.
 
-Return at most 3 lines: must-fix count, nice-to-have count, report path.
+Log one line: must-fix count, nice-to-have count, report path.
 ```
