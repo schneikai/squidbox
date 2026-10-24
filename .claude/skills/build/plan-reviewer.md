@@ -18,3 +18,9 @@ Write [REPORT_FILE]: one finding per line, blunt, with the section, the failure 
 
 Return at most 3 lines: must-change count, preference count, report path.
 ```
+
+Second look, after the planner's revision:
+
+```
+Read the revised [PLAN_FILE] against your must-change findings in [REPORT_FILE] only. Return one line per finding: fixed, or not and why.
+```
