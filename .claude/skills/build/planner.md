@@ -28,7 +28,7 @@ Read CLAUDE.md, the project's open-work list if CLAUDE.md names one, and the cod
 
 **Verification.** What only the owner can check by hand once the PR is up, one line each. Empty when there is nothing.
 
-**Open work.** If CLAUDE.md names an open-work list: the entries this change closes, and new ones it should add (deferred pieces, problems found).
+**Open work.** If CLAUDE.md names an open-work list: the entries this change closes. Never add entries; what is deferred or left to the owner goes under Verification and into the PR, and the owner decides what becomes an entry.
 
 Return at most 2 lines: open questions yes/no, plan path; on a revision, plus one line per declined finding and why.
 ```

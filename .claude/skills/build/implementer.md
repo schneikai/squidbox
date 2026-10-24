@@ -25,5 +25,5 @@ Apply the review findings in [REPORT_FILE]: [all must-fix, and the nice-to-haves
 ```
 
 ```
-Bookkeeping: add these rules via the add-rule skill: [RULES]. In the project's open-work list: add [ITEMS], remove [DONE_ENTRIES], and do whatever rule CLAUDE.md attaches to that file; if that needs a tool you lack, return CONCERNS naming the step. Commit; write [REPORT_FILE]; return as before.
+Bookkeeping: add these rules via the add-rule skill: [RULES]. In the project's open-work list: remove [DONE_ENTRIES], add nothing, and do whatever rule CLAUDE.md attaches to that file; if that needs a tool you lack, return CONCERNS naming the step. Commit; write [REPORT_FILE]; return as before.
 ```
