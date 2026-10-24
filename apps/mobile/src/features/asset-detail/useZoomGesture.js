@@ -43,8 +43,21 @@ const DOUBLE_TAP_DELAY_MS = 250;
  * zoom, and a double tap counts as a tap. `pagerGesture` (the list paging through the assets)
  * waits for the pan: a sideways swipe at 1× fails it at once, a vertical drag or a zoomed pan holds
  * the pager.
+ *
+ * With `edgeSwipe` (usePagerEdgeSwipe's worklets), a one-finger zoomed pan that has the image on its
+ * left or right edge hands the rest of the sideways movement to the pager, which follows the finger
+ * to the neighbouring page; dragging back hands it back to the image. On release the pager snaps,
+ * and the image stays on its edge.
  */
-export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomChange, verticalDrag, pagerGesture }) {
+export default function useZoomGesture({
+  aspectRatio,
+  isZoomable,
+  onTap,
+  onZoomChange,
+  verticalDrag,
+  pagerGesture,
+  edgeSwipe,
+}) {
   const size = useSharedValue({ width: 0, height: 0 });
   const scale = useSharedValue(1);
   const translateX = useSharedValue(0);
@@ -56,6 +69,8 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
   const panStart = useSharedValue({ id: -1, x: 0, y: 0 });
   // The pan under way is `verticalDrag`'s, not the zoomed image's.
   const isDraggingVertically = useSharedValue(false);
+  // The pan under way has moved `edgeSwipe`'s pager off its page and not released it yet.
+  const isHoldingPager = useSharedValue(false);
   // Spring and decay animations under way, so a tap that catches the image moving isn't a tap.
   const settlingCount = useSharedValue(0);
   // The fingers a tap has had down, and whether it landed while the image was moving.
@@ -181,6 +196,34 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
       value.value = dragWithin({ position: value.value, delta, min: -bound, max: bound, dimension });
     };
 
+    // A one-finger zoomed pan's sideways change: with `edgeSwipe`, the image takes it up to its edge
+    // and the pager the rest; once the pager is off its page, it takes all of it until it is back.
+    // Says whether the pager is off its page afterwards.
+    const dragX = (changeX, bound) => {
+      'worklet';
+      const isShifted = !!edgeSwipe && edgeSwipe.isShifted();
+      const x = translateX.value;
+      const room = changeX < 0 ? Math.max(x + bound, 0) : Math.max(bound - x, 0);
+      const toImage = isShifted ? 0 : Math.sign(changeX) * Math.min(Math.abs(changeX), room);
+      const toPager = changeX - toImage;
+      if (!edgeSwipe || toPager === 0) {
+        dragAxis(translateX, changeX, bound, size.value.width);
+        return isShifted;
+      }
+      const { leftover, hasMoved, isShifted: isShiftedNow } = edgeSwipe.drag(toPager);
+      if (!hasMoved) {
+        // No page that way: the image pans and rubber-bands as without a pager.
+        dragAxis(translateX, changeX, bound, size.value.width);
+        return isShifted;
+      }
+      // Dragged back onto its page, the pager is let go: the pan's release is the image's again.
+      isHoldingPager.value = isShiftedNow;
+      // Flush with the page's edge, also when the pan caught the image rubber-banding past it.
+      translateX.value = clamp(x + toImage, -bound, bound);
+      if (leftover !== 0) dragAxis(translateX, leftover, bound, size.value.width);
+      return isShiftedNow;
+    };
+
     const settleAxis = (value, velocity, bound) => {
       'worklet';
       settleWithin({ value, velocity, min: -bound, max: bound, onDone: settling() });
@@ -280,6 +323,11 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
         cancelAnimation(translateX);
         cancelAnimation(translateY);
         lastPanPointers.value = event.numberOfPointers;
+        // A pan that catches a running snap carries the pager on from where it is.
+        if (edgeSwipe) {
+          edgeSwipe.stop();
+          isHoldingPager.value = edgeSwipe.isShifted();
+        }
       })
       .onChange((event) => {
         if (isDraggingVertically.value) {
@@ -291,8 +339,9 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
         // Two fingers belong to the pinch, which moves the image with them.
         if (event.numberOfPointers !== 1 || !hasSamePointers) return;
         const bounds = boundsAt(scale.value);
-        dragAxis(translateX, event.changeX, bounds.x, size.value.width);
-        dragAxis(translateY, event.changeY, bounds.y, size.value.height);
+        const isPagerShifted = dragX(event.changeX, bounds.x);
+        // While the pager moves, only the pager moves.
+        if (!isPagerShifted) dragAxis(translateY, event.changeY, bounds.y, size.value.height);
       })
       .onEnd((event) => {
         if (isDraggingVertically.value) {
@@ -302,11 +351,20 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
         // A pan last moved by two fingers was the pinch's, which settles the image itself.
         if (lastPanPointers.value !== 1) return;
         const bounds = boundsAt(restingScale());
-        settleAxis(translateX, event.velocityX, bounds.x);
-        settleAxis(translateY, event.velocityY, bounds.y);
+        // A pan holding the pager snaps it (onFinalize): the image doesn't fling, it only comes back
+        // within its edges (a drag rubber-banded past one before the hand-off).
+        const isFlung = !isHoldingPager.value;
+        settleAxis(translateX, isFlung ? event.velocityX : 0, bounds.x);
+        settleAxis(translateY, isFlung ? event.velocityY : 0, bounds.y);
       })
-      .onFinalize(() => {
+      .onFinalize((event, success) => {
         isDraggingVertically.value = false;
+        // A pan that held the pager snaps it, a cancelled one without velocity: never leave the list
+        // between pages.
+        if (isHoldingPager.value) {
+          isHoldingPager.value = false;
+          edgeSwipe.release(success ? event.velocityX : 0);
+        }
       });
 
     if (!isZoomable) return Gesture.Simultaneous(pan, singleTap);
@@ -317,6 +375,7 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
     onTap,
     verticalDrag,
     pagerGesture,
+    edgeSwipe,
     size,
     scale,
     translateX,
@@ -325,6 +384,7 @@ export default function useZoomGesture({ aspectRatio, isZoomable, onTap, onZoomC
     lastPanPointers,
     panStart,
     isDraggingVertically,
+    isHoldingPager,
     settlingCount,
     tapTouch,
   ]);
