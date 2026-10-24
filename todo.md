@@ -179,7 +179,7 @@ error, and could be made from the cloud original.
 ### [ ] Bump INSTALLED with each preview build
 
 `INSTALLED` in `apps/mobile/test/mainClient.e2e.test.ts` is the commit of the preview build on the
-owner's phone (9526d68): move it to the new build's commit whenever a preview build is installed, so
+owner's phone (b8171cf): move it to the new build's commit whenever a preview build is installed, so
 the suite tests the real upgrade path.
 
 ### [ ] Drop the outbox's whole-record rows
