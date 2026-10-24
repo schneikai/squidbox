@@ -34,13 +34,19 @@ Stop and ask only when:
 
 Ask once, batch the questions, and recommend an answer for each. Log the answer in `progress.md`.
 
+## Models
+
+Set the model on every dispatch; an omitted model inherits the session's. Planning and plan review get the most thorough model available, implementation and verification a standard one, and the coordinator itself a standard one, since it only reads short reports. In Claude Code today: `fable` for the planner and plan reviewer, `opus` or `sonnet` for the implementer and verifier; the review skills pick their own.
+
 ## Phases
 
 ### 1. Plan
 
 Dispatch a read-only planner with [planner.md](planner.md). It reads AGENTS.md, `todo.md` and the code, and writes `plan.md`.
 
-Read the plan. If it lists open questions, this is stop point 1. Otherwise post a short summary of the plan to the owner and continue without waiting.
+Then dispatch a fresh, read-only plan reviewer with [plan-reviewer.md](plan-reviewer.md). It writes its findings to `reports/plan-review-<n>.md`. Give the findings path to the planner (resume it, or re-dispatch with the plan and the findings) and let it revise. Repeat until the reviewer passes the plan, at most three rounds; after that, rule on the open findings yourself and log the rulings.
+
+Read the final plan. If it lists open questions, this is stop point 1. Otherwise post a short summary of the plan to the owner and continue without waiting.
 
 ### 2. Implement
 
