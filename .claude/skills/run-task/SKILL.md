@@ -71,7 +71,7 @@ Reviewers report, they do not edit. Write the findings to `reports/review-<n>.md
 
 ### 5. Finish
 
-1. Feedback the owner gave during this task that applies beyond it: add rules to AGENTS.md following the "Add a rule" checklist in the `tidy-agents-md` skill, and deferred work or new ideas to `todo.md`. Remove `todo.md` entries this task completed.
+1. Feedback the owner gave during this task that applies beyond it: add rules to AGENTS.md with the `add-rule` skill, and deferred work or new ideas to `todo.md`. Remove `todo.md` entries this task completed.
 2. Push the branch and open the PR. The description holds: what changed and why, every `Decision` from the ledger, skipped review findings with their reasons, and how to verify.
 3. Report to the owner: the PR link, the decisions, and anything they still need to do.
 
