@@ -32,7 +32,7 @@ Rule on anything the plan leaves open, log it as a `Decision`, and continue. A w
 
 Ask once, batch the questions, recommend an answer for each, log the answers.
 
-One question is always asked, at the start: present the plan first, or build straight away? If the owner wants to see it, post the plan's Goal and task list with a link to `plan.md` after the plan review and wait for their go.
+One question is always asked, at the start: build straight away (the recommended answer), or present the plan first? If the owner wants to see it, post the plan's Goal and task list with a link to `plan.md` after the plan review and wait. Their feedback goes to the planner as one more revision, then the build starts.
 
 ## Models
 
