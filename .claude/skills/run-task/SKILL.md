@@ -30,7 +30,7 @@ Rule on anything the plan leaves open, log it as a `Decision`, and continue. A w
 3. a must-fix review finding is still open after the fix round and you cannot rule on it,
 4. anything irreversible or external beyond pushing the branch and opening the PR.
 
-Ask once, batch the questions, recommend an answer for each, log the answers. If the request says "wait after the plan", also wait for the owner there.
+Ask once, batch the questions, recommend an answer for each, log the answers. If the owner asked to see the plan or to be involved in planning, in whatever words, also wait for the owner after the plan review and continue with their answers.
 
 ## Models
 
