@@ -1,4 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
+import { useEffect } from 'react';
 import { Text } from 'react-native';
 
 import ThumbnailRow from '@/components/ThumbnailRow';
@@ -13,12 +14,18 @@ const identity = (onPress) => onPress;
 /**
  * Every post in `scope` (postQuery's), newest first by postedAt (never-posted ones last), as rows
  * that each show the post's first asset, its caption and when it was posted, and open the post;
- * `emptyText` shows instead while there are none (nothing until they've been read). `guardPress` may wrap
- * the rows' presses (useDetailsPanelDrag's); `isLive: false` reads them once (useLiveQuery's).
+ * `emptyText` shows instead while there are none (nothing until they've been read). `limit` caps the
+ * rows at the newest `limit` in postQuery's default order (`postedAt:desc`) and reads their count,
+ * which `onCount(count)` reports. `guardPress` may wrap the rows' presses (useDetailsPanelDrag's);
+ * `isLive: false` reads them once (useLiveQuery's).
  */
-export default function PostRows({ scope, emptyText, guardPress = identity, isLive }) {
+export default function PostRows({ scope, emptyText, limit, onCount, guardPress = identity, isLive }) {
   const navigation = useNavigation();
-  const posts = useScopePosts(scope, isLive);
+  const { rows: posts, count } = useScopePosts(scope, limit, isLive) ?? {};
+
+  useEffect(() => {
+    onCount?.(count);
+  }, [count]);
 
   if (!posts) return null;
   if (posts.length === 0) return <Text style={listTextStyles.subtitle}>{emptyText}</Text>;
@@ -41,12 +48,12 @@ function postRowText(post) {
   return caption ? { title: caption, subtitle: posted } : { title: posted };
 }
 
-function useScopePosts(scope, isLive) {
+function useScopePosts(scope, limit, isLive) {
   const query = postQuery({ scope });
   return useLiveQuery(
-    async (db) => (await query.read(db, { withCount: false, firstAssetOnly: true })).rows,
+    (db) => query.read(db, { limit, withCount: limit !== undefined, firstAssetOnly: true }),
     query.tables,
-    [query.descriptor],
+    [query.descriptor, limit],
     { minInterval: MIN_REREAD_INTERVAL, isLive },
   );
 }

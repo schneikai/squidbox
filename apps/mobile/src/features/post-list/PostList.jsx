@@ -40,7 +40,7 @@ export default function PostList({
           FirstListEntryComponent
         ) : (
           <SuperPressable
-            onPress={() => navigation.navigate('PostScreen', { postId: post.id })}
+            onPress={() => navigation.push('PostScreen', { postId: post.id })}
             onDoublePress={onDoublePressPost && (() => onDoublePressPost(post))}
             style={styles.post}
           >
