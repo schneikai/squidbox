@@ -24,7 +24,7 @@ Read CLAUDE.md, the project's open-work list if CLAUDE.md names one, and the cod
 - Fail loudly: no swallowed errors or silent fallbacks, above all around stored data.
 - Leave it cleaner than you found it.
 
-**Tasks.** Numbered, at most eight, each small enough for one fresh implementer and leaving the app working, with the files it touches, what changes, and a done-check the implementer can run here: a test, one check command scoped to its files, or a preview screen only when the preview runs. What only a device can prove goes under Verification as `device:` and is no done-check.
+**Tasks.** Numbered, at most eight, each small enough for one fresh implementer and leaving the app working, with the files it touches, what changes, and a done-check the implementer can run here: a test, one check command scoped to its files, or a preview screen only when the preview runs; never the project check list, which the review step runs. For a preview check name the screen and what it must show; the implementer works out how to drive it. What only a device can prove goes under Verification as `device:` and is no done-check.
 
 **Verification.** The screens to screenshot in the preview at the end, one per line, and what each should show; `device:` lines for what the owner must check on a phone. Empty when no UI changes.
 

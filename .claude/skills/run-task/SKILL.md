@@ -72,8 +72,8 @@ A fix implementer returns one line per finding it skipped; rule on each. Finding
 
 ### 4. Ship
 
-1. If there is bookkeeping (a rule from owner feedback via the `add-rule` skill, open-work entries from the plan's Open work section plus pre-existing failures from the fix reports, screenshots of the plan's listed screens when the preview runs), one last implementer does it.
-2. Push the branch and open the PR against the base: what changed and why, the plan's Goal and Design, every `Decision`, skipped findings with reasons, how to verify, and a link to the screenshots where the owner can open them. Do yourself any step the bookkeeping implementer returned as `CONCERNS` for lack of a tool.
+1. One last implementer does the bookkeeping still missing: a rule from owner feedback via the `add-rule` skill, open-work entries (the plan's Open work section, pre-existing failures from the fix reports), screenshots of the plan's listed screens that no done-check took. Skip it when nothing is missing.
+2. Push the branch and open the PR against the base: what changed and why, the plan's Goal and Design, every `Decision`, skipped findings with reasons, how to verify, and a link to the screenshots where the owner can open them. A step CLAUDE.md attaches to a changed file that needs a tool implementers lack (publishing a page, for one) is yours, after the push.
 3. Report to the owner: the PR link, the decisions, and the screenshots.
 
 ## Rules
