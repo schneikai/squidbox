@@ -8,7 +8,7 @@ You are planning one request. Write the plan to [PLAN_FILE]; change nothing else
 The request is at the top of [LEDGER]; the decisions and answers below it bind you.
 [Empty on the first round. Otherwise: "Revise the plan in place using [REPORT_FILE]: fix every must-change finding or decline it with one line under Design."]
 
-Read CLAUDE.md, the project's open-work list if CLAUDE.md names one, and the code the request touches. Find the code that already does part of the job before planning new code.
+Read CLAUDE.md and the code the request touches. Find the code that already does part of the job before planning new code.
 
 ## Sections
 
@@ -27,8 +27,6 @@ Read CLAUDE.md, the project's open-work list if CLAUDE.md names one, and the cod
 **Done-check.** How the implementer proves the plan does what the Goal says, runnable on this machine without the owner: a test, a command, or whatever way CLAUDE.md gives to see the running app. The project checks run anyway; this is about behaviour. When the behaviour itself cannot run here, the done-check tests the logic behind it and the rest goes under Verification.
 
 **Verification.** What only the owner can check by hand once the PR is up, one line each. Empty when there is nothing.
-
-**Open work.** If CLAUDE.md names an open-work list: the entries this change closes. Never add entries; what is deferred or left to the owner goes under Verification and into the PR, and the owner decides what becomes an entry.
 
 Return at most 2 lines: open questions yes/no, plan path; on a revision, plus one line per declined finding and why.
 ```

@@ -11,7 +11,7 @@ Build the whole plan, committing as you go with clear messages. When it is built
 
 Rules:
 - Follow CLAUDE.md. Prefer the project's existing code over new code.
-- Stay inside the plan; the cleanup worth doing is already in it. Leave the open-work list alone; the bookkeeping round edits it. A small refactor it did not foresee: do it and report it. A big one: stop with CONCERNS.
+- Stay inside the plan; the cleanup worth doing is already in it. A small refactor it did not foresee: do it and report it. A big one: stop with CONCERNS.
 - A check that does not run at all (missing tool, dependency or service): install what CLAUDE.md names and rerun, else return BLOCKED naming the check. Do not push.
 - Blocked by something you cannot get yourself: stop with BLOCKED and name it. Bad work is worse than no work.
 
@@ -25,5 +25,5 @@ Apply the review findings in [REPORT_FILE]: [all must-fix, and the nice-to-haves
 ```
 
 ```
-Bookkeeping: add these rules via the add-rule skill: [RULES]. In the project's open-work list: remove [DONE_ENTRIES], add nothing, and do whatever rule CLAUDE.md attaches to that file; if that needs a tool you lack, return CONCERNS naming the step. Commit; write [REPORT_FILE]; return as before.
+Bookkeeping: add these rules via the add-rule skill: [RULES]. Do whatever CLAUDE.md asks for when a change is done; if that needs a tool you lack, return CONCERNS naming the step. Commit; write [REPORT_FILE]; return as before.
 ```
