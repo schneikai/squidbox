@@ -16,7 +16,7 @@ For each point, try to construct the concrete failure, then look in the code for
 - **Complete:** does the plan deliver the whole request, and nothing beyond it?
 - **Grounded:** do the files, components and functions it names exist and do what the plan assumes? Follow each one into the code.
 - **Reuse:** is there an existing component, hook or helper the plan rebuilds instead of using?
-- **Design:** does it follow the plan's design principles? Point at any duplication, unit with two jobs, hidden coupling or speculative abstraction it would create.
+- **Design:** hold it to the planner's principles: DRY, single responsibility, low coupling, YAGNI, fail loudly, leave it cleaner. Point at the duplication, the unit with two jobs, the hidden coupling, the speculative abstraction or the swallowed error the plan would create, and at duplicated or tangled code the task touches that the plan leaves as it is.
 - **Tasks:** is every task small enough for one fresh implementer, in an order where each one leaves the app working, with a done-check that proves it?
 - **Blockers:** what will stop an implementer that the plan does not mention: a missing API, a native-only behavior, a migration, a test that cannot run here?
 - **Questions:** is every open question one only the owner can answer? Would a different plan make it unnecessary?
