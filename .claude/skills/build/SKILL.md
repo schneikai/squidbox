@@ -69,9 +69,9 @@ After each fix round the implementer returns one line per finding it skipped; ru
 
 ### 4. Ship
 
-1. If bookkeeping is missing (a rule from owner feedback via the `add-rule` skill, and whatever CLAUDE.md asks for when a change is done), continue the implementer with it.
+1. If bookkeeping is missing (whatever CLAUDE.md asks for when a change is done), continue the implementer with it.
 2. If the base moved on, continue the implementer: merge the base in, rerun the checks, commit. Then push the branch and open the PR against the base: what changed and why, the plan's Goal and Design, every `Decision`, skipped findings with reasons, the plan's Verification lines. A step CLAUDE.md attaches to a changed file that needs a tool the implementer lacks is yours, after the push, from the merged files.
-3. Report to the owner: the PR link, the decisions, and what is left for them to verify.
+3. Report to the owner: the PR link, the decisions, what is left for them to verify, and, only if the run turned any up, suggested rules for CLAUDE.md and open work it noticed. The owner decides what to do with those; the run adds nothing itself.
 
 ## Rules
 
