@@ -1,5 +1,4 @@
 import { useNavigation } from '@react-navigation/native';
-import { useEffect } from 'react';
 import { Text } from 'react-native';
 
 import ThumbnailRow from '@/components/ThumbnailRow';
@@ -14,17 +13,13 @@ const identity = (onPress) => onPress;
 /**
  * Every post in `scope` (postQuery's), newest first by postedAt (never-posted ones last), as rows
  * that each show the post's first asset, its caption and when it was posted, and open the post;
- * `emptyText` shows instead while there are none (nothing until they've been read). `limit` caps the
- * rows at the first `limit`; `onCount(count)` gets the count of every post in `scope`. `guardPress` may
- * wrap the rows' presses (useDetailsPanelDrag's); `isLive: false` reads them once (useLiveQuery's).
+ * `emptyText` shows instead while there are none (nothing until they've been read). `limit` reads
+ * only the newest `limit` (no `limit` reads them all). `guardPress` may wrap the rows' presses
+ * (useDetailsPanelDrag's); `isLive: false` reads them once (useLiveQuery's).
  */
-export default function PostRows({ scope, emptyText, limit, onCount, guardPress = identity, isLive }) {
+export default function PostRows({ scope, emptyText, limit, guardPress = identity, isLive }) {
   const navigation = useNavigation();
-  const { rows: posts, count } = useScopePosts(scope, limit, onCount !== undefined, isLive) ?? {};
-
-  useEffect(() => {
-    onCount?.(count);
-  }, [count, onCount]);
+  const posts = useScopePosts(scope, limit, isLive);
 
   if (!posts) return null;
   if (posts.length === 0) return <Text style={listTextStyles.subtitle}>{emptyText}</Text>;
@@ -47,12 +42,12 @@ function postRowText(post) {
   return caption ? { title: caption, subtitle: posted } : { title: posted };
 }
 
-function useScopePosts(scope, limit, withCount, isLive) {
+function useScopePosts(scope, limit, isLive) {
   const query = postQuery({ scope });
   return useLiveQuery(
-    (db) => query.read(db, { limit, withCount, firstAssetOnly: true }),
+    async (db) => (await query.read(db, { limit, withCount: false, firstAssetOnly: true })).rows,
     query.tables,
-    [query.descriptor, limit, withCount],
+    [query.descriptor, limit],
     { minInterval: MIN_REREAD_INTERVAL, isLive },
   );
 }
