@@ -12,7 +12,8 @@ import {
 
 import shiftPager from './shiftPager';
 import snapPagerShift from './snapPagerShift';
-import springForRelease from './springForRelease';
+
+import { motion } from '@/styles/designTokens';
 
 /**
  * The pager's side of a zoomed photo's edge swipe, Apple Photos style: once the zoomed pan
@@ -58,8 +59,8 @@ export default function usePagerEdgeSwipe({ listRef, pageWidth, pageIndex, pageC
       }
       if (value === 0 && (previous === null || previous === 0)) return;
       const { index, count, width } = pager.value;
-      // A flick's spring bounces past its page: never past the neighbouring pages (the only ones
-      // mounted around the current one) or the content's ends.
+      // A fast release can still carry the snap's spring past its page: never past the neighbouring
+      // pages (the only ones mounted around the current one) or the content's ends.
       const x = clamp(index * width + clamp(value, -width, width), 0, Math.max(count - 1, 0) * width);
       scrollTo(listRef, x, 0, false);
     },
@@ -111,7 +112,8 @@ export default function usePagerEdgeSwipe({ listRef, pageWidth, pageIndex, pageC
         'worklet';
         const velocity = -velocityX;
         const landing = snapPagerShift({ shift: shift.value, velocity, ...neighbours() });
-        shift.value = withSpring(landing * pager.value.width, { ...springForRelease(velocity), velocity }, settled);
+        // Without a bounce, flick or not, as native paging snaps.
+        shift.value = withSpring(landing * pager.value.width, { ...motion.settle, velocity }, settled);
       },
     };
   }, [shift, pager, reportPage]);

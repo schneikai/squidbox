@@ -46,7 +46,7 @@ describe('pager edge swipe: release projection (projectRelease)', () => {
   });
 });
 
-describe('pager edge swipe: release spring (springForRelease)', () => {
+describe('details panel: release spring (springForRelease)', () => {
   it('bounces a flick in either direction', () => {
     expect(springForRelease(301)).toEqual({ name: 'spring' });
     expect(springForRelease(-1500)).toEqual({ name: 'spring' });
