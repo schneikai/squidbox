@@ -6,20 +6,15 @@ Squidbox is an Expo/React Native app for content creators to manage media, posts
 
 What matters most, in order: a beautiful, intuitive UI, data integrity, performance and reliability.
 
-## File Organization
+## Code layout
 
+- Follow the patterns of the code around you. Before writing a new component, hook or helper, check `src/components`, `src/hooks` and `src/lib` for one that already does the job
 - One exported component or utility per file. Small private helpers may live in the same file
 - Group by feature (`src/features/<feature>/`), next to where the code is used. Move code to `src/components`, `src/hooks` or `src/lib` only when more than one feature uses it
 
 ## React
 
-- Use function declarations for exported components
-- Order inside components:
-  1. hooks
-  2. derived values
-  3. handlers
-  4. early returns
-  5. JSX
+- Exported components are function declarations, ordered hooks → derived values → handlers → early returns → JSX
 
 ## UI / Components
 
