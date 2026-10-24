@@ -1,21 +1,30 @@
 import { useNavigation } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
+import { useState } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Alert, ScrollView } from 'react-native';
 
 import PostAssets from './PostAssets';
 
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
+import TextButton from '@/components/TextButton';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
 import PostRows from '@/features/post-list/PostRows';
 import PostPostedAt from '@/features/posts/PostPostedAt';
 import { colors, lineHeights, typography } from '@/styles/designTokens';
 
+const OTHER_POSTS_LIMIT = 10;
+
 export default function Post({ post, contentPaddingTop = 0 }) {
   const navigation = useNavigation();
+  const [otherPostsCount, setOtherPostsCount] = useState();
 
   // Pushed, so back returns to the post.
   function handleOpenAsset(asset) {
     navigation.push('AssetScreen', { assetId: asset.id, query: { scope: { postId: post.id } } });
+  }
+
+  function handleOpenOtherPosts() {
+    navigation.push('OtherPostsScreen', { postId: post.id });
   }
 
   async function handleCopyToClipboard() {
@@ -37,8 +46,21 @@ export default function Post({ post, contentPaddingTop = 0 }) {
           <ScreenSectionHeader title="Posted Albums" isFlush />
           <AssetAlbums assetIds={post.postAssets.map((postAsset) => postAsset.asset.id)} emptyText="Not in an album" />
 
-          <ScreenSectionHeader title="Other Posts" isFlush />
-          <PostRows scope={{ sharesAlbumWithPostId: post.id }} emptyText="No other posts" />
+          <ScreenSectionHeader
+            title="Other Posts"
+            isFlush
+            rightSlot={
+              otherPostsCount > OTHER_POSTS_LIMIT && (
+                <TextButton label={`See all ${otherPostsCount}`} size="small" onPress={handleOpenOtherPosts} />
+              )
+            }
+          />
+          <PostRows
+            scope={{ sharesAlbumWithPostId: post.id }}
+            emptyText="No other posts"
+            limit={OTHER_POSTS_LIMIT}
+            onCount={setOtherPostsCount}
+          />
         </View>
       </View>
     </ScrollView>
