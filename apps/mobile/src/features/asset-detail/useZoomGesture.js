@@ -196,25 +196,32 @@ export default function useZoomGesture({
       value.value = dragWithin({ position: value.value, delta, min: -bound, max: bound, dimension });
     };
 
-    // A one-finger zoomed pan's sideways change: the image takes it up to its edge, the pager the
-    // rest; once the pager is off its page, it takes all of it until it is back.
+    // A one-finger zoomed pan's sideways change: with `edgeSwipe`, the image takes it up to its edge
+    // and the pager the rest; once the pager is off its page, it takes all of it until it is back.
+    // Says whether the pager is off its page afterwards.
     const dragX = (changeX, bound) => {
       'worklet';
+      const isShifted = !!edgeSwipe && edgeSwipe.isShifted();
       const x = translateX.value;
-      const isShifted = edgeSwipe.isShifted();
       const room = changeX < 0 ? Math.max(x + bound, 0) : Math.max(bound - x, 0);
       const toImage = isShifted ? 0 : Math.sign(changeX) * Math.min(Math.abs(changeX), room);
       const toPager = changeX - toImage;
-      const leftover = toPager === 0 ? toPager : edgeSwipe.drag(toPager);
-      if (leftover === toPager) {
-        // The pager took none of it (no page that way): pan and rubber-band as without it.
+      if (!edgeSwipe || toPager === 0) {
         dragAxis(translateX, changeX, bound, size.value.width);
-        return;
+        return isShifted;
+      }
+      const leftover = edgeSwipe.drag(toPager);
+      const hasPagerTakenNone = leftover === toPager;
+      if (hasPagerTakenNone) {
+        // No page that way: the image pans and rubber-bands as without a pager.
+        dragAxis(translateX, changeX, bound, size.value.width);
+        return isShifted;
       }
       isHoldingPager.value = true;
       // Flush with the page's edge, also when the pan caught the image rubber-banding past it.
       translateX.value = clamp(x + toImage, -bound, bound);
       if (leftover !== 0) dragAxis(translateX, leftover, bound, size.value.width);
+      return edgeSwipe.isShifted();
     };
 
     const settleAxis = (value, velocity, bound) => {
@@ -332,38 +339,30 @@ export default function useZoomGesture({
         // Two fingers belong to the pinch, which moves the image with them.
         if (event.numberOfPointers !== 1 || !hasSamePointers) return;
         const bounds = boundsAt(scale.value);
-        if (!edgeSwipe) {
-          dragAxis(translateX, event.changeX, bounds.x, size.value.width);
-          dragAxis(translateY, event.changeY, bounds.y, size.value.height);
-          return;
-        }
-        dragX(event.changeX, bounds.x);
+        const isPagerShifted = dragX(event.changeX, bounds.x);
         // While the pager moves, only the pager moves.
-        if (!edgeSwipe.isShifted()) dragAxis(translateY, event.changeY, bounds.y, size.value.height);
+        if (!isPagerShifted) dragAxis(translateY, event.changeY, bounds.y, size.value.height);
       })
       .onEnd((event) => {
         if (isDraggingVertically.value) {
           verticalDrag.onEnd(event.velocityY);
           return;
         }
-        // The pager snaps, also after a pinch took over; the image stays on its edge.
-        if (isHoldingPager.value) {
-          isHoldingPager.value = false;
-          edgeSwipe.release(event.velocityX);
-          return;
-        }
+        // The pager snaps in onFinalize, also after a pinch took over; the image stays on its edge.
+        if (isHoldingPager.value) return;
         // A pan last moved by two fingers was the pinch's, which settles the image itself.
         if (lastPanPointers.value !== 1) return;
         const bounds = boundsAt(restingScale());
         settleAxis(translateX, event.velocityX, bounds.x);
         settleAxis(translateY, event.velocityY, bounds.y);
       })
-      .onFinalize(() => {
+      .onFinalize((event, success) => {
         isDraggingVertically.value = false;
-        // A cancelled pan skips onEnd: never leave the list between pages.
+        // A pan that held the pager snaps it, a cancelled one without velocity: never leave the list
+        // between pages.
         if (isHoldingPager.value) {
           isHoldingPager.value = false;
-          edgeSwipe.release(0);
+          edgeSwipe.release(success ? event.velocityX : 0);
         }
       });
 

@@ -7,6 +7,7 @@ import AssetPage from './AssetPage';
 import usePagerEdgeSwipe from './usePagerEdgeSwipe';
 
 const keyExtractor = (assetId) => assetId;
+const isWeb = Platform.OS === 'web';
 
 // A page that zooms out clears the slot only if it still holds that page.
 function nextZoomedAssetId({ zoomed, assetId, isZoomed }) {
@@ -45,7 +46,8 @@ function AssetPager({
   const [pageHeight, setPageHeight] = useState(0);
   const listRef = useAnimatedRef();
   const currentIndex = assetIds.indexOf(currentAssetId);
-  const [initialScrollIndex] = useState(Math.max(currentIndex, 0));
+  const pageIndex = Math.max(currentIndex, 0);
+  const [initialScrollIndex] = useState(pageIndex);
   const shownIndexRef = useRef(initialScrollIndex);
   const [zoomedAssetId, setZoomedAssetId] = useState(null);
   // Only the current asset can be zoomed, so the pager unlocks once it stops being current.
@@ -53,7 +55,7 @@ function AssetPager({
   // Natively the zoomed pan owns the swipe on the UI thread (useZoomGesture) and at the image's edge
   // hands the overshoot to the list through `edgeSwipe`; a lock by render would lag under JS load.
   // The web's gestures can't hold a scroll view, so the web locks the list instead.
-  const isScrollLocked = isLocked && Platform.OS === 'web';
+  const isScrollLocked = isLocked && isWeb;
 
   // A page the list settled on, by a swipe or a zoomed photo's edge swipe.
   const showIndex = useCallback(
@@ -65,15 +67,14 @@ function AssetPager({
     },
     [assetIds, onChangeAssetId],
   );
-  const { edgeSwipe, scrollHandler } = usePagerEdgeSwipe({
+  const { edgeSwipe, onListDragStart } = usePagerEdgeSwipe({
     listRef,
     pageWidth,
-    pageIndex: Math.max(currentIndex, 0),
+    pageIndex,
     pageCount: assetIds.length,
     onPage: showIndex,
   });
-  const isEdgeSwipeOn = Platform.OS !== 'web';
-  const pageEdgeSwipe = isEdgeSwipeOn ? edgeSwipe : null;
+  const pageEdgeSwipe = isWeb ? null : edgeSwipe;
 
   // Only changes are reported: the pager starts unlocked.
   const reportedLockRef = useRef(false);
@@ -151,7 +152,7 @@ function AssetPager({
         bounces={false}
         showsHorizontalScrollIndicator={false}
         // The list's own drag takes over from a zoomed photo's running edge-swipe snap.
-        onScroll={isEdgeSwipeOn ? scrollHandler : undefined}
+        onScrollBeginDrag={isWeb ? undefined : onListDragStart}
         onScrollEndDrag={handleScrollEnd}
         onMomentumScrollEnd={handleScrollEnd}
         onLayout={handleLayout}

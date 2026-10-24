@@ -5,7 +5,7 @@ import {
   runOnJS,
   scrollTo,
   useAnimatedReaction,
-  useAnimatedScrollHandler,
+  useEvent,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
@@ -24,7 +24,8 @@ import springForRelease from './springForRelease';
  * `onPage(index)`, as a native swipe does. `isShifted()` says whether the list is off its page,
  * `stop()` catches a running snap where it is. All of them are worklets, for the pan's UI thread.
  *
- * `scrollHandler` goes on the list's `onScroll`: the list's own drag takes over from a running snap.
+ * `onListDragStart` goes on the list's `onScrollBeginDrag`: the list's own drag takes over from a
+ * running snap. It subscribes to the drag start alone, not to every scroll frame.
  */
 export default function usePagerEdgeSwipe({ listRef, pageWidth, pageIndex, pageCount, onPage }) {
   // Points from the current page's origin, positive towards the next page.
@@ -62,14 +63,13 @@ export default function usePagerEdgeSwipe({ listRef, pageWidth, pageIndex, pageC
     },
   );
 
-  const scrollHandler = useAnimatedScrollHandler({
-    onBeginDrag: () => {
-      if (shift.value === 0) return;
-      cancelAnimation(shift);
-      isDetached.value = true;
-      shift.value = 0;
-    },
-  });
+  const onListDragStart = useEvent(() => {
+    'worklet';
+    if (shift.value === 0) return;
+    cancelAnimation(shift);
+    isDetached.value = true;
+    shift.value = 0;
+  }, ['onScrollBeginDrag']);
 
   const edgeSwipe = useMemo(() => {
     const neighbours = () => {
@@ -113,5 +113,5 @@ export default function usePagerEdgeSwipe({ listRef, pageWidth, pageIndex, pageC
     };
   }, [shift, pager, reportPage]);
 
-  return { edgeSwipe, scrollHandler };
+  return { edgeSwipe, onListDragStart };
 }
