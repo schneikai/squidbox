@@ -36,7 +36,7 @@ Ask once, batch the questions, and recommend an answer for each. Log the answer 
 
 ## Models
 
-Set the model on every dispatch; an omitted model inherits the session's. Planning and plan review get the most thorough model available, implementation and verification a standard one, and the coordinator itself a standard one, since it only reads short reports. In Claude Code today: `fable` for the planner and plan reviewer, `opus` or `sonnet` for the implementer and verifier; the review skills pick their own.
+Set the model on every dispatch; an omitted model inherits the session's. Planning and plan review get the most thorough model available, because that is where digging through the code pays off. Implementation, verification and the coordinator itself get a strong standard model: they follow a plan or read short reports. In Claude Code today: `fable` for the planner and plan reviewer, `opus` for everything else, including the session running this skill.
 
 ## Phases
 
