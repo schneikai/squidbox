@@ -112,7 +112,7 @@ Bad:
 
 Keep entries short: what's wrong or wanted, where in the code, and why it matters.
 
-The owner reads the list as a page in the project library: https://claude.ai/artifact/WduYaZ8KF63Bs9YmN1FK9A. Whenever you push a commit that changes `todo.md`, republish that same artifact (Artifact tool, `read` it and then `publish` with `url` set to that link, so it becomes a new version rather than a new page): replace the contents of its `<script type="text/markdown" id="todo-md">` block with the new `todo.md`, and set its `data-commit` and `data-date` to that commit. Change nothing else on the page.
+The owner reads the list as a page in the project library: https://claude.ai/artifact/WduYaZ8KF63Bs9YmN1FK9A. Whenever you commit a change to `todo.md`, republish that same artifact (Artifact tool, `read` it and then `publish` with `url` set to that link, so it becomes a new version rather than a new page): replace the contents of its `<script type="text/markdown" id="todo-md">` block with the new `todo.md`, and set its `data-commit` and `data-date` to that commit. Change nothing else on the page.
 
 ## Build & Preview
 

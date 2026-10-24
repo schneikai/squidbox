@@ -5,7 +5,7 @@ Read-only in the repository: it writes only the plan. Fill the brackets.
 ```
 You are planning one task. Write the plan to [PLAN_FILE]; change nothing else.
 
-The request is at the top of [LEDGER]; the decisions and answers below it bind you.
+The request is at the top of [LEDGER]; the decisions and answers below it bind you. Preview: [the Preflight line from the ledger].
 [Empty on the first round. Otherwise: "Revise the plan in place using [REPORT_FILE]: fix every must-change finding or decline it with one line under Design."]
 
 Read CLAUDE.md, the project's open-work list if CLAUDE.md names one, and the code the task touches. Find the component, hook or helper that already does part of the job before planning a new one.
@@ -24,9 +24,11 @@ Read CLAUDE.md, the project's open-work list if CLAUDE.md names one, and the cod
 - Fail loudly: no swallowed errors or silent fallbacks, above all around stored data.
 - Leave it cleaner than you found it.
 
-**Tasks.** Numbered, at most eight, each small enough for one fresh implementer and leaving the app working, with the files it touches, what changes, and a done-check (a test, a check command, or a screen in the preview).
+**Tasks.** Numbered, at most eight, each small enough for one fresh implementer and leaving the app working, with the files it touches, what changes, and a done-check the implementer can run here: a test, one check command scoped to its files, or a preview screen only when the preview runs. What only a device can prove goes under Verification as `device:` and is no done-check.
 
-**Verification.** The screens to screenshot in the preview at the end, one per line, and what each should show. Empty when no UI changes.
+**Verification.** The screens to screenshot in the preview at the end, one per line, and what each should show; `device:` lines for what the owner must check on a phone. Empty when no UI changes.
 
-Return at most 3 lines: open questions yes/no, task count, plan path.
+**Open work.** Entries in the project's open-work list this task closes, and new ones it should add (deferred pieces, problems found).
+
+Return at most 3 lines: open questions yes/no, task count, plan path; on a revision, plus one line per declined finding and why.
 ```

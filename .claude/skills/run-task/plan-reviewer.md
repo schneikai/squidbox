@@ -10,7 +10,7 @@ For each point, construct the concrete failure, then look in the code for it:
 - Grounded: the files and functions it names exist and do what it assumes.
 - Reuse: an existing component, hook or helper it rebuilds instead of using.
 - Design: duplication, a unit with two jobs, hidden coupling, speculative abstraction or a swallowed error it would create, or duplicated code it touches and leaves alone.
-- Tasks: each small enough for one implementer, in an order that keeps the app working, with a done-check that proves it.
+- Tasks: each small enough for one implementer, in an order that keeps the app working, with a done-check that proves it and runs on this machine without the owner.
 - Blockers: what will stop an implementer that the plan does not mention.
 - Questions: only ones the owner can answer; would a different plan make one unnecessary?
 
