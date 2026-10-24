@@ -69,6 +69,19 @@ export function liveAlbumAssetIds(albumId: string | SQL): SQL {
   return sql`(select asset_id from album_assets where album_id = ${albumId} and deleted_at is null)`;
 }
 
+/**
+ * The ids of the assets of a post's live albums (the albums holding any of the assets the post
+ * screen shows, so not the purged), through live edges. A trashed asset of those albums counts, as
+ * in an album's Posts tab (liveAlbumAssetIds), though the album's grid hides it.
+ */
+export function postAlbumAssetIds(postId: string): SQL {
+  return sql`(select aa.asset_id from album_assets aa join albums al on al.id = aa.album_id and al.deleted_at is null
+    where aa.deleted_at is null and aa.album_id in (
+      select album_id from album_assets where deleted_at is null and asset_id in (
+        select pe.asset_id from post_assets pe join assets pa on pa.id = pe.asset_id and pa.purged_at is null
+        where pe.post_id = ${postId} and pe.deleted_at is null)))`;
+}
+
 /** When any of an album's assets was last posted, through its live edges: `null` for never. */
 export function albumLastPostedAt(albumId: string | SQL): SQL<number | null> {
   return sql`(select max(p.posted_at) from post_assets pe join posts p on p.id = pe.post_id and p.deleted_at is null

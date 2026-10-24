@@ -93,12 +93,6 @@ The photo viewer shows the 1000 px thumbnail, so zoom stops at 4× (`useZoomGest
 well before that. Loading the full-resolution file once zoomed would make deeper zoom worthwhile,
 with the maximum taken from the photo's own size.
 
-### [ ] List an album's other posts on a post's screen
-
-Below the "Posted Albums" rows (`features/post-detail/Post.jsx`), list the other posts made with
-media from this album, like the photo details list an asset's posts (`AssetDetailsPanel`). Reuse that
-list.
-
 ### [ ] Remove deleted items for good after 30 days
 
 Like Apple Photos: an item in the Deleted album is removed for good 30 days after it was deleted,
@@ -361,6 +355,30 @@ there; show it, or let the merge finish past a rejected row.
 `mergeMarks:<source>` (`sync/status.ts`) holds a decision per merged record in one `sync_meta` value,
 read and written whole by every pass: about 100 bytes per record, so ~1 MB for a 10,000-photo device
 library. Fine for a few passes; a table keyed by record would scale if passes get frequent.
+
+### [ ] Make the dev secrets work in cloud environments, not just on a laptop
+
+`scripts/dev-local.mjs`, `apps/mobile/scripts/check-env.sh` and CLAUDE.md treat
+`apps/mobile/.env.local` as the only source of the `EXPO_PUBLIC_*` values; a cloud environment
+exports them as variables, and the scripts refuse to start. Owner request. Research first what to
+use (variables with the file as a laptop fallback, EAS environment variables, a secret manager), then
+change the scripts and CLAUDE.md together.
+
+### [ ] `albumId` post scope and `albumLastPostedAt` count deleted albums' edges
+
+`postQuery`'s `albumId` scope and `albumLastPostedAt` (`sync/assetSql.ts`) use
+`liveAlbumAssetIds`, which checks the edge's deletion but not the album's, while the
+`sharesAlbumWithPostId` scope and `albumQuery` exclude deleted albums. Harmless today (a deleted
+album's screen isn't opened), but one rule would be cleaner. With it, have `postQuery`'s `albumId`
+scope watch `schema.albums` as `sharesAlbumWithPostId` does, so both refresh when an album is
+deleted or restored.
+
+### [ ] Cap the post screen's Other Posts
+
+Other Posts on the post screen (`features/post-detail/Post.jsx`, `PostRows`) reads the whole post
+history of the post's albums into a `ScrollView`, as the photo details do for an asset's posts. If
+an album with hundreds of posts makes the screen slow, show the latest few (e.g. 10) and a row that
+opens the album's Posts tab (`AlbumPostsView`).
 
 ## Ideas
 

@@ -159,7 +159,6 @@ export default function AssetScreen({ route, navigation }) {
             video={video}
             panel={details.panel}
             isDetailsShown={details.isShown}
-            navigation={navigation}
             onChangeAssetId={setSelectedAssetId}
             onTapAsset={handleTapAsset}
             onLockChange={setIsPagerLocked}

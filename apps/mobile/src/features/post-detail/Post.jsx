@@ -4,7 +4,9 @@ import { StyleSheet, View, Text, TouchableOpacity, Alert, ScrollView } from 'rea
 
 import PostAssets from './PostAssets';
 
+import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
+import PostRows from '@/features/post-list/PostRows';
 import PostPostedAt from '@/features/posts/PostPostedAt';
 import { colors, lineHeights, typography } from '@/styles/designTokens';
 
@@ -31,9 +33,12 @@ export default function Post({ post, contentPaddingTop = 0 }) {
         </TouchableOpacity>
         <PostPostedAt postedAt={post.postedAt} style={styles.postedAt} />
 
-        <View style={styles.postedAlbums}>
-          <Text style={styles.postedAlbumsHeadline}>Posted Albums</Text>
-          <AssetAlbums assetIds={post.postAssets.map((postAsset) => postAsset.asset.id)} />
+        <View style={styles.related}>
+          <ScreenSectionHeader title="Posted Albums" isFlush />
+          <AssetAlbums assetIds={post.postAssets.map((postAsset) => postAsset.asset.id)} emptyText="Not in an album" />
+
+          <ScreenSectionHeader title="Other Posts" isFlush />
+          <PostRows scope={{ sharesAlbumWithPostId: post.id }} emptyText="No other posts" />
         </View>
       </View>
     </ScrollView>
@@ -41,16 +46,10 @@ export default function Post({ post, contentPaddingTop = 0 }) {
 }
 
 const styles = StyleSheet.create({
-  postedAlbums: {
+  related: {
     marginTop: 20,
     borderTopWidth: 1,
     borderTopColor: colors.border.glass,
-    paddingTop: 15,
-  },
-  postedAlbumsHeadline: {
-    fontSize: typography.callout,
-    fontWeight: '700',
-    marginBottom: 10,
   },
 
   container: {
