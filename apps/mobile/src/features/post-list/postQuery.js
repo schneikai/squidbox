@@ -1,7 +1,16 @@
 import { and, asc, count, desc, eq, getTableColumns, isNull, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 
-import { a, assetOrder, assetScopeWhere, fromScope, liveAlbumAssetIds, placeInPost, scopeEdges } from '@/sync/assetSql';
+import {
+  a,
+  assetOrder,
+  assetScopeWhere,
+  fromScope,
+  liveAlbumAssetIds,
+  placeInPost,
+  postAlbumAssetIds,
+  scopeEdges,
+} from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import { inJson } from '@/sync/inJson';
 import { matchingIds } from '@/sync/matchingIds';
@@ -43,12 +52,7 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
     }
     if (scope.sharesAlbumWithPostId) {
       const postId = scope.sharesAlbumWithPostId;
-      return sql`${p.id} != ${postId} and ${p.id} in (
-        select post_id from post_assets where deleted_at is null and asset_id in (
-          select aa.asset_id from album_assets aa join albums al on al.id = aa.album_id and al.deleted_at is null
-          where aa.deleted_at is null and aa.album_id in (
-            select album_id from album_assets where deleted_at is null and asset_id in (
-              select asset_id from post_assets where post_id = ${postId} and deleted_at is null))))`;
+      return sql`${p.id} != ${postId} and ${p.id} in (select post_id from post_assets where asset_id in ${postAlbumAssetIds(postId)} and deleted_at is null)`;
     }
     return undefined;
   })();

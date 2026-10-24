@@ -69,6 +69,14 @@ export function liveAlbumAssetIds(albumId: string | SQL): SQL {
   return sql`(select asset_id from album_assets where album_id = ${albumId} and deleted_at is null)`;
 }
 
+/** The ids of the assets of a post's live albums (the albums holding any of its assets), through live edges. */
+export function postAlbumAssetIds(postId: string): SQL {
+  return sql`(select aa.asset_id from album_assets aa join albums al on al.id = aa.album_id and al.deleted_at is null
+    where aa.deleted_at is null and aa.album_id in (
+      select album_id from album_assets where deleted_at is null and asset_id in (
+        select asset_id from post_assets where post_id = ${postId} and deleted_at is null)))`;
+}
+
 /** When any of an album's assets was last posted, through its live edges: `null` for never. */
 export function albumLastPostedAt(albumId: string | SQL): SQL<number | null> {
   return sql`(select max(p.posted_at) from post_assets pe join posts p on p.id = pe.post_id and p.deleted_at is null

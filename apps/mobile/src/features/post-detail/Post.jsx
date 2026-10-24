@@ -34,7 +34,7 @@ export default function Post({ post, contentPaddingTop = 0 }) {
         </TouchableOpacity>
         <PostPostedAt postedAt={post.postedAt} style={styles.postedAt} />
 
-        <View style={styles.postedAlbums}>
+        <View style={styles.related}>
           <ScreenSectionHeader title="Posted Albums" isFlush />
           <AssetAlbums
             assetIds={post.postAssets.map((postAsset) => postAsset.asset.id)}
@@ -53,7 +53,7 @@ export default function Post({ post, contentPaddingTop = 0 }) {
 }
 
 const styles = StyleSheet.create({
-  postedAlbums: {
+  related: {
     marginTop: 20,
     borderTopWidth: 1,
     borderTopColor: colors.border.glass,
