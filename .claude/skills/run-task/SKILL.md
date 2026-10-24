@@ -64,10 +64,10 @@ Dispatch a verifier that runs the project checks from the root `package.json` (`
 
 Two reviews, quality first, then correctness. Both must run on the final code; a hand-written imitation of either does not count.
 
-- **Claude Code:** invoke the bundled `/simplify`, then `/code-review --fix`, through the Skill tool. They already run in their own context, so call them from the coordinator. Log each run in `progress.md` with the commit it reviewed.
+- **Claude Code:** invoke the bundled `/simplify`, then `/code-review`, through the Skill tool, both as report-only (no `--fix`, and tell `/simplify` to stop before applying). They already run in their own context, so call them from the coordinator. Log each run in `progress.md` with the commit it reviewed.
 - **Other agents:** use the agent's built-in review if it has one, otherwise dispatch a fresh reviewer per pass with this brief: *quality* checks the plan's design principles: duplication, units doing two jobs, hidden coupling, speculative abstraction, dead code, and code that should reuse an existing component or helper; *correctness* looks for bugs, unhandled edge cases, swallowed errors, and anything that can lose or corrupt data.
 
-Apply the findings. A finding you disagree with is skipped with a one-line reason, logged and later listed in the PR. If anything changed, rerun phase 3's checks. Three fix rounds without a clean review is stop point 3.
+Reviewers report, they do not edit. Write the findings to `reports/review-<n>.md` and hand the path to a fresh implementer with [implementer.md](implementer.md), the findings as its task. It applies them, reruns the checks, commits, and may push back on a finding with a reason; you rule and log. Then rerun the review that had findings. A skipped finding is logged with its one-line reason and later listed in the PR. Three fix rounds without a clean review is stop point 3.
 
 ### 5. Finish
 
