@@ -13,23 +13,20 @@ The codebase follows a modular, component-driven architecture with an emphasis o
 - minimal duplication
 - predictable patterns
 
-## File Organization
-
-- One exported component or utility per file
-- Small private helpers may live in the same file
-- Keep related logic close to where it is used
-- Avoid generic shared files unless truly reusable across features
-- Prefer feature-based grouping over type-based grouping
+Facts, setup and procedures live in `README.md` and the skills in `.claude/skills/`.
 
 ## General Conventions
 
-- Prefer readable and explicit code over clever abstractions
-- Avoid premature abstraction — extract only when repetition is real
-- Keep functions small and focused
-- Prefer early returns to reduce nesting
-- Use clear, intention-revealing naming
-- Avoid unnecessary comments — code should explain itself
+- Prefer readable, explicit code over clever abstractions and indirection
+- Extract an abstraction only when the repetition is real, and reuse an existing pattern before adding a new one
+- Keep functions small and focused, and prefer early returns to reduce nesting
+- Name by purpose, not appearance: `MenuButton`, `Field`, `SegmentedControl`, not `RoundedBox`, `GrayCard`
 - Add comments only for non-obvious decisions or complex logic
+
+## File Organization
+
+- One exported component or utility per file. Small private helpers may live in the same file
+- Group by feature (`src/features/<feature>/`), next to where the code is used. Move code to `src/components`, `src/hooks` or `src/lib` only when more than one feature uses it
 
 ## React
 
@@ -41,95 +38,33 @@ The codebase follows a modular, component-driven architecture with an emphasis o
   4. early returns
   5. JSX
 - Move pure helper functions outside components when possible
-- Keep components focused — avoid mixing unrelated concerns
-
-## State & Logic
-
-- Keep state as local as possible
-- Lift state only when necessary
-- Avoid deeply nested state
-- Prefer explicit state transitions over implicit mutations
-- Keep side effects isolated and predictable
+- Keep state in the lowest component that needs it, and keep side effects in effects or handlers, not in render
 
 ## UI / Components
 
-- Always prefer existing components from src/components before creating new ones
-- Do not recreate UI patterns with styles — use components and composition
-- Avoid spreading style objects (e.g. ...glass) in screens or features
-- If a UI pattern repeats, extract or reuse a component instead of duplicating styles
-- Keep component responsibilities clear:
-  - components define appearance
-  - parents define layout
-- Do not use low-level primitives (e.g. raw TextInput, menu primitives) directly in features if a project component exists
-- Keep UI abstractions simple — avoid over-generalization
+- Build screens from the components in `src/components`. Don't recreate their look with styles or use low-level primitives (raw `TextInput`, menu primitives) in features when a project component exists. If a UI pattern repeats, extract a component
+- Don't spread style objects in screens or features
+- Components define their appearance; parents define layout
 - Animate with the `motion` tokens in `styles/designTokens.js` (`enter`, `exit`, `move`, `spring`), not ad-hoc durations, easings or spring values
 - Give haptic feedback through `hooks/useHaptics`, never expo-haptics directly: it respects the Haptics setting and skips builds and web without the native module. Use it only for meaningful moments (a lift, a drop, a peek, a selection change, a success or an error), never for every tap
-
-## Naming
-
-- Name by purpose, not appearance
-
-Good:
-
-- MenuButton
-- Field
-- SegmentedControl
-
-Bad:
-
-- RoundedBox
-- GrayCard
 
 ## Code Quality
 
 - The project checks are `npm run lint`, `npm run typecheck`, `npm run knip` and `npm test --workspaces --if-present`, all from the repo root. Run them before committing and keep them clean
-- Avoid dead code and unused styles. `npm run knip` finds unused files, exports and dependencies. Add to `knip.json` only files Expo or Metro load by convention, not code that is merely unused
-- Keep files concise and focused
-- Prefer consistency over personal style preferences
-- Refactor when patterns become clear — not before
-
-## Non-Goals
-
-- No premature abstraction
-- No unnecessary indirection
-- No duplication of existing patterns
-- No over-engineering of simple features
-
-## Summary
-
-- Build through composition, not duplication
-- Prefer clarity over cleverness
-- Reuse existing patterns before introducing new ones
-- Keep the codebase predictable and easy to reason about
+- Leave no dead code or unused styles. Add to `knip.json` only files Expo or Metro load by convention, not code that is merely unused
 
 ## TODO list
 
 `todo.md` is the single list of open work, ideas, and steps only the owner can do. Keep it current:
 
-- Add an entry when you discover a bug, a weakness or missing piece you don't fix right away.
-- Add an entry when the owner defers something or mentions an idea.
-- Remove an entry when it's done, in the same commit as the work.
+- Add an entry when you discover a bug, a weakness or missing piece you don't fix right away, or when the owner defers something or mentions an idea
+- Remove an entry when it's done, in the same commit as the work
+- Keep entries short: what's wrong or wanted, where in the code, and why it matters
+- After committing a change to `todo.md`, republish its page as the comment at the top of `todo.md` says
 
-Keep entries short: what's wrong or wanted, where in the code, and why it matters.
+## Builds and the dev client
 
-The owner reads the list as a page in the project library: https://claude.ai/artifact/WduYaZ8KF63Bs9YmN1FK9A. Whenever you commit a change to `todo.md`, republish that same artifact (Artifact tool, `read` it and then `publish` with `url` set to that link, so it becomes a new version rather than a new page): replace the contents of its `<script type="text/markdown" id="todo-md">` block with the new `todo.md`, and set its `data-commit` and `data-date` to that commit. Change nothing else on the page.
-
-## Build & Preview
-
-**Monorepo:** the Expo app lives in `apps/mobile/`. Run all app commands (`npx expo start`, `node tunnel.js`, `scripts/check-env.sh`, `eas build`) and read the env files (`.env.local`, `.secrets`) from `apps/mobile/`. `npm install` runs once at the repo root (npm workspaces).
-
-Builds run from a cloud workspace. For the full procedure, see `README.md` → "Building the iOS app", "Dev client: Metro + tunnel" and "Local backend with mock data", and the `build` skill for the headless runbook. Invariants:
-
-- Two app slots via separate bundle IDs (`app.config.js` switches on `EAS_BUILD_PROFILE`): `development` → `.dev` (dev client, Metro over a tunnel, hot reload); `preview` → base id (standalone, JS baked in). Always export `EAS_BUILD_PROFILE` matching the profile you pass to `eas build`.
-- Authenticate Apple with an **App Store Connect API Key** (`EXPO_ASC_*` + `EXPO_APPLE_TEAM_*`), never Apple ID + password (blocked from cloud IPs). Never commit the `.p8`.
-- App secrets live in EAS (preview/production). The dev client reads `EXPO_PUBLIC_*` from `.env.local` (template `.env.local.example`) via Metro at runtime; its API URL is the live backend. For the local backend with mock data, run `npm run dev:local` from the repo root: it starts Docker, the server and Metro with its tunnel, and prints the tunnel URL. No env file holds that URL.
-- New bundle IDs, and expired certificates or profiles, need `eas credentials:configure-build` run interactively (TTY prompts need `expect`/`pexpect` headless, `CI` unset). `eas build:resign` only works within ~14 days of a build, before EAS deletes the artifact.
-- In the cloud workspace, open the dev-client tunnel with Expo's tunnel (`http_proxy=$HTTPS_PROXY npx expo start --tunnel --dev-client`). The free ngrok plan behind `tunnel.js` refuses to run behind the workspace proxy.
-- To see or test a UI change without a phone, use the web preview (`npm run web:preview` in `apps/mobile/`, with `npm run dev:local` running, or `npm run dev:local -- --web` when no phone needs the tunnel): it renders the app at iPhone 15 Pro Max size, signed in to the mock data, and `scripts/webPreview.mjs` exports `openWebPreview()` for scripted taps and screenshots. Measure performance with `--production` (release bundle) or `npm run web:measure`. Check native-only behavior (camera roll, uploads, gestures) on a device.
-- Fresh checkout: runtime secrets are already in EAS; restore `.env.local`, `EXPO_TOKEN`, and the ASC `.p8`+IDs from a password manager, then run `scripts/check-env.sh`.
-
-## Dev client: always check env first
-
-Before starting Metro for the dev client, run `scripts/check-env.sh` and confirm `.env.local` exists and is filled in. **If `.env.local` is missing, do NOT start Metro — stop and ask the user to provide the values** (API URL, login, OpenAI key, etc.), or to restore the file from their password manager. Without it, Metro serves a bundle with no `EXPO_PUBLIC_*` values and every API call is broken. `.env.local` is gitignored, so it doesn't survive a fresh checkout. "Start the dev client" means boot Metro + the tunnel (no build); only build the dev client when native code changes. With the local backend, that is `npm run dev:local` from the repo root, which also refuses to start without `.env.local`.
-
-When Metro + the tunnel are running, the only thing the user needs is the **tunnel URL** to open in the Squidbox Dev app (e.g. `https://anonymous-8081.exp.direct`). Surface that URL prominently at the end of the response — don't dump Metro/Expo startup logs, local localhost URLs, or other URLs the user can't use.
+- The Expo app lives in `apps/mobile/`: run app commands and read its env files there. `npm install` runs once at the repo root (npm workspaces)
+- For builds, signing and credentials, follow the `build` skill. Build the dev client only when native code changes; "start the dev client" means Metro and its tunnel (`README.md` → "Dev client: Metro + tunnel", or `npm run dev:local` for the local backend)
+- Run `scripts/check-env.sh` before starting Metro. If `.env.local` is missing, don't start Metro: ask the owner for the values or to restore the file. Without it every API call is broken
+- When Metro and the tunnel are running, end your reply with the tunnel URL to open in Squidbox (Dev), not the startup logs or localhost URLs
