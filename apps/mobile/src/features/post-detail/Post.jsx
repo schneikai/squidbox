@@ -9,7 +9,6 @@ import AssetAlbums from '@/features/album-list/AssetAlbums';
 import PostRows from '@/features/post-list/PostRows';
 import PostPostedAt from '@/features/posts/PostPostedAt';
 import { colors, lineHeights, typography } from '@/styles/designTokens';
-import listTextStyles from '@/styles/listTextStyles';
 
 export default function Post({ post, contentPaddingTop = 0 }) {
   const navigation = useNavigation();
@@ -36,16 +35,10 @@ export default function Post({ post, contentPaddingTop = 0 }) {
 
         <View style={styles.related}>
           <ScreenSectionHeader title="Posted Albums" isFlush />
-          <AssetAlbums
-            assetIds={post.postAssets.map((postAsset) => postAsset.asset.id)}
-            empty={<Text style={listTextStyles.subtitle}>Not in an album</Text>}
-          />
+          <AssetAlbums assetIds={post.postAssets.map((postAsset) => postAsset.asset.id)} emptyText="Not in an album" />
 
           <ScreenSectionHeader title="Other Posts" isFlush />
-          <PostRows
-            scope={{ sharesAlbumWithPostId: post.id }}
-            empty={<Text style={listTextStyles.subtitle}>No other posts</Text>}
-          />
+          <PostRows scope={{ sharesAlbumWithPostId: post.id }} emptyText="No other posts" />
         </View>
       </View>
     </ScrollView>

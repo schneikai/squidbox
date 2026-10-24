@@ -1,8 +1,10 @@
 import { useNavigation } from '@react-navigation/native';
+import { Text } from 'react-native';
 
 import ThumbnailRow from '@/components/ThumbnailRow';
 import { MIN_REREAD_INTERVAL } from '@/constants';
 import postQuery from '@/features/post-list/postQuery';
+import listTextStyles from '@/styles/listTextStyles';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
 
@@ -11,15 +13,15 @@ const identity = (onPress) => onPress;
 /**
  * Every post in `scope` (postQuery's), newest first by postedAt (never-posted ones last), as rows
  * that each show the post's first asset, its caption and when it was posted, and open the post;
- * `empty` shows instead while there are none (nothing until they've been read). `guardPress` may wrap
+ * `emptyText` shows instead while there are none (nothing until they've been read). `guardPress` may wrap
  * the rows' presses (useDetailsPanelDrag's); `isLive: false` reads them once (useLiveQuery's).
  */
-export default function PostRows({ scope, empty = null, guardPress = identity, isLive }) {
+export default function PostRows({ scope, emptyText, guardPress = identity, isLive }) {
   const navigation = useNavigation();
   const posts = useScopePosts(scope, isLive);
 
   if (!posts) return null;
-  if (posts.length === 0) return empty;
+  if (posts.length === 0) return <Text style={listTextStyles.subtitle}>{emptyText}</Text>;
 
   return posts.map((post, index) => (
     <ThumbnailRow

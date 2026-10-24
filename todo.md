@@ -369,7 +369,9 @@ change the scripts and CLAUDE.md together.
 `postQuery`'s `albumId` scope and `albumLastPostedAt` (`sync/assetSql.ts`) use
 `liveAlbumAssetIds`, which checks the edge's deletion but not the album's, while the
 `sharesAlbumWithPostId` scope and `albumQuery` exclude deleted albums. Harmless today (a deleted
-album's screen isn't opened), but one rule would be cleaner.
+album's screen isn't opened), but one rule would be cleaner. With it, have `postQuery`'s `albumId`
+scope watch `schema.albums` as `sharesAlbumWithPostId` does, so both refresh when an album is
+deleted or restored.
 
 ### [ ] Cap the post screen's Other Posts
 

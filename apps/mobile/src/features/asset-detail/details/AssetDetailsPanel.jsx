@@ -77,20 +77,10 @@ function AssetDetails({ asset, isCurrent, guardPress, onEditingBottomChange }) {
       </View>
 
       <ScreenSectionHeader title="Albums" isFlush />
-      <AssetAlbums
-        assetIds={[asset.id]}
-        empty={<Text style={listTextStyles.subtitle}>Not in an album</Text>}
-        guardPress={guardPress}
-        isLive={isCurrent}
-      />
+      <AssetAlbums assetIds={[asset.id]} emptyText="Not in an album" guardPress={guardPress} isLive={isCurrent} />
 
       <ScreenSectionHeader title="Posts" isFlush />
-      <PostRows
-        scope={{ assetId: asset.id }}
-        empty={<Text style={listTextStyles.subtitle}>Never posted</Text>}
-        guardPress={guardPress}
-        isLive={isCurrent}
-      />
+      <PostRows scope={{ assetId: asset.id }} emptyText="Never posted" guardPress={guardPress} isLive={isCurrent} />
     </>
   );
 }

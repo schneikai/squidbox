@@ -112,23 +112,27 @@ describe('postQuery', () => {
   it('scopes to the other posts that share a live album with a post, each once', async () => {
     await repo.createMany(
       db,
-      ['a1', 'a2', 'a3', 'a4'].map((id) => makeAssetRecord({ id })),
+      ['a1', 'a2', 'a3', 'a4', 'a5'].map((id) => makeAssetRecord({ id })),
     );
+    await repo.createMany(db, [makeAssetRecord({ id: 'purged', deletedAt: 3, purgedAt: 4 })]);
     await albums.createMany(db, [
       makeAlbumRecord({ id: 'A', name: 'A' }),
       makeAlbumRecord({ id: 'B', name: 'B' }),
       makeAlbumRecord({ id: 'gone', name: 'gone', deletedAt: 5 }),
+      makeAlbumRecord({ id: 'C', name: 'C' }),
     ]);
     await albumEdges.add(db, 'A', ['a1', 'a2'], newId);
     await albumEdges.add(db, 'B', ['a3'], newId);
     await albumEdges.add(db, 'gone', ['a1', 'a4'], newId);
-    await createPost('p1', { postedAt: 10 }, ['a1']); // the subject
+    await albumEdges.add(db, 'C', ['purged', 'a5'], newId);
+    await createPost('p1', { postedAt: 10 }, ['a1', 'purged']); // the subject
     await createPost('p2', { postedAt: 20 }, ['a2']); // shares A
     await createPost('p3', { postedAt: 30, deletedAt: 5 }, ['a1']); // deleted
     await createPost('p4', { postedAt: 40 }, ['a3']); // album B only
     await createPost('p5', { postedAt: 50 }, ['a4']); // only through the deleted album
     await createPost('p6', { postedAt: 60 }, ['a2']); // its edge removed below
     await createPost('p7', { postedAt: 70 }, ['a1', 'a3']); // two ways in, listed once
+    await createPost('p8', { postedAt: 80 }, ['a5']); // only through p1's purged asset
     await postEdges.remove(db, 'p6', ['a2']);
     expect(await ids({ scope: { sharesAlbumWithPostId: 'p1' } })).toEqual(['p7', 'p2']);
     const { tables } = postQuery({ scope: { sharesAlbumWithPostId: 'p1' } });
