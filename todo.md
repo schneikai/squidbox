@@ -1,3 +1,12 @@
+<!--
+The owner reads this list as a page in the project library:
+https://claude.ai/artifact/WduYaZ8KF63Bs9YmN1FK9A. After committing a change to this file, republish
+that same artifact (Artifact tool: `read` it, then `publish` with `url` set to that link, so it
+becomes a new version): replace the contents of its markdown block (`id="todo-md"`) with the
+new file and set its `data-commit` and `data-date` to that commit. Change nothing
+else on the page.
+-->
+
 # TODO
 
 Open work, ideas, and steps only the owner can do. Add an entry whenever you discover a problem,
