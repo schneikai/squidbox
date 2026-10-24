@@ -6,23 +6,6 @@ Squidbox is an Expo/React Native app for content creators to manage media, posts
 
 What matters most, in order: a beautiful, intuitive UI, data integrity, performance and reliability.
 
-The codebase follows a modular, component-driven architecture with an emphasis on:
-
-- composability
-- clear ownership boundaries
-- minimal duplication
-- predictable patterns
-
-Facts, setup and procedures live in `README.md` and the skills in `.claude/skills/`.
-
-## General Conventions
-
-- Prefer readable, explicit code over clever abstractions and indirection
-- Extract an abstraction only when the repetition is real, and reuse an existing pattern before adding a new one
-- Keep functions small and focused, and prefer early returns to reduce nesting
-- Name by purpose, not appearance: `MenuButton`, `Field`, `SegmentedControl`, not `RoundedBox`, `GrayCard`
-- Add comments only for non-obvious decisions or complex logic
-
 ## File Organization
 
 - One exported component or utility per file. Small private helpers may live in the same file
@@ -37,8 +20,6 @@ Facts, setup and procedures live in `README.md` and the skills in `.claude/skill
   3. handlers
   4. early returns
   5. JSX
-- Move pure helper functions outside components when possible
-- Keep state in the lowest component that needs it, and keep side effects in effects or handlers, not in render
 
 ## UI / Components
 
@@ -51,7 +32,7 @@ Facts, setup and procedures live in `README.md` and the skills in `.claude/skill
 ## Code Quality
 
 - The project checks are `npm run lint`, `npm run typecheck`, `npm run knip` and `npm test --workspaces --if-present`, all from the repo root. Run them before committing and keep them clean
-- Leave no dead code or unused styles. Add to `knip.json` only files Expo or Metro load by convention, not code that is merely unused
+- Add to `knip.json` only files Expo or Metro load by convention. Delete code that is merely unused
 
 ## TODO list
 
@@ -62,9 +43,10 @@ Facts, setup and procedures live in `README.md` and the skills in `.claude/skill
 - Keep entries short: what's wrong or wanted, where in the code, and why it matters
 - After committing a change to `todo.md`, republish its page as the comment at the top of `todo.md` says
 
-## Builds and the dev client
+## Builds, preview and the dev client
 
 - The Expo app lives in `apps/mobile/`: run app commands and read its env files there. `npm install` runs once at the repo root (npm workspaces)
 - For builds, signing and credentials, follow the `build` skill. Build the dev client only when native code changes; "start the dev client" means Metro and its tunnel (`README.md` → "Dev client: Metro + tunnel", or `npm run dev:local` for the local backend)
+- To see a UI change without a phone, use the web preview: `npm run dev:local -- --web` from the repo root, then `npm run web:preview` in `apps/mobile/` (`README.md` → "Web preview"). Check native-only behavior (camera roll, uploads, gestures) on a device
 - Run `scripts/check-env.sh` before starting Metro. If `.env.local` is missing, don't start Metro: ask the owner for the values or to restore the file. Without it every API call is broken
 - When Metro and the tunnel are running, end your reply with the tunnel URL to open in Squidbox (Dev), not the startup logs or localhost URLs
