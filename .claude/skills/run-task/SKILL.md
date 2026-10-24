@@ -46,7 +46,7 @@ If the plan has open questions: stop point 1, then one more planner revision wit
 
 ### 2. Build
 
-One implementer ([implementer.md](implementer.md)) per task, in order, never in parallel. It gets the plan path, its task number, the ledger path and its report path; it runs the checks that cover its files, commits, and appends a `Note:` line.
+One implementer ([implementer.md](implementer.md)) per task, in order, never in parallel. It gets the plan path, its task number, the ledger path and its report path; it runs its done-check, commits, and appends a `Note:` line.
 
 - `DONE`: next task.
 - `CONCERNS`: rule, log, re-dispatch only if the task is incomplete.
@@ -54,13 +54,13 @@ One implementer ([implementer.md](implementer.md)) per task, in order, never in 
 
 ### 3. Review
 
-Three reviewer dispatches on the branch against the base. Each runs every check CLAUDE.md names first; a failure the branch introduced is fixed or flagged, a pre-existing one is listed for the open-work list.
+Reviewers report, implementers fix. The project checks run in the fix implementers only, so at most twice; build implementers run their done-check and reviewers run nothing.
 
-1. **Quality** ([quality-reviewer.md](quality-reviewer.md); Claude Code: `/simplify`). It applies its fixes as one commit and lists them in its report; the commit stands.
-2. **Correctness** ([correctness-reviewer.md](correctness-reviewer.md); Claude Code: `/code-review medium`, report only). One implementer applies the must-fix findings and the nice-to-haves it agrees with; it may push back with `CONCERNS`, and you rule.
-3. **Confirm** (the correctness reviewer again, with the previous report and your rulings; `/code-review low`). It reports only fixes not applied and regressions in the lines the fix changed; anything else is logged for the PR. A must-fix still open that you cannot rule on: stop point 3.
+1. **Quality** ([reviewer.md](reviewer.md), quality focus; Claude Code: `/simplify`, told to report only). An implementer applies the findings it agrees with and runs the checks on the whole branch for the first time. Dispatch it even with no findings, for that run.
+2. **Correctness** (correctness focus; `/code-review medium`). An implementer applies the must-fix findings and the nice-to-haves it agrees with, and runs the checks again. Skip it when there is nothing to apply.
+3. **Confirm** (correctness focus again, with the previous report and your rulings; `/code-review low`). It reports only fixes not applied and regressions in the lines the fix changed; anything else is logged for the PR. A must-fix still open that you cannot rule on: stop point 3.
 
-Findings you skip are logged with a reason and listed in the PR.
+An implementer may push back with `CONCERNS`; you rule. Findings you skip are logged with a reason and listed in the PR.
 
 ### 4. Ship
 
