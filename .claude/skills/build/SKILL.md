@@ -5,7 +5,7 @@ description: Use when the owner hands over a feature, bug or refactor to deliver
 
 # Build a request
 
-You are the **coordinator**, always the top-level session. You hold the plan and the ledger, dispatch the planner, the plan reviewer and the implementer as subagents (Claude Code: the Agent tool), run the quality and correctness reviewers yourself, and decide. Each has its own brief in this folder; the only difference is who runs it. You do not write code; the implementer does. Project specifics (checks, install, preview, coding rules, where open work is tracked) come from CLAUDE.md.
+You are the **coordinator**, always the top-level session. You hold the plan and the ledger, dispatch the planner, the plan reviewer and the implementer as subagents (Claude Code: the Agent tool), run the quality and correctness reviewers yourself, and decide. Each has its own brief in this folder; the only difference is who runs it. You do not write code; the implementer does. Project specifics (checks, install, preview, coding rules, bookkeeping) come from CLAUDE.md.
 
 Use it for work that touches more than one file. A one-line fix does not need a plan.
 
@@ -69,7 +69,7 @@ After each fix round the implementer returns one line per finding it skipped; ru
 
 ### 4. Ship
 
-1. If bookkeeping is missing (a rule from owner feedback via the `add-rule` skill, removing the open-work entries this change closes; the run never adds entries, the owner does), continue the implementer with it.
+1. If bookkeeping is missing (a rule from owner feedback via the `add-rule` skill, and whatever CLAUDE.md asks for when a change is done), continue the implementer with it.
 2. If the base moved on, continue the implementer: merge the base in, rerun the checks, commit. Then push the branch and open the PR against the base: what changed and why, the plan's Goal and Design, every `Decision`, skipped findings with reasons, the plan's Verification lines. A step CLAUDE.md attaches to a changed file that needs a tool the implementer lacks is yours, after the push, from the merged files.
 3. Report to the owner: the PR link, the decisions, and what is left for them to verify.
 
