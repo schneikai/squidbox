@@ -111,6 +111,17 @@ const POSTS: { text: string; media: number[]; postedDaysAgo: number | null; isFa
   { text: 'Quiet roads, loud thoughts.', media: [19], postedDaysAgo: 5, isFavorite: true },
   { text: 'Draft: weekend dump', media: [35, 36, 37], postedDaysAgo: null },
   { text: 'Draft: which one should I post?', media: [38, 40], postedDaysAgo: null },
+  { text: 'Golden hour, again 🌅', media: [2, 6], postedDaysAgo: 45 },
+  { text: 'Road snacks ranked', media: [25], postedDaysAgo: 75 },
+  { text: '', media: [11], postedDaysAgo: 105 },
+  { text: 'That one perfect beach day', media: [5, 7], postedDaysAgo: 135 },
+  { text: 'Packing light, mostly', media: [0], postedDaysAgo: 165 },
+  { text: 'Sunburn worth it', media: [8], postedDaysAgo: 195 },
+  { text: 'Back to the hills', media: [1, 2], postedDaysAgo: 225 },
+  { text: 'Tiny town, big skies', media: [6], postedDaysAgo: 255 },
+  { text: 'Throwback to the first trip', media: [25, 11], postedDaysAgo: 290 },
+  { text: 'Wish I had stayed longer', media: [5], postedDaysAgo: 320 },
+  { text: 'Where it all started', media: [0, 8], postedDaysAgo: 400 },
 ];
 
 if (!email || !password) throw new Error('SEED_USER_EMAIL and SEED_USER_PASSWORD must be set (see .env.docker)');

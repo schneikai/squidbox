@@ -376,12 +376,12 @@ album's screen isn't opened), but one rule would be cleaner. With it, have `post
 scope watch `schema.albums` as `sharesAlbumWithPostId` does, so both refresh when an album is
 deleted or restored.
 
-### [ ] Cap the post screen's Other Posts
+### [ ] `dev:local` leaves Metro and the API running when the seed fails
 
-Other Posts on the post screen (`features/post-detail/Post.jsx`, `PostRows`) reads the whole post
-history of the post's albums into a `ScrollView`, as the photo details do for an asset's posts. If
-an album with hundreds of posts makes the screen slow, show the latest few (e.g. 10) and a row that
-opens the album's Posts tab (`AlbumPostsView`).
+`scripts/dev-local.mjs` starts Metro and the API server before the mock seed; when the seed step
+fails (e.g. a transient picsum 503 with `--reset-data`), the script exits but both keep running, so
+they must be killed by hand before a rerun. Likely cause: `shutdown` sends SIGTERM only to the
+direct `npx`/`npm` children, not to the Metro and server processes under them.
 
 ## Ideas
 
