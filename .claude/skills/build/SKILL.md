@@ -75,4 +75,4 @@ After each fix round the implementer returns one line per finding it skipped; ru
 ## Rules
 
 - Every decision and skipped finding is a ledger line. Narrate at most one line between tool calls.
-- After each step (plan, build, each review and its fix round, ship), post the owner a short status: what the step produced, in numbers (commits, checks, findings applied and skipped), and the decisions you made in it.
+- Post the owner a short status after every phase: the plan, the plan review, the revision, the build, each review, each fix round, bookkeeping, the push. What it produced, in numbers (commits, checks, findings applied and skipped), and the decisions you made in it.
