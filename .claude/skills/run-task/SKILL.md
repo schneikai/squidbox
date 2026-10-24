@@ -13,9 +13,9 @@ Use it for work that touches more than one file. A one-line fix does not need a 
 
 `.work/<slug>/` (slug: kebab-case from the request; `.work/` in `.gitignore`, the first implementer adds it if missing):
 
-- `progress.md`: the ledger. First line: the owner's request, verbatim. Then one line per event: `Decision: what / why / cost if wrong`, `Dispatch: planner 1`, `Task 2 DONE a1b2c3d..d4e5f6a`, `Review quality: 3 findings`, `Stop: <question>`. Implementers append `Note:` lines for what later steps must know. After a context reset, read it and `git log` and continue after the last line; a dirty tree means the last dispatch died, so the next implementer finishes or discards it.
+- `progress.md`: the ledger. It opens with the owner's request, verbatim, above a `---` line. Below, one line per event: `Decision: what / why / cost if wrong`, `Dispatch: planner 1`, `Task 2 DONE a1b2c3d..d4e5f6a`, `Review quality: 3 findings`, `Stop: <question>`. Implementers append `Note:` lines for what later steps must know. After a context reset, read it and `git log` and continue after the last line; modified tracked files mean the last dispatch died, so the next implementer finishes or discards that work.
 - `plan.md`: written by the planner.
-- `reports/`: one file per subagent run.
+- `reports/`: one file per subagent run. `screenshots/`: from the preview, for the owner.
 
 Subagents write their result to a file and return a few lines: status, commits, file path. You read `plan.md` once and the ledger; never a report.
 
@@ -54,18 +54,19 @@ One implementer ([implementer.md](implementer.md)) per task, in order, never in 
 
 ### 3. Review
 
-Two passes on the branch against the base, each by a fresh reviewer ([reviewer.md](reviewer.md)) that first runs every check CLAUDE.md names:
+Three dispatches of a fresh reviewer ([reviewer.md](reviewer.md)) on the branch against the base. Each runs every check CLAUDE.md names first; a failure the branch introduced is a must-fix finding, a pre-existing one is listed for the open-work list.
 
-1. **Quality** (Claude Code: `/simplify`). The reviewer lets it apply its fixes as one commit and reports the list. You rule on each change; an implementer reverts the ones you reject.
-2. **Correctness** (Claude Code: `/code-review`, report only). One implementer applies the must-fix findings, plus the nice-to-haves it agrees with, and may push back with `CONCERNS`; you rule. Then the correctness reviewer runs once more. A must-fix still open: stop point 3.
+1. **Quality** (Claude Code: `/simplify`). It applies its fixes as one commit and lists them in its report; the commit stands.
+2. **Correctness** (Claude Code: `/code-review`, report only). One implementer applies the must-fix findings and the nice-to-haves it agrees with; it may push back with `CONCERNS`, and you rule.
+3. **Confirm** (correctness again, with the previous report and your rulings). It reports only fixes not applied and regressions in the lines the fix changed; anything else is logged for the PR. A must-fix still open that you cannot rule on: stop point 3.
 
-A failure in a file the branch did not touch is pre-existing: it goes into the open-work list, not the fix round. Findings you skip are logged with a reason and listed in the PR.
+Findings you skip are logged with a reason and listed in the PR.
 
 ### 4. Ship
 
-1. If there is bookkeeping (a rule from owner feedback via the `add-rule` skill, open-work entries to add or remove, screenshots of changed screens through the project's preview), one last implementer does it.
-2. Push the branch and open the PR: what changed and why, every `Decision`, skipped findings with reasons, how to verify.
-3. Report to the owner: the PR link and the decisions.
+1. If there is bookkeeping (a rule from owner feedback via the `add-rule` skill, open-work entries to add or remove, screenshots of the plan's listed screens through the project's preview), one last implementer does it.
+2. Push the branch and open the PR against the base: what changed and why, every `Decision`, skipped findings with reasons, how to verify.
+3. Report to the owner: the PR link, the decisions, and the screenshots.
 
 ## Rules
 

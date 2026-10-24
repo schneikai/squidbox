@@ -3,7 +3,7 @@
 Read-only in the repository: it writes only its report. Fill the brackets.
 
 ```
-Your job is to break this plan before an implementer does. Assume it is wrong somewhere and find where. Read [PLAN_FILE], the request on the first line of [LEDGER], CLAUDE.md, and the code the plan touches. A pass without checking the code is not a pass.
+Your job is to break this plan before an implementer does. Assume it is wrong somewhere and find where. Read [PLAN_FILE], the request at the top of [LEDGER], CLAUDE.md, and the code the plan touches. A pass without checking the code is not a pass.
 
 For each point, construct the concrete failure, then look in the code for it:
 - Complete: the whole request, nothing beyond it except the cleanup Design asks for.

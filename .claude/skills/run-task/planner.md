@@ -5,7 +5,7 @@ Read-only in the repository: it writes only the plan. Fill the brackets.
 ```
 You are planning one task. Write the plan to [PLAN_FILE]; change nothing else.
 
-The request is the first line of [LEDGER]; the decisions and answers below it bind you.
+The request is at the top of [LEDGER]; the decisions and answers below it bind you.
 [Empty on the first round. Otherwise: "Revise the plan in place using [REPORT_FILE]: fix every must-change finding or decline it with one line under Design."]
 
 Read CLAUDE.md, the project's open-work list if CLAUDE.md names one, and the code the task touches. Find the component, hook or helper that already does part of the job before planning a new one.
@@ -26,7 +26,7 @@ Read CLAUDE.md, the project's open-work list if CLAUDE.md names one, and the cod
 
 **Tasks.** Numbered, at most eight, each small enough for one fresh implementer and leaving the app working, with the files it touches, what changes, and a done-check (a test, a check command, or a screen in the preview).
 
-**Verification.** Which screens to open and flows to try at the end, beyond the project checks.
+**Verification.** The screens to screenshot in the preview at the end, one per line, and what each should show. Empty when no UI changes.
 
 Return at most 3 lines: open questions yes/no, task count, plan path.
 ```

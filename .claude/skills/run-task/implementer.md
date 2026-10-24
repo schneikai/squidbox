@@ -7,9 +7,8 @@ You are doing one step of a plan. Read [PLAN_FILE] for the Design section and [L
 
 [One of:
 - "Task N from the plan, with its done-check."
-- "Apply the review findings in REPORT_FILE: all must-fix, and the nice-to-haves you agree with. Done-check: no failure in the project checks beyond KNOWN_FAILURES."
-- "Revert these quality changes: LIST. Done-check: the project checks pass as before."
-- "Bookkeeping: add these rules via the add-rule skill: RULES. Open-work list: add ITEMS, remove DONE_ENTRIES, following any rule CLAUDE.md attaches to that file. Screenshots of SCREENS through the project's preview into SCREENSHOT_DIR; if the preview cannot run, say so."]
+- "Apply the review findings in REPORT_FILE: all must-fix, and the nice-to-haves you agree with. Done-check: no check failure beyond the pre-existing ones that report lists."
+- "Bookkeeping: add these rules via the add-rule skill: RULES. Open-work list: add the pre-existing failures listed in REVIEW_REPORTS and ITEMS, remove DONE_ENTRIES, following any rule CLAUDE.md attaches to that file. Screenshot the screens the plan's Verification section lists, through the project's preview, into .work/SLUG/screenshots/; if the preview cannot run, say so."]
 
 ## Rules
 
