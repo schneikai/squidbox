@@ -54,11 +54,11 @@ One implementer ([implementer.md](implementer.md)) per task, in order, never in 
 
 ### 3. Review
 
-Three dispatches of a fresh reviewer ([reviewer.md](reviewer.md)) on the branch against the base. Each runs every check CLAUDE.md names first; a failure the branch introduced is a must-fix finding, a pre-existing one is listed for the open-work list.
+Three reviewer dispatches on the branch against the base. Each runs every check CLAUDE.md names first; a failure the branch introduced is fixed or flagged, a pre-existing one is listed for the open-work list.
 
-1. **Quality** (Claude Code: `/simplify`). It applies its fixes as one commit and lists them in its report; the commit stands.
-2. **Correctness** (Claude Code: `/code-review`, report only). One implementer applies the must-fix findings and the nice-to-haves it agrees with; it may push back with `CONCERNS`, and you rule.
-3. **Confirm** (correctness again, with the previous report and your rulings). It reports only fixes not applied and regressions in the lines the fix changed; anything else is logged for the PR. A must-fix still open that you cannot rule on: stop point 3.
+1. **Quality** ([quality-reviewer.md](quality-reviewer.md); Claude Code: `/simplify`). It applies its fixes as one commit and lists them in its report; the commit stands.
+2. **Correctness** ([correctness-reviewer.md](correctness-reviewer.md); Claude Code: `/code-review medium`, report only). One implementer applies the must-fix findings and the nice-to-haves it agrees with; it may push back with `CONCERNS`, and you rule.
+3. **Confirm** (the correctness reviewer again, with the previous report and your rulings; `/code-review low`). It reports only fixes not applied and regressions in the lines the fix changed; anything else is logged for the PR. A must-fix still open that you cannot rule on: stop point 3.
 
 Findings you skip are logged with a reason and listed in the PR.
 
