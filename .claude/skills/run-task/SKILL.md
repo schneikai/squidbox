@@ -85,7 +85,7 @@ A skipped finding is logged with its one-line reason and later listed in the PR.
 
 ### 5. Finish
 
-1. Dispatch an implementer with the bookkeeping task from [implementer.md](implementer.md), its lists filled from the ledger: rules from feedback the owner gave that applies beyond this task (via the `add-rule` skill), pre-existing failures, deferred work and skipped findings for the project's open-work list, completed entries to remove, plus any publish or sync step AGENTS.md ties to those files.
+1. Dispatch an implementer with the bookkeeping task from [implementer.md](implementer.md), its lists filled from the ledger: rules from feedback the owner gave that applies beyond this task (the brief names the `add-rule` skill file, since a subagent cannot invoke it by name), pre-existing failures, deferred work and skipped findings for the project's open-work list, completed entries to remove, plus any publish or sync step AGENTS.md ties to those files.
 2. Push the branch and open the PR. The description holds: what changed and why, every `Decision` from the ledger, skipped review findings with their reasons, and how to verify.
 3. Report to the owner: the PR link, the decisions, the screenshots, and anything they still need to do.
 
