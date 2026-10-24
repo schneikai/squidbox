@@ -7,7 +7,7 @@ Your job is to break this plan before an implementer does. Assume it is wrong so
 
 ## The task the plan must deliver
 
-[The owner's request, verbatim.]
+[Contents of task.md.]
 
 ## Attack
 
@@ -25,5 +25,5 @@ For each point, try to construct the concrete failure, then look in the code for
 
 Write to [REPORT_FILE]: one finding per line, blunt, with the plan section it concerns, the failure it would cause, and the fix you suggest. Separate what must change from what you would merely prefer. No praise; the planner needs the holes, not reassurance.
 
-Then return at most 5 lines: PASS or REVISE, the count of must-change findings, and the report path.
+Then return at most 5 lines: PASS when there is no must-change finding, otherwise REVISE; the count of must-change findings; the report path.
 ```

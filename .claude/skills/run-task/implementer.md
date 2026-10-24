@@ -7,7 +7,7 @@ You are implementing one task of a plan. Do this task only.
 
 ## Your task
 
-[Task N from plan.md, verbatim, with its done-check.]
+[Task N from plan.md, verbatim, with its done-check. Or: "Apply the review findings in REPORT_FILE; the done-check is that every project check passes."]
 
 ## Context
 
@@ -16,10 +16,11 @@ You are implementing one task of a plan. Do this task only.
 
 ## Rules
 
-- Follow AGENTS.md. Prefer existing components in src/components over new ones.
+- Follow AGENTS.md: its coding rules, and its checks. Prefer the project's existing components and helpers over new ones.
 - Stay inside the task. If the code you touch needs a refactor the plan did not foresee, do it when it is small and report it; otherwise stop with CONCERNS.
-- Run the focused check for what you change while you work; run the task's done-check before you commit.
-- Commit your work with a clear message. Do not push.
+- Run the checks that cover what you change while you work; run the task's done-check before you commit.
+- Commit your work on the current branch with a clear message. Do not push.
+- A review finding you disagree with: skip it, say why, and return CONCERNS.
 - Do not spawn subagents and do not review your own work beyond reading your diff once. A fresh reviewer follows.
 
 ## When stuck

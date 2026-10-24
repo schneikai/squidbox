@@ -81,11 +81,13 @@ Bad:
 
 ## Code Quality
 
-- Avoid dead code and unused styles. `npm run knip` (repo root) finds unused files, exports and dependencies; run it before committing and keep it clean. Add to `knip.json` only files Expo or Metro load by convention, not code that is merely unused
+- The project checks are `npm run lint`, `npm run typecheck`, `npm run knip` and `npm test --workspaces --if-present`, all from the repo root. Run them before committing and keep them clean
+- Avoid dead code and unused styles. `npm run knip` finds unused files, exports and dependencies. Add to `knip.json` only files Expo or Metro load by convention, not code that is merely unused
 - Before pushing anything beyond a trivial change (a typo, a one-line config, a `todo.md`-only edit), invoke the official `/simplify` and `/code-review` skills through the Skill tool at least once. Actually invoke them: never imitate, paraphrase or hand-write their process. If a skill isn't available, tell the owner instead of substituting your own review
 - Review in two steps, and let the owner decide each time:
   1. `/simplify`: run it but stop before it applies fixes, report its findings with the fix you suggest for each (or why you'd skip it), and ask the owner. Apply what they chose.
   2. `/code-review`: run it, report the same way, ask, and apply what they chose. Only then push
+  Under the `run-task` skill the coordinator rules on each finding instead and lists every ruling in the PR
 - Keep files concise and focused
 - Prefer consistency over personal style preferences
 - Refactor when patterns become clear — not before
