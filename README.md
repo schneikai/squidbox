@@ -68,7 +68,7 @@ eas env:list --environment preview
 eas env:set --name <NAME> --value <value> --visibility secret --environment preview --environment production
 ```
 
-The `build` skill explains how these get baked into the app and the pitfalls around them.
+The `ios-build` skill explains how these get baked into the app and the pitfalls around them.
 
 On a fresh checkout, runtime secrets are already in EAS. Restore the rest from your password manager (`.env.local`, `EXPO_TOKEN`, and the App Store Connect `.p8` + IDs), then run `scripts/check-env.sh` to verify.
 
@@ -87,7 +87,7 @@ Run `/build` — it asks what to build and drives EAS for you (no flags or profi
 
 The bundle ID is chosen in `app.config.js` from `EAS_BUILD_PROFILE`, which is why the two don't overwrite each other. Builds are distributed via [Internal Distribution](https://docs.expo.dev/build/internal-distribution/) (no App Store). Install from the EAS build page (Internal Distribution → Install), then trust the dev certificate in Settings → General → VPN & Device Management.
 
-Cloud builds authenticate to Apple with an **App Store Connect API Key** (`.p8`) — no Mac, no Apple ID password, no 2FA (Apple ID + 2FA is blocked from cloud/datacenter IPs). The full runbook, credential setup, and env vars are in the `build` skill.
+Cloud builds authenticate to Apple with an **App Store Connect API Key** (`.p8`) — no Mac, no Apple ID password, no 2FA (Apple ID + 2FA is blocked from cloud/datacenter IPs). The full runbook, credential setup, and env vars are in the `ios-build` skill.
 
 ### Dev client: Metro + tunnel
 
@@ -162,6 +162,6 @@ Sentry handles error tracking. Configure it for your own account:
 
 ## Caveats
 
-- **Signing expires yearly.** The distribution certificate and the ad hoc provisioning profiles of both apps are valid until **Oct 10, 2027**. An installed app stops opening when its profile expires. The `build` skill covers renewing them.
+- **Signing expires yearly.** The distribution certificate and the ad hoc provisioning profiles of both apps are valid until **Oct 10, 2027**. An installed app stops opening when its profile expires. The `ios-build` skill covers renewing them.
 - **Build downloads expire after 14 days.** EAS deletes internal build artifacts after about two weeks. `eas build:resign` only works within that window, after that you need a new build.
 - Build/preview help: https://docs.expo.dev/build/setup/ · https://docs.expo.dev/build/internal-distribution/

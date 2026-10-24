@@ -5,10 +5,10 @@ Read-only in the repository: it writes only the plan. Fill the brackets.
 ```
 You are planning one request. Write the plan to [PLAN_FILE]; change nothing else.
 
-The request is at the top of [LEDGER]; the decisions and answers below it bind you. Preview: [the Preflight line from the ledger].
+The request is at the top of [LEDGER]; the decisions and answers below it bind you.
 [Empty on the first round. Otherwise: "Revise the plan in place using [REPORT_FILE]: fix every must-change finding or decline it with one line under Design."]
 
-Read CLAUDE.md, the project's open-work list if CLAUDE.md names one, and the code the request touches. Find the component, hook or helper that already does part of the job before planning a new one.
+Read CLAUDE.md, the project's open-work list if CLAUDE.md names one, and the code the request touches. Find the code that already does part of the job before planning new code.
 
 ## Sections
 
@@ -18,17 +18,17 @@ Read CLAUDE.md, the project's open-work list if CLAUDE.md names one, and the cod
 
 **Design.** Which module owns the new behavior; what existing code it reuses, extends or replaces; the files that change and what each is responsible for. Where the change touches duplicated or tangled code, include fixing it: a cleaner result is worth a bigger diff. Design against, in this order:
 - DRY: one place for each piece of logic; extend the existing helper instead of a near copy.
-- Single responsibility: one job per file, component and function.
+- Single responsibility: one job per file, module and function.
 - Low coupling: small explicit interfaces, no reaching into another module's internals.
 - YAGNI: nothing for a case nobody has; extract only when the repetition is real.
 - Fail loudly: no swallowed errors or silent fallbacks, above all around stored data.
 - Leave it cleaner than you found it.
 
-**Done-check.** How the implementer proves the plan is built, runnable here: tests, one check command scoped to the changed files, or a preview screen only when the preview runs; never the project check list, which the review step runs. For a preview check name the screen and what it must show; the implementer works out how to drive it. What only a device can prove goes under Verification as `device:` and is no done-check.
+**Done-check.** How the implementer proves the plan does what the Goal says, runnable on this machine without the owner: a test, a command, or whatever way CLAUDE.md gives to see the running app. The project checks run anyway; this is about behaviour.
 
-**Verification.** The screens to screenshot in the preview at the end, one per line, and what each should show; `device:` lines for what the owner must check on a phone. Empty when no UI changes.
+**Verification.** What only the owner can check by hand once the PR is up, one line each. Empty when there is nothing.
 
-**Open work.** Entries in the project's open-work list this change closes, and new ones it should add (deferred pieces, problems found).
+**Open work.** If CLAUDE.md names an open-work list: the entries this change closes, and new ones it should add (deferred pieces, problems found).
 
 Return at most 2 lines: open questions yes/no, plan path; on a revision, plus one line per declined finding and why.
 ```

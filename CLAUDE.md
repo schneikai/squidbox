@@ -41,7 +41,7 @@ What matters most, in order: a beautiful, intuitive UI, data integrity, performa
 ## Builds, preview and the dev client
 
 - The Expo app lives in `apps/mobile/`: run app commands and read its env files there. `npm install` runs once at the repo root (npm workspaces)
-- For builds, signing and credentials, follow the `build` skill. Build the dev client only when native code changes; "start the dev client" means Metro and its tunnel (`README.md` → "Dev client: Metro + tunnel", or `npm run dev:local` for the local backend)
+- For builds, signing and credentials, follow the `ios-build` skill. Build the dev client only when native code changes; "start the dev client" means Metro and its tunnel (`README.md` → "Dev client: Metro + tunnel", or `npm run dev:local` for the local backend)
 - To see a UI change without a phone, use the web preview: `npm run dev:local -- --web` from the repo root, then `npm run web:preview` in `apps/mobile/` (`README.md` → "Web preview"). Check native-only behavior (camera roll, uploads, gestures) on a device
 - Run `scripts/check-env.sh` before starting Metro. If `.env.local` is missing, don't start Metro: ask the owner for the values or to restore the file. Without it every API call is broken
 - When Metro and the tunnel are running, end your reply with the tunnel URL to open in Squidbox (Dev), not the startup logs or localhost URLs
