@@ -19,9 +19,10 @@ import springForRelease from './springForRelease';
  * (useZoomGesture) has the image on its left or right edge and the finger keeps going, it hands the
  * rest of the movement to `edgeSwipe.drag(changeX)`, which scrolls the list (`listRef`, an animated
  * ref on an Animated.FlatList of `pageCount` pages `pageWidth` wide) along with the finger from page
- * `pageIndex`, and returns what the pager couldn't take for the image. `edgeSwipe.release(velocityX)`
- * snaps it to the neighbouring page or back (snapPagerShift) and reports a new page through
- * `onPage(index)`, as a native swipe does. `isShifted()` says whether the list is off its page,
+ * `pageIndex`. It returns `leftover` (what the pager couldn't take, for the image), `hasMoved` (the
+ * pager took some of it) and `isShifted` (the list is off its page afterwards).
+ * `edgeSwipe.release(velocityX)` snaps it to the neighbouring page or back (snapPagerShift) and
+ * reports a new page through `onPage(index)`, as a native swipe does. `isShifted()` says whether the list is off its page,
  * `stop()` catches a running snap where it is. All of them are worklets, for the pan's UI thread.
  *
  * `onListDragStart` goes on the list's `onScrollBeginDrag`: the list's own drag takes over from a
@@ -57,8 +58,9 @@ export default function usePagerEdgeSwipe({ listRef, pageWidth, pageIndex, pageC
       }
       if (value === 0 && (previous === null || previous === 0)) return;
       const { index, count, width } = pager.value;
-      // A flick's spring bounces past its page: never past the content's ends.
-      const x = clamp(index * width + value, 0, Math.max(count - 1, 0) * width);
+      // A flick's spring bounces past its page: never past the neighbouring pages (the only ones
+      // mounted around the current one) or the content's ends.
+      const x = clamp(index * width + clamp(value, -width, width), 0, Math.max(count - 1, 0) * width);
       scrollTo(listRef, x, 0, false);
     },
   );
@@ -100,9 +102,10 @@ export default function usePagerEdgeSwipe({ listRef, pageWidth, pageIndex, pageC
       },
       drag: (delta) => {
         'worklet';
-        const next = shiftPager({ shift: shift.value, delta, ...neighbours() });
+        const previous = shift.value;
+        const next = shiftPager({ shift: previous, delta, ...neighbours() });
         shift.value = next.shift;
-        return next.leftover;
+        return { leftover: next.leftover, hasMoved: next.shift !== previous, isShifted: next.shift !== 0 };
       },
       release: (velocityX) => {
         'worklet';

@@ -74,7 +74,9 @@ function AssetPager({
     pageCount: assetIds.length,
     onPage: showIndex,
   });
-  const pageEdgeSwipe = isWeb ? null : edgeSwipe;
+  // Not while the current asset is missing from the list (removed, the screen yet to move on): the
+  // pager wouldn't know which page it is on.
+  const pageEdgeSwipe = isWeb || currentIndex < 0 ? null : edgeSwipe;
 
   // Only changes are reported: the pager starts unlocked.
   const reportedLockRef = useRef(false);

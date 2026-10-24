@@ -210,18 +210,18 @@ export default function useZoomGesture({
         dragAxis(translateX, changeX, bound, size.value.width);
         return isShifted;
       }
-      const leftover = edgeSwipe.drag(toPager);
-      const hasPagerTakenNone = leftover === toPager;
-      if (hasPagerTakenNone) {
+      const { leftover, hasMoved, isShifted: isShiftedNow } = edgeSwipe.drag(toPager);
+      if (!hasMoved) {
         // No page that way: the image pans and rubber-bands as without a pager.
         dragAxis(translateX, changeX, bound, size.value.width);
         return isShifted;
       }
-      isHoldingPager.value = true;
+      // Dragged back onto its page, the pager is let go: the pan's release is the image's again.
+      isHoldingPager.value = isShiftedNow;
       // Flush with the page's edge, also when the pan caught the image rubber-banding past it.
       translateX.value = clamp(x + toImage, -bound, bound);
       if (leftover !== 0) dragAxis(translateX, leftover, bound, size.value.width);
-      return edgeSwipe.isShifted();
+      return isShiftedNow;
     };
 
     const settleAxis = (value, velocity, bound) => {
@@ -348,13 +348,14 @@ export default function useZoomGesture({
           verticalDrag.onEnd(event.velocityY);
           return;
         }
-        // The pager snaps in onFinalize, also after a pinch took over; the image stays on its edge.
-        if (isHoldingPager.value) return;
         // A pan last moved by two fingers was the pinch's, which settles the image itself.
         if (lastPanPointers.value !== 1) return;
         const bounds = boundsAt(restingScale());
-        settleAxis(translateX, event.velocityX, bounds.x);
-        settleAxis(translateY, event.velocityY, bounds.y);
+        // A pan holding the pager snaps it (onFinalize): the image doesn't fling, it only comes back
+        // within its edges (a drag rubber-banded past one before the hand-off).
+        const isFlung = !isHoldingPager.value;
+        settleAxis(translateX, isFlung ? event.velocityX : 0, bounds.x);
+        settleAxis(translateY, isFlung ? event.velocityY : 0, bounds.y);
       })
       .onFinalize((event, success) => {
         isDraggingVertically.value = false;
