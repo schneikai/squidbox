@@ -10,6 +10,8 @@ import PostRows from '@/features/post-list/PostRows';
 import PostPostedAt from '@/features/posts/PostPostedAt';
 import { colors, lineHeights, typography } from '@/styles/designTokens';
 
+const OTHER_POSTS_LIMIT = 30;
+
 export default function Post({ post, contentPaddingTop = 0 }) {
   const navigation = useNavigation();
 
@@ -38,7 +40,7 @@ export default function Post({ post, contentPaddingTop = 0 }) {
           <AssetAlbums assetIds={post.postAssets.map((postAsset) => postAsset.asset.id)} emptyText="Not in an album" />
 
           <ScreenSectionHeader title="Other Posts" isFlush />
-          <PostRows scope={{ sharesAlbumWithPostId: post.id }} emptyText="No other posts" />
+          <PostRows scope={{ sharesAlbumWithPostId: post.id }} emptyText="No other posts" limit={OTHER_POSTS_LIMIT} />
         </View>
       </View>
     </ScrollView>

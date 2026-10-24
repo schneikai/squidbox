@@ -50,6 +50,10 @@ const RandomSuggestionsModalRoute = asModalRoute(RandomSuggestionsNavigator);
 // open editor's sheet, opens a new one on top; the same params go back to the editor that has them.
 const editorId = ({ params }) => JSON.stringify(params ?? {});
 
+// One screen per post: opening another post opens it on top, the same post goes back to its screen
+// (so a double tap opens it once).
+const postId = ({ params }) => params?.postId;
+
 export default function RootNavigator() {
   return (
     <RootStack.Navigator
@@ -81,7 +85,7 @@ export default function RootNavigator() {
       <RootStack.Group screenOptions={{ headerShown: false }}>
         <RootStack.Screen name="MainTab" component={MainTabNavigator} />
         <RootStack.Screen name="AlbumScreen" component={AlbumScreen} />
-        <RootStack.Screen name="PostScreen" component={PostScreen} />
+        <RootStack.Screen name="PostScreen" component={PostScreen} getId={postId} />
         <RootStack.Screen name="AssetScreen" component={AssetScreen} />
       </RootStack.Group>
     </RootStack.Navigator>

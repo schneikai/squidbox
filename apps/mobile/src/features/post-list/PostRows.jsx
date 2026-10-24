@@ -13,12 +13,13 @@ const identity = (onPress) => onPress;
 /**
  * Every post in `scope` (postQuery's), newest first by postedAt (never-posted ones last), as rows
  * that each show the post's first asset, its caption and when it was posted, and open the post;
- * `emptyText` shows instead while there are none (nothing until they've been read). `guardPress` may wrap
- * the rows' presses (useDetailsPanelDrag's); `isLive: false` reads them once (useLiveQuery's).
+ * `emptyText` shows instead while there are none (nothing until they've been read). `limit` reads
+ * only the newest `limit` (no `limit` reads them all). `guardPress` may wrap the rows' presses
+ * (useDetailsPanelDrag's); `isLive: false` reads them once (useLiveQuery's).
  */
-export default function PostRows({ scope, emptyText, guardPress = identity, isLive }) {
+export default function PostRows({ scope, emptyText, limit, guardPress = identity, isLive }) {
   const navigation = useNavigation();
-  const posts = useScopePosts(scope, isLive);
+  const posts = useScopePosts(scope, limit, isLive);
 
   if (!posts) return null;
   if (posts.length === 0) return <Text style={listTextStyles.subtitle}>{emptyText}</Text>;
@@ -29,7 +30,7 @@ export default function PostRows({ scope, emptyText, guardPress = identity, isLi
       asset={post.postAssets[0]?.asset}
       {...postRowText(post)}
       isLast={index === posts.length - 1}
-      onPress={guardPress(() => navigation.push('PostScreen', { postId: post.id }))}
+      onPress={guardPress(() => navigation.navigate('PostScreen', { postId: post.id }))}
     />
   ));
 }
@@ -41,12 +42,12 @@ function postRowText(post) {
   return caption ? { title: caption, subtitle: posted } : { title: posted };
 }
 
-function useScopePosts(scope, isLive) {
+function useScopePosts(scope, limit, isLive) {
   const query = postQuery({ scope });
   return useLiveQuery(
-    async (db) => (await query.read(db, { withCount: false, firstAssetOnly: true })).rows,
+    async (db) => (await query.read(db, { limit, withCount: false, firstAssetOnly: true })).rows,
     query.tables,
-    [query.descriptor],
+    [query.descriptor, limit],
     { minInterval: MIN_REREAD_INTERVAL, isLive },
   );
 }
