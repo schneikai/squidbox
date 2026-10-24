@@ -17,7 +17,7 @@ const p = alias(schema.posts, 'p');
  * `tables` → what a live read watches.
  * Every order ends with an id tie-break, so refreshes and pages see one stable order.
  * @param {object} descriptor
- * @param {'all' | 'repostCandidates' | 'ignored' | { assetId: string } | { albumId: string } | { postId: string }} [descriptor.scope]
+ * @param {'all' | 'repostCandidates' | 'ignored' | { assetId: string } | { albumId: string } | { postId: string } | { sharesAlbumWithPostId: string }} [descriptor.scope]
  * @param {'postedAt:asc' | 'postedAt:desc' | 'suggestRepostAt:asc' | 'updatedAt:desc'} [descriptor.sort]
  * @param {'favorites'[]} [descriptor.filter]
  * @param {string} [descriptor.search] a text substring, matched as the list did: Unicode-aware, literal, case-insensitive
@@ -29,6 +29,7 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
 
   const tables = [schema.posts, schema.postAssets, schema.assets];
   if (scope.albumId) tables.push(schema.albumAssets);
+  if (scope.sharesAlbumWithPostId) tables.push(schema.albumAssets, schema.albums);
 
   const scopeCondition = (() => {
     if (scope === 'repostCandidates') return and(eq(p.isIgnoredForRepost, false), eq(p.hasBeenReposted, false));
@@ -39,6 +40,15 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
     }
     if (scope.albumId) {
       return sql`${p.id} in (select post_id from post_assets where asset_id in ${liveAlbumAssetIds(scope.albumId)} and deleted_at is null)`;
+    }
+    if (scope.sharesAlbumWithPostId) {
+      const postId = scope.sharesAlbumWithPostId;
+      return sql`${p.id} != ${postId} and ${p.id} in (
+        select post_id from post_assets where deleted_at is null and asset_id in (
+          select aa.asset_id from album_assets aa join albums al on al.id = aa.album_id and al.deleted_at is null
+          where aa.deleted_at is null and aa.album_id in (
+            select album_id from album_assets where deleted_at is null and asset_id in (
+              select asset_id from post_assets where post_id = ${postId} and deleted_at is null))))`;
     }
     return undefined;
   })();
