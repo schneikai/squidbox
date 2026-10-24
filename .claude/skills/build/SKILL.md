@@ -1,160 +1,77 @@
 ---
 name: build
-description: Build the Squidbox iOS app from the cloud (no Mac needed) via EAS + an App Store Connect API Key. Builds either the App (preview/release) or the Dev Client. Use when the user asks to build, rebuild, preview, ship, or set up a dev client / release build for iOS. The skill ASKS which one to build — the user never types eas flags or profiles.
+description: Use when the owner hands over a feature, bug or refactor to deliver end to end with as few questions as possible. A thin coordinator runs plan, build, review and ship with a planner, a plan reviewer and one implementer as subagents and two reviewers it runs itself.
 ---
 
-# Cloud iOS Build (no Mac)
+# Build a request
 
-Build the Squidbox iOS app with EAS. Apple auth uses an **App Store Connect API Key** — no Mac,
-no Apple ID password, no 2FA (those are blocked from cloud IPs). The AGENT runs all commands; the
-user only answers "which build?" and supplies secrets. **Run every command from `apps/mobile/`.**
+You are the **coordinator**, always the top-level session. You hold the plan and the ledger, dispatch the planner, the plan reviewer and the implementer as subagents (Claude Code: the Agent tool), run the quality and correctness reviewers yourself, and decide. Each has its own brief in this folder; the only difference is who runs it. You do not write code; the implementer does. Project specifics (checks, install, preview, coding rules, where open work is tracked) come from CLAUDE.md.
 
-## STEP 0 — Ask what to build (always do this first)
+Use it for work that touches more than one file. A one-line fix does not need a plan.
 
-Use AskUserQuestion:
-- **App** — the preview/release build. Bundle `com.schneikai.squidbox`, name "Squidbox", EAS profile
-  `preview`, self-contained (JS baked in). `EXPO_PUBLIC_*` come from **EAS secrets** at build time.
-- **Dev Client** — the development build. Bundle `com.schneikai.squidbox.dev`, name "Squidbox (Dev)",
-  EAS profile `development`, loads JS live from Metro over a tunnel (hot reload). Its icon is the
-  dark DEV variant (`assets/icon-dev.png`, set in app.config.js). `EXPO_PUBLIC_*` come from
-  **`.env.local`** at runtime.
+## Workspace
 
-Then follow the matching path below. (Both share the one-time credential setup.)
+`.work/<slug>/` (slug: kebab-case from the request; `.work/` in `.gitignore`, the implementer adds it if missing):
 
-## Prerequisites (one-time per machine; ask the user for these)
+- `progress.md`: the ledger. It opens with the owner's request, verbatim, above a `---` line. Below, one line per event: `Base:`, `Branch:`, `Decision: what / why / cost if wrong`, `Dispatch: planner → plan.md`, `Build DONE a1b2c3d..d4e5f6a`, `Review quality: 3 findings`, `Stop:`, `Answer:`, `PR:`. The implementer appends `Note:` lines for what later steps must know.
+- `plan.md`: written by the planner.
+- `reports/`: one file per step: `plan-review`, `build`, `review-quality`, `fix-quality`, `review-correctness`, `fix-correctness`, `bookkeeping`.
+- Everything else the run throws away (scripts, output) lives here too, for the owner to look at.
 
-- `eas-cli`: `npm i -g eas-cli` (or use `npx eas-cli`). A prompt driver for the TTY-driven
-  credential prompts: `brew install expect`, or `pip install pexpect` in a Linux cloud shell.
-- **`EXPO_TOKEN`** — expo.dev → Account Settings → Access Tokens.
-- **App Store Connect API key** on disk as `AuthKey_<KEY_ID>.p8` (gitignored via `*.p8`; never print
-  its contents) + **`EXPO_ASC_KEY_ID`**, **`EXPO_ASC_ISSUER_ID`** (App Store Connect → Users and
-  Access → Integrations), **`EXPO_APPLE_TEAM_ID`** (developer.apple.com → Membership),
-  **`EXPO_APPLE_TEAM_TYPE=INDIVIDUAL`**.
+## Decide, don't ask
 
-Export before building:
-```
-EXPO_TOKEN, EAS_BUILD_PROFILE, CI=1,
-EXPO_ASC_API_KEY_PATH, EXPO_ASC_KEY_ID, EXPO_ASC_ISSUER_ID,
-EXPO_APPLE_TEAM_ID, EXPO_APPLE_TEAM_TYPE=INDIVIDUAL
-```
-Verify with `scripts/check-env.sh`. Routine rebuilds reuse stored credentials, so the `.p8` + ASC
-IDs are only needed for the FIRST build on each bundle id, or to renew or repair credentials.
+Rule on anything the plan leaves open, log it as a `Decision`, and continue. A wrong ruling costs a visible, reversible rework; a question costs the owner's day. Stop and ask only when:
 
-## First build on a bundle id, or expired signing (either path)
+1. the plan lists open questions (once per run; later questions become rulings),
+2. the implementer is blocked by something only the owner has (a secret, hardware, a rule it would have to break),
+3. the implementer declines a must-fix review finding and you cannot rule on it,
+4. anything irreversible or external beyond pushing the branch and opening the PR.
 
-Signing is set up once per bundle id and renewed when it expires. The distribution certificate and
-both ad hoc profiles currently run until **Oct 10, 2027**; an installed app stops opening ("is no
-longer available") once its profile expires. Non-interactive mode refuses to fix expired
-credentials, so run this step INTERACTIVELY through the prompt driver, with `CI` unset and without
-`--non-interactive`:
-```
-EAS_BUILD_PROFILE=<profile> eas credentials:configure-build -p ios -e <development|preview>
-```
-Answer yes to reusing or regenerating the distribution certificate and to a new ad hoc profile, and
-press Enter at device selection (all registered devices). With the `EXPO_ASC_*` vars set, the CLI
-uses the API key. Abort only on a real prompt (a line starting with `?`) asking for an Apple ID or
-password; an info line mentioning "username/password" cookies is not a prompt.
+Ask once, batch the questions, recommend an answer for each, log the answers.
 
-Alternatively, `eas build ... --non-interactive --refresh-ad-hoc-provisioning-profile` regenerates
-just the profile during a build. That flag only works together with `--non-interactive`.
+One question is always asked, at the start: build straight away (the recommended answer), or present the plan first? If the owner wants to see it, post the plan's Goal and Design with a link to `plan.md` after the plan review and wait. Their feedback goes to the planner as one more revision, then the build starts.
 
-**Re-signing instead of rebuilding.** `eas build:resign -p ios -e <profile> --source-profile <profile>
---id <build-id>` re-signs an existing internal build with fresh credentials, without rebuilding.
-EAS deletes build artifacts about 14 days after a build (`expirationDate` in
-`eas build:list --json`), so it only works within that window; after that, rebuild.
+## Why the reviewers are not subagents
 
-## Path A — Dev Client
+As of October 2026 a subagent cannot spawn subagents, and the review skills fan out into their own agents. Run from a subagent they would review single-pass, so the coordinator runs them itself. The planner, plan reviewer and implementer spawn nothing and stay subagents.
 
-1. `EXPO_PUBLIC_API_URL` in `apps/mobile/.env.local` is the live backend
-   `https://squidbox-server.fly.dev/api/v1`. For the local backend with mock data, run
-   `npm run dev:local` from the repo root instead of step 4 (README → "Local backend with mock data").
-2. Build: `EAS_BUILD_PROFILE=development eas build -p ios -e development` (agent runs it).
-3. Install on the phone from the EAS build page → **Internal Distribution → Install**; trust the dev
-   cert in **Settings → General → VPN & Device Management**.
-4. Start Metro + tunnel so the dev client can load JS (agent runs both, from `apps/mobile/`):
-   ```
-   NGROK_AUTHTOKEN=<from .env.local> node tunnel.js        # prints TUNNEL_URL=https://<host>
-   EXPO_PACKAGER_PROXY_URL=https://<host> npx expo start --offline   # dev-client mode (no --go)
-   ```
-   Verify the tunnel serves Metro: `curl -s -o /dev/null -w "%{http_code}" https://<host>/status` → 200.
-   Then open **Squidbox (Dev)** and point it at the tunnel URL.
-   If `tunnel.js` fails with "Running the agent with an http/s proxy is a Pay-as-you-go feature"
-   (the workspace routes traffic through a proxy), use Expo's own tunnel instead. It needs
-   `npm install -g @expo/ngrok@^4.1.0` once, and the proxy exported for ngrok:
-   ```
-   http_proxy=$HTTPS_PROXY npx expo start --tunnel --dev-client   # URL: https://<id>-anonymous-8081.exp.direct
-   ```
-5. After a native-module change, rebuild (steps 2–3). JS-only changes just hot-reload over the tunnel.
+## Models
 
-## Path B — App (preview/release)
+Thorough model for planning and plan review, standard model for the implementer, set explicitly on every dispatch. Claude Code today: `fable` and `opus`. If a dispatch rejects the model name, retry with the tool's default and log it.
 
-The preview build BAKES `EXPO_PUBLIC_*` into the JS bundle at build time from **EAS environment
-variables** (NOT `.env.local` — that's dev-client only). See "Env vars & secrets (how baking works)"
-below; the gotchas there are load-bearing.
+## Steps
 
-1. Confirm the baked env is correct for the live backend:
-   `eas env:list --environment preview` → `EXPO_PUBLIC_API_URL` must be the Fly URL
-   (`https://squidbox-server.fly.dev/api/v1`), and `EXPO_PUBLIC_OPENAI_API_KEY` + `SENTRY_AUTH_TOKEN`
-   should exist. If the URL is stale/wrong, fix the VALUE (keep its visibility):
-   `eas env:set --name EXPO_PUBLIC_API_URL --value <fly-url> --visibility secret --environment development --environment preview --environment production`
-2. Build: `EAS_BUILD_PROFILE=preview eas build -p ios -e preview` (agent runs it).
-3. Install from the EAS build page → **Internal Distribution → Install**. Self-contained — no Metro/tunnel.
-4. Do NOT run `eas submit` on `development`/`preview` (those are internal builds, not TestFlight).
+### 1. Plan
 
-## Env vars & secrets (how baking works) — READ if a build "can't reach the server"
+1. Planner ([planner.md](planner.md)) writes `plan.md`.
+2. Plan reviewer ([plan-reviewer.md](plan-reviewer.md)) attacks it and writes `reports/plan-review.md`.
+3. Planner revises once with that report; it returns one line per finding it declined. Rule on each and log it.
 
-Facts (SDK 55, current EAS CLI):
-- **`environment` per profile is REQUIRED.** eas.json's build profiles set `"environment"`
-  (development/preview/production). Without it, EAS injects **none** of the stored env vars → the app
-  builds with `EXPO_PUBLIC_API_URL` undefined → every request fails locally → "Can't reach server"
-  and **nothing hits the backend logs**.
-- **EAS server vars OVERRIDE eas.json `env`** for the same name. Setting `EXPO_PUBLIC_API_URL` in
-  eas.json `env` is silently ignored if a server var of that name exists — fix the server var instead.
-- **`secret`-visibility `EXPO_PUBLIC_*` vars DO inline** into the JS bundle here (despite Expo docs
-  implying otherwise). So a stale `secret` value gets baked. You can't flip a `secret` → `plaintext`
-  (`eas env:set` errors); update its value in place with `--visibility secret`, or delete + recreate.
-- A `secret` value can't be read back. To verify what actually baked, download the .ipa and grep:
-  `unzip -o app.ipa -d x && strings x/Payload/*.app/main.jsbundle | grep -oE "https://[a-z0-9.-]+/api/v1"`.
-- Typical symptom of a wrong baked URL: login works but sync fails, because the URL points at a
-  server without `/sync/*`. Check the baked value as above.
-- `EXPO_PUBLIC_OPENAI_API_KEY` is baked into the binary regardless (that's what `EXPO_PUBLIC_` means);
-  keeping it `secret` only hides it from logs/UI, not from the shipped app.
+If the plan has open questions, ask them (stop point 1) and let the planner revise once more with the answers. Then you create the branch, as you later push it: `git checkout -b <slug>`, unless the environment already put you on a branch for this work. Log `Branch:` and `Base:` (the branch it came from), tell the owner the plan's decisions, and continue.
 
-## Watch / manage
+### 2. Build
 
-Build with `--no-wait` (returns a build id immediately), then poll status in the background. iOS
-builds here usually finish in well under 10 minutes, so **poll every ~5 minutes** — no need for a
-tight loop. Stop when status is `FINISHED`/`ERRORED`/`CANCELED`, then fetch the install URL.
+Dispatch the implementer ([implementer.md](implementer.md)). It builds the plan, commits as it goes, then runs the plan's done-check and the project checks and fixes what fails, writes `reports/build.md` and appends `Build DONE <first>..<last>` and a `Note:` line.
 
-`eas build:list --platform ios --limit 5` · `eas build:view <build-id>` (add `--json` to parse
-`.status`) · logs at the EAS build page.
+- `DONE`: review.
+- `CONCERNS`: rule, log, continue the implementer only if something is incomplete.
+- `BLOCKED`: if the ledger or plan holds what it lacks, continue the implementer once with it; otherwise stop point 2.
 
-**Install QR.** `--no-wait` skips EAS's own QR, so render one for the build page (scan with the
-iPhone camera → opens the page → tap Install; EAS has no direct-install QR for internal builds):
-```bash
-node -e 'require("qrcode-terminal").generate("https://expo.dev/accounts/<acct>/projects/squidbox/builds/<build-id>",{small:true},c=>process.stdout.write(c))'
-```
-If `qrcode-terminal` isn't resolvable, install it to a temp prefix first:
-`npm install qrcode-terminal --no-save --prefix /tmp/qrtool` and require
-`/tmp/qrtool/node_modules/qrcode-terminal`. Show the QR in a fenced block and also paste the plain
-URL (terminals may squish the blocks).
+### 3. Review
 
-## Troubleshooting
+You run both reviewers yourself, each through the agent's review skill, and the implementer applies the findings. Each review is report only and runs no checks; the implementer reruns the project checks after each fix round.
 
-- **"Invalid username and password combination"** → Apple ID + 2FA is blocked from cloud IPs. Use the
-  ASC API Key (`EXPO_ASC_*`); never attempt Apple ID password auth from a cloud shell.
-- **"Failed to set up credentials / non-interactive mode"** (new bundle id) or **"Provisioning profile
-  is not configured correctly. Run this command again in interactive mode"** (expired signing) → run
-  `eas credentials:configure-build` interactively via the prompt driver (see above).
-- **"Failed to resign build, because it has expired"** → the build artifact is past its ~14-day
-  retention. Rebuild instead.
-- **Dev client overwrites the App (or vice-versa)** → `EAS_BUILD_PROFILE` wasn't exported, so
-  app.config.js fell back to the default bundle id. Confirm it matches the profile passed to `eas build`.
+1. **Quality.** Run the quality reviewer ([quality-reviewer.md](quality-reviewer.md)); it writes `reports/review-quality.md`. Then continue the implementer: apply the findings it agrees with and rerun the project checks. Skip it when there is nothing to apply.
+2. **Correctness.** Run the correctness reviewer ([correctness-reviewer.md](correctness-reviewer.md)); it writes `reports/review-correctness.md`. Continue the implementer: apply the must-fix findings and the nice-to-haves it agrees with, rerun the checks. Skip it when there is nothing to apply.
 
-## Security
+After each fix round the implementer returns one line per finding it skipped; rule on each. A skipped finding you rule must be applied goes back to the implementer as one more fix round. A must-fix you cannot rule on: stop point 3. Findings you skip are logged with a reason and listed in the PR.
 
-- Never print or commit the `.p8` contents, Apple password, `EXPO_TOKEN`, or any secret — reference
-  env-var NAMES, not values.
-- Revocable: ASC key at App Store Connect → Integrations → Team Keys; Expo token at expo.dev → Access
-  Tokens. After a session where credentials were shared in chat, advise rotating them.
-- Scrub local log/expect files that may have captured credentials (`rm -f *.log *.exp /tmp/2fa_code.txt`).
+### 4. Ship
+
+1. If bookkeeping is missing (a rule from owner feedback via the `add-rule` skill, open-work entries from the plan's Open work section), continue the implementer with it.
+2. Push the branch and open the PR against the base: what changed and why, the plan's Goal and Design, every `Decision`, skipped findings with reasons, the plan's Verification lines. A step CLAUDE.md attaches to a changed file that needs a tool the implementer lacks is yours, after the push.
+3. Report to the owner: the PR link, the decisions, and what is left for them to verify.
+
+## Rules
+
+- Every decision and skipped finding is a ledger line. Narrate at most one line between tool calls.
