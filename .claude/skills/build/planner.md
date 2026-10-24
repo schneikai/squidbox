@@ -24,7 +24,7 @@ Read CLAUDE.md, the project's open-work list if CLAUDE.md names one, and the cod
 - Fail loudly: no swallowed errors or silent fallbacks, above all around stored data.
 - Leave it cleaner than you found it.
 
-**Done-check.** How the implementer proves the plan does what the Goal says, runnable on this machine without the owner: a test, a command, or whatever way CLAUDE.md gives to see the running app. The project checks run anyway; this is about behaviour.
+**Done-check.** How the implementer proves the plan does what the Goal says, runnable on this machine without the owner: a test, a command, or whatever way CLAUDE.md gives to see the running app. The project checks run anyway; this is about behaviour. When the behaviour itself cannot run here, the done-check tests the logic behind it and the rest goes under Verification.
 
 **Verification.** What only the owner can check by hand once the PR is up, one line each. Empty when there is nothing.
 

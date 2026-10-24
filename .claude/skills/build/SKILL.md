@@ -46,6 +46,7 @@ Thorough model for planning and plan review, standard model for the implementer,
 1. Planner ([planner.md](planner.md)) writes `plan.md`.
 2. Plan reviewer ([plan-reviewer.md](plan-reviewer.md)) attacks it and writes `reports/plan-review.md`.
 3. Planner revises once with that report; it returns one line per finding it declined. Rule on each and log it.
+4. Plan reviewer looks once more, at its own must-change findings only: fixed in the revised plan, or not. What is not fixed goes to the planner with the plan's answers, or you rule on it.
 
 If the plan has open questions, ask them (stop point 1) and let the planner revise once more with the answers. Then you create the branch, as you later push it: `git checkout -b <slug>`, unless the environment already put you on a branch for this work. Log `Branch:` and `Base:` (the branch it came from), tell the owner the plan's decisions, and continue.
 
@@ -64,12 +65,12 @@ You run both reviewers yourself, each through the agent's review skill, and the 
 1. **Quality.** Run the quality reviewer ([quality-reviewer.md](quality-reviewer.md)); it writes `reports/review-quality.md`. Then continue the implementer: apply the findings it agrees with and rerun the project checks. Skip it when there is nothing to apply.
 2. **Correctness.** Run the correctness reviewer ([correctness-reviewer.md](correctness-reviewer.md)); it writes `reports/review-correctness.md`. Continue the implementer: apply the must-fix findings and the nice-to-haves it agrees with, rerun the checks. Skip it when there is nothing to apply.
 
-After each fix round the implementer returns one line per finding it skipped; rule on each. A skipped finding you rule must be applied goes back to the implementer as one more fix round. A must-fix you cannot rule on: stop point 3. Findings you skip are logged with a reason and listed in the PR.
+After each fix round the implementer returns one line per finding it skipped; rule on each. A finding you rule must be applied, skipped or nice-to-have, and a fix you want yourself, go back to the implementer as one more fix round. A must-fix you cannot rule on: stop point 3. Findings you skip are logged with a reason and listed in the PR.
 
 ### 4. Ship
 
 1. If bookkeeping is missing (a rule from owner feedback via the `add-rule` skill, open-work entries from the plan's Open work section), continue the implementer with it.
-2. Push the branch and open the PR against the base: what changed and why, the plan's Goal and Design, every `Decision`, skipped findings with reasons, the plan's Verification lines. A step CLAUDE.md attaches to a changed file that needs a tool the implementer lacks is yours, after the push.
+2. If the base moved on, continue the implementer: merge the base in, rerun the checks, commit. Then push the branch and open the PR against the base: what changed and why, the plan's Goal and Design, every `Decision`, skipped findings with reasons, the plan's Verification lines. A step CLAUDE.md attaches to a changed file that needs a tool the implementer lacks is yours, after the push, from the merged files.
 3. Report to the owner: the PR link, the decisions, and what is left for them to verify.
 
 ## Rules
