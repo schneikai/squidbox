@@ -15,12 +15,7 @@ import useHaptics from '@/hooks/useHaptics';
  * their identity across renders and the memoized cells skip re-rendering unless their own asset,
  * selection or display props change.
  */
-export default function useAssetCells({
-  onPress,
-  isSelectMode = false,
-  isAssetSelected,
-  canPeek = true,
-}) {
+export default function useAssetCells({ onPress, isSelectMode = false, isAssetSelected, canPeek = true }) {
   const { toggleFavoriteAsset } = useAssets();
   const haptics = useHaptics();
   const quickViewRef = useRef(null);

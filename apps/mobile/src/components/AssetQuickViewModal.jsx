@@ -15,7 +15,12 @@ export default function AssetQuickViewModal({ ref }) {
 
   return (
     <Modal animationType="fade" transparent visible onRequestClose={close}>
-      <Pressable style={StyleSheet.absoluteFill} onPress={close} accessibilityRole="button" accessibilityLabel="Close preview">
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPress={close}
+        accessibilityRole="button"
+        accessibilityLabel="Close preview"
+      >
         <BlurView intensity={20} style={styles.container}>
           <AssetImage asset={asset} contentFit="contain" placeholderColor="transparent" />
         </BlurView>

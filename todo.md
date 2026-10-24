@@ -15,6 +15,12 @@ the touch with the cell. Check on a phone.
 
 ## Features
 
+### [ ] Search suggestions as you type, like Apple Photos
+
+Wanted by the owner, later. While typing in a list's search (`SearchOptionsBar`), show a menu of
+matching terms above the field, each with how many assets it finds (Apple Photos: "mvp 3",
+"mvz 1"). Terms would come from the words of the assets' notes, which is what `assetQuery` searches.
+
 ### [ ] Share several assets at once
 
 Nice to have, deferred. Share is only on the asset detail screen (`useShareAsset`); select mode has
@@ -87,14 +93,11 @@ The photo viewer shows the 1000 px thumbnail, so zoom stops at 4× (`useZoomGest
 well before that. Loading the full-resolution file once zoomed would make deeper zoom worthwhile,
 with the maximum taken from the photo's own size.
 
-### [ ] Show when an album was last posted on a post's screen
+### [ ] List an album's other posts on a post's screen
 
-Two parts:
-- **Last posted on the album row.** The "Posted Albums" rows (`features/post-detail/Post.jsx`) show
-  the album's asset count. Keep it and add when the album was last posted, like the suggestions card
-  does, so a repeat is easy to spot.
-- **The album's other posts.** Below it, list the other posts made with media from this album, like
-  the photo details list an asset's posts (`AssetDetailsPanel`). Reuse that list.
+Below the "Posted Albums" rows (`features/post-detail/Post.jsx`), list the other posts made with
+media from this album, like the photo details list an asset's posts (`AssetDetailsPanel`). Reuse that
+list.
 
 ### [ ] Remove deleted items for good after 30 days
 
@@ -176,7 +179,7 @@ error, and could be made from the cloud original.
 ### [ ] Bump INSTALLED with each preview build
 
 `INSTALLED` in `apps/mobile/test/mainClient.e2e.test.ts` is the commit of the preview build on the
-owner's phone (9526d68): move it to the new build's commit whenever a preview build is installed, so
+owner's phone (b8171cf): move it to the new build's commit whenever a preview build is installed, so
 the suite tests the real upgrade path.
 
 ### [ ] Drop the outbox's whole-record rows
