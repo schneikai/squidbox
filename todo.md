@@ -274,8 +274,7 @@ react-native-web's ScrollView never fires `onMomentumScrollEnd`/`onScrollEndDrag
 first photo, and only that photo zooms). Playwright's Chromium can't decode H.264 or HEVC, so the
 mock videos (H.264) don't play in the preview; only a WebM would (an iPhone's HEVC `.mov` may not
 play in desktop Chrome either). The post editor's date and time pills (`DateTimePicker`) render clipped
-("23," / "10:5 AM"). The edge swipe from a zoomed photo (`usePagerEdgeSwipe`) is native only: the web
-keeps locking the pager while zoomed (`AssetPager`'s `isScrollLocked`).
+("23," / "10:5 AM").
 
 ### [ ] Sentry receives events from development
 
@@ -405,15 +404,3 @@ direct `npx`/`npm` children, not to the Metro and server processes under them.
 
 The distribution certificate and both ad hoc profiles expire then, and installed apps stop opening.
 Renew them via the **`/build`** skill (see "expired signing" there) a few weeks ahead.
-
-### [ ] Check the zoomed edge swipe on a device
-
-The hand-off from a zoomed photo's edge to the pager (`useZoomGesture` → `usePagerEdgeSwipe`, which
-scrolls `AssetPager`'s `Animated.FlatList` with Reanimated `scrollTo`) has only been unit-tested.
-On the dev client, check that:
-
-- the viewer still pages at 1× and follows the current asset
-- the next photo slides in with the finger and the release snaps to it or back
-- dragging back hands the movement to the image again, and the first and last photos rubber-band
-- the list's own drag stops a running snap
-- a pinch to 1× mid-swipe still snaps
