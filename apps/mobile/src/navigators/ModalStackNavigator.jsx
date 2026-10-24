@@ -17,7 +17,7 @@ export default function ModalStackNavigator({ children }) {
     <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
       {children}
       <Stack.Screen name="AssetScreen" component={AssetScreen} />
-      <Stack.Screen name="PostScreen" component={PostScreen} />
+      <Stack.Screen name="PostScreen" component={PostScreen} getId={({ params }) => params?.postId} />
       <Stack.Screen name="OtherPostsScreen" component={OtherPostsScreen} />
       <Stack.Screen name="AlbumScreen" component={AlbumScreen} />
     </Stack.Navigator>

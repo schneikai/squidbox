@@ -1,3 +1,4 @@
+import EmptyState from '@/components/EmptyState';
 import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import PostList from '@/features/post-list/PostList';
@@ -17,11 +18,15 @@ export default function OtherPostsScreen({ route, navigation }) {
     <Page>
       <FloatingDetailHeader
         title="Other Posts"
-        subtitle={pluralizeText('1 Post', '%{count} Posts', count ?? 0)}
+        subtitle={count === undefined ? undefined : pluralizeText('1 Post', '%{count} Posts', count)}
         onBack={() => navigation.goBack()}
       />
 
-      <PostList rows={rows} loadMore={loadMore} contentContainerStyle={{ paddingTop, paddingBottom }} />
+      {count === 0 ? (
+        <EmptyState icon="share-alt" title="No other posts" style={{ flex: 1, paddingTop }} />
+      ) : (
+        <PostList rows={rows} loadMore={loadMore} contentContainerStyle={{ paddingTop, paddingBottom }} />
+      )}
     </Page>
   );
 }

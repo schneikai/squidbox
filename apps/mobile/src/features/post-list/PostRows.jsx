@@ -24,7 +24,7 @@ export default function PostRows({ scope, emptyText, limit, onCount, guardPress 
 
   useEffect(() => {
     onCount?.(count);
-  }, [count]);
+  }, [count, onCount]);
 
   if (!posts) return null;
   if (posts.length === 0) return <Text style={listTextStyles.subtitle}>{emptyText}</Text>;
@@ -35,7 +35,7 @@ export default function PostRows({ scope, emptyText, limit, onCount, guardPress 
       asset={post.postAssets[0]?.asset}
       {...postRowText(post)}
       isLast={index === posts.length - 1}
-      onPress={guardPress(() => navigation.push('PostScreen', { postId: post.id }))}
+      onPress={guardPress(() => navigation.navigate('PostScreen', { postId: post.id }))}
     />
   ));
 }
