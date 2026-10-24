@@ -13,18 +13,6 @@ native `Modal`, which can take the touch from the cell under it, so the cell's p
 (`onLongPressOut`) never comes. An overlay inside the screen (`pointerEvents="none"`) would leave
 the touch with the cell. Check on a phone.
 
-### [ ] A double tap on "See all" opens Other Posts twice
-
-The post screen's "See all N" link (`features/post-detail/Post.jsx`, `handleOpenOtherPosts`) pushes
-`OtherPostsScreen`, so a quick double tap stacks two of them and Back has to be tapped twice. Give
-the route a `getId` (as `PostScreen` has) or navigate instead of push.
-
-### [ ] Other Posts stays open, emptied, when its post is deleted
-
-`screens/OtherPostsScreen.jsx` doesn't close when the post it lists for is deleted while it shows;
-the list just empties (the `PostScreen` under it closes itself with `useCloseWhenGone`). Minor: close
-it too (read the post with `usePost` just for that) if it ever bothers.
-
 ## Features
 
 ### [ ] Search suggestions as you type, like Apple Photos
