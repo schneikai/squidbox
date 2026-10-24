@@ -71,7 +71,7 @@ After each fix round the implementer returns one line per finding it skipped; ru
 
 1. If bookkeeping is missing (whatever CLAUDE.md asks for when a change is done), continue the implementer with it.
 2. If the base moved on, continue the implementer: merge the base in, rerun the checks, commit. Then push the branch and open the PR against the base: what changed and why, the plan's Goal and Design, every `Decision`, skipped findings with reasons, the plan's Verification lines. A step CLAUDE.md attaches to a changed file that needs a tool the implementer lacks is yours, after the push, from the merged files.
-3. Report to the owner: the PR link, the decisions, what is left for them to verify, and, only if the run turned any up, suggested rules for CLAUDE.md and open work it noticed. The owner decides what to do with those; the run adds nothing itself.
+3. Report to the owner: the PR link, the decisions, what is left for them to verify, and, only if the run turned any up, suggestions in plain words: rules the project should adopt, and open work it noticed. The run records neither anywhere; the owner decides, and whatever the project has for recording rules or open work (a file, a skill) comes into play only when they say so.
 
 ## Rules
 
