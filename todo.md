@@ -89,13 +89,6 @@ again after release (`SuperPressable` with `useDragSelect`); natively the pan ca
 After a drag reorder (photos in an album, the albums list) the drop also counted as a tap and opened
 what it was dropped on; `SortableGrid` now swallows the click that follows a lift, unverified on web.
 
-### [ ] Swipe on to the next photo from a zoomed photo's edge
-
-In Apple Photos, a zoomed photo panned to its left or right edge hands the swipe to the pager. Here
-the pager (`AssetPager`, a native `FlatList`) is locked while the photo is zoomed, so you zoom out
-first. Handing over mid-touch needs the pager driven from the zoom's pan (e.g. Reanimated `scrollTo`)
-or a gesture-handler pager, instead of toggling `scrollEnabled`.
-
 ### [ ] Zoom deeper than the thumbnail
 
 The photo viewer shows the 1000 px thumbnail, so zoom stops at 4× (`useZoomGesture`) and looks soft
@@ -281,7 +274,8 @@ react-native-web's ScrollView never fires `onMomentumScrollEnd`/`onScrollEndDrag
 first photo, and only that photo zooms). Playwright's Chromium can't decode H.264 or HEVC, so the
 mock videos (H.264) don't play in the preview; only a WebM would (an iPhone's HEVC `.mov` may not
 play in desktop Chrome either). The post editor's date and time pills (`DateTimePicker`) render clipped
-("23," / "10:5 AM").
+("23," / "10:5 AM"). The edge swipe from a zoomed photo (`usePagerEdgeSwipe`) is native only: the web
+keeps locking the pager while zoomed (`AssetPager`'s `isScrollLocked`).
 
 ### [ ] Sentry receives events from development
 
@@ -411,3 +405,15 @@ opens the album's Posts tab (`AlbumPostsView`).
 
 The distribution certificate and both ad hoc profiles expire then, and installed apps stop opening.
 Renew them via the **`/build`** skill (see "expired signing" there) a few weeks ahead.
+
+### [ ] Check the zoomed edge swipe on a device
+
+The hand-off from a zoomed photo's edge to the pager (`useZoomGesture` → `usePagerEdgeSwipe`, which
+scrolls `AssetPager`'s `Animated.FlatList` with Reanimated `scrollTo`) has only been unit-tested.
+On the dev client, check that:
+
+- the viewer still pages at 1× and follows the current asset
+- the next photo slides in with the finger and the release snaps to it or back
+- dragging back hands the movement to the image again, and the first and last photos rubber-band
+- the list's own drag stops a running snap
+- a pinch to 1× mid-swipe still snaps
