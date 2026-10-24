@@ -13,14 +13,14 @@ Use it for work that touches more than one file. A one-line fix does not need a 
 
 `.work/<slug>/` (slug: kebab-case from the request; `.work/` in `.gitignore`, the first implementer adds it if missing):
 
-- `progress.md`: the ledger. It opens with the owner's request, verbatim, above a `---` line. Below, one line per event: `Preflight:`, `Base:`, `Branch:`, `Decision: what / why / cost if wrong`, `Dispatch: planner → reports/plan.md`, `Task 2 DONE a1b2c3d..d4e5f6a`, `Review quality: 3 findings`, `Stop:`, `Answer:`, `PR:`. Implementers append `Note:` lines for what later steps must know.
+- `progress.md`: the ledger. It opens with the owner's request, verbatim, above a `---` line. Below, one line per event: `Preflight:`, `Base:`, `Branch:`, `Decision: what / why / cost if wrong`, `Dispatch: planner → reports/plan.md`, `Build DONE a1b2c3d..d4e5f6a`, `Review quality: 3 findings`, `Stop:`, `Answer:`, `PR:`. Implementers append `Note:` lines for what later steps must know.
 - `plan.md`: written by the planner.
 - `reports/`: one file per dispatch, named after it: `plan-review`, `build`, `review-quality`, `fix-quality`, `review-correctness`, `fix-correctness`, `review-confirm`, `bookkeeping`.
 - Everything else the run throws away (scripts, screenshots) lives here too, for the owner to look at.
 
 Subagents write their result to a file and return a few lines: status, commits, file path. You read `plan.md` once and the ledger; never a report, apart from the review reports you write yourself.
 
-After a context reset, read the ledger and `git log` and continue after the last line. Modified tracked files mean the last dispatch died: the next implementer first commits or discards them. A commit for task N without a `Task N DONE` line: re-dispatch the build from task N with "commit X already holds work for this task; verify it, finish or amend".
+After a context reset, read the ledger and `git log` and continue after the last line. Modified tracked files mean the last dispatch died: the next implementer first commits or discards them. Commits on the branch without a `Build DONE` line: re-dispatch the build with "commits X..Y already hold part of the work; verify them, finish or amend".
 
 ## Decide, don't ask
 
@@ -33,7 +33,7 @@ Rule on anything the plan leaves open, log it as a `Decision`, and continue. A w
 
 Ask once, batch the questions, recommend an answer for each, log the answers.
 
-One question is always asked, at the start: build straight away (the recommended answer), or present the plan first? If the owner wants to see it, post the plan's Goal and task list with a link to `plan.md` after the plan review and wait. Their feedback goes to the planner as one more revision, then the build starts.
+One question is always asked, at the start: build straight away (the recommended answer), or present the plan first? If the owner wants to see it, post the plan's Goal and Design with a link to `plan.md` after the plan review and wait. Their feedback goes to the planner as one more revision, then the build starts.
 
 ## Models
 
@@ -43,7 +43,7 @@ Thorough model for planning and plan review, standard model for everything else,
 
 ### 0. Preflight
 
-Check, without fixing code: clean working tree, git identity set, dependencies installed (CLAUDE.md names the install; run it if not), and whether the project's preview can run (CLAUDE.md names its prerequisites). Log `Preflight: preview yes|no (reason)`. Base is the branch checked out now, or the default branch when detached; `git fetch origin <base>` and log `Base:`. If the environment names a branch you must work on, that is the task branch.
+Check, without fixing code: clean working tree, git identity set, dependencies installed (CLAUDE.md names the install; run it if not), and whether the project's preview can run (CLAUDE.md names its prerequisites). Log `Preflight: preview yes|no (reason)`. Base is the branch checked out now, or the default branch when detached; `git fetch origin <base>` and log `Base:`. If the environment names a branch you must work on, that is the branch to build on.
 
 ### 1. Plan
 
@@ -55,11 +55,11 @@ If the plan has open questions: stop point 1, then one more planner revision wit
 
 ### 2. Build
 
-One implementer ([implementer.md](implementer.md)) does the plan's tasks in order: one commit per task after its done-check, one `Task N DONE` line in the ledger each, a `Note:` line for what later steps must know.
+One implementer ([implementer.md](implementer.md)) builds the plan: commits as it goes, runs the plan's done-check, appends `Build DONE <first>..<last>` and a `Note:` line for what later steps must know.
 
 - `DONE`: review.
-- `CONCERNS`: rule, log, re-dispatch from the first incomplete task only if something is incomplete.
-- `BLOCKED`: if the ledger or plan holds what it lacks, re-dispatch from that task once with it; otherwise stop point 2.
+- `CONCERNS`: rule, log, re-dispatch only if something is incomplete.
+- `BLOCKED`: if the ledger or plan holds what it lacks, re-dispatch once with it; otherwise stop point 2.
 
 ### 3. Review
 
