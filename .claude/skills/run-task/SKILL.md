@@ -1,99 +1,76 @@
 ---
 name: run-task
-description: Use when the owner hands over a feature, bug or refactor to deliver end to end with as few questions as possible. Runs plan, implement, verify, review and PR, each phase in a fresh subagent, with a thin coordinator that keeps its own context small.
+description: Use when the owner hands over a feature, bug or refactor to deliver end to end with as few questions as possible. A thin coordinator runs plan, build, review and ship, each step in a fresh subagent.
 ---
 
 # Run a task
 
-You are the **coordinator**. You own the plan and the progress ledger, dispatch one fresh subagent per phase and per task, and decide. Project specifics (checks, how to preview the UI, where open work is tracked, coding rules) come from the project's CLAUDE.md; this skill holds only the procedure.
+You are the **coordinator**. You hold the plan and the ledger, dispatch every step to a fresh subagent (Claude Code: the Agent tool), and decide. You never edit files outside `.work/`; a coordinator that starts coding loses the overview. Project specifics (checks, preview, coding rules, where open work is tracked) come from CLAUDE.md.
 
-"Subagent" means whatever your agent offers for a fresh, isolated context (Claude Code: the Agent tool). Check it is available before you start. Without one, say so to the owner and run the phases in order yourself, still writing every artifact below; the coordinator rules then apply only to the ledger and the stop points. Never drift into that mode silently.
-
-Use this skill for work that touches more than one file. A one-line fix does not need a plan.
+Use it for work that touches more than one file. A one-line fix does not need a plan.
 
 ## Workspace
 
-The slug is kebab-case from the request, for example `share-multiple-assets`. Everything lives in `.work/<slug>/`. `.work/` must be in `.gitignore`; if it is not, the first implementer adds it.
+`.work/<slug>/` (slug: kebab-case from the request; `.work/` in `.gitignore`, the first implementer adds it if missing):
 
-- `task.md`: the owner's request, verbatim, plus anything they say later. Written before anything else.
-- `plan.md`: written by the planner, the single source of what to build.
-- `progress.md`: the ledger, one line per event. After a context reset, trust this file and `git log`, not memory.
+- `progress.md`: the ledger. First line: the owner's request, verbatim. Then one line per event: `Decision: what / why / cost if wrong`, `Dispatch: planner 1`, `Task 2 DONE a1b2c3d..d4e5f6a`, `Review quality: 3 findings`, `Stop: <question>`. Implementers append `Note:` lines for what later steps must know. After a context reset, read it and `git log` and continue after the last line; a dirty tree means the last dispatch died, so the next implementer finishes or discards it.
+- `plan.md`: written by the planner.
 - `reports/`: one file per subagent run.
 
-Ledger lines look like this:
-
-```
-Decision: implement share in useShareAsset / existing hook owns sharing / small rename if wrong
-Plan review 1: REVISE, 3 must-change
-Task 2 DONE a1b2c3d..d4e5f6a
-Review simplify 1 @d4e5f6a: 2 findings
-Stop 2: needs the Expo token for the preview build
-```
-
-On start, if `.work/<slug>/progress.md` exists, read it and `git log`, and continue after its last line.
-
-Subagents write their results to a file and return a few lines: a status, the commits, the file path. Read `plan.md` once to fill the briefs; otherwise never read a subagent's output file into your context.
+Subagents write their result to a file and return a few lines: status, commits, file path. You read `plan.md` once and the ledger; never a report.
 
 ## Decide, don't ask
 
-Make a ruling for anything the plan leaves open, log it as `Decision: <what> / <why> / <cost if wrong>`, and continue. A wrong ruling costs a visible, reversible rework. A question costs the owner's day.
+Rule on anything the plan leaves open, log it as a `Decision`, and continue. A wrong ruling costs a visible, reversible rework; a question costs the owner's day. Stop and ask only when:
 
-Stop and ask only when:
+1. the plan lists open questions (once per run; later questions become rulings),
+2. an implementer is blocked by something only the owner has (a secret, a device, a rule it would have to break),
+3. a must-fix review finding is still open after the fix round and you cannot rule on it,
+4. anything irreversible or external beyond pushing the branch and opening the PR.
 
-1. **Planning:** the goal is unclear, two viable paths carry a real trade-off, or the plan lists open questions.
-2. **Implementation:** a blocker you cannot clear yourself: a secret, a device, a rule you would have to break, a test that cannot pass without changing what was asked.
-3. **Fix loop:** three rounds have not settled a review finding.
-4. **Irreversible or external:** anything beyond pushing the branch and opening the PR.
-
-Ask once, batch the questions, and recommend an answer for each. Log the answers in `progress.md` and append them to `task.md`.
+Ask once, batch the questions, recommend an answer for each, log the answers. If the request says "wait after the plan", also wait for the owner there.
 
 ## Models
 
-Set the model on every dispatch; an omitted model inherits the session's. Planning and plan review get the most thorough model available, because that is where digging through the code pays off. Everything else gets a strong standard model: it follows a plan or runs checks. In Claude Code today: `fable` for the planner and plan reviewer, `opus` for every other dispatch.
+Thorough model for planning and plan review, standard model for everything else, set explicitly on every dispatch. Claude Code today: `fable` and `opus`.
 
-## Phases
+## Steps
 
 ### 1. Plan
 
-Dispatch a read-only planner with [planner.md](planner.md). It writes `plan.md`.
+1. Planner ([planner.md](planner.md)) writes `plan.md`.
+2. Plan reviewer ([plan-reviewer.md](plan-reviewer.md)) attacks it and writes `reports/plan-review.md`.
+3. Planner revises once with that report; it may decline a finding with a reason. You rule on anything still disputed.
 
-Then dispatch a fresh, read-only plan reviewer with [plan-reviewer.md](plan-reviewer.md). Its job is to attack the plan, not to approve it. It writes its findings to `reports/plan-review-<n>.md`. On `REVISE`, re-dispatch the planner with the plan and the findings, then a fresh reviewer with the previous report. At most three reviews; after the third, rule on its open must-change findings yourself and log the rulings.
+If the plan has open questions: stop point 1, then one more planner revision with the answers. Otherwise create the branch `<slug>` from the base branch (the default branch, or the branch the session was given), log `Base: <branch>`, post the plan's decisions with their cost-if-wrong to the owner, and continue.
 
-Read the final plan. If it lists open questions, this is stop point 1: ask, log the answers, then run this phase again. Otherwise create the branch `<slug>` from the default branch (or from the branch the session was given, if it has one; if `<slug>` exists, continue on it), post a short summary of the plan to the owner, and continue without waiting.
+### 2. Build
 
-### 2. Implement
+One implementer ([implementer.md](implementer.md)) per task, in order, never in parallel. It gets the plan path, its task number, the ledger path and its report path; it runs the checks that cover its files, commits, and appends a `Note:` line.
 
-For each task in the plan, in order and never in parallel, dispatch a fresh implementer with [implementer.md](implementer.md). It receives only its task, the plan's design section, the decisions made so far, and its report path. It commits its own work on the branch.
+- `DONE`: next task.
+- `CONCERNS`: rule, log, re-dispatch only if the task is incomplete.
+- `BLOCKED`: if the ledger or plan holds what it lacks, re-dispatch once with it; otherwise stop point 2.
 
-- `DONE`: log it, next task.
-- `BLOCKED`: give it what it lacks and re-dispatch once. Still blocked: stop point 2.
-- `CONCERNS`: rule on it and log the ruling. If the task was not committed complete, or your ruling rejects a pushback, re-dispatch with the ruling added to its decisions; otherwise next task.
+### 3. Review
 
-### 3. Verify
+Two passes on the branch against the base, each by a fresh reviewer ([reviewer.md](reviewer.md)) that first runs every check CLAUDE.md names:
 
-Dispatch a verifier with [verifier.md](verifier.md). It runs every check CLAUDE.md names, compares each failure against the default branch, and for a UI change saves a screenshot of each changed screen. It changes no tracked file.
+1. **Quality** (Claude Code: `/simplify`). The reviewer lets it apply its fixes as one commit and reports the list. You rule on each change; an implementer reverts the ones you reject.
+2. **Correctness** (Claude Code: `/code-review`, report only). One implementer applies the must-fix findings, plus the nice-to-haves it agrees with, and may push back with `CONCERNS`; you rule. Then the correctness reviewer runs once more. A must-fix still open: stop point 3.
 
-Failures the task introduced go back to phase 2 as a new task, then this phase runs again. Pre-existing failures go into the project's open-work list in phase 5. A preview that could not run is reported as such, not as a failure.
+A failure in a file the branch did not touch is pre-existing: it goes into the open-work list, not the fix round. Findings you skip are logged with a reason and listed in the PR.
 
-### 4. Review
+### 4. Ship
 
-Two reviews in sequence, each with its own fix rounds: first the quality review, then the correctness review on the final code. Both must really run; a hand-written imitation of either does not count.
+1. If there is bookkeeping (a rule from owner feedback via the `add-rule` skill, open-work entries to add or remove, screenshots of changed screens through the project's preview), one last implementer does it.
+2. Push the branch and open the PR: what changed and why, every `Decision`, skipped findings with reasons, how to verify.
+3. Report to the owner: the PR link and the decisions.
 
-For each review: dispatch a fresh reviewer with [reviewer.md](reviewer.md). It runs the review on the branch against the default branch, applies nothing, and writes the findings to `reports/review-<kind>-<n>.md`. If there are findings, dispatch a fresh implementer with [implementer.md](implementer.md), the findings file as its task. It applies them, reruns the checks, commits, and may return `CONCERNS` to push back on a finding; you rule and log. Then dispatch the same review again. Repeat until it comes back clean. Three fix rounds without a clean review is stop point 3.
+## Rules
 
-A skipped finding is logged with its one-line reason and later listed in the PR. The correctness review always runs last, after the quality fixes.
-
-### 5. Finish
-
-1. Dispatch an implementer with the bookkeeping task from [implementer.md](implementer.md), its lists filled from the ledger: rules from feedback the owner gave that applies beyond this task (via the `add-rule` skill), pre-existing failures, deferred work and skipped findings for the project's open-work list, completed entries to remove, plus any publish or sync step CLAUDE.md ties to those files.
-2. Push the branch and open the PR. The description holds: what changed and why, every `Decision` from the ledger, skipped review findings with their reasons, and how to verify.
-3. Report to the owner: the PR link, the decisions, the screenshots, and anything they still need to do.
-
-## Coordinator rules
-
-- Never edit files outside `.work/<slug>/`. A coordinator that starts coding loses the overview. Re-dispatch the implementer instead.
-- Trust artifacts, not narration. After each dispatch, check that the plan, report or commits exist before you move on. A dispatch you only narrated leaves no plan, report or commit behind.
-- Never skip or shorten a review, and never tell a reviewer what to ignore.
-- Fill the briefs' brackets and add nothing else. Each subagent gets what it needs, never the history.
-- Every decision and every skipped finding is a ledger line. Nothing is dropped silently.
-- Between tool calls, narrate at most one line. The ledger is the record.
+- Never edit files outside `.work/`; re-dispatch an implementer instead.
+- Trust artifacts, not narration: after each dispatch, check that its file or commits exist.
+- Fill the briefs' brackets and add nothing; a subagent gets paths, not history.
+- Never shorten a review or tell a reviewer what to ignore. Ruled-skipped findings are passed to the next reviewer as already decided.
+- Every decision and skipped finding is a ledger line. Narrate at most one line between tool calls.

@@ -1,43 +1,28 @@
 # Implementer brief
 
-Dispatch one per task, fresh, never in parallel. Fill the brackets.
+One fresh implementer per dispatch, never in parallel. Fill the brackets.
 
 ```
-You are implementing one task of a plan. Do this task only.
-
-## Your task
+You are doing one step of a plan. Read [PLAN_FILE] for the Design section and [LEDGER] for the decisions and notes so far. Do only this:
 
 [One of:
-- Task N from plan.md, verbatim, with its done-check.
-- "Apply the review findings in REPORT_FILE. Done-check: every project check passes."
-- "Bookkeeping. Add these rules with the add-rule skill: RULES. Add to the project's open-work list: ITEMS. Remove from it: DONE_ENTRIES. Follow any rule CLAUDE.md attaches to these files, including publish or sync steps. Done-check: the project checks pass."]
-
-## Context
-
-[The plan's Design section.]
-[Decisions logged so far that touch this task, one line each.]
+- "Task N from the plan, with its done-check."
+- "Apply the review findings in REPORT_FILE: all must-fix, and the nice-to-haves you agree with. Done-check: no failure in the project checks beyond KNOWN_FAILURES."
+- "Revert these quality changes: LIST. Done-check: the project checks pass as before."
+- "Bookkeeping: add these rules via the add-rule skill: RULES. Open-work list: add ITEMS, remove DONE_ENTRIES, following any rule CLAUDE.md attaches to that file. Screenshots of SCREENS through the project's preview into SCREENSHOT_DIR; if the preview cannot run, say so."]
 
 ## Rules
 
-- Follow CLAUDE.md: its coding rules, and its checks. Prefer the project's existing components and helpers over new ones.
-- Stay inside the task. If the code you touch needs a refactor the plan did not foresee, do it when it is small and report it; otherwise stop with CONCERNS.
-- Run the checks that cover what you change while you work; run the task's done-check before you commit.
-- Commit your work on the current branch with a clear message. Do not push.
-- A review finding you disagree with: skip it, say why, and return CONCERNS.
-- Do not spawn subagents and do not review your own work beyond reading your diff once. A fresh reviewer follows.
-
-## When stuck
-
-Stop with BLOCKED and say exactly what you lack. Bad work is worse than no work.
+- Follow CLAUDE.md. Prefer the project's existing components and helpers over new ones.
+- Stay inside the step. A small refactor the plan did not foresee: do it and report it. A big one: stop with CONCERNS.
+- Run the checks that cover what you change, then the done-check, then commit on the current branch with a clear message. Do not push.
+- A finding you disagree with: skip it, say why, return CONCERNS.
+- Do not spawn subagents. A fresh reviewer follows; your own diff read once is enough.
+- Blocked by something you cannot get yourself: stop with BLOCKED and name it. Bad work is worse than no work.
 
 ## Report
 
-Write to [REPORT_FILE]: what you changed and why, files touched, the checks you ran with their output, anything the reviewer should look at.
+Write [REPORT_FILE]: what you changed and why, files, the checks you ran with output, concerns. Append one `Note:` line to [LEDGER] with what later steps must know (names you chose, things to check).
 
-Then return at most 10 lines:
-- Status: DONE | CONCERNS | BLOCKED
-- Commits (short SHA and subject)
-- One line on the checks
-- The concern or blocker, if any
-- The report path
+Return at most 6 lines: DONE | CONCERNS | BLOCKED, commits, one line on the checks, the concern or blocker, the report path.
 ```

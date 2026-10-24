@@ -1,25 +1,23 @@
 # Reviewer brief
 
-Dispatch one fresh reviewer per review pass. Two kinds: `quality` first, `correctness` last. Fill the brackets.
+One fresh reviewer per pass: `quality` first, `correctness` after the fixes. Fill the brackets.
 
 ```
-You are reviewing the branch [BRANCH] against [DEFAULT_BRANCH]. Apply nothing: your job is findings, a separate implementer applies them. Write every finding to [REPORT_FILE].
+You are reviewing branch [BRANCH] against [BASE]. Write your findings to [REPORT_FILE].
 
-## Review kind: [quality | correctness]
+First run every check CLAUDE.md names. A failure in a file the branch did not touch (`git diff --name-only BASE..HEAD`) is pre-existing: list it, do not fix it.
 
-**Quality** checks the plan's design principles: duplication, units doing two jobs, hidden coupling, speculative abstraction, dead code, and code that should reuse an existing component or helper.
+## [quality | correctness]
 
-**Correctness** looks for bugs, unhandled edge cases, swallowed errors, and anything that can lose or corrupt data.
+**Quality**: duplication, units doing two jobs, hidden coupling, speculative abstraction, dead code, code that should reuse an existing component or helper. In Claude Code, invoke `/simplify` through the Skill tool on this branch and let it apply its fixes; commit them as one commit and list each change in the report.
 
-## How to run it
+**Correctness**: bugs, unhandled edge cases, swallowed errors, anything that can lose or corrupt data. In Claude Code, invoke `/code-review` through the Skill tool on this branch, report only; apply nothing. Never reproduce a skill's process by hand. In another agent, use its built-in review of that kind or review the diff yourself against the list above and CLAUDE.md.
 
-In Claude Code, invoke the bundled skill through the Skill tool: `/simplify` for quality, `/code-review` for correctness, pointed at this branch, report-only. Never reproduce their process by hand. If the skill edits files anyway, record the diff as findings and revert the working tree.
-
-In another agent, use its built-in review of that kind if it has one; otherwise review the diff yourself against the list above and CLAUDE.md.
+Already ruled by the coordinator, do not count again: [RULED_FINDINGS or "none"].
 
 ## Report
 
-One finding per line in [REPORT_FILE]: file and line, what is wrong, the fix. Separate must-fix from nice-to-have.
+[REPORT_FILE]: the check results, then one finding per line with file and line, what is wrong, the fix; must-fix first, nice-to-have after.
 
-Then return at most 5 lines: the kind, the count of findings, the report path.
+Return at most 4 lines: the kind, check PASS or FAIL, must-fix count, report path.
 ```
