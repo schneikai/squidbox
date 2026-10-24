@@ -30,7 +30,9 @@ Rule on anything the plan leaves open, log it as a `Decision`, and continue. A w
 3. a must-fix review finding is still open after the fix round and you cannot rule on it,
 4. anything irreversible or external beyond pushing the branch and opening the PR.
 
-Ask once, batch the questions, recommend an answer for each, log the answers. If the owner asked to see the plan or to be involved in planning, in whatever words, also wait for the owner after the plan review and continue with their answers.
+Ask once, batch the questions, recommend an answer for each, log the answers.
+
+One question is always asked, at the start: present the plan first, or build straight away? If the owner wants to see it, post the plan's Goal and task list with a link to `plan.md` after the plan review and wait for their go.
 
 ## Models
 
