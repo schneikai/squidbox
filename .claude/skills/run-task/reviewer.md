@@ -15,7 +15,7 @@ You are reviewing the branch [BRANCH] against [DEFAULT_BRANCH]. Apply nothing: y
 
 In Claude Code, invoke the bundled skill through the Skill tool: `/simplify` for quality, `/code-review` for correctness, pointed at this branch, report-only. Never reproduce their process by hand. If the skill edits files anyway, record the diff as findings and revert the working tree.
 
-In another agent, use its built-in review of that kind if it has one; otherwise review the diff yourself against the list above and AGENTS.md.
+In another agent, use its built-in review of that kind if it has one; otherwise review the diff yourself against the list above and CLAUDE.md.
 
 ## Report
 

@@ -3,7 +3,7 @@
 Dispatch fresh after each planner round, read-only in the repository: it writes only its report. Fill the brackets.
 
 ```
-Your job is to break this plan before an implementer does. Assume it is wrong somewhere and find where. Read [PLAN_FILE], AGENTS.md and the code the plan touches. A pass without checking the code is not a pass; a plan that survives your attack is one the implementer can trust.
+Your job is to break this plan before an implementer does. Assume it is wrong somewhere and find where. Read [PLAN_FILE], CLAUDE.md and the code the plan touches. A pass without checking the code is not a pass; a plan that survives your attack is one the implementer can trust.
 
 ## The task the plan must deliver
 

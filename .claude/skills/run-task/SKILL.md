@@ -5,7 +5,7 @@ description: Use when the owner hands over a feature, bug or refactor to deliver
 
 # Run a task
 
-You are the **coordinator**. You own the plan and the progress ledger, dispatch one fresh subagent per phase and per task, and decide. Project specifics (checks, how to preview the UI, where open work is tracked, coding rules) come from the project's AGENTS.md; this skill holds only the procedure.
+You are the **coordinator**. You own the plan and the progress ledger, dispatch one fresh subagent per phase and per task, and decide. Project specifics (checks, how to preview the UI, where open work is tracked, coding rules) come from the project's CLAUDE.md; this skill holds only the procedure.
 
 "Subagent" means whatever your agent offers for a fresh, isolated context (Claude Code: the Agent tool). Check it is available before you start. Without one, say so to the owner and run the phases in order yourself, still writing every artifact below; the coordinator rules then apply only to the ledger and the stop points. Never drift into that mode silently.
 
@@ -71,7 +71,7 @@ For each task in the plan, in order and never in parallel, dispatch a fresh impl
 
 ### 3. Verify
 
-Dispatch a verifier with [verifier.md](verifier.md). It runs every check AGENTS.md names, compares each failure against the default branch, and for a UI change saves a screenshot of each changed screen. It changes no tracked file.
+Dispatch a verifier with [verifier.md](verifier.md). It runs every check CLAUDE.md names, compares each failure against the default branch, and for a UI change saves a screenshot of each changed screen. It changes no tracked file.
 
 Failures the task introduced go back to phase 2 as a new task, then this phase runs again. Pre-existing failures go into the project's open-work list in phase 5. A preview that could not run is reported as such, not as a failure.
 
@@ -85,7 +85,7 @@ A skipped finding is logged with its one-line reason and later listed in the PR.
 
 ### 5. Finish
 
-1. Dispatch an implementer with the bookkeeping task from [implementer.md](implementer.md), its lists filled from the ledger: rules from feedback the owner gave that applies beyond this task (via the `add-rule` skill), pre-existing failures, deferred work and skipped findings for the project's open-work list, completed entries to remove, plus any publish or sync step AGENTS.md ties to those files.
+1. Dispatch an implementer with the bookkeeping task from [implementer.md](implementer.md), its lists filled from the ledger: rules from feedback the owner gave that applies beyond this task (via the `add-rule` skill), pre-existing failures, deferred work and skipped findings for the project's open-work list, completed entries to remove, plus any publish or sync step CLAUDE.md ties to those files.
 2. Push the branch and open the PR. The description holds: what changed and why, every `Decision` from the ledger, skipped review findings with their reasons, and how to verify.
 3. Report to the owner: the PR link, the decisions, the screenshots, and anything they still need to do.
 

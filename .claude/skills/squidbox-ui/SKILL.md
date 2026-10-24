@@ -17,7 +17,7 @@ Reason top-down, decide bottom-up:
 1. **UX: Apple HIG** (`apple-design` skill): principles, hierarchy, navigation, toolbars, input,
    accessibility.
 2. **Implementation: Expo / React Native knowledge**: navigation, native behavior, react-native-web.
-3. **Our codebase: final authority**: `AGENTS.md`, the components in `apps/mobile/src/components`
+3. **Our codebase: final authority**: `CLAUDE.md`, the components in `apps/mobile/src/components`
    and the tokens in `apps/mobile/src/styles/designTokens.js`.
 
 When a skill's example and the codebase disagree, follow the codebase. When a HIG principle and
@@ -29,7 +29,7 @@ screen-local exception.
 
 | Task | Read |
 | --- | --- |
-| Any UI change | `AGENTS.md` (React, UI / Components) and `styles/designTokens.js` |
+| Any UI change | `CLAUDE.md` (React, UI / Components) and `styles/designTokens.js` |
 | New screen or flow, screen review, navigation, toolbar or accessibility audit | The `apple-design` skill: its always-load set, `references/cross-platform.md`, and 3–6 pages for what is on screen (`toolbars.md`, `tab-bars.md`, `buttons.md`, `sheets.md`, …) |
 | Small change inside an existing component | This file; skip `apple-design` |
 
@@ -83,8 +83,8 @@ All paths are under `apps/mobile/src/`.
 | Expo: `@expo/ui` components, `formSheet` | Our components; `@expo/ui` only after asking (iOS only, takes the touch) |
 | Expo: inline style objects, `Color` / `PlatformColor`, hex literals | `StyleSheet.create` with `designTokens` values only; no spreading of style objects such as `...glass` in screens |
 | Ad-hoc durations, easings, springs | The `motion` tokens (`enter`, `exit`, `move`, `spring`) |
-| Haptics on every tap | `useHaptics` for meaningful moments only (AGENTS.md) |
-| Expo: kebab-case file names | PascalCase, one exported component per file (AGENTS.md) |
+| Haptics on every tap | `useHaptics` for meaningful moments only (CLAUDE.md) |
+| Expo: kebab-case file names | PascalCase, one exported component per file (CLAUDE.md) |
 
 ## Checks before calling a screen done
 

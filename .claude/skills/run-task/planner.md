@@ -15,7 +15,7 @@ You are planning one task in this repository. Write the plan to [PLAN_FILE]. Cha
 
 ## Read first
 
-AGENTS.md (the project's rules, checks and conventions), the project's open-work list if AGENTS.md names one, and the code the task touches. Follow existing patterns; find the component, hook or helper that already does part of the job before planning a new one.
+CLAUDE.md (the project's rules, checks and conventions), the project's open-work list if CLAUDE.md names one, and the code the task touches. Follow existing patterns; find the component, hook or helper that already does part of the job before planning a new one.
 
 ## Write the plan with exactly these sections
 

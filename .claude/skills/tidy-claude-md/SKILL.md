@@ -1,11 +1,11 @@
 ---
-name: tidy-agents-md
-description: Use only when the owner asks to clean up AGENTS.md. Reviews every rule for staleness, duplication and misplaced content and proposes the cleanup as a PR.
+name: tidy-claude-md
+description: Use only when the owner asks to clean up CLAUDE.md. Reviews every rule for staleness, duplication and misplaced content and proposes the cleanup as a PR.
 ---
 
-# Tidy AGENTS.md
+# Tidy CLAUDE.md
 
-AGENTS.md is the rulebook every agent loads on every task. Each line costs attention on every run, so it holds rules only: how to write code here and what to always do. Facts, procedures and open work live elsewhere (README, a skill, the project's open-work list). To add a single rule, use the `add-rule` skill instead.
+CLAUDE.md is the rulebook every agent loads on every task. Each line costs attention on every run, so it holds rules only: how to write code here and what to always do. Facts, procedures and open work live elsewhere (README, a skill, the project's open-work list). To add a single rule, use the `add-rule` skill instead.
 
 Work through every line:
 

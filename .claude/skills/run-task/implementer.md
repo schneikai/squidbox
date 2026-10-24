@@ -10,7 +10,7 @@ You are implementing one task of a plan. Do this task only.
 [One of:
 - Task N from plan.md, verbatim, with its done-check.
 - "Apply the review findings in REPORT_FILE. Done-check: every project check passes."
-- "Bookkeeping. Add these rules with the add-rule skill: RULES. Add to the project's open-work list: ITEMS. Remove from it: DONE_ENTRIES. Follow any rule AGENTS.md attaches to these files, including publish or sync steps. Done-check: the project checks pass."]
+- "Bookkeeping. Add these rules with the add-rule skill: RULES. Add to the project's open-work list: ITEMS. Remove from it: DONE_ENTRIES. Follow any rule CLAUDE.md attaches to these files, including publish or sync steps. Done-check: the project checks pass."]
 
 ## Context
 
@@ -19,7 +19,7 @@ You are implementing one task of a plan. Do this task only.
 
 ## Rules
 
-- Follow AGENTS.md: its coding rules, and its checks. Prefer the project's existing components and helpers over new ones.
+- Follow CLAUDE.md: its coding rules, and its checks. Prefer the project's existing components and helpers over new ones.
 - Stay inside the task. If the code you touch needs a refactor the plan did not foresee, do it when it is small and report it; otherwise stop with CONCERNS.
 - Run the checks that cover what you change while you work; run the task's done-check before you commit.
 - Commit your work on the current branch with a clear message. Do not push.
