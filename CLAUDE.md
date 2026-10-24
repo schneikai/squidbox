@@ -2,8 +2,9 @@
 
 ## Project Overview
 
-This project is an Expo React Native application targeting iOS (for now).
-It focuses on content creation, AI-assisted workflows, and media management.
+Squidbox is an Expo/React Native app for content creators to manage media, posts and contacts, with a local-first architecture, cross-device sync and AI-assisted workflows. The repo holds the mobile app (iOS first) and web app in `apps/mobile/`, and the Fastify/PostgreSQL backend hosted on Fly.io in `apps/server/`.
+
+What matters most, in order: a beautiful, intuitive UI, data integrity, performance and reliability.
 
 The codebase follows a modular, component-driven architecture with an emphasis on:
 
