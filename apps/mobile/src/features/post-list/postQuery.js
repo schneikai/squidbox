@@ -1,7 +1,16 @@
 import { and, asc, count, desc, eq, getTableColumns, isNull, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 
-import { a, assetOrder, assetScopeWhere, fromScope, liveAlbumAssetIds, placeInPost, scopeEdges } from '@/sync/assetSql';
+import {
+  a,
+  assetOrder,
+  assetScopeWhere,
+  fromScope,
+  liveAlbumAssetIds,
+  placeInPost,
+  postAlbumAssetIds,
+  scopeEdges,
+} from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import { inJson } from '@/sync/inJson';
 import { matchingIds } from '@/sync/matchingIds';
@@ -17,7 +26,7 @@ const p = alias(schema.posts, 'p');
  * `tables` → what a live read watches.
  * Every order ends with an id tie-break, so refreshes and pages see one stable order.
  * @param {object} descriptor
- * @param {'all' | 'repostCandidates' | 'ignored' | { assetId: string } | { albumId: string } | { postId: string }} [descriptor.scope]
+ * @param {'all' | 'repostCandidates' | 'ignored' | { assetId: string } | { albumId: string } | { postId: string } | { sharesAlbumWithPostId: string }} [descriptor.scope]
  * @param {'postedAt:asc' | 'postedAt:desc' | 'suggestRepostAt:asc' | 'updatedAt:desc'} [descriptor.sort]
  * @param {'favorites'[]} [descriptor.filter]
  * @param {string} [descriptor.search] a text substring, matched as the list did: Unicode-aware, literal, case-insensitive
@@ -29,6 +38,7 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
 
   const tables = [schema.posts, schema.postAssets, schema.assets];
   if (scope.albumId) tables.push(schema.albumAssets);
+  if (scope.sharesAlbumWithPostId) tables.push(schema.albumAssets, schema.albums);
 
   const scopeCondition = (() => {
     if (scope === 'repostCandidates') return and(eq(p.isIgnoredForRepost, false), eq(p.hasBeenReposted, false));
@@ -39,6 +49,10 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
     }
     if (scope.albumId) {
       return sql`${p.id} in (select post_id from post_assets where asset_id in ${liveAlbumAssetIds(scope.albumId)} and deleted_at is null)`;
+    }
+    if (scope.sharesAlbumWithPostId) {
+      const postId = scope.sharesAlbumWithPostId;
+      return sql`${p.id} != ${postId} and ${p.id} in (select post_id from post_assets where asset_id in ${postAlbumAssetIds(postId)} and deleted_at is null)`;
     }
     return undefined;
   })();

@@ -15,6 +15,12 @@ the touch with the cell. Check on a phone.
 
 ## Features
 
+### [ ] Search suggestions as you type, like Apple Photos
+
+Wanted by the owner, later. While typing in a list's search (`SearchOptionsBar`), show a menu of
+matching terms above the field, each with how many assets it finds (Apple Photos: "mvp 3",
+"mvz 1"). Terms would come from the words of the assets' notes, which is what `assetQuery` searches.
+
 ### [ ] Share several assets at once
 
 Nice to have, deferred. Share is only on the asset detail screen (`useShareAsset`); select mode has
@@ -86,15 +92,6 @@ or a gesture-handler pager, instead of toggling `scrollEnabled`.
 The photo viewer shows the 1000 px thumbnail, so zoom stops at 4× (`useZoomGesture`) and looks soft
 well before that. Loading the full-resolution file once zoomed would make deeper zoom worthwhile,
 with the maximum taken from the photo's own size.
-
-### [ ] Show when an album was last posted on a post's screen
-
-Two parts:
-- **Last posted on the album row.** The "Posted Albums" rows (`features/post-detail/Post.jsx`) show
-  the album's asset count. Keep it and add when the album was last posted, like the suggestions card
-  does, so a repeat is easy to spot.
-- **The album's other posts.** Below it, list the other posts made with media from this album, like
-  the photo details list an asset's posts (`AssetDetailsPanel`). Reuse that list.
 
 ### [ ] Remove deleted items for good after 30 days
 
@@ -176,7 +173,7 @@ error, and could be made from the cloud original.
 ### [ ] Bump INSTALLED with each preview build
 
 `INSTALLED` in `apps/mobile/test/mainClient.e2e.test.ts` is the commit of the preview build on the
-owner's phone (9526d68): move it to the new build's commit whenever a preview build is installed, so
+owner's phone (b8171cf): move it to the new build's commit whenever a preview build is installed, so
 the suite tests the real upgrade path.
 
 ### [ ] Drop the outbox's whole-record rows
@@ -358,6 +355,30 @@ there; show it, or let the merge finish past a rejected row.
 `mergeMarks:<source>` (`sync/status.ts`) holds a decision per merged record in one `sync_meta` value,
 read and written whole by every pass: about 100 bytes per record, so ~1 MB for a 10,000-photo device
 library. Fine for a few passes; a table keyed by record would scale if passes get frequent.
+
+### [ ] Make the dev secrets work in cloud environments, not just on a laptop
+
+`scripts/dev-local.mjs`, `apps/mobile/scripts/check-env.sh` and CLAUDE.md treat
+`apps/mobile/.env.local` as the only source of the `EXPO_PUBLIC_*` values; a cloud environment
+exports them as variables, and the scripts refuse to start. Owner request. Research first what to
+use (variables with the file as a laptop fallback, EAS environment variables, a secret manager), then
+change the scripts and CLAUDE.md together.
+
+### [ ] `albumId` post scope and `albumLastPostedAt` count deleted albums' edges
+
+`postQuery`'s `albumId` scope and `albumLastPostedAt` (`sync/assetSql.ts`) use
+`liveAlbumAssetIds`, which checks the edge's deletion but not the album's, while the
+`sharesAlbumWithPostId` scope and `albumQuery` exclude deleted albums. Harmless today (a deleted
+album's screen isn't opened), but one rule would be cleaner. With it, have `postQuery`'s `albumId`
+scope watch `schema.albums` as `sharesAlbumWithPostId` does, so both refresh when an album is
+deleted or restored.
+
+### [ ] Cap the post screen's Other Posts
+
+Other Posts on the post screen (`features/post-detail/Post.jsx`, `PostRows`) reads the whole post
+history of the post's albums into a `ScrollView`, as the photo details do for an asset's posts. If
+an album with hundreds of posts makes the screen slow, show the latest few (e.g. 10) and a row that
+opens the album's Posts tab (`AlbumPostsView`).
 
 ## Ideas
 

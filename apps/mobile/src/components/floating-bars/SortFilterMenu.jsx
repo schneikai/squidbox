@@ -79,9 +79,13 @@ export default function SortFilterMenu({
         }
       />
       {activeFilter.length > 0 && (
-        <MenuOption onPress={() => {
+        <MenuOption
+          onPress={() => {
             onFilter?.('all');
-          }} label="Clear filter" icon="close-circle" />
+          }}
+          label="Clear filter"
+          icon="close-circle"
+        />
       )}
 
       {showViewOptions && (

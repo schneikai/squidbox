@@ -32,7 +32,6 @@ function AssetPager({
   video,
   panel,
   isDetailsShown,
-  navigation,
   onChangeAssetId,
   onTapAsset,
   onLockChange,
@@ -91,24 +90,12 @@ function AssetPager({
         isCurrent={assetId === currentAssetId}
         showsDetails={isDetailsShown && Math.abs(index - currentIndex) <= 1}
         panel={panel}
-        navigation={navigation}
         onTap={onTapAsset}
         onZoomChange={handleZoomChange}
         video={assetId === currentAssetId ? video : null}
       />
     ),
-    [
-      assetsById,
-      pageStyle,
-      currentAssetId,
-      currentIndex,
-      isDetailsShown,
-      video,
-      panel,
-      navigation,
-      onTapAsset,
-      handleZoomChange,
-    ],
+    [assetsById, pageStyle, currentAssetId, currentIndex, isDetailsShown, video, panel, onTapAsset, handleZoomChange],
   );
   const getItemLayout = useCallback(
     (_, index) => ({ length: pageWidth, offset: pageWidth * index, index }),
