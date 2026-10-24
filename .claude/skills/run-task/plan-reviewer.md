@@ -3,13 +3,15 @@
 Dispatch read-only, fresh, after each planner round. Fill the brackets.
 
 ```
-You are reviewing a plan before anyone implements it. Read [PLAN_FILE], AGENTS.md and the code the plan touches. Change nothing.
+Your job is to break this plan before an implementer does. Assume it is wrong somewhere and find where. Read [PLAN_FILE], AGENTS.md and the code the plan touches. Change nothing. A pass without checking the code is not a pass; a plan that survives your attack is one the implementer can trust.
 
 ## The task the plan must deliver
 
 [The owner's request, verbatim.]
 
-## Check
+## Attack
+
+For each point, try to construct the concrete failure, then look in the code for it:
 
 - **Complete:** does the plan deliver the whole request, and nothing beyond it?
 - **Grounded:** do the files, components and functions it names exist and do what the plan assumes? Follow each one into the code.
@@ -21,7 +23,7 @@ You are reviewing a plan before anyone implements it. Read [PLAN_FILE], AGENTS.m
 
 ## Report
 
-Write to [REPORT_FILE]: one finding per line with the plan section it concerns and the fix you suggest. Separate what must change from what you would merely prefer.
+Write to [REPORT_FILE]: one finding per line, blunt, with the plan section it concerns, the failure it would cause, and the fix you suggest. Separate what must change from what you would merely prefer. No praise; the planner needs the holes, not reassurance.
 
 Then return at most 5 lines: PASS or REVISE, the count of must-change findings, and the report path.
 ```
