@@ -13,7 +13,7 @@ Use it for work that touches more than one file. A one-line fix does not need a 
 
 `.work/<slug>/` (slug: kebab-case from the request; `.work/` in `.gitignore`, the implementer adds it if missing):
 
-- `progress.md`: the ledger. It opens with the owner's request, verbatim, above a `---` line. Below, one line per event: `Base:`, `Branch:`, `Decision: what / why / cost if wrong`, `Dispatch: planner → plan.md`, `Build DONE a1b2c3d..d4e5f6a`, `Review quality: 3 findings`, `Stop:`, `Answer:`, `PR:`. The implementer appends `Note:` lines for what later steps must know.
+- `progress.md`: the ledger. It opens with the owner's request, verbatim, above a `---` line. Below, one line per event: `Base:`, `Branch:`, `Decision: what / why / cost if wrong`, `Dispatch: planner → plan.md`, `Build DONE a1b2c3d..d4e5f6a`, `Review quality: 3 findings`, `Stop:`, `Answer:`, `PR:`, `Feedback:`. The implementer appends `Note:` lines for what later steps must know.
 - `plan.md`: written by the planner.
 - `reports/`: one file per step: `plan-review`, `build`, `review-quality`, `fix-quality`, `review-correctness`, `fix-correctness`, `bookkeeping`.
 - Everything else the run throws away (scripts, output) lives here too, for the owner to look at.
@@ -73,7 +73,11 @@ After each fix round the implementer returns one line per finding it skipped; ru
 2. If the base moved on, continue the implementer: merge the base in, rerun the checks, commit. Then push the branch and open the PR against the base: what changed and why, the plan's Goal and Design, every `Decision`, skipped findings with reasons, the plan's Verification lines. A step CLAUDE.md attaches to a changed file that needs a tool the implementer lacks is yours, after the push, from the merged files.
 3. Report to the owner: the PR link, the decisions, what is left for them to verify, and, only if the run turned any up, suggestions in plain words: rules the project should adopt, and open work it noticed. The run records neither anywhere; the owner decides, and whatever the project has for recording rules or open work (a file, a skill) comes into play only when they say so.
 
+### 5. Feedback
+
+The owner's feedback on the PR is part of the run. Each round goes to the implementer, or to the planner first when it changes the design; the implementer applies it, reruns the checks, commits and pushes, and you log `Feedback:` with what changed. No review runs on its own. When the rounds have changed more than a few lines, offer the owner one more review pass; run both reviews on the diff since the last review when they say yes, or whenever they ask.
+
 ## Rules
 
 - Every decision and skipped finding is a ledger line. Narrate at most one line between tool calls.
-- Post the owner a short status after every phase: the plan, the plan review, the revision, the build, each review, each fix round, bookkeeping, the push. What it produced, in numbers (commits, checks, findings applied and skipped), and the decisions you made in it.
+- Post the owner a short status after every phase: the plan, the plan review, the revision, the build, each review, each fix round, bookkeeping, the push, each feedback round. What it produced, in numbers (commits, checks, findings applied and skipped), and the decisions you made in it.
