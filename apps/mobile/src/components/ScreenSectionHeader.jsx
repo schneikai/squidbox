@@ -4,7 +4,7 @@ import { colors, typography } from '@/styles/designTokens';
 
 /**
  * iOS-style uppercase section label used above grouped setting rows.
- * Shared by SettingsScreen, AiPromptsScreen, and any future list screens.
+ * Shared by SettingsScreen and any future list screens.
  *
  * When rightSlot is provided the component renders a flex row with the title
  * on the left and the slot on the right. Over cards it sits a little in from

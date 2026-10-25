@@ -7,7 +7,6 @@ import AssetPickerScreen from '@/features/asset-picker/AssetPickerScreen';
 import AddEditPostNavigator from '@/navigators/AddEditPostNavigator';
 import CreatePostNavigator from '@/navigators/CreatePostNavigator';
 import MainTabNavigator from '@/navigators/MainTabNavigator';
-import RandomSuggestionsNavigator from '@/navigators/RandomSuggestionsNavigator';
 import AddToAlbumScreen from '@/screens/AddToAlbumScreen';
 import AlbumScreen from '@/screens/AlbumScreen';
 import AssetScreen from '@/screens/AssetScreen';
@@ -44,7 +43,6 @@ const AddEditPostModalRoute = asModalRoute(AddEditPostNavigator);
 const AssetPickerModalRoute = asModalRoute(AssetPickerScreen);
 const AddToAlbumModalRoute = asModalRoute(AddToAlbumScreen);
 const EditAlbumNotesModalRoute = asModalRoute(EditAlbumNotesModal);
-const RandomSuggestionsModalRoute = asModalRoute(RandomSuggestionsNavigator);
 
 // One editor per params: opening the editor for another post or other assets, also from inside an
 // open editor's sheet, opens a new one on top; the same params go back to the editor that has them.
@@ -74,12 +72,6 @@ export default function RootNavigator() {
           name="EditAlbumNotesModal"
           component={EditAlbumNotesModalRoute}
           options={{ headerShown: false }}
-        />
-        <RootStack.Screen
-          name="RandomSuggestionsModal"
-          component={RandomSuggestionsModalRoute}
-          options={{ headerShown: false }}
-          getId={({ params }) => params?.callerKey}
         />
       </RootStack.Group>
       <RootStack.Group screenOptions={{ headerShown: false }}>

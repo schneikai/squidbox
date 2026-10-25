@@ -32,7 +32,7 @@ export default function AddPostScreen({ route, navigation }) {
   return <PostEditor post={seed} navigation={navigation} onSave={handleAddPost} />;
 }
 
-async function readSeed(db, { rePostId, assetIds, text }) {
+async function readSeed(db, { rePostId, assetIds }) {
   if (rePostId) {
     const rePost = await readPost(db, rePostId);
     if (!rePost) return null;
@@ -40,5 +40,5 @@ async function readSeed(db, { rePostId, assetIds, text }) {
     return { text: rePost.text, postAssets: buildPostAssets(assets), postedAt: getTimestamp() };
   }
   const assets = assetIds ? await readByIds(db, schema.assets, assetIds) : [];
-  return { text: text ?? '', postAssets: buildPostAssets(assets), postedAt: getTimestamp() };
+  return { text: '', postAssets: buildPostAssets(assets), postedAt: getTimestamp() };
 }

@@ -70,7 +70,6 @@ import {
   Share2,
   SlidersHorizontal,
   Smartphone,
-  Sparkles,
   SquareCheck,
   Star,
   Trash2,
@@ -79,7 +78,6 @@ import {
   Video,
   Volume2,
   VolumeX,
-  Wand,
   X,
 } from '@/lib/lucide';
 import { sizes } from '@/styles/designTokens';
@@ -133,7 +131,6 @@ const ICON_MAP = {
   share: Share,
   'share-alt': Share2,
   sort: ArrowUpDown,
-  sparkles: Sparkles,
   star: Star,
   trash: Trash2,
   undo: Undo2,
@@ -141,7 +138,6 @@ const ICON_MAP = {
   video: Video,
   'volume-off': VolumeX,
   'volume-on': Volume2,
-  wand: Wand,
 };
 
 export default function Icon({ name, size = sizes.icon, color, filled, style }) {

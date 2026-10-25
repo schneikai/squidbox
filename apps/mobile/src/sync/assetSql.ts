@@ -88,9 +88,6 @@ export function albumLastPostedAt(albumId: string | SQL): SQL<number | null> {
     where pe.asset_id in ${liveAlbumAssetIds(albumId)} and pe.deleted_at is null)`;
 }
 
-/** When the asset was last posted: `null` for never. */
-export const lastPostedAt = sql`(select max(p.posted_at) from post_assets pe join posts p on p.id = pe.post_id where pe.asset_id = a.id and pe.deleted_at is null and p.deleted_at is null)`;
-
 /** The assets a scope keeps by their deletion: Deleted the trashed, a post all but the purged, the others the live. */
 export function assetDeletionWhere(scope: AssetScope): SQL {
   if (scope === 'deleted') return sql`a.deleted_at is not null and a.purged_at is null`;

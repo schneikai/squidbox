@@ -84,8 +84,8 @@ below; the gotchas there are load-bearing.
 
 1. Confirm the baked env is correct for the live backend:
    `eas env:list --environment preview` → `EXPO_PUBLIC_API_URL` must be the Fly URL
-   (`https://squidbox-server.fly.dev/api/v1`), and `EXPO_PUBLIC_OPENAI_API_KEY` + `SENTRY_AUTH_TOKEN`
-   should exist. If the URL is stale/wrong, fix the VALUE (keep its visibility):
+   (`https://squidbox-server.fly.dev/api/v1`), and `SENTRY_AUTH_TOKEN` should exist. If the URL is
+   stale/wrong, fix the VALUE (keep its visibility):
    `eas env:set --name EXPO_PUBLIC_API_URL --value <fly-url> --visibility secret --environment development --environment preview --environment production`
 2. Build: `EAS_BUILD_PROFILE=preview eas build -p ios -e preview` (agent runs it).
 3. Install from the EAS build page → **Internal Distribution → Install**. Self-contained — no Metro/tunnel.
@@ -107,8 +107,8 @@ Facts (SDK 55, current EAS CLI):
   `unzip -o app.ipa -d x && strings x/Payload/*.app/main.jsbundle | grep -oE "https://[a-z0-9.-]+/api/v1"`.
 - Typical symptom of a wrong baked URL: login works but sync fails, because the URL points at a
   server without `/sync/*`. Check the baked value as above.
-- `EXPO_PUBLIC_OPENAI_API_KEY` is baked into the binary regardless (that's what `EXPO_PUBLIC_` means);
-  keeping it `secret` only hides it from logs/UI, not from the shipped app.
+- Any `EXPO_PUBLIC_*` var is baked into the binary regardless (that's what `EXPO_PUBLIC_` means);
+  keeping it `secret` only hides it from logs/UI, not from the shipped app. Never put an API key there.
 
 ## Watch / manage
 
