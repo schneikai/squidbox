@@ -37,7 +37,7 @@ process.on('SIGINT', () => shutdown(0));
 process.on('SIGTERM', () => shutdown(0));
 
 if (!existsSync(`${MOBILE_DIR}/.env.local`)) {
-  fail('apps/mobile/.env.local is missing. Restore it from your password manager (template: .env.local.example).');
+  run('scripts/write-env-local.sh', [], MOBILE_DIR);
 }
 await ensureDocker();
 if (!existsSync(SERVER_ENV)) {
@@ -65,6 +65,9 @@ server.stdout.pipe(serverLog);
 server.stderr.pipe(serverLog);
 superviseExit(server);
 await waitFor('the API server', async () => (await fetch(`${SERVER_URL}/up`).catch(() => null))?.ok);
+
+// The phone gives up on a bundle that takes a minute to build; build it before handing out the URL.
+if (!webOnly) run('node', ['scripts/prewarmBundle.mjs'], MOBILE_DIR);
 
 if (resetData) {
   log('Resetting the mock data');

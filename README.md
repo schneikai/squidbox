@@ -54,7 +54,7 @@ Two gitignored env files in `apps/mobile/`, each for a different audience:
 
 | File | Read by | Purpose |
 |---|---|---|
-| `.env.local` | Metro, at runtime | Supplies `EXPO_PUBLIC_*` to the **dev client** over the tunnel. Copy from `.env.local.example`. |
+| `.env.local` | Metro, at runtime | Supplies `EXPO_PUBLIC_*` to the **dev client** over the tunnel. Copy from `.env.local.example`, or let `scripts/check-env.sh` write it from the environment variables. |
 | `.secrets` | you, once | Upload bundle to push **preview/release** secrets to EAS. Not read at runtime. |
 
 `.env.local` holds `EXPO_PUBLIC_API_URL`, `NGROK_AUTHTOKEN`, optional login prefill, Sentry debug and the OpenAI key. Each variable is explained in `.env.local.example`.
@@ -91,7 +91,7 @@ Cloud builds authenticate to Apple with an **App Store Connect API Key** (`.p8`)
 
 ### Dev client: Metro + tunnel
 
-The dev client loads JS from Metro at runtime over a tunnel. Run `scripts/check-env.sh` first: without `.env.local`, Metro serves a bundle with no `EXPO_PUBLIC_*` values. There are two ways to open the tunnel, both from `apps/mobile/`.
+The dev client loads JS from Metro at runtime over a tunnel. Run `scripts/check-env.sh` first; it writes a missing `.env.local` from the environment variables (cloud workspaces). Without `.env.local`, Metro serves a bundle with no `EXPO_PUBLIC_*` values. There are two ways to open the tunnel, both from `apps/mobile/`.
 
 **Your own ngrok account** (`tunnel.js`, needs `NGROK_AUTHTOKEN` in `.env.local`):
 
@@ -108,6 +108,8 @@ The free ngrok plan has one static domain per account. If a previous session did
 npm install -g @expo/ngrok@^4.1.0                                    # once
 http_proxy=$HTTPS_PROXY npx expo start --tunnel --dev-client         # https://<id>-anonymous-8081.exp.direct
 ```
+
+Once Metro is up, run `node scripts/prewarmBundle.mjs` before opening the app: it builds the first bundle, which takes long enough on a cold cache for the phone to time out waiting. `npm run dev:local` does this for you.
 
 The Expo tunnel URL stays the same across restarts of the same checkout. Open the URL in Squidbox (Dev) via "Enter URL manually". Add `-c` to `expo start` to clear the cache after changing `.env.local` or upgrading packages.
 
