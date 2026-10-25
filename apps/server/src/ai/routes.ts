@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   aiBalanceResponseSchema,
@@ -16,6 +16,15 @@ import { findModel, getCatalogAsync, type Catalog, type CatalogEntry } from './c
 import { compareModels, visionTask, writingTask } from './compare.js';
 import { visionMessages, writingMessages } from './prompts.js';
 import { loadConfig } from '../config.js';
+
+// Aborted once the app stops waiting (a closed compare), so the Venice calls stop too.
+function untilClientLeaves(reply: FastifyReply): AbortSignal {
+  const controller = new AbortController();
+  reply.raw.on('close', () => {
+    if (!reply.raw.writableFinished) controller.abort();
+  });
+  return controller.signal;
+}
 
 // A body holds one photo's base64 (VISION_IMAGE_MAX_BASE64_LENGTH) and the model ids.
 const VISION_REQUEST_BODY_LIMIT = 2 * 1024 * 1024;
@@ -85,11 +94,12 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     preHandler: [authenticate(), aiAccess],
     config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
     schema: { body: compareWritingRequestSchema, response: { 200: compareWritingResponseSchema } },
-    handler: async (request) => {
+    handler: async (request, reply) => {
+      const signal = untilClientLeaves(reply);
       const models = await resolveModels(request.body.modelIds, 'writing');
       // persona: the user's About you / Tone once that setup exists (prompts.ts).
       const messages = writingMessages({ prompt: request.body.prompt, persona: null });
-      const results = await compareModels({ task: writingTask, messages, models, log: request.log });
+      const results = await compareModels({ task: writingTask, messages, models, log: request.log, signal });
       return { results };
     },
   });
@@ -103,14 +113,15 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     bodyLimit: VISION_REQUEST_BODY_LIMIT,
     config: { rateLimit: { max: 240, timeWindow: '1 minute' } },
     schema: { body: compareVisionRequestSchema, response: { 200: compareVisionResponseSchema } },
-    handler: async (request) => {
+    handler: async (request, reply) => {
+      const signal = untilClientLeaves(reply);
       const models = await resolveModels(request.body.modelIds, 'vision');
       const { base64, mimeType } = request.body.image;
       const messages = visionMessages({
         prompt: request.body.prompt,
         imageDataUrl: `data:${mimeType};base64,${base64}`,
       });
-      const results = await compareModels({ task: visionTask, messages, models, log: request.log });
+      const results = await compareModels({ task: visionTask, messages, models, log: request.log, signal });
       return { results };
     },
   });

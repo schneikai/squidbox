@@ -16,17 +16,22 @@ export class VeniceError extends Error {
   }
 }
 
-/** A request to Venice's API at `path`, with the key and a timeout. */
+/** A request to Venice's API at `path`, with the key and a timeout; `signal` stops it sooner. */
 function veniceFetch(
   path: string,
-  { headers, timeoutMs, ...init }: { method?: string; headers?: Record<string, string>; body?: string; timeoutMs: number },
+  {
+    headers,
+    timeoutMs,
+    signal,
+    ...init
+  }: { method?: string; headers?: Record<string, string>; body?: string; timeoutMs: number; signal?: AbortSignal },
 ): Promise<Response> {
   const { VENICE_API_KEY: apiKey, VENICE_BASE_URL: baseUrl } = loadConfig();
   if (!apiKey) throw AppError.aiNotConfigured();
   return fetch(`${baseUrl}${path}`, {
     ...init,
     headers: { ...headers, authorization: `Bearer ${apiKey}` },
-    signal: AbortSignal.timeout(timeoutMs),
+    signal: signal ? AbortSignal.any([AbortSignal.timeout(timeoutMs), signal]) : AbortSignal.timeout(timeoutMs),
   });
 }
 
@@ -48,15 +53,18 @@ type ChatCompletion = {
 
 /**
  * One chat completion's reply text. Every way it can fail (Venice unreachable or slow, an error
- * answer, a refusal, a cut-off, filtered or empty reply) is a VeniceError that says why.
+ * answer, a refusal, a cut-off, filtered or empty reply) is a VeniceError that says why. `signal`
+ * stops it, when nobody waits for the reply anymore.
  */
 export async function chatCompletionAsync({
   model,
   messages,
+  signal,
   ...extra
 }: {
   model: string;
   messages: ChatMessage[];
+  signal?: AbortSignal;
   response_format?: Record<string, unknown>;
 }): Promise<string> {
   const response = await veniceFetch('/chat/completions', {
@@ -71,6 +79,7 @@ export async function chatCompletionAsync({
       venice_parameters: { include_venice_system_prompt: false, strip_thinking_response: true },
     }),
     timeoutMs: CHAT_TIMEOUT_MS,
+    signal,
   }).catch((error: unknown) => {
     const timedOut = error instanceof Error && error.name === 'TimeoutError';
     throw new VeniceError(timedOut ? 'Venice took too long to answer' : "Couldn't reach Venice");
@@ -100,14 +109,17 @@ export async function chatJsonAsync<T>({
   model,
   messages,
   schema,
+  signal,
 }: {
   model: string;
   messages: ChatMessage[];
   schema: JsonSchemaSpec<T>;
+  signal?: AbortSignal;
 }): Promise<T> {
   const content = await chatCompletionAsync({
     model,
     messages,
+    signal,
     response_format: {
       type: 'json_schema',
       json_schema: { name: schema.name, strict: true, schema: schema.jsonSchema },

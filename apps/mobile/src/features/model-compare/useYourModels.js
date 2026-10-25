@@ -24,7 +24,10 @@ export default function useYourModels(kind) {
   );
 
   useEffect(() => {
-    if (catalog && list === null) seedYourModels(getDb(), kind, seedModels(modelsOfKind(catalog, kind), kind));
+    if (!catalog || list !== null) return;
+    seedYourModels(getDb(), kind, seedModels(modelsOfKind(catalog, kind), kind)).catch((error) =>
+      console.error('Seeding your models failed', error),
+    );
   }, [catalog, list]);
 
   const rows = catalog && list ? joinYourModels(list.models, catalog, kind) : null;

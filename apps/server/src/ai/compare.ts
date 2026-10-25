@@ -47,29 +47,43 @@ export const visionTask: CompareTask<{ tags: string[] }> = {
   check: ({ tags }) => ({ tags: checkTags(tags) }),
 };
 
-/** Sends the same messages to every model at once; each gets its result or its own error. */
+/**
+ * Sends the same messages to every model at once; each gets its result or its own error, which
+ * never names the model (the compare is blind). `signal` stops the calls still running.
+ */
 export async function compareModels<T>({
   task,
   messages,
   models,
   log,
+  signal,
 }: {
   task: CompareTask<T>;
   messages: ChatMessage[];
   models: CatalogEntry[];
   log?: Logger;
+  signal?: AbortSignal;
 }): Promise<((T & { modelId: string }) | { modelId: string; error: string })[]> {
   const settled = await Promise.allSettled(
     models.map(async (model) => {
-      const reply = await chatJsonAsync({ model: model.id, messages, schema: task.schema });
+      const reply = await chatJsonAsync({ model: model.id, messages, schema: task.schema, signal });
       return { modelId: model.id, ...task.check(reply) };
     }),
   );
   return settled.map((result, index) => {
-    const modelId = models[index]!.id;
+    const model = models[index]!;
+    const modelId = model.id;
     if (result.status === 'fulfilled') return result.value;
-    if (result.reason instanceof VeniceError) return { modelId, error: result.reason.message };
+    if (result.reason instanceof VeniceError) return { modelId, error: withoutModelName(result.reason.message, model) };
     log?.error({ err: result.reason, modelId }, 'AI compare failed');
     return { modelId, error: 'Something went wrong' };
   });
+}
+
+// Venice's own error texts can name the model ("kimi-k3 is at capacity"), which would unblind it.
+function withoutModelName(message: string, model: CatalogEntry): string {
+  return [model.id, model.model_spec.name].reduce(
+    (text, name) => text.replace(new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), 'the model'),
+    message,
+  );
 }

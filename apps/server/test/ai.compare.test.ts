@@ -89,6 +89,15 @@ describe('compareModels: writing', () => {
     ]);
   });
 
+  it("keeps the model's name out of Venice's error text, so the card stays blind", async () => {
+    replies({
+      'kimi-k3': new Response(JSON.stringify({ error: { message: 'Model KIMI-K3 is at capacity' } }), { status: 503 }),
+      'grok-4-7': { tweets: ['a', 'b', 'c'] },
+    });
+    const [kimi] = await compareWriting([model('kimi-k3'), model('grok-4-7')]);
+    expect(kimi).toEqual({ modelId: 'kimi-k3', error: 'Model the model is at capacity' });
+  });
+
   it('reports a model Venice could not be reached for without the network details', async () => {
     replies({ 'kimi-k3': { tweets: ['a', 'b', 'c'] } });
     fetchMock.mockImplementationOnce(async () => {

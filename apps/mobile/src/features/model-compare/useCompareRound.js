@@ -52,9 +52,9 @@ export default function useCompareRound({ kind, modelIds }) {
     return photos.map((asset) => ({
       key: asset.id,
       itemsKey: 'tags',
-      body: async () => ({
+      body: async (signal) => ({
         prompt,
-        image: await readVisionImageAsync(asset, { library, loadThumbnail, isAuthenticated }),
+        image: await readVisionImageAsync(asset, { library, loadThumbnail, isAuthenticated, signal }),
         modelIds,
       }),
     }));
@@ -75,7 +75,7 @@ export default function useCompareRound({ kind, modelIds }) {
         const job = queue.shift();
         let results;
         try {
-          results = byModel(await compareAsync(kind, await job.body(), { signal }), job.itemsKey);
+          results = byModel(await compareAsync(kind, await job.body(signal), { signal }), job.itemsKey);
         } catch (error) {
           results = failAll(error);
         }

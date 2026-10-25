@@ -27,14 +27,22 @@ export function SectionFooter({ children }) {
   return <Text style={styles.footer}>{children}</Text>;
 }
 
-// `isValueMuted` greys the value further, for one that no longer applies.
-export function Row({ label, value, isValueMuted, onPress, destructive, chevron, children }) {
+// `isValueMuted` greys the value further, for one that no longer applies. `isValueTruncated` keeps
+// the value to one line, shortened with an ellipsis, so the label keeps its width.
+export function Row({ label, value, isValueMuted, isValueTruncated, onPress, destructive, chevron, children }) {
   const content = (
     <View style={styles.row}>
-      <Text style={[styles.rowLabel, destructive && styles.rowLabelDestructive]}>{label}</Text>
+      <Text
+        style={[styles.rowLabel, isValueTruncated && styles.rowLabelKept, destructive && styles.rowLabelDestructive]}
+      >
+        {label}
+      </Text>
       <View style={styles.rowRight}>
         {value ? (
-          <Text style={[styles.rowValue, isValueMuted && styles.rowValueMuted]} numberOfLines={1}>
+          <Text
+            style={[styles.rowValue, isValueMuted && styles.rowValueMuted]}
+            numberOfLines={isValueTruncated ? 1 : undefined}
+          >
             {value}
           </Text>
         ) : null}
@@ -70,12 +78,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: SCREEN_PADDING,
     paddingVertical: 16,
   },
-  // The label keeps its width; a long value shortens with an ellipsis instead.
   rowLabel: {
-    flexGrow: 1,
-    flexShrink: 0,
+    flex: 1,
     fontSize: typography.body,
     color: colors.text.primary,
+  },
+  rowLabelKept: {
+    flexBasis: 'auto',
+    flexShrink: 0,
   },
   rowLabelDestructive: {
     color: colors.status.danger,
