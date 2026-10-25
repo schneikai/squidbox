@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const config = vi.hoisted(() => ({ extra: {} as { buildProfile?: string } }));
 vi.mock('expo-constants', () => ({ default: { expoConfig: config } }));
 
-const { default: isTestBuild } = await import('../src/features/assistant/isTestBuild');
+const { default: isTestBuild } = await import('../src/utils/isTestBuild');
 
 describe('isTestBuild', () => {
   beforeEach(() => vi.stubGlobal('__DEV__', false));

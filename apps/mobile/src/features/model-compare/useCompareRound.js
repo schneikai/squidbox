@@ -3,14 +3,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import assignLetters from './assignLetters';
 import readVisionImageAsync from './readVisionImageAsync';
 
-import useAssetThumbnailLoader from '@/features/asset-thumbnail-loader/useAssetThumbnailLoader';
-import { compareAsync } from '@/features/assistant/aiApi';
-import apiErrorMessage from '@/features/assistant/apiErrorMessage';
 import useCloud from '@/features/cloud/useCloud';
 import useHaptics from '@/hooks/useHaptics';
 import useLibrary from '@/library/useLibrary';
 import { addScore, markTried } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
+import { compareAsync } from '@/utils/cloud-api/aiApi';
+import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import toggleItem from '@/utils/toggleItem';
 
 // Requests in flight at once in a round: a vision round is one request per photo with every model.
@@ -30,8 +29,7 @@ export const TEXT_KEY = 'text';
 export default function useCompareRound({ kind, modelIds }) {
   const haptics = useHaptics();
   const { paths: library } = useLibrary();
-  const { isAuthenticated } = useCloud();
-  const { loadThumbnail } = useAssetThumbnailLoader();
+  const { isAuthenticated, preloadAssetThumbnailsAsync } = useCloud();
   const [round, setRound] = useState({ number: 0, letters: [], results: {}, taps: {} });
   const controllerRef = useRef(null);
   // The taps as of the last toggle: two taps before a re-render must see each other.
@@ -54,7 +52,7 @@ export default function useCompareRound({ kind, modelIds }) {
       itemsKey: 'tags',
       body: async (signal) => ({
         prompt,
-        image: await readVisionImageAsync(asset, { library, loadThumbnail, isAuthenticated, signal }),
+        image: await readVisionImageAsync(asset, { library, isAuthenticated, preloadAssetThumbnailsAsync, signal }),
         modelIds,
       }),
     }));

@@ -5,7 +5,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AddModelRow from './AddModelRow';
 import CatalogStatus from './CatalogStatus';
-import modelsOfKind from './modelsOfKind';
 import searchModels from './searchModels';
 import useYourModels from './useYourModels';
 
@@ -20,6 +19,7 @@ import useHaptics from '@/hooks/useHaptics';
 import useScrollY from '@/hooks/useScrollY';
 import { addYourModel } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
+import modelsOfKind from '@/utils/ai/modelsOfKind';
 
 // Every model Venice offers for a kind (route param `kind`), with a search box; a tap adds one to
 // your list. Removing is in the list's row menu.

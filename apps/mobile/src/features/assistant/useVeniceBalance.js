@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
 
-import { fetchAiBalanceAsync } from './aiApi';
+import { fetchAiBalanceAsync } from '@/utils/cloud-api/aiApi';
 
 /**
  * The Venice account's balance as a row value ("$4.59", with DIEM when there is any), read again

@@ -63,66 +63,67 @@ async function resolveModels(ids: string[], kind: AiModelKind): Promise<CatalogE
   });
 }
 
+// Every route here is behind authenticate and aiAccess, so a new one can't skip the gate.
 export async function aiRoutes(app: FastifyInstance): Promise<void> {
-  const r = app.withTypeProvider<ZodTypeProvider>();
+  await app.register(async (ai) => {
+    ai.addHook('preHandler', authenticate());
+    ai.addHook('preHandler', aiAccess);
+    const r = ai.withTypeProvider<ZodTypeProvider>();
 
-  // GET /ai/models — every model Venice offers now.
-  r.route({
-    method: 'GET',
-    url: '/ai/models',
-    preHandler: [authenticate(), aiAccess],
-    schema: { response: { 200: aiModelsResponseSchema } },
-    handler: async () => {
-      const { models } = await catalogAsync();
-      return { models };
-    },
-  });
+    // GET /ai/models — every model Venice offers now.
+    r.route({
+      method: 'GET',
+      url: '/ai/models',
+      schema: { response: { 200: aiModelsResponseSchema } },
+      handler: async () => {
+        const { models } = await catalogAsync();
+        return { models };
+      },
+    });
 
-  // GET /ai/balance — what is left on the Venice account.
-  r.route({
-    method: 'GET',
-    url: '/ai/balance',
-    preHandler: [authenticate(), aiAccess],
-    schema: { response: { 200: aiBalanceResponseSchema } },
-    handler: () => orAiUnavailable(fetchBalanceAsync(), "Couldn't load the balance from Venice"),
-  });
+    // GET /ai/balance — what is left on the Venice account.
+    r.route({
+      method: 'GET',
+      url: '/ai/balance',
+      schema: { response: { 200: aiBalanceResponseSchema } },
+      handler: () => orAiUnavailable(fetchBalanceAsync(), "Couldn't load the balance from Venice"),
+    });
 
-  // POST /ai/compare/writing — each model writes tweets for the same prompt.
-  r.route({
-    method: 'POST',
-    url: '/ai/compare/writing',
-    preHandler: [authenticate(), aiAccess],
-    config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
-    schema: { body: compareWritingRequestSchema, response: { 200: compareWritingResponseSchema } },
-    handler: async (request, reply) => {
-      const signal = untilClientLeaves(reply);
-      const models = await resolveModels(request.body.modelIds, 'writing');
-      // persona: the user's About you / Tone once that setup exists (prompts.ts).
-      const messages = writingMessages({ prompt: request.body.prompt, persona: null });
-      const results = await compareModels({ task: writingTask, messages, models, log: request.log, signal });
-      return { results };
-    },
-  });
+    // POST /ai/compare/writing — each model writes tweets for the same prompt.
+    r.route({
+      method: 'POST',
+      url: '/ai/compare/writing',
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+      schema: { body: compareWritingRequestSchema, response: { 200: compareWritingResponseSchema } },
+      handler: async (request, reply) => {
+        const signal = untilClientLeaves(reply);
+        const models = await resolveModels(request.body.modelIds, 'writing');
+        // persona: the user's About you / Tone once that setup exists (prompts.ts).
+        const messages = writingMessages({ prompt: request.body.prompt, persona: null });
+        const results = await compareModels({ task: writingTask, messages, models, log: request.log, signal });
+        return { results };
+      },
+    });
 
-  // POST /ai/compare/vision — each model tags the same photo, guided by the prompt. One request
-  // per photo, so a compare of many photos (and a second round within the minute) fits the limit.
-  r.route({
-    method: 'POST',
-    url: '/ai/compare/vision',
-    preHandler: [authenticate(), aiAccess],
-    bodyLimit: VISION_REQUEST_BODY_LIMIT,
-    config: { rateLimit: { max: 240, timeWindow: '1 minute' } },
-    schema: { body: compareVisionRequestSchema, response: { 200: compareVisionResponseSchema } },
-    handler: async (request, reply) => {
-      const signal = untilClientLeaves(reply);
-      const models = await resolveModels(request.body.modelIds, 'vision');
-      const { base64, mimeType } = request.body.image;
-      const messages = visionMessages({
-        prompt: request.body.prompt,
-        imageDataUrl: `data:${mimeType};base64,${base64}`,
-      });
-      const results = await compareModels({ task: visionTask, messages, models, log: request.log, signal });
-      return { results };
-    },
+    // POST /ai/compare/vision — each model tags the same photo, guided by the prompt. One request
+    // per photo, so a compare of many photos (and a second round within the minute) fits the limit.
+    r.route({
+      method: 'POST',
+      url: '/ai/compare/vision',
+      bodyLimit: VISION_REQUEST_BODY_LIMIT,
+      config: { rateLimit: { max: 240, timeWindow: '1 minute' } },
+      schema: { body: compareVisionRequestSchema, response: { 200: compareVisionResponseSchema } },
+      handler: async (request, reply) => {
+        const signal = untilClientLeaves(reply);
+        const models = await resolveModels(request.body.modelIds, 'vision');
+        const { base64, mimeType } = request.body.image;
+        const messages = visionMessages({
+          prompt: request.body.prompt,
+          imageDataUrl: `data:${mimeType};base64,${base64}`,
+        });
+        const results = await compareModels({ task: visionTask, messages, models, log: request.log, signal });
+        return { results };
+      },
+    });
   });
 }

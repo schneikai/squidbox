@@ -11,12 +11,12 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import useAppSettings from '@/features/app-settings/useAppSettings';
-import useIsAssistantAvailable from '@/features/assistant/useIsAssistantAvailable';
 import confirmBackupSignOutAsync from '@/features/cloud/confirmBackupSignOutAsync';
 import useCloud from '@/features/cloud/useCloud';
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
 import useBackupCounts from '@/features/cloud-sync/useBackupCounts';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
+import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
 import useLibrary from '@/library/useLibrary';
 import { colors } from '@/styles/designTokens';
 import { useSyncStatus } from '@/sync/useSyncStatus';

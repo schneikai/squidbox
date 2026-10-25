@@ -1,8 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { aiModelKindSchema } from '@squidbox/shared';
 
-import useAiCatalog from './useAiCatalog';
-import useLeaveWhenUnavailable from './useLeaveWhenUnavailable';
 import useVeniceBalance from './useVeniceBalance';
 
 import DetailScrollView from '@/components/DetailScrollView';
@@ -10,11 +8,13 @@ import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import joinYourModels from '@/features/model-compare/joinYourModels';
 import modelKindText from '@/features/model-compare/modelKindText';
+import useAiCatalog from '@/hooks/useAiCatalog';
+import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import { readChosenModels } from '@/sync/aiStateRepository';
 import { schema } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
+import modelsOfKind from '@/utils/ai/modelsOfKind';
 
 // Settings → Assistant: for now only the Testing section, the models the coming assistant uses,
 // and what is left on the Venice account.
@@ -32,7 +32,7 @@ export default function AssistantScreen() {
     if (chosen === undefined) return { value: null, isGone: false };
     const model = chosen[kind];
     if (!model) return { value: 'Not chosen', isGone: false };
-    const isGone = !!catalog && joinYourModels([model], catalog, kind)[0].model === null;
+    const isGone = !!catalog && !modelsOfKind(catalog, kind).some(({ id }) => id === model.id);
     return { value: isGone ? 'No longer available' : model.name, isGone };
   }
 

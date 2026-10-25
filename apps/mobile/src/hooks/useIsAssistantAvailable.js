@@ -1,7 +1,6 @@
-import isTestBuild from './isTestBuild';
-
 import useCloud from '@/features/cloud/useCloud';
 import useLibrary from '@/library/useLibrary';
+import isTestBuild from '@/utils/isTestBuild';
 
 /**
  * Whether Settings → Assistant shows: in a test build, in an account's library whose owner is

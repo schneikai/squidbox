@@ -42,7 +42,7 @@ export async function veniceGetJson<S extends z.ZodTypeAny>(path: string, schema
   return schema.parse(await response.json());
 }
 
-export type ChatContentPart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } };
+type ChatContentPart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } };
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string | ChatContentPart[] };
 
 export type JsonSchemaSpec<T> = { name: string; jsonSchema: Record<string, unknown>; zod: z.ZodType<T> };
@@ -56,7 +56,7 @@ type ChatCompletion = {
  * answer, a refusal, a cut-off, filtered or empty reply) is a VeniceError that says why. `signal`
  * stops it, when nobody waits for the reply anymore.
  */
-export async function chatCompletionAsync({
+async function chatCompletionAsync({
   model,
   messages,
   signal,

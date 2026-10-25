@@ -20,8 +20,8 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
-import useLeaveWhenUnavailable from '@/features/assistant/useLeaveWhenUnavailable';
 import useHaptics from '@/hooks/useHaptics';
+import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import { removeYourModel, resetScores, setChosenModel } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 import confirmAsync from '@/utils/confirmAsync';

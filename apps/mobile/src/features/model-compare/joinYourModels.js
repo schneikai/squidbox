@@ -1,4 +1,4 @@
-import modelsOfKind from './modelsOfKind';
+import modelsOfKind from '@/utils/ai/modelsOfKind';
 
 /**
  * Your models in your order, each with its catalog model, or `model: null` when Venice no longer

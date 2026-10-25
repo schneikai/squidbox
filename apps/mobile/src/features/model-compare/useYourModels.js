@@ -1,13 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import joinYourModels from './joinYourModels';
-import modelsOfKind from './modelsOfKind';
 import seedModels from './seedModels';
 
-import useAiCatalog from '@/features/assistant/useAiCatalog';
+import useAiCatalog from '@/hooks/useAiCatalog';
 import { readModelList, seedYourModels } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
+import modelsOfKind from '@/utils/ai/modelsOfKind';
 
 /**
  * Your models of a kind, live: `rows` your list joined with Venice's models (useAiCatalog's
@@ -30,6 +30,10 @@ export default function useYourModels(kind) {
     );
   }, [catalog, list]);
 
-  const rows = catalog && list ? joinYourModels(list.models, catalog, kind) : null;
+  // Memoized: the Add screen's rows stay memoized across its search keystrokes.
+  const rows = useMemo(
+    () => (catalog && list ? joinYourModels(list.models, catalog, kind) : null),
+    [catalog, list, kind],
+  );
   return { catalog, error, retry, rows, chosenId: list?.chosenId ?? null };
 }
