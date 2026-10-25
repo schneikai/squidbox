@@ -13,8 +13,8 @@ export function writingMessages({ prompt, persona }: { prompt: string; persona: 
   const system = [
     'You write social posts for a content creator.',
     persona && `About the creator: ${persona.aboutYou}\nTheir tone: ${persona.tone}`,
-    `Reply with exactly ${WRITING_TWEET_COUNT} posts as JSON, each only the finished post text, ` +
-      'no numbering, quotes or commentary.',
+    `Reply with exactly ${WRITING_TWEET_COUNT} posts, each only the finished post text, ` +
+      'no numbering, quotes or commentary, as a JSON object: {"tweets": [...]}.',
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -31,7 +31,7 @@ export function visionMessages({ imageDataUrl }: { imageDataUrl: string }): Chat
       content:
         `Tag the photo with exactly ${VISION_TAG_COUNT} short, specific tags of what is in it: subject, clothing, ` +
         'setting, light, pose, mood. Lowercase, 1–3 words each, no duplicates, no commentary. ' +
-        'Be explicit about adult content when it is there. Reply as JSON.',
+        'Be explicit about adult content when it is there. Reply with a JSON object: {"tags": [...]}.',
     },
     {
       role: 'user',
