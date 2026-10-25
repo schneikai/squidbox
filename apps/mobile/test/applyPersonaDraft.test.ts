@@ -43,7 +43,8 @@ describe('applyPersonaDraft', () => {
   });
 
   it('finds emoji: none in a plain post, one in a post with 😏, one in a flag', () => {
-    const useEmoji = (sent: string[]) => applyPersonaDraft(empty, { ...reply, examplePostIndexes: [] }, sent, 'empty').useEmoji;
+    const useEmoji = (sent: string[]) =>
+      applyPersonaDraft(empty, { ...reply, examplePostIndexes: [] }, sent, 'empty').useEmoji;
     expect(useEmoji(['Leg day. You’re welcome.'])).toBe(false);
     expect(useEmoji(['Sheets still warm 😏'])).toBe(true);
     expect(useEmoji(['Back home 🇩🇪'])).toBe(true);

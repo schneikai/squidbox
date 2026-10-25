@@ -28,15 +28,43 @@ export function SectionFooter({ children }) {
 }
 
 // `isValueMuted` greys the value further, for one that no longer applies. `isValueTruncated` keeps
-// the value to one line, shortened with an ellipsis, so the label keeps its width.
-export function Row({ label, value, isValueMuted, isValueTruncated, onPress, destructive, chevron, children }) {
+// the value to one line, shortened with an ellipsis, so the label keeps its width. `leading` goes
+// before the label (an icon), `description` is secondary text under it.
+export function Row({
+  label,
+  description,
+  leading,
+  value,
+  isValueMuted,
+  isValueTruncated,
+  onPress,
+  destructive,
+  chevron,
+  children,
+}) {
+  const labelText = (
+    <Text
+      style={[
+        styles.rowLabel,
+        description != null && styles.rowLabelTitle,
+        isValueTruncated && styles.rowLabelKept,
+        destructive && styles.rowLabelDestructive,
+      ]}
+    >
+      {label}
+    </Text>
+  );
   const content = (
     <View style={styles.row}>
-      <Text
-        style={[styles.rowLabel, isValueTruncated && styles.rowLabelKept, destructive && styles.rowLabelDestructive]}
-      >
-        {label}
-      </Text>
+      {leading != null && <View style={styles.rowLeading}>{leading}</View>}
+      {description != null ? (
+        <View style={styles.rowText}>
+          {labelText}
+          <Text style={styles.rowDescription}>{description}</Text>
+        </View>
+      ) : (
+        labelText
+      )}
       <View style={styles.rowRight}>
         {value ? (
           <Text
@@ -82,6 +110,21 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: typography.body,
     color: colors.text.primary,
+  },
+  rowLeading: {
+    marginRight: 12,
+  },
+  rowText: {
+    flex: 1,
+    gap: 2,
+  },
+  rowLabelTitle: {
+    flex: 0,
+  },
+  rowDescription: {
+    fontSize: typography.subheadline,
+    lineHeight: lineHeights.subheadline,
+    color: colors.text.secondary,
   },
   rowLabelKept: {
     flexBasis: 'auto',

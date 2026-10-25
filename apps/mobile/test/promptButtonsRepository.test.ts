@@ -11,6 +11,7 @@ import {
   seedPromptButtons,
   updatePromptButton,
 } from '../src/sync/promptButtonsRepository';
+import { markFirstSyncDone } from '../src/sync/status';
 
 const button = (id: string, placement: 'post' | 'newPost' | 'refine' = 'refine') => ({
   id,
@@ -26,9 +27,16 @@ async function order(db: SyncDb, placement: string): Promise<string[]> {
   return (await readPromptButtons(db)).filter((row) => row.placement === placement).map((row) => row.id);
 }
 
+// A library after its first full pull, when seeding may run.
+async function syncedDb(): Promise<SyncDb> {
+  const db = makeTestDb();
+  await markFirstSyncDone(db);
+  return db;
+}
+
 describe('promptButtonsRepository', () => {
   it('seeds the defaults once, in their order', async () => {
-    const db = makeTestDb();
+    const db = await syncedDb();
     expect(await seedPromptButtons(db, defaults)).toBe(true);
     expect(await order(db, 'post')).toEqual(['d1', 'd2']);
     expect(await order(db, 'refine')).toEqual(['d3']);
@@ -36,8 +44,15 @@ describe('promptButtonsRepository', () => {
     expect(await readPromptButtons(db)).toHaveLength(3);
   });
 
-  it('never seeds again after every button was deleted', async () => {
+  it('waits for the first full pull before seeding', async () => {
     const db = makeTestDb();
+    expect(await seedPromptButtons(db, defaults)).toBe(false);
+    await markFirstSyncDone(db);
+    expect(await seedPromptButtons(db, defaults)).toBe(true);
+  });
+
+  it('never seeds again after every button was deleted', async () => {
+    const db = await syncedDb();
     await seedPromptButtons(db, defaults);
     for (const { id } of defaults) await removePromptButton(db, id);
     expect(await readPromptButtons(db)).toEqual([]);
@@ -46,7 +61,7 @@ describe('promptButtonsRepository', () => {
   });
 
   it('creates a button at the end of its placement', async () => {
-    const db = makeTestDb();
+    const db = await syncedDb();
     await seedPromptButtons(db, defaults);
     await createPromptButton(db, button('n1', 'post'));
     await createPromptButton(db, button('n2', 'newPost'));
@@ -66,7 +81,7 @@ describe('promptButtonsRepository', () => {
   });
 
   it('puts a button moved to another placement at the end of that group', async () => {
-    const db = makeTestDb();
+    const db = await syncedDb();
     await seedPromptButtons(db, defaults);
     await updatePromptButton(db, 'd1', { placement: 'refine', name: 'Moved' });
     expect(await order(db, 'post')).toEqual(['d2']);
@@ -75,14 +90,14 @@ describe('promptButtonsRepository', () => {
   });
 
   it('keeps the position of an edit in the same placement', async () => {
-    const db = makeTestDb();
+    const db = await syncedDb();
     await seedPromptButtons(db, defaults);
     await updatePromptButton(db, 'd1', { placement: 'post', prompt: 'New prompt' });
     expect(await order(db, 'post')).toEqual(['d1', 'd2']);
   });
 
   it('deletes a button as a tombstone', async () => {
-    const db = makeTestDb();
+    const db = await syncedDb();
     await seedPromptButtons(db, defaults);
     await removePromptButton(db, 'd2');
     expect(await order(db, 'post')).toEqual(['d1']);

@@ -66,6 +66,7 @@ export const colors = {
     glass: alpha(palette.white, 0.95),
     menu: alpha(palette.white, 0.72), // tint over the BlurView of popover menus
     muted: palette.gray100, // `overlay.pressed` over white, opaque
+    tint: palette.violet50, // a lavender card on a white sheet (an example to copy)
     placeholder: palette.gray300, // a picture's spot before it loads
     shimmer: palette.white, // the pulse over a loading picture's placeholder
     media: palette.black, // behind a photo or video shown full screen

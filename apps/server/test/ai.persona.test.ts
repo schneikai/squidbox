@@ -31,13 +31,20 @@ const persona = {
   examplePosts: ["Leg day. You're welcome.", 'Sheets still warm.'],
 };
 const empty = { aboutYou: '', contentTags: [], tone: '', useEmoji: false, rules: [], examplePosts: [] };
-const draft = { aboutYou: ' Gym guy. ', contentTags: ['gym', 'GYM', ' pov '], tone: ' Short. ', examplePostIndexes: [1] };
+const draft = {
+  aboutYou: ' Gym guy. ',
+  contentTags: ['gym', 'GYM', ' pov '],
+  tone: ' Short. ',
+  examplePostIndexes: [1],
+};
 
 const systemOf = (messages: ReturnType<typeof writingMessages>) => messages[0]!.content as string;
 
 function replies(content: unknown) {
   fetchMock.mockResolvedValue(
-    new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(content) } }] })),
+    new Response(
+      JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(content) } }] }),
+    ),
   );
 }
 
@@ -113,7 +120,12 @@ describe('draftPersonaAsync', () => {
   it('asks the model for the persona JSON and checks the reply', async () => {
     replies(draft);
     const result = await draftPersonaAsync({ posts: ['a', 'b'], model: kimi });
-    expect(result).toEqual({ aboutYou: 'Gym guy.', contentTags: ['gym', 'pov'], tone: 'Short.', examplePostIndexes: [1] });
+    expect(result).toEqual({
+      aboutYou: 'Gym guy.',
+      contentTags: ['gym', 'pov'],
+      tone: 'Short.',
+      examplePostIndexes: [1],
+    });
     const body = JSON.parse(fetchMock.mock.calls[0]![1].body);
     expect(body.model).toBe('kimi-k3');
     expect(body.response_format.json_schema.name).toBe('persona');
@@ -123,7 +135,10 @@ describe('draftPersonaAsync', () => {
     replies(draft);
     const plain = {
       ...kimi,
-      model_spec: { ...kimi.model_spec, capabilities: { ...kimi.model_spec.capabilities, supportsResponseSchema: false } },
+      model_spec: {
+        ...kimi.model_spec,
+        capabilities: { ...kimi.model_spec.capabilities, supportsResponseSchema: false },
+      },
     };
     await draftPersonaAsync({ posts: ['a'], model: plain });
     expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).not.toHaveProperty('response_format');

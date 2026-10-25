@@ -4,7 +4,10 @@ import { z } from 'zod';
 import type { ChatMessage, JsonSchemaSpec } from './venice.js';
 
 /** Writing as the user: their "Writing as you" setup, or null before they saved one (persona.ts). */
-export type Persona = Pick<PersonaRecord, 'aboutYou' | 'contentTags' | 'tone' | 'useEmoji' | 'rules' | 'examplePosts'> | null;
+export type Persona = Pick<
+  PersonaRecord,
+  'aboutYou' | 'contentTags' | 'tone' | 'useEmoji' | 'rules' | 'examplePosts'
+> | null;
 
 export function writingMessages({ prompt, persona }: { prompt: string; persona: Persona }): ChatMessage[] {
   const system = [
@@ -30,7 +33,8 @@ function personaText({ aboutYou, contentTags, tone, useEmoji, rules, examplePost
     tone && `Their tone: ${tone}`,
     useEmoji ? (hasPosts ? 'Use emoji, the way the example posts do.' : 'Use emoji.') : 'No emoji.',
     rules.length > 0 && `Rules, always follow them:\n${rules.map((rule) => `- ${rule}`).join('\n')}`,
-    hasPosts && `Example posts they wrote. Write like these:\n${examplePosts.map((post) => `---\n${post}`).join('\n')}\n---`,
+    hasPosts &&
+      `Example posts they wrote. Write like these:\n${examplePosts.map((post) => `---\n${post}`).join('\n')}\n---`,
   ]
     .filter(Boolean)
     .join('\n');

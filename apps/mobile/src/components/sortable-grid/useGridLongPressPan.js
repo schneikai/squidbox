@@ -12,7 +12,8 @@ const SCROLL_TICK_MS = 16;
  * container's space; `contentPoint` turns them into the scrolled grid's, and `indexAtContent` finds the cell there. Once
  * `startAutoScroll()` runs, the list scrolls while the finger is near its top or bottom edge,
  * faster closer to it, until the release, so long grids can be dragged across in one motion.
- * `onContainerLayout(height)` gets the container's height. `layout`: see gridSlotOrigin.
+ * `onContainerLayout(height)` gets the container's height. `layout`: see gridSlotOrigin. Items
+ * that aren't grid cells (chips that wrap) pass `findIndexAt(contentPoint, count)` instead.
  *
  * The callbacks are read when the gesture calls them, so new rows or callbacks don't rebuild the
  * gesture mid-drag. Work a callback schedules for later (a timer, a spring's end) still sees the
@@ -25,6 +26,7 @@ export default function useGridLongPressPan({
   paddingTop,
   listRef,
   scrollY,
+  findIndexAt,
   onLift,
   onMove,
   onRelease,
@@ -38,11 +40,11 @@ export default function useGridLongPressPan({
   useEffect(() => () => clearInterval(timerRef.current), []);
 
   function contentPoint(x, y) {
-    return { x, y: y + (scrollY?.value ?? 0) - paddingTop };
+    return { x, y: y + (scrollY?.value ?? 0) - (paddingTop ?? 0) };
   }
 
   function indexAtContent(content, count) {
-    return gridIndexAtContentPoint(content, layout, count);
+    return findIndexAt ? findIndexAt(content, count) : gridIndexAtContentPoint(content, layout, count);
   }
 
   // Reads only refs and the list, so the tick an interval started with stays valid.

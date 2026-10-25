@@ -5,6 +5,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ProgressOverlayHost from '@/components/progress-overlay/ProgressOverlayHost';
 import AssetPickerScreen from '@/features/asset-picker/AssetPickerScreen';
 import AddModelsScreen from '@/features/model-compare/AddModelsScreen';
+import PromptButtonModal from '@/features/prompt-buttons/PromptButtonModal';
+import PromptButtonsScreen from '@/features/prompt-buttons/PromptButtonsScreen';
+import VoiceModal from '@/features/voice/VoiceModal';
 import AddEditPostNavigator from '@/navigators/AddEditPostNavigator';
 import CreatePostNavigator from '@/navigators/CreatePostNavigator';
 import MainTabNavigator from '@/navigators/MainTabNavigator';
@@ -47,6 +50,8 @@ const AddToAlbumModalRoute = asModalRoute(AddToAlbumScreen);
 const EditAlbumNotesModalRoute = asModalRoute(EditAlbumNotesModal);
 const ModelCompareModalRoute = asModalRoute(ModelCompareNavigator);
 const AddAiModelsModalRoute = asModalRoute(AddModelsScreen);
+const VoiceModalRoute = asModalRoute(VoiceModal);
+const PromptButtonModalRoute = asModalRoute(PromptButtonModal);
 
 // One editor per params: opening the editor for another post or other assets, also from inside an
 // open editor's sheet, opens a new one on top; the same params go back to the editor that has them.
@@ -58,6 +63,9 @@ const postId = ({ params }) => params?.postId;
 
 // One compare and one Add screen per kind of model.
 const modelKind = ({ params }) => params?.kind;
+
+// One sheet per prompt button, and one Add per placement.
+const promptButtonId = ({ params }) => params?.id ?? `new:${params?.placement}`;
 
 export default function RootNavigator() {
   return (
@@ -92,12 +100,20 @@ export default function RootNavigator() {
           options={{ headerShown: false }}
           getId={modelKind}
         />
+        <RootStack.Screen name="VoiceModal" component={VoiceModalRoute} options={{ headerShown: false }} />
+        <RootStack.Screen
+          name="PromptButtonModal"
+          component={PromptButtonModalRoute}
+          options={{ headerShown: false }}
+          getId={promptButtonId}
+        />
       </RootStack.Group>
       <RootStack.Group screenOptions={{ headerShown: false }}>
         <RootStack.Screen name="MainTab" component={MainTabNavigator} />
         <RootStack.Screen name="AlbumScreen" component={AlbumScreen} />
         <RootStack.Screen name="PostScreen" component={PostScreen} getId={postId} />
         <RootStack.Screen name="AssetScreen" component={AssetScreen} />
+        <RootStack.Screen name="PromptButtonsScreen" component={PromptButtonsScreen} />
       </RootStack.Group>
     </RootStack.Navigator>
   );

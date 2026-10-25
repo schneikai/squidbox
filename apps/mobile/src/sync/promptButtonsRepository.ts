@@ -7,6 +7,7 @@ import type { SyncDb } from './db/types';
 import { readByIds } from './readByIds';
 import { makeRepository } from './repository';
 import { saveRecords } from './saveRecords';
+import { isFirstSyncDone } from './status';
 
 // The chat's prompt buttons (Settings → Assistant → Prompt buttons): the only reader and writer of
 // the prompt_buttons table. Each placement has its own order, `(position, id)`.
@@ -25,6 +26,15 @@ export async function readPromptButtons(db: SyncDb): Promise<PromptButtonRecord[
     .where(isNull(t.deletedAt))
     .orderBy(asc(t.placement), asc(t.position), asc(t.id));
   return rows as PromptButtonRecord[];
+}
+
+/** One live button, or null when it's gone (deleted, here or on another device). */
+export async function readPromptButton(db: SyncDb, id: string): Promise<PromptButtonRecord | null> {
+  const [row] = await db
+    .select()
+    .from(t)
+    .where(and(eq(t.id, id), isNull(t.deletedAt)));
+  return (row as PromptButtonRecord | undefined) ?? null;
 }
 
 // The key after the last live button of a placement.
@@ -74,7 +84,10 @@ export function removePromptButton(db: SyncDb, id: string): Promise<void> {
  */
 export async function movePromptButton(db: SyncDb, id: string, afterId: string | null): Promise<void> {
   await db.transaction(async (tx) => {
-    const [moved] = await tx.select().from(t).where(and(eq(t.id, id), isNull(t.deletedAt)));
+    const [moved] = await tx
+      .select()
+      .from(t)
+      .where(and(eq(t.id, id), isNull(t.deletedAt)));
     if (!moved) return;
     const live = (await tx
       .select()
@@ -88,15 +101,17 @@ export async function movePromptButton(db: SyncDb, id: string, afterId: string |
 }
 
 /**
- * Insert `defaults` once per library: only while the table has no rows at all, tombstones included,
- * so deleting every button never brings the defaults back. Their ids are fixed, so two devices that
- * both seed before syncing converge on one row each. Returns whether it seeded.
+ * Insert `defaults` once per library: only after the first full pull (which brings another device's
+ * buttons and deletions) and while the table has no rows at all, tombstones included, so deleting
+ * every button never brings the defaults back. Their ids are fixed, so two devices that both seed
+ * before syncing converge on one row each. Returns whether it seeded.
  */
 export async function seedPromptButtons(
   db: SyncDb,
   defaults: Pick<PromptButtonRecord, 'id' | 'name' | 'prompt' | 'placement' | 'icon'>[],
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
+    if (!(await isFirstSyncDone(tx))) return false;
     const [{ rows }] = await tx.select({ rows: count() }).from(t);
     if (rows > 0) return false;
     const now = Date.now();

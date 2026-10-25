@@ -1,26 +1,35 @@
 import { useNavigation } from '@react-navigation/native';
 import { aiModelKindSchema } from '@squidbox/shared';
+import { StyleSheet, View } from 'react-native';
 
+import personaSummary from './personaSummary';
 import useVeniceBalance from './useVeniceBalance';
 
 import DetailScrollView from '@/components/DetailScrollView';
+import GradientFill from '@/components/GradientFill';
+import Icon from '@/components/Icon';
 import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import modelKindText from '@/features/model-compare/modelKindText';
+import usePromptButtons from '@/features/prompt-buttons/usePromptButtons';
 import useAiCatalog from '@/hooks/useAiCatalog';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import { colors, radii, sizes } from '@/styles/designTokens';
 import { readChosenModels } from '@/sync/aiStateRepository';
 import { schema } from '@/sync/db/client';
+import { readPersona } from '@/sync/personaRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
 
-// Settings → Assistant: for now only the Testing section, the models the coming assistant uses,
-// and what is left on the Venice account.
+// Settings → Assistant: how the assistant writes as you, its prompt buttons, and in test builds the
+// Testing section (the models it uses, what is left on the Venice account).
 export default function AssistantScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
+  const persona = useLiveQuery((db) => readPersona(db), [schema.personas]);
+  const promptButtons = usePromptButtons();
   const chosen = useLiveQuery((db) => readChosenModels(db), [schema.aiKinds, schema.aiModels]);
   const { models: catalog } = useAiCatalog();
   const balance = useVeniceBalance();
@@ -42,6 +51,25 @@ export default function AssistantScreen() {
     <Page>
       <FloatingDetailHeader title="Assistant" onBack={() => navigation.goBack()} />
       <DetailScrollView>
+        <Section>
+          <Row
+            leading={<AssistantMark />}
+            label="Writing as you"
+            description={persona === undefined ? ' ' : personaSummary(persona)}
+            onPress={() => navigation.navigate('VoiceModal')}
+            chevron
+          />
+        </Section>
+        <View style={styles.gap} />
+        <Section>
+          <Row
+            leading={<Icon name="prompt-buttons" color={colors.text.secondary} />}
+            label="Prompt buttons"
+            value={promptButtons ? String(Object.values(promptButtons).flat().length) : null}
+            onPress={() => navigation.navigate('PromptButtonsScreen')}
+            chevron
+          />
+        </Section>
         <ScreenSectionHeader title="Testing" />
         <Section>
           {aiModelKindSchema.options.map((kind) => {
@@ -65,3 +93,26 @@ export default function AssistantScreen() {
     </Page>
   );
 }
+
+// The assistant's mark: its sparkle on an accent disc.
+function AssistantMark() {
+  return (
+    <GradientFill style={styles.mark}>
+      <Icon name="sparkle" size={sizes.icon} color={colors.text.inverse} />
+    </GradientFill>
+  );
+}
+
+const styles = StyleSheet.create({
+  gap: {
+    height: 16,
+  },
+  mark: {
+    width: sizes.iconButton,
+    height: sizes.iconButton,
+    borderRadius: radii.pill,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

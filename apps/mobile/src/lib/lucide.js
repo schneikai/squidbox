@@ -13,7 +13,6 @@
  */
 
 export { default as Archive } from 'lucide-react-native/dist/cjs/icons/archive';
-export { default as Copy } from 'lucide-react-native/dist/cjs/icons/copy';
 export { default as ArrowDown } from 'lucide-react-native/dist/cjs/icons/arrow-down';
 export { default as ArrowUp } from 'lucide-react-native/dist/cjs/icons/arrow-up';
 export { default as ArrowUpDown } from 'lucide-react-native/dist/cjs/icons/arrow-up-down';
@@ -30,6 +29,7 @@ export { default as Clock } from 'lucide-react-native/dist/cjs/icons/clock';
 export { default as CloudCheck } from 'lucide-react-native/dist/cjs/icons/cloud-check';
 export { default as CloudDownload } from 'lucide-react-native/dist/cjs/icons/cloud-download';
 export { default as CloudOff } from 'lucide-react-native/dist/cjs/icons/cloud-off';
+export { default as Copy } from 'lucide-react-native/dist/cjs/icons/copy';
 export { default as Cpu } from 'lucide-react-native/dist/cjs/icons/cpu';
 export { default as Download } from 'lucide-react-native/dist/cjs/icons/download';
 export { default as Ellipsis } from 'lucide-react-native/dist/cjs/icons/ellipsis';
@@ -41,11 +41,14 @@ export { default as Grid3x3 } from 'lucide-react-native/dist/cjs/icons/grid-3x3'
 export { default as Heart } from 'lucide-react-native/dist/cjs/icons/heart';
 export { default as Image } from 'lucide-react-native/dist/cjs/icons/image';
 export { default as Images } from 'lucide-react-native/dist/cjs/icons/images';
+export { default as Info } from 'lucide-react-native/dist/cjs/icons/info';
 export { default as LayoutGrid } from 'lucide-react-native/dist/cjs/icons/layout-grid';
+export { default as LayoutTemplate } from 'lucide-react-native/dist/cjs/icons/layout-template';
 export { default as Library } from 'lucide-react-native/dist/cjs/icons/library';
 export { default as Link } from 'lucide-react-native/dist/cjs/icons/link';
 export { default as List } from 'lucide-react-native/dist/cjs/icons/list';
 export { default as ListFilter } from 'lucide-react-native/dist/cjs/icons/list-filter';
+export { default as Lock } from 'lucide-react-native/dist/cjs/icons/lock';
 export { default as Maximize2 } from 'lucide-react-native/dist/cjs/icons/maximize-2';
 export { default as Pause } from 'lucide-react-native/dist/cjs/icons/pause';
 export { default as Pencil } from 'lucide-react-native/dist/cjs/icons/pencil';
@@ -58,6 +61,7 @@ export { default as Share } from 'lucide-react-native/dist/cjs/icons/share';
 export { default as Share2 } from 'lucide-react-native/dist/cjs/icons/share-2';
 export { default as SlidersHorizontal } from 'lucide-react-native/dist/cjs/icons/sliders-horizontal';
 export { default as Smartphone } from 'lucide-react-native/dist/cjs/icons/smartphone';
+export { default as Sparkle } from 'lucide-react-native/dist/cjs/icons/sparkle';
 export { default as SquareCheck } from 'lucide-react-native/dist/cjs/icons/square-check';
 export { default as Star } from 'lucide-react-native/dist/cjs/icons/star';
 export { default as ThumbsUp } from 'lucide-react-native/dist/cjs/icons/thumbs-up';

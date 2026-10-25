@@ -127,8 +127,6 @@ Where AI is needed:
 General ideas:
 - **One assistant** for all these use cases, with a similar interface where possible, so it can also
   cover other use cases users might have.
-- **Onboarding with a persona.** The user creates a persona so the assistant writes content that
-  fits their content and tone.
 - **Know what the content is about.** Image recognition of the user's media, and it must be very
   specific: for the owner's media, tags like blowjob, deepthroat, facefuck, throatfuck, etc. Let the
   user also enter tags for what their content is about, and set how detailed or broad to be about a
