@@ -1,4 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Venice's key and address as the client reads them from the config.
+vi.mock('../src/config.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../src/config.js')>();
+  return {
+    ...original,
+    loadConfig: () => ({
+      ...original.loadConfig(),
+      VENICE_API_KEY: 'test-key',
+      VENICE_BASE_URL: 'https://venice.test/api/v1',
+    }),
+  };
+});
+
 import fixture from './fixtures/venice-models.json';
 import {
   clearCatalogCache,
@@ -11,7 +25,6 @@ import {
   type CatalogEntry,
 } from '../src/ai/catalog.js';
 
-const access = { baseUrl: 'https://venice.test/api/v1', apiKey: 'test-key' };
 const fetchMock = vi.fn();
 
 function answer(body: unknown, status = 200) {
@@ -20,7 +33,7 @@ function answer(body: unknown, status = 200) {
 
 async function catalog(): Promise<CatalogEntry[]> {
   fetchMock.mockResolvedValueOnce(answer(fixture));
-  return fetchCatalogAsync(access);
+  return fetchCatalogAsync();
 }
 
 const byId = (entries: CatalogEntry[], id: string) => entries.find((entry) => entry.id === id)!;
@@ -42,31 +55,46 @@ describe('fetchCatalogAsync', () => {
 
   it('leaves out an entry without the fields it needs', async () => {
     fetchMock.mockResolvedValueOnce(answer({ data: [...fixture.data, { id: 'broken', model_spec: {} }] }));
-    const entries = await fetchCatalogAsync(access);
+    const entries = await fetchCatalogAsync();
     expect(entries).toHaveLength(fixture.data.length);
   });
 
   it('throws when Venice answers an error', async () => {
     fetchMock.mockResolvedValueOnce(answer({ error: 'nope' }, 500));
-    await expect(fetchCatalogAsync(access)).rejects.toThrow('Venice model list failed (500)');
+    await expect(fetchCatalogAsync()).rejects.toThrow('Venice model list failed (500)');
   });
 });
 
 describe('getCatalogAsync', () => {
   it('serves one fetch for five minutes and refetches after', async () => {
     fetchMock.mockImplementation(async () => answer(fixture));
-    await getCatalogAsync(access, 0);
-    await getCatalogAsync(access, 4 * 60 * 1000);
+    await getCatalogAsync(0);
+    await getCatalogAsync(4 * 60 * 1000);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    await getCatalogAsync(access, 5 * 60 * 1000);
+    await getCatalogAsync(5 * 60 * 1000);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('shares a fetch in flight', async () => {
+    fetchMock.mockImplementation(async () => answer(fixture));
+    const [first, second] = await Promise.all([getCatalogAsync(0), getCatalogAsync(1)]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(second).toBe(first);
+    expect(first.models.map(({ id }) => id)).toEqual(first.entries.map(({ id }) => id));
+  });
+
+  it('tries again on the next call after a failed fetch', async () => {
+    fetchMock.mockRejectedValueOnce(new Error('offline'));
+    await expect(getCatalogAsync(0)).rejects.toThrow('offline');
+    fetchMock.mockResolvedValueOnce(answer(fixture));
+    await expect(getCatalogAsync(1)).resolves.toHaveProperty('entries');
   });
 
   it('throws when a refresh fails instead of serving the old list', async () => {
     fetchMock.mockResolvedValueOnce(answer(fixture));
-    await getCatalogAsync(access, 0);
+    await getCatalogAsync(0);
     fetchMock.mockRejectedValueOnce(new Error('offline'));
-    await expect(getCatalogAsync(access, 6 * 60 * 1000)).rejects.toThrow('offline');
+    await expect(getCatalogAsync(6 * 60 * 1000)).rejects.toThrow('offline');
   });
 });
 

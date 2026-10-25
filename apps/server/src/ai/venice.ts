@@ -1,9 +1,10 @@
-// The Venice client: nothing else talks to Venice's chat API. It asks Venice
-// for JSON that matches a schema and validates what comes back.
+// The Venice client: nothing else talks to Venice. It owns the key and address (from the config),
+// and asks for JSON that matches a schema and validates what comes back.
 import type { z } from 'zod';
-import type { VeniceAccess } from './catalog.js';
+import { loadConfig } from '../config.js';
+import { AppError } from '../errors.js';
 
-const REQUEST_TIMEOUT_MS = 60_000;
+const CHAT_TIMEOUT_MS = 60_000;
 
 /** A Venice call that failed; its message is shown on the model's card. */
 export class VeniceError extends Error {
@@ -13,18 +14,36 @@ export class VeniceError extends Error {
   }
 }
 
+/** Throws 503 ai_not_configured when the server has no Venice key, before any call. */
+export function requireVenice(): void {
+  if (!loadConfig().VENICE_API_KEY) throw AppError.aiNotConfigured();
+}
+
+/** A request to Venice's API at `path`, with the key and a timeout. */
+export function veniceFetch(
+  path: string,
+  { headers, timeoutMs, ...init }: { method?: string; headers?: Record<string, string>; body?: string; timeoutMs: number },
+): Promise<Response> {
+  const { VENICE_API_KEY: apiKey, VENICE_BASE_URL: baseUrl } = loadConfig();
+  if (!apiKey) throw AppError.aiNotConfigured();
+  return fetch(`${baseUrl}${path}`, {
+    ...init,
+    headers: { ...headers, authorization: `Bearer ${apiKey}` },
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+}
+
 export type ChatContentPart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } };
 export type ChatMessage = { role: 'system' | 'user'; content: string | ChatContentPart[] };
 
 export type JsonSchemaSpec<T> = { name: string; jsonSchema: Record<string, unknown>; zod: z.ZodType<T> };
 
-type ChatJsonOptions<T> = VeniceAccess & {
+type ChatJsonOptions<T> = {
   model: string;
   reasoningEffort?: 'none' | 'low';
   maxTokens: number;
   messages: ChatMessage[];
   schema: JsonSchemaSpec<T>;
-  signal?: AbortSignal;
 };
 
 type ChatCompletion = {
@@ -33,19 +52,15 @@ type ChatCompletion = {
 
 /** One chat completion whose reply is JSON of `schema`; anything else is a VeniceError. */
 export async function chatJsonAsync<T>({
-  baseUrl,
-  apiKey,
   model,
   reasoningEffort,
   maxTokens,
   messages,
   schema,
-  signal,
 }: ChatJsonOptions<T>): Promise<T> {
-  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
-  const response = await fetch(`${baseUrl}/chat/completions`, {
+  const response = await veniceFetch('/chat/completions', {
     method: 'POST',
-    headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       model,
       messages,
@@ -62,9 +77,8 @@ export async function chatJsonAsync<T>({
         disable_thinking: true,
       },
     }),
-    signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+    timeoutMs: CHAT_TIMEOUT_MS,
   }).catch((error: unknown) => {
-    if (signal?.aborted) throw error;
     const timedOut = error instanceof Error && error.name === 'TimeoutError';
     throw new VeniceError(timedOut ? 'Venice took too long to answer' : "Couldn't reach Venice");
   });

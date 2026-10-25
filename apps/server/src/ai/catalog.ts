@@ -3,6 +3,7 @@
 // memory for a few minutes, and a failed refresh throws: it never serves stale data silently.
 import type { AiModelKind, ApiAiModel } from '@squidbox/shared';
 import { z } from 'zod';
+import { veniceFetch } from './venice.js';
 
 const CACHE_MS = 5 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 15_000;
@@ -37,17 +38,15 @@ export type CatalogEntry = z.infer<typeof catalogEntrySchema>;
 
 const catalogResponseSchema = z.object({ data: z.array(z.unknown()) });
 
-export type VeniceAccess = { baseUrl: string; apiKey: string };
+/** The catalog's entries, and the same models as the app gets them. */
+export type Catalog = { entries: CatalogEntry[]; models: ApiAiModel[] };
 
 /**
  * Venice's current models. An entry that lacks a field this server needs (a name, prices) is left
  * out rather than failing the whole list.
  */
-export async function fetchCatalogAsync({ baseUrl, apiKey }: VeniceAccess): Promise<CatalogEntry[]> {
-  const response = await fetch(`${baseUrl}/models`, {
-    headers: { authorization: `Bearer ${apiKey}` },
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  });
+export async function fetchCatalogAsync(): Promise<CatalogEntry[]> {
+  const response = await veniceFetch('/models', { timeoutMs: FETCH_TIMEOUT_MS });
   if (!response.ok) throw new Error(`Venice model list failed (${response.status})`);
   const body = catalogResponseSchema.parse(await response.json());
   return body.data.flatMap((entry) => {
@@ -56,14 +55,22 @@ export async function fetchCatalogAsync({ baseUrl, apiKey }: VeniceAccess): Prom
   });
 }
 
-let cache: { at: number; baseUrl: string; entries: CatalogEntry[] } | null = null;
+// The fetch is cached as its promise, so the requests that arrive while it runs share it; a failed
+// one is dropped at once, so the next request tries again.
+let cache: { at: number; promise: Promise<Catalog> } | null = null;
 
 /** The catalog, fetched at most once per CACHE_MS. Throws when a needed refresh fails. */
-export async function getCatalogAsync(access: VeniceAccess, now = Date.now()): Promise<CatalogEntry[]> {
-  if (cache && cache.baseUrl === access.baseUrl && now - cache.at < CACHE_MS) return cache.entries;
-  const entries = await fetchCatalogAsync(access);
-  cache = { at: now, baseUrl: access.baseUrl, entries };
-  return entries;
+export function getCatalogAsync(now = Date.now()): Promise<Catalog> {
+  if (cache && now - cache.at < CACHE_MS) return cache.promise;
+  const entry = {
+    at: now,
+    promise: fetchCatalogAsync().then((entries) => ({ entries, models: entries.map(toApiModel) })),
+  };
+  cache = entry;
+  entry.promise.catch(() => {
+    if (cache === entry) cache = null;
+  });
+  return entry.promise;
 }
 
 /** Forgets the cached catalog (tests). */

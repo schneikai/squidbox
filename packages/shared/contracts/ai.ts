@@ -29,7 +29,6 @@ export const WRITING_TWEET_COUNT = 3;
 export const VISION_TAG_COUNT = 8;
 // A 512 px JPEG thumbnail is ~50–100 KB; the web preview may send the 1000 px one unresized.
 export const VISION_IMAGE_MAX_BASE64_LENGTH = 1_500_000;
-export const VISION_REQUEST_BODY_LIMIT = 2 * 1024 * 1024;
 
 const modelIdsSchema = z.array(z.string().min(1)).min(COMPARE_MIN_MODELS).max(COMPARE_MAX_MODELS);
 

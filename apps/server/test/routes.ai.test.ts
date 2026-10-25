@@ -13,7 +13,6 @@ vi.mock('../src/config.js', async (importOriginal) => {
   return { ...original, loadConfig: () => ({ ...original.loadConfig(), VENICE_API_KEY: venice.apiKey }) };
 });
 
-import { VISION_REQUEST_BODY_LIMIT } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
 import { buildApp } from '../src/app.js';
 import { signAccessToken } from '../src/auth/jwt.js';
@@ -186,9 +185,9 @@ describe('POST /api/v1/ai/compare/vision', () => {
     expect(res.json().error.message).toBe("GLM 5.3 can't see photos");
   });
 
-  it('413 for a body over the limit', async () => {
+  it('413 for a body over the 2 MB limit', async () => {
     veniceAnswers();
-    const base64 = 'A'.repeat(VISION_REQUEST_BODY_LIMIT + 1);
+    const base64 = 'A'.repeat(2 * 1024 * 1024 + 1);
     const res = await call('POST', '/ai/compare/vision', { ...vision, image: { ...vision.image, base64 } });
     expect(res.statusCode).toBe(413);
   });

@@ -1,12 +1,9 @@
 // A blind compare runs the same task on several models at once. Each model's result stands on its
 // own: one failing leaves the others' results.
-import { VISION_TAG_COUNT, WRITING_TWEET_COUNT, type VisionResult, type WritingResult } from '@squidbox/shared';
-import { reasoningEffortFor, type CatalogEntry, type VeniceAccess } from './catalog.js';
-import { tagsSchema, tweetsSchema, visionMessages, writingMessages, type Persona } from './prompts.js';
-import { chatJsonAsync, VeniceError } from './venice.js';
-
-const WRITING_MAX_TOKENS = 600;
-const VISION_MAX_TOKENS = 200;
+import { VISION_TAG_COUNT, WRITING_TWEET_COUNT } from '@squidbox/shared';
+import { reasoningEffortFor, type CatalogEntry } from './catalog.js';
+import { tagsSchema, tweetsSchema } from './prompts.js';
+import { chatJsonAsync, VeniceError, type ChatMessage, type JsonSchemaSpec } from './venice.js';
 
 type Logger = { error: (object: unknown, message: string) => void };
 
@@ -41,12 +38,45 @@ export function checkTags(tags: string[]): string[] {
   return kept;
 }
 
-async function settle<T extends { modelId: string }>(
-  models: CatalogEntry[],
-  run: (model: CatalogEntry) => Promise<T>,
-  log?: Logger,
-): Promise<(T | { modelId: string; error: string })[]> {
-  const settled = await Promise.allSettled(models.map(run));
+/** What a compare asks each model for, and how its reply becomes its result. */
+type CompareTask<T, R> = { maxTokens: number; schema: JsonSchemaSpec<T>; toResult: (reply: T) => R };
+
+export const writingTask: CompareTask<{ tweets: string[] }, { tweets: string[] }> = {
+  maxTokens: 600,
+  schema: tweetsSchema,
+  toResult: ({ tweets }) => ({ tweets: checkTweets(tweets) }),
+};
+
+export const visionTask: CompareTask<{ tags: string[] }, { tags: string[] }> = {
+  maxTokens: 200,
+  schema: tagsSchema,
+  toResult: ({ tags }) => ({ tags: checkTags(tags) }),
+};
+
+/** Sends the same messages to every model at once; each gets its result or its own error. */
+export async function compareModels<T, R>({
+  task,
+  messages,
+  models,
+  log,
+}: {
+  task: CompareTask<T, R>;
+  messages: ChatMessage[];
+  models: CatalogEntry[];
+  log?: Logger;
+}): Promise<((R & { modelId: string }) | { modelId: string; error: string })[]> {
+  const settled = await Promise.allSettled(
+    models.map(async (model) => {
+      const reply = await chatJsonAsync({
+        model: model.id,
+        reasoningEffort: reasoningEffortFor(model),
+        maxTokens: task.maxTokens,
+        messages,
+        schema: task.schema,
+      });
+      return { modelId: model.id, ...task.toResult(reply) };
+    }),
+  );
   return settled.map((result, index) => {
     const modelId = models[index]!.id;
     if (result.status === 'fulfilled') return result.value;
@@ -54,59 +84,4 @@ async function settle<T extends { modelId: string }>(
     log?.error({ err: result.reason, modelId }, 'AI compare failed');
     return { modelId, error: 'Something went wrong' };
   });
-}
-
-export function compareWriting({
-  baseUrl,
-  apiKey,
-  prompt,
-  persona = null,
-  models,
-  log,
-}: VeniceAccess & { prompt: string; persona?: Persona; models: CatalogEntry[]; log?: Logger }): Promise<
-  WritingResult[]
-> {
-  const messages = writingMessages({ prompt, persona });
-  return settle(
-    models,
-    async (model) => {
-      const { tweets } = await chatJsonAsync({
-        baseUrl,
-        apiKey,
-        model: model.id,
-        reasoningEffort: reasoningEffortFor(model),
-        maxTokens: WRITING_MAX_TOKENS,
-        messages,
-        schema: tweetsSchema,
-      });
-      return { modelId: model.id, tweets: checkTweets(tweets) };
-    },
-    log,
-  );
-}
-
-export function compareVision({
-  baseUrl,
-  apiKey,
-  imageDataUrl,
-  models,
-  log,
-}: VeniceAccess & { imageDataUrl: string; models: CatalogEntry[]; log?: Logger }): Promise<VisionResult[]> {
-  const messages = visionMessages({ imageDataUrl });
-  return settle(
-    models,
-    async (model) => {
-      const { tags } = await chatJsonAsync({
-        baseUrl,
-        apiKey,
-        model: model.id,
-        reasoningEffort: reasoningEffortFor(model),
-        maxTokens: VISION_MAX_TOKENS,
-        messages,
-        schema: tagsSchema,
-      });
-      return { modelId: model.id, tags: checkTags(tags) };
-    },
-    log,
-  );
 }

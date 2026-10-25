@@ -6,35 +6,32 @@ import {
   compareVisionResponseSchema,
   compareWritingRequestSchema,
   compareWritingResponseSchema,
-  VISION_REQUEST_BODY_LIMIT,
   type AiModelKind,
 } from '@squidbox/shared';
-import { loadConfig } from '../config.js';
 import { AppError } from '../errors.js';
 import { authenticate } from '../auth/authenticate.js';
-import { findModel, getCatalogAsync, toApiModel, type CatalogEntry, type VeniceAccess } from './catalog.js';
-import { compareVision, compareWriting } from './compare.js';
+import { findModel, getCatalogAsync, type Catalog, type CatalogEntry } from './catalog.js';
+import { compareModels, visionTask, writingTask } from './compare.js';
+import { visionMessages, writingMessages } from './prompts.js';
+import { requireVenice } from './venice.js';
 
-// The Venice key and address, or 503 before any call when the server has no key.
-function veniceAccess(): VeniceAccess {
-  const { VENICE_API_KEY: apiKey, VENICE_BASE_URL: baseUrl } = loadConfig();
-  if (!apiKey) throw AppError.aiNotConfigured();
-  return { baseUrl, apiKey };
-}
+// A body holds one photo's base64 (VISION_IMAGE_MAX_BASE64_LENGTH) and the model ids.
+const VISION_REQUEST_BODY_LIMIT = 2 * 1024 * 1024;
 
-async function catalogFor(access: VeniceAccess): Promise<CatalogEntry[]> {
+async function catalogAsync(): Promise<Catalog> {
+  requireVenice();
   try {
-    return await getCatalogAsync(access);
+    return await getCatalogAsync();
   } catch {
     throw AppError.aiUnavailable("Couldn't load the models from Venice");
   }
 }
 
 // The catalog entries of the requested models, in the request's order; 400 for any it can't use.
-async function resolveModels(access: VeniceAccess, ids: string[], kind: AiModelKind): Promise<CatalogEntry[]> {
-  const catalog = await catalogFor(access);
+async function resolveModels(ids: string[], kind: AiModelKind): Promise<CatalogEntry[]> {
+  const { entries } = await catalogAsync();
   return ids.map((id) => {
-    const found = findModel(catalog, id, kind);
+    const found = findModel(entries, id, kind);
     if ('error' in found) throw new AppError(400, 'validation_error', found.error);
     return found.entry;
   });
@@ -50,8 +47,8 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     preHandler: authenticate(),
     schema: { response: { 200: aiModelsResponseSchema } },
     handler: async () => {
-      const catalog = await catalogFor(veniceAccess());
-      return { models: catalog.map(toApiModel) };
+      const { models } = await catalogAsync();
+      return { models };
     },
   });
 
@@ -63,9 +60,10 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
     schema: { body: compareWritingRequestSchema, response: { 200: compareWritingResponseSchema } },
     handler: async (request) => {
-      const access = veniceAccess();
-      const models = await resolveModels(access, request.body.modelIds, 'writing');
-      const results = await compareWriting({ ...access, prompt: request.body.prompt, models, log: request.log });
+      const models = await resolveModels(request.body.modelIds, 'writing');
+      // persona: the user's About you / Tone once that setup exists (prompts.ts).
+      const messages = writingMessages({ prompt: request.body.prompt, persona: null });
+      const results = await compareModels({ task: writingTask, messages, models, log: request.log });
       return { results };
     },
   });
@@ -80,11 +78,10 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     config: { rateLimit: { max: 240, timeWindow: '1 minute' } },
     schema: { body: compareVisionRequestSchema, response: { 200: compareVisionResponseSchema } },
     handler: async (request) => {
-      const access = veniceAccess();
-      const models = await resolveModels(access, request.body.modelIds, 'vision');
+      const models = await resolveModels(request.body.modelIds, 'vision');
       const { base64, mimeType } = request.body.image;
-      const imageDataUrl = `data:${mimeType};base64,${base64}`;
-      const results = await compareVision({ ...access, imageDataUrl, models, log: request.log });
+      const messages = visionMessages({ imageDataUrl: `data:${mimeType};base64,${base64}` });
+      const results = await compareModels({ task: visionTask, messages, models, log: request.log });
       return { results };
     },
   });
