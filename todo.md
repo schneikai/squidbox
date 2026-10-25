@@ -151,10 +151,15 @@ General ideas:
   `ModelSelectorButton` draws its own divider and sheet instead of `ListDivider` and the shared
   popovers. Redo them on the shared components with the assistant rework.
 
-### [ ] Alternative texts for a post
+### [ ] Post variants
 
-Save variations of a post's text for a different audience or purpose, e.g. when it's sent as a PPV
-or posted on another platform.
+A post keeps several versions for different platforms or uses: an X teaser, the OnlyFans post (full
+video, other @ mentions), a PPV message. Each variant has a type, its own text and optionally its own
+subset of the post's media and mentions. A variant can be a thread: a first post plus follow-ups added
+with "+" like on X (e.g. the follow-up with the OnlyFans link). The post screen shows the variants as
+tabs with copy. Needs a synced data model change (server and app). The AI assistant rework fills
+variants through "Save to post" (mockups: https://claude.ai/artifact/LxxYDq2r7PNZ3bC37KNqWj, screens
+10–12).
 
 ### [ ] Recreate thumbnails
 
