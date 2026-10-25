@@ -1,7 +1,7 @@
 // A blind compare runs the same task on several models at once. Each model's result stands on its
 // own: one failing leaves the others' results.
 import { VISION_TAG_COUNT, WRITING_TWEET_COUNT } from '@squidbox/shared';
-import { reasoningEffortFor, type CatalogEntry } from './catalog.js';
+import type { CatalogEntry } from './catalog.js';
 import { tagsSchema, tweetsSchema } from './prompts.js';
 import { chatJsonAsync, VeniceError, type ChatMessage, type JsonSchemaSpec } from './venice.js';
 
@@ -39,16 +39,14 @@ export function checkTags(tags: string[]): string[] {
 }
 
 /** What a compare asks each model for, and how its reply becomes its result. */
-type CompareTask<T, R> = { maxTokens: number; schema: JsonSchemaSpec<T>; toResult: (reply: T) => R };
+type CompareTask<T, R> = { schema: JsonSchemaSpec<T>; toResult: (reply: T) => R };
 
 export const writingTask: CompareTask<{ tweets: string[] }, { tweets: string[] }> = {
-  maxTokens: 600,
   schema: tweetsSchema,
   toResult: ({ tweets }) => ({ tweets: checkTweets(tweets) }),
 };
 
 export const visionTask: CompareTask<{ tags: string[] }, { tags: string[] }> = {
-  maxTokens: 200,
   schema: tagsSchema,
   toResult: ({ tags }) => ({ tags: checkTags(tags) }),
 };
@@ -67,13 +65,7 @@ export async function compareModels<T, R>({
 }): Promise<((R & { modelId: string }) | { modelId: string; error: string })[]> {
   const settled = await Promise.allSettled(
     models.map(async (model) => {
-      const reply = await chatJsonAsync({
-        model: model.id,
-        reasoningEffort: reasoningEffortFor(model),
-        maxTokens: task.maxTokens,
-        messages,
-        schema: task.schema,
-      });
+      const reply = await chatJsonAsync({ model: model.id, messages, schema: task.schema });
       return { modelId: model.id, ...task.toResult(reply) };
     }),
   );

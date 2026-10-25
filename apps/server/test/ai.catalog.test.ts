@@ -20,7 +20,6 @@ import {
   findModel,
   getCatalogAsync,
   isUncensored,
-  reasoningEffortFor,
   toApiModel,
   type CatalogEntry,
 } from '../src/ai/catalog.js';
@@ -118,16 +117,6 @@ describe('isUncensored', () => {
   it('is false for GLM, Grok and Kimi', async () => {
     const entries = await catalog();
     for (const id of ['z-ai-glm-5-3', 'grok-4-7', 'kimi-k3']) expect(isUncensored(byId(entries, id))).toBe(false);
-  });
-});
-
-describe('reasoningEffortFor', () => {
-  it("is 'none' when offered, else 'low', and nothing for a model without the setting", async () => {
-    const entries = await catalog();
-    expect(reasoningEffortFor(byId(entries, 'kimi-k3'))).toBe('none');
-    expect(reasoningEffortFor(byId(entries, 'deepseek-v4-1-flash-uncensored'))).toBe('none');
-    expect(reasoningEffortFor(byId(entries, 'grok-4-7'))).toBe('low');
-    expect(reasoningEffortFor(byId(entries, 'z-ai-glm-5-3'))).toBeUndefined();
   });
 });
 

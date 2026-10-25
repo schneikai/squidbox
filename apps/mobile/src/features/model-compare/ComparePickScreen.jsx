@@ -1,4 +1,4 @@
-import { COMPARE_MAX_MODELS, COMPARE_MIN_MODELS, VISION_COMPARE_MAX_PHOTOS } from '@squidbox/shared';
+import { COMPARE_MIN_MODELS, VISION_COMPARE_MAX_PHOTOS } from '@squidbox/shared';
 import { useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,7 +22,7 @@ import { readByIds } from '@/sync/readByIds';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import pluralizeText from '@/utils/pluralizeText';
 
-// The compare's first step (route params `kind` and `models`, your available models): tick 2 to 4
+// The compare's first step (route params `kind` and `models`, your available models): tick 2 or more
 // models, and for vision pick the photos (the last compare's to start with).
 export default function ComparePickScreen({ navigation, route }) {
   const { kind, models } = route.params;
@@ -45,7 +45,7 @@ export default function ComparePickScreen({ navigation, route }) {
   const ticked = tickedIds ?? (models.some(({ id }) => id === chosenId) ? [chosenId] : []);
   const modelCount = ticked.length;
   const hasPhotos = !isVision || (photos?.length ?? 0) > 0;
-  const canStart = modelCount >= COMPARE_MIN_MODELS && modelCount <= COMPARE_MAX_MODELS && hasPhotos;
+  const canStart = modelCount >= COMPARE_MIN_MODELS && hasPhotos;
   const photosDetail =
     pickedIds === null
       ? 'Same as last time'

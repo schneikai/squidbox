@@ -23,8 +23,16 @@ export type ApiAiModel = z.infer<typeof apiAiModelSchema>;
 export const aiModelsResponseSchema = z.object({ models: z.array(apiAiModelSchema) });
 export type AiModelsResponse = z.infer<typeof aiModelsResponseSchema>;
 
+// GET /ai/balance — what is left on the Venice account the server's key belongs to: US dollars
+// and DIEM (Venice's daily allowance for staked VVV; it resets each day at nextResetAt).
+export const aiBalanceResponseSchema = z.object({
+  usd: z.number(),
+  diem: z.number(),
+  nextResetAt: z.string().nullable(),
+});
+export type AiBalanceResponse = z.infer<typeof aiBalanceResponseSchema>;
+
 export const COMPARE_MIN_MODELS = 2;
-export const COMPARE_MAX_MODELS = 4;
 export const WRITING_TWEET_COUNT = 3;
 export const VISION_TAG_COUNT = 8;
 // Photos in one vision compare: each is a request, so two rounds in a minute stay well within the
@@ -37,7 +45,6 @@ export const VISION_IMAGE_MAX_BASE64_LENGTH = 1_500_000;
 const modelIdsSchema = z
   .array(z.string().min(1))
   .min(COMPARE_MIN_MODELS)
-  .max(COMPARE_MAX_MODELS)
   .refine((ids) => new Set(ids).size === ids.length, 'Each model can be compared only once');
 
 // A model's failure is its own result, so one failing model leaves the others' results.

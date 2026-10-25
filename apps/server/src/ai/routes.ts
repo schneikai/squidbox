@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
+  aiBalanceResponseSchema,
   aiModelsResponseSchema,
   compareVisionRequestSchema,
   compareVisionResponseSchema,
@@ -10,6 +11,7 @@ import {
 } from '@squidbox/shared';
 import { AppError } from '../errors.js';
 import { authenticate, requireUser } from '../auth/authenticate.js';
+import { fetchBalanceAsync } from './balance.js';
 import { findModel, getCatalogAsync, type Catalog, type CatalogEntry } from './catalog.js';
 import { compareModels, visionTask, writingTask } from './compare.js';
 import { visionMessages, writingMessages } from './prompts.js';
@@ -53,6 +55,21 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     handler: async () => {
       const { models } = await catalogAsync();
       return { models };
+    },
+  });
+
+  // GET /ai/balance — what is left on the Venice account.
+  r.route({
+    method: 'GET',
+    url: '/ai/balance',
+    preHandler: [authenticate(), aiAccess],
+    schema: { response: { 200: aiBalanceResponseSchema } },
+    handler: async () => {
+      try {
+        return await fetchBalanceAsync();
+      } catch {
+        throw AppError.aiUnavailable("Couldn't load the balance from Venice");
+      }
     },
   });
 

@@ -4,7 +4,8 @@ import type { z } from 'zod';
 import { loadConfig } from '../config.js';
 import { AppError } from '../errors.js';
 
-const CHAT_TIMEOUT_MS = 60_000;
+// Models think at their default effort, which can take a minute or two.
+const CHAT_TIMEOUT_MS = 150_000;
 
 /** A Venice call that failed; its message is shown on the model's card. */
 export class VeniceError extends Error {
@@ -45,8 +46,6 @@ export type JsonSchemaSpec<T> = { name: string; jsonSchema: Record<string, unkno
 
 type ChatJsonOptions<T> = {
   model: string;
-  reasoningEffort?: 'none' | 'low';
-  maxTokens: number;
   messages: ChatMessage[];
   schema: JsonSchemaSpec<T>;
 };
@@ -58,8 +57,6 @@ type ChatCompletion = {
 /** One chat completion whose reply is JSON of `schema`; anything else is a VeniceError. */
 export async function chatJsonAsync<T>({
   model,
-  reasoningEffort,
-  maxTokens,
   messages,
   schema,
 }: ChatJsonOptions<T>): Promise<T> {
@@ -69,18 +66,13 @@ export async function chatJsonAsync<T>({
     body: JSON.stringify({
       model,
       messages,
-      max_tokens: maxTokens,
-      ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
       response_format: {
         type: 'json_schema',
         json_schema: { name: schema.name, strict: true, schema: schema.jsonSchema },
       },
-      // Venice's own system prompt would shape the compare; thinking text must not reach the JSON.
-      venice_parameters: {
-        include_venice_system_prompt: false,
-        strip_thinking_response: true,
-        disable_thinking: true,
-      },
+      // Every model runs on its own defaults (effort, thinking, reply length). Venice's own system
+      // prompt would shape the compare, and thinking text must not reach the JSON.
+      venice_parameters: { include_venice_system_prompt: false, strip_thinking_response: true },
     }),
     timeoutMs: CHAT_TIMEOUT_MS,
   }).catch((error: unknown) => {

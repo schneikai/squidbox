@@ -4,6 +4,7 @@ import modelKindText from './modelKindText';
 import modelsOfKind from './modelsOfKind';
 import useAiCatalog from './useAiCatalog';
 import useLeaveWhenUnavailable from './useLeaveWhenUnavailable';
+import useVeniceBalance from './useVeniceBalance';
 
 import DetailScrollView from '@/components/DetailScrollView';
 import Page from '@/components/Page';
@@ -16,12 +17,14 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
 
 const KINDS = ['writing', 'vision'];
 
-// Settings → Assistant: for now only the Testing section, the models the coming assistant uses.
+// Settings → Assistant: for now only the Testing section, the models the coming assistant uses,
+// and what is left on the Venice account.
 export default function AssistantScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
   const chosen = useLiveQuery((db) => readChosenModels(db), [schema.aiKinds, schema.aiModels]);
   const { models: catalog } = useAiCatalog();
+  const balance = useVeniceBalance();
 
   // The chosen model's name, or a muted "No longer available" once Venice dropped it (its list
   // says which; a catalog still loading or failed to load leaves the plain name). The name and the
@@ -52,6 +55,7 @@ export default function AssistantScreen() {
               chevron
             />
           ))}
+          <Row label="Venice balance" value={balance.value} isValueMuted={balance.isError} />
         </Section>
         <SectionFooter>Only in test builds.</SectionFooter>
       </DetailScrollView>

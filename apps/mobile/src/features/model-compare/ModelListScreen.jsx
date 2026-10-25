@@ -13,19 +13,22 @@ import useLeaveWhenUnavailable from './useLeaveWhenUnavailable';
 
 import DetailScrollView from '@/components/DetailScrollView';
 import EmptyState from '@/components/EmptyState';
+import IconMenuButton from '@/components/IconMenuButton';
 import IntroText from '@/components/IntroText';
 import Page from '@/components/Page';
 import PrimaryButton from '@/components/PrimaryButton';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import TextButton from '@/components/TextButton';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
+import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
 import { colors } from '@/styles/designTokens';
-import { readModelList, removeYourModel, seedYourModels, setChosenModel } from '@/sync/aiStateRepository';
+import { readModelList, removeYourModel, resetScores, seedYourModels, setChosenModel } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
+import confirmAsync from '@/utils/confirmAsync';
 
 // Your models of one kind (route param `kind`: writing | vision), the one the assistant uses, their
 // scores from Compare, and the way to add, remove and compare them.
@@ -49,12 +52,25 @@ export default function ModelListScreen({ navigation, route }) {
 
   const rows = catalog && list ? joinYourModels(list.models, catalog, kind) : null;
   const availableRows = rows?.filter((row) => row.model !== null) ?? [];
+  const hasScores = list?.models.some(({ score }) => score > 0) ?? false;
   const text = modelKindText[kind];
 
   async function handleChoose(row) {
     if (row.id === list.chosenId) return;
     await setChosenModel(getDb(), kind, row.id);
     haptics.selection();
+  }
+
+  async function handleResetScore(row) {
+    const message = `${row.name} starts again from 0.`;
+    if (!(await confirmAsync({ title: 'Reset score', message, action: 'Reset', destructive: true }))) return;
+    await resetScores(getDb(), kind, row.id);
+  }
+
+  async function handleResetAllScores() {
+    const message = 'Every model in this list starts again from 0.';
+    if (!(await confirmAsync({ title: 'Reset all scores', message, action: 'Reset', destructive: true }))) return;
+    await resetScores(getDb(), kind);
   }
 
   function handleCompare() {
@@ -84,6 +100,7 @@ export default function ModelListScreen({ navigation, route }) {
               score={row.score}
               isChosen={row.id === list.chosenId}
               onChoose={() => handleChoose(row)}
+              onResetScore={() => handleResetScore(row)}
               onRemove={() => removeYourModel(getDb(), kind, row.id)}
             />
           ))}
@@ -97,7 +114,17 @@ export default function ModelListScreen({ navigation, route }) {
 
   return (
     <Page>
-      <FloatingDetailHeader title={text.title} onBack={() => navigation.goBack()} />
+      <FloatingDetailHeader
+        title={text.title}
+        onBack={() => navigation.goBack()}
+        menuSlot={
+          hasScores && (
+            <IconMenuButton accessibilityLabel="Score options">
+              <MenuOption label="Reset all scores" icon="undo" onPress={handleResetAllScores} danger />
+            </IconMenuButton>
+          )
+        }
+      />
       <DetailScrollView contentContainerStyle={{ paddingBottom: bottom + FLOATING_PRIMARY_ACTION_CLEARANCE }}>
         <IntroText style={styles.intro}>{text.intro}</IntroText>
         <ScreenSectionHeader

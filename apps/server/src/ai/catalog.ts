@@ -27,8 +27,6 @@ const catalogEntrySchema = z.object({
     capabilities: z
       .object({
         supportsVision: z.boolean().optional(),
-        supportsReasoningEffort: z.boolean().optional(),
-        reasoningEffortOptions: z.array(z.string()).optional(),
       })
       .default({}),
     traits: z.array(z.string()).default([]),
@@ -81,16 +79,6 @@ export function clearCatalogCache(): void {
 /** Venice's own uncensored label: "Uncensored" in the name, or its most_uncensored trait. */
 export function isUncensored(entry: CatalogEntry): boolean {
   return /uncensored/i.test(entry.model_spec.name) || entry.model_spec.traits.includes('most_uncensored');
-}
-
-/**
- * The lowest reasoning effort a model takes, so a reasoning model answers in seconds instead of
- * thinking for a minute: 'none' when offered, else 'low'; undefined for a model without the setting.
- */
-export function reasoningEffortFor(entry: CatalogEntry): 'none' | 'low' | undefined {
-  const { supportsReasoningEffort, reasoningEffortOptions = [] } = entry.model_spec.capabilities;
-  if (!supportsReasoningEffort) return undefined;
-  return reasoningEffortOptions.includes('none') ? 'none' : 'low';
 }
 
 function costUsd(entry: CatalogEntry, inputTokens: number, outputTokens: number): number {

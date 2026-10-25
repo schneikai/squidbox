@@ -32,8 +32,14 @@ const eightTags = ['shower', 'wet hair', 'steam', 'back view', 'towel', 'morning
 const fetchMock = vi.fn();
 
 // Venice: the model list, and a chat reply per model.
-function veniceAnswers({ catalogStatus = 200 } = {}) {
+function veniceAnswers({ catalogStatus = 200, balanceStatus = 200 } = {}) {
   fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+    if (url.endsWith('/api_keys/rate_limits')) {
+      const body = {
+        data: { balances: { USD: 4.58689693, DIEM: 0 }, nextEpochBegins: '2026-10-26T00:00:00.000Z', rateLimits: [] },
+      };
+      return new Response(JSON.stringify(balanceStatus === 200 ? body : { error: 'down' }), { status: balanceStatus });
+    }
     if (url.endsWith('/models')) {
       return new Response(JSON.stringify(catalogStatus === 200 ? fixture : { error: 'down' }), {
         status: catalogStatus,
@@ -73,10 +79,11 @@ async function call(method: 'GET' | 'POST', url: string, payload?: unknown, head
 }
 
 describe('without VENICE_API_KEY', () => {
-  it('answers 503 ai_not_configured on all three routes, before any Venice call', async () => {
+  it('answers 503 ai_not_configured on every route, before any Venice call', async () => {
     venice.apiKey = undefined;
     for (const [method, url, body] of [
       ['GET', '/ai/models', undefined],
+      ['GET', '/ai/balance', undefined],
       ['POST', '/ai/compare/writing', writing],
       ['POST', '/ai/compare/vision', vision],
     ] as const) {
@@ -95,6 +102,7 @@ describe('AI_ALLOWED_EMAILS', () => {
     venice.allowed = ['owner@example.com'];
     for (const [method, url, body] of [
       ['GET', '/ai/models', undefined],
+      ['GET', '/ai/balance', undefined],
       ['POST', '/ai/compare/writing', writing],
       ['POST', '/ai/compare/vision', vision],
     ] as const) {
@@ -143,6 +151,27 @@ describe('GET /api/v1/ai/models', () => {
   });
 });
 
+describe('GET /api/v1/ai/balance', () => {
+  it('401 without auth', async () => {
+    expect((await call('GET', '/ai/balance', undefined, {})).statusCode).toBe(401);
+  });
+
+  it("returns what is left on the Venice account", async () => {
+    veniceAnswers();
+    const res = await call('GET', '/ai/balance');
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ usd: 4.58689693, diem: 0, nextResetAt: '2026-10-26T00:00:00.000Z' });
+    expect(fetchMock.mock.calls[0]![0]).toBe('https://api.venice.ai/api/v1/api_keys/rate_limits');
+  });
+
+  it('502 ai_unavailable when Venice does not answer it', async () => {
+    veniceAnswers({ balanceStatus: 500 });
+    const res = await call('GET', '/ai/balance');
+    expect(res.statusCode).toBe(502);
+    expect(res.json().error.code).toBe('ai_unavailable');
+  });
+});
+
 describe('POST /api/v1/ai/compare/writing', () => {
   it('asks each model for JSON tweets, with the lowest reasoning effort it takes', async () => {
     veniceAnswers();
@@ -157,13 +186,15 @@ describe('POST /api/v1/ai/compare/writing', () => {
     const [kimi, glm] = chatBodies();
     expect(kimi).toMatchObject({
       model: 'kimi-k3',
-      max_tokens: 600,
-      reasoning_effort: 'none',
       response_format: { type: 'json_schema', json_schema: { name: 'tweets', strict: true } },
-      venice_parameters: { include_venice_system_prompt: false, strip_thinking_response: true, disable_thinking: true },
+      venice_parameters: { include_venice_system_prompt: false, strip_thinking_response: true },
     });
     expect(kimi.messages[1]).toEqual({ role: 'user', content: 'Write 3 spicy tweets' });
-    expect(glm).not.toHaveProperty('reasoning_effort');
+    for (const body of [kimi, glm]) {
+      expect(body).not.toHaveProperty('reasoning_effort');
+      expect(body).not.toHaveProperty('max_tokens');
+      expect(body.venice_parameters).not.toHaveProperty('disable_thinking');
+    }
   });
 
   it('400 for a model Venice does not have', async () => {
@@ -180,10 +211,12 @@ describe('POST /api/v1/ai/compare/writing', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('400 for more than 4 models', async () => {
+  it('compares any number of models', async () => {
     veniceAnswers();
-    const modelIds = ['kimi-k3', 'grok-4-7', 'z-ai-glm-5-3', 'qwen-3-6-plus', 'gemma-4-uncensored'];
-    expect((await call('POST', '/ai/compare/writing', { ...writing, modelIds })).statusCode).toBe(400);
+    const modelIds = ['kimi-k3', 'grok-4-7', 'z-ai-glm-5-3', 'qwen-3-6-plus', 'venice-uncensored-1-2'];
+    const res = await call('POST', '/ai/compare/writing', { ...writing, modelIds });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().results.map(({ modelId }: { modelId: string }) => modelId)).toEqual(modelIds);
   });
 
   it('429 on the 31st call in a minute', async () => {

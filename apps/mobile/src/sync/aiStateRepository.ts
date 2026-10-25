@@ -133,6 +133,13 @@ export function setVisionPhotos(db: SyncDb, assetIds: string[]): Promise<void> {
   });
 }
 
+/** Sets one model's score (with `modelId`) or every score of this kind back to 0. */
+export async function resetScores(db: SyncDb, kind: AiModelKind, modelId?: string): Promise<void> {
+  await db
+    .delete(aiScores)
+    .where(modelId ? and(eq(aiScores.kind, kind), eq(aiScores.modelId, modelId)) : eq(aiScores.kind, kind));
+}
+
 /** Adds `delta` (±1) to a model's score; it never goes below 0. */
 export async function addScore(db: SyncDb, kind: AiModelKind, modelId: string, delta: number): Promise<void> {
   await db

@@ -11,6 +11,7 @@ import {
   readVisionPhotos,
   readWritingPrompt,
   removeYourModel,
+  resetScores,
   seedYourModels,
   setChosenModel,
   setVisionPhotos,
@@ -88,6 +89,19 @@ describe('aiStateRepository', () => {
     await addScore(db, 'vision', grok.id, -1);
     expect((await readModelList(db, 'writing'))?.models).toEqual([scored(kimi, 2), scored(grok, 1)]);
     expect((await readModelList(db, 'vision'))?.models).toEqual([scored(kimi, 1), scored(grok, 0)]);
+  });
+
+  it("resets one model's score or every score of a kind, and the other kind keeps its own", async () => {
+    const db = makeTestDb();
+    await seedYourModels(db, 'writing', [kimi, grok]);
+    await seedYourModels(db, 'vision', [kimi]);
+    for (const model of [kimi, grok]) await addScore(db, 'writing', model.id, 1);
+    await addScore(db, 'vision', kimi.id, 1);
+    await resetScores(db, 'writing', kimi.id);
+    expect((await readModelList(db, 'writing'))?.models).toEqual([scored(kimi, 0), scored(grok, 1)]);
+    await resetScores(db, 'writing');
+    expect((await readModelList(db, 'writing'))?.models).toEqual([scored(kimi, 0), scored(grok, 0)]);
+    expect((await readModelList(db, 'vision'))?.models).toEqual([scored(kimi, 1)]);
   });
 
   it('remembers the writing prompt once the writing list exists', async () => {

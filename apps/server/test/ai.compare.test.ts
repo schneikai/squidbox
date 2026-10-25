@@ -117,6 +117,6 @@ describe('compareModels: vision', () => {
       type: 'image_url',
       image_url: { url: 'data:image/jpeg;base64,AAAA' },
     });
-    expect(sent.max_tokens).toBe(200);
+    expect(sent).not.toHaveProperty('max_tokens');
   });
 });

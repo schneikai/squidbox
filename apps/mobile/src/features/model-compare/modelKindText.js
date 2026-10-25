@@ -4,13 +4,13 @@ const modelKindText = {
     title: 'Writing model',
     intro: 'Writes the captions and replies. Only in test builds.',
     footer: 'Thumbs up from Compare add up here.',
-    pickIntro: 'Pick 2 to 4 models. Each one writes tweets for the same prompt.',
+    pickIntro: 'Pick 2 or more models. Each one writes tweets for the same prompt.',
   },
   vision: {
     title: 'Vision model',
     intro: 'Tags each photo once when you upload it. Only in test builds.',
     footer: 'The count is every tag you tapped as fitting in Compare. They add up like thumbs up.',
-    pickIntro: 'Pick the photos and 2 to 4 models. Each model tags the same photos.',
+    pickIntro: 'Pick the photos and 2 or more models. Each model tags the same photos.',
   },
 };
 

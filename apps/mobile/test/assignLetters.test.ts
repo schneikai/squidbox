@@ -12,6 +12,11 @@ describe('assignLetters', () => {
     expect(letters.map(({ modelId }) => modelId).sort()).toEqual(ids);
   });
 
+  it('goes on past Z like spreadsheet columns', () => {
+    const labels = assignLetters(Array.from({ length: 28 }, (_, i) => `m${i}`)).map(({ label }) => label);
+    expect(labels.slice(24)).toEqual(['Model Y', 'Model Z', 'Model AA', 'Model AB']);
+  });
+
   it('takes its order from Math.random', () => {
     // Fisher–Yates with j = 0 every time moves each last element to the front: [a,b,c] → [b,c,a].
     vi.spyOn(Math, 'random').mockReturnValue(0);
