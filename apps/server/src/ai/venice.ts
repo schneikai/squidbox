@@ -104,36 +104,49 @@ async function chatCompletionAsync({
   return content;
 }
 
-/** One chat completion whose reply is JSON of `schema`; anything else is a VeniceError. */
+/**
+ * One chat completion whose reply is JSON of `schema`; anything else is a VeniceError. A model
+ * without `supportsResponseSchema` is asked without the schema (the messages say the shape), and
+ * its reply may wrap the JSON in a code fence or words.
+ */
 export async function chatJsonAsync<T>({
   model,
   messages,
   schema,
+  supportsResponseSchema = true,
   signal,
 }: {
   model: string;
   messages: ChatMessage[];
   schema: JsonSchemaSpec<T>;
+  supportsResponseSchema?: boolean;
   signal?: AbortSignal;
 }): Promise<T> {
+  const responseFormat = {
+    type: 'json_schema',
+    json_schema: { name: schema.name, strict: true, schema: schema.jsonSchema },
+  };
   const content = await chatCompletionAsync({
     model,
     messages,
     signal,
-    response_format: {
-      type: 'json_schema',
-      json_schema: { name: schema.name, strict: true, schema: schema.jsonSchema },
-    },
+    ...(supportsResponseSchema && { response_format: responseFormat }),
   });
-  let json: unknown;
-  try {
-    json = JSON.parse(content);
-  } catch {
-    throw new VeniceError("The reply couldn't be read");
-  }
-  const parsed = schema.zod.safeParse(json);
+  const parsed = schema.zod.safeParse(parseJsonReply(content));
   if (!parsed.success) throw new VeniceError("The reply couldn't be read");
   return parsed.data;
+}
+
+// The reply's JSON object: the whole reply, or from its first { to its last }.
+function parseJsonReply(content: string): unknown {
+  for (const text of [content, content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1)]) {
+    try {
+      return JSON.parse(text);
+    } catch {
+      // the next form
+    }
+  }
+  throw new VeniceError("The reply couldn't be read");
 }
 
 // Venice answers errors as { error: { message } } or, on some routes, { error: "…" }.

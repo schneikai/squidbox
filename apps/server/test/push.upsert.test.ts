@@ -116,20 +116,17 @@ d('push: one upsert per collection', () => {
   // A new record is written with a clock for every field (a sent one, or its updated_at), and the batch
   // keeps the same clocks in memory (mergeRecord's insert branch), so a second mutation of it in the
   // same batch merges as it would pushed alone.
-  it(
-    'an insert naming some fields, then an older edit of another field in the same batch: as pushed one by one',
-    async () => {
-      const r = asset({ updatedAt: 2000, notes: 'new' });
-      const mutations = [
-        at(r, 2000, ['notes']), // a record the server doesn't have, sent with the fields its edit changed
-        at({ ...r, updatedAt: 1500, isFavorite: true }, 1500, ['isFavorite']), // older than the insert
-      ];
-      const { batched, single } = await batchedAndOneByOne(mutations);
-      expect(single.map((result) => result.status)).toEqual(['applied', 'skipped-lww']);
-      expect(wire(batched)).toEqual(wire(single));
-      await sameRows('assets', [r.id]);
-    },
-  );
+  it('an insert naming some fields, then an older edit of another field in the same batch: as pushed one by one', async () => {
+    const r = asset({ updatedAt: 2000, notes: 'new' });
+    const mutations = [
+      at(r, 2000, ['notes']), // a record the server doesn't have, sent with the fields its edit changed
+      at({ ...r, updatedAt: 1500, isFavorite: true }, 1500, ['isFavorite']), // older than the insert
+    ];
+    const { batched, single } = await batchedAndOneByOne(mutations);
+    expect(single.map((result) => result.status)).toEqual(['applied', 'skipped-lww']);
+    expect(wire(batched)).toEqual(wire(single));
+    await sameRows('assets', [r.id]);
+  });
 
   it('a whole-record insert, then an older edit in the same batch: as pushed one by one', async () => {
     const r = asset({ updatedAt: 2000 });
@@ -299,43 +296,39 @@ d('push: one upsert per collection', () => {
 
   // One push reads its records and writes each collection in as many statements as Postgres' 65,535
   // bind parameters need, so the legacy importer, which pushes each collection whole, imports any size.
-  it(
-    'the legacy importer imports a library of 5,000 photos',
-    async () => {
-      const legacy = Object.fromEntries(
-        Array.from({ length: 5000 }, (_, i) => {
-          const id = randomUUID();
-          const entry = {
-            id,
-            mediaLibraryAssetId: `m${i}`,
-            mediaType: 'image',
-            width: 10,
-            height: 10,
-            fileSize: 100,
-            duration: null,
-            filename: `${i}.jpg`,
-            thumbnailFilename: `t${i}.jpg`,
-            isFileSynced: true,
-            isThumbnailSynced: true,
-            isSynced: true,
-            syncError: null,
-            isFavorite: false,
-            isDeleted: false,
-            createdAt: 1000,
-            updatedAt: 1000,
-            postHistory: [],
-            lastPostedAt: null,
-            oldFileId: null,
-            notes: null,
-          };
-          return [id, entry];
-        }),
-      );
-      const results = await importLegacy(db as any, ME, { assets: legacy } as any);
-      expect(results.find((r) => r.collection === 'assets')).toMatchObject({ applied: 5000, rejected: 0 });
-    },
-    60_000,
-  );
+  it('the legacy importer imports a library of 5,000 photos', async () => {
+    const legacy = Object.fromEntries(
+      Array.from({ length: 5000 }, (_, i) => {
+        const id = randomUUID();
+        const entry = {
+          id,
+          mediaLibraryAssetId: `m${i}`,
+          mediaType: 'image',
+          width: 10,
+          height: 10,
+          fileSize: 100,
+          duration: null,
+          filename: `${i}.jpg`,
+          thumbnailFilename: `t${i}.jpg`,
+          isFileSynced: true,
+          isThumbnailSynced: true,
+          isSynced: true,
+          syncError: null,
+          isFavorite: false,
+          isDeleted: false,
+          createdAt: 1000,
+          updatedAt: 1000,
+          postHistory: [],
+          lastPostedAt: null,
+          oldFileId: null,
+          notes: null,
+        };
+        return [id, entry];
+      }),
+    );
+    const results = await importLegacy(db as any, ME, { assets: legacy } as any);
+    expect(results.find((r) => r.collection === 'assets')).toMatchObject({ applied: 5000, rejected: 0 });
+  }, 60_000);
 
   it('field_clock is null exactly when every clock is updated_at, and reads back the same', async () => {
     const r = asset();

@@ -58,13 +58,26 @@ describe('mergeRecord', () => {
     const restore = merge({ stored: deleted, sent: asset({ updatedAt: 4000 }), sentClocks: pair(4000) });
     expect(restore.record).toMatchObject({ deletedAt: null, purgedAt: null });
     expect(restore.restoredDeletions).toEqual([1000]);
-    const more = merge({ stored: deleted, sent: asset({ updatedAt: 4000 }), sentClocks: pair(4000), restoredDeletions: [3000] });
+    const more = merge({
+      stored: deleted,
+      sent: asset({ updatedAt: 4000 }),
+      sentClocks: pair(4000),
+      restoredDeletions: [3000],
+    });
     expect(more.restoredDeletions).toEqual([3000, 1000]);
     expect(edit.restoredDeletions).toEqual([]);
     // The last ten, the oldest dropped; one undone again moves to the end.
     const many = Array.from({ length: 10 }, (_, i) => 100 + i);
-    expect(merge({ stored: deleted, sent: asset({ updatedAt: 4000 }), sentClocks: pair(4000), restoredDeletions: many }).restoredDeletions).toEqual([...many.slice(1), 1000]);
-    const again = merge({ stored: deleted, sent: asset({ updatedAt: 4000 }), sentClocks: pair(4000), restoredDeletions: [1000, 3000] });
+    expect(
+      merge({ stored: deleted, sent: asset({ updatedAt: 4000 }), sentClocks: pair(4000), restoredDeletions: many })
+        .restoredDeletions,
+    ).toEqual([...many.slice(1), 1000]);
+    const again = merge({
+      stored: deleted,
+      sent: asset({ updatedAt: 4000 }),
+      sentClocks: pair(4000),
+      restoredDeletions: [1000, 3000],
+    });
     expect(again.restoredDeletions).toEqual([3000, 1000]);
   });
 
@@ -85,7 +98,10 @@ describe('mergeRecord', () => {
       const other = { ...purge, deletedAt };
       expect(merge({ ...input, sent: other, restoredDeletions: [1000] }).record).toMatchObject({ purgedAt: 9_999_999 });
     }
-    expect(merge({ ...input, sent: { ...purge, deletedAt: 900 }, restoredDeletions: [9000] }).record).toMatchObject({ deletedAt: 900, purgedAt: 9_999_999 });
+    expect(merge({ ...input, sent: { ...purge, deletedAt: 900 }, restoredDeletions: [9000] }).record).toMatchObject({
+      deletedAt: 900,
+      purgedAt: 9_999_999,
+    });
 
     // A push without fields keeps its whole-record rule: its newer purge re-deletes and applies.
     const whole = { ...input, restoredDeletions: restored.restoredDeletions, wholeRecord: true };

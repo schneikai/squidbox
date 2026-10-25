@@ -33,6 +33,7 @@ export const aiBalanceResponseSchema = z.object({
 export type AiBalanceResponse = z.infer<typeof aiBalanceResponseSchema>;
 
 export const COMPARE_MIN_MODELS = 2;
+export const COMPARE_PROMPT_MAX_LENGTH = 2000;
 export const WRITING_TWEET_COUNT = 3;
 // Photos in one vision compare: each is a request, so two rounds in a minute stay well within the
 // vision route's rate limit (240 a minute).
@@ -47,7 +48,7 @@ const modelIdsSchema = z
   .refine((ids) => new Set(ids).size === ids.length, 'Each model can be compared only once');
 
 // The prompt of a compare: what to write, or what to look for in the photos.
-const promptSchema = z.string().trim().min(1).max(2000);
+const promptSchema = z.string().trim().min(1).max(COMPARE_PROMPT_MAX_LENGTH);
 
 // A model's failure is its own result, so one failing model leaves the others' results.
 const modelErrorSchema = z.object({ modelId: z.string(), error: z.string() });

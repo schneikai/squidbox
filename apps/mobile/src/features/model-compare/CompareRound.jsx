@@ -1,3 +1,4 @@
+import { COMPARE_PROMPT_MAX_LENGTH } from '@squidbox/shared';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -52,8 +53,12 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
   function handleStartRound() {
     // Remembered for next time, written only when it changed.
     if (prompt !== savedPromptRef.current) {
-      savedPromptRef.current = prompt;
-      setPrompt(getDb(), kind, prompt).catch((error) => console.error('Saving the prompt failed', error));
+      const saved = prompt;
+      setPrompt(getDb(), kind, saved)
+        .then(() => {
+          savedPromptRef.current = saved;
+        })
+        .catch((error) => console.error('Saving the prompt failed', error));
     }
     round.startRound({ prompt: prompt.trim(), photos });
   }
@@ -76,7 +81,12 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
       >
         <Card style={styles.promptCard}>
           <Field label="Prompt" description="Remembered for next time.">
-            <Textarea value={prompt} onChangeText={setPromptText} minHeight={scale(72)} />
+            <Textarea
+              value={prompt}
+              onChangeText={setPromptText}
+              maxLength={COMPARE_PROMPT_MAX_LENGTH}
+              minHeight={scale(72)}
+            />
           </Field>
         </Card>
         {isVision && hasStarted && <IntroText style={styles.hint}>Tap the tags that fit.</IntroText>}

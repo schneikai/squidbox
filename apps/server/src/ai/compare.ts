@@ -66,7 +66,13 @@ export async function compareModels<T>({
 }): Promise<((T & { modelId: string }) | { modelId: string; error: string })[]> {
   const settled = await Promise.allSettled(
     models.map(async (model) => {
-      const reply = await chatJsonAsync({ model: model.id, messages, schema: task.schema, signal });
+      const reply = await chatJsonAsync({
+        model: model.id,
+        messages,
+        schema: task.schema,
+        supportsResponseSchema: model.model_spec.capabilities.supportsResponseSchema !== false,
+        signal,
+      });
       return { modelId: model.id, ...task.check(reply) };
     }),
   );

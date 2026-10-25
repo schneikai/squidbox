@@ -34,7 +34,9 @@ beforeEach(() => {
 
 describe('POST /api/v1/assets/download-urls', () => {
   it('401 without auth', async () => {
-    const res = await (await buildApp({ logger: false })).inject({
+    const res = await (
+      await buildApp({ logger: false })
+    ).inject({
       method: 'POST',
       url: '/api/v1/assets/download-urls',
       payload: { keys: ['a.jpg'] },
@@ -44,7 +46,9 @@ describe('POST /api/v1/assets/download-urls', () => {
 
   it('returns presigned GET urls scoped to the user namespace', async () => {
     vi.mocked(presignedDownloadUrl).mockImplementation(async (_loc, key) => `https://s3/${key}`);
-    const res = await (await buildApp({ logger: false })).inject({
+    const res = await (
+      await buildApp({ logger: false })
+    ).inject({
       method: 'POST',
       url: '/api/v1/assets/download-urls',
       headers: auth,
@@ -61,12 +65,14 @@ describe('POST /api/v1/assets/download-urls', () => {
     expect(presignedDownloadUrl).toHaveBeenCalledWith(
       { bucket: 'test-shared-bucket', keyPrefix: 'u/u1/' },
       'a.jpg',
-      expect.any(Number)
+      expect.any(Number),
     );
   });
 
   it('400 on empty keys', async () => {
-    const res = await (await buildApp({ logger: false })).inject({
+    const res = await (
+      await buildApp({ logger: false })
+    ).inject({
       method: 'POST',
       url: '/api/v1/assets/download-urls',
       headers: auth,
@@ -78,24 +84,24 @@ describe('POST /api/v1/assets/download-urls', () => {
   it('existing account uses its legacy bucket with empty prefix', async () => {
     vi.mocked(findUserById).mockResolvedValue({ id: 'u1', email: 'a@b.co', storageBucket: 'legacy' } as any);
     vi.mocked(presignedDownloadUrl).mockResolvedValue('https://s3/x');
-    await (await buildApp({ logger: false })).inject({
+    await (
+      await buildApp({ logger: false })
+    ).inject({
       method: 'POST',
       url: '/api/v1/assets/download-urls',
       headers: auth,
       payload: { keys: ['x'] },
     });
-    expect(presignedDownloadUrl).toHaveBeenCalledWith(
-      { bucket: 'legacy', keyPrefix: '' },
-      'x',
-      expect.any(Number)
-    );
+    expect(presignedDownloadUrl).toHaveBeenCalledWith({ bucket: 'legacy', keyPrefix: '' }, 'x', expect.any(Number));
   });
 });
 
 describe('PUT /api/v1/assets/upload/*', () => {
   it('streams an upload and returns the key (Bearer auth)', async () => {
     vi.mocked(uploadStream).mockResolvedValue();
-    const res = await (await buildApp({ logger: false })).inject({
+    const res = await (
+      await buildApp({ logger: false })
+    ).inject({
       method: 'PUT',
       url: '/api/v1/assets/upload/photo.jpg',
       headers: { ...auth, 'content-type': 'application/octet-stream' },
@@ -107,7 +113,7 @@ describe('PUT /api/v1/assets/upload/*', () => {
       { bucket: 'test-shared-bucket', keyPrefix: 'u/u1/' },
       'photo.jpg',
       expect.anything(),
-      'application/octet-stream'
+      'application/octet-stream',
     );
   });
 
@@ -116,7 +122,9 @@ describe('PUT /api/v1/assets/upload/*', () => {
     vi.mocked(uploadStream).mockImplementation(async (_loc, _key, body) => {
       for await (const chunk of body) received += chunk;
     });
-    const res = await (await buildApp({ logger: false })).inject({
+    const res = await (
+      await buildApp({ logger: false })
+    ).inject({
       method: 'PUT',
       url: '/api/v1/assets/upload/note.txt',
       headers: { ...auth, 'content-type': type },
@@ -128,7 +136,9 @@ describe('PUT /api/v1/assets/upload/*', () => {
 
   it('accepts the token via ?token= (iOS background-upload path)', async () => {
     vi.mocked(uploadStream).mockResolvedValue();
-    const res = await (await buildApp({ logger: false })).inject({
+    const res = await (
+      await buildApp({ logger: false })
+    ).inject({
       method: 'PUT',
       url: `/api/v1/assets/upload/photo.jpg?token=${token}`,
       headers: { 'content-type': 'application/octet-stream' },
@@ -139,7 +149,9 @@ describe('PUT /api/v1/assets/upload/*', () => {
 
   it('410 before reading the body when the asset is purged', async () => {
     vi.mocked(isPurgedFileKey).mockResolvedValueOnce(true);
-    const res = await (await buildApp({ logger: false })).inject({
+    const res = await (
+      await buildApp({ logger: false })
+    ).inject({
       method: 'PUT',
       url: '/api/v1/assets/upload/photo.jpg',
       headers: { ...auth, 'content-type': 'application/octet-stream' },
@@ -155,7 +167,9 @@ describe('PUT /api/v1/assets/upload/*', () => {
     vi.mocked(uploadStream).mockResolvedValue();
     vi.mocked(deleteObjects).mockResolvedValue([]);
     vi.mocked(isPurgedFileKey).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
-    const res = await (await buildApp({ logger: false })).inject({
+    const res = await (
+      await buildApp({ logger: false })
+    ).inject({
       method: 'PUT',
       url: '/api/v1/assets/upload/photo.jpg',
       headers: { ...auth, 'content-type': 'application/octet-stream' },
@@ -167,7 +181,9 @@ describe('PUT /api/v1/assets/upload/*', () => {
   });
 
   it('401 without any token', async () => {
-    const res = await (await buildApp({ logger: false })).inject({
+    const res = await (
+      await buildApp({ logger: false })
+    ).inject({
       method: 'PUT',
       url: '/api/v1/assets/upload/photo.jpg',
       headers: { 'content-type': 'application/octet-stream' },
@@ -180,7 +196,9 @@ describe('PUT /api/v1/assets/upload/*', () => {
 describe('POST /api/v1/assets/delete', () => {
   it('deletes keys and echoes them', async () => {
     vi.mocked(deleteObjects).mockResolvedValue([]);
-    const res = await (await buildApp({ logger: false })).inject({
+    const res = await (
+      await buildApp({ logger: false })
+    ).inject({
       method: 'POST',
       url: '/api/v1/assets/delete',
       headers: auth,
@@ -190,12 +208,19 @@ describe('POST /api/v1/assets/delete', () => {
     expect(res.json()).toEqual({ deleted: ['a.jpg', 'b.jpg'] });
     // One request, only ever in the caller's own namespace, derived from the token.
     expect(deleteObjects).toHaveBeenCalledTimes(1);
-    expect(deleteObjects).toHaveBeenCalledWith({ bucket: 'test-shared-bucket', keyPrefix: 'u/u1/' }, ['a.jpg', 'b.jpg']);
+    expect(deleteObjects).toHaveBeenCalledWith({ bucket: 'test-shared-bucket', keyPrefix: 'u/u1/' }, [
+      'a.jpg',
+      'b.jpg',
+    ]);
   });
 
   it('401 without auth, 400 for more keys than one request takes', async () => {
     const app = await buildApp({ logger: false });
-    const unauthenticated = await app.inject({ method: 'POST', url: '/api/v1/assets/delete', payload: { keys: ['a'] } });
+    const unauthenticated = await app.inject({
+      method: 'POST',
+      url: '/api/v1/assets/delete',
+      payload: { keys: ['a'] },
+    });
     expect(unauthenticated.statusCode).toBe(401);
     const tooMany = await app.inject({
       method: 'POST',

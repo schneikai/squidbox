@@ -21,7 +21,11 @@ const INTEGER_MAX: Record<string, number> = { integer: 2 ** 31 - 1, bigint: Numb
 
 describe('sync record schemas', () => {
   // The schema rejects up front what a column can't store, so the push rejects it per record.
-  for (const { descriptor: { name }, table, schema } of Object.values(serverCollections)) {
+  for (const {
+    descriptor: { name },
+    table,
+    schema,
+  } of Object.values(serverCollections)) {
     it(`${name}: rejects a fraction or an out-of-range integer, and NUL in text`, () => {
       for (const [key, column] of Object.entries(getTableColumns(table))) {
         const field = schema.shape[key];
@@ -99,9 +103,9 @@ describe('merge fields', () => {
 describe('lost fields', () => {
   it('are the sent fields the merged record holds with another value', () => {
     const current = { notes: 'server', isFavorite: true, deletedAt: null };
-    expect(lostFields(['notes', 'isFavorite', 'deletedAt'], { notes: 'mine', isFavorite: true, deletedAt: null }, current)).toEqual([
-      'notes',
-    ]);
+    expect(
+      lostFields(['notes', 'isFavorite', 'deletedAt'], { notes: 'mine', isFavorite: true, deletedAt: null }, current),
+    ).toEqual(['notes']);
     expect(lostFields(['filename'], { filename: 'a' }, current)).toEqual([]); // not in current
   });
 });

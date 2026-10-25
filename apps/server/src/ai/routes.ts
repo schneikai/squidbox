@@ -53,14 +53,24 @@ function catalogAsync(): Promise<Catalog> {
   return orAiUnavailable(getCatalogAsync(), "Couldn't load the models from Venice");
 }
 
-// The catalog entries of the requested models, in the request's order; 400 for any it can't use.
-async function resolveModels(ids: string[], kind: AiModelKind): Promise<CatalogEntry[]> {
+type CompareResult<T> = (T & { modelId: string }) | { modelId: string; error: string };
+
+/**
+ * Runs `compare` on the requested models it can use, and gives each one it can't (Venice dropped
+ * it since the app's list, or it can't see photos) that as its own result, in the request's order.
+ */
+async function compareRequested<T>(
+  ids: string[],
+  kind: AiModelKind,
+  compare: (models: CatalogEntry[]) => Promise<CompareResult<T>[]>,
+): Promise<CompareResult<T>[]> {
   const { entries } = await catalogAsync();
-  return ids.map((id) => {
-    const found = findModel(entries, id, kind);
-    if ('error' in found) throw new AppError(400, 'validation_error', found.error);
-    return found.entry;
-  });
+  const found = ids.map((id) => findModel(entries, id, kind));
+  const usable = found.flatMap((each) => ('entry' in each ? [each.entry] : []));
+  const byId = new Map((usable.length > 0 ? await compare(usable) : []).map((result) => [result.modelId, result]));
+  return found.map((each, index) =>
+    'entry' in each ? byId.get(each.entry.id)! : { modelId: ids[index]!, error: each.error },
+  );
 }
 
 // Every route here is behind authenticate and aiAccess, so a new one can't skip the gate.
@@ -97,10 +107,11 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       schema: { body: compareWritingRequestSchema, response: { 200: compareWritingResponseSchema } },
       handler: async (request, reply) => {
         const signal = untilClientLeaves(reply);
-        const models = await resolveModels(request.body.modelIds, 'writing');
         // persona: the user's About you / Tone once that setup exists (prompts.ts).
         const messages = writingMessages({ prompt: request.body.prompt, persona: null });
-        const results = await compareModels({ task: writingTask, messages, models, log: request.log, signal });
+        const results = await compareRequested(request.body.modelIds, 'writing', (models) =>
+          compareModels({ task: writingTask, messages, models, log: request.log, signal }),
+        );
         return { results };
       },
     });
@@ -115,13 +126,14 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       schema: { body: compareVisionRequestSchema, response: { 200: compareVisionResponseSchema } },
       handler: async (request, reply) => {
         const signal = untilClientLeaves(reply);
-        const models = await resolveModels(request.body.modelIds, 'vision');
         const { base64, mimeType } = request.body.image;
         const messages = visionMessages({
           prompt: request.body.prompt,
           imageDataUrl: `data:${mimeType};base64,${base64}`,
         });
-        const results = await compareModels({ task: visionTask, messages, models, log: request.log, signal });
+        const results = await compareRequested(request.body.modelIds, 'vision', (models) =>
+          compareModels({ task: visionTask, messages, models, log: request.log, signal }),
+        );
         return { results };
       },
     });

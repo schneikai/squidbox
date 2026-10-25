@@ -26,6 +26,8 @@ const catalogEntrySchema = z.object({
     capabilities: z
       .object({
         supportsVision: z.boolean().optional(),
+        // false for a model that can't hold its reply to a JSON schema (it gets the shape in words)
+        supportsResponseSchema: z.boolean().optional(),
       })
       .default({}),
     traits: z.array(z.string()).default([]),
@@ -96,16 +98,16 @@ export function toApiModel(entry: CatalogEntry): ApiAiModel {
   };
 }
 
-/** The model for a compare of that kind, or why it can't be used. */
+/** The model for a compare of that kind, or why it can't be used, without its name (the compare is blind). */
 export function findModel(
   catalog: CatalogEntry[],
   id: string,
   kind: AiModelKind,
 ): { entry: CatalogEntry } | { error: string } {
   const entry = catalog.find((candidate) => candidate.id === id);
-  if (!entry) return { error: `Unknown ${kind} model: ${id}` };
+  if (!entry) return { error: 'Venice no longer offers this model' };
   if (kind === 'vision' && entry.model_spec.capabilities.supportsVision !== true) {
-    return { error: `${entry.model_spec.name} can't see photos` };
+    return { error: "This model can't see photos" };
   }
   return { entry };
 }

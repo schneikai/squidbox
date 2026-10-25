@@ -48,8 +48,7 @@ function veniceAnswers({ catalogStatus = 200, balanceStatus = 200 } = {}) {
       });
     }
     const { response_format } = JSON.parse(String(init!.body));
-    const content =
-      response_format.json_schema.name === 'tweets' ? { tweets: ['one', 'two', 'three'] } : { tags };
+    const content = response_format.json_schema.name === 'tweets' ? { tweets: ['one', 'two', 'three'] } : { tags };
     return new Response(
       JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(content) } }] }),
     );
@@ -203,11 +202,15 @@ describe('POST /api/v1/ai/compare/writing', () => {
     }
   });
 
-  it('400 for a model Venice does not have', async () => {
+  it('answers a model Venice no longer has on its own card, and compares the others', async () => {
     veniceAnswers();
-    const res = await call('POST', '/ai/compare/writing', { ...writing, modelIds: ['kimi-k3', 'gone'] });
-    expect(res.statusCode).toBe(400);
-    expect(res.json().error.message).toBe('Unknown writing model: gone');
+    const res = await call('POST', '/ai/compare/writing', { ...writing, modelIds: ['gone', 'kimi-k3'] });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().results).toEqual([
+      { modelId: 'gone', error: 'Venice no longer offers this model' },
+      { modelId: 'kimi-k3', tweets: ['one', 'two', 'three'] },
+    ]);
+    expect(chatBodies()).toHaveLength(1);
   });
 
   it('400 for the same model twice', async () => {
@@ -260,14 +263,14 @@ describe('POST /api/v1/ai/compare/vision', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("400 for a model that can't see photos", async () => {
+  it("answers a model that can't see photos on its own card", async () => {
     veniceAnswers();
     const res = await call('POST', '/ai/compare/vision', {
       ...vision,
       modelIds: ['gemma-4-uncensored', 'z-ai-glm-5-3'],
     });
-    expect(res.statusCode).toBe(400);
-    expect(res.json().error.message).toBe("GLM 5.3 can't see photos");
+    expect(res.statusCode).toBe(200);
+    expect(res.json().results[1]).toEqual({ modelId: 'z-ai-glm-5-3', error: "This model can't see photos" });
   });
 
   it('413 for a body over the 2 MB limit', async () => {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { fetchAiModelsAsync } from '@/utils/cloud-api/aiApi';
+import fetchAiModelsAsync from '@/utils/cloud-api/ai/fetchAiModelsAsync';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 // As long as the server keeps its own copy of Venice's list.

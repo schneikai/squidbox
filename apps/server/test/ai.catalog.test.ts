@@ -147,8 +147,8 @@ describe('findModel', () => {
   it('finds a model, and says why it is not usable', async () => {
     const entries = await catalog();
     expect(findModel(entries, 'kimi-k3', 'writing')).toEqual({ entry: byId(entries, 'kimi-k3') });
-    expect(findModel(entries, 'gone', 'writing')).toEqual({ error: 'Unknown writing model: gone' });
-    expect(findModel(entries, 'z-ai-glm-5-3', 'vision')).toEqual({ error: "GLM 5.3 can't see photos" });
+    expect(findModel(entries, 'gone', 'writing')).toEqual({ error: 'Venice no longer offers this model' });
+    expect(findModel(entries, 'z-ai-glm-5-3', 'vision')).toEqual({ error: "This model can't see photos" });
     expect(findModel(entries, 'gemma-4-uncensored', 'vision')).toHaveProperty('entry');
   });
 });

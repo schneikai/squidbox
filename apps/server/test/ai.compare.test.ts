@@ -38,7 +38,11 @@ function replies(byModel: Record<string, unknown>) {
     const reply = byModel[id];
     if (reply instanceof Response) return reply;
     return new Response(
-      JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(reply) } }] }),
+      JSON.stringify({
+        choices: [
+          { finish_reason: 'stop', message: { content: typeof reply === 'string' ? reply : JSON.stringify(reply) } },
+        ],
+      }),
     );
   });
 }
@@ -87,6 +91,26 @@ describe('compareModels: writing', () => {
       { modelId: 'kimi-k3', error: "The reply couldn't be read" },
       { modelId: 'grok-4-7', error: "The reply couldn't be read" },
     ]);
+  });
+
+  it('asks a model without response schemas in words, and reads JSON wrapped in a fence', async () => {
+    const plain = { ...model('kimi-k3'), id: 'plain' };
+    plain.model_spec = {
+      ...plain.model_spec,
+      capabilities: { ...plain.model_spec.capabilities, supportsResponseSchema: false },
+    };
+    replies({
+      plain: 'Here you go:\n```json\n{"tweets": ["a", "b", "c"]}\n```',
+      'kimi-k3': { tweets: ['d', 'e', 'f'] },
+    });
+    const results = await compareWriting([plain, model('kimi-k3')]);
+    expect(results).toEqual([
+      { modelId: 'plain', tweets: ['a', 'b', 'c'] },
+      { modelId: 'kimi-k3', tweets: ['d', 'e', 'f'] },
+    ]);
+    const [plainBody, kimiBody] = fetchMock.mock.calls.map(([, init]) => JSON.parse(init.body));
+    expect(plainBody).not.toHaveProperty('response_format');
+    expect(kimiBody.response_format.type).toBe('json_schema');
   });
 
   it("keeps the model's name out of Venice's error text, so the card stays blind", async () => {

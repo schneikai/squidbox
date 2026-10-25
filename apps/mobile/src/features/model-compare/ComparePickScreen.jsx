@@ -1,6 +1,6 @@
 import { COMPARE_MIN_MODELS, VISION_COMPARE_MAX_PHOTOS } from '@squidbox/shared';
 import { useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { Alert, ScrollView, StyleSheet } from 'react-native';
 
 import CatalogStatus from './CatalogStatus';
 import FloatingPrimaryAction from './FloatingPrimaryAction';
@@ -66,12 +66,18 @@ export default function ComparePickScreen({ navigation, route }) {
 
   async function handleStart() {
     if (pickedIds !== null) {
-      // Read again: right after a pick, `photos` can still be the last set.
-      const picked = await readLiveAssets(getDb(), pickedIds.slice(0, VISION_COMPARE_MAX_PHOTOS));
-      await setVisionPhotos(
-        getDb(),
-        picked.map(({ id }) => id),
-      );
+      try {
+        // Read again: right after a pick, `photos` can still be the last set.
+        const picked = await readLiveAssets(getDb(), pickedIds.slice(0, VISION_COMPARE_MAX_PHOTOS));
+        await setVisionPhotos(
+          getDb(),
+          picked.map(({ id }) => id),
+        );
+      } catch (error) {
+        console.error('Saving the photos failed', error);
+        Alert.alert("Couldn't save the photos", error.message);
+        return;
+      }
     }
     // In your list's order, so a round's letters are the only shuffle.
     const tickedModels = models.filter(({ id }) => ticked.includes(id)).map(({ id, name }) => ({ id, name }));

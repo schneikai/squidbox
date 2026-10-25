@@ -8,7 +8,7 @@ import useHaptics from '@/hooks/useHaptics';
 import useLibrary from '@/library/useLibrary';
 import { addScore, markTried } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
-import { compareAsync } from '@/utils/cloud-api/aiApi';
+import compareAsync from '@/utils/cloud-api/ai/compareAsync';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import toggleItem from '@/utils/toggleItem';
 

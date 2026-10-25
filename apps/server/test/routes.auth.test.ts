@@ -36,7 +36,9 @@ describe('POST /api/v1/auth/login', () => {
     vi.mocked(verifyPassword).mockResolvedValue(true);
     vi.mocked(issueRefreshToken).mockResolvedValue('refresh-1');
 
-    const res = await (await app()).inject({
+    const res = await (
+      await app()
+    ).inject({
       method: 'POST',
       url: '/api/v1/auth/login',
       payload: { email: 'a@b.co', password: 'pw' },
@@ -53,7 +55,9 @@ describe('POST /api/v1/auth/login', () => {
   it('401 invalid_credentials on wrong password', async () => {
     vi.mocked(findUserByEmail).mockResolvedValue(user as any);
     vi.mocked(verifyPassword).mockResolvedValue(false);
-    const res = await (await app()).inject({
+    const res = await (
+      await app()
+    ).inject({
       method: 'POST',
       url: '/api/v1/auth/login',
       payload: { email: 'a@b.co', password: 'bad' },
@@ -64,7 +68,9 @@ describe('POST /api/v1/auth/login', () => {
 
   it('401 invalid_credentials on unknown email', async () => {
     vi.mocked(findUserByEmail).mockResolvedValue(undefined);
-    const res = await (await app()).inject({
+    const res = await (
+      await app()
+    ).inject({
       method: 'POST',
       url: '/api/v1/auth/login',
       payload: { email: 'nope@b.co', password: 'pw' },
@@ -73,7 +79,9 @@ describe('POST /api/v1/auth/login', () => {
   });
 
   it('400 validation_error on malformed body', async () => {
-    const res = await (await app()).inject({
+    const res = await (
+      await app()
+    ).inject({
       method: 'POST',
       url: '/api/v1/auth/login',
       payload: { email: 'a@b.co' },
@@ -86,7 +94,9 @@ describe('POST /api/v1/auth/login', () => {
 describe('POST /api/v1/auth/refresh', () => {
   it('rotates and returns new tokens, no user field', async () => {
     vi.mocked(rotateRefreshToken).mockResolvedValue({ userId: 'u1', token: 'refresh-2' });
-    const res = await (await app()).inject({
+    const res = await (
+      await app()
+    ).inject({
       method: 'POST',
       url: '/api/v1/auth/refresh',
       payload: { refreshToken: 'refresh-1' },
@@ -101,7 +111,9 @@ describe('POST /api/v1/auth/refresh', () => {
   it('401 on invalid refresh token', async () => {
     const { AppError } = await import('../src/errors.js');
     vi.mocked(rotateRefreshToken).mockRejectedValue(AppError.invalidToken());
-    const res = await (await app()).inject({
+    const res = await (
+      await app()
+    ).inject({
       method: 'POST',
       url: '/api/v1/auth/refresh',
       payload: { refreshToken: 'bad' },
@@ -114,7 +126,9 @@ describe('POST /api/v1/auth/refresh', () => {
 describe('POST /api/v1/auth/logout', () => {
   it('revokes the presented token and returns 204', async () => {
     vi.mocked(revokeRefreshToken).mockResolvedValue();
-    const res = await (await app()).inject({
+    const res = await (
+      await app()
+    ).inject({
       method: 'POST',
       url: '/api/v1/auth/logout',
       payload: { refreshToken: 'refresh-1' },
@@ -134,7 +148,9 @@ describe('GET /api/v1/me', () => {
   it('returns the user and the server identity with a valid token', async () => {
     vi.mocked(findUserById).mockResolvedValue(user as any);
     const token = signAccessToken('u1');
-    const res = await (await app()).inject({
+    const res = await (
+      await app()
+    ).inject({
       method: 'GET',
       url: '/api/v1/me',
       headers: { authorization: `Bearer ${token}` },
@@ -156,7 +172,9 @@ describe('a valid token for an unknown user', () => {
 
   it('POST /sync/pull answers 401', async () => {
     vi.mocked(findUserById).mockResolvedValue(undefined);
-    const res = await (await app()).inject({
+    const res = await (
+      await app()
+    ).inject({
       method: 'POST',
       url: '/api/v1/sync/pull',
       headers,

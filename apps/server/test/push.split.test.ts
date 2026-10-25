@@ -19,8 +19,7 @@ const d = TEST_URL ? describe : describe.skip;
 type Db = ReturnType<typeof drizzle<typeof schema>>;
 type Rec = Record<string, any> & { id: string; updatedAt: number };
 
-const rowsPerStatement = (collection: string) =>
-  Math.floor(65_535 / serverCollections[collection]!.columnCount);
+const rowsPerStatement = (collection: string) => Math.floor(65_535 / serverCollections[collection]!.columnCount);
 
 d('push: split statements', () => {
   let pool: pg.Pool;
