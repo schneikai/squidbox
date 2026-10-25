@@ -1,5 +1,5 @@
-// The Venice client: nothing else talks to Venice's chat API. Venice is OpenAI-compatible; this
-// asks for JSON that matches a schema and validates what comes back.
+// The Venice client: nothing else talks to Venice's chat API. It asks Venice
+// for JSON that matches a schema and validates what comes back.
 import type { z } from 'zod';
 import type { VeniceAccess } from './catalog.js';
 

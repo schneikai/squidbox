@@ -27,7 +27,7 @@ const envSchema = z.object({
     .default('false')
     .transform((v) => v === 'true'),
 
-  // AI (Venice, OpenAI-compatible). Without a key the server runs and the AI endpoints answer 503
+  // AI (Venice). Without a key the server runs and the AI endpoints answer 503
   // ai_not_configured; the key never leaves the server.
   VENICE_API_KEY: z.string().min(1).optional(),
   VENICE_BASE_URL: z.string().url().default('https://api.venice.ai/api/v1'),

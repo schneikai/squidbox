@@ -15,7 +15,7 @@ The TypeScript backend: Fastify + Drizzle + Postgres + S3, deployed on Fly.io (s
   and batch delete.
 - **Sync:** `/sync/pull` and `/sync/push`.
 - **AI:** `/ai/models` (Venice's live model list, cached 5 minutes) and the blind model compare
-  `/ai/compare/writing` and `/ai/compare/vision`, behind Venice's OpenAI-compatible API
+  `/ai/compare/writing` and `/ai/compare/vision`, behind Venice's chat API
   (`src/ai/`). `VENICE_API_KEY` is server-side only; without it the server runs and these routes
   answer 503 `ai_not_configured`. `VENICE_BASE_URL` defaults to `https://api.venice.ai/api/v1`.
   Locally, export the key in the shell that runs `npm run dev:local` (never in `.env.docker`); on
