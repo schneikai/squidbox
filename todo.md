@@ -58,8 +58,7 @@ The app is built and tested only for iOS. Needed:
   `useAddAssetsFromCameraRoll` and `copyToMediaLibraryAsync`.
 - Platform differences: edge-to-edge insets, the back button and gesture (closing modals, the
   viewer, select mode), blur (`expo-blur` is slow or flat on Android: FloatingPill,
-  BlurPopoverRenderer, AssetQuickViewModal), keyboard events (`AiChatModal`), HEIC
-  display.
+  BlurPopoverRenderer, AssetQuickViewModal), keyboard events, HEIC display.
 - Device checks of the gesture-heavy screens: pager, zoom, swipe-up details, drag-select, album
   reorder.
 - Pairs with the Android half of "Share several assets at once". Test on an emulator or a phone.
@@ -122,8 +121,8 @@ Where AI is needed:
 - Create a follow-up tweet with the OnlyFans URL. Also quoted RTs and other predefined prompts, for
   example as buttons after a reply.
 - Suggest @ mentions from the album's posts, or more generally from the post history.
-- The post suggestions (`features/ai-suggestions`) work well but have no idea what's in the pictures,
-  so caption suggestions don't always fit.
+- The former post suggestions worked well but had no idea what's in the pictures, so caption
+  suggestions didn't always fit.
 
 General ideas:
 - **One assistant** for all these use cases, with a similar interface where possible, so it can also
@@ -137,12 +136,6 @@ General ideas:
 - **Favorite suggestions** to teach the assistant which style and tone the user prefers.
 - **Memory.** What the user tells the assistant is remembered, e.g. "make it more about the action
   and less about the filming", "less influencer style, more guy next door".
-- **The AI screens aren't on the design system yet** (`AiChatModal`, `RandomSuggestionsScreen`,
-  `ModelSelectorButton`). They were left out of the component and token rework: they use the new
-  color and type tokens, but their sizes, paddings and radii are still literals (chat bubbles, send
-  and arrow buttons, the model sheet), their inputs and buttons are hand-built, and
-  `ModelSelectorButton` draws its own divider and sheet instead of `ListDivider` and the shared
-  popovers. Redo them on the shared components with the assistant rework.
 
 ### [ ] Alternative texts for a post
 
@@ -279,7 +272,7 @@ production project. Consider `enabled: !__DEV__`.
 ### [ ] One animation library
 
 Animations use both React Native's `Animated` and Reanimated. Move the `Animated` ones
-(`BlurPopoverRenderer`, `MainTabNavigator`, `AssetImage`, `AiChatModal`) to
+(`BlurPopoverRenderer`, `MainTabNavigator`, `AssetImage`) to
 Reanimated, so everything runs on the UI thread with one API.
 
 ### [ ] One sync for data and files
