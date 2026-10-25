@@ -203,11 +203,6 @@ named import in JS passes until a build (`npx expo export` would catch it).
 CI and `apps/server/docker-compose.yml` run Postgres 16; Neon runs 18 (`db-backup.yml`). Bump both
 together; an existing local compose volume needs a dump and restore (or a fresh volume).
 
-### [ ] CI depends on ngrok's CDN
-
-`npm ci` runs ngrok's postinstall, which downloads its binary on every run and fails the install
-when the download fails. CI doesn't need it. Make `ngrok` optional or skip its script in CI.
-
 ### [ ] One vertical drag per asset page
 
 The photo's drag (`verticalDrag` in `useZoomGesture`) and the details panel's pan
@@ -373,13 +368,6 @@ library. Fine for a few passes; a table keyed by record would scale if passes ge
 album's screen isn't opened), but one rule would be cleaner. With it, have `postQuery`'s `albumId`
 scope watch `schema.albums` as `sharesAlbumWithPostId` does, so both refresh when an album is
 deleted or restored.
-
-### [ ] `dev:local` leaves Metro and the API running when the seed fails
-
-`scripts/dev-local.mjs` starts Metro and the API server before the mock seed; when the seed step
-fails (e.g. a transient picsum 503 with `--reset-data`), the script exits but both keep running, so
-they must be killed by hand before a rerun. Likely cause: `shutdown` sends SIGTERM only to the
-direct `npx`/`npm` children, not to the Metro and server processes under them.
 
 ## Ideas
 

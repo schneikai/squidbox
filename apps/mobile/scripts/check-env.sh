@@ -36,11 +36,6 @@ else
     echo "MISSING EXPO_PUBLIC_API_URL in .env.local"
     note "an API URL the phone can reach: the live backend, or the local backend through Metro's tunnel"
   fi
-  if has_env_local_var NGROK_AUTHTOKEN; then
-    echo "ok: NGROK_AUTHTOKEN set"
-  else
-    echo "note: NGROK_AUTHTOKEN not set (only tunnel.js needs it; Expo's tunnel doesn't)"
-  fi
 fi
 
 echo
