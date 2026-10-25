@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Text, StyleSheet, View, TouchableOpacity } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 
+import Badge from '@/components/Badge';
 import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import FloatingSegmentPill from '@/components/floating-bars/FloatingSegmentPill';
@@ -13,7 +14,6 @@ import reorderUnderSort from '@/components/sortable-grid/reorderUnderSort';
 import AlbumPostsView from '@/features/album-detail/AlbumPostsView';
 import AddAssetAction from '@/features/album-detail/actions/AddAssetAction';
 import MoreAction from '@/features/album-detail/actions/MoreAction';
-import ArchivedBadge from '@/features/album-list/ArchivedBadge';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useAppSettings from '@/features/app-settings/useAppSettings';
 import AssetGrid from '@/features/asset-list/AssetGrid';
@@ -165,7 +165,7 @@ export default function Album({ album }) {
       {/* Sub-header — only shown when there's an archived badge or notes */}
       {hasSubHeader && (
         <View style={[styles.subHeader, { marginTop: paddingTop }]}>
-          {!!album.archivedAt && <ArchivedBadge />}
+          {!!album.archivedAt && <Badge label="Archived" tone="danger" />}
           {!!album.notes && (
             <TouchableOpacity
               onPress={() => navigation.navigate('EditAlbumNotesModal', { id: album.id, notes: album.notes })}

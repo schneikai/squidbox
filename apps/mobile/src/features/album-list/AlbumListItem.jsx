@@ -1,9 +1,9 @@
 import { StyleSheet, View, Text } from 'react-native';
 
+import Badge from '@/components/Badge';
 import CoverImage from '@/components/CoverImage';
 import FavoriteAlbumIndicator from '@/components/FavoriteAlbumIndicator';
 import AlbumLastPostedAt from '@/features/album-list/AlbumLastPostedAt';
-import ArchivedBadge from '@/features/album-list/ArchivedBadge';
 import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
 
@@ -17,7 +17,7 @@ export default function AlbumListItem({ album, elementWidth, showLastPostedAt })
         </View>
       </CoverImage>
 
-      {Boolean(album.archivedAt) && <ArchivedBadge style={styles.archived} />}
+      {Boolean(album.archivedAt) && <Badge label="Archived" tone="danger" style={styles.archived} />}
       <Text style={styles.albumTitle} numberOfLines={1} ellipsizeMode="tail">
         {album.name}
       </Text>

@@ -27,12 +27,13 @@ export function SectionFooter({ children }) {
   return <Text style={styles.footer}>{children}</Text>;
 }
 
-export function Row({ label, value, onPress, destructive, chevron, children }) {
+// `isValueMuted` greys the value further, for one that no longer applies.
+export function Row({ label, value, isValueMuted, onPress, destructive, chevron, children }) {
   const content = (
     <View style={styles.row}>
       <Text style={[styles.rowLabel, destructive && styles.rowLabelDestructive]}>{label}</Text>
       <View style={styles.rowRight}>
-        {value ? <Text style={styles.rowValue}>{value}</Text> : null}
+        {value ? <Text style={[styles.rowValue, isValueMuted && styles.rowValueMuted]}>{value}</Text> : null}
         {children}
         {chevron && (
           <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.tertiary} style={{ marginLeft: 4 }} />
@@ -84,6 +85,9 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     textAlign: 'right',
     flexShrink: 1,
+  },
+  rowValueMuted: {
+    color: colors.text.tertiary,
   },
   footer: {
     fontSize: typography.footnote,
