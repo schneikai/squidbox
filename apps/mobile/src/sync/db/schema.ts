@@ -201,3 +201,10 @@ export const syncLog = sqliteTable('sync_log', {
   notes: text('notes'),
 });
 export type SyncLogRow = typeof syncLog.$inferSelect;
+
+// Key/value JSON store, local-only, the model testing's memory (features/model-compare/aiState.ts
+// is its only reader and writer). Not synced: it stays with this library on this device.
+export const aiState = sqliteTable('ai_state', {
+  key: text('key').primaryKey(),
+  value: text('value', { mode: 'json' }).notNull(),
+});

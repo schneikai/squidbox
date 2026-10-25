@@ -16,6 +16,7 @@ import useCloud from '@/features/cloud/useCloud';
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
 import useBackupCounts from '@/features/cloud-sync/useBackupCounts';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
+import useIsAssistantAvailable from '@/features/model-compare/useIsAssistantAvailable';
 import useLibrary from '@/library/useLibrary';
 import { colors } from '@/styles/designTokens';
 import { useSyncStatus } from '@/sync/useSyncStatus';
@@ -32,6 +33,7 @@ export default function SettingsScreen() {
   const counts = useBackupCounts();
   const { phase, lastError, pendingCount, failedCount } = useSyncStatus();
   const { isVideoAutoplayOn, setIsVideoAutoplayOn, isHapticsOn, setIsHapticsOn } = useAppSettings();
+  const isAssistantAvailable = useIsAssistantAvailable();
 
   const [isLoggingOut, startLogoutTransition] = useTransition();
 
@@ -139,6 +141,15 @@ export default function SettingsScreen() {
                 onPress={() => navigation.navigate('SyncScreen')}
                 chevron
               />
+            </Section>
+          </>
+        )}
+
+        {isAssistantAvailable && (
+          <>
+            <ScreenSectionHeader title="Assistant" />
+            <Section>
+              <Row label="Assistant" onPress={() => navigation.navigate('AssistantScreen')} chevron />
             </Section>
           </>
         )}

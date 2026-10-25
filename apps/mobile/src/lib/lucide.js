@@ -60,6 +60,7 @@ export { default as SlidersHorizontal } from 'lucide-react-native/dist/cjs/icons
 export { default as Smartphone } from 'lucide-react-native/dist/cjs/icons/smartphone';
 export { default as SquareCheck } from 'lucide-react-native/dist/cjs/icons/square-check';
 export { default as Star } from 'lucide-react-native/dist/cjs/icons/star';
+export { default as ThumbsUp } from 'lucide-react-native/dist/cjs/icons/thumbs-up';
 export { default as Trash2 } from 'lucide-react-native/dist/cjs/icons/trash-2';
 export { default as Undo2 } from 'lucide-react-native/dist/cjs/icons/undo-2';
 export { default as User } from 'lucide-react-native/dist/cjs/icons/user';
