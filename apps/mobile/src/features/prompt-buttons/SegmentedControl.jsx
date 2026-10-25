@@ -27,7 +27,7 @@ export default function SegmentedControl({ items, activeKey, onSelect }) {
             onPress={() => handleSelect(key)}
             accessibilityRole="radio"
             accessibilityState={{ selected: isActive }}
-            style={[styles.segment, isActive && styles.active]}
+            style={[styles.segment, isActive && styles.active, isActive && shadows.subtle]}
           >
             <Text style={[styles.label, isActive && styles.activeLabel]} numberOfLines={1}>
               {label}
@@ -56,7 +56,6 @@ const styles = StyleSheet.create({
   },
   active: {
     backgroundColor: colors.background.surface,
-    ...shadows.subtle,
   },
   label: {
     fontSize: typography.subheadline,

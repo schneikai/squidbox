@@ -109,10 +109,13 @@ describe('checkDraft', () => {
     ]);
   });
 
-  it('throws on an empty About you, Tone or tag list', () => {
+  it('throws on an empty About you or Tone', () => {
     expect(() => checkDraft({ ...draft, aboutYou: ' ' }, 3)).toThrow('Returned no About you');
     expect(() => checkDraft({ ...draft, tone: '' }, 3)).toThrow('Returned no Tone');
-    expect(() => checkDraft({ ...draft, contentTags: [' '] }, 3)).toThrow('Returned no tags');
+  });
+
+  it('takes a reply without tags, which the user adds', () => {
+    expect(checkDraft({ ...draft, contentTags: [' '] }, 3).contentTags).toEqual([]);
   });
 });
 

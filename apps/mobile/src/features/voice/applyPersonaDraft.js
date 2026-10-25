@@ -8,16 +8,19 @@ const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F1E6}-\u{1F1FF}]/u;
  * "Fill it in for me": the next draft of Writing as you, from the server's `reply` to the `posts`
  * sent. About you, the content tags and Tone come from the reply; the example posts are the sent
  * posts it picked, verbatim, so nothing is made up; Use emoji is whether any sent post has one.
- * The rules stay as they are (a model would invent them). `mode` `'empty'` fills only the empty
- * fields of `draft` (Use emoji with the example posts, as it copies how they use emoji), `'replace'`
- * replaces all of these.
+ * The rules stay as they are (a model would invent them), and so do the example posts when they
+ * were the posts sent (`isFromExamplePosts`: the library has none), as picking from them would drop
+ * the rest. `mode` `'empty'` fills only the empty fields of `draft` (Use emoji with the example
+ * posts, as it copies how they use emoji), `'replace'` replaces all of these.
  */
-export default function applyPersonaDraft(draft, reply, posts, mode) {
+export default function applyPersonaDraft(draft, reply, posts, mode, isFromExamplePosts = false) {
   const drafted = {
     aboutYou: reply.aboutYou,
     contentTags: reply.contentTags,
     tone: reply.tone,
-    examplePosts: reply.examplePostIndexes.map((index) => posts[index]).filter(Boolean),
+    ...(!isFromExamplePosts && {
+      examplePosts: reply.examplePostIndexes.map((index) => posts[index]).filter(Boolean),
+    }),
     useEmoji: posts.some((post) => EMOJI.test(post)),
   };
   if (mode === 'replace') return { ...draft, ...drafted };

@@ -59,4 +59,18 @@ describe('personaRepository', () => {
     expect(await outbox(db)).toHaveLength(0);
     expect((await readPersona(db, USER))!.updatedAt).toBe(before!.updatedAt);
   });
+
+  it('sends only the changed fields on the first save, so it never clobbers a persona not pulled yet', async () => {
+    const db = makeTestDb();
+    await savePersona(db, USER, { tone: 'Short.' });
+    const [row] = await outbox(db);
+    expect(Object.keys(row!.fields)).toEqual(['tone']);
+    expect(await readPersona(db, USER)).toMatchObject({ ...EMPTY_PERSONA, tone: 'Short.' });
+  });
+
+  it('writes nothing for no changes', async () => {
+    const db = makeTestDb();
+    await savePersona(db, USER, {});
+    expect(await readPersona(db, USER)).toBeNull();
+  });
 });

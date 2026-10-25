@@ -33,19 +33,23 @@ export async function readPersona(db: SyncDb, userId: string): Promise<PersonaRe
 }
 
 /**
- * Save the persona: the first save creates it with the user's id as its id (so every device writes
- * the same record), later ones update it. Only the fields that differ from the stored ones get a new
- * clock (saveRecords), so an untouched field can't overwrite another device's edit of it.
+ * Save what the user changed in the persona (`changes`, the fields that differ from what the editor
+ * opened with): the first save creates it with the user's id as its id (so every device writes the
+ * same record), later ones update it. Only the changed fields get a new clock, also on the first
+ * save, so a field the user didn't touch never overwrites another device's edit of it, even when
+ * that edit hasn't been pulled yet.
  */
-export async function savePersona(db: SyncDb, userId: string, fields: PersonaFields): Promise<void> {
+export async function savePersona(db: SyncDb, userId: string, changes: Partial<PersonaFields>): Promise<void> {
+  const changed = Object.keys(changes);
+  if (changed.length === 0) return;
   await db.transaction(async (tx) => {
     const stored = await readPersona(tx, userId);
     if (stored) {
-      await saveRecords(tx, 'personas', t, [nextVersion(stored, fields)], { previous: [stored] });
-    } else {
-      await saveRecords(tx, 'personas', t, [newRecord(personaCollection, {}, { ...fields, id: userId })], {
-        isNew: true,
-      });
+      await saveRecords(tx, 'personas', t, [nextVersion<PersonaRecord>(stored, changes)], { previous: [stored] });
+      return;
     }
+    const record = newRecord(personaCollection, EMPTY_PERSONA, { ...changes, id: userId });
+    const clocks = Object.fromEntries(changed.map((field) => [field, record.updatedAt]));
+    await saveRecords(tx, 'personas', t, [record], { clocks: new Map([[userId, clocks]]) });
   });
 }

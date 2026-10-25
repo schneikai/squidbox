@@ -1,11 +1,10 @@
 // "Writing as you": the persona the writing prompts take, read from the user's synced `personas`
 // record, and "Fill it in for me", which drafts it from the user's posts.
 import { and, eq, isNull } from 'drizzle-orm';
-import { PERSONA_FIELDS, PERSONA_LIMITS, type PersonaDraftResponse } from '@squidbox/shared';
+import { PERSONA_FIELDS, PERSONA_LIMITS, uniqueTags, type PersonaDraftResponse } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import { personas } from '../db/schema.js';
 import type { CatalogEntry } from './catalog.js';
-import { checkTags } from './compare.js';
 import { DRAFT_EXAMPLE_POSTS, personaDraftMessages, personaDraftSchema, type Persona } from './prompts.js';
 import { chatJsonAsync, VeniceError } from './venice.js';
 
@@ -45,7 +44,7 @@ export async function draftPersonaAsync({
 
 /**
  * The draft trimmed and within the persona's limits: About you and Tone non-empty, the tags without
- * empty ones and case-insensitive duplicates, the example posts' indexes within the `postCount`
+ * empty ones and case-insensitive duplicates (none is fine: the user adds them), the example posts' indexes within the `postCount`
  * posts sent, once each, at most DRAFT_EXAMPLE_POSTS. Throws a VeniceError that says what's missing.
  */
 export function checkDraft(reply: PersonaDraftResponse, postCount: number): PersonaDraftResponse {
@@ -53,7 +52,7 @@ export function checkDraft(reply: PersonaDraftResponse, postCount: number): Pers
   const tone = reply.tone.trim().slice(0, PERSONA_LIMITS.tone);
   if (!aboutYou) throw new VeniceError('Returned no About you');
   if (!tone) throw new VeniceError('Returned no Tone');
-  const contentTags = checkTags(reply.contentTags)
+  const contentTags = uniqueTags(reply.contentTags)
     .filter((tag) => tag.length <= PERSONA_LIMITS.contentTag)
     .slice(0, PERSONA_LIMITS.contentTags);
   const examplePostIndexes = [...new Set(reply.examplePostIndexes)]

@@ -1,6 +1,6 @@
 import { promptButtonCollection } from '@squidbox/shared';
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import SegmentedControl from './SegmentedControl';
@@ -32,6 +32,7 @@ import {
 import { requestSync } from '@/sync/worker';
 import changedValues from '@/utils/changedValues';
 import confirmAsync from '@/utils/confirmAsync';
+import confirmDiscardAsync from '@/utils/confirmDiscardAsync';
 import getNewItemId from '@/utils/getNewItemId';
 
 const { shape } = promptButtonCollection.schema;
@@ -57,6 +58,9 @@ function PromptButtonEditor({ id, seed, navigation }) {
   const { bottom } = useSafeAreaInsets();
   const haptics = useHaptics();
   const [draft, setDraft] = useState({ name: seed.name, prompt: seed.prompt, placement: seed.placement });
+  const [isSaving, setIsSaving] = useState(false);
+  // Set at once (state lands a render later), so a double tap writes once.
+  const isWritingRef = useRef(false);
   const isDirty = Object.keys(changedValues(seed, draft)).length > 0;
   const allowLeave = useConfirmDiscard(navigation, isDirty);
 
@@ -69,29 +73,51 @@ function PromptButtonEditor({ id, seed, navigation }) {
     setDraft((current) => ({ ...current, [field]: value }));
   }
 
-  async function handleSave() {
-    const db = getDb();
-    // Only what changed, so an edit another device made meanwhile to another field is kept.
-    if (id) await updatePromptButton(db, id, changedValues(seed, { name, prompt, placement: draft.placement }));
-    else await createPromptButton(db, { id: getNewItemId(), name, prompt, placement: draft.placement, icon: null });
-    requestSync();
-    haptics.success();
-    allowLeave();
-    navigation.goBack();
+  // Runs one write at a time; a failed one keeps the sheet open and says so.
+  async function writeOnce(write, failure) {
+    if (isWritingRef.current) return;
+    isWritingRef.current = true;
+    setIsSaving(true);
+    try {
+      await write();
+      requestSync();
+    } catch (error) {
+      console.error(failure, error);
+      haptics.error();
+      Alert.alert(failure, error.message);
+    } finally {
+      isWritingRef.current = false;
+      setIsSaving(false);
+    }
   }
 
-  // A copy of the saved button at the end of its group, opened in place of this one (which asks
-  // first when it has changes).
+  function handleSave() {
+    return writeOnce(async () => {
+      const db = getDb();
+      // Only what changed, so an edit another device made meanwhile to another field is kept.
+      if (id) await updatePromptButton(db, id, changedValues(seed, { name, prompt, placement: draft.placement }));
+      else await createPromptButton(db, { id: getNewItemId(), name, prompt, placement: draft.placement, icon: null });
+      haptics.success();
+      allowLeave();
+      navigation.goBack();
+    }, "Couldn't save the prompt button");
+  }
+
+  // A copy of the saved button at the end of its group, opened in place of this one. With changes,
+  // asks first, so a Cancel leaves no copy behind.
   async function handleDuplicate() {
-    const copy = await createPromptButton(getDb(), {
-      id: getNewItemId(),
-      name: `${seed.name} copy`.slice(0, NAME_MAX_LENGTH),
-      prompt: seed.prompt,
-      placement: seed.placement,
-      icon: seed.icon,
-    });
-    requestSync();
-    navigation.replace('PromptButtonModal', { id: copy.id });
+    if (isDirty && !(await confirmDiscardAsync())) return;
+    await writeOnce(async () => {
+      const copy = await createPromptButton(getDb(), {
+        id: getNewItemId(),
+        name: `${seed.name} copy`.slice(0, NAME_MAX_LENGTH),
+        prompt: seed.prompt,
+        placement: seed.placement,
+        icon: seed.icon,
+      });
+      allowLeave();
+      navigation.replace('PromptButtonModal', { id: copy.id });
+    }, "Couldn't duplicate the prompt button");
   }
 
   async function handleDelete() {
@@ -102,10 +128,11 @@ function PromptButtonEditor({ id, seed, navigation }) {
       destructive: true,
     });
     if (!isConfirmed) return;
-    await removePromptButton(getDb(), id);
-    requestSync();
-    allowLeave();
-    navigation.goBack();
+    await writeOnce(async () => {
+      await removePromptButton(getDb(), id);
+      allowLeave();
+      navigation.goBack();
+    }, "Couldn't delete the prompt button");
   }
 
   return (
@@ -113,7 +140,9 @@ function PromptButtonEditor({ id, seed, navigation }) {
       <ModalHeader
         leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />}
         centerSlot="Prompt button"
-        rightSlot={<PrimaryButton size="compact" label="Save" onPress={handleSave} disabled={!canSave} />}
+        rightSlot={
+          <PrimaryButton size="compact" label="Save" onPress={handleSave} disabled={!canSave} loading={isSaving} />
+        }
       />
       <DetailScrollView
         keyboardShouldPersistTaps="handled"

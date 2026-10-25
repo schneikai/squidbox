@@ -22,7 +22,10 @@ function TagsField({ tags, onChange, placeholder }) {
   function addTag() {
     const next = uniqueTags([...tags, text]);
     setText('');
-    if (next.length > tags.length) onChange(next);
+    if (next.length === tags.length) return;
+    onChange(next);
+    // The last tag there's room for closes the input.
+    if (next.length >= PERSONA_LIMITS.contentTags) setIsAdding(false);
   }
 
   function handleBlur() {
@@ -41,7 +44,7 @@ function TagsField({ tags, onChange, placeholder }) {
           accessibilityHint="Removes this tag"
         />
       ))}
-      {isAdding ? (
+      {isAdding && canAdd ? (
         <TagInput value={text} onChangeText={setText} onSubmit={addTag} onBlur={handleBlur} />
       ) : (
         canAdd && <Chip label="Add" variant="add" onPress={() => setIsAdding(true)} accessibilityLabel="Add a tag" />

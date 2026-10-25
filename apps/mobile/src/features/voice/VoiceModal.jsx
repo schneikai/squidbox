@@ -81,7 +81,8 @@ function VoiceEditor({ userId, seed, navigation }) {
   async function handleSave() {
     setIsSaving(true);
     try {
-      await savePersona(getDb(), userId, normalized(draft));
+      // Only what the user changed, so a field another device edited meanwhile keeps that edit.
+      await savePersona(getDb(), userId, changedValues(seed, normalized(draft)));
       requestSync();
       haptics.success();
       allowLeave();
@@ -182,7 +183,7 @@ function normalized(draft) {
   const kept = (list) => list.map((text) => text.trim()).filter(Boolean);
   return {
     aboutYou: draft.aboutYou.trim(),
-    contentTags: uniqueTags(draft.contentTags),
+    contentTags: uniqueTags(draft.contentTags).slice(0, PERSONA_LIMITS.contentTags),
     tone: draft.tone.trim(),
     useEmoji: draft.useEmoji,
     rules: kept(draft.rules),

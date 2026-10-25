@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import confirmAsync from '@/utils/confirmAsync';
+import confirmDiscardAsync from '@/utils/confirmDiscardAsync';
 
 /**
  * Asks "Discard changes?" before an editor screen with unsaved changes (`isDirty`) goes away: its
@@ -16,7 +16,7 @@ export default function useConfirmDiscard(navigation, isDirty) {
     return navigation.addListener('beforeRemove', (event) => {
       if (!isDirty || isAllowedRef.current) return;
       event.preventDefault();
-      confirmAsync({ title: 'Discard changes?', action: 'Discard', destructive: true }).then((isConfirmed) => {
+      confirmDiscardAsync().then((isConfirmed) => {
         if (!isConfirmed) return;
         isAllowedRef.current = true;
         navigation.dispatch(event.data.action);

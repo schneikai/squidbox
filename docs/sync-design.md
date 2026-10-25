@@ -848,8 +848,11 @@ columns. One record per user: its `id` is the user's id, so every device writes 
 the per-field merge converges. The lists are the first JSON fields of a synced collection (Postgres
 `jsonb`, SQLite JSON text); each merges as one value with its own clock. A local write compares
 JSON fields by content (`saveRecords`), so a list read back as a new array but unchanged gets no
-new clock. No field groups: after concurrent edits `useEmoji` and
-`examplePosts` can come from different devices, which still reads as a coherent prompt.
+new clock. A save names only the fields the user changed in the editor, the first save included
+(its record goes whole, but only those fields carry clocks), so a device that hasn't pulled
+another's persona yet never overwrites it with empty fields. No field groups: after concurrent
+edits `useEmoji` and `examplePosts` can come from different devices, which still reads as a
+coherent prompt.
 
 **prompt_buttons** (the chat's one-tap prompts). Synced: `name`, `prompt`, `placement` (`post` |
 `newPost` | `refine`), `icon` (an Icon name or null), `position` (a fractional-index key, the order

@@ -49,4 +49,13 @@ describe('applyPersonaDraft', () => {
     expect(useEmoji(['Sheets still warm 😏'])).toBe(true);
     expect(useEmoji(['Back home 🇩🇪'])).toBe(true);
   });
+
+  it('keeps the example posts it was drafted from, even when replacing', () => {
+    const draft = { ...empty, aboutYou: 'Mine.', examplePosts: posts };
+    expect(applyPersonaDraft(draft, reply, posts, 'replace', true)).toMatchObject({
+      aboutYou: 'Gym guy.',
+      examplePosts: posts,
+      useEmoji: true,
+    });
+  });
 });
