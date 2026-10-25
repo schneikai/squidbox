@@ -365,14 +365,6 @@ there; show it, or let the merge finish past a rejected row.
 read and written whole by every pass: about 100 bytes per record, so ~1 MB for a 10,000-photo device
 library. Fine for a few passes; a table keyed by record would scale if passes get frequent.
 
-### [ ] Make the dev secrets work in cloud environments, not just on a laptop
-
-`scripts/dev-local.mjs`, `apps/mobile/scripts/check-env.sh` and CLAUDE.md treat
-`apps/mobile/.env.local` as the only source of the `EXPO_PUBLIC_*` values; a cloud environment
-exports them as variables, and the scripts refuse to start. Owner request. Research first what to
-use (variables with the file as a laptop fallback, EAS environment variables, a secret manager), then
-change the scripts and CLAUDE.md together.
-
 ### [ ] `albumId` post scope and `albumLastPostedAt` count deleted albums' edges
 
 `postQuery`'s `albumId` scope and `albumLastPostedAt` (`sync/assetSql.ts`) use
