@@ -8,7 +8,7 @@ npm workspaces. `npm install` runs once at the repo root.
 
 | Package | What it is |
 |---|---|
-| `apps/mobile` | Expo React Native app (SDK 55). Run app commands (`npx expo start`, `scripts/check-env.sh`) from here; the `.env.local` / `.secrets` files live here too. |
+| `apps/mobile` | Expo React Native app (SDK 55). Run app commands (`scripts/check-env.sh`, `npm run web:preview`) from here; the `.env.local` / `.secrets` files live here too. |
 | `apps/server` | Backend: Fastify + TypeScript + Drizzle + Postgres, with AWS S3 for file storage. Runs locally against Docker (Postgres + MinIO), see [Local backend with mock data](#local-backend-with-mock-data). |
 | `packages/shared` | Zod wire contracts + sync collection descriptors shared by app and server. |
 
@@ -54,12 +54,12 @@ Two gitignored env files in `apps/mobile/`, each for a different audience:
 
 | File | Read by | Purpose |
 |---|---|---|
-| `.env.local` | Metro, at runtime | Supplies `EXPO_PUBLIC_*` to the **dev client** over the tunnel. Copy from `.env.local.example`, or let `scripts/check-env.sh` write it from the environment variables. |
+| `.env.local` | Metro, at runtime | Supplies `EXPO_PUBLIC_*` to the **dev client** over the tunnel. Copy from `.env.local.example`, or let `npm run dev:live` / `dev:local` (or `scripts/check-env.sh`) write it from the environment variables. |
 | `.secrets` | you, once | Upload bundle to push **preview/release** secrets to EAS. Not read at runtime. |
 
 `.env.local` holds `EXPO_PUBLIC_API_URL`, optional login prefill, Sentry debug and the OpenAI key. Each variable is explained in `.env.local.example`.
 
-`EXPO_PUBLIC_API_URL` is the deployed backend, `https://squidbox-server.fly.dev/api/v1`. `npm run dev:local` points the dev client at the local backend instead, without touching the file (see [Local backend with mock data](#local-backend-with-mock-data)). Restart Metro with `-c` after changing `.env.local`.
+`EXPO_PUBLIC_API_URL` is the deployed backend, `https://squidbox-server.fly.dev/api/v1`. `npm run dev:local` points the dev client at the local backend instead, without touching the file (see [Local backend with mock data](#local-backend-with-mock-data)). Restart `npm run dev:live` or `dev:local` after changing `.env.local`; they start Metro with a cleared cache.
 
 `.secrets` lists the values the **preview/production** builds need (`EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_OPENAI_API_KEY`, `SENTRY_AUTH_TOKEN`). They are stored as EAS environment variables:
 
@@ -97,7 +97,7 @@ The dev client loads JS from Metro at runtime over Expo's tunnel (an `exp.direct
 npm run dev:live
 ```
 
-It writes a missing `apps/mobile/.env.local` from the environment variables (cloud workspaces), starts Metro with the tunnel (retrying when Expo's tunnel fails, which happens now and then), builds the first bundle so the phone doesn't time out waiting for it, and prints the URL to open in Squidbox (Dev) via "Enter URL manually". Ctrl+C, or SIGTERM to the script, stops Metro and the tunnel. Without `.env.local`, Metro would serve a bundle with no `EXPO_PUBLIC_*` values; `scripts/check-env.sh` in `apps/mobile/` checks it.
+It writes a missing `apps/mobile/.env.local` from the environment variables (cloud workspaces), starts Metro with the tunnel (retrying when Expo's tunnel fails, which happens now and then), builds the first bundle so the phone doesn't time out waiting for it, and prints the URL to open in Squidbox (Dev) via "Enter URL manually". Ctrl+C, or SIGTERM to the script, stops Metro and the tunnel. If it can't write one (none of its variables are set), it stops before starting Metro, which would otherwise serve a bundle with no `EXPO_PUBLIC_*` values; `scripts/check-env.sh` in `apps/mobile/` shows what's missing.
 
 The Expo tunnel URL stays the same across restarts of the same checkout. Metro starts with a cleared cache, so changes to `.env.local` or packages take effect on the next start.
 
@@ -114,7 +114,7 @@ It starts Postgres + MinIO, applies migrations and creates the local accounts, s
 
 Metro serves the API and file storage through its own tunnel (`apps/mobile/scripts/localBackendProxy.js`), and the script sets `EXPO_PUBLIC_LOCAL_BACKEND`, which makes the app send its API calls to the dev server it loaded from (`Constants.expoConfig.hostUri`). So no env file holds the tunnel URL, and `.env.local` stays pointed at the live backend. On the first run, `apps/server/.env` is created from `.env.docker`.
 
-To go back to your real library, run `npm run dev:live` and sign in with your account: the local account's library is parked and yours opens (see [Accounts and libraries](#accounts-and-libraries)). The local backend has its own `SERVER_ID` (`apps/server/.env.docker`), so its session and library never pass for the live server's; the dev tunnel's changing host costs no sign-in, since the app re-checks the server's identity on `/up` first.
+To go back to your real library, run `npm run dev:live` and sign in with your account: the local account's library is parked and yours opens (see [Accounts and libraries](#accounts-and-libraries)). The local backend has its own `SERVER_ID` (`apps/server/.env.docker`), so its session and library never pass for the live server's; a new dev tunnel host (another checkout) costs no sign-in, since the app re-checks the server's identity on `/up` first.
 
 If Docker pulls fail, or the server can't reach MinIO, see `apps/server/README.md` → "Local development".
 
