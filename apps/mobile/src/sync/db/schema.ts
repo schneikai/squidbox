@@ -154,6 +154,35 @@ export const postAssets = sqliteTable(
 );
 export type PostAssetRow = typeof postAssets.$inferSelect;
 
+// Assistant setup (mirror @squidbox/shared personas / prompt_buttons). One persona per user (its id
+// is the user's id); the lists are JSON text.
+export const personas = sqliteTable('personas', {
+  id: text('id').primaryKey(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  deletedAt: integer('deleted_at'),
+  aboutYou: text('about_you').notNull(),
+  contentTags: text('content_tags', { mode: 'json' }).$type<string[]>().notNull(),
+  tone: text('tone').notNull(),
+  useEmoji: integer('use_emoji', { mode: 'boolean' }).notNull(),
+  rules: text('rules', { mode: 'json' }).$type<string[]>().notNull(),
+  examplePosts: text('example_posts', { mode: 'json' }).$type<string[]>().notNull(),
+});
+export type PersonaRow = typeof personas.$inferSelect;
+
+export const promptButtons = sqliteTable('prompt_buttons', {
+  id: text('id').primaryKey(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  deletedAt: integer('deleted_at'),
+  name: text('name').notNull(),
+  prompt: text('prompt').notNull(),
+  placement: text('placement', { enum: ['post', 'newPost', 'refine'] }).notNull(),
+  icon: text('icon'),
+  position: text('position').notNull(),
+});
+export type PromptButtonRow = typeof promptButtons.$inferSelect;
+
 // key/value store for the pull cursor + sync status (all local-only).
 export const syncMeta = sqliteTable('sync_meta', {
   key: text('key').primaryKey(),

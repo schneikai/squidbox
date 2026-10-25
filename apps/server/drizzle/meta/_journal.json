@@ -78,6 +78,13 @@
       "when": 1792775687998,
       "tag": "0010_asset_details",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792952915582,
+      "tag": "0011_assistant_setup",
+      "breakpoints": true
     }
   ]
 }

@@ -10,4 +10,6 @@ export const clientCollectionTables: Record<string, SQLiteTable> = {
   posts: schema.posts,
   album_assets: schema.albumAssets,
   post_assets: schema.postAssets,
+  personas: schema.personas,
+  prompt_buttons: schema.promptButtons,
 };

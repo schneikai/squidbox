@@ -1344,6 +1344,23 @@ d('sync engine (Postgres)', () => {
       posts: () => postRecord(),
       album_assets: () => ({ ...base(), albumId: randomUUID(), assetId: randomUUID(), position: 'a0' }),
       post_assets: () => ({ ...base(), postId: randomUUID(), assetId: randomUUID(), position: 'a0' }),
+      personas: () => ({
+        ...base(),
+        aboutYou: 'Gym guy from Berlin.',
+        contentTags: ['gym', 'pov'],
+        tone: 'Short and cocky.',
+        useEmoji: true,
+        rules: ['Never use hashtags'],
+        examplePosts: ['Leg day. You\'re welcome.'],
+      }),
+      prompt_buttons: () => ({
+        ...base(),
+        name: 'Shorter',
+        prompt: 'Make each option shorter.',
+        placement: 'refine',
+        icon: null,
+        position: 'a0',
+      }),
     };
 
     for (const name of collectionNames) {
@@ -1372,7 +1389,7 @@ d('sync engine (Postgres)', () => {
         expect(res[0].status).toBe('applied');
 
         const aPage = await pull(db, USER_A, { cursor: 0 });
-        expect(aPage.changes[name].records.some((r: any) => r.id === rec.id)).toBe(true);
+        expect(aPage.changes[name].records.find((r: any) => r.id === rec.id)).toMatchObject(rec);
 
         const bPage = await pull(db, USER_B, { cursor: 0 });
         expect(bPage.changes[name]?.records.some((r: any) => r.id === rec.id) ?? false).toBe(false);

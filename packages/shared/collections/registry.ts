@@ -4,6 +4,8 @@ import { albumCollection } from './album';
 import { postCollection } from './post';
 import { albumAssetCollection } from './albumAsset';
 import { postAssetCollection } from './postAsset';
+import { personaCollection } from './persona';
+import { promptButtonCollection } from './promptButton';
 
 // The collection registry the sync engine iterates. Adding a collection is: define it, add it
 // here, add its migrations + server_seq trigger (the trigger is attached registry-driven).
@@ -13,6 +15,8 @@ export const collections: readonly CollectionDescriptor[] = [
   postCollection,
   albumAssetCollection,
   postAssetCollection,
+  personaCollection,
+  promptButtonCollection,
 ];
 
 export const collectionsByName: Record<string, CollectionDescriptor> = Object.fromEntries(
@@ -21,4 +25,11 @@ export const collectionsByName: Record<string, CollectionDescriptor> = Object.fr
 
 export const collectionNames: readonly string[] = collections.map((c) => c.name);
 
-export type CollectionName = 'assets' | 'albums' | 'posts' | 'album_assets' | 'post_assets';
+export type CollectionName =
+  | 'assets'
+  | 'albums'
+  | 'posts'
+  | 'album_assets'
+  | 'post_assets'
+  | 'personas'
+  | 'prompt_buttons';

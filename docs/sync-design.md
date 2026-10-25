@@ -842,6 +842,26 @@ columns. One record per album and asset.
 **post_assets** (assets in a post). Synced: `postId`, `assetId`, `position`, plus the base
 columns. The edge id is the `assetRefs[].id` the UI sees.
 
+**personas** ("Writing as you", Settings → Assistant). Synced: `aboutYou`, `contentTags`
+(string[]), `tone`, `useEmoji`, `rules` (string[]), `examplePosts` (string[]), plus the base
+columns. One record per user: its `id` is the user's id, so every device writes the same record and
+the per-field merge converges. The lists are the first JSON fields of a synced collection (Postgres
+`jsonb`, SQLite JSON text); each merges as one value with its own clock, so a save sends only the
+fields it changed (`personaRepository.savePersona`): an untouched list must not get a new clock and
+overwrite another device's edit of it. No field groups: after concurrent edits `useEmoji` and
+`examplePosts` can come from different devices, which still reads as a coherent prompt.
+
+**prompt_buttons** (the chat's one-tap prompts). Synced: `name`, `prompt`, `placement` (`post` |
+`newPost` | `refine`), `icon` (an Icon name or null), `position` (a fractional-index key, the order
+within the placement by `(position, id)`), plus the base columns. A button for two places is two
+records. The app seeds a default set once per library, only while the table has no rows at all
+(tombstones included), with fixed ids, so a deleted default never comes back and two devices that
+both seed converge on one row each.
+
+A library merge (`mergeLibrary.ts`) leaves both alone: a device library has none (the assistant
+needs an account), and an account library's rows are on the server already. `seed-mock.ts`'s reset
+keeps them too.
+
 Edges have a parent index on both sides (`album_assets_album_idx`, `post_assets_post_idx`).
 References between collections are not enforced with foreign keys; the UI tolerates ids that
 don't resolve.

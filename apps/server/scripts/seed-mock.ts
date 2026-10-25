@@ -328,6 +328,9 @@ function toMutations(recordsByCollection: Record<string, object[]>): PushMutatio
 }
 
 async function tombstonesForOtherRecords(keep: Record<string, { id: string }[]>): Promise<PushMutation[]> {
+  // The account's assistant setup, which the app seeds once and the owner edits, stays: prompt
+  // buttons a reset tombstoned would never come back.
+  const setupCollections = new Set(['personas', 'prompt_buttons']);
   const keepIds = new Set(Object.values(keep).flatMap((records) => records.map((r) => r.id)));
   const tombstones: PushMutation[] = [];
   let cursor = 0;
@@ -335,6 +338,7 @@ async function tombstonesForOtherRecords(keep: Record<string, { id: string }[]>)
   while (hasMore) {
     const page = (await api('/sync/pull', { cursor, limit: 1000 })) as PullResponse;
     for (const [collection, { records }] of Object.entries(page.changes)) {
+      if (setupCollections.has(collection)) continue;
       for (const record of records) {
         if (keepIds.has(record.id as string) || record.deletedAt) continue;
         tombstones.push({ collection, record: { ...record, deletedAt: now, updatedAt: now } });
