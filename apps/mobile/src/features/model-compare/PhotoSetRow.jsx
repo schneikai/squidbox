@@ -11,9 +11,9 @@ import pluralizeText from '@/utils/pluralizeText';
 const SHOWN = 3;
 const THUMB_SIZE = scale(34);
 
-// The photos a vision compare tags: the first few ("+N" on the last for the rest), how many,
-// whether they're the last compare's, and a button to pick them.
-export default function PhotoSetRow({ assets, isLastTime, onPick }) {
+// The photos a vision compare tags: the first few ("+N" on the last for the rest), how many, a
+// `detail` line under the count ("Same as last time"), and a button to pick them.
+export default function PhotoSetRow({ assets, detail, onPick }) {
   const count = assets.length;
   const hidden = count - SHOWN;
 
@@ -32,7 +32,7 @@ export default function PhotoSetRow({ assets, isLastTime, onPick }) {
         <Text style={styles.count} numberOfLines={1}>
           {count === 0 ? 'No photos' : pluralizeText('%{count} photo', '%{count} photos', count)}
         </Text>
-        {isLastTime && count > 0 && <Text style={styles.detail}>Same as last time</Text>}
+        {!!detail && count > 0 && <Text style={styles.detail}>{detail}</Text>}
       </View>
       <TextButton label={count === 0 ? 'Pick photos' : 'Change'} onPress={onPick} size="small" />
     </Card>

@@ -1,4 +1,4 @@
-import { COMPARE_MAX_MODELS, COMPARE_MIN_MODELS } from '@squidbox/shared';
+import { COMPARE_MAX_MODELS, COMPARE_MIN_MODELS, VISION_COMPARE_MAX_PHOTOS } from '@squidbox/shared';
 import { useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,8 +32,9 @@ export default function ComparePickScreen({ navigation, route }) {
   const chosenId = useLiveQuery((db) => readChosenModelId(db, kind), [schema.aiKinds], [kind]);
   // Your changes only: null keeps the default, the current choice ticked.
   const [tickedIds, setTickedIds] = useState(null);
-  // The photos picked here; null keeps the last compare's.
+  // The photos picked here (at most VISION_COMPARE_MAX_PHOTOS); null keeps the last compare's.
   const [pickedIds, setPickedIds] = useState(null);
+  const [pickedCount, setPickedCount] = useState(0); // how many were picked, before the cap
   const photos = useLiveQuery(
     async (db) =>
       pickedIds ? (await readByIds(db, schema.assets, pickedIds)).filter(isLive) : isVision ? readVisionPhotos(db) : [],
@@ -45,6 +46,12 @@ export default function ComparePickScreen({ navigation, route }) {
   const modelCount = ticked.length;
   const hasPhotos = !isVision || (photos?.length ?? 0) > 0;
   const canStart = modelCount >= COMPARE_MIN_MODELS && modelCount <= COMPARE_MAX_MODELS && hasPhotos;
+  const photosDetail =
+    pickedIds === null
+      ? 'Same as last time'
+      : pickedCount > VISION_COMPARE_MAX_PHOTOS
+        ? `The first ${VISION_COMPARE_MAX_PHOTOS} of ${pickedCount}`
+        : null;
 
   function handleToggle(id) {
     setTickedIds(ticked.includes(id) ? ticked.filter((tickedId) => tickedId !== id) : [...ticked, id]);
@@ -52,7 +59,9 @@ export default function ComparePickScreen({ navigation, route }) {
 
   async function handlePickPhotos() {
     const assets = await openAssetPicker();
-    if (assets?.length) setPickedIds(assets.map(({ id }) => id));
+    if (!assets?.length) return;
+    setPickedIds(assets.slice(0, VISION_COMPARE_MAX_PHOTOS).map(({ id }) => id));
+    setPickedCount(assets.length);
   }
 
   async function handleStart() {
@@ -81,9 +90,7 @@ export default function ComparePickScreen({ navigation, route }) {
             />
           ))}
         </Section>
-        {isVision && photos && (
-          <PhotoSetRow assets={photos} isLastTime={pickedIds === null} onPick={handlePickPhotos} />
-        )}
+        {isVision && photos && <PhotoSetRow assets={photos} detail={photosDetail} onPick={handlePickPhotos} />}
       </ScrollView>
       <FloatingPrimaryAction>
         <PrimaryButton

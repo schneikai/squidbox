@@ -43,10 +43,9 @@ export default function ModelListScreen({ navigation, route }) {
   );
 
   // First run: your list starts with the owner's picks that Venice still has.
-  const needsSeed = !!catalog && list === null;
   useEffect(() => {
-    if (needsSeed) seedYourModels(getDb(), kind, seedModels(modelsOfKind(catalog, kind), kind));
-  }, [needsSeed]);
+    if (catalog && list === null) seedYourModels(getDb(), kind, seedModels(modelsOfKind(catalog, kind), kind));
+  }, [catalog, list]);
 
   const rows = catalog && list ? joinYourModels(list.models, catalog, kind) : null;
   const availableRows = rows?.filter((row) => row.model !== null) ?? [];

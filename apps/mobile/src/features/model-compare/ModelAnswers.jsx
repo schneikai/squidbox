@@ -12,7 +12,7 @@ export default memo(ModelAnswers);
 /**
  * Every model's answer for one results key (TEXT_KEY or a photo), on cards in the round's letter
  * order: the tweets with their thumbs up, or the tags to mark as fitting. `toggle(answerKey,
- * modelId, index, isOn)` is the round's.
+ * modelId, index)` is the round's.
  */
 function ModelAnswers({ answerKey, kind, letters, namesById, results = {}, taps = {}, roundNumber, toggle }) {
   return letters.map(({ modelId, label }) => {
@@ -24,21 +24,14 @@ function ModelAnswers({ answerKey, kind, letters, namesById, results = {}, taps 
           <View style={styles.tags}>
             {items.map((tag, index) => {
               const isOn = tapped.includes(index);
-              return (
-                <TagChip key={index} label={tag} isOn={isOn} onToggle={() => toggle(answerKey, modelId, index, isOn)} />
-              );
+              return <TagChip key={index} label={tag} isOn={isOn} onToggle={() => toggle(answerKey, modelId, index)} />;
             })}
           </View>
         ) : (
           items.map((tweet, index) => {
             const isLiked = tapped.includes(index);
             return (
-              <TweetRow
-                key={index}
-                text={tweet}
-                isLiked={isLiked}
-                onToggle={() => toggle(answerKey, modelId, index, isLiked)}
-              />
+              <TweetRow key={index} text={tweet} isLiked={isLiked} onToggle={() => toggle(answerKey, modelId, index)} />
             );
           })
         )}

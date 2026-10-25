@@ -35,9 +35,9 @@ const baseConfig = {
       favicon: './assets/favicon.png',
     },
     extra: {
-      // Which build this is: EAS sets EAS_BUILD_PROFILE on a build; Metro (dev client, web preview)
-      // has none and is development. src/utils/isTestBuild.js reads it.
-      buildProfile: process.env.EAS_BUILD_PROFILE ?? 'development',
+      // Which EAS build this is (EAS sets EAS_BUILD_PROFILE); unset for any other build, which
+      // counts as a release. src/features/model-compare/isTestBuild.js reads it.
+      buildProfile: process.env.EAS_BUILD_PROFILE,
       eas: {
         projectId: 'e74016a5-b902-4dca-9c35-f1ef376c4f52',
       },

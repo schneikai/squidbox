@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -42,38 +42,34 @@ export default function CompareScreen({ navigation, route }) {
   const modelIds = useMemo(() => models.map(({ id }) => id), [models]);
   const round = useCompareRound({ kind, modelIds });
 
-  // The first round starts once its input is in: the remembered prompt, or the photos.
-  useEffect(() => {
-    if (isVision) {
-      readByIds(getDb(), schema.assets, photoIds).then((assets) => {
-        setPhotos(assets);
-        round.startRound({ photos: assets });
-      });
-    } else {
-      readWritingPrompt(getDb()).then((remembered) => {
-        savedPromptRef.current = remembered;
-        setPrompt(remembered ?? DEFAULT_PROMPT);
-        startWritingRound(remembered ?? DEFAULT_PROMPT);
-      });
-    }
-  }, []);
-
   const namesById = useMemo(() => Object.fromEntries(models.map(({ id, name }) => [id, name])), [models]);
-  const canStart = !round.isRunning && (isVision ? !!photos?.length : !!prompt?.trim());
 
-  function startWritingRound(text) {
-    // Remembered for next time, written only when it changed.
-    if (text !== savedPromptRef.current) {
-      savedPromptRef.current = text;
-      setWritingPrompt(getDb(), text).catch((error) => console.error('Saving the prompt failed', error));
-    }
-    round.startRound({ prompt: text.trim() });
-  }
-
-  function handleNewRound() {
-    if (isVision) round.startRound({ photos });
-    else startWritingRound(prompt);
-  }
+  // The first round starts once its input is in: the remembered prompt, or the photos. A read that
+  // fails goes back with why; one that ends after the screen closed starts nothing.
+  useEffect(() => {
+    let isCancelled = false;
+    const readInput = isVision
+      ? readByIds(getDb(), schema.assets, photoIds).then((assets) => {
+          if (isCancelled) return;
+          setPhotos(assets);
+          round.startRound({ photos: assets });
+        })
+      : readWritingPrompt(getDb()).then((remembered) => {
+          if (isCancelled) return;
+          savedPromptRef.current = remembered;
+          setPrompt(remembered ?? DEFAULT_PROMPT);
+          startWritingRound(remembered ?? DEFAULT_PROMPT);
+        });
+    readInput.catch((error) => {
+      console.error('Reading the compare input failed', error);
+      if (isCancelled) return;
+      Alert.alert("Couldn't start the compare", error.message);
+      navigation.goBack();
+    });
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   const handleOpenPhoto = useCallback(
     (asset) => navigation.navigate('AssetScreen', { assetId: asset.id, query: { scope: { assetId: asset.id } } }),
@@ -95,6 +91,22 @@ export default function CompareScreen({ navigation, route }) {
     ),
     [round.letters, round.results, round.taps, round.number, round.toggle, namesById, handleOpenPhoto],
   );
+
+  const canStart = !round.isRunning && (isVision ? !!photos?.length : !!prompt?.trim());
+
+  function startWritingRound(text) {
+    // Remembered for next time, written only when it changed.
+    if (text !== savedPromptRef.current) {
+      savedPromptRef.current = text;
+      setWritingPrompt(getDb(), text).catch((error) => console.error('Saving the prompt failed', error));
+    }
+    round.startRound({ prompt: text.trim() });
+  }
+
+  function handleNewRound() {
+    if (isVision) round.startRound({ photos });
+    else startWritingRound(prompt);
+  }
 
   function renderWriting() {
     return (

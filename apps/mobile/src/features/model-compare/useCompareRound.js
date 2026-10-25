@@ -23,8 +23,8 @@ export const TEXT_KEY = 'text';
  * every model again; `number` counts the rounds. `results[key][modelId]` is `{ status: 'loading' |
  * 'done' | 'error', items, error }`, keyed by TEXT_KEY or the photo's asset id, and `isRunning`
  * while any is loading. `taps[key][modelId]` holds the indexes of the tweets thumbed up or tags
- * marked as fitting this round; `toggle(key, modelId, index, isOn)` flips one and adds ±1 to the
- * model's score. `toggle` is stable, so memoized rows keep it.
+ * marked as fitting this round; `toggle(key, modelId, index)` flips one and adds ±1 to the model's
+ * score. `toggle` is stable, so memoized rows keep it.
  */
 export default function useCompareRound({ kind, modelIds }) {
   const haptics = useHaptics();
@@ -33,6 +33,8 @@ export default function useCompareRound({ kind, modelIds }) {
   const { loadThumbnail } = useAssetThumbnailLoader();
   const [round, setRound] = useState({ number: 0, letters: [], results: {}, taps: {} });
   const controllerRef = useRef(null);
+  // The taps as of the last toggle: two taps before a re-render must see each other.
+  const tapsRef = useRef({});
   // Each photo's image, read and resized once for all the rounds of this compare.
   const imagesRef = useRef(new Map());
 
@@ -94,6 +96,7 @@ export default function useCompareRound({ kind, modelIds }) {
     controllerRef.current = controller;
     const jobs = jobsFor(input);
     const loading = Object.fromEntries(modelIds.map((modelId) => [modelId, { status: 'loading' }]));
+    tapsRef.current = {};
     setRound((current) => ({
       number: current.number + 1,
       letters: assignLetters(modelIds),
@@ -104,12 +107,14 @@ export default function useCompareRound({ kind, modelIds }) {
   }
 
   const toggle = useCallback(
-    (key, modelId, index, isOn) => {
-      setRound((current) => {
-        const tapped = current.taps[key]?.[modelId] ?? [];
-        const next = isOn ? tapped.filter((i) => i !== index) : [...tapped, index];
-        return { ...current, taps: { ...current.taps, [key]: { ...current.taps[key], [modelId]: next } } };
-      });
+    (key, modelId, index) => {
+      const taps = tapsRef.current;
+      const tapped = taps[key]?.[modelId] ?? [];
+      const isOn = tapped.includes(index);
+      const next = isOn ? tapped.filter((i) => i !== index) : [...tapped, index];
+      tapsRef.current = { ...taps, [key]: { ...taps[key], [modelId]: next } };
+      const nextTaps = tapsRef.current;
+      setRound((current) => ({ ...current, taps: nextTaps }));
       haptics.selection();
       addScore(getDb(), kind, modelId, isOn ? -1 : 1).catch((error) => console.error('Saving the score failed', error));
     },

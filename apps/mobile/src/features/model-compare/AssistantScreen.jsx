@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 
 import modelKindText from './modelKindText';
+import modelsOfKind from './modelsOfKind';
 import useAiCatalog from './useAiCatalog';
 import useLeaveWhenUnavailable from './useLeaveWhenUnavailable';
 
@@ -29,7 +30,7 @@ export default function AssistantScreen() {
     const model = chosen?.[kind];
     if (chosen === undefined) return null;
     if (!model) return { value: 'Not chosen', isGone: false };
-    const isGone = !!catalog && !catalog.some(({ id }) => id === model.id);
+    const isGone = !!catalog && !modelsOfKind(catalog, kind).some(({ id }) => id === model.id);
     return { value: isGone ? 'No longer available' : model.name, isGone };
   }
 

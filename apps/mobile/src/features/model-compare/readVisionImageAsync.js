@@ -1,3 +1,6 @@
+import * as FileSystem from 'expo-file-system/legacy';
+import { Platform } from 'react-native';
+
 import { getAssetThumbnailUri } from '@/utils/assets/assetStorage';
 import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';
 import getAssetThumbnailStatusAsync from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
@@ -17,8 +20,10 @@ export default async function readVisionImageAsync(asset, { library, loadThumbna
   else if (status !== 'local') throw new Error(assetFileUnavailableMessages[status].title);
 
   const uri = getAssetThumbnailUri(asset.thumbnailFilename, library);
-  const { base64 } = await resizeToThumbnail(uri, asset.width, asset.height, { size: LONGER_SIDE, base64: true });
-  return { base64, mimeType: 'image/jpeg' };
+  const resized = await resizeToThumbnail(uri, asset.width, asset.height, { size: LONGER_SIDE, base64: true });
+  // Only the base64 is sent: the JPEG the resize wrote to the cache goes (the web keeps no file).
+  if (Platform.OS !== 'web') await FileSystem.deleteAsync(resized.uri, { idempotent: true });
+  return { base64: resized.base64, mimeType: 'image/jpeg' };
 }
 
 function loadThumbnailAsync(asset, loadThumbnail) {
