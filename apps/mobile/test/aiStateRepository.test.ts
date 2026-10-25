@@ -5,6 +5,7 @@ import { makeTestDb } from './helpers/testDb';
 import {
   addScore,
   addYourModel,
+  markTried,
   readChosenModelId,
   readChosenModels,
   readModelList,
@@ -21,7 +22,7 @@ import * as assetsRepository from '../src/sync/assetsRepository';
 
 const kimi = { id: 'kimi-k3', name: 'Kimi K3' };
 const grok = { id: 'grok-4-7', name: 'Grok 4.7' };
-const scored = (model: typeof kimi, score = 0) => ({ ...model, score });
+const scored = (model: typeof kimi, score: number | null = null) => ({ ...model, score });
 
 describe('aiStateRepository', () => {
   it('reads nothing before the first write', async () => {
@@ -91,6 +92,14 @@ describe('aiStateRepository', () => {
     expect((await readModelList(db, 'vision'))?.models).toEqual([scored(kimi, 1), scored(grok, 0)]);
   });
 
+  it('marks a compared model as tried with 0, keeping a score it already has', async () => {
+    const db = makeTestDb();
+    await seedYourModels(db, 'writing', [kimi, grok]);
+    await addScore(db, 'writing', kimi.id, 1);
+    await markTried(db, 'writing', [kimi.id, grok.id]);
+    expect((await readModelList(db, 'writing'))?.models).toEqual([scored(kimi, 1), scored(grok, 0)]);
+  });
+
   it("resets one model's score or every score of a kind, and the other kind keeps its own", async () => {
     const db = makeTestDb();
     await seedYourModels(db, 'writing', [kimi, grok]);
@@ -98,9 +107,9 @@ describe('aiStateRepository', () => {
     for (const model of [kimi, grok]) await addScore(db, 'writing', model.id, 1);
     await addScore(db, 'vision', kimi.id, 1);
     await resetScores(db, 'writing', kimi.id);
-    expect((await readModelList(db, 'writing'))?.models).toEqual([scored(kimi, 0), scored(grok, 1)]);
+    expect((await readModelList(db, 'writing'))?.models).toEqual([scored(kimi), scored(grok, 1)]);
     await resetScores(db, 'writing');
-    expect((await readModelList(db, 'writing'))?.models).toEqual([scored(kimi, 0), scored(grok, 0)]);
+    expect((await readModelList(db, 'writing'))?.models).toEqual([scored(kimi), scored(grok)]);
     expect((await readModelList(db, 'vision'))?.models).toEqual([scored(kimi, 1)]);
   });
 

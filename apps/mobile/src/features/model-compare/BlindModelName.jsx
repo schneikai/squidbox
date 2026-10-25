@@ -1,14 +1,17 @@
 import { BlurView } from 'expo-blur';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import Icon from '@/components/Icon';
-import { colors, motion, radii, scale, typography } from '@/styles/designTokens';
+import { colors, lineHeights, motion, radii, scale, typography } from '@/styles/designTokens';
 
 const ICON_SIZE = scale(16);
+// While hidden every name takes this one width, so its length gives nothing away.
+const HIDDEN_WIDTH = scale(96);
 
-// A compare card's real model name, blurred until tapped; a second tap hides it again.
+// A compare card's real model name, hidden under a blur of the same width for every model until
+// tapped; a second tap hides it again.
 export default function BlindModelName({ name }) {
   const [isShown, setIsShown] = useState(false);
   const hidden = useSharedValue(1);
@@ -26,13 +29,13 @@ export default function BlindModelName({ name }) {
       accessibilityLabel={isShown ? `${name}, hide the name` : 'Show the model name'}
       style={[styles.pill, isShown && styles.shown]}
     >
-      <Text
-        style={[styles.name, isShown ? styles.shownName : styles.hiddenName]}
-        numberOfLines={1}
-        accessibilityElementsHidden={!isShown}
-      >
-        {name}
-      </Text>
+      {isShown ? (
+        <Text style={[styles.name, styles.shownName]} numberOfLines={1}>
+          {name}
+        </Text>
+      ) : (
+        <View style={styles.hiddenName} />
+      )}
       <Animated.View style={[StyleSheet.absoluteFill, blurStyle]} pointerEvents="none">
         <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
       </Animated.View>
@@ -65,9 +68,10 @@ const styles = StyleSheet.create({
     fontSize: typography.subheadline,
     color: colors.text.primary,
   },
-  // Faint under the blur, so the blur alone never has to hide it (it is weaker on web).
+  // The name isn't laid out while hidden: a blank of one width under the blur.
   hiddenName: {
-    opacity: 0.15,
+    width: HIDDEN_WIDTH,
+    height: lineHeights.subheadline,
   },
   shownName: {
     color: colors.accent.base,

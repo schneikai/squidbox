@@ -33,7 +33,11 @@ export function Row({ label, value, isValueMuted, onPress, destructive, chevron,
     <View style={styles.row}>
       <Text style={[styles.rowLabel, destructive && styles.rowLabelDestructive]}>{label}</Text>
       <View style={styles.rowRight}>
-        {value ? <Text style={[styles.rowValue, isValueMuted && styles.rowValueMuted]}>{value}</Text> : null}
+        {value ? (
+          <Text style={[styles.rowValue, isValueMuted && styles.rowValueMuted]} numberOfLines={1}>
+            {value}
+          </Text>
+        ) : null}
         {children}
         {chevron && (
           <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.tertiary} style={{ marginLeft: 4 }} />
@@ -66,8 +70,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: SCREEN_PADDING,
     paddingVertical: 16,
   },
+  // The label keeps its width; a long value shortens with an ellipsis instead.
   rowLabel: {
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 0,
     fontSize: typography.body,
     color: colors.text.primary,
   },

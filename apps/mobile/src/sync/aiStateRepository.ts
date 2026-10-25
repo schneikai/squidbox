@@ -10,7 +10,8 @@ import type { SyncDb } from './db/types';
 // writer.
 
 export type ModelRef = { id: string; name: string };
-export type ModelListEntry = ModelRef & { score: number };
+// score: null for a model never compared, else its thumbs up or tags that fit (0 and up).
+export type ModelListEntry = ModelRef & { score: number | null };
 
 const { aiKinds, aiModels, aiScores, aiVisionPhotos, assets } = schema;
 
@@ -35,9 +36,7 @@ export async function readModelList(
     .where(eq(aiKinds.kind, kind))
     .orderBy(asc(aiModels.position));
   if (rows.length === 0) return null;
-  const models = rows.flatMap(({ id, name, score }) =>
-    id !== null && name !== null ? [{ id, name, score: score ?? 0 }] : [],
-  );
+  const models = rows.flatMap(({ id, name, score }) => (id !== null && name !== null ? [{ id, name, score }] : []));
   return { chosenId: rows[0].chosenId, models };
 }
 
@@ -133,7 +132,16 @@ export function setVisionPhotos(db: SyncDb, assetIds: string[]): Promise<void> {
   });
 }
 
-/** Sets one model's score (with `modelId`) or every score of this kind back to 0. */
+/** Records that these models answered a compare: a score of 0 for any without one yet. */
+export async function markTried(db: SyncDb, kind: AiModelKind, modelIds: string[]): Promise<void> {
+  if (modelIds.length === 0) return;
+  await db
+    .insert(aiScores)
+    .values(modelIds.map((modelId) => ({ kind, modelId, score: 0 })))
+    .onConflictDoNothing();
+}
+
+/** Takes one model (with `modelId`) or every model of this kind back to never compared. */
 export async function resetScores(db: SyncDb, kind: AiModelKind, modelId?: string): Promise<void> {
   await db
     .delete(aiScores)

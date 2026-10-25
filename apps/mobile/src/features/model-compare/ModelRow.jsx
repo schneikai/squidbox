@@ -33,13 +33,13 @@ export default function ModelRow({ name, model, kind, score, isChosen, onChoose,
           name={name}
           isUncensored={model?.isUncensored}
           detail={`${scoreText(score, kind)} · ${isAvailable ? formatCost(model, kind) : 'No longer available'}`}
-          detailIcon={kind === 'writing' && score > 0 ? 'thumbs-up' : null}
+          detailIcon={kind === 'writing' && score !== null ? 'thumbs-up' : null}
           isDimmed={!isAvailable}
         />
         {isChosen && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
       </TouchableOpacity>
       <IconMenuButton accessibilityLabel={`${name} options`} color={colors.text.secondary}>
-        {score > 0 && (
+        {score !== null && (
           <>
             <MenuOption label="Reset score" icon="undo" onPress={onResetScore} />
             <MenuDivider />

@@ -27,9 +27,10 @@ const DEFAULT_PROMPT = "Write 3 spicy tweets for my fans. Tease, don't tell. Und
 
 /**
  * The blind compare (route params `kind`, the ticked `models` with their names and for vision the
- * `photoIds`): each model's answer on a card labelled Model A–D in a fresh order each round, its
- * name blurred. Writing shows 3 tweets per model to thumb up; vision 8 tags per model per photo to
- * mark as fitting, one list row per photo. Both add up in the model list. X closes the whole compare.
+ * `photoIds`). Writing waits for Start under its prompt; vision starts right away. Each model's
+ * answer is on a card labelled Model A, B, … in a fresh order each round, its name hidden. Writing
+ * shows 3 tweets per model to thumb up; vision 8 tags per model per photo to mark as fitting, one
+ * list row per photo. Both add up in the model list. X closes the whole compare.
  */
 export default function CompareScreen({ navigation, route }) {
   const { kind, models, photoIds } = route.params;
@@ -44,8 +45,9 @@ export default function CompareScreen({ navigation, route }) {
 
   const namesById = useMemo(() => Object.fromEntries(models.map(({ id, name }) => [id, name])), [models]);
 
-  // The first round starts once its input is in: the remembered prompt, or the photos. A read that
-  // fails goes back with why; one that ends after the screen closed starts nothing.
+  // Vision starts its first round once the photos are in; writing shows the remembered prompt and
+  // waits for Start, so it can be changed first. A read that fails goes back with why; one that
+  // ends after the screen closed starts nothing.
   useEffect(() => {
     let isCancelled = false;
     const readInput = isVision
@@ -58,7 +60,6 @@ export default function CompareScreen({ navigation, route }) {
           if (isCancelled) return;
           savedPromptRef.current = remembered;
           setPrompt(remembered ?? DEFAULT_PROMPT);
-          startWritingRound(remembered ?? DEFAULT_PROMPT);
         });
     readInput.catch((error) => {
       console.error('Reading the compare input failed', error);
@@ -92,6 +93,7 @@ export default function CompareScreen({ navigation, route }) {
     [round.letters, round.results, round.taps, round.number, round.toggle, namesById, handleOpenPhoto],
   );
 
+  const hasStarted = round.number > 0;
   const canStart = !round.isRunning && (isVision ? !!photos?.length : !!prompt?.trim());
 
   function startWritingRound(text) {
@@ -160,8 +162,8 @@ export default function CompareScreen({ navigation, route }) {
       />
       <FloatingPrimaryAction>
         <PrimaryButton
-          icon="repeat"
-          label={isVision ? 'New tags' : 'New suggestions'}
+          icon={hasStarted ? 'repeat' : 'play'}
+          label={!hasStarted ? 'Start' : isVision ? 'New tags' : 'New suggestions'}
           onPress={handleNewRound}
           loading={round.isRunning}
           disabled={!canStart}

@@ -14,6 +14,7 @@ export default function TweetRow({ text, isLiked, onToggle }) {
         icon="thumbs-up"
         variant="tinted"
         isActive={isLiked}
+        filled={isLiked}
         color={colors.text.secondary}
         onPress={onToggle}
         accessibilityLabel={isLiked ? 'Remove thumbs up' : 'Thumbs up'}

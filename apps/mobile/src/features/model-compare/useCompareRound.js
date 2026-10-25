@@ -9,7 +9,7 @@ import useAssetThumbnailLoader from '@/features/asset-thumbnail-loader/useAssetT
 import useCloud from '@/features/cloud/useCloud';
 import useHaptics from '@/hooks/useHaptics';
 import useLibrary from '@/library/useLibrary';
-import { addScore } from '@/sync/aiStateRepository';
+import { addScore, markTried } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 
 // Requests in flight at once in a round: a vision round is one request per photo with every model.
@@ -84,6 +84,8 @@ export default function useCompareRound({ kind, modelIds }) {
           results = failAll(error);
         }
         if (signal.aborted) return;
+        const answered = Object.keys(results).filter((modelId) => results[modelId].status === 'done');
+        markTried(getDb(), kind, answered).catch((error) => console.error('Saving the score failed', error));
         setRound((current) => ({ ...current, results: { ...current.results, [job.key]: results } }));
       }
     }

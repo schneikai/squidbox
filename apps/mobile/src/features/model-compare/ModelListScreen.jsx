@@ -52,7 +52,7 @@ export default function ModelListScreen({ navigation, route }) {
 
   const rows = catalog && list ? joinYourModels(list.models, catalog, kind) : null;
   const availableRows = rows?.filter((row) => row.model !== null) ?? [];
-  const hasScores = list?.models.some(({ score }) => score > 0) ?? false;
+  const hasScores = list?.models.some(({ score }) => score !== null) ?? false;
   const text = modelKindText[kind];
 
   async function handleChoose(row) {
@@ -62,13 +62,13 @@ export default function ModelListScreen({ navigation, route }) {
   }
 
   async function handleResetScore(row) {
-    const message = `${row.name} starts again from 0.`;
+    const message = `${row.name} goes back to Not tried yet.`;
     if (!(await confirmAsync({ title: 'Reset score', message, action: 'Reset', destructive: true }))) return;
     await resetScores(getDb(), kind, row.id);
   }
 
   async function handleResetAllScores() {
-    const message = 'Every model in this list starts again from 0.';
+    const message = 'Every model in this list goes back to Not tried yet.';
     if (!(await confirmAsync({ title: 'Reset all scores', message, action: 'Reset', destructive: true }))) return;
     await resetScores(getDb(), kind);
   }
