@@ -14,4 +14,13 @@ describe('server config', () => {
   it('loads the test env', () => {
     expect(loadConfig().SERVER_ID).toBe(process.env.SERVER_ID);
   });
+
+  it('boots without VENICE_API_KEY (the AI endpoints answer 503 instead)', () => {
+    expect(process.env.VENICE_API_KEY).toBeUndefined();
+    expect(loadConfig().VENICE_API_KEY).toBeUndefined();
+  });
+
+  it('defaults VENICE_BASE_URL to Venice', () => {
+    expect(loadConfig().VENICE_BASE_URL).toBe('https://api.venice.ai/api/v1');
+  });
 });

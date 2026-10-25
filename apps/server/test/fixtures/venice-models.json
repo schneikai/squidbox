@@ -1,0 +1,169 @@
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "venice-uncensored-1-2",
+      "type": "text",
+      "model_spec": {
+        "name": "Venice Uncensored 1.2",
+        "pricing": {
+          "input": {
+            "usd": 0.2
+          },
+          "output": {
+            "usd": 0.9
+          }
+        },
+        "capabilities": {
+          "supportsVision": true,
+          "supportsReasoningEffort": false
+        },
+        "traits": ["most_uncensored"]
+      }
+    },
+    {
+      "id": "qwen-3-6-plus",
+      "type": "text",
+      "model_spec": {
+        "name": "Qwen 3.6 Plus Uncensored",
+        "pricing": {
+          "input": {
+            "usd": 0.625
+          },
+          "output": {
+            "usd": 3.75
+          }
+        },
+        "capabilities": {
+          "supportsVision": true,
+          "supportsReasoningEffort": false
+        },
+        "traits": []
+      }
+    },
+    {
+      "id": "z-ai-glm-5-3",
+      "type": "text",
+      "model_spec": {
+        "name": "GLM 5.3",
+        "pricing": {
+          "input": {
+            "usd": 1.75
+          },
+          "output": {
+            "usd": 5.5
+          }
+        },
+        "capabilities": {
+          "supportsVision": false,
+          "supportsReasoningEffort": false
+        },
+        "traits": []
+      }
+    },
+    {
+      "id": "grok-4-7",
+      "type": "text",
+      "model_spec": {
+        "name": "Grok 4.7",
+        "pricing": {
+          "input": {
+            "usd": 2.27
+          },
+          "output": {
+            "usd": 6.8
+          }
+        },
+        "capabilities": {
+          "supportsVision": true,
+          "supportsReasoningEffort": true,
+          "reasoningEffortOptions": ["low", "medium", "high", "xhigh"]
+        },
+        "traits": ["most_intelligent"]
+      }
+    },
+    {
+      "id": "kimi-k3",
+      "type": "text",
+      "model_spec": {
+        "name": "Kimi K3",
+        "pricing": {
+          "input": {
+            "usd": 3.75
+          },
+          "output": {
+            "usd": 18.75
+          }
+        },
+        "capabilities": {
+          "supportsVision": true,
+          "supportsReasoningEffort": true,
+          "reasoningEffortOptions": ["none", "low", "high", "max"]
+        },
+        "traits": ["default_reasoning"]
+      }
+    },
+    {
+      "id": "gemma-4-uncensored",
+      "type": "text",
+      "model_spec": {
+        "name": "Gemma 4 Uncensored",
+        "pricing": {
+          "input": {
+            "usd": 0.1625
+          },
+          "output": {
+            "usd": 0.5
+          }
+        },
+        "capabilities": {
+          "supportsVision": true,
+          "supportsReasoningEffort": false
+        },
+        "traits": []
+      }
+    },
+    {
+      "id": "deepseek-v4-1-flash-uncensored",
+      "type": "text",
+      "model_spec": {
+        "name": "DeepSeek V4.1 Flash Uncensored",
+        "pricing": {
+          "input": {
+            "usd": 0.33
+          },
+          "output": {
+            "usd": 1.32
+          }
+        },
+        "capabilities": {
+          "supportsVision": true,
+          "supportsReasoningEffort": true,
+          "reasoningEffortOptions": ["none", "low", "high", "max"]
+        },
+        "traits": []
+      }
+    },
+    {
+      "id": "claude-sonnet-5-5",
+      "type": "text",
+      "model_spec": {
+        "name": "Claude Sonnet 5.5",
+        "pricing": {
+          "input": {
+            "usd": 2
+          },
+          "output": {
+            "usd": 10
+          }
+        },
+        "capabilities": {
+          "supportsVision": true,
+          "supportsReasoningEffort": true,
+          "reasoningEffortOptions": ["low", "medium", "high", "xhigh", "max"]
+        },
+        "traits": []
+      }
+    }
+  ]
+}

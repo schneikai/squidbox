@@ -10,6 +10,8 @@ export type ErrorCode =
   | 'rate_limited'
   | 'purged'
   | 's3_error'
+  | 'ai_not_configured'
+  | 'ai_unavailable'
   | 'internal';
 
 export class AppError extends Error {
@@ -37,6 +39,12 @@ export class AppError extends Error {
   }
   static s3(message: string) {
     return new AppError(502, 's3_error', message);
+  }
+  static aiNotConfigured() {
+    return new AppError(503, 'ai_not_configured', 'AI is not configured on the server');
+  }
+  static aiUnavailable(message: string) {
+    return new AppError(502, 'ai_unavailable', message);
   }
 }
 

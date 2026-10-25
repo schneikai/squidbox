@@ -11,7 +11,7 @@ primary_region = "lhr"
 
 [env]
   PORT = "3100"
-  # AWS_REGION / S3_SHARED_BUCKET / JWT_SECRET / SERVER_ID / AWS creds / DATABASE_URL are set as SECRETS.
+  # AWS_REGION / S3_SHARED_BUCKET / JWT_SECRET / SERVER_ID / AWS creds / DATABASE_URL / VENICE_API_KEY are set as SECRETS.
 
 # Run migrations on every deploy (idempotent) before the new version goes live.
 [deploy]
