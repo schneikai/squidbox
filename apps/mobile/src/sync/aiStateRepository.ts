@@ -6,7 +6,7 @@ import type { AssetRow } from './db/schema';
 import type { SyncDb } from './db/types';
 
 // The model testing's memory in the library's local ai_* tables (schema.ts): your models per kind,
-// the chosen one, the scores, the writing prompt and the vision photo set. Their only reader and
+// the chosen one, the scores, each kind's prompt and the vision photo set. Their only reader and
 // writer.
 
 export type ModelRef = { id: string; name: string };
@@ -101,16 +101,16 @@ export function removeYourModel(db: SyncDb, kind: AiModelKind, modelId: string):
   });
 }
 
-/** The prompt of the last writing compare; null before the first. */
-export async function readWritingPrompt(db: SyncDb): Promise<string | null> {
-  const [row] = await db.select({ prompt: aiKinds.prompt }).from(aiKinds).where(eq(aiKinds.kind, 'writing'));
+/** The prompt of the last compare of this kind; null before the first. */
+export async function readPrompt(db: SyncDb, kind: AiModelKind): Promise<string | null> {
+  const [row] = await db.select({ prompt: aiKinds.prompt }).from(aiKinds).where(eq(aiKinds.kind, kind));
   return row?.prompt ?? null;
 }
 
-/** Remembers the writing prompt. A compare needs your writing list, so its row is there. */
-export async function setWritingPrompt(db: SyncDb, prompt: string): Promise<void> {
-  const updated = await db.update(aiKinds).set({ prompt }).where(eq(aiKinds.kind, 'writing')).returning();
-  if (updated.length === 0) throw new Error('The writing models were never set up');
+/** Remembers a kind's prompt. A compare needs that kind's list, so its row is there. */
+export async function setPrompt(db: SyncDb, kind: AiModelKind, prompt: string): Promise<void> {
+  const updated = await db.update(aiKinds).set({ prompt }).where(eq(aiKinds.kind, kind)).returning();
+  if (updated.length === 0) throw new Error(`The ${kind} models were never set up`);
 }
 
 /** The last vision compare's photos still in the library, in their order. */

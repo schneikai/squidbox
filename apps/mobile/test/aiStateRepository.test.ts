@@ -10,13 +10,13 @@ import {
   readChosenModels,
   readModelList,
   readVisionPhotos,
-  readWritingPrompt,
+  readPrompt,
   removeYourModel,
   resetScores,
   seedYourModels,
   setChosenModel,
   setVisionPhotos,
-  setWritingPrompt,
+  setPrompt,
 } from '../src/sync/aiStateRepository';
 import * as assetsRepository from '../src/sync/assetsRepository';
 
@@ -30,7 +30,7 @@ describe('aiStateRepository', () => {
     expect(await readModelList(db, 'writing')).toBeNull();
     expect(await readChosenModelId(db, 'writing')).toBeNull();
     expect(await readChosenModels(db)).toEqual({ writing: null, vision: null });
-    expect(await readWritingPrompt(db)).toBeNull();
+    expect(await readPrompt(db, 'writing')).toBeNull();
     expect(await readVisionPhotos(db)).toEqual([]);
   });
 
@@ -113,12 +113,15 @@ describe('aiStateRepository', () => {
     expect((await readModelList(db, 'vision'))?.models).toEqual([scored(kimi, 1)]);
   });
 
-  it('remembers the writing prompt once the writing list exists', async () => {
+  it("remembers each kind's prompt once its list exists", async () => {
     const db = makeTestDb();
-    await expect(setWritingPrompt(db, 'Write')).rejects.toThrow('never set up');
+    await expect(setPrompt(db, 'writing', 'Write')).rejects.toThrow('never set up');
     await seedYourModels(db, 'writing', [kimi]);
-    await setWritingPrompt(db, 'Write');
-    expect(await readWritingPrompt(db)).toBe('Write');
+    await setPrompt(db, 'writing', 'Write');
+    await seedYourModels(db, 'vision', [kimi]);
+    await setPrompt(db, 'vision', 'Tag');
+    expect(await readPrompt(db, 'writing')).toBe('Write');
+    expect(await readPrompt(db, 'vision')).toBe('Tag');
   });
 
   it('reads the photo set in order, without the photos deleted since', async () => {

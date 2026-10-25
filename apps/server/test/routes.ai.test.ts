@@ -13,7 +13,9 @@ const venice = vi.hoisted(() => ({
 }));
 vi.mock('../src/config.js', async (importOriginal) => {
   const original = await importOriginal<typeof import('../src/config.js')>();
-  return { ...original, loadConfig: () => ({
+  return {
+    ...original,
+    loadConfig: () => ({
       ...original.loadConfig(),
       VENICE_API_KEY: venice.apiKey,
       AI_ALLOWED_EMAILS: venice.allowed,
@@ -60,7 +62,11 @@ const chatBodies = () =>
     .map(([, init]) => JSON.parse(init.body));
 
 const writing = { prompt: 'Write 3 spicy tweets', modelIds: ['kimi-k3', 'z-ai-glm-5-3'] };
-const vision = { image: { base64: 'AAAA', mimeType: 'image/jpeg' }, modelIds: ['gemma-4-uncensored', 'qwen-3-6-plus'] };
+const vision = {
+  prompt: 'Tag what you see',
+  image: { base64: 'AAAA', mimeType: 'image/jpeg' },
+  modelIds: ['gemma-4-uncensored', 'qwen-3-6-plus'],
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -156,7 +162,7 @@ describe('GET /api/v1/ai/balance', () => {
     expect((await call('GET', '/ai/balance', undefined, {})).statusCode).toBe(401);
   });
 
-  it("returns what is left on the Venice account", async () => {
+  it('returns what is left on the Venice account', async () => {
     veniceAnswers();
     const res = await call('GET', '/ai/balance');
     expect(res.statusCode).toBe(200);
@@ -230,7 +236,7 @@ describe('POST /api/v1/ai/compare/writing', () => {
 });
 
 describe('POST /api/v1/ai/compare/vision', () => {
-  it('sends the photo as a data URL and returns 8 tags per model', async () => {
+  it('sends the prompt and the photo as a data URL and returns the tags per model', async () => {
     veniceAnswers();
     const res = await call('POST', '/ai/compare/vision', vision);
     expect(res.statusCode).toBe(200);
@@ -241,10 +247,17 @@ describe('POST /api/v1/ai/compare/vision', () => {
       ],
     });
     const [gemma] = chatBodies();
+    expect(gemma.messages[1].content[0]).toEqual({ type: 'text', text: 'Tag what you see' });
     expect(gemma.messages[1].content[1]).toEqual({
       type: 'image_url',
       image_url: { url: 'data:image/jpeg;base64,AAAA' },
     });
+  });
+
+  it('400 without a prompt', async () => {
+    veniceAnswers();
+    expect((await call('POST', '/ai/compare/vision', { ...vision, prompt: ' ' })).statusCode).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("400 for a model that can't see photos", async () => {

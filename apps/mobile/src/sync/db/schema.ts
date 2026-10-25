@@ -205,8 +205,8 @@ export type SyncLogRow = typeof syncLog.$inferSelect;
 // The model testing's memory (src/sync/aiStateRepository.ts is its only reader and writer).
 // Local-only and not synced: it stays with this library on this device. `kind` is writing | vision.
 
-// One row per kind once its list was seeded: the model the coming assistant uses, and for writing
-// the last compare's prompt.
+// One row per kind once its list was seeded: the model the coming assistant uses, and the last
+// compare's prompt.
 export const aiKinds = sqliteTable('ai_kinds', {
   kind: text('kind').primaryKey(),
   chosenModelId: text('chosen_model_id'),

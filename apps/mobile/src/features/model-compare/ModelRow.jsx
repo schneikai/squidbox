@@ -1,8 +1,6 @@
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
-import ModelSummary from './ModelSummary';
-import formatCost from './formatCost';
-import scoreText from './scoreText';
+import ModelListSummary from './ModelListSummary';
 
 import Icon from '@/components/Icon';
 import IconMenuButton from '@/components/IconMenuButton';
@@ -29,13 +27,7 @@ export default function ModelRow({ name, model, kind, score, isChosen, onChoose,
         accessibilityRole="button"
         accessibilityState={{ selected: isChosen, disabled: !isAvailable }}
       >
-        <ModelSummary
-          name={name}
-          isUncensored={model?.isUncensored}
-          detail={`${scoreText(score, kind)} · ${isAvailable ? formatCost(model, kind) : 'No longer available'}`}
-          detailIcon={kind === 'writing' && score !== null ? 'thumbs-up' : null}
-          isDimmed={!isAvailable}
-        />
+        <ModelListSummary name={name} model={model} kind={kind} score={score} />
         {isChosen && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
       </TouchableOpacity>
       <IconMenuButton accessibilityLabel={`${name} options`} color={colors.text.secondary}>

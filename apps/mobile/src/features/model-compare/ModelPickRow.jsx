@@ -1,12 +1,13 @@
 import { StyleSheet, Text, TouchableOpacity } from 'react-native';
 
+import ModelListSummary from './ModelListSummary';
+
 import SelectIndicator from '@/components/SelectIndicator';
 import { SCREEN_PADDING } from '@/constants';
 import { colors, typography } from '@/styles/designTokens';
-import listTextStyles from '@/styles/listTextStyles';
 
-// A model to tick for a compare, with "Current" on the chosen one.
-export default function ModelPickRow({ name, isTicked, isCurrent, onToggle }) {
+// A model of your list to tick for a compare, as the list shows it, with "Current" on the chosen one.
+export default function ModelPickRow({ name, model, kind, score, isTicked, isCurrent, onToggle }) {
   return (
     <TouchableOpacity
       style={styles.row}
@@ -16,9 +17,7 @@ export default function ModelPickRow({ name, isTicked, isCurrent, onToggle }) {
       accessibilityState={{ checked: isTicked }}
     >
       <SelectIndicator isSelected={isTicked} />
-      <Text style={[listTextStyles.title, styles.name]} numberOfLines={1}>
-        {name}
-      </Text>
+      <ModelListSummary name={name} model={model} kind={kind} score={score} />
       {isCurrent && <Text style={styles.current}>Current</Text>}
     </TouchableOpacity>
   );
@@ -30,10 +29,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     paddingHorizontal: SCREEN_PADDING,
-    paddingVertical: 14,
-  },
-  name: {
-    flex: 1,
+    paddingVertical: 12,
   },
   current: {
     fontSize: typography.subheadline,

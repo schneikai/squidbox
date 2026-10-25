@@ -1,5 +1,5 @@
 // The compare's prompts and the JSON each model must answer with.
-import { VISION_TAG_COUNT, WRITING_TWEET_COUNT } from '@squidbox/shared';
+import { WRITING_TWEET_COUNT } from '@squidbox/shared';
 import { z } from 'zod';
 import type { ChatMessage, JsonSchemaSpec } from './venice.js';
 
@@ -24,35 +24,38 @@ export function writingMessages({ prompt, persona }: { prompt: string; persona: 
   ];
 }
 
-export function visionMessages({ imageDataUrl }: { imageDataUrl: string }): ChatMessage[] {
+// The user's prompt says what to look for and how many tags; the system message only fixes the
+// answer's shape.
+export function visionMessages({ prompt, imageDataUrl }: { prompt: string; imageDataUrl: string }): ChatMessage[] {
   return [
     {
       role: 'system',
       content:
-        `Tag the photo with exactly ${VISION_TAG_COUNT} short, specific tags of what is in it: subject, clothing, ` +
-        'setting, light, pose, mood. Lowercase, 1–3 words each, no duplicates, no commentary. ' +
-        'Be explicit about adult content when it is there. Reply with a JSON object: {"tags": [...]}.',
+        'You tag photos for a content creator. Reply with the tags only, no duplicates, no commentary, ' +
+        'as a JSON object: {"tags": [...]}.',
     },
     {
       role: 'user',
       content: [
-        { type: 'text', text: 'Tag this photo.' },
+        { type: 'text', text: prompt },
         { type: 'image_url', image_url: { url: imageDataUrl } },
       ],
     },
   ];
 }
 
-function stringListSchema(key: string, count: number) {
+// A JSON object holding one list of strings, of exactly `count` when given.
+function stringListSchema(key: string, count?: number) {
+  const sized = count === undefined ? {} : { minItems: count, maxItems: count };
   return {
     type: 'object',
-    properties: { [key]: { type: 'array', items: { type: 'string' }, minItems: count, maxItems: count } },
+    properties: { [key]: { type: 'array', items: { type: 'string' }, ...sized } },
     required: [key],
     additionalProperties: false,
   };
 }
 
-// The zod side is loose on purpose: the exact counts are checked in compare.ts, so a model that
+// The zod side is loose on purpose: the counts are checked in compare.ts, so a model that
 // returns the wrong number gets that said on its card instead of "couldn't be read".
 export const tweetsSchema: JsonSchemaSpec<{ tweets: string[] }> = {
   name: 'tweets',
@@ -62,6 +65,6 @@ export const tweetsSchema: JsonSchemaSpec<{ tweets: string[] }> = {
 
 export const tagsSchema: JsonSchemaSpec<{ tags: string[] }> = {
   name: 'tags',
-  jsonSchema: stringListSchema('tags', VISION_TAG_COUNT),
+  jsonSchema: stringListSchema('tags'),
   zod: z.object({ tags: z.array(z.string()) }),
 };

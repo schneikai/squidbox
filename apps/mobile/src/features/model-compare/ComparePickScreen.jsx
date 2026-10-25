@@ -22,8 +22,9 @@ import { readByIds } from '@/sync/readByIds';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import pluralizeText from '@/utils/pluralizeText';
 
-// The compare's first step (route params `kind` and `models`, your available models): tick 2 or more
-// models, and for vision pick the photos (the last compare's to start with).
+// The compare's first step (route params `kind` and `models`, your available models with their
+// catalog model and score, shown as in your list): tick 2 or more models, and for vision pick the
+// photos (the last compare's to start with).
 export default function ComparePickScreen({ navigation, route }) {
   const { kind, models } = route.params;
   const isVision = kind === 'vision';
@@ -68,7 +69,7 @@ export default function ComparePickScreen({ navigation, route }) {
     const photoIds = isVision ? photos.map(({ id }) => id) : undefined;
     if (isVision) await setVisionPhotos(getDb(), photoIds);
     // In your list's order, so a round's letters are the only shuffle.
-    const tickedModels = models.filter(({ id }) => ticked.includes(id));
+    const tickedModels = models.filter(({ id }) => ticked.includes(id)).map(({ id, name }) => ({ id, name }));
     navigation.navigate('CompareScreen', { kind, models: tickedModels, photoIds });
   }
 
@@ -80,10 +81,13 @@ export default function ComparePickScreen({ navigation, route }) {
       >
         <IntroText style={styles.intro}>{modelKindText[kind].pickIntro}</IntroText>
         <Section>
-          {models.map(({ id, name }) => (
+          {models.map(({ id, name, model, score }) => (
             <ModelPickRow
               key={id}
               name={name}
+              model={model}
+              kind={kind}
+              score={score}
               isTicked={ticked.includes(id)}
               isCurrent={id === chosenId}
               onToggle={() => handleToggle(id)}

@@ -89,7 +89,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     },
   });
 
-  // POST /ai/compare/vision — each model tags the same photo. One request per photo, so a compare
+  // POST /ai/compare/vision — each model tags the same photo, guided by the prompt. One request per photo, so a compare
   // of many photos (and a second round within the minute) fits the limit.
   r.route({
     method: 'POST',
@@ -101,7 +101,10 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     handler: async (request) => {
       const models = await resolveModels(request.body.modelIds, 'vision');
       const { base64, mimeType } = request.body.image;
-      const messages = visionMessages({ imageDataUrl: `data:${mimeType};base64,${base64}` });
+      const messages = visionMessages({
+        prompt: request.body.prompt,
+        imageDataUrl: `data:${mimeType};base64,${base64}`,
+      });
       const results = await compareModels({ task: visionTask, messages, models, log: request.log });
       return { results };
     },

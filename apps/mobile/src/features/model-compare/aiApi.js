@@ -25,7 +25,7 @@ export async function compareWritingAsync(body, { signal } = {}) {
   return data.results;
 }
 
-/** `{ image: { base64, mimeType }, modelIds }` → each model's `{ modelId, tags }` or `{ modelId, error }`. */
+/** `{ prompt, image: { base64, mimeType }, modelIds }` → each model's `{ modelId, tags }` or `{ modelId, error }`. */
 export async function compareVisionAsync(body, { signal } = {}) {
   const { data } = await apiWithAuthentication.post('ai/compare/vision', body, { timeout: COMPARE_TIMEOUT_MS, signal });
   return data.results;

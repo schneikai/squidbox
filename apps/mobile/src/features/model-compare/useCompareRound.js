@@ -19,7 +19,7 @@ export const TEXT_KEY = 'text';
 
 /**
  * One blind compare round at a time for `kind` over `modelIds`. `startRound({ prompt })` (writing)
- * or `startRound({ photos })` (vision, the assets) reshuffles the letters, clears the taps and asks
+ * or `startRound({ prompt, photos })` (vision, the assets) reshuffles the letters, clears the taps and asks
  * every model again; `number` counts the rounds. `results[key][modelId]` is `{ status: 'loading' |
  * 'done' | 'error', items, error }`, keyed by TEXT_KEY or the photo's asset id, and `isRunning`
  * while any is loading. `taps[key][modelId]` holds the indexes of the tweets thumbed up or tags
@@ -67,7 +67,7 @@ export default function useCompareRound({ kind, modelIds }) {
       key: asset.id,
       itemsKey: 'tags',
       prepare: () => imageFor(asset),
-      ask: async (signal) => compareVisionAsync({ image: await imageFor(asset), modelIds }, { signal }),
+      ask: async (signal) => compareVisionAsync({ prompt, image: await imageFor(asset), modelIds }, { signal }),
     }));
   }
 

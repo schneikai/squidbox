@@ -74,7 +74,10 @@ export default function ModelListScreen({ navigation, route }) {
   }
 
   function handleCompare() {
-    navigation.navigate('ModelCompareModal', { kind, models: availableRows.map(({ id, name }) => ({ id, name })) });
+    navigation.navigate('ModelCompareModal', {
+      kind,
+      models: availableRows.map(({ id, name, model, score }) => ({ id, name, model, score })),
+    });
   }
 
   function renderModels() {

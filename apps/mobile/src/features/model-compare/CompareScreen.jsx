@@ -19,17 +19,24 @@ import Textarea from '@/components/Textarea';
 import { SCREEN_PADDING } from '@/constants';
 import useScrollY from '@/hooks/useScrollY';
 import { scale } from '@/styles/designTokens';
-import { readWritingPrompt, setWritingPrompt } from '@/sync/aiStateRepository';
+import { readPrompt, setPrompt } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
 import { readByIds } from '@/sync/readByIds';
 
-const DEFAULT_PROMPT = "Write 3 spicy tweets for my fans. Tease, don't tell. Under 200 characters each.";
+// Each kind's prompt before the first compare; after it, the last one used.
+const DEFAULT_PROMPTS = {
+  writing: "Write 3 spicy tweets for my fans. Tease, don't tell. Under 200 characters each.",
+  vision:
+    "Tag this photo with 8 short, specific tags of what's in it: subject, clothing, setting, light, pose, " +
+    "mood. Lowercase, 1 to 3 words each. Be explicit about adult content when it's there.",
+};
 
 /**
  * The blind compare (route params `kind`, the ticked `models` with their names and for vision the
- * `photoIds`). Writing waits for Start under its prompt; vision starts right away. Each model's
+ * `photoIds`). It waits for Start under its prompt (one for every photo), so the prompt can be
+ * changed first. Each model's
  * answer is on a card labelled Model A, B, … in a fresh order each round, its name hidden. Writing
- * shows 3 tweets per model to thumb up; vision 8 tags per model per photo to mark as fitting, one
+ * shows 3 tweets per model to thumb up; vision the tags per model per photo to mark as fitting, one
  * list row per photo. Both add up in the model list. X closes the whole compare.
  */
 export default function CompareScreen({ navigation, route }) {
@@ -37,7 +44,7 @@ export default function CompareScreen({ navigation, route }) {
   const isVision = kind === 'vision';
   const { scrollY, onScroll } = useScrollY();
   const { bottom } = useSafeAreaInsets();
-  const [prompt, setPrompt] = useState(null); // null until the remembered one is read
+  const [prompt, setPromptText] = useState(null); // null until the remembered one is read
   const [photos, setPhotos] = useState(null); // the photos' assets, null until read
   const savedPromptRef = useRef(null);
   const modelIds = useMemo(() => models.map(({ id }) => id), [models]);
@@ -45,22 +52,18 @@ export default function CompareScreen({ navigation, route }) {
 
   const namesById = useMemo(() => Object.fromEntries(models.map(({ id, name }) => [id, name])), [models]);
 
-  // Vision starts its first round once the photos are in; writing shows the remembered prompt and
-  // waits for Start, so it can be changed first. A read that fails goes back with why; one that
-  // ends after the screen closed starts nothing.
+  // Reads the remembered prompt, and for vision the photos. A read that fails goes back with why.
   useEffect(() => {
     let isCancelled = false;
-    const readInput = isVision
-      ? readByIds(getDb(), schema.assets, photoIds).then((assets) => {
-          if (isCancelled) return;
-          setPhotos(assets);
-          round.startRound({ photos: assets });
-        })
-      : readWritingPrompt(getDb()).then((remembered) => {
-          if (isCancelled) return;
-          savedPromptRef.current = remembered;
-          setPrompt(remembered ?? DEFAULT_PROMPT);
-        });
+    const readInput = Promise.all([
+      readPrompt(getDb(), kind),
+      isVision ? readByIds(getDb(), schema.assets, photoIds) : null,
+    ]).then(([remembered, assets]) => {
+      if (isCancelled) return;
+      savedPromptRef.current = remembered;
+      setPromptText(remembered ?? DEFAULT_PROMPTS[kind]);
+      if (assets) setPhotos(assets);
+    });
     readInput.catch((error) => {
       console.error('Reading the compare input failed', error);
       if (isCancelled) return;
@@ -94,32 +97,32 @@ export default function CompareScreen({ navigation, route }) {
   );
 
   const hasStarted = round.number > 0;
-  const canStart = !round.isRunning && (isVision ? !!photos?.length : !!prompt?.trim());
+  const canStart = !round.isRunning && !!prompt?.trim() && (!isVision || !!photos?.length);
 
-  function startWritingRound(text) {
+  function handleStartRound() {
     // Remembered for next time, written only when it changed.
-    if (text !== savedPromptRef.current) {
-      savedPromptRef.current = text;
-      setWritingPrompt(getDb(), text).catch((error) => console.error('Saving the prompt failed', error));
+    if (prompt !== savedPromptRef.current) {
+      savedPromptRef.current = prompt;
+      setPrompt(getDb(), kind, prompt).catch((error) => console.error('Saving the prompt failed', error));
     }
-    round.startRound({ prompt: text.trim() });
+    round.startRound({ prompt: prompt.trim(), photos });
   }
 
-  function handleNewRound() {
-    if (isVision) round.startRound({ photos });
-    else startWritingRound(prompt);
+  function renderPrompt() {
+    if (prompt === null) return null;
+    return (
+      <Card style={styles.promptCard}>
+        <Field label="Prompt" description="Remembered for next time.">
+          <Textarea value={prompt} onChangeText={setPromptText} minHeight={scale(72)} />
+        </Field>
+      </Card>
+    );
   }
 
   function renderWriting() {
     return (
       <>
-        {prompt !== null && (
-          <Card style={styles.promptCard}>
-            <Field label="Prompt" description="Remembered for next time.">
-              <Textarea value={prompt} onChangeText={setPrompt} minHeight={scale(72)} />
-            </Field>
-          </Card>
-        )}
+        {renderPrompt()}
         <ModelAnswers
           answerKey={TEXT_KEY}
           kind={kind}
@@ -148,7 +151,10 @@ export default function CompareScreen({ navigation, route }) {
         ItemSeparatorComponent={Separator}
         ListHeaderComponent={
           isVision ? (
-            <IntroText style={styles.hint}>Tap the tags that fit.</IntroText>
+            <View style={styles.writing}>
+              {renderPrompt()}
+              {hasStarted && <IntroText style={styles.hint}>Tap the tags that fit.</IntroText>}
+            </View>
           ) : (
             <View style={styles.writing}>{renderWriting()}</View>
           )
@@ -164,7 +170,7 @@ export default function CompareScreen({ navigation, route }) {
         <PrimaryButton
           icon={hasStarted ? 'repeat' : 'play'}
           label={!hasStarted ? 'Start' : isVision ? 'New tags' : 'New suggestions'}
-          onPress={handleNewRound}
+          onPress={handleStartRound}
           loading={round.isRunning}
           disabled={!canStart}
         />
