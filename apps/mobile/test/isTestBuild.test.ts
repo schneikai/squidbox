@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 const config = vi.hoisted(() => ({ extra: {} as { buildProfile?: string } }));
 vi.mock('expo-constants', () => ({ default: { expoConfig: config } }));
 
-const { default: isTestBuild } = await import('../src/utils/isTestBuild');
+const { default: isTestBuild } = await import('../src/features/model-compare/isTestBuild');
 
 describe('isTestBuild', () => {
   it.each([

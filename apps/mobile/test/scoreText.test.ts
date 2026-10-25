@@ -8,6 +8,6 @@ describe('scoreText', () => {
     expect(scoreText(undefined, 'vision')).toBe('Not tried yet');
     expect(scoreText(9, 'writing')).toBe('9');
     expect(scoreText(34, 'vision')).toBe('34 tags fit');
-    expect(scoreText(1, 'vision')).toBe('1 tag fit');
+    expect(scoreText(1, 'vision')).toBe('1 tag fits');
   });
 });

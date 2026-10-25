@@ -1,5 +1,5 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": { "strict": true },
-  "include": ["src/sync/**/*.ts", "src/library/**/*.ts", "src/features/model-compare/**/*.ts"]
+  "include": ["src/sync/**/*.ts", "src/library/**/*.ts"]
 }

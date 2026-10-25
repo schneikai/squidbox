@@ -1,7 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { StyleSheet, Text } from 'react-native';
 
-import { readChosenModel } from './aiState';
 import modelKindText from './modelKindText';
 import useAiCatalog from './useAiCatalog';
 import useLeaveWhenUnavailable from './useLeaveWhenUnavailable';
@@ -11,7 +9,7 @@ import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import { colors, typography } from '@/styles/designTokens';
+import { readChosenModels } from '@/sync/aiStateRepository';
 import { schema } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 
@@ -21,11 +19,19 @@ const KINDS = ['writing', 'vision'];
 export default function AssistantScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
-  const chosen = useLiveQuery(
-    async (db) => ({ writing: await readChosenModel(db, 'writing'), vision: await readChosenModel(db, 'vision') }),
-    [schema.aiState],
-  );
+  const chosen = useLiveQuery((db) => readChosenModels(db), [schema.aiKinds, schema.aiModels]);
   const { models: catalog } = useAiCatalog();
+
+  // The chosen model's name, or a muted "No longer available" once Venice dropped it (its list
+  // says which; a catalog still loading or failed to load leaves the plain name). The name and the
+  // label together would wrap the row's label.
+  function chosenText(kind) {
+    const model = chosen?.[kind];
+    if (chosen === undefined) return null;
+    if (!model) return { value: 'Not chosen', isGone: false };
+    const isGone = !!catalog && !catalog.some(({ id }) => id === model.id);
+    return { value: isGone ? 'No longer available' : model.name, isGone };
+  }
 
   if (!isAvailable) return null;
 
@@ -39,11 +45,11 @@ export default function AssistantScreen() {
             <Row
               key={kind}
               label={modelKindText[kind].title}
+              value={chosenText(kind)?.value}
+              isValueMuted={chosenText(kind)?.isGone}
               onPress={() => navigation.navigate('ModelListScreen', { kind })}
               chevron
-            >
-              <ChosenModelText model={chosen?.[kind]} catalog={catalog} isLoading={chosen === undefined} />
-            </Row>
+            />
           ))}
         </Section>
         <SectionFooter>Only in test builds.</SectionFooter>
@@ -51,28 +57,3 @@ export default function AssistantScreen() {
     </Page>
   );
 }
-
-// The chosen model's name; greyed with "No longer available" once Venice dropped it (a catalog
-// still loading or failed to load leaves the plain name).
-function ChosenModelText({ model, catalog, isLoading }) {
-  if (isLoading) return null;
-  if (!model) return <Text style={styles.value}>Not chosen</Text>;
-  const isGone = catalog && !catalog.some(({ id }) => id === model.id);
-  return (
-    <Text style={[styles.value, isGone && styles.gone]} numberOfLines={1}>
-      {isGone ? `${model.name} · No longer available` : model.name}
-    </Text>
-  );
-}
-
-const styles = StyleSheet.create({
-  value: {
-    flexShrink: 1,
-    fontSize: typography.body,
-    color: colors.text.secondary,
-    textAlign: 'right',
-  },
-  gone: {
-    color: colors.text.tertiary,
-  },
-});

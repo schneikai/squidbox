@@ -1,34 +1,28 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { memo } from 'react';
+import { StyleSheet, TouchableOpacity } from 'react-native';
 
-import UncensoredBadge from './UncensoredBadge';
+import ModelSummary from './ModelSummary';
 import formatCost from './formatCost';
 
 import Icon from '@/components/Icon';
 import { SCREEN_PADDING } from '@/constants';
-import { colors, sizes, typography } from '@/styles/designTokens';
+import { colors, sizes } from '@/styles/designTokens';
 
-// A Venice model on the Add screen: name, Uncensored badge, cost line, and a check once it's in
-// your list.
-export default function AddModelRow({ model, kind, isAdded, onAdd }) {
-  const cost = formatCost(kind === 'vision' ? model.costPer100PhotosUsd : model.costPerReplyUsd, kind);
+// Memoized: a keystroke in the search or an add re-renders only the rows that changed.
+export default memo(AddModelRow);
 
+// A Venice model on the Add screen: its summary with the cost, and a check once it's in your list.
+// `onAdd(model)` is stable, so the row stays memoized.
+function AddModelRow({ model, kind, isAdded, onAdd }) {
   return (
     <TouchableOpacity
       style={styles.row}
-      onPress={onAdd}
+      onPress={() => onAdd(model)}
       activeOpacity={0.6}
       accessibilityRole="button"
       accessibilityState={{ selected: isAdded }}
     >
-      <View style={styles.text}>
-        <View style={styles.titleLine}>
-          <Text style={styles.name}>{model.name}</Text>
-          {model.isUncensored && <UncensoredBadge />}
-        </View>
-        <Text style={styles.detail} numberOfLines={1}>
-          {cost}
-        </Text>
-      </View>
+      <ModelSummary name={model.name} isUncensored={model.isUncensored} detail={formatCost(model, kind)} />
       {isAdded && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
     </TouchableOpacity>
   );
@@ -41,25 +35,5 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: SCREEN_PADDING,
     paddingVertical: 12,
-  },
-  text: {
-    flex: 1,
-    gap: 4,
-  },
-  titleLine: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    columnGap: 8,
-    rowGap: 4,
-  },
-  name: {
-    flexShrink: 1,
-    fontSize: typography.body,
-    color: colors.text.primary,
-  },
-  detail: {
-    fontSize: typography.subheadline,
-    color: colors.text.secondary,
   },
 });

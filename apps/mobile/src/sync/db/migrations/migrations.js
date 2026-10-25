@@ -15,7 +15,7 @@ import m0010 from './0010_outbox_errors.sql';
 import m0011 from './0011_outbox_fields.sql';
 import m0012 from './0012_purged_files.sql';
 import m0013 from './0013_asset_details.sql';
-import m0014 from './0014_ai_state.sql';
+import m0014 from './0014_ai_tables.sql';
 
   export default {
     journal,

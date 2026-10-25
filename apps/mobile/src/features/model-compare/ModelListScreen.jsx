@@ -1,17 +1,9 @@
 import { useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import FloatingPrimaryAction, { FLOATING_PRIMARY_ACTION_CLEARANCE } from './FloatingPrimaryAction';
 import ModelRow from './ModelRow';
-import PinnedAction, { PINNED_ACTION_CLEARANCE } from './PinnedAction';
-import {
-  readChosenModel,
-  readScores,
-  readYourModels,
-  removeYourModel,
-  seedYourModels,
-  setChosenModel,
-} from './aiState';
 import joinYourModels from './joinYourModels';
 import modelKindText from './modelKindText';
 import modelsOfKind from './modelsOfKind';
@@ -21,6 +13,7 @@ import useLeaveWhenUnavailable from './useLeaveWhenUnavailable';
 
 import DetailScrollView from '@/components/DetailScrollView';
 import EmptyState from '@/components/EmptyState';
+import IntroText from '@/components/IntroText';
 import Page from '@/components/Page';
 import PrimaryButton from '@/components/PrimaryButton';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
@@ -29,7 +22,8 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import { Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
-import { colors, lineHeights, typography } from '@/styles/designTokens';
+import { colors } from '@/styles/designTokens';
+import { readModelList, removeYourModel, seedYourModels, setChosenModel } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 
@@ -41,29 +35,26 @@ export default function ModelListScreen({ navigation, route }) {
   const haptics = useHaptics();
   const { bottom } = useSafeAreaInsets();
   const { models: catalog, error, retry } = useAiCatalog();
-  const state = useLiveQuery(
-    async (db) => ({
-      yourModels: await readYourModels(db, kind),
-      scores: await readScores(db, kind),
-      chosenId: (await readChosenModel(db, kind))?.id ?? null,
-    }),
-    [schema.aiState],
+  // undefined while reading, null before the list was seeded
+  const list = useLiveQuery(
+    (db) => readModelList(db, kind),
+    [schema.aiKinds, schema.aiModels, schema.aiScores],
     [kind],
   );
 
   // First run: your list starts with the owner's picks that Venice still has.
-  const needsSeed = !!catalog && state?.yourModels === null;
+  const needsSeed = !!catalog && list === null;
   useEffect(() => {
     if (needsSeed) seedYourModels(getDb(), kind, seedModels(modelsOfKind(catalog, kind), kind));
   }, [needsSeed]);
 
-  const rows = catalog && state?.yourModels ? joinYourModels(state.yourModels, catalog, kind) : null;
+  const rows = catalog && list ? joinYourModels(list.models, catalog, kind) : null;
   const availableRows = rows?.filter((row) => row.model !== null) ?? [];
   const text = modelKindText[kind];
 
   async function handleChoose(row) {
-    if (row.id === state.chosenId) return;
-    await setChosenModel(getDb(), kind, row);
+    if (row.id === list.chosenId) return;
+    await setChosenModel(getDb(), kind, row.id);
     haptics.selection();
   }
 
@@ -88,10 +79,11 @@ export default function ModelListScreen({ navigation, route }) {
           {rows.map((row) => (
             <ModelRow
               key={row.id}
-              row={row}
+              name={row.name}
+              model={row.model}
               kind={kind}
-              score={state.scores[row.id] ?? 0}
-              isChosen={row.id === state.chosenId}
+              score={row.score}
+              isChosen={row.id === list.chosenId}
               onChoose={() => handleChoose(row)}
               onRemove={() => removeYourModel(getDb(), kind, row.id)}
             />
@@ -107,8 +99,8 @@ export default function ModelListScreen({ navigation, route }) {
   return (
     <Page>
       <FloatingDetailHeader title={text.title} onBack={() => navigation.goBack()} />
-      <DetailScrollView contentContainerStyle={{ paddingBottom: bottom + PINNED_ACTION_CLEARANCE }}>
-        <Text style={styles.intro}>{text.intro}</Text>
+      <DetailScrollView contentContainerStyle={{ paddingBottom: bottom + FLOATING_PRIMARY_ACTION_CLEARANCE }}>
+        <IntroText style={styles.intro}>{text.intro}</IntroText>
         <ScreenSectionHeader
           title="Your models"
           rightSlot={
@@ -117,27 +109,24 @@ export default function ModelListScreen({ navigation, route }) {
                 label="Add"
                 icon="add"
                 size="small"
-                onPress={() => navigation.navigate('AddAiModelsModal', { kind, catalog })}
+                onPress={() => navigation.navigate('AddAiModelsModal', { kind })}
               />
             )
           }
         />
         {renderModels()}
       </DetailScrollView>
-      <PinnedAction>
+      <FloatingPrimaryAction>
         <PrimaryButton icon="repeat" label="Compare" onPress={handleCompare} disabled={availableRows.length < 2} />
-      </PinnedAction>
+      </FloatingPrimaryAction>
     </Page>
   );
 }
 
 const styles = StyleSheet.create({
   intro: {
-    fontSize: typography.footnote,
-    color: colors.text.secondary,
     paddingHorizontal: SCREEN_PADDING,
     paddingBottom: 4,
-    lineHeight: lineHeights.footnote,
   },
   status: {
     paddingVertical: 40,

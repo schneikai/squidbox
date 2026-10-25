@@ -1,54 +1,56 @@
 import { describe, expect, it } from 'vitest';
 
+import { makeAssetRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
 import {
   addScore,
   addYourModel,
-  readChosenModel,
-  readScores,
-  readVisionPhotoIds,
+  readChosenModelId,
+  readChosenModels,
+  readModelList,
+  readVisionPhotos,
   readWritingPrompt,
-  readYourModels,
   removeYourModel,
   seedYourModels,
   setChosenModel,
-  setVisionPhotoIds,
+  setVisionPhotos,
   setWritingPrompt,
-} from '../src/features/model-compare/aiState';
-import * as schema from '../src/sync/db/schema';
+} from '../src/sync/aiStateRepository';
+import * as assetsRepository from '../src/sync/assetsRepository';
 
 const kimi = { id: 'kimi-k3', name: 'Kimi K3' };
 const grok = { id: 'grok-4-7', name: 'Grok 4.7' };
+const scored = (model: typeof kimi, score = 0) => ({ ...model, score });
 
-describe('aiState', () => {
+describe('aiStateRepository', () => {
   it('reads nothing before the first write', async () => {
     const db = makeTestDb();
-    expect(await readChosenModel(db, 'writing')).toBeNull();
-    expect(await readYourModels(db, 'writing')).toBeNull();
+    expect(await readModelList(db, 'writing')).toBeNull();
+    expect(await readChosenModelId(db, 'writing')).toBeNull();
+    expect(await readChosenModels(db)).toEqual({ writing: null, vision: null });
     expect(await readWritingPrompt(db)).toBeNull();
-    expect(await readVisionPhotoIds(db)).toBeNull();
-    expect(await readScores(db, 'writing')).toEqual({});
-  });
-
-  it('round-trips the choice, prompt and photo set, per kind', async () => {
-    const db = makeTestDb();
-    await setChosenModel(db, 'writing', { ...kimi, isUncensored: false } as typeof kimi);
-    await setWritingPrompt(db, 'Write');
-    await setVisionPhotoIds(db, ['a1', 'a2']);
-    expect(await readChosenModel(db, 'writing')).toEqual(kimi);
-    expect(await readChosenModel(db, 'vision')).toBeNull();
-    expect(await readWritingPrompt(db)).toBe('Write');
-    expect(await readVisionPhotoIds(db)).toEqual(['a1', 'a2']);
+    expect(await readVisionPhotos(db)).toEqual([]);
   });
 
   it('seeds your models once, even when they were all removed since', async () => {
     const db = makeTestDb();
     await seedYourModels(db, 'writing', [kimi, grok]);
-    expect(await readYourModels(db, 'writing')).toEqual([kimi, grok]);
+    expect(await readModelList(db, 'writing')).toEqual({ chosenId: null, models: [scored(kimi), scored(grok)] });
     await removeYourModel(db, 'writing', kimi.id);
     await removeYourModel(db, 'writing', grok.id);
     await seedYourModels(db, 'writing', [kimi, grok]);
-    expect(await readYourModels(db, 'writing')).toEqual([]);
+    expect(await readModelList(db, 'writing')).toEqual({ chosenId: null, models: [] });
+    expect(await readModelList(db, 'vision')).toBeNull();
+  });
+
+  it('chooses per kind and reads the chosen names', async () => {
+    const db = makeTestDb();
+    await seedYourModels(db, 'writing', [kimi, grok]);
+    await seedYourModels(db, 'vision', [grok]);
+    await setChosenModel(db, 'writing', kimi.id);
+    expect(await readChosenModelId(db, 'writing')).toBe(kimi.id);
+    expect(await readChosenModelId(db, 'vision')).toBeNull();
+    expect(await readChosenModels(db)).toEqual({ writing: kimi, vision: null });
   });
 
   it('adds a model at the end once, and removing it keeps its score and clears the choice', async () => {
@@ -56,21 +58,25 @@ describe('aiState', () => {
     await addYourModel(db, 'vision', kimi);
     await addYourModel(db, 'vision', grok);
     await addYourModel(db, 'vision', kimi);
-    expect(await readYourModels(db, 'vision')).toEqual([kimi, grok]);
+    expect((await readModelList(db, 'vision'))?.models).toEqual([scored(kimi), scored(grok)]);
 
-    await setChosenModel(db, 'vision', kimi);
+    await setChosenModel(db, 'vision', kimi.id);
     await addScore(db, 'vision', kimi.id, 1);
     await removeYourModel(db, 'vision', kimi.id);
-    expect(await readYourModels(db, 'vision')).toEqual([grok]);
-    expect(await readChosenModel(db, 'vision')).toBeNull();
-    expect(await readScores(db, 'vision')).toEqual({ [kimi.id]: 1 });
+    expect(await readModelList(db, 'vision')).toEqual({ chosenId: null, models: [scored(grok)] });
 
     await addYourModel(db, 'vision', kimi);
-    expect(await readYourModels(db, 'vision')).toEqual([grok, kimi]);
+    expect((await readModelList(db, 'vision'))?.models).toEqual([scored(grok), scored(kimi, 1)]);
+
+    // An add counts as the list's start: the seed no longer applies.
+    await seedYourModels(db, 'vision', [{ id: 'gemma', name: 'Gemma' }]);
+    expect((await readModelList(db, 'vision'))?.models.map(({ id }) => id)).toEqual([grok.id, kimi.id]);
   });
 
   it('adds scores up across rounds, per kind, never below 0', async () => {
     const db = makeTestDb();
+    await seedYourModels(db, 'writing', [kimi, grok]);
+    await seedYourModels(db, 'vision', [kimi, grok]);
     // Round one: two thumbs up for Kimi, one taken back.
     await addScore(db, 'writing', kimi.id, 1);
     await addScore(db, 'writing', kimi.id, 1);
@@ -80,17 +86,29 @@ describe('aiState', () => {
     await addScore(db, 'writing', grok.id, 1);
     await addScore(db, 'vision', kimi.id, 1);
     await addScore(db, 'vision', grok.id, -1);
-    expect(await readScores(db, 'writing')).toEqual({ [kimi.id]: 2, [grok.id]: 1 });
-    expect(await readScores(db, 'vision')).toEqual({ [kimi.id]: 1, [grok.id]: 0 });
+    expect((await readModelList(db, 'writing'))?.models).toEqual([scored(kimi, 2), scored(grok, 1)]);
+    expect((await readModelList(db, 'vision'))?.models).toEqual([scored(kimi, 1), scored(grok, 0)]);
   });
 
-  it('throws on a row of the wrong shape instead of reading a default', async () => {
+  it('remembers the writing prompt once the writing list exists', async () => {
     const db = makeTestDb();
-    await db.insert(schema.aiState).values({ key: 'yourModels:writing', value: [{ id: 1 }] });
-    await db.insert(schema.aiState).values({ key: 'score:writing:kimi-k3', value: 'many' });
-    await expect(readYourModels(db, 'writing')).rejects.toThrow(
-      'ai_state "yourModels:writing" holds an unexpected value',
-    );
-    await expect(readScores(db, 'writing')).rejects.toThrow('unexpected value');
+    await expect(setWritingPrompt(db, 'Write')).rejects.toThrow('never set up');
+    await seedYourModels(db, 'writing', [kimi]);
+    await setWritingPrompt(db, 'Write');
+    expect(await readWritingPrompt(db)).toBe('Write');
+  });
+
+  it('reads the photo set in order, without the photos deleted since', async () => {
+    const db = makeTestDb();
+    await assetsRepository.createMany(db, [
+      makeAssetRecord({ id: 'a1' }),
+      makeAssetRecord({ id: 'a2' }),
+      makeAssetRecord({ id: 'a3' }),
+    ]);
+    await setVisionPhotos(db, ['a3', 'a1', 'a2']);
+    await assetsRepository.update(db, 'a1', { deletedAt: 5 });
+    expect((await readVisionPhotos(db)).map(({ id }) => id)).toEqual(['a3', 'a2']);
+    await setVisionPhotos(db, ['a2']);
+    expect((await readVisionPhotos(db)).map(({ id }) => id)).toEqual(['a2']);
   });
 });

@@ -1,8 +1,7 @@
-import * as ImageManipulator from 'expo-image-manipulator';
-
 import { getAssetThumbnailUri } from '@/utils/assets/assetStorage';
 import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';
 import getAssetThumbnailStatusAsync from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
+import resizeToThumbnail from '@/utils/thumbnails/resizeToThumbnail';
 
 const LONGER_SIDE = 512;
 
@@ -12,17 +11,13 @@ const LONGER_SIDE = 512;
  * thumbnail is only in the cloud is fetched first through the thumbnail loader. Throws with why
  * when there's none to be had.
  */
-export default async function readVisionImageAsync(asset, { library, loadThumbnail, isAuthenticated, signal }) {
-  const status = await getAssetThumbnailStatusAsync(asset, { isAuthenticated, library, signal });
+export default async function readVisionImageAsync(asset, { library, loadThumbnail, isAuthenticated }) {
+  const status = await getAssetThumbnailStatusAsync(asset, { isAuthenticated, library });
   if (status === 'remote') await loadThumbnailAsync(asset, loadThumbnail);
   else if (status !== 'local') throw new Error(assetFileUnavailableMessages[status].title);
 
-  const resize = asset.width >= asset.height ? { width: LONGER_SIDE } : { height: LONGER_SIDE };
-  const { base64 } = await ImageManipulator.manipulateAsync(
-    getAssetThumbnailUri(asset.thumbnailFilename, library),
-    [{ resize }],
-    { base64: true, compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
-  );
+  const uri = getAssetThumbnailUri(asset.thumbnailFilename, library);
+  const { base64 } = await resizeToThumbnail(uri, asset.width, asset.height, { size: LONGER_SIDE, base64: true });
   return { base64, mimeType: 'image/jpeg' };
 }
 
