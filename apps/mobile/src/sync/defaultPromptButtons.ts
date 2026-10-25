@@ -1,10 +1,12 @@
+import type { NewPromptButton } from './promptButtonsRepository';
+
 const PPV_PROMPT =
   "Write a PPV message for this. Tease what's in it without describing all of it. End with a reason to unlock now.";
 
 // The prompt buttons a library starts with (seeded once, promptButtonsRepository.seedPromptButtons),
 // in their order within each placement. The ids are fixed, so two devices that both seed before
 // syncing end up with one row each. Every one can be edited or deleted in the app.
-const defaultPromptButtons = [
+const defaultPromptButtons: NewPromptButton[] = [
   {
     id: '452726e1-35ae-463f-8cab-dcd19bba78df',
     placement: 'post',

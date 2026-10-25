@@ -40,7 +40,7 @@ export default function useGridLongPressPan({
   useEffect(() => () => clearInterval(timerRef.current), []);
 
   function contentPoint(x, y) {
-    return { x, y: y + (scrollY?.value ?? 0) - (paddingTop ?? 0) };
+    return { x, y: y + (scrollY?.value ?? 0) - paddingTop };
   }
 
   function indexAtContent(content, count) {

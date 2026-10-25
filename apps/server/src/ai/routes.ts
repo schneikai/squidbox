@@ -112,7 +112,8 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       schema: { body: compareWritingRequestSchema, response: { 200: compareWritingResponseSchema } },
       handler: async (request, reply) => {
         const signal = untilClientLeaves(reply);
-        const persona = await readPersona(getDb(), requireUser(request).id);
+        // The catalog loads meanwhile (compareRequested reads it from the cache then).
+        const [persona] = await Promise.all([readPersona(getDb(), requireUser(request).id), catalogAsync()]);
         const messages = writingMessages({ prompt: request.body.prompt, persona });
         const results = await compareRequested(request.body.modelIds, 'writing', (models) =>
           compareModels({ task: writingTask, messages, models, log: request.log, signal }),

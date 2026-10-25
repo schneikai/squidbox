@@ -1,13 +1,12 @@
 import { useEffect, useMemo } from 'react';
 
-import joinYourModels from './joinYourModels';
-import seedModels from './seedModels';
-
 import useAiCatalog from '@/hooks/useAiCatalog';
 import { readModelList, seedYourModels } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
+import joinYourModels from '@/utils/ai/joinYourModels';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
+import seedModels from '@/utils/ai/seedModels';
 
 /**
  * Your models of a kind, live: `rows` your list joined with Venice's models (useAiCatalog's

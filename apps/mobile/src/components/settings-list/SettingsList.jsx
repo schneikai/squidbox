@@ -1,3 +1,4 @@
+import { Children } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import Icon from '@/components/Icon';
@@ -8,12 +9,13 @@ import { colors, lineHeights, radii, shadows, sizes, typography } from '@/styles
 // iOS-style grouped-list building blocks shared by the Settings screen and its detail screens
 // (Backup, Sync), so they all look and behave the same.
 
-export function Section({ children }) {
-  const kids = Array.isArray(children) ? children.filter(Boolean) : [children].filter(Boolean);
+// `isHeaderless`: a section without a header above it, set apart from the one before like a headed one.
+export function Section({ children, isHeaderless = false }) {
+  const kids = Children.toArray(children);
   return (
-    <View style={styles.section}>
+    <View style={[styles.section, isHeaderless && styles.headerless]}>
       {kids.map((child, i) => (
-        <View key={i}>
+        <View key={child.key ?? i}>
           {child}
           {i < kids.length - 1 && <ListDivider />}
         </View>
@@ -42,29 +44,13 @@ export function Row({
   chevron,
   children,
 }) {
-  const labelText = (
-    <Text
-      style={[
-        styles.rowLabel,
-        description != null && styles.rowLabelTitle,
-        isValueTruncated && styles.rowLabelKept,
-        destructive && styles.rowLabelDestructive,
-      ]}
-    >
-      {label}
-    </Text>
-  );
   const content = (
     <View style={styles.row}>
       {leading != null && <View style={styles.rowLeading}>{leading}</View>}
-      {description != null ? (
-        <View style={styles.rowText}>
-          {labelText}
-          <Text style={styles.rowDescription}>{description}</Text>
-        </View>
-      ) : (
-        labelText
-      )}
+      <View style={[styles.rowText, isValueTruncated && styles.rowTextKept]}>
+        <Text style={[styles.rowLabel, destructive && styles.rowLabelDestructive]}>{label}</Text>
+        {description != null && <Text style={styles.rowDescription}>{description}</Text>}
+      </View>
       <View style={styles.rowRight}>
         {value ? (
           <Text
@@ -93,6 +79,9 @@ export function Row({
 }
 
 const styles = StyleSheet.create({
+  headerless: {
+    marginTop: 20,
+  },
   section: {
     backgroundColor: colors.background.glass,
     borderRadius: radii.card,
@@ -107,7 +96,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   rowLabel: {
-    flex: 1,
     fontSize: typography.body,
     color: colors.text.primary,
   },
@@ -118,17 +106,14 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
-  rowLabelTitle: {
-    flex: 0,
+  rowTextKept: {
+    flexBasis: 'auto',
+    flexShrink: 0,
   },
   rowDescription: {
     fontSize: typography.subheadline,
     lineHeight: lineHeights.subheadline,
     color: colors.text.secondary,
-  },
-  rowLabelKept: {
-    flexBasis: 'auto',
-    flexShrink: 0,
   },
   rowLabelDestructive: {
     color: colors.status.danger,

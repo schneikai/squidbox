@@ -1,6 +1,6 @@
-import { PERSONA_LIMITS } from '@squidbox/shared';
+import { PERSONA_FIELDS, PERSONA_LIMITS, uniqueTags } from '@squidbox/shared';
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import ExamplePostsField from './ExamplePostsField';
@@ -11,6 +11,7 @@ import useFillInForMe from './useFillInForMe';
 import voiceFields from './voiceFields';
 
 import Card from '@/components/Card';
+import CatalogStatus from '@/components/CatalogStatus';
 import Field from '@/components/Field';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
@@ -24,49 +25,54 @@ import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAct
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
-import CatalogStatus from '@/features/model-compare/CatalogStatus';
 import useConfirmDiscard from '@/hooks/useConfirmDiscard';
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useScrollY from '@/hooks/useScrollY';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import useLibrary from '@/library/useLibrary';
-import { colors, scale } from '@/styles/designTokens';
+import { scale } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { EMPTY_PERSONA, readPersona, savePersona } from '@/sync/personaRepository';
+import { requestSync } from '@/sync/worker';
+import changedValues from '@/utils/changedValues';
 
 // Settings → Assistant → Writing as you: what the assistant writes with, as plain fields, saved
 // with Save. Reachable from anywhere (a root modal), so the chat opens it too.
 export default function VoiceModal({ navigation }) {
   const isAvailable = useLeaveWhenUnavailable();
-  const seed = useSeedOrClose(readSeedAsync, 'persona');
-  if (!isAvailable || !seed) return null;
-  return <VoiceEditor seed={seed} navigation={navigation} />;
-}
-
-// The fields of the saved persona, or the empty ones before the first save.
-async function readSeedAsync(db) {
-  const persona = await readPersona(db);
-  if (!persona) return EMPTY_PERSONA;
-  const { aboutYou, contentTags, tone, useEmoji, rules, examplePosts } = persona;
-  return { aboutYou, contentTags, tone, useEmoji, rules, examplePosts };
-}
-
-function VoiceEditor({ seed, navigation }) {
   const { library } = useLibrary();
+  const userId = library.owner.userId;
+  const seed = useSeedOrClose(async (db) => {
+    const persona = await readPersona(db, userId);
+    return persona ? pickPersonaFields(persona) : EMPTY_PERSONA;
+  }, 'persona');
+  if (!isAvailable || !seed) return null;
+  return <VoiceEditor userId={userId} seed={seed} navigation={navigation} />;
+}
+
+// The fields of a saved persona, without its sync columns.
+function pickPersonaFields(persona) {
+  return Object.fromEntries(PERSONA_FIELDS.map((field) => [field, persona[field]]));
+}
+
+function VoiceEditor({ userId, seed, navigation }) {
   const haptics = useHaptics();
   const { scrollY, onScroll } = useScrollY();
   const paddingBottom = useFloatingPrimaryActionPadding();
   const [draft, setDraft] = useState(seed);
   const [info, setInfo] = useState({ field: 'aboutYou', isVisible: false });
   const [isSaving, setIsSaving] = useState(false);
+  // One setter per field that keeps its identity, so typing in one field leaves the others' lists
+  // (memo) alone.
+  const [setters] = useState(() =>
+    Object.fromEntries(
+      PERSONA_FIELDS.map((field) => [field, (value) => setDraft((current) => ({ ...current, [field]: value }))]),
+    ),
+  );
   const fillIn = useFillInForMe(draft, setDraft);
-  const isDirty = JSON.stringify(draft) !== JSON.stringify(seed);
+  const isDirty = Object.keys(changedValues(seed, draft)).length > 0;
   const allowLeave = useConfirmDiscard(navigation, isDirty);
-
-  function setField(field, value) {
-    setDraft((current) => ({ ...current, [field]: value }));
-  }
 
   function showInfo(field) {
     setInfo({ field, isVisible: true });
@@ -75,7 +81,8 @@ function VoiceEditor({ seed, navigation }) {
   async function handleSave() {
     setIsSaving(true);
     try {
-      await savePersona(getDb(), library.owner.userId, normalized(draft));
+      await savePersona(getDb(), userId, normalized(draft));
+      requestSync();
       haptics.success();
       allowLeave();
       navigation.goBack();
@@ -93,7 +100,7 @@ function VoiceEditor({ seed, navigation }) {
         <Card>
           <Textarea
             value={draft[field]}
-            onChangeText={(text) => setField(field, text)}
+            onChangeText={setters[field]}
             placeholder={placeholder}
             maxLength={maxLength}
             minHeight={scale(88)}
@@ -126,7 +133,7 @@ function VoiceEditor({ seed, navigation }) {
         <Field label={voiceFields.contentTags.label} onInfo={() => showInfo('contentTags')}>
           <TagsField
             tags={draft.contentTags}
-            onChange={(tags) => setField('contentTags', tags)}
+            onChange={setters.contentTags}
             placeholder={voiceFields.contentTags.placeholder}
           />
         </Field>
@@ -134,21 +141,17 @@ function VoiceEditor({ seed, navigation }) {
           {textField('tone', PERSONA_LIMITS.tone)}
           <Section>
             <Row label={voiceFields.useEmoji.label} description={voiceFields.useEmoji.description}>
-              <Switch value={draft.useEmoji} onValueChange={(value) => setField('useEmoji', value)} />
+              <Switch value={draft.useEmoji} onValueChange={setters.useEmoji} />
             </Row>
           </Section>
         </View>
         <Field label={voiceFields.rules.label} onInfo={() => showInfo('rules')}>
-          <RulesField
-            rules={draft.rules}
-            onChange={(rules) => setField('rules', rules)}
-            placeholder={voiceFields.rules.placeholder}
-          />
+          <RulesField rules={draft.rules} onChange={setters.rules} placeholder={voiceFields.rules.placeholder} />
         </Field>
         <Field label={voiceFields.examplePosts.label} onInfo={() => showInfo('examplePosts')}>
           <ExamplePostsField
             posts={draft.examplePosts}
-            onChange={(posts) => setField('examplePosts', posts)}
+            onChange={setters.examplePosts}
             placeholder={voiceFields.examplePosts.placeholder}
           />
         </Field>
@@ -156,13 +159,13 @@ function VoiceEditor({ seed, navigation }) {
       </Animated.ScrollView>
       <FloatingPrimaryAction align="center">
         <FloatingPill>
-          {fillIn.isDrafting ? (
-            <View style={styles.drafting}>
-              <ActivityIndicator color={colors.accent.base} />
-            </View>
-          ) : (
-            <TextButton icon="sparkle" label="Fill it in for me" onPress={fillIn.fill} disabled={!fillIn.canFill} />
-          )}
+          <TextButton
+            icon="sparkle"
+            label="Fill it in for me"
+            onPress={fillIn.fill}
+            disabled={!fillIn.canFill}
+            loading={fillIn.isDrafting}
+          />
         </FloatingPill>
       </FloatingPrimaryAction>
       <FieldInfoSheet
@@ -176,19 +179,10 @@ function VoiceEditor({ seed, navigation }) {
 
 // The draft as it is saved: texts trimmed, the empty rules, posts and tags dropped, a tag once.
 function normalized(draft) {
-  const seen = new Set();
-  const contentTags = draft.contentTags
-    .map((tag) => tag.trim())
-    .filter((tag) => {
-      const key = tag.toLowerCase();
-      if (!tag || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
   const kept = (list) => list.map((text) => text.trim()).filter(Boolean);
   return {
     aboutYou: draft.aboutYou.trim(),
-    contentTags,
+    contentTags: uniqueTags(draft.contentTags),
     tone: draft.tone.trim(),
     useEmoji: draft.useEmoji,
     rules: kept(draft.rules),
@@ -208,9 +202,5 @@ const styles = StyleSheet.create({
   },
   toneGroup: {
     gap: 8,
-  },
-  drafting: {
-    paddingVertical: 12,
-    paddingHorizontal: 72,
   },
 });

@@ -1,32 +1,25 @@
 // "Writing as you": the persona the writing prompts take, read from the user's synced `personas`
 // record, and "Fill it in for me", which drafts it from the user's posts.
-import { and, desc, eq, isNull } from 'drizzle-orm';
-import { PERSONA_LIMITS, type PersonaDraftResponse } from '@squidbox/shared';
+import { and, eq, isNull } from 'drizzle-orm';
+import { PERSONA_FIELDS, PERSONA_LIMITS, type PersonaDraftResponse } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import { personas } from '../db/schema.js';
 import type { CatalogEntry } from './catalog.js';
 import { checkTags } from './compare.js';
-import { personaDraftMessages, personaDraftSchema, type Persona } from './prompts.js';
+import { DRAFT_EXAMPLE_POSTS, personaDraftMessages, personaDraftSchema, type Persona } from './prompts.js';
 import { chatJsonAsync, VeniceError } from './venice.js';
 
-// The posts a draft may pick as example posts.
-const DRAFT_EXAMPLE_POSTS = 3;
+// The persona's columns, read as the record's fields.
+const personaColumns = Object.fromEntries(PERSONA_FIELDS.map((field) => [field, personas[field]])) as {
+  [F in (typeof PERSONA_FIELDS)[number]]: (typeof personas)[F];
+};
 
-/** The user's persona (their newest live record: one per user, its id is theirs), or null. */
+/** The user's persona (its record's id is the user's id), or null before they saved one. */
 export async function readPersona(db: Db, userId: string): Promise<Persona> {
   const [row] = await db
-    .select({
-      aboutYou: personas.aboutYou,
-      contentTags: personas.contentTags,
-      tone: personas.tone,
-      useEmoji: personas.useEmoji,
-      rules: personas.rules,
-      examplePosts: personas.examplePosts,
-    })
+    .select(personaColumns)
     .from(personas)
-    .where(and(eq(personas.userId, userId), isNull(personas.deletedAt)))
-    .orderBy(desc(personas.updatedAt))
-    .limit(1);
+    .where(and(eq(personas.userId, userId), eq(personas.id, userId), isNull(personas.deletedAt)));
   return row ?? null;
 }
 

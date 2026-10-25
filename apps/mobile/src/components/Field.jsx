@@ -21,9 +21,9 @@ import { colors, lineHeights, sizes, typography } from '@/styles/designTokens';
 export default function Field({ label, description, onInfo, children, style }) {
   return (
     <View style={[styles.field, style]}>
-      {onInfo ? (
-        <View style={styles.labelRow}>
-          <Text style={styles.label}>{label}</Text>
+      <View style={styles.labelRow}>
+        <Text style={styles.label}>{label}</Text>
+        {onInfo && (
           <IconButton
             icon="info"
             size={sizes.iconSmall}
@@ -32,10 +32,8 @@ export default function Field({ label, description, onInfo, children, style }) {
             accessibilityLabel={`What goes in ${label}`}
             style={styles.info}
           />
-        </View>
-      ) : (
-        <Text style={styles.label}>{label}</Text>
-      )}
+        )}
+      </View>
       {children}
       {description != null && <Text style={styles.description}>{description}</Text>}
     </View>

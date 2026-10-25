@@ -1,13 +1,10 @@
 // The AI's prompts and the JSON each model must answer with.
-import { WRITING_TWEET_COUNT, type PersonaRecord } from '@squidbox/shared';
+import { WRITING_TWEET_COUNT, type PersonaDraftResponse, type PersonaFields } from '@squidbox/shared';
 import { z } from 'zod';
 import type { ChatMessage, JsonSchemaSpec } from './venice.js';
 
 /** Writing as the user: their "Writing as you" setup, or null before they saved one (persona.ts). */
-export type Persona = Pick<
-  PersonaRecord,
-  'aboutYou' | 'contentTags' | 'tone' | 'useEmoji' | 'rules' | 'examplePosts'
-> | null;
+export type Persona = PersonaFields | null;
 
 export function writingMessages({ prompt, persona }: { prompt: string; persona: Persona }): ChatMessage[] {
   const system = [
@@ -42,6 +39,9 @@ function personaText({ aboutYou, contentTags, tone, useEmoji, rules, examplePost
 
 // "Fill it in for me": the posts are numbered from 0, so the reply can pick the example posts by
 // index and the app copies them verbatim.
+// The posts a draft may pick as example posts.
+export const DRAFT_EXAMPLE_POSTS = 3;
+
 export function personaDraftMessages({ posts }: { posts: string[] }): ChatMessage[] {
   const system = [
     'You help a content creator describe how they write, from their own posts.',
@@ -50,7 +50,7 @@ export function personaDraftMessages({ posts }: { posts: string[] }): ChatMessag
     'contentTags: 5 to 10 short lowercase tags for what their content is about.',
     'tone: one or two short sentences on how their posts sound: short or long, sweet or cocky, ' +
       'how explicit, emoji or not. Write it as an instruction, like "Short and cocky. Teases, never begs."',
-    'examplePostIndexes: the numbers of up to 3 posts that best show their voice.',
+    `examplePostIndexes: the numbers of up to ${DRAFT_EXAMPLE_POSTS} posts that best show their voice.`,
     'Reply as a JSON object: {"aboutYou": "…", "contentTags": [...], "tone": "…", "examplePostIndexes": [...]}.',
   ].join('\n\n');
   const user = posts.map((post, index) => `Post ${index}:\n${post}`).join('\n\n');
@@ -106,12 +106,7 @@ export const tagsSchema: JsonSchemaSpec<{ tags: string[] }> = {
 };
 
 // The zod side is loose like the others: persona.ts checks the reply.
-export const personaDraftSchema: JsonSchemaSpec<{
-  aboutYou: string;
-  contentTags: string[];
-  tone: string;
-  examplePostIndexes: number[];
-}> = {
+export const personaDraftSchema: JsonSchemaSpec<PersonaDraftResponse> = {
   name: 'persona',
   jsonSchema: objectSchema({
     aboutYou: { type: 'string' },

@@ -2,12 +2,11 @@ import { COMPARE_MIN_MODELS, VISION_COMPARE_MAX_PHOTOS } from '@squidbox/shared'
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet } from 'react-native';
 
-import CatalogStatus from './CatalogStatus';
 import ModelPickRow from './ModelPickRow';
 import PhotoSetRow from './PhotoSetRow';
 import modelKindText from './modelKindText';
-import useYourModels from './useYourModels';
 
+import CatalogStatus from '@/components/CatalogStatus';
 import IntroText from '@/components/IntroText';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
@@ -19,6 +18,7 @@ import { Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import useYourModels from '@/hooks/useYourModels';
 import { readLiveAssets, readVisionPhotos, setVisionPhotos } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';

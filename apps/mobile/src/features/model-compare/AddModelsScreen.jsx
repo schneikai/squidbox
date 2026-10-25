@@ -4,10 +4,9 @@ import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AddModelRow from './AddModelRow';
-import CatalogStatus from './CatalogStatus';
 import searchModels from './searchModels';
-import useYourModels from './useYourModels';
 
+import CatalogStatus from '@/components/CatalogStatus';
 import EmptyState from '@/components/EmptyState';
 import ListDivider from '@/components/ListDivider';
 import ModalCloseButton from '@/components/ModalCloseButton';
@@ -18,6 +17,7 @@ import { SCREEN_PADDING } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useScrollY from '@/hooks/useScrollY';
+import useYourModels from '@/hooks/useYourModels';
 import { addYourModel } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 import modelsOfKind from '@/utils/ai/modelsOfKind';

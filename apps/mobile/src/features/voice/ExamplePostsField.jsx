@@ -1,31 +1,25 @@
 import { PERSONA_LIMITS } from '@squidbox/shared';
-import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { memo } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+
+import useEditableList from './useEditableList';
 
 import Card from '@/components/Card';
-import Icon from '@/components/Icon';
+import Chip from '@/components/Chip';
 import IconButton from '@/components/IconButton';
 import Textarea from '@/components/Textarea';
 import { SCREEN_PADDING } from '@/constants';
-import { colors, radii, scale, sizes, typography } from '@/styles/designTokens';
-
-const CARD_WIDTH = scale(220);
+import { colors, scale, sizes, typography } from '@/styles/designTokens';
 
 /**
  * Example posts: a row of cards, each edited in place, × takes it out. The dashed "Paste a post"
- * card adds an empty one and focuses it; empty posts are dropped on Save, not while typing. The row
- * runs to the screen's edges, so it scrolls under them.
+ * adds an empty one and focuses it; empty posts are dropped on Save, not while typing. The row runs
+ * to the screen's edges, so it scrolls under them.
  */
-export default function ExamplePostsField({ posts, onChange, placeholder }) {
-  // The card "Paste a post" just made, which takes the focus once.
-  const [addedIndex, setAddedIndex] = useState(null);
+function ExamplePostsField({ posts, onChange, placeholder }) {
+  const list = useEditableList(posts, onChange);
 
   const canAdd = posts.length < PERSONA_LIMITS.examplePosts;
-
-  function handleAdd() {
-    setAddedIndex(posts.length);
-    onChange([...posts, '']);
-  }
 
   return (
     <ScrollView
@@ -40,31 +34,32 @@ export default function ExamplePostsField({ posts, onChange, placeholder }) {
         <Card key={index} style={styles.card}>
           <Textarea
             value={post}
-            onChangeText={(text) => onChange(posts.map((each, i) => (i === index ? text : each)))}
+            onChangeText={(text) => list.change(index, text)}
             placeholder={placeholder}
             maxLength={PERSONA_LIMITS.examplePost}
-            autoFocus={index === addedIndex}
+            autoFocus={list.isAdded(index)}
             style={styles.input}
           />
           <IconButton
             icon="close"
             size={sizes.iconSmall}
             color={colors.text.secondary}
-            onPress={() => onChange(posts.filter((_, i) => i !== index))}
+            onPress={() => list.remove(index)}
             accessibilityLabel="Remove this post"
             style={styles.remove}
           />
         </Card>
       ))}
       {canAdd && (
-        <TouchableOpacity style={styles.add} onPress={handleAdd} activeOpacity={0.6} accessibilityRole="button">
-          <Icon name="add" size={sizes.iconSmall} color={colors.accent.base} />
-          <Text style={styles.addLabel}>{placeholder}</Text>
-        </TouchableOpacity>
+        <View style={styles.add}>
+          <Chip label={placeholder} variant="add" onPress={list.add} />
+        </View>
       )}
     </ScrollView>
   );
 }
+
+export default memo(ExamplePostsField);
 
 const styles = StyleSheet.create({
   scroller: {
@@ -76,7 +71,7 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
   },
   card: {
-    width: CARD_WIDTH,
+    width: scale(220),
     minHeight: scale(96),
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -91,19 +86,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   add: {
-    width: CARD_WIDTH * 0.6,
     minHeight: scale(96),
-    alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    borderRadius: radii.card,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: colors.accent.border,
-  },
-  addLabel: {
-    fontSize: typography.subheadline,
-    fontWeight: '500',
-    color: colors.accent.base,
   },
 });

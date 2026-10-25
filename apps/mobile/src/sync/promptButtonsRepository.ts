@@ -1,18 +1,27 @@
-import { keyBetween, movePositions, type PromptButtonPlacement, type PromptButtonRecord } from '@squidbox/shared';
+import {
+  keyBetween,
+  movePositions,
+  promptButtonCollection,
+  type PromptButtonPlacement,
+  type PromptButtonRecord,
+} from '@squidbox/shared';
 import { and, asc, count, desc, eq, isNull } from 'drizzle-orm';
 
 import { nextVersion } from './clock';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
+import defaultPromptButtons from './defaultPromptButtons';
 import { readByIds } from './readByIds';
 import { makeRepository } from './repository';
 import { saveRecords } from './saveRecords';
 import { isFirstSyncDone } from './status';
 
+import newRecord from '@/utils/newRecord';
+
 // The chat's prompt buttons (Settings → Assistant → Prompt buttons): the only reader and writer of
 // the prompt_buttons table. Each placement has its own order, `(position, id)`.
 
-type NewPromptButton = Pick<PromptButtonRecord, 'id' | 'name' | 'prompt' | 'placement' | 'icon'>;
+export type NewPromptButton = Pick<PromptButtonRecord, 'id' | 'name' | 'prompt' | 'placement' | 'icon'>;
 type PromptButtonChanges = Partial<Pick<PromptButtonRecord, 'name' | 'prompt' | 'placement' | 'icon'>>;
 
 const t = schema.promptButtons;
@@ -26,6 +35,12 @@ export async function readPromptButtons(db: SyncDb): Promise<PromptButtonRecord[
     .where(isNull(t.deletedAt))
     .orderBy(asc(t.placement), asc(t.position), asc(t.id));
   return rows as PromptButtonRecord[];
+}
+
+/** How many live buttons there are. */
+export async function countPromptButtons(db: SyncDb): Promise<number> {
+  const [{ buttons }] = await db.select({ buttons: count() }).from(t).where(isNull(t.deletedAt));
+  return buttons;
 }
 
 /** One live button, or null when it's gone (deleted, here or on another device). */
@@ -51,9 +66,11 @@ async function positionAtEnd(db: SyncDb, placement: PromptButtonPlacement): Prom
 /** A new button at the end of its placement. */
 export async function createPromptButton(db: SyncDb, fields: NewPromptButton): Promise<PromptButtonRecord> {
   return db.transaction(async (tx) => {
-    const now = Date.now();
-    const position = await positionAtEnd(tx, fields.placement);
-    const record = { ...fields, position, createdAt: now, updatedAt: now, deletedAt: null };
+    const record = newRecord(
+      promptButtonCollection,
+      {},
+      { ...fields, position: await positionAtEnd(tx, fields.placement) },
+    );
     await saveRecords(tx, 'prompt_buttons', t, [record], { isNew: true });
     return record;
   });
@@ -84,10 +101,7 @@ export function removePromptButton(db: SyncDb, id: string): Promise<void> {
  */
 export async function movePromptButton(db: SyncDb, id: string, afterId: string | null): Promise<void> {
   await db.transaction(async (tx) => {
-    const [moved] = await tx
-      .select()
-      .from(t)
-      .where(and(eq(t.id, id), isNull(t.deletedAt)));
+    const moved = await readPromptButton(tx, id);
     if (!moved) return;
     const live = (await tx
       .select()
@@ -108,18 +122,17 @@ export async function movePromptButton(db: SyncDb, id: string, afterId: string |
  */
 export async function seedPromptButtons(
   db: SyncDb,
-  defaults: Pick<PromptButtonRecord, 'id' | 'name' | 'prompt' | 'placement' | 'icon'>[],
+  defaults: NewPromptButton[] = defaultPromptButtons,
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
     if (!(await isFirstSyncDone(tx))) return false;
     const [{ rows }] = await tx.select({ rows: count() }).from(t);
     if (rows > 0) return false;
-    const now = Date.now();
     const last = new Map<string, string | null>();
     const records = defaults.map((button) => {
       const position = keyBetween(last.get(button.placement) ?? null, null);
       last.set(button.placement, position);
-      return { ...button, position, createdAt: now, updatedAt: now, deletedAt: null };
+      return newRecord(promptButtonCollection, {}, { ...button, position });
     });
     await saveRecords(tx, 'prompt_buttons', t, records, { isNew: true });
     return true;

@@ -95,9 +95,10 @@ export type CompareVisionResponse = z.infer<typeof compareVisionResponseSchema>;
 // (the app's chosen writing model) reads the user's posts and drafts About you, the content tags
 // and Tone, and picks the posts that best show their voice by index (the app copies those verbatim).
 export const PERSONA_DRAFT_MAX_POSTS = 40;
+export const PERSONA_DRAFT_POST_MAX_LENGTH = 2000;
 
 export const personaDraftRequestSchema = z.object({
-  posts: z.array(z.string().trim().min(1).max(2000)).min(1).max(PERSONA_DRAFT_MAX_POSTS),
+  posts: z.array(z.string().trim().min(1).max(PERSONA_DRAFT_POST_MAX_LENGTH)).min(1).max(PERSONA_DRAFT_MAX_POSTS),
   modelId: z.string().min(1),
 });
 export type PersonaDraftRequest = z.infer<typeof personaDraftRequestSchema>;

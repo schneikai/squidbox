@@ -21,13 +21,13 @@ const outbox = (db: SyncDb) => db.select().from(schema.outbox).where(eq(schema.o
 
 describe('personaRepository', () => {
   it('reads nothing before the first save', async () => {
-    expect(await readPersona(makeTestDb())).toBeNull();
+    expect(await readPersona(makeTestDb(), USER)).toBeNull();
   });
 
   it("creates the persona with the user's id on the first save", async () => {
     const db = makeTestDb();
     await savePersona(db, USER, filled);
-    expect(await readPersona(db)).toMatchObject({ id: USER, deletedAt: null, ...filled });
+    expect(await readPersona(db, USER)).toMatchObject({ id: USER, deletedAt: null, ...filled });
     expect(await outbox(db)).toHaveLength(1);
   });
 
@@ -36,7 +36,7 @@ describe('personaRepository', () => {
     await savePersona(db, USER, EMPTY_PERSONA);
     await savePersona(db, USER, filled);
     expect(await db.select().from(schema.personas)).toHaveLength(1);
-    expect(await readPersona(db)).toMatchObject(filled);
+    expect(await readPersona(db, USER)).toMatchObject(filled);
   });
 
   it('sends only the fields that changed, so an untouched list keeps its clock', async () => {
@@ -47,16 +47,16 @@ describe('personaRepository', () => {
     await savePersona(db, USER, { ...filled, aboutYou: 'Couple from Austin.', rules: [...filled.rules] });
     const [row] = await outbox(db);
     expect(Object.keys(row!.fields)).toEqual(['aboutYou']);
-    expect((await readPersona(db))!.aboutYou).toBe('Couple from Austin.');
+    expect((await readPersona(db, USER))!.aboutYou).toBe('Couple from Austin.');
   });
 
   it('writes nothing when nothing changed', async () => {
     const db = makeTestDb();
     await savePersona(db, USER, filled);
-    const before = await readPersona(db);
+    const before = await readPersona(db, USER);
     await clearOutboxRows(db, 'personas', [USER]);
     await savePersona(db, USER, { ...filled, contentTags: [...filled.contentTags] });
     expect(await outbox(db)).toHaveLength(0);
-    expect((await readPersona(db))!.updatedAt).toBe(before!.updatedAt);
+    expect((await readPersona(db, USER))!.updatedAt).toBe(before!.updatedAt);
   });
 });

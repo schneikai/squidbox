@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
+import mergeRowIds from '@/components/sortable-grid/mergeRowIds';
+import sameOrder from '@/components/sortable-grid/sameOrder';
 import useGridLongPressPan from '@/components/sortable-grid/useGridLongPressPan';
+import { DRAG_LIFT_SCALE, DRAG_LONG_PRESS_MS } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
 import { motion } from '@/styles/designTokens';
 
-// Longer than a slow tap, so a tap always opens the chip (as the grids' drag).
-const LONG_PRESS_MS = 400;
 // The press that ends a drag (a click on web) mustn't open the chip it lands on.
 const PRESS_AFTER_DROP_MS = 500;
 
@@ -40,15 +41,24 @@ export default function useChipReorder({ ids, onMove }) {
 
   // The dropped order holds until the rows have the move (or anything else changed them).
   const idsKey = ids.join(',');
+  if (held && held.idsKey !== idsKey) setHeld(null);
+
+  // Chips that arrive or leave during a drag (a sync) join or leave the drag's order.
   useEffect(() => {
-    setHeld((current) => (current && current.idsKey !== idsKey ? null : current));
+    const id = draggingIdRef.current;
+    if (!id) return;
+    const merged = mergeRowIds(orderRef.current, ids, id);
+    if (sameOrder(merged, orderRef.current)) return;
+    orderRef.current = merged;
+    setDragOrder(merged);
   }, [idsKey]);
 
-  const order = dragOrder ?? held?.order ?? ids;
+  const order = dragOrder ?? (held && held.idsKey === idsKey ? held.order : ids);
 
   const { gesture, contentPoint, indexAtContent } = useGridLongPressPan({
     enabled: ids.length > 1,
-    holdMs: LONG_PRESS_MS,
+    holdMs: DRAG_LONG_PRESS_MS,
+    paddingTop: 0,
     findIndexAt: chipIndexAt,
     onLift(x, y) {
       orderRef.current = [...order];
@@ -63,7 +73,7 @@ export default function useChipReorder({ ids, onMove }) {
       grabOffsetRef.current = { x: content.x - frame.x, y: content.y - frame.y };
       liftedX.value = frame.x;
       liftedY.value = frame.y;
-      liftedScale.value = withSpring(1.08, motion.spring);
+      liftedScale.value = withSpring(DRAG_LIFT_SCALE, motion.spring);
       suppressPressUntilRef.current = Infinity;
       haptics.lift();
       setLiftedId(id);

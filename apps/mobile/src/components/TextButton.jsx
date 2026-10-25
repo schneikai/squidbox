@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
 import Icon from '@/components/Icon';
 import { colors, scale, typography } from '@/styles/designTokens';
@@ -12,8 +12,17 @@ const TONE_COLORS = {
 
 // A secondary action as a line of text ("Sign in as someone else", "Try again"). `tone`: `accent`,
 // `muted` for one that should not draw the eye, `danger` for one that deletes, or `inverse` on a dark
-// overlay. `size="small"` fits it into a header row; `icon` leads the label. `disabled` greys it out.
-export default function TextButton({ label, icon, onPress, tone = 'accent', size = 'regular', disabled = false }) {
+// overlay. `size="small"` fits it into a header row; `icon` leads the label. `disabled` greys it out;
+// `loading` shows a spinner in the icon's place and blocks presses.
+export default function TextButton({
+  label,
+  icon,
+  onPress,
+  tone = 'accent',
+  size = 'regular',
+  disabled = false,
+  loading = false,
+}) {
   const color = disabled ? colors.text.tertiary : TONE_COLORS[tone];
   const isSmall = size === 'small';
 
@@ -21,12 +30,16 @@ export default function TextButton({ label, icon, onPress, tone = 'accent', size
     <Pressable
       style={({ pressed }) => [styles.button, isSmall && styles.small, pressed && styles.pressed]}
       onPress={onPress}
-      disabled={disabled}
+      disabled={disabled || loading}
       hitSlop={8}
       accessibilityRole="button"
-      accessibilityState={{ disabled }}
+      accessibilityState={{ disabled, busy: loading }}
     >
-      {icon && <Icon name={icon} size={isSmall ? scale(14) : scale(16)} color={color} />}
+      {loading ? (
+        <ActivityIndicator size="small" color={color} />
+      ) : (
+        icon && <Icon name={icon} size={isSmall ? scale(14) : scale(16)} color={color} />
+      )}
       <Text style={[styles.label, isSmall && styles.smallLabel, tone === 'muted' && styles.muted, { color }]}>
         {label}
       </Text>

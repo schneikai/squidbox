@@ -3,9 +3,7 @@ import { baseRecordSchema, defineCollection, textSchema } from './define';
 
 // `personas` — "Writing as you" (Settings → Assistant): what the assistant writes with. One record
 // per user, whose id is the user's id, so every device writes the same record and the per-field
-// merge converges. The lists are JSON values that merge as a whole, each with its own clock: a save
-// sends only the fields it changed (personaRepository), so an untouched list never overwrites
-// another device's edit of it.
+// merge converges. The lists are JSON values that merge as a whole, each with its own clock.
 export const PERSONA_LIMITS = {
   aboutYou: 2000,
   tone: 1000,
@@ -32,3 +30,8 @@ export const personaCollection = defineCollection({
 });
 
 export type PersonaRecord = z.infer<typeof personaCollection.schema>;
+
+/** The persona's own fields (all but the base columns), in the order the screen shows them. */
+export const PERSONA_FIELDS = ['aboutYou', 'contentTags', 'tone', 'useEmoji', 'rules', 'examplePosts'] as const;
+
+export type PersonaFields = Pick<PersonaRecord, (typeof PERSONA_FIELDS)[number]>;

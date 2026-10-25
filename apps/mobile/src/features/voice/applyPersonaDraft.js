@@ -1,3 +1,5 @@
+import isPresent from '@/utils/isPresent';
+
 // Emoji by explicit code-point ranges (pictographs and symbols, dingbats, flags), not
 // \p{Extended_Pictographic}, whose Hermes support nothing in the app relies on yet.
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F1E6}-\u{1F1FF}]/u;
@@ -21,15 +23,7 @@ export default function applyPersonaDraft(draft, reply, posts, mode) {
   if (mode === 'replace') return { ...draft, ...drafted };
   const next = { ...draft };
   for (const [field, value] of Object.entries(drafted)) {
-    if (field === 'useEmoji' ? !isPersonaFieldFilled(draft, 'examplePosts') : !isPersonaFieldFilled(draft, field)) {
-      next[field] = value;
-    }
+    if (!isPresent(draft[field === 'useEmoji' ? 'examplePosts' : field])) next[field] = value;
   }
   return next;
-}
-
-/** Whether a field of the draft holds something (a list with items, text that isn't blank). */
-export function isPersonaFieldFilled(draft, field) {
-  const value = draft[field];
-  return Array.isArray(value) ? value.length > 0 : typeof value === 'string' ? value.trim() !== '' : false;
 }

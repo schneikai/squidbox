@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import SegmentedControl from './SegmentedControl';
 import placementText, { PLACEMENTS } from './placementText';
 
 import Card from '@/components/Card';
@@ -12,7 +13,6 @@ import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import PrimaryButton from '@/components/PrimaryButton';
-import SegmentedControl from '@/components/SegmentedControl';
 import TextButton from '@/components/TextButton';
 import TextInput from '@/components/TextInput';
 import Textarea from '@/components/Textarea';
@@ -29,6 +29,8 @@ import {
   removePromptButton,
   updatePromptButton,
 } from '@/sync/promptButtonsRepository';
+import { requestSync } from '@/sync/worker';
+import changedValues from '@/utils/changedValues';
 import confirmAsync from '@/utils/confirmAsync';
 import getNewItemId from '@/utils/getNewItemId';
 
@@ -55,12 +57,13 @@ function PromptButtonEditor({ id, seed, navigation }) {
   const { bottom } = useSafeAreaInsets();
   const haptics = useHaptics();
   const [draft, setDraft] = useState({ name: seed.name, prompt: seed.prompt, placement: seed.placement });
-  const isDirty = draft.name !== seed.name || draft.prompt !== seed.prompt || draft.placement !== seed.placement;
+  const isDirty = Object.keys(changedValues(seed, draft)).length > 0;
   const allowLeave = useConfirmDiscard(navigation, isDirty);
 
   const name = draft.name.trim();
   const prompt = draft.prompt.trim();
-  const canSave = !!name && !!prompt && (isDirty || !id);
+  // A new button's empty seed makes any name and prompt a change.
+  const canSave = !!name && !!prompt && isDirty;
 
   function setField(field, value) {
     setDraft((current) => ({ ...current, [field]: value }));
@@ -68,8 +71,10 @@ function PromptButtonEditor({ id, seed, navigation }) {
 
   async function handleSave() {
     const db = getDb();
-    if (id) await updatePromptButton(db, id, { name, prompt, placement: draft.placement });
+    // Only what changed, so an edit another device made meanwhile to another field is kept.
+    if (id) await updatePromptButton(db, id, changedValues(seed, { name, prompt, placement: draft.placement }));
     else await createPromptButton(db, { id: getNewItemId(), name, prompt, placement: draft.placement, icon: null });
+    requestSync();
     haptics.success();
     allowLeave();
     navigation.goBack();
@@ -85,6 +90,7 @@ function PromptButtonEditor({ id, seed, navigation }) {
       placement: seed.placement,
       icon: seed.icon,
     });
+    requestSync();
     navigation.replace('PromptButtonModal', { id: copy.id });
   }
 
@@ -97,6 +103,7 @@ function PromptButtonEditor({ id, seed, navigation }) {
     });
     if (!isConfirmed) return;
     await removePromptButton(getDb(), id);
+    requestSync();
     allowLeave();
     navigation.goBack();
   }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import applyPersonaDraft, { isPersonaFieldFilled } from '../src/features/voice/applyPersonaDraft';
+import applyPersonaDraft from '../src/features/voice/applyPersonaDraft';
 
 const empty = { aboutYou: '', contentTags: [], tone: ' ', useEmoji: false, rules: [], examplePosts: [] };
 const posts = ['Leg day. You’re welcome.', 'Sheets still warm 😏', 'Back home 🇩🇪', 'Gym, then you.'];
@@ -48,14 +48,5 @@ describe('applyPersonaDraft', () => {
     expect(useEmoji(['Leg day. You’re welcome.'])).toBe(false);
     expect(useEmoji(['Sheets still warm 😏'])).toBe(true);
     expect(useEmoji(['Back home 🇩🇪'])).toBe(true);
-  });
-});
-
-describe('isPersonaFieldFilled', () => {
-  it('counts lists with items and text that is not blank', () => {
-    expect(isPersonaFieldFilled(empty, 'tone')).toBe(false);
-    expect(isPersonaFieldFilled({ ...empty, tone: 'x' }, 'tone')).toBe(true);
-    expect(isPersonaFieldFilled({ ...empty, contentTags: ['a'] }, 'contentTags')).toBe(true);
-    expect(isPersonaFieldFilled(empty, 'contentTags')).toBe(false);
   });
 });

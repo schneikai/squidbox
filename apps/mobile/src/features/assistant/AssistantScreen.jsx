@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { aiModelKindSchema } from '@squidbox/shared';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import personaSummary from './personaSummary';
 import useVeniceBalance from './useVeniceBalance';
@@ -13,13 +13,15 @@ import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import modelKindText from '@/features/model-compare/modelKindText';
-import usePromptButtons from '@/features/prompt-buttons/usePromptButtons';
 import useAiCatalog from '@/hooks/useAiCatalog';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import useSeedPromptButtons from '@/hooks/useSeedPromptButtons';
+import useLibrary from '@/library/useLibrary';
 import { colors, radii, sizes } from '@/styles/designTokens';
 import { readChosenModels } from '@/sync/aiStateRepository';
 import { schema } from '@/sync/db/client';
 import { readPersona } from '@/sync/personaRepository';
+import { countPromptButtons } from '@/sync/promptButtonsRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
 
@@ -28,8 +30,11 @@ import modelsOfKind from '@/utils/ai/modelsOfKind';
 export default function AssistantScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
-  const persona = useLiveQuery((db) => readPersona(db), [schema.personas]);
-  const promptButtons = usePromptButtons();
+  const { library } = useLibrary();
+  const userId = library.owner.userId;
+  const persona = useLiveQuery((db) => readPersona(db, userId), [schema.personas], [userId]);
+  const promptButtonCount = useLiveQuery((db) => countPromptButtons(db), [schema.promptButtons]);
+  useSeedPromptButtons();
   const chosen = useLiveQuery((db) => readChosenModels(db), [schema.aiKinds, schema.aiModels]);
   const { models: catalog } = useAiCatalog();
   const balance = useVeniceBalance();
@@ -55,17 +60,16 @@ export default function AssistantScreen() {
           <Row
             leading={<AssistantMark />}
             label="Writing as you"
-            description={persona === undefined ? ' ' : personaSummary(persona)}
+            description={persona === undefined ? null : personaSummary(persona)}
             onPress={() => navigation.navigate('VoiceModal')}
             chevron
           />
         </Section>
-        <View style={styles.gap} />
-        <Section>
+        <Section isHeaderless>
           <Row
             leading={<Icon name="prompt-buttons" color={colors.text.secondary} />}
             label="Prompt buttons"
-            value={promptButtons ? String(Object.values(promptButtons).flat().length) : null}
+            value={promptButtonCount === undefined ? null : String(promptButtonCount)}
             onPress={() => navigation.navigate('PromptButtonsScreen')}
             chevron
           />
@@ -104,9 +108,6 @@ function AssistantMark() {
 }
 
 const styles = StyleSheet.create({
-  gap: {
-    height: 16,
-  },
   mark: {
     width: sizes.iconButton,
     height: sizes.iconButton,

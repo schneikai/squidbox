@@ -1,21 +1,22 @@
-import { PERSONA_DRAFT_MAX_POSTS } from '@squidbox/shared';
+import { PERSONA_DRAFT_MAX_POSTS, PERSONA_DRAFT_POST_MAX_LENGTH } from '@squidbox/shared';
 import axios from 'axios';
 import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
-import applyPersonaDraft, { isPersonaFieldFilled } from './applyPersonaDraft';
+import applyPersonaDraft from './applyPersonaDraft';
+import draftedFields from './draftedFields';
+import voiceFields from './voiceFields';
 
-import useYourModels from '@/features/model-compare/useYourModels';
 import useHaptics from '@/hooks/useHaptics';
+import useYourModels from '@/hooks/useYourModels';
 import { getDb } from '@/sync/db/client';
 import { readRecentPostTexts } from '@/sync/postsRepository';
 import draftPersonaAsync from '@/utils/cloud-api/ai/draftPersonaAsync';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
+import isPresent from '@/utils/isPresent';
 
-// The fields a draft fills (the rules it leaves alone; Use emoji goes with the example posts).
-const DRAFTED_FIELDS = ['aboutYou', 'contentTags', 'tone', 'examplePosts'];
-// The longest post the server takes.
-const POST_MAX_LENGTH = 2000;
+const draftedLabels = draftedFields.map((field) => voiceFields[field].label);
+const DRAFTED_LABELS = `${draftedLabels.slice(0, -1).join(', ')} and ${draftedLabels.at(-1)}`;
 
 /**
  * "Fill it in for me" on Writing as you: drafts the fields from the library's newest posts (or, with
@@ -38,14 +39,15 @@ export default function useFillInForMe(draft, onDraft) {
     if (!modelId || isDrafting) return;
     const libraryPosts = await readRecentPostTexts(getDb(), PERSONA_DRAFT_MAX_POSTS);
     const pasted = draft.examplePosts.map((post) => post.trim()).filter(Boolean);
-    const posts = (libraryPosts.length > 0 ? libraryPosts : pasted)
-      .slice(0, PERSONA_DRAFT_MAX_POSTS)
-      .map((post) => post.slice(0, POST_MAX_LENGTH));
+    // The pasted posts are at most PERSONA_LIMITS.examplePosts, fewer than the server takes.
+    const posts = (libraryPosts.length > 0 ? libraryPosts : pasted).map((post) =>
+      post.slice(0, PERSONA_DRAFT_POST_MAX_LENGTH),
+    );
     if (posts.length === 0) {
       Alert.alert('No posts yet', 'Paste a few of your posts under Example posts, then try again.');
       return;
     }
-    const mode = DRAFTED_FIELDS.some((field) => isPersonaFieldFilled(draft, field)) ? await askModeAsync() : 'empty';
+    const mode = draftedFields.some((field) => isPresent(draft[field])) ? await askModeAsync() : 'empty';
     if (!mode) return;
 
     const controller = new AbortController();
@@ -76,7 +78,7 @@ function askModeAsync() {
   return new Promise((resolve) => {
     Alert.alert(
       'Some fields are filled in',
-      'Fill only the empty ones, or replace About you, Your content, Tone and Example posts too?',
+      `Fill only the empty ones, or replace ${DRAFTED_LABELS} too?`,
       [
         { text: 'Cancel', style: 'cancel', onPress: () => resolve(null) },
         { text: 'Empty only', onPress: () => resolve('empty') },

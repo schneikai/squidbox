@@ -11,8 +11,10 @@ import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import useSeedPromptButtons from '@/hooks/useSeedPromptButtons';
 import { getDb } from '@/sync/db/client';
 import { movePromptButton } from '@/sync/promptButtonsRepository';
+import { requestSync } from '@/sync/worker';
 
 // Settings → Assistant → Prompt buttons: the chat's one-tap prompts, in three groups. Reachable from
 // anywhere (a root screen), so the chat opens it too.
@@ -20,6 +22,7 @@ export default function PromptButtonsScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
   const groups = usePromptButtons();
+  useSeedPromptButtons();
   const haptics = useHaptics();
 
   function handleOpen(button) {
@@ -31,7 +34,7 @@ export default function PromptButtonsScreen() {
   }
 
   function handleMove(id, afterId) {
-    movePromptButton(getDb(), id, afterId).catch((error) => {
+    movePromptButton(getDb(), id, afterId).then(requestSync, (error) => {
       console.error('Moving the prompt button failed', error);
       haptics.error();
     });

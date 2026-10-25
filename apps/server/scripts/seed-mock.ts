@@ -204,12 +204,12 @@ await push(mutations);
 
 console.log(
   `Mock data ready: ${assets.length} assets, ${albums.length} albums, ${posts.length} posts` +
-    ` (${mutations.length} records pushed).`
+    ` (${mutations.length} records pushed).`,
 );
 
 async function createPhotoAsset(
   index: number,
-  { picsum: picsumId, deleted }: { picsum: number; deleted?: boolean }
+  { picsum: picsumId, deleted }: { picsum: number; deleted?: boolean },
 ): Promise<AssetRecord> {
   const { width, height } = (await fetchJson(`https://picsum.photos/id/${picsumId}/info`)) as {
     width: number;
@@ -240,7 +240,7 @@ async function createPhotoAsset(
 
 async function createVideoAsset(
   index: number,
-  { video: clip, deleted }: { video: number; deleted?: boolean }
+  { video: clip, deleted }: { video: number; deleted?: boolean },
 ): Promise<AssetRecord> {
   const info = videoInfo[clip];
   if (!info) throw new Error(`Mock video ${clip} isn't baked: add it to scripts/bake-mock-videos.sh and run it`);
@@ -272,7 +272,7 @@ async function uploadMedia(
     file,
     thumbnailFile,
     deleted = false,
-  }: { extension: string; contentType: string; file: Buffer; thumbnailFile: Buffer; deleted?: boolean }
+  }: { extension: string; contentType: string; file: Buffer; thumbnailFile: Buffer; deleted?: boolean },
 ) {
   const record = baseRecord(seed, now - index * 2.5 * DAY);
   const filename = `${record.id}.${extension}`;
@@ -323,14 +323,11 @@ function fitWithin(width: number, height: number, maxSide: number) {
 
 function toMutations(recordsByCollection: Record<string, object[]>): PushMutation[] {
   return Object.entries(recordsByCollection).flatMap(([collection, records]) =>
-    records.map((record) => ({ collection, record: collectionsByName[collection]!.schema.parse(record) }))
+    records.map((record) => ({ collection, record: collectionsByName[collection]!.schema.parse(record) })),
   );
 }
 
 async function tombstonesForOtherRecords(keep: Record<string, { id: string }[]>): Promise<PushMutation[]> {
-  // The account's assistant setup, which the app seeds once and the owner edits, stays: prompt
-  // buttons a reset tombstoned would never come back.
-  const setupCollections = new Set(['personas', 'prompt_buttons']);
   const keepIds = new Set(Object.values(keep).flatMap((records) => records.map((r) => r.id)));
   const tombstones: PushMutation[] = [];
   let cursor = 0;
@@ -338,7 +335,9 @@ async function tombstonesForOtherRecords(keep: Record<string, { id: string }[]>)
   while (hasMore) {
     const page = (await api('/sync/pull', { cursor, limit: 1000 })) as PullResponse;
     for (const [collection, { records }] of Object.entries(page.changes)) {
-      if (setupCollections.has(collection)) continue;
+      // Only the collections the mock data set makes: the others (the assistant setup the app seeds
+      // once and the owner edits) stay as they are.
+      if (!(collection in keep)) continue;
       for (const record of records) {
         if (keepIds.has(record.id as string) || record.deletedAt) continue;
         tombstones.push({ collection, record: { ...record, deletedAt: now, updatedAt: now } });
@@ -371,7 +370,7 @@ function api(path: string, body: unknown): Promise<unknown> {
 
 async function request(
   path: string,
-  { method, body, token }: { method: string; body: unknown; token?: string }
+  { method, body, token }: { method: string; body: unknown; token?: string },
 ): Promise<unknown> {
   const res = await fetch(`${API_URL}${path}`, {
     method,

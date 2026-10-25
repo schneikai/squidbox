@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import Icon from '@/components/Icon';
-import { colors, radii, sizes, typography } from '@/styles/designTokens';
+import chipFrame from '@/styles/chipFrame';
+import { colors, sizes, typography } from '@/styles/designTokens';
 
 /**
  * A pill with a short label: a tag, a prompt button, or the dashed Add at the end of a row of them.
@@ -31,10 +32,10 @@ export default function Chip({
       accessibilityState={accessibilityState}
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
-      style={({ pressed }) => [styles.chip, styles[variant], pressed && styles.pressed]}
+      style={({ pressed }) => [chipFrame, styles.chip, styles[variant], pressed && styles.pressed]}
     >
       {leadingIcon && <Icon name={leadingIcon} size={sizes.menuIcon} color={colors.accent.base} />}
-      <Text style={[styles.label, LABEL_STYLES[variant]]}>{label}</Text>
+      <Text style={[styles.label, (variant === 'accent' || variant === 'add') && styles.accentLabel]}>{label}</Text>
     </Pressable>
   );
 }
@@ -44,11 +45,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    paddingHorizontal: 11,
-    paddingVertical: 6,
   },
   muted: {
     backgroundColor: colors.background.muted,
@@ -71,11 +67,7 @@ const styles = StyleSheet.create({
     fontSize: typography.subheadline,
     color: colors.text.primary,
   },
-});
-
-const LABEL_STYLES = StyleSheet.create({
-  muted: {},
-  accent: { color: colors.accent.base },
-  outlined: {},
-  add: { color: colors.accent.base, fontWeight: '500' },
+  accentLabel: {
+    color: colors.accent.base,
+  },
 });

@@ -146,12 +146,10 @@ export default function SettingsScreen() {
         )}
 
         {isAssistantAvailable && (
-          // A section of its own row, without a header to repeat it: set apart like a headed one.
-          <View style={styles.headerlessSection}>
-            <Section>
-              <Row label="Assistant" onPress={() => navigation.navigate('AssistantScreen')} chevron />
-            </Section>
-          </View>
+          // A section of its own row, without a header to repeat it.
+          <Section isHeaderless>
+            <Row label="Assistant" onPress={() => navigation.navigate('AssistantScreen')} chevron />
+          </Section>
         )}
 
         <ScreenSectionHeader title="Videos" />
@@ -192,8 +190,5 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerlessSection: {
-    marginTop: 20,
-  },
   loginWrapper: { paddingTop: 8, marginBottom: 4 },
 });

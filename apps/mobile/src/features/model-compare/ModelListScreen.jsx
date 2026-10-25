@@ -1,11 +1,10 @@
 import { COMPARE_MIN_MODELS } from '@squidbox/shared';
 import { StyleSheet } from 'react-native';
 
-import CatalogStatus from './CatalogStatus';
 import ModelRow from './ModelRow';
 import modelKindText from './modelKindText';
-import useYourModels from './useYourModels';
 
+import CatalogStatus from '@/components/CatalogStatus';
 import DetailScrollView from '@/components/DetailScrollView';
 import EmptyState from '@/components/EmptyState';
 import IconMenuButton from '@/components/IconMenuButton';
@@ -22,6 +21,7 @@ import { Section, SectionFooter } from '@/components/settings-list/SettingsList'
 import { SCREEN_PADDING } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import useYourModels from '@/hooks/useYourModels';
 import { removeYourModel, resetScores, setChosenModel } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 import confirmAsync from '@/utils/confirmAsync';

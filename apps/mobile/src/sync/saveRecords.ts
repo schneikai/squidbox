@@ -43,6 +43,18 @@ export async function saveRecords<R extends SavedRecord>(
   await enqueueMutations(tx, collection, changed, fields);
 }
 
+// Whether a field kept its value: a JSON field (a list, read back as a new array) by its content.
+function isSameValue(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  return (
+    typeof a === 'object' &&
+    a !== null &&
+    typeof b === 'object' &&
+    b !== null &&
+    JSON.stringify(a) === JSON.stringify(b)
+  );
+}
+
 // The merge fields each record changes from its previous row, at the record's updatedAt, widened to
 // their field groups; records that change none are left out. A field the record leaves out is unchanged.
 function changedFields(
@@ -55,7 +67,9 @@ function changedFields(
   for (const record of records) {
     const prev = previous.get(record.id);
     const value = (name: string) => (record as Record<string, unknown>)[name];
-    const changed = names.filter((name) => value(name) !== undefined && (!prev || !Object.is(prev[name], value(name))));
+    const changed = names.filter(
+      (name) => value(name) !== undefined && (!prev || !isSameValue(prev[name], value(name))),
+    );
     if (changed.length > 0)
       changes.set(
         record.id,
