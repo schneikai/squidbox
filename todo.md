@@ -196,11 +196,6 @@ named import in JS passes until a build (`npx expo export` would catch it).
 CI and `apps/server/docker-compose.yml` run Postgres 16; Neon runs 18 (`db-backup.yml`). Bump both
 together; an existing local compose volume needs a dump and restore (or a fresh volume).
 
-### [ ] CI depends on ngrok's CDN
-
-`npm ci` runs ngrok's postinstall, which downloads its binary on every run and fails the install
-when the download fails. CI doesn't need it. Make `ngrok` optional or skip its script in CI.
-
 ### [ ] One vertical drag per asset page
 
 The photo's drag (`verticalDrag` in `useZoomGesture`) and the details panel's pan
@@ -358,14 +353,6 @@ there; show it, or let the merge finish past a rejected row.
 read and written whole by every pass: about 100 bytes per record, so ~1 MB for a 10,000-photo device
 library. Fine for a few passes; a table keyed by record would scale if passes get frequent.
 
-### [ ] Make the dev secrets work in cloud environments, not just on a laptop
-
-`scripts/dev-local.mjs`, `apps/mobile/scripts/check-env.sh` and CLAUDE.md treat
-`apps/mobile/.env.local` as the only source of the `EXPO_PUBLIC_*` values; a cloud environment
-exports them as variables, and the scripts refuse to start. Owner request. Research first what to
-use (variables with the file as a laptop fallback, EAS environment variables, a secret manager), then
-change the scripts and CLAUDE.md together.
-
 ### [ ] `albumId` post scope and `albumLastPostedAt` count deleted albums' edges
 
 `postQuery`'s `albumId` scope and `albumLastPostedAt` (`sync/assetSql.ts`) use
@@ -374,13 +361,6 @@ change the scripts and CLAUDE.md together.
 album's screen isn't opened), but one rule would be cleaner. With it, have `postQuery`'s `albumId`
 scope watch `schema.albums` as `sharesAlbumWithPostId` does, so both refresh when an album is
 deleted or restored.
-
-### [ ] `dev:local` leaves Metro and the API running when the seed fails
-
-`scripts/dev-local.mjs` starts Metro and the API server before the mock seed; when the seed step
-fails (e.g. a transient picsum 503 with `--reset-data`), the script exits but both keep running, so
-they must be killed by hand before a rerun. Likely cause: `shutdown` sends SIGTERM only to the
-direct `npx`/`npm` children, not to the Metro and server processes under them.
 
 ## Ideas
 

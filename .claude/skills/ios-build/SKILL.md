@@ -71,19 +71,9 @@ EAS deletes build artifacts about 14 days after a build (`expirationDate` in
 2. Build: `EAS_BUILD_PROFILE=development eas build -p ios -e development` (agent runs it).
 3. Install on the phone from the EAS build page → **Internal Distribution → Install**; trust the dev
    cert in **Settings → General → VPN & Device Management**.
-4. Start Metro + tunnel so the dev client can load JS (agent runs both, from `apps/mobile/`):
-   ```
-   NGROK_AUTHTOKEN=<from .env.local> node tunnel.js        # prints TUNNEL_URL=https://<host>
-   EXPO_PACKAGER_PROXY_URL=https://<host> npx expo start --offline   # dev-client mode (no --go)
-   ```
-   Verify the tunnel serves Metro: `curl -s -o /dev/null -w "%{http_code}" https://<host>/status` → 200.
-   Then open **Squidbox (Dev)** and point it at the tunnel URL.
-   If `tunnel.js` fails with "Running the agent with an http/s proxy is a Pay-as-you-go feature"
-   (the workspace routes traffic through a proxy), use Expo's own tunnel instead. It needs
-   `npm install -g @expo/ngrok@^4.1.0` once, and the proxy exported for ngrok:
-   ```
-   http_proxy=$HTTPS_PROXY npx expo start --tunnel --dev-client   # URL: https://<id>-anonymous-8081.exp.direct
-   ```
+4. Start Metro + Expo's tunnel so the dev client can load JS: `npm run dev:live` from the repo root
+   (README → "Dev client: Metro + tunnel"). It prints the `exp.direct` URL once the first bundle is
+   built; open **Squidbox (Dev)** and point it at that URL.
 5. After a native-module change, rebuild (steps 2–3). JS-only changes just hot-reload over the tunnel.
 
 ## Path B — App (preview/release)

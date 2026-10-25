@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -z \"$CLAUDE_CODE_REMOTE\" ] || \"$CLAUDE_PROJECT_DIR\"/apps/mobile/scripts/write-env-local.sh || true"
+          }
+        ]
+      }
+    ]
+  }
+}
