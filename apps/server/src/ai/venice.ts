@@ -14,9 +14,14 @@ export class VeniceError extends Error {
   }
 }
 
-/** Throws 503 ai_not_configured when the server has no Venice key, before any call. */
-export function requireVenice(): void {
-  if (!loadConfig().VENICE_API_KEY) throw AppError.aiNotConfigured();
+/**
+ * Before any call: 503 ai_not_configured when the server has no Venice key, 403 ai_not_allowed for
+ * an account that AI_ALLOWED_EMAILS leaves out.
+ */
+export function requireVenice(email: string): void {
+  const { VENICE_API_KEY, AI_ALLOWED_EMAILS } = loadConfig();
+  if (!VENICE_API_KEY) throw AppError.aiNotConfigured();
+  if (AI_ALLOWED_EMAILS && !AI_ALLOWED_EMAILS.includes(email.toLowerCase())) throw AppError.aiNotAllowed();
 }
 
 /** A request to Venice's API at `path`, with the key and a timeout. */
@@ -83,7 +88,13 @@ export async function chatJsonAsync<T>({
     throw new VeniceError(timedOut ? 'Venice took too long to answer' : "Couldn't reach Venice");
   });
 
-  const body = (await response.json().catch(() => null)) as (ChatCompletion & { error?: unknown }) | null;
+  // The timeout also covers reading the body: a cut-off reply is a slow one, not an empty one.
+  const body = (await response.json().catch((error: unknown) => {
+    if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+      throw new VeniceError('Venice took too long to answer');
+    }
+    return null;
+  })) as (ChatCompletion & { error?: unknown }) | null;
   if (!response.ok) throw new VeniceError(errorMessage(body) ?? `Venice request failed (${response.status})`);
 
   const choice = body?.choices?.[0];

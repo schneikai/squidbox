@@ -13,3 +13,4 @@ process.env.LOG_LEVEL ??= 'silent';
 // reach them.
 delete process.env.VENICE_API_KEY;
 delete process.env.VENICE_BASE_URL;
+delete process.env.AI_ALLOWED_EMAILS;

@@ -27,10 +27,18 @@ export const COMPARE_MIN_MODELS = 2;
 export const COMPARE_MAX_MODELS = 4;
 export const WRITING_TWEET_COUNT = 3;
 export const VISION_TAG_COUNT = 8;
+// Photos in one vision compare: each is a request, so two rounds in a minute stay well within the
+// vision route's rate limit (240 a minute).
+export const VISION_COMPARE_MAX_PHOTOS = 50;
 // A 512 px JPEG thumbnail is ~50–100 KB; the web preview may send the 1000 px one unresized.
 export const VISION_IMAGE_MAX_BASE64_LENGTH = 1_500_000;
 
-const modelIdsSchema = z.array(z.string().min(1)).min(COMPARE_MIN_MODELS).max(COMPARE_MAX_MODELS);
+// Each model once: every id is a paid call.
+const modelIdsSchema = z
+  .array(z.string().min(1))
+  .min(COMPARE_MIN_MODELS)
+  .max(COMPARE_MAX_MODELS)
+  .refine((ids) => new Set(ids).size === ids.length, 'Each model can be compared only once');
 
 // A model's failure is its own result, so one failing model leaves the others' results.
 const modelErrorSchema = z.object({ modelId: z.string(), error: z.string() });

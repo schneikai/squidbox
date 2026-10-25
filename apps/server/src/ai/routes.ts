@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   aiModelsResponseSchema,
@@ -9,7 +9,7 @@ import {
   type AiModelKind,
 } from '@squidbox/shared';
 import { AppError } from '../errors.js';
-import { authenticate } from '../auth/authenticate.js';
+import { authenticate, requireUser } from '../auth/authenticate.js';
 import { findModel, getCatalogAsync, type Catalog, type CatalogEntry } from './catalog.js';
 import { compareModels, visionTask, writingTask } from './compare.js';
 import { visionMessages, writingMessages } from './prompts.js';
@@ -18,8 +18,12 @@ import { requireVenice } from './venice.js';
 // A body holds one photo's base64 (VISION_IMAGE_MAX_BASE64_LENGTH) and the model ids.
 const VISION_REQUEST_BODY_LIMIT = 2 * 1024 * 1024;
 
+// After authenticate: the account may use AI and the server has a key, before any Venice call.
+async function aiAccess(request: FastifyRequest): Promise<void> {
+  requireVenice(requireUser(request).email);
+}
+
 async function catalogAsync(): Promise<Catalog> {
-  requireVenice();
   try {
     return await getCatalogAsync();
   } catch {
@@ -44,7 +48,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
   r.route({
     method: 'GET',
     url: '/ai/models',
-    preHandler: authenticate(),
+    preHandler: [authenticate(), aiAccess],
     schema: { response: { 200: aiModelsResponseSchema } },
     handler: async () => {
       const { models } = await catalogAsync();
@@ -56,7 +60,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
   r.route({
     method: 'POST',
     url: '/ai/compare/writing',
-    preHandler: authenticate(),
+    preHandler: [authenticate(), aiAccess],
     config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
     schema: { body: compareWritingRequestSchema, response: { 200: compareWritingResponseSchema } },
     handler: async (request) => {
@@ -73,7 +77,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
   r.route({
     method: 'POST',
     url: '/ai/compare/vision',
-    preHandler: authenticate(),
+    preHandler: [authenticate(), aiAccess],
     bodyLimit: VISION_REQUEST_BODY_LIMIT,
     config: { rateLimit: { max: 240, timeWindow: '1 minute' } },
     schema: { body: compareVisionRequestSchema, response: { 200: compareVisionResponseSchema } },

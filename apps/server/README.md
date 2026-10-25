@@ -18,6 +18,8 @@ The TypeScript backend: Fastify + Drizzle + Postgres + S3, deployed on Fly.io (s
   `/ai/compare/writing` and `/ai/compare/vision`, behind Venice's chat API
   (`src/ai/`). `VENICE_API_KEY` is server-side only; without it the server runs and these routes
   answer 503 `ai_not_configured`. `VENICE_BASE_URL` defaults to `https://api.venice.ai/api/v1`.
+  `AI_ALLOWED_EMAILS` (comma-separated) limits them to those accounts, others get 403
+  `ai_not_allowed`; unset, every signed-in account may use them, so set it on Fly with the key.
   Locally, export the key in the shell that runs `npm run dev:local` (never in `.env.docker`); on
   Fly it is a secret (`fly secrets set VENICE_API_KEY=…`). Node's built-in `fetch` ignores
   `HTTPS_PROXY`: behind a proxy run Node ≥ 22.21 with `NODE_USE_ENV_PROXY=1`.

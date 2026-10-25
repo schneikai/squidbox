@@ -7,10 +7,18 @@ vi.mock('../src/users.js', () => ({
   toApiUser: (u: { id: string; email: string }) => ({ id: u.id, email: u.email }),
 }));
 // The test env has no Venice key; each test sets the one the routes see.
-const venice = vi.hoisted(() => ({ apiKey: undefined as string | undefined }));
+const venice = vi.hoisted(() => ({
+  apiKey: undefined as string | undefined,
+  allowed: undefined as string[] | undefined,
+}));
 vi.mock('../src/config.js', async (importOriginal) => {
   const original = await importOriginal<typeof import('../src/config.js')>();
-  return { ...original, loadConfig: () => ({ ...original.loadConfig(), VENICE_API_KEY: venice.apiKey }) };
+  return { ...original, loadConfig: () => ({
+      ...original.loadConfig(),
+      VENICE_API_KEY: venice.apiKey,
+      AI_ALLOWED_EMAILS: venice.allowed,
+    }),
+  };
 });
 
 import fixture from './fixtures/venice-models.json';
@@ -54,6 +62,7 @@ beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
   venice.apiKey = 'test-venice-key';
+  venice.allowed = undefined;
   vi.mocked(findUserById).mockResolvedValue({ id: 'u1', email: 'a@b.co', storageBucket: null } as any);
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -78,6 +87,29 @@ describe('without VENICE_API_KEY', () => {
       });
     }
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('AI_ALLOWED_EMAILS', () => {
+  it('answers 403 ai_not_allowed to an account it leaves out, before any Venice call', async () => {
+    venice.allowed = ['owner@example.com'];
+    for (const [method, url, body] of [
+      ['GET', '/ai/models', undefined],
+      ['POST', '/ai/compare/writing', writing],
+      ['POST', '/ai/compare/vision', vision],
+    ] as const) {
+      const res = await call(method, url, body);
+      expect(res.statusCode).toBe(403);
+      expect(res.json().error.code).toBe('ai_not_allowed');
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('lets a listed account in, whatever the case of its email', async () => {
+    venice.allowed = ['a@b.co'];
+    vi.mocked(findUserById).mockResolvedValue({ id: 'u1', email: 'A@B.co', storageBucket: null } as any);
+    veniceAnswers();
+    expect((await call('GET', '/ai/models')).statusCode).toBe(200);
   });
 });
 
@@ -139,6 +171,13 @@ describe('POST /api/v1/ai/compare/writing', () => {
     const res = await call('POST', '/ai/compare/writing', { ...writing, modelIds: ['kimi-k3', 'gone'] });
     expect(res.statusCode).toBe(400);
     expect(res.json().error.message).toBe('Unknown writing model: gone');
+  });
+
+  it('400 for the same model twice', async () => {
+    veniceAnswers();
+    const res = await call('POST', '/ai/compare/writing', { ...writing, modelIds: ['kimi-k3', 'kimi-k3'] });
+    expect(res.statusCode).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('400 for more than 4 models', async () => {
