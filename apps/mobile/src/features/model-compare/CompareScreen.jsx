@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -80,22 +80,6 @@ export default function CompareScreen({ navigation, route }) {
     [navigation],
   );
 
-  const renderPhoto = useCallback(
-    ({ item: asset }) => (
-      <PhotoAnswers
-        asset={asset}
-        letters={round.letters}
-        namesById={namesById}
-        results={round.results[asset.id]}
-        taps={round.taps[asset.id]}
-        roundNumber={round.number}
-        toggle={round.toggle}
-        onOpenPhoto={handleOpenPhoto}
-      />
-    ),
-    [round.letters, round.results, round.taps, round.number, round.toggle, namesById, handleOpenPhoto],
-  );
-
   const hasStarted = round.number > 0;
   const canStart = !round.isRunning && !!prompt?.trim() && (!isVision || !!photos?.length);
 
@@ -119,21 +103,18 @@ export default function CompareScreen({ navigation, route }) {
     );
   }
 
-  function renderWriting() {
+  function renderWritingAnswers() {
     return (
-      <>
-        {renderPrompt()}
-        <ModelAnswers
-          answerKey={TEXT_KEY}
-          kind={kind}
-          letters={round.letters}
-          namesById={namesById}
-          results={round.results[TEXT_KEY]}
-          taps={round.taps[TEXT_KEY]}
-          roundNumber={round.number}
-          toggle={round.toggle}
-        />
-      </>
+      <ModelAnswers
+        answerKey={TEXT_KEY}
+        kind={kind}
+        letters={round.letters}
+        namesById={namesById}
+        results={round.results[TEXT_KEY]}
+        taps={round.taps[TEXT_KEY]}
+        roundNumber={round.number}
+        toggle={round.toggle}
+      />
     );
   }
 
@@ -144,28 +125,35 @@ export default function CompareScreen({ navigation, route }) {
         centerSlot="Compare"
         scrollY={scrollY}
       />
-      <Animated.FlatList
-        data={isVision ? (photos ?? []) : []}
-        keyExtractor={(asset) => asset.id}
-        renderItem={renderPhoto}
-        ItemSeparatorComponent={Separator}
-        ListHeaderComponent={
-          isVision ? (
-            <View style={styles.writing}>
-              {renderPrompt()}
-              {hasStarted && <IntroText style={styles.hint}>Tap the tags that fit.</IntroText>}
-            </View>
-          ) : (
-            <View style={styles.writing}>{renderWriting()}</View>
-          )
-        }
-        ListHeaderComponentStyle={styles.header}
+      {/* A plain scroll view (at most VISION_COMPARE_MAX_PHOTOS rows): each photo row's offset in
+          the content is its layout's y, which its sticky photo needs. */}
+      <Animated.ScrollView
         onScroll={onScroll}
         scrollEventThrottle={16}
         automaticallyAdjustKeyboardInsets
         keyboardDismissMode="interactive"
         contentContainerStyle={[styles.content, { paddingBottom: bottom + FLOATING_PRIMARY_ACTION_CLEARANCE }]}
-      />
+      >
+        {renderPrompt()}
+        {isVision && hasStarted && <IntroText style={styles.hint}>Tap the tags that fit.</IntroText>}
+        {isVision
+          ? photos?.map((asset) => (
+              <PhotoAnswers
+                key={asset.id}
+                asset={asset}
+                letters={round.letters}
+                namesById={namesById}
+                results={round.results[asset.id]}
+                taps={round.taps[asset.id]}
+                roundNumber={round.number}
+                toggle={round.toggle}
+                onOpenPhoto={handleOpenPhoto}
+                scrollY={scrollY}
+                stickyTop={MODAL_HEADER_HEIGHT}
+              />
+            ))
+          : renderWritingAnswers()}
+      </Animated.ScrollView>
       <FloatingPrimaryAction>
         <PrimaryButton
           icon={hasStarted ? 'repeat' : 'play'}
@@ -179,19 +167,10 @@ export default function CompareScreen({ navigation, route }) {
   );
 }
 
-function Separator() {
-  return <View style={styles.separator} />;
-}
-
 const styles = StyleSheet.create({
   content: {
     paddingTop: MODAL_HEADER_HEIGHT,
     paddingHorizontal: SCREEN_PADDING,
-  },
-  header: {
-    marginBottom: 12,
-  },
-  writing: {
     gap: 12,
   },
   promptCard: {
@@ -199,8 +178,5 @@ const styles = StyleSheet.create({
   },
   hint: {
     paddingHorizontal: 4,
-  },
-  separator: {
-    height: 12,
   },
 });
