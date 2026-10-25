@@ -3,11 +3,9 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
 
-import FloatingPrimaryAction from './FloatingPrimaryAction';
 import ModelAnswers from './ModelAnswers';
 import PhotoAnswers from './PhotoAnswers';
 import useCompareRound, { TEXT_KEY } from './useCompareRound';
-import useFloatingPrimaryActionPadding from './useFloatingPrimaryActionPadding';
 
 import Card from '@/components/Card';
 import Field from '@/components/Field';
@@ -17,6 +15,8 @@ import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import PrimaryButton from '@/components/PrimaryButton';
 import Textarea from '@/components/Textarea';
+import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
+import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import { SCREEN_PADDING } from '@/constants';
 import useScrollY from '@/hooks/useScrollY';
 import { scale } from '@/styles/designTokens';

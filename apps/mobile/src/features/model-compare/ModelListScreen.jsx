@@ -2,10 +2,8 @@ import { COMPARE_MIN_MODELS } from '@squidbox/shared';
 import { StyleSheet } from 'react-native';
 
 import CatalogStatus from './CatalogStatus';
-import FloatingPrimaryAction from './FloatingPrimaryAction';
 import ModelRow from './ModelRow';
 import modelKindText from './modelKindText';
-import useFloatingPrimaryActionPadding from './useFloatingPrimaryActionPadding';
 import useYourModels from './useYourModels';
 
 import DetailScrollView from '@/components/DetailScrollView';
@@ -17,6 +15,8 @@ import PrimaryButton from '@/components/PrimaryButton';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import TextButton from '@/components/TextButton';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
+import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
+import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';

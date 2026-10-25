@@ -51,6 +51,7 @@ export const colors = {
     base: palette.violet600,
     light: alpha(palette.violet600, 0.12),
     surface: palette.violet100, // `light` over white, opaque for a surface over content (the account avatar)
+    border: alpha(palette.violet600, 0.3), // the frame of an outlined or dashed chip
     gradient: [palette.violet600, palette.indigo600],
   },
   status: {

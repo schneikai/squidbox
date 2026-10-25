@@ -3,11 +3,9 @@ import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet } from 'react-native';
 
 import CatalogStatus from './CatalogStatus';
-import FloatingPrimaryAction from './FloatingPrimaryAction';
 import ModelPickRow from './ModelPickRow';
 import PhotoSetRow from './PhotoSetRow';
 import modelKindText from './modelKindText';
-import useFloatingPrimaryActionPadding from './useFloatingPrimaryActionPadding';
 import useYourModels from './useYourModels';
 
 import IntroText from '@/components/IntroText';
@@ -15,6 +13,8 @@ import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import PrimaryButton from '@/components/PrimaryButton';
+import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
+import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import { Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';
