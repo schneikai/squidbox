@@ -1,5 +1,5 @@
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { useCallback, useState, useTransition } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import { useTransition } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 
 import DetailScrollView from '@/components/DetailScrollView';
@@ -10,14 +10,13 @@ import Switch from '@/components/Switch';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import { DEFAULT_MODEL } from '@/features/ai-suggestions/aiSuggestionsStorage';
-import resolveModel from '@/features/ai-suggestions/resolveModel';
 import useAppSettings from '@/features/app-settings/useAppSettings';
 import confirmBackupSignOutAsync from '@/features/cloud/confirmBackupSignOutAsync';
 import useCloud from '@/features/cloud/useCloud';
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
 import useBackupCounts from '@/features/cloud-sync/useBackupCounts';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
+import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
 import useLibrary from '@/library/useLibrary';
 import { colors } from '@/styles/designTokens';
 import { useSyncStatus } from '@/sync/useSyncStatus';
@@ -34,8 +33,8 @@ export default function SettingsScreen() {
   const counts = useBackupCounts();
   const { phase, lastError, pendingCount, failedCount } = useSyncStatus();
   const { isVideoAutoplayOn, setIsVideoAutoplayOn, isHapticsOn, setIsHapticsOn } = useAppSettings();
+  const isAssistantAvailable = useIsAssistantAvailable();
 
-  const [aiModel, setAiModel] = useState(DEFAULT_MODEL);
   const [isLoggingOut, startLogoutTransition] = useTransition();
 
   const { showBlocking, hide } = useProgressOverlay();
@@ -43,14 +42,6 @@ export default function SettingsScreen() {
 
   // An account library shows its backup whether or not its owner is signed in right now.
   const isAccountLibrary = library.owner.kind === 'account';
-
-  useFocusEffect(
-    useCallback(() => {
-      resolveModel()
-        .then(setAiModel)
-        .catch(() => {});
-    }, []),
-  );
 
   // The confirmation is asked outside the transition: a state update made inside its callback
   // before the first await would be part of the pending transition and never render the alert.
@@ -154,6 +145,15 @@ export default function SettingsScreen() {
           </>
         )}
 
+        {isAssistantAvailable && (
+          // A section of its own row, without a header to repeat it: set apart like a headed one.
+          <View style={styles.headerlessSection}>
+            <Section>
+              <Row label="Assistant" onPress={() => navigation.navigate('AssistantScreen')} chevron />
+            </Section>
+          </View>
+        )}
+
         <ScreenSectionHeader title="Videos" />
         <Section>
           <Row label="Autoplay">
@@ -176,12 +176,6 @@ export default function SettingsScreen() {
           saved or goes wrong.
         </SectionFooter>
 
-        <ScreenSectionHeader title="AI Caption Suggestions" />
-        <Section>
-          <Row label="Model" value={aiModel} />
-          <Row label="Prompts" onPress={() => navigation.navigate('AiPromptsScreen')} chevron />
-        </Section>
-
         <ScreenSectionHeader title="Data" />
         <Section>
           <Row label="Sort albums by name" onPress={handleResortAlbums} chevron />
@@ -198,5 +192,8 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  headerlessSection: {
+    marginTop: 20,
+  },
   loginWrapper: { paddingTop: 8, marginBottom: 4 },
 });

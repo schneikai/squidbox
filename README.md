@@ -57,11 +57,11 @@ Two gitignored env files in `apps/mobile/`, each for a different audience:
 | `.env.local` | Metro, at runtime | Supplies `EXPO_PUBLIC_*` to the **dev client** over the tunnel. Copy from `.env.local.example`, or let `npm run dev:live` / `dev:local` (or `scripts/check-env.sh`) write it from the environment variables. |
 | `.secrets` | you, once | Upload bundle to push **preview/release** secrets to EAS. Not read at runtime. |
 
-`.env.local` holds `EXPO_PUBLIC_API_URL`, optional login prefill, Sentry debug and the OpenAI key. Each variable is explained in `.env.local.example`.
+`.env.local` holds `EXPO_PUBLIC_API_URL`, optional login prefill and Sentry debug. Each variable is explained in `.env.local.example`.
 
 `EXPO_PUBLIC_API_URL` is the deployed backend, `https://squidbox-server.fly.dev/api/v1`. `npm run dev:local` points the dev client at the local backend instead, without touching the file (see [Local backend with mock data](#local-backend-with-mock-data)). Restart `npm run dev:live` or `dev:local` after changing `.env.local`; they start Metro with a cleared cache.
 
-`.secrets` lists the values the **preview/production** builds need (`EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_OPENAI_API_KEY`, `SENTRY_AUTH_TOKEN`). They are stored as EAS environment variables:
+`.secrets` lists the values the **preview/production** builds need (`EXPO_PUBLIC_API_URL`, `SENTRY_AUTH_TOKEN`). They are stored as EAS environment variables:
 
 ```
 eas env:list --environment preview
@@ -84,8 +84,9 @@ Run `/build` — it asks what to build and drives EAS for you (no flags or profi
 | Icon | dark, with a yellow DEV band (`assets/icon-dev.png`) | the regular icon |
 | JS bundle | served by Metro over a tunnel (hot reload); reads `EXPO_PUBLIC_*` from `apps/mobile/.env.local` | baked in at build time from EAS secrets |
 | Use for | fast iteration | testing / shipping a stable snapshot |
+| Test-build UI (Settings → Assistant → Testing) | yes | `preview` yes, `production` no |
 
-The bundle ID is chosen in `app.config.js` from `EAS_BUILD_PROFILE`, which is why the two don't overwrite each other. Builds are distributed via [Internal Distribution](https://docs.expo.dev/build/internal-distribution/) (no App Store). Install from the EAS build page (Internal Distribution → Install), then trust the dev certificate in Settings → General → VPN & Device Management.
+The bundle ID is chosen in `app.config.js` from `EAS_BUILD_PROFILE`, which is why the two don't overwrite each other. The same variable sets `extra.buildProfile` (unset for a build made without EAS); `src/utils/isTestBuild.js` shows the test-only UI under Metro (a development bundle) and in the `development` and `preview` builds only. Builds are distributed via [Internal Distribution](https://docs.expo.dev/build/internal-distribution/) (no App Store). Install from the EAS build page (Internal Distribution → Install), then trust the dev certificate in Settings → General → VPN & Device Management.
 
 Cloud builds authenticate to Apple with an **App Store Connect API Key** (`.p8`) — no Mac, no Apple ID password, no 2FA (Apple ID + 2FA is blocked from cloud/datacenter IPs). The full runbook, credential setup, and env vars are in the `ios-build` skill.
 

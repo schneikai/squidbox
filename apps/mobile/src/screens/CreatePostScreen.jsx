@@ -12,7 +12,6 @@ import TextButton from '@/components/TextButton';
 import { SCREEN_PADDING } from '@/constants';
 import PostList from '@/features/post-list/PostList';
 import postQuery from '@/features/post-list/postQuery';
-import useRandomSuggestions from '@/features/post-random-suggestions/useRandomSuggestions';
 import usePosts from '@/features/posts-context/usePosts';
 import useScrollY from '@/hooks/useScrollY';
 import { getDb } from '@/sync/db/client';
@@ -25,7 +24,6 @@ export default function CreatePostScreen({ navigation }) {
   const { updatePost } = usePosts();
   const { bottom } = useSafeAreaInsets();
   const { scrollY, onScroll } = useScrollY();
-  const { openRandomSuggestions } = useRandomSuggestions();
 
   const { rows, count, loadMore } = usePagedQuery(candidates, 20);
 
@@ -38,15 +36,6 @@ export default function CreatePostScreen({ navigation }) {
 
   function handleCreateNewPost() {
     navigation.navigate('AddEditPostModal');
-  }
-
-  async function handleOpenSuggestions() {
-    const suggestion = await openRandomSuggestions();
-    if (!suggestion) return;
-    const params = {};
-    if (suggestion.asset) params.assetIds = [suggestion.asset.id];
-    if (suggestion.text) params.text = suggestion.text;
-    navigation.navigate('AddEditPostModal', params);
   }
 
   function handleRepost(post) {
@@ -79,11 +68,7 @@ export default function CreatePostScreen({ navigation }) {
         onScroll={onScroll}
         FirstListEntryComponent={
           <View style={styles.topSection}>
-            {/* New post + AI suggestions row */}
-            <View style={styles.actionRow}>
-              <PrimaryButton label="New Post" icon="add" onPress={handleCreateNewPost} style={styles.newPost} />
-              <PrimaryButton icon="sparkles" onPress={handleOpenSuggestions} accessibilityLabel="Suggestions" />
-            </View>
+            <PrimaryButton label="New Post" icon="add" onPress={handleCreateNewPost} />
 
             {/* Repost section header */}
             <ScreenSectionHeader
@@ -129,14 +114,6 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: SCREEN_PADDING,
     gap: 8,
-  },
-
-  actionRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  newPost: {
-    flex: 1,
   },
 
   // Over the post's bottom padding (PostListItem's), like its text.

@@ -27,8 +27,8 @@ for (const name of collectionNames) {
   await db.execute(
     sql.raw(
       `CREATE TRIGGER ${name}_server_seq BEFORE INSERT OR UPDATE ON "${name}" ` +
-        `FOR EACH ROW EXECUTE FUNCTION set_server_seq()`
-    )
+        `FOR EACH ROW EXECUTE FUNCTION set_server_seq()`,
+    ),
   );
 }
 

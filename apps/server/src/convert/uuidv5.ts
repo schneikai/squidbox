@@ -18,10 +18,7 @@ function bytesToUuid(b: Buffer): string {
 }
 
 export function uuidv5(name: string, namespace = LEGACY_NAMESPACE): string {
-  const hash = createHash('sha1')
-    .update(uuidToBytes(namespace))
-    .update(Buffer.from(name, 'utf8'))
-    .digest();
+  const hash = createHash('sha1').update(uuidToBytes(namespace)).update(Buffer.from(name, 'utf8')).digest();
   const bytes = hash.subarray(0, 16);
   bytes[6] = (bytes[6] & 0x0f) | 0x50; // version 5
   bytes[8] = (bytes[8] & 0x3f) | 0x80; // RFC-4122 variant

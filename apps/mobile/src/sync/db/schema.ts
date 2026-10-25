@@ -1,6 +1,6 @@
 import type { FieldClocks } from '@squidbox/shared';
 import { sql } from 'drizzle-orm';
-import { sqliteTable, text, integer, real, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, index, primaryKey, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 // Client (SQLite) mirror of the shared asset collection descriptor. Synced fields match
 // @squidbox/shared assetCollection.schema; syncError is the local-only field. Booleans are
@@ -201,3 +201,43 @@ export const syncLog = sqliteTable('sync_log', {
   notes: text('notes'),
 });
 export type SyncLogRow = typeof syncLog.$inferSelect;
+
+// The model testing's memory (src/sync/aiStateRepository.ts is its only reader and writer).
+// Local-only and not synced: it stays with this library on this device. `kind` is writing | vision.
+
+// One row per kind once its list was seeded: the model the coming assistant uses, and the last
+// compare's prompt.
+export const aiKinds = sqliteTable('ai_kinds', {
+  kind: text('kind').primaryKey(),
+  chosenModelId: text('chosen_model_id'),
+  prompt: text('prompt'),
+});
+
+// Your models of a kind, in the order added. `name` is kept for a model Venice no longer offers.
+export const aiModels = sqliteTable(
+  'ai_models',
+  {
+    kind: text('kind').notNull(),
+    modelId: text('model_id').notNull(),
+    name: text('name').notNull(),
+    position: integer('position').notNull(),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.kind, t.modelId] }) }),
+);
+
+// Each model's score of a kind (thumbs up / tags that fit), kept when it leaves your list.
+export const aiScores = sqliteTable(
+  'ai_scores',
+  {
+    kind: text('kind').notNull(),
+    modelId: text('model_id').notNull(),
+    score: integer('score').notNull(),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.kind, t.modelId] }) }),
+);
+
+// The photos of the last vision compare, in order.
+export const aiVisionPhotos = sqliteTable('ai_vision_photos', {
+  assetId: text('asset_id').primaryKey(),
+  position: integer('position').notNull(),
+});

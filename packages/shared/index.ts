@@ -28,3 +28,4 @@ export * from './chunk';
 export * from './contracts/auth';
 export * from './contracts/assets';
 export * from './contracts/sync';
+export * from './contracts/ai';

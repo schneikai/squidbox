@@ -119,7 +119,7 @@ export const radii = {
   card: 16,
   cover: 10, // album covers and the thumbnails of list rows (CoverImage)
   modal: 20,
-  badge: 6, // a small label or button inside content (Archived, an AI suggestion's Use)
+  badge: 6, // a small label inside content (Badge)
 };
 
 // The geometry of the app's chrome: gutters, bar and menu paddings, the space content keeps clear

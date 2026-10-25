@@ -14,11 +14,7 @@ const MAX_LIMIT = 1000;
  * so max(included seq) is a safe watermark (no commit-visibility gap). All queries are scoped
  * by user_id — a tenant never sees another tenant's rows.
  */
-export async function pull(
-  db: Db,
-  userId: string,
-  opts: { cursor?: number; limit?: number }
-): Promise<PullResponse> {
+export async function pull(db: Db, userId: string, opts: { cursor?: number; limit?: number }): Promise<PullResponse> {
   const cursor = opts.cursor ?? 0;
   const limit = Math.min(opts.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
 

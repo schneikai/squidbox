@@ -3,8 +3,8 @@ import { View, Text, StyleSheet } from 'react-native';
 import { colors, typography } from '@/styles/designTokens';
 
 /**
- * iOS-style uppercase section label used above grouped setting rows.
- * Shared by SettingsScreen, AiPromptsScreen, and any future list screens.
+ * A section label above grouped rows or content: Settings and its screens, the asset's details,
+ * a post.
  *
  * When rightSlot is provided the component renders a flex row with the title
  * on the left and the slot on the right. Over cards it sits a little in from

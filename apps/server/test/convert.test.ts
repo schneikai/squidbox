@@ -42,13 +42,64 @@ const legacyAssets = {
     oldFileId: null,
     notes: null,
   },
-  [A2]: { id: A2, mediaLibraryAssetId: 'm2', mediaType: 'video', width: 1, height: 1, fileSize: 5, duration: 3, filename: 'a2.mp4', thumbnailFilename: 't2.jpg', isFileSynced: true, isThumbnailSynced: true, isSynced: true, syncError: null, isFavorite: true, isDeleted: true, createdAt: 900, updatedAt: 2000, postHistory: [], lastPostedAt: null, oldFileId: null, notes: null },
+  [A2]: {
+    id: A2,
+    mediaLibraryAssetId: 'm2',
+    mediaType: 'video',
+    width: 1,
+    height: 1,
+    fileSize: 5,
+    duration: 3,
+    filename: 'a2.mp4',
+    thumbnailFilename: 't2.jpg',
+    isFileSynced: true,
+    isThumbnailSynced: true,
+    isSynced: true,
+    syncError: null,
+    isFavorite: true,
+    isDeleted: true,
+    createdAt: 900,
+    updatedAt: 2000,
+    postHistory: [],
+    lastPostedAt: null,
+    oldFileId: null,
+    notes: null,
+  },
 };
 const legacyAlbums = {
-  [AL1]: { id: AL1, name: 'Trip', assets: [A1], isFavorite: false, archivedAt: null, isDeleted: false, createdAt: 1000, updatedAt: 1000, postHistory: [], lastPostedAt: null, showInPostSuggestionsAfter: null, oldCollectionName: null, notes: null, sortOrder: null, smartAlbumType: null },
+  [AL1]: {
+    id: AL1,
+    name: 'Trip',
+    assets: [A1],
+    isFavorite: false,
+    archivedAt: null,
+    isDeleted: false,
+    createdAt: 1000,
+    updatedAt: 1000,
+    postHistory: [],
+    lastPostedAt: null,
+    showInPostSuggestionsAfter: null,
+    oldCollectionName: null,
+    notes: null,
+    sortOrder: null,
+    smartAlbumType: null,
+  },
 };
 const legacyPosts = {
-  [P1]: { id: P1, text: 'hi', assetRefs: [{ id: randomUUID(), assetId: A1 }], isFavorite: false, isDeleted: false, postedAt: null, createdAt: 1000, updatedAt: 1000, rePostId: null, isIgnoredForRepost: false, suggestRepostAt: 1000, hasBeenReposted: false },
+  [P1]: {
+    id: P1,
+    text: 'hi',
+    assetRefs: [{ id: randomUUID(), assetId: A1 }],
+    isFavorite: false,
+    isDeleted: false,
+    postedAt: null,
+    createdAt: 1000,
+    updatedAt: 1000,
+    rePostId: null,
+    isIgnoredForRepost: false,
+    suggestRepostAt: 1000,
+    hasBeenReposted: false,
+  },
 };
 
 d('legacy converter (server-side)', () => {
@@ -64,11 +115,13 @@ d('legacy converter (server-side)', () => {
       .onConflictDoNothing();
   });
   afterAll(async () => {
-    for (const t of [schema.postAssets, schema.albumAssets, schema.posts, schema.albums, schema.assets]) await db.delete(t).where(eq((t as any).userId, USER));
+    for (const t of [schema.postAssets, schema.albumAssets, schema.posts, schema.albums, schema.assets])
+      await db.delete(t).where(eq((t as any).userId, USER));
     await pool.end();
   });
   beforeEach(async () => {
-    for (const t of [schema.postAssets, schema.albumAssets, schema.posts, schema.albums, schema.assets]) await db.delete(t).where(eq((t as any).userId, USER));
+    for (const t of [schema.postAssets, schema.albumAssets, schema.posts, schema.albums, schema.assets])
+      await db.delete(t).where(eq((t as any).userId, USER));
   });
 
   it('imports all three collections with legacy→modern mapping', async () => {

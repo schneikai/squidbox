@@ -99,6 +99,13 @@
       "when": 1792775689147,
       "tag": "0013_asset_details",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1792932929334,
+      "tag": "0014_ai_tables",
+      "breakpoints": true
     }
   ]
 }

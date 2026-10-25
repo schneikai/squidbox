@@ -71,7 +71,8 @@ describe('keysInOrder (property)', () => {
       } else if (op === 1 && keys.length > 1) {
         const [moved] = keys.splice(int(keys.length), 1); // a move: the order changes, the key doesn't
         keys.splice(int(keys.length + 1), 0, moved!);
-      } else if (op === 2) keys.splice(int(keys.length + 1), 0, null); // a new item
+      } else if (op === 2)
+        keys.splice(int(keys.length + 1), 0, null); // a new item
       else keys.splice(int(keys.length + 1), 0, keys[int(keys.length)] ?? null); // a tie anywhere
     }
     return keys;
@@ -93,6 +94,10 @@ describe('keysInOrder (property)', () => {
   it('keeps every key of a sequence already in order, and spreads a run like keysBetween', () => {
     const keys = initialKeys(5);
     expect(keysInOrder(keys)).toEqual(keys);
-    expect(keysInOrder([keys[0]!, null, null, keys[1]!])).toEqual([keys[0], ...keysBetween(keys[0]!, keys[1]!, 2), keys[1]]);
+    expect(keysInOrder([keys[0]!, null, null, keys[1]!])).toEqual([
+      keys[0],
+      ...keysBetween(keys[0]!, keys[1]!, 2),
+      keys[1],
+    ]);
   });
 });

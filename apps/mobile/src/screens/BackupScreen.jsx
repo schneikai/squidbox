@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import DetailScrollView from '@/components/DetailScrollView';
+import IntroText from '@/components/IntroText';
 import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
@@ -36,10 +37,10 @@ export default function BackupScreen() {
     <Page>
       <FloatingDetailHeader title="Backup" onBack={() => navigation.goBack()} />
       <DetailScrollView>
-        <Text style={styles.intro}>
+        <IntroText style={styles.intro}>
           Back up your original photos to the cloud. This happens while the app is open — keep it open until it
           finishes.
-        </Text>
+        </IntroText>
 
         <Section>
           <Row label="Status" value={getBackupStatusText({ ...cloudSync, ...counts })} />
@@ -95,11 +96,8 @@ export default function BackupScreen() {
 
 const styles = StyleSheet.create({
   intro: {
-    fontSize: typography.footnote,
-    color: colors.text.secondary,
     paddingHorizontal: SCREEN_PADDING,
     paddingBottom: 12,
-    lineHeight: lineHeights.footnote,
   },
   panel: {
     paddingHorizontal: SCREEN_PADDING,

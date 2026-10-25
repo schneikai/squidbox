@@ -4,10 +4,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import ProgressOverlayHost from '@/components/progress-overlay/ProgressOverlayHost';
 import AssetPickerScreen from '@/features/asset-picker/AssetPickerScreen';
+import AddModelsScreen from '@/features/model-compare/AddModelsScreen';
 import AddEditPostNavigator from '@/navigators/AddEditPostNavigator';
 import CreatePostNavigator from '@/navigators/CreatePostNavigator';
 import MainTabNavigator from '@/navigators/MainTabNavigator';
-import RandomSuggestionsNavigator from '@/navigators/RandomSuggestionsNavigator';
+import ModelCompareNavigator from '@/navigators/ModelCompareNavigator';
 import AddToAlbumScreen from '@/screens/AddToAlbumScreen';
 import AlbumScreen from '@/screens/AlbumScreen';
 import AssetScreen from '@/screens/AssetScreen';
@@ -44,7 +45,8 @@ const AddEditPostModalRoute = asModalRoute(AddEditPostNavigator);
 const AssetPickerModalRoute = asModalRoute(AssetPickerScreen);
 const AddToAlbumModalRoute = asModalRoute(AddToAlbumScreen);
 const EditAlbumNotesModalRoute = asModalRoute(EditAlbumNotesModal);
-const RandomSuggestionsModalRoute = asModalRoute(RandomSuggestionsNavigator);
+const ModelCompareModalRoute = asModalRoute(ModelCompareNavigator);
+const AddAiModelsModalRoute = asModalRoute(AddModelsScreen);
 
 // One editor per params: opening the editor for another post or other assets, also from inside an
 // open editor's sheet, opens a new one on top; the same params go back to the editor that has them.
@@ -53,6 +55,9 @@ const editorId = ({ params }) => JSON.stringify(params ?? {});
 // One screen per post: opening another post opens it on top, the same post goes back to its screen
 // (so a double tap opens it once).
 const postId = ({ params }) => params?.postId;
+
+// One compare and one Add screen per kind of model.
+const modelKind = ({ params }) => params?.kind;
 
 export default function RootNavigator() {
   return (
@@ -76,10 +81,16 @@ export default function RootNavigator() {
           options={{ headerShown: false }}
         />
         <RootStack.Screen
-          name="RandomSuggestionsModal"
-          component={RandomSuggestionsModalRoute}
+          name="ModelCompareModal"
+          component={ModelCompareModalRoute}
           options={{ headerShown: false }}
-          getId={({ params }) => params?.callerKey}
+          getId={modelKind}
+        />
+        <RootStack.Screen
+          name="AddAiModelsModal"
+          component={AddAiModelsModalRoute}
+          options={{ headerShown: false }}
+          getId={modelKind}
         />
       </RootStack.Group>
       <RootStack.Group screenOptions={{ headerShown: false }}>

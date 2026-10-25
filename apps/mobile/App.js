@@ -22,7 +22,6 @@ import BootScreen from '@/features/boot/BootScreen';
 import CloudProvider from '@/features/cloud/CloudProvider';
 import useCloud from '@/features/cloud/useCloud';
 import CloudSyncProvider from '@/features/cloud-sync/CloudSyncProvider';
-import RandomSuggestionsProvider from '@/features/post-random-suggestions/RandomSuggestionsProvider';
 import PostsProvider from '@/features/posts-context/PostsProvider';
 import FirstSyncScreen from '@/features/sync-status/FirstSyncScreen';
 import LibraryProvider from '@/library/LibraryProvider';
@@ -199,20 +198,18 @@ const MainApp = memo(function MainApp() {
         <ActionSheetProvider>
           <MenuProvider>
             <AssetPickerProvider>
-              <RandomSuggestionsProvider>
-                <FloatingBarsProvider>
-                  <View style={styles.root}>
-                    <LinearGradient
-                      colors={colors.background.app}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={StyleSheet.absoluteFill}
-                    />
-                    <RootNavigator />
-                    <FloatingNavigationBar />
-                  </View>
-                </FloatingBarsProvider>
-              </RandomSuggestionsProvider>
+              <FloatingBarsProvider>
+                <View style={styles.root}>
+                  <LinearGradient
+                    colors={colors.background.app}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <RootNavigator />
+                  <FloatingNavigationBar />
+                </View>
+              </FloatingBarsProvider>
             </AssetPickerProvider>
           </MenuProvider>
         </ActionSheetProvider>

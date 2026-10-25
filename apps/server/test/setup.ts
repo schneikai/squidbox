@@ -9,3 +9,8 @@ process.env.AWS_ACCESS_KEY_ID ??= 'test-access-key';
 process.env.AWS_SECRET_ACCESS_KEY ??= 'test-secret-key';
 process.env.S3_SHARED_BUCKET ??= 'test-shared-bucket';
 process.env.LOG_LEVEL ??= 'silent';
+// Tests mock Venice: a key or address exported in the shell (for the live smoke test) must not
+// reach them.
+delete process.env.VENICE_API_KEY;
+delete process.env.VENICE_BASE_URL;
+delete process.env.AI_ALLOWED_EMAILS;

@@ -14,13 +14,22 @@ The TypeScript backend: Fastify + Drizzle + Postgres + S3, deployed on Fly.io (s
 - **Files:** presigned GET downloads, server-proxied streaming uploads with server-side multipart,
   and batch delete.
 - **Sync:** `/sync/pull` and `/sync/push`.
+- **AI:** `/ai/models` (Venice's live model list, cached 5 minutes) and the blind model compare
+  `/ai/compare/writing` and `/ai/compare/vision`, behind Venice's chat API
+  (`src/ai/`). `VENICE_API_KEY` is server-side only; without it the server runs and these routes
+  answer 503 `ai_not_configured`. `VENICE_BASE_URL` defaults to `https://api.venice.ai/api/v1`.
+  `AI_ALLOWED_EMAILS` (comma-separated) limits them to those accounts, others get 403
+  `ai_not_allowed`; unset, every signed-in account may use them, so set it on Fly with the key.
+  Locally, export the key in the shell that runs `npm run dev:local` (never in `.env.docker`); on
+  Fly it is a secret (`fly secrets set VENICE_API_KEY=…`). Node's built-in `fetch` ignores
+  `HTTPS_PROXY`: behind a proxy run Node ≥ 22.21 with `NODE_USE_ENV_PROXY=1`.
 
 Everything is scoped per user.
 
 ## Design notes
 
 - **Contract is shared, not hand-synced.** Request/response Zod schemas + inferred TS types
-  live in `packages/shared` (`contracts/auth.ts`, `contracts/assets.ts`) and are imported by
+  live in `packages/shared` (`contracts/auth.ts`, `contracts/assets.ts`, `contracts/ai.ts`, …) and are imported by
   both server and app — one source of truth for the frontend and backend.
 - **Modern API:** single error envelope `{ error: { code, message } }`, `Authorization:
   Bearer`, RESTful shapes, uuid ids.

@@ -1,4 +1,4 @@
-import { desc, isNull, max, sql, type SQL } from 'drizzle-orm';
+import { isNull, max, sql, type SQL } from 'drizzle-orm';
 
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
@@ -8,16 +8,6 @@ const repository = makeRepository('posts', schema.posts);
 
 export const { create, update, remove } = repository;
 export const toggleFavorite = (db: SyncDb, id: string) => repository.toggle(db, id, 'isFavorite');
-
-/** The non-empty texts of the non-deleted posts, newest first (the AI's style reference). */
-export async function readPostTexts(db: SyncDb): Promise<string[]> {
-  const rows = await db
-    .select({ text: schema.posts.text })
-    .from(schema.posts)
-    .where(isNull(schema.posts.deletedAt))
-    .orderBy(desc(schema.posts.createdAt), desc(schema.posts.id));
-  return rows.map((row) => row.text.trim()).filter(Boolean);
-}
 
 /**
  * When a post comes up for a repost: its suggestion date, else its post date (a suggestion of 0 is

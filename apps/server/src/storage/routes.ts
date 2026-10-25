@@ -56,7 +56,7 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
         request.body.keys.map(async (key) => ({
           key,
           url: await presignedDownloadUrl(loc, key, expiresIn),
-        }))
+        })),
       );
       return { urls };
     },

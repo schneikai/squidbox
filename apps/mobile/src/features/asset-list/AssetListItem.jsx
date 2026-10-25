@@ -3,7 +3,8 @@ import { Image, View, StyleSheet, Text } from 'react-native';
 
 import AssetImage from '@/components/AssetImage';
 import Icon from '@/components/Icon';
-import { colors, radii, scale, sizes, typography } from '@/styles/designTokens';
+import SelectIndicator from '@/components/SelectIndicator';
+import { colors, scale, sizes, typography } from '@/styles/designTokens';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
 // Memoized: providers keep unchanged assets as the same objects, so a write re-renders only its cells.
@@ -52,7 +53,7 @@ function SelectGlow({ selection, assetId, hasPicture }) {
 function SelectRing({ selection, assetId }) {
   const state = useSelectionState(selection, assetId);
   if (state === 'off') return null;
-  return <SelectIndicator isSelected={state === 'selected'} />;
+  return <SelectIndicator isSelected={state === 'selected'} onMedia style={styles.selectIndicator} />;
 }
 
 // One pre-rendered radial fade (black at 42% in the top-left corner, easing out to transparent with no
@@ -98,14 +99,6 @@ function NoteIndicator({ hasNote }) {
   return <Icon name="document" size={scale(16)} color={colors.text.inverse} />;
 }
 
-function SelectIndicator({ isSelected }) {
-  return (
-    <View style={[styles.selectBadge, isSelected && styles.selectBadgeActive]}>
-      {isSelected ? <Icon name="check" size={15} color={colors.text.inverse} /> : null}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -136,21 +129,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
 
-  selectBadge: {
+  selectIndicator: {
     position: 'absolute',
     top: 6,
     left: 6,
-    width: 22,
-    height: 22,
-    borderRadius: radii.pill,
-    borderWidth: 2,
-    borderColor: colors.text.inverse,
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  selectBadgeActive: {
-    backgroundColor: colors.accent.base,
-    borderColor: colors.accent.base,
   },
 });
