@@ -6,6 +6,7 @@ import TextButton from '@/components/TextButton';
 import ThumbnailBadge from '@/components/ThumbnailBadge';
 import { SCREEN_PADDING } from '@/constants';
 import { colors, scale, typography } from '@/styles/designTokens';
+import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
 
 const SHOWN = 3;
@@ -32,7 +33,7 @@ export default function PhotoSetRow({ assets, detail, onPick }) {
         <Text style={styles.count} numberOfLines={1}>
           {count === 0 ? 'No photos' : pluralizeText('%{count} photo', '%{count} photos', count)}
         </Text>
-        {!!detail && count > 0 && <Text style={styles.detail}>{detail}</Text>}
+        {!!detail && count > 0 && <Text style={listTextStyles.subtitle}>{detail}</Text>}
       </View>
       <TextButton label={count === 0 ? 'Pick photos' : 'Change'} onPress={onPick} size="small" />
     </Card>
@@ -62,15 +63,10 @@ const styles = StyleSheet.create({
   },
   text: {
     flex: 1,
-    gap: 2,
   },
   count: {
     fontSize: typography.subheadline,
     fontWeight: '600',
     color: colors.text.primary,
-  },
-  detail: {
-    fontSize: typography.footnote,
-    color: colors.text.secondary,
   },
 });

@@ -4,6 +4,7 @@ import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import * as schema from './db/schema';
 import type { AssetRow } from './db/schema';
 import type { SyncDb } from './db/types';
+import { inJson } from './inJson';
 
 // The model testing's memory in the library's local ai_* tables (schema.ts): your models per kind,
 // the chosen one, the scores, each kind's prompt and the vision photo set. Their only reader and
@@ -49,12 +50,6 @@ export async function readChosenModels(db: SyncDb): Promise<Record<AiModelKind, 
   const chosen: Record<AiModelKind, ModelRef | null> = { writing: null, vision: null };
   for (const { kind, id, name } of rows) chosen[kind as AiModelKind] = { id, name };
   return chosen;
-}
-
-/** The id of the model the coming assistant uses for this kind; null until one is picked. */
-export async function readChosenModelId(db: SyncDb, kind: AiModelKind): Promise<string | null> {
-  const [row] = await db.select({ id: aiKinds.chosenModelId }).from(aiKinds).where(eq(aiKinds.kind, kind));
-  return row?.id ?? null;
 }
 
 /** Chooses one of your models; it must be on your list (a seeded one). */
@@ -113,13 +108,27 @@ export async function setPrompt(db: SyncDb, kind: AiModelKind, prompt: string): 
   if (updated.length === 0) throw new Error(`The ${kind} models were never set up`);
 }
 
+// A photo still in the library: deleted ones drop out of a vision set.
+const isLiveAsset = and(isNull(assets.deletedAt), isNull(assets.purgedAt));
+
+/** The assets with these ids still in the library, once each, in `ids` order. */
+export async function readLiveAssets(db: SyncDb, ids: string[]): Promise<AssetRow[]> {
+  if (ids.length === 0) return [];
+  const rows = await db
+    .select()
+    .from(assets)
+    .where(and(inJson(assets.id, [...new Set(ids)]), isLiveAsset));
+  const byId = new Map(rows.map((asset) => [asset.id, asset]));
+  return [...new Set(ids)].flatMap((id) => byId.get(id) ?? []);
+}
+
 /** The last vision compare's photos still in the library, in their order. */
 export async function readVisionPhotos(db: SyncDb): Promise<AssetRow[]> {
   const rows = await db
     .select({ asset: assets })
     .from(aiVisionPhotos)
     .innerJoin(assets, eq(assets.id, aiVisionPhotos.assetId))
-    .where(and(isNull(assets.deletedAt), isNull(assets.purgedAt)))
+    .where(isLiveAsset)
     .orderBy(asc(aiVisionPhotos.position));
   return rows.map(({ asset }) => asset);
 }

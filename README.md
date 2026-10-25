@@ -86,7 +86,7 @@ Run `/build` — it asks what to build and drives EAS for you (no flags or profi
 | Use for | fast iteration | testing / shipping a stable snapshot |
 | Test-build UI (Settings → Assistant → Testing) | yes | `preview` yes, `production` no |
 
-The bundle ID is chosen in `app.config.js` from `EAS_BUILD_PROFILE`, which is why the two don't overwrite each other. The same variable sets `extra.buildProfile` (unset for a build made without EAS); `src/features/model-compare/isTestBuild.js` shows the test-only UI under Metro (a development bundle) and in the `development` and `preview` builds only. Builds are distributed via [Internal Distribution](https://docs.expo.dev/build/internal-distribution/) (no App Store). Install from the EAS build page (Internal Distribution → Install), then trust the dev certificate in Settings → General → VPN & Device Management.
+The bundle ID is chosen in `app.config.js` from `EAS_BUILD_PROFILE`, which is why the two don't overwrite each other. The same variable sets `extra.buildProfile` (unset for a build made without EAS); `src/features/assistant/isTestBuild.js` shows the test-only UI under Metro (a development bundle) and in the `development` and `preview` builds only. Builds are distributed via [Internal Distribution](https://docs.expo.dev/build/internal-distribution/) (no App Store). Install from the EAS build page (Internal Distribution → Install), then trust the dev certificate in Settings → General → VPN & Device Management.
 
 Cloud builds authenticate to Apple with an **App Store Connect API Key** (`.p8`) — no Mac, no Apple ID password, no 2FA (Apple ID + 2FA is blocked from cloud/datacenter IPs). The full runbook, credential setup, and env vars are in the `ios-build` skill.
 

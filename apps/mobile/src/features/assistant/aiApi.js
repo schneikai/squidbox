@@ -16,17 +16,14 @@ export async function fetchAiBalanceAsync() {
   return data;
 }
 
-/** `{ prompt, modelIds }` → each model's `{ modelId, tweets }` or `{ modelId, error }`. */
-export async function compareWritingAsync(body, { signal } = {}) {
-  const { data } = await apiWithAuthentication.post('ai/compare/writing', body, {
+/**
+ * A blind compare of `kind`: writing `{ prompt, modelIds }`, vision `{ prompt, image: { base64,
+ * mimeType }, modelIds }` → each model's `{ modelId, tweets | tags }` or `{ modelId, error }`.
+ */
+export async function compareAsync(kind, body, { signal } = {}) {
+  const { data } = await apiWithAuthentication.post(`ai/compare/${kind}`, body, {
     timeout: COMPARE_TIMEOUT_MS,
     signal,
   });
-  return data.results;
-}
-
-/** `{ prompt, image: { base64, mimeType }, modelIds }` → each model's `{ modelId, tags }` or `{ modelId, error }`. */
-export async function compareVisionAsync(body, { signal } = {}) {
-  const { data } = await apiWithAuthentication.post('ai/compare/vision', body, { timeout: COMPARE_TIMEOUT_MS, signal });
   return data.results;
 }

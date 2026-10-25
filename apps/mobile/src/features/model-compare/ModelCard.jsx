@@ -10,9 +10,9 @@ import { colors, lineHeights, typography } from '@/styles/designTokens';
  * or tags) once `result` is done; a spinner while loading, the error when it failed. No counts: they
  * would give the model away.
  */
-export default function ModelCard({ label, name, result, children, style }) {
+export default function ModelCard({ label, name, result, children }) {
   return (
-    <Card style={[styles.card, style]}>
+    <Card style={styles.card}>
       <View style={styles.header}>
         <Text style={styles.label}>{label}</Text>
         <BlindModelName name={name} />

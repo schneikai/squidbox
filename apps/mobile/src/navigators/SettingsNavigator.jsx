@@ -1,6 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import AssistantScreen from '@/features/model-compare/AssistantScreen';
+import AssistantScreen from '@/features/assistant/AssistantScreen';
 import ModelListScreen from '@/features/model-compare/ModelListScreen';
 import BackupScreen from '@/screens/BackupScreen';
 import SettingsScreen from '@/screens/SettingsScreen';

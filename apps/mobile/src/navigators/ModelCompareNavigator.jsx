@@ -3,7 +3,7 @@ import CompareScreen from '@/features/model-compare/CompareScreen';
 import ModalStackNavigator from '@/navigators/ModalStackNavigator';
 
 // The blind model compare (Settings → Assistant → a model list → Compare): pick the models (and
-// photos), then compare. Params `{ kind, models }` go to the pick screen.
+// photos), then compare. Params `{ kind }` go to the pick screen.
 export default function ModelCompareNavigator({ route }) {
   return (
     <ModalStackNavigator>

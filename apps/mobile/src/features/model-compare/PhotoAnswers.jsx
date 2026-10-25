@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useDerivedValue, useSharedValue } from 'react-native-reanimated';
 
 import ModelAnswers from './ModelAnswers';
 
@@ -34,10 +34,13 @@ function PhotoAnswers({
 }) {
   const rowY = useSharedValue(0);
   const rowHeight = useSharedValue(0);
-  const stickyStyle = useAnimatedStyle(() => {
+  // A number first: an unchanged one doesn't update the style, so only the pinned row moves while
+  // the list scrolls.
+  const offset = useDerivedValue(() => {
     const pinned = scrollY.value + stickyTop + STICKY_GAP - rowY.value;
-    return { transform: [{ translateY: Math.min(Math.max(pinned, 0), Math.max(rowHeight.value - PHOTO_SIZE, 0)) }] };
+    return Math.min(Math.max(pinned, 0), Math.max(rowHeight.value - PHOTO_SIZE, 0));
   });
+  const stickyStyle = useAnimatedStyle(() => ({ transform: [{ translateY: offset.value }] }));
 
   function handleLayout({ nativeEvent: { layout } }) {
     rowY.value = layout.y;

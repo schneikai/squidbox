@@ -1,5 +1,7 @@
 import { useDeferredValue, useRef, useState } from 'react';
 
+import toggleItem from '@/utils/toggleItem';
+
 /**
  * A list screen's search, sort and filter, for its SearchSortFilterBar:
  *   - `listRef`, for the list: a new sort or filter jumps it back to its top;
@@ -33,9 +35,7 @@ export default function useListControls({ defaultSort, onSort } = {}) {
     if (filter === 'all') {
       setActiveFilter([]);
     } else {
-      setActiveFilter((current) =>
-        current.includes(filter) ? current.filter((f) => f !== filter) : [...current, filter],
-      );
+      setActiveFilter((current) => toggleItem(current, filter));
     }
     listScrollTop();
   }

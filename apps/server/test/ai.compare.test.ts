@@ -14,7 +14,7 @@ vi.mock('../src/config.js', async (importOriginal) => {
 });
 
 import fixture from './fixtures/venice-models.json';
-import { checkTags, checkTweets, compareModels, normalizeTags, visionTask, writingTask } from '../src/ai/compare.js';
+import { checkTags, checkTweets, compareModels, visionTask, writingTask } from '../src/ai/compare.js';
 import { visionMessages, writingMessages } from '../src/ai/prompts.js';
 import type { CatalogEntry } from '../src/ai/catalog.js';
 
@@ -49,24 +49,18 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-describe('normalizeTags', () => {
-  it('trims, drops empty ones and case-insensitive duplicates, keeping the order', () => {
-    expect(normalizeTags([' Shower ', 'shower', '', '  ', 'wet hair', 'SHOWER', 'steam'])).toEqual([
-      'Shower',
-      'wet hair',
-      'steam',
-    ]);
-  });
-});
-
-describe('strict counts', () => {
+describe('checking the replies', () => {
   it('takes exactly 3 non-empty tweets', () => {
     expect(checkTweets([' a ', 'b', 'c'])).toEqual(['a', 'b', 'c']);
     expect(() => checkTweets(['a', 'b', ' '])).toThrow('Returned 2 tweets instead of 3');
   });
 
-  it('takes any number of tags after normalizing, but not none', () => {
-    expect(checkTags(['a', 'b', ' A '])).toEqual(['a', 'b']);
+  it('takes any number of tags, trimmed, without empty ones and case-insensitive duplicates, in order', () => {
+    expect(checkTags([' Shower ', 'shower', '', '  ', 'wet hair', 'SHOWER', 'steam'])).toEqual([
+      'Shower',
+      'wet hair',
+      'steam',
+    ]);
     expect(() => checkTags([' ', ''])).toThrow('Returned no tags');
   });
 });
@@ -108,12 +102,12 @@ describe('compareModels: writing', () => {
 
 describe('compareModels: vision', () => {
   it('sends the photo to each model and takes as many tags as it gives', async () => {
-    const eight = ['shower', 'wet hair', 'steam', 'back view', 'towel', 'morning light', 'tattoo', 'tiles'];
-    replies({ 'gemma-4-uncensored': { tags: eight }, 'qwen-3-6-plus': { tags: [...eight, 'extra'] } });
+    const tags = ['shower', 'wet hair', 'steam', 'back view', 'towel', 'morning light', 'tattoo', 'tiles'];
+    replies({ 'gemma-4-uncensored': { tags }, 'qwen-3-6-plus': { tags: [...tags, 'extra'] } });
     const results = await compareVision([model('gemma-4-uncensored'), model('qwen-3-6-plus')]);
     expect(results).toEqual([
-      { modelId: 'gemma-4-uncensored', tags: eight },
-      { modelId: 'qwen-3-6-plus', tags: [...eight, 'extra'] },
+      { modelId: 'gemma-4-uncensored', tags },
+      { modelId: 'qwen-3-6-plus', tags: [...tags, 'extra'] },
     ]);
     const sent = JSON.parse(fetchMock.mock.calls[0]![1].body);
     expect(sent.messages[1].content[0]).toEqual({ type: 'text', text: 'Tag it' });

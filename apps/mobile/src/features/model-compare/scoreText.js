@@ -5,7 +5,7 @@ import pluralizeText from '@/utils/pluralizeText';
  * fit"), from 0 once it was compared; "Not tried yet" (score null) before.
  */
 export default function scoreText(score, kind) {
-  if (score === null || score === undefined) return 'Not tried yet';
+  if (score === null) return 'Not tried yet';
   if (kind === 'vision') return pluralizeText('%{count} tag fits', '%{count} tags fit', score);
   return String(score);
 }

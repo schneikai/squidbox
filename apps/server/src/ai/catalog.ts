@@ -3,10 +3,9 @@
 // memory for a few minutes, and a failed refresh throws: it never serves stale data silently.
 import type { AiModelKind, ApiAiModel } from '@squidbox/shared';
 import { z } from 'zod';
-import { veniceFetch } from './venice.js';
+import { veniceGetJson } from './venice.js';
 
 const CACHE_MS = 5 * 60 * 1000;
-const FETCH_TIMEOUT_MS = 15_000;
 
 // The cost line's assumptions: a writing reply reads ~1,000 tokens and writes ~200; tagging a
 // photo reads ~1,500 (the image and the prompt) and writes ~100.
@@ -44,9 +43,7 @@ export type Catalog = { entries: CatalogEntry[]; models: ApiAiModel[] };
  * out rather than failing the whole list.
  */
 export async function fetchCatalogAsync(): Promise<CatalogEntry[]> {
-  const response = await veniceFetch('/models', { timeoutMs: FETCH_TIMEOUT_MS });
-  if (!response.ok) throw new Error(`Venice model list failed (${response.status})`);
-  const body = catalogResponseSchema.parse(await response.json());
+  const body = await veniceGetJson('/models', catalogResponseSchema);
   return body.data.flatMap((entry) => {
     const parsed = catalogEntrySchema.safeParse(entry);
     return parsed.success ? [parsed.data] : [];

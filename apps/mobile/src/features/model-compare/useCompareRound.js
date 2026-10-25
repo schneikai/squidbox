@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { compareVisionAsync, compareWritingAsync } from './aiApi';
-import apiErrorMessage from './apiErrorMessage';
 import assignLetters from './assignLetters';
 import readVisionImageAsync from './readVisionImageAsync';
 
 import useAssetThumbnailLoader from '@/features/asset-thumbnail-loader/useAssetThumbnailLoader';
+import { compareAsync } from '@/features/assistant/aiApi';
+import apiErrorMessage from '@/features/assistant/apiErrorMessage';
 import useCloud from '@/features/cloud/useCloud';
 import useHaptics from '@/hooks/useHaptics';
 import useLibrary from '@/library/useLibrary';
 import { addScore, markTried } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
+import toggleItem from '@/utils/toggleItem';
 
 // Requests in flight at once in a round: a vision round is one request per photo with every model.
 const CONCURRENCY = 2;
@@ -35,40 +36,36 @@ export default function useCompareRound({ kind, modelIds }) {
   const controllerRef = useRef(null);
   // The taps as of the last toggle: two taps before a re-render must see each other.
   const tapsRef = useRef({});
-  // Each photo's image, read and resized once for all the rounds of this compare.
-  const imagesRef = useRef(new Map());
+  // The models already marked as tried in this compare, so each is written once.
+  const triedRef = useRef(new Set());
 
   useEffect(() => () => controllerRef.current?.abort(), []);
-
-  function imageFor(asset) {
-    const images = imagesRef.current;
-    if (!images.has(asset.id)) {
-      const image = readVisionImageAsync(asset, { library, loadThumbnail, isAuthenticated });
-      images.set(asset.id, image);
-      image.catch(() => images.delete(asset.id)); // the next round tries again
-    }
-    return images.get(asset.id);
-  }
 
   function failAll(error) {
     const message = apiErrorMessage(error);
     return Object.fromEntries(modelIds.map((modelId) => [modelId, { status: 'error', error: message }]));
   }
 
-  // One request of a round: its results key, how to ask, the results' items key, and what to get
-  // ready while the request before it runs.
+  // One request of a round: its results key, the results' items key, and its body.
   function jobsFor({ prompt, photos }) {
-    if (kind !== 'vision') {
-      return [
-        { key: TEXT_KEY, itemsKey: 'tweets', ask: (signal) => compareWritingAsync({ prompt, modelIds }, { signal }) },
-      ];
-    }
+    if (kind !== 'vision') return [{ key: TEXT_KEY, itemsKey: 'tweets', body: async () => ({ prompt, modelIds }) }];
     return photos.map((asset) => ({
       key: asset.id,
       itemsKey: 'tags',
-      prepare: () => imageFor(asset),
-      ask: async (signal) => compareVisionAsync({ prompt, image: await imageFor(asset), modelIds }, { signal }),
+      body: async () => ({
+        prompt,
+        image: await readVisionImageAsync(asset, { library, loadThumbnail, isAuthenticated }),
+        modelIds,
+      }),
     }));
+  }
+
+  function markTriedOnce(results) {
+    const tried = triedRef.current;
+    const newlyTried = Object.keys(results).filter((id) => results[id].status === 'done' && !tried.has(id));
+    if (newlyTried.length === 0) return;
+    newlyTried.forEach((id) => tried.add(id));
+    markTried(getDb(), kind, newlyTried).catch((error) => console.error('Saving the score failed', error));
   }
 
   async function run(jobs, signal) {
@@ -76,16 +73,14 @@ export default function useCompareRound({ kind, modelIds }) {
     async function worker() {
       while (queue.length > 0 && !signal.aborted) {
         const job = queue.shift();
-        queue[0]?.prepare?.(); // one ahead: the next photo resizes while this one is asked
         let results;
         try {
-          results = byModel(await job.ask(signal), job.itemsKey);
+          results = byModel(await compareAsync(kind, await job.body(), { signal }), job.itemsKey);
         } catch (error) {
           results = failAll(error);
         }
         if (signal.aborted) return;
-        const answered = Object.keys(results).filter((modelId) => results[modelId].status === 'done');
-        markTried(getDb(), kind, answered).catch((error) => console.error('Saving the score failed', error));
+        markTriedOnce(results);
         setRound((current) => ({ ...current, results: { ...current.results, [job.key]: results } }));
       }
     }
@@ -113,9 +108,8 @@ export default function useCompareRound({ kind, modelIds }) {
       const taps = tapsRef.current;
       const tapped = taps[key]?.[modelId] ?? [];
       const isOn = tapped.includes(index);
-      const next = isOn ? tapped.filter((i) => i !== index) : [...tapped, index];
-      tapsRef.current = { ...taps, [key]: { ...taps[key], [modelId]: next } };
-      const nextTaps = tapsRef.current;
+      const nextTaps = { ...taps, [key]: { ...taps[key], [modelId]: toggleItem(tapped, index) } };
+      tapsRef.current = nextTaps;
       setRound((current) => ({ ...current, taps: nextTaps }));
       haptics.selection();
       addScore(getDb(), kind, modelId, isOn ? -1 : 1).catch((error) => console.error('Saving the score failed', error));

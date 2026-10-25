@@ -1,12 +1,13 @@
 import { COMPARE_MIN_MODELS, VISION_COMPARE_MAX_PHOTOS } from '@squidbox/shared';
 import { useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import FloatingPrimaryAction, { FLOATING_PRIMARY_ACTION_CLEARANCE } from './FloatingPrimaryAction';
+import FloatingPrimaryAction from './FloatingPrimaryAction';
 import ModelPickRow from './ModelPickRow';
 import PhotoSetRow from './PhotoSetRow';
 import modelKindText from './modelKindText';
+import useFloatingPrimaryActionPadding from './useFloatingPrimaryActionPadding';
+import useYourModels from './useYourModels';
 
 import IntroText from '@/components/IntroText';
 import ModalCloseButton from '@/components/ModalCloseButton';
@@ -16,33 +17,36 @@ import PrimaryButton from '@/components/PrimaryButton';
 import { Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';
-import { readChosenModelId, readVisionPhotos, setVisionPhotos } from '@/sync/aiStateRepository';
+import { readLiveAssets, readVisionPhotos, setVisionPhotos } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
-import { readByIds } from '@/sync/readByIds';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import pluralizeText from '@/utils/pluralizeText';
+import toggleItem from '@/utils/toggleItem';
 
-// The compare's first step (route params `kind` and `models`, your available models with their
-// catalog model and score, shown as in your list): tick 2 or more models, and for vision pick the
-// photos (the last compare's to start with).
+// The compare's first step (route param `kind`): tick 2 or more of your available models, shown as
+// in your list, and for vision pick the photos (the last compare's to start with). Start saves the
+// photos for CompareScreen, which reads them back.
 export default function ComparePickScreen({ navigation, route }) {
-  const { kind, models } = route.params;
+  const { kind } = route.params;
   const isVision = kind === 'vision';
-  const { bottom } = useSafeAreaInsets();
+  const paddingBottom = useFloatingPrimaryActionPadding();
   const { openAssetPicker } = useAssetPicker();
-  const chosenId = useLiveQuery((db) => readChosenModelId(db, kind), [schema.aiKinds], [kind]);
+  const { rows, chosenId } = useYourModels(kind);
   // Your changes only: null keeps the default, the current choice ticked.
   const [tickedIds, setTickedIds] = useState(null);
-  // The photos picked here (at most VISION_COMPARE_MAX_PHOTOS); null keeps the last compare's.
+  // Every photo picked here, of which the first VISION_COMPARE_MAX_PHOTOS count; null keeps the
+  // last compare's.
   const [pickedIds, setPickedIds] = useState(null);
-  const [pickedCount, setPickedCount] = useState(0); // how many were picked, before the cap
   const photos = useLiveQuery(
-    async (db) =>
-      pickedIds ? (await readByIds(db, schema.assets, pickedIds)).filter(isLive) : isVision ? readVisionPhotos(db) : [],
+    (db) => {
+      if (!isVision) return [];
+      return pickedIds ? readLiveAssets(db, pickedIds.slice(0, VISION_COMPARE_MAX_PHOTOS)) : readVisionPhotos(db);
+    },
     [schema.assets, schema.aiVisionPhotos],
     [pickedIds, isVision],
   );
 
+  const models = rows?.filter((row) => row.model !== null) ?? [];
   const ticked = tickedIds ?? (models.some(({ id }) => id === chosenId) ? [chosenId] : []);
   const modelCount = ticked.length;
   const hasPhotos = !isVision || (photos?.length ?? 0) > 0;
@@ -50,35 +54,30 @@ export default function ComparePickScreen({ navigation, route }) {
   const photosDetail =
     pickedIds === null
       ? 'Same as last time'
-      : pickedCount > VISION_COMPARE_MAX_PHOTOS
-        ? `The first ${VISION_COMPARE_MAX_PHOTOS} of ${pickedCount}`
+      : pickedIds.length > VISION_COMPARE_MAX_PHOTOS
+        ? `The first ${VISION_COMPARE_MAX_PHOTOS} of ${pickedIds.length}`
         : null;
-
-  function handleToggle(id) {
-    setTickedIds(ticked.includes(id) ? ticked.filter((tickedId) => tickedId !== id) : [...ticked, id]);
-  }
 
   async function handlePickPhotos() {
     const assets = await openAssetPicker();
-    if (!assets?.length) return;
-    setPickedIds(assets.slice(0, VISION_COMPARE_MAX_PHOTOS).map(({ id }) => id));
-    setPickedCount(assets.length);
+    if (assets?.length) setPickedIds(assets.map(({ id }) => id));
   }
 
   async function handleStart() {
-    const photoIds = isVision ? photos.map(({ id }) => id) : undefined;
-    if (isVision) await setVisionPhotos(getDb(), photoIds);
+    if (pickedIds !== null)
+      await setVisionPhotos(
+        getDb(),
+        photos.map(({ id }) => id),
+      );
     // In your list's order, so a round's letters are the only shuffle.
     const tickedModels = models.filter(({ id }) => ticked.includes(id)).map(({ id, name }) => ({ id, name }));
-    navigation.navigate('CompareScreen', { kind, models: tickedModels, photoIds });
+    navigation.navigate('CompareScreen', { kind, models: tickedModels });
   }
 
   return (
     <ModalSheet>
       <ModalHeader leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />} centerSlot="Compare" />
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: bottom + FLOATING_PRIMARY_ACTION_CLEARANCE }]}
-      >
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom }]}>
         <IntroText style={styles.intro}>{modelKindText[kind].pickIntro}</IntroText>
         <Section>
           {models.map(({ id, name, model, score }) => (
@@ -90,7 +89,7 @@ export default function ComparePickScreen({ navigation, route }) {
               score={score}
               isTicked={ticked.includes(id)}
               isCurrent={id === chosenId}
-              onToggle={() => handleToggle(id)}
+              onToggle={() => setTickedIds(toggleItem(ticked, id))}
             />
           ))}
         </Section>
@@ -105,11 +104,6 @@ export default function ComparePickScreen({ navigation, route }) {
       </FloatingPrimaryAction>
     </ModalSheet>
   );
-}
-
-// A photo still in the library (deleted ones drop out of the set).
-function isLive(asset) {
-  return asset.deletedAt === null && asset.purgedAt === null;
 }
 
 const styles = StyleSheet.create({

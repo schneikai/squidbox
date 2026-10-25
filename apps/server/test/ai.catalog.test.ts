@@ -60,7 +60,7 @@ describe('fetchCatalogAsync', () => {
 
   it('throws when Venice answers an error', async () => {
     fetchMock.mockResolvedValueOnce(answer({ error: 'nope' }, 500));
-    await expect(fetchCatalogAsync()).rejects.toThrow('Venice model list failed (500)');
+    await expect(fetchCatalogAsync()).rejects.toThrow('Venice /models failed (500)');
   });
 });
 

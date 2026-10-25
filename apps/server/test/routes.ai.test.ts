@@ -30,7 +30,7 @@ import { clearCatalogCache } from '../src/ai/catalog.js';
 import { findUserById } from '../src/users.js';
 
 const auth = { authorization: `Bearer ${signAccessToken('u1')}` };
-const eightTags = ['shower', 'wet hair', 'steam', 'back view', 'towel', 'morning light', 'tattoo', 'tiles'];
+const tags = ['shower', 'wet hair', 'steam', 'back view', 'towel', 'morning light', 'tattoo', 'tiles'];
 const fetchMock = vi.fn();
 
 // Venice: the model list, and a chat reply per model.
@@ -49,7 +49,7 @@ function veniceAnswers({ catalogStatus = 200, balanceStatus = 200 } = {}) {
     }
     const { response_format } = JSON.parse(String(init!.body));
     const content =
-      response_format.json_schema.name === 'tweets' ? { tweets: ['one', 'two', 'three'] } : { tags: eightTags };
+      response_format.json_schema.name === 'tweets' ? { tweets: ['one', 'two', 'three'] } : { tags };
     return new Response(
       JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(content) } }] }),
     );
@@ -179,7 +179,7 @@ describe('GET /api/v1/ai/balance', () => {
 });
 
 describe('POST /api/v1/ai/compare/writing', () => {
-  it('asks each model for JSON tweets, with the lowest reasoning effort it takes', async () => {
+  it('asks each model for JSON tweets, on its own defaults', async () => {
     veniceAnswers();
     const res = await call('POST', '/ai/compare/writing', writing);
     expect(res.statusCode).toBe(200);
@@ -242,16 +242,16 @@ describe('POST /api/v1/ai/compare/vision', () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({
       results: [
-        { modelId: 'gemma-4-uncensored', tags: eightTags },
-        { modelId: 'qwen-3-6-plus', tags: eightTags },
+        { modelId: 'gemma-4-uncensored', tags },
+        { modelId: 'qwen-3-6-plus', tags },
       ],
     });
+    // The message's shape is the compare test's; here the request's prompt and photo reach it.
     const [gemma] = chatBodies();
-    expect(gemma.messages[1].content[0]).toEqual({ type: 'text', text: 'Tag what you see' });
-    expect(gemma.messages[1].content[1]).toEqual({
-      type: 'image_url',
-      image_url: { url: 'data:image/jpeg;base64,AAAA' },
-    });
+    expect(gemma.messages[1].content).toEqual([
+      { type: 'text', text: 'Tag what you see' },
+      { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,AAAA' } },
+    ]);
   });
 
   it('400 without a prompt', async () => {

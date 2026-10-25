@@ -1,15 +1,12 @@
-import { useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { COMPARE_MIN_MODELS } from '@squidbox/shared';
+import { StyleSheet } from 'react-native';
 
-import FloatingPrimaryAction, { FLOATING_PRIMARY_ACTION_CLEARANCE } from './FloatingPrimaryAction';
+import CatalogStatus from './CatalogStatus';
+import FloatingPrimaryAction from './FloatingPrimaryAction';
 import ModelRow from './ModelRow';
-import joinYourModels from './joinYourModels';
 import modelKindText from './modelKindText';
-import modelsOfKind from './modelsOfKind';
-import seedModels from './seedModels';
-import useAiCatalog from './useAiCatalog';
-import useLeaveWhenUnavailable from './useLeaveWhenUnavailable';
+import useFloatingPrimaryActionPadding from './useFloatingPrimaryActionPadding';
+import useYourModels from './useYourModels';
 
 import DetailScrollView from '@/components/DetailScrollView';
 import EmptyState from '@/components/EmptyState';
@@ -23,11 +20,10 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
+import useLeaveWhenUnavailable from '@/features/assistant/useLeaveWhenUnavailable';
 import useHaptics from '@/hooks/useHaptics';
-import { colors } from '@/styles/designTokens';
-import { readModelList, removeYourModel, resetScores, seedYourModels, setChosenModel } from '@/sync/aiStateRepository';
-import { getDb, schema } from '@/sync/db/client';
-import { useLiveQuery } from '@/sync/useLiveQuery';
+import { removeYourModel, resetScores, setChosenModel } from '@/sync/aiStateRepository';
+import { getDb } from '@/sync/db/client';
 import confirmAsync from '@/utils/confirmAsync';
 
 // Your models of one kind (route param `kind`: writing | vision), the one the assistant uses, their
@@ -36,27 +32,15 @@ export default function ModelListScreen({ navigation, route }) {
   const { kind } = route.params;
   const isAvailable = useLeaveWhenUnavailable();
   const haptics = useHaptics();
-  const { bottom } = useSafeAreaInsets();
-  const { models: catalog, error, retry } = useAiCatalog();
-  // undefined while reading, null before the list was seeded
-  const list = useLiveQuery(
-    (db) => readModelList(db, kind),
-    [schema.aiKinds, schema.aiModels, schema.aiScores],
-    [kind],
-  );
+  const paddingBottom = useFloatingPrimaryActionPadding();
+  const { catalog, error, retry, rows, chosenId } = useYourModels(kind);
 
-  // First run: your list starts with the owner's picks that Venice still has.
-  useEffect(() => {
-    if (catalog && list === null) seedYourModels(getDb(), kind, seedModels(modelsOfKind(catalog, kind), kind));
-  }, [catalog, list]);
-
-  const rows = catalog && list ? joinYourModels(list.models, catalog, kind) : null;
-  const availableRows = rows?.filter((row) => row.model !== null) ?? [];
-  const hasScores = list?.models.some(({ score }) => score !== null) ?? false;
+  const availableCount = rows?.filter((row) => row.model !== null).length ?? 0;
+  const hasScores = rows?.some(({ score }) => score !== null) ?? false;
   const text = modelKindText[kind];
 
   async function handleChoose(row) {
-    if (row.id === list.chosenId) return;
+    if (row.id === chosenId) return;
     await setChosenModel(getDb(), kind, row.id);
     haptics.selection();
   }
@@ -73,23 +57,8 @@ export default function ModelListScreen({ navigation, route }) {
     await resetScores(getDb(), kind);
   }
 
-  function handleCompare() {
-    navigation.navigate('ModelCompareModal', {
-      kind,
-      models: availableRows.map(({ id, name, model, score }) => ({ id, name, model, score })),
-    });
-  }
-
   function renderModels() {
-    if (error) {
-      return (
-        <View style={styles.status}>
-          <EmptyState icon="alert" title="Couldn't load the models" subtitle={error} />
-          <TextButton label="Try again" onPress={retry} />
-        </View>
-      );
-    }
-    if (!rows) return <ActivityIndicator style={styles.status} color={colors.text.secondary} />;
+    if (!rows) return <CatalogStatus error={error} retry={retry} />;
     if (rows.length === 0) return <EmptyState icon="cpu" title="No models yet" subtitle="Add a model to test." />;
     return (
       <>
@@ -101,7 +70,7 @@ export default function ModelListScreen({ navigation, route }) {
               model={row.model}
               kind={kind}
               score={row.score}
-              isChosen={row.id === list.chosenId}
+              isChosen={row.id === chosenId}
               onChoose={() => handleChoose(row)}
               onResetScore={() => handleResetScore(row)}
               onRemove={() => removeYourModel(getDb(), kind, row.id)}
@@ -128,7 +97,7 @@ export default function ModelListScreen({ navigation, route }) {
           )
         }
       />
-      <DetailScrollView contentContainerStyle={{ paddingBottom: bottom + FLOATING_PRIMARY_ACTION_CLEARANCE }}>
+      <DetailScrollView contentContainerStyle={{ paddingBottom }}>
         <IntroText style={styles.intro}>{text.intro}</IntroText>
         <ScreenSectionHeader
           title="Your models"
@@ -146,7 +115,12 @@ export default function ModelListScreen({ navigation, route }) {
         {renderModels()}
       </DetailScrollView>
       <FloatingPrimaryAction>
-        <PrimaryButton icon="repeat" label="Compare" onPress={handleCompare} disabled={availableRows.length < 2} />
+        <PrimaryButton
+          icon="repeat"
+          label="Compare"
+          onPress={() => navigation.navigate('ModelCompareModal', { kind })}
+          disabled={availableCount < COMPARE_MIN_MODELS}
+        />
       </FloatingPrimaryAction>
     </Page>
   );
@@ -156,8 +130,5 @@ const styles = StyleSheet.create({
   intro: {
     paddingHorizontal: SCREEN_PADDING,
     paddingBottom: 4,
-  },
-  status: {
-    paddingVertical: 40,
   },
 });

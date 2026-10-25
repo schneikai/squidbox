@@ -7,8 +7,7 @@ export default async function createVideoThumbnail(videoUri) {
   const frame = await VideoThumbnails.getThumbnailAsync(videoUri, { time: 0, quality: 1 });
 
   try {
-    const { uri } = await resizeToThumbnail(frame.uri, frame.width, frame.height);
-    return uri;
+    return await resizeToThumbnail(frame.uri, frame.width, frame.height);
   } finally {
     await FileSystem.deleteAsync(frame.uri, { idempotent: true });
   }

@@ -6,8 +6,8 @@ import {
   addScore,
   addYourModel,
   markTried,
-  readChosenModelId,
   readChosenModels,
+  readLiveAssets,
   readModelList,
   readVisionPhotos,
   readPrompt,
@@ -28,7 +28,6 @@ describe('aiStateRepository', () => {
   it('reads nothing before the first write', async () => {
     const db = makeTestDb();
     expect(await readModelList(db, 'writing')).toBeNull();
-    expect(await readChosenModelId(db, 'writing')).toBeNull();
     expect(await readChosenModels(db)).toEqual({ writing: null, vision: null });
     expect(await readPrompt(db, 'writing')).toBeNull();
     expect(await readVisionPhotos(db)).toEqual([]);
@@ -50,8 +49,8 @@ describe('aiStateRepository', () => {
     await seedYourModels(db, 'writing', [kimi, grok]);
     await seedYourModels(db, 'vision', [grok]);
     await setChosenModel(db, 'writing', kimi.id);
-    expect(await readChosenModelId(db, 'writing')).toBe(kimi.id);
-    expect(await readChosenModelId(db, 'vision')).toBeNull();
+    expect((await readModelList(db, 'writing'))?.chosenId).toBe(kimi.id);
+    expect((await readModelList(db, 'vision'))?.chosenId).toBeNull();
     expect(await readChosenModels(db)).toEqual({ writing: kimi, vision: null });
   });
 
@@ -136,5 +135,13 @@ describe('aiStateRepository', () => {
     expect((await readVisionPhotos(db)).map(({ id }) => id)).toEqual(['a3', 'a2']);
     await setVisionPhotos(db, ['a2']);
     expect((await readVisionPhotos(db)).map(({ id }) => id)).toEqual(['a2']);
+  });
+
+  it('reads the live assets of a pick, once each, in its order', async () => {
+    const db = makeTestDb();
+    await assetsRepository.createMany(db, [makeAssetRecord({ id: 'a1' }), makeAssetRecord({ id: 'a2' })]);
+    await assetsRepository.update(db, 'a1', { deletedAt: 5 });
+    expect((await readLiveAssets(db, ['a2', 'gone', 'a1', 'a2'])).map(({ id }) => id)).toEqual(['a2']);
+    expect(await readLiveAssets(db, [])).toEqual([]);
   });
 });

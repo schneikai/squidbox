@@ -18,6 +18,7 @@ function AddModelRow({ model, kind, isAdded, onAdd }) {
     <TouchableOpacity
       style={styles.row}
       onPress={() => onAdd(model)}
+      disabled={isAdded}
       activeOpacity={0.6}
       accessibilityRole="button"
       accessibilityState={{ selected: isAdded }}

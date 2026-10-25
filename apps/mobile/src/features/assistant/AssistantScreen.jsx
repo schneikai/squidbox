@@ -1,7 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
+import { aiModelKindSchema } from '@squidbox/shared';
 
-import modelKindText from './modelKindText';
-import modelsOfKind from './modelsOfKind';
 import useAiCatalog from './useAiCatalog';
 import useLeaveWhenUnavailable from './useLeaveWhenUnavailable';
 import useVeniceBalance from './useVeniceBalance';
@@ -11,11 +10,11 @@ import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
+import joinYourModels from '@/features/model-compare/joinYourModels';
+import modelKindText from '@/features/model-compare/modelKindText';
 import { readChosenModels } from '@/sync/aiStateRepository';
 import { schema } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
-
-const KINDS = ['writing', 'vision'];
 
 // Settings → Assistant: for now only the Testing section, the models the coming assistant uses,
 // and what is left on the Venice account.
@@ -30,10 +29,10 @@ export default function AssistantScreen() {
   // says which; a catalog still loading or failed to load leaves the plain name). The name and the
   // label together would wrap the row's label.
   function chosenText(kind) {
-    const model = chosen?.[kind];
-    if (chosen === undefined) return null;
+    if (chosen === undefined) return { value: null, isGone: false };
+    const model = chosen[kind];
     if (!model) return { value: 'Not chosen', isGone: false };
-    const isGone = !!catalog && !modelsOfKind(catalog, kind).some(({ id }) => id === model.id);
+    const isGone = !!catalog && joinYourModels([model], catalog, kind)[0].model === null;
     return { value: isGone ? 'No longer available' : model.name, isGone };
   }
 
@@ -45,16 +44,19 @@ export default function AssistantScreen() {
       <DetailScrollView>
         <ScreenSectionHeader title="Testing" />
         <Section>
-          {KINDS.map((kind) => (
-            <Row
-              key={kind}
-              label={modelKindText[kind].title}
-              value={chosenText(kind)?.value}
-              isValueMuted={chosenText(kind)?.isGone}
-              onPress={() => navigation.navigate('ModelListScreen', { kind })}
-              chevron
-            />
-          ))}
+          {aiModelKindSchema.options.map((kind) => {
+            const { value, isGone } = chosenText(kind);
+            return (
+              <Row
+                key={kind}
+                label={modelKindText[kind].title}
+                value={value}
+                isValueMuted={isGone}
+                onPress={() => navigation.navigate('ModelListScreen', { kind })}
+                chevron
+              />
+            );
+          })}
           <Row label="Venice balance" value={balance.value} isValueMuted={balance.isError} />
         </Section>
         <SectionFooter>Only in test builds.</SectionFooter>

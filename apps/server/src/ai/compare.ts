@@ -7,19 +7,6 @@ import { chatJsonAsync, VeniceError, type ChatMessage, type JsonSchemaSpec } fro
 
 type Logger = { error: (object: unknown, message: string) => void };
 
-/** Trimmed, without empty ones and case-insensitive duplicates, in the model's order. */
-export function normalizeTags(tags: string[]): string[] {
-  const seen = new Set<string>();
-  return tags
-    .map((tag) => tag.trim())
-    .filter((tag) => {
-      const key = tag.toLowerCase();
-      if (!tag || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-}
-
 /** The trimmed tweets when there are exactly WRITING_TWEET_COUNT non-empty ones; throws otherwise. */
 export function checkTweets(tweets: string[]): string[] {
   const kept = tweets.map((tweet) => tweet.trim()).filter(Boolean);
@@ -29,42 +16,53 @@ export function checkTweets(tweets: string[]): string[] {
   return kept;
 }
 
-/** The normalized tags, as many as the prompt asked for; throws when none are left. */
+/**
+ * The tags trimmed, without empty ones and case-insensitive duplicates, in the model's order, as
+ * many as the prompt asked for; throws when none are left.
+ */
 export function checkTags(tags: string[]): string[] {
-  const kept = normalizeTags(tags);
+  const seen = new Set<string>();
+  const kept = tags
+    .map((tag) => tag.trim())
+    .filter((tag) => {
+      const key = tag.toLowerCase();
+      if (!tag || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   if (kept.length === 0) throw new VeniceError('Returned no tags');
   return kept;
 }
 
-/** What a compare asks each model for, and how its reply becomes its result. */
-type CompareTask<T, R> = { schema: JsonSchemaSpec<T>; toResult: (reply: T) => R };
+/** What a compare asks each model for, and the check its reply must pass to be its result. */
+type CompareTask<T> = { schema: JsonSchemaSpec<T>; check: (reply: T) => T };
 
-export const writingTask: CompareTask<{ tweets: string[] }, { tweets: string[] }> = {
+export const writingTask: CompareTask<{ tweets: string[] }> = {
   schema: tweetsSchema,
-  toResult: ({ tweets }) => ({ tweets: checkTweets(tweets) }),
+  check: ({ tweets }) => ({ tweets: checkTweets(tweets) }),
 };
 
-export const visionTask: CompareTask<{ tags: string[] }, { tags: string[] }> = {
+export const visionTask: CompareTask<{ tags: string[] }> = {
   schema: tagsSchema,
-  toResult: ({ tags }) => ({ tags: checkTags(tags) }),
+  check: ({ tags }) => ({ tags: checkTags(tags) }),
 };
 
 /** Sends the same messages to every model at once; each gets its result or its own error. */
-export async function compareModels<T, R>({
+export async function compareModels<T>({
   task,
   messages,
   models,
   log,
 }: {
-  task: CompareTask<T, R>;
+  task: CompareTask<T>;
   messages: ChatMessage[];
   models: CatalogEntry[];
   log?: Logger;
-}): Promise<((R & { modelId: string }) | { modelId: string; error: string })[]> {
+}): Promise<((T & { modelId: string }) | { modelId: string; error: string })[]> {
   const settled = await Promise.allSettled(
     models.map(async (model) => {
       const reply = await chatJsonAsync({ model: model.id, messages, schema: task.schema });
-      return { modelId: model.id, ...task.toResult(reply) };
+      return { modelId: model.id, ...task.check(reply) };
     }),
   );
   return settled.map((result, index) => {

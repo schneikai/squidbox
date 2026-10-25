@@ -1,10 +1,10 @@
 import useIsAssistantAvailable from './useIsAssistantAvailable';
 
-import useCloseWhenGone from '@/hooks/useCloseWhenGone';
+import useCloseWhen from '@/hooks/useCloseWhen';
 
 /** Goes back from an Assistant screen once it isn't available anymore (a sign-out, say). */
 export default function useLeaveWhenUnavailable() {
   const isAvailable = useIsAssistantAvailable();
-  useCloseWhenGone(isAvailable ? true : null);
+  useCloseWhen(!isAvailable);
   return isAvailable;
 }
