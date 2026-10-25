@@ -18,6 +18,7 @@ import PrimaryButton from '@/components/PrimaryButton';
 import { Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';
+import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import { readLiveAssets, readVisionPhotos, setVisionPhotos } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
@@ -29,6 +30,7 @@ import toggleItem from '@/utils/toggleItem';
 // photos for CompareScreen, which reads them back.
 export default function ComparePickScreen({ navigation, route }) {
   const { kind } = route.params;
+  const isAvailable = useLeaveWhenUnavailable();
   const isVision = kind === 'vision';
   const paddingBottom = useFloatingPrimaryActionPadding();
   const { openAssetPicker } = useAssetPicker();
@@ -83,6 +85,8 @@ export default function ComparePickScreen({ navigation, route }) {
     const tickedModels = models.filter(({ id }) => ticked.includes(id)).map(({ id, name }) => ({ id, name }));
     navigation.navigate('CompareScreen', { kind, models: tickedModels });
   }
+
+  if (!isAvailable) return null;
 
   return (
     <ModalSheet>

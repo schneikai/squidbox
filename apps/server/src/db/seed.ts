@@ -18,8 +18,7 @@ async function seedExistingUser(): Promise<void> {
     return;
   }
   const digest =
-    env.SEED_USER_PASSWORD_DIGEST ||
-    (env.SEED_USER_PASSWORD ? await hashPassword(env.SEED_USER_PASSWORD) : null);
+    env.SEED_USER_PASSWORD_DIGEST || (env.SEED_USER_PASSWORD ? await hashPassword(env.SEED_USER_PASSWORD) : null);
   if (!digest) throw new Error('Provide SEED_USER_PASSWORD_DIGEST or SEED_USER_PASSWORD');
 
   const storageBucket = env.SEED_USER_STORAGE_BUCKET ?? null;

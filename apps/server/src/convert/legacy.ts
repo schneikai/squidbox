@@ -133,12 +133,8 @@ export async function importLegacy(db: Db, userId: string, data: LegacyData): Pr
     assets: Object.values(data.assets ?? {}).map((e) => ({ collection: 'assets', record: toModernAsset(e) })),
     albums: albums.map((e) => ({ collection: 'albums', record: toModernAlbum(e) })),
     posts: posts.map((e) => ({ collection: 'posts', record: toModernPost(e) })),
-    album_assets: albums.flatMap((a) =>
-      toAlbumAssetEdges(a).map((record) => ({ collection: 'album_assets', record }))
-    ),
-    post_assets: posts.flatMap((p) =>
-      toPostAssetEdges(p).map((record) => ({ collection: 'post_assets', record }))
-    ),
+    album_assets: albums.flatMap((a) => toAlbumAssetEdges(a).map((record) => ({ collection: 'album_assets', record }))),
+    post_assets: posts.flatMap((p) => toPostAssetEdges(p).map((record) => ({ collection: 'post_assets', record }))),
   };
 
   const results: ImportResult[] = [];

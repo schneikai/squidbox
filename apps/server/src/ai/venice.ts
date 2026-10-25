@@ -137,9 +137,11 @@ export async function chatJsonAsync<T>({
   return parsed.data;
 }
 
-// The reply's JSON object: the whole reply, or from its first { to its last }.
+// The reply's JSON object: the whole reply, a ```json fenced block in it, or from its first { to
+// its last }.
 function parseJsonReply(content: string): unknown {
-  for (const text of [content, content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1)]) {
+  const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(content)?.[1] ?? '';
+  for (const text of [content, fenced, content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1)]) {
     try {
       return JSON.parse(text);
     } catch {

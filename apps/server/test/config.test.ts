@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { loadConfig } from '../src/config.js';
 
 describe('server config', () => {
@@ -18,6 +18,14 @@ describe('server config', () => {
   it('boots without VENICE_API_KEY (the AI endpoints answer 503 instead)', () => {
     expect(process.env.VENICE_API_KEY).toBeUndefined();
     expect(loadConfig().VENICE_API_KEY).toBeUndefined();
+  });
+
+  it('takes an empty VENICE_API_KEY or AI_ALLOWED_EMAILS as unset', async () => {
+    vi.resetModules(); // a fresh, uncached config
+    const { loadConfig: loadFresh } = await import('../src/config.js');
+    const config = loadFresh({ ...process.env, VENICE_API_KEY: '', AI_ALLOWED_EMAILS: ' , ' });
+    expect(config.VENICE_API_KEY).toBeUndefined();
+    expect(config.AI_ALLOWED_EMAILS).toBeUndefined();
   });
 
   it('defaults VENICE_BASE_URL to Venice', () => {

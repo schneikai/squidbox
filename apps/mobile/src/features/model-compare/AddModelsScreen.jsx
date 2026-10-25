@@ -16,6 +16,7 @@ import ModalSheet from '@/components/ModalSheet';
 import SearchInput from '@/components/SearchInput';
 import { SCREEN_PADDING } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
+import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useScrollY from '@/hooks/useScrollY';
 import { addYourModel } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
@@ -25,6 +26,7 @@ import modelsOfKind from '@/utils/ai/modelsOfKind';
 // your list. Removing is in the list's row menu.
 export default function AddModelsScreen({ navigation, route }) {
   const { kind } = route.params;
+  const isAvailable = useLeaveWhenUnavailable();
   const [searchText, setSearchText] = useState('');
   const { scrollY, onScroll } = useScrollY();
   const { bottom } = useSafeAreaInsets();
@@ -54,6 +56,8 @@ export default function AddModelsScreen({ navigation, route }) {
     if (!catalog) return <CatalogStatus error={error} retry={retry} />;
     return <EmptyState icon="search" title="No models match" />;
   }
+
+  if (!isAvailable) return null;
 
   return (
     <ModalSheet>

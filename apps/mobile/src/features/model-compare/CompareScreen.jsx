@@ -1,5 +1,6 @@
 import CompareRound from './CompareRound';
 
+import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import { readPrompt, readVisionPhotos } from '@/sync/aiStateRepository';
 
@@ -16,9 +17,10 @@ const DEFAULT_PROMPTS = {
 // prompt and for vision the photo set the pick step saved, read once.
 export default function CompareScreen({ navigation, route }) {
   const { kind, models } = route.params;
+  const isAvailable = useLeaveWhenUnavailable();
   const seed = useSeedOrClose((db) => readSeed(db, kind), kind);
 
-  if (!seed) return null;
+  if (!isAvailable || !seed) return null;
 
   return (
     <CompareRound

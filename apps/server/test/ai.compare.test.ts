@@ -100,7 +100,7 @@ describe('compareModels: writing', () => {
       capabilities: { ...plain.model_spec.capabilities, supportsResponseSchema: false },
     };
     replies({
-      plain: 'Here you go:\n```json\n{"tweets": ["a", "b", "c"]}\n```',
+      plain: 'Here they are in {\"tweets\": [...]} form:\n```json\n{"tweets": ["a", "b", "c"]}\n```',
       'kimi-k3': { tweets: ['d', 'e', 'f'] },
     });
     const results = await compareWriting([plain, model('kimi-k3')]);

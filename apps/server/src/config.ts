@@ -29,19 +29,21 @@ const envSchema = z.object({
 
   // AI (Venice). Without a key the server runs and the AI endpoints answer 503
   // ai_not_configured; the key never leaves the server.
-  VENICE_API_KEY: z.string().min(1).optional(),
+  // An empty value counts as unset.
+  VENICE_API_KEY: z.preprocess((v) => (v === '' ? undefined : v), z.string().min(1).optional()),
   VENICE_BASE_URL: z.string().url().default('https://api.venice.ai/api/v1'),
   // Who may use the AI endpoints (and so the server's Venice key): comma-separated account emails.
-  // Unset lets every signed-in account in, as in local development.
+  // Unset (or empty) lets every signed-in account in, as in local development.
   AI_ALLOWED_EMAILS: z
     .string()
     .optional()
-    .transform((v) =>
-      v
+    .transform((v) => {
+      const emails = v
         ?.split(',')
         .map((email) => email.trim().toLowerCase())
-        .filter(Boolean),
-    ),
+        .filter(Boolean);
+      return emails?.length ? emails : undefined;
+    }),
 });
 
 export type Config = z.infer<typeof envSchema>;

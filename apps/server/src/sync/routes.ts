@@ -26,7 +26,14 @@ export async function syncRoutes(app: FastifyInstance): Promise<void> {
       const count = Object.values(res.changes).reduce((n, c) => n + c.records.length, 0);
       // Structured, user_id-tagged log (sync-design §13) — untagged logs are undebuggable multi-tenant.
       request.log.info(
-        { userId, op: 'pull', fromCursor: request.body.cursor ?? 0, toCursor: res.cursor, records: count, hasMore: res.hasMore },
+        {
+          userId,
+          op: 'pull',
+          fromCursor: request.body.cursor ?? 0,
+          toCursor: res.cursor,
+          records: count,
+          hasMore: res.hasMore,
+        },
         'sync.pull',
       );
       return res;
@@ -46,15 +53,15 @@ export async function syncRoutes(app: FastifyInstance): Promise<void> {
       const results = await push(db, userId, request.body.mutations);
       // After the reply, one at a time per user. A failure leaves the push applied; the next push retries (§7a).
       const loc = resolveStorage(user, loadConfig().S3_SHARED_BUCKET);
-      cleanUpPurgedFiles(db, userId, (keys) => deleteObjects(loc, keys), (err) =>
-        request.log.error({ userId, err }, 'sync.push: deleting purged files failed')
+      cleanUpPurgedFiles(
+        db,
+        userId,
+        (keys) => deleteObjects(loc, keys),
+        (err) => request.log.error({ userId, err }, 'sync.push: deleting purged files failed'),
       );
       const tally = { applied: 0, 'skipped-lww': 0, rejected: 0 } as Record<string, number>;
       for (const r of results) tally[r.status] += 1;
-      request.log.info(
-        { userId, op: 'push', mutations: request.body.mutations.length, ...tally },
-        'sync.push',
-      );
+      request.log.info({ userId, op: 'push', mutations: request.body.mutations.length, ...tally }, 'sync.push');
       return { results };
     },
   });

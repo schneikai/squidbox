@@ -45,7 +45,7 @@ export const refreshTokens = pgTable(
   },
   (t) => ({
     byUser: index('refresh_tokens_user_id_idx').on(t.userId),
-  })
+  }),
 );
 
 export type User = typeof users.$inferSelect;
@@ -111,7 +111,7 @@ export const assets = pgTable(
     // The assets naming a key: the purge cleanup's and the upload route's checks.
     byFilename: index('assets_user_filename_idx').on(t.userId, t.filename),
     byThumbnailFilename: index('assets_user_thumbnail_filename_idx').on(t.userId, t.thumbnailFilename),
-  })
+  }),
 );
 
 export type AssetRow = typeof assets.$inferSelect;
@@ -149,7 +149,7 @@ export const albums = pgTable(
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.id] }),
     byUserSeq: index('albums_user_seq_idx').on(t.userId, t.serverSeq),
-  })
+  }),
 );
 export type AlbumRow = typeof albums.$inferSelect;
 
@@ -168,7 +168,7 @@ export const posts = pgTable(
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.id] }),
     byUserSeq: index('posts_user_seq_idx').on(t.userId, t.serverSeq),
-  })
+  }),
 );
 export type PostRow = typeof posts.$inferSelect;
 
@@ -188,7 +188,7 @@ export const albumAssets = pgTable(
     pk: primaryKey({ columns: [t.userId, t.id] }),
     byUserSeq: index('album_assets_user_seq_idx').on(t.userId, t.serverSeq),
     byAlbum: index('album_assets_album_idx').on(t.userId, t.albumId),
-  })
+  }),
 );
 export type AlbumAssetRow = typeof albumAssets.$inferSelect;
 
@@ -204,7 +204,7 @@ export const postAssets = pgTable(
     pk: primaryKey({ columns: [t.userId, t.id] }),
     byUserSeq: index('post_assets_user_seq_idx').on(t.userId, t.serverSeq),
     byPost: index('post_assets_post_idx').on(t.userId, t.postId),
-  })
+  }),
 );
 export type PostAssetRow = typeof postAssets.$inferSelect;
 

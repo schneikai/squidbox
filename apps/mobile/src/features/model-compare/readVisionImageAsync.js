@@ -13,7 +13,7 @@ export default async function readVisionImageAsync(
   asset,
   { library, isAuthenticated, preloadAssetThumbnailsAsync, signal },
 ) {
-  const status = await getAssetThumbnailStatusAsync(asset, { isAuthenticated, library });
+  const status = await getAssetThumbnailStatusAsync(asset, { isAuthenticated, library, signal });
   if (status === 'remote') {
     const names = await preloadAssetThumbnailsAsync([asset], library, signal);
     if (!names.has(asset.thumbnailFilename)) throw new Error("Couldn't fetch the thumbnail");

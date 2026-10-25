@@ -46,9 +46,8 @@ export async function buildApp(opts: { logger?: FastifyServerOptions['logger'] }
       await syncRoutes(api);
       await aiRoutes(api);
     },
-    { prefix: '/api/v1' }
+    { prefix: '/api/v1' },
   );
 
   return app;
 }
-

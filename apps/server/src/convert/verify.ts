@@ -73,7 +73,9 @@ export async function verifyImport(db: Db, userId: string): Promise<VerifyReport
   if (bigAlbum) {
     const edges = ordered(albumAssetRows.filter((e) => e.albumId === bigAlbum.id)).slice(0, 3);
     const files = edges.map((e) => assetById.get(e.assetId)?.filename ?? '??').join(', ');
-    samples.push(`album ${bigAlbum.id} "${bigAlbum.name}" (${albumEdgeCounts.get(bigAlbum.id)} assets): first -> [${files}]`);
+    samples.push(
+      `album ${bigAlbum.id} "${bigAlbum.name}" (${albumEdgeCounts.get(bigAlbum.id)} assets): first -> [${files}]`,
+    );
   }
 
   return {

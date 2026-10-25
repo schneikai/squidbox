@@ -72,7 +72,13 @@ export function withUserLock<T>(db: Db, userId: string, write: (tx: Tx) => Promi
   });
 }
 
-type Prepared = { col: ServerCollection; sentId: string; record: ValidRecord; fields: FieldClocks; wholeRecord: boolean };
+type Prepared = {
+  col: ServerCollection;
+  sentId: string;
+  record: ValidRecord;
+  fields: FieldClocks;
+  wholeRecord: boolean;
+};
 type Stored = { record: ValidRecord; clocks: FieldClocks; restoredDeletions: number[] };
 
 async function applyMutations(
@@ -143,7 +149,9 @@ async function applyMutations(
 // A mutation ready to merge, or the result that rejects it. The id is lowercased as Postgres stores a
 // uuid, so the stored row is found whatever the case it was sent in; results name it as it was sent.
 function prepare(mutation: PushMutation, now: number): Prepared | PushResult {
-  const col = Object.hasOwn(serverCollections, mutation.collection) ? serverCollections[mutation.collection] : undefined;
+  const col = Object.hasOwn(serverCollections, mutation.collection)
+    ? serverCollections[mutation.collection]
+    : undefined;
   const sentId = String((mutation.record as { id?: unknown }).id ?? '');
   if (!col) return { id: sentId, collection: mutation.collection, status: 'rejected', reason: 'unknown-collection' };
 

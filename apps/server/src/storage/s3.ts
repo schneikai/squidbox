@@ -35,11 +35,7 @@ function s3Presign(): S3Client {
   return presignClient;
 }
 
-export function presignedDownloadUrl(
-  loc: StorageLocation,
-  fileKey: string,
-  expiresIn: number
-): Promise<string> {
+export function presignedDownloadUrl(loc: StorageLocation, fileKey: string, expiresIn: number): Promise<string> {
   const cmd = new GetObjectCommand({ Bucket: loc.bucket, Key: fullKey(loc, fileKey) });
   return getSignedUrl(s3Presign(), cmd, { expiresIn });
 }
@@ -55,7 +51,7 @@ export async function uploadStream(
   loc: StorageLocation,
   fileKey: string,
   body: Readable,
-  contentType?: string
+  contentType?: string,
 ): Promise<void> {
   const upload = new Upload({
     client: s3(),
