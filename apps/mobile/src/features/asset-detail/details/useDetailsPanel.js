@@ -13,25 +13,14 @@ import {
 } from 'react-native-reanimated';
 
 import dragWithin from '@/features/asset-detail/dragWithin';
+import projectRelease from '@/features/asset-detail/projectRelease';
 import settleWithin from '@/features/asset-detail/settleWithin';
-import { motion } from '@/styles/designTokens';
+import springForRelease from '@/features/asset-detail/springForRelease';
 
 // The page's share the open panel takes; the photo covers the rest, above it.
 const OPEN_SHARE = 2 / 3;
-// A release faster than this (points per second) is a flick, which settles with motion.spring's
-// bounce; a slower one (or a tap) settles without.
-const FLICK_VELOCITY = 300;
-// Where a release at v points per second comes to rest at iOS's normal deceleration (withDecay's
-// default, 0.998 per ms): v × d / (1 − d) / 1000.
-const DECELERATION = 0.998;
-const PROJECTION = DECELERATION / (1 - DECELERATION) / 1000;
 // Room left between the note being edited and the keyboard.
 const KEYBOARD_GAP = 16;
-
-function springFor(velocity) {
-  'worklet';
-  return Math.abs(velocity) > FLICK_VELOCITY ? motion.spring : motion.settle;
-}
 
 /**
  * The asset screen's details panel, Apple Photos style: one track shared by every page of the
@@ -84,7 +73,7 @@ export default function useDetailsPanel() {
       'worklet';
       isSettling.value = true;
       target.value = to;
-      offset.value = withSpring(to, { ...springFor(velocity), velocity }, settled);
+      offset.value = withSpring(to, { ...springForRelease(velocity), velocity }, settled);
     },
     [isSettling, target, offset, settled],
   );
@@ -109,13 +98,12 @@ export default function useDetailsPanel() {
           velocity,
           min: open,
           max: maxAt.value,
-          spring: springFor(velocity),
+          spring: springForRelease(velocity),
           onDone: settled,
         });
         return;
       }
-      const projected = offset.value + PROJECTION * velocity;
-      settle(projected > open / 2 ? open : 0, velocity);
+      settle(projectRelease(offset.value, velocity) > open / 2 ? open : 0, velocity);
     },
     [openAt, maxAt, offset, isSettling, target, settle, settled],
   );

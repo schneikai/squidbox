@@ -89,13 +89,6 @@ again after release (`SuperPressable` with `useDragSelect`); natively the pan ca
 After a drag reorder (photos in an album, the albums list) the drop also counted as a tap and opened
 what it was dropped on; `SortableGrid` now swallows the click that follows a lift, unverified on web.
 
-### [ ] Swipe on to the next photo from a zoomed photo's edge
-
-In Apple Photos, a zoomed photo panned to its left or right edge hands the swipe to the pager. Here
-the pager (`AssetPager`, a native `FlatList`) is locked while the photo is zoomed, so you zoom out
-first. Handing over mid-touch needs the pager driven from the zoom's pan (e.g. Reanimated `scrollTo`)
-or a gesture-handler pager, instead of toggling `scrollEnabled`.
-
 ### [ ] Zoom deeper than the thumbnail
 
 The photo viewer shows the 1000 px thumbnail, so zoom stops at 4× (`useZoomGesture`) and looks soft

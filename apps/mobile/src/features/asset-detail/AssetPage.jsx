@@ -15,7 +15,7 @@ export default memo(AssetPage);
  * (useDetailsPanel); the current page (`isCurrent`) reports its details' height and starts them at
  * their top. The other props go to AssetItem.
  */
-function AssetPage({ asset, style, isCurrent, showsDetails, panel, video, onTap, onZoomChange }) {
+function AssetPage({ asset, style, isCurrent, showsDetails, panel, video, edgeSwipe, onTap, onZoomChange }) {
   const contentHeightRef = useRef(0);
   const { mediaStyle, panelStyle, contentStyle } = usePageStyles(panel, asset?.width / asset?.height);
   const { contentHeight, showFromTop } = panel;
@@ -47,6 +47,7 @@ function AssetPage({ asset, style, isCurrent, showsDetails, panel, video, onTap,
           video={video}
           verticalDrag={panel.verticalDrag}
           pagerGesture={panel.pagerGesture}
+          edgeSwipe={edgeSwipe}
         />
       </Animated.View>
       {showsDetails && asset && (
