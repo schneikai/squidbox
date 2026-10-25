@@ -6,6 +6,11 @@ vi.mock('../src/users.js', () => ({
   findUserByEmail: vi.fn(),
   toApiUser: (u: { id: string; email: string }) => ({ id: u.id, email: u.email }),
 }));
+// The db client is a stub here, so the persona read is mocked: no persona unless a test gives one.
+vi.mock('../src/ai/persona.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/ai/persona.js')>()),
+  readPersona: vi.fn().mockResolvedValue(null),
+}));
 // The test env has no Venice key; each test sets the one the routes see.
 const venice = vi.hoisted(() => ({
   apiKey: undefined as string | undefined,
@@ -27,6 +32,7 @@ import fixture from './fixtures/venice-models.json';
 import { buildApp } from '../src/app.js';
 import { signAccessToken } from '../src/auth/jwt.js';
 import { clearCatalogCache } from '../src/ai/catalog.js';
+import { readPersona } from '../src/ai/persona.js';
 import { findUserById } from '../src/users.js';
 
 const auth = { authorization: `Bearer ${signAccessToken('u1')}` };
@@ -48,7 +54,11 @@ function veniceAnswers({ catalogStatus = 200, balanceStatus = 200 } = {}) {
       });
     }
     const { response_format } = JSON.parse(String(init!.body));
-    const content = response_format.json_schema.name === 'tweets' ? { tweets: ['one', 'two', 'three'] } : { tags };
+    const content = {
+      tweets: { tweets: ['one', 'two', 'three'] },
+      tags: { tags },
+      persona: { aboutYou: 'Gym guy.', contentTags: ['gym'], tone: 'Short.', examplePostIndexes: [0] },
+    }[response_format.json_schema.name as string];
     return new Response(
       JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(content) } }] }),
     );
@@ -61,6 +71,7 @@ const chatBodies = () =>
     .map(([, init]) => JSON.parse(init.body));
 
 const writing = { prompt: 'Write 3 spicy tweets', modelIds: ['kimi-k3', 'z-ai-glm-5-3'] };
+const draft = { posts: ["Leg day. You're welcome."], modelId: 'kimi-k3' };
 const vision = {
   prompt: 'Tag what you see',
   image: { base64: 'AAAA', mimeType: 'image/jpeg' },
@@ -75,6 +86,7 @@ beforeEach(() => {
   venice.apiKey = 'test-venice-key';
   venice.allowed = undefined;
   vi.mocked(findUserById).mockResolvedValue({ id: 'u1', email: 'a@b.co', storageBucket: null } as any);
+  vi.mocked(readPersona).mockResolvedValue(null);
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -91,6 +103,7 @@ describe('without VENICE_API_KEY', () => {
       ['GET', '/ai/balance', undefined],
       ['POST', '/ai/compare/writing', writing],
       ['POST', '/ai/compare/vision', vision],
+      ['POST', '/ai/persona/draft', draft],
     ] as const) {
       const res = await call(method, url, body);
       expect(res.statusCode).toBe(503);
@@ -110,6 +123,7 @@ describe('AI_ALLOWED_EMAILS', () => {
       ['GET', '/ai/balance', undefined],
       ['POST', '/ai/compare/writing', writing],
       ['POST', '/ai/compare/vision', vision],
+      ['POST', '/ai/persona/draft', draft],
     ] as const) {
       const res = await call(method, url, body);
       expect(res.statusCode).toBe(403);
@@ -213,6 +227,25 @@ describe('POST /api/v1/ai/compare/writing', () => {
     expect(chatBodies()).toHaveLength(1);
   });
 
+  it("writes as the user's persona once they saved one", async () => {
+    veniceAnswers();
+    vi.mocked(readPersona).mockResolvedValue({
+      aboutYou: 'Gym guy from Berlin.',
+      contentTags: [],
+      tone: 'Short and cocky.',
+      useEmoji: false,
+      rules: [],
+      examplePosts: [],
+    });
+    const res = await call('POST', '/ai/compare/writing', writing);
+    expect(res.statusCode).toBe(200);
+    expect(readPersona).toHaveBeenCalledWith(expect.anything(), 'u1');
+    for (const body of chatBodies()) {
+      expect(body.messages[0].content).toContain('About the creator: Gym guy from Berlin.');
+      expect(body.messages[0].content).toContain('Their tone: Short and cocky.');
+    }
+  });
+
   it('400 for the same model twice', async () => {
     veniceAnswers();
     const res = await call('POST', '/ai/compare/writing', { ...writing, modelIds: ['kimi-k3', 'kimi-k3'] });
@@ -278,5 +311,44 @@ describe('POST /api/v1/ai/compare/vision', () => {
     const base64 = 'A'.repeat(2 * 1024 * 1024 + 1);
     const res = await call('POST', '/ai/compare/vision', { ...vision, image: { ...vision.image, base64 } });
     expect(res.statusCode).toBe(413);
+  });
+});
+
+describe('POST /api/v1/ai/persona/draft', () => {
+  it("drafts the persona from the posts with the app's model", async () => {
+    veniceAnswers();
+    const res = await call('POST', '/ai/persona/draft', draft);
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ aboutYou: 'Gym guy.', contentTags: ['gym'], tone: 'Short.', examplePostIndexes: [0] });
+    const [body] = chatBodies();
+    expect(body.model).toBe('kimi-k3');
+    expect(body.messages[1].content).toBe("Post 0:\nLeg day. You're welcome.");
+  });
+
+  it('400 for a model Venice no longer offers, before any chat', async () => {
+    veniceAnswers();
+    const res = await call('POST', '/ai/persona/draft', { ...draft, modelId: 'gone' });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual({ error: { code: 'validation_error', message: 'Venice no longer offers this model' } });
+    expect(chatBodies()).toHaveLength(0);
+  });
+
+  it('400 without posts', async () => {
+    veniceAnswers();
+    expect((await call('POST', '/ai/persona/draft', { ...draft, posts: [] })).statusCode).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('502 ai_unavailable with the reason when the reply fails', async () => {
+    veniceAnswers();
+    const answer = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      String(url).endsWith('/chat/completions')
+        ? new Response(JSON.stringify({ choices: [{ finish_reason: 'length', message: { content: '' } }] }))
+        : answer(url, init),
+    );
+    const res = await call('POST', '/ai/persona/draft', draft);
+    expect(res.statusCode).toBe(502);
+    expect(res.json()).toEqual({ error: { code: 'ai_unavailable', message: 'The reply was cut off' } });
   });
 });

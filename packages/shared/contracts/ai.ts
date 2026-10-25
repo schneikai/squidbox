@@ -90,3 +90,22 @@ export type VisionResult = z.infer<typeof visionResultSchema>;
 
 export const compareVisionResponseSchema = z.object({ results: z.array(visionResultSchema) });
 export type CompareVisionResponse = z.infer<typeof compareVisionResponseSchema>;
+
+// POST /ai/persona/draft — "Fill it in for me" (Settings → Assistant → Writing as you): one model
+// (the app's chosen writing model) reads the user's posts and drafts About you, the content tags
+// and Tone, and picks the posts that best show their voice by index (the app copies those verbatim).
+export const PERSONA_DRAFT_MAX_POSTS = 40;
+
+export const personaDraftRequestSchema = z.object({
+  posts: z.array(z.string().trim().min(1).max(2000)).min(1).max(PERSONA_DRAFT_MAX_POSTS),
+  modelId: z.string().min(1),
+});
+export type PersonaDraftRequest = z.infer<typeof personaDraftRequestSchema>;
+
+export const personaDraftResponseSchema = z.object({
+  aboutYou: z.string(),
+  contentTags: z.array(z.string()),
+  tone: z.string(),
+  examplePostIndexes: z.array(z.number().int()),
+});
+export type PersonaDraftResponse = z.infer<typeof personaDraftResponseSchema>;
