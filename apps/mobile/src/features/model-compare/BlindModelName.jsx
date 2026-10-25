@@ -26,11 +26,15 @@ export default function BlindModelName({ name }) {
       accessibilityLabel={isShown ? `${name}, hide the name` : 'Show the model name'}
       style={[styles.pill, isShown && styles.shown]}
     >
-      <Text style={[styles.name, isShown && styles.shownName]} numberOfLines={1} accessibilityElementsHidden={!isShown}>
+      <Text
+        style={[styles.name, isShown ? styles.shownName : styles.hiddenName]}
+        numberOfLines={1}
+        accessibilityElementsHidden={!isShown}
+      >
         {name}
       </Text>
       <Animated.View style={[StyleSheet.absoluteFill, blurStyle]} pointerEvents="none">
-        <BlurView intensity={40} tint="light" style={StyleSheet.absoluteFill} />
+        <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
       </Animated.View>
       <Icon
         name={isShown ? 'eye-off' : 'eye'}
@@ -60,6 +64,10 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: typography.subheadline,
     color: colors.text.primary,
+  },
+  // Faint under the blur, so the blur alone never has to hide it (it is weaker on web).
+  hiddenName: {
+    opacity: 0.15,
   },
   shownName: {
     color: colors.accent.base,

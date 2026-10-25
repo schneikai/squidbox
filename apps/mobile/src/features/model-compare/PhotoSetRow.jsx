@@ -6,8 +6,8 @@ import TextButton from '@/components/TextButton';
 import { SCREEN_PADDING } from '@/constants';
 import { colors, radii, scale, typography } from '@/styles/designTokens';
 
-const SHOWN = 4;
-const THUMB_SIZE = scale(36);
+const SHOWN = 3;
+const THUMB_SIZE = scale(34);
 
 // The photos a vision compare tags: the first few, "+N" for the rest, how many, whether they're
 // the last compare's, and a button to pick them.
@@ -30,7 +30,9 @@ export default function PhotoSetRow({ assets, isLastTime, onPick }) {
         </View>
       )}
       <View style={styles.text}>
-        <Text style={styles.count}>{count === 0 ? 'No photos' : `${count} ${count === 1 ? 'photo' : 'photos'}`}</Text>
+        <Text style={styles.count} numberOfLines={1}>
+          {count === 0 ? 'No photos' : `${count} ${count === 1 ? 'photo' : 'photos'}`}
+        </Text>
         {isLastTime && count > 0 && <Text style={styles.detail}>Same as last time</Text>}
       </View>
       <TextButton label={count === 0 ? 'Pick photos' : 'Change'} onPress={onPick} size="small" />
@@ -70,7 +72,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   count: {
-    fontSize: typography.body,
+    fontSize: typography.subheadline,
     fontWeight: '600',
     color: colors.text.primary,
   },

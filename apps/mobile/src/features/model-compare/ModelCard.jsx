@@ -36,6 +36,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   label: {
+    flexShrink: 0,
     fontSize: typography.callout,
     fontWeight: '600',
     color: colors.text.primary,

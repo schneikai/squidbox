@@ -33,9 +33,7 @@ export default function ModelRow({ row, kind, score, isChosen, onChoose, onRemov
       >
         <View style={styles.text}>
           <View style={styles.titleLine}>
-            <Text style={[styles.name, !isAvailable && styles.unavailable]} numberOfLines={1}>
-              {name}
-            </Text>
+            <Text style={[styles.name, !isAvailable && styles.unavailable]}>{name}</Text>
             {model?.isUncensored && <UncensoredBadge />}
           </View>
           <View style={styles.detailLine}>
@@ -74,8 +72,10 @@ const styles = StyleSheet.create({
   },
   titleLine: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    gap: 8,
+    columnGap: 8,
+    rowGap: 4,
   },
   name: {
     flexShrink: 1,

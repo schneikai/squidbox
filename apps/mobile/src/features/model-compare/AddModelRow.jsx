@@ -22,9 +22,7 @@ export default function AddModelRow({ model, kind, isAdded, onAdd }) {
     >
       <View style={styles.text}>
         <View style={styles.titleLine}>
-          <Text style={styles.name} numberOfLines={1}>
-            {model.name}
-          </Text>
+          <Text style={styles.name}>{model.name}</Text>
           {model.isUncensored && <UncensoredBadge />}
         </View>
         <Text style={styles.detail} numberOfLines={1}>
@@ -50,8 +48,10 @@ const styles = StyleSheet.create({
   },
   titleLine: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    gap: 8,
+    columnGap: 8,
+    rowGap: 4,
   },
   name: {
     flexShrink: 1,
