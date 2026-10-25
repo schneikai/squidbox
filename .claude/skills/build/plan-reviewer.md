@@ -10,6 +10,7 @@ For each point, construct the concrete failure, then look in the code for it:
 - Grounded: the files and functions it names exist and do what it assumes.
 - Reuse: existing code it rebuilds instead of using.
 - Design: duplication, a unit with two jobs, hidden coupling, speculative abstraction or a swallowed error it would create, or duplicated code it touches and leaves alone.
+- Premature: an option, abstraction, file or setting no caller needs yet; what the next feature would have to undo.
 - Done-check: proves the plan is built, and runs on this machine without the owner.
 - Blockers: what will stop the implementer that the plan does not mention.
 - Questions: only ones the owner can answer; would a different plan make one unnecessary?

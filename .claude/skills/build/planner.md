@@ -14,7 +14,7 @@ Read CLAUDE.md and the code the request touches. Find the code that already does
 
 **Goal.** One paragraph: what will be true when this is done.
 
-**Open questions.** Only what the owner must answer: an unclear goal, two viable paths with a real trade-off, or a fix far bigger than asked. Recommend an answer for each. Decide everything else yourself and record it under Design.
+**Open questions.** Only what the owner must answer: an unclear goal, two viable paths with a real trade-off, a fix far bigger than asked, or a visible behaviour the owner would want to choose (a default, a timing, what happens on its own). Recommend an answer for each. Decide everything else yourself and record it under Design.
 
 **Design.** Which module owns the new behavior; what existing code it reuses, extends or replaces; the files that change and what each is responsible for. Where the change touches duplicated or tangled code, include fixing it: a cleaner result is worth a bigger diff. Design against, in this order:
 - DRY: one place for each piece of logic; extend the existing helper instead of a near copy.
