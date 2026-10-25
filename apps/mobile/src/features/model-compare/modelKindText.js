@@ -1,13 +1,13 @@
 // What each kind of model is called and does, as its screens say it.
 const modelKindText = {
   writing: {
-    title: 'Writing model',
+    title: 'Writing',
     intro: 'Writes the captions and replies. Only in test builds.',
     footer: 'Thumbs up from Compare add up here.',
     pickIntro: 'Pick 2 or more models. Each one writes tweets for the same prompt.',
   },
   vision: {
-    title: 'Vision model',
+    title: 'Vision',
     intro: 'Tags each photo once when you upload it. Only in test builds.',
     footer: 'The count is every tag you tapped as fitting in Compare. They add up like thumbs up.',
     pickIntro: 'Pick the photos and 2 or more models. Each model tags the same photos.',
