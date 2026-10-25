@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
+import getSettledPage from '../src/features/asset-detail/getSettledPage';
 import projectRelease from '../src/features/asset-detail/projectRelease';
 import shiftPager from '../src/features/asset-detail/shiftPager';
 import snapPagerShift from '../src/features/asset-detail/snapPagerShift';
@@ -86,5 +87,19 @@ describe('pager edge swipe: where a release lands (snapPagerShift)', () => {
 
   it('stays put when not shifted', () => {
     expect(snapPagerShift({ shift: 0, velocity: 3000, ...neighbours })).toBe(0);
+  });
+});
+
+describe('pager edge swipe: the page a scroll ends on (getSettledPage)', () => {
+  it('reports the page a scroll rests on', () => {
+    expect(getSettledPage(0, pageWidth)).toBe(0);
+    expect(getSettledPage(800, pageWidth)).toBe(2);
+    expect(getSettledPage(1199.6, pageWidth)).toBe(3);
+  });
+
+  it('reports nothing between pages, as an edge swipe scrolls', () => {
+    expect(getSettledPage(743, pageWidth)).toBe(-1);
+    expect(getSettledPage(402, pageWidth)).toBe(-1);
+    expect(getSettledPage(10, 0)).toBe(-1);
   });
 });

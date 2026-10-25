@@ -4,6 +4,7 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedRef } from 'react-native-reanimated';
 
 import AssetPage from './AssetPage';
+import getSettledPage from './getSettledPage';
 import usePagerEdgeSwipe from './usePagerEdgeSwipe';
 
 const keyExtractor = (assetId) => assetId;
@@ -95,9 +96,17 @@ function AssetPager({
   }, [currentIndex]);
 
   // Both end events are handled: a drag released exactly on a page boundary has no momentum phase.
+  // Only a page the list rests on counts: the edge swipe's frame-by-frame scrollTo fires end events
+  // too (iOS), between pages or, held a full page over, on the next one. Reporting those would move
+  // the current page under the shifted pager, which then scrolls on a page per frame. The edge swipe
+  // reports its page itself once its snap settles.
   const handleScrollEnd = useCallback(
-    (event) => showIndex(Math.round(event.nativeEvent.contentOffset.x / pageWidth)),
-    [pageWidth, showIndex],
+    (event) => {
+      if (edgeSwipe.isShifted()) return;
+      const index = getSettledPage(event.nativeEvent.contentOffset.x, pageWidth);
+      if (index >= 0) showIndex(index);
+    },
+    [pageWidth, showIndex, edgeSwipe],
   );
   const handleZoomChange = useCallback(
     (assetId, isZoomed) => setZoomedAssetId((zoomed) => nextZoomedAssetId({ zoomed, assetId, isZoomed })),
