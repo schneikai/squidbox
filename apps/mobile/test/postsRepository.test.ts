@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { makePostRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
 import * as schema from '../src/sync/db/schema';
-import { readNewestRepostDate } from '../src/sync/postsRepository';
+import { readNewestRepostDate, readRecentPostTexts } from '../src/sync/postsRepository';
 import { makeRepository } from '../src/sync/repository';
 
 const posts = makeRepository('posts', schema.posts);
@@ -20,5 +20,18 @@ describe('postsRepository', () => {
       post('p3', { suggestRepostAt: 99, deletedAt: 5 }),
     ]);
     expect(await readNewestRepostDate(db)).toBe(50);
+  });
+
+  it('reads the texts of the newest non-deleted posts that have one, trimmed', async () => {
+    const db = makeTestDb();
+    await posts.createMany(db, [
+      post('p1', { text: ' oldest ' }),
+      post('p2', { text: '  ' }),
+      post('p3', { text: 'deleted', deletedAt: 5 }),
+      post('p4', { text: 'newer' }),
+      post('p5', { text: 'newest' }),
+    ]);
+    expect(await readRecentPostTexts(db, 2)).toEqual(['newest', 'newer']);
+    expect(await readRecentPostTexts(db, 10)).toEqual(['newest', 'newer', 'oldest']);
   });
 });
