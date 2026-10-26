@@ -30,7 +30,7 @@ export const DEFAULT_PROMPT_BUTTONS: readonly NewPromptButton[] = [
     id: '2b851abc-9936-4ac1-8bc9-f3da04b4d0fb',
     placement: 'post',
     name: 'Thread',
-    icon: 'list',
+    icon: 'thread',
     prompt:
       'Turn this into a thread of 3 short posts. Open with the strongest line, add one detail each time, and end with a question.',
   },
@@ -38,7 +38,7 @@ export const DEFAULT_PROMPT_BUTTONS: readonly NewPromptButton[] = [
     id: 'e39b0935-7e63-4fd9-8e69-a2011c71edce',
     placement: 'newPost',
     name: 'Caption',
-    icon: 'edit',
+    icon: 'quote',
     prompt:
       "Write 3 captions for these photos. Short, one line each. Mention who's in them when there's a handle for it.",
   },
@@ -54,14 +54,14 @@ export const DEFAULT_PROMPT_BUTTONS: readonly NewPromptButton[] = [
     id: '8f23a0a7-7d1c-48e4-985b-f930365d8a63',
     placement: 'refine',
     name: 'Shorter',
-    icon: null,
+    icon: 'scissors',
     prompt: 'Make each option shorter. Keep the hook, cut the rest.',
   },
   {
     id: '7d12ff1c-8cc6-4235-8fa3-c94d0cce6d36',
     placement: 'refine',
     name: 'Funnier',
-    icon: null,
+    icon: 'laugh',
     prompt: 'Make each option a little funnier. Same idea, one light twist.',
   },
 ];
