@@ -1,7 +1,6 @@
 import { promptButtonCollection } from '@squidbox/shared';
 import { useRef, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import IconPicker from './IconPicker';
 import SegmentedControl from './SegmentedControl';
@@ -10,17 +9,15 @@ import placementText, { PLACEMENTS } from './placementText';
 import Card from '@/components/Card';
 import DetailScrollView from '@/components/DetailScrollView';
 import Field from '@/components/Field';
-import ModalCloseButton from '@/components/ModalCloseButton';
-import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
-import ModalSheet from '@/components/ModalSheet';
-import PrimaryButton from '@/components/PrimaryButton';
+import Page from '@/components/Page';
 import TextButton from '@/components/TextButton';
 import TextInput from '@/components/TextInput';
 import Textarea from '@/components/Textarea';
+import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { SCREEN_PADDING } from '@/constants';
-import useConfirmDiscard from '@/hooks/useConfirmDiscard';
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import { scale } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
@@ -33,17 +30,19 @@ import {
 import { requestSync } from '@/sync/worker';
 import changedValues from '@/utils/changedValues';
 import confirmAsync from '@/utils/confirmAsync';
-import confirmDiscardAsync from '@/utils/confirmDiscardAsync';
 import getNewItemId from '@/utils/getNewItemId';
 
 const { shape } = promptButtonCollection.schema;
 const NAME_MAX_LENGTH = shape.name.maxLength;
 const PROMPT_MAX_LENGTH = shape.prompt.maxLength;
 const SHOW_IT_ITEMS = PLACEMENTS.map((key) => ({ key, label: placementText[key].title }));
+// A button can't be without these.
+const REQUIRED_FIELDS = ['name', 'prompt'];
 
-// One prompt button: `{ id }` edits it, `{ placement }` adds one there. Reachable from anywhere (a
-// root modal, one per button), so the chat opens it too.
-export default function PromptButtonModal({ route, navigation }) {
+// One prompt button, saved as you type: `{ id }` edits it, `{ placement }` adds one there, created
+// once it has a name and a prompt and dropped if you leave without them. Reachable from anywhere (a
+// root screen, one per button), so the chat opens it too.
+export default function PromptButtonScreen({ route, navigation }) {
   const { id, placement } = route.params;
   const isAvailable = useLeaveWhenUnavailable();
   const seed = useSeedOrClose(
@@ -56,7 +55,6 @@ export default function PromptButtonModal({ route, navigation }) {
 }
 
 function PromptButtonEditor({ id, seed, navigation }) {
-  const { bottom } = useSafeAreaInsets();
   const haptics = useHaptics();
   const [draft, setDraft] = useState({
     name: seed.name,
@@ -64,26 +62,50 @@ function PromptButtonEditor({ id, seed, navigation }) {
     placement: seed.placement,
     icon: seed.icon,
   });
-  const [isSaving, setIsSaving] = useState(false);
-  // Set at once (state lands a render later), so a double tap writes once.
-  const isWritingRef = useRef(false);
-  const isDirty = Object.keys(changedValues(seed, draft)).length > 0;
-  const allowLeave = useConfirmDiscard(navigation, isDirty);
-
-  const name = draft.name.trim();
-  const prompt = draft.prompt.trim();
-  // A new button's empty seed makes any name and prompt a change.
-  const canSave = !!name && !!prompt && isDirty;
+  // The button's id once there is one (a new one gets it with its name and prompt), and whether
+  // Delete or Duplicate is under way, after which nothing more is saved here.
+  const idRef = useRef(id);
+  const isDoneRef = useRef(false);
+  const flush = useSaveAsYouType(
+    { name: draft.name.trim(), prompt: draft.prompt.trim(), placement: draft.placement, icon: draft.icon },
+    saveFields,
+  );
 
   function setField(field, value) {
     setDraft((current) => ({ ...current, [field]: value }));
   }
 
-  // Runs one write at a time; a failed one keeps the sheet open and says so.
-  async function writeOnce(write, failure) {
-    if (isWritingRef.current) return;
-    isWritingRef.current = true;
-    setIsSaving(true);
+  async function saveFields(next, previous, { isLeaving }) {
+    if (isDoneRef.current) return true;
+    const db = getDb();
+    const isComplete = REQUIRED_FIELDS.every((field) => next[field]);
+    if (!idRef.current) {
+      if (!isComplete) return false;
+      idRef.current = (await createPromptButton(db, { id: getNewItemId(), ...next })).id;
+      requestSync();
+      return true;
+    }
+    if (!isComplete && isLeaving && !id) {
+      // A button this screen added goes when you leave it without a name or a prompt.
+      await removePromptButton(db, idRef.current);
+      requestSync();
+      return false;
+    }
+    // Only what changed, so an edit another device made meanwhile to another field is kept; an
+    // emptied name or prompt keeps its stored text.
+    const changes = changedValues(previous, next);
+    for (const field of REQUIRED_FIELDS) if (!next[field]) delete changes[field];
+    if (Object.keys(changes).length > 0) {
+      await updatePromptButton(db, idRef.current, changes);
+      requestSync();
+    }
+    return isComplete;
+  }
+
+  // Runs a last write on this button; a failed one keeps the screen open and says so.
+  async function finish(write, failure) {
+    if (isDoneRef.current) return;
+    isDoneRef.current = true;
     try {
       await write();
       requestSync();
@@ -91,75 +113,52 @@ function PromptButtonEditor({ id, seed, navigation }) {
       console.error(failure, error);
       haptics.error();
       Alert.alert(failure, error.message);
-    } finally {
-      isWritingRef.current = false;
-      setIsSaving(false);
+      isDoneRef.current = false;
     }
   }
 
-  function handleSave() {
-    return writeOnce(async () => {
-      const db = getDb();
-      // Only what changed, so an edit another device made meanwhile to another field is kept.
-      const fields = { name, prompt, placement: draft.placement, icon: draft.icon };
-      if (id) await updatePromptButton(db, id, changedValues(seed, fields));
-      else await createPromptButton(db, { id: getNewItemId(), ...fields });
-      haptics.success();
-      allowLeave();
-      navigation.goBack();
-    }, "Couldn't save the prompt button");
-  }
-
-  // A copy of the saved button at the end of its group, opened in place of this one. With changes,
-  // asks first, so a Cancel leaves no copy behind.
+  // A copy of the button as it is now at the end of its group, opened in place of this one.
   async function handleDuplicate() {
-    if (isDirty && !(await confirmDiscardAsync())) return;
-    await writeOnce(async () => {
-      const copy = await createPromptButton(getDb(), {
+    await flush();
+    await finish(async () => {
+      const db = getDb();
+      const button = await readPromptButton(db, id);
+      if (!button) return;
+      const copy = await createPromptButton(db, {
         id: getNewItemId(),
-        name: `${seed.name} copy`.slice(0, NAME_MAX_LENGTH),
-        prompt: seed.prompt,
-        placement: seed.placement,
-        icon: seed.icon,
+        name: `${button.name} copy`.slice(0, NAME_MAX_LENGTH),
+        prompt: button.prompt,
+        placement: button.placement,
+        icon: button.icon,
       });
-      allowLeave();
-      navigation.replace('PromptButtonModal', { id: copy.id });
+      navigation.replace('PromptButtonScreen', { id: copy.id });
     }, "Couldn't duplicate the prompt button");
   }
 
   async function handleDelete() {
     const isConfirmed = await confirmAsync({
-      title: `Delete “${seed.name}”?`,
+      title: `Delete “${draft.name.trim() || seed.name}”?`,
       message: 'It goes from every device.',
       action: 'Delete',
       destructive: true,
     });
     if (!isConfirmed) return;
-    await writeOnce(async () => {
+    await finish(async () => {
       await removePromptButton(getDb(), id);
-      allowLeave();
       navigation.goBack();
     }, "Couldn't delete the prompt button");
   }
 
   return (
-    <ModalSheet>
-      <ModalHeader
-        leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />}
-        centerSlot="Prompt button"
-        rightSlot={
-          <PrimaryButton size="compact" label="Save" onPress={handleSave} disabled={!canSave} loading={isSaving} />
-        }
-      />
-      <DetailScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[styles.content, { paddingBottom: bottom + SCREEN_PADDING }]}
-      >
+    <Page>
+      <FloatingDetailHeader title="Prompt button" onBack={() => navigation.goBack()} />
+      <DetailScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
         <Field label="Name">
           <Card>
             <TextInput
               value={draft.name}
               onChangeText={(text) => setField('name', text)}
+              onBlur={() => flush()}
               placeholder="e.g. Shorter"
               maxLength={NAME_MAX_LENGTH}
               autoFocus={!id}
@@ -172,6 +171,7 @@ function PromptButtonEditor({ id, seed, navigation }) {
             <Textarea
               value={draft.prompt}
               onChangeText={(text) => setField('prompt', text)}
+              onBlur={() => flush()}
               placeholder="e.g. Make each option shorter. Keep the hook, cut the rest."
               maxLength={PROMPT_MAX_LENGTH}
               minHeight={scale(140)}
@@ -196,13 +196,12 @@ function PromptButtonEditor({ id, seed, navigation }) {
           </View>
         )}
       </DetailScrollView>
-    </ModalSheet>
+    </Page>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
-    paddingTop: MODAL_HEADER_HEIGHT + 8,
     gap: 20,
   },
   input: {
@@ -210,7 +209,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   actions: {
-    marginTop: 'auto',
     paddingTop: 24,
   },
 });

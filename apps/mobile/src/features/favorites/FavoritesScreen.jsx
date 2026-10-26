@@ -28,22 +28,22 @@ export default function FavoritesScreen() {
   const favorites = useLiveQuery((db) => readFavorites(db), [schema.favorites]);
   const removal = useRemoveWithUndo(favorites);
   const paddingBottom = useFloatingPrimaryActionPadding();
-  // The cards last shown, so one the sheet deleted can stay in place for its Undo.
+  // The cards last shown, so one the Favorite screen deleted can stay in place for its Undo.
   const shownRef = useRef(new Map());
   shownRef.current = new Map((removal.list ?? []).map((favorite) => [favorite.id, favorite]));
 
-  // The sheet deleted one (`removedId`): its card stays, dimmed, with the Undo bar.
+  // The Favorite screen deleted one (`removedId`): its card stays, dimmed, with the Undo bar.
   const removedId = params?.removedId;
   useEffect(() => {
     if (!removedId) return;
     const favorite = shownRef.current.get(removedId);
     if (favorite) removal.showRemoved(favorite);
     navigation.setParams({ removedId: undefined });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per removal the sheet reports
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per removal the Favorite screen reports
   }, [removedId]);
 
   function handleOpen(favorite) {
-    navigation.navigate('FavoriteModal', { id: favorite.id });
+    navigation.navigate('FavoriteScreen', { id: favorite.id });
   }
 
   if (!isAvailable) return null;
@@ -56,7 +56,7 @@ export default function FavoritesScreen() {
         menuSlot={
           <IconButton
             icon="add"
-            onPress={() => navigation.navigate('FavoriteModal')}
+            onPress={() => navigation.navigate('FavoriteScreen')}
             accessibilityLabel="Add one of your posts"
           />
         }

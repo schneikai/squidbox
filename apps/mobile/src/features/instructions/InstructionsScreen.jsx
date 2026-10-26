@@ -43,7 +43,7 @@ export default function InstructionsScreen() {
               label={instructionText[kind].title}
               description={texts && texts[kind].split('\n')[0]}
               value={stored?.[kind] != null ? 'Changed' : null}
-              onPress={() => navigation.navigate('InstructionModal', { kind })}
+              onPress={() => navigation.navigate('InstructionScreen', { kind })}
               chevron
             />
           ))}

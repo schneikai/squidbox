@@ -14,14 +14,14 @@ const PADDING = 8;
 /**
  * The icon a prompt button leads with (`value`, an Icon name or null): None, then the icons it can
  * have, as one row of round cells that scrolls sideways, the chosen one on the accent disc and
- * scrolled into view when the sheet opens. A stored name the list doesn't have is a cell of its own,
+ * scrolled into view when the screen opens. A stored name the list doesn't have is a cell of its own,
  * so a Save keeps it.
  */
 export default function IconPicker({ value, onChange }) {
   const haptics = useHaptics();
   const scrollViewRef = useRef(null);
   const hasScrolledRef = useRef(false);
-  // The cell to show when the sheet opens (None is 0), centred once the row knows its width.
+  // The cell to show when the screen opens (None is 0), centred once the row knows its width.
   const [initialIndex] = useState(() => (value === null ? 0 : cellsFor(value).indexOf(value) + 1));
   const names = cellsFor(value);
 
