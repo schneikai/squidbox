@@ -41,8 +41,7 @@ function TagsField({ tags, onChange, placeholder, maxTags, maxTagLength, isDisab
           label={tag}
           variant="accent"
           onPress={isDisabled ? undefined : () => onChange(tags.filter((each) => each !== tag))}
-          accessibilityRole={isDisabled ? 'text' : 'button'}
-          accessibilityHint={isDisabled ? undefined : 'Removes this tag'}
+          accessibilityHint="Removes this tag"
         />
       ))}
       {isAdding && canAdd ? (
