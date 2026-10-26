@@ -4,7 +4,7 @@ import { baseRecordSchema, defineCollection, textSchema } from './define';
 export const FAVORITE_LIMITS = { text: 2000, source: 60 } as const;
 
 // `favorites` — the posts the assistant writes like (Settings → Assistant → Favorites): an option
-// hearted in the chat, or one of your own posts added by hand or picked by "Fill it in for me".
+// hearted in the chat, or one of your own posts added by hand.
 // `source` is the prompt button's name for a chat heart, null for your own post. Newest
 // `createdAt` first. Removing one is a tombstone, and Undo restores it (`deletedAt` back to null).
 export const favoriteCollection = defineCollection({

@@ -135,6 +135,12 @@ General ideas:
 - **Memory.** What the user tells the assistant is remembered, e.g. "make it more about the action
   and less about the filming", "less influencer style, more guy next door".
 
+### [ ] Fill in Writing as you from your posts
+
+Bring back "Fill it in for me" as an agent chat session that drafts About you, Tone, Your content and
+Rules from the user's posts. It was removed from the setup flow (`features/voice`); the server route
+was `POST /ai/persona/draft`.
+
 ### [ ] Alternative texts for a post
 
 Save variations of a post's text for a different audience or purpose, e.g. when it's sent as a PPV

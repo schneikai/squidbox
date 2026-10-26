@@ -69,7 +69,7 @@ export default function AssistantScreen() {
             leading={<AssistantMark />}
             label="Writing as you"
             description={persona === undefined ? null : personaSummary(persona)}
-            onPress={() => navigation.navigate('VoiceModal')}
+            onPress={() => navigation.navigate('VoiceScreen')}
             chevron
           />
         </Section>

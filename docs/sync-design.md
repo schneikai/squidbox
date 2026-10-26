@@ -842,9 +842,11 @@ columns. One record per album and asset.
 **post_assets** (assets in a post). Synced: `postId`, `assetId`, `position`, plus the base
 columns. The edge id is the `assetRefs[].id` the UI sees.
 
-**personas** ("Writing as you", Settings → Assistant). Synced: `aboutYou`, `tone`, `useEmoji`,
+**personas** ("Writing as you", Settings → Assistant). Synced: `aboutYou`, `tone`,
 `contentTags` (string[]), `rules` (string[]), plus the base columns (`examplePosts` left for
-`favorites` in migration 0012/0016, unreleased, so no carry-over). One record per user: its `id` is the user's id, so every device writes the same record and
+`favorites` in migration 0012/0016, and `useEmoji` was dropped in 0014/0018, Tone and Rules saying how
+to use emoji; both unreleased, so no carry-over, and a push from an older build that still sends
+`useEmoji` has it stripped by the schema like any unknown field). One record per user: its `id` is the user's id, so every device writes the same record and
 the per-field merge converges. The lists are the first JSON fields of a synced collection (Postgres
 `jsonb`, SQLite JSON text); each merges as one value with its own clock. A local write compares
 JSON fields by content (`saveRecords`), so a list read back as a new array but unchanged gets no
@@ -868,7 +870,9 @@ by writing `deletedAt: null`, a per-field write that a later tombstone from anot
 beats by its clock. The writing prompt sends the newest 20 (`FAVORITES_IN_PROMPT`).
 
 **instructions** (Settings → Assistant → Instructions: what the assistant is told before each
-request). Synced: `writing`, `personaDraft`, `visionTagging`, each the user's text or null for the
+request). Synced: `writing`, `visionTagging` and the app prompts (`writingFormat`, `tagsSystem`,
+`themesContext`, `personaFraming`: the server's own texts around them, templates it fills in, editable
+in the dev client for trying a change on one account), each the user's text or null for the
 app's default (`DEFAULT_INSTRUCTIONS` in `packages/shared`, resolved by `resolveInstructions`), plus
 the base columns. One record per user with the user's id as its id, like `personas`, so two devices
 editing different kinds merge per field, and Reset is a per-field write of null that wins or loses by

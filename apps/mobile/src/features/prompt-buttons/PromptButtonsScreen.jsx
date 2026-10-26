@@ -26,11 +26,11 @@ export default function PromptButtonsScreen() {
   const haptics = useHaptics();
 
   function handleOpen(button) {
-    navigation.navigate('PromptButtonModal', { id: button.id });
+    navigation.navigate('PromptButtonScreen', { id: button.id });
   }
 
   function handleAdd(placement) {
-    navigation.navigate('PromptButtonModal', { placement });
+    navigation.navigate('PromptButtonScreen', { placement });
   }
 
   function handleMove(id, afterId) {

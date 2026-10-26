@@ -22,7 +22,6 @@ export const personaCollection = defineCollection({
     aboutYou: textSchema.max(PERSONA_LIMITS.aboutYou),
     contentTags: textList(PERSONA_LIMITS.contentTags, PERSONA_LIMITS.contentTag),
     tone: textSchema.max(PERSONA_LIMITS.tone),
-    useEmoji: z.boolean(),
     rules: textList(PERSONA_LIMITS.rules, PERSONA_LIMITS.rule),
   }),
 });
@@ -30,6 +29,6 @@ export const personaCollection = defineCollection({
 export type PersonaRecord = z.infer<typeof personaCollection.schema>;
 
 /** The persona's own fields (all but the base columns), in the order the screen shows them. */
-export const PERSONA_FIELDS = ['aboutYou', 'tone', 'useEmoji', 'contentTags', 'rules'] as const;
+export const PERSONA_FIELDS = ['aboutYou', 'tone', 'contentTags', 'rules'] as const;
 
 export type PersonaFields = Pick<PersonaRecord, (typeof PERSONA_FIELDS)[number]>;

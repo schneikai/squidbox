@@ -12,7 +12,6 @@ const filled = {
   aboutYou: 'Outdoor photographer from Oregon.',
   contentTags: ['hiking', 'forest'],
   tone: 'Short and calm.',
-  useEmoji: true,
   rules: ['Never use hashtags'],
 };
 

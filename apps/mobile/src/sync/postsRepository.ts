@@ -1,4 +1,4 @@
-import { and, desc, isNull, max, ne, sql, type SQL } from 'drizzle-orm';
+import { isNull, max, sql, type SQL } from 'drizzle-orm';
 
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
@@ -24,15 +24,4 @@ export async function readNewestRepostDate(db: SyncDb): Promise<number> {
     .from(schema.posts)
     .where(isNull(schema.posts.deletedAt));
   return Number(row?.newest ?? 0);
-}
-
-/** The texts of the newest `limit` non-deleted posts that have one, newest first ("Fill it in for me"). */
-export async function readRecentPostTexts(db: SyncDb, limit: number): Promise<string[]> {
-  const rows = await db
-    .select({ text: schema.posts.text })
-    .from(schema.posts)
-    .where(and(isNull(schema.posts.deletedAt), ne(sql`trim(${schema.posts.text})`, '')))
-    .orderBy(desc(schema.posts.createdAt), desc(schema.posts.id))
-    .limit(limit);
-  return rows.map((row) => row.text.trim());
 }

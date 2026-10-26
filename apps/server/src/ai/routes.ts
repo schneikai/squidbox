@@ -7,8 +7,6 @@ import {
   compareVisionResponseSchema,
   compareWritingRequestSchema,
   compareWritingResponseSchema,
-  personaDraftRequestSchema,
-  personaDraftResponseSchema,
   type AiModelKind,
 } from '@squidbox/shared';
 import { getDb } from '../db/client.js';
@@ -18,7 +16,7 @@ import { fetchBalanceAsync } from './balance.js';
 import { findModel, getCatalogAsync, type Catalog, type CatalogEntry } from './catalog.js';
 import { compareModels, visionTask, writingTask } from './compare.js';
 import { readInstructions } from './instructions.js';
-import { draftPersonaAsync, readFavorites, readPersona } from './persona.js';
+import { readFavorites, readPersona } from './persona.js';
 import { visionMessages, writingMessages } from './prompts.js';
 import { VeniceError } from './venice.js';
 import { loadConfig } from '../config.js';
@@ -93,35 +91,6 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       },
     });
 
-    // POST /ai/persona/draft — "Fill it in for me": the app's writing model drafts the persona from
-    // the user's posts. A model Venice dropped is a 400; a reply that fails is a 502 that says why.
-    r.route({
-      method: 'POST',
-      url: '/ai/persona/draft',
-      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
-      schema: { body: personaDraftRequestSchema, response: { 200: personaDraftResponseSchema } },
-      handler: async (request, reply) => {
-        const signal = untilClientLeaves(reply);
-        const [{ entries }, instructions] = await Promise.all([
-          catalogAsync(),
-          readInstructions(getDb(), requireUser(request).id),
-        ]);
-        const found = findModel(entries, request.body.modelId, 'writing');
-        if ('error' in found) throw new AppError(400, 'validation_error', found.error);
-        try {
-          return await draftPersonaAsync({
-            posts: request.body.posts,
-            instructions: instructions.personaDraft,
-            model: found.entry,
-            signal,
-          });
-        } catch (error) {
-          if (error instanceof VeniceError) throw AppError.aiUnavailable(error.message);
-          throw error;
-        }
-      },
-    });
-
     // The ai_admin routes (the compares, the Venice balance): 403 ai_admin_not_allowed for an
     // account without the `ai_admin` feature, so a new one can't skip that gate either.
     await ai.register(async (admin) => {
@@ -145,18 +114,18 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         handler: async (request, reply) => {
           const signal = untilClientLeaves(reply);
           // The catalog loads meanwhile (compareRequested reads it from the cache then).
-          const userId = requireUser(request).id;
+          const user = requireUser(request);
           const [persona, favorites, instructions] = await Promise.all([
-            readPersona(getDb(), userId),
-            readFavorites(getDb(), userId),
-            readInstructions(getDb(), userId),
+            readPersona(getDb(), user.id),
+            readFavorites(getDb(), user.id),
+            readInstructions(getDb(), user),
             catalogAsync(),
           ]);
           const messages = writingMessages({
             prompt: request.body.prompt,
             persona,
             favorites,
-            instructions: instructions.writing,
+            instructions,
           });
           const results = await compareRequested(request.body.modelIds, 'writing', (models) =>
             compareModels({ task: writingTask, messages, models, log: request.log, signal }),
@@ -176,9 +145,16 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         handler: async (request, reply) => {
           const signal = untilClientLeaves(reply);
           const { base64, mimeType } = request.body.image;
+          const user = requireUser(request);
+          const [persona, instructions] = await Promise.all([
+            readPersona(getDb(), user.id),
+            readInstructions(getDb(), user),
+          ]);
           const messages = visionMessages({
             prompt: request.body.prompt,
             imageDataUrl: `data:${mimeType};base64,${base64}`,
+            instructions,
+            contentTags: persona?.contentTags ?? [],
           });
           const results = await compareRequested(request.body.modelIds, 'vision', (models) =>
             compareModels({ task: visionTask, messages, models, log: request.log, signal }),

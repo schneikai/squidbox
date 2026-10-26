@@ -223,7 +223,6 @@ export const personas = pgTable(
     aboutYou: text('about_you').notNull(),
     contentTags: jsonb('content_tags').$type<string[]>().notNull(),
     tone: text('tone').notNull(),
-    useEmoji: boolean('use_emoji').notNull(),
     rules: jsonb('rules').$type<string[]>().notNull(),
   },
   (t) => ({
@@ -270,8 +269,11 @@ export const instructions = pgTable(
   {
     ...syncableBase(),
     writing: text('writing'),
-    personaDraft: text('persona_draft'),
     visionTagging: text('vision_tagging'),
+    writingFormat: text('writing_format'),
+    tagsSystem: text('tags_system'),
+    themesContext: text('themes_context'),
+    personaFraming: text('persona_framing'),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.id] }),

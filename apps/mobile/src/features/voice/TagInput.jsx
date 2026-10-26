@@ -20,6 +20,8 @@ export default function TagInput({ value, onChangeText, onSubmit, onBlur }) {
       returnKeyType="done"
       autoFocus
       autoCapitalize="none"
+      autoCorrect={false}
+      spellCheck={false}
       maxLength={PERSONA_LIMITS.contentTag}
       placeholder="Tag"
       style={[chipFrame, styles.input]}

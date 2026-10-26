@@ -14,7 +14,6 @@ const t = schema.personas;
 export const EMPTY_PERSONA: PersonaFields = Object.freeze({
   aboutYou: '',
   tone: '',
-  useEmoji: false,
   contentTags: [],
   rules: [],
 }) as PersonaFields;

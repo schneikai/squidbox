@@ -1,5 +1,5 @@
 {
-  "id": "ad40c919-95e2-467b-b045-3e15ad0f6d21",
+  "id": "fd06a57b-44e9-401b-8df9-564238beffd9",
   "prevId": "8f2fc527-e198-48f0-a54e-368beb034e0b",
   "version": "7",
   "dialect": "postgresql",
@@ -882,12 +882,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "use_emoji": {
-          "name": "use_emoji",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
         "rules": {
           "name": "rules",
           "type": "jsonb",
@@ -1478,13 +1472,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "features": {
-          "name": "features",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::text[]"
         },
         "created_at": {
           "name": "created_at",

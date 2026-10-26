@@ -1,0 +1,1 @@
+ALTER TABLE `personas` DROP COLUMN `use_emoji`;

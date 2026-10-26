@@ -116,6 +116,11 @@ d('sync engine (Postgres)', () => {
     await db.delete(schema.posts).where(inArray(schema.posts.userId, users));
     await db.delete(schema.albums).where(inArray(schema.albums.userId, users));
     await db.delete(schema.assets).where(inArray(schema.assets.userId, users));
+    // The assistant's collections too: rows left from earlier runs come first in a pull from 0.
+    await db.delete(schema.personas).where(inArray(schema.personas.userId, users));
+    await db.delete(schema.promptButtons).where(inArray(schema.promptButtons.userId, users));
+    await db.delete(schema.favorites).where(inArray(schema.favorites.userId, users));
+    await db.delete(schema.instructions).where(inArray(schema.instructions.userId, users));
   }
   afterAll(async () => {
     await clearAll();
@@ -180,6 +185,29 @@ d('sync engine (Postgres)', () => {
     const { changes } = await pull(db, USER_A, { cursor: 0 });
     expect(changes.albums.records[0]).toMatchObject({ name: 'C', position: 'a0' });
     expect(changes.albums.records[0]).not.toHaveProperty('fieldClock'); // server-only
+  });
+
+  it('a persona from an older build that still sends useEmoji is applied without it', async () => {
+    const id = randomUUID();
+    const persona = {
+      id,
+      createdAt: 1000,
+      updatedAt: 1000,
+      deletedAt: null,
+      aboutYou: 'Me.',
+      contentTags: [],
+      tone: '',
+      rules: [],
+    };
+    const [result] = await push(db, USER_A, [
+      { collection: 'personas', record: { ...persona, useEmoji: true }, fields: { aboutYou: 1000, useEmoji: 1000 } },
+    ]);
+    expect(result.status).toBe('applied');
+    const { changes } = await pull(db, USER_A, { cursor: 0 });
+    const pulled = changes.personas.records.find((record) => record.id === id);
+    expect(pulled).toMatchObject({ aboutYou: 'Me.' });
+    expect(pulled).not.toHaveProperty('useEmoji');
+    await pool.query('DELETE FROM personas WHERE user_id = $1 AND id = $2', [USER_A, id]);
   });
 
   it('an unknown collection, Object.prototype’s names included, is rejected per mutation', async () => {
@@ -1349,7 +1377,6 @@ d('sync engine (Postgres)', () => {
         aboutYou: 'Outdoor photographer from Oregon.',
         contentTags: ['hiking', 'forest'],
         tone: 'Short and calm.',
-        useEmoji: true,
         rules: ['Never use hashtags'],
       }),
       prompt_buttons: () => ({
@@ -1361,7 +1388,15 @@ d('sync engine (Postgres)', () => {
         position: 'a0',
       }),
       favorites: () => ({ ...base(), text: 'First light on the ridge.', source: null }),
-      instructions: () => ({ ...base(), writing: 'Write like me.', personaDraft: null, visionTagging: null }),
+      instructions: () => ({
+        ...base(),
+        writing: 'Write like me.',
+        visionTagging: null,
+        writingFormat: null,
+        tagsSystem: null,
+        themesContext: null,
+        personaFraming: null,
+      }),
     };
 
     for (const name of collectionNames) {

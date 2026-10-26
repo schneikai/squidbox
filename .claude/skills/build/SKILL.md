@@ -5,7 +5,7 @@ description: Use when the owner hands over a feature, bug or refactor to deliver
 
 # Build a request
 
-You are the **coordinator**, always the top-level session. You hold the plan and the ledger, dispatch the planner, the plan reviewer and the implementer as subagents (Claude Code: the Agent tool), run the quality and correctness reviewers yourself, and decide. Each has its own brief in this folder; the only difference is who runs it. You do not write code; the implementer does. Project specifics (checks, install, preview, coding rules, bookkeeping) come from CLAUDE.md.
+You are the **coordinator**, always the top-level session. You hold the plan and the ledger, dispatch the planner, the plan reviewer and the implementer as subagents (Claude Code: the Agent tool), run the quality and correctness reviewers yourself (they might spawn subagents, which only top-level sessions can do), and decide. Each phase has its own brief in this folder; the only difference is who runs it. Project specifics (checks, install, preview, coding rules, bookkeeping) come from CLAUDE.md. Read it before you start.
 
 Use it for work that touches more than one file. A one-line fix does not need a plan.
 
@@ -30,10 +30,6 @@ Rule on anything the plan leaves open, log it as a `Decision`, and continue. A w
 Ask once, batch the questions, recommend an answer for each, log the answers.
 
 The run is autonomous by default. Only when the owner asked, when starting it, to see the plan first: post the plan's Goal and Design with a link to `plan.md` after the plan review and wait. Their feedback goes to the planner as one more revision, then the build starts.
-
-## Why the reviewers are not subagents
-
-As of October 2026 a subagent cannot spawn subagents, and the review skills fan out into their own agents. Run from a subagent they would review single-pass, so the coordinator runs them itself. The planner, plan reviewer and implementer spawn nothing and stay subagents.
 
 ## Models
 

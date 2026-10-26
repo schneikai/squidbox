@@ -1,0 +1,130 @@
+import { PERSONA_LIMITS, uniqueTags } from '@squidbox/shared';
+import { useState } from 'react';
+import { StyleSheet } from 'react-native';
+
+import FieldInfoSheet from './FieldInfoSheet';
+import RulesField from './RulesField';
+import TagsField from './TagsField';
+import voiceFields from './voiceFields';
+
+import CardTextField from '@/components/CardTextField';
+import DetailScrollView from '@/components/DetailScrollView';
+import Field from '@/components/Field';
+import Page from '@/components/Page';
+import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
+import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import useSaveAsYouType from '@/hooks/useSaveAsYouType';
+import useSeedOrClose from '@/hooks/useSeedOrClose';
+import useLibrary from '@/library/useLibrary';
+import { scale } from '@/styles/designTokens';
+import { getDb, schema } from '@/sync/db/client';
+import { EMPTY_PERSONA, readPersona, savePersona } from '@/sync/personaRepository';
+import { useLiveQuery } from '@/sync/useLiveQuery';
+import changedValues from '@/utils/changedValues';
+
+// The fields this screen edits in place; Rules are edited one by one on their own screen.
+const TEXT_FIELDS = ['aboutYou', 'tone', 'contentTags'];
+
+// Settings → Assistant → Writing as you: what the assistant writes with, as plain fields, saved as
+// you type. Reachable from anywhere (a root screen), so the chat opens it too.
+export default function VoiceScreen({ navigation }) {
+  const isAvailable = useLeaveWhenUnavailable();
+  const { library } = useLibrary();
+  const userId = library.owner.userId;
+  const seed = useSeedOrClose(async (db) => {
+    const persona = (await readPersona(db, userId)) ?? EMPTY_PERSONA;
+    return Object.fromEntries(TEXT_FIELDS.map((field) => [field, persona[field]]));
+  }, 'persona');
+  if (!isAvailable || !seed) return null;
+  return <VoiceEditor userId={userId} seed={seed} navigation={navigation} />;
+}
+
+function VoiceEditor({ userId, seed, navigation }) {
+  const [draft, setDraft] = useState(seed);
+  const [info, setInfo] = useState({ field: 'aboutYou', isVisible: false });
+  // One setter per field that keeps its identity, so typing in one field leaves the others' lists
+  // (memo) alone.
+  const [setters] = useState(() =>
+    Object.fromEntries(
+      TEXT_FIELDS.map((field) => [field, (value) => setDraft((current) => ({ ...current, [field]: value }))]),
+    ),
+  );
+  const persona = useLiveQuery((db) => readPersona(db, userId), [schema.personas], [userId]);
+  const { flush } = useSaveAsYouType(normalized(draft), saveFields);
+
+  const rules = persona?.rules ?? [];
+
+  // Only what the user changed, so a field another device edited meanwhile keeps that edit.
+  async function saveFields(next, stored) {
+    await savePersona(getDb(), userId, changedValues(stored, next));
+  }
+
+  function showInfo(field) {
+    setInfo({ field, isVisible: true });
+  }
+
+  function textField(field, maxLength) {
+    const { label, placeholder } = voiceFields[field];
+    return (
+      <Field label={label} onInfo={() => showInfo(field)}>
+        <CardTextField
+          multiline
+          value={draft[field]}
+          onChangeText={setters[field]}
+          onBlur={() => flush()}
+          placeholder={placeholder}
+          maxLength={maxLength}
+          minHeight={scale(88)}
+        />
+      </Field>
+    );
+  }
+
+  return (
+    <Page>
+      <FloatingDetailHeader title="Writing as you" onBack={() => navigation.goBack()} />
+      <DetailScrollView
+        keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.content}
+      >
+        {textField('aboutYou', PERSONA_LIMITS.aboutYou)}
+        {textField('tone', PERSONA_LIMITS.tone)}
+        <Field label={voiceFields.contentTags.label} onInfo={() => showInfo('contentTags')}>
+          <TagsField
+            tags={draft.contentTags}
+            onChange={setters.contentTags}
+            placeholder={voiceFields.contentTags.placeholder}
+          />
+        </Field>
+        <Field label={voiceFields.rules.label} onInfo={() => showInfo('rules')}>
+          <RulesField
+            rules={rules}
+            onOpen={(index) => navigation.navigate('RuleScreen', { index })}
+            onAdd={() => navigation.navigate('RuleScreen')}
+          />
+        </Field>
+      </DetailScrollView>
+      <FieldInfoSheet
+        field={info.field}
+        isVisible={info.isVisible}
+        onClose={() => setInfo((current) => ({ ...current, isVisible: false }))}
+      />
+    </Page>
+  );
+}
+
+// The fields as they are saved: texts trimmed, a tag once.
+function normalized(draft) {
+  return {
+    aboutYou: draft.aboutYou.trim(),
+    tone: draft.tone.trim(),
+    contentTags: uniqueTags(draft.contentTags).slice(0, PERSONA_LIMITS.contentTags),
+  };
+}
+
+const styles = StyleSheet.create({
+  content: {
+    gap: 20,
+  },
+});

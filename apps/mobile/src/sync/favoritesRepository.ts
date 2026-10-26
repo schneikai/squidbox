@@ -37,17 +37,6 @@ export async function readFavorite(db: SyncDb, id: string): Promise<FavoriteReco
   return (row as FavoriteRecord | undefined) ?? null;
 }
 
-/** The texts of the newest `limit` favorites ("Fill it in for me" drafts from them without posts). */
-export async function readFavoriteTexts(db: SyncDb, limit: number): Promise<string[]> {
-  const rows = await db
-    .select({ text: t.text })
-    .from(t)
-    .where(isNull(t.deletedAt))
-    .orderBy(...newestFirst)
-    .limit(limit);
-  return rows.map((row) => row.text);
-}
-
 /** How many live favorites there are. */
 export async function countFavorites(db: SyncDb): Promise<number> {
   const [{ favorites }] = await db.select({ favorites: count() }).from(t).where(isNull(t.deletedAt));

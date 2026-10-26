@@ -9,7 +9,6 @@ import {
   addFavorites,
   countFavorites,
   readFavorite,
-  readFavoriteTexts,
   readFavorites,
   removeFavorite,
   restoreFavorite,
@@ -33,7 +32,6 @@ describe('favoritesRepository', () => {
     const db = makeTestDb();
     await addEach(db, ['first', 'second', 'third']);
     expect(await texts(db)).toEqual(['third', 'second', 'first']);
-    expect(await readFavoriteTexts(db, 2)).toEqual(['third', 'second']);
     expect(await countFavorites(db)).toBe(3);
   });
 

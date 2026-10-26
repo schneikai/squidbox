@@ -164,7 +164,6 @@ export const personas = sqliteTable('personas', {
   aboutYou: text('about_you').notNull(),
   contentTags: text('content_tags', { mode: 'json' }).$type<string[]>().notNull(),
   tone: text('tone').notNull(),
-  useEmoji: integer('use_emoji', { mode: 'boolean' }).notNull(),
   rules: text('rules', { mode: 'json' }).$type<string[]>().notNull(),
 });
 export type PersonaRow = typeof personas.$inferSelect;
@@ -201,8 +200,11 @@ export const instructions = sqliteTable('instructions', {
   updatedAt: integer('updated_at').notNull(),
   deletedAt: integer('deleted_at'),
   writing: text('writing'),
-  personaDraft: text('persona_draft'),
   visionTagging: text('vision_tagging'),
+  writingFormat: text('writing_format'),
+  tagsSystem: text('tags_system'),
+  themesContext: text('themes_context'),
+  personaFraming: text('persona_framing'),
 });
 export type InstructionRow = typeof instructions.$inferSelect;
 
