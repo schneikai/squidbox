@@ -1,24 +1,27 @@
+import { resolveInstructions } from '@squidbox/shared';
+
 import CompareRound from './CompareRound';
 
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
+import useLibrary from '@/library/useLibrary';
 import { readPrompt, readVisionPhotos } from '@/sync/aiStateRepository';
+import { readInstructions } from '@/sync/instructionsRepository';
 
-// Each kind's prompt before the first compare; after it, the last one used. The server asks for
-// the tweet count itself.
-const DEFAULT_PROMPTS = {
-  writing: 'Write posts about a sunrise hike for my followers. Calm, a little dry. Under 200 characters each.',
-  vision:
-    "Tag this photo with 8 short, specific tags of what's in it: subject, clothing, setting, light, pose, " +
-    "mood. Lowercase, 1 to 3 words each. Be explicit about adult content when it's there.",
-};
+// The writing compare's sample request before the first compare; after it, the last one used. The
+// server adds the user's writing instructions and asks for the post count itself.
+const WRITING_PROMPT =
+  'Write posts about a sunrise hike for my followers. Calm, a little dry. Under 200 characters each.';
 
 // The compare's second step (route params `kind` and the ticked `models`), from the remembered
-// prompt and for vision the photo set the pick step saved, read once.
+// prompt (vision's starts from the user's Photo tags instructions) and for vision the photo set the
+// pick step saved, read once.
 export default function CompareScreen({ navigation, route }) {
   const { kind, models } = route.params;
   const isAvailable = useLeaveWhenUnavailable();
-  const seed = useSeedOrClose((db) => readSeed(db, kind), kind);
+  const { library } = useLibrary();
+  const userId = library.owner.userId;
+  const seed = useSeedOrClose((db) => readSeed(db, kind, userId), kind);
 
   if (!isAvailable || !seed) return null;
 
@@ -28,13 +31,18 @@ export default function CompareScreen({ navigation, route }) {
       kind={kind}
       models={models}
       savedPrompt={seed.prompt}
-      defaultPrompt={DEFAULT_PROMPTS[kind]}
+      defaultPrompt={seed.defaultPrompt}
       photos={seed.photos}
     />
   );
 }
 
-async function readSeed(db, kind) {
-  const [prompt, photos] = await Promise.all([readPrompt(db, kind), kind === 'vision' ? readVisionPhotos(db) : []]);
-  return { prompt, photos };
+async function readSeed(db, kind, userId) {
+  if (kind !== 'vision') return { prompt: await readPrompt(db, kind), defaultPrompt: WRITING_PROMPT, photos: [] };
+  const [prompt, photos, instructions] = await Promise.all([
+    readPrompt(db, kind),
+    readVisionPhotos(db),
+    readInstructions(db, userId),
+  ]);
+  return { prompt, defaultPrompt: resolveInstructions(instructions).visionTagging, photos };
 }

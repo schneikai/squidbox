@@ -6,6 +6,8 @@ import ProgressOverlayHost from '@/components/progress-overlay/ProgressOverlayHo
 import AssetPickerScreen from '@/features/asset-picker/AssetPickerScreen';
 import FavoriteModal from '@/features/favorites/FavoriteModal';
 import FavoritesScreen from '@/features/favorites/FavoritesScreen';
+import InstructionModal from '@/features/instructions/InstructionModal';
+import InstructionsScreen from '@/features/instructions/InstructionsScreen';
 import AddModelsScreen from '@/features/model-compare/AddModelsScreen';
 import PromptButtonModal from '@/features/prompt-buttons/PromptButtonModal';
 import PromptButtonsScreen from '@/features/prompt-buttons/PromptButtonsScreen';
@@ -55,6 +57,7 @@ const AddAiModelsModalRoute = asModalRoute(AddModelsScreen);
 const VoiceModalRoute = asModalRoute(VoiceModal);
 const PromptButtonModalRoute = asModalRoute(PromptButtonModal);
 const FavoriteModalRoute = asModalRoute(FavoriteModal);
+const InstructionModalRoute = asModalRoute(InstructionModal);
 
 // One editor per params: opening the editor for another post or other assets, also from inside an
 // open editor's sheet, opens a new one on top; the same params go back to the editor that has them.
@@ -72,6 +75,9 @@ const promptButtonId = ({ params }) => params?.id ?? `new:${params?.placement}`;
 
 // One sheet per favorite, and one Add.
 const favoriteId = ({ params }) => params?.id ?? 'new';
+
+// One sheet per kind of instructions.
+const instructionKind = ({ params }) => params?.kind;
 
 export default function RootNavigator() {
   return (
@@ -119,6 +125,12 @@ export default function RootNavigator() {
           options={{ headerShown: false }}
           getId={favoriteId}
         />
+        <RootStack.Screen
+          name="InstructionModal"
+          component={InstructionModalRoute}
+          options={{ headerShown: false }}
+          getId={instructionKind}
+        />
       </RootStack.Group>
       <RootStack.Group screenOptions={{ headerShown: false }}>
         <RootStack.Screen name="MainTab" component={MainTabNavigator} />
@@ -127,6 +139,7 @@ export default function RootNavigator() {
         <RootStack.Screen name="AssetScreen" component={AssetScreen} />
         <RootStack.Screen name="PromptButtonsScreen" component={PromptButtonsScreen} />
         <RootStack.Screen name="FavoritesScreen" component={FavoritesScreen} />
+        <RootStack.Screen name="InstructionsScreen" component={InstructionsScreen} />
       </RootStack.Group>
     </RootStack.Navigator>
   );

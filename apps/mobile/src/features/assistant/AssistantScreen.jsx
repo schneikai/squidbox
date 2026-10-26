@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { aiModelKindSchema } from '@squidbox/shared';
+import { aiModelKindSchema, INSTRUCTION_KINDS } from '@squidbox/shared';
 import { StyleSheet } from 'react-native';
 
 import personaSummary from './personaSummary';
@@ -21,13 +21,14 @@ import { colors, radii, sizes } from '@/styles/designTokens';
 import { readChosenModels } from '@/sync/aiStateRepository';
 import { schema } from '@/sync/db/client';
 import { countFavorites } from '@/sync/favoritesRepository';
+import { readInstructions } from '@/sync/instructionsRepository';
 import { readPersona } from '@/sync/personaRepository';
 import { countPromptButtons } from '@/sync/promptButtonsRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
 
 // Settings → Assistant: how the assistant writes as you, the posts it writes like (Favorites), its
-// prompt buttons, and the Models section (the models it uses, what is left on the Venice account).
+// prompt buttons, what it is told before each request (Instructions), and the Models section (the models it uses, what is left on the Venice account).
 export default function AssistantScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
@@ -36,6 +37,7 @@ export default function AssistantScreen() {
   const persona = useLiveQuery((db) => readPersona(db, userId), [schema.personas], [userId]);
   const favoriteCount = useLiveQuery((db) => countFavorites(db), [schema.favorites]);
   const promptButtonCount = useLiveQuery((db) => countPromptButtons(db), [schema.promptButtons]);
+  const instructions = useLiveQuery((db) => readInstructions(db, userId), [schema.instructions], [userId]);
   useSeedPromptButtons();
   const chosen = useLiveQuery((db) => readChosenModels(db), [schema.aiKinds, schema.aiModels]);
   const { models: catalog } = useAiCatalog();
@@ -51,6 +53,8 @@ export default function AssistantScreen() {
     const isGone = !!catalog && !modelsOfKind(catalog, kind).some(({ id }) => id === model.id);
     return { value: isGone ? 'No longer available' : model.name, isGone };
   }
+
+  const changedCount = INSTRUCTION_KINDS.filter((kind) => instructions?.[kind] != null).length;
 
   if (!isAvailable) return null;
 
@@ -80,6 +84,13 @@ export default function AssistantScreen() {
             label="Prompt buttons"
             value={promptButtonCount === undefined ? null : String(promptButtonCount)}
             onPress={() => navigation.navigate('PromptButtonsScreen')}
+            chevron
+          />
+          <Row
+            leading={<Icon name="document" color={colors.text.secondary} />}
+            label="Instructions"
+            value={instructions === undefined ? null : changedCount > 0 ? `${changedCount} changed` : 'Default'}
+            onPress={() => navigation.navigate('InstructionsScreen')}
             chevron
           />
         </Section>
