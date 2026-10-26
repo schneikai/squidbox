@@ -263,7 +263,6 @@ export const instructions = pgTable(
   {
     ...syncableBase(),
     writing: text('writing'),
-    personaDraft: text('persona_draft'),
     visionTagging: text('vision_tagging'),
   },
   (t) => ({

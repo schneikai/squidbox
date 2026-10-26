@@ -26,7 +26,6 @@ describe('instructionsRepository', () => {
     expect(await readInstructions(db, USER)).toMatchObject({
       id: USER,
       writing: MINE,
-      personaDraft: null,
       visionTagging: null,
     });
     const [row] = await outbox(db);
@@ -48,14 +47,14 @@ describe('instructionsRepository', () => {
 
   it('stores a text equal to the default as null, and writes nothing when that changes nothing', async () => {
     const db = makeTestDb();
-    await saveInstruction(db, USER, 'personaDraft', DEFAULT_INSTRUCTIONS.personaDraft);
+    await saveInstruction(db, USER, 'visionTagging', DEFAULT_INSTRUCTIONS.visionTagging);
     expect(await readInstructions(db, USER)).toBeNull();
-    await saveInstruction(db, USER, 'personaDraft', MINE);
+    await saveInstruction(db, USER, 'visionTagging', MINE);
     await clearOutboxRows(db, 'instructions', [USER]);
-    await saveInstruction(db, USER, 'personaDraft', `${DEFAULT_INSTRUCTIONS.personaDraft}\n`);
-    expect((await readInstructions(db, USER))!.personaDraft).toBeNull();
+    await saveInstruction(db, USER, 'visionTagging', `${DEFAULT_INSTRUCTIONS.visionTagging}\n`);
+    expect((await readInstructions(db, USER))!.visionTagging).toBeNull();
     await clearOutboxRows(db, 'instructions', [USER]);
-    await saveInstruction(db, USER, 'personaDraft', null);
+    await saveInstruction(db, USER, 'visionTagging', null);
     expect(await outbox(db)).toHaveLength(0);
   });
 

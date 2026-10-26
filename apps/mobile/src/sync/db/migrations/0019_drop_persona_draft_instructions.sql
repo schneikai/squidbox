@@ -1,0 +1,1 @@
+ALTER TABLE `instructions` DROP COLUMN `persona_draft`;

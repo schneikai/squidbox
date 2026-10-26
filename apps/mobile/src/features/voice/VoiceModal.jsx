@@ -2,26 +2,20 @@ import { PERSONA_FIELDS, PERSONA_LIMITS, uniqueTags } from '@squidbox/shared';
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FieldInfoSheet from './FieldInfoSheet';
 import RulesField from './RulesField';
 import TagsField from './TagsField';
-import useFillInForMe from './useFillInForMe';
 import voiceFields from './voiceFields';
 
 import Card from '@/components/Card';
-import CatalogStatus from '@/components/CatalogStatus';
 import Field from '@/components/Field';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import PrimaryButton from '@/components/PrimaryButton';
-import TextButton from '@/components/TextButton';
 import Textarea from '@/components/Textarea';
-import FloatingPill from '@/components/floating-bars/FloatingPill';
-import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
-import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
-import { SectionFooter } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import useConfirmDiscard from '@/hooks/useConfirmDiscard';
 import useHaptics from '@/hooks/useHaptics';
@@ -31,7 +25,6 @@ import useSeedOrClose from '@/hooks/useSeedOrClose';
 import useLibrary from '@/library/useLibrary';
 import { scale } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
-import { addFavorites } from '@/sync/favoritesRepository';
 import { EMPTY_PERSONA, readPersona, savePersona } from '@/sync/personaRepository';
 import { requestSync } from '@/sync/worker';
 import changedValues from '@/utils/changedValues';
@@ -58,10 +51,8 @@ function pickPersonaFields(persona) {
 function VoiceEditor({ userId, seed, navigation }) {
   const haptics = useHaptics();
   const { scrollY, onScroll } = useScrollY();
-  const paddingBottom = useFloatingPrimaryActionPadding();
-  // The persona's fields, and the posts "Fill it in for me" picked, which Save adds to Favorites.
-  const [draft, setDraft] = useState(() => ({ ...seed, pickedPosts: [] }));
-  const { pickedPosts, ...fields } = draft;
+  const { bottom } = useSafeAreaInsets();
+  const [draft, setDraft] = useState(seed);
   const [info, setInfo] = useState({ field: 'aboutYou', isVisible: false });
   const [isSaving, setIsSaving] = useState(false);
   // One setter per field that keeps its identity, so typing in one field leaves the others' lists
@@ -71,8 +62,7 @@ function VoiceEditor({ userId, seed, navigation }) {
       PERSONA_FIELDS.map((field) => [field, (value) => setDraft((current) => ({ ...current, [field]: value }))]),
     ),
   );
-  const fillIn = useFillInForMe(draft, setDraft);
-  const isDirty = Object.keys(changedValues(seed, fields)).length > 0 || pickedPosts.length > 0;
+  const isDirty = Object.keys(changedValues(seed, draft)).length > 0;
   const allowLeave = useConfirmDiscard(navigation, isDirty);
 
   function showInfo(field) {
@@ -83,8 +73,7 @@ function VoiceEditor({ userId, seed, navigation }) {
     setIsSaving(true);
     try {
       // Only what the user changed, so a field another device edited meanwhile keeps that edit.
-      await savePersona(getDb(), userId, changedValues(seed, normalized(fields)));
-      await addFavorites(getDb(), pickedPosts, null);
+      await savePersona(getDb(), userId, changedValues(seed, normalized(draft)));
       requestSync();
       haptics.success();
       allowLeave();
@@ -130,7 +119,7 @@ function VoiceEditor({ userId, seed, navigation }) {
         automaticallyAdjustKeyboardInsets
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[styles.content, { paddingBottom }]}
+        contentContainerStyle={[styles.content, { paddingBottom: bottom + SCREEN_PADDING }]}
       >
         {textField('aboutYou', PERSONA_LIMITS.aboutYou)}
         {textField('tone', PERSONA_LIMITS.tone)}
@@ -144,22 +133,7 @@ function VoiceEditor({ userId, seed, navigation }) {
         <Field label={voiceFields.rules.label} onInfo={() => showInfo('rules')}>
           <RulesField rules={draft.rules} onChange={setters.rules} placeholder={voiceFields.rules.placeholder} />
         </Field>
-        {pickedPosts.length > 0 && (
-          <SectionFooter>Save adds {pickedPosts.length} of your posts to Favorites.</SectionFooter>
-        )}
-        {fillIn.catalogError && <CatalogStatus error={fillIn.catalogError} retry={fillIn.retry} />}
       </Animated.ScrollView>
-      <FloatingPrimaryAction align="center">
-        <FloatingPill>
-          <TextButton
-            icon="sparkle"
-            label="Fill it in for me"
-            onPress={fillIn.fill}
-            disabled={!fillIn.canFill}
-            loading={fillIn.isDrafting}
-          />
-        </FloatingPill>
-      </FloatingPrimaryAction>
       <FieldInfoSheet
         field={info.field}
         isVisible={info.isVisible}

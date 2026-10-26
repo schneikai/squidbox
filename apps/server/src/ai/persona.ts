@@ -1,19 +1,10 @@
 // "Writing as you": the persona and the Favorites the writing prompts take, read from the user's
-// synced `personas` record and `favorites`, and "Fill it in for me", which drafts it from the user's
-// posts.
+// synced `personas` record and `favorites`.
 import { and, desc, eq, isNull } from 'drizzle-orm';
-import {
-  DRAFT_EXAMPLE_POSTS,
-  PERSONA_FIELDS,
-  PERSONA_LIMITS,
-  uniqueTags,
-  type PersonaDraftResponse,
-} from '@squidbox/shared';
+import { PERSONA_FIELDS } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import { favorites, personas } from '../db/schema.js';
-import type { CatalogEntry } from './catalog.js';
-import { personaDraftMessages, personaDraftSchema, type Persona } from './prompts.js';
-import { chatJsonAsync, VeniceError } from './venice.js';
+import type { Persona } from './prompts.js';
 
 // The persona's columns, read as the record's fields.
 const personaColumns = Object.fromEntries(PERSONA_FIELDS.map((field) => [field, personas[field]])) as {
@@ -41,48 +32,4 @@ export async function readFavorites(db: Db, userId: string, limit = FAVORITES_IN
     .orderBy(desc(favorites.createdAt), desc(favorites.id))
     .limit(limit);
   return rows.map((row) => row.text);
-}
-
-/**
- * One model's draft of About you, the content tags and Tone from `posts`, told by the user's
- * personaDraft `instructions`, checked (checkDraft).
- */
-export async function draftPersonaAsync({
-  posts,
-  instructions,
-  model,
-  signal,
-}: {
-  posts: string[];
-  instructions: string;
-  model: CatalogEntry;
-  signal?: AbortSignal;
-}): Promise<PersonaDraftResponse> {
-  const reply = await chatJsonAsync({
-    model: model.id,
-    messages: personaDraftMessages({ posts, instructions }),
-    schema: personaDraftSchema,
-    supportsResponseSchema: model.model_spec.capabilities.supportsResponseSchema !== false,
-    signal,
-  });
-  return checkDraft(reply, posts.length);
-}
-
-/**
- * The draft trimmed and within the persona's limits: About you and Tone non-empty, the tags without
- * empty ones and case-insensitive duplicates (none is fine: the user adds them), the example posts' indexes within the `postCount`
- * posts sent, once each, at most DRAFT_EXAMPLE_POSTS. Throws a VeniceError that says what's missing.
- */
-export function checkDraft(reply: PersonaDraftResponse, postCount: number): PersonaDraftResponse {
-  const aboutYou = reply.aboutYou.trim().slice(0, PERSONA_LIMITS.aboutYou);
-  const tone = reply.tone.trim().slice(0, PERSONA_LIMITS.tone);
-  if (!aboutYou) throw new VeniceError('Returned no About you');
-  if (!tone) throw new VeniceError('Returned no Tone');
-  const contentTags = uniqueTags(reply.contentTags)
-    .filter((tag) => tag.length <= PERSONA_LIMITS.contentTag)
-    .slice(0, PERSONA_LIMITS.contentTags);
-  const examplePostIndexes = [...new Set(reply.examplePostIndexes)]
-    .filter((index) => Number.isInteger(index) && index >= 0 && index < postCount)
-    .slice(0, DRAFT_EXAMPLE_POSTS);
-  return { aboutYou, contentTags, tone, examplePostIndexes };
 }

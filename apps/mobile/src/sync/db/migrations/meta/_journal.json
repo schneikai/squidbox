@@ -134,6 +134,13 @@
       "when": 1793009819320,
       "tag": "0018_drop_use_emoji",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1793010865369,
+      "tag": "0019_drop_persona_draft_instructions",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,5 @@
 // The AI's prompts and the JSON each model must answer with.
-import { WRITING_TWEET_COUNT, type PersonaDraftResponse, type PersonaFields } from '@squidbox/shared';
+import { WRITING_TWEET_COUNT, type PersonaFields } from '@squidbox/shared';
 import { z } from 'zod';
 import type { ChatMessage, JsonSchemaSpec } from './venice.js';
 
@@ -11,8 +11,6 @@ export type Persona = PersonaFields | null;
 export const WRITING_FORMAT =
   `Reply with exactly ${WRITING_TWEET_COUNT} posts, each only the finished post text, ` +
   'no numbering, quotes or commentary, as a JSON object: {"tweets": [...]}.';
-export const DRAFT_FORMAT =
-  'Reply as a JSON object: {"aboutYou": "…", "contentTags": [...], "tone": "…", "examplePostIndexes": [...]}.';
 export const TAGS_SYSTEM =
   'You tag photos for a content creator. Reply with the tags only, no duplicates, no commentary, ' +
   'as a JSON object: {"tags": [...]}.';
@@ -60,24 +58,6 @@ function personaText(persona: Persona, favorites: string[]): string {
     .join('\n');
 }
 
-// "Fill it in for me": the user's personaDraft instructions (theirs or the default), then the fixed
-// reply format. The posts are numbered from 0, so the reply can pick the example posts by index and
-// the app copies them verbatim.
-export function personaDraftMessages({
-  posts,
-  instructions,
-}: {
-  posts: string[];
-  instructions: string;
-}): ChatMessage[] {
-  const system = [instructions, DRAFT_FORMAT].join('\n\n');
-  const user = posts.map((post, index) => `Post ${index}:\n${post}`).join('\n\n');
-  return [
-    { role: 'system', content: system },
-    { role: 'user', content: user },
-  ];
-}
-
 // The user's prompt (their Photo tags instructions, which the app sends) says what to look for and how
 // many tags; the system message only fixes the answer's shape.
 export function visionMessages({ prompt, imageDataUrl }: { prompt: string; imageDataUrl: string }): ChatMessage[] {
@@ -116,21 +96,4 @@ export const tagsSchema: JsonSchemaSpec<{ tags: string[] }> = {
   name: 'tags',
   jsonSchema: stringListSchema('tags'),
   zod: z.object({ tags: z.array(z.string()) }),
-};
-
-// The zod side is loose like the others: persona.ts checks the reply.
-export const personaDraftSchema: JsonSchemaSpec<PersonaDraftResponse> = {
-  name: 'persona',
-  jsonSchema: objectSchema({
-    aboutYou: { type: 'string' },
-    contentTags: { type: 'array', items: { type: 'string' } },
-    tone: { type: 'string' },
-    examplePostIndexes: { type: 'array', items: { type: 'integer' } },
-  }),
-  zod: z.object({
-    aboutYou: z.string(),
-    contentTags: z.array(z.string()),
-    tone: z.string(),
-    examplePostIndexes: z.array(z.number()),
-  }),
 };

@@ -7,8 +7,6 @@ import {
   compareVisionResponseSchema,
   compareWritingRequestSchema,
   compareWritingResponseSchema,
-  personaDraftRequestSchema,
-  personaDraftResponseSchema,
   type AiModelKind,
 } from '@squidbox/shared';
 import { getDb } from '../db/client.js';
@@ -18,7 +16,7 @@ import { fetchBalanceAsync } from './balance.js';
 import { findModel, getCatalogAsync, type Catalog, type CatalogEntry } from './catalog.js';
 import { compareModels, visionTask, writingTask } from './compare.js';
 import { readInstructions } from './instructions.js';
-import { draftPersonaAsync, readFavorites, readPersona } from './persona.js';
+import { readFavorites, readPersona } from './persona.js';
 import { visionMessages, writingMessages } from './prompts.js';
 import { VeniceError } from './venice.js';
 import { loadConfig } from '../config.js';
@@ -131,35 +129,6 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
           compareModels({ task: writingTask, messages, models, log: request.log, signal }),
         );
         return { results };
-      },
-    });
-
-    // POST /ai/persona/draft — "Fill it in for me": the app's writing model drafts the persona from
-    // the user's posts. A model Venice dropped is a 400; a reply that fails is a 502 that says why.
-    r.route({
-      method: 'POST',
-      url: '/ai/persona/draft',
-      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
-      schema: { body: personaDraftRequestSchema, response: { 200: personaDraftResponseSchema } },
-      handler: async (request, reply) => {
-        const signal = untilClientLeaves(reply);
-        const [{ entries }, instructions] = await Promise.all([
-          catalogAsync(),
-          readInstructions(getDb(), requireUser(request).id),
-        ]);
-        const found = findModel(entries, request.body.modelId, 'writing');
-        if ('error' in found) throw new AppError(400, 'validation_error', found.error);
-        try {
-          return await draftPersonaAsync({
-            posts: request.body.posts,
-            instructions: instructions.personaDraft,
-            model: found.entry,
-            signal,
-          });
-        } catch (error) {
-          if (error instanceof VeniceError) throw AppError.aiUnavailable(error.message);
-          throw error;
-        }
       },
     });
 

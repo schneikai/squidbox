@@ -295,7 +295,7 @@ const personas: PersonaRecord[] = [{ ...baseRecord('persona', now - 60 * DAY), .
 // The instructions on the app's defaults (one record per user, like the persona), so a reset puts back
 // a tester's edits rather than tombstoning their record.
 const instructions: InstructionRecord[] = [
-  { ...baseRecord('instructions', now), id: userId, writing: null, personaDraft: null, visionTagging: null },
+  { ...baseRecord('instructions', now), id: userId, writing: null, visionTagging: null },
 ];
 
 // In each placement's order, positioned like the app's seed (seedPromptButtons).

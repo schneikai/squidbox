@@ -3,9 +3,6 @@ import { baseRecordSchema, defineCollection, textSchema } from './define';
 
 export const INSTRUCTION_LIMITS = { text: 4000 } as const;
 
-// The example posts "Fill it in for me" may pick, which its instructions name.
-export const DRAFT_EXAMPLE_POSTS = 3;
-
 // `instructions` — what the assistant is told before each request (Settings → Assistant →
 // Instructions), one text per kind. One record per user, whose id is the user's id, like
 // `personas`, so two devices editing different kinds converge. Null is "the app's default", so a
@@ -15,7 +12,6 @@ export const instructionCollection = defineCollection({
   name: 'instructions',
   schema: baseRecordSchema.extend({
     writing: textSchema.min(1).max(INSTRUCTION_LIMITS.text).nullable(),
-    personaDraft: textSchema.min(1).max(INSTRUCTION_LIMITS.text).nullable(),
     visionTagging: textSchema.min(1).max(INSTRUCTION_LIMITS.text).nullable(),
   }),
 });
@@ -23,7 +19,7 @@ export const instructionCollection = defineCollection({
 export type InstructionRecord = z.infer<typeof instructionCollection.schema>;
 
 /** The kinds, in the order the Instructions screen lists them. */
-export const INSTRUCTION_KINDS = ['writing', 'personaDraft', 'visionTagging'] as const;
+export const INSTRUCTION_KINDS = ['writing', 'visionTagging'] as const;
 
 export type InstructionKind = (typeof INSTRUCTION_KINDS)[number];
 
@@ -32,15 +28,6 @@ export type Instructions = Record<InstructionKind, string>;
 /** The app's text for each kind, used while the user's is null. */
 export const DEFAULT_INSTRUCTIONS: Instructions = Object.freeze({
   writing: 'You write social posts for a content creator, in their voice. Each post is ready to publish as it is.',
-  personaDraft: [
-    'You help a content creator describe how they write, from their own posts.',
-    'aboutYou: one or two sentences in their own voice, first person: who they are, what they post, ' +
-      'who follows them and what they come for. Only what the posts show.',
-    'contentTags: 5 to 10 short lowercase tags for what their content is about.',
-    'tone: one or two short sentences on how their posts sound: short or long, warm or dry, emoji or not. ' +
-      'Write it as an instruction, like "Short and calm. Says less than it could."',
-    `examplePostIndexes: the numbers of up to ${DRAFT_EXAMPLE_POSTS} posts that best show their voice.`,
-  ].join('\n\n'),
   visionTagging:
     "Tag this photo with 8 short, specific tags of what's in it: subject, setting, light, mood, what's being " +
     'done. Lowercase, 1 to 3 words each.',

@@ -10,7 +10,6 @@ export async function readInstructions(db: Db, userId: string): Promise<Instruct
   const [row] = await db
     .select({
       writing: instructions.writing,
-      personaDraft: instructions.personaDraft,
       visionTagging: instructions.visionTagging,
     })
     .from(instructions)

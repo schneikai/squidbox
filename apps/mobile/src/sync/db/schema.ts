@@ -200,7 +200,6 @@ export const instructions = sqliteTable('instructions', {
   updatedAt: integer('updated_at').notNull(),
   deletedAt: integer('deleted_at'),
   writing: text('writing'),
-  personaDraft: text('persona_draft'),
   visionTagging: text('vision_tagging'),
 });
 export type InstructionRow = typeof instructions.$inferSelect;
