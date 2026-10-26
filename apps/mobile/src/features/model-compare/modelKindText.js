@@ -4,7 +4,7 @@ const modelKindText = {
     title: 'Writing',
     intro: 'Writes the captions and replies.',
     footer: 'Thumbs up from Compare add up here.',
-    pickIntro: 'Pick 2 or more models. Each one writes tweets for the same prompt.',
+    pickIntro: 'Pick 2 or more models. Each one writes posts for the same prompt.',
   },
   vision: {
     title: 'Vision',

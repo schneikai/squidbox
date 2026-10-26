@@ -7,7 +7,7 @@ import { readPrompt, readVisionPhotos } from '@/sync/aiStateRepository';
 // Each kind's prompt before the first compare; after it, the last one used. The server asks for
 // the tweet count itself.
 const DEFAULT_PROMPTS = {
-  writing: "Write spicy tweets for my fans. Tease, don't tell. Under 200 characters each.",
+  writing: 'Write posts about a sunrise hike for my followers. Calm, a little dry. Under 200 characters each.',
   vision:
     "Tag this photo with 8 short, specific tags of what's in it: subject, clothing, setting, light, pose, " +
     "mood. Lowercase, 1 to 3 words each. Be explicit about adult content when it's there.",

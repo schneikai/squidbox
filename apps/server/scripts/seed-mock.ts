@@ -151,8 +151,9 @@ const PERSONA = {
 // His Bluesky profile (made up), where Follow-up with link sends people.
 const PROFILE_LINK = 'https://bsky.app/profile/quietroads.bsky.social';
 
-// The app's default prompt buttons (by placement and name) in his words, for Bluesky; the paid-content
-// ones become a print teaser and a photo-of-the-week thread under the same ids. And a trip recap.
+// The app's default prompt buttons (by placement and name) in his words, for Bluesky: Thread becomes a
+// print teaser, Behind the scenes his photo of the week and Funnier Drier, under the same ids. And a
+// trip recap.
 const OVERRIDES: Record<string, Pick<NewPromptButton, 'name' | 'icon' | 'prompt'>> = {
   'post:Repost ideas': {
     name: 'Repost ideas',
@@ -165,7 +166,7 @@ const OVERRIDES: Record<string, Pick<NewPromptButton, 'name' | 'icon' | 'prompt'
     icon: 'link',
     prompt: `Write a short Bluesky reply to this post that points people to the rest of the trip on my profile. Say what else is there in one line. End with the link: ${PROFILE_LINK}`,
   },
-  'post:PPV message': {
+  'post:Thread': {
     name: 'Print teaser',
     icon: 'image',
     prompt:
@@ -176,7 +177,7 @@ const OVERRIDES: Record<string, Pick<NewPromptButton, 'name' | 'icon' | 'prompt'
     icon: 'edit',
     prompt: 'Write 3 captions for these photos. Short, for Bluesky, one line each. Name the place only by its region.',
   },
-  'newPost:PPV message': {
+  'newPost:Behind the scenes': {
     name: 'Photo of the week',
     icon: 'star',
     prompt:
@@ -187,7 +188,7 @@ const OVERRIDES: Record<string, Pick<NewPromptButton, 'name' | 'icon' | 'prompt'
     icon: null,
     prompt: 'Make each post shorter. Keep the first line, cut the rest.',
   },
-  'refine:Spicier': {
+  'refine:Funnier': {
     name: 'Drier',
     icon: null,
     prompt: 'Make each post drier and a little funnier. Same idea, one wry twist.',
