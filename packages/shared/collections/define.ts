@@ -16,7 +16,10 @@ export const baseRecordSchema = z.object({
   deletedAt: timestampSchema.nullable(),
 });
 
-export interface CollectionDescriptor<S extends z.ZodTypeAny = z.ZodTypeAny, L extends z.ZodRawShape = z.ZodRawShape> {
+export interface CollectionDescriptor<
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+  L extends z.ZodRawShape = z.ZodRawShape,
+> {
   /** Collection name = table name on both server (Postgres) and client (SQLite). */
   name: string;
   /** Synced fields (includes the base columns). Validated on push; inferred on both sides. */

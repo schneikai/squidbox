@@ -22,10 +22,17 @@ export const collections: readonly CollectionDescriptor[] = [
 ];
 
 export const collectionsByName: Record<string, CollectionDescriptor> = Object.fromEntries(
-  collections.map((c) => [c.name, c]),
+  collections.map((c) => [c.name, c])
 );
 
 export const collectionNames: readonly string[] = collections.map((c) => c.name);
 
 export type CollectionName =
-  'assets' | 'albums' | 'posts' | 'album_assets' | 'post_assets' | 'personas' | 'prompt_buttons' | 'favorites';
+  | 'assets'
+  | 'albums'
+  | 'posts'
+  | 'album_assets'
+  | 'post_assets'
+  | 'personas'
+  | 'prompt_buttons'
+  | 'favorites';
