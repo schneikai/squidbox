@@ -38,11 +38,11 @@ export function Row({ label, description, leading, value, isValueMuted, onPress,
   const content = (
     <View style={styles.row}>
       {leading != null && <View style={styles.rowLeading}>{leading}</View>}
-      <View style={[styles.rowText, value && styles.rowTextKept]}>
+      <View style={value ? styles.rowTextKept : styles.rowText}>
         <Text style={[styles.rowLabel, destructive && styles.rowLabelDestructive]}>{label}</Text>
         {description != null && <Text style={styles.rowDescription}>{description}</Text>}
       </View>
-      <View style={styles.rowRight}>
+      <View style={[styles.rowRight, value && styles.rowRightFilling]}>
         {value ? <Text style={[styles.rowValue, isValueMuted && styles.rowValueMuted]}>{value}</Text> : null}
         {children}
         {chevron && (
@@ -90,8 +90,10 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  // With a value the label takes its own width and the value the rest, so a long one wraps
+  // instead of squeezing the label away.
   rowTextKept: {
-    flexBasis: 'auto',
+    gap: 2,
     flexShrink: 0,
   },
   rowDescription: {
@@ -107,6 +109,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexShrink: 1,
     marginLeft: 8,
+  },
+  rowRightFilling: {
+    flex: 1,
+    justifyContent: 'flex-end',
   },
   rowValue: {
     fontSize: typography.body,
