@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import IconPicker from './IconPicker';
 import SegmentedControl from './SegmentedControl';
 import placementText, { PLACEMENTS } from './placementText';
 
@@ -57,7 +58,12 @@ export default function PromptButtonModal({ route, navigation }) {
 function PromptButtonEditor({ id, seed, navigation }) {
   const { bottom } = useSafeAreaInsets();
   const haptics = useHaptics();
-  const [draft, setDraft] = useState({ name: seed.name, prompt: seed.prompt, placement: seed.placement });
+  const [draft, setDraft] = useState({
+    name: seed.name,
+    prompt: seed.prompt,
+    placement: seed.placement,
+    icon: seed.icon,
+  });
   const [isSaving, setIsSaving] = useState(false);
   // Set at once (state lands a render later), so a double tap writes once.
   const isWritingRef = useRef(false);
@@ -95,8 +101,9 @@ function PromptButtonEditor({ id, seed, navigation }) {
     return writeOnce(async () => {
       const db = getDb();
       // Only what changed, so an edit another device made meanwhile to another field is kept.
-      if (id) await updatePromptButton(db, id, changedValues(seed, { name, prompt, placement: draft.placement }));
-      else await createPromptButton(db, { id: getNewItemId(), name, prompt, placement: draft.placement, icon: null });
+      const fields = { name, prompt, placement: draft.placement, icon: draft.icon };
+      if (id) await updatePromptButton(db, id, changedValues(seed, fields));
+      else await createPromptButton(db, { id: getNewItemId(), ...fields });
       haptics.success();
       allowLeave();
       navigation.goBack();
@@ -178,6 +185,9 @@ function PromptButtonEditor({ id, seed, navigation }) {
             activeKey={draft.placement}
             onSelect={(key) => setField('placement', key)}
           />
+        </Field>
+        <Field label="Icon">
+          <IconPicker value={draft.icon} onChange={(icon) => setField('icon', icon)} />
         </Field>
         {id && (
           <View style={styles.actions}>
