@@ -106,7 +106,6 @@ export default function AssistantScreen() {
                 label={modelKindText[kind].title}
                 value={value}
                 isValueMuted={isGone}
-                isValueTruncated
                 onPress={() => navigation.navigate('ModelListScreen', { kind })}
                 chevron
               />

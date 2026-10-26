@@ -30,37 +30,20 @@ export function SectionFooter({ children, isMuted = false }) {
   return <Text style={[styles.footer, isMuted && styles.footerMuted]}>{children}</Text>;
 }
 
-// `isValueMuted` greys the value further, for one that no longer applies. `isValueTruncated` keeps
-// the value to one line, shortened with an ellipsis, so the label keeps its width. `leading` goes
-// before the label (an icon), `description` is secondary text under it.
-export function Row({
-  label,
-  description,
-  leading,
-  value,
-  isValueMuted,
-  isValueTruncated,
-  onPress,
-  destructive,
-  chevron,
-  children,
-}) {
+// The label always keeps its width; a long value wraps onto more lines beside it, as Apple's
+// guidance prefers over truncating or shrinking text.
+// `isValueMuted` greys the value further, for one that no longer applies. `leading` goes before the
+// label (an icon), `description` is secondary text under it.
+export function Row({ label, description, leading, value, isValueMuted, onPress, destructive, chevron, children }) {
   const content = (
     <View style={styles.row}>
       {leading != null && <View style={styles.rowLeading}>{leading}</View>}
-      <View style={[styles.rowText, isValueTruncated && styles.rowTextKept]}>
+      <View style={[styles.rowText, value && styles.rowTextKept]}>
         <Text style={[styles.rowLabel, destructive && styles.rowLabelDestructive]}>{label}</Text>
         {description != null && <Text style={styles.rowDescription}>{description}</Text>}
       </View>
       <View style={styles.rowRight}>
-        {value ? (
-          <Text
-            style={[styles.rowValue, isValueMuted && styles.rowValueMuted]}
-            numberOfLines={isValueTruncated ? 1 : undefined}
-          >
-            {value}
-          </Text>
-        ) : null}
+        {value ? <Text style={[styles.rowValue, isValueMuted && styles.rowValueMuted]}>{value}</Text> : null}
         {children}
         {chevron && (
           <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.tertiary} style={{ marginLeft: 4 }} />

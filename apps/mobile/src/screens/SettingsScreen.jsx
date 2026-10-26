@@ -173,10 +173,7 @@ export default function SettingsScreen() {
             <Switch value={isHapticsOn} onValueChange={setIsHapticsOn} accessibilityLabel="Haptics" />
           </Row>
         </Section>
-        <SectionFooter>
-          Gentle taps you can feel when you pick up or drop a photo or album, peek at a photo, or when something is
-          saved or goes wrong.
-        </SectionFooter>
+        <SectionFooter>Gentle taps when you move, peek at or save something.</SectionFooter>
 
         <ScreenSectionHeader title="Data" />
         <Section>
