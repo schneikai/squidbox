@@ -169,29 +169,29 @@ const OVERRIDES: Record<string, Pick<NewPromptButton, 'name' | 'icon' | 'prompt'
   },
   'post:Thread': {
     name: 'Print teaser',
-    icon: 'image',
+    icon: 'printer',
     prompt:
       'Write a Bluesky post saying this photo is coming as a print. What makes it worth a wall, in one or two lines. No hard sell.',
   },
   'newPost:Caption': {
     name: 'Caption',
-    icon: 'edit',
+    icon: 'quote',
     prompt: 'Write 3 captions for these photos. Short, for Bluesky, one line each. Name the place only by its region.',
   },
   'newPost:Behind the scenes': {
     name: 'Photo of the week',
-    icon: 'star',
+    icon: 'award',
     prompt:
       'Write a Bluesky thread of 3 short posts for my photo of the week: the shot, where and when, and one thing about how I took it.',
   },
   'refine:Shorter': {
     name: 'Shorter',
-    icon: null,
+    icon: 'scissors',
     prompt: 'Make each post shorter. Keep the first line, cut the rest.',
   },
   'refine:Funnier': {
     name: 'Drier',
-    icon: null,
+    icon: 'feather',
     prompt: 'Make each post drier and a little funnier. Same idea, one wry twist.',
   },
 };
@@ -201,7 +201,7 @@ const PROMPT_BUTTONS: NewPromptButton[] = [
     id: mockUuid('prompt-button:trip-recap'),
     placement: 'newPost',
     name: 'Trip recap',
-    icon: 'images',
+    icon: 'mountain',
     prompt:
       'Write 3 Bluesky posts that recap this trip from these photos: where it went, one thing that happened, one detail only I would notice.',
   },
