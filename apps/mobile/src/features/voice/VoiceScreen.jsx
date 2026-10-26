@@ -1,8 +1,6 @@
-import { PERSONA_FIELDS, PERSONA_LIMITS, uniqueTags } from '@squidbox/shared';
+import { PERSONA_LIMITS, uniqueTags } from '@squidbox/shared';
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
-import Animated from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FieldInfoSheet from './FieldInfoSheet';
 import RulesField from './RulesField';
@@ -10,79 +8,63 @@ import TagsField from './TagsField';
 import voiceFields from './voiceFields';
 
 import Card from '@/components/Card';
+import DetailScrollView from '@/components/DetailScrollView';
 import Field from '@/components/Field';
-import ModalCloseButton from '@/components/ModalCloseButton';
-import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
-import ModalSheet from '@/components/ModalSheet';
-import PrimaryButton from '@/components/PrimaryButton';
+import Page from '@/components/Page';
 import Textarea from '@/components/Textarea';
+import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { SCREEN_PADDING } from '@/constants';
-import useConfirmDiscard from '@/hooks/useConfirmDiscard';
-import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
-import useScrollY from '@/hooks/useScrollY';
+import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import useLibrary from '@/library/useLibrary';
 import { scale } from '@/styles/designTokens';
-import { getDb } from '@/sync/db/client';
+import { getDb, schema } from '@/sync/db/client';
 import { EMPTY_PERSONA, readPersona, savePersona } from '@/sync/personaRepository';
+import { useLiveQuery } from '@/sync/useLiveQuery';
 import { requestSync } from '@/sync/worker';
 import changedValues from '@/utils/changedValues';
 
-// Settings → Assistant → Writing as you: what the assistant writes with, as plain fields, saved
-// with Save. Reachable from anywhere (a root modal), so the chat opens it too.
-export default function VoiceModal({ navigation }) {
+// The fields this screen edits in place; Rules are edited one by one on their own screen.
+const TEXT_FIELDS = ['aboutYou', 'tone', 'contentTags'];
+
+// Settings → Assistant → Writing as you: what the assistant writes with, as plain fields, saved as
+// you type. Reachable from anywhere (a root screen), so the chat opens it too.
+export default function VoiceScreen({ navigation }) {
   const isAvailable = useLeaveWhenUnavailable();
   const { library } = useLibrary();
   const userId = library.owner.userId;
   const seed = useSeedOrClose(async (db) => {
-    const persona = await readPersona(db, userId);
-    return persona ? pickPersonaFields(persona) : EMPTY_PERSONA;
+    const persona = (await readPersona(db, userId)) ?? EMPTY_PERSONA;
+    return Object.fromEntries(TEXT_FIELDS.map((field) => [field, persona[field]]));
   }, 'persona');
   if (!isAvailable || !seed) return null;
   return <VoiceEditor userId={userId} seed={seed} navigation={navigation} />;
 }
 
-// The fields of a saved persona, without its sync columns.
-function pickPersonaFields(persona) {
-  return Object.fromEntries(PERSONA_FIELDS.map((field) => [field, persona[field]]));
-}
-
 function VoiceEditor({ userId, seed, navigation }) {
-  const haptics = useHaptics();
-  const { scrollY, onScroll } = useScrollY();
-  const { bottom } = useSafeAreaInsets();
   const [draft, setDraft] = useState(seed);
   const [info, setInfo] = useState({ field: 'aboutYou', isVisible: false });
-  const [isSaving, setIsSaving] = useState(false);
   // One setter per field that keeps its identity, so typing in one field leaves the others' lists
   // (memo) alone.
   const [setters] = useState(() =>
     Object.fromEntries(
-      PERSONA_FIELDS.map((field) => [field, (value) => setDraft((current) => ({ ...current, [field]: value }))]),
+      TEXT_FIELDS.map((field) => [field, (value) => setDraft((current) => ({ ...current, [field]: value }))]),
     ),
   );
-  const isDirty = Object.keys(changedValues(seed, draft)).length > 0;
-  const allowLeave = useConfirmDiscard(navigation, isDirty);
+  const persona = useLiveQuery((db) => readPersona(db, userId), [schema.personas], [userId]);
+  const flush = useSaveAsYouType(normalized(draft), saveFields);
+
+  const rules = persona?.rules ?? [];
+
+  // Only what the user changed, so a field another device edited meanwhile keeps that edit.
+  async function saveFields(next, previous) {
+    await savePersona(getDb(), userId, changedValues(previous, next));
+    requestSync();
+  }
 
   function showInfo(field) {
     setInfo({ field, isVisible: true });
-  }
-
-  async function handleSave() {
-    setIsSaving(true);
-    try {
-      // Only what the user changed, so a field another device edited meanwhile keeps that edit.
-      await savePersona(getDb(), userId, changedValues(seed, normalized(draft)));
-      requestSync();
-      haptics.success();
-      allowLeave();
-      navigation.goBack();
-    } catch (error) {
-      console.error('Saving Writing as you failed', error);
-      haptics.error();
-      setIsSaving(false);
-    }
   }
 
   function textField(field, maxLength) {
@@ -93,6 +75,7 @@ function VoiceEditor({ userId, seed, navigation }) {
           <Textarea
             value={draft[field]}
             onChangeText={setters[field]}
+            onBlur={() => flush()}
             placeholder={placeholder}
             maxLength={maxLength}
             minHeight={scale(88)}
@@ -104,22 +87,12 @@ function VoiceEditor({ userId, seed, navigation }) {
   }
 
   return (
-    <ModalSheet>
-      <ModalHeader
-        leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />}
-        centerSlot="Writing as you"
-        rightSlot={
-          <PrimaryButton size="compact" label="Save" onPress={handleSave} disabled={!isDirty} loading={isSaving} />
-        }
-        scrollY={scrollY}
-      />
-      <Animated.ScrollView
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        automaticallyAdjustKeyboardInsets
+    <Page>
+      <FloatingDetailHeader title="Writing as you" onBack={() => navigation.goBack()} />
+      <DetailScrollView
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[styles.content, { paddingBottom: bottom + SCREEN_PADDING }]}
+        contentContainerStyle={styles.content}
       >
         {textField('aboutYou', PERSONA_LIMITS.aboutYou)}
         {textField('tone', PERSONA_LIMITS.tone)}
@@ -131,32 +104,33 @@ function VoiceEditor({ userId, seed, navigation }) {
           />
         </Field>
         <Field label={voiceFields.rules.label} onInfo={() => showInfo('rules')}>
-          <RulesField rules={draft.rules} onChange={setters.rules} placeholder={voiceFields.rules.placeholder} />
+          <RulesField
+            rules={rules}
+            onOpen={(index) => navigation.navigate('RuleScreen', { index })}
+            onAdd={() => navigation.navigate('RuleScreen')}
+          />
         </Field>
-      </Animated.ScrollView>
+      </DetailScrollView>
       <FieldInfoSheet
         field={info.field}
         isVisible={info.isVisible}
         onClose={() => setInfo((current) => ({ ...current, isVisible: false }))}
       />
-    </ModalSheet>
+    </Page>
   );
 }
 
-// The persona's fields as they are saved: texts trimmed, the empty rules and tags dropped, a tag once.
+// The fields as they are saved: texts trimmed, a tag once.
 function normalized(draft) {
   return {
     aboutYou: draft.aboutYou.trim(),
     tone: draft.tone.trim(),
     contentTags: uniqueTags(draft.contentTags).slice(0, PERSONA_LIMITS.contentTags),
-    rules: draft.rules.map((rule) => rule.trim()).filter(Boolean),
   };
 }
 
 const styles = StyleSheet.create({
   content: {
-    paddingTop: MODAL_HEADER_HEIGHT,
-    paddingHorizontal: SCREEN_PADDING,
     gap: 20,
   },
   textarea: {

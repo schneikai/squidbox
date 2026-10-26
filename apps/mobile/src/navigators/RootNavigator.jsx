@@ -11,7 +11,8 @@ import InstructionsScreen from '@/features/instructions/InstructionsScreen';
 import AddModelsScreen from '@/features/model-compare/AddModelsScreen';
 import PromptButtonModal from '@/features/prompt-buttons/PromptButtonModal';
 import PromptButtonsScreen from '@/features/prompt-buttons/PromptButtonsScreen';
-import VoiceModal from '@/features/voice/VoiceModal';
+import RuleScreen from '@/features/voice/RuleScreen';
+import VoiceScreen from '@/features/voice/VoiceScreen';
 import AddEditPostNavigator from '@/navigators/AddEditPostNavigator';
 import CreatePostNavigator from '@/navigators/CreatePostNavigator';
 import MainTabNavigator from '@/navigators/MainTabNavigator';
@@ -54,7 +55,6 @@ const AddToAlbumModalRoute = asModalRoute(AddToAlbumScreen);
 const EditAlbumNotesModalRoute = asModalRoute(EditAlbumNotesModal);
 const ModelCompareModalRoute = asModalRoute(ModelCompareNavigator);
 const AddAiModelsModalRoute = asModalRoute(AddModelsScreen);
-const VoiceModalRoute = asModalRoute(VoiceModal);
 const PromptButtonModalRoute = asModalRoute(PromptButtonModal);
 const FavoriteModalRoute = asModalRoute(FavoriteModal);
 const InstructionModalRoute = asModalRoute(InstructionModal);
@@ -78,6 +78,9 @@ const favoriteId = ({ params }) => params?.id ?? 'new';
 
 // One sheet per kind of instructions.
 const instructionKind = ({ params }) => params?.kind;
+
+// One screen per rule, and one Add.
+const ruleIndex = ({ params }) => String(params?.index ?? 'new');
 
 export default function RootNavigator() {
   return (
@@ -112,7 +115,6 @@ export default function RootNavigator() {
           options={{ headerShown: false }}
           getId={modelKind}
         />
-        <RootStack.Screen name="VoiceModal" component={VoiceModalRoute} options={{ headerShown: false }} />
         <RootStack.Screen
           name="PromptButtonModal"
           component={PromptButtonModalRoute}
@@ -140,6 +142,8 @@ export default function RootNavigator() {
         <RootStack.Screen name="PromptButtonsScreen" component={PromptButtonsScreen} />
         <RootStack.Screen name="FavoritesScreen" component={FavoritesScreen} />
         <RootStack.Screen name="InstructionsScreen" component={InstructionsScreen} />
+        <RootStack.Screen name="VoiceScreen" component={VoiceScreen} />
+        <RootStack.Screen name="RuleScreen" component={RuleScreen} getId={ruleIndex} />
       </RootStack.Group>
     </RootStack.Navigator>
   );
