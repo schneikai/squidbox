@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 // The extras an account sees on top of the defaults (users.features): `ai` may use the AI endpoints
 // (and so the server's Venice key), `ai_admin` gets Compare and the Venice balance,
-// `manage_features` shows Settings → Features, where the account switches its other features.
+// `manage_features` shows Settings → Developer, with Features, where the account switches its other features.
 export const ACCOUNT_FEATURES = ['ai', 'ai_admin', 'manage_features'] as const;
 export type AccountFeature = (typeof ACCOUNT_FEATURES)[number];
 
