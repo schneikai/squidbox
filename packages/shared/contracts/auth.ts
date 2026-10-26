@@ -3,8 +3,8 @@ import { z } from 'zod';
 
 // The extras an account sees on top of the defaults (users.features): `ai` may use the AI endpoints
 // (and so the server's Venice key), `ai_admin` gets Compare and the Venice balance,
-// `manage_features` shows Settings → Developer, with Features, where the account switches its other features.
-export const ACCOUNT_FEATURES = ['ai', 'ai_admin', 'manage_features'] as const;
+// `developer` shows Settings → Developer, with Features, where the account switches its other features.
+export const ACCOUNT_FEATURES = ['ai', 'ai_admin', 'developer'] as const;
 export type AccountFeature = (typeof ACCOUNT_FEATURES)[number];
 
 export const apiUserSchema = z.object({
@@ -49,10 +49,10 @@ export const userResponseSchema = z.object({
 });
 export type UserResponse = z.infer<typeof userResponseSchema>;
 
-// PATCH /me/features (an account with `manage_features` only): switches one of the account's other
+// PATCH /me/features (a `developer` account only): switches one of the account's other
 // features on or off.
 export const updateFeaturesRequestSchema = z.object({
-  feature: z.enum(ACCOUNT_FEATURES).exclude(['manage_features']),
+  feature: z.enum(ACCOUNT_FEATURES).exclude(['developer']),
   isOn: z.boolean(),
 });
 export type UpdateFeaturesRequest = z.infer<typeof updateFeaturesRequestSchema>;

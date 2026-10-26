@@ -172,31 +172,31 @@ describe('PATCH /api/v1/me/features', () => {
   const withFeatures = (features: string[]) => vi.mocked(findUserById).mockResolvedValue({ ...user, features } as any);
 
   it('switches the one feature and answers with the updated user', async () => {
-    withFeatures(['ai', 'manage_features']);
-    const updated = { ...user, features: ['ai', 'ai_admin', 'manage_features'] };
+    withFeatures(['ai', 'developer']);
+    const updated = { ...user, features: ['ai', 'ai_admin', 'developer'] };
     vi.mocked(switchUserFeature).mockResolvedValue(updated as any);
     const res = await patch({ feature: 'ai_admin', isOn: true });
     expect(res.statusCode).toBe(200);
     expect(switchUserFeature).toHaveBeenCalledWith(expect.anything(), 'u1', 'ai_admin', true);
-    expect(res.json().user.features).toEqual(['ai', 'ai_admin', 'manage_features']);
+    expect(res.json().user.features).toEqual(['ai', 'ai_admin', 'developer']);
   });
 
-  it('answers 400 to switching manage_features, which only the script changes', async () => {
-    withFeatures(['ai', 'manage_features']);
-    expect((await patch({ feature: 'manage_features', isOn: false })).statusCode).toBe(400);
+  it('answers 400 to switching developer, which only the script changes', async () => {
+    withFeatures(['ai', 'developer']);
+    expect((await patch({ feature: 'developer', isOn: false })).statusCode).toBe(400);
     expect(switchUserFeature).not.toHaveBeenCalled();
   });
 
-  it('answers 403 manage_features_not_allowed to an account without manage_features', async () => {
+  it('answers 403 developer_only to an account without developer', async () => {
     withFeatures(['ai']);
     const res = await patch({ feature: 'ai_admin', isOn: true });
     expect(res.statusCode).toBe(403);
-    expect(res.json().error.code).toBe('manage_features_not_allowed');
+    expect(res.json().error.code).toBe('developer_only');
     expect(switchUserFeature).not.toHaveBeenCalled();
   });
 
   it('answers 400 to a feature it does not know', async () => {
-    withFeatures(['manage_features']);
+    withFeatures(['developer']);
     expect((await patch({ feature: 'superpowers', isOn: true })).statusCode).toBe(400);
     expect(switchUserFeature).not.toHaveBeenCalled();
   });

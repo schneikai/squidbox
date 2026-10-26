@@ -35,7 +35,7 @@ export default function SettingsScreen() {
   const { phase, lastError, pendingCount, failedCount } = useSyncStatus();
   const { isVideoAutoplayOn, setIsVideoAutoplayOn, isHapticsOn, setIsHapticsOn } = useAppSettings();
   const isAssistantAvailable = useIsAssistantAvailable();
-  const canManageFeatures = useHasFeature('manage_features');
+  const isDeveloper = useHasFeature('developer');
 
   const [isLoggingOut, startLogoutTransition] = useTransition();
 
@@ -175,7 +175,7 @@ export default function SettingsScreen() {
         </Section>
         <SectionFooter>Gentle taps when you move, peek at or save something.</SectionFooter>
 
-        {canManageFeatures && (
+        {isDeveloper && (
           <>
             <ScreenSectionHeader title="Developer" />
             <Section>

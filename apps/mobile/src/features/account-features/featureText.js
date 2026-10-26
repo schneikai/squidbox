@@ -1,5 +1,5 @@
 // What each account feature is called and unlocks, as Settings → Features shows it, and the feature
-// it needs to do anything (`requires`). manage_features is left out: it is the page itself, and
+// it needs to do anything (`requires`). developer is left out: it is the page itself, and
 // only the server script changes it.
 const featureText = {
   ai: {

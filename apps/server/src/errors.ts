@@ -14,7 +14,7 @@ export type ErrorCode =
   | 'ai_unavailable'
   | 'ai_not_allowed'
   | 'ai_admin_not_allowed'
-  | 'manage_features_not_allowed'
+  | 'developer_only'
   | 'internal';
 
 export class AppError extends Error {
@@ -52,8 +52,8 @@ export class AppError extends Error {
   static aiAdminNotAllowed() {
     return new AppError(403, 'ai_admin_not_allowed', 'AI admin tools are not enabled for this account');
   }
-  static manageFeaturesNotAllowed() {
-    return new AppError(403, 'manage_features_not_allowed', 'Changing features is not enabled for this account');
+  static developerOnly() {
+    return new AppError(403, 'developer_only', 'Changing features is not enabled for this account');
   }
   static aiUnavailable(message: string) {
     return new AppError(502, 'ai_unavailable', message);

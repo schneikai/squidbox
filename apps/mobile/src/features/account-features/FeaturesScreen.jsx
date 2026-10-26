@@ -16,12 +16,12 @@ import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import updateFeatureAsync from '@/utils/cloud-api/updateFeatureAsync';
 
 // Settings → Features: the extras the signed-in account has on top of the defaults, a switch each.
-// Only for an account with manage_features; a switch flips at once and goes back if the server says
+// Only for a developer account; a switch flips at once and goes back if the server says
 // no.
 export default function FeaturesScreen() {
   const navigation = useNavigation();
   const { user } = useCloud();
-  const isAvailable = useHasFeature('manage_features');
+  const isAvailable = useHasFeature('developer');
   useCloseWhen(!isAvailable);
   // The switch on its way to the server, `{ feature, isOn }`, null otherwise.
   const [pending, setPending] = useState(null);

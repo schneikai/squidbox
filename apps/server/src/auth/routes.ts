@@ -73,13 +73,13 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     handler: async (request) => ({ user: toApiUser(requireUser(request)), serverId }),
   });
 
-  // PATCH /me/features — an account with `manage_features` switches one of its own other features
+  // PATCH /me/features — a `developer` account switches one of its own other features
   // (Settings → Features), leaving the rest as they are. Only `npm run user:features` gives or takes
-  // `manage_features` itself.
+  // `developer` itself.
   r.route({
     method: 'PATCH',
     url: '/me/features',
-    preHandler: [authenticate(), requireFeature('manage_features', AppError.manageFeaturesNotAllowed)],
+    preHandler: [authenticate(), requireFeature('developer', AppError.developerOnly)],
     schema: { body: updateFeaturesRequestSchema, response: { 200: userResponseSchema } },
     handler: async (request) => {
       const { feature, isOn } = request.body;
