@@ -16,7 +16,7 @@ vi.mock('../src/config.js', async (importOriginal) => {
 import { DEFAULT_INSTRUCTIONS } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
 import { checkTags, checkTweets, compareModels, visionTask, writingTask } from '../src/ai/compare.js';
-import { TAGS_SYSTEM, visionMessages, writingMessages } from '../src/ai/prompts.js';
+import { TAGS_SYSTEM, contentThemesText, visionMessages, writingMessages } from '../src/ai/prompts.js';
 import type { CatalogEntry } from '../src/ai/catalog.js';
 
 const entries = fixture.data as CatalogEntry[];
@@ -71,6 +71,22 @@ describe('visionMessages', () => {
       { type: 'text', text: 'Reply in prose.' },
       { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,AAAA' } },
     ]);
+  });
+
+  it("adds the creator's content themes after the instructions, as a text of their own", () => {
+    const [, user] = visionMessages({
+      prompt: 'Reply in prose.',
+      imageDataUrl: 'data:image/jpeg;base64,AAAA',
+      contentTags: ['landscape', 'golden hour'],
+    });
+    expect(user!.content).toEqual([
+      { type: 'text', text: 'Reply in prose.' },
+      { type: 'text', text: contentThemesText(['landscape', 'golden hour']) },
+      { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,AAAA' } },
+    ]);
+    expect(contentThemesText(['landscape', 'golden hour'])).toMatch(
+      /^Creator's content themes: landscape, golden hour\n\nTreat these themes as a creative starting point/,
+    );
   });
 });
 

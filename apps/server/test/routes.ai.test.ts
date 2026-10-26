@@ -309,6 +309,21 @@ describe('POST /api/v1/ai/compare/vision', () => {
     ]);
   });
 
+  it("adds the persona's content themes after the prompt", async () => {
+    veniceAnswers();
+    vi.mocked(readPersona).mockResolvedValueOnce({
+      aboutYou: '',
+      tone: '',
+      contentTags: ['landscape', 'hiking'],
+      rules: [],
+    });
+    expect((await call('POST', '/ai/compare/vision', vision)).statusCode).toBe(200);
+    expect(readPersona).toHaveBeenCalledWith(expect.anything(), 'u1');
+    for (const body of chatBodies()) {
+      expect(body.messages[1].content[1].text).toMatch(/^Creator's content themes: landscape, hiking\n\n/);
+    }
+  });
+
   it('400 without a prompt', async () => {
     veniceAnswers();
     expect((await call('POST', '/ai/compare/vision', { ...vision, prompt: ' ' })).statusCode).toBe(400);

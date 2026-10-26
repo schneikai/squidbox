@@ -12,8 +12,18 @@ export const WRITING_FORMAT =
   `Reply with exactly ${WRITING_TWEET_COUNT} posts, each only the finished post text, ` +
   'no numbering, quotes or commentary, as a JSON object: {"tweets": [...]}.';
 export const TAGS_SYSTEM =
-  'You tag photos for a content creator. Reply with the tags only, no duplicates, no commentary, ' +
-  'as a JSON object: {"tags": [...]}.';
+  "You generate tags for images based on the user's instructions and any provided context. " +
+  'Return only a valid JSON object containing a "tags" array of unique strings. No commentary or Markdown.';
+
+/** What the tags prompt adds after the user's instructions when the creator named their content. */
+export function contentThemesText(contentTags: string[]): string {
+  return (
+    `Creator's content themes: ${contentTags.join(', ')}\n\n` +
+    'Treat these themes as a creative starting point, not a fixed vocabulary. Reuse their exact wording ' +
+    'when relevant, but freely discover related subjects, moods, styles, and new ideas. Never force a ' +
+    "theme that doesn't fit the image."
+  );
+}
 
 /**
  * The writing prompt, as the user: their writing instructions (`instructions`, theirs or the
@@ -59,14 +69,25 @@ function personaText(persona: Persona, favorites: string[]): string {
 }
 
 // The user's prompt (their Photo tags instructions, which the app sends) says what to look for and how
-// many tags; the system message only fixes the answer's shape.
-export function visionMessages({ prompt, imageDataUrl }: { prompt: string; imageDataUrl: string }): ChatMessage[] {
+// many tags; the system message only fixes the answer's shape. The creator's content themes (their
+// persona's `contentTags`), when they have any, follow the prompt as a text of their own, so they
+// apply whatever the prompt says.
+export function visionMessages({
+  prompt,
+  imageDataUrl,
+  contentTags = [],
+}: {
+  prompt: string;
+  imageDataUrl: string;
+  contentTags?: string[];
+}): ChatMessage[] {
   return [
     { role: 'system', content: TAGS_SYSTEM },
     {
       role: 'user',
       content: [
         { type: 'text', text: prompt },
+        ...(contentTags.length > 0 ? [{ type: 'text' as const, text: contentThemesText(contentTags) }] : []),
         { type: 'image_url', image_url: { url: imageDataUrl } },
       ],
     },

@@ -29,8 +29,8 @@ export type Instructions = Record<InstructionKind, string>;
 export const DEFAULT_INSTRUCTIONS: Instructions = Object.freeze({
   writing: 'You write social posts for a content creator, in their voice. Each post is ready to publish as it is.',
   visionTagging:
-    "Tag this photo with 8 short, specific tags of what's in it: subject, setting, light, mood, what's being " +
-    'done. Lowercase, 1 to 3 words each.',
+    "Tag this photo with 8 short, specific tags. Capture what's visible, the atmosphere, aesthetic, and " +
+    'possible story angles. Lowercase, 1–2 words per tag, preferably one.',
 });
 
 /** Each kind's text: the user's where they saved one, else the default. */

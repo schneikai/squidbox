@@ -143,9 +143,11 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       handler: async (request, reply) => {
         const signal = untilClientLeaves(reply);
         const { base64, mimeType } = request.body.image;
+        const persona = await readPersona(getDb(), requireUser(request).id);
         const messages = visionMessages({
           prompt: request.body.prompt,
           imageDataUrl: `data:${mimeType};base64,${base64}`,
+          contentTags: persona?.contentTags ?? [],
         });
         const results = await compareRequested(request.body.modelIds, 'vision', (models) =>
           compareModels({ task: visionTask, messages, models, log: request.log, signal }),
