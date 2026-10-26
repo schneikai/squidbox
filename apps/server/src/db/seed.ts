@@ -1,11 +1,14 @@
+import { sql } from 'drizzle-orm';
+import { ACCOUNT_FEATURES } from '@squidbox/shared';
 import { getDb, closeDb } from './client.js';
 import { users } from './schema.js';
 import { hashPassword } from '../auth/passwords.js';
 
 // Seeds the two users the backend needs (this is a private build with no signup endpoint —
 // accounts are provisioned here):
-//  1. The main account, with its own per-user bucket. Provide either an existing bcrypt digest
-//     (SEED_USER_PASSWORD_DIGEST) or a plaintext SEED_USER_PASSWORD.
+//  1. The main account, with its own per-user bucket and every feature (ACCOUNT_FEATURES), added to
+//     the ones it has. Provide either an existing bcrypt digest (SEED_USER_PASSWORD_DIGEST) or a
+//     plaintext SEED_USER_PASSWORD.
 //  2. An isolated fixture user (shared bucket + prefix, storageBucket = null) for the
 //     multi-tenant isolation checks.
 const env = process.env;
@@ -22,12 +25,18 @@ async function seedExistingUser(): Promise<void> {
   if (!digest) throw new Error('Provide SEED_USER_PASSWORD_DIGEST or SEED_USER_PASSWORD');
 
   const storageBucket = env.SEED_USER_STORAGE_BUCKET ?? null;
+  const features = [...ACCOUNT_FEATURES];
   await db
     .insert(users)
-    .values({ email, passwordDigest: digest, storageBucket })
+    .values({ email, passwordDigest: digest, storageBucket, features })
     .onConflictDoUpdate({
       target: users.email,
-      set: { passwordDigest: digest, storageBucket, updatedAt: new Date() },
+      set: {
+        passwordDigest: digest,
+        storageBucket,
+        features: sql`array(select distinct unnest(${users.features} || excluded.features) order by 1)`,
+        updatedAt: new Date(),
+      },
     });
   console.log(`Seeded existing user ${email} (bucket: ${storageBucket ?? 'shared+prefix'}).`);
 }

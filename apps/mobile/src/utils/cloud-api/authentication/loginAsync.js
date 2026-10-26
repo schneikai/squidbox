@@ -11,6 +11,7 @@ export default async function loginAsync(email, password) {
     serverId,
     userId: user.id,
     email: user.email,
+    features: user.features ?? [],
     apiBaseUrl: API_BASE_URL,
     tokens: { accessToken, refreshToken },
   };

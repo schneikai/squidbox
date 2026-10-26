@@ -92,6 +92,13 @@
       "when": 1792999027879,
       "tag": "0012_favorites",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793001442532,
+      "tag": "0013_account_features",
+      "breakpoints": true
     }
   ]
 }

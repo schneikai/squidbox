@@ -13,6 +13,7 @@ export type ErrorCode =
   | 'ai_not_configured'
   | 'ai_unavailable'
   | 'ai_not_allowed'
+  | 'model_testing_not_allowed'
   | 'internal';
 
 export class AppError extends Error {
@@ -46,6 +47,9 @@ export class AppError extends Error {
   }
   static aiNotAllowed() {
     return new AppError(403, 'ai_not_allowed', 'AI is not enabled for this account');
+  }
+  static modelTestingNotAllowed() {
+    return new AppError(403, 'model_testing_not_allowed', 'Model testing is not enabled for this account');
   }
   static aiUnavailable(message: string) {
     return new AppError(502, 'ai_unavailable', message);

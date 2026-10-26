@@ -12,9 +12,19 @@ import { colors, sizes } from '@/styles/designTokens';
 /**
  * A model in your list: its summary with the score and cost, a check when it's the chosen one, and
  * a menu to reset its score or remove it. `model` null is a model Venice no longer offers: greyed, not choosable, its
- * score kept.
+ * score kept. `isScored` false (without model testing) leaves the score out.
  */
-export default function ModelRow({ name, model, kind, score, isChosen, onChoose, onResetScore, onRemove }) {
+export default function ModelRow({
+  name,
+  model,
+  kind,
+  score,
+  isScored = true,
+  isChosen,
+  onChoose,
+  onResetScore,
+  onRemove,
+}) {
   const isAvailable = model !== null;
 
   return (
@@ -27,11 +37,11 @@ export default function ModelRow({ name, model, kind, score, isChosen, onChoose,
         accessibilityRole="button"
         accessibilityState={{ selected: isChosen, disabled: !isAvailable }}
       >
-        <ModelListSummary name={name} model={model} kind={kind} score={score} />
+        <ModelListSummary name={name} model={model} kind={kind} score={score} isScored={isScored} />
         {isChosen && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
       </TouchableOpacity>
       <IconMenuButton accessibilityLabel={`${name} options`} color={colors.text.secondary}>
-        {score !== null && (
+        {isScored && score !== null && (
           <>
             <MenuOption label="Reset score" icon="undo" onPress={onResetScore} />
             <MenuDivider />

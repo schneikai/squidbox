@@ -14,6 +14,7 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import modelKindText from '@/features/model-compare/modelKindText';
 import useAiCatalog from '@/hooks/useAiCatalog';
+import useHasFeature from '@/hooks/useHasFeature';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSeedPromptButtons from '@/hooks/useSeedPromptButtons';
 import useLibrary from '@/library/useLibrary';
@@ -27,7 +28,8 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
 
 // Settings → Assistant: how the assistant writes as you, the posts it writes like (Favorites), its
-// prompt buttons, and the Models section (the models it uses, what is left on the Venice account).
+// prompt buttons, and the Models section (the models it uses, and with model testing what is left on
+// the Venice account).
 export default function AssistantScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
@@ -39,7 +41,7 @@ export default function AssistantScreen() {
   useSeedPromptButtons();
   const chosen = useLiveQuery((db) => readChosenModels(db), [schema.aiKinds, schema.aiModels]);
   const { models: catalog } = useAiCatalog();
-  const balance = useVeniceBalance();
+  const hasModelTesting = useHasFeature('model_testing');
 
   // The chosen model's name, or a muted "No longer available" once Venice dropped it (its list
   // says which; a catalog still loading or failed to load leaves the plain name). The name and the
@@ -100,10 +102,16 @@ export default function AssistantScreen() {
             );
           })}
         </Section>
-        <SectionFooter isMuted={balance.isError}>Venice balance: {balance.value ?? '…'}</SectionFooter>
+        {hasModelTesting && <VeniceBalanceFooter />}
       </DetailScrollView>
     </Page>
   );
+}
+
+// What is left on the Venice account, read each time the screen comes into focus.
+function VeniceBalanceFooter() {
+  const balance = useVeniceBalance();
+  return <SectionFooter isMuted={balance.isError}>Venice balance: {balance.value ?? '…'}</SectionFooter>;
 }
 
 // The assistant's mark: its sparkle on an accent disc.

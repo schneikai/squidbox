@@ -13,5 +13,5 @@ export function findUserById(db: Db, id: string): Promise<User | undefined> {
 
 // The public user shape returned by the API.
 export function toApiUser(user: User): ApiUser {
-  return { id: user.id, email: user.email };
+  return { id: user.id, email: user.email, features: user.features };
 }

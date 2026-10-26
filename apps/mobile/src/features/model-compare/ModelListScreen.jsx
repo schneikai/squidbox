@@ -20,23 +20,25 @@ import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
+import useHasFeature from '@/hooks/useHasFeature';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useYourModels from '@/hooks/useYourModels';
 import { removeYourModel, resetScores, setChosenModel } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 import confirmAsync from '@/utils/confirmAsync';
 
-// Your models of one kind (route param `kind`: writing | vision), the one the assistant uses, their
-// scores from Compare, and the way to add, remove and compare them.
+// Your models of one kind (route param `kind`: writing | vision), the one the assistant uses, and the
+// way to add and remove them. With model testing also their scores from Compare and Compare itself.
 export default function ModelListScreen({ navigation, route }) {
   const { kind } = route.params;
   const isAvailable = useLeaveWhenUnavailable();
+  const hasModelTesting = useHasFeature('model_testing');
   const haptics = useHaptics();
   const paddingBottom = useFloatingPrimaryActionPadding();
   const { catalog, error, retry, rows, chosenId } = useYourModels(kind);
 
   const availableCount = rows?.filter((row) => row.model !== null).length ?? 0;
-  const hasScores = rows?.some(({ score }) => score !== null) ?? false;
+  const hasScores = hasModelTesting && (rows?.some(({ score }) => score !== null) ?? false);
   const text = modelKindText[kind];
 
   async function handleChoose(row) {
@@ -70,6 +72,7 @@ export default function ModelListScreen({ navigation, route }) {
               model={row.model}
               kind={kind}
               score={row.score}
+              isScored={hasModelTesting}
               isChosen={row.id === chosenId}
               onChoose={() => handleChoose(row)}
               onResetScore={() => handleResetScore(row)}
@@ -77,7 +80,7 @@ export default function ModelListScreen({ navigation, route }) {
             />
           ))}
         </Section>
-        <SectionFooter>{text.footer}</SectionFooter>
+        {hasModelTesting && <SectionFooter>{text.footer}</SectionFooter>}
       </>
     );
   }
@@ -97,7 +100,7 @@ export default function ModelListScreen({ navigation, route }) {
           )
         }
       />
-      <DetailScrollView contentContainerStyle={{ paddingBottom }}>
+      <DetailScrollView contentContainerStyle={hasModelTesting && { paddingBottom }}>
         <IntroText style={styles.intro}>{text.intro}</IntroText>
         <ScreenSectionHeader
           title="Your models"
@@ -114,14 +117,16 @@ export default function ModelListScreen({ navigation, route }) {
         />
         {renderModels()}
       </DetailScrollView>
-      <FloatingPrimaryAction>
-        <PrimaryButton
-          icon="repeat"
-          label="Compare"
-          onPress={() => navigation.navigate('ModelCompareModal', { kind })}
-          disabled={availableCount < COMPARE_MIN_MODELS}
-        />
-      </FloatingPrimaryAction>
+      {hasModelTesting && (
+        <FloatingPrimaryAction>
+          <PrimaryButton
+            icon="repeat"
+            label="Compare"
+            onPress={() => navigation.navigate('ModelCompareModal', { kind })}
+            disabled={availableCount < COMPARE_MIN_MODELS}
+          />
+        </FloatingPrimaryAction>
+      )}
     </Page>
   );
 }

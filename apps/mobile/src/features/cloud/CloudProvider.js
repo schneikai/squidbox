@@ -22,7 +22,7 @@ export default function CloudProvider({ children }) {
 
   const isAuthenticated = library !== null && isSessionAuthenticated(library, session);
   const needsReauth = library !== null && sessionNeedsReauth(library, session);
-  const user = session?.userId ? { id: session.userId, email: session.email } : null;
+  const user = session?.userId ? { id: session.userId, email: session.email, features: session.features ?? [] } : null;
 
   // Signs in and opens the account's library (a parked one, or a new one), adding what this device's
   // library holds; the library of another account stays parked with its pending changes.

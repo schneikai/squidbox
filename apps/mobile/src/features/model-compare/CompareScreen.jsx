@@ -17,7 +17,7 @@ const DEFAULT_PROMPTS = {
 // prompt and for vision the photo set the pick step saved, read once.
 export default function CompareScreen({ navigation, route }) {
   const { kind, models } = route.params;
-  const isAvailable = useLeaveWhenUnavailable();
+  const isAvailable = useLeaveWhenUnavailable('model_testing');
   const seed = useSeedOrClose((db) => readSeed(db, kind), kind);
 
   if (!isAvailable || !seed) return null;

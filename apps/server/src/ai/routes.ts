@@ -36,13 +36,18 @@ const VISION_REQUEST_BODY_LIMIT = 2 * 1024 * 1024;
 
 /**
  * After authenticate, before any Venice call: 503 ai_not_configured when the server has no Venice
- * key, 403 ai_not_allowed for an account that AI_ALLOWED_EMAILS leaves out.
+ * key, 403 ai_not_allowed for an account without the `ai` feature.
  */
 async function aiAccess(request: FastifyRequest): Promise<void> {
-  const { VENICE_API_KEY, AI_ALLOWED_EMAILS } = loadConfig();
+  const { VENICE_API_KEY } = loadConfig();
   if (!VENICE_API_KEY) throw AppError.aiNotConfigured();
-  const email = requireUser(request).email.toLowerCase();
-  if (AI_ALLOWED_EMAILS && !AI_ALLOWED_EMAILS.includes(email)) throw AppError.aiNotAllowed();
+  if (!requireUser(request).features.includes('ai')) throw AppError.aiNotAllowed();
+}
+
+// Model testing's routes (the compares, the Venice balance), after aiAccess: 403
+// model_testing_not_allowed for an account without the `model_testing` feature.
+async function modelTestingAccess(request: FastifyRequest): Promise<void> {
+  if (!requireUser(request).features.includes('model_testing')) throw AppError.modelTestingNotAllowed();
 }
 
 // A read from Venice the route can't answer without: 502 ai_unavailable when it fails.
@@ -100,6 +105,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     r.route({
       method: 'GET',
       url: '/ai/balance',
+      preHandler: modelTestingAccess,
       schema: { response: { 200: aiBalanceResponseSchema } },
       handler: () => orAiUnavailable(fetchBalanceAsync(), "Couldn't load the balance from Venice"),
     });
@@ -108,6 +114,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     r.route({
       method: 'POST',
       url: '/ai/compare/writing',
+      preHandler: modelTestingAccess,
       config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
       schema: { body: compareWritingRequestSchema, response: { 200: compareWritingResponseSchema } },
       handler: async (request, reply) => {
@@ -153,6 +160,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     r.route({
       method: 'POST',
       url: '/ai/compare/vision',
+      preHandler: modelTestingAccess,
       bodyLimit: VISION_REQUEST_BODY_LIMIT,
       config: { rateLimit: { max: 240, timeWindow: '1 minute' } },
       schema: { body: compareVisionRequestSchema, response: { 200: compareVisionResponseSchema } },
