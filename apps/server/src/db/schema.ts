@@ -217,7 +217,6 @@ export const personas = pgTable(
     aboutYou: text('about_you').notNull(),
     contentTags: jsonb('content_tags').$type<string[]>().notNull(),
     tone: text('tone').notNull(),
-    useEmoji: boolean('use_emoji').notNull(),
     rules: jsonb('rules').$type<string[]>().notNull(),
   },
   (t) => ({

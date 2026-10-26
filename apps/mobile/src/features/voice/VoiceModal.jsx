@@ -1,6 +1,6 @@
 import { PERSONA_FIELDS, PERSONA_LIMITS, uniqueTags } from '@squidbox/shared';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import FieldInfoSheet from './FieldInfoSheet';
@@ -16,13 +16,12 @@ import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import PrimaryButton from '@/components/PrimaryButton';
-import Switch from '@/components/Switch';
 import TextButton from '@/components/TextButton';
 import Textarea from '@/components/Textarea';
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
-import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
+import { SectionFooter } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import useConfirmDiscard from '@/hooks/useConfirmDiscard';
 import useHaptics from '@/hooks/useHaptics';
@@ -134,14 +133,7 @@ function VoiceEditor({ userId, seed, navigation }) {
         contentContainerStyle={[styles.content, { paddingBottom }]}
       >
         {textField('aboutYou', PERSONA_LIMITS.aboutYou)}
-        <View style={styles.toneGroup}>
-          {textField('tone', PERSONA_LIMITS.tone)}
-          <Section>
-            <Row label={voiceFields.useEmoji.label}>
-              <Switch value={draft.useEmoji} onValueChange={setters.useEmoji} />
-            </Row>
-          </Section>
-        </View>
+        {textField('tone', PERSONA_LIMITS.tone)}
         <Field label={voiceFields.contentTags.label} onInfo={() => showInfo('contentTags')}>
           <TagsField
             tags={draft.contentTags}
@@ -182,7 +174,6 @@ function normalized(draft) {
   return {
     aboutYou: draft.aboutYou.trim(),
     tone: draft.tone.trim(),
-    useEmoji: draft.useEmoji,
     contentTags: uniqueTags(draft.contentTags).slice(0, PERSONA_LIMITS.contentTags),
     rules: draft.rules.map((rule) => rule.trim()).filter(Boolean),
   };
@@ -197,8 +188,5 @@ const styles = StyleSheet.create({
   textarea: {
     paddingHorizontal: SCREEN_PADDING,
     paddingVertical: 12,
-  },
-  toneGroup: {
-    gap: 8,
   },
 });

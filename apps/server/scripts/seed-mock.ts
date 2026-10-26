@@ -139,7 +139,6 @@ const PERSONA = {
   aboutYou:
     "I'm a guy who shoots outdoors and posts it on Bluesky: hills, forests, quiet coast and the roads between them. People follow for the light and the slow mornings, and the odd story from the trip.",
   tone: 'Short and calm, a little dry. One line, never salesy. At most one emoji, at the end.',
-  useEmoji: true,
   contentTags: ['landscape', 'hiking', 'forest', 'golden hour', 'road trip', 'coast', 'film look'],
   rules: [
     'Never use hashtags',

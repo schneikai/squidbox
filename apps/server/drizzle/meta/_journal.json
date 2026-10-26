@@ -99,6 +99,13 @@
       "when": 1793007552246,
       "tag": "0013_instructions",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793009818411,
+      "tag": "0014_drop_use_emoji",
+      "breakpoints": true
     }
   ]
 }

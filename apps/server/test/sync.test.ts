@@ -182,6 +182,29 @@ d('sync engine (Postgres)', () => {
     expect(changes.albums.records[0]).not.toHaveProperty('fieldClock'); // server-only
   });
 
+  it('a persona from an older build that still sends useEmoji is applied without it', async () => {
+    const id = randomUUID();
+    const persona = {
+      id,
+      createdAt: 1000,
+      updatedAt: 1000,
+      deletedAt: null,
+      aboutYou: 'Me.',
+      contentTags: [],
+      tone: '',
+      rules: [],
+    };
+    const [result] = await push(db, USER_A, [
+      { collection: 'personas', record: { ...persona, useEmoji: true }, fields: { aboutYou: 1000, useEmoji: 1000 } },
+    ]);
+    expect(result.status).toBe('applied');
+    const { changes } = await pull(db, USER_A, { cursor: 0 });
+    const pulled = changes.personas.records.find((record) => record.id === id);
+    expect(pulled).toMatchObject({ aboutYou: 'Me.' });
+    expect(pulled).not.toHaveProperty('useEmoji');
+    await pool.query('DELETE FROM personas WHERE user_id = $1 AND id = $2', [USER_A, id]);
+  });
+
   it('an unknown collection, Object.prototype’s names included, is rejected per mutation', async () => {
     const album = albumRecord();
     const results = await push(db as any, USER_A, [
@@ -1349,7 +1372,6 @@ d('sync engine (Postgres)', () => {
         aboutYou: 'Outdoor photographer from Oregon.',
         contentTags: ['hiking', 'forest'],
         tone: 'Short and calm.',
-        useEmoji: true,
         rules: ['Never use hashtags'],
       }),
       prompt_buttons: () => ({

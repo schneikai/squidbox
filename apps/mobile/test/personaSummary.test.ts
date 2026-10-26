@@ -5,7 +5,6 @@ import personaSummary from '../src/features/assistant/personaSummary';
 const persona = {
   aboutYou: '34, outdoor photographer from Oregon, a bit dry. People follow for the light.',
   tone: 'Short.',
-  useEmoji: true,
   contentTags: ['hiking'],
   rules: ['a', 'b', 'c'],
 };

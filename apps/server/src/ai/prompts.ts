@@ -43,14 +43,12 @@ export function writingMessages({
 }
 
 // The persona as the system message describes it, in the screen's order: every field that is
-// filled, the emoji switch (only with a saved persona), and the favorites as example posts.
+// filled, and the favorites as example posts.
 function personaText(persona: Persona, favorites: string[]): string {
   const hasPosts = favorites.length > 0;
   return [
     persona?.aboutYou && `About the creator: ${persona.aboutYou}`,
     persona?.tone && `Their tone: ${persona.tone}`,
-    persona &&
-      (persona.useEmoji ? (hasPosts ? 'Use emoji, the way the example posts do.' : 'Use emoji.') : 'No emoji.'),
     persona && persona.contentTags.length > 0 && `Their content: ${persona.contentTags.join(', ')}`,
     persona &&
       persona.rules.length > 0 &&

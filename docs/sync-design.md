@@ -842,9 +842,11 @@ columns. One record per album and asset.
 **post_assets** (assets in a post). Synced: `postId`, `assetId`, `position`, plus the base
 columns. The edge id is the `assetRefs[].id` the UI sees.
 
-**personas** ("Writing as you", Settings → Assistant). Synced: `aboutYou`, `tone`, `useEmoji`,
+**personas** ("Writing as you", Settings → Assistant). Synced: `aboutYou`, `tone`,
 `contentTags` (string[]), `rules` (string[]), plus the base columns (`examplePosts` left for
-`favorites` in migration 0012/0016, unreleased, so no carry-over). One record per user: its `id` is the user's id, so every device writes the same record and
+`favorites` in migration 0012/0016, and `useEmoji` was dropped in 0014/0018, Tone and Rules saying how
+to use emoji; both unreleased, so no carry-over, and a push from an older build that still sends
+`useEmoji` has it stripped by the schema like any unknown field). One record per user: its `id` is the user's id, so every device writes the same record and
 the per-field merge converges. The lists are the first JSON fields of a synced collection (Postgres
 `jsonb`, SQLite JSON text); each merges as one value with its own clock. A local write compares
 JSON fields by content (`saveRecords`), so a list read back as a new array but unchanged gets no

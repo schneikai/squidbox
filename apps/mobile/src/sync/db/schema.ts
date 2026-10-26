@@ -164,7 +164,6 @@ export const personas = sqliteTable('personas', {
   aboutYou: text('about_you').notNull(),
   contentTags: text('content_tags', { mode: 'json' }).$type<string[]>().notNull(),
   tone: text('tone').notNull(),
-  useEmoji: integer('use_emoji', { mode: 'boolean' }).notNull(),
   rules: text('rules', { mode: 'json' }).$type<string[]>().notNull(),
 });
 export type PersonaRow = typeof personas.$inferSelect;

@@ -243,7 +243,6 @@ describe('POST /api/v1/ai/compare/writing', () => {
       aboutYou: 'Outdoor photographer from Oregon.',
       contentTags: [],
       tone: 'Short and calm.',
-      useEmoji: false,
       rules: [],
     });
     vi.mocked(readFavorites).mockResolvedValue(['First light on the ridge.']);

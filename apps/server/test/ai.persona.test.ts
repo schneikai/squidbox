@@ -27,11 +27,10 @@ const persona = {
   aboutYou: '34, outdoor photographer from Oregon, a bit dry.',
   contentTags: ['hiking', 'forest'],
   tone: 'Short and calm. Never salesy.',
-  useEmoji: true,
   rules: ['Never use hashtags', 'Never name the exact spot'],
 };
 const favorites = ['First light on the ridge.', 'Fog on the lake.'];
-const empty = { aboutYou: '', contentTags: [], tone: '', useEmoji: false, rules: [] };
+const empty = { aboutYou: '', contentTags: [], tone: '', rules: [] };
 const draft = {
   aboutYou: ' Outdoor guy. ',
   contentTags: ['hiking', 'HIKING', ' forest '],
@@ -63,18 +62,18 @@ describe('writingMessages with a persona', () => {
     expect(system).toContain('About the creator: 34, outdoor photographer from Oregon, a bit dry.');
     expect(system).toContain('Their content: hiking, forest');
     expect(system).toContain('Their tone: Short and calm. Never salesy.');
-    expect(system).toContain('Use emoji, the way the example posts do.');
+    expect(system).not.toContain('emoji');
     expect(system).toContain('- Never use hashtags\n- Never name the exact spot');
     expect(system).toContain(
       'Example posts they wrote. Write like these:\n---\nFirst light on the ridge.\n---\nFog on the lake.\n---',
     );
-    // In the screen's order: About you, Tone, Use emoji, Your content, Rules.
-    const order = ['About the creator', 'Their tone', 'Use emoji', 'Their content', 'Rules', 'Example posts'];
+    // In the screen's order: About you, Tone, Your content, Rules.
+    const order = ['About the creator', 'Their tone', 'Their content', 'Rules', 'Example posts'];
     const at = order.map((text) => system.indexOf(text));
     expect(at).toEqual([...at].sort((a, b) => a - b));
   });
 
-  it('sends the favorites without a saved persona, and no emoji line then', () => {
+  it('sends the favorites without a saved persona', () => {
     const system = systemOf(
       writingMessages({ instructions: DEFAULT_INSTRUCTIONS.writing, prompt: 'Write', persona: null, favorites }),
     );
@@ -92,24 +91,10 @@ describe('writingMessages with a persona', () => {
       }),
     );
     expect(system).toContain('Their tone: Sweet.');
-    expect(system).toContain('No emoji.');
     expect(system).not.toContain('About the creator');
     expect(system).not.toContain('Their content');
     expect(system).not.toContain('Rules');
     expect(system).not.toContain('Example posts');
-  });
-
-  it('says only "Use emoji." without example posts to copy', () => {
-    const system = systemOf(
-      writingMessages({
-        instructions: DEFAULT_INSTRUCTIONS.writing,
-        prompt: 'Write',
-        persona: { ...empty, useEmoji: true },
-        favorites: [],
-      }),
-    );
-    expect(system).toContain('Use emoji.');
-    expect(system).not.toContain('example posts');
   });
 
   it("starts with the user's writing instructions and ends with the fixed reply format", () => {
@@ -131,7 +116,7 @@ describe('writingMessages with a persona', () => {
       systemOf(
         writingMessages({ instructions: DEFAULT_INSTRUCTIONS.writing, prompt: 'Write', persona: null, favorites: [] }),
       ),
-    ).not.toContain('emoji');
+    ).toBe(`${DEFAULT_INSTRUCTIONS.writing}\n\n${WRITING_FORMAT}`);
   });
 });
 

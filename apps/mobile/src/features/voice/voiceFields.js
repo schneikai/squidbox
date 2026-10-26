@@ -21,9 +21,6 @@ const voiceFields = {
       'Dry humor. One line on Bluesky, a bit longer on my site.',
     ],
   },
-  useEmoji: {
-    label: 'Use emoji',
-  },
   contentTags: {
     label: 'Your content',
     placeholder: 'e.g. landscape',
