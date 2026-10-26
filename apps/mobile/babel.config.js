@@ -5,7 +5,7 @@ module.exports = function (api) {
     plugins: [
       'react-native-reanimated/plugin',
       // Use import alias to avoid relative paths when importing
-      // Heads-Up: If you make changes here you need to restart `npm run dev:live` / `dev:local` (they clear Metro's cache)
+      // Heads-Up: If you make changes here you need to restart `npm run dev:local` (it clears Metro's cache)
       [
         'module-resolver',
         {

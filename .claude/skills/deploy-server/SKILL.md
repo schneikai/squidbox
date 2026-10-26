@@ -63,9 +63,10 @@ deploys. No separate "setup" vs "deploy" skill to choose.
 5. **Scale to 1 machine** (Fly defaults to 2 for HA — unneeded for one user, halves cost):
    `fly scale count 1 --app <app> --yes`
 6. **Seed:** `fly ssh console --app <app> -C "npm run seed:prod"`
-7. **Point the app at it:** for the dev client, set `EXPO_PUBLIC_API_URL=https://<app>.fly.dev/api/v1`
-   in `apps/mobile/.env.local` and restart `npm run dev:live` (it's read at runtime, no rebuild). For the
-   preview app, update the EAS environment variable and rebuild (see the `ios-build` skill, Path B).
+7. **Point the app at it:** set `EXPO_PUBLIC_API_URL=https://<app>.fly.dev/api/v1` in
+   `apps/mobile/.env.local` (the dev client uses it only on the owner's request, README → "Local
+   backend with mock data"). For the preview app, update the EAS environment variable and rebuild
+   (see the `ios-build` skill, Path B).
 
 > Importing a user's old backups is separate from deploying. Use the **`/legacy-import`** skill
 > (`npm run convert:prod` on the app).

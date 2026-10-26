@@ -6,12 +6,14 @@
  *   Docker stack (Postgres + MinIO) → migrations + accounts → Metro with Expo's tunnel → API server.
  *   Metro serves the API and file storage through its tunnel (apps/mobile/scripts/localBackendProxy.js),
  *   so no env file needs the tunnel URL. The Docker stack keeps running after a stop.
- * Live backend (--live): Metro with Expo's tunnel only, against EXPO_PUBLIC_API_URL from .env.local.
+ * Live backend: Metro with Expo's tunnel only, against EXPO_PUBLIC_API_URL from .env.local. Only when
+ * the owner asks for it (say, to look into a problem in their own account): the dev client always
+ * runs against the local backend otherwise.
  *
  *   npm run dev:local                    # local backend
  *   npm run dev:local -- --reset-data    # also reset the account to exactly the mock data set
  *   npm run dev:local -- --web           # no tunnel: only for the web preview on this machine
- *   npm run dev:live                     # live backend
+ *   npm run dev:local -- --live-backend-on-owner-request   # the live backend, on the owner's request only
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { copyFileSync, createWriteStream, existsSync, readFileSync } from 'node:fs';
@@ -32,7 +34,7 @@ const NGROK_API = 'http://127.0.0.1:4040/api/tunnels';
 const TUNNEL_FAILED = /Check the Ngrok status page/;
 const TUNNEL_ATTEMPTS = 20;
 
-const live = process.argv.includes('--live');
+const live = process.argv.includes('--live-backend-on-owner-request');
 const resetData = process.argv.includes('--reset-data');
 const webOnly = process.argv.includes('--web');
 const children = new Set();
