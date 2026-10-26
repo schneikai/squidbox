@@ -4,9 +4,9 @@ import { useCallback, useState } from 'react';
 import fetchAiBalanceAsync from '@/utils/cloud-api/ai/fetchAiBalanceAsync';
 
 /**
- * The Venice account's balance as a row value ("$4.59", with DIEM when there is any), read again
- * each time the screen comes into focus, so it follows the compares just run. `isError` when the
- * last read failed; the value is null until the first read is in.
+ * The Venice account's balance as text ("$4.59", with DIEM when there is any), read again each time
+ * the screen comes into focus, so it follows the compares just run. `isError` when the last read
+ * failed; the value is null until the first read is in.
  */
 export default function useVeniceBalance() {
   const [state, setState] = useState({ value: null, isError: false });
@@ -16,7 +16,7 @@ export default function useVeniceBalance() {
       let isCurrent = true;
       fetchAiBalanceAsync()
         .then((balance) => isCurrent && setState({ value: balanceText(balance), isError: false }))
-        .catch(() => isCurrent && setState({ value: "Couldn't load", isError: true }));
+        .catch(() => isCurrent && setState({ value: "couldn't load", isError: true }));
       return () => {
         isCurrent = false;
       };

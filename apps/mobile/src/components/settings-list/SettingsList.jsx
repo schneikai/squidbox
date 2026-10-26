@@ -24,9 +24,10 @@ export function Section({ children, isHeaderless = false }) {
   );
 }
 
-// iOS-style small gray explanatory text shown BELOW a grouped section.
-export function SectionFooter({ children }) {
-  return <Text style={styles.footer}>{children}</Text>;
+// iOS-style small gray explanatory text shown BELOW a grouped section. `isMuted` greys it further,
+// for a value that couldn't be read.
+export function SectionFooter({ children, isMuted = false }) {
+  return <Text style={[styles.footer, isMuted && styles.footerMuted]}>{children}</Text>;
 }
 
 // `isValueMuted` greys the value further, for one that no longer applies. `isValueTruncated` keeps
@@ -140,5 +141,8 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     marginRight: 4,
     lineHeight: lineHeights.footnote,
+  },
+  footerMuted: {
+    color: colors.text.tertiary,
   },
 });

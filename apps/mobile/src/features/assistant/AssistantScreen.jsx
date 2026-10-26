@@ -11,7 +11,7 @@ import Icon from '@/components/Icon';
 import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
-import { Row, Section } from '@/components/settings-list/SettingsList';
+import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import modelKindText from '@/features/model-compare/modelKindText';
 import useAiCatalog from '@/hooks/useAiCatalog';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
@@ -99,8 +99,8 @@ export default function AssistantScreen() {
               />
             );
           })}
-          <Row label="Venice balance" value={balance.value} isValueMuted={balance.isError} />
         </Section>
+        <SectionFooter isMuted={balance.isError}>Venice balance: {balance.value ?? '…'}</SectionFooter>
       </DetailScrollView>
     </Page>
   );
