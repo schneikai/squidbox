@@ -30,6 +30,11 @@ What matters most, in order: a beautiful, intuitive UI, data integrity, performa
 - The project checks are `npm run lint`, `npm run typecheck`, `npm run knip` and `npm test --workspaces --if-present`, all from the repo root. Run them before committing and keep them clean
 - Add to `knip.json` only files Expo or Metro load by convention. Delete code that is merely unused
 
+## AI prompts
+
+- Every prompt the app sends to the AI is editable: by the user (Settings → Assistant → Instructions) or, for an `ai_admin` account, as an override for that account (App prompts). Give new prompts the same treatment
+- The built-in defaults live in `packages/shared`. Change one only in a PR, after the new text was tested as an override
+
 ## TODO list
 
 `todo.md` is the single list of open work, ideas, and steps only the owner can do. Keep it current:
