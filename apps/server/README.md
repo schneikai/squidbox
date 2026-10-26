@@ -83,7 +83,7 @@ the set, edit `scripts/bake-mock-videos.sh` (needs ffmpeg) and run it, then the 
 
 `S3_PUBLIC_ENDPOINT` makes the server sign download URLs for a public address (Metro's tunnel) while
 it still talks to MinIO on localhost. `npm run dev:local` at the repo root sets it and starts the
-whole phone setup; see the root README under "Local backend with mock data".
+whole phone setup (root README → "Dev client").
 
 `--env-file` never overrides variables already in the shell. If your shell exports AWS
 credentials, start the server with `env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY npm run dev`

@@ -65,16 +65,12 @@ EAS deletes build artifacts about 14 days after a build (`expirationDate` in
 
 ## Path A — Dev Client
 
-1. The dev client runs against the local backend with mock data (step 4). The live backend
-   (`EXPO_PUBLIC_API_URL` in `apps/mobile/.env.local`) only when the owner explicitly asks for it:
-   README → "Local backend with mock data".
-2. Build: `EAS_BUILD_PROFILE=development eas build -p ios -e development` (agent runs it).
-3. Install on the phone from the EAS build page → **Internal Distribution → Install**; trust the dev
+1. Build: `EAS_BUILD_PROFILE=development eas build -p ios -e development` (agent runs it).
+2. Install on the phone from the EAS build page → **Internal Distribution → Install**; trust the dev
    cert in **Settings → General → VPN & Device Management**.
-4. Start Metro + Expo's tunnel so the dev client can load JS: `npm run dev:local` from the repo root
-   (README → "Dev client: Metro + tunnel"). It prints the `exp.direct` URL once the first bundle is
-   built; open **Squidbox (Dev)** and point it at that URL.
-5. After a native-module change, rebuild (steps 2–3). JS-only changes just hot-reload over the tunnel.
+3. Start the dev client: `npm run dev:local` from the repo root (README → "Dev client"), then open
+   **Squidbox (Dev)** at the URL it prints.
+4. After a native-module change, rebuild (steps 1–2). JS-only changes just hot-reload over the tunnel.
 
 ## Path B — App (preview/release)
 
