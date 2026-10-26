@@ -9,6 +9,7 @@ import {
   postAssetCollection,
   personaCollection,
   instructionCollection,
+  modelChoiceCollection,
   promptButtonCollection,
   favoriteCollection,
   type CollectionDescriptor,
@@ -23,6 +24,7 @@ import {
   promptButtons,
   favorites,
   instructions,
+  modelChoices,
 } from '../db/schema.js';
 
 // Server-side view of a syncable collection: its table and shared descriptor, the columns of the
@@ -76,4 +78,5 @@ export const serverCollections: Record<string, ServerCollection> = {
   prompt_buttons: serverCollection(promptButtons, promptButtonCollection),
   favorites: serverCollection(favorites, favoriteCollection),
   instructions: serverCollection(instructions, instructionCollection),
+  model_choices: serverCollection(modelChoices, modelChoiceCollection),
 };

@@ -8,6 +8,7 @@ import { personaCollection } from './persona';
 import { promptButtonCollection } from './promptButton';
 import { favoriteCollection } from './favorite';
 import { instructionCollection } from './instruction';
+import { modelChoiceCollection } from './modelChoice';
 
 // The collection registry the sync engine iterates. Adding a collection is: define it, add it
 // here, add its migrations + server_seq trigger (the trigger is attached registry-driven).
@@ -21,6 +22,7 @@ export const collections: readonly CollectionDescriptor[] = [
   promptButtonCollection,
   favoriteCollection,
   instructionCollection,
+  modelChoiceCollection,
 ];
 
 export const collectionsByName: Record<string, CollectionDescriptor> = Object.fromEntries(
@@ -38,4 +40,5 @@ export type CollectionName =
   | 'personas'
   | 'prompt_buttons'
   | 'favorites'
-  | 'instructions';
+  | 'instructions'
+  | 'model_choices';

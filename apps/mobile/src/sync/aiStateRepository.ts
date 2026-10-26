@@ -7,8 +7,8 @@ import type { SyncDb } from './db/types';
 import { inJson } from './inJson';
 
 // The model testing's memory in the library's local ai_* tables (schema.ts): your models per kind,
-// the chosen one, the scores, each kind's prompt and the vision photo set. Their only reader and
-// writer.
+// the scores, each kind's prompt and the vision photo set. Their only reader and writer. The model the
+// assistant uses syncs with the account (modelChoicesRepository).
 
 export type ModelRef = { id: string; name: string };
 // score: null for a model never compared, else its thumbs up or tags that fit (0 and up).
@@ -17,16 +17,12 @@ export type ModelListEntry = ModelRef & { score: number | null };
 const { aiKinds, aiModels, aiScores, aiVisionPhotos, assets } = schema;
 
 /**
- * Your models of this kind in the order added, each with its score, and the chosen one's id, in one
- * statement; null while the list was never seeded.
+ * Your models of this kind in the order added, each with its score, in one statement; null while the
+ * list was never seeded.
  */
-export async function readModelList(
-  db: SyncDb,
-  kind: AiModelKind,
-): Promise<{ chosenId: string | null; models: ModelListEntry[] } | null> {
+export async function readModelList(db: SyncDb, kind: AiModelKind): Promise<ModelListEntry[] | null> {
   const rows = await db
     .select({
-      chosenId: aiKinds.chosenModelId,
       id: aiModels.modelId,
       name: aiModels.name,
       score: aiScores.score,
@@ -37,24 +33,7 @@ export async function readModelList(
     .where(eq(aiKinds.kind, kind))
     .orderBy(asc(aiModels.position));
   if (rows.length === 0) return null;
-  const models = rows.flatMap(({ id, name, score }) => (id !== null && name !== null ? [{ id, name, score }] : []));
-  return { chosenId: rows[0].chosenId, models };
-}
-
-/** The chosen model of each kind (null when none), in one statement. */
-export async function readChosenModels(db: SyncDb): Promise<Record<AiModelKind, ModelRef | null>> {
-  const rows = await db
-    .select({ kind: aiKinds.kind, id: aiModels.modelId, name: aiModels.name })
-    .from(aiKinds)
-    .innerJoin(aiModels, and(eq(aiModels.kind, aiKinds.kind), eq(aiModels.modelId, aiKinds.chosenModelId)));
-  const chosen: Record<AiModelKind, ModelRef | null> = { writing: null, vision: null };
-  for (const { kind, id, name } of rows) chosen[kind as AiModelKind] = { id, name };
-  return chosen;
-}
-
-/** Chooses one of your models; it must be on your list (a seeded one). */
-export async function setChosenModel(db: SyncDb, kind: AiModelKind, modelId: string): Promise<void> {
-  await db.update(aiKinds).set({ chosenModelId: modelId }).where(eq(aiKinds.kind, kind));
+  return rows.flatMap(({ id, name, score }) => (id !== null && name !== null ? [{ id, name, score }] : []));
 }
 
 /** Starts your list with these models, once: a seeded list (even emptied since) is left as it is. */
@@ -85,15 +64,9 @@ export function addYourModel(db: SyncDb, kind: AiModelKind, model: ModelRef): Pr
   });
 }
 
-/** Takes a model off your list, and off the choice when it was chosen. Its score stays. */
-export function removeYourModel(db: SyncDb, kind: AiModelKind, modelId: string): Promise<void> {
-  return db.transaction(async (tx) => {
-    await tx.delete(aiModels).where(and(eq(aiModels.kind, kind), eq(aiModels.modelId, modelId)));
-    await tx
-      .update(aiKinds)
-      .set({ chosenModelId: null })
-      .where(and(eq(aiKinds.kind, kind), eq(aiKinds.chosenModelId, modelId)));
-  });
+/** Takes a model off your list. Its score stays. */
+export async function removeYourModel(db: SyncDb, kind: AiModelKind, modelId: string): Promise<void> {
+  await db.delete(aiModels).where(and(eq(aiModels.kind, kind), eq(aiModels.modelId, modelId)));
 }
 
 /** The prompt of the last compare of this kind; null before the first. */

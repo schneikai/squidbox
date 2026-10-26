@@ -23,8 +23,10 @@ import useHaptics from '@/hooks/useHaptics';
 import useHasFeature from '@/hooks/useHasFeature';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useYourModels from '@/hooks/useYourModels';
-import { removeYourModel, resetScores, setChosenModel } from '@/sync/aiStateRepository';
+import useLibrary from '@/library/useLibrary';
+import { removeYourModel, resetScores } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
+import { setChosenModel } from '@/sync/modelChoicesRepository';
 import confirmAsync from '@/utils/confirmAsync';
 
 // Your models of one kind (route param `kind`: writing | vision), the one the assistant uses, and the
@@ -35,6 +37,7 @@ export default function ModelListScreen({ navigation, route }) {
   const isAiAdmin = useHasFeature('ai_admin');
   const haptics = useHaptics();
   const paddingBottom = useFloatingPrimaryActionPadding();
+  const { library } = useLibrary();
   const { catalog, error, retry, rows, chosenId } = useYourModels(kind);
 
   const availableCount = rows?.filter((row) => row.model !== null).length ?? 0;
@@ -43,8 +46,14 @@ export default function ModelListScreen({ navigation, route }) {
 
   async function handleChoose(row) {
     if (row.id === chosenId) return;
-    await setChosenModel(getDb(), kind, row.id);
+    await setChosenModel(getDb(), library.owner.userId, kind, row);
     haptics.selection();
+  }
+
+  // Taking the chosen model off the list takes it off the choice too.
+  async function handleRemove(row) {
+    await removeYourModel(getDb(), kind, row.id);
+    if (row.id === chosenId) await setChosenModel(getDb(), library.owner.userId, kind, null);
   }
 
   async function handleResetScore(row) {
@@ -75,7 +84,7 @@ export default function ModelListScreen({ navigation, route }) {
               isChosen={row.id === chosenId}
               onChoose={() => handleChoose(row)}
               onResetScore={() => handleResetScore(row)}
-              onRemove={() => removeYourModel(getDb(), kind, row.id)}
+              onRemove={() => handleRemove(row)}
             />
           ))}
         </Section>

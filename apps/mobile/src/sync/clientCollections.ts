@@ -14,4 +14,5 @@ export const clientCollectionTables: Record<string, SQLiteTable> = {
   prompt_buttons: schema.promptButtons,
   favorites: schema.favorites,
   instructions: schema.instructions,
+  model_choices: schema.modelChoices,
 };

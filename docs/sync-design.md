@@ -877,15 +877,26 @@ app's default (`DEFAULT_INSTRUCTIONS` in `packages/shared`, resolved by `resolve
 the base columns. One record per user with the user's id as its id, like `personas`, so two devices
 editing different kinds merge per field, and Reset is a per-field write of null that wins or loses by
 its clock like any edit. A text equal to the default is stored as null. The reply format each kind
-needs (the post count, the JSON) is the server's and never stored. Both per-user records are written
-by `saveUserRecord` (`userRecord.ts`), which brings a tombstoned record back instead of inserting it
-again.
+needs (the post count, the JSON) is the server's and never stored.
 
-A library merge (`mergeLibrary.ts`) leaves all four alone: a device library has none (the assistant
+**model_choices** (Settings → Assistant → Models: the model the assistant uses). Synced per kind:
+`writingModel` and `visionModel`, each `{ id, name }` (the name for a model Venice no longer offers)
+or null for the app's default, plus the base columns. One record per user with the user's id as its
+id, like `personas`, so a choice made on one device is the choice on all of them. The model list to
+choose from and the model testing (the compare prompts, the scores and the vision compare's photos)
+stay in the library's local `ai_*` tables: they are a developer tool for one device. The choice an
+older app kept there moves into the record once when the library opens (`importLocalModelChoices`),
+unless the record has one for that kind already.
+
+The per-user records are written by `saveUserRecord` (`userRecord.ts`), which brings a tombstoned
+record back instead of inserting it again.
+
+A library merge (`mergeLibrary.ts`) leaves all five alone: a device library has none (the assistant
 needs an account), and an account library's rows are on the server already. `seed-mock.ts`'s reset
-sets all four to its Bluesky outdoor photographer's setup like the media collections (the default prompt
-buttons, `DEFAULT_PROMPT_BUTTONS` in `packages/shared`, under their fixed ids; the instructions all
-null, on the defaults), so the app, which seeds only an empty table, adds nothing on top.
+leaves `model_choices` as it is and sets the other four to its Bluesky outdoor photographer's setup
+like the media collections (the default prompt buttons, `DEFAULT_PROMPT_BUTTONS` in `packages/shared`,
+under their fixed ids; the instructions all null, on the defaults), so the app, which seeds only an
+empty table, adds nothing on top.
 
 Edges have a parent index on both sides (`album_assets_album_idx`, `post_assets_post_idx`).
 References between collections are not enforced with foreign keys; the UI tolerates ids that

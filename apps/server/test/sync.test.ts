@@ -1397,6 +1397,11 @@ d('sync engine (Postgres)', () => {
         themesContext: null,
         personaFraming: null,
       }),
+      model_choices: () => ({
+        ...base(),
+        writingModel: { id: 'venice-uncensored-1-2', name: 'Venice Uncensored' },
+        visionModel: null,
+      }),
     };
 
     for (const name of collectionNames) {

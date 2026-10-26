@@ -2,6 +2,7 @@ import { libraryPaths, type LibraryPaths } from './libraryPaths';
 import { getRegistry, type Library } from './registry';
 
 import { getDb, openAppDb, setOpenDb } from '@/sync/db/client';
+import { importLocalModelChoices } from '@/sync/modelChoicesRepository';
 import { retryFailures } from '@/sync/outbox';
 import { getOwner, setOwner } from '@/sync/status';
 import { sweepPurgedFiles } from '@/sync/sweepPurgedFiles';
@@ -25,6 +26,12 @@ export async function openLibrary(library: Library): Promise<void> {
     if (!(await getOwner(db))) await setOwner(db, library.owner);
     // Each open (a launch, a switch) gives the failed pushes another try (sync-design §6).
     await retryFailures(db);
+    // The model choice this device kept before it synced moves into the account's record, once.
+    if (library.owner.kind === 'account') {
+      await importLocalModelChoices(db, library.owner.userId).catch((error) =>
+        console.warn('Could not move the model choice into the account', error),
+      );
+    }
   } catch (error) {
     await db.close().catch(() => {}); // not published yet: closeLibrary wouldn't see it
     throw error;
