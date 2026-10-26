@@ -1,25 +1,16 @@
 import { DEFAULT_INSTRUCTIONS, INSTRUCTION_LIMITS } from '@squidbox/shared';
 import { useRef, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Alert } from 'react-native';
 
 import instructionText from './instructionText';
 
-import Card from '@/components/Card';
-import DetailScrollView from '@/components/DetailScrollView';
-import ModalCloseButton from '@/components/ModalCloseButton';
-import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
-import ModalSheet from '@/components/ModalSheet';
-import PrimaryButton from '@/components/PrimaryButton';
-import TextButton from '@/components/TextButton';
-import Textarea from '@/components/Textarea';
-import { SCREEN_PADDING } from '@/constants';
+import TextEditSheet from '@/components/TextEditSheet';
 import useConfirmDiscard from '@/hooks/useConfirmDiscard';
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import useLibrary from '@/library/useLibrary';
-import { colors, scale, typography } from '@/styles/designTokens';
+import { scale } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { readInstructions, saveInstruction } from '@/sync/instructionsRepository';
 import { requestSync } from '@/sync/worker';
@@ -41,7 +32,6 @@ export default function InstructionModal({ route, navigation }) {
 }
 
 function InstructionEditor({ kind, userId, seed, navigation }) {
-  const { bottom } = useSafeAreaInsets();
   const haptics = useHaptics();
   // The user's stored text, null on the default; Reset sets it back to null.
   const [stored, setStored] = useState(seed.stored);
@@ -100,58 +90,19 @@ function InstructionEditor({ kind, userId, seed, navigation }) {
   }
 
   return (
-    <ModalSheet>
-      <ModalHeader
-        leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />}
-        centerSlot={instructionText[kind].title}
-        rightSlot={
-          <PrimaryButton size="compact" label="Save" onPress={handleSave} disabled={!canSave} loading={isSaving} />
-        }
-      />
-      <DetailScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[styles.content, { paddingBottom: bottom + SCREEN_PADDING }]}
-      >
-        <Card>
-          <Textarea
-            value={text}
-            onChangeText={setText}
-            placeholder="What the assistant is told"
-            maxLength={INSTRUCTION_LIMITS.text}
-            minHeight={scale(240)}
-            style={styles.input}
-          />
-        </Card>
-        <Text style={styles.footer}>
-          {instructionText[kind].description}. The reply format (how many posts, JSON) is added by the app and can't be
-          changed.
-        </Text>
-        {stored !== null && (
-          <View style={styles.actions}>
-            <TextButton label="Reset to default" tone="danger" onPress={handleReset} />
-          </View>
-        )}
-      </DetailScrollView>
-    </ModalSheet>
+    <TextEditSheet
+      title={instructionText[kind].title}
+      value={text}
+      onChangeText={setText}
+      placeholder="What the assistant is told"
+      maxLength={INSTRUCTION_LIMITS.text}
+      minHeight={scale(240)}
+      description={`${instructionText[kind].description}. The reply format (how many posts, JSON) is added by the app and can't be changed.`}
+      action={stored !== null ? { label: 'Reset to default', tone: 'danger', onPress: handleReset } : null}
+      canSave={canSave}
+      isSaving={isSaving}
+      onSave={handleSave}
+      onClose={() => navigation.goBack()}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    paddingTop: MODAL_HEADER_HEIGHT + 8,
-    gap: 12,
-  },
-  input: {
-    paddingHorizontal: SCREEN_PADDING,
-    paddingVertical: 12,
-  },
-  footer: {
-    marginHorizontal: 4,
-    fontSize: typography.footnote,
-    color: colors.text.secondary,
-  },
-  actions: {
-    marginTop: 'auto',
-    paddingTop: 24,
-  },
-});

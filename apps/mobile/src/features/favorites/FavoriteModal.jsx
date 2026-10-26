@@ -1,22 +1,12 @@
 import { FAVORITE_LIMITS } from '@squidbox/shared';
 import { useRef, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Alert } from 'react-native';
 
-import Card from '@/components/Card';
-import DetailScrollView from '@/components/DetailScrollView';
-import ModalCloseButton from '@/components/ModalCloseButton';
-import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
-import ModalSheet from '@/components/ModalSheet';
-import PrimaryButton from '@/components/PrimaryButton';
-import TextButton from '@/components/TextButton';
-import Textarea from '@/components/Textarea';
-import { SCREEN_PADDING } from '@/constants';
+import TextEditSheet from '@/components/TextEditSheet';
 import useConfirmDiscard from '@/hooks/useConfirmDiscard';
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
-import { colors, scale, typography } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import {
   ALREADY_IN_FAVORITES,
@@ -45,7 +35,6 @@ export default function FavoriteModal({ route, navigation }) {
 }
 
 function FavoriteEditor({ id, seed, navigation }) {
-  const { bottom } = useSafeAreaInsets();
   const haptics = useHaptics();
   const [text, setText] = useState(seed.text);
   const [isSaving, setIsSaving] = useState(false);
@@ -104,56 +93,19 @@ function FavoriteEditor({ id, seed, navigation }) {
   }
 
   return (
-    <ModalSheet>
-      <ModalHeader
-        leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />}
-        centerSlot="Favorite"
-        rightSlot={
-          <PrimaryButton size="compact" label="Save" onPress={handleSave} disabled={!canSave} loading={isSaving} />
-        }
-      />
-      <DetailScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[styles.content, { paddingBottom: bottom + SCREEN_PADDING }]}
-      >
-        <Card>
-          <Textarea
-            value={text}
-            onChangeText={setText}
-            placeholder="Paste one of your posts"
-            maxLength={FAVORITE_LIMITS.text}
-            minHeight={scale(160)}
-            autoFocus
-            style={styles.input}
-          />
-        </Card>
-        {id && <Text style={styles.source}>{seed.source ?? 'Your post'}</Text>}
-        {id && (
-          <View style={styles.actions}>
-            <TextButton label="Delete favorite" tone="danger" onPress={handleDelete} />
-          </View>
-        )}
-      </DetailScrollView>
-    </ModalSheet>
+    <TextEditSheet
+      title="Favorite"
+      value={text}
+      onChangeText={setText}
+      placeholder="Paste one of your posts"
+      maxLength={FAVORITE_LIMITS.text}
+      autoFocus
+      description={id ? (seed.source ?? 'Your post') : null}
+      action={id ? { label: 'Delete favorite', tone: 'danger', onPress: handleDelete } : null}
+      canSave={canSave}
+      isSaving={isSaving}
+      onSave={handleSave}
+      onClose={() => navigation.goBack()}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    paddingTop: MODAL_HEADER_HEIGHT + 8,
-    gap: 12,
-  },
-  input: {
-    paddingHorizontal: SCREEN_PADDING,
-    paddingVertical: 12,
-  },
-  source: {
-    marginHorizontal: 4,
-    fontSize: typography.footnote,
-    color: colors.text.secondary,
-  },
-  actions: {
-    marginTop: 'auto',
-    paddingTop: 24,
-  },
-});
