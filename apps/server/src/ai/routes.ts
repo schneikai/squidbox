@@ -123,7 +123,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
           prompt: request.body.prompt,
           persona,
           favorites,
-          instructions: instructions.writing,
+          instructions,
         });
         const results = await compareRequested(request.body.modelIds, 'writing', (models) =>
           compareModels({ task: writingTask, messages, models, log: request.log, signal }),
@@ -143,10 +143,15 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       handler: async (request, reply) => {
         const signal = untilClientLeaves(reply);
         const { base64, mimeType } = request.body.image;
-        const persona = await readPersona(getDb(), requireUser(request).id);
+        const userId = requireUser(request).id;
+        const [persona, instructions] = await Promise.all([
+          readPersona(getDb(), userId),
+          readInstructions(getDb(), userId),
+        ]);
         const messages = visionMessages({
           prompt: request.body.prompt,
           imageDataUrl: `data:${mimeType};base64,${base64}`,
+          instructions,
           contentTags: persona?.contentTags ?? [],
         });
         const results = await compareRequested(request.body.modelIds, 'vision', (models) =>

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_INSTRUCTIONS } from '@squidbox/shared';
-import { WRITING_FORMAT, writingMessages } from '../src/ai/prompts.js';
+import { writingFormatText, writingMessages } from '../src/ai/prompts.js';
+
+const WRITING_FORMAT = writingFormatText(DEFAULT_INSTRUCTIONS.writingFormat);
 
 const persona = {
   aboutYou: '34, outdoor photographer from Oregon, a bit dry.',
@@ -16,7 +18,7 @@ const systemOf = (messages: ReturnType<typeof writingMessages>) => messages[0]!.
 describe('writingMessages with a persona', () => {
   it('writes every field of a full persona and the favorites into the system message', () => {
     const system = systemOf(
-      writingMessages({ instructions: DEFAULT_INSTRUCTIONS.writing, prompt: 'Write', persona, favorites }),
+      writingMessages({ instructions: DEFAULT_INSTRUCTIONS, prompt: 'Write', persona, favorites }),
     );
     expect(system).toContain('About the creator: 34, outdoor photographer from Oregon, a bit dry.');
     expect(system).toContain('Their content: hiking, forest');
@@ -34,7 +36,7 @@ describe('writingMessages with a persona', () => {
 
   it('sends the favorites without a saved persona', () => {
     const system = systemOf(
-      writingMessages({ instructions: DEFAULT_INSTRUCTIONS.writing, prompt: 'Write', persona: null, favorites }),
+      writingMessages({ instructions: DEFAULT_INSTRUCTIONS, prompt: 'Write', persona: null, favorites }),
     );
     expect(system).toContain('Write like these:\n---\nFirst light on the ridge.');
     expect(system).not.toContain('emoji');
@@ -43,7 +45,7 @@ describe('writingMessages with a persona', () => {
   it('leaves out the empty fields of a partly filled one', () => {
     const system = systemOf(
       writingMessages({
-        instructions: DEFAULT_INSTRUCTIONS.writing,
+        instructions: DEFAULT_INSTRUCTIONS,
         prompt: 'Write',
         persona: { ...empty, tone: 'Sweet.' },
         favorites: [],
@@ -58,12 +60,19 @@ describe('writingMessages with a persona', () => {
 
   it("starts with the user's writing instructions and ends with the fixed reply format", () => {
     const system = systemOf(
-      writingMessages({ instructions: DEFAULT_INSTRUCTIONS.writing, prompt: 'Write', persona, favorites }),
+      writingMessages({ instructions: DEFAULT_INSTRUCTIONS, prompt: 'Write', persona, favorites }),
     );
     expect(system.startsWith(DEFAULT_INSTRUCTIONS.writing)).toBe(true);
     expect(system.endsWith(WRITING_FORMAT)).toBe(true);
     const mine = 'Write like a ranger. Reply in prose, one paragraph.';
-    const changed = systemOf(writingMessages({ instructions: mine, prompt: 'Write', persona, favorites }));
+    const changed = systemOf(
+      writingMessages({
+        instructions: { ...DEFAULT_INSTRUCTIONS, writing: mine },
+        prompt: 'Write',
+        persona,
+        favorites,
+      }),
+    );
     expect(changed.startsWith(mine)).toBe(true);
     expect(changed).not.toContain(DEFAULT_INSTRUCTIONS.writing);
     expect(changed).toContain('About the creator');
@@ -72,9 +81,48 @@ describe('writingMessages with a persona', () => {
 
   it('has no persona text without one or favorites', () => {
     expect(
-      systemOf(
-        writingMessages({ instructions: DEFAULT_INSTRUCTIONS.writing, prompt: 'Write', persona: null, favorites: [] }),
-      ),
+      systemOf(writingMessages({ instructions: DEFAULT_INSTRUCTIONS, prompt: 'Write', persona: null, favorites: [] })),
     ).toBe(`${DEFAULT_INSTRUCTIONS.writing}\n\n${WRITING_FORMAT}`);
+  });
+});
+
+describe('the app prompts, edited', () => {
+  it("frames a full persona exactly as the app's fixed text did", () => {
+    const system = systemOf(
+      writingMessages({ instructions: DEFAULT_INSTRUCTIONS, prompt: 'Write', persona, favorites }),
+    );
+    expect(system).toBe(
+      [
+        DEFAULT_INSTRUCTIONS.writing,
+        [
+          'About the creator: 34, outdoor photographer from Oregon, a bit dry.',
+          'Their tone: Short and calm. Never salesy.',
+          'Their content: hiking, forest',
+          'Rules, always follow them:\n- Never use hashtags\n- Never name the exact spot',
+          'Example posts they wrote. Write like these:\n---\nFirst light on the ridge.\n---\nFog on the lake.\n---',
+        ].join('\n'),
+        'Reply with exactly 3 posts, each only the finished post text, no numbering, quotes or commentary, ' +
+          'as a JSON object: {"tweets": [...]}.',
+      ].join('\n\n'),
+    );
+  });
+
+  it("uses the user's persona framing and reply format, dropping an empty line and its heading", () => {
+    const instructions = {
+      ...DEFAULT_INSTRUCTIONS,
+      personaFraming: 'Who: {aboutYou}\nMust do:\n{rules}\nVoice: {tone} ({unknown})',
+      writingFormat: 'Give {count} posts as {"tweets": [...]}',
+    };
+    const system = systemOf(
+      writingMessages({
+        instructions,
+        prompt: 'Write',
+        persona: { ...empty, aboutYou: 'Hiker.', tone: 'Dry.' },
+        favorites: [],
+      }),
+    );
+    expect(system).toBe(
+      `${DEFAULT_INSTRUCTIONS.writing}\n\nWho: Hiker.\nVoice: Dry. ({unknown})\n\nGive 3 posts as {"tweets": [...]}`,
+    );
   });
 });

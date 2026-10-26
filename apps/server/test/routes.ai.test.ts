@@ -36,7 +36,7 @@ vi.mock('../src/config.js', async (importOriginal) => {
 
 import { DEFAULT_INSTRUCTIONS, resolveInstructions } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
-import { WRITING_FORMAT } from '../src/ai/prompts.js';
+import { writingFormatText } from '../src/ai/prompts.js';
 import { buildApp } from '../src/app.js';
 import { signAccessToken } from '../src/auth/jwt.js';
 import { clearCatalogCache } from '../src/ai/catalog.js';
@@ -261,7 +261,7 @@ describe('POST /api/v1/ai/compare/writing', () => {
     expect(readInstructions).toHaveBeenCalledWith(expect.anything(), 'u1');
     for (const body of chatBodies()) {
       expect(body.messages[0].content.startsWith(mine)).toBe(true);
-      expect(body.messages[0].content.endsWith(WRITING_FORMAT)).toBe(true);
+      expect(body.messages[0].content.endsWith(writingFormatText(DEFAULT_INSTRUCTIONS.writingFormat))).toBe(true);
     }
   });
 

@@ -1,34 +1,34 @@
 // The AI's prompts and the JSON each model must answer with.
-import { WRITING_TWEET_COUNT, type PersonaFields } from '@squidbox/shared';
+import { WRITING_TWEET_COUNT, type Instructions, type PersonaFields } from '@squidbox/shared';
 import { z } from 'zod';
 import type { ChatMessage, JsonSchemaSpec } from './venice.js';
 
 /** Writing as the user: their "Writing as you" setup, or null before they saved one (persona.ts). */
 export type Persona = PersonaFields | null;
 
-// The reply formats the app adds after the user's instructions, which the schemas and checks rely on:
-// an instruction that asks for something else still gets these.
-export const WRITING_FORMAT =
-  `Reply with exactly ${WRITING_TWEET_COUNT} posts, each only the finished post text, ` +
-  'no numbering, quotes or commentary, as a JSON object: {"tweets": [...]}.';
-export const TAGS_SYSTEM =
-  "You generate tags for images based on the user's instructions and any provided context. " +
-  'Return only a valid JSON object containing a "tags" array of unique strings. No commentary or Markdown.';
+/**
+ * `template` with each `{name}` of `values` filled in (other braces stay as they are). The app
+ * prompts are the user's to edit (APP_PROMPT_KINDS), so a template may lack a placeholder or have an
+ * unknown one: neither fails, the reply's schema and checks still hold the model to its format.
+ */
+export function fillTemplate(template: string, values: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (match, name: string) => (name in values ? values[name]! : match));
+}
 
-/** What the tags prompt adds after the user's instructions when the creator named their content. */
-export function contentThemesText(contentTags: string[]): string {
-  return (
-    `Creator's content themes: ${contentTags.join(', ')}\n\n` +
-    'Treat these themes as a creative starting point, not a fixed vocabulary. Reuse their exact wording ' +
-    'when relevant, but freely discover related subjects, moods, styles, and new ideas. Never force a ' +
-    "theme that doesn't fit the image."
-  );
+/** The reply format the writing prompt ends with, `{count}` filled in. */
+export function writingFormatText(template: string): string {
+  return fillTemplate(template, { count: String(WRITING_TWEET_COUNT) });
+}
+
+/** The text the tags prompt adds after the user's instructions when the creator named their content. */
+export function contentThemesText(template: string, contentTags: string[]): string {
+  return fillTemplate(template, { themes: contentTags.join(', ') });
 }
 
 /**
- * The writing prompt, as the user: their writing instructions (`instructions`, theirs or the
- * default), their persona and their Favorites (`favorites`, the texts, newest first), either of which
- * may be missing, then the fixed reply format.
+ * The writing prompt, as the user: their writing instructions (theirs or the default), their persona
+ * and their Favorites (`favorites`, the texts, newest first), either of which may be missing, framed
+ * by `instructions.personaFraming`, then the reply format (`instructions.writingFormat`).
  */
 export function writingMessages({
   prompt,
@@ -39,9 +39,13 @@ export function writingMessages({
   prompt: string;
   persona: Persona;
   favorites: string[];
-  instructions: string;
+  instructions: Instructions;
 }): ChatMessage[] {
-  const system = [instructions, (persona || favorites.length > 0) && personaText(persona, favorites), WRITING_FORMAT]
+  const system = [
+    instructions.writing,
+    (persona || favorites.length > 0) && personaText(instructions.personaFraming, persona, favorites),
+    writingFormatText(instructions.writingFormat),
+  ]
     .filter(Boolean)
     .join('\n\n');
   return [
@@ -50,44 +54,55 @@ export function writingMessages({
   ];
 }
 
-// The persona as the system message describes it, in the screen's order: every field that is
-// filled, and the favorites as example posts.
-function personaText(persona: Persona, favorites: string[]): string {
-  const hasPosts = favorites.length > 0;
-  return [
-    persona?.aboutYou && `About the creator: ${persona.aboutYou}`,
-    persona?.tone && `Their tone: ${persona.tone}`,
-    persona && persona.contentTags.length > 0 && `Their content: ${persona.contentTags.join(', ')}`,
-    persona &&
-      persona.rules.length > 0 &&
-      `Rules, always follow them:\n${persona.rules.map((rule) => `- ${rule}`).join('\n')}`,
-    hasPosts &&
-      `Example posts they wrote. Write like these:\n${favorites.map((post) => `---\n${post}`).join('\n')}\n---`,
-  ]
-    .filter(Boolean)
-    .join('\n');
+const PLACEHOLDER = /\{(\w+)\}/;
+
+// The persona and favorites in `template` (personaFraming): every field that is filled, and the
+// favorites as example posts. A line whose placeholder is empty goes, with a heading line (one
+// ending in ':', without a placeholder) right above it.
+function personaText(template: string, persona: Persona, favorites: string[]): string {
+  const values: Record<string, string> = {
+    aboutYou: persona?.aboutYou ?? '',
+    tone: persona?.tone ?? '',
+    contentTags: persona?.contentTags.join(', ') ?? '',
+    rules: persona?.rules.map((rule) => `- ${rule}`).join('\n') ?? '',
+    favorites: favorites.length > 0 ? `${favorites.map((post) => `---\n${post}`).join('\n')}\n---` : '',
+  };
+  const lines: string[] = [];
+  for (const line of template.split('\n')) {
+    const isEmpty = [...line.matchAll(/\{(\w+)\}/g)].some(([, name]) => name! in values && !values[name!]);
+    if (!isEmpty) {
+      lines.push(line);
+      continue;
+    }
+    const above = lines[lines.length - 1];
+    if (above !== undefined && above.trimEnd().endsWith(':') && !PLACEHOLDER.test(above)) lines.pop();
+  }
+  return fillTemplate(lines.join('\n'), values).trim();
 }
 
 // The user's prompt (their Photo tags instructions, which the app sends) says what to look for and how
-// many tags; the system message only fixes the answer's shape. The creator's content themes (their
-// persona's `contentTags`), when they have any, follow the prompt as a text of their own, so they
-// apply whatever the prompt says.
+// many tags; the system message (`instructions.tagsSystem`) fixes the answer's shape. The creator's
+// content themes (their persona's `contentTags`, in `instructions.themesContext`), when they have any,
+// follow the prompt as a text of their own, so they apply whatever the prompt says.
 export function visionMessages({
   prompt,
   imageDataUrl,
+  instructions,
   contentTags = [],
 }: {
   prompt: string;
   imageDataUrl: string;
+  instructions: Instructions;
   contentTags?: string[];
 }): ChatMessage[] {
+  const themes = contentTags.length > 0 ? [contentThemesText(instructions.themesContext, contentTags)] : [];
   return [
-    { role: 'system', content: TAGS_SYSTEM },
+    { role: 'system', content: instructions.tagsSystem },
     {
       role: 'user',
       content: [
         { type: 'text', text: prompt },
-        ...(contentTags.length > 0 ? [{ type: 'text' as const, text: contentThemesText(contentTags) }] : []),
+        ...themes.map((text) => ({ type: 'text' as const, text })),
         { type: 'image_url', image_url: { url: imageDataUrl } },
       ],
     },

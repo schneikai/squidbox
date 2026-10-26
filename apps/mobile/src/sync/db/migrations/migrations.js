@@ -21,29 +21,32 @@ import m0016 from './0016_favorites.sql';
 import m0017 from './0017_instructions.sql';
 import m0018 from './0018_drop_use_emoji.sql';
 import m0019 from './0019_drop_persona_draft_instructions.sql';
+import m0020 from './0020_app_prompts.sql';
 
-export default {
-  journal,
-  migrations: {
-    m0000,
-    m0001,
-    m0002,
-    m0003,
-    m0004,
-    m0005,
-    m0006,
-    m0007,
-    m0008,
-    m0009,
-    m0010,
-    m0011,
-    m0012,
-    m0013,
-    m0014,
-    m0015,
-    m0016,
-    m0017,
-    m0018,
-    m0019,
-  },
-};
+  export default {
+    journal,
+    migrations: {
+      m0000,
+m0001,
+m0002,
+m0003,
+m0004,
+m0005,
+m0006,
+m0007,
+m0008,
+m0009,
+m0010,
+m0011,
+m0012,
+m0013,
+m0014,
+m0015,
+m0016,
+m0017,
+m0018,
+m0019,
+m0020
+    }
+  }
+  

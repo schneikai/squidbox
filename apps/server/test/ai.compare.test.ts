@@ -16,7 +16,7 @@ vi.mock('../src/config.js', async (importOriginal) => {
 import { DEFAULT_INSTRUCTIONS } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
 import { checkTags, checkTweets, compareModels, visionTask, writingTask } from '../src/ai/compare.js';
-import { TAGS_SYSTEM, contentThemesText, visionMessages, writingMessages } from '../src/ai/prompts.js';
+import { contentThemesText, visionMessages, writingMessages } from '../src/ai/prompts.js';
 import type { CatalogEntry } from '../src/ai/catalog.js';
 
 const entries = fixture.data as CatalogEntry[];
@@ -30,14 +30,18 @@ const compareWriting = (models: CatalogEntry[]) =>
       prompt: 'Write',
       persona: null,
       favorites: [],
-      instructions: DEFAULT_INSTRUCTIONS.writing,
+      instructions: DEFAULT_INSTRUCTIONS,
     }),
     models,
   });
 const compareVision = (models: CatalogEntry[]) =>
   compareModels({
     task: visionTask,
-    messages: visionMessages({ prompt: 'Tag it', imageDataUrl: 'data:image/jpeg;base64,AAAA' }),
+    messages: visionMessages({
+      prompt: 'Tag it',
+      imageDataUrl: 'data:image/jpeg;base64,AAAA',
+      instructions: DEFAULT_INSTRUCTIONS,
+    }),
     models,
   });
 
@@ -65,8 +69,12 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('visionMessages', () => {
   it("sends the user's Photo tags instructions with the photo, under the fixed tags format", () => {
-    const [system, user] = visionMessages({ prompt: 'Reply in prose.', imageDataUrl: 'data:image/jpeg;base64,AAAA' });
-    expect(system).toEqual({ role: 'system', content: TAGS_SYSTEM });
+    const [system, user] = visionMessages({
+      prompt: 'Reply in prose.',
+      imageDataUrl: 'data:image/jpeg;base64,AAAA',
+      instructions: DEFAULT_INSTRUCTIONS,
+    });
+    expect(system).toEqual({ role: 'system', content: DEFAULT_INSTRUCTIONS.tagsSystem });
     expect(user!.content).toEqual([
       { type: 'text', text: 'Reply in prose.' },
       { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,AAAA' } },
@@ -77,14 +85,15 @@ describe('visionMessages', () => {
     const [, user] = visionMessages({
       prompt: 'Reply in prose.',
       imageDataUrl: 'data:image/jpeg;base64,AAAA',
+      instructions: DEFAULT_INSTRUCTIONS,
       contentTags: ['landscape', 'golden hour'],
     });
     expect(user!.content).toEqual([
       { type: 'text', text: 'Reply in prose.' },
-      { type: 'text', text: contentThemesText(['landscape', 'golden hour']) },
+      { type: 'text', text: contentThemesText(DEFAULT_INSTRUCTIONS.themesContext, ['landscape', 'golden hour']) },
       { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,AAAA' } },
     ]);
-    expect(contentThemesText(['landscape', 'golden hour'])).toMatch(
+    expect(contentThemesText(DEFAULT_INSTRUCTIONS.themesContext, ['landscape', 'golden hour'])).toMatch(
       /^Creator's content themes: landscape, golden hour\n\nTreat these themes as a creative starting point/,
     );
   });
@@ -186,5 +195,18 @@ describe('compareModels: vision', () => {
       image_url: { url: 'data:image/jpeg;base64,AAAA' },
     });
     expect(sent).not.toHaveProperty('max_tokens');
+  });
+});
+
+describe('visionMessages with edited app prompts', () => {
+  it("uses the user's tags system message and themes text", () => {
+    const [system, user] = visionMessages({
+      prompt: 'Tag it',
+      imageDataUrl: 'data:image/jpeg;base64,AAAA',
+      instructions: { ...DEFAULT_INSTRUCTIONS, tagsSystem: 'Tags as JSON.', themesContext: 'Think of {themes}.' },
+      contentTags: ['moss', 'fog'],
+    });
+    expect(system).toEqual({ role: 'system', content: 'Tags as JSON.' });
+    expect(user!.content).toContainEqual({ type: 'text', text: 'Think of moss, fog.' });
   });
 });

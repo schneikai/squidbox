@@ -67,7 +67,7 @@ function InstructionEditor({ kind, userId, seed, navigation }) {
       placeholder="What the assistant is told"
       maxLength={INSTRUCTION_LIMITS.text}
       minHeight={scale(240)}
-      description={`${instructionText[kind].description}. The reply format (how many posts, JSON) is added by the app and can't be changed.`}
+      description={instructionText[kind].description}
       action={isChanged ? { label: 'Reset to default', tone: 'danger', onPress: handleReset } : null}
     />
   );

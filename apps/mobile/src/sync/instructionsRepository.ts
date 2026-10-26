@@ -10,7 +10,14 @@ import { saveUserRecord } from './userRecord';
 
 const t = schema.instructions;
 
-const EMPTY_INSTRUCTIONS = Object.freeze({ writing: null, visionTagging: null });
+const EMPTY_INSTRUCTIONS = Object.freeze({
+  writing: null,
+  visionTagging: null,
+  writingFormat: null,
+  tagsSystem: null,
+  themesContext: null,
+  personaFraming: null,
+});
 
 /** The user's instructions, or null before the first save. */
 export async function readInstructions(db: SyncDb, userId: string): Promise<InstructionRecord | null> {

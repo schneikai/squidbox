@@ -870,7 +870,9 @@ by writing `deletedAt: null`, a per-field write that a later tombstone from anot
 beats by its clock. The writing prompt sends the newest 20 (`FAVORITES_IN_PROMPT`).
 
 **instructions** (Settings → Assistant → Instructions: what the assistant is told before each
-request). Synced: `writing`, `visionTagging`, each the user's text or null for the
+request). Synced: `writing`, `visionTagging` and the app prompts (`writingFormat`, `tagsSystem`,
+`themesContext`, `personaFraming`: the server's own texts around them, templates it fills in, editable
+in the dev client for trying a change on one account), each the user's text or null for the
 app's default (`DEFAULT_INSTRUCTIONS` in `packages/shared`, resolved by `resolveInstructions`), plus
 the base columns. One record per user with the user's id as its id, like `personas`, so two devices
 editing different kinds merge per field, and Reset is a per-field write of null that wins or loses by

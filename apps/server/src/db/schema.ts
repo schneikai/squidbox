@@ -264,6 +264,10 @@ export const instructions = pgTable(
     ...syncableBase(),
     writing: text('writing'),
     visionTagging: text('vision_tagging'),
+    writingFormat: text('writing_format'),
+    tagsSystem: text('tags_system'),
+    themesContext: text('themes_context'),
+    personaFraming: text('persona_framing'),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.id] }),

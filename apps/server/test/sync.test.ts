@@ -116,6 +116,11 @@ d('sync engine (Postgres)', () => {
     await db.delete(schema.posts).where(inArray(schema.posts.userId, users));
     await db.delete(schema.albums).where(inArray(schema.albums.userId, users));
     await db.delete(schema.assets).where(inArray(schema.assets.userId, users));
+    // The assistant's collections too: rows left from earlier runs come first in a pull from 0.
+    await db.delete(schema.personas).where(inArray(schema.personas.userId, users));
+    await db.delete(schema.promptButtons).where(inArray(schema.promptButtons.userId, users));
+    await db.delete(schema.favorites).where(inArray(schema.favorites.userId, users));
+    await db.delete(schema.instructions).where(inArray(schema.instructions.userId, users));
   }
   afterAll(async () => {
     await clearAll();
@@ -1383,7 +1388,15 @@ d('sync engine (Postgres)', () => {
         position: 'a0',
       }),
       favorites: () => ({ ...base(), text: 'First light on the ridge.', source: null }),
-      instructions: () => ({ ...base(), writing: 'Write like me.', visionTagging: null }),
+      instructions: () => ({
+        ...base(),
+        writing: 'Write like me.',
+        visionTagging: null,
+        writingFormat: null,
+        tagsSystem: null,
+        themesContext: null,
+        personaFraming: null,
+      }),
     };
 
     for (const name of collectionNames) {

@@ -141,6 +141,13 @@
       "when": 1793010865369,
       "tag": "0019_drop_persona_draft_instructions",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1793020830355,
+      "tag": "0020_app_prompts",
+      "breakpoints": true
     }
   ]
 }
