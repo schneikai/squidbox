@@ -11,7 +11,7 @@ import Icon from '@/components/Icon';
 import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
-import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
+import { Row, Section } from '@/components/settings-list/SettingsList';
 import modelKindText from '@/features/model-compare/modelKindText';
 import useAiCatalog from '@/hooks/useAiCatalog';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
@@ -27,8 +27,7 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
 
 // Settings → Assistant: how the assistant writes as you, the posts it writes like (Favorites), its
-// prompt buttons, and in test builds the Testing section (the models it uses, what is left on the
-// Venice account).
+// prompt buttons, and the Models section (the models it uses, what is left on the Venice account).
 export default function AssistantScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
@@ -84,7 +83,7 @@ export default function AssistantScreen() {
             chevron
           />
         </Section>
-        <ScreenSectionHeader title="Testing" />
+        <ScreenSectionHeader title="Models" />
         <Section>
           {aiModelKindSchema.options.map((kind) => {
             const { value, isGone } = chosenText(kind);
@@ -102,7 +101,6 @@ export default function AssistantScreen() {
           })}
           <Row label="Venice balance" value={balance.value} isValueMuted={balance.isError} />
         </Section>
-        <SectionFooter>Only in test builds.</SectionFooter>
       </DetailScrollView>
     </Page>
   );
