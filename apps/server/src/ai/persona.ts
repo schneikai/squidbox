@@ -2,11 +2,17 @@
 // synced `personas` record and `favorites`, and "Fill it in for me", which drafts it from the user's
 // posts.
 import { and, desc, eq, isNull } from 'drizzle-orm';
-import { PERSONA_FIELDS, PERSONA_LIMITS, uniqueTags, type PersonaDraftResponse } from '@squidbox/shared';
+import {
+  DRAFT_EXAMPLE_POSTS,
+  PERSONA_FIELDS,
+  PERSONA_LIMITS,
+  uniqueTags,
+  type PersonaDraftResponse,
+} from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import { favorites, personas } from '../db/schema.js';
 import type { CatalogEntry } from './catalog.js';
-import { DRAFT_EXAMPLE_POSTS, personaDraftMessages, personaDraftSchema, type Persona } from './prompts.js';
+import { personaDraftMessages, personaDraftSchema, type Persona } from './prompts.js';
 import { chatJsonAsync, VeniceError } from './venice.js';
 
 // The persona's columns, read as the record's fields.
@@ -37,19 +43,24 @@ export async function readFavorites(db: Db, userId: string, limit = FAVORITES_IN
   return rows.map((row) => row.text);
 }
 
-/** One model's draft of About you, the content tags and Tone from `posts`, checked (checkDraft). */
+/**
+ * One model's draft of About you, the content tags and Tone from `posts`, told by the user's
+ * personaDraft `instructions`, checked (checkDraft).
+ */
 export async function draftPersonaAsync({
   posts,
+  instructions,
   model,
   signal,
 }: {
   posts: string[];
+  instructions: string;
   model: CatalogEntry;
   signal?: AbortSignal;
 }): Promise<PersonaDraftResponse> {
   const reply = await chatJsonAsync({
     model: model.id,
-    messages: personaDraftMessages({ posts }),
+    messages: personaDraftMessages({ posts, instructions }),
     schema: personaDraftSchema,
     supportsResponseSchema: model.model_spec.capabilities.supportsResponseSchema !== false,
     signal,
