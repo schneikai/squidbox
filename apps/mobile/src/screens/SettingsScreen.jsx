@@ -16,6 +16,7 @@ import useCloud from '@/features/cloud/useCloud';
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
 import useBackupCounts from '@/features/cloud-sync/useBackupCounts';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
+import useHasFeature from '@/hooks/useHasFeature';
 import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
 import useLibrary from '@/library/useLibrary';
 import { colors } from '@/styles/designTokens';
@@ -34,6 +35,7 @@ export default function SettingsScreen() {
   const { phase, lastError, pendingCount, failedCount } = useSyncStatus();
   const { isVideoAutoplayOn, setIsVideoAutoplayOn, isHapticsOn, setIsHapticsOn } = useAppSettings();
   const isAssistantAvailable = useIsAssistantAvailable();
+  const canManageFeatures = useHasFeature('manage_features');
 
   const [isLoggingOut, startLogoutTransition] = useTransition();
 
@@ -183,6 +185,7 @@ export default function SettingsScreen() {
         <Section>
           <Row label="API URL" value={SERVER_URL} />
           <Row label="Check API" onPress={handleCheckApi} chevron />
+          {canManageFeatures && <Row label="Features" onPress={() => navigation.navigate('FeaturesScreen')} chevron />}
         </Section>
       </DetailScrollView>
     </Page>

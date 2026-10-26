@@ -30,7 +30,7 @@ import toggleItem from '@/utils/toggleItem';
 // photos for CompareScreen, which reads them back.
 export default function ComparePickScreen({ navigation, route }) {
   const { kind } = route.params;
-  const isAvailable = useLeaveWhenUnavailable();
+  const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const isVision = kind === 'vision';
   const paddingBottom = useFloatingPrimaryActionPadding();
   const { openAssetPicker } = useAssetPicker();

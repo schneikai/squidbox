@@ -1,9 +1,18 @@
 // Auth wire contract — the request/response shapes shared by the app and the server (camelCase).
 import { z } from 'zod';
 
+// The extras an account sees on top of the defaults (users.features): `ai` may use the AI endpoints
+// (and so the server's Venice key), `ai_admin` gets Compare and the Venice balance,
+// `manage_features` shows Settings → Features, where the account switches its other features.
+export const ACCOUNT_FEATURES = ['ai', 'ai_admin', 'manage_features'] as const;
+export type AccountFeature = (typeof ACCOUNT_FEATURES)[number];
+
 export const apiUserSchema = z.object({
   id: z.string(), // uuid; the app treats it as opaque
   email: z.string(),
+  // Plain strings, so an app ignores a feature newer than itself. Missing from a server older than
+  // the column: none.
+  features: z.array(z.string()).default([]),
 });
 export type ApiUser = z.infer<typeof apiUserSchema>;
 
@@ -39,3 +48,11 @@ export const userResponseSchema = z.object({
   serverId: z.string(),
 });
 export type UserResponse = z.infer<typeof userResponseSchema>;
+
+// PATCH /me/features (an account with `manage_features` only): switches one of the account's other
+// features on or off.
+export const updateFeaturesRequestSchema = z.object({
+  feature: z.enum(ACCOUNT_FEATURES).exclude(['manage_features']),
+  isOn: z.boolean(),
+});
+export type UpdateFeaturesRequest = z.infer<typeof updateFeaturesRequestSchema>;

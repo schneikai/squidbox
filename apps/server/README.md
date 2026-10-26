@@ -18,8 +18,9 @@ The TypeScript backend: Fastify + Drizzle + Postgres + S3, deployed on Fly.io (s
   `/ai/compare/writing` and `/ai/compare/vision`, behind Venice's chat API
   (`src/ai/`). `VENICE_API_KEY` is server-side only; without it the server runs and these routes
   answer 503 `ai_not_configured`. `VENICE_BASE_URL` defaults to `https://api.venice.ai/api/v1`.
-  `AI_ALLOWED_EMAILS` (comma-separated) limits them to those accounts, others get 403
-  `ai_not_allowed`; unset, every signed-in account may use them, so set it on Fly with the key.
+  Only accounts with the `ai` feature may use them (others get 403 `ai_not_allowed`), and the
+  compares and the balance also need `ai_admin` (403 `ai_admin_not_allowed`). See
+  "Account features" below.
   Locally, export the key in the shell that runs `npm run dev:local` (never in `.env.docker`); on
   Fly it is a secret (`fly secrets set VENICE_API_KEY=…`). Node's built-in `fetch` ignores
   `HTTPS_PROXY`: behind a proxy run Node ≥ 22.21 with `NODE_USE_ENV_PROXY=1`.
@@ -96,6 +97,22 @@ npm install               # from the repo ROOT (workspaces)
 npm run db:generate -w @squidbox/server    # generate SQL migrations from the Drizzle schema
 npm run db:migrate  -w @squidbox/server    # apply migrations + create the change_seq sequence
 npm run db:seed     -w @squidbox/server    # seed the existing user + an isolation fixture user
+```
+
+## Account features
+
+`users.features` lists the extras an account sees on top of the defaults (`ACCOUNT_FEATURES` in
+`@squidbox/shared`): `ai` may use the AI endpoints, `ai_admin` gets the compares and the Venice
+balance, and `manage_features` shows Settings → Features, where the account switches its other
+features (`PATCH /me/features`). Login and `GET /me` send them, and the app reads them again on each
+launch. `db:seed` gives the main account every feature. Any other account, and `manage_features`
+itself, is changed with:
+
+```
+npm run user:features -- me@example.com                          # shows them
+npm run user:features -- me@example.com add ai ai_admin manage_features
+npm run user:features -- me@example.com remove ai_admin
+fly ssh console -C "sh -c 'cd /app/apps/server && npm run user:features:prod -- me@example.com add ai'"
 ```
 
 ## Run / test

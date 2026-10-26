@@ -4,7 +4,11 @@ vi.mock('../src/db/client.js', () => ({ getDb: () => ({}), closeDb: async () => 
 vi.mock('../src/users.js', () => ({
   findUserById: vi.fn(),
   findUserByEmail: vi.fn(),
-  toApiUser: (u: { id: string; email: string }) => ({ id: u.id, email: u.email }),
+  toApiUser: (u: { id: string; email: string; features: string[] }) => ({
+    id: u.id,
+    email: u.email,
+    features: u.features,
+  }),
 }));
 // The db client is a stub here, so the persona read is mocked: no persona unless a test gives one.
 vi.mock('../src/ai/persona.js', async (importOriginal) => ({
@@ -18,10 +22,7 @@ vi.mock('../src/ai/instructions.js', async () => {
   return { readInstructions: vi.fn().mockResolvedValue(resolveInstructions(null)) };
 });
 // The test env has no Venice key; each test sets the one the routes see.
-const venice = vi.hoisted(() => ({
-  apiKey: undefined as string | undefined,
-  allowed: undefined as string[] | undefined,
-}));
+const venice = vi.hoisted(() => ({ apiKey: undefined as string | undefined }));
 vi.mock('../src/config.js', async (importOriginal) => {
   const original = await importOriginal<typeof import('../src/config.js')>();
   return {
@@ -29,7 +30,6 @@ vi.mock('../src/config.js', async (importOriginal) => {
     loadConfig: () => ({
       ...original.loadConfig(),
       VENICE_API_KEY: venice.apiKey,
-      AI_ALLOWED_EMAILS: venice.allowed,
     }),
   };
 });
@@ -91,12 +91,16 @@ beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
   venice.apiKey = 'test-venice-key';
-  venice.allowed = undefined;
-  vi.mocked(findUserById).mockResolvedValue({ id: 'u1', email: 'a@b.co', storageBucket: null } as any);
+  signedInWith(['ai', 'ai_admin']);
   vi.mocked(readPersona).mockResolvedValue(null);
   vi.mocked(readFavorites).mockResolvedValue([]);
 });
 afterEach(() => vi.unstubAllGlobals());
+
+// The signed-in account u1, with these features.
+function signedInWith(features: string[]) {
+  vi.mocked(findUserById).mockResolvedValue({ id: 'u1', email: 'a@b.co', storageBucket: null, features } as any);
+}
 
 async function call(method: 'GET' | 'POST', url: string, payload?: unknown, headers: Record<string, string> = auth) {
   const app = await buildApp({ logger: false });
@@ -122,9 +126,9 @@ describe('without VENICE_API_KEY', () => {
   });
 });
 
-describe('AI_ALLOWED_EMAILS', () => {
-  it('answers 403 ai_not_allowed to an account it leaves out, before any Venice call', async () => {
-    venice.allowed = ['owner@example.com'];
+describe('account features', () => {
+  it('answers 403 ai_not_allowed to an account without ai, before any Venice call', async () => {
+    signedInWith(['ai_admin']);
     for (const [method, url, body] of [
       ['GET', '/ai/models', undefined],
       ['GET', '/ai/balance', undefined],
@@ -138,11 +142,25 @@ describe('AI_ALLOWED_EMAILS', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('lets a listed account in, whatever the case of its email', async () => {
-    venice.allowed = ['a@b.co'];
-    vi.mocked(findUserById).mockResolvedValue({ id: 'u1', email: 'A@B.co', storageBucket: null } as any);
+  it('answers 403 ai_admin_not_allowed on the compares and the balance to an account without ai_admin', async () => {
+    signedInWith(['ai']);
+    for (const [method, url, body] of [
+      ['GET', '/ai/balance', undefined],
+      ['POST', '/ai/compare/writing', writing],
+      ['POST', '/ai/compare/vision', vision],
+    ] as const) {
+      const res = await call(method, url, body);
+      expect(res.statusCode).toBe(403);
+      expect(res.json().error.code).toBe('ai_admin_not_allowed');
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('lets an account with ai only list the models and draft its persona', async () => {
+    signedInWith(['ai']);
     veniceAnswers();
     expect((await call('GET', '/ai/models')).statusCode).toBe(200);
+    expect((await call('POST', '/ai/persona/draft', draft)).statusCode).toBe(200);
   });
 });
 
@@ -258,7 +276,7 @@ describe('POST /api/v1/ai/compare/writing', () => {
     const mine = 'Write like a park ranger.';
     vi.mocked(readInstructions).mockResolvedValueOnce({ ...resolveInstructions(null), writing: mine });
     expect((await call('POST', '/ai/compare/writing', writing)).statusCode).toBe(200);
-    expect(readInstructions).toHaveBeenCalledWith(expect.anything(), 'u1');
+    expect(readInstructions).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ id: 'u1' }));
     for (const body of chatBodies()) {
       expect(body.messages[0].content.startsWith(mine)).toBe(true);
       expect(body.messages[0].content.endsWith(writingFormatText(DEFAULT_INSTRUCTIONS.writingFormat))).toBe(true);

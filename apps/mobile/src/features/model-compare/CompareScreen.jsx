@@ -18,7 +18,7 @@ const WRITING_PROMPT =
 // pick step saved, read once.
 export default function CompareScreen({ navigation, route }) {
   const { kind, models } = route.params;
-  const isAvailable = useLeaveWhenUnavailable();
+  const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const { library } = useLibrary();
   const userId = library.owner.userId;
   const seed = useSeedOrClose((db) => readSeed(db, kind, userId), kind);

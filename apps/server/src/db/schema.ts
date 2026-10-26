@@ -23,6 +23,12 @@ export const users = pgTable('users', {
   // (the storage resolver decides). Users without a legacy bucket (e.g. the seeded fixture
   // user) get NULL.
   storageBucket: text('storage_bucket'),
+  // The extras this account sees on top of the defaults (ACCOUNT_FEATURES); granted with
+  // `npm run user:features`.
+  features: text('features')
+    .array()
+    .notNull()
+    .default(sql`'{}'::text[]`),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

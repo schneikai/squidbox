@@ -2,7 +2,6 @@ import { useNavigation } from '@react-navigation/native';
 import { APP_PROMPT_KINDS, INSTRUCTION_KINDS, resolveInstructions } from '@squidbox/shared';
 import { StyleSheet } from 'react-native';
 
-import canEditAppPrompts from './canEditAppPrompts';
 import instructionText from './instructionText';
 
 import Badge from '@/components/Badge';
@@ -12,6 +11,7 @@ import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
+import useHasFeature from '@/hooks/useHasFeature';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useLibrary from '@/library/useLibrary';
 import { schema } from '@/sync/db/client';
@@ -20,10 +20,11 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
 
 // Settings → Assistant → Instructions: what the assistant is told before each kind of request, one
 // row per kind with the first line of its text, a Changed badge while it isn't the app's. App prompts: the
-// app's own texts around them, the same way, for this account only (canEditAppPrompts).
+// app's own texts around them, the same way, for this account only, and only for an ai_admin account.
 export default function InstructionsScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
+  const canEditAppPrompts = useHasFeature('ai_admin');
   const { library } = useLibrary();
   const userId = library.owner.userId;
   const stored = useLiveQuery((db) => readInstructions(db, userId), [schema.instructions], [userId]);

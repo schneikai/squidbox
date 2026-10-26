@@ -5,13 +5,15 @@ import { loadRegistry } from './registry';
 import { openLibraryForSession, type SwitchLibrary } from './sessionLibrary';
 
 import initializeCloudAsync from '@/utils/cloud-api/initializeCloudAsync';
+import refreshFeaturesAsync from '@/utils/cloud-api/refreshFeaturesAsync';
 import { getSession, loadSessionAsync } from '@/utils/cloud-api/sessionStore';
 
 // The one boot sequence: the stored session and the library list (rebuilt from the databases when
 // there is none), then the session's library opens (openLibraryForSession) while the cloud init
 // verifies the session over the network. The boot ends once the init has, opening the library again
 // when the init dropped the tokens: it stands in for watchTokenDrops, which LibraryProvider installs
-// only after the boot. An init failure never stops the boot.
+// only after the boot. An init failure never stops the boot. The account's features are read again
+// after the init, without holding the boot; offline, the stored ones stay.
 export async function bootLibrary(switchLibrary: SwitchLibrary): Promise<void> {
   await loadSessionAsync();
   await loadRegistry(rebuildRegistry);
@@ -20,4 +22,5 @@ export async function bootLibrary(switchLibrary: SwitchLibrary): Promise<void> {
   await openLibraryForSession(getSession(), switchLibrary);
   await verified;
   if (hadTokens && !getSession()?.tokens) await openLibraryForSession(getSession(), switchLibrary);
+  refreshFeaturesAsync().catch(() => {});
 }

@@ -4,7 +4,12 @@ vi.mock('../src/db/client.js', () => ({ getDb: () => ({}), closeDb: async () => 
 vi.mock('../src/users.js', () => ({
   findUserByEmail: vi.fn(),
   findUserById: vi.fn(),
-  toApiUser: (u: { id: string; email: string }) => ({ id: u.id, email: u.email }),
+  switchUserFeature: vi.fn(),
+  toApiUser: (u: { id: string; email: string; features: string[] }) => ({
+    id: u.id,
+    email: u.email,
+    features: u.features,
+  }),
 }));
 vi.mock('../src/auth/passwords.js', () => ({ verifyPassword: vi.fn(), hashPassword: vi.fn() }));
 vi.mock('../src/auth/tokens.js', () => ({
@@ -15,11 +20,11 @@ vi.mock('../src/auth/tokens.js', () => ({
 
 import { buildApp } from '../src/app.js';
 import { signAccessToken } from '../src/auth/jwt.js';
-import { findUserByEmail, findUserById } from '../src/users.js';
+import { findUserByEmail, findUserById, switchUserFeature } from '../src/users.js';
 import { verifyPassword } from '../src/auth/passwords.js';
 import { issueRefreshToken, rotateRefreshToken, revokeRefreshToken } from '../src/auth/tokens.js';
 
-const user = { id: 'u1', email: 'a@b.co', passwordDigest: 'digest', storageBucket: null };
+const user = { id: 'u1', email: 'a@b.co', passwordDigest: 'digest', storageBucket: null, features: ['ai'] };
 const serverId = process.env.SERVER_ID;
 
 async function app() {
@@ -47,7 +52,7 @@ describe('POST /api/v1/auth/login', () => {
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.refreshToken).toBe('refresh-1');
-    expect(body.user).toEqual({ id: 'u1', email: 'a@b.co' });
+    expect(body.user).toEqual({ id: 'u1', email: 'a@b.co', features: ['ai'] });
     expect(body.serverId).toBe(serverId);
     expect(typeof body.accessToken).toBe('string');
   });
@@ -156,7 +161,44 @@ describe('GET /api/v1/me', () => {
       headers: { authorization: `Bearer ${token}` },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ user: { id: 'u1', email: 'a@b.co' }, serverId });
+    expect(res.json()).toEqual({ user: { id: 'u1', email: 'a@b.co', features: ['ai'] }, serverId });
+  });
+});
+
+describe('PATCH /api/v1/me/features', () => {
+  const headers = { authorization: `Bearer ${signAccessToken('u1')}` };
+  const patch = async (payload: unknown) =>
+    (await app()).inject({ method: 'PATCH', url: '/api/v1/me/features', headers, payload: payload as any });
+  const withFeatures = (features: string[]) => vi.mocked(findUserById).mockResolvedValue({ ...user, features } as any);
+
+  it('switches the one feature and answers with the updated user', async () => {
+    withFeatures(['ai', 'manage_features']);
+    const updated = { ...user, features: ['ai', 'ai_admin', 'manage_features'] };
+    vi.mocked(switchUserFeature).mockResolvedValue(updated as any);
+    const res = await patch({ feature: 'ai_admin', isOn: true });
+    expect(res.statusCode).toBe(200);
+    expect(switchUserFeature).toHaveBeenCalledWith(expect.anything(), 'u1', 'ai_admin', true);
+    expect(res.json().user.features).toEqual(['ai', 'ai_admin', 'manage_features']);
+  });
+
+  it('answers 400 to switching manage_features, which only the script changes', async () => {
+    withFeatures(['ai', 'manage_features']);
+    expect((await patch({ feature: 'manage_features', isOn: false })).statusCode).toBe(400);
+    expect(switchUserFeature).not.toHaveBeenCalled();
+  });
+
+  it('answers 403 manage_features_not_allowed to an account without manage_features', async () => {
+    withFeatures(['ai']);
+    const res = await patch({ feature: 'ai_admin', isOn: true });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error.code).toBe('manage_features_not_allowed');
+    expect(switchUserFeature).not.toHaveBeenCalled();
+  });
+
+  it('answers 400 to a feature it does not know', async () => {
+    withFeatures(['manage_features']);
+    expect((await patch({ feature: 'superpowers', isOn: true })).statusCode).toBe(400);
+    expect(switchUserFeature).not.toHaveBeenCalled();
   });
 });
 

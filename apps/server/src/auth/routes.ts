@@ -5,16 +5,17 @@ import {
   loginResponseSchema,
   refreshRequestSchema,
   refreshResponseSchema,
+  updateFeaturesRequestSchema,
   userResponseSchema,
 } from '@squidbox/shared';
 import { loadConfig } from '../config.js';
 import { getDb } from '../db/client.js';
 import { AppError } from '../errors.js';
-import { findUserByEmail, toApiUser } from '../users.js';
+import { findUserByEmail, switchUserFeature, toApiUser } from '../users.js';
 import { verifyPassword } from './passwords.js';
 import { signAccessToken } from './jwt.js';
 import { issueRefreshToken, rotateRefreshToken, revokeRefreshToken } from './tokens.js';
-import { authenticate, requireUser } from './authenticate.js';
+import { authenticate, requireFeature, requireUser } from './authenticate.js';
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -70,5 +71,19 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     preHandler: authenticate(),
     schema: { response: { 200: userResponseSchema } },
     handler: async (request) => ({ user: toApiUser(requireUser(request)), serverId }),
+  });
+
+  // PATCH /me/features — an account with `manage_features` switches one of its own other features
+  // (Settings → Features), leaving the rest as they are. Only `npm run user:features` gives or takes
+  // `manage_features` itself.
+  r.route({
+    method: 'PATCH',
+    url: '/me/features',
+    preHandler: [authenticate(), requireFeature('manage_features', AppError.manageFeaturesNotAllowed)],
+    schema: { body: updateFeaturesRequestSchema, response: { 200: userResponseSchema } },
+    handler: async (request) => {
+      const { feature, isOn } = request.body;
+      return { user: toApiUser(await switchUserFeature(db, requireUser(request).id, feature, isOn)), serverId };
+    },
   });
 }
