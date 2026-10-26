@@ -175,15 +175,11 @@ export default function SettingsScreen() {
         </Section>
         <SectionFooter>Gentle taps when you move, peek at or save something.</SectionFooter>
 
-        <ScreenSectionHeader title="Data" />
-        <Section>
-          <Row label="Sort albums by name" onPress={handleResortAlbums} chevron />
-        </Section>
-
         <ScreenSectionHeader title="Developer" />
         <Section>
           <Row label="API URL" value={SERVER_URL} />
           <Row label="Check API" onPress={handleCheckApi} chevron />
+          <Row label="Sort albums by name" onPress={handleResortAlbums} chevron />
           {canManageFeatures && <Row label="Features" onPress={() => navigation.navigate('FeaturesScreen')} chevron />}
         </Section>
       </DetailScrollView>
