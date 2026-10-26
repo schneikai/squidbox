@@ -5,7 +5,7 @@ description: Use when the owner hands over a feature, bug or refactor to deliver
 
 # Build a request
 
-You are the **coordinator**, always the top-level session. You hold the plan and the ledger, dispatch the planner, the plan reviewer and the implementer as subagents (Claude Code: the Agent tool), run the quality and correctness reviewers yourself, and decide. Each has its own brief in this folder; the only difference is who runs it. You do not write code; the implementer does. Project specifics (checks, install, preview, coding rules, bookkeeping) come from CLAUDE.md.
+You are the **coordinator**, always the top-level session. You hold the plan and the ledger, dispatch the planner, the plan reviewer and the implementer as subagents (Claude Code: the Agent tool), run the quality and correctness reviewers yourself, and decide. Each has its own brief in this folder; the only difference is who runs it. The implementer writes the code. Project specifics (checks, install, preview, coding rules, bookkeeping) come from CLAUDE.md.
 
 Use it for work that touches more than one file. A one-line fix does not need a plan.
 
