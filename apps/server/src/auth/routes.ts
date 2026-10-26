@@ -11,7 +11,7 @@ import {
 import { loadConfig } from '../config.js';
 import { getDb } from '../db/client.js';
 import { AppError } from '../errors.js';
-import { findUserByEmail, setUserFeatures, toApiUser } from '../users.js';
+import { findUserByEmail, switchUserFeature, toApiUser } from '../users.js';
 import { verifyPassword } from './passwords.js';
 import { signAccessToken } from './jwt.js';
 import { issueRefreshToken, rotateRefreshToken, revokeRefreshToken } from './tokens.js';
@@ -82,11 +82,8 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     preHandler: [authenticate(), requireFeature('manage_features', AppError.manageFeaturesNotAllowed)],
     schema: { body: updateFeaturesRequestSchema, response: { 200: userResponseSchema } },
     handler: async (request) => {
-      const user = requireUser(request);
       const { feature, isOn } = request.body;
-      const others = user.features.filter((each) => each !== feature);
-      const features = isOn ? [...others, feature].sort() : others;
-      return { user: toApiUser(await setUserFeatures(db, user.id, features)), serverId };
+      return { user: toApiUser(await switchUserFeature(db, requireUser(request).id, feature, isOn)), serverId };
     },
   });
 }

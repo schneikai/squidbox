@@ -4,7 +4,7 @@ vi.mock('../src/db/client.js', () => ({ getDb: () => ({}), closeDb: async () => 
 vi.mock('../src/users.js', () => ({
   findUserByEmail: vi.fn(),
   findUserById: vi.fn(),
-  setUserFeatures: vi.fn(),
+  switchUserFeature: vi.fn(),
   toApiUser: (u: { id: string; email: string; features: string[] }) => ({
     id: u.id,
     email: u.email,
@@ -20,7 +20,7 @@ vi.mock('../src/auth/tokens.js', () => ({
 
 import { buildApp } from '../src/app.js';
 import { signAccessToken } from '../src/auth/jwt.js';
-import { findUserByEmail, findUserById, setUserFeatures } from '../src/users.js';
+import { findUserByEmail, findUserById, switchUserFeature } from '../src/users.js';
 import { verifyPassword } from '../src/auth/passwords.js';
 import { issueRefreshToken, rotateRefreshToken, revokeRefreshToken } from '../src/auth/tokens.js';
 
@@ -171,33 +171,20 @@ describe('PATCH /api/v1/me/features', () => {
     (await app()).inject({ method: 'PATCH', url: '/api/v1/me/features', headers, payload: payload as any });
   const withFeatures = (features: string[]) => vi.mocked(findUserById).mockResolvedValue({ ...user, features } as any);
 
-  beforeEach(() => {
-    vi.mocked(setUserFeatures).mockImplementation(async (_db, _id, features) => ({ ...user, features }) as any);
-  });
-
-  it('switches one feature on, leaving the others (unknown ones too) as they are', async () => {
-    withFeatures(['manage_features', 'ai', 'retired']);
+  it('switches the one feature and answers with the updated user', async () => {
+    withFeatures(['ai', 'manage_features']);
+    const updated = { ...user, features: ['ai', 'ai_admin', 'manage_features'] };
+    vi.mocked(switchUserFeature).mockResolvedValue(updated as any);
     const res = await patch({ feature: 'ai_admin', isOn: true });
     expect(res.statusCode).toBe(200);
-    expect(setUserFeatures).toHaveBeenCalledWith(expect.anything(), 'u1', [
-      'ai',
-      'ai_admin',
-      'manage_features',
-      'retired',
-    ]);
-    expect(res.json().user.features).toEqual(['ai', 'ai_admin', 'manage_features', 'retired']);
-  });
-
-  it('switches one feature off', async () => {
-    withFeatures(['ai', 'ai_admin', 'manage_features']);
-    await patch({ feature: 'ai_admin', isOn: false });
-    expect(setUserFeatures).toHaveBeenCalledWith(expect.anything(), 'u1', ['ai', 'manage_features']);
+    expect(switchUserFeature).toHaveBeenCalledWith(expect.anything(), 'u1', 'ai_admin', true);
+    expect(res.json().user.features).toEqual(['ai', 'ai_admin', 'manage_features']);
   });
 
   it('answers 400 to switching manage_features, which only the script changes', async () => {
     withFeatures(['ai', 'manage_features']);
     expect((await patch({ feature: 'manage_features', isOn: false })).statusCode).toBe(400);
-    expect(setUserFeatures).not.toHaveBeenCalled();
+    expect(switchUserFeature).not.toHaveBeenCalled();
   });
 
   it('answers 403 manage_features_not_allowed to an account without manage_features', async () => {
@@ -205,13 +192,13 @@ describe('PATCH /api/v1/me/features', () => {
     const res = await patch({ feature: 'ai_admin', isOn: true });
     expect(res.statusCode).toBe(403);
     expect(res.json().error.code).toBe('manage_features_not_allowed');
-    expect(setUserFeatures).not.toHaveBeenCalled();
+    expect(switchUserFeature).not.toHaveBeenCalled();
   });
 
   it('answers 400 to a feature it does not know', async () => {
     withFeatures(['manage_features']);
     expect((await patch({ feature: 'superpowers', isOn: true })).statusCode).toBe(400);
-    expect(setUserFeatures).not.toHaveBeenCalled();
+    expect(switchUserFeature).not.toHaveBeenCalled();
   });
 });
 

@@ -17,7 +17,8 @@ const usage = `Usage: user:features <email> [add|remove <${ACCOUNT_FEATURES.join
 if (!email || (action && action !== 'add' && action !== 'remove') || (action && names.length === 0)) {
   throw new Error(usage);
 }
-const unknown = names.filter((name) => !ACCOUNT_FEATURES.includes(name as AccountFeature));
+// Only a grant must name a feature the server knows; a retired one can still be taken away.
+const unknown = action === 'add' ? names.filter((name) => !ACCOUNT_FEATURES.includes(name as AccountFeature)) : [];
 if (unknown.length > 0) throw new Error(`Unknown feature ${unknown.join(', ')}. ${usage}`);
 
 const db = getDb();

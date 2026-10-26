@@ -50,12 +50,12 @@ export default function FeaturesScreen() {
       <FloatingDetailHeader title="Features" onBack={() => navigation.goBack()} />
       <DetailScrollView>
         <Section>
-          {Object.entries(featureText).map(([feature, { title, description }]) => (
+          {Object.entries(featureText).map(([feature, { title, description, requires }]) => (
             <Row key={feature} label={title} description={description}>
               <Switch
                 value={isFeatureOn(feature)}
                 onValueChange={(isOn) => handleChange(feature, isOn)}
-                disabled={pending !== null}
+                disabled={pending !== null || (requires !== undefined && !isFeatureOn(requires))}
                 accessibilityLabel={title}
               />
             </Row>
