@@ -9,7 +9,6 @@
   "scripts": {
     "mobile": "npm run --workspace apps/mobile start",
     "dev:local": "node scripts/dev.mjs",
-    "dev:live": "node scripts/dev.mjs --live",
     "lint": "npm run --workspace apps/mobile lint",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "knip": "knip"
