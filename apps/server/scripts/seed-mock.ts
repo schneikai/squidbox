@@ -2,9 +2,10 @@
  * Fills the LOCAL backend with a fixed set of mock data for the dev client: stock photos from
  * picsum.photos, stock videos with music from mixkit.co (all free to use, baked into
  * scripts/mock-videos by bake-mock-videos.sh), albums (including the smart Favorites/Deleted albums)
- * and posts, and the assistant setup of an outdoor creator who fits them: Writing as you, the prompt
- * buttons (the app's defaults, adapted, and one more) and Favorites. Re-running resets the account to
- * exactly this set: ids are deterministic and anything else in these collections is tombstoned.
+ * and posts, all by one guy who posts his outdoor photos on Bluesky, and his assistant setup: Writing
+ * as you, the prompt buttons (the app's defaults in his words, and one more) and Favorites. Re-running
+ * resets the account to exactly this set: ids are deterministic and anything else in these
+ * collections is tombstoned.
  *
  * Run: npm run seed:mock   (from apps/server, with the local stack and `npm run dev` running)
  *      npm run seed:mock -- --assets 50000   (pad the library to that size, for performance tests:
@@ -131,45 +132,86 @@ const POSTS: { text: string; media: number[]; postedDaysAgo: number | null; isFa
   { text: 'Where it all started', media: [0, 8], postedDaysAgo: 400 },
 ];
 
-// Writing as you, for the creator the posts above are by: one line each, at most one emoji, at the end.
+// Writing as you, for the creator the posts above are by: a guy who posts his outdoor photos on
+// Bluesky, one line each, at most one emoji, at the end.
 const PERSONA = {
   aboutYou:
-    "Outdoor creator. I hike, camp and road-trip, mostly hills, forests and quiet coast. My fans come for the views and the slow mornings, and stay for the trips I don't post anywhere else.",
+    "I'm a guy who shoots outdoors and posts it on Bluesky: hills, forests, quiet coast and the roads between them. People follow for the light and the slow mornings, and the odd story from the trip.",
   tone: 'Short and calm, a little dry. One line, never salesy. At most one emoji, at the end.',
   useEmoji: true,
-  contentTags: ['hiking', 'forest', 'golden hour', 'road trip', 'beach', 'camping', 'coffee'],
-  rules: ['Never use hashtags', 'No exclamation marks', 'Never name the exact spot, only the region'],
+  contentTags: ['landscape', 'hiking', 'forest', 'golden hour', 'road trip', 'coast', 'film look'],
+  rules: [
+    'Never use hashtags',
+    'No exclamation marks',
+    'Never name the exact spot, only the region',
+    'Keep each post well under 300 characters',
+  ],
 };
 
-// The app's default prompt buttons with prompts in this creator's words, and a trip recap.
-const PROMPTS: Record<string, string> = {
-  'Repost ideas':
-    "Write 3 fresh posts that repost this for people who missed it. Same trip, a new angle each time: the view, the moment, how it felt. Don't repeat the original wording.",
-  'Follow-up with link':
-    "Write a follow-up tweet to this post that sends people to my page for the full set from this trip. Tease what's there. End with the link: [your link].",
-  'PPV message':
-    "Write a PPV message for the full set from this trip. Tease what's in it without describing all of it. End with a reason to unlock now.",
-  Caption: 'Write 3 captions for these photos. Short, for X, one line each. Name the place only by its region.',
+// His Bluesky profile (made up), where Follow-up with link sends people.
+const PROFILE_LINK = 'https://bsky.app/profile/quietroads.bsky.social';
+
+// The app's default prompt buttons (by placement and name) in his words, for Bluesky; the paid-content
+// ones become a print teaser and a photo-of-the-week thread under the same ids. And a trip recap.
+const OVERRIDES: Record<string, Pick<NewPromptButton, 'name' | 'icon' | 'prompt'>> = {
+  'post:Repost ideas': {
+    name: 'Repost ideas',
+    icon: 'repeat',
+    prompt:
+      "Write 3 fresh Bluesky posts that bring this back for people who missed it. Same trip, a new angle each time: the view, the moment, how it felt. Don't repeat the original wording.",
+  },
+  'post:Follow-up with link': {
+    name: 'Follow-up with link',
+    icon: 'link',
+    prompt: `Write a short Bluesky reply to this post that points people to the rest of the trip on my profile. Say what else is there in one line. End with the link: ${PROFILE_LINK}`,
+  },
+  'post:PPV message': {
+    name: 'Print teaser',
+    icon: 'image',
+    prompt:
+      'Write a Bluesky post saying this photo is coming as a print. What makes it worth a wall, in one or two lines. No hard sell.',
+  },
+  'newPost:Caption': {
+    name: 'Caption',
+    icon: 'edit',
+    prompt: 'Write 3 captions for these photos. Short, for Bluesky, one line each. Name the place only by its region.',
+  },
+  'newPost:PPV message': {
+    name: 'Photo of the week',
+    icon: 'star',
+    prompt:
+      'Write a Bluesky thread of 3 short posts for my photo of the week: the shot, where and when, and one thing about how I took it.',
+  },
+  'refine:Shorter': {
+    name: 'Shorter',
+    icon: null,
+    prompt: 'Make each post shorter. Keep the first line, cut the rest.',
+  },
+  'refine:Spicier': {
+    name: 'Drier',
+    icon: null,
+    prompt: 'Make each post drier and a little funnier. Same idea, one wry twist.',
+  },
 };
 const PROMPT_BUTTONS: NewPromptButton[] = [
-  ...DEFAULT_PROMPT_BUTTONS.map((button) => ({ ...button, prompt: PROMPTS[button.name] ?? button.prompt })),
+  ...DEFAULT_PROMPT_BUTTONS.map((button) => ({ ...button, ...OVERRIDES[`${button.placement}:${button.name}`] })),
   {
     id: mockUuid('prompt-button:trip-recap'),
     placement: 'newPost',
     name: 'Trip recap',
     icon: 'images',
     prompt:
-      'Write 3 posts that recap this trip from these photos: where it went, one thing that happened, one detail only I would notice. Short, for X.',
+      'Write 3 Bluesky posts that recap this trip from these photos: where it went, one thing that happened, one detail only I would notice.',
   },
 ];
 
-// The posts it writes like, newest first: own posts, and two hearted options from the chat.
+// The posts it writes like, newest first: his own posts, and two options he hearted in the chat.
 const FAVORITES: { text: string; source: string | null; daysAgo: number }[] = [
   { text: "Up before the sun again. The hills don't wait, and neither does the light.", source: null, daysAgo: 2 },
   { text: 'Golden hour on the ridge. Stayed until it was gone 🌅', source: 'Caption', daysAgo: 4 },
   { text: 'Three days, one tent, zero signal. Best weekend this year 🌲', source: null, daysAgo: 9 },
   {
-    text: "The full set from the coast is up. The last one is the photo I almost didn't post. [your link]",
+    text: `The rest of the coast trip is on my profile. The last one is the photo I almost didn't post. ${PROFILE_LINK}`,
     source: 'Follow-up with link',
     daysAgo: 13,
   },
