@@ -3,17 +3,13 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 import Card from '@/components/Card';
 import IconButton from '@/components/IconButton';
 import { colors, lineHeights, typography } from '@/styles/designTokens';
-import relativeTime from '@/utils/relativeTime';
 
 /**
- * One favorite: its text, where it came from (a prompt button's name, or "Your post") and when, and
- * a filled heart. A tap opens it (`onOpen(favorite)`), the heart unhearts it (`onUnheart(favorite)`).
+ * One favorite: its text and a filled heart. A tap opens it (`onOpen(favorite)`), the heart unhearts it (`onUnheart(favorite)`).
  * `isRemoved`: unhearted and waiting for its Undo, dimmed, the heart an outline that hearts it again
  * (`onUndo()`).
  */
 export default function FavoriteCard({ favorite, isRemoved, onOpen, onUnheart, onUndo }) {
-  const meta = `${favorite.source ?? 'Your post'} · ${relativeTime(favorite.createdAt)}`;
-
   return (
     <Card style={[styles.card, isRemoved && styles.removed]}>
       <Pressable
@@ -24,7 +20,6 @@ export default function FavoriteCard({ favorite, isRemoved, onOpen, onUnheart, o
         style={({ pressed }) => [styles.texts, pressed && styles.pressed]}
       >
         <Text style={styles.text}>{favorite.text}</Text>
-        <Text style={styles.meta}>{meta}</Text>
       </Pressable>
       <IconButton
         icon="heart"
@@ -46,7 +41,6 @@ const styles = StyleSheet.create({
   },
   texts: {
     flex: 1,
-    gap: 6,
     paddingLeft: 20,
     paddingVertical: 14,
   },
@@ -54,10 +48,6 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
     lineHeight: lineHeights.reading,
     color: colors.text.primary,
-  },
-  meta: {
-    fontSize: typography.footnote,
-    color: colors.text.secondary,
   },
   pressed: {
     opacity: 0.6,

@@ -17,7 +17,7 @@ import {
 } from '@/sync/favoritesRepository';
 import { requestSync } from '@/sync/worker';
 
-const NEW_FAVORITE = { text: '', source: null };
+const NEW_FAVORITE = { text: '' };
 
 // One favorite, saved as you type: `{ id }` edits it (or Delete, which the Favorites screen offers to
 // undo); no params adds one of your own posts, created once it has text and dropped if you leave it
@@ -93,7 +93,7 @@ function FavoriteEditor({ id, seed, navigation }) {
       placeholder="Paste one of your posts"
       maxLength={FAVORITE_LIMITS.text}
       autoFocus={!id}
-      description={isTaken ? 'This post is in your Favorites already.' : id ? (seed.source ?? 'Your post') : null}
+      description={isTaken ? 'This post is in your Favorites already.' : null}
       action={id ? { label: 'Delete favorite', tone: 'danger', onPress: handleDelete } : null}
     />
   );
