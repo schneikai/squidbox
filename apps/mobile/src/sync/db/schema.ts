@@ -193,6 +193,19 @@ export const favorites = sqliteTable('favorites', {
 });
 export type FavoriteRow = typeof favorites.$inferSelect;
 
+// What the assistant is told per kind (mirror @squidbox/shared instructions). One record per user (its id is the
+// user's id); a null text is the app's default.
+export const instructions = sqliteTable('instructions', {
+  id: text('id').primaryKey(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  deletedAt: integer('deleted_at'),
+  writing: text('writing'),
+  personaDraft: text('persona_draft'),
+  visionTagging: text('vision_tagging'),
+});
+export type InstructionRow = typeof instructions.$inferSelect;
+
 // key/value store for the pull cursor + sync status (all local-only).
 export const syncMeta = sqliteTable('sync_meta', {
   key: text('key').primaryKey(),

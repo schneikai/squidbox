@@ -67,6 +67,16 @@ describe('personaRepository', () => {
     expect(await readPersona(db, USER)).toMatchObject({ ...EMPTY_PERSONA, tone: 'Short.' });
   });
 
+  it('brings a tombstoned persona back with the changes instead of inserting it again', async () => {
+    const db = makeTestDb();
+    await savePersona(db, USER, filled);
+    await db.update(schema.personas).set({ deletedAt: 5 }).where(eq(schema.personas.id, USER));
+    expect(await readPersona(db, USER)).toBeNull();
+    await savePersona(db, USER, { tone: 'Dry.' });
+    expect(await readPersona(db, USER)).toMatchObject({ ...filled, tone: 'Dry.', deletedAt: null });
+    expect(await db.select().from(schema.personas)).toHaveLength(1);
+  });
+
   it('writes nothing for no changes', async () => {
     const db = makeTestDb();
     await savePersona(db, USER, {});
