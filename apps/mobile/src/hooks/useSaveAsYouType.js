@@ -1,64 +1,57 @@
-import { useCallback, useEffect, useRef } from 'react';
-import { AppState } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, AppState } from 'react-native';
 
-// How long typing may pause before what was typed is stored.
-const SAVE_DELAY_MS = 600;
+import useHaptics from '@/hooks/useHaptics';
+import { requestSync } from '@/sync/worker';
+import createAutoSaver from '@/utils/createAutoSaver';
 
 /**
- * Stores `value` as it changes, the iOS Settings way: no Save button. A change is saved once typing
- * pauses, and at once when the returned `flush()` is called (a field's blur), the app goes to the
- * background or the screen goes away, so nothing typed is lost. `save(next, previous, { isLeaving })`
- * gets the value and the last one saved (compare them to write only what changed); it may return
- * `false` to leave `next` unsaved for now (an empty required text, say, which it can drop for good
- * once `isLeaving`). Saves run one at a time, in order; a failed one is logged and tried again with
- * the next change. Values compare by their JSON.
+ * Stores `value` as it changes, the iOS Settings way: no Save button. A change is stored once typing
+ * pauses, and at once on `flush()` (a field's blur), when the app goes to the background and when
+ * the screen goes away, so nothing typed is lost; it syncs only then, so a half-typed record stays
+ * on the device. `save(next, stored, { isLeaving })`: see createAutoSaver (`isLeaving` lets it drop
+ * a new item left empty). `end(write)` runs a last write, such as a Delete, after the saves under
+ * way, and saves nothing after it. A failed save says so. Values compare by their JSON.
  */
 export default function useSaveAsYouType(value, save) {
-  const key = JSON.stringify(value);
+  const haptics = useHaptics();
   const valueRef = useRef(value);
   const saveRef = useRef(save);
-  const savedRef = useRef({ key, value });
-  const queueRef = useRef(Promise.resolve());
-  const timerRef = useRef(null);
-
-  const flush = useCallback(({ isLeaving = false } = {}) => {
-    clearTimeout(timerRef.current);
-    timerRef.current = null;
-    const next = valueRef.current;
-    const nextKey = JSON.stringify(next);
-    if (nextKey === savedRef.current.key) return queueRef.current;
-    const previous = savedRef.current;
-    savedRef.current = { key: nextKey, value: next };
-    queueRef.current = queueRef.current
-      .then(() => saveRef.current(next, previous.value, { isLeaving }))
-      .then((isSaved) => {
-        if (isSaved === false && savedRef.current.key === nextKey) savedRef.current = previous;
-      })
-      .catch((error) => {
+  const hapticsRef = useRef(haptics);
+  const [saver] = useState(() =>
+    createAutoSaver({
+      value,
+      save: (...args) => saveRef.current(...args),
+      sync: requestSync,
+      onError: (error) => {
         console.error('Saving failed', error);
-        if (savedRef.current.key === nextKey) savedRef.current = previous;
-      });
-    return queueRef.current;
-  }, []);
+        hapticsRef.current.error();
+        Alert.alert("Couldn't save your changes", error.message);
+      },
+    }),
+  );
+  const key = JSON.stringify(value);
 
   useEffect(() => {
     valueRef.current = value;
     saveRef.current = save;
+    hapticsRef.current = haptics;
   });
 
   useEffect(() => {
-    if (key === savedRef.current.key) return;
-    clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(flush, SAVE_DELAY_MS);
-  }, [key, flush]);
+    saver.change(valueRef.current);
+  }, [saver, key]);
 
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', (state) => state !== 'active' && flush());
+    const subscription = AppState.addEventListener(
+      'change',
+      (state) => state !== 'active' && saver.flush({ shouldSync: true }),
+    );
     return () => {
       subscription.remove();
-      flush({ isLeaving: true });
+      saver.flush({ isLeaving: true, shouldSync: true });
     };
-  }, [flush]);
+  }, [saver]);
 
-  return flush;
+  return saver;
 }

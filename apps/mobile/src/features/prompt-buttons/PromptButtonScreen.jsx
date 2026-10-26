@@ -6,15 +6,12 @@ import IconPicker from './IconPicker';
 import SegmentedControl from './SegmentedControl';
 import placementText, { PLACEMENTS } from './placementText';
 
-import Card from '@/components/Card';
+import CardTextField from '@/components/CardTextField';
 import DetailScrollView from '@/components/DetailScrollView';
 import Field from '@/components/Field';
 import Page from '@/components/Page';
 import TextButton from '@/components/TextButton';
-import TextInput from '@/components/TextInput';
-import Textarea from '@/components/Textarea';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
-import { SCREEN_PADDING } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
@@ -62,11 +59,9 @@ function PromptButtonEditor({ id, seed, navigation }) {
     placement: seed.placement,
     icon: seed.icon,
   });
-  // The button's id once there is one (a new one gets it with its name and prompt), and whether
-  // Delete or Duplicate is under way, after which nothing more is saved here.
+  // The button's id once there is one (a new one gets it with its name and prompt).
   const idRef = useRef(id);
-  const isDoneRef = useRef(false);
-  const flush = useSaveAsYouType(
+  const { flush, end } = useSaveAsYouType(
     { name: draft.name.trim(), prompt: draft.prompt.trim(), placement: draft.placement, icon: draft.icon },
     saveFields,
   );
@@ -75,45 +70,39 @@ function PromptButtonEditor({ id, seed, navigation }) {
     setDraft((current) => ({ ...current, [field]: value }));
   }
 
-  async function saveFields(next, previous, { isLeaving }) {
-    if (isDoneRef.current) return true;
+  // Resolves to what is stored after it (see useSaveAsYouType).
+  async function saveFields(next, stored, { isLeaving }) {
     const db = getDb();
     const isComplete = REQUIRED_FIELDS.every((field) => next[field]);
     if (!idRef.current) {
       if (!isComplete) return false;
       idRef.current = (await createPromptButton(db, { id: getNewItemId(), ...next })).id;
-      requestSync();
-      return true;
+      return next;
     }
     if (!isComplete && isLeaving && !id) {
       // A button this screen added goes when you leave it without a name or a prompt.
       await removePromptButton(db, idRef.current);
-      requestSync();
       return false;
     }
     // Only what changed, so an edit another device made meanwhile to another field is kept; an
     // emptied name or prompt keeps its stored text.
-    const changes = changedValues(previous, next);
+    const changes = changedValues(stored, next);
     for (const field of REQUIRED_FIELDS) if (!next[field]) delete changes[field];
-    if (Object.keys(changes).length > 0) {
-      await updatePromptButton(db, idRef.current, changes);
-      requestSync();
-    }
-    return isComplete;
+    if (Object.keys(changes).length === 0) return false;
+    await updatePromptButton(db, idRef.current, changes);
+    return { ...stored, ...changes };
   }
 
-  // Runs a last write on this button; a failed one keeps the screen open and says so.
+  // A last write on this button, after the saves under way; nothing typed is saved after it. A
+  // failed one keeps the screen open and says so.
   async function finish(write, failure) {
-    if (isDoneRef.current) return;
-    isDoneRef.current = true;
     try {
-      await write();
+      await end(write);
       requestSync();
     } catch (error) {
       console.error(failure, error);
       haptics.error();
       Alert.alert(failure, error.message);
-      isDoneRef.current = false;
     }
   }
 
@@ -123,7 +112,7 @@ function PromptButtonEditor({ id, seed, navigation }) {
     await finish(async () => {
       const db = getDb();
       const button = await readPromptButton(db, id);
-      if (!button) return;
+      if (!button) throw new Error('This prompt button was deleted.');
       const copy = await createPromptButton(db, {
         id: getNewItemId(),
         name: `${button.name} copy`.slice(0, NAME_MAX_LENGTH),
@@ -154,30 +143,25 @@ function PromptButtonEditor({ id, seed, navigation }) {
       <FloatingDetailHeader title="Prompt button" onBack={() => navigation.goBack()} />
       <DetailScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
         <Field label="Name">
-          <Card>
-            <TextInput
-              value={draft.name}
-              onChangeText={(text) => setField('name', text)}
-              onBlur={() => flush()}
-              placeholder="e.g. Shorter"
-              maxLength={NAME_MAX_LENGTH}
-              autoFocus={!id}
-              style={styles.input}
-            />
-          </Card>
+          <CardTextField
+            value={draft.name}
+            onChangeText={(text) => setField('name', text)}
+            onBlur={() => flush()}
+            placeholder="e.g. Shorter"
+            maxLength={NAME_MAX_LENGTH}
+            autoFocus={!id}
+          />
         </Field>
         <Field label="Prompt">
-          <Card>
-            <Textarea
-              value={draft.prompt}
-              onChangeText={(text) => setField('prompt', text)}
-              onBlur={() => flush()}
-              placeholder="e.g. Make each option shorter. Keep the hook, cut the rest."
-              maxLength={PROMPT_MAX_LENGTH}
-              minHeight={scale(140)}
-              style={styles.input}
-            />
-          </Card>
+          <CardTextField
+            multiline
+            value={draft.prompt}
+            onChangeText={(text) => setField('prompt', text)}
+            onBlur={() => flush()}
+            placeholder="e.g. Make each option shorter. Keep the hook, cut the rest."
+            maxLength={PROMPT_MAX_LENGTH}
+            minHeight={scale(140)}
+          />
         </Field>
         <Field label="Show it">
           <SegmentedControl
@@ -203,10 +187,6 @@ function PromptButtonEditor({ id, seed, navigation }) {
 const styles = StyleSheet.create({
   content: {
     gap: 20,
-  },
-  input: {
-    paddingHorizontal: SCREEN_PADDING,
-    paddingVertical: 12,
   },
   actions: {
     paddingTop: 24,

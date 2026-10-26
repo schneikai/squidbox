@@ -15,7 +15,7 @@ const PADDING = 8;
  * The icon a prompt button leads with (`value`, an Icon name or null): None, then the icons it can
  * have, as one row of round cells that scrolls sideways, the chosen one on the accent disc and
  * scrolled into view when the screen opens. A stored name the list doesn't have is a cell of its own,
- * so a Save keeps it.
+ * so the button keeps it until another icon is picked.
  */
 export default function IconPicker({ value, onChange }) {
   const haptics = useHaptics();

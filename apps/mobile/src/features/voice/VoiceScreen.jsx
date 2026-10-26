@@ -7,13 +7,11 @@ import RulesField from './RulesField';
 import TagsField from './TagsField';
 import voiceFields from './voiceFields';
 
-import Card from '@/components/Card';
+import CardTextField from '@/components/CardTextField';
 import DetailScrollView from '@/components/DetailScrollView';
 import Field from '@/components/Field';
 import Page from '@/components/Page';
-import Textarea from '@/components/Textarea';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
-import { SCREEN_PADDING } from '@/constants';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
@@ -22,7 +20,6 @@ import { scale } from '@/styles/designTokens';
 import { getDb, schema } from '@/sync/db/client';
 import { EMPTY_PERSONA, readPersona, savePersona } from '@/sync/personaRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
-import { requestSync } from '@/sync/worker';
 import changedValues from '@/utils/changedValues';
 
 // The fields this screen edits in place; Rules are edited one by one on their own screen.
@@ -53,14 +50,13 @@ function VoiceEditor({ userId, seed, navigation }) {
     ),
   );
   const persona = useLiveQuery((db) => readPersona(db, userId), [schema.personas], [userId]);
-  const flush = useSaveAsYouType(normalized(draft), saveFields);
+  const { flush } = useSaveAsYouType(normalized(draft), saveFields);
 
   const rules = persona?.rules ?? [];
 
   // Only what the user changed, so a field another device edited meanwhile keeps that edit.
-  async function saveFields(next, previous) {
-    await savePersona(getDb(), userId, changedValues(previous, next));
-    requestSync();
+  async function saveFields(next, stored) {
+    await savePersona(getDb(), userId, changedValues(stored, next));
   }
 
   function showInfo(field) {
@@ -71,17 +67,15 @@ function VoiceEditor({ userId, seed, navigation }) {
     const { label, placeholder } = voiceFields[field];
     return (
       <Field label={label} onInfo={() => showInfo(field)}>
-        <Card>
-          <Textarea
-            value={draft[field]}
-            onChangeText={setters[field]}
-            onBlur={() => flush()}
-            placeholder={placeholder}
-            maxLength={maxLength}
-            minHeight={scale(88)}
-            style={styles.textarea}
-          />
-        </Card>
+        <CardTextField
+          multiline
+          value={draft[field]}
+          onChangeText={setters[field]}
+          onBlur={() => flush()}
+          placeholder={placeholder}
+          maxLength={maxLength}
+          minHeight={scale(88)}
+        />
       </Field>
     );
   }
@@ -132,9 +126,5 @@ function normalized(draft) {
 const styles = StyleSheet.create({
   content: {
     gap: 20,
-  },
-  textarea: {
-    paddingHorizontal: SCREEN_PADDING,
-    paddingVertical: 12,
   },
 });

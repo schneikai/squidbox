@@ -38,21 +38,15 @@ function FavoriteEditor({ id, seed, navigation }) {
   const haptics = useHaptics();
   const [text, setText] = useState(seed.text);
   const [isTaken, setIsTaken] = useState(false);
-  // The favorite's id once there is one (a new one gets it with its first text), and whether Delete
-  // removed it, after which nothing is saved.
+  // The favorite's id once there is one (a new one gets it with its first text).
   const idRef = useRef(id);
-  const isRemovedRef = useRef(false);
-  const flush = useSaveAsYouType(text.trim(), saveText);
+  const { flush, end } = useSaveAsYouType(text.trim(), saveText);
 
-  async function saveText(next, previous, { isLeaving }) {
-    if (isRemovedRef.current) return true;
+  async function saveText(next, stored, { isLeaving }) {
     const db = getDb();
     if (!next) {
       // Empty: a favorite this screen added goes when you leave; one you opened keeps its text.
-      if (isLeaving && !id && idRef.current) {
-        await removeFavorite(db, idRef.current);
-        requestSync();
-      }
+      if (isLeaving && !id && idRef.current) await removeFavorite(db, idRef.current);
       return false;
     }
     if (idRef.current) {
@@ -72,23 +66,20 @@ function FavoriteEditor({ id, seed, navigation }) {
       idRef.current = created.id;
     }
     setIsTaken(false);
-    requestSync();
     return true;
   }
 
-  // No confirm: the Favorites screen shows the card dimmed with Undo.
+  // No confirm: the Favorites screen shows the card dimmed with Undo. After the saves under way, and
+  // nothing typed is saved after it.
   async function handleDelete() {
-    if (isRemovedRef.current) return;
-    isRemovedRef.current = true;
     try {
-      await removeFavorite(getDb(), id);
+      await end(() => removeFavorite(getDb(), id));
       requestSync();
       navigation.navigate({ name: 'FavoritesScreen', params: { removedId: id }, merge: true });
     } catch (error) {
       console.error('Deleting the favorite failed', error);
       haptics.error();
       Alert.alert("Couldn't delete the favorite", error.message);
-      isRemovedRef.current = false;
     }
   }
 

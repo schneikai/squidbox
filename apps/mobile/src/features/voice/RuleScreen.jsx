@@ -38,51 +38,70 @@ export default function RuleScreen({ route, navigation }) {
 function RuleEditor({ index, userId, seed, navigation }) {
   const haptics = useHaptics();
   const [text, setText] = useState(seed.text);
-  // The rule's place in the list once it has one (a new rule gets it with its first text), and
-  // whether Delete removed it, after which nothing is saved.
-  const indexRef = useRef(index ?? null);
-  const isRemovedRef = useRef(false);
-  const flush = useSaveAsYouType(text.trim(), saveText);
+  // Where the rule was last seen and its stored text, to find it again after a sync moved or
+  // changed the list (null: a new rule not stored yet), and whether it was gone when last looked for.
+  const ruleRef = useRef(index == null ? null : { index, text: seed.text });
+  const isGoneRef = useRef(false);
+  const { flush, end } = useSaveAsYouType(text.trim(), saveText);
 
-  // The rules as stored now, with `change` applied to them, saved.
-  async function changeRules(change) {
-    const db = getDb();
-    const rules = (await readPersona(db, userId))?.rules ?? [];
-    await savePersona(db, userId, { rules: change(rules) });
-    requestSync();
+  // The rule's place in `rules` now: where it was if its text is still there, else the first rule
+  // with its text; -1 when it's gone, null for a rule not stored yet.
+  function locate(rules) {
+    const rule = ruleRef.current;
+    if (!rule) return null;
+    return rules[rule.index] === rule.text ? rule.index : rules.indexOf(rule.text);
   }
 
-  async function saveText(next, previous, { isLeaving }) {
-    if (isRemovedRef.current) return true;
-    const at = indexRef.current;
-    if (!next) {
-      // Empty: kept until you leave, then dropped.
-      if (isLeaving && at != null) await changeRules((rules) => rules.filter((_, i) => i !== at));
+  async function readRules(db) {
+    return (await readPersona(db, userId))?.rules ?? [];
+  }
+
+  // A sync removed or changed the rule meanwhile: nothing is saved over another rule, and the screen
+  // closes.
+  function handleGone(isLeaving) {
+    isGoneRef.current = true;
+    if (isLeaving) return;
+    Alert.alert('This rule was changed on another device.');
+    navigation.goBack();
+  }
+
+  async function saveText(next, stored, { isLeaving }) {
+    if (isGoneRef.current || (!next && !isLeaving)) return false;
+    const db = getDb();
+    const rules = await readRules(db);
+    const at = locate(rules);
+    if (at === -1) {
+      handleGone(isLeaving);
       return false;
     }
-    if (at != null) {
-      await changeRules((rules) => rules.map((rule, i) => (i === at ? next : rule)));
-      return true;
+    if (!next) {
+      // Empty: dropped when you leave.
+      if (at != null) await savePersona(db, userId, { rules: rules.filter((_, i) => i !== at) });
+      return false;
     }
-    await changeRules((rules) => {
-      indexRef.current = rules.length;
-      return [...rules, next];
+    const nextAt = at ?? rules.length;
+    await savePersona(db, userId, {
+      rules: at == null ? [...rules, next] : rules.map((rule, i) => (i === at ? next : rule)),
     });
+    ruleRef.current = { index: nextAt, text: next };
     return true;
   }
 
+  // After the saves under way, and nothing typed is saved after it.
   async function handleDelete() {
-    if (isRemovedRef.current) return;
-    isRemovedRef.current = true;
-    const at = indexRef.current;
     try {
-      if (at != null) await changeRules((rules) => rules.filter((_, i) => i !== at));
+      await end(async () => {
+        const db = getDb();
+        const rules = await readRules(db);
+        const at = locate(rules);
+        if (at != null && at !== -1) await savePersona(db, userId, { rules: rules.filter((_, i) => i !== at) });
+      });
+      requestSync();
       navigation.goBack();
     } catch (error) {
       console.error('Deleting the rule failed', error);
       haptics.error();
       Alert.alert("Couldn't delete the rule", error.message);
-      isRemovedRef.current = false;
     }
   }
 

@@ -1,12 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import Card from '@/components/Card';
+import CardTextField from '@/components/CardTextField';
 import DetailScrollView from '@/components/DetailScrollView';
 import Page from '@/components/Page';
 import TextButton from '@/components/TextButton';
-import Textarea from '@/components/Textarea';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
-import { SCREEN_PADDING } from '@/constants';
 import { colors, scale, typography } from '@/styles/designTokens';
 
 /**
@@ -32,18 +30,16 @@ export default function TextEditScreen({
     <Page>
       <FloatingDetailHeader title={title} onBack={onBack} />
       <DetailScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
-        <Card>
-          <Textarea
-            value={value}
-            onChangeText={onChangeText}
-            onBlur={onBlur}
-            placeholder={placeholder}
-            maxLength={maxLength}
-            minHeight={minHeight}
-            autoFocus={autoFocus}
-            style={styles.input}
-          />
-        </Card>
+        <CardTextField
+          multiline
+          value={value}
+          onChangeText={onChangeText}
+          onBlur={onBlur}
+          placeholder={placeholder}
+          maxLength={maxLength}
+          minHeight={minHeight}
+          autoFocus={autoFocus}
+        />
         {description != null && <Text style={styles.description}>{description}</Text>}
         {action && (
           <View style={styles.action}>
@@ -58,10 +54,6 @@ export default function TextEditScreen({
 const styles = StyleSheet.create({
   content: {
     gap: 12,
-  },
-  input: {
-    paddingHorizontal: SCREEN_PADDING,
-    paddingVertical: 12,
   },
   description: {
     marginHorizontal: 4,

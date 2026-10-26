@@ -1,6 +1,5 @@
 import { DEFAULT_INSTRUCTIONS, INSTRUCTION_LIMITS } from '@squidbox/shared';
 import { useState } from 'react';
-import { Alert } from 'react-native';
 
 import instructionText from './instructionText';
 
@@ -13,7 +12,6 @@ import useLibrary from '@/library/useLibrary';
 import { scale } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { readInstructions, saveInstruction } from '@/sync/instructionsRepository';
-import { requestSync } from '@/sync/worker';
 import confirmAsync from '@/utils/confirmAsync';
 
 // One kind of instructions (`{ kind }`): its text, the user's or the app's, saved as you type, and
@@ -34,7 +32,7 @@ export default function InstructionScreen({ route, navigation }) {
 function InstructionEditor({ kind, userId, seed, navigation }) {
   const haptics = useHaptics();
   const [text, setText] = useState(seed.stored ?? DEFAULT_INSTRUCTIONS[kind]);
-  const flush = useSaveAsYouType(text.trim(), saveText);
+  const { flush } = useSaveAsYouType(text.trim(), saveText);
 
   const isChanged = text.trim() !== DEFAULT_INSTRUCTIONS[kind];
 
@@ -43,10 +41,10 @@ function InstructionEditor({ kind, userId, seed, navigation }) {
   async function saveText(next) {
     if (!next) return false;
     await saveInstruction(getDb(), userId, kind, next);
-    requestSync();
     return true;
   }
 
+  // The default's text, saved as you type like any other (as null).
   async function handleReset() {
     const isConfirmed = await confirmAsync({
       title: 'Reset to default?',
@@ -55,17 +53,8 @@ function InstructionEditor({ kind, userId, seed, navigation }) {
       destructive: true,
     });
     if (!isConfirmed) return;
-    try {
-      // The default's text saves as null, like any text equal to it.
-      setText(DEFAULT_INSTRUCTIONS[kind]);
-      await saveInstruction(getDb(), userId, kind, null);
-      requestSync();
-      haptics.success();
-    } catch (error) {
-      console.error('Resetting the instructions failed', error);
-      haptics.error();
-      Alert.alert("Couldn't reset the instructions", error.message);
-    }
+    setText(DEFAULT_INSTRUCTIONS[kind]);
+    haptics.success();
   }
 
   return (

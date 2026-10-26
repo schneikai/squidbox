@@ -36,9 +36,11 @@ export default function AlbumsProvider({ children }) {
   // `tx` become savepoints), so readers never see half of it.
   const value = useMemo(() => {
     const db = getDb();
-    async function updateAlbum(id, updates) {
+    // `shouldSync: false` leaves the sync to the caller (an editor saving as you type syncs when you
+    // leave it).
+    async function updateAlbum(id, updates, { shouldSync = true } = {}) {
       await repo.update(db, id, updates);
-      requestSync();
+      if (shouldSync) requestSync();
     }
     return {
       addAlbum: async ({ assets: assetIds = [], ...fields }) => {

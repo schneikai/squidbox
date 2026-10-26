@@ -1,7 +1,9 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
+import { Alert } from 'react-native';
 
 import TextEditScreen from '@/components/TextEditScreen';
 import useAlbums from '@/features/albums-context/useAlbums';
+import useHaptics from '@/hooks/useHaptics';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import noteText from '@/utils/noteText';
 
@@ -9,20 +11,25 @@ import noteText from '@/utils/noteText';
 export default function AlbumNotesScreen({ route, navigation }) {
   const { id, notes: initialNotes } = route.params;
   const { updateAlbum } = useAlbums();
+  const haptics = useHaptics();
   const [notes, setNotes] = useState(initialNotes ?? '');
-  // Set by Delete, after which nothing typed is saved.
-  const isDeletedRef = useRef(false);
   // Saved only when changed, so a notes edit another device made meanwhile isn't sent back.
-  const flush = useSaveAsYouType(noteText(notes), saveNotes);
+  const { flush, end } = useSaveAsYouType(noteText(notes), saveNotes);
 
   async function saveNotes(next) {
-    if (!isDeletedRef.current) await updateAlbum(id, { notes: next });
+    await updateAlbum(id, { notes: next }, { shouldSync: false });
   }
 
+  // After the saves under way, and nothing typed is saved after it.
   async function handleDelete() {
-    isDeletedRef.current = true;
-    await updateAlbum(id, { notes: null });
-    navigation.goBack();
+    try {
+      await end(() => updateAlbum(id, { notes: null }));
+      navigation.goBack();
+    } catch (error) {
+      console.error('Deleting the note failed', error);
+      haptics.error();
+      Alert.alert("Couldn't delete the note", error.message);
+    }
   }
 
   return (
