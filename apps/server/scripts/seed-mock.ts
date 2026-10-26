@@ -141,12 +141,14 @@ const PERSONA = {
   rules: ['Never use hashtags', 'No exclamation marks', 'Never name the exact spot, only the region'],
 };
 
+// The creator's page (made up), where Follow-up with link sends people.
+const PAGE_LINK = 'https://onlyfans.com/quietroads';
+
 // The app's default prompt buttons with prompts in this creator's words, and a trip recap.
 const PROMPTS: Record<string, string> = {
   'Repost ideas':
     "Write 3 fresh posts that repost this for people who missed it. Same trip, a new angle each time: the view, the moment, how it felt. Don't repeat the original wording.",
-  'Follow-up with link':
-    "Write a follow-up tweet to this post that sends people to my page for the full set from this trip. Tease what's there. End with the link: [your link].",
+  'Follow-up with link': `Write a follow-up tweet to this post that sends people to my page for the full set from this trip. Tease what's there. End with the link: ${PAGE_LINK}`,
   'PPV message':
     "Write a PPV message for the full set from this trip. Tease what's in it without describing all of it. End with a reason to unlock now.",
   Caption: 'Write 3 captions for these photos. Short, for X, one line each. Name the place only by its region.',
@@ -169,7 +171,7 @@ const FAVORITES: { text: string; source: string | null; daysAgo: number }[] = [
   { text: 'Golden hour on the ridge. Stayed until it was gone 🌅', source: 'Caption', daysAgo: 4 },
   { text: 'Three days, one tent, zero signal. Best weekend this year 🌲', source: null, daysAgo: 9 },
   {
-    text: "The full set from the coast is up. The last one is the photo I almost didn't post. [your link]",
+    text: `The full set from the coast is up. The last one is the photo I almost didn't post. ${PAGE_LINK}`,
     source: 'Follow-up with link',
     daysAgo: 13,
   },
