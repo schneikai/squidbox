@@ -106,6 +106,48 @@
       "when": 1792932929334,
       "tag": "0014_ai_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1792952914678,
+      "tag": "0015_assistant_setup",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1792999038953,
+      "tag": "0016_favorites",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1793007553263,
+      "tag": "0017_instructions",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1793009819320,
+      "tag": "0018_drop_use_emoji",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1793010865369,
+      "tag": "0019_drop_persona_draft_instructions",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1793020830355,
+      "tag": "0020_app_prompts",
+      "breakpoints": true
     }
   ]
 }

@@ -13,9 +13,10 @@ vi.mock('../src/config.js', async (importOriginal) => {
   };
 });
 
+import { DEFAULT_INSTRUCTIONS } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
 import { checkTags, checkTweets, compareModels, visionTask, writingTask } from '../src/ai/compare.js';
-import { visionMessages, writingMessages } from '../src/ai/prompts.js';
+import { contentThemesText, visionMessages, writingMessages } from '../src/ai/prompts.js';
 import type { CatalogEntry } from '../src/ai/catalog.js';
 
 const entries = fixture.data as CatalogEntry[];
@@ -23,11 +24,24 @@ const model = (id: string) => entries.find((entry) => entry.id === id)!;
 const fetchMock = vi.fn();
 
 const compareWriting = (models: CatalogEntry[]) =>
-  compareModels({ task: writingTask, messages: writingMessages({ prompt: 'Write', persona: null }), models });
+  compareModels({
+    task: writingTask,
+    messages: writingMessages({
+      prompt: 'Write',
+      persona: null,
+      favorites: [],
+      instructions: DEFAULT_INSTRUCTIONS,
+    }),
+    models,
+  });
 const compareVision = (models: CatalogEntry[]) =>
   compareModels({
     task: visionTask,
-    messages: visionMessages({ prompt: 'Tag it', imageDataUrl: 'data:image/jpeg;base64,AAAA' }),
+    messages: visionMessages({
+      prompt: 'Tag it',
+      imageDataUrl: 'data:image/jpeg;base64,AAAA',
+      instructions: DEFAULT_INSTRUCTIONS,
+    }),
     models,
   });
 
@@ -53,6 +67,38 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+describe('visionMessages', () => {
+  it("sends the user's Photo tags instructions with the photo, under the fixed tags format", () => {
+    const [system, user] = visionMessages({
+      prompt: 'Reply in prose.',
+      imageDataUrl: 'data:image/jpeg;base64,AAAA',
+      instructions: DEFAULT_INSTRUCTIONS,
+    });
+    expect(system).toEqual({ role: 'system', content: DEFAULT_INSTRUCTIONS.tagsSystem });
+    expect(user!.content).toEqual([
+      { type: 'text', text: 'Reply in prose.' },
+      { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,AAAA' } },
+    ]);
+  });
+
+  it("adds the creator's content themes after the instructions, as a text of their own", () => {
+    const [, user] = visionMessages({
+      prompt: 'Reply in prose.',
+      imageDataUrl: 'data:image/jpeg;base64,AAAA',
+      instructions: DEFAULT_INSTRUCTIONS,
+      contentTags: ['landscape', 'golden hour'],
+    });
+    expect(user!.content).toEqual([
+      { type: 'text', text: 'Reply in prose.' },
+      { type: 'text', text: contentThemesText(DEFAULT_INSTRUCTIONS.themesContext, ['landscape', 'golden hour']) },
+      { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,AAAA' } },
+    ]);
+    expect(contentThemesText(DEFAULT_INSTRUCTIONS.themesContext, ['landscape', 'golden hour'])).toMatch(
+      /^Creator's content themes: landscape, golden hour\n\nTreat these themes as a creative starting point/,
+    );
+  });
+});
+
 describe('checking the replies', () => {
   it('takes exactly 3 non-empty tweets', () => {
     expect(checkTweets([' a ', 'b', 'c'])).toEqual(['a', 'b', 'c']);
@@ -60,10 +106,10 @@ describe('checking the replies', () => {
   });
 
   it('takes any number of tags, trimmed, without empty ones and case-insensitive duplicates, in order', () => {
-    expect(checkTags([' Shower ', 'shower', '', '  ', 'wet hair', 'SHOWER', 'steam'])).toEqual([
-      'Shower',
-      'wet hair',
-      'steam',
+    expect(checkTags([' Forest ', 'forest', '', '  ', 'morning fog', 'FOREST', 'moss'])).toEqual([
+      'Forest',
+      'morning fog',
+      'moss',
     ]);
     expect(() => checkTags([' ', ''])).toThrow('Returned no tags');
   });
@@ -135,7 +181,7 @@ describe('compareModels: writing', () => {
 
 describe('compareModels: vision', () => {
   it('sends the photo to each model and takes as many tags as it gives', async () => {
-    const tags = ['shower', 'wet hair', 'steam', 'back view', 'towel', 'morning light', 'tattoo', 'tiles'];
+    const tags = ['forest', 'morning fog', 'moss', 'trail', 'backpack', 'morning light', 'pine trees', 'creek'];
     replies({ 'gemma-4-uncensored': { tags }, 'qwen-3-6-plus': { tags: [...tags, 'extra'] } });
     const results = await compareVision([model('gemma-4-uncensored'), model('qwen-3-6-plus')]);
     expect(results).toEqual([
@@ -149,5 +195,18 @@ describe('compareModels: vision', () => {
       image_url: { url: 'data:image/jpeg;base64,AAAA' },
     });
     expect(sent).not.toHaveProperty('max_tokens');
+  });
+});
+
+describe('visionMessages with edited app prompts', () => {
+  it("uses the user's tags system message and themes text", () => {
+    const [system, user] = visionMessages({
+      prompt: 'Tag it',
+      imageDataUrl: 'data:image/jpeg;base64,AAAA',
+      instructions: { ...DEFAULT_INSTRUCTIONS, tagsSystem: 'Tags as JSON.', themesContext: 'Think of {themes}.' },
+      contentTags: ['moss', 'fog'],
+    });
+    expect(system).toEqual({ role: 'system', content: 'Tags as JSON.' });
+    expect(user!.content).toContainEqual({ type: 'text', text: 'Think of moss, fog.' });
   });
 });

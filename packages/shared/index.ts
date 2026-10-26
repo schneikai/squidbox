@@ -15,6 +15,11 @@ export * from './collections/album';
 export * from './collections/post';
 export * from './collections/albumAsset';
 export * from './collections/postAsset';
+export * from './collections/persona';
+export * from './collections/promptButton';
+export * from './collections/favorite';
+export * from './collections/instruction';
+export * from './collections/defaultPromptButtons';
 export * from './collections/registry';
 export * from './collections/widenToGroups';
 export * from './collections/lostFields';
@@ -23,6 +28,7 @@ export * from './fractionalIndex';
 export * from './movePositions';
 export * from './positionsInOrder';
 export * from './chunk';
+export * from './uniqueTags';
 
 // Wire contracts shared between the mobile app and the server.
 export * from './contracts/auth';

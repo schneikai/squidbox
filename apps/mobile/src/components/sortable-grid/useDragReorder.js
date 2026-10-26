@@ -7,7 +7,7 @@ import sameOrder from './sameOrder';
 import slotPositions from './slotPositions';
 import useGridLongPressPan from './useGridLongPressPan';
 
-import { TAP_SLOP } from '@/constants';
+import { DRAG_LIFT_SCALE, DRAG_LONG_PRESS_MS, TAP_SLOP } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
 import { motion } from '@/styles/designTokens';
 
@@ -31,8 +31,6 @@ import { motion } from '@/styles/designTokens';
 //
 // Near the top/bottom edge the list auto-scrolls (useGridLongPressPan). `layout`: see gridSlotOrigin.
 
-// Longer than a slow tap, so a tap always opens what it lands on (UIKit's long press is 500 ms).
-const LONG_PRESS_MS = 400;
 // After the lift, so a drag that starts right away never flashes the quick view first.
 const PEEK_AFTER_LIFT_MS = 400;
 
@@ -83,7 +81,7 @@ export default function useDragReorder({
 
   const { gesture, onContainerLayout, startAutoScroll, contentPoint, indexAtContent } = useGridLongPressPan({
     enabled,
-    holdMs: LONG_PRESS_MS,
+    holdMs: DRAG_LONG_PRESS_MS,
     layout,
     paddingTop,
     listRef,
@@ -105,7 +103,7 @@ export default function useDragReorder({
 
       activeX.value = slotOrigin.x;
       activeY.value = slotOrigin.y;
-      activeScale.value = withSpring(1.08, motion.spring);
+      activeScale.value = withSpring(DRAG_LIFT_SCALE, motion.spring);
       activeId.value = row.id;
       liftPointRef.current = { x, y };
       isDraggingRef.current = false;

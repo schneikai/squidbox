@@ -6,6 +6,17 @@ vi.mock('../src/users.js', () => ({
   findUserByEmail: vi.fn(),
   toApiUser: (u: { id: string; email: string }) => ({ id: u.id, email: u.email }),
 }));
+// The db client is a stub here, so the persona read is mocked: no persona unless a test gives one.
+vi.mock('../src/ai/persona.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/ai/persona.js')>()),
+  readPersona: vi.fn().mockResolvedValue(null),
+  readFavorites: vi.fn().mockResolvedValue([]),
+}));
+// The instructions likewise: the defaults unless a test changes one.
+vi.mock('../src/ai/instructions.js', async () => {
+  const { resolveInstructions } = await import('@squidbox/shared');
+  return { readInstructions: vi.fn().mockResolvedValue(resolveInstructions(null)) };
+});
 // The test env has no Venice key; each test sets the one the routes see.
 const venice = vi.hoisted(() => ({
   apiKey: undefined as string | undefined,
@@ -23,14 +34,18 @@ vi.mock('../src/config.js', async (importOriginal) => {
   };
 });
 
+import { DEFAULT_INSTRUCTIONS, resolveInstructions } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
+import { writingFormatText } from '../src/ai/prompts.js';
 import { buildApp } from '../src/app.js';
 import { signAccessToken } from '../src/auth/jwt.js';
 import { clearCatalogCache } from '../src/ai/catalog.js';
+import { readInstructions } from '../src/ai/instructions.js';
+import { readFavorites, readPersona } from '../src/ai/persona.js';
 import { findUserById } from '../src/users.js';
 
 const auth = { authorization: `Bearer ${signAccessToken('u1')}` };
-const tags = ['shower', 'wet hair', 'steam', 'back view', 'towel', 'morning light', 'tattoo', 'tiles'];
+const tags = ['forest', 'morning fog', 'moss', 'trail', 'backpack', 'morning light', 'pine trees', 'creek'];
 const fetchMock = vi.fn();
 
 // Venice: the model list, and a chat reply per model.
@@ -48,7 +63,10 @@ function veniceAnswers({ catalogStatus = 200, balanceStatus = 200 } = {}) {
       });
     }
     const { response_format } = JSON.parse(String(init!.body));
-    const content = response_format.json_schema.name === 'tweets' ? { tweets: ['one', 'two', 'three'] } : { tags };
+    const content = {
+      tweets: { tweets: ['one', 'two', 'three'] },
+      tags: { tags },
+    }[response_format.json_schema.name as string];
     return new Response(
       JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(content) } }] }),
     );
@@ -60,7 +78,7 @@ const chatBodies = () =>
     .filter(([url]) => String(url).endsWith('/chat/completions'))
     .map(([, init]) => JSON.parse(init.body));
 
-const writing = { prompt: 'Write 3 spicy tweets', modelIds: ['kimi-k3', 'z-ai-glm-5-3'] };
+const writing = { prompt: 'Write 3 posts about a sunrise hike', modelIds: ['kimi-k3', 'z-ai-glm-5-3'] };
 const vision = {
   prompt: 'Tag what you see',
   image: { base64: 'AAAA', mimeType: 'image/jpeg' },
@@ -75,6 +93,8 @@ beforeEach(() => {
   venice.apiKey = 'test-venice-key';
   venice.allowed = undefined;
   vi.mocked(findUserById).mockResolvedValue({ id: 'u1', email: 'a@b.co', storageBucket: null } as any);
+  vi.mocked(readPersona).mockResolvedValue(null);
+  vi.mocked(readFavorites).mockResolvedValue([]);
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -194,7 +214,7 @@ describe('POST /api/v1/ai/compare/writing', () => {
       response_format: { type: 'json_schema', json_schema: { name: 'tweets', strict: true } },
       venice_parameters: { include_venice_system_prompt: false, strip_thinking_response: true },
     });
-    expect(kimi.messages[1]).toEqual({ role: 'user', content: 'Write 3 spicy tweets' });
+    expect(kimi.messages[1]).toEqual({ role: 'user', content: 'Write 3 posts about a sunrise hike' });
     for (const body of [kimi, glm]) {
       expect(body).not.toHaveProperty('reasoning_effort');
       expect(body).not.toHaveProperty('max_tokens');
@@ -211,6 +231,38 @@ describe('POST /api/v1/ai/compare/writing', () => {
       { modelId: 'kimi-k3', tweets: ['one', 'two', 'three'] },
     ]);
     expect(chatBodies()).toHaveLength(1);
+  });
+
+  it("writes as the user's persona and favorites", async () => {
+    veniceAnswers();
+    vi.mocked(readPersona).mockResolvedValue({
+      aboutYou: 'Outdoor photographer from Oregon.',
+      contentTags: [],
+      tone: 'Short and calm.',
+      rules: [],
+    });
+    vi.mocked(readFavorites).mockResolvedValue(['First light on the ridge.']);
+    const res = await call('POST', '/ai/compare/writing', writing);
+    expect(res.statusCode).toBe(200);
+    expect(readPersona).toHaveBeenCalledWith(expect.anything(), 'u1');
+    expect(readFavorites).toHaveBeenCalledWith(expect.anything(), 'u1');
+    for (const body of chatBodies()) {
+      expect(body.messages[0].content).toContain('About the creator: Outdoor photographer from Oregon.');
+      expect(body.messages[0].content).toContain('Their tone: Short and calm.');
+      expect(body.messages[0].content).toContain('Write like these:\n---\nFirst light on the ridge.\n---');
+    }
+  });
+
+  it("tells the models the user's writing instructions, then the fixed format", async () => {
+    veniceAnswers();
+    const mine = 'Write like a park ranger.';
+    vi.mocked(readInstructions).mockResolvedValueOnce({ ...resolveInstructions(null), writing: mine });
+    expect((await call('POST', '/ai/compare/writing', writing)).statusCode).toBe(200);
+    expect(readInstructions).toHaveBeenCalledWith(expect.anything(), 'u1');
+    for (const body of chatBodies()) {
+      expect(body.messages[0].content.startsWith(mine)).toBe(true);
+      expect(body.messages[0].content.endsWith(writingFormatText(DEFAULT_INSTRUCTIONS.writingFormat))).toBe(true);
+    }
   });
 
   it('400 for the same model twice', async () => {
@@ -255,6 +307,21 @@ describe('POST /api/v1/ai/compare/vision', () => {
       { type: 'text', text: 'Tag what you see' },
       { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,AAAA' } },
     ]);
+  });
+
+  it("adds the persona's content themes after the prompt", async () => {
+    veniceAnswers();
+    vi.mocked(readPersona).mockResolvedValueOnce({
+      aboutYou: '',
+      tone: '',
+      contentTags: ['landscape', 'hiking'],
+      rules: [],
+    });
+    expect((await call('POST', '/ai/compare/vision', vision)).statusCode).toBe(200);
+    expect(readPersona).toHaveBeenCalledWith(expect.anything(), 'u1');
+    for (const body of chatBodies()) {
+      expect(body.messages[1].content[1].text).toMatch(/^Creator's content themes: landscape, hiking\n\n/);
+    }
   });
 
   it('400 without a prompt', async () => {

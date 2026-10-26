@@ -2,8 +2,10 @@
  * Fills the LOCAL backend with a fixed set of mock data for the dev client: stock photos from
  * picsum.photos, stock videos with music from mixkit.co (all free to use, baked into
  * scripts/mock-videos by bake-mock-videos.sh), albums (including the smart Favorites/Deleted albums)
- * and posts. Re-running resets the account to exactly this set: ids are deterministic and anything
- * else is tombstoned.
+ * and posts, all by one guy who posts his outdoor photos on Bluesky, and his assistant setup: Writing
+ * as you, the prompt buttons (the app's defaults in his words, and one more), Favorites and the
+ * Instructions, left on the app's defaults. Re-running resets the account to exactly this set: ids
+ * are deterministic and anything else in these collections is tombstoned.
  *
  * Run: npm run seed:mock   (from apps/server, with the local stack and `npm run dev` running)
  *      npm run seed:mock -- --assets 50000   (pad the library to that size, for performance tests:
@@ -14,10 +16,17 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import {
   collectionsByName,
+  DEFAULT_PROMPT_BUTTONS,
   initialKeys,
+  keyBetween,
   type AlbumAssetRecord,
   type AlbumRecord,
   type AssetRecord,
+  type FavoriteRecord,
+  type InstructionRecord,
+  type NewPromptButton,
+  type PersonaRecord,
+  type PromptButtonRecord,
   type PostAssetRecord,
   type PostRecord,
   type PullResponse,
@@ -124,6 +133,94 @@ const POSTS: { text: string; media: number[]; postedDaysAgo: number | null; isFa
   { text: 'Where it all started', media: [0, 8], postedDaysAgo: 400 },
 ];
 
+// Writing as you, for the creator the posts above are by: a guy who posts his outdoor photos on
+// Bluesky, one line each, at most one emoji, at the end.
+const PERSONA = {
+  aboutYou:
+    "I'm a guy who shoots outdoors and posts it on Bluesky: hills, forests, quiet coast and the roads between them. People follow for the light and the slow mornings, and the odd story from the trip.",
+  tone: 'Short and calm, a little dry. One line, never salesy. At most one emoji, at the end.',
+  contentTags: ['landscape', 'hiking', 'forest', 'golden hour', 'road trip', 'coast', 'film look'],
+  rules: [
+    'Never use hashtags',
+    'No exclamation marks',
+    'Never name the exact spot, only the region',
+    'Keep each post well under 300 characters',
+  ],
+};
+
+// His Bluesky profile (made up), where Follow-up with link sends people.
+const PROFILE_LINK = 'https://bsky.app/profile/quietroads.bsky.social';
+
+// The app's default prompt buttons (by placement and name) in his words, for Bluesky: Thread becomes a
+// print teaser, Behind the scenes his photo of the week and Funnier Drier, under the same ids. And a
+// trip recap.
+const OVERRIDES: Record<string, Pick<NewPromptButton, 'name' | 'icon' | 'prompt'>> = {
+  'post:Repost ideas': {
+    name: 'Repost ideas',
+    icon: 'repeat',
+    prompt:
+      "Write 3 fresh Bluesky posts that bring this back for people who missed it. Same trip, a new angle each time: the view, the moment, how it felt. Don't repeat the original wording.",
+  },
+  'post:Follow-up with link': {
+    name: 'Follow-up with link',
+    icon: 'link',
+    prompt: `Write a short Bluesky reply to this post that points people to the rest of the trip on my profile. Say what else is there in one line. End with the link: ${PROFILE_LINK}`,
+  },
+  'post:Thread': {
+    name: 'Print teaser',
+    icon: 'printer',
+    prompt:
+      'Write a Bluesky post saying this photo is coming as a print. What makes it worth a wall, in one or two lines. No hard sell.',
+  },
+  'newPost:Caption': {
+    name: 'Caption',
+    icon: 'quote',
+    prompt: 'Write 3 captions for these photos. Short, for Bluesky, one line each. Name the place only by its region.',
+  },
+  'newPost:Behind the scenes': {
+    name: 'Photo of the week',
+    icon: 'award',
+    prompt:
+      'Write a Bluesky thread of 3 short posts for my photo of the week: the shot, where and when, and one thing about how I took it.',
+  },
+  'refine:Shorter': {
+    name: 'Shorter',
+    icon: 'scissors',
+    prompt: 'Make each post shorter. Keep the first line, cut the rest.',
+  },
+  'refine:Funnier': {
+    name: 'Drier',
+    icon: 'feather',
+    prompt: 'Make each post drier and a little funnier. Same idea, one wry twist.',
+  },
+};
+const PROMPT_BUTTONS: NewPromptButton[] = [
+  ...DEFAULT_PROMPT_BUTTONS.map((button) => ({ ...button, ...OVERRIDES[`${button.placement}:${button.name}`] })),
+  {
+    id: mockUuid('prompt-button:trip-recap'),
+    placement: 'newPost',
+    name: 'Trip recap',
+    icon: 'mountain',
+    prompt:
+      'Write 3 Bluesky posts that recap this trip from these photos: where it went, one thing that happened, one detail only I would notice.',
+  },
+];
+
+// The posts it writes like, newest first: his own posts, and two options he hearted in the chat.
+const FAVORITES: { text: string; source: string | null; daysAgo: number }[] = [
+  { text: "Up before the sun again. The hills don't wait, and neither does the light.", source: null, daysAgo: 2 },
+  { text: 'Golden hour on the ridge. Stayed until it was gone 🌅', source: 'Caption', daysAgo: 4 },
+  { text: 'Three days, one tent, zero signal. Best weekend this year 🌲', source: null, daysAgo: 9 },
+  {
+    text: `The rest of the coast trip is on my profile. The last one is the photo I almost didn't post. ${PROFILE_LINK}`,
+    source: 'Follow-up with link',
+    daysAgo: 13,
+  },
+  { text: "Coffee on a cold rock tastes better. I don't make the rules.", source: null, daysAgo: 20 },
+  { text: 'Some trails you hike for the view. This one was for the quiet.', source: null, daysAgo: 34 },
+  { text: 'Packed for rain, got a sunburn. Classic.', source: null, daysAgo: 51 },
+];
+
 if (!email || !password) throw new Error('SEED_USER_EMAIL and SEED_USER_PASSWORD must be set (see .env.docker)');
 if (!['localhost', '127.0.0.1'].includes(new URL(API_URL).hostname)) {
   throw new Error(`Refusing to seed mock data into a non-local backend: ${API_URL}`);
@@ -135,7 +232,7 @@ const videoInfo = JSON.parse(await readFile(new URL('videos.json', MOCK_VIDEOS),
   number,
   { width: number; height: number; duration: number }
 >;
-const token = await login(email, password);
+const { token, userId } = await login(email, password);
 
 const assets: AssetRecord[] = [];
 for (const [index, media] of MEDIA.entries()) {
@@ -192,24 +289,60 @@ const postAssets: PostAssetRecord[] = POSTS.flatMap((post, postIndex) => {
   }));
 });
 
+// One persona per user, whose id is the user's id.
+const personas: PersonaRecord[] = [{ ...baseRecord('persona', now - 60 * DAY), ...PERSONA, id: userId }];
+
+// The instructions on the app's defaults (one record per user, like the persona), so a reset puts back
+// a tester's edits rather than tombstoning their record.
+const instructions: InstructionRecord[] = [
+  {
+    ...baseRecord('instructions', now),
+    id: userId,
+    writing: null,
+    visionTagging: null,
+    writingFormat: null,
+    tagsSystem: null,
+    themesContext: null,
+    personaFraming: null,
+  },
+];
+
+// In each placement's order, positioned like the app's seed (seedPromptButtons).
+const lastPosition = new Map<string, string | null>();
+const promptButtons: PromptButtonRecord[] = PROMPT_BUTTONS.map((button) => {
+  const position = keyBetween(lastPosition.get(button.placement) ?? null, null);
+  lastPosition.set(button.placement, position);
+  return { ...baseRecord(`prompt-button:${button.id}`, now - 60 * DAY), ...button, position };
+});
+
+const favorites: FavoriteRecord[] = FAVORITES.map((favorite, index) => ({
+  ...baseRecord(`favorite:${index}`, now - favorite.daysAgo * DAY),
+  text: favorite.text,
+  source: favorite.source,
+}));
+
 const mockRecords: Record<string, { id: string }[]> = {
   assets,
   albums,
   album_assets: albumAssets,
   posts,
   post_assets: postAssets,
+  personas,
+  prompt_buttons: promptButtons,
+  favorites,
+  instructions,
 };
 const mutations = [...toMutations(mockRecords), ...(await tombstonesForOtherRecords(mockRecords))];
 await push(mutations);
 
 console.log(
-  `Mock data ready: ${assets.length} assets, ${albums.length} albums, ${posts.length} posts` +
-    ` (${mutations.length} records pushed).`
+  `Mock data ready: ${assets.length} assets, ${albums.length} albums, ${posts.length} posts, a persona,` +
+    ` ${promptButtons.length} prompt buttons, ${favorites.length} favorites, default instructions (${mutations.length} records pushed).`,
 );
 
 async function createPhotoAsset(
   index: number,
-  { picsum: picsumId, deleted }: { picsum: number; deleted?: boolean }
+  { picsum: picsumId, deleted }: { picsum: number; deleted?: boolean },
 ): Promise<AssetRecord> {
   const { width, height } = (await fetchJson(`https://picsum.photos/id/${picsumId}/info`)) as {
     width: number;
@@ -240,7 +373,7 @@ async function createPhotoAsset(
 
 async function createVideoAsset(
   index: number,
-  { video: clip, deleted }: { video: number; deleted?: boolean }
+  { video: clip, deleted }: { video: number; deleted?: boolean },
 ): Promise<AssetRecord> {
   const info = videoInfo[clip];
   if (!info) throw new Error(`Mock video ${clip} isn't baked: add it to scripts/bake-mock-videos.sh and run it`);
@@ -272,7 +405,7 @@ async function uploadMedia(
     file,
     thumbnailFile,
     deleted = false,
-  }: { extension: string; contentType: string; file: Buffer; thumbnailFile: Buffer; deleted?: boolean }
+  }: { extension: string; contentType: string; file: Buffer; thumbnailFile: Buffer; deleted?: boolean },
 ) {
   const record = baseRecord(seed, now - index * 2.5 * DAY);
   const filename = `${record.id}.${extension}`;
@@ -323,7 +456,7 @@ function fitWithin(width: number, height: number, maxSide: number) {
 
 function toMutations(recordsByCollection: Record<string, object[]>): PushMutation[] {
   return Object.entries(recordsByCollection).flatMap(([collection, records]) =>
-    records.map((record) => ({ collection, record: collectionsByName[collection]!.schema.parse(record) }))
+    records.map((record) => ({ collection, record: collectionsByName[collection]!.schema.parse(record) })),
   );
 }
 
@@ -335,6 +468,8 @@ async function tombstonesForOtherRecords(keep: Record<string, { id: string }[]>)
   while (hasMore) {
     const page = (await api('/sync/pull', { cursor, limit: 1000 })) as PullResponse;
     for (const [collection, { records }] of Object.entries(page.changes)) {
+      // Only the collections the mock data set makes: any other stays as it is.
+      if (!(collection in keep)) continue;
       for (const record of records) {
         if (keepIds.has(record.id as string) || record.deletedAt) continue;
         tombstones.push({ collection, record: { ...record, deletedAt: now, updatedAt: now } });
@@ -354,11 +489,12 @@ async function push(mutations: PushMutation[]): Promise<void> {
   }
 }
 
-async function login(email: string, password: string): Promise<string> {
-  const { accessToken } = (await request('/auth/login', { method: 'POST', body: { email, password } })) as {
+async function login(email: string, password: string): Promise<{ token: string; userId: string }> {
+  const { accessToken, user } = (await request('/auth/login', { method: 'POST', body: { email, password } })) as {
     accessToken: string;
+    user: { id: string };
   };
-  return accessToken;
+  return { token: accessToken, userId: user.id };
 }
 
 function api(path: string, body: unknown): Promise<unknown> {
@@ -367,7 +503,7 @@ function api(path: string, body: unknown): Promise<unknown> {
 
 async function request(
   path: string,
-  { method, body, token }: { method: string; body: unknown; token?: string }
+  { method, body, token }: { method: string; body: unknown; token?: string },
 ): Promise<unknown> {
   const res = await fetch(`${API_URL}${path}`, {
     method,

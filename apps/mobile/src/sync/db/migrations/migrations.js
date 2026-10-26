@@ -16,6 +16,12 @@ import m0011 from './0011_outbox_fields.sql';
 import m0012 from './0012_purged_files.sql';
 import m0013 from './0013_asset_details.sql';
 import m0014 from './0014_ai_tables.sql';
+import m0015 from './0015_assistant_setup.sql';
+import m0016 from './0016_favorites.sql';
+import m0017 from './0017_instructions.sql';
+import m0018 from './0018_drop_use_emoji.sql';
+import m0019 from './0019_drop_persona_draft_instructions.sql';
+import m0020 from './0020_app_prompts.sql';
 
   export default {
     journal,
@@ -34,7 +40,13 @@ m0010,
 m0011,
 m0012,
 m0013,
-m0014
+m0014,
+m0015,
+m0016,
+m0017,
+m0018,
+m0019,
+m0020
     }
   }
   

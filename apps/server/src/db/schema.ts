@@ -208,6 +208,74 @@ export const postAssets = pgTable(
 );
 export type PostAssetRow = typeof postAssets.$inferSelect;
 
+// --- Assistant setup (sync-design §10) ---
+// One persona per user: its id is the user's id. The lists are jsonb string arrays.
+export const personas = pgTable(
+  'personas',
+  {
+    ...syncableBase(),
+    aboutYou: text('about_you').notNull(),
+    contentTags: jsonb('content_tags').$type<string[]>().notNull(),
+    tone: text('tone').notNull(),
+    rules: jsonb('rules').$type<string[]>().notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.id] }),
+    byUserSeq: index('personas_user_seq_idx').on(t.userId, t.serverSeq),
+  }),
+);
+export type PersonaRow = typeof personas.$inferSelect;
+
+export const promptButtons = pgTable(
+  'prompt_buttons',
+  {
+    ...syncableBase(),
+    name: text('name').notNull(),
+    prompt: text('prompt').notNull(),
+    placement: text('placement').notNull(), // 'post' | 'newPost' | 'refine' (validated via Zod)
+    icon: text('icon'),
+    position: text('position').notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.id] }),
+    byUserSeq: index('prompt_buttons_user_seq_idx').on(t.userId, t.serverSeq),
+  }),
+);
+export type PromptButtonRow = typeof promptButtons.$inferSelect;
+
+export const favorites = pgTable(
+  'favorites',
+  {
+    ...syncableBase(),
+    text: text('text').notNull(),
+    source: text('source'),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.id] }),
+    byUserSeq: index('favorites_user_seq_idx').on(t.userId, t.serverSeq),
+  }),
+);
+export type FavoriteRow = typeof favorites.$inferSelect;
+
+// One instructions record per user: its id is the user's id. A null text is the app's default.
+export const instructions = pgTable(
+  'instructions',
+  {
+    ...syncableBase(),
+    writing: text('writing'),
+    visionTagging: text('vision_tagging'),
+    writingFormat: text('writing_format'),
+    tagsSystem: text('tags_system'),
+    themesContext: text('themes_context'),
+    personaFraming: text('persona_framing'),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.id] }),
+    byUserSeq: index('instructions_user_seq_idx').on(t.userId, t.serverSeq),
+  }),
+);
+export type InstructionRow = typeof instructions.$inferSelect;
+
 // Global monotonic sequence stamped onto every syncable row by a BEFORE INSERT/UPDATE trigger.
 // Created here so the sequence exists before any syncable table. Raw SQL
 // because Drizzle has no first-class sequence DDL we rely on across versions.

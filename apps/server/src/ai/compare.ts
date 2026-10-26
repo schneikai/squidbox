@@ -1,6 +1,6 @@
 // A blind compare runs the same task on several models at once. Each model's result stands on its
 // own: one failing leaves the others' results.
-import { WRITING_TWEET_COUNT } from '@squidbox/shared';
+import { uniqueTags, WRITING_TWEET_COUNT } from '@squidbox/shared';
 import type { CatalogEntry } from './catalog.js';
 import { tagsSchema, tweetsSchema } from './prompts.js';
 import { chatJsonAsync, VeniceError, type ChatMessage, type JsonSchemaSpec } from './venice.js';
@@ -21,15 +21,7 @@ export function checkTweets(tweets: string[]): string[] {
  * many as the prompt asked for; throws when none are left.
  */
 export function checkTags(tags: string[]): string[] {
-  const seen = new Set<string>();
-  const kept = tags
-    .map((tag) => tag.trim())
-    .filter((tag) => {
-      const key = tag.toLowerCase();
-      if (!tag || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+  const kept = uniqueTags(tags);
   if (kept.length === 0) throw new VeniceError('Returned no tags');
   return kept;
 }

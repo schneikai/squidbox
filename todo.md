@@ -127,8 +127,6 @@ Where AI is needed:
 General ideas:
 - **One assistant** for all these use cases, with a similar interface where possible, so it can also
   cover other use cases users might have.
-- **Onboarding with a persona.** The user creates a persona so the assistant writes content that
-  fits their content and tone.
 - **Know what the content is about.** Image recognition of the user's media, and it must be very
   specific: for the owner's media, tags like blowjob, deepthroat, facefuck, throatfuck, etc. Let the
   user also enter tags for what their content is about, and set how detailed or broad to be about a
@@ -136,6 +134,12 @@ General ideas:
 - **Favorite suggestions** to teach the assistant which style and tone the user prefers.
 - **Memory.** What the user tells the assistant is remembered, e.g. "make it more about the action
   and less about the filming", "less influencer style, more guy next door".
+
+### [ ] Fill in Writing as you from your posts
+
+Bring back "Fill it in for me" as an agent chat session that drafts About you, Tone, Your content and
+Rules from the user's posts. It was removed from the setup flow (`features/voice`); the server route
+was `POST /ai/persona/draft`.
 
 ### [ ] Alternative texts for a post
 

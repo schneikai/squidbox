@@ -23,11 +23,17 @@ What matters most, in order: a beautiful, intuitive UI, data integrity, performa
 - Components define their appearance; parents define layout
 - Animate with the `motion` tokens in `styles/designTokens.js` (`enter`, `exit`, `move`, `spring`), not ad-hoc durations, easings or spring values
 - Give haptic feedback through `hooks/useHaptics`, never expo-haptics directly: it respects the Haptics setting and skips builds and web without the native module. Use it only for meaningful moments (a lift, a drop, a peek, a selection change, a success or an error), never for every tap
+- Edits save as you type, like iOS Settings (`hooks/useSaveAsYouType`): no Save buttons or discard prompts; a new item is created once it has content
 
 ## Code Quality
 
 - The project checks are `npm run lint`, `npm run typecheck`, `npm run knip` and `npm test --workspaces --if-present`, all from the repo root. Run them before committing and keep them clean
 - Add to `knip.json` only files Expo or Metro load by convention. Delete code that is merely unused
+
+## AI prompts
+
+- Every prompt the app sends to the AI is editable: by the user (Settings → Assistant → Instructions) or, for an `ai_admin` account, as an override for that account (App prompts). Give new prompts the same treatment
+- The built-in defaults live in `packages/shared`. Change one only in a PR, after the new text was tested as an override
 
 ## TODO list
 
@@ -46,3 +52,4 @@ What matters most, in order: a beautiful, intuitive UI, data integrity, performa
 - `dev:live` and `dev:local` write a missing `.env.local` from the environment variables. If they can't, don't start Metro by hand: ask the owner for the missing values. Without them every API call is broken
 - Stop them with SIGTERM or Ctrl+C on the script: that stops Metro, the tunnel and the API server it started
 - When the script prints the URL to open in Squidbox (Dev), end your reply with that URL, not the startup logs or localhost URLs
+- Mock data (`apps/server/scripts/seed-mock.ts`) is one guy posting his outdoor photos on Bluesky: keep new mock content in that persona

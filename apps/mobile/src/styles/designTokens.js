@@ -31,6 +31,7 @@ const palette = {
   gray900: '#111827',
   violet50: '#F5F3FF',
   violet100: '#EFE7FD',
+  violet300: '#C4B5FD',
   violet600: '#7C3AED',
   indigo600: '#4F46E5',
   rose600: '#E11D48',
@@ -51,6 +52,8 @@ export const colors = {
     base: palette.violet600,
     light: alpha(palette.violet600, 0.12),
     surface: palette.violet100, // `light` over white, opaque for a surface over content (the account avatar)
+    border: alpha(palette.violet600, 0.3), // the frame of an outlined or dashed chip
+    onDark: palette.violet300, // the accent on a dark surface (the Undo bar's Undo)
     gradient: [palette.violet600, palette.indigo600],
   },
   status: {
@@ -65,6 +68,7 @@ export const colors = {
     glass: alpha(palette.white, 0.95),
     menu: alpha(palette.white, 0.72), // tint over the BlurView of popover menus
     muted: palette.gray100, // `overlay.pressed` over white, opaque
+    tint: palette.violet50, // a lavender card on a white sheet (an example to copy)
     placeholder: palette.gray300, // a picture's spot before it loads
     shimmer: palette.white, // the pulse over a loading picture's placeholder
     media: palette.black, // behind a photo or video shown full screen

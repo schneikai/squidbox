@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import joinYourModels from '../src/features/model-compare/joinYourModels';
 import searchModels from '../src/features/model-compare/searchModels';
-import seedModels from '../src/features/model-compare/seedModels';
+import joinYourModels from '../src/utils/ai/joinYourModels';
 import modelsOfKind from '../src/utils/ai/modelsOfKind';
+import seedModels from '../src/utils/ai/seedModels';
 
 const model = (id: string, name: string, supportsVision = true) => ({
   id,

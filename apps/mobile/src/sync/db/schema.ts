@@ -154,6 +154,60 @@ export const postAssets = sqliteTable(
 );
 export type PostAssetRow = typeof postAssets.$inferSelect;
 
+// Assistant setup (mirror @squidbox/shared personas / prompt_buttons / favorites). One persona per user (its id
+// is the user's id); the lists are JSON text.
+export const personas = sqliteTable('personas', {
+  id: text('id').primaryKey(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  deletedAt: integer('deleted_at'),
+  aboutYou: text('about_you').notNull(),
+  contentTags: text('content_tags', { mode: 'json' }).$type<string[]>().notNull(),
+  tone: text('tone').notNull(),
+  rules: text('rules', { mode: 'json' }).$type<string[]>().notNull(),
+});
+export type PersonaRow = typeof personas.$inferSelect;
+
+export const promptButtons = sqliteTable('prompt_buttons', {
+  id: text('id').primaryKey(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  deletedAt: integer('deleted_at'),
+  name: text('name').notNull(),
+  prompt: text('prompt').notNull(),
+  placement: text('placement', { enum: ['post', 'newPost', 'refine'] }).notNull(),
+  icon: text('icon'),
+  position: text('position').notNull(),
+});
+export type PromptButtonRow = typeof promptButtons.$inferSelect;
+
+// The posts the assistant writes like (mirror @squidbox/shared favorites); newest first.
+export const favorites = sqliteTable('favorites', {
+  id: text('id').primaryKey(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  deletedAt: integer('deleted_at'),
+  text: text('text').notNull(),
+  source: text('source'),
+});
+export type FavoriteRow = typeof favorites.$inferSelect;
+
+// What the assistant is told per kind (mirror @squidbox/shared instructions). One record per user (its id is the
+// user's id); a null text is the app's default.
+export const instructions = sqliteTable('instructions', {
+  id: text('id').primaryKey(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  deletedAt: integer('deleted_at'),
+  writing: text('writing'),
+  visionTagging: text('vision_tagging'),
+  writingFormat: text('writing_format'),
+  tagsSystem: text('tags_system'),
+  themesContext: text('themes_context'),
+  personaFraming: text('persona_framing'),
+});
+export type InstructionRow = typeof instructions.$inferSelect;
+
 // key/value store for the pull cursor + sync status (all local-only).
 export const syncMeta = sqliteTable('sync_meta', {
   key: text('key').primaryKey(),

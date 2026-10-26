@@ -842,6 +842,51 @@ columns. One record per album and asset.
 **post_assets** (assets in a post). Synced: `postId`, `assetId`, `position`, plus the base
 columns. The edge id is the `assetRefs[].id` the UI sees.
 
+**personas** ("Writing as you", Settings → Assistant). Synced: `aboutYou`, `tone`,
+`contentTags` (string[]), `rules` (string[]), plus the base columns (`examplePosts` left for
+`favorites` in migration 0012/0016, and `useEmoji` was dropped in 0014/0018, Tone and Rules saying how
+to use emoji; both unreleased, so no carry-over, and a push from an older build that still sends
+`useEmoji` has it stripped by the schema like any unknown field). One record per user: its `id` is the user's id, so every device writes the same record and
+the per-field merge converges. The lists are the first JSON fields of a synced collection (Postgres
+`jsonb`, SQLite JSON text); each merges as one value with its own clock. A local write compares
+JSON fields by content (`saveRecords`), so a list read back as a new array but unchanged gets no
+new clock. A save names only the fields the user changed in the editor, the first save included
+(its record goes whole, but only those fields carry clocks), so a device that hasn't pulled
+another's persona yet never overwrites it with empty fields. No field groups.
+
+**prompt_buttons** (the chat's one-tap prompts). Synced: `name`, `prompt`, `placement` (`post` |
+`newPost` | `refine`), `icon` (an Icon name or null), `position` (a fractional-index key, the order
+within the placement by `(position, id)`), plus the base columns. A button for two places is two
+records. The app seeds a default set once per library, only while the table has no rows at all
+(tombstones included), with fixed ids, so a deleted default never comes back and two devices that
+both seed converge on one row each.
+
+**favorites** (Settings → Assistant → Favorites: the posts the assistant writes like). Synced:
+`text`, `source` (the prompt button's name for an option hearted in the chat, null for the user's
+own post), plus the base columns; newest `createdAt` first, no position and no cap. One record per
+post rather than a list on the persona, so a heart on one device and an unheart on another merge
+per post, and each keeps where and when it came from. Removing one is a tombstone; Undo restores it
+by writing `deletedAt: null`, a per-field write that a later tombstone from another device still
+beats by its clock. The writing prompt sends the newest 20 (`FAVORITES_IN_PROMPT`).
+
+**instructions** (Settings → Assistant → Instructions: what the assistant is told before each
+request). Synced: `writing`, `visionTagging` and the app prompts (`writingFormat`, `tagsSystem`,
+`themesContext`, `personaFraming`: the server's own texts around them, templates it fills in, editable
+in the dev client for trying a change on one account), each the user's text or null for the
+app's default (`DEFAULT_INSTRUCTIONS` in `packages/shared`, resolved by `resolveInstructions`), plus
+the base columns. One record per user with the user's id as its id, like `personas`, so two devices
+editing different kinds merge per field, and Reset is a per-field write of null that wins or loses by
+its clock like any edit. A text equal to the default is stored as null. The reply format each kind
+needs (the post count, the JSON) is the server's and never stored. Both per-user records are written
+by `saveUserRecord` (`userRecord.ts`), which brings a tombstoned record back instead of inserting it
+again.
+
+A library merge (`mergeLibrary.ts`) leaves all four alone: a device library has none (the assistant
+needs an account), and an account library's rows are on the server already. `seed-mock.ts`'s reset
+sets all four to its Bluesky outdoor photographer's setup like the media collections (the default prompt
+buttons, `DEFAULT_PROMPT_BUTTONS` in `packages/shared`, under their fixed ids; the instructions all
+null, on the defaults), so the app, which seeds only an empty table, adds nothing on top.
+
 Edges have a parent index on both sides (`album_assets_album_idx`, `post_assets_post_idx`).
 References between collections are not enforced with foreign keys; the UI tolerates ids that
 don't resolve.

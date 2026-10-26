@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 
-import { colors, lineHeights, typography } from '@/styles/designTokens';
+import IconButton from '@/components/IconButton';
+import { colors, lineHeights, sizes, typography } from '@/styles/designTokens';
 
 /**
  * A label + children slot + optional description text.
@@ -13,12 +14,26 @@ import { colors, lineHeights, typography } from '@/styles/designTokens';
  *     </Field>
  *   </Card>
  *
+ * `onInfo` ends the label with an ⓘ that calls it, to explain what goes in the field.
+ *
  * style applies to the outer View.
  */
-export default function Field({ label, description, children, style }) {
+export default function Field({ label, description, onInfo, children, style }) {
   return (
     <View style={[styles.field, style]}>
-      <Text style={styles.label}>{label}</Text>
+      <View style={styles.labelRow}>
+        <Text style={styles.label}>{label}</Text>
+        {onInfo && (
+          <IconButton
+            icon="info"
+            size={sizes.iconSmall}
+            color={colors.text.tertiary}
+            onPress={onInfo}
+            accessibilityLabel={`What goes in ${label}`}
+            style={styles.info}
+          />
+        )}
+      </View>
       {children}
       {description != null && <Text style={styles.description}>{description}</Text>}
     </View>
@@ -28,6 +43,15 @@ export default function Field({ label, description, children, style }) {
 const styles = StyleSheet.create({
   field: {
     gap: 8,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  // The 44 pt tap target overlaps the space around the label instead of making its row taller.
+  info: {
+    marginVertical: -(sizes.iconButton - lineHeights.footnote) / 2,
+    marginLeft: -6,
   },
   label: {
     fontSize: typography.footnote,

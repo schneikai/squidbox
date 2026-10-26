@@ -70,8 +70,9 @@ MinIO console: http://localhost:9001 (minioadmin / minioadmin). Tear down with
 ### Mock data and the phone dev client
 
 `npm run seed:mock` fills the local account (SEED_USER_EMAIL) with stock photos from picsum.photos
-(landscape and portrait), short stock videos with music, albums (including Favorites and Deleted) and
-posts. Ids are deterministic, so re-running resets the account to exactly that set. It refuses to run
+(landscape and portrait), short stock videos with music, albums (including Favorites and Deleted),
+posts, and the assistant setup of the guy they belong to, who posts his outdoor photos on Bluesky (Writing as you, the prompt
+buttons, Favorites, Instructions on the defaults). Ids are deterministic, so re-running resets the account to exactly that set. It refuses to run
 against a non-local API.
 
 The videos are committed in `scripts/mock-videos/`: Mixkit clips with a Mixkit music track under

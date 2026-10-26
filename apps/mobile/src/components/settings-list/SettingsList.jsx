@@ -1,3 +1,4 @@
+import { Children } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import Icon from '@/components/Icon';
@@ -8,12 +9,13 @@ import { colors, lineHeights, radii, shadows, sizes, typography } from '@/styles
 // iOS-style grouped-list building blocks shared by the Settings screen and its detail screens
 // (Backup, Sync), so they all look and behave the same.
 
-export function Section({ children }) {
-  const kids = Array.isArray(children) ? children.filter(Boolean) : [children].filter(Boolean);
+// `isHeaderless`: a section without a header above it, set apart from the one before like a headed one.
+export function Section({ children, isHeaderless = false }) {
+  const kids = Children.toArray(children);
   return (
-    <View style={styles.section}>
+    <View style={[styles.section, isHeaderless && styles.headerless]}>
       {kids.map((child, i) => (
-        <View key={i}>
+        <View key={child.key ?? i}>
           {child}
           {i < kids.length - 1 && <ListDivider />}
         </View>
@@ -22,21 +24,34 @@ export function Section({ children }) {
   );
 }
 
-// iOS-style small gray explanatory text shown BELOW a grouped section.
-export function SectionFooter({ children }) {
-  return <Text style={styles.footer}>{children}</Text>;
+// iOS-style small gray explanatory text shown BELOW a grouped section. `isMuted` greys it further,
+// for a value that couldn't be read.
+export function SectionFooter({ children, isMuted = false }) {
+  return <Text style={[styles.footer, isMuted && styles.footerMuted]}>{children}</Text>;
 }
 
 // `isValueMuted` greys the value further, for one that no longer applies. `isValueTruncated` keeps
-// the value to one line, shortened with an ellipsis, so the label keeps its width.
-export function Row({ label, value, isValueMuted, isValueTruncated, onPress, destructive, chevron, children }) {
+// the value to one line, shortened with an ellipsis, so the label keeps its width. `leading` goes
+// before the label (an icon), `description` is secondary text under it.
+export function Row({
+  label,
+  description,
+  leading,
+  value,
+  isValueMuted,
+  isValueTruncated,
+  onPress,
+  destructive,
+  chevron,
+  children,
+}) {
   const content = (
     <View style={styles.row}>
-      <Text
-        style={[styles.rowLabel, isValueTruncated && styles.rowLabelKept, destructive && styles.rowLabelDestructive]}
-      >
-        {label}
-      </Text>
+      {leading != null && <View style={styles.rowLeading}>{leading}</View>}
+      <View style={[styles.rowText, isValueTruncated && styles.rowTextKept]}>
+        <Text style={[styles.rowLabel, destructive && styles.rowLabelDestructive]}>{label}</Text>
+        {description != null && <Text style={styles.rowDescription}>{description}</Text>}
+      </View>
       <View style={styles.rowRight}>
         {value ? (
           <Text
@@ -65,6 +80,9 @@ export function Row({ label, value, isValueMuted, isValueTruncated, onPress, des
 }
 
 const styles = StyleSheet.create({
+  headerless: {
+    marginTop: 20,
+  },
   section: {
     backgroundColor: colors.background.glass,
     borderRadius: radii.card,
@@ -79,13 +97,24 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   rowLabel: {
-    flex: 1,
     fontSize: typography.body,
     color: colors.text.primary,
   },
-  rowLabelKept: {
+  rowLeading: {
+    marginRight: 12,
+  },
+  rowText: {
+    flex: 1,
+    gap: 2,
+  },
+  rowTextKept: {
     flexBasis: 'auto',
     flexShrink: 0,
+  },
+  rowDescription: {
+    fontSize: typography.subheadline,
+    lineHeight: lineHeights.subheadline,
+    color: colors.text.secondary,
   },
   rowLabelDestructive: {
     color: colors.status.danger,
@@ -112,5 +141,8 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     marginRight: 4,
     lineHeight: lineHeights.footnote,
+  },
+  footerMuted: {
+    color: colors.text.tertiary,
   },
 });

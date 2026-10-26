@@ -2,8 +2,9 @@ import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import ModelCard from './ModelCard';
-import TagChip from './TagChip';
 import TweetRow from './TweetRow';
+
+import Chip from '@/components/Chip';
 
 // Memoized: a vision round settles photo by photo, and a tap changes one key's taps, so only the
 // cards whose `results` or `taps` changed re-render.
@@ -24,7 +25,16 @@ function ModelAnswers({ answerKey, kind, letters, namesById, results = {}, taps 
           <View style={styles.tags}>
             {items.map((tag, index) => {
               const isOn = tapped.includes(index);
-              return <TagChip key={index} label={tag} isOn={isOn} onToggle={() => toggle(answerKey, modelId, index)} />;
+              return (
+                <Chip
+                  key={index}
+                  label={tag}
+                  variant={isOn ? 'accent' : 'muted'}
+                  onPress={() => toggle(answerKey, modelId, index)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: isOn }}
+                />
+              );
             })}
           </View>
         ) : (

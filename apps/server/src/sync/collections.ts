@@ -7,9 +7,23 @@ import {
   postCollection,
   albumAssetCollection,
   postAssetCollection,
+  personaCollection,
+  instructionCollection,
+  promptButtonCollection,
+  favoriteCollection,
   type CollectionDescriptor,
 } from '@squidbox/shared';
-import { assets, albums, posts, albumAssets, postAssets } from '../db/schema.js';
+import {
+  assets,
+  albums,
+  posts,
+  albumAssets,
+  postAssets,
+  personas,
+  promptButtons,
+  favorites,
+  instructions,
+} from '../db/schema.js';
 
 // Server-side view of a syncable collection: its table and shared descriptor, the columns of the
 // client-facing record (`wireColumns`; the server-only ones stay out), and the push's upsert.
@@ -58,4 +72,8 @@ export const serverCollections: Record<string, ServerCollection> = {
   posts: serverCollection(posts, postCollection),
   album_assets: serverCollection(albumAssets, albumAssetCollection),
   post_assets: serverCollection(postAssets, postAssetCollection),
+  personas: serverCollection(personas, personaCollection),
+  prompt_buttons: serverCollection(promptButtons, promptButtonCollection),
+  favorites: serverCollection(favorites, favoriteCollection),
+  instructions: serverCollection(instructions, instructionCollection),
 };
