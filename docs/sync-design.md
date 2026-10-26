@@ -867,11 +867,21 @@ per post, and each keeps where and when it came from. Removing one is a tombston
 by writing `deletedAt: null`, a per-field write that a later tombstone from another device still
 beats by its clock. The writing prompt sends the newest 20 (`FAVORITES_IN_PROMPT`).
 
-A library merge (`mergeLibrary.ts`) leaves all three alone: a device library has none (the assistant
+**instructions** (Settings → Assistant → Instructions: what the assistant is told before each
+request). Synced: `writing`, `personaDraft`, `visionTagging`, each the user's text or null for the
+app's default (`DEFAULT_INSTRUCTIONS` in `packages/shared`, resolved by `resolveInstructions`), plus
+the base columns. One record per user with the user's id as its id, like `personas`, so two devices
+editing different kinds merge per field, and Reset is a per-field write of null that wins or loses by
+its clock like any edit. A text equal to the default is stored as null. The reply format each kind
+needs (the post count, the JSON) is the server's and never stored. Both per-user records are written
+by `saveUserRecord` (`userRecord.ts`), which brings a tombstoned record back instead of inserting it
+again.
+
+A library merge (`mergeLibrary.ts`) leaves all four alone: a device library has none (the assistant
 needs an account), and an account library's rows are on the server already. `seed-mock.ts`'s reset
-sets all three to its Bluesky outdoor photographer's setup like the media collections (the default prompt
-buttons, `DEFAULT_PROMPT_BUTTONS` in `packages/shared`, under their fixed ids), so the app, which
-seeds only an empty table, adds nothing on top.
+sets all four to its Bluesky outdoor photographer's setup like the media collections (the default prompt
+buttons, `DEFAULT_PROMPT_BUTTONS` in `packages/shared`, under their fixed ids; the instructions all
+null, on the defaults), so the app, which seeds only an empty table, adds nothing on top.
 
 Edges have a parent index on both sides (`album_assets_album_idx`, `post_assets_post_idx`).
 References between collections are not enforced with foreign keys; the UI tolerates ids that

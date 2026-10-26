@@ -264,6 +264,22 @@ export const favorites = pgTable(
 );
 export type FavoriteRow = typeof favorites.$inferSelect;
 
+// One instructions record per user: its id is the user's id. A null text is the app's default.
+export const instructions = pgTable(
+  'instructions',
+  {
+    ...syncableBase(),
+    writing: text('writing'),
+    personaDraft: text('persona_draft'),
+    visionTagging: text('vision_tagging'),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.id] }),
+    byUserSeq: index('instructions_user_seq_idx').on(t.userId, t.serverSeq),
+  }),
+);
+export type InstructionRow = typeof instructions.$inferSelect;
+
 // Global monotonic sequence stamped onto every syncable row by a BEFORE INSERT/UPDATE trigger.
 // Created here so the sequence exists before any syncable table. Raw SQL
 // because Drizzle has no first-class sequence DDL we rely on across versions.

@@ -1,0 +1,33 @@
+// The icons a prompt button can lead with, in the picker's order (Icon names).
+const PROMPT_BUTTON_ICONS = [
+  'edit',
+  'pencil',
+  'scissors',
+  'repeat',
+  'message-circle',
+  'quote',
+  'list',
+  'link',
+  'megaphone',
+  'image',
+  'images',
+  'video',
+  'map-pin',
+  'tag',
+  'hash',
+  'sparkle',
+  'star',
+  'heart',
+  'smile',
+  'flame',
+  'calendar',
+  'clock',
+  'share',
+  'copy',
+  'search',
+  'folder',
+  'user',
+  'lock',
+];
+
+export default PROMPT_BUTTON_ICONS;

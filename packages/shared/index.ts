@@ -18,6 +18,7 @@ export * from './collections/postAsset';
 export * from './collections/persona';
 export * from './collections/promptButton';
 export * from './collections/favorite';
+export * from './collections/instruction';
 export * from './collections/defaultPromptButtons';
 export * from './collections/registry';
 export * from './collections/widenToGroups';

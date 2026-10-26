@@ -16,6 +16,11 @@ vi.mock('../src/ai/persona.js', async (importOriginal) => ({
   readPersona: vi.fn().mockResolvedValue(null),
   readFavorites: vi.fn().mockResolvedValue([]),
 }));
+// The instructions likewise: the defaults unless a test changes one.
+vi.mock('../src/ai/instructions.js', async () => {
+  const { resolveInstructions } = await import('@squidbox/shared');
+  return { readInstructions: vi.fn().mockResolvedValue(resolveInstructions(null)) };
+});
 // The test env has no Venice key; each test sets the one the routes see.
 const venice = vi.hoisted(() => ({ apiKey: undefined as string | undefined }));
 vi.mock('../src/config.js', async (importOriginal) => {
@@ -29,10 +34,13 @@ vi.mock('../src/config.js', async (importOriginal) => {
   };
 });
 
+import { DEFAULT_INSTRUCTIONS, resolveInstructions } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
+import { DRAFT_FORMAT, WRITING_FORMAT } from '../src/ai/prompts.js';
 import { buildApp } from '../src/app.js';
 import { signAccessToken } from '../src/auth/jwt.js';
 import { clearCatalogCache } from '../src/ai/catalog.js';
+import { readInstructions } from '../src/ai/instructions.js';
 import { readFavorites, readPersona } from '../src/ai/persona.js';
 import { findUserById } from '../src/users.js';
 
@@ -268,6 +276,18 @@ describe('POST /api/v1/ai/compare/writing', () => {
     }
   });
 
+  it("tells the models the user's writing instructions, then the fixed format", async () => {
+    veniceAnswers();
+    const mine = 'Write like a park ranger.';
+    vi.mocked(readInstructions).mockResolvedValueOnce({ ...resolveInstructions(null), writing: mine });
+    expect((await call('POST', '/ai/compare/writing', writing)).statusCode).toBe(200);
+    expect(readInstructions).toHaveBeenCalledWith(expect.anything(), 'u1');
+    for (const body of chatBodies()) {
+      expect(body.messages[0].content.startsWith(mine)).toBe(true);
+      expect(body.messages[0].content.endsWith(WRITING_FORMAT)).toBe(true);
+    }
+  });
+
   it('400 for the same model twice', async () => {
     veniceAnswers();
     const res = await call('POST', '/ai/compare/writing', { ...writing, modelIds: ['kimi-k3', 'kimi-k3'] });
@@ -349,7 +369,18 @@ describe('POST /api/v1/ai/persona/draft', () => {
     });
     const [body] = chatBodies();
     expect(body.model).toBe('kimi-k3');
+    expect(body.messages[0].content).toBe(`${DEFAULT_INSTRUCTIONS.personaDraft}\n\n${DRAFT_FORMAT}`);
     expect(body.messages[1].content).toBe('Post 0:\nFirst light on the ridge.');
+  });
+
+  it("drafts with the user's own Fill it in for me instructions", async () => {
+    veniceAnswers();
+    vi.mocked(readInstructions).mockResolvedValueOnce({
+      ...resolveInstructions(null),
+      personaDraft: 'Read me kindly.',
+    });
+    expect((await call('POST', '/ai/persona/draft', draft)).statusCode).toBe(200);
+    expect(chatBodies()[0].messages[0].content).toBe(`Read me kindly.\n\n${DRAFT_FORMAT}`);
   });
 
   it('400 for a model Venice no longer offers, before any chat', async () => {

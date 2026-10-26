@@ -17,6 +17,7 @@ import { authenticate, requireUser } from '../auth/authenticate.js';
 import { fetchBalanceAsync } from './balance.js';
 import { findModel, getCatalogAsync, type Catalog, type CatalogEntry } from './catalog.js';
 import { compareModels, visionTask, writingTask } from './compare.js';
+import { readInstructions } from './instructions.js';
 import { draftPersonaAsync, readFavorites, readPersona } from './persona.js';
 import { visionMessages, writingMessages } from './prompts.js';
 import { VeniceError } from './venice.js';
@@ -110,7 +111,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       handler: () => orAiUnavailable(fetchBalanceAsync(), "Couldn't load the balance from Venice"),
     });
 
-    // POST /ai/compare/writing — each model writes tweets for the same prompt.
+    // POST /ai/compare/writing — each model writes posts for the same prompt, as the user.
     r.route({
       method: 'POST',
       url: '/ai/compare/writing',
@@ -121,12 +122,18 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         const signal = untilClientLeaves(reply);
         // The catalog loads meanwhile (compareRequested reads it from the cache then).
         const userId = requireUser(request).id;
-        const [persona, favorites] = await Promise.all([
+        const [persona, favorites, instructions] = await Promise.all([
           readPersona(getDb(), userId),
           readFavorites(getDb(), userId),
+          readInstructions(getDb(), userId),
           catalogAsync(),
         ]);
-        const messages = writingMessages({ prompt: request.body.prompt, persona, favorites });
+        const messages = writingMessages({
+          prompt: request.body.prompt,
+          persona,
+          favorites,
+          instructions: instructions.writing,
+        });
         const results = await compareRequested(request.body.modelIds, 'writing', (models) =>
           compareModels({ task: writingTask, messages, models, log: request.log, signal }),
         );
@@ -143,11 +150,19 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       schema: { body: personaDraftRequestSchema, response: { 200: personaDraftResponseSchema } },
       handler: async (request, reply) => {
         const signal = untilClientLeaves(reply);
-        const { entries } = await catalogAsync();
+        const [{ entries }, instructions] = await Promise.all([
+          catalogAsync(),
+          readInstructions(getDb(), requireUser(request).id),
+        ]);
         const found = findModel(entries, request.body.modelId, 'writing');
         if ('error' in found) throw new AppError(400, 'validation_error', found.error);
         try {
-          return await draftPersonaAsync({ posts: request.body.posts, model: found.entry, signal });
+          return await draftPersonaAsync({
+            posts: request.body.posts,
+            instructions: instructions.personaDraft,
+            model: found.entry,
+            signal,
+          });
         } catch (error) {
           if (error instanceof VeniceError) throw AppError.aiUnavailable(error.message);
           throw error;

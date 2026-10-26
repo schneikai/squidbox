@@ -3,9 +3,9 @@
  * picsum.photos, stock videos with music from mixkit.co (all free to use, baked into
  * scripts/mock-videos by bake-mock-videos.sh), albums (including the smart Favorites/Deleted albums)
  * and posts, all by one guy who posts his outdoor photos on Bluesky, and his assistant setup: Writing
- * as you, the prompt buttons (the app's defaults in his words, and one more) and Favorites. Re-running
- * resets the account to exactly this set: ids are deterministic and anything else in these
- * collections is tombstoned.
+ * as you, the prompt buttons (the app's defaults in his words, and one more), Favorites and the
+ * Instructions, left on the app's defaults. Re-running resets the account to exactly this set: ids
+ * are deterministic and anything else in these collections is tombstoned.
  *
  * Run: npm run seed:mock   (from apps/server, with the local stack and `npm run dev` running)
  *      npm run seed:mock -- --assets 50000   (pad the library to that size, for performance tests:
@@ -23,6 +23,7 @@ import {
   type AlbumRecord,
   type AssetRecord,
   type FavoriteRecord,
+  type InstructionRecord,
   type NewPromptButton,
   type PersonaRecord,
   type PromptButtonRecord,
@@ -292,6 +293,12 @@ const postAssets: PostAssetRecord[] = POSTS.flatMap((post, postIndex) => {
 // One persona per user, whose id is the user's id.
 const personas: PersonaRecord[] = [{ ...baseRecord('persona', now - 60 * DAY), ...PERSONA, id: userId }];
 
+// The instructions on the app's defaults (one record per user, like the persona), so a reset puts back
+// a tester's edits rather than tombstoning their record.
+const instructions: InstructionRecord[] = [
+  { ...baseRecord('instructions', now), id: userId, writing: null, personaDraft: null, visionTagging: null },
+];
+
 // In each placement's order, positioned like the app's seed (seedPromptButtons).
 const lastPosition = new Map<string, string | null>();
 const promptButtons: PromptButtonRecord[] = PROMPT_BUTTONS.map((button) => {
@@ -315,13 +322,14 @@ const mockRecords: Record<string, { id: string }[]> = {
   personas,
   prompt_buttons: promptButtons,
   favorites,
+  instructions,
 };
 const mutations = [...toMutations(mockRecords), ...(await tombstonesForOtherRecords(mockRecords))];
 await push(mutations);
 
 console.log(
   `Mock data ready: ${assets.length} assets, ${albums.length} albums, ${posts.length} posts, a persona,` +
-    ` ${promptButtons.length} prompt buttons, ${favorites.length} favorites (${mutations.length} records pushed).`,
+    ` ${promptButtons.length} prompt buttons, ${favorites.length} favorites, default instructions (${mutations.length} records pushed).`,
 );
 
 async function createPhotoAsset(

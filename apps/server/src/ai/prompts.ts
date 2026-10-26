@@ -6,25 +6,34 @@ import type { ChatMessage, JsonSchemaSpec } from './venice.js';
 /** Writing as the user: their "Writing as you" setup, or null before they saved one (persona.ts). */
 export type Persona = PersonaFields | null;
 
+// The reply formats the app adds after the user's instructions, which the schemas and checks rely on:
+// an instruction that asks for something else still gets these.
+export const WRITING_FORMAT =
+  `Reply with exactly ${WRITING_TWEET_COUNT} posts, each only the finished post text, ` +
+  'no numbering, quotes or commentary, as a JSON object: {"tweets": [...]}.';
+export const DRAFT_FORMAT =
+  'Reply as a JSON object: {"aboutYou": "…", "contentTags": [...], "tone": "…", "examplePostIndexes": [...]}.';
+export const TAGS_SYSTEM =
+  'You tag photos for a content creator. Reply with the tags only, no duplicates, no commentary, ' +
+  'as a JSON object: {"tags": [...]}.';
+
 /**
- * The writing prompt, as the user: their persona and their Favorites (`favorites`, the texts, newest
- * first), either of which may be missing.
+ * The writing prompt, as the user: their writing instructions (`instructions`, theirs or the
+ * default), their persona and their Favorites (`favorites`, the texts, newest first), either of which
+ * may be missing, then the fixed reply format.
  */
 export function writingMessages({
   prompt,
   persona,
   favorites,
+  instructions,
 }: {
   prompt: string;
   persona: Persona;
   favorites: string[];
+  instructions: string;
 }): ChatMessage[] {
-  const system = [
-    'You write social posts for a content creator.',
-    (persona || favorites.length > 0) && personaText(persona, favorites),
-    `Reply with exactly ${WRITING_TWEET_COUNT} posts, each only the finished post text, ` +
-      'no numbering, quotes or commentary, as a JSON object: {"tweets": [...]}.',
-  ]
+  const system = [instructions, (persona || favorites.length > 0) && personaText(persona, favorites), WRITING_FORMAT]
     .filter(Boolean)
     .join('\n\n');
   return [
@@ -53,22 +62,17 @@ function personaText(persona: Persona, favorites: string[]): string {
     .join('\n');
 }
 
-// "Fill it in for me": the posts are numbered from 0, so the reply can pick the example posts by
-// index and the app copies them verbatim.
-// The posts a draft may pick as example posts.
-export const DRAFT_EXAMPLE_POSTS = 3;
-
-export function personaDraftMessages({ posts }: { posts: string[] }): ChatMessage[] {
-  const system = [
-    'You help a content creator describe how they write, from their own posts.',
-    'aboutYou: one or two sentences in their own voice, first person: who they are, what they post, ' +
-      'who their fans are and what the fans come for. Only what the posts show.',
-    'contentTags: 5 to 10 short lowercase tags for what their content is about.',
-    'tone: one or two short sentences on how their posts sound: short or long, sweet or cocky, ' +
-      'how explicit, emoji or not. Write it as an instruction, like "Short and cocky. Teases, never begs."',
-    `examplePostIndexes: the numbers of up to ${DRAFT_EXAMPLE_POSTS} posts that best show their voice.`,
-    'Reply as a JSON object: {"aboutYou": "…", "contentTags": [...], "tone": "…", "examplePostIndexes": [...]}.',
-  ].join('\n\n');
+// "Fill it in for me": the user's personaDraft instructions (theirs or the default), then the fixed
+// reply format. The posts are numbered from 0, so the reply can pick the example posts by index and
+// the app copies them verbatim.
+export function personaDraftMessages({
+  posts,
+  instructions,
+}: {
+  posts: string[];
+  instructions: string;
+}): ChatMessage[] {
+  const system = [instructions, DRAFT_FORMAT].join('\n\n');
   const user = posts.map((post, index) => `Post ${index}:\n${post}`).join('\n\n');
   return [
     { role: 'system', content: system },
@@ -76,16 +80,11 @@ export function personaDraftMessages({ posts }: { posts: string[] }): ChatMessag
   ];
 }
 
-// The user's prompt says what to look for and how many tags; the system message only fixes the
-// answer's shape.
+// The user's prompt (their Photo tags instructions, which the app sends) says what to look for and how
+// many tags; the system message only fixes the answer's shape.
 export function visionMessages({ prompt, imageDataUrl }: { prompt: string; imageDataUrl: string }): ChatMessage[] {
   return [
-    {
-      role: 'system',
-      content:
-        'You tag photos for a content creator. Reply with the tags only, no duplicates, no commentary, ' +
-        'as a JSON object: {"tags": [...]}.',
-    },
+    { role: 'system', content: TAGS_SYSTEM },
     {
       role: 'user',
       content: [

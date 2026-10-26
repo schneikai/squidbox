@@ -13,9 +13,10 @@ vi.mock('../src/config.js', async (importOriginal) => {
   };
 });
 
+import { DEFAULT_INSTRUCTIONS } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
 import { checkDraft, draftPersonaAsync } from '../src/ai/persona.js';
-import { personaDraftMessages, writingMessages } from '../src/ai/prompts.js';
+import { DRAFT_FORMAT, personaDraftMessages, WRITING_FORMAT, writingMessages } from '../src/ai/prompts.js';
 import type { CatalogEntry } from '../src/ai/catalog.js';
 
 const entries = fixture.data as CatalogEntry[];
@@ -56,7 +57,9 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('writingMessages with a persona', () => {
   it('writes every field of a full persona and the favorites into the system message', () => {
-    const system = systemOf(writingMessages({ prompt: 'Write', persona, favorites }));
+    const system = systemOf(
+      writingMessages({ instructions: DEFAULT_INSTRUCTIONS.writing, prompt: 'Write', persona, favorites }),
+    );
     expect(system).toContain('About the creator: 34, outdoor photographer from Oregon, a bit dry.');
     expect(system).toContain('Their content: hiking, forest');
     expect(system).toContain('Their tone: Short and calm. Never salesy.');
@@ -72,13 +75,22 @@ describe('writingMessages with a persona', () => {
   });
 
   it('sends the favorites without a saved persona, and no emoji line then', () => {
-    const system = systemOf(writingMessages({ prompt: 'Write', persona: null, favorites }));
+    const system = systemOf(
+      writingMessages({ instructions: DEFAULT_INSTRUCTIONS.writing, prompt: 'Write', persona: null, favorites }),
+    );
     expect(system).toContain('Write like these:\n---\nFirst light on the ridge.');
     expect(system).not.toContain('emoji');
   });
 
   it('leaves out the empty fields of a partly filled one', () => {
-    const system = systemOf(writingMessages({ prompt: 'Write', persona: { ...empty, tone: 'Sweet.' }, favorites: [] }));
+    const system = systemOf(
+      writingMessages({
+        instructions: DEFAULT_INSTRUCTIONS.writing,
+        prompt: 'Write',
+        persona: { ...empty, tone: 'Sweet.' },
+        favorites: [],
+      }),
+    );
     expect(system).toContain('Their tone: Sweet.');
     expect(system).toContain('No emoji.');
     expect(system).not.toContain('About the creator');
@@ -88,19 +100,55 @@ describe('writingMessages with a persona', () => {
   });
 
   it('says only "Use emoji." without example posts to copy', () => {
-    const system = systemOf(writingMessages({ prompt: 'Write', persona: { ...empty, useEmoji: true }, favorites: [] }));
+    const system = systemOf(
+      writingMessages({
+        instructions: DEFAULT_INSTRUCTIONS.writing,
+        prompt: 'Write',
+        persona: { ...empty, useEmoji: true },
+        favorites: [],
+      }),
+    );
     expect(system).toContain('Use emoji.');
     expect(system).not.toContain('example posts');
   });
 
+  it("starts with the user's writing instructions and ends with the fixed reply format", () => {
+    const system = systemOf(
+      writingMessages({ instructions: DEFAULT_INSTRUCTIONS.writing, prompt: 'Write', persona, favorites }),
+    );
+    expect(system.startsWith(DEFAULT_INSTRUCTIONS.writing)).toBe(true);
+    expect(system.endsWith(WRITING_FORMAT)).toBe(true);
+    const mine = 'Write like a ranger. Reply in prose, one paragraph.';
+    const changed = systemOf(writingMessages({ instructions: mine, prompt: 'Write', persona, favorites }));
+    expect(changed.startsWith(mine)).toBe(true);
+    expect(changed).not.toContain(DEFAULT_INSTRUCTIONS.writing);
+    expect(changed).toContain('About the creator');
+    expect(changed.endsWith(WRITING_FORMAT)).toBe(true);
+  });
+
   it('has no persona text without one or favorites', () => {
-    expect(systemOf(writingMessages({ prompt: 'Write', persona: null, favorites: [] }))).not.toContain('emoji');
+    expect(
+      systemOf(
+        writingMessages({ instructions: DEFAULT_INSTRUCTIONS.writing, prompt: 'Write', persona: null, favorites: [] }),
+      ),
+    ).not.toContain('emoji');
   });
 });
 
 describe('personaDraftMessages', () => {
+  it("is the user's instructions, then the fixed reply format, with or without a change", () => {
+    const [system] = personaDraftMessages({ posts: ['first'], instructions: DEFAULT_INSTRUCTIONS.personaDraft });
+    expect(system!.content).toBe(`${DEFAULT_INSTRUCTIONS.personaDraft}\n\n${DRAFT_FORMAT}`);
+    const mine = 'Describe me in prose, no JSON.';
+    const [changed] = personaDraftMessages({ posts: ['first'], instructions: mine });
+    expect(changed!.content).toBe(`${mine}\n\n${DRAFT_FORMAT}`);
+  });
+
   it('numbers the posts from 0, so the reply can pick them by index', () => {
-    const [, user] = personaDraftMessages({ posts: ['first', 'second'] });
+    const [, user] = personaDraftMessages({
+      posts: ['first', 'second'],
+      instructions: DEFAULT_INSTRUCTIONS.personaDraft,
+    });
     expect(user!.content).toBe('Post 0:\nfirst\n\nPost 1:\nsecond');
   });
 });
@@ -134,7 +182,11 @@ describe('checkDraft', () => {
 describe('draftPersonaAsync', () => {
   it('asks the model for the persona JSON and checks the reply', async () => {
     replies(draft);
-    const result = await draftPersonaAsync({ posts: ['a', 'b'], model: kimi });
+    const result = await draftPersonaAsync({
+      posts: ['a', 'b'],
+      instructions: DEFAULT_INSTRUCTIONS.personaDraft,
+      model: kimi,
+    });
     expect(result).toEqual({
       aboutYou: 'Outdoor guy.',
       contentTags: ['hiking', 'forest'],
@@ -155,7 +207,7 @@ describe('draftPersonaAsync', () => {
         capabilities: { ...kimi.model_spec.capabilities, supportsResponseSchema: false },
       },
     };
-    await draftPersonaAsync({ posts: ['a'], model: plain });
+    await draftPersonaAsync({ posts: ['a'], instructions: DEFAULT_INSTRUCTIONS.personaDraft, model: plain });
     expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).not.toHaveProperty('response_format');
   });
 });

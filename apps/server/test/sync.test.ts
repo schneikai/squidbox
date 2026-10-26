@@ -1361,6 +1361,7 @@ d('sync engine (Postgres)', () => {
         position: 'a0',
       }),
       favorites: () => ({ ...base(), text: 'First light on the ridge.', source: null }),
+      instructions: () => ({ ...base(), writing: 'Write like me.', personaDraft: null, visionTagging: null }),
     };
 
     for (const name of collectionNames) {
