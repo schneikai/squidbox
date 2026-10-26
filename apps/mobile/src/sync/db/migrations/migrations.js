@@ -22,6 +22,7 @@ import m0017 from './0017_instructions.sql';
 import m0018 from './0018_drop_use_emoji.sql';
 import m0019 from './0019_drop_persona_draft_instructions.sql';
 import m0020 from './0020_app_prompts.sql';
+import m0021 from './0021_model_choices.sql';
 
   export default {
     journal,
@@ -46,7 +47,8 @@ m0016,
 m0017,
 m0018,
 m0019,
-m0020
+m0020,
+m0021
     }
   }
   

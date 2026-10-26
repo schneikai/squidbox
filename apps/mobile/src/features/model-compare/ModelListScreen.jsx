@@ -23,7 +23,7 @@ import useHaptics from '@/hooks/useHaptics';
 import useHasFeature from '@/hooks/useHasFeature';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useYourModels from '@/hooks/useYourModels';
-import { removeYourModel, resetScores, setChosenModel } from '@/sync/aiStateRepository';
+import { removeYourModel, resetScores } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 import confirmAsync from '@/utils/confirmAsync';
 
@@ -35,7 +35,7 @@ export default function ModelListScreen({ navigation, route }) {
   const isAiAdmin = useHasFeature('ai_admin');
   const haptics = useHaptics();
   const paddingBottom = useFloatingPrimaryActionPadding();
-  const { catalog, error, retry, rows, chosenId } = useYourModels(kind);
+  const { catalog, error, retry, rows, chosenId, choose } = useYourModels(kind);
 
   const availableCount = rows?.filter((row) => row.model !== null).length ?? 0;
   const hasScores = isAiAdmin && (rows?.some(({ score }) => score !== null) ?? false);
@@ -43,7 +43,7 @@ export default function ModelListScreen({ navigation, route }) {
 
   async function handleChoose(row) {
     if (row.id === chosenId) return;
-    await setChosenModel(getDb(), kind, row.id);
+    await choose(row);
     haptics.selection();
   }
 

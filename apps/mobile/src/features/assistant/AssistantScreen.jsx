@@ -19,10 +19,10 @@ import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSeedPromptButtons from '@/hooks/useSeedPromptButtons';
 import useLibrary from '@/library/useLibrary';
 import { colors, radii, sizes } from '@/styles/designTokens';
-import { readChosenModels } from '@/sync/aiStateRepository';
 import { schema } from '@/sync/db/client';
 import { countFavorites } from '@/sync/favoritesRepository';
 import { readInstructions } from '@/sync/instructionsRepository';
+import { readChosenModels } from '@/sync/modelChoicesRepository';
 import { readPersona } from '@/sync/personaRepository';
 import { countPromptButtons } from '@/sync/promptButtonsRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
@@ -41,7 +41,7 @@ export default function AssistantScreen() {
   const promptButtonCount = useLiveQuery((db) => countPromptButtons(db), [schema.promptButtons]);
   const instructions = useLiveQuery((db) => readInstructions(db, userId), [schema.instructions], [userId]);
   useSeedPromptButtons();
-  const chosen = useLiveQuery((db) => readChosenModels(db), [schema.aiKinds, schema.aiModels]);
+  const chosen = useLiveQuery((db) => readChosenModels(db, userId), [schema.modelChoices], [userId]);
   const { models: catalog } = useAiCatalog();
   const isAiAdmin = useHasFeature('ai_admin');
 

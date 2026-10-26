@@ -127,6 +127,13 @@
       "when": 1793021698013,
       "tag": "0017_account_features",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793024746005,
+      "tag": "0018_model_choices",
+      "breakpoints": true
     }
   ]
 }

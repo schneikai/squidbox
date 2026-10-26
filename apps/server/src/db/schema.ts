@@ -282,6 +282,22 @@ export const instructions = pgTable(
 );
 export type InstructionRow = typeof instructions.$inferSelect;
 
+// One model_choices record per user: its id is the user's id. Each kind's chosen model is jsonb
+// ({ id, name }); null is the app's default.
+export const modelChoices = pgTable(
+  'model_choices',
+  {
+    ...syncableBase(),
+    writingModel: jsonb('writing_model').$type<{ id: string; name: string }>(),
+    visionModel: jsonb('vision_model').$type<{ id: string; name: string }>(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.id] }),
+    byUserSeq: index('model_choices_user_seq_idx').on(t.userId, t.serverSeq),
+  }),
+);
+export type ModelChoiceRow = typeof modelChoices.$inferSelect;
+
 // Global monotonic sequence stamped onto every syncable row by a BEFORE INSERT/UPDATE trigger.
 // Created here so the sequence exists before any syncable table. Raw SQL
 // because Drizzle has no first-class sequence DDL we rely on across versions.
