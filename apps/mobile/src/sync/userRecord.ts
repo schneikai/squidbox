@@ -30,6 +30,7 @@ export async function saveUserRecord<F extends object>(
   changes: Partial<F> | ((stored: F | null) => Partial<F>),
   empty: F,
 ): Promise<void> {
+  if (typeof changes !== 'function' && Object.keys(changes).length === 0) return;
   await db.transaction(async (tx) => {
     const id = (table as any).id;
     const [stored] = (await tx.select().from(table).where(eq(id, userId))) as UserRecord[];

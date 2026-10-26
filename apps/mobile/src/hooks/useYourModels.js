@@ -1,10 +1,10 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 import useAiCatalog from '@/hooks/useAiCatalog';
 import useLibrary from '@/library/useLibrary';
 import { readModelList, seedYourModels } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
-import { readChosenModels } from '@/sync/modelChoicesRepository';
+import { readChosenModels, setChosenModel } from '@/sync/modelChoicesRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import joinYourModels from '@/utils/ai/joinYourModels';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
@@ -12,8 +12,8 @@ import seedModels from '@/utils/ai/seedModels';
 
 /**
  * Your models of a kind, live: `rows` your list joined with Venice's models (useAiCatalog's
- * `catalog`, `error` and `retry`), null until both are in; `chosenId` the one the assistant uses (it
- * syncs with the account; the list stays on the device).
+ * `catalog`, `error` and `retry`), null until both are in; `chosenId` the one the assistant uses, which
+ * `choose` changes (it syncs with the account; the list stays on the device).
  * On the first run the list starts with the owner's picks that Venice still has.
  */
 export default function useYourModels(kind) {
@@ -37,5 +37,6 @@ export default function useYourModels(kind) {
 
   // Memoized: the Add screen's rows stay memoized across its search keystrokes.
   const rows = useMemo(() => (catalog && list ? joinYourModels(list, catalog, kind) : null), [catalog, list, kind]);
-  return { catalog, error, retry, rows, chosenId: chosen?.[kind]?.id ?? null };
+  const choose = useCallback((model) => setChosenModel(getDb(), userId, kind, model), [userId, kind]);
+  return { catalog, error, retry, rows, chosenId: chosen?.[kind]?.id ?? null, choose };
 }

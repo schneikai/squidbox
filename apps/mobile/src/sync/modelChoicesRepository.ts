@@ -1,5 +1,5 @@
 import type { AiModelKind, ModelChoiceRecord } from '@squidbox/shared';
-import { and, eq, isNotNull, isNull } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 
 import type { ModelRef } from './aiStateRepository';
 import * as schema from './db/schema';
@@ -44,29 +44,4 @@ export function setChosenModel(db: SyncDb, userId: string, kind: AiModelKind, mo
   return save(db, userId, (stored) =>
     (stored?.[field]?.id ?? null) === (value?.id ?? null) ? {} : { [field]: value },
   );
-}
-
-const { aiKinds, aiModels } = schema;
-
-/**
- * Moves the model the assistant used, which this library kept on the device before the choice synced
- * (ai_kinds' chosen_model_id), into the account's record once, and clears it there. A kind the record
- * already has a choice for keeps it.
- */
-export async function importLocalModelChoices(db: SyncDb, userId: string): Promise<void> {
-  const chosen = await db
-    .select({ kind: aiKinds.kind, id: aiModels.modelId, name: aiModels.name })
-    .from(aiKinds)
-    .leftJoin(aiModels, and(eq(aiModels.kind, aiKinds.kind), eq(aiModels.modelId, aiKinds.chosenModelId)))
-    .where(isNotNull(aiKinds.chosenModelId));
-  if (chosen.length === 0) return;
-  await save(db, userId, (stored) => {
-    const changes: Partial<ModelChoiceFields> = {};
-    for (const { kind, id, name } of chosen) {
-      const field = FIELDS[kind as AiModelKind];
-      if (field && id !== null && name !== null && stored?.[field] == null) changes[field] = { id, name };
-    }
-    return changes;
-  });
-  await db.update(aiKinds).set({ chosenModelId: null });
 }

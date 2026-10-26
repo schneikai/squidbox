@@ -884,9 +884,8 @@ needs (the post count, the JSON) is the server's and never stored.
 or null for the app's default, plus the base columns. One record per user with the user's id as its
 id, like `personas`, so a choice made on one device is the choice on all of them. The model list to
 choose from and the model testing (the compare prompts, the scores and the vision compare's photos)
-stay in the library's local `ai_*` tables: they are a developer tool for one device. The choice an
-older app kept there moves into the record once when the library opens (`importLocalModelChoices`),
-unless the record has one for that kind already.
+stay in the library's local `ai_*` tables: they are a developer tool for one device. Taking the
+chosen model off a device's list leaves the choice as it is.
 
 The per-user records are written by `saveUserRecord` (`userRecord.ts`), which brings a tombstoned
 record back instead of inserting it again.
