@@ -869,7 +869,9 @@ beats by its clock. The writing prompt sends the newest 20 (`FAVORITES_IN_PROMPT
 
 A library merge (`mergeLibrary.ts`) leaves all three alone: a device library has none (the assistant
 needs an account), and an account library's rows are on the server already. `seed-mock.ts`'s reset
-leaves them alone too: it tombstones only the collections it seeds.
+sets all three to its outdoor creator's setup like the media collections (the default prompt
+buttons, `DEFAULT_PROMPT_BUTTONS` in `packages/shared`, under their fixed ids), so the app, which
+seeds only an empty table, adds nothing on top.
 
 Edges have a parent index on both sides (`album_assets_album_idx`, `post_assets_post_idx`).
 References between collections are not enforced with foreign keys; the UI tolerates ids that

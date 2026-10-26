@@ -1,12 +1,18 @@
-import type { NewPromptButton } from './promptButtonsRepository';
+import type { PromptButtonRecord } from './promptButton';
+
+/** A prompt button's own fields, before it has a position. */
+export type NewPromptButton = Pick<PromptButtonRecord, 'id' | 'name' | 'prompt' | 'placement' | 'icon'>;
 
 const PPV_PROMPT =
   "Write a PPV message for this. Tease what's in it without describing all of it. End with a reason to unlock now.";
 
-// The prompt buttons a library starts with (seeded once, promptButtonsRepository.seedPromptButtons),
-// in their order within each placement. The ids are fixed, so two devices that both seed before
-// syncing end up with one row each. Every one can be edited or deleted in the app.
-const defaultPromptButtons: NewPromptButton[] = [
+/**
+ * The prompt buttons a library starts with, in their order within each placement: the app seeds them
+ * once (promptButtonsRepository.seedPromptButtons), and the dev account's mock data starts from them
+ * (seed-mock.ts). The ids are fixed, so two devices that both seed before syncing end up with one
+ * row each. Every one can be edited or deleted in the app.
+ */
+export const DEFAULT_PROMPT_BUTTONS: readonly NewPromptButton[] = [
   {
     id: '452726e1-35ae-463f-8cab-dcd19bba78df',
     placement: 'post',
@@ -59,5 +65,3 @@ const defaultPromptButtons: NewPromptButton[] = [
     prompt: 'Make each option spicier and more explicit. Same idea, more heat.',
   },
 ];
-
-export default defaultPromptButtons;

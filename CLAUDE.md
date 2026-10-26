@@ -46,3 +46,4 @@ What matters most, in order: a beautiful, intuitive UI, data integrity, performa
 - `dev:live` and `dev:local` write a missing `.env.local` from the environment variables. If they can't, don't start Metro by hand: ask the owner for the missing values. Without them every API call is broken
 - Stop them with SIGTERM or Ctrl+C on the script: that stops Metro, the tunnel and the API server it started
 - When the script prints the URL to open in Squidbox (Dev), end your reply with that URL, not the startup logs or localhost URLs
+- The mock data (`apps/server/scripts/seed-mock.ts`) is one outdoor creator who matches the mock photos: write new mock posts, persona, prompt buttons and favorites as that creator, so the dev account stays consistent

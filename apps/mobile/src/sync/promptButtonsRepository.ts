@@ -1,7 +1,9 @@
 import {
+  DEFAULT_PROMPT_BUTTONS,
   keyBetween,
   movePositions,
   promptButtonCollection,
+  type NewPromptButton,
   type PromptButtonPlacement,
   type PromptButtonRecord,
 } from '@squidbox/shared';
@@ -10,7 +12,6 @@ import { and, asc, count, desc, eq, isNull } from 'drizzle-orm';
 import { nextVersion } from './clock';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
-import defaultPromptButtons from './defaultPromptButtons';
 import { readByIds } from './readByIds';
 import { makeRepository } from './repository';
 import { saveRecords } from './saveRecords';
@@ -21,7 +22,6 @@ import newRecord from '@/utils/newRecord';
 // The chat's prompt buttons (Settings → Assistant → Prompt buttons): the only reader and writer of
 // the prompt_buttons table. Each placement has its own order, `(position, id)`.
 
-export type NewPromptButton = Pick<PromptButtonRecord, 'id' | 'name' | 'prompt' | 'placement' | 'icon'>;
 type PromptButtonChanges = Partial<Pick<PromptButtonRecord, 'name' | 'prompt' | 'placement' | 'icon'>>;
 
 const t = schema.promptButtons;
@@ -122,7 +122,7 @@ export async function movePromptButton(db: SyncDb, id: string, afterId: string |
  */
 export async function seedPromptButtons(
   db: SyncDb,
-  defaults: NewPromptButton[] = defaultPromptButtons,
+  defaults: readonly NewPromptButton[] = DEFAULT_PROMPT_BUTTONS,
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
     if (!(await isFirstSyncDone(tx))) return false;

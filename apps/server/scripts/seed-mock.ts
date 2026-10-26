@@ -2,8 +2,9 @@
  * Fills the LOCAL backend with a fixed set of mock data for the dev client: stock photos from
  * picsum.photos, stock videos with music from mixkit.co (all free to use, baked into
  * scripts/mock-videos by bake-mock-videos.sh), albums (including the smart Favorites/Deleted albums)
- * and posts. Re-running resets the account to exactly this set: ids are deterministic and anything
- * else is tombstoned.
+ * and posts, and the assistant setup of an outdoor creator who fits them: Writing as you, the prompt
+ * buttons (the app's defaults, adapted, and one more) and Favorites. Re-running resets the account to
+ * exactly this set: ids are deterministic and anything else in these collections is tombstoned.
  *
  * Run: npm run seed:mock   (from apps/server, with the local stack and `npm run dev` running)
  *      npm run seed:mock -- --assets 50000   (pad the library to that size, for performance tests:
@@ -14,10 +15,16 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import {
   collectionsByName,
+  DEFAULT_PROMPT_BUTTONS,
   initialKeys,
+  keyBetween,
   type AlbumAssetRecord,
   type AlbumRecord,
   type AssetRecord,
+  type FavoriteRecord,
+  type NewPromptButton,
+  type PersonaRecord,
+  type PromptButtonRecord,
   type PostAssetRecord,
   type PostRecord,
   type PullResponse,
@@ -124,6 +131,53 @@ const POSTS: { text: string; media: number[]; postedDaysAgo: number | null; isFa
   { text: 'Where it all started', media: [0, 8], postedDaysAgo: 400 },
 ];
 
+// Writing as you, for the creator the posts above are by: one line each, at most one emoji, at the end.
+const PERSONA = {
+  aboutYou:
+    "Outdoor creator. I hike, camp and road-trip, mostly hills, forests and quiet coast. My fans come for the views and the slow mornings, and stay for the trips I don't post anywhere else.",
+  tone: 'Short and calm, a little dry. One line, never salesy. At most one emoji, at the end.',
+  useEmoji: true,
+  contentTags: ['hiking', 'forest', 'golden hour', 'road trip', 'beach', 'camping', 'coffee'],
+  rules: ['Never use hashtags', 'No exclamation marks', 'Never name the exact spot, only the region'],
+};
+
+// The app's default prompt buttons with prompts in this creator's words, and a trip recap.
+const PROMPTS: Record<string, string> = {
+  'Repost ideas':
+    "Write 3 fresh posts that repost this for people who missed it. Same trip, a new angle each time: the view, the moment, how it felt. Don't repeat the original wording.",
+  'Follow-up with link':
+    "Write a follow-up tweet to this post that sends people to my page for the full set from this trip. Tease what's there. End with the link: [your link].",
+  'PPV message':
+    "Write a PPV message for the full set from this trip. Tease what's in it without describing all of it. End with a reason to unlock now.",
+  Caption: 'Write 3 captions for these photos. Short, for X, one line each. Name the place only by its region.',
+};
+const PROMPT_BUTTONS: NewPromptButton[] = [
+  ...DEFAULT_PROMPT_BUTTONS.map((button) => ({ ...button, prompt: PROMPTS[button.name] ?? button.prompt })),
+  {
+    id: mockUuid('prompt-button:trip-recap'),
+    placement: 'newPost',
+    name: 'Trip recap',
+    icon: 'images',
+    prompt:
+      'Write 3 posts that recap this trip from these photos: where it went, one thing that happened, one detail only I would notice. Short, for X.',
+  },
+];
+
+// The posts it writes like, newest first: own posts, and two hearted options from the chat.
+const FAVORITES: { text: string; source: string | null; daysAgo: number }[] = [
+  { text: "Up before the sun again. The hills don't wait, and neither does the light.", source: null, daysAgo: 2 },
+  { text: 'Golden hour on the ridge. Stayed until it was gone 🌅', source: 'Caption', daysAgo: 4 },
+  { text: 'Three days, one tent, zero signal. Best weekend this year 🌲', source: null, daysAgo: 9 },
+  {
+    text: "The full set from the coast is up. The last one is the photo I almost didn't post. [your link]",
+    source: 'Follow-up with link',
+    daysAgo: 13,
+  },
+  { text: "Coffee on a cold rock tastes better. I don't make the rules.", source: null, daysAgo: 20 },
+  { text: 'Some trails you hike for the view. This one was for the quiet.', source: null, daysAgo: 34 },
+  { text: 'Packed for rain, got a sunburn. Classic.', source: null, daysAgo: 51 },
+];
+
 if (!email || !password) throw new Error('SEED_USER_EMAIL and SEED_USER_PASSWORD must be set (see .env.docker)');
 if (!['localhost', '127.0.0.1'].includes(new URL(API_URL).hostname)) {
   throw new Error(`Refusing to seed mock data into a non-local backend: ${API_URL}`);
@@ -135,7 +189,7 @@ const videoInfo = JSON.parse(await readFile(new URL('videos.json', MOCK_VIDEOS),
   number,
   { width: number; height: number; duration: number }
 >;
-const token = await login(email, password);
+const { token, userId } = await login(email, password);
 
 const assets: AssetRecord[] = [];
 for (const [index, media] of MEDIA.entries()) {
@@ -192,19 +246,39 @@ const postAssets: PostAssetRecord[] = POSTS.flatMap((post, postIndex) => {
   }));
 });
 
+// One persona per user, whose id is the user's id.
+const personas: PersonaRecord[] = [{ ...baseRecord('persona', now - 60 * DAY), ...PERSONA, id: userId }];
+
+// In each placement's order, positioned like the app's seed (seedPromptButtons).
+const lastPosition = new Map<string, string | null>();
+const promptButtons: PromptButtonRecord[] = PROMPT_BUTTONS.map((button) => {
+  const position = keyBetween(lastPosition.get(button.placement) ?? null, null);
+  lastPosition.set(button.placement, position);
+  return { ...baseRecord(`prompt-button:${button.id}`, now - 60 * DAY), ...button, position };
+});
+
+const favorites: FavoriteRecord[] = FAVORITES.map((favorite, index) => ({
+  ...baseRecord(`favorite:${index}`, now - favorite.daysAgo * DAY),
+  text: favorite.text,
+  source: favorite.source,
+}));
+
 const mockRecords: Record<string, { id: string }[]> = {
   assets,
   albums,
   album_assets: albumAssets,
   posts,
   post_assets: postAssets,
+  personas,
+  prompt_buttons: promptButtons,
+  favorites,
 };
 const mutations = [...toMutations(mockRecords), ...(await tombstonesForOtherRecords(mockRecords))];
 await push(mutations);
 
 console.log(
-  `Mock data ready: ${assets.length} assets, ${albums.length} albums, ${posts.length} posts` +
-    ` (${mutations.length} records pushed).`,
+  `Mock data ready: ${assets.length} assets, ${albums.length} albums, ${posts.length} posts, a persona,` +
+    ` ${promptButtons.length} prompt buttons, ${favorites.length} favorites (${mutations.length} records pushed).`,
 );
 
 async function createPhotoAsset(
@@ -335,8 +409,7 @@ async function tombstonesForOtherRecords(keep: Record<string, { id: string }[]>)
   while (hasMore) {
     const page = (await api('/sync/pull', { cursor, limit: 1000 })) as PullResponse;
     for (const [collection, { records }] of Object.entries(page.changes)) {
-      // Only the collections the mock data set makes: the others (the assistant setup the app seeds
-      // once and the owner edits) stay as they are.
+      // Only the collections the mock data set makes: any other stays as it is.
       if (!(collection in keep)) continue;
       for (const record of records) {
         if (keepIds.has(record.id as string) || record.deletedAt) continue;
@@ -357,11 +430,12 @@ async function push(mutations: PushMutation[]): Promise<void> {
   }
 }
 
-async function login(email: string, password: string): Promise<string> {
-  const { accessToken } = (await request('/auth/login', { method: 'POST', body: { email, password } })) as {
+async function login(email: string, password: string): Promise<{ token: string; userId: string }> {
+  const { accessToken, user } = (await request('/auth/login', { method: 'POST', body: { email, password } })) as {
     accessToken: string;
+    user: { id: string };
   };
-  return accessToken;
+  return { token: accessToken, userId: user.id };
 }
 
 function api(path: string, body: unknown): Promise<unknown> {
