@@ -63,7 +63,7 @@ export default function FavoritesScreen() {
       />
       <DetailScrollView contentContainerStyle={{ paddingBottom }}>
         <IntroText style={styles.intro}>
-          Options you hearted in the chat. The assistant learns from them what you like. Unheart one to stop it learning
+          Posts the assistant writes like: ones you hearted in the chat or added here. Unheart one to stop it learning
           from it.
         </IntroText>
         {removal.list?.length === 0 && (
