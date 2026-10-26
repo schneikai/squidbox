@@ -23,6 +23,7 @@ What matters most, in order: a beautiful, intuitive UI, data integrity, performa
 - Components define their appearance; parents define layout
 - Animate with the `motion` tokens in `styles/designTokens.js` (`enter`, `exit`, `move`, `spring`), not ad-hoc durations, easings or spring values
 - Give haptic feedback through `hooks/useHaptics`, never expo-haptics directly: it respects the Haptics setting and skips builds and web without the native module. Use it only for meaningful moments (a lift, a drop, a peek, a selection change, a success or an error), never for every tap
+- Edits save as you type, like iOS Settings (`hooks/useSaveAsYouType`): no Save buttons or discard prompts; a new item is created once it has content
 
 ## Code Quality
 
