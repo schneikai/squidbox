@@ -49,10 +49,10 @@ export const userResponseSchema = z.object({
 });
 export type UserResponse = z.infer<typeof userResponseSchema>;
 
-// PATCH /me/features (an account with `manage_features` only): switches one of the account's
-// features on or off. `manage_features` itself stays on.
+// PATCH /me/features (an account with `manage_features` only): switches one of the account's other
+// features on or off.
 export const updateFeaturesRequestSchema = z.object({
-  feature: z.enum(ACCOUNT_FEATURES),
+  feature: z.enum(ACCOUNT_FEATURES).exclude(['manage_features']),
   isOn: z.boolean(),
 });
 export type UpdateFeaturesRequest = z.infer<typeof updateFeaturesRequestSchema>;

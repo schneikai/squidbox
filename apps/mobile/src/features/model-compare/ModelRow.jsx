@@ -7,24 +7,16 @@ import IconMenuButton from '@/components/IconMenuButton';
 import MenuDivider from '@/components/popup-menu-options/MenuDivider';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { SCREEN_PADDING } from '@/constants';
+import useHasFeature from '@/hooks/useHasFeature';
 import { colors, sizes } from '@/styles/designTokens';
 
 /**
  * A model in your list: its summary with the score and cost, a check when it's the chosen one, and
  * a menu to reset its score or remove it. `model` null is a model Venice no longer offers: greyed, not choosable, its
- * score kept. `isScored` false (not an ai_admin account) leaves the score out.
+ * score kept. The score and its reset are only for an ai_admin account.
  */
-export default function ModelRow({
-  name,
-  model,
-  kind,
-  score,
-  isScored = true,
-  isChosen,
-  onChoose,
-  onResetScore,
-  onRemove,
-}) {
+export default function ModelRow({ name, model, kind, score, isChosen, onChoose, onResetScore, onRemove }) {
+  const isAiAdmin = useHasFeature('ai_admin');
   const isAvailable = model !== null;
 
   return (
@@ -37,11 +29,11 @@ export default function ModelRow({
         accessibilityRole="button"
         accessibilityState={{ selected: isChosen, disabled: !isAvailable }}
       >
-        <ModelListSummary name={name} model={model} kind={kind} score={score} isScored={isScored} />
+        <ModelListSummary name={name} model={model} kind={kind} score={score} />
         {isChosen && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
       </TouchableOpacity>
       <IconMenuButton accessibilityLabel={`${name} options`} color={colors.text.secondary}>
-        {isScored && score !== null && (
+        {isAiAdmin && score !== null && (
           <>
             <MenuOption label="Reset score" icon="undo" onPress={onResetScore} />
             <MenuDivider />

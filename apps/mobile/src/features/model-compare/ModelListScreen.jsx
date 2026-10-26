@@ -72,7 +72,6 @@ export default function ModelListScreen({ navigation, route }) {
               model={row.model}
               kind={kind}
               score={row.score}
-              isScored={isAiAdmin}
               isChosen={row.id === chosenId}
               onChoose={() => handleChoose(row)}
               onResetScore={() => handleResetScore(row)}

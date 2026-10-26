@@ -1,4 +1,3 @@
-import useCloud from '@/features/cloud/useCloud';
 import useHasFeature from '@/hooks/useHasFeature';
 import useLibrary from '@/library/useLibrary';
 import isTestBuild from '@/utils/isTestBuild';
@@ -9,8 +8,7 @@ import isTestBuild from '@/utils/isTestBuild';
  * and has the `ai` feature (the server answers 403 without it).
  */
 export default function useIsAssistantAvailable() {
-  const { isAuthenticated } = useCloud();
   const { library } = useLibrary();
   const hasAi = useHasFeature('ai');
-  return isTestBuild() && library.owner.kind === 'account' && isAuthenticated && hasAi;
+  return isTestBuild() && library.owner.kind === 'account' && hasAi;
 }

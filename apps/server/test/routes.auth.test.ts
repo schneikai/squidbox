@@ -194,10 +194,10 @@ describe('PATCH /api/v1/me/features', () => {
     expect(setUserFeatures).toHaveBeenCalledWith(expect.anything(), 'u1', ['ai', 'manage_features']);
   });
 
-  it('keeps manage_features on', async () => {
+  it('answers 400 to switching manage_features, which only the script changes', async () => {
     withFeatures(['ai', 'manage_features']);
-    await patch({ feature: 'manage_features', isOn: false });
-    expect(setUserFeatures).toHaveBeenCalledWith(expect.anything(), 'u1', ['ai', 'manage_features']);
+    expect((await patch({ feature: 'manage_features', isOn: false })).statusCode).toBe(400);
+    expect(setUserFeatures).not.toHaveBeenCalled();
   });
 
   it('answers 403 manage_features_not_allowed to an account without manage_features', async () => {

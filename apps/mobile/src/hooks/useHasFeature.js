@@ -6,5 +6,5 @@ import useCloud from '@/features/cloud/useCloud';
  */
 export default function useHasFeature(feature) {
   const { isAuthenticated, user } = useCloud();
-  return isAuthenticated && (user?.features ?? []).includes(feature);
+  return isAuthenticated && user.features.includes(feature);
 }

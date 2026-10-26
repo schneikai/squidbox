@@ -1,4 +1,5 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { AccountFeature } from '@squidbox/shared';
 import { getDb } from '../db/client.js';
 import type { User } from '../db/schema.js';
 import { AppError } from '../errors.js';
@@ -46,4 +47,11 @@ export function authenticate(opts: { allowQueryToken?: boolean } = {}) {
 export function requireUser(request: FastifyRequest): User {
   if (!request.user) throw AppError.unauthorized();
   return request.user;
+}
+
+/** PreHandler factory, after authenticate: throws `error()` for an account without `feature`. */
+export function requireFeature(feature: AccountFeature, error: () => AppError) {
+  return async function (request: FastifyRequest): Promise<void> {
+    if (!requireUser(request).features.includes(feature)) throw error();
+  };
 }

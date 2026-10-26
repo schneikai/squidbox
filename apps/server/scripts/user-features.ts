@@ -8,11 +8,9 @@
  *   npm run user:features -- me@example.com remove ai_admin
  * On Fly: fly ssh console -C "sh -c 'cd /app/apps/server && npm run user:features:prod -- me@example.com add ai'"
  */
-import { eq } from 'drizzle-orm';
 import { ACCOUNT_FEATURES, type AccountFeature } from '@squidbox/shared';
 import { getDb, closeDb } from '../src/db/client.js';
-import { users } from '../src/db/schema.js';
-import { findUserByEmail } from '../src/users.js';
+import { findUserByEmail, setUserFeatures } from '../src/users.js';
 
 const [email, action, ...names] = process.argv.slice(2);
 const usage = `Usage: user:features <email> [add|remove <${ACCOUNT_FEATURES.join('|')}>…]`;
@@ -32,7 +30,7 @@ if (action) {
     action === 'add'
       ? [...new Set([...features, ...names])].sort()
       : features.filter((feature) => !names.includes(feature));
-  await db.update(users).set({ features, updatedAt: new Date() }).where(eq(users.id, user.id));
+  await setUserFeatures(db, user.id, features);
 }
 console.log(`${email}: ${features.length > 0 ? features.join(', ') : 'no features'}`);
 await closeDb();

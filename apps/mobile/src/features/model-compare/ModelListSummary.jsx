@@ -2,12 +2,15 @@ import ModelSummary from './ModelSummary';
 import formatCost from './formatCost';
 import scoreText from './scoreText';
 
+import useHasFeature from '@/hooks/useHasFeature';
+
 /**
  * A model of your list as the list and the compare's pick step show it: its name and Uncensored
  * label over its score and cost. `model` null is one Venice no longer offers: greyed, so labelled.
- * `isScored` false (not an ai_admin account) leaves the score out.
+ * The score shows only to an ai_admin account (it comes from Compare).
  */
-export default function ModelListSummary({ name, model, kind, score, isScored = true }) {
+export default function ModelListSummary({ name, model, kind, score }) {
+  const isScored = useHasFeature('ai_admin');
   const isAvailable = model !== null;
   const cost = isAvailable ? formatCost(model, kind) : 'No longer available';
   return (

@@ -15,7 +15,7 @@ import { findUserByEmail, setUserFeatures, toApiUser } from '../users.js';
 import { verifyPassword } from './passwords.js';
 import { signAccessToken } from './jwt.js';
 import { issueRefreshToken, rotateRefreshToken, revokeRefreshToken } from './tokens.js';
-import { authenticate, requireUser } from './authenticate.js';
+import { authenticate, requireFeature, requireUser } from './authenticate.js';
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -73,20 +73,19 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     handler: async (request) => ({ user: toApiUser(requireUser(request)), serverId }),
   });
 
-  // PATCH /me/features — an account with `manage_features` switches one of its own features
-  // (Settings → Features), leaving the others as they are. It keeps `manage_features`, which only
-  // `npm run user:features` gives or takes.
+  // PATCH /me/features — an account with `manage_features` switches one of its own other features
+  // (Settings → Features), leaving the rest as they are. Only `npm run user:features` gives or takes
+  // `manage_features` itself.
   r.route({
     method: 'PATCH',
     url: '/me/features',
-    preHandler: authenticate(),
+    preHandler: [authenticate(), requireFeature('manage_features', AppError.manageFeaturesNotAllowed)],
     schema: { body: updateFeaturesRequestSchema, response: { 200: userResponseSchema } },
     handler: async (request) => {
       const user = requireUser(request);
-      if (!user.features.includes('manage_features')) throw AppError.manageFeaturesNotAllowed();
       const { feature, isOn } = request.body;
       const others = user.features.filter((each) => each !== feature);
-      const features = isOn || feature === 'manage_features' ? [...others, feature].sort() : others;
+      const features = isOn ? [...others, feature].sort() : others;
       return { user: toApiUser(await setUserFeatures(db, user.id, features)), serverId };
     },
   });

@@ -6,7 +6,7 @@ import { sameAccount } from '@/library/sameAccount';
 // still the session of `identity` (and only when they changed).
 export default async function storeSessionFeaturesAsync(identity, features) {
   await updateSession((current) =>
-    current && sameAccount(identity, current) && String(current.features) !== String(features)
+    current && sameAccount(identity, current) && JSON.stringify(current.features) !== JSON.stringify(features)
       ? { ...current, features }
       : current,
   );
