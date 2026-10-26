@@ -9,7 +9,7 @@ npm workspaces. `npm install` runs once at the repo root.
 | Package | What it is |
 |---|---|
 | `apps/mobile` | Expo React Native app (SDK 55). Run app commands (`scripts/check-env.sh`, `npm run web:preview`) from here; the `.env.local` / `.secrets` files live here too. |
-| `apps/server` | Backend: Fastify + TypeScript + Drizzle + Postgres, with AWS S3 for file storage. Runs locally against Docker (Postgres + MinIO), see [Local backend with mock data](#local-backend-with-mock-data). |
+| `apps/server` | Backend: Fastify + TypeScript + Drizzle + Postgres, with AWS S3 for file storage. Runs locally against Docker (Postgres + MinIO), see [Dev client](#dev-client). |
 | `packages/shared` | Zod wire contracts + sync collection descriptors shared by app and server. |
 
 The backend lives in `apps/server` and runs on **Fly.io** (app `squidbox-server`, region `lhr`) with **Neon Postgres** + **AWS S3** (eu-west-1). API base: `https://squidbox-server.fly.dev/api/v1`.
@@ -44,7 +44,8 @@ Common operations are driven by skills rather than memorized commands:
 |---|---|
 | `/deploy-server` | Deploy the backend (Fly.io + Neon). First-time setup and routine one-command deploys; idempotent. |
 | `/legacy-import` | Import a user's old app backups (assets/albums/posts JSON in S3) into the backend: canonicalize ids to uuids, map to the current schema, upsert via sync push, verify. |
-| `/build` | Build the iOS app from the cloud (no Mac) via EAS. Asks whether to build the **App** (preview/release) or the **Dev Client**, then runs `eas` itself — no flags or profiles to remember. |
+| `/ios-build` | Build the iOS app from the cloud (no Mac) via EAS. Asks whether to build the **App** (preview/release) or the **Dev Client**, then runs `eas` itself — no flags or profiles to remember. |
+| `/build` | Deliver a feature, bug fix or refactor end to end: plan, build, review and a PR. |
 
 The sync engine is described in `docs/sync-design.md`. Open work and ideas are in `todo.md`.
 
@@ -59,22 +60,15 @@ Two gitignored env files in `apps/mobile/`, each for a different audience:
 
 `.env.local` holds `EXPO_PUBLIC_API_URL`, optional login prefill and Sentry debug. Each variable is explained in `.env.local.example`.
 
-`EXPO_PUBLIC_API_URL` is the deployed backend, `https://squidbox-server.fly.dev/api/v1`. `npm run dev:local` points the dev client at the local backend instead, without touching the file (see [Local backend with mock data](#local-backend-with-mock-data)). Restart `npm run dev:local` after changing `.env.local`; it starts Metro with a cleared cache.
+`EXPO_PUBLIC_API_URL` is the deployed backend, `https://squidbox-server.fly.dev/api/v1`. `npm run dev:local` points the dev client at the local backend instead, without touching the file (see [Dev client](#dev-client)). Restart `npm run dev:local` after changing `.env.local`; it starts Metro with a cleared cache.
 
-`.secrets` lists the values the **preview/production** builds need (`EXPO_PUBLIC_API_URL`, `SENTRY_AUTH_TOKEN`). They are stored as EAS environment variables:
-
-```
-eas env:list --environment preview
-eas env:set --name <NAME> --value <value> --visibility secret --environment preview --environment production
-```
-
-The `ios-build` skill explains how these get baked into the app and the pitfalls around them.
+`.secrets` lists the values the **preview/production** builds need (`EXPO_PUBLIC_API_URL`, `SENTRY_AUTH_TOKEN`). They are stored as EAS environment variables; the `ios-build` skill has the commands, how they get baked into the app and the pitfalls around them.
 
 On a fresh checkout, runtime secrets are already in EAS. Restore the rest from your password manager (`.env.local`, `EXPO_TOKEN`, and the App Store Connect `.p8` + IDs), then run `scripts/check-env.sh` to verify.
 
 ## Building the iOS app
 
-Run `/build` — it asks what to build and drives EAS for you (no flags or profiles to type). The two build types install as **separate apps** (different bundle IDs), so both can coexist on the phone:
+Run `/ios-build`: it asks what to build and drives EAS for you (no flags or profiles to type). The two build types install as **separate apps** (different bundle IDs), so both can coexist on the phone:
 
 | | Dev client | Preview / release build |
 |---|---|---|
@@ -86,32 +80,22 @@ Run `/build` — it asks what to build and drives EAS for you (no flags or profi
 | Use for | fast iteration | testing / shipping a stable snapshot |
 | Test-build UI (Settings → Assistant → Testing) | yes | `preview` yes, `production` no |
 
-The bundle ID is chosen in `app.config.js` from `EAS_BUILD_PROFILE`, which is why the two don't overwrite each other. The same variable sets `extra.buildProfile` (unset for a build made without EAS); `src/utils/isTestBuild.js` shows the test-only UI under Metro (a development bundle) and in the `development` and `preview` builds only. Builds are distributed via [Internal Distribution](https://docs.expo.dev/build/internal-distribution/) (no App Store). Install from the EAS build page (Internal Distribution → Install), then trust the dev certificate in Settings → General → VPN & Device Management.
+The bundle ID is chosen in `app.config.js` from `EAS_BUILD_PROFILE`, which is why the two don't overwrite each other. The same variable sets `extra.buildProfile` (unset for a build made without EAS); `src/utils/isTestBuild.js` shows the test-only UI under Metro (a development bundle) and in the `development` and `preview` builds only. Builds are distributed via [Internal Distribution](https://docs.expo.dev/build/internal-distribution/) (no App Store). Installing, credentials (an App Store Connect API key, no Mac), signing renewal and the full runbook are in the `ios-build` skill.
 
-Cloud builds authenticate to Apple with an **App Store Connect API Key** (`.p8`) — no Mac, no Apple ID password, no 2FA (Apple ID + 2FA is blocked from cloud/datacenter IPs). The full runbook, credential setup, and env vars are in the `ios-build` skill.
+### Dev client
 
-### Dev client: Metro + tunnel
-
-The dev client loads JS from Metro at runtime over Expo's tunnel (an `exp.direct` URL, through Expo's own ngrok account; no keys needed, and it works behind the cloud workspace's proxy). It always runs against the local backend with mock data: `npm run dev:local` from the repo root, on a laptop or in the cloud (see [Local backend with mock data](#local-backend-with-mock-data)).
-
-`npm run dev:local` writes a missing `apps/mobile/.env.local` from the environment variables (cloud workspaces), starts Metro with the tunnel (retrying when Expo's tunnel fails, which happens now and then), builds the first bundle so the phone doesn't time out waiting for it, and prints the URL to open in Squidbox (Dev) via "Enter URL manually". Ctrl+C, or SIGTERM to the script, stops Metro and the tunnel. If it can't write one (none of its variables are set), it stops before starting Metro, which would otherwise serve a bundle with no `EXPO_PUBLIC_*` values; `scripts/check-env.sh` in `apps/mobile/` shows what's missing.
-
-The Expo tunnel URL stays the same across restarts of the same checkout. Metro starts with a cleared cache, so changes to `.env.local` or packages take effect on the next start.
-
-### Local backend with mock data
-
-The dev client can run against a local backend filled with stock photos, albums and posts, so testing never touches your real library. One command starts everything, from the repo root (needs Docker and `.env.local`):
+The dev client loads JS from Metro at runtime over Expo's tunnel (an `exp.direct` URL, through Expo's own ngrok account; no keys needed, and it works behind the cloud workspace's proxy). It always runs against a local backend filled with stock photos, albums and posts, so testing never touches your real library. One command starts everything, from the repo root, on a laptop or in the cloud (needs Docker):
 
 ```
 npm run dev:local                    # start
 npm run dev:local -- --reset-data    # start and reset the account to exactly the mock data set
 ```
 
-It starts Postgres + MinIO, applies migrations and creates the local accounts, starts Metro with Expo's tunnel, then the API server, and prints the tunnel URL to open in Squidbox (Dev). The login form is prefilled with the local account, unless `.env.local` sets its own prefill. Ctrl+C, or SIGTERM to the script, stops Metro, the tunnel and the API server, also when a step fails; the Docker stack keeps running.
+It writes a missing `apps/mobile/.env.local` from the environment variables (cloud workspaces; with none set it stops, and `scripts/check-env.sh` in `apps/mobile/` shows what's missing), starts Postgres + MinIO, applies migrations and creates the local accounts, starts Metro with the tunnel (retrying when Expo's tunnel fails, which happens now and then), then the API server, builds the first bundle so the phone doesn't time out, and prints the URL to open in Squidbox (Dev) via "Enter URL manually". The login form is prefilled with the local account, unless `.env.local` sets its own prefill. Ctrl+C, or SIGTERM to the script, stops Metro, the tunnel and the API server, also when a step fails; the Docker stack keeps running. The tunnel URL stays the same across restarts of the same checkout, and Metro starts with a cleared cache, so changes to `.env.local` or packages take effect on the next start.
 
-Metro serves the API and file storage through its own tunnel (`apps/mobile/scripts/localBackendProxy.js`), and the script sets `EXPO_PUBLIC_LOCAL_BACKEND`, which makes the app send its API calls to the dev server it loaded from (`Constants.expoConfig.hostUri`). So no env file holds the tunnel URL, and `.env.local` stays pointed at the live backend. On the first run, `apps/server/.env` is created from `.env.docker`.
+Metro serves the API and file storage through its own tunnel (`apps/mobile/scripts/localBackendProxy.js`), and the script sets `EXPO_PUBLIC_LOCAL_BACKEND`, which makes the app send its API calls to the dev server it loaded from (`Constants.expoConfig.hostUri`). So no env file holds the tunnel URL, and `.env.local` stays pointed at the live backend. On the first run, `apps/server/.env` is created from `.env.docker`. The local backend has its own `SERVER_ID`, so its session and library never pass for the live server's.
 
-**The live backend, on the owner's request only.** To look into a problem in your own account, `npm run dev:local -- --live-backend-on-owner-request` starts Metro and the tunnel against `EXPO_PUBLIC_API_URL` instead. Sign in with your account: the local account's library is parked and yours opens (see [Accounts and libraries](#accounts-and-libraries)). Never use it otherwise: the dev client's changes go to your real library. The local backend has its own `SERVER_ID` (`apps/server/.env.docker`), so its session and library never pass for the live server's; a new dev tunnel host (another checkout) costs no sign-in, since the app re-checks the server's identity on `/up` first.
+**The live backend, on the owner's request only.** To look into a problem in your own account, `npm run dev:local -- --live-backend-on-owner-request` starts Metro and the tunnel against `EXPO_PUBLIC_API_URL` instead. Sign in with your account: the local account's library is parked and yours opens (see [Accounts and libraries](#accounts-and-libraries)). Never use it otherwise: the dev client's changes go to your real library.
 
 If Docker pulls fail, or the server can't reach MinIO, see `apps/server/README.md` → "Local development".
 
@@ -149,6 +133,5 @@ Sentry handles error tracking. Configure it for your own account:
 
 ## Caveats
 
-- **Signing expires yearly.** The distribution certificate and the ad hoc provisioning profiles of both apps are valid until **Oct 10, 2027**. An installed app stops opening when its profile expires. The `ios-build` skill covers renewing them.
-- **Build downloads expire after 14 days.** EAS deletes internal build artifacts after about two weeks. `eas build:resign` only works within that window, after that you need a new build.
+- **Signing expires yearly** (next: **Oct 10, 2027**), and an installed app stops opening when its profile does. **Build downloads expire after about 14 days.** The `ios-build` skill covers both.
 - Build/preview help: https://docs.expo.dev/build/setup/ · https://docs.expo.dev/build/internal-distribution/

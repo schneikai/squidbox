@@ -56,10 +56,9 @@ Decide this before the app stores anything new:
 ## Builds, preview and the dev client
 
 - The Expo app lives in `apps/mobile/`: run app commands and read its env files there. `npm install` runs once at the repo root (npm workspaces)
-- For builds, signing and credentials, follow the `ios-build` skill. Build the dev client only when native code changes; "start the dev client" means Metro and its tunnel against the local backend with mock data: `npm run dev:local` (`README.md` → "Dev client: Metro + tunnel")
+- For builds, signing and credentials, follow the `ios-build` skill. Build the dev client only when native code changes; "start the dev client" means `npm run dev:local` (`README.md` → "Dev client")
 - The dev client never runs against the live backend, unless the owner explicitly asks for it in that conversation (say, to look into a problem in their own account). Then, and only then, add `--live-backend-on-owner-request`
-- To see a UI change without a phone, use the web preview: `npm run dev:local -- --web` from the repo root, then `npm run web:preview` in `apps/mobile/` (`README.md` → "Web preview"). Check native-only behavior (camera roll, uploads, gestures) on a device
-- `dev:local` writes a missing `.env.local` from the environment variables. If they can't, don't start Metro by hand: ask the owner for the missing values. Without them every API call is broken
-- Stop them with SIGTERM or Ctrl+C on the script: that stops Metro, the tunnel and the API server it started
-- When the script prints the URL to open in Squidbox (Dev), end your reply with that URL, not the startup logs or localhost URLs
+- To see a UI change without a phone, use the web preview (`README.md` → "Web preview"). Check native-only behavior (camera roll, uploads, gestures) on a device
+- If `dev:local` can't write `.env.local`, don't start Metro by hand: ask the owner for the missing values
+- Stop it with SIGTERM or Ctrl+C on the script, and end your reply with the URL it prints to open in Squidbox (Dev), not the startup logs or localhost URLs
 - Mock data (`apps/server/scripts/seed-mock.ts`) is one guy posting his outdoor photos on Bluesky: keep new mock content in that persona
