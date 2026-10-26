@@ -1,6 +1,6 @@
 import pluralizeText from '@/utils/pluralizeText';
 
-const NOT_SET_UP = 'Not set up yet. Tell it about you and your fans.';
+const NOT_SET_UP = 'Not set up yet. Tell it about you and who follows you.';
 
 /**
  * The "Writing as you" row's summary of a persona (null before the first save): the first sentence

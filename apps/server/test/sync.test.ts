@@ -1346,9 +1346,9 @@ d('sync engine (Postgres)', () => {
       post_assets: () => ({ ...base(), postId: randomUUID(), assetId: randomUUID(), position: 'a0' }),
       personas: () => ({
         ...base(),
-        aboutYou: 'Gym guy from Berlin.',
-        contentTags: ['gym', 'pov'],
-        tone: 'Short and cocky.',
+        aboutYou: 'Outdoor photographer from Oregon.',
+        contentTags: ['hiking', 'forest'],
+        tone: 'Short and calm.',
         useEmoji: true,
         rules: ['Never use hashtags'],
       }),
@@ -1360,7 +1360,7 @@ d('sync engine (Postgres)', () => {
         icon: null,
         position: 'a0',
       }),
-      favorites: () => ({ ...base(), text: "Leg day. You're welcome.", source: null }),
+      favorites: () => ({ ...base(), text: 'First light on the ridge.', source: null }),
     };
 
     for (const name of collectionNames) {

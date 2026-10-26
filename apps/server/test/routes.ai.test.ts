@@ -37,7 +37,7 @@ import { readFavorites, readPersona } from '../src/ai/persona.js';
 import { findUserById } from '../src/users.js';
 
 const auth = { authorization: `Bearer ${signAccessToken('u1')}` };
-const tags = ['shower', 'wet hair', 'steam', 'back view', 'towel', 'morning light', 'tattoo', 'tiles'];
+const tags = ['forest', 'morning fog', 'moss', 'trail', 'backpack', 'morning light', 'pine trees', 'creek'];
 const fetchMock = vi.fn();
 
 // Venice: the model list, and a chat reply per model.
@@ -58,7 +58,7 @@ function veniceAnswers({ catalogStatus = 200, balanceStatus = 200 } = {}) {
     const content = {
       tweets: { tweets: ['one', 'two', 'three'] },
       tags: { tags },
-      persona: { aboutYou: 'Gym guy.', contentTags: ['gym'], tone: 'Short.', examplePostIndexes: [0] },
+      persona: { aboutYou: 'Outdoor guy.', contentTags: ['hiking'], tone: 'Short.', examplePostIndexes: [0] },
     }[response_format.json_schema.name as string];
     return new Response(
       JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(content) } }] }),
@@ -71,8 +71,8 @@ const chatBodies = () =>
     .filter(([url]) => String(url).endsWith('/chat/completions'))
     .map(([, init]) => JSON.parse(init.body));
 
-const writing = { prompt: 'Write 3 spicy tweets', modelIds: ['kimi-k3', 'z-ai-glm-5-3'] };
-const draft = { posts: ["Leg day. You're welcome."], modelId: 'kimi-k3' };
+const writing = { prompt: 'Write 3 posts about a sunrise hike', modelIds: ['kimi-k3', 'z-ai-glm-5-3'] };
+const draft = { posts: ['First light on the ridge.'], modelId: 'kimi-k3' };
 const vision = {
   prompt: 'Tag what you see',
   image: { base64: 'AAAA', mimeType: 'image/jpeg' },
@@ -210,7 +210,7 @@ describe('POST /api/v1/ai/compare/writing', () => {
       response_format: { type: 'json_schema', json_schema: { name: 'tweets', strict: true } },
       venice_parameters: { include_venice_system_prompt: false, strip_thinking_response: true },
     });
-    expect(kimi.messages[1]).toEqual({ role: 'user', content: 'Write 3 spicy tweets' });
+    expect(kimi.messages[1]).toEqual({ role: 'user', content: 'Write 3 posts about a sunrise hike' });
     for (const body of [kimi, glm]) {
       expect(body).not.toHaveProperty('reasoning_effort');
       expect(body).not.toHaveProperty('max_tokens');
@@ -232,21 +232,21 @@ describe('POST /api/v1/ai/compare/writing', () => {
   it("writes as the user's persona and favorites", async () => {
     veniceAnswers();
     vi.mocked(readPersona).mockResolvedValue({
-      aboutYou: 'Gym guy from Berlin.',
+      aboutYou: 'Outdoor photographer from Oregon.',
       contentTags: [],
-      tone: 'Short and cocky.',
+      tone: 'Short and calm.',
       useEmoji: false,
       rules: [],
     });
-    vi.mocked(readFavorites).mockResolvedValue(["Leg day. You're welcome."]);
+    vi.mocked(readFavorites).mockResolvedValue(['First light on the ridge.']);
     const res = await call('POST', '/ai/compare/writing', writing);
     expect(res.statusCode).toBe(200);
     expect(readPersona).toHaveBeenCalledWith(expect.anything(), 'u1');
     expect(readFavorites).toHaveBeenCalledWith(expect.anything(), 'u1');
     for (const body of chatBodies()) {
-      expect(body.messages[0].content).toContain('About the creator: Gym guy from Berlin.');
-      expect(body.messages[0].content).toContain('Their tone: Short and cocky.');
-      expect(body.messages[0].content).toContain("Write like these:\n---\nLeg day. You're welcome.\n---");
+      expect(body.messages[0].content).toContain('About the creator: Outdoor photographer from Oregon.');
+      expect(body.messages[0].content).toContain('Their tone: Short and calm.');
+      expect(body.messages[0].content).toContain('Write like these:\n---\nFirst light on the ridge.\n---');
     }
   });
 
@@ -323,10 +323,15 @@ describe('POST /api/v1/ai/persona/draft', () => {
     veniceAnswers();
     const res = await call('POST', '/ai/persona/draft', draft);
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ aboutYou: 'Gym guy.', contentTags: ['gym'], tone: 'Short.', examplePostIndexes: [0] });
+    expect(res.json()).toEqual({
+      aboutYou: 'Outdoor guy.',
+      contentTags: ['hiking'],
+      tone: 'Short.',
+      examplePostIndexes: [0],
+    });
     const [body] = chatBodies();
     expect(body.model).toBe('kimi-k3');
-    expect(body.messages[1].content).toBe("Post 0:\nLeg day. You're welcome.");
+    expect(body.messages[1].content).toBe('Post 0:\nFirst light on the ridge.');
   });
 
   it('400 for a model Venice no longer offers, before any chat', async () => {

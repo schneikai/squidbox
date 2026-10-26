@@ -64,10 +64,10 @@ describe('checking the replies', () => {
   });
 
   it('takes any number of tags, trimmed, without empty ones and case-insensitive duplicates, in order', () => {
-    expect(checkTags([' Shower ', 'shower', '', '  ', 'wet hair', 'SHOWER', 'steam'])).toEqual([
-      'Shower',
-      'wet hair',
-      'steam',
+    expect(checkTags([' Forest ', 'forest', '', '  ', 'morning fog', 'FOREST', 'moss'])).toEqual([
+      'Forest',
+      'morning fog',
+      'moss',
     ]);
     expect(() => checkTags([' ', ''])).toThrow('Returned no tags');
   });
@@ -139,7 +139,7 @@ describe('compareModels: writing', () => {
 
 describe('compareModels: vision', () => {
   it('sends the photo to each model and takes as many tags as it gives', async () => {
-    const tags = ['shower', 'wet hair', 'steam', 'back view', 'towel', 'morning light', 'tattoo', 'tiles'];
+    const tags = ['forest', 'morning fog', 'moss', 'trail', 'backpack', 'morning light', 'pine trees', 'creek'];
     replies({ 'gemma-4-uncensored': { tags }, 'qwen-3-6-plus': { tags: [...tags, 'extra'] } });
     const results = await compareVision([model('gemma-4-uncensored'), model('qwen-3-6-plus')]);
     expect(results).toEqual([

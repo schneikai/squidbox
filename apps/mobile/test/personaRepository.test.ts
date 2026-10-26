@@ -9,9 +9,9 @@ import { EMPTY_PERSONA, readPersona, savePersona } from '../src/sync/personaRepo
 
 const USER = '6f1c1c39-6c1c-4a36-9d0e-2d6c1ad4e0f1';
 const filled = {
-  aboutYou: 'Gym guy from Berlin.',
-  contentTags: ['gym', 'pov'],
-  tone: 'Short and cocky.',
+  aboutYou: 'Outdoor photographer from Oregon.',
+  contentTags: ['hiking', 'forest'],
+  tone: 'Short and calm.',
   useEmoji: true,
   rules: ['Never use hashtags'],
 };
@@ -43,10 +43,10 @@ describe('personaRepository', () => {
     await savePersona(db, USER, filled);
     await clearOutboxRows(db, 'personas', [USER]);
     // New arrays with the same content, as the screen's draft holds them.
-    await savePersona(db, USER, { ...filled, aboutYou: 'Couple from Austin.', rules: [...filled.rules] });
+    await savePersona(db, USER, { ...filled, aboutYou: 'Baker from Leeds.', rules: [...filled.rules] });
     const [row] = await outbox(db);
     expect(Object.keys(row!.fields)).toEqual(['aboutYou']);
-    expect((await readPersona(db, USER))!.aboutYou).toBe('Couple from Austin.');
+    expect((await readPersona(db, USER))!.aboutYou).toBe('Baker from Leeds.');
   });
 
   it('writes nothing when nothing changed', async () => {

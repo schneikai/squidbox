@@ -6,7 +6,7 @@ const placementText = {
   refine: {
     title: 'Refine',
     footer:
-      'Shown under every reply in the chat. They change the options you just got, like making them shorter or spicier.',
+      'Shown under every reply in the chat. They change the options you just got, like making them shorter or funnier.',
   },
 };
 

@@ -23,17 +23,17 @@ const kimi = entries.find((entry) => entry.id === 'kimi-k3')!;
 const fetchMock = vi.fn();
 
 const persona = {
-  aboutYou: '29, gym guy from Berlin, a bit cocky.',
-  contentTags: ['gym', 'shower'],
-  tone: 'Short and cocky. Teases, never begs.',
+  aboutYou: '34, outdoor photographer from Oregon, a bit dry.',
+  contentTags: ['hiking', 'forest'],
+  tone: 'Short and calm. Never salesy.',
   useEmoji: true,
-  rules: ['Never use hashtags', 'Never call fans babe'],
+  rules: ['Never use hashtags', 'Never name the exact spot'],
 };
-const favorites = ["Leg day. You're welcome.", 'Sheets still warm.'];
+const favorites = ['First light on the ridge.', 'Fog on the lake.'];
 const empty = { aboutYou: '', contentTags: [], tone: '', useEmoji: false, rules: [] };
 const draft = {
-  aboutYou: ' Gym guy. ',
-  contentTags: ['gym', 'GYM', ' pov '],
+  aboutYou: ' Outdoor guy. ',
+  contentTags: ['hiking', 'HIKING', ' forest '],
   tone: ' Short. ',
   examplePostIndexes: [1],
 };
@@ -57,13 +57,13 @@ afterEach(() => vi.unstubAllGlobals());
 describe('writingMessages with a persona', () => {
   it('writes every field of a full persona and the favorites into the system message', () => {
     const system = systemOf(writingMessages({ prompt: 'Write', persona, favorites }));
-    expect(system).toContain('About the creator: 29, gym guy from Berlin, a bit cocky.');
-    expect(system).toContain('Their content: gym, shower');
-    expect(system).toContain('Their tone: Short and cocky. Teases, never begs.');
+    expect(system).toContain('About the creator: 34, outdoor photographer from Oregon, a bit dry.');
+    expect(system).toContain('Their content: hiking, forest');
+    expect(system).toContain('Their tone: Short and calm. Never salesy.');
     expect(system).toContain('Use emoji, the way the example posts do.');
-    expect(system).toContain('- Never use hashtags\n- Never call fans babe');
+    expect(system).toContain('- Never use hashtags\n- Never name the exact spot');
     expect(system).toContain(
-      "Example posts they wrote. Write like these:\n---\nLeg day. You're welcome.\n---\nSheets still warm.\n---",
+      'Example posts they wrote. Write like these:\n---\nFirst light on the ridge.\n---\nFog on the lake.\n---',
     );
     // In the screen's order: About you, Tone, Use emoji, Your content, Rules.
     const order = ['About the creator', 'Their tone', 'Use emoji', 'Their content', 'Rules', 'Example posts'];
@@ -73,7 +73,7 @@ describe('writingMessages with a persona', () => {
 
   it('sends the favorites without a saved persona, and no emoji line then', () => {
     const system = systemOf(writingMessages({ prompt: 'Write', persona: null, favorites }));
-    expect(system).toContain("Write like these:\n---\nLeg day. You're welcome.");
+    expect(system).toContain('Write like these:\n---\nFirst light on the ridge.');
     expect(system).not.toContain('emoji');
   });
 
@@ -108,8 +108,8 @@ describe('personaDraftMessages', () => {
 describe('checkDraft', () => {
   it('trims the texts and dedupes the tags case-insensitively', () => {
     expect(checkDraft(draft, 3)).toEqual({
-      aboutYou: 'Gym guy.',
-      contentTags: ['gym', 'pov'],
+      aboutYou: 'Outdoor guy.',
+      contentTags: ['hiking', 'forest'],
       tone: 'Short.',
       examplePostIndexes: [1],
     });
@@ -136,8 +136,8 @@ describe('draftPersonaAsync', () => {
     replies(draft);
     const result = await draftPersonaAsync({ posts: ['a', 'b'], model: kimi });
     expect(result).toEqual({
-      aboutYou: 'Gym guy.',
-      contentTags: ['gym', 'pov'],
+      aboutYou: 'Outdoor guy.',
+      contentTags: ['hiking', 'forest'],
       tone: 'Short.',
       examplePostIndexes: [1],
     });
