@@ -31,7 +31,7 @@ d('switchUserFeature', () => {
       email: 'features@test.local',
       passwordDigest: 'x',
       storageBucket: null,
-      features: ['manage_features', 'retired'],
+      features: ['developer', 'retired'],
     });
   });
   afterAll(async () => {
@@ -40,17 +40,17 @@ d('switchUserFeature', () => {
   });
 
   it('switches one feature on, sorted, once, leaving the others (unknown ones too)', async () => {
-    expect((await switchUserFeature(db, USER, 'ai', true)).features).toEqual(['ai', 'manage_features', 'retired']);
+    expect((await switchUserFeature(db, USER, 'ai', true)).features).toEqual(['ai', 'developer', 'retired']);
     await switchUserFeature(db, USER, 'ai', true);
-    expect(await featuresNow()).toEqual(['ai', 'manage_features', 'retired']);
+    expect(await featuresNow()).toEqual(['ai', 'developer', 'retired']);
   });
 
   it('switches one feature off', async () => {
-    expect((await switchUserFeature(db, USER, 'ai', false)).features).toEqual(['manage_features', 'retired']);
+    expect((await switchUserFeature(db, USER, 'ai', false)).features).toEqual(['developer', 'retired']);
   });
 
   it('keeps a change made meanwhile to another feature', async () => {
     await Promise.all([switchUserFeature(db, USER, 'ai', true), switchUserFeature(db, USER, 'ai_admin', true)]);
-    expect(await featuresNow()).toEqual(['ai', 'ai_admin', 'manage_features', 'retired']);
+    expect(await featuresNow()).toEqual(['ai', 'ai_admin', 'developer', 'retired']);
   });
 });

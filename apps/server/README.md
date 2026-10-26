@@ -103,14 +103,14 @@ npm run db:seed     -w @squidbox/server    # seed the existing user + an isolati
 
 `users.features` lists the extras an account sees on top of the defaults (`ACCOUNT_FEATURES` in
 `@squidbox/shared`): `ai` may use the AI endpoints, `ai_admin` gets the compares and the Venice
-balance, and `manage_features` shows Settings → Features, where the account switches its other
+balance, and `developer` shows Settings → Developer, with Features, where the account switches its other
 features (`PATCH /me/features`). Login and `GET /me` send them, and the app reads them again on each
-launch. `db:seed` gives the main account every feature. Any other account, and `manage_features`
+launch. `db:seed` gives the main account every feature. Any other account, and `developer`
 itself, is changed with:
 
 ```
 npm run user:features -- me@example.com                          # shows them
-npm run user:features -- me@example.com add ai ai_admin manage_features
+npm run user:features -- me@example.com add ai ai_admin developer
 npm run user:features -- me@example.com remove ai_admin
 fly ssh console -C "sh -c 'cd /app/apps/server && npm run user:features:prod -- me@example.com add ai'"
 ```

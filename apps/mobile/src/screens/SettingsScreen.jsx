@@ -35,7 +35,7 @@ export default function SettingsScreen() {
   const { phase, lastError, pendingCount, failedCount } = useSyncStatus();
   const { isVideoAutoplayOn, setIsVideoAutoplayOn, isHapticsOn, setIsHapticsOn } = useAppSettings();
   const isAssistantAvailable = useIsAssistantAvailable();
-  const canManageFeatures = useHasFeature('manage_features');
+  const isDeveloper = useHasFeature('developer');
 
   const [isLoggingOut, startLogoutTransition] = useTransition();
 
@@ -148,10 +148,12 @@ export default function SettingsScreen() {
         )}
 
         {isAssistantAvailable && (
-          // A section of its own row, without a header to repeat it.
-          <Section isHeaderless>
-            <Row label="Assistant" onPress={() => navigation.navigate('AssistantScreen')} chevron />
-          </Section>
+          <>
+            <ScreenSectionHeader title="AI" />
+            <Section>
+              <Row label="Assistant" onPress={() => navigation.navigate('AssistantScreen')} chevron />
+            </Section>
+          </>
         )}
 
         <ScreenSectionHeader title="Videos" />
@@ -171,22 +173,19 @@ export default function SettingsScreen() {
             <Switch value={isHapticsOn} onValueChange={setIsHapticsOn} accessibilityLabel="Haptics" />
           </Row>
         </Section>
-        <SectionFooter>
-          Gentle taps you can feel when you pick up or drop a photo or album, peek at a photo, or when something is
-          saved or goes wrong.
-        </SectionFooter>
+        <SectionFooter>Gentle taps when you move, peek at or save something.</SectionFooter>
 
-        <ScreenSectionHeader title="Data" />
-        <Section>
-          <Row label="Sort albums by name" onPress={handleResortAlbums} chevron />
-        </Section>
-
-        <ScreenSectionHeader title="Developer" />
-        <Section>
-          <Row label="API URL" value={SERVER_URL} />
-          <Row label="Check API" onPress={handleCheckApi} chevron />
-          {canManageFeatures && <Row label="Features" onPress={() => navigation.navigate('FeaturesScreen')} chevron />}
-        </Section>
+        {isDeveloper && (
+          <>
+            <ScreenSectionHeader title="Developer" />
+            <Section>
+              <Row label="API URL" value={SERVER_URL} />
+              <Row label="Check API" onPress={handleCheckApi} chevron />
+              <Row label="Sort albums by name" onPress={handleResortAlbums} chevron />
+              <Row label="Features" onPress={() => navigation.navigate('FeaturesScreen')} chevron />
+            </Section>
+          </>
+        )}
       </DetailScrollView>
     </Page>
   );

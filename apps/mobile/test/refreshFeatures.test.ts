@@ -79,15 +79,15 @@ describe('refreshFeaturesAsync', () => {
 
 describe('updateFeatureAsync', () => {
   it('switches the feature on the server, then stores the features it answered with', async () => {
-    store.session = { ...session, features: ['ai', 'manage_features'] };
-    patch.mockResolvedValue(answer(['ai', 'ai_admin', 'manage_features']));
+    store.session = { ...session, features: ['ai', 'developer'] };
+    patch.mockResolvedValue(answer(['ai', 'ai_admin', 'developer']));
     await updateFeatureAsync('ai_admin', true);
     expect(patch).toHaveBeenCalledWith(
       'me/features',
       { feature: 'ai_admin', isOn: true },
       { identity: { serverId: 's1', userId: 'u1' } },
     );
-    expect(store.session?.features).toEqual(['ai', 'ai_admin', 'manage_features']);
+    expect(store.session?.features).toEqual(['ai', 'ai_admin', 'developer']);
   });
 
   it('leaves the session as it was when the server says no', async () => {
