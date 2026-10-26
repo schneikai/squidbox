@@ -4,8 +4,8 @@ import getAssetThumbnailStatusAsync from '@/utils/assets/thumbnails/getAssetThum
 import readFileAsBase64Async from '@/utils/files/readFileAsBase64Async';
 
 /**
- * A photo for the vision compare, `{ base64, mimeType }`: the asset's thumbnail as it is (a 1000 px
- * JPEG; a video's is its frame). It works for photos not backed up yet; one whose thumbnail is
+ * A photo for the assistant to look at (the vision compare, the photo tags), `{ base64, mimeType }`:
+ * the asset's thumbnail as it is (a 1000 px JPEG; a video's is its frame). It works for photos not backed up yet; one whose thumbnail is
  * only in the cloud is downloaded first (`preloadAssetThumbnailsAsync` from useCloud), which stops
  * when `signal` aborts. Throws with why when there's none to be had.
  */

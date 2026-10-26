@@ -4,13 +4,13 @@ import { StyleSheet } from 'react-native';
 
 import FieldInfoSheet from './FieldInfoSheet';
 import RulesField from './RulesField';
-import TagsField from './TagsField';
 import voiceFields from './voiceFields';
 
 import CardTextField from '@/components/CardTextField';
 import DetailScrollView from '@/components/DetailScrollView';
 import Field from '@/components/Field';
 import Page from '@/components/Page';
+import TagsField from '@/components/TagsField';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
@@ -95,6 +95,8 @@ function VoiceEditor({ userId, seed, navigation }) {
             tags={draft.contentTags}
             onChange={setters.contentTags}
             placeholder={voiceFields.contentTags.placeholder}
+            maxTags={PERSONA_LIMITS.contentTags}
+            maxTagLength={PERSONA_LIMITS.contentTag}
           />
         </Field>
         <Field label={voiceFields.rules.label} onInfo={() => showInfo('rules')}>

@@ -4,6 +4,12 @@ import { baseRecordSchema, defineCollection, textSchema, timestampSchema } from 
 // The server's integer (int4) columns.
 const int4Schema = z.number().int().min(-(2 ** 31)).max(2 ** 31 - 1);
 
+// What POST /ai/tags returns fits these, and so do the user's fixes.
+export const ASSET_TAG_LIMITS = { tags: 20, tag: 40 } as const;
+
+// One tag of an asset.
+export const assetTagSchema = textSchema.min(1).max(ASSET_TAG_LIMITS.tag);
+
 // The `assets` collection — asset METADATA (binary files move via the S3 flow, not sync).
 // Fields mapped from the app's yup schema (sync-design §10). The three is*Synced flags are
 // GLOBAL "binary is in S3" facts and are therefore SYNCED (sync-design §4); only syncError is
@@ -34,6 +40,10 @@ export const assetCollection = defineCollection({
     originalFilename: textSchema.nullable().optional(),
     latitude: z.number().nullable().optional(),
     longitude: z.number().nullable().optional(),
+    // The tags the assistant sees in it (POST /ai/tags, or the user's fixes), null until it was
+    // tagged; [] is tagged, with every tag removed. A list merges as one value. Optional: older apps
+    // don't send it.
+    tags: z.array(assetTagSchema).max(ASSET_TAG_LIMITS.tags).nullable().optional(),
   }),
   localOnly: {
     syncError: z.string().nullable(),

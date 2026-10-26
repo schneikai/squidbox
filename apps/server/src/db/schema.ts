@@ -102,6 +102,7 @@ export const assets = pgTable(
     originalFilename: text('original_filename'),
     latitude: doublePrecision('latitude'),
     longitude: doublePrecision('longitude'),
+    tags: jsonb('tags').$type<string[]>(), // null until the assistant tagged it
     // Server-only: the last deletedAt values a restore undid; a purge of one of them loses (§7).
     restoredDeletions: jsonb('restored_deletions').$type<number[]>(),
     // Server-only, never on the wire: when the purge cleanup deleted the asset's S3 files (§7a).

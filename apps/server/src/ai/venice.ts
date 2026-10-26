@@ -8,6 +8,15 @@ import { AppError } from '../errors.js';
 const CHAT_TIMEOUT_MS = 150_000;
 const GET_TIMEOUT_MS = 15_000;
 
+/** A read from Venice a route can't answer without: 502 ai_unavailable with `message` when it fails. */
+export async function orAiUnavailable<T>(promise: Promise<T>, message: string): Promise<T> {
+  try {
+    return await promise;
+  } catch {
+    throw AppError.aiUnavailable(message);
+  }
+}
+
 /** A model's call or reply that failed; its message is shown on the model's card. */
 export class VeniceError extends Error {
   constructor(message: string) {

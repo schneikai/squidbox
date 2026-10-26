@@ -1,10 +1,10 @@
 import { memo } from 'react';
-import { StyleSheet, View } from 'react-native';
 
 import ModelCard from './ModelCard';
 import TweetRow from './TweetRow';
 
 import Chip from '@/components/Chip';
+import ChipRow from '@/components/ChipRow';
 
 // Memoized: a vision round settles photo by photo, and a tap changes one key's taps, so only the
 // cards whose `results` or `taps` changed re-render.
@@ -22,7 +22,7 @@ function ModelAnswers({ answerKey, kind, letters, namesById, results = {}, taps 
     return (
       <ModelCard key={`${roundNumber}-${modelId}`} label={label} name={namesById[modelId]} result={results[modelId]}>
         {kind === 'vision' ? (
-          <View style={styles.tags}>
+          <ChipRow>
             {items.map((tag, index) => {
               const isOn = tapped.includes(index);
               return (
@@ -36,7 +36,7 @@ function ModelAnswers({ answerKey, kind, letters, namesById, results = {}, taps 
                 />
               );
             })}
-          </View>
+          </ChipRow>
         ) : (
           items.map((tweet, index) => {
             const isLiked = tapped.includes(index);
@@ -49,11 +49,3 @@ function ModelAnswers({ answerKey, kind, letters, namesById, results = {}, taps 
     );
   });
 }
-
-const styles = StyleSheet.create({
-  tags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-});

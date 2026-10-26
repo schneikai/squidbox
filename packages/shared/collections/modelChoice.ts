@@ -1,7 +1,14 @@
 import { z } from 'zod';
+import type { AiModelKind } from '../contracts/ai';
 import { baseRecordSchema, defineCollection, textSchema } from './define';
 
 export const MODEL_CHOICE_LIMITS = { modelId: 200, modelName: 200 } as const;
+
+// The model the assistant uses for each kind while the user has chosen none.
+export const DEFAULT_MODEL_IDS: Record<AiModelKind, string> = {
+  writing: 'venice-uncensored-1-2',
+  vision: 'gemma-4-uncensored',
+};
 
 // `model_choices` — the model the assistant uses for each kind (Settings → Assistant → Models), when
 // the user chose one: its id, and its name for a model Venice no longer offers. One record per user,

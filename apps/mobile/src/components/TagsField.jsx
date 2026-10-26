@@ -1,23 +1,23 @@
-import { PERSONA_LIMITS, uniqueTags } from '@squidbox/shared';
+import { uniqueTags } from '@squidbox/shared';
 import { memo, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 
-import TagInput from './TagInput';
-
 import Card from '@/components/Card';
 import Chip from '@/components/Chip';
+import TagInput from '@/components/TagInput';
 import { colors, typography } from '@/styles/designTokens';
 
 /**
- * Your content: the tags as chips, a tap on one takes it out. The dashed Add turns into an input
- * that adds a tag on return (and stays open for the next) and closes on blur, adding what it holds.
- * A tag that is already there (in any case) isn't added twice.
+ * Tags as chips, a tap on one takes it out. The dashed Add turns into an input that adds a tag on
+ * return (and stays open for the next) and closes on blur, adding what it holds. A tag that is
+ * already there (in any case) isn't added twice; there is room for `maxTags` of `maxTagLength`.
+ * `isDisabled` shows the tags without taking changes.
  */
-function TagsField({ tags, onChange, placeholder }) {
+function TagsField({ tags, onChange, placeholder, maxTags, maxTagLength, isDisabled = false }) {
   const [isAdding, setIsAdding] = useState(false);
   const [text, setText] = useState('');
 
-  const canAdd = tags.length < PERSONA_LIMITS.contentTags;
+  const canAdd = !isDisabled && tags.length < maxTags;
 
   function addTag() {
     const next = uniqueTags([...tags, text]);
@@ -25,7 +25,7 @@ function TagsField({ tags, onChange, placeholder }) {
     if (next.length === tags.length) return;
     onChange(next);
     // The last tag there's room for closes the input.
-    if (next.length >= PERSONA_LIMITS.contentTags) setIsAdding(false);
+    if (next.length >= maxTags) setIsAdding(false);
   }
 
   function handleBlur() {
@@ -40,12 +40,13 @@ function TagsField({ tags, onChange, placeholder }) {
           key={tag}
           label={tag}
           variant="accent"
-          onPress={() => onChange(tags.filter((each) => each !== tag))}
-          accessibilityHint="Removes this tag"
+          onPress={isDisabled ? undefined : () => onChange(tags.filter((each) => each !== tag))}
+          accessibilityRole={isDisabled ? 'text' : 'button'}
+          accessibilityHint={isDisabled ? undefined : 'Removes this tag'}
         />
       ))}
       {isAdding && canAdd ? (
-        <TagInput value={text} onChangeText={setText} onSubmit={addTag} onBlur={handleBlur} />
+        <TagInput value={text} onChangeText={setText} onSubmit={addTag} onBlur={handleBlur} maxLength={maxTagLength} />
       ) : (
         canAdd && <Chip label="Add" variant="add" onPress={() => setIsAdding(true)} accessibilityLabel="Add a tag" />
       )}

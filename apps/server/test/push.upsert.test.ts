@@ -50,6 +50,7 @@ d('push: one upsert per collection', () => {
     originalFilename: null,
     latitude: null,
     longitude: null,
+    tags: null,
     ...over,
   });
   const album = (over: Record<string, unknown> = {}): Rec => ({

@@ -16,6 +16,15 @@ vi.mock('../src/ai/persona.js', async (importOriginal) => ({
   readPersona: vi.fn().mockResolvedValue(null),
   readFavorites: vi.fn().mockResolvedValue([]),
 }));
+// The chosen model likewise: the default unless a test chooses one.
+vi.mock('../src/ai/modelChoices.js', async () => {
+  const { DEFAULT_MODEL_IDS } = await import('@squidbox/shared');
+  return {
+    readChosenModelId: vi.fn(
+      async (_db: unknown, _userId: string, kind: 'writing' | 'vision') => DEFAULT_MODEL_IDS[kind],
+    ),
+  };
+});
 // The instructions likewise: the defaults unless a test changes one.
 vi.mock('../src/ai/instructions.js', async () => {
   const { resolveInstructions } = await import('@squidbox/shared');
@@ -34,13 +43,14 @@ vi.mock('../src/config.js', async (importOriginal) => {
   };
 });
 
-import { DEFAULT_INSTRUCTIONS, resolveInstructions } from '@squidbox/shared';
+import { ASSET_TAG_LIMITS, DEFAULT_INSTRUCTIONS, DEFAULT_MODEL_IDS, resolveInstructions } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
 import { writingFormatText } from '../src/ai/prompts.js';
 import { buildApp } from '../src/app.js';
 import { signAccessToken } from '../src/auth/jwt.js';
 import { clearCatalogCache } from '../src/ai/catalog.js';
 import { readInstructions } from '../src/ai/instructions.js';
+import { readChosenModelId } from '../src/ai/modelChoices.js';
 import { readFavorites, readPersona } from '../src/ai/persona.js';
 import { findUserById } from '../src/users.js';
 
@@ -49,7 +59,7 @@ const tags = ['forest', 'morning fog', 'moss', 'trail', 'backpack', 'morning lig
 const fetchMock = vi.fn();
 
 // Venice: the model list, and a chat reply per model.
-function veniceAnswers({ catalogStatus = 200, balanceStatus = 200 } = {}) {
+function veniceAnswers({ catalogStatus = 200, balanceStatus = 200, chatStatus = 200, tags: replyTags = tags } = {}) {
   fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
     if (url.endsWith('/api_keys/rate_limits')) {
       const body = {
@@ -62,10 +72,13 @@ function veniceAnswers({ catalogStatus = 200, balanceStatus = 200 } = {}) {
         status: catalogStatus,
       });
     }
+    if (chatStatus !== 200) {
+      return new Response(JSON.stringify({ error: { message: 'Model is busy' } }), { status: chatStatus });
+    }
     const { response_format } = JSON.parse(String(init!.body));
     const content = {
       tweets: { tweets: ['one', 'two', 'three'] },
-      tags: { tags },
+      tags: { tags: replyTags },
     }[response_format.json_schema.name as string];
     return new Response(
       JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(content) } }] }),
@@ -79,6 +92,7 @@ const chatBodies = () =>
     .map(([, init]) => JSON.parse(init.body));
 
 const writing = { prompt: 'Write 3 posts about a sunrise hike', modelIds: ['kimi-k3', 'z-ai-glm-5-3'] };
+const tagRequest = { image: { base64: 'AAAA', mimeType: 'image/jpeg' } };
 const vision = {
   prompt: 'Tag what you see',
   image: { base64: 'AAAA', mimeType: 'image/jpeg' },
@@ -115,6 +129,7 @@ describe('without VENICE_API_KEY', () => {
       ['GET', '/ai/balance', undefined],
       ['POST', '/ai/compare/writing', writing],
       ['POST', '/ai/compare/vision', vision],
+      ['POST', '/ai/tags', tagRequest],
     ] as const) {
       const res = await call(method, url, body);
       expect(res.statusCode).toBe(503);
@@ -134,6 +149,7 @@ describe('account features', () => {
       ['GET', '/ai/balance', undefined],
       ['POST', '/ai/compare/writing', writing],
       ['POST', '/ai/compare/vision', vision],
+      ['POST', '/ai/tags', tagRequest],
     ] as const) {
       const res = await call(method, url, body);
       expect(res.statusCode).toBe(403);
@@ -156,10 +172,11 @@ describe('account features', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('lets an account with ai only list the models', async () => {
+  it('lets an account with ai only list the models and tag a photo', async () => {
     signedInWith(['ai']);
     veniceAnswers();
     expect((await call('GET', '/ai/models')).statusCode).toBe(200);
+    expect((await call('POST', '/ai/tags', tagRequest)).statusCode).toBe(200);
   });
 });
 
@@ -361,6 +378,114 @@ describe('POST /api/v1/ai/compare/vision', () => {
     veniceAnswers();
     const base64 = 'A'.repeat(2 * 1024 * 1024 + 1);
     const res = await call('POST', '/ai/compare/vision', { ...vision, image: { ...vision.image, base64 } });
+    expect(res.statusCode).toBe(413);
+  });
+});
+
+describe('POST /api/v1/ai/tags', () => {
+  it("tags the photo with the user's Photo tags instructions on the default vision model", async () => {
+    veniceAnswers();
+    const mine = 'Tag the trail, the weather and the light.';
+    vi.mocked(readInstructions).mockResolvedValueOnce({ ...resolveInstructions(null), visionTagging: mine });
+    const res = await call('POST', '/ai/tags', tagRequest);
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ tags });
+    expect(readChosenModelId).toHaveBeenCalledWith(expect.anything(), 'u1', 'vision');
+    const [body, ...others] = chatBodies();
+    expect(others).toHaveLength(0);
+    expect(body.model).toBe(DEFAULT_MODEL_IDS.vision);
+    expect(body.messages[0]).toEqual({ role: 'system', content: DEFAULT_INSTRUCTIONS.tagsSystem });
+    expect(body.messages[1].content).toEqual([
+      { type: 'text', text: mine },
+      { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,AAAA' } },
+    ]);
+  });
+
+  it("adds the persona's content themes after the instructions", async () => {
+    veniceAnswers();
+    vi.mocked(readPersona).mockResolvedValueOnce({ aboutYou: '', tone: '', contentTags: ['landscape'], rules: [] });
+    expect((await call('POST', '/ai/tags', tagRequest)).statusCode).toBe(200);
+    const [body] = chatBodies();
+    expect(body.messages[1].content[0].text).toBe(DEFAULT_INSTRUCTIONS.visionTagging);
+    expect(body.messages[1].content[1].text).toMatch(/^Creator's content themes: landscape\n\n/);
+  });
+
+  it("uses the user's chosen vision model", async () => {
+    veniceAnswers();
+    vi.mocked(readChosenModelId).mockResolvedValueOnce('qwen-3-6-plus');
+    expect((await call('POST', '/ai/tags', tagRequest)).statusCode).toBe(200);
+    expect(chatBodies().map((body) => body.model)).toEqual(['qwen-3-6-plus']);
+  });
+
+  it('502 ai_unavailable when the chosen model is gone or cannot see photos, before any chat', async () => {
+    veniceAnswers();
+    for (const [id, message] of [
+      ['gone', 'Your vision model: Venice no longer offers this model'],
+      ['z-ai-glm-5-3', "Your vision model: This model can't see photos"],
+    ]) {
+      vi.mocked(readChosenModelId).mockResolvedValueOnce(id!);
+      const res = await call('POST', '/ai/tags', tagRequest);
+      expect(res.statusCode).toBe(502);
+      expect(res.json()).toEqual({ error: { code: 'ai_unavailable', message } });
+    }
+    expect(chatBodies()).toHaveLength(0);
+  });
+
+  it('502 ai_unavailable with the reason when Venice fails', async () => {
+    veniceAnswers({ chatStatus: 503 });
+    const res = await call('POST', '/ai/tags', tagRequest);
+    expect(res.statusCode).toBe(502);
+    expect(res.json()).toEqual({ error: { code: 'ai_unavailable', message: 'Model is busy' } });
+  });
+
+  it('502 ai_unavailable when the model list cannot be fetched', async () => {
+    veniceAnswers({ catalogStatus: 500 });
+    const res = await call('POST', '/ai/tags', tagRequest);
+    expect(res.statusCode).toBe(502);
+    expect(res.json().error.code).toBe('ai_unavailable');
+  });
+
+  it('drops tags over the length and keeps the first ones up to the limit', async () => {
+    const long = 'x'.repeat(ASSET_TAG_LIMITS.tag + 1);
+    const many = Array.from({ length: ASSET_TAG_LIMITS.tags + 5 }, (_, index) => `tag ${index}`);
+    veniceAnswers({ tags: [long, ...many] });
+    const res = await call('POST', '/ai/tags', tagRequest);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().tags).toEqual(many.slice(0, ASSET_TAG_LIMITS.tags));
+  });
+
+  it('502 ai_unavailable when every tag is over the length', async () => {
+    veniceAnswers({ tags: ['x'.repeat(ASSET_TAG_LIMITS.tag + 1), 'y'.repeat(ASSET_TAG_LIMITS.tag + 10)] });
+    const res = await call('POST', '/ai/tags', tagRequest);
+    expect(res.statusCode).toBe(502);
+    expect(res.json()).toEqual({ error: { code: 'ai_unavailable', message: 'The model returned no usable tags' } });
+  });
+
+  it('drops a tag the asset could not store, such as one with a NUL character', async () => {
+    veniceAnswers({ tags: ['fo\u0000g', 'moss'] });
+    const res = await call('POST', '/ai/tags', tagRequest);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().tags).toEqual(['moss']);
+  });
+
+  it('429 on the 61st call in a minute', async () => {
+    veniceAnswers();
+    const app = await buildApp({ logger: false });
+    const send = () => app.inject({ method: 'POST', url: '/api/v1/ai/tags', headers: auth, payload: tagRequest });
+    for (let i = 0; i < 60; i++) expect((await send()).statusCode).toBe(200);
+    expect((await send()).statusCode).toBe(429);
+  });
+
+  it('400 without a photo', async () => {
+    veniceAnswers();
+    expect((await call('POST', '/ai/tags', {})).statusCode).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('413 for a body over the 2 MB limit', async () => {
+    veniceAnswers();
+    const base64 = 'A'.repeat(2 * 1024 * 1024 + 1);
+    const res = await call('POST', '/ai/tags', { image: { ...tagRequest.image, base64 } });
     expect(res.statusCode).toBe(413);
   });
 });

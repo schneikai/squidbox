@@ -23,6 +23,7 @@ const ASSET_DEFAULTS = {
   originalFilename: null,
   latitude: null,
   longitude: null,
+  tags: null,
 };
 
 // Moves a picked file into `library`'s folders, makes its thumbnail and resolves the new asset

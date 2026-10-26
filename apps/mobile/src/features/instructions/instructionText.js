@@ -8,7 +8,7 @@ const instructionText = {
   visionTagging: {
     title: 'Photo tags',
     description:
-      "How it tags a photo, in Compare now and at upload later. The reply format (JSON) is added by the app and can't be changed.",
+      "How it tags a photo, in Compare and with Tag it or Tag again in a photo's details. The reply format (JSON) is added by the app and can't be changed.",
   },
   writingFormat: {
     title: 'Writing reply format',

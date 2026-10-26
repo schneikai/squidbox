@@ -9,6 +9,7 @@ import FavoritesScreen from '@/features/favorites/FavoritesScreen';
 import InstructionScreen from '@/features/instructions/InstructionScreen';
 import InstructionsScreen from '@/features/instructions/InstructionsScreen';
 import AddModelsScreen from '@/features/model-compare/AddModelsScreen';
+import PhotoTagsScreen from '@/features/photo-tags/PhotoTagsScreen';
 import PromptButtonScreen from '@/features/prompt-buttons/PromptButtonScreen';
 import PromptButtonsScreen from '@/features/prompt-buttons/PromptButtonsScreen';
 import RuleScreen from '@/features/voice/RuleScreen';
@@ -75,6 +76,9 @@ const favoriteId = ({ params }) => params?.id ?? 'new';
 // One screen per kind of instructions.
 const instructionKind = ({ params }) => params?.kind;
 
+// One screen per photo's tags.
+const assetId = ({ params }) => params?.assetId;
+
 // One screen per rule, and one Add.
 const ruleIndex = ({ params }) => String(params?.index ?? 'new');
 
@@ -121,6 +125,7 @@ export default function RootNavigator() {
         <RootStack.Screen name="VoiceScreen" component={VoiceScreen} />
         <RootStack.Screen name="RuleScreen" component={RuleScreen} getId={ruleIndex} />
         <RootStack.Screen name="AlbumNotesScreen" component={AlbumNotesScreen} />
+        <RootStack.Screen name="PhotoTagsScreen" component={PhotoTagsScreen} getId={assetId} />
       </RootStack.Group>
     </RootStack.Navigator>
   );
