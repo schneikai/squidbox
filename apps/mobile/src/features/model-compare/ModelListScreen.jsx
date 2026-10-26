@@ -28,17 +28,17 @@ import { getDb } from '@/sync/db/client';
 import confirmAsync from '@/utils/confirmAsync';
 
 // Your models of one kind (route param `kind`: writing | vision), the one the assistant uses, and the
-// way to add and remove them. With model testing also their scores from Compare and Compare itself.
+// way to add and remove them. For an ai_admin account also their scores from Compare, and Compare.
 export default function ModelListScreen({ navigation, route }) {
   const { kind } = route.params;
   const isAvailable = useLeaveWhenUnavailable();
-  const hasModelTesting = useHasFeature('model_testing');
+  const isAiAdmin = useHasFeature('ai_admin');
   const haptics = useHaptics();
   const paddingBottom = useFloatingPrimaryActionPadding();
   const { catalog, error, retry, rows, chosenId } = useYourModels(kind);
 
   const availableCount = rows?.filter((row) => row.model !== null).length ?? 0;
-  const hasScores = hasModelTesting && (rows?.some(({ score }) => score !== null) ?? false);
+  const hasScores = isAiAdmin && (rows?.some(({ score }) => score !== null) ?? false);
   const text = modelKindText[kind];
 
   async function handleChoose(row) {
@@ -72,7 +72,7 @@ export default function ModelListScreen({ navigation, route }) {
               model={row.model}
               kind={kind}
               score={row.score}
-              isScored={hasModelTesting}
+              isScored={isAiAdmin}
               isChosen={row.id === chosenId}
               onChoose={() => handleChoose(row)}
               onResetScore={() => handleResetScore(row)}
@@ -80,7 +80,7 @@ export default function ModelListScreen({ navigation, route }) {
             />
           ))}
         </Section>
-        {hasModelTesting && <SectionFooter>{text.footer}</SectionFooter>}
+        {isAiAdmin && <SectionFooter>{text.footer}</SectionFooter>}
       </>
     );
   }
@@ -100,7 +100,7 @@ export default function ModelListScreen({ navigation, route }) {
           )
         }
       />
-      <DetailScrollView contentContainerStyle={hasModelTesting && { paddingBottom }}>
+      <DetailScrollView contentContainerStyle={isAiAdmin && { paddingBottom }}>
         <IntroText style={styles.intro}>{text.intro}</IntroText>
         <ScreenSectionHeader
           title="Your models"
@@ -117,7 +117,7 @@ export default function ModelListScreen({ navigation, route }) {
         />
         {renderModels()}
       </DetailScrollView>
-      {hasModelTesting && (
+      {isAiAdmin && (
         <FloatingPrimaryAction>
           <PrimaryButton
             icon="repeat"

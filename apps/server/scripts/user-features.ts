@@ -4,8 +4,8 @@
  *
  * Run from apps/server, with .env pointed at the target backend:
  *   npm run user:features -- me@example.com                       (shows them)
- *   npm run user:features -- me@example.com add ai model_testing
- *   npm run user:features -- me@example.com remove model_testing
+ *   npm run user:features -- me@example.com add ai ai_admin
+ *   npm run user:features -- me@example.com remove ai_admin
  * On Fly: fly ssh console -C "sh -c 'cd /app/apps/server && npm run user:features:prod -- me@example.com add ai'"
  */
 import { eq } from 'drizzle-orm';

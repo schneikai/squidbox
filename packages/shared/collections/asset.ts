@@ -2,7 +2,11 @@ import { z } from 'zod';
 import { baseRecordSchema, defineCollection, textSchema, timestampSchema } from './define';
 
 // The server's integer (int4) columns.
-const int4Schema = z.number().int().min(-(2 ** 31)).max(2 ** 31 - 1);
+const int4Schema = z
+  .number()
+  .int()
+  .min(-(2 ** 31))
+  .max(2 ** 31 - 1);
 
 // The `assets` collection — asset METADATA (binary files move via the S3 flow, not sync).
 // Fields mapped from the app's yup schema (sync-design §10). The three is*Synced flags are

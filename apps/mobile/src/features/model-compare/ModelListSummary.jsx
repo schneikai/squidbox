@@ -5,7 +5,7 @@ import scoreText from './scoreText';
 /**
  * A model of your list as the list and the compare's pick step show it: its name and Uncensored
  * label over its score and cost. `model` null is one Venice no longer offers: greyed, so labelled.
- * `isScored` false (without model testing) leaves the score out.
+ * `isScored` false (not an ai_admin account) leaves the score out.
  */
 export default function ModelListSummary({ name, model, kind, score, isScored = true }) {
   const isAvailable = model !== null;

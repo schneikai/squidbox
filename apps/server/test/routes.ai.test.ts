@@ -85,7 +85,7 @@ beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
   venice.apiKey = 'test-venice-key';
-  signedInWith(['ai', 'model_testing']);
+  signedInWith(['ai', 'ai_admin']);
   vi.mocked(readPersona).mockResolvedValue(null);
   vi.mocked(readFavorites).mockResolvedValue([]);
 });
@@ -123,7 +123,7 @@ describe('without VENICE_API_KEY', () => {
 
 describe('account features', () => {
   it('answers 403 ai_not_allowed to an account without ai, before any Venice call', async () => {
-    signedInWith(['model_testing']);
+    signedInWith(['ai_admin']);
     for (const [method, url, body] of [
       ['GET', '/ai/models', undefined],
       ['GET', '/ai/balance', undefined],
@@ -138,7 +138,7 @@ describe('account features', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('answers 403 model_testing_not_allowed on the compares and the balance to an account without model_testing', async () => {
+  it('answers 403 ai_admin_not_allowed on the compares and the balance to an account without ai_admin', async () => {
     signedInWith(['ai']);
     for (const [method, url, body] of [
       ['GET', '/ai/balance', undefined],
@@ -147,7 +147,7 @@ describe('account features', () => {
     ] as const) {
       const res = await call(method, url, body);
       expect(res.statusCode).toBe(403);
-      expect(res.json().error.code).toBe('model_testing_not_allowed');
+      expect(res.json().error.code).toBe('ai_admin_not_allowed');
     }
     expect(fetchMock).not.toHaveBeenCalled();
   });

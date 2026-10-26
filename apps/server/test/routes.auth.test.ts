@@ -4,6 +4,7 @@ vi.mock('../src/db/client.js', () => ({ getDb: () => ({}), closeDb: async () => 
 vi.mock('../src/users.js', () => ({
   findUserByEmail: vi.fn(),
   findUserById: vi.fn(),
+  setUserFeatures: vi.fn(),
   toApiUser: (u: { id: string; email: string; features: string[] }) => ({
     id: u.id,
     email: u.email,
@@ -19,7 +20,7 @@ vi.mock('../src/auth/tokens.js', () => ({
 
 import { buildApp } from '../src/app.js';
 import { signAccessToken } from '../src/auth/jwt.js';
-import { findUserByEmail, findUserById } from '../src/users.js';
+import { findUserByEmail, findUserById, setUserFeatures } from '../src/users.js';
 import { verifyPassword } from '../src/auth/passwords.js';
 import { issueRefreshToken, rotateRefreshToken, revokeRefreshToken } from '../src/auth/tokens.js';
 
@@ -161,6 +162,35 @@ describe('GET /api/v1/me', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ user: { id: 'u1', email: 'a@b.co', features: ['ai'] }, serverId });
+  });
+});
+
+describe('PUT /api/v1/me/features', () => {
+  const headers = { authorization: `Bearer ${signAccessToken('u1')}` };
+  const put = async (features: unknown) =>
+    (await app()).inject({ method: 'PUT', url: '/api/v1/me/features', headers, payload: { features } });
+
+  it('sets the features of an account with manage_features, keeping manage_features', async () => {
+    vi.mocked(findUserById).mockResolvedValue({ ...user, features: ['manage_features', 'ai'] } as any);
+    vi.mocked(setUserFeatures).mockImplementation(async (_db, _id, features) => ({ ...user, features }) as any);
+    const res = await put(['ai_admin', 'ai']);
+    expect(res.statusCode).toBe(200);
+    expect(setUserFeatures).toHaveBeenCalledWith(expect.anything(), 'u1', ['ai', 'ai_admin', 'manage_features']);
+    expect(res.json().user.features).toEqual(['ai', 'ai_admin', 'manage_features']);
+  });
+
+  it('answers 403 manage_features_not_allowed to an account without manage_features', async () => {
+    vi.mocked(findUserById).mockResolvedValue(user as any);
+    const res = await put(['ai', 'ai_admin']);
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error.code).toBe('manage_features_not_allowed');
+    expect(setUserFeatures).not.toHaveBeenCalled();
+  });
+
+  it('answers 400 to a feature it does not know', async () => {
+    vi.mocked(findUserById).mockResolvedValue({ ...user, features: ['manage_features'] } as any);
+    expect((await put(['superpowers'])).statusCode).toBe(400);
+    expect(setUserFeatures).not.toHaveBeenCalled();
   });
 });
 

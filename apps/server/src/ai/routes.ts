@@ -44,10 +44,10 @@ async function aiAccess(request: FastifyRequest): Promise<void> {
   if (!requireUser(request).features.includes('ai')) throw AppError.aiNotAllowed();
 }
 
-// Model testing's routes (the compares, the Venice balance), after aiAccess: 403
-// model_testing_not_allowed for an account without the `model_testing` feature.
-async function modelTestingAccess(request: FastifyRequest): Promise<void> {
-  if (!requireUser(request).features.includes('model_testing')) throw AppError.modelTestingNotAllowed();
+// The ai_admin routes (the compares, the Venice balance), after aiAccess: 403
+// ai_admin_not_allowed for an account without the `ai_admin` feature.
+async function aiAdminAccess(request: FastifyRequest): Promise<void> {
+  if (!requireUser(request).features.includes('ai_admin')) throw AppError.aiAdminNotAllowed();
 }
 
 // A read from Venice the route can't answer without: 502 ai_unavailable when it fails.
@@ -105,7 +105,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     r.route({
       method: 'GET',
       url: '/ai/balance',
-      preHandler: modelTestingAccess,
+      preHandler: aiAdminAccess,
       schema: { response: { 200: aiBalanceResponseSchema } },
       handler: () => orAiUnavailable(fetchBalanceAsync(), "Couldn't load the balance from Venice"),
     });
@@ -114,7 +114,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     r.route({
       method: 'POST',
       url: '/ai/compare/writing',
-      preHandler: modelTestingAccess,
+      preHandler: aiAdminAccess,
       config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
       schema: { body: compareWritingRequestSchema, response: { 200: compareWritingResponseSchema } },
       handler: async (request, reply) => {
@@ -160,7 +160,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     r.route({
       method: 'POST',
       url: '/ai/compare/vision',
-      preHandler: modelTestingAccess,
+      preHandler: aiAdminAccess,
       bodyLimit: VISION_REQUEST_BODY_LIMIT,
       config: { rateLimit: { max: 240, timeWindow: '1 minute' } },
       schema: { body: compareVisionRequestSchema, response: { 200: compareVisionResponseSchema } },

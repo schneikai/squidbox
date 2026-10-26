@@ -12,7 +12,7 @@ import { colors, sizes } from '@/styles/designTokens';
 /**
  * A model in your list: its summary with the score and cost, a check when it's the chosen one, and
  * a menu to reset its score or remove it. `model` null is a model Venice no longer offers: greyed, not choosable, its
- * score kept. `isScored` false (without model testing) leaves the score out.
+ * score kept. `isScored` false (not an ai_admin account) leaves the score out.
  */
 export default function ModelRow({
   name,

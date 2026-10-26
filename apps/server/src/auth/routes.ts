@@ -5,12 +5,13 @@ import {
   loginResponseSchema,
   refreshRequestSchema,
   refreshResponseSchema,
+  updateFeaturesRequestSchema,
   userResponseSchema,
 } from '@squidbox/shared';
 import { loadConfig } from '../config.js';
 import { getDb } from '../db/client.js';
 import { AppError } from '../errors.js';
-import { findUserByEmail, toApiUser } from '../users.js';
+import { findUserByEmail, setUserFeatures, toApiUser } from '../users.js';
 import { verifyPassword } from './passwords.js';
 import { signAccessToken } from './jwt.js';
 import { issueRefreshToken, rotateRefreshToken, revokeRefreshToken } from './tokens.js';
@@ -70,5 +71,20 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     preHandler: authenticate(),
     schema: { response: { 200: userResponseSchema } },
     handler: async (request) => ({ user: toApiUser(requireUser(request)), serverId }),
+  });
+
+  // PUT /me/features — an account with `manage_features` switches its own features (Settings →
+  // Features). It keeps `manage_features`, which only `npm run user:features` gives or takes.
+  r.route({
+    method: 'PUT',
+    url: '/me/features',
+    preHandler: authenticate(),
+    schema: { body: updateFeaturesRequestSchema, response: { 200: userResponseSchema } },
+    handler: async (request) => {
+      const user = requireUser(request);
+      if (!user.features.includes('manage_features')) throw AppError.manageFeaturesNotAllowed();
+      const features = [...new Set([...request.body.features, 'manage_features'])].sort();
+      return { user: toApiUser(await setUserFeatures(db, user.id, features)), serverId };
+    },
   });
 }

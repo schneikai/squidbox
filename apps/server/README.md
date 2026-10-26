@@ -19,7 +19,7 @@ The TypeScript backend: Fastify + Drizzle + Postgres + S3, deployed on Fly.io (s
   (`src/ai/`). `VENICE_API_KEY` is server-side only; without it the server runs and these routes
   answer 503 `ai_not_configured`. `VENICE_BASE_URL` defaults to `https://api.venice.ai/api/v1`.
   Only accounts with the `ai` feature may use them (others get 403 `ai_not_allowed`), and the
-  compares and the balance also need `model_testing` (403 `model_testing_not_allowed`). See
+  compares and the balance also need `ai_admin` (403 `ai_admin_not_allowed`). See
   "Account features" below.
   Locally, export the key in the shell that runs `npm run dev:local` (never in `.env.docker`); on
   Fly it is a secret (`fly secrets set VENICE_API_KEY=…`). Node's built-in `fetch` ignores
@@ -102,14 +102,16 @@ npm run db:seed     -w @squidbox/server    # seed the existing user + an isolati
 ## Account features
 
 `users.features` lists the extras an account sees on top of the defaults (`ACCOUNT_FEATURES` in
-`@squidbox/shared`): `ai` may use the AI endpoints, `model_testing` gets the compares and the Venice
-balance. Login and `GET /me` send them, and the app reads them again on each launch. `db:seed` gives
-the main account every feature; any other account gets them with:
+`@squidbox/shared`): `ai` may use the AI endpoints, `ai_admin` gets the compares and the Venice
+balance, and `manage_features` shows Settings → Features, where the account switches its other
+features (`PUT /me/features`). Login and `GET /me` send them, and the app reads them again on each
+launch. `db:seed` gives the main account every feature. Any other account, and `manage_features`
+itself, is changed with:
 
 ```
 npm run user:features -- me@example.com                          # shows them
-npm run user:features -- me@example.com add ai model_testing
-npm run user:features -- me@example.com remove model_testing
+npm run user:features -- me@example.com add ai ai_admin manage_features
+npm run user:features -- me@example.com remove ai_admin
 fly ssh console -C "sh -c 'cd /app/apps/server && npm run user:features:prod -- me@example.com add ai'"
 ```
 

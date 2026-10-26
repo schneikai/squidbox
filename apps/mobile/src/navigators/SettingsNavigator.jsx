@@ -1,5 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import FeaturesScreen from '@/features/account-features/FeaturesScreen';
 import AssistantScreen from '@/features/assistant/AssistantScreen';
 import ModelListScreen from '@/features/model-compare/ModelListScreen';
 import BackupScreen from '@/screens/BackupScreen';
@@ -16,6 +17,7 @@ export default function SettingsNavigator() {
       <Stack.Screen name="SyncScreen" component={SyncScreen} />
       <Stack.Screen name="AssistantScreen" component={AssistantScreen} />
       <Stack.Screen name="ModelListScreen" component={ModelListScreen} />
+      <Stack.Screen name="FeaturesScreen" component={FeaturesScreen} />
     </Stack.Navigator>
   );
 }

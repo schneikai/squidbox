@@ -13,7 +13,8 @@ export type ErrorCode =
   | 'ai_not_configured'
   | 'ai_unavailable'
   | 'ai_not_allowed'
-  | 'model_testing_not_allowed'
+  | 'ai_admin_not_allowed'
+  | 'manage_features_not_allowed'
   | 'internal';
 
 export class AppError extends Error {
@@ -48,8 +49,11 @@ export class AppError extends Error {
   static aiNotAllowed() {
     return new AppError(403, 'ai_not_allowed', 'AI is not enabled for this account');
   }
-  static modelTestingNotAllowed() {
-    return new AppError(403, 'model_testing_not_allowed', 'Model testing is not enabled for this account');
+  static aiAdminNotAllowed() {
+    return new AppError(403, 'ai_admin_not_allowed', 'AI admin tools are not enabled for this account');
+  }
+  static manageFeaturesNotAllowed() {
+    return new AppError(403, 'manage_features_not_allowed', 'Changing features is not enabled for this account');
   }
   static aiUnavailable(message: string) {
     return new AppError(502, 'ai_unavailable', message);

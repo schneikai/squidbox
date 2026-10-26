@@ -28,8 +28,8 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
 
 // Settings → Assistant: how the assistant writes as you, the posts it writes like (Favorites), its
-// prompt buttons, and the Models section (the models it uses, and with model testing what is left on
-// the Venice account).
+// prompt buttons, and the Models section (the models it uses, and for an ai_admin account what is
+// left on the Venice account).
 export default function AssistantScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
@@ -41,7 +41,7 @@ export default function AssistantScreen() {
   useSeedPromptButtons();
   const chosen = useLiveQuery((db) => readChosenModels(db), [schema.aiKinds, schema.aiModels]);
   const { models: catalog } = useAiCatalog();
-  const hasModelTesting = useHasFeature('model_testing');
+  const isAiAdmin = useHasFeature('ai_admin');
 
   // The chosen model's name, or a muted "No longer available" once Venice dropped it (its list
   // says which; a catalog still loading or failed to load leaves the plain name). The name and the
@@ -102,7 +102,7 @@ export default function AssistantScreen() {
             );
           })}
         </Section>
-        {hasModelTesting && <VeniceBalanceFooter />}
+        {isAiAdmin && <VeniceBalanceFooter />}
       </DetailScrollView>
     </Page>
   );
