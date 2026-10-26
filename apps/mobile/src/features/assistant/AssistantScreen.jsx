@@ -20,19 +20,22 @@ import useLibrary from '@/library/useLibrary';
 import { colors, radii, sizes } from '@/styles/designTokens';
 import { readChosenModels } from '@/sync/aiStateRepository';
 import { schema } from '@/sync/db/client';
+import { countFavorites } from '@/sync/favoritesRepository';
 import { readPersona } from '@/sync/personaRepository';
 import { countPromptButtons } from '@/sync/promptButtonsRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
 
-// Settings → Assistant: how the assistant writes as you, its prompt buttons, and in test builds the
-// Testing section (the models it uses, what is left on the Venice account).
+// Settings → Assistant: how the assistant writes as you, the posts it writes like (Favorites), its
+// prompt buttons, and in test builds the Testing section (the models it uses, what is left on the
+// Venice account).
 export default function AssistantScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
   const { library } = useLibrary();
   const userId = library.owner.userId;
   const persona = useLiveQuery((db) => readPersona(db, userId), [schema.personas], [userId]);
+  const favoriteCount = useLiveQuery((db) => countFavorites(db), [schema.favorites]);
   const promptButtonCount = useLiveQuery((db) => countPromptButtons(db), [schema.promptButtons]);
   useSeedPromptButtons();
   const chosen = useLiveQuery((db) => readChosenModels(db), [schema.aiKinds, schema.aiModels]);
@@ -66,6 +69,13 @@ export default function AssistantScreen() {
           />
         </Section>
         <Section isHeaderless>
+          <Row
+            leading={<Icon name="heart" color={colors.status.danger} />}
+            label="Favorites"
+            value={favoriteCount === undefined ? null : String(favoriteCount)}
+            onPress={() => navigation.navigate('FavoritesScreen')}
+            chevron
+          />
           <Row
             leading={<Icon name="prompt-buttons" color={colors.text.secondary} />}
             label="Prompt buttons"

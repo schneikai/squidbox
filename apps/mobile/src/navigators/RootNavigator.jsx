@@ -4,6 +4,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import ProgressOverlayHost from '@/components/progress-overlay/ProgressOverlayHost';
 import AssetPickerScreen from '@/features/asset-picker/AssetPickerScreen';
+import FavoriteModal from '@/features/favorites/FavoriteModal';
+import FavoritesScreen from '@/features/favorites/FavoritesScreen';
 import AddModelsScreen from '@/features/model-compare/AddModelsScreen';
 import PromptButtonModal from '@/features/prompt-buttons/PromptButtonModal';
 import PromptButtonsScreen from '@/features/prompt-buttons/PromptButtonsScreen';
@@ -52,6 +54,7 @@ const ModelCompareModalRoute = asModalRoute(ModelCompareNavigator);
 const AddAiModelsModalRoute = asModalRoute(AddModelsScreen);
 const VoiceModalRoute = asModalRoute(VoiceModal);
 const PromptButtonModalRoute = asModalRoute(PromptButtonModal);
+const FavoriteModalRoute = asModalRoute(FavoriteModal);
 
 // One editor per params: opening the editor for another post or other assets, also from inside an
 // open editor's sheet, opens a new one on top; the same params go back to the editor that has them.
@@ -66,6 +69,9 @@ const modelKind = ({ params }) => params?.kind;
 
 // One sheet per prompt button, and one Add per placement.
 const promptButtonId = ({ params }) => params?.id ?? `new:${params?.placement}`;
+
+// One sheet per favorite, and one Add.
+const favoriteId = ({ params }) => params?.id ?? 'new';
 
 export default function RootNavigator() {
   return (
@@ -107,6 +113,12 @@ export default function RootNavigator() {
           options={{ headerShown: false }}
           getId={promptButtonId}
         />
+        <RootStack.Screen
+          name="FavoriteModal"
+          component={FavoriteModalRoute}
+          options={{ headerShown: false }}
+          getId={favoriteId}
+        />
       </RootStack.Group>
       <RootStack.Group screenOptions={{ headerShown: false }}>
         <RootStack.Screen name="MainTab" component={MainTabNavigator} />
@@ -114,6 +126,7 @@ export default function RootNavigator() {
         <RootStack.Screen name="PostScreen" component={PostScreen} getId={postId} />
         <RootStack.Screen name="AssetScreen" component={AssetScreen} />
         <RootStack.Screen name="PromptButtonsScreen" component={PromptButtonsScreen} />
+        <RootStack.Screen name="FavoritesScreen" component={FavoritesScreen} />
       </RootStack.Group>
     </RootStack.Navigator>
   );

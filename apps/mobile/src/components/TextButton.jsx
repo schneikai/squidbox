@@ -8,12 +8,14 @@ const TONE_COLORS = {
   muted: colors.text.secondary,
   inverse: colors.text.inverse,
   danger: colors.status.danger,
+  onDark: colors.accent.onDark,
 };
 
 // A secondary action as a line of text ("Sign in as someone else", "Try again"). `tone`: `accent`,
-// `muted` for one that should not draw the eye, `danger` for one that deletes, or `inverse` on a dark
-// overlay. `size="small"` fits it into a header row; `icon` leads the label. `disabled` greys it out;
-// `loading` shows a spinner in the icon's place and blocks presses.
+// `muted` for one that should not draw the eye, `danger` for one that deletes, `inverse` on a dark
+// overlay, or `onDark` for an accent one on a dark surface (the Undo bar). `size="small"` fits it
+// into a header row; `icon` leads the label. `disabled` greys it out; `loading` shows a spinner in
+// the icon's place and blocks presses.
 export default function TextButton({
   label,
   icon,

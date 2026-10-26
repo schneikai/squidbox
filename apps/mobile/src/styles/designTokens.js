@@ -31,6 +31,7 @@ const palette = {
   gray900: '#111827',
   violet50: '#F5F3FF',
   violet100: '#EFE7FD',
+  violet300: '#C4B5FD',
   violet600: '#7C3AED',
   indigo600: '#4F46E5',
   rose600: '#E11D48',
@@ -52,6 +53,7 @@ export const colors = {
     light: alpha(palette.violet600, 0.12),
     surface: palette.violet100, // `light` over white, opaque for a surface over content (the account avatar)
     border: alpha(palette.violet600, 0.3), // the frame of an outlined or dashed chip
+    onDark: palette.violet300, // the accent on a dark surface (the Undo bar's Undo)
     gradient: [palette.violet600, palette.indigo600],
   },
   status: {
