@@ -137,7 +137,7 @@ function VoiceEditor({ userId, seed, navigation }) {
         <View style={styles.toneGroup}>
           {textField('tone', PERSONA_LIMITS.tone)}
           <Section>
-            <Row label={voiceFields.useEmoji.label} description={voiceFields.useEmoji.description}>
+            <Row label={voiceFields.useEmoji.label}>
               <Switch value={draft.useEmoji} onValueChange={setters.useEmoji} />
             </Row>
           </Section>

@@ -23,7 +23,6 @@ const voiceFields = {
   },
   useEmoji: {
     label: 'Use emoji',
-    description: 'The way you use them in your posts',
   },
   contentTags: {
     label: 'Your content',
