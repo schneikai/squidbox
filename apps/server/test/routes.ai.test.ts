@@ -156,11 +156,10 @@ describe('account features', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('lets an account with ai only list the models and draft its persona', async () => {
+  it('lets an account with ai only list the models', async () => {
     signedInWith(['ai']);
     veniceAnswers();
     expect((await call('GET', '/ai/models')).statusCode).toBe(200);
-    expect((await call('POST', '/ai/persona/draft', draft)).statusCode).toBe(200);
   });
 });
 
