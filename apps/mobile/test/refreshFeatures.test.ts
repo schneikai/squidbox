@@ -5,7 +5,7 @@ import type { Session } from '../src/library/session';
 
 const store: { session: Session | null; writes: number } = { session: null, writes: 0 };
 const me = vi.fn();
-const put = vi.fn();
+const patch = vi.fn();
 
 vi.mock('../src/utils/cloud-api/sessionStore', () => sessionStoreMock(store));
 vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({
@@ -15,12 +15,12 @@ vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({
 vi.mock('../src/utils/cloud-api/apiWithAuthentication', () => ({
   default: {
     get: (url: string, config: unknown) => me(url, config),
-    put: (url: string, body: unknown, config: unknown) => put(url, body, config),
+    patch: (url: string, body: unknown, config: unknown) => patch(url, body, config),
   },
 }));
 
 const { default: refreshFeaturesAsync } = await import('../src/utils/cloud-api/refreshFeaturesAsync');
-const { default: updateFeaturesAsync } = await import('../src/utils/cloud-api/updateFeaturesAsync');
+const { default: updateFeatureAsync } = await import('../src/utils/cloud-api/updateFeatureAsync');
 
 const session: Session = {
   serverId: 's1',
@@ -34,7 +34,7 @@ const answer = (features: string[]) => ({ data: { user: { id: 'u1', email: 'a@b.
 describe('refreshFeaturesAsync', () => {
   beforeEach(() => {
     me.mockReset();
-    put.mockReset();
+    patch.mockReset();
     store.writes = 0;
   });
 
@@ -77,14 +77,14 @@ describe('refreshFeaturesAsync', () => {
   });
 });
 
-describe('updateFeaturesAsync', () => {
-  it('sets the features on the server, then stores what it answered', async () => {
+describe('updateFeatureAsync', () => {
+  it('switches the feature on the server, then stores the features it answered with', async () => {
     store.session = { ...session, features: ['ai', 'manage_features'] };
-    put.mockResolvedValue(answer(['ai', 'ai_admin', 'manage_features']));
-    await updateFeaturesAsync(['ai', 'manage_features', 'ai_admin']);
-    expect(put).toHaveBeenCalledWith(
+    patch.mockResolvedValue(answer(['ai', 'ai_admin', 'manage_features']));
+    await updateFeatureAsync('ai_admin', true);
+    expect(patch).toHaveBeenCalledWith(
       'me/features',
-      { features: ['ai', 'manage_features', 'ai_admin'] },
+      { feature: 'ai_admin', isOn: true },
       { identity: { serverId: 's1', userId: 'u1' } },
     );
     expect(store.session?.features).toEqual(['ai', 'ai_admin', 'manage_features']);
@@ -92,8 +92,8 @@ describe('updateFeaturesAsync', () => {
 
   it('leaves the session as it was when the server says no', async () => {
     store.session = { ...session, features: ['ai'] };
-    put.mockRejectedValue(new Error('403'));
-    await expect(updateFeaturesAsync(['ai', 'ai_admin'])).rejects.toThrow('403');
+    patch.mockRejectedValue(new Error('403'));
+    await expect(updateFeatureAsync('ai_admin', true)).rejects.toThrow('403');
     expect(store.session?.features).toEqual(['ai']);
   });
 });

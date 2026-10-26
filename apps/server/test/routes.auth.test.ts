@@ -165,31 +165,52 @@ describe('GET /api/v1/me', () => {
   });
 });
 
-describe('PUT /api/v1/me/features', () => {
+describe('PATCH /api/v1/me/features', () => {
   const headers = { authorization: `Bearer ${signAccessToken('u1')}` };
-  const put = async (features: unknown) =>
-    (await app()).inject({ method: 'PUT', url: '/api/v1/me/features', headers, payload: { features } });
+  const patch = async (payload: unknown) =>
+    (await app()).inject({ method: 'PATCH', url: '/api/v1/me/features', headers, payload: payload as any });
+  const withFeatures = (features: string[]) => vi.mocked(findUserById).mockResolvedValue({ ...user, features } as any);
 
-  it('sets the features of an account with manage_features, keeping manage_features', async () => {
-    vi.mocked(findUserById).mockResolvedValue({ ...user, features: ['manage_features', 'ai'] } as any);
+  beforeEach(() => {
     vi.mocked(setUserFeatures).mockImplementation(async (_db, _id, features) => ({ ...user, features }) as any);
-    const res = await put(['ai_admin', 'ai']);
+  });
+
+  it('switches one feature on, leaving the others (unknown ones too) as they are', async () => {
+    withFeatures(['manage_features', 'ai', 'retired']);
+    const res = await patch({ feature: 'ai_admin', isOn: true });
     expect(res.statusCode).toBe(200);
-    expect(setUserFeatures).toHaveBeenCalledWith(expect.anything(), 'u1', ['ai', 'ai_admin', 'manage_features']);
-    expect(res.json().user.features).toEqual(['ai', 'ai_admin', 'manage_features']);
+    expect(setUserFeatures).toHaveBeenCalledWith(expect.anything(), 'u1', [
+      'ai',
+      'ai_admin',
+      'manage_features',
+      'retired',
+    ]);
+    expect(res.json().user.features).toEqual(['ai', 'ai_admin', 'manage_features', 'retired']);
+  });
+
+  it('switches one feature off', async () => {
+    withFeatures(['ai', 'ai_admin', 'manage_features']);
+    await patch({ feature: 'ai_admin', isOn: false });
+    expect(setUserFeatures).toHaveBeenCalledWith(expect.anything(), 'u1', ['ai', 'manage_features']);
+  });
+
+  it('keeps manage_features on', async () => {
+    withFeatures(['ai', 'manage_features']);
+    await patch({ feature: 'manage_features', isOn: false });
+    expect(setUserFeatures).toHaveBeenCalledWith(expect.anything(), 'u1', ['ai', 'manage_features']);
   });
 
   it('answers 403 manage_features_not_allowed to an account without manage_features', async () => {
-    vi.mocked(findUserById).mockResolvedValue(user as any);
-    const res = await put(['ai', 'ai_admin']);
+    withFeatures(['ai']);
+    const res = await patch({ feature: 'ai_admin', isOn: true });
     expect(res.statusCode).toBe(403);
     expect(res.json().error.code).toBe('manage_features_not_allowed');
     expect(setUserFeatures).not.toHaveBeenCalled();
   });
 
   it('answers 400 to a feature it does not know', async () => {
-    vi.mocked(findUserById).mockResolvedValue({ ...user, features: ['manage_features'] } as any);
-    expect((await put(['superpowers'])).statusCode).toBe(400);
+    withFeatures(['manage_features']);
+    expect((await patch({ feature: 'superpowers', isOn: true })).statusCode).toBe(400);
     expect(setUserFeatures).not.toHaveBeenCalled();
   });
 });

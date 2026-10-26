@@ -13,7 +13,7 @@ import useCloud from '@/features/cloud/useCloud';
 import useCloseWhen from '@/hooks/useCloseWhen';
 import useHasFeature from '@/hooks/useHasFeature';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
-import updateFeaturesAsync from '@/utils/cloud-api/updateFeaturesAsync';
+import updateFeatureAsync from '@/utils/cloud-api/updateFeatureAsync';
 
 // Settings → Features: the extras the signed-in account has on top of the defaults, a switch each.
 // Only for an account with manage_features; a switch flips at once and goes back if the server says
@@ -23,16 +23,19 @@ export default function FeaturesScreen() {
   const { user } = useCloud();
   const isAvailable = useHasFeature('manage_features');
   useCloseWhen(!isAvailable);
-  // The features while a change is on its way, null otherwise.
+  // The switch on its way to the server, `{ feature, isOn }`, null otherwise.
   const [pending, setPending] = useState(null);
 
-  const features = pending ?? user?.features ?? [];
+  const features = user?.features ?? [];
+
+  function isFeatureOn(feature) {
+    return pending?.feature === feature ? pending.isOn : features.includes(feature);
+  }
 
   async function handleChange(feature, isOn) {
-    const next = isOn ? [...features, feature] : features.filter((each) => each !== feature);
-    setPending(next);
+    setPending({ feature, isOn });
     try {
-      await updateFeaturesAsync(next);
+      await updateFeatureAsync(feature, isOn);
     } catch (error) {
       Alert.alert("Couldn't change the feature", apiErrorMessage(error));
     } finally {
@@ -50,7 +53,7 @@ export default function FeaturesScreen() {
           {Object.entries(featureText).map(([feature, { title, description }]) => (
             <Row key={feature} label={title} description={description}>
               <Switch
-                value={features.includes(feature)}
+                value={isFeatureOn(feature)}
                 onValueChange={(isOn) => handleChange(feature, isOn)}
                 disabled={pending !== null}
                 accessibilityLabel={title}
