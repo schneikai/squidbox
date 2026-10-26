@@ -1351,7 +1351,6 @@ d('sync engine (Postgres)', () => {
         tone: 'Short and cocky.',
         useEmoji: true,
         rules: ['Never use hashtags'],
-        examplePosts: ['Leg day. You\'re welcome.'],
       }),
       prompt_buttons: () => ({
         ...base(),
@@ -1361,6 +1360,7 @@ d('sync engine (Postgres)', () => {
         icon: null,
         position: 'a0',
       }),
+      favorites: () => ({ ...base(), text: "Leg day. You're welcome.", source: null }),
     };
 
     for (const name of collectionNames) {

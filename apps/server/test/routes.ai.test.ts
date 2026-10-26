@@ -10,6 +10,7 @@ vi.mock('../src/users.js', () => ({
 vi.mock('../src/ai/persona.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/ai/persona.js')>()),
   readPersona: vi.fn().mockResolvedValue(null),
+  readFavorites: vi.fn().mockResolvedValue([]),
 }));
 // The test env has no Venice key; each test sets the one the routes see.
 const venice = vi.hoisted(() => ({
@@ -32,7 +33,7 @@ import fixture from './fixtures/venice-models.json';
 import { buildApp } from '../src/app.js';
 import { signAccessToken } from '../src/auth/jwt.js';
 import { clearCatalogCache } from '../src/ai/catalog.js';
-import { readPersona } from '../src/ai/persona.js';
+import { readFavorites, readPersona } from '../src/ai/persona.js';
 import { findUserById } from '../src/users.js';
 
 const auth = { authorization: `Bearer ${signAccessToken('u1')}` };
@@ -87,6 +88,7 @@ beforeEach(() => {
   venice.allowed = undefined;
   vi.mocked(findUserById).mockResolvedValue({ id: 'u1', email: 'a@b.co', storageBucket: null } as any);
   vi.mocked(readPersona).mockResolvedValue(null);
+  vi.mocked(readFavorites).mockResolvedValue([]);
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -227,7 +229,7 @@ describe('POST /api/v1/ai/compare/writing', () => {
     expect(chatBodies()).toHaveLength(1);
   });
 
-  it("writes as the user's persona once they saved one", async () => {
+  it("writes as the user's persona and favorites", async () => {
     veniceAnswers();
     vi.mocked(readPersona).mockResolvedValue({
       aboutYou: 'Gym guy from Berlin.',
@@ -235,14 +237,16 @@ describe('POST /api/v1/ai/compare/writing', () => {
       tone: 'Short and cocky.',
       useEmoji: false,
       rules: [],
-      examplePosts: [],
     });
+    vi.mocked(readFavorites).mockResolvedValue(["Leg day. You're welcome."]);
     const res = await call('POST', '/ai/compare/writing', writing);
     expect(res.statusCode).toBe(200);
     expect(readPersona).toHaveBeenCalledWith(expect.anything(), 'u1');
+    expect(readFavorites).toHaveBeenCalledWith(expect.anything(), 'u1');
     for (const body of chatBodies()) {
       expect(body.messages[0].content).toContain('About the creator: Gym guy from Berlin.');
       expect(body.messages[0].content).toContain('Their tone: Short and cocky.');
+      expect(body.messages[0].content).toContain("Write like these:\n---\nLeg day. You're welcome.\n---");
     }
   });
 

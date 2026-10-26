@@ -113,6 +113,13 @@
       "when": 1792952914678,
       "tag": "0015_assistant_setup",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1792999038953,
+      "tag": "0016_favorites",
+      "breakpoints": true
     }
   ]
 }

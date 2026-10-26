@@ -1,9 +1,10 @@
-// "Writing as you": the persona the writing prompts take, read from the user's synced `personas`
-// record, and "Fill it in for me", which drafts it from the user's posts.
-import { and, eq, isNull } from 'drizzle-orm';
+// "Writing as you": the persona and the Favorites the writing prompts take, read from the user's
+// synced `personas` record and `favorites`, and "Fill it in for me", which drafts it from the user's
+// posts.
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import { PERSONA_FIELDS, PERSONA_LIMITS, uniqueTags, type PersonaDraftResponse } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
-import { personas } from '../db/schema.js';
+import { favorites, personas } from '../db/schema.js';
 import type { CatalogEntry } from './catalog.js';
 import { DRAFT_EXAMPLE_POSTS, personaDraftMessages, personaDraftSchema, type Persona } from './prompts.js';
 import { chatJsonAsync, VeniceError } from './venice.js';
@@ -20,6 +21,20 @@ export async function readPersona(db: Db, userId: string): Promise<Persona> {
     .from(personas)
     .where(and(eq(personas.userId, userId), eq(personas.id, userId), isNull(personas.deletedAt)));
   return row ?? null;
+}
+
+// The Favorites a writing prompt sends: the newest weigh most, and the system message stays bounded.
+export const FAVORITES_IN_PROMPT = 20;
+
+/** The texts of the user's Favorites, newest first, at most `limit`. */
+export async function readFavorites(db: Db, userId: string, limit = FAVORITES_IN_PROMPT): Promise<string[]> {
+  const rows = await db
+    .select({ text: favorites.text })
+    .from(favorites)
+    .where(and(eq(favorites.userId, userId), isNull(favorites.deletedAt)))
+    .orderBy(desc(favorites.createdAt), desc(favorites.id))
+    .limit(limit);
+  return rows.map((row) => row.text);
 }
 
 /** One model's draft of About you, the content tags and Tone from `posts`, checked (checkDraft). */

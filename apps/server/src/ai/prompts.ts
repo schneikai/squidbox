@@ -6,10 +6,22 @@ import type { ChatMessage, JsonSchemaSpec } from './venice.js';
 /** Writing as the user: their "Writing as you" setup, or null before they saved one (persona.ts). */
 export type Persona = PersonaFields | null;
 
-export function writingMessages({ prompt, persona }: { prompt: string; persona: Persona }): ChatMessage[] {
+/**
+ * The writing prompt, as the user: their persona and their Favorites (`favorites`, the texts, newest
+ * first), either of which may be missing.
+ */
+export function writingMessages({
+  prompt,
+  persona,
+  favorites,
+}: {
+  prompt: string;
+  persona: Persona;
+  favorites: string[];
+}): ChatMessage[] {
   const system = [
     'You write social posts for a content creator.',
-    persona && personaText(persona),
+    (persona || favorites.length > 0) && personaText(persona, favorites),
     `Reply with exactly ${WRITING_TWEET_COUNT} posts, each only the finished post text, ` +
       'no numbering, quotes or commentary, as a JSON object: {"tweets": [...]}.',
   ]
@@ -21,17 +33,21 @@ export function writingMessages({ prompt, persona }: { prompt: string; persona: 
   ];
 }
 
-// The persona as the system message describes it: every field that is filled, and the emoji switch.
-function personaText({ aboutYou, contentTags, tone, useEmoji, rules, examplePosts }: NonNullable<Persona>): string {
-  const hasPosts = examplePosts.length > 0;
+// The persona as the system message describes it, in the screen's order: every field that is
+// filled, the emoji switch (only with a saved persona), and the favorites as example posts.
+function personaText(persona: Persona, favorites: string[]): string {
+  const hasPosts = favorites.length > 0;
   return [
-    aboutYou && `About the creator: ${aboutYou}`,
-    contentTags.length > 0 && `Their content: ${contentTags.join(', ')}`,
-    tone && `Their tone: ${tone}`,
-    useEmoji ? (hasPosts ? 'Use emoji, the way the example posts do.' : 'Use emoji.') : 'No emoji.',
-    rules.length > 0 && `Rules, always follow them:\n${rules.map((rule) => `- ${rule}`).join('\n')}`,
+    persona?.aboutYou && `About the creator: ${persona.aboutYou}`,
+    persona?.tone && `Their tone: ${persona.tone}`,
+    persona &&
+      (persona.useEmoji ? (hasPosts ? 'Use emoji, the way the example posts do.' : 'Use emoji.') : 'No emoji.'),
+    persona && persona.contentTags.length > 0 && `Their content: ${persona.contentTags.join(', ')}`,
+    persona &&
+      persona.rules.length > 0 &&
+      `Rules, always follow them:\n${persona.rules.map((rule) => `- ${rule}`).join('\n')}`,
     hasPosts &&
-      `Example posts they wrote. Write like these:\n${examplePosts.map((post) => `---\n${post}`).join('\n')}\n---`,
+      `Example posts they wrote. Write like these:\n${favorites.map((post) => `---\n${post}`).join('\n')}\n---`,
   ]
     .filter(Boolean)
     .join('\n');

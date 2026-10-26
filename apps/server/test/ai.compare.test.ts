@@ -23,7 +23,11 @@ const model = (id: string) => entries.find((entry) => entry.id === id)!;
 const fetchMock = vi.fn();
 
 const compareWriting = (models: CatalogEntry[]) =>
-  compareModels({ task: writingTask, messages: writingMessages({ prompt: 'Write', persona: null }), models });
+  compareModels({
+    task: writingTask,
+    messages: writingMessages({ prompt: 'Write', persona: null, favorites: [] }),
+    models,
+  });
 const compareVision = (models: CatalogEntry[]) =>
   compareModels({
     task: visionTask,

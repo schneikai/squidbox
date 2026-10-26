@@ -17,7 +17,7 @@ import { authenticate, requireUser } from '../auth/authenticate.js';
 import { fetchBalanceAsync } from './balance.js';
 import { findModel, getCatalogAsync, type Catalog, type CatalogEntry } from './catalog.js';
 import { compareModels, visionTask, writingTask } from './compare.js';
-import { draftPersonaAsync, readPersona } from './persona.js';
+import { draftPersonaAsync, readFavorites, readPersona } from './persona.js';
 import { visionMessages, writingMessages } from './prompts.js';
 import { VeniceError } from './venice.js';
 import { loadConfig } from '../config.js';
@@ -113,8 +113,13 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       handler: async (request, reply) => {
         const signal = untilClientLeaves(reply);
         // The catalog loads meanwhile (compareRequested reads it from the cache then).
-        const [persona] = await Promise.all([readPersona(getDb(), requireUser(request).id), catalogAsync()]);
-        const messages = writingMessages({ prompt: request.body.prompt, persona });
+        const userId = requireUser(request).id;
+        const [persona, favorites] = await Promise.all([
+          readPersona(getDb(), userId),
+          readFavorites(getDb(), userId),
+          catalogAsync(),
+        ]);
+        const messages = writingMessages({ prompt: request.body.prompt, persona, favorites });
         const results = await compareRequested(request.body.modelIds, 'writing', (models) =>
           compareModels({ task: writingTask, messages, models, log: request.log, signal }),
         );

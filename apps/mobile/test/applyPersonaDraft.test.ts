@@ -2,43 +2,43 @@ import { describe, expect, it } from 'vitest';
 
 import applyPersonaDraft from '../src/features/voice/applyPersonaDraft';
 
-const empty = { aboutYou: '', contentTags: [], tone: ' ', useEmoji: false, rules: [], examplePosts: [] };
+const empty = { aboutYou: '', tone: ' ', useEmoji: false, contentTags: [], rules: [], pickedPosts: [] };
 const posts = ['Leg day. You’re welcome.', 'Sheets still warm 😏', 'Back home 🇩🇪', 'Gym, then you.'];
 const reply = { aboutYou: 'Gym guy.', contentTags: ['gym', 'pov'], tone: 'Short.', examplePostIndexes: [3, 0] };
 
 describe('applyPersonaDraft', () => {
-  it('fills an empty draft, with the example posts verbatim from the indexes', () => {
+  it('fills an empty draft, and picks the posts verbatim from the indexes', () => {
     expect(applyPersonaDraft(empty, reply, posts, 'empty')).toEqual({
       aboutYou: 'Gym guy.',
-      contentTags: ['gym', 'pov'],
       tone: 'Short.',
       useEmoji: true,
+      contentTags: ['gym', 'pov'],
       rules: [],
-      examplePosts: ['Gym, then you.', 'Leg day. You’re welcome.'],
+      pickedPosts: ['Gym, then you.', 'Leg day. You’re welcome.'],
     });
   });
 
   it('fills only the empty fields, and keeps the rules', () => {
-    const draft = { ...empty, aboutYou: 'Mine.', rules: ['No hashtags'], examplePosts: ['My post'] };
+    const draft = { ...empty, aboutYou: 'Mine.', rules: ['No hashtags'], pickedPosts: ['My post'] };
     expect(applyPersonaDraft(draft, reply, posts, 'empty')).toEqual({
       aboutYou: 'Mine.',
-      contentTags: ['gym', 'pov'],
       tone: 'Short.',
       useEmoji: false,
+      contentTags: ['gym', 'pov'],
       rules: ['No hashtags'],
-      examplePosts: ['My post'],
+      pickedPosts: ['My post'],
     });
   });
 
   it('replaces every drafted field, and still keeps the rules', () => {
-    const draft = { ...empty, aboutYou: 'Mine.', rules: ['No hashtags'], examplePosts: ['My post'], useEmoji: true };
+    const draft = { ...empty, aboutYou: 'Mine.', rules: ['No hashtags'], pickedPosts: ['My post'], useEmoji: true };
     expect(applyPersonaDraft(draft, reply, posts.slice(0, 1), 'replace')).toEqual({
       aboutYou: 'Gym guy.',
-      contentTags: ['gym', 'pov'],
       tone: 'Short.',
       useEmoji: false,
+      contentTags: ['gym', 'pov'],
       rules: ['No hashtags'],
-      examplePosts: ['Leg day. You’re welcome.'],
+      pickedPosts: ['Leg day. You’re welcome.'],
     });
   });
 
@@ -50,12 +50,11 @@ describe('applyPersonaDraft', () => {
     expect(useEmoji(['Back home 🇩🇪'])).toBe(true);
   });
 
-  it('keeps the example posts it was drafted from, even when replacing', () => {
-    const draft = { ...empty, aboutYou: 'Mine.', examplePosts: posts };
-    expect(applyPersonaDraft(draft, reply, posts, 'replace', true)).toMatchObject({
+  it('picks nothing from posts sent from Favorites, which are there already', () => {
+    expect(applyPersonaDraft(empty, reply, posts, 'replace', true)).toMatchObject({
       aboutYou: 'Gym guy.',
-      examplePosts: posts,
       useEmoji: true,
+      pickedPosts: [],
     });
   });
 });

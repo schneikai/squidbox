@@ -219,7 +219,6 @@ export const personas = pgTable(
     tone: text('tone').notNull(),
     useEmoji: boolean('use_emoji').notNull(),
     rules: jsonb('rules').$type<string[]>().notNull(),
-    examplePosts: jsonb('example_posts').$type<string[]>().notNull(),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.id] }),
@@ -244,6 +243,20 @@ export const promptButtons = pgTable(
   }),
 );
 export type PromptButtonRow = typeof promptButtons.$inferSelect;
+
+export const favorites = pgTable(
+  'favorites',
+  {
+    ...syncableBase(),
+    text: text('text').notNull(),
+    source: text('source'),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.id] }),
+    byUserSeq: index('favorites_user_seq_idx').on(t.userId, t.serverSeq),
+  }),
+);
+export type FavoriteRow = typeof favorites.$inferSelect;
 
 // Global monotonic sequence stamped onto every syncable row by a BEFORE INSERT/UPDATE trigger.
 // Created here so the sequence exists before any syncable table. Raw SQL

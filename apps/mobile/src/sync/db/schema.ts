@@ -154,7 +154,7 @@ export const postAssets = sqliteTable(
 );
 export type PostAssetRow = typeof postAssets.$inferSelect;
 
-// Assistant setup (mirror @squidbox/shared personas / prompt_buttons). One persona per user (its id
+// Assistant setup (mirror @squidbox/shared personas / prompt_buttons / favorites). One persona per user (its id
 // is the user's id); the lists are JSON text.
 export const personas = sqliteTable('personas', {
   id: text('id').primaryKey(),
@@ -166,7 +166,6 @@ export const personas = sqliteTable('personas', {
   tone: text('tone').notNull(),
   useEmoji: integer('use_emoji', { mode: 'boolean' }).notNull(),
   rules: text('rules', { mode: 'json' }).$type<string[]>().notNull(),
-  examplePosts: text('example_posts', { mode: 'json' }).$type<string[]>().notNull(),
 });
 export type PersonaRow = typeof personas.$inferSelect;
 
@@ -182,6 +181,17 @@ export const promptButtons = sqliteTable('prompt_buttons', {
   position: text('position').notNull(),
 });
 export type PromptButtonRow = typeof promptButtons.$inferSelect;
+
+// The posts the assistant writes like (mirror @squidbox/shared favorites); newest first.
+export const favorites = sqliteTable('favorites', {
+  id: text('id').primaryKey(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  deletedAt: integer('deleted_at'),
+  text: text('text').notNull(),
+  source: text('source'),
+});
+export type FavoriteRow = typeof favorites.$inferSelect;
 
 // key/value store for the pull cursor + sync status (all local-only).
 export const syncMeta = sqliteTable('sync_meta', {

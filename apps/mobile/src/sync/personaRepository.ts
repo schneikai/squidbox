@@ -16,11 +16,10 @@ const t = schema.personas;
 /** The persona's fields before anything was saved. */
 export const EMPTY_PERSONA: PersonaFields = Object.freeze({
   aboutYou: '',
-  contentTags: [],
   tone: '',
   useEmoji: false,
+  contentTags: [],
   rules: [],
-  examplePosts: [],
 }) as PersonaFields;
 
 /** The user's persona, or null before the first save. */

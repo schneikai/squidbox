@@ -1,4 +1,4 @@
-// The fields of Writing as you: each one's label, the one-line example an empty field shows, and
+// The fields of Writing as you, in the screen's order: each one's label, the one-line example an empty field shows, and
 // what its ⓘ sheet says, with three examples. About you and Tone are the mockups' words.
 const voiceFields = {
   aboutYou: {
@@ -10,12 +10,6 @@ const voiceFields = {
       "Couple from Austin, we post together. Fans love that we're real, not a studio.",
       'Cosplayer, mostly anime. Fans are gamers who want the character, not just the outfit.',
     ],
-  },
-  contentTags: {
-    label: 'Your content',
-    placeholder: 'e.g. gym',
-    description: 'What your posts show, a word or two each. It uses them to know what fits you.',
-    examples: ['gym, solo, shower, POV, lingerie', 'couple, outdoor, morning, real', 'cosplay, anime, gaming, wigs'],
   },
   tone: {
     label: 'Tone',
@@ -32,21 +26,17 @@ const voiceFields = {
     label: 'Use emoji',
     description: 'The way you use them in your posts',
   },
+  contentTags: {
+    label: 'Your content',
+    placeholder: 'e.g. gym',
+    description: 'What your posts show, a word or two each. It uses them to know what fits you.',
+    examples: ['gym, solo, shower, POV, lingerie', 'couple, outdoor, morning, real', 'cosplay, anime, gaming, wigs'],
+  },
   rules: {
     label: 'Rules',
     placeholder: 'e.g. Never use hashtags',
     description: 'What it must always or never do, one rule each. It follows them in every post it writes.',
     examples: ['Never use hashtags', 'OnlyFans link only in follow-ups', 'Never call fans babe'],
-  },
-  examplePosts: {
-    label: 'Example posts',
-    placeholder: 'Paste a post',
-    description: 'A few of your own posts that sound most like you. It writes like these, word for word your style.',
-    examples: [
-      "Sheets still warm. You missed it, but the video didn't.",
-      "Leg day. You're welcome.",
-      'Guess who forgot the towel again 🙈 Full set is up.',
-    ],
   },
 };
 

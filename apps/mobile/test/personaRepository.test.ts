@@ -14,7 +14,6 @@ const filled = {
   tone: 'Short and cocky.',
   useEmoji: true,
   rules: ['Never use hashtags'],
-  examplePosts: ["Leg day. You're welcome."],
 };
 
 const outbox = (db: SyncDb) => db.select().from(schema.outbox).where(eq(schema.outbox.collection, 'personas'));

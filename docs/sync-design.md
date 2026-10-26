@@ -842,17 +842,15 @@ columns. One record per album and asset.
 **post_assets** (assets in a post). Synced: `postId`, `assetId`, `position`, plus the base
 columns. The edge id is the `assetRefs[].id` the UI sees.
 
-**personas** ("Writing as you", Settings → Assistant). Synced: `aboutYou`, `contentTags`
-(string[]), `tone`, `useEmoji`, `rules` (string[]), `examplePosts` (string[]), plus the base
-columns. One record per user: its `id` is the user's id, so every device writes the same record and
+**personas** ("Writing as you", Settings → Assistant). Synced: `aboutYou`, `tone`, `useEmoji`,
+`contentTags` (string[]), `rules` (string[]), plus the base columns (`examplePosts` left for
+`favorites` in migration 0012/0016, unreleased, so no carry-over). One record per user: its `id` is the user's id, so every device writes the same record and
 the per-field merge converges. The lists are the first JSON fields of a synced collection (Postgres
 `jsonb`, SQLite JSON text); each merges as one value with its own clock. A local write compares
 JSON fields by content (`saveRecords`), so a list read back as a new array but unchanged gets no
 new clock. A save names only the fields the user changed in the editor, the first save included
 (its record goes whole, but only those fields carry clocks), so a device that hasn't pulled
-another's persona yet never overwrites it with empty fields. No field groups: after concurrent
-edits `useEmoji` and `examplePosts` can come from different devices, which still reads as a
-coherent prompt.
+another's persona yet never overwrites it with empty fields. No field groups.
 
 **prompt_buttons** (the chat's one-tap prompts). Synced: `name`, `prompt`, `placement` (`post` |
 `newPost` | `refine`), `icon` (an Icon name or null), `position` (a fractional-index key, the order
@@ -861,7 +859,15 @@ records. The app seeds a default set once per library, only while the table has 
 (tombstones included), with fixed ids, so a deleted default never comes back and two devices that
 both seed converge on one row each.
 
-A library merge (`mergeLibrary.ts`) leaves both alone: a device library has none (the assistant
+**favorites** (Settings → Assistant → Favorites: the posts the assistant writes like). Synced:
+`text`, `source` (the prompt button's name for an option hearted in the chat, null for the user's
+own post), plus the base columns; newest `createdAt` first, no position and no cap. One record per
+post rather than a list on the persona, so a heart on one device and an unheart on another merge
+per post, and each keeps where and when it came from. Removing one is a tombstone; Undo restores it
+by writing `deletedAt: null`, a per-field write that a later tombstone from another device still
+beats by its clock. The writing prompt sends the newest 20 (`FAVORITES_IN_PROMPT`).
+
+A library merge (`mergeLibrary.ts`) leaves all three alone: a device library has none (the assistant
 needs an account), and an account library's rows are on the server already. `seed-mock.ts`'s reset
 leaves them alone too: it tombstones only the collections it seeds.
 

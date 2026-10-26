@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
-import ExamplePostsField from './ExamplePostsField';
 import FieldInfoSheet from './FieldInfoSheet';
 import RulesField from './RulesField';
 import TagsField from './TagsField';
@@ -23,7 +22,7 @@ import Textarea from '@/components/Textarea';
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
-import { Row, Section } from '@/components/settings-list/SettingsList';
+import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import useConfirmDiscard from '@/hooks/useConfirmDiscard';
 import useHaptics from '@/hooks/useHaptics';
@@ -33,6 +32,7 @@ import useSeedOrClose from '@/hooks/useSeedOrClose';
 import useLibrary from '@/library/useLibrary';
 import { scale } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
+import { addFavorites } from '@/sync/favoritesRepository';
 import { EMPTY_PERSONA, readPersona, savePersona } from '@/sync/personaRepository';
 import { requestSync } from '@/sync/worker';
 import changedValues from '@/utils/changedValues';
@@ -60,7 +60,9 @@ function VoiceEditor({ userId, seed, navigation }) {
   const haptics = useHaptics();
   const { scrollY, onScroll } = useScrollY();
   const paddingBottom = useFloatingPrimaryActionPadding();
-  const [draft, setDraft] = useState(seed);
+  // The persona's fields, and the posts "Fill it in for me" picked, which Save adds to Favorites.
+  const [draft, setDraft] = useState(() => ({ ...seed, pickedPosts: [] }));
+  const { pickedPosts, ...fields } = draft;
   const [info, setInfo] = useState({ field: 'aboutYou', isVisible: false });
   const [isSaving, setIsSaving] = useState(false);
   // One setter per field that keeps its identity, so typing in one field leaves the others' lists
@@ -71,7 +73,7 @@ function VoiceEditor({ userId, seed, navigation }) {
     ),
   );
   const fillIn = useFillInForMe(draft, setDraft);
-  const isDirty = Object.keys(changedValues(seed, draft)).length > 0;
+  const isDirty = Object.keys(changedValues(seed, fields)).length > 0 || pickedPosts.length > 0;
   const allowLeave = useConfirmDiscard(navigation, isDirty);
 
   function showInfo(field) {
@@ -82,7 +84,8 @@ function VoiceEditor({ userId, seed, navigation }) {
     setIsSaving(true);
     try {
       // Only what the user changed, so a field another device edited meanwhile keeps that edit.
-      await savePersona(getDb(), userId, changedValues(seed, normalized(draft)));
+      await savePersona(getDb(), userId, changedValues(seed, normalized(fields)));
+      await addFavorites(getDb(), pickedPosts, null);
       requestSync();
       haptics.success();
       allowLeave();
@@ -131,13 +134,6 @@ function VoiceEditor({ userId, seed, navigation }) {
         contentContainerStyle={[styles.content, { paddingBottom }]}
       >
         {textField('aboutYou', PERSONA_LIMITS.aboutYou)}
-        <Field label={voiceFields.contentTags.label} onInfo={() => showInfo('contentTags')}>
-          <TagsField
-            tags={draft.contentTags}
-            onChange={setters.contentTags}
-            placeholder={voiceFields.contentTags.placeholder}
-          />
-        </Field>
         <View style={styles.toneGroup}>
           {textField('tone', PERSONA_LIMITS.tone)}
           <Section>
@@ -146,16 +142,19 @@ function VoiceEditor({ userId, seed, navigation }) {
             </Row>
           </Section>
         </View>
+        <Field label={voiceFields.contentTags.label} onInfo={() => showInfo('contentTags')}>
+          <TagsField
+            tags={draft.contentTags}
+            onChange={setters.contentTags}
+            placeholder={voiceFields.contentTags.placeholder}
+          />
+        </Field>
         <Field label={voiceFields.rules.label} onInfo={() => showInfo('rules')}>
           <RulesField rules={draft.rules} onChange={setters.rules} placeholder={voiceFields.rules.placeholder} />
         </Field>
-        <Field label={voiceFields.examplePosts.label} onInfo={() => showInfo('examplePosts')}>
-          <ExamplePostsField
-            posts={draft.examplePosts}
-            onChange={setters.examplePosts}
-            placeholder={voiceFields.examplePosts.placeholder}
-          />
-        </Field>
+        {pickedPosts.length > 0 && (
+          <SectionFooter>Save adds {pickedPosts.length} of your posts to Favorites.</SectionFooter>
+        )}
         {fillIn.catalogError && <CatalogStatus error={fillIn.catalogError} retry={fillIn.retry} />}
       </Animated.ScrollView>
       <FloatingPrimaryAction align="center">
@@ -178,16 +177,14 @@ function VoiceEditor({ userId, seed, navigation }) {
   );
 }
 
-// The draft as it is saved: texts trimmed, the empty rules, posts and tags dropped, a tag once.
+// The persona's fields as they are saved: texts trimmed, the empty rules and tags dropped, a tag once.
 function normalized(draft) {
-  const kept = (list) => list.map((text) => text.trim()).filter(Boolean);
   return {
     aboutYou: draft.aboutYou.trim(),
-    contentTags: uniqueTags(draft.contentTags).slice(0, PERSONA_LIMITS.contentTags),
     tone: draft.tone.trim(),
     useEmoji: draft.useEmoji,
-    rules: kept(draft.rules),
-    examplePosts: kept(draft.examplePosts),
+    contentTags: uniqueTags(draft.contentTags).slice(0, PERSONA_LIMITS.contentTags),
+    rules: draft.rules.map((rule) => rule.trim()).filter(Boolean),
   };
 }
 
