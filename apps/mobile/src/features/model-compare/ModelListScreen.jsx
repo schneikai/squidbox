@@ -79,7 +79,7 @@ export default function ModelListScreen({ navigation, route }) {
           ))}
         </Section>
         {isAiAdmin && <SectionFooter>{text.footer}</SectionFooter>}
-        {text.note && <SectionFooter>{text.note}</SectionFooter>}
+        {isAiAdmin && text.note && <SectionFooter>{text.note}</SectionFooter>}
       </>
     );
   }

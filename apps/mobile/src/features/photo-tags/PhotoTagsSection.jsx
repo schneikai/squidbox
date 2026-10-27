@@ -6,21 +6,24 @@ import useRetag from './useRetag';
 import Chip from '@/components/Chip';
 import ChipRow from '@/components/ChipRow';
 import TextButton from '@/components/TextButton';
+import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
 import listTextStyles from '@/styles/listTextStyles';
 
 /**
  * The tags the assistant sees in the asset, in its details: chips, "No tags" once they were all
- * removed, or "Not tagged yet" with Tag it (the tags land on the asset, which brings them here). A
- * tap opens PhotoTagsScreen to fix them; `guardPress` (useDetailsPanelDrag's) keeps a touch that
- * dragged the panel from opening it. It never tags by itself.
+ * removed, or, while the assistant is available, "Not tagged yet" with Tag it (the tags land on the
+ * asset, which brings them here). A tap opens PhotoTagsScreen to fix them, or to add them by hand
+ * without the assistant; `guardPress` (useDetailsPanelDrag's) keeps a touch that dragged the panel
+ * from opening it. It never tags by itself.
  */
 export default function PhotoTagsSection({ asset, guardPress }) {
   const navigation = useNavigation();
+  const isAssistantAvailable = useIsAssistantAvailable();
   const { retag, isRunning, error } = useRetag(asset);
 
   const open = guardPress(() => navigation.push('PhotoTagsScreen', { assetId: asset.id }));
 
-  if (asset.tags === null) {
+  if (asset.tags === null && isAssistantAvailable) {
     return (
       <View style={styles.untagged}>
         <Text style={listTextStyles.subtitle}>{error ?? 'Not tagged yet'}</Text>
@@ -42,7 +45,7 @@ export default function PhotoTagsSection({ asset, guardPress }) {
       accessibilityLabel="Photo tags"
       accessibilityHint="Opens the tags to fix them"
     >
-      {asset.tags.length === 0 ? (
+      {!asset.tags?.length ? (
         <Text style={listTextStyles.subtitle}>No tags</Text>
       ) : (
         <ChipRow>

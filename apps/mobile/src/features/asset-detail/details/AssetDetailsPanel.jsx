@@ -11,7 +11,6 @@ import { SCREEN_PADDING } from '@/constants';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
 import PhotoTagsSection from '@/features/photo-tags/PhotoTagsSection';
 import PostRows from '@/features/post-list/PostRows';
-import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
 import { colors, layout } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import { MEDIA_TYPES } from '@/utils/assets/constants';
@@ -63,7 +62,6 @@ export default function AssetDetailsPanel({
 
 // Children of the details' view itself, so the note's layout is measured within it.
 function AssetDetails({ asset, isCurrent, guardPress, onEditingBottomChange }) {
-  const isAssistantAvailable = useIsAssistantAvailable();
   return (
     <>
       <AssetNote
@@ -74,11 +72,9 @@ function AssetDetails({ asset, isCurrent, guardPress, onEditingBottomChange }) {
         onEditingBottomChange={onEditingBottomChange}
       />
 
-      {isAssistantAvailable && (
-        <View style={styles.tags}>
-          <PhotoTagsSection asset={asset} guardPress={guardPress} />
-        </View>
-      )}
+      <View style={styles.tags}>
+        <PhotoTagsSection asset={asset} guardPress={guardPress} />
+      </View>
 
       <View style={styles.info}>
         <Text style={listTextStyles.title}>{formatFullDateTime(asset.createdAt)}</Text>
