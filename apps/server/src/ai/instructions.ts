@@ -1,7 +1,7 @@
 // What the assistant is told before each request: the user's synced `instructions` record (its id is
 // the user's id), each kind's null replaced by the app's default.
 import { and, eq, isNull } from 'drizzle-orm';
-import { APP_PROMPT_KINDS, DEFAULT_INSTRUCTIONS, resolveInstructions, type Instructions } from '@squidbox/shared';
+import { resolveInstructions, type Instructions } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import { instructions, type User } from '../db/schema.js';
 
@@ -19,10 +19,10 @@ export async function readInstructions(db: Db, user: Pick<User, 'id' | 'features
       tagsSystem: instructions.tagsSystem,
       themesContext: instructions.themesContext,
       personaFraming: instructions.personaFraming,
+      chatContext: instructions.chatContext,
+      moreLikeThis: instructions.moreLikeThis,
     })
     .from(instructions)
     .where(and(eq(instructions.userId, userId), eq(instructions.id, userId), isNull(instructions.deletedAt)));
-  const resolved = resolveInstructions(row ?? null);
-  if (user.features.includes('ai_admin')) return resolved;
-  return { ...resolved, ...Object.fromEntries(APP_PROMPT_KINDS.map((kind) => [kind, DEFAULT_INSTRUCTIONS[kind]])) };
+  return resolveInstructions(row ?? null, { isAiAdmin: user.features.includes('ai_admin') });
 }

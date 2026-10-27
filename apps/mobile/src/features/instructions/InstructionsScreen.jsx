@@ -29,7 +29,7 @@ export default function InstructionsScreen() {
   const userId = library.owner.userId;
   const stored = useLiveQuery((db) => readInstructions(db, userId), [schema.instructions], [userId]);
 
-  const texts = stored === undefined ? null : resolveInstructions(stored);
+  const texts = stored === undefined ? null : resolveInstructions(stored, { isAiAdmin: canEditAppPrompts });
 
   function row(kind) {
     return (

@@ -30,6 +30,15 @@ const instructionText = {
     description:
       'How Writing as you and your Favorites appear in every writing request: {aboutYou}, {tone}, {contentTags}, {rules} and {favorites}. A line whose placeholder is empty is left out, with a heading ending in ":" just above it.',
   },
+  chatContext: {
+    title: 'Chat context',
+    description:
+      'How the post is described to the assistant in the chat: {subject}, {media}, {tags}, {mentions} and {text}. A line whose placeholder is empty is left out.',
+  },
+  moreLikeThis: {
+    title: 'More like this',
+    description: 'What ⋯ → More like this on an option sends, with the option after it.',
+  },
 };
 
 export default instructionText;

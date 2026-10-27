@@ -103,3 +103,44 @@ export type TagPhotoRequest = z.infer<typeof tagPhotoRequestSchema>;
 
 export const tagPhotoResponseSchema = z.object({ tags: z.array(assetTagSchema).max(ASSET_TAG_LIMITS.tags) });
 export type TagPhotoResponse = z.infer<typeof tagPhotoResponseSchema>;
+
+// POST /ai/chat — the assistant chat: the user's writing model answers the transcript with
+// WRITING_TWEET_COUNT posts, framed by their writing instructions, persona, Favorites and the chat
+// context (instructions.chatContext). Nothing is stored: the app sends the whole chat each time.
+export const CHAT_LIMITS = { messages: 40, message: 4000, text: 4000, tags: 100, mentions: 30, mention: 80 } as const;
+
+// The chat's subject: a post being written in the editor.
+export const chatSubjectKindSchema = z.enum(['draft']);
+export type ChatSubjectKind = z.infer<typeof chatSubjectKindSchema>;
+
+// What the chat is about, as the app sees it when it sends: the server frames it (chatContext). The
+// app cuts `text` to CHAT_LIMITS.text (a post's text has no cap) so a long caption never makes a 400.
+export const chatContextSchema = z.object({
+  kind: chatSubjectKindSchema,
+  text: z.string().max(CHAT_LIMITS.text),
+  media: z.object({ photo: z.number().int().min(0), video: z.number().int().min(0) }),
+  tags: z.array(assetTagSchema).max(CHAT_LIMITS.tags),
+  mentions: z.array(z.string().min(1).max(CHAT_LIMITS.mention)).max(CHAT_LIMITS.mentions),
+});
+export type ChatContext = z.infer<typeof chatContextSchema>;
+
+// The transcript so far: the user's turns and the options the assistant gave, oldest first, ending
+// with the user's new turn.
+export const chatTurnSchema = z.union([
+  z.object({ role: z.literal('user'), content: z.string().trim().min(1).max(CHAT_LIMITS.message) }),
+  z.object({ role: z.literal('assistant'), tweets: z.array(z.string().min(1)).length(WRITING_TWEET_COUNT) }),
+]);
+export type ChatTurn = z.infer<typeof chatTurnSchema>;
+
+export const chatRequestSchema = z.object({
+  context: chatContextSchema,
+  messages: z
+    .array(chatTurnSchema)
+    .min(1)
+    .max(CHAT_LIMITS.messages)
+    .refine((turns) => turns[turns.length - 1]!.role === 'user', "The last turn is the user's"),
+});
+export type ChatRequest = z.infer<typeof chatRequestSchema>;
+
+export const chatResponseSchema = z.object({ tweets: z.array(z.string()) });
+export type ChatResponse = z.infer<typeof chatResponseSchema>;

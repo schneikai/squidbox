@@ -1,5 +1,11 @@
 // The AI's prompts and the JSON each model must answer with.
-import { WRITING_TWEET_COUNT, type Instructions, type PersonaFields } from '@squidbox/shared';
+import {
+  WRITING_TWEET_COUNT,
+  type ChatContext,
+  type ChatTurn,
+  type Instructions,
+  type PersonaFields,
+} from '@squidbox/shared';
 import { z } from 'zod';
 import type { ChatMessage, JsonSchemaSpec } from './venice.js';
 
@@ -26,10 +32,34 @@ export function contentThemesText(template: string, contentTags: string[]): stri
 }
 
 /**
- * The writing prompt, as the user: their writing instructions (theirs or the default), their persona
+ * The writing system message: the user's writing instructions (theirs or the default), their persona
  * and their Favorites (`favorites`, the texts, newest first), either of which may be missing, framed
- * by `instructions.personaFraming`, then the reply format (`instructions.writingFormat`).
+ * by `instructions.personaFraming`, the chat's context when there is one (`instructions.chatContext`),
+ * then the reply format (`instructions.writingFormat`).
  */
+function writingSystem({
+  persona,
+  favorites,
+  instructions,
+  context,
+}: {
+  persona: Persona;
+  favorites: string[];
+  instructions: Instructions;
+  context?: ChatContext;
+}): ChatMessage {
+  const content = [
+    instructions.writing,
+    (persona || favorites.length > 0) && personaText(instructions.personaFraming, persona, favorites),
+    context && chatContextText(instructions.chatContext, context),
+    writingFormatText(instructions.writingFormat),
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+  return { role: 'system', content };
+}
+
+/** The writing prompt of a compare, as the user: the writing system message, then the prompt. */
 export function writingMessages({
   prompt,
   persona,
@@ -41,32 +71,43 @@ export function writingMessages({
   favorites: string[];
   instructions: Instructions;
 }): ChatMessage[] {
-  const system = [
-    instructions.writing,
-    (persona || favorites.length > 0) && personaText(instructions.personaFraming, persona, favorites),
-    writingFormatText(instructions.writingFormat),
-  ]
-    .filter(Boolean)
-    .join('\n\n');
+  return [writingSystem({ persona, favorites, instructions }), { role: 'user', content: prompt }];
+}
+
+/**
+ * The assistant chat, as the user: the writing system message with the chat's context, then the
+ * transcript, a past reply in the JSON the model replies in.
+ */
+export function chatMessages({
+  context,
+  transcript,
+  persona,
+  favorites,
+  instructions,
+}: {
+  context: ChatContext;
+  transcript: ChatTurn[];
+  persona: Persona;
+  favorites: string[];
+  instructions: Instructions;
+}): ChatMessage[] {
   return [
-    { role: 'system', content: system },
-    { role: 'user', content: prompt },
+    writingSystem({ persona, favorites, instructions, context }),
+    ...transcript.map((turn): ChatMessage =>
+      turn.role === 'user'
+        ? { role: 'user', content: turn.content }
+        : { role: 'assistant', content: JSON.stringify({ tweets: turn.tweets }) },
+    ),
   ];
 }
 
 const PLACEHOLDER = /\{(\w+)\}/;
 
-// The persona and favorites in `template` (personaFraming): every field that is filled, and the
-// favorites as example posts. A line whose placeholder is empty goes, with a heading line (one
-// ending in ':', without a placeholder) right above it.
-function personaText(template: string, persona: Persona, favorites: string[]): string {
-  const values: Record<string, string> = {
-    aboutYou: persona?.aboutYou ?? '',
-    tone: persona?.tone ?? '',
-    contentTags: persona?.contentTags.join(', ') ?? '',
-    rules: persona?.rules.map((rule) => `- ${rule}`).join('\n') ?? '',
-    favorites: favorites.length > 0 ? `${favorites.map((post) => `---\n${post}`).join('\n')}\n---` : '',
-  };
+/**
+ * `template` filled with `values`, where a line whose placeholder is empty goes, with a heading line
+ * (one ending in ':', without a placeholder) right above it. The result is trimmed.
+ */
+export function fillLines(template: string, values: Record<string, string>): string {
   const lines: string[] = [];
   for (const line of template.split('\n')) {
     const isEmpty = [...line.matchAll(/\{(\w+)\}/g)].some(([, name]) => name! in values && !values[name!]);
@@ -78,6 +119,37 @@ function personaText(template: string, persona: Persona, favorites: string[]): s
     if (above !== undefined && above.trimEnd().endsWith(':') && !PLACEHOLDER.test(above)) lines.pop();
   }
   return fillTemplate(lines.join('\n'), values).trim();
+}
+
+// The persona and favorites in `template` (personaFraming): every field that is filled, and the
+// favorites as example posts.
+function personaText(template: string, persona: Persona, favorites: string[]): string {
+  return fillLines(template, {
+    aboutYou: persona?.aboutYou ?? '',
+    tone: persona?.tone ?? '',
+    contentTags: persona?.contentTags.join(', ') ?? '',
+    rules: persona?.rules.map((rule) => `- ${rule}`).join('\n') ?? '',
+    favorites: favorites.length > 0 ? `${favorites.map((post) => `---\n${post}`).join('\n')}\n---` : '',
+  });
+}
+
+const SUBJECTS: Record<ChatContext['kind'], string> = { draft: 'a new post' };
+
+// "2 photos, 1 video", empty without media.
+function mediaText({ photo, video }: ChatContext['media']): string {
+  const count = (n: number, one: string) => (n === 0 ? null : `${n} ${one}${n === 1 ? '' : 's'}`);
+  return [count(photo, 'photo'), count(video, 'video')].filter(Boolean).join(', ');
+}
+
+/** What the chat's post is, in `template` (chatContext); a line whose value is empty is left out. */
+export function chatContextText(template: string, context: ChatContext): string {
+  return fillLines(template, {
+    subject: SUBJECTS[context.kind],
+    media: mediaText(context.media),
+    tags: context.tags.join(', '),
+    mentions: context.mentions.join(', '),
+    text: context.text.trim(),
+  });
 }
 
 // The user's prompt (their Photo tags instructions, which the app sends) says what to look for and how

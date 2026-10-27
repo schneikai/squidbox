@@ -69,4 +69,19 @@ describe('instructionsRepository', () => {
     const [row] = await outbox(db);
     expect(Object.keys(row!.fields)).toEqual(expect.arrayContaining(['visionTagging', 'deletedAt']));
   });
+
+  it("gives the app's App prompts to an account without ai_admin, and its own to one with it", async () => {
+    const db = makeTestDb();
+    await saveInstruction(db, USER, 'writing', MINE);
+    await saveInstruction(db, USER, 'chatContext', 'Post: {text}');
+    await saveInstruction(db, USER, 'moreLikeThis', 'Again, please.');
+    const stored = await readInstructions(db, USER);
+    expect(resolveInstructions(stored, { isAiAdmin: false })).toEqual({ ...DEFAULT_INSTRUCTIONS, writing: MINE });
+    expect(resolveInstructions(stored, { isAiAdmin: true })).toEqual({
+      ...DEFAULT_INSTRUCTIONS,
+      writing: MINE,
+      chatContext: 'Post: {text}',
+      moreLikeThis: 'Again, please.',
+    });
+  });
 });

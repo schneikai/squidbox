@@ -304,6 +304,8 @@ const instructions: InstructionRecord[] = [
     tagsSystem: null,
     themesContext: null,
     personaFraming: null,
+    chatContext: null,
+    moreLikeThis: null,
   },
 ];
 

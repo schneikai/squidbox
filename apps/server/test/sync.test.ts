@@ -1396,6 +1396,8 @@ d('sync engine (Postgres)', () => {
         tagsSystem: null,
         themesContext: null,
         personaFraming: null,
+        chatContext: null,
+        moreLikeThis: null,
       }),
       model_choices: () => ({
         ...base(),

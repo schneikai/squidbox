@@ -19,6 +19,8 @@ export const instructionCollection = defineCollection({
     tagsSystem: instructionText,
     themesContext: instructionText,
     personaFraming: instructionText,
+    chatContext: instructionText,
+    moreLikeThis: instructionText,
   }),
 });
 
@@ -29,10 +31,19 @@ export const INSTRUCTION_KINDS = ['writing', 'visionTagging'] as const;
 
 /**
  * The app's own prompt texts, in the order the Instructions screen's App prompts lists them. Each is a
- * template the server fills in: `{count}` (writingFormat), `{themes}` (themesContext), and `{aboutYou}`,
- * `{tone}`, `{contentTags}`, `{rules}`, `{favorites}` (personaFraming).
+ * template the server fills in: `{count}` (writingFormat), `{themes}` (themesContext), `{aboutYou}`,
+ * `{tone}`, `{contentTags}`, `{rules}`, `{favorites}` (personaFraming), and `{subject}`, `{media}`,
+ * `{tags}`, `{mentions}`, `{text}` (chatContext). moreLikeThis is the app's: it sends it with the option
+ * after it.
  */
-export const APP_PROMPT_KINDS = ['writingFormat', 'tagsSystem', 'themesContext', 'personaFraming'] as const;
+export const APP_PROMPT_KINDS = [
+  'writingFormat',
+  'tagsSystem',
+  'themesContext',
+  'personaFraming',
+  'chatContext',
+  'moreLikeThis',
+] as const;
 
 export type InstructionKind = (typeof INSTRUCTION_KINDS)[number] | (typeof APP_PROMPT_KINDS)[number];
 
@@ -70,11 +81,35 @@ export const DEFAULT_INSTRUCTIONS: Instructions = Object.freeze({
     'Example posts they wrote. Write like these:',
     '{favorites}',
   ].join('\n'),
+  // What the assistant chat adds to the writing system message about the post it helps with. A line
+  // whose placeholder is empty is left out.
+  chatContext: [
+    'The user is working on {subject} in their app and you help them write it.',
+    'In it: {media}.',
+    'What the photos show, as tags: {tags}.',
+    'Handles they mention in posts like this one: {mentions}. Mention one when it fits, written as given.',
+    "The post's text so far: {text}",
+    'Reply with options for the post. A request to change them (shorter, funnier, …) applies to your last ' +
+      "options, or to the post's text so far when there are none yet.",
+  ].join('\n'),
+  // What ⋯ → More like this on an option sends; the app adds the option on its own lines after it.
+  moreLikeThis: 'Write 3 more options like this one: the same idea and tone, different wording each time.',
 });
 
-/** Each kind's text: the user's where they saved one, else the default. */
-export function resolveInstructions(record: Partial<Record<InstructionKind, string | null>> | null): Instructions {
+const APP_PROMPTS: ReadonlySet<InstructionKind> = new Set(APP_PROMPT_KINDS);
+
+/**
+ * Each kind's text: the user's where they saved one, else the default. The user's own App prompts
+ * (APP_PROMPT_KINDS) apply only to an ai_admin account (`isAiAdmin`); anyone else gets the app's.
+ */
+export function resolveInstructions(
+  record: Partial<Record<InstructionKind, string | null>> | null,
+  { isAiAdmin = false }: { isAiAdmin?: boolean } = {},
+): Instructions {
   return Object.fromEntries(
-    ALL_KINDS.map((kind) => [kind, record?.[kind] ?? DEFAULT_INSTRUCTIONS[kind]]),
+    ALL_KINDS.map((kind) => {
+      const own = isAiAdmin || !APP_PROMPTS.has(kind) ? record?.[kind] : null;
+      return [kind, own ?? DEFAULT_INSTRUCTIONS[kind]];
+    }),
   ) as Instructions;
 }

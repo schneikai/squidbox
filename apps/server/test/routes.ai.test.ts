@@ -43,7 +43,13 @@ vi.mock('../src/config.js', async (importOriginal) => {
   };
 });
 
-import { ASSET_TAG_LIMITS, DEFAULT_INSTRUCTIONS, DEFAULT_MODEL_IDS, resolveInstructions } from '@squidbox/shared';
+import {
+  ASSET_TAG_LIMITS,
+  CHAT_LIMITS,
+  DEFAULT_INSTRUCTIONS,
+  DEFAULT_MODEL_IDS,
+  resolveInstructions,
+} from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
 import { writingFormatText } from '../src/ai/prompts.js';
 import { buildApp } from '../src/app.js';
@@ -93,6 +99,16 @@ const chatBodies = () =>
 
 const writing = { prompt: 'Write 3 posts about a sunrise hike', modelIds: ['kimi-k3', 'z-ai-glm-5-3'] };
 const tagRequest = { image: { base64: 'AAAA', mimeType: 'image/jpeg' } };
+const chatRequest = {
+  context: {
+    kind: 'draft',
+    text: 'Fog on the trail',
+    media: { photo: 2, video: 0 },
+    tags: ['forest', 'morning fog'],
+    mentions: ['@ridgeline.bsky.social'],
+  },
+  messages: [{ role: 'user', content: 'Write a caption for these photos' }],
+};
 const vision = {
   prompt: 'Tag what you see',
   image: { base64: 'AAAA', mimeType: 'image/jpeg' },
@@ -130,6 +146,7 @@ describe('without VENICE_API_KEY', () => {
       ['POST', '/ai/compare/writing', writing],
       ['POST', '/ai/compare/vision', vision],
       ['POST', '/ai/tags', tagRequest],
+      ['POST', '/ai/chat', chatRequest],
     ] as const) {
       const res = await call(method, url, body);
       expect(res.statusCode).toBe(503);
@@ -150,6 +167,7 @@ describe('account features', () => {
       ['POST', '/ai/compare/writing', writing],
       ['POST', '/ai/compare/vision', vision],
       ['POST', '/ai/tags', tagRequest],
+      ['POST', '/ai/chat', chatRequest],
     ] as const) {
       const res = await call(method, url, body);
       expect(res.statusCode).toBe(403);
@@ -172,11 +190,14 @@ describe('account features', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('lets an account with ai only list the models and tag a photo', async () => {
+  it('lets an account with ai only list the models, tag a photo and chat', async () => {
     signedInWith(['ai']);
     veniceAnswers();
     expect((await call('GET', '/ai/models')).statusCode).toBe(200);
     expect((await call('POST', '/ai/tags', tagRequest)).statusCode).toBe(200);
+    const chat = await call('POST', '/ai/chat', chatRequest);
+    expect(chat.statusCode).toBe(200);
+    expect(chat.json()).toEqual({ tweets: ['one', 'two', 'three'] });
   });
 });
 
@@ -487,5 +508,83 @@ describe('POST /api/v1/ai/tags', () => {
     const base64 = 'A'.repeat(2 * 1024 * 1024 + 1);
     const res = await call('POST', '/ai/tags', { image: { ...tagRequest.image, base64 } });
     expect(res.statusCode).toBe(413);
+  });
+});
+
+describe('POST /api/v1/ai/chat', () => {
+  it('frames the transcript with the context on the default writing model and returns the tweets', async () => {
+    veniceAnswers();
+    const res = await call('POST', '/ai/chat', {
+      ...chatRequest,
+      messages: [
+        ...chatRequest.messages,
+        { role: 'assistant', tweets: ['a', 'b', 'c'] },
+        { role: 'user', content: 'Shorter' },
+      ],
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ tweets: ['one', 'two', 'three'] });
+    expect(readChosenModelId).toHaveBeenCalledWith(expect.anything(), 'u1', 'writing');
+    const [body, ...others] = chatBodies();
+    expect(others).toHaveLength(0);
+    expect(body.model).toBe(DEFAULT_MODEL_IDS.writing);
+    const [system, ...turns] = body.messages;
+    expect(system.role).toBe('system');
+    expect(system.content).toContain('What the photos show, as tags: forest, morning fog.');
+    expect(system.content).toContain('@ridgeline.bsky.social');
+    expect(system.content).toContain("The post's text so far: Fog on the trail");
+    expect(system.content.endsWith(writingFormatText(DEFAULT_INSTRUCTIONS.writingFormat))).toBe(true);
+    expect(turns).toEqual([
+      { role: 'user', content: 'Write a caption for these photos' },
+      { role: 'assistant', content: '{"tweets":["a","b","c"]}' },
+      { role: 'user', content: 'Shorter' },
+    ]);
+  });
+
+  it("uses the user's chosen writing model", async () => {
+    veniceAnswers();
+    vi.mocked(readChosenModelId).mockResolvedValueOnce('z-ai-glm-5-3');
+    expect((await call('POST', '/ai/chat', chatRequest)).statusCode).toBe(200);
+    expect(chatBodies().map((body) => body.model)).toEqual(['z-ai-glm-5-3']);
+  });
+
+  it("uses the account's chat context prompt", async () => {
+    veniceAnswers();
+    vi.mocked(readInstructions).mockResolvedValueOnce({ ...resolveInstructions(null), chatContext: 'Post: {text}' });
+    expect((await call('POST', '/ai/chat', chatRequest)).statusCode).toBe(200);
+    const [body] = chatBodies();
+    expect(body.messages[0].content).toContain('\n\nPost: Fog on the trail\n\n');
+    expect(body.messages[0].content).not.toContain('as tags');
+  });
+
+  it('502 ai_unavailable when the chosen model is gone, before any chat', async () => {
+    veniceAnswers();
+    vi.mocked(readChosenModelId).mockResolvedValueOnce('gone');
+    const res = await call('POST', '/ai/chat', chatRequest);
+    expect(res.statusCode).toBe(502);
+    expect(res.json()).toEqual({
+      error: { code: 'ai_unavailable', message: 'Your writing model: Venice no longer offers this model' },
+    });
+    expect(chatBodies()).toHaveLength(0);
+  });
+
+  it('502 ai_unavailable with the reason when Venice fails', async () => {
+    veniceAnswers({ chatStatus: 503 });
+    const res = await call('POST', '/ai/chat', chatRequest);
+    expect(res.statusCode).toBe(502);
+    expect(res.json()).toEqual({ error: { code: 'ai_unavailable', message: 'Model is busy' } });
+  });
+
+  it("400 when the last turn is the assistant's, a past reply has 2 tweets, or there are too many turns", async () => {
+    veniceAnswers();
+    const user = { role: 'user', content: 'Again' };
+    for (const messages of [
+      [user, { role: 'assistant', tweets: ['a', 'b', 'c'] }],
+      [{ role: 'assistant', tweets: ['a', 'b'] }, user],
+      Array.from({ length: CHAT_LIMITS.messages + 1 }, () => user),
+    ]) {
+      expect((await call('POST', '/ai/chat', { ...chatRequest, messages })).statusCode).toBe(400);
+    }
+    expect(chatBodies()).toHaveLength(0);
   });
 });

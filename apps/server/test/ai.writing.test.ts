@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_INSTRUCTIONS } from '@squidbox/shared';
-import { writingFormatText, writingMessages } from '../src/ai/prompts.js';
+import { chatMessages, fillLines, writingFormatText, writingMessages } from '../src/ai/prompts.js';
 
 const WRITING_FORMAT = writingFormatText(DEFAULT_INSTRUCTIONS.writingFormat);
 
@@ -124,5 +124,73 @@ describe('the app prompts, edited', () => {
     expect(system).toBe(
       `${DEFAULT_INSTRUCTIONS.writing}\n\nWho: Hiker.\nVoice: Dry. ({unknown})\n\nGive 3 posts as {"tweets": [...]}`,
     );
+  });
+});
+
+describe('fillLines', () => {
+  it('drops a heading above an empty placeholder and keeps the filled lines', () => {
+    expect(fillLines('Who: {who}\nRules:\n{rules}\nEnd {missing}', { who: 'Kai', rules: '' })).toBe(
+      'Who: Kai\nEnd {missing}',
+    );
+  });
+});
+
+describe('chatMessages', () => {
+  const context = {
+    kind: 'draft' as const,
+    text: 'Fog on the trail',
+    media: { photo: 2, video: 1 },
+    tags: ['forest', 'fog'],
+    mentions: ['@ridgeline.bsky.social'],
+  };
+  const transcript = [
+    { role: 'user' as const, content: 'Write a caption' },
+    { role: 'assistant' as const, tweets: ['one', 'two', 'three'] },
+    { role: 'user' as const, content: 'Shorter' },
+  ];
+
+  it('puts the instructions, persona, chat context and reply format in the system message, in order', () => {
+    const [system] = chatMessages({ instructions: DEFAULT_INSTRUCTIONS, context, transcript, persona, favorites });
+    const content = system!.content as string;
+    expect(system!.role).toBe('system');
+    const order = [
+      DEFAULT_INSTRUCTIONS.writing,
+      'About the creator',
+      'The user is working on a new post in their app',
+      WRITING_FORMAT,
+    ];
+    const at = order.map((text) => content.indexOf(text));
+    expect(at.every((index) => index >= 0)).toBe(true);
+    expect(at).toEqual([...at].sort((a, b) => a - b));
+    expect(content.endsWith(WRITING_FORMAT)).toBe(true);
+    expect(content).toContain('In it: 2 photos, 1 video.');
+    expect(content).toContain('What the photos show, as tags: forest, fog.');
+    expect(content).toContain('Handles they mention in posts like this one: @ridgeline.bsky.social.');
+    expect(content).toContain("The post's text so far: Fog on the trail");
+  });
+
+  it('leaves out a context line whose value is empty', () => {
+    const [system] = chatMessages({
+      instructions: DEFAULT_INSTRUCTIONS,
+      context: { ...context, text: '', media: { photo: 1, video: 0 }, tags: [], mentions: [] },
+      transcript,
+      persona: null,
+      favorites: [],
+    });
+    const content = system!.content as string;
+    expect(content).toContain('In it: 1 photo.');
+    expect(content).not.toContain('as tags');
+    expect(content).not.toContain('Handles');
+    expect(content).not.toContain("The post's text so far:");
+    expect(content).toContain('Reply with options for the post.');
+  });
+
+  it('follows with the transcript, the past replies as their JSON', () => {
+    const [, ...rest] = chatMessages({ instructions: DEFAULT_INSTRUCTIONS, context, transcript, persona, favorites });
+    expect(rest).toEqual([
+      { role: 'user', content: 'Write a caption' },
+      { role: 'assistant', content: '{"tweets":["one","two","three"]}' },
+      { role: 'user', content: 'Shorter' },
+    ]);
   });
 });

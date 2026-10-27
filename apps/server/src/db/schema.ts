@@ -275,6 +275,8 @@ export const instructions = pgTable(
     tagsSystem: text('tags_system'),
     themesContext: text('themes_context'),
     personaFraming: text('persona_framing'),
+    chatContext: text('chat_context'),
+    moreLikeThis: text('more_like_this'),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.id] }),

@@ -17,6 +17,8 @@ const EMPTY_INSTRUCTIONS = Object.freeze({
   tagsSystem: null,
   themesContext: null,
   personaFraming: null,
+  chatContext: null,
+  moreLikeThis: null,
 });
 
 /** The user's instructions, or null before the first save. */

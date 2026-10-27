@@ -3,6 +3,8 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   aiBalanceResponseSchema,
   aiModelsResponseSchema,
+  chatRequestSchema,
+  chatResponseSchema,
   compareVisionRequestSchema,
   compareVisionResponseSchema,
   compareWritingRequestSchema,
@@ -16,6 +18,7 @@ import { AppError } from '../errors.js';
 import { authenticate, requireFeature, requireUser } from '../auth/authenticate.js';
 import { fetchBalanceAsync } from './balance.js';
 import { catalogAsync, findModel, type CatalogEntry } from './catalog.js';
+import { chatAsync } from './chat.js';
 import { compareModels } from './compare.js';
 import { readInstructions } from './instructions.js';
 import { readFavorites, readPersona } from './persona.js';
@@ -100,6 +103,20 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
           signal,
         });
         return { tags };
+      },
+    });
+
+    // POST /ai/chat — the assistant chat: the user's writing model answers the transcript with posts
+    // for the chat's post (Write with AI in the post editor). Nothing is stored.
+    r.route({
+      method: 'POST',
+      url: '/ai/chat',
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+      schema: { body: chatRequestSchema, response: { 200: chatResponseSchema } },
+      handler: async (request, reply) => {
+        const signal = untilClientLeaves(reply);
+        const tweets = await chatAsync({ db: getDb(), user: requireUser(request), request: request.body, signal });
+        return { tweets };
       },
     });
 
