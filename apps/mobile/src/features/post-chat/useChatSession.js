@@ -1,6 +1,6 @@
 import { useMemo, useSyncExternalStore } from 'react';
 
-import { getChatSession } from './chatSession';
+import chatSessions from './chatSessions';
 
 import chatAsync from '@/utils/cloud-api/ai/chatAsync';
 
@@ -8,25 +8,23 @@ const subscribeNone = () => () => {};
 const getNone = () => null;
 
 /**
- * The chat with this id (chatSession), live: its state, its draft (`getDraft()`) and its actions,
- * `send(turn, context)` and `retry(context)` asking the server (POST /ai/chat). null once the chat
- * was closed.
+ * The chat with this id (chatSessions), live: its state, its draft (`getDraft()`) and its actions,
+ * `send(turn, context)` and `retry(context)` asking the server (POST /ai/chat; each → the reply's
+ * promise, or null when nothing was sent). null when there is no such chat (closed, or no id yet).
  */
 export default function useChatSession(id) {
-  const session = getChatSession(id);
+  const session = id ? chatSessions.get(id) : undefined;
   const state = useSyncExternalStore(session?.subscribe ?? subscribeNone, session?.getState ?? getNone);
 
-  return useMemo(
-    () =>
-      session &&
-      state && {
-        ...state,
-        getDraft: session.getDraft,
-        send: (turn, context) => session.send(turn, context, chatAsync),
-        retry: (context) => session.retry(context, chatAsync),
-        reset: session.reset,
-        applyText: session.applyText,
-      },
-    [session, state],
-  );
+  return useMemo(() => {
+    if (!session || !state) return null;
+    return {
+      ...state,
+      getDraft: session.getDraft,
+      send: (turn, context) => session.send(turn, context, chatAsync),
+      retry: (context) => session.retry(context, chatAsync),
+      reset: session.reset,
+      applyText: session.applyText,
+    };
+  }, [session, state]);
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import extractHandles from '../src/utils/posts/extractHandles';
+import extractHandles from '../src/features/post-chat/extractHandles';
 
 describe('extractHandles', () => {
   it('finds handles with dots and hyphens, and none in an email address', () => {

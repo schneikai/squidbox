@@ -10,15 +10,14 @@ import pluralizeText from '@/utils/pluralizeText';
 
 /**
  * What the assistant sees in the chat's photos (`rows`, the live assets, their `attempts` and
- * `isTagging`, as useAssetTags gives them): "It sees:" and the tags the chat sends, a tap opening
+ * `isTagging` and `untagged`, as useAssetTags gives them): "It sees:" and the tags the chat sends, a tap opening
  * the tags of the first photo with it (`onOpen(assetId)`) to fix them; "Looking at the photos…"
  * while any is tagged; the photos whose tagging failed, with Retry (`onRetry(assetId)` for each); a
  * photo never tagged, with Tag.
  */
-export default function ItSeesRow({ rows, attempts, isTagging, onOpen, onRetry }) {
+export default function ItSeesRow({ rows, attempts, isTagging, untagged, onOpen, onRetry }) {
   const tags = uniqueTags(rows.flatMap((row) => row.tags ?? []));
   const failed = rows.filter((row) => row.tags === null && attempts[row.id]?.status === 'error');
-  const untagged = rows.filter((row) => row.tags === null && !attempts[row.id]);
 
   function firstAssetWith(tag) {
     const key = tag.toLowerCase();

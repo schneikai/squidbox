@@ -37,5 +37,5 @@ export default function useFavoriteToggle() {
     [idByText, haptics],
   );
 
-  return { favoriteIdOf, toggle };
+  return useMemo(() => ({ favoriteIdOf, toggle }), [favoriteIdOf, toggle]);
 }

@@ -3,11 +3,12 @@ import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 // The taggings under way and the ones that failed in this app run, by asset id: `{ status: 'loading'
 // | 'error', error, promise }`; a tagging that landed leaves (its tags are on the row). Every tagging
-// goes through here (tagAssetAsync), so a screen shows one started anywhere.
+// goes through here (tagAssetAsync), so every screen shows one started anywhere.
 const attempts = createStore({});
-// The photos tagged by themselves in this app run: once each, and one whose tagging failed waits for
-// a retry, however often the screen that shows it opens again.
-const started = new Set();
+// The photos tagged in this app run, whatever came of it: a photo is tagged by itself once, one
+// whose tagging failed waits for a retry, and one that was tagged isn't "not tagged" while its row
+// catches up.
+const ran = new Set();
 
 function setAttempt(id, attempt) {
   attempts.set((current) => {
@@ -20,9 +21,10 @@ function setAttempt(id, attempt) {
  * Runs `tag()` (a promise) for the photo, or joins the one under way; the result is `tag()`'s, a
  * failure staying in the attempts until the next run.
  */
-export function runTagging(id, tag) {
+function run(id, tag) {
   const running = attempts.get()[id];
   if (running?.status === 'loading') return running.promise;
+  ran.add(id);
   const promise = new Promise((resolve) => resolve(tag())).then(
     (result) => {
       setAttempt(id, null);
@@ -37,14 +39,23 @@ export function runTagging(id, tag) {
   return promise;
 }
 
-/** Runs `tag()` for the photo unless it was started by itself before in this app run. */
-export function tagOnce(id, tag) {
-  if (started.has(id)) return;
-  started.add(id);
-  runTagging(id, tag).catch(() => {});
+/** Runs `tag()` for the photo unless it was tagged before in this app run. */
+function once(id, tag) {
+  if (ran.has(id)) return;
+  run(id, tag).catch(() => {});
 }
 
-/** Every attempt by asset id, a new object on each change (for useSyncExternalStore). */
-export const getTagAttempts = attempts.get;
+/**
+ * The photos' taggings: `run(id, tag)`, `once(id, tag)`, `get()` (every attempt by asset id, a new
+ * object on each change, for useSyncExternalStore), `subscribe(listener)` and `hasRun(id)` (tagged
+ * in this app run, by any caller).
+ */
+const tagAttempts = {
+  run,
+  once,
+  get: attempts.get,
+  subscribe: attempts.subscribe,
+  hasRun: (id) => ran.has(id),
+};
 
-export const subscribeTagAttempts = attempts.subscribe;
+export default tagAttempts;

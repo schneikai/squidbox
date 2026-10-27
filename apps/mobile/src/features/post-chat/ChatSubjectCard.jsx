@@ -12,13 +12,13 @@ import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
 const THUMB_SIZE = scale(36);
-const SUBJECTS = { draft: 'New post' };
+const SUBJECTS = { draft: 'New post', edit: 'Edit post' };
 
 /**
  * What the chat is about, at its top: the post's first photos, "New post · 2 Photos · <album>" (the
- * album named when every photo is in it), what
- * the assistant sees in them (ItSeesRow, from `tagging`, useAssetTags'; a tag opens the photo's tags
- * with `onOpenTags(assetId)`) and the handles it may mention (`mentions`, useMentions').
+ * album named when every photo is in it; "Edit post" for a saved post), what the assistant sees in
+ * them (ItSeesRow, from `tagging`, useAssetTags'; a tag opens the photo's tags with
+ * `onOpenTags(assetId)`) and the handles it may mention (`mentions`, useMentions').
  */
 export default function ChatSubjectCard({ kind, assets, tagging, mentions, onOpenTags }) {
   const assetIds = assets.map((asset) => asset.id);
@@ -27,7 +27,9 @@ export default function ChatSubjectCard({ kind, assets, tagging, mentions, onOpe
   const albumName = albums?.find((album) => album.heldCount === new Set(assetIds).size)?.name;
   const counts = countMediaTypes(assets);
   const title = [SUBJECTS[kind], assets.length > 0 && getAssetCountInfo(counts), albumName].filter(Boolean).join(' · ');
-  const mentionsFrom = mentions?.fromAlbum ? (albumName ?? 'your albums') : 'your posts';
+  // The handles come from every album holding any of the photos, so the album is named only when it
+  // is the one.
+  const mentionsFrom = mentions?.fromAlbum ? (albums?.length === 1 && albumName) || 'your albums' : 'your posts';
 
   return (
     <Card style={styles.card}>
@@ -48,6 +50,7 @@ export default function ChatSubjectCard({ kind, assets, tagging, mentions, onOpe
           rows={tagging.rows}
           attempts={tagging.attempts}
           isTagging={tagging.isTagging}
+          untagged={tagging.untagged}
           onOpen={onOpenTags}
           onRetry={tagging.retry}
         />

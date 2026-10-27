@@ -22,7 +22,13 @@ export default function FavoriteCard({ favorite, isRemoved, onOpen, onUnheart, o
       >
         <Text style={styles.text}>{favorite.text}</Text>
       </Pressable>
-      <FavoriteHeartButton isFavorite={!isRemoved} onPress={isRemoved ? onUndo : () => onUnheart(favorite)} />
+      {/* The outline heart keeps the secondary colour of every other heart: the card is dimmed already,
+          and tertiary is for placeholders and disabled controls, while this one still hearts it again. */}
+      <FavoriteHeartButton
+        isFavorite={!isRemoved}
+        onPress={isRemoved ? onUndo : () => onUnheart(favorite)}
+        accessibilityLabel={isRemoved ? 'Add back to favorites' : undefined}
+      />
     </Card>
   );
 }

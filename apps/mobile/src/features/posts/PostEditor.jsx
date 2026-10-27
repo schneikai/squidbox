@@ -18,14 +18,15 @@ import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
 
 // Edits a post seeded from `post` ({ text, postAssets, postedAt }) and holds the draft; Save hands
 // `onSave` the post the posts store takes ({ text, assetRefs, postedAt }), allowed once it is valid,
-// and the seed in the same shape, so an edit can save only what changed.
-export default function PostEditor({ post, navigation, onSave }) {
+// and the seed in the same shape, so an edit can save only what changed. `kind` is what its
+// assistant chat is about (chatSubjectKindSchema: 'draft' a new post, 'edit' a saved one).
+export default function PostEditor({ kind, post, navigation, onSave }) {
   const { scrollY, onScroll } = useScrollY();
   const [isSaving, setIsSaving] = useState(false);
   const [text, setText] = useState(post.text);
   const [postAssets, setPostAssets] = useState(post.postAssets);
   const [postedAt, setPostedAt] = useState(post.postedAt);
-  const sessionId = useEditorChat({ text, postAssets, setText });
+  const sessionId = useEditorChat({ kind, text, postAssets, setText });
 
   const data = postData({ text, postAssets, postedAt });
   const canSave = hasContent(data);

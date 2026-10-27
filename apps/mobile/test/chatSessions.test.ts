@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { closeChatSession, getChatSession, openChatSession } from '../src/features/post-chat/chatSession';
+import chatSessions from '../src/features/post-chat/chatSessions';
 
 const context = { kind: 'draft', text: '', media: { photo: 1, video: 0 }, tags: [], mentions: [] };
 const TWEETS = ['one', 'two', 'three'];
@@ -16,11 +16,11 @@ function deferredRequest() {
 }
 
 function open() {
-  const id = openChatSession({ kind: 'draft' });
-  return { id, session: getChatSession(id)! };
+  const id = chatSessions.open({ kind: 'draft' });
+  return { id, session: chatSessions.get(id)! };
 }
 
-describe('chatSession', () => {
+describe('chatSessions', () => {
   it('appends the user turn and a loading reply, then lands the tweets', async () => {
     const { session } = open();
     const { request, calls } = deferredRequest();
@@ -60,8 +60,8 @@ describe('chatSession', () => {
   it('does nothing on a send while a reply loads', () => {
     const { session } = open();
     const { request } = deferredRequest();
-    session.send({ content: 'First' }, context, request);
-    session.send({ content: 'Again' }, context, request);
+    expect(session.send({ content: 'First' }, context, request)).toBeInstanceOf(Promise);
+    expect(session.send({ content: 'Again' }, context, request)).toBeNull();
     expect(request).toHaveBeenCalledTimes(1);
     expect(session.getState().messages.filter((m: any) => m.status === 'loading')).toHaveLength(1);
     expect(session.getState().messages).toHaveLength(2);
@@ -74,7 +74,7 @@ describe('chatSession', () => {
     calls[0]!.reject(new Error('Network Error'));
     await sending;
     const retrying = session.retry(context, request);
-    session.retry(context, request);
+    expect(session.retry(context, request)).toBeNull();
     expect(request).toHaveBeenCalledTimes(2);
     expect(calls[1]!.body.messages).toEqual([{ role: 'user', content: 'First' }]);
     expect(session.getState().messages).toHaveLength(2);
@@ -82,6 +82,40 @@ describe('chatSession', () => {
     calls[1]!.resolve(TWEETS);
     await retrying;
     expect(session.getState().messages[1]).toMatchObject({ status: 'done', tweets: TWEETS });
+  });
+
+  it('leaves out of later sends a turn the server refused as invalid', async () => {
+    const { session } = open();
+    const { request, calls } = deferredRequest();
+    let sending = session.send({ content: 'Too long' }, context, request);
+    calls[0]!.reject(Object.assign(new Error('Bad Request'), { response: { status: 400 } }));
+    await sending;
+    expect(session.getState().messages[1]).toMatchObject({ status: 'error', errorStatus: 400 });
+    sending = session.send({ content: 'Shorter' }, context, request);
+    expect(calls[1]!.body.messages).toEqual([{ role: 'user', content: 'Shorter' }]);
+    calls[1]!.resolve(TWEETS);
+    await sending;
+  });
+
+  it('keeps a turn whose reply failed otherwise', async () => {
+    const { session } = open();
+    const { request, calls } = deferredRequest();
+    let sending = session.send({ content: 'First' }, context, request);
+    calls[0]!.reject(Object.assign(new Error('Bad Gateway'), { response: { status: 502 } }));
+    await sending;
+    sending = session.send({ content: 'Second' }, context, request);
+    expect(calls[1]!.body.messages).toEqual([
+      { role: 'user', content: 'First' },
+      { role: 'user', content: 'Second' },
+    ]);
+    calls[1]!.resolve(TWEETS);
+    await sending;
+  });
+
+  it('sends nothing once closed', () => {
+    const { id, session } = open();
+    chatSessions.close(id);
+    expect(session.send({ content: 'First' }, context, deferredRequest().request)).toBeNull();
   });
 
   it('clears the chat on reset', async () => {
@@ -104,8 +138,8 @@ describe('chatSession', () => {
     const sending = session.send({ content: 'First' }, context, request);
     const before = session.getState();
     listener.mockClear();
-    closeChatSession(id);
-    expect(getChatSession(id)).toBeUndefined();
+    chatSessions.close(id);
+    expect(chatSessions.get(id)).toBeUndefined();
     expect(calls[0]!.signal.aborted).toBe(true);
     calls[0]!.resolve(TWEETS);
     await sending;

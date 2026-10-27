@@ -8,29 +8,36 @@ import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 const sessions = new Map();
 let lastId = 0;
 
-/** Opens a chat about a post being written (`kind`, chatSubjectKindSchema) and returns its id. */
-export function openChatSession({ kind }) {
+/** Opens a chat about a post (`kind`, chatSubjectKindSchema) and returns its id. */
+function open({ kind }) {
   const id = `chat-${++lastId}`;
   sessions.set(id, createSession(kind));
   return id;
 }
 
 /** Stops the reply under way, if any, and forgets the chat. */
-export function closeChatSession(id) {
+function close(id) {
   sessions.get(id)?.close();
   sessions.delete(id);
 }
 
-/** The chat with this id, or undefined once it was closed. */
-export function getChatSession(id) {
-  return sessions.get(id);
-}
+/**
+ * The open chats: `open({ kind })` → its id, `close(id)`, and `get(id)` (the chat, or undefined
+ * once it was closed).
+ */
+const chatSessions = { open, close, get: (id) => sessions.get(id) };
+
+export default chatSessions;
 
 // The transcript as the server takes it: the user's turns and the assistant's answered replies,
-// oldest first (a reply loading or failed is left out), the newest CHAT_LIMITS.messages of them.
+// oldest first (a reply loading or failed is left out, and a turn the server refused as invalid with
+// its reply, so it doesn't fail every later send), the newest CHAT_LIMITS.messages of them.
 function wireTurns(messages) {
-  const turns = messages.flatMap((message) => {
-    if (message.role === 'user') return [{ role: 'user', content: message.content }];
+  const turns = messages.flatMap((message, index) => {
+    if (message.role === 'user') {
+      const reply = messages[index + 1];
+      return reply?.status === 'error' && reply.errorStatus === 400 ? [] : [{ role: 'user', content: message.content }];
+    }
     return message.status === 'done' ? [{ role: 'assistant', tweets: message.tweets }] : [];
   });
   return turns.slice(-CHAT_LIMITS.messages);
@@ -40,7 +47,8 @@ function wireTurns(messages) {
  * One chat: `getState()` → `{ kind, messages, isSending, canApply }`, a new object on each change,
  * which `subscribe(listener)` tells. A message is the user's `{ id, role: 'user', label, content }`
  * (`label`: the prompt button's name, or null for a typed message) or a reply `{ id, role:
- * 'assistant', status: 'loading' | 'done' | 'error', tweets, error }`. `isSending` while a reply
+ * 'assistant', status: 'loading' | 'done' | 'error', tweets, error, errorStatus }` (`errorStatus`:
+ * the failed request's HTTP status, if any). `isSending` while a reply
  * loads. The editor's caption and assets (`getDraft()`) change with every keystroke, so they are
  * read when needed, not told.
  */
@@ -77,7 +85,13 @@ function createSession(kind) {
       const tweets = await request(body, { signal });
       if (!signal.aborted) replaceMessage(replyId, { status: 'done', tweets });
     } catch (error) {
-      if (!signal.aborted) replaceMessage(replyId, { status: 'error', error: apiErrorMessage(error) });
+      if (!signal.aborted) {
+        replaceMessage(replyId, {
+          status: 'error',
+          error: apiErrorMessage(error),
+          errorStatus: error?.response?.status ?? null,
+        });
+      }
     } finally {
       if (controller?.signal === signal) controller = null;
     }
@@ -106,22 +120,30 @@ function createSession(kind) {
 
     /**
      * Sends the user's turn (`{ label, content }`) about `context` (chatContextSchema) through
-     * `request(body, { signal })`, which resolves to the reply's posts. Nothing while a reply loads.
+     * `request(body, { signal })`, which resolves to the reply's posts. → the reply's promise, or
+     * null when nothing was sent (a reply is loading, or the chat was closed).
      */
     send({ label = null, content }, context, request) {
-      if (store.get().isSending || isClosed) return;
+      if (store.get().isSending || isClosed) return null;
       const userMessage = { id: `m${++lastMessageId}`, role: 'user', label, content };
-      const reply = { id: `m${++lastMessageId}`, role: 'assistant', status: 'loading', tweets: [], error: null };
+      const reply = {
+        id: `m${++lastMessageId}`,
+        role: 'assistant',
+        status: 'loading',
+        tweets: [],
+        error: null,
+        errorStatus: null,
+      };
       update({ messages: [...store.get().messages, userMessage, reply] });
       return requestReply(reply.id, context, request);
     },
 
-    /** Asks again for the last reply, after it failed. */
+    /** Asks again for the last reply, after it failed. → as `send`. */
     retry(context, request) {
       const { messages, isSending } = store.get();
       const last = messages[messages.length - 1];
-      if (isSending || isClosed || last?.role !== 'assistant' || last.status !== 'error') return;
-      replaceMessage(last.id, { status: 'loading', error: null });
+      if (isSending || isClosed || last?.role !== 'assistant' || last.status !== 'error') return null;
+      replaceMessage(last.id, { status: 'loading', error: null, errorStatus: null });
       return requestReply(last.id, context, request);
     },
 
