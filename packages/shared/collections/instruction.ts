@@ -93,7 +93,7 @@ export const DEFAULT_INSTRUCTIONS: Instructions = Object.freeze({
       "options, or to the post's text so far when there are none yet.",
   ].join('\n'),
   // What ⋯ → More like this on an option sends; the app adds the option on its own lines after it.
-  moreLikeThis: 'Write 3 more options like this one: the same idea and tone, different wording each time.',
+  moreLikeThis: 'Write more options like this one: the same idea and tone, different wording each time.',
 });
 
 const APP_PROMPTS: ReadonlySet<InstructionKind> = new Set(APP_PROMPT_KINDS);

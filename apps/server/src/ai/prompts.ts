@@ -133,7 +133,10 @@ function personaText(template: string, persona: Persona, favorites: string[]): s
   });
 }
 
-const SUBJECTS: Record<ChatContext['kind'], string> = { draft: 'a new post' };
+const SUBJECTS: Record<ChatContext['kind'], string> = {
+  draft: 'a new post',
+  edit: 'a post of theirs they are changing',
+};
 
 // "2 photos, 1 video", empty without media.
 function mediaText({ photo, video }: ChatContext['media']): string {

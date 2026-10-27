@@ -109,8 +109,9 @@ export type TagPhotoResponse = z.infer<typeof tagPhotoResponseSchema>;
 // context (instructions.chatContext). Nothing is stored: the app sends the whole chat each time.
 export const CHAT_LIMITS = { messages: 40, message: 4000, text: 4000, tags: 100, mentions: 30, mention: 80 } as const;
 
-// The chat's subject: a post being written in the editor.
-export const chatSubjectKindSchema = z.enum(['draft']);
+// The chat's subject, a post open in the editor: 'draft' a new one, 'edit' one of the user's posts.
+// PR 3 adds 'post' (a published post, outside the editor).
+export const chatSubjectKindSchema = z.enum(['draft', 'edit']);
 export type ChatSubjectKind = z.infer<typeof chatSubjectKindSchema>;
 
 // What the chat is about, as the app sees it when it sends: the server frames it (chatContext). The

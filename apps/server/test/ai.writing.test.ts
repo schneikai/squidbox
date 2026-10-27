@@ -185,6 +185,17 @@ describe('chatMessages', () => {
     expect(content).toContain('Reply with options for the post.');
   });
 
+  it('says when the post is one of theirs being edited', () => {
+    const [system] = chatMessages({
+      instructions: DEFAULT_INSTRUCTIONS,
+      context: { ...context, kind: 'edit' },
+      transcript,
+      persona: null,
+      favorites: [],
+    });
+    expect(system!.content).toContain('The user is working on a post of theirs they are changing in their app');
+  });
+
   it('follows with the transcript, the past replies as their JSON', () => {
     const [, ...rest] = chatMessages({ instructions: DEFAULT_INSTRUCTIONS, context, transcript, persona, favorites });
     expect(rest).toEqual([
