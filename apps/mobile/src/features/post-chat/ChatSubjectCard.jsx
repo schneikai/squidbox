@@ -5,9 +5,9 @@ import ItSeesRow from './ItSeesRow';
 import Card from '@/components/Card';
 import CoverImage from '@/components/CoverImage';
 import { SCREEN_PADDING } from '@/constants';
-import sortAlbumsByCustomOrder from '@/features/album-list/actions/sort-albums-action/sortAlbumsByCustomOrder';
-import useAlbumRows from '@/features/album-list/useAlbumRows';
+import useAssetAlbums from '@/hooks/useAssetAlbums';
 import { colors, scale, typography } from '@/styles/designTokens';
+import listTextStyles from '@/styles/listTextStyles';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
@@ -15,18 +15,19 @@ const THUMB_SIZE = scale(36);
 const SUBJECTS = { draft: 'New post' };
 
 /**
- * What the chat is about, at its top: the post's first photos, "New post · 2 Photos · <album>", what
+ * What the chat is about, at its top: the post's first photos, "New post · 2 Photos · <album>" (the
+ * album named when every photo is in it), what
  * the assistant sees in them (ItSeesRow, from `tagging`, useAssetTags'; a tag opens the photo's tags
  * with `onOpenTags(assetId)`) and the handles it may mention (`mentions`, useMentions').
  */
 export default function ChatSubjectCard({ kind, assets, tagging, mentions, onOpenTags }) {
   const assetIds = assets.map((asset) => asset.id);
-  const { rows: albums } = useAlbumRows({ assetIds }, { isLive: false });
+  const albums = useAssetAlbums(assetIds, { isLive: false });
 
-  const albumName = albums && [...albums].sort(sortAlbumsByCustomOrder)[0]?.name;
+  const albumName = albums?.find((album) => album.heldCount === new Set(assetIds).size)?.name;
   const counts = countMediaTypes(assets);
   const title = [SUBJECTS[kind], assets.length > 0 && getAssetCountInfo(counts), albumName].filter(Boolean).join(' · ');
-  const mentionsFrom = mentions?.fromAlbum ? (albumName ?? 'the album') : 'your posts';
+  const mentionsFrom = mentions?.fromAlbum ? (albumName ?? 'your albums') : 'your posts';
 
   return (
     <Card style={styles.card}>
@@ -43,10 +44,16 @@ export default function ChatSubjectCard({ kind, assets, tagging, mentions, onOpe
         </Text>
       </View>
       {tagging.rows && tagging.rows.length > 0 && (
-        <ItSeesRow rows={tagging.rows} attempts={tagging.attempts} onOpen={onOpenTags} onRetry={tagging.retry} />
+        <ItSeesRow
+          rows={tagging.rows}
+          attempts={tagging.attempts}
+          isTagging={tagging.isTagging}
+          onOpen={onOpenTags}
+          onRetry={tagging.retry}
+        />
       )}
       {mentions?.handles.length > 0 && (
-        <Text style={styles.mentions}>
+        <Text style={[listTextStyles.subtitle, styles.mentions]}>
           Mentions from {mentionsFrom}: {mentions.handles.slice(0, 5).join(', ')}
         </Text>
       )}
@@ -82,7 +89,6 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   mentions: {
-    fontSize: typography.footnote,
-    color: colors.text.secondary,
+    marginTop: 0,
   },
 });

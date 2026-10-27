@@ -1,4 +1,4 @@
-import type { PersonaFields, PersonaRecord } from '@squidbox/shared';
+import { PERSONA_LIMITS, type PersonaFields, type PersonaRecord } from '@squidbox/shared';
 import { and, eq, isNull } from 'drizzle-orm';
 
 import * as schema from './db/schema';
@@ -30,4 +30,22 @@ export async function readPersona(db: SyncDb, userId: string): Promise<PersonaRe
 /** Save what the user changed in the persona (the fields that differ from what the editor opened with). */
 export async function savePersona(db: SyncDb, userId: string, changes: Partial<PersonaFields>): Promise<void> {
   await saveUserRecord(db, 'personas', t, userId, changes, EMPTY_PERSONA);
+}
+
+/**
+ * Appends `text` (trimmed) to the rules: 'added', 'present' when a rule already says it, 'tooLong'
+ * over PERSONA_LIMITS.rule, 'full' at PERSONA_LIMITS.rules; only 'added' writes.
+ */
+export async function addRule(
+  db: SyncDb,
+  userId: string,
+  text: string,
+): Promise<'added' | 'present' | 'tooLong' | 'full'> {
+  const rule = text.trim();
+  if (rule.length > PERSONA_LIMITS.rule) return 'tooLong';
+  const rules = (await readPersona(db, userId))?.rules ?? [];
+  if (rules.includes(rule)) return 'present';
+  if (rules.length >= PERSONA_LIMITS.rules) return 'full';
+  await savePersona(db, userId, { rules: [...rules, rule] });
+  return 'added';
 }

@@ -8,7 +8,7 @@ import useHaptics from '@/hooks/useHaptics';
 import useLibrary from '@/library/useLibrary';
 import { colors, lineHeights, sizes, typography } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
-import { readPersona, savePersona } from '@/sync/personaRepository';
+import { addRule } from '@/sync/personaRepository';
 import { requestSync } from '@/sync/worker';
 
 /**
@@ -21,22 +21,17 @@ export default function UserMessage({ label, content }) {
   const userId = library.owner.userId;
 
   async function handleAddToRules() {
-    const rule = content.trim();
-    if (rule.length > PERSONA_LIMITS.rule) {
-      Alert.alert('Too long for a rule', `A rule can have up to ${PERSONA_LIMITS.rule} characters.`);
-      return;
-    }
     try {
-      const db = getDb();
-      const rules = (await readPersona(db, userId))?.rules ?? [];
-      if (!rules.includes(rule)) {
-        if (rules.length >= PERSONA_LIMITS.rules) {
-          Alert.alert('No room for another rule', `Writing as you has up to ${PERSONA_LIMITS.rules} rules.`);
-          return;
-        }
-        await savePersona(db, userId, { rules: [...rules, rule] });
-        requestSync();
+      const result = await addRule(getDb(), userId, content);
+      if (result === 'tooLong') {
+        Alert.alert('Too long for a rule', `A rule can have up to ${PERSONA_LIMITS.rule} characters.`);
+        return;
       }
+      if (result === 'full') {
+        Alert.alert('No room for another rule', `Writing as you has up to ${PERSONA_LIMITS.rules} rules.`);
+        return;
+      }
+      if (result === 'added') requestSync();
       haptics.success();
     } catch (error) {
       console.error('Adding the rule failed', error);

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 
+import { MIN_REREAD_INTERVAL } from '@/constants';
 import { schema } from '@/sync/db/client';
 import { readMentionTexts } from '@/sync/postsRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
@@ -14,6 +15,7 @@ export default function useMentions(assetIds) {
     (db) => readMentionTexts(db, assetIds),
     [schema.posts, schema.postAssets, schema.albumAssets, schema.albums],
     [assetIds],
+    { minInterval: MIN_REREAD_INTERVAL },
   );
   return useMemo(() => result && { handles: extractHandles(result.texts), fromAlbum: result.fromAlbum }, [result]);
 }

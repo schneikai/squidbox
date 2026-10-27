@@ -2,6 +2,7 @@ import { StyleSheet, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 
+import PromptButtonChip from './PromptButtonChip';
 import placementText from './placementText';
 import useChipReorder from './useChipReorder';
 
@@ -34,11 +35,9 @@ export default function PromptButtonGroup({ placement, buttons, onOpen, onAdd, o
 
   function chip(button) {
     return (
-      <Chip
-        label={button.name}
-        icon={button.icon}
-        variant="outlined"
-        onPress={() => handleOpen(button)}
+      <PromptButtonChip
+        button={button}
+        onPress={handleOpen}
         accessibilityHint="Opens it to edit. Touch and hold to move it."
       />
     );

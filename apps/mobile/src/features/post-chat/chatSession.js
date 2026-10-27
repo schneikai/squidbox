@@ -1,5 +1,6 @@
 import { CHAT_LIMITS } from '@squidbox/shared';
 
+import createStore from '@/lib/createStore';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 // The open assistant chats by id. A chat lives while its editor is open and is never saved: the
@@ -36,14 +37,16 @@ function wireTurns(messages) {
 }
 
 /**
- * One chat: `getState()` → `{ kind, draft: { text, assets }, messages, isSending, canApply }`, a new
- * object on each change, which `subscribe(listener)` tells. A message is the user's `{ id, role:
- * 'user', label, content }` or a reply `{ id, role: 'assistant', status: 'loading' | 'done' | 'error',
- * tweets, error, label }`; `label` is the prompt button's name, or null for a typed message.
+ * One chat: `getState()` → `{ kind, messages, isSending, canApply }`, a new object on each change,
+ * which `subscribe(listener)` tells. A message is the user's `{ id, role: 'user', label, content }`
+ * (`label`: the prompt button's name, or null for a typed message) or a reply `{ id, role:
+ * 'assistant', status: 'loading' | 'done' | 'error', tweets, error }`. `isSending` while a reply
+ * loads. The editor's caption and assets (`getDraft()`) change with every keystroke, so they are
+ * read when needed, not told.
  */
 function createSession(kind) {
-  const listeners = new Set();
-  let state = { kind, draft: { text: '', assets: [] }, messages: [], isSending: false, canApply: false };
+  const store = createStore({ kind, messages: [], isSending: false, canApply: false });
+  let draft = { text: '', assets: [] };
   let applier = null;
   let controller = null;
   let isClosed = false;
@@ -51,20 +54,25 @@ function createSession(kind) {
 
   function update(changes) {
     if (isClosed) return;
-    state = { ...state, ...changes };
-    for (const listener of listeners) listener();
+    store.set((state) => {
+      const next = { ...state, ...changes };
+      return { ...next, isSending: next.messages.some((message) => message.status === 'loading') };
+    });
   }
 
   function replaceMessage(id, changes) {
-    update({ messages: state.messages.map((message) => (message.id === id ? { ...message, ...changes } : message)) });
+    update({
+      messages: store.get().messages.map((message) => (message.id === id ? { ...message, ...changes } : message)),
+    });
   }
 
   // Asks for the reply `replyId` to the messages before it, and lands the answer on it.
   async function requestReply(replyId, context, request) {
     controller = new AbortController();
     const { signal } = controller;
-    const at = state.messages.findIndex((message) => message.id === replyId);
-    const body = { context, messages: wireTurns(state.messages.slice(0, at)) };
+    const { messages } = store.get();
+    const at = messages.findIndex((message) => message.id === replyId);
+    const body = { context, messages: wireTurns(messages.slice(0, at)) };
     try {
       const tweets = await request(body, { signal });
       if (!signal.aborted) replaceMessage(replyId, { status: 'done', tweets });
@@ -72,21 +80,18 @@ function createSession(kind) {
       if (!signal.aborted) replaceMessage(replyId, { status: 'error', error: apiErrorMessage(error) });
     } finally {
       if (controller?.signal === signal) controller = null;
-      if (!signal.aborted) update({ isSending: false });
     }
   }
 
   return {
-    getState: () => state,
-
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
+    getState: store.get,
+    subscribe: store.subscribe,
 
     /** The editor's caption and assets (`asset` rows) as they are now. */
-    setDraft(draft) {
-      update({ draft });
+    getDraft: () => draft,
+
+    setDraft(next) {
+      draft = next;
     },
 
     /** How Use puts an option into the caption (the editor's), or null: the option is copied instead. */
@@ -104,20 +109,19 @@ function createSession(kind) {
      * `request(body, { signal })`, which resolves to the reply's posts. Nothing while a reply loads.
      */
     send({ label = null, content }, context, request) {
-      if (state.isSending || isClosed) return;
+      if (store.get().isSending || isClosed) return;
       const userMessage = { id: `m${++lastMessageId}`, role: 'user', label, content };
-      const replyId = `m${++lastMessageId}`;
-      const reply = { id: replyId, role: 'assistant', status: 'loading', tweets: [], error: null, label };
-      update({ messages: [...state.messages, userMessage, reply], isSending: true });
-      return requestReply(replyId, context, request);
+      const reply = { id: `m${++lastMessageId}`, role: 'assistant', status: 'loading', tweets: [], error: null };
+      update({ messages: [...store.get().messages, userMessage, reply] });
+      return requestReply(reply.id, context, request);
     },
 
     /** Asks again for the last reply, after it failed. */
     retry(context, request) {
-      const last = state.messages[state.messages.length - 1];
-      if (state.isSending || isClosed || last?.role !== 'assistant' || last.status !== 'error') return;
+      const { messages, isSending } = store.get();
+      const last = messages[messages.length - 1];
+      if (isSending || isClosed || last?.role !== 'assistant' || last.status !== 'error') return;
       replaceMessage(last.id, { status: 'loading', error: null });
-      update({ isSending: true });
       return requestReply(last.id, context, request);
     },
 
@@ -125,13 +129,12 @@ function createSession(kind) {
     reset() {
       controller?.abort();
       controller = null;
-      update({ messages: [], isSending: false });
+      update({ messages: [] });
     },
 
     close() {
       controller?.abort();
       isClosed = true;
-      listeners.clear();
     },
   };
 }

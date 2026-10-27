@@ -134,6 +134,12 @@ describe('albumQuery', () => {
     expect(await ids(['asset-5'])).toEqual([]);
   });
 
+  it('says how many of the scope assets each album holds', async () => {
+    await library();
+    const rows = await albumQuery({ scope: { assetIds: ['asset-3', 'asset-1', 'asset-9'] } }).read(db);
+    expect(Object.fromEntries(rows.map((row) => [row.id, row.heldCount]))).toEqual({ regular: 2, custom: 1 });
+  });
+
   it('gives scoped rows their lastPostedAt', async () => {
     await library();
     const rows = await albumQuery({ scope: { assetIds: ['asset-3'] } }).read(db);

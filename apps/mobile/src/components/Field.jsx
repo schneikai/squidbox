@@ -42,6 +42,10 @@ export default function Field({ label, description, onInfo, rightSlot, children,
   );
 }
 
+// A 44 pt button in the label row (the ⓘ, a rightSlot's) overlaps the space around the label instead
+// of making its row taller.
+const OVERLAP_LABEL_ROW = -(sizes.iconButton - lineHeights.footnote) / 2;
+
 const styles = StyleSheet.create({
   field: {
     gap: 8,
@@ -50,15 +54,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  // The 44 pt tap target overlaps the space around the label instead of making its row taller.
   info: {
-    marginVertical: -(sizes.iconButton - lineHeights.footnote) / 2,
+    marginVertical: OVERLAP_LABEL_ROW,
     marginLeft: -6,
   },
-  // A slot's 44 pt button overlaps the space around the label, as the ⓘ does.
   rightSlot: {
     marginLeft: 'auto',
-    marginVertical: -(sizes.iconButton - lineHeights.footnote) / 2,
+    marginVertical: OVERLAP_LABEL_ROW,
   },
   label: {
     fontSize: typography.footnote,

@@ -75,19 +75,19 @@ export function liveAlbumAssetIds(albumId: string | SQL): SQL {
  * in an album's Posts tab (liveAlbumAssetIds), though the album's grid hides it.
  */
 export function postAlbumAssetIds(postId: string): SQL {
-  const postAssetIds = sql`(select pe.asset_id from post_assets pe join assets pa on pa.id = pe.asset_id and pa.purged_at is null
-    where pe.post_id = ${postId} and pe.deleted_at is null)`;
-  return sql`(select aa.asset_id from album_assets aa join albums al on al.id = aa.album_id and al.deleted_at is null
-    where aa.deleted_at is null and aa.album_id in ${albumsOfAssets(postAssetIds)})`;
+  return albumAssetIdsOf(sql`(select pe.asset_id from post_assets pe join assets pa on pa.id = pe.asset_id and pa.purged_at is null
+    where pe.post_id = ${postId} and pe.deleted_at is null)`);
 }
 
 /**
- * The ids of the albums holding any of these assets (a list, or SQL selecting asset ids), through live
- * edges; the caller keeps the live albums.
+ * The ids of the assets of the live albums holding any of these assets (a list, or SQL selecting
+ * asset ids), through live edges.
  */
-export function albumsOfAssets(assetIds: string[] | SQL): SQL {
+export function albumAssetIdsOf(assetIds: string[] | SQL): SQL {
   const isOfAssets = Array.isArray(assetIds) ? inJson(sql.raw('asset_id'), assetIds) : sql`asset_id in ${assetIds}`;
-  return sql`(select album_id from album_assets where deleted_at is null and ${isOfAssets})`;
+  return sql`(select aa.asset_id from album_assets aa join albums al on al.id = aa.album_id and al.deleted_at is null
+    where aa.deleted_at is null and aa.album_id in (
+      select album_id from album_assets where deleted_at is null and ${isOfAssets}))`;
 }
 
 /** When any of an album's assets was last posted, through its live edges: `null` for never. */

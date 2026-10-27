@@ -1,7 +1,10 @@
 // What the assistant asks a model for: the JSON shape of the reply and the check it must pass, and
 // the one call that runs a task on a model (a compare runs it on several at once).
-import { ASSET_TAG_LIMITS, assetTagSchema, uniqueTags, WRITING_TWEET_COUNT } from '@squidbox/shared';
-import type { CatalogEntry } from './catalog.js';
+import { ASSET_TAG_LIMITS, assetTagSchema, uniqueTags, WRITING_TWEET_COUNT, type AiModelKind } from '@squidbox/shared';
+import type { Db } from '../db/client.js';
+import { AppError } from '../errors.js';
+import { catalogAsync, findModel, type CatalogEntry } from './catalog.js';
+import { readChosenModelId } from './modelChoices.js';
 import { tagsSchema, tweetsSchema } from './prompts.js';
 import { chatJsonAsync, VeniceError, type ChatMessage, type JsonSchemaSpec } from './venice.js';
 
@@ -80,4 +83,39 @@ export async function runTask<T>({
     signal,
   });
   return task.check(reply);
+}
+
+/**
+ * Runs the task on the user's chosen model of `kind` (or the default one) with the messages
+ * `messagesAsync` resolves to, read meanwhile. 502 ai_unavailable when the model is gone or can't do
+ * the kind, or when Venice fails; anything else is the error handler's 500. `signal` stops the call.
+ */
+export async function runChosenModelTask<T>({
+  db,
+  userId,
+  kind,
+  task,
+  messagesAsync,
+  signal,
+}: {
+  db: Db;
+  userId: string;
+  kind: AiModelKind;
+  task: AiTask<T>;
+  messagesAsync: Promise<ChatMessage[]>;
+  signal?: AbortSignal;
+}): Promise<T> {
+  const [modelId, catalog, messages] = await Promise.all([
+    readChosenModelId(db, userId, kind),
+    catalogAsync(),
+    messagesAsync,
+  ]);
+  const found = findModel(catalog.entries, modelId, kind);
+  if ('error' in found) throw AppError.aiUnavailable(`Your ${kind} model: ${found.error}`);
+  try {
+    return await runTask({ task, messages, model: found.entry, signal });
+  } catch (error) {
+    if (error instanceof VeniceError) throw AppError.aiUnavailable(error.message);
+    throw error;
+  }
 }

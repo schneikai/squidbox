@@ -30,7 +30,8 @@ function firstOf(scope, sort) {
  * a live read watches.
  * Sort, filter and search stay in JS (prepareAlbums), albums being hundreds.
  * @param {object} descriptor
- * @param {'all' | { assetIds: string[] }} [descriptor.scope] albums holding any of these assets
+ * @param {'all' | { assetIds: string[] }} [descriptor.scope] albums holding any of these assets, each
+ *   with `heldCount`, how many of them it holds
  * @param {string[]} [descriptor.oldestFirstIds] the albums sorted Oldest first (getAlbumSortOrder), whose
  *   cover is then their oldest asset unless they are on custom order
  */
@@ -57,6 +58,12 @@ export default function albumQuery({ scope = 'all', oldestFirstIds = [] }) {
     scope === 'all'
       ? undefined
       : sql`exists (select 1 from album_assets where album_id = al.id and deleted_at is null and ${inJson(sql.raw('asset_id'), scope.assetIds)})`;
+  const held =
+    scope === 'all'
+      ? {}
+      : {
+          heldCount: sql`(select count(distinct asset_id) from album_assets where album_id = al.id and deleted_at is null and ${inJson(sql.raw('asset_id'), scope.assetIds)})`,
+        };
 
   return {
     descriptor: { scope, oldestFirstIds },
@@ -64,7 +71,7 @@ export default function albumQuery({ scope = 'all', oldestFirstIds = [] }) {
     read(db) {
       return db.transaction(async (tx) => {
         const rows = await tx
-          .select({ ...getTableColumns(al), assetCount, coverAssetId, lastPostedAt: newestPostedAt })
+          .select({ ...getTableColumns(al), assetCount, coverAssetId, lastPostedAt: newestPostedAt, ...held })
           .from(al)
           .where(and(isNull(al.deletedAt), inScope));
         const covers = await readByIdMap(tx, schema.assets, rows.map((row) => row.coverAssetId).filter(Boolean));

@@ -1,15 +1,14 @@
 import { ScrollView, StyleSheet } from 'react-native';
 
-import Chip from '@/components/Chip';
-import IconButton from '@/components/IconButton';
 import { SCREEN_PADDING } from '@/constants';
-import { colors, sizes } from '@/styles/designTokens';
+import EditPromptButtonsButton from '@/features/prompt-buttons/EditPromptButtonsButton';
+import PromptButtonChip from '@/features/prompt-buttons/PromptButtonChip';
 
 /**
  * The prompt buttons under a reply (`buttons`), side by side, scrolling sideways when they don't fit:
- * a tap sends the button's prompt (`onSend(button)`); the pencil edits them (`onEdit`).
+ * a tap sends the button's prompt (`onSend(button)`); the pencil edits them.
  */
-export default function RefineRow({ buttons, onSend, onEdit }) {
+export default function RefineRow({ buttons, onSend }) {
   return (
     <ScrollView
       horizontal
@@ -19,21 +18,9 @@ export default function RefineRow({ buttons, onSend, onEdit }) {
       contentContainerStyle={styles.row}
     >
       {buttons.map((button) => (
-        <Chip
-          key={button.id}
-          label={button.name}
-          icon={button.icon}
-          variant="outlined"
-          onPress={() => onSend(button)}
-        />
+        <PromptButtonChip key={button.id} button={button} onPress={onSend} />
       ))}
-      <IconButton
-        icon="pencil"
-        size={sizes.iconSmall}
-        color={colors.text.secondary}
-        onPress={onEdit}
-        accessibilityLabel="Edit the Refine buttons"
-      />
+      <EditPromptButtonsButton />
     </ScrollView>
   );
 }

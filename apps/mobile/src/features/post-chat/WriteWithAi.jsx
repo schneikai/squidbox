@@ -1,16 +1,17 @@
 import { StyleSheet, View } from 'react-native';
 
+import promptTurn from './promptTurn';
 import useChatSession from './useChatSession';
 
 import Chip from '@/components/Chip';
 import ChipRow from '@/components/ChipRow';
 import Field from '@/components/Field';
-import IconButton from '@/components/IconButton';
 import ListDivider from '@/components/ListDivider';
+import EditPromptButtonsButton from '@/features/prompt-buttons/EditPromptButtonsButton';
+import PromptButtonChip from '@/features/prompt-buttons/PromptButtonChip';
 import usePromptButtons from '@/features/prompt-buttons/usePromptButtons';
 import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
 import useSeedPromptButtons from '@/hooks/useSeedPromptButtons';
-import { colors, sizes } from '@/styles/designTokens';
 
 /**
  * "Write with AI" under the post editor's caption, for an account with the assistant: without text the
@@ -18,8 +19,13 @@ import { colors, sizes } from '@/styles/designTokens';
  * chat) and the Refine buttons. Each opens the chat (`sessionId`), a prompt button with its prompt
  * in the composer, ready to send.
  */
-export default function WriteWithAi({ sessionId, text, navigation }) {
+export default function WriteWithAi(props) {
   const isAvailable = useIsAssistantAvailable();
+  if (!isAvailable) return null;
+  return <WriteWithAiSection {...props} />;
+}
+
+function WriteWithAiSection({ sessionId, text, navigation }) {
   const groups = usePromptButtons();
   const chat = useChatSession(sessionId);
   useSeedPromptButtons();
@@ -31,42 +37,25 @@ export default function WriteWithAi({ sessionId, text, navigation }) {
     hasText && hasMessages
       ? { label: 'Back to chat', icon: 'message-circle' }
       : { label: 'Ask anything', icon: 'sparkle' };
+  const openerChip = <Chip label={opener.label} icon={opener.icon} variant="outlined" onPress={() => openChat()} />;
 
   function openChat(prompt) {
     navigation.navigate('PostChatScreen', prompt ? { sessionId, prompt } : { sessionId });
   }
 
-  if (!isAvailable || !chat) return null;
-
-  const openerChip = (
-    <Chip key="open" label={opener.label} icon={opener.icon} variant="outlined" onPress={() => openChat()} />
-  );
-  const buttonChips = buttons.map((button) => (
-    <Chip
-      key={button.id}
-      label={button.name}
-      icon={button.icon}
-      variant="outlined"
-      onPress={() => openChat({ label: button.name, content: button.prompt })}
-    />
-  ));
+  if (!chat) return null;
 
   return (
     <View style={styles.section}>
       <ListDivider style={styles.divider} />
-      <Field
-        label="Write with AI"
-        rightSlot={
-          <IconButton
-            icon="pencil"
-            size={sizes.iconSmall}
-            color={colors.text.secondary}
-            onPress={() => navigation.navigate('PromptButtonsScreen')}
-            accessibilityLabel="Edit prompt buttons"
-          />
-        }
-      >
-        <ChipRow>{hasText ? [openerChip, ...buttonChips] : [...buttonChips, openerChip]}</ChipRow>
+      <Field label="Write with AI" rightSlot={<EditPromptButtonsButton />}>
+        <ChipRow>
+          {hasText && openerChip}
+          {buttons.map((button) => (
+            <PromptButtonChip key={button.id} button={button} onPress={(pressed) => openChat(promptTurn(pressed))} />
+          ))}
+          {!hasText && openerChip}
+        </ChipRow>
       </Field>
     </View>
   );

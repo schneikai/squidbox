@@ -1,43 +1,50 @@
+import createStore from '@/lib/createStore';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
-// The photos the assistant started tagging by itself in this app run, by asset id: `{ status:
-// 'loading' | 'done' | 'error', error, promise }`. A photo is tagged by itself once per run, and one
-// whose tagging failed waits for a retry, however often the screen that shows it opens again.
-let attempts = {};
-const listeners = new Set();
+// The taggings under way and the ones that failed in this app run, by asset id: `{ status: 'loading'
+// | 'error', error, promise }`; a tagging that landed leaves (its tags are on the row). Every tagging
+// goes through here (tagAssetAsync), so a screen shows one started anywhere.
+const attempts = createStore({});
+// The photos tagged by themselves in this app run: once each, and one whose tagging failed waits for
+// a retry, however often the screen that shows it opens again.
+const started = new Set();
 
-function set(id, attempt) {
-  attempts = { ...attempts, [id]: attempt };
-  for (const listener of listeners) listener();
+function setAttempt(id, attempt) {
+  attempts.set((current) => {
+    const { [id]: _dropped, ...rest } = current;
+    return attempt ? { ...rest, [id]: attempt } : rest;
+  });
 }
 
-function run(id, tag) {
+/**
+ * Runs `tag()` (a promise) for the photo, or joins the one under way; the result is `tag()`'s, a
+ * failure staying in the attempts until the next run.
+ */
+export function runTagging(id, tag) {
+  const running = attempts.get()[id];
+  if (running?.status === 'loading') return running.promise;
   const promise = new Promise((resolve) => resolve(tag())).then(
-    () => set(id, { status: 'done', error: null, promise }),
-    (error) => set(id, { status: 'error', error: apiErrorMessage(error), promise }),
+    (result) => {
+      setAttempt(id, null);
+      return result;
+    },
+    (error) => {
+      setAttempt(id, { status: 'error', error: apiErrorMessage(error), promise });
+      throw error;
+    },
   );
-  set(id, { status: 'loading', error: null, promise });
+  setAttempt(id, { status: 'loading', error: null, promise });
   return promise;
 }
 
-/** Starts `tag()` (a promise) for the photo unless it was started before in this app run. */
+/** Runs `tag()` for the photo unless it was started by itself before in this app run. */
 export function tagOnce(id, tag) {
-  if (attempts[id]) return attempts[id].promise;
-  return run(id, tag);
-}
-
-/** Starts `tag()` for the photo again, unless a tagging of it is under way. */
-export function retryTagging(id, tag) {
-  if (attempts[id]?.status === 'loading') return attempts[id].promise;
-  return run(id, tag);
+  if (started.has(id)) return;
+  started.add(id);
+  runTagging(id, tag).catch(() => {});
 }
 
 /** Every attempt by asset id, a new object on each change (for useSyncExternalStore). */
-export function getTagAttempts() {
-  return attempts;
-}
+export const getTagAttempts = attempts.get;
 
-export function subscribeTagAttempts(listener) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
+export const subscribeTagAttempts = attempts.subscribe;

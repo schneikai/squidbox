@@ -29,7 +29,7 @@ describe('chatSession', () => {
     expect(isSending).toBe(true);
     expect(messages).toMatchObject([
       { role: 'user', label: 'Caption', content: 'Write a caption' },
-      { role: 'assistant', status: 'loading', tweets: [], label: 'Caption' },
+      { role: 'assistant', status: 'loading', tweets: [] },
     ]);
     expect(calls[0]!.body).toEqual({ context, messages: [{ role: 'user', content: 'Write a caption' }] });
     calls[0]!.resolve(TWEETS);
@@ -130,14 +130,20 @@ describe('chatSession', () => {
     const listener = vi.fn();
     const unsubscribe = session.subscribe(listener);
     const first = session.getState();
-    session.setDraft({ text: 'Fog', assets: [] });
+    session.send({ content: 'First' }, context, deferredRequest().request);
     expect(listener).toHaveBeenCalledTimes(1);
     expect(session.getState()).not.toBe(first);
-    expect(session.getState().draft).toEqual({ text: 'Fog', assets: [] });
-    session.send({ content: 'First' }, context, deferredRequest().request);
-    expect(listener).toHaveBeenCalledTimes(2);
     unsubscribe();
     session.reset();
-    expect(listener).toHaveBeenCalledTimes(2);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the editor's draft without telling subscribers", () => {
+    const { session } = open();
+    const listener = vi.fn();
+    session.subscribe(listener);
+    session.setDraft({ text: 'Fog', assets: [] });
+    expect(session.getDraft()).toEqual({ text: 'Fog', assets: [] });
+    expect(listener).not.toHaveBeenCalled();
   });
 });

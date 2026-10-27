@@ -49,7 +49,6 @@ describe('postsRepository', () => {
       await createPost(db, { id: 'p4', text: 'deleted', postedAt: 40, deletedAt: 41 }, ['a2']);
       await createPost(db, { id: 'p5', text: 'only in a deleted album', postedAt: 50 }, ['a4']);
       expect(await readMentionTexts(db, ['a1'])).toEqual({ texts: ['newer', 'older, with @ridge'], fromAlbum: true });
-      expect(await readMentionTexts(db, ['a1'], 1)).toEqual({ texts: ['newer'], fromAlbum: true });
     });
 
     it('skips a post whose edge to the album asset was removed, and an asset taken out of the album', async () => {

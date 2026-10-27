@@ -1,6 +1,6 @@
 import { isNull, max, sql, type SQL } from 'drizzle-orm';
 
-import { albumsOfAssets } from './assetSql';
+import { albumAssetIdsOf } from './assetSql';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { makeRepository } from './repository';
@@ -27,29 +27,30 @@ export async function readNewestRepostDate(db: SyncDb): Promise<number> {
   return Number(row?.newest ?? 0);
 }
 
+// The posts the chat reads its mentions from, at most.
+const MENTION_POSTS = 100;
+
 /**
  * The texts of the live posts whose assets share a live album with `assetIds` (through live edges),
- * newest post date first, at most `limit`, with `fromAlbum: true`; without any (no album, or one never
- * posted from), the newest `limit` live posts, with `fromAlbum: false`. Where the chat finds the
+ * newest post date first, at most MENTION_POSTS, with `fromAlbum: true`; without any (no album, or one never
+ * posted from), the newest live posts, with `fromAlbum: false`. Where the chat finds the
  * handles the user mentions in posts like the one they write.
  */
 export async function readMentionTexts(
   db: SyncDb,
   assetIds: string[],
-  limit = 100,
 ): Promise<{ texts: string[]; fromAlbum: boolean }> {
   const p = schema.posts;
   const newest = sql`${p.postedAt} desc, ${p.id} desc`;
-  const inAlbums = sql`${p.id} in (select pe.post_id from post_assets pe where pe.deleted_at is null and pe.asset_id in (
-    select aa.asset_id from album_assets aa join albums al on al.id = aa.album_id and al.deleted_at is null
-    where aa.deleted_at is null and aa.album_id in ${albumsOfAssets(assetIds)}))`;
+  const inAlbums = sql`${p.id} in (select pe.post_id from post_assets pe
+    where pe.deleted_at is null and pe.asset_id in ${albumAssetIdsOf(assetIds)})`;
   const read = (where?: SQL) =>
     db
       .select({ text: p.text })
       .from(p)
       .where(where ? sql`${p.deletedAt} is null and ${where}` : isNull(p.deletedAt))
       .orderBy(newest)
-      .limit(limit);
+      .limit(MENTION_POSTS);
   const fromAlbum = assetIds.length > 0 ? await read(inAlbums) : [];
   if (fromAlbum.length > 0) return { texts: fromAlbum.map((row) => row.text), fromAlbum: true };
   return { texts: (await read()).map((row) => row.text), fromAlbum: false };

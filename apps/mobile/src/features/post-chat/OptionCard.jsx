@@ -1,36 +1,21 @@
 import * as Clipboard from 'expo-clipboard';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { memo } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
 import Card from '@/components/Card';
-import IconButton from '@/components/IconButton';
 import IconMenuButton from '@/components/IconMenuButton';
 import TextButton from '@/components/TextButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
+import FavoriteHeartButton from '@/features/favorites/FavoriteHeartButton';
 import useHaptics from '@/hooks/useHaptics';
 import { colors, lineHeights, typography } from '@/styles/designTokens';
-import { getDb } from '@/sync/db/client';
-import { addFavorites, removeFavorite } from '@/sync/favoritesRepository';
-import { requestSync } from '@/sync/worker';
 
 /**
- * One post the assistant wrote: its text, a heart that adds it to Favorites (from `source`, or takes
- * it out again: `favoriteId` is the favorite with this text, if any), ⋯ → More like this
- * (`onMoreLikeThis(text)`), and Use (`onUse(text)`, when given) or else Copy.
+ * One post the assistant wrote: its text, a heart (`isFavorite`; `onToggleFavorite(text, source)`), ⋯ → More
+ * like this (`onMoreLikeThis(text)`), and Use (`onUse(text)`, when given) or else Copy.
  */
-export default function OptionCard({ text, source, favoriteId, onMoreLikeThis, onUse }) {
+function OptionCard({ text, source, isFavorite, onToggleFavorite, onMoreLikeThis, onUse }) {
   const haptics = useHaptics();
-
-  async function handleHeart() {
-    haptics.selection();
-    try {
-      if (favoriteId) await removeFavorite(getDb(), favoriteId);
-      else await addFavorites(getDb(), [text], source);
-      requestSync();
-    } catch (error) {
-      console.error('Changing the favorite failed', error);
-      Alert.alert("Couldn't change Favorites", error.message);
-    }
-  }
 
   async function handleCopy() {
     await Clipboard.setStringAsync(text);
@@ -43,13 +28,7 @@ export default function OptionCard({ text, source, favoriteId, onMoreLikeThis, o
         {text}
       </Text>
       <View style={styles.actions}>
-        <IconButton
-          icon="heart"
-          filled={Boolean(favoriteId)}
-          color={favoriteId ? colors.status.danger : colors.text.secondary}
-          onPress={handleHeart}
-          accessibilityLabel={favoriteId ? 'Remove from favorites' : 'Add to favorites'}
-        />
+        <FavoriteHeartButton isFavorite={isFavorite} onPress={() => onToggleFavorite(text, source)} />
         <IconMenuButton color={colors.text.secondary} accessibilityLabel="More for this option">
           <MenuOption label="More like this" icon="repeat" onPress={() => onMoreLikeThis(text)} />
         </IconMenuButton>
@@ -64,6 +43,8 @@ export default function OptionCard({ text, source, favoriteId, onMoreLikeThis, o
     </Card>
   );
 }
+
+export default memo(OptionCard);
 
 const styles = StyleSheet.create({
   card: {
