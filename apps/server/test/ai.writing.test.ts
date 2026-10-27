@@ -182,7 +182,7 @@ describe('chatMessages', () => {
     expect(content).not.toContain('as tags');
     expect(content).not.toContain('Handles');
     expect(content).not.toContain("The post's text so far:");
-    expect(content).toContain('Reply with options for the post.');
+    expect(content).toContain('Reply with exactly 3 posts');
   });
 
   it('says when the post is one of theirs being edited', () => {

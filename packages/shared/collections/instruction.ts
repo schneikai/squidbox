@@ -89,8 +89,6 @@ export const DEFAULT_INSTRUCTIONS: Instructions = Object.freeze({
     'What the photos show, as tags: {tags}.',
     'Handles they mention in posts like this one: {mentions}. Mention one when it fits, written as given.',
     "The post's text so far: {text}",
-    'Reply with options for the post. A request to change them (shorter, funnier, …) applies to your last ' +
-      "options, or to the post's text so far when there are none yet.",
   ].join('\n'),
   // What ⋯ → More like this on an option sends; the app adds the option on its own lines after it.
   moreLikeThis: 'Write more options like this one: the same idea and tone, different wording each time.',
