@@ -13,8 +13,7 @@
       "ignoreUnresolved": ["babel-preset-expo"]
     },
     "apps/server": {
-      "entry": ["src/db/{migrate,seed}.ts", "scripts/*.ts"],
-      "ignoreBinaries": ["sleep"]
+      "entry": ["src/db/{migrate,seed}.ts", "scripts/*.ts"]
     },
     "packages/shared": {}
   },

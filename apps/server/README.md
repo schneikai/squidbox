@@ -45,15 +45,14 @@ Everything is scoped per user.
 ## Local development (no AWS, no cloud DB)
 
 A Docker Compose stack gives you Postgres + MinIO (S3-compatible) with the buckets pre-created,
-so you can run everything — migrate, seed, the server, and the full smoke test — locally.
+so you can run everything — migrate, seed and the server — locally. `npm run dev:local` from the repo
+root does all of it; by hand:
 
 ```
 cd apps/server
 cp .env.docker .env          # ready-made local config (throwaway creds; points at the stack)
 npm install                  # from the repo ROOT (workspaces) if not already done
-npm run local:setup          # docker compose up (Postgres + MinIO) + migrate + seed
-npm run smoke                # login → upload (small + >210MB) → download → delete  ⇒ SMOKE: PASS
-npm run verify:isolation     # two-device refresh + cross-tenant isolation  ⇒ ISOLATION: PASS
+npm run compose:up && npm run db:setup   # Postgres + MinIO, then migrate + seed
 npm run dev                  # run the server against the local stack (http://localhost:3100)
 ```
 
@@ -120,7 +119,7 @@ fly ssh console -C "sh -c 'cd /app/apps/server && npm run user:features:prod -- 
 ```
 npm run dev   -w @squidbox/server   # tsx watch (loads .env via your shell / --env-file)
 npm test      -w @squidbox/server   # vitest — unit + route tests (no DB/S3 needed; mocked)
-npm run smoke -w @squidbox/server   # end-to-end: login→upload(small+>210MB)→download→delete (needs real DB + S3)
+npm run test:db -w @squidbox/server # the DB-backed suites, against the compose Postgres
 ```
 
 `.env` is loaded by your shell or Node's `--env-file`; e.g. `node --env-file=.env` or

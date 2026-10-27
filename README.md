@@ -42,8 +42,7 @@ Common operations are driven by skills rather than memorized commands:
 
 | Skill | What it does |
 |---|---|
-| `/deploy-server` | Deploy the backend (Fly.io + Neon). First-time setup and routine one-command deploys; idempotent. |
-| `/legacy-import` | Import a user's old app backups (assets/albums/posts JSON in S3) into the backend: canonicalize ids to uuids, map to the current schema, upsert via sync push, verify. |
+| `/deploy-server` | Deploy the backend (Fly.io + Neon): build, migrate, release. |
 | `/ios-build` | Build the iOS app from the cloud (no Mac) via EAS. Asks whether to build the **App** (preview/release) or the **Dev Client**, then runs `eas` itself — no flags or profiles to remember. |
 | `/build` | Deliver a feature, bug fix or refactor end to end: plan, build, review and a PR. |
 
@@ -95,7 +94,7 @@ It writes a missing `apps/mobile/.env.local` from the environment variables (clo
 
 Metro serves the API and file storage through its own tunnel (`apps/mobile/scripts/localBackendProxy.js`), and the script sets `EXPO_PUBLIC_LOCAL_BACKEND`, which makes the app send its API calls to the dev server it loaded from (`Constants.expoConfig.hostUri`). So no env file holds the tunnel URL, and `.env.local` stays pointed at the live backend. On the first run, `apps/server/.env` is created from `.env.docker`. The local backend has its own `SERVER_ID`, so its session and library never pass for the live server's.
 
-**Your own library, copied.** To judge features like the AI on your real posts and photos, `npm run dev:local -- --copy-my-library` copies your live library's data into a second local account (it asks for your live login once; or run `npm run copy:my-library` in `apps/server/` while it runs). Only the data is copied: the local server shows the copy's photos straight from the live storage, asking the live backend for download links with the session the copy saved (`apps/server/.library-copy-session.json`, gitignored), and refuses uploads to it. Nothing in the copy can change your live library. Re-run it to refresh the copy. Settings → Dev accounts switches between the mock library and the copy with one tap.
+**A copy of your own library.** To judge features like the AI on your real posts and photos, Settings → Dev accounts switches between the mock library and a copy of your live library with one tap. The first time you open the copy, the local server copies your library's data from the live database (one read-only transaction; `npm run dev:local` gets the database URL from the live server through `fly`, or from `LIVE_DATABASE_URL`). Files are never copied: the copy shows your photos from the live bucket through read-only links, signed with `LIVE_AWS_ACCESS_KEY_ID` / `LIVE_AWS_SECRET_ACCESS_KEY`. Uploads to the copy are refused, and its deletes reach only the local storage, so nothing in the copy reaches your live library (`apps/server/src/dev/libraryCopy.ts`).
 
 **The live backend, on the owner's request only.** To look into a problem in your own account, `npm run dev:local -- --live-backend-on-owner-request` starts Metro and the tunnel against `EXPO_PUBLIC_API_URL` instead. Sign in with your account: the local account's library is parked and yours opens (see [Accounts and libraries](#accounts-and-libraries)). Never use it otherwise: the dev client's changes go to your real library.
 
@@ -117,7 +116,7 @@ The web build is a preview, not a target. Platform files (`*.web.js`) stand in f
 
 ## Deploying the backend
 
-Run `/deploy-server`. It handles first-time setup (Fly app + Neon DB + secrets + seed) and routine deploys (build, migrate, release) via the `fly` and `neonctl` CLIs. To import a user's old backups, run `/legacy-import`.
+Run `/deploy-server`. It builds, migrates and releases via the `fly` CLI.
 
 ## Dependencies
 

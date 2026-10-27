@@ -13,7 +13,7 @@ import { AppError } from '../errors.js';
 import { authenticate, requireUser } from '../auth/authenticate.js';
 import { resolveStorage, type StorageLocation } from './resolver.js';
 import { isPurgedFileKey } from '../sync/purgedFiles.js';
-import { isLinkedLibrary, linkedDownloadUrls, readOnlyLibraryError } from './linkedLibrary.js';
+import { isLibraryCopy, liveDownloadUrls, readOnlyLibraryError } from '../dev/libraryCopy.js';
 import { presignedDownloadUrl, uploadStream, deleteObjects } from './s3.js';
 
 function storageFor(request: FastifyRequest): StorageLocation {
@@ -52,7 +52,7 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
     schema: { body: downloadUrlsRequestSchema, response: { 200: downloadUrlsResponseSchema } },
     handler: async (request) => {
       const expiresIn = resolveExpiresIn(request.body.expiresIn);
-      if (isLinkedLibrary(requireUser(request))) return linkedDownloadUrls(request.body.keys, expiresIn);
+      if (isLibraryCopy(requireUser(request))) return liveDownloadUrls(request.body.keys, expiresIn);
       const loc = storageFor(request);
       const urls = await Promise.all(
         request.body.keys.map(async (key) => ({
@@ -78,7 +78,7 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
       preHandler: authenticate({ allowQueryToken: true }),
       handler: async (request, reply) => {
         const user = requireUser(request);
-        if (isLinkedLibrary(user)) throw readOnlyLibraryError();
+        if (isLibraryCopy(user)) throw readOnlyLibraryError();
         const userId = user.id;
         const fileKey = (request.params as Record<string, string>)['*'];
         if (!fileKey) throw new AppError(400, 'validation_error', 'Missing file key');

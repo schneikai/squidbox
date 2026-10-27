@@ -105,8 +105,7 @@ every push transaction first takes a per-user advisory lock:
 `server_seq` order then equals commit order, so the last seq a pull returns is a safe watermark.
 Other users' commits can't hide or reorder this user's rows, and users never wait on each other.
 
-**Invariant: every write to a syncable table goes through `push()`.** The legacy importer (§11)
-does too. The one other write, the purge cleanup's server-only marker (§7a), takes the same lock
+**Invariant: every write to a syncable table goes through `push()`.** The one other write, the purge cleanup's server-only marker (§7a), takes the same lock
 (`withUserLock`).
 A write that skips the lock reopens the visibility gap; a write that skips the trigger
 is never pulled. Together with "no hard deletes" (§7), this is a code-review rule.
@@ -340,7 +339,7 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
   partly sent group the same way (both through `widenToGroups`), so the group never mixes two
   devices' values. Assets have three: `isFileSynced`, `isThumbnailSynced`, `isSynced` (§4),
   `isFavorite`, `favoritedAt`, and `deletedAt`, `purgedAt`.
-- **Whole-record pushes** (an app from before per-field merge, the legacy importer) send no
+- **Whole-record pushes** (an app from before per-field merge, the dev client's library copy) send no
   `fields`; the server merges every field they carry at their `updatedAt`, so they win or lose
   field by field like any push. Outbox rows from before per-field merge are marked `whole_record`
   (SQLite migration 0011) and pushed without `fields` too, an edit coalesced into one included; on
@@ -908,16 +907,9 @@ Derived on-device, not synced: `album.assets`, `post.assetRefs`, and `postHistor
 
 ## 11. Legacy importer
 
-Libraries from the old app are imported on the server, not on a device. The importer
-(`apps/server/scripts/convert-legacy.ts`, logic in `apps/server/src/convert/`) reads the old JSON
-backups (`assets.json`, `albums.json`, `posts.json`) from the user's S3 location. It converts old
-ids to deterministic uuid v5 ids, maps records to the current schema (`isDeleted` becomes
-`deletedAt`; the `is*Synced` flags carry over), and turns album `assets` and post `assetRefs`
-arrays into `album_assets` / `post_assets` edges with `initialKeys` positions. Everything is
-written through `push()`, so it is validated, LWW-upserted and `server_seq`-stamped like a client
-push. The import is idempotent and safe to re-run. Asset files stay at their existing S3 keys.
-
-Runbook: [`legacy-import.md`](./legacy-import.md), or the `/legacy-import` skill.
+Libraries from the old app were imported once, on the server, through `push()`; the importer is
+gone. Imported records kept deterministic uuid v5 ids, and their files stay at their old S3 keys
+(the account's own bucket, `users.storage_bucket`).
 
 ---
 
