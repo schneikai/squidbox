@@ -39,7 +39,8 @@ export const WRITING_TWEET_COUNT = 3;
 // Photos in one vision compare: each is a request, so two rounds in a minute stay well within the
 // vision route's rate limit (240 a minute).
 export const VISION_COMPARE_MAX_PHOTOS = 50;
-// The app sends the 1000 px thumbnail as a JPEG, ~150–400 KB (~0.5 MB as base64).
+// The app sends a 512 px JPEG (readVisionImageAsync); the limit still takes the 1000 px thumbnail
+// (~150–400 KB, ~0.5 MB as base64) that older apps send.
 export const VISION_IMAGE_MAX_BASE64_LENGTH = 1_500_000;
 
 // One photo as the app sends it.
