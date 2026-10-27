@@ -32,6 +32,11 @@ const envSchema = z.object({
   // An empty value counts as unset.
   VENICE_API_KEY: z.preprocess((v) => (v === '' ? undefined : v), z.string().min(1).optional()),
   VENICE_BASE_URL: z.string().url().default('https://api.venice.ai/api/v1'),
+
+  // Local dev only: the account `npm run copy:my-library` fills with a copy of the owner's live
+  // library. Its files stay in the live storage: download URLs come from the live backend, through the
+  // session the copy saved (storage/linkedLibrary.ts), and uploads are refused.
+  LIBRARY_COPY_EMAIL: z.preprocess((v) => (v === '' ? undefined : v), z.string().email().optional()),
 });
 
 export type Config = z.infer<typeof envSchema>;

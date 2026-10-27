@@ -12,6 +12,7 @@
  *
  *   npm run dev:local                    # local backend
  *   npm run dev:local -- --reset-data    # also reset the account to exactly the mock data set
+ *   npm run dev:local -- --copy-my-library   # also copy your live library into the library-copy account
  *   npm run dev:local -- --web           # no tunnel: only for the web preview on this machine
  *   npm run dev:local -- --live-backend-on-owner-request   # the live backend, on the owner's request only
  */
@@ -36,6 +37,7 @@ const TUNNEL_ATTEMPTS = 20;
 
 const live = process.argv.includes('--live-backend-on-owner-request');
 const resetData = process.argv.includes('--reset-data');
+const copyMyLibrary = process.argv.includes('--copy-my-library');
 const webOnly = process.argv.includes('--web');
 const children = new Set();
 
@@ -63,7 +65,15 @@ async function startLocalBackendAndMetro() {
     copyFileSync(`${SERVER_DIR}/.env.docker`, SERVER_ENV);
     log('Created apps/server/.env from .env.docker');
   }
-  const serverEnv = parseEnv(readFileSync(SERVER_ENV, 'utf8'));
+  // .env.docker supplies what an older apps/server/.env lacks (the library-copy account).
+  const serverEnv = {
+    ...parseEnv(readFileSync(`${SERVER_DIR}/.env.docker`, 'utf8')),
+    ...parseEnv(readFileSync(SERVER_ENV, 'utf8')),
+  };
+  const copyAccountEnv = {
+    LIBRARY_COPY_EMAIL: serverEnv.LIBRARY_COPY_EMAIL,
+    LIBRARY_COPY_PASSWORD: serverEnv.LIBRARY_COPY_PASSWORD,
+  };
 
   log('Starting Postgres + MinIO');
   run('docker', ['compose', 'up', '-d'], SERVER_DIR);
@@ -73,18 +83,38 @@ async function startLocalBackendAndMetro() {
       spawnSync('docker', ['compose', 'exec', '-T', 'postgres', 'pg_isready', '-q'], { cwd: SERVER_DIR }).status === 0,
   );
   run('docker', ['compose', 'wait', 'createbuckets'], SERVER_DIR);
-  run('npm', ['run', 'db:setup', '--silent'], SERVER_DIR, backendEnv());
+  run('npm', ['run', 'db:setup', '--silent'], SERVER_DIR, backendEnv(copyAccountEnv));
 
   const metroEnv = {
     EXPO_PUBLIC_LOCAL_BACKEND: 'true',
     // In development, .env.local wins over these; leave the login prefill out of it.
     EXPO_PUBLIC_LOGIN_FORM_EMAIL: serverEnv.SEED_USER_EMAIL,
     EXPO_PUBLIC_LOGIN_FORM_PASSWORD: serverEnv.SEED_USER_PASSWORD,
+    // The one-tap sign-ins in Settings (features/dev-accounts).
+    EXPO_PUBLIC_DEV_ACCOUNTS: JSON.stringify([
+      { label: 'Mock library', email: serverEnv.SEED_USER_EMAIL, password: serverEnv.SEED_USER_PASSWORD },
+      {
+        label: 'Copy of my library',
+        email: copyAccountEnv.LIBRARY_COPY_EMAIL,
+        password: copyAccountEnv.LIBRARY_COPY_PASSWORD,
+      },
+    ]),
   };
   const publicUrl = webOnly ? await startMetroLocally(metroEnv) : await startMetroWithTunnel(metroEnv);
 
   log('Starting the API server');
-  const server = start('npm', ['run', 'dev', '--silent'], SERVER_DIR, backendEnv({ S3_PUBLIC_ENDPOINT: publicUrl }));
+  // The library copy's files come from the live backend (apps/server/src/storage/linkedLibrary.ts),
+  // through the cloud workspace's proxy when there is one.
+  const server = start(
+    'npm',
+    ['run', 'dev', '--silent'],
+    SERVER_DIR,
+    backendEnv({
+      S3_PUBLIC_ENDPOINT: publicUrl,
+      LIBRARY_COPY_EMAIL: copyAccountEnv.LIBRARY_COPY_EMAIL,
+      NODE_USE_ENV_PROXY: '1',
+    }),
+  );
   const serverLog = createWriteStream(SERVER_LOG);
   server.stdout.pipe(serverLog);
   server.stderr.pipe(serverLog);
@@ -98,9 +128,14 @@ async function startLocalBackendAndMetro() {
     run('npm', ['run', 'seed:mock', '--silent'], SERVER_DIR, backendEnv());
   }
 
+  if (copyMyLibrary) {
+    log('Copying your live library');
+    run('npm', ['run', 'copy:my-library', '--silent'], SERVER_DIR, backendEnv(copyAccountEnv));
+  }
+
   console.log(`
   ${webOnly ? 'Web preview:            ' : 'Open in Squidbox (Dev): '} ${publicUrl}
-  Sign in as:              ${serverEnv.SEED_USER_EMAIL} (prefilled)
+  Sign in as:              ${serverEnv.SEED_USER_EMAIL} (prefilled), or tap an account in Settings
   Server log:              ${SERVER_LOG}
 `);
 }

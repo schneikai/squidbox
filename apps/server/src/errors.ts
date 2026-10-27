@@ -15,6 +15,7 @@ export type ErrorCode =
   | 'ai_not_allowed'
   | 'ai_admin_not_allowed'
   | 'developer_only'
+  | 'read_only_library'
   | 'internal';
 
 export class AppError extends Error {
