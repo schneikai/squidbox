@@ -31,8 +31,9 @@ export default chatSessions;
 
 // The transcript as the server takes it: the user's turns and the assistant's answered replies,
 // oldest first (a reply loading or failed is left out, and a turn the server refused as invalid with
-// its reply, so it doesn't fail every later send), the newest CHAT_LIMITS.messages of them. A reply
-// goes as `{ reply, postOptions }`, as it came.
+// its reply, so it doesn't fail every later send), the newest CHAT_LIMITS.messages of them, starting
+// with a user turn (a reply the cut left first goes too). A reply goes as `{ reply, postOptions }`, as
+// it came.
 function wireTurns(messages) {
   const turns = messages.flatMap((message, index) => {
     if (message.role === 'user') {
@@ -43,7 +44,8 @@ function wireTurns(messages) {
       ? [{ role: 'assistant', reply: message.reply, postOptions: message.postOptions }]
       : [];
   });
-  return turns.slice(-CHAT_LIMITS.messages);
+  const newest = turns.slice(-CHAT_LIMITS.messages);
+  return newest[0]?.role === 'assistant' ? newest.slice(1) : newest;
 }
 
 /**
@@ -124,8 +126,8 @@ function createSession(kind) {
 
     /**
      * Sends the user's turn (`{ label, content }`) about `context` (chatContextSchema) through
-     * `request(body, { signal })`, which resolves to the reply's posts. → the reply's promise, or
-     * null when nothing was sent (a reply is loading, or the chat was closed).
+     * `request(body, { signal })`, which resolves to the reply, `{ reply, postOptions }`. → the
+     * reply's promise, or null when nothing was sent (a reply is loading, or the chat was closed).
      */
     send({ label = null, content }, context, request) {
       if (store.get().isSending || isClosed) return null;

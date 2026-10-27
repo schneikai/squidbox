@@ -139,6 +139,8 @@ describe('fillLines', () => {
     expect(fillLines(template, { a: '', b: '', c: '' })).toBe('Intro\n\n# D\nKept');
     expect(fillLines(template, { a: 'one', b: '', c: '' })).toBe('Intro\n\n# A\none\n\n# D\nKept');
     expect(fillLines(template, { a: '', b: '', c: 'three' })).toBe('Intro\n\n# C\nthree\n\n# D\nKept');
+    // A hashtag line is not a heading: it stays, and keeps the section above it.
+    expect(fillLines('# A\n{a}\n#nofilter\n# B\nKept', { a: '' })).toBe('# A\n#nofilter\n# B\nKept');
   });
 });
 
@@ -168,7 +170,18 @@ describe('chatMessages', () => {
     expect(content).not.toContain('About the creator:');
     expect(content).not.toContain(WRITING_FORMAT);
     expect(content).not.toContain('{"tweets"');
-    expect(content).not.toMatch(/\{(aboutYou|tone|contentTags|rules|favorites|media|tags|mentions|caption|count)\}/);
+    expect(content).not.toMatch(
+      /\{(aboutYou|tone|contentTags|rules|instructions|favorites|media|tags|mentions|caption|count)\}/,
+    );
+    expect(content).not.toContain('# Their own instructions');
+  });
+
+  it("adds the user's own Writing instructions once they changed the default", () => {
+    const writing = 'Always end with a question.';
+    const content = systemOfChat({ instructions: { ...DEFAULT_INSTRUCTIONS, writing } });
+    expect(content).toContain(
+      `- Never name the exact spot\n\n# Their own instructions\n${writing}\n\n# Posts they liked`,
+    );
   });
 
   it('puts the persona and Favorites under their headings, the rules and favorites as lines', () => {

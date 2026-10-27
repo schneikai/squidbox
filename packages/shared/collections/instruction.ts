@@ -33,8 +33,9 @@ export const INSTRUCTION_KINDS = ['writing', 'visionTagging'] as const;
  * The app's own prompt texts, in the order the Instructions screen's App prompts lists them. Each is a
  * template the server fills in: `{count}` (writingFormat, the Compare's reply format), `{themes}`
  * (themesContext), `{aboutYou}`, `{tone}`, `{contentTags}`, `{rules}`, `{favorites}` (personaFraming,
- * the Compare's), and `{aboutYou}`, `{tone}`, `{contentTags}`, `{rules}`, `{favorites}`, `{media}`,
- * `{tags}`, `{mentions}`, `{caption}`, `{count}` (chatContext, the whole chat briefing). moreLikeThis
+ * the Compare's), and `{aboutYou}`, `{tone}`, `{contentTags}`, `{rules}`, `{instructions}` (the
+ * user's own `writing`, when they changed it), `{favorites}`, `{media}`, `{tags}`, `{mentions}`,
+ * `{caption}`, `{count}` (chatContext, the whole chat briefing). moreLikeThis
  * is the app's: it sends it with the option after it.
  */
 export const APP_PROMPT_KINDS = [
@@ -54,7 +55,8 @@ export type Instructions = Record<InstructionKind, string>;
 
 /** The app's text for each kind, used while the user's is null. */
 export const DEFAULT_INSTRUCTIONS: Instructions = Object.freeze({
-  // The Compare's writing instructions; the chat has its own briefing (chatContext).
+  // The Compare's writing instructions; the chat has its own briefing (chatContext), which adds the
+  // user's own text as {instructions} when they changed this one.
   writing: 'You write social posts for a content creator, in their voice. Each post is ready to publish as it is.',
   visionTagging:
     "Tag this photo with 8 short, specific tags. Capture what's visible, the atmosphere, aesthetic, and " +
@@ -100,6 +102,9 @@ Themes they post about: {contentTags}
 # Their rules
 Every post you write follows these, no exceptions:
 {rules}
+
+# Their own instructions
+{instructions}
 
 # Posts they liked
 Write posts that sound like these (voice, length, rhythm; never copy them):

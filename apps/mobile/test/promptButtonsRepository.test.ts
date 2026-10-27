@@ -1,3 +1,5 @@
+import { mergeRecord, promptButtonCollection } from '@squidbox/shared';
+import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
 import { makeTestDb } from './helpers/testDb';
@@ -82,6 +84,28 @@ describe('promptButtonsRepository', () => {
     expect(await seedPromptButtons(db, defaults)).toBe(false);
     expect(await order(db, 'caption')).toEqual([]);
     expect(await order(db, 'refine')).toEqual(['d3', 'd5']);
+  });
+
+  it("seeds at the lowest clock, so another device's deletion of a default wins on the server", async () => {
+    const db = await syncedDb();
+    await seedPromptButtons(db, defaults);
+    const [seeded] = await db.select().from(schema.promptButtons).where(eq(schema.promptButtons.id, ID.d5!));
+    expect(seeded!.updatedAt).toBe(1);
+    const [queued] = await db.select().from(schema.outbox).where(eq(schema.outbox.recordId, ID.d5!));
+    expect(Object.values(queued!.fields).every((clock) => clock === 1)).toBe(true);
+
+    // The server holds the default as another device deleted it, then this device's seed arrives.
+    const deletedAt = Date.now();
+    const stored = { ...seeded!, updatedAt: deletedAt, deletedAt };
+    const clocks = Object.fromEntries(promptButtonCollection.mergeFields.map((field) => [field, deletedAt]));
+    const merged = mergeRecord(promptButtonCollection, {
+      stored,
+      storedClocks: clocks,
+      sent: queued!.payload as typeof stored,
+      sentClocks: queued!.fields,
+    });
+    expect(merged.applied).toEqual([]);
+    expect(merged.record.deletedAt).toBe(deletedAt);
   });
 
   it('waits for the first full pull before seeding', async () => {

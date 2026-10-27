@@ -3,7 +3,7 @@ const instructionText = {
   writing: {
     title: 'Writing',
     description:
-      'Before every post the Compare writes; the chat has its own briefing. The reply format (how many posts, JSON) is added by the app.',
+      'Before every post the Compare writes, and in the chat briefing as {instructions} once you change it. The reply format (how many posts, JSON) is added by the app.',
   },
   visionTagging: {
     title: 'Photo tags',
@@ -33,7 +33,7 @@ const instructionText = {
   chatContext: {
     title: 'Chat briefing',
     description:
-      'The whole system message of the chat: who you are ({aboutYou}, {tone}, {contentTags}, {rules}, {favorites}), the post ({media}, {tags}, {mentions}, {caption}) and how to answer, with {count} options when you ask for posts. A line whose placeholder is empty is left out, with its heading.',
+      'The whole system message of the chat: who you are ({aboutYou}, {tone}, {contentTags}, {rules}, {instructions}: your Writing instructions once you change them, {favorites}), the post ({media}, {tags}, {mentions}, {caption}) and how to answer, with {count} options when you ask for posts. A line whose placeholder is empty is left out, with its heading.',
   },
   moreLikeThis: {
     title: 'More like this',

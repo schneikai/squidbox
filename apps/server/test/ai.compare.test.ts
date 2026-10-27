@@ -22,7 +22,7 @@ import {
   checkTags,
   checkTweets,
   fitTags,
-  reasoningEffort,
+  quickReasoning,
   runTask,
   visionTask,
   writingTask,
@@ -139,10 +139,10 @@ describe('checking the replies', () => {
   });
 
   it("turns a model's reasoning down as far as its spec allows", () => {
-    expect(reasoningEffort(model('deepseek-v4-1-flash-uncensored'))).toBe('low');
-    expect(reasoningEffort(model('grok-4-7'))).toBe('low');
-    expect(reasoningEffort(model('qwen-3-6-plus'))).toBe('none');
-    expect(reasoningEffort(model('venice-uncensored-1-2'))).toBeUndefined();
+    expect(quickReasoning(model('deepseek-v4-1-flash-uncensored'))).toEqual({ effort: 'low' });
+    expect(quickReasoning(model('grok-4-7'))).toEqual({ effort: 'low' });
+    expect(quickReasoning(model('qwen-3-6-plus'))).toEqual({ disableThinking: true });
+    expect(quickReasoning(model('venice-uncensored-1-2'))).toBeUndefined();
   });
 
   it('takes any number of tags, trimmed, without empty ones and case-insensitive duplicates, in order', () => {
@@ -186,6 +186,37 @@ describe('runTask', () => {
     expect(sent.reasoning_effort).toBe('low');
     expect(sent.response_format.json_schema.name).toBe('chat_reply');
     expect(sent.response_format.json_schema.schema.properties.postOptions).not.toHaveProperty('maxItems');
+    expect(sent.venice_parameters).not.toHaveProperty('disable_thinking');
+  });
+
+  it('runs a chat reply on a model that only reasons with its thinking off', async () => {
+    replies({ 'qwen-3-6-plus': { reply: 'Sure.', postOptions: [] } });
+    await runTask({ task: chatTask, messages: [{ role: 'user', content: 'Hi' }], model: model('qwen-3-6-plus') });
+    const sent = JSON.parse(fetchMock.mock.calls[0]![1].body);
+    expect(sent.venice_parameters.disable_thinking).toBe(true);
+    expect(sent).not.toHaveProperty('reasoning_effort');
+  });
+
+  it('reads a chat reply that misses the schema as far as it goes', async () => {
+    const run = async (content: string) => {
+      replies({ 'deepseek-v4-1-flash-uncensored': content });
+      return runTask({
+        task: chatTask,
+        messages: [{ role: 'user', content: 'Hi' }],
+        model: model('deepseek-v4-1-flash-uncensored'),
+      });
+    };
+    await expect(run('{"reply":"Sounds good."}')).resolves.toEqual({ reply: 'Sounds good.', postOptions: [] });
+    await expect(run('{"reply":"Here.","postOptions":null}')).resolves.toEqual({ reply: 'Here.', postOptions: [] });
+    await expect(run('{"reply":"Here.","postOptions":"one post"}')).resolves.toEqual({
+      reply: 'Here.',
+      postOptions: [],
+    });
+    await expect(run('{"reply":"Two.","postOptions":["a",3,"b"]}')).resolves.toEqual({
+      reply: 'Two.',
+      postOptions: ['a', 'b'],
+    });
+    await expect(run('{"message":"Hi"}')).resolves.toEqual({ reply: '{"message":"Hi"}', postOptions: [] });
   });
 
   it("runs any other task on the model's own reasoning defaults, and fails an unreadable reply", async () => {

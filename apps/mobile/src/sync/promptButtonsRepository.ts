@@ -25,6 +25,8 @@ import newRecord from '@/utils/newRecord';
 type PromptButtonChanges = Partial<Pick<PromptButtonRecord, 'name' | 'prompt' | 'placement' | 'icon'>>;
 
 const t = schema.promptButtons;
+// A seeded default's clock: older than any real write, so every edit of the default wins over it.
+const SEED_CLOCK = 1;
 const repository = makeRepository<PromptButtonRecord>('prompt_buttons', t);
 
 /** The live buttons, by placement, each placement in its order. */
@@ -120,7 +122,10 @@ export async function movePromptButton(db: SyncDb, id: string, afterId: string |
  * tombstones included, so a deleted default never comes back and one moved to another placement stays
  * where it is. A default added in a later version reaches a library that already has buttons once,
  * at the end of its placement. Their ids are fixed, so two devices that both seed before syncing
- * converge on one row each. Returns whether it seeded any.
+ * converge on one row each. A seeded button carries the lowest clock (SEED_CLOCK): a device can seed
+ * before this launch's pull has brought another device's deletion or move of that default, and any
+ * real edit, tombstone included, then wins over the seed on the server (the push answers
+ * `skipped-lww` with the stored row). Returns whether it seeded any.
  */
 export async function seedPromptButtons(
   db: SyncDb,
@@ -141,7 +146,7 @@ export async function seedPromptButtons(
       const before = last.get(button.placement);
       const position = before ? keyBetween(before, null) : await positionAtEnd(tx, button.placement);
       last.set(button.placement, position);
-      records.push(newRecord(promptButtonCollection, {}, { ...button, position }));
+      records.push(newRecord(promptButtonCollection, {}, { ...button, position, updatedAt: SEED_CLOCK }));
     }
     await saveRecords(tx, 'prompt_buttons', t, records, { isNew: true });
     return true;

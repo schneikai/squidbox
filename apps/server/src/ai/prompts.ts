@@ -1,6 +1,7 @@
 // The AI's prompts and the JSON each model must answer with.
 import {
   chatReplyFieldsSchema,
+  DEFAULT_INSTRUCTIONS,
   WRITING_TWEET_COUNT,
   type ChatContext,
   type ChatReply,
@@ -64,7 +65,8 @@ export function writingMessages({
 
 /**
  * The assistant chat, as the user: the chat briefing (`instructions.chatContext`, filled with their
- * persona, Favorites and the post) as the whole system message, then the transcript, a past reply in
+ * persona, their own Writing instructions when they changed the default, Favorites and the post) as
+ * the whole system message, then the transcript, a past reply in
  * the JSON the model replies in.
  */
 export function chatMessages({
@@ -81,7 +83,15 @@ export function chatMessages({
   instructions: Instructions;
 }): ChatMessage[] {
   return [
-    { role: 'system', content: chatBriefingText(instructions.chatContext, { persona, favorites, context }) },
+    {
+      role: 'system',
+      content: chatBriefingText(instructions.chatContext, {
+        persona,
+        favorites,
+        context,
+        writing: instructions.writing === DEFAULT_INSTRUCTIONS.writing ? '' : instructions.writing,
+      }),
+    },
     ...transcript.map((turn): ChatMessage =>
       turn.role === 'user'
         ? { role: 'user', content: turn.content }
@@ -92,7 +102,8 @@ export function chatMessages({
 
 const PLACEHOLDER = /\{(\w+)\}/;
 
-const HEADING = /^#/;
+// A markdown heading ("# The creator"), not a line that starts with a hashtag.
+const HEADING = /^#{1,6}\s/;
 
 /**
  * `template` filled with `values`, where a line whose placeholder is empty goes, with a heading line
@@ -159,11 +170,17 @@ function mediaText({ photo, video }: ChatContext['media']): string {
  */
 export function chatBriefingText(
   template: string,
-  { persona, favorites, context }: { persona: Persona; favorites: string[]; context: ChatContext },
+  {
+    persona,
+    favorites,
+    context,
+    writing = '',
+  }: { persona: Persona; favorites: string[]; context: ChatContext; writing?: string },
 ): string {
   const caption = context.text.trim();
   return fillLines(template, {
     ...personaValues(persona),
+    instructions: writing.trim(),
     // "- " lines as the briefing was tested with (the Compare's personaFraming keeps its --- blocks), a
     // favorite's own line breaks made spaces so each stays one line.
     favorites: favorites.map((post) => `- ${post.trim().replace(/\s*\n\s*/g, ' ')}`).join('\n'),

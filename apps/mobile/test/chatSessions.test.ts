@@ -58,7 +58,7 @@ describe('chatSessions', () => {
     ]);
   });
 
-  it('sends only the newest 30 turns', async () => {
+  it('sends only the newest 30 turns, starting with a user turn', async () => {
     const { session } = open();
     const { request, calls } = deferredRequest();
     for (let turn = 0; turn < 16; turn++) {
@@ -68,9 +68,9 @@ describe('chatSessions', () => {
     }
     session.send({ content: 'Last' }, context, request);
     const { messages } = calls[16]!.body;
-    expect(messages).toHaveLength(30);
-    expect(messages[0]).toEqual({ role: 'assistant', ...REPLY });
-    expect(messages[29]).toEqual({ role: 'user', content: 'Last' });
+    expect(messages).toHaveLength(29);
+    expect(messages[0]).toEqual({ role: 'user', content: 'Turn 2' });
+    expect(messages[28]).toEqual({ role: 'user', content: 'Last' });
   });
 
   it('does nothing on a send while a reply loads', () => {
