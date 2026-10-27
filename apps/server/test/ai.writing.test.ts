@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_INSTRUCTIONS } from '@squidbox/shared';
+import { DEFAULT_INSTRUCTIONS, INSTRUCTION_LIMITS } from '@squidbox/shared';
 import { chatMessages, fillLines, writingFormatText, writingMessages } from '../src/ai/prompts.js';
 
 const WRITING_FORMAT = writingFormatText(DEFAULT_INSTRUCTIONS.writingFormat);
@@ -177,6 +177,16 @@ describe('chatMessages', () => {
     expect(content).toContain('Themes they post about: hiking, forest');
     expect(content).toContain('no exceptions:\n- Never use hashtags\n- Never name the exact spot');
     expect(content).toContain('never copy them):\n- First light on the ridge.\n- Fog on the lake.');
+  });
+
+  it('has default App prompts that an edit could save as they are', () => {
+    for (const text of Object.values(DEFAULT_INSTRUCTIONS))
+      expect(text.length).toBeLessThanOrEqual(INSTRUCTION_LIMITS.text);
+  });
+
+  it('keeps a favorite with line breaks on its one line', () => {
+    const content = systemOfChat({ favorites: ['Up early.\n\nFog on the lake.'] });
+    expect(content).toContain('never copy them):\n- Up early. Fog on the lake.\n');
   });
 
   it('fills the post: media, tags, handles, the caption as a JSON string, and the count', () => {

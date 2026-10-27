@@ -122,8 +122,10 @@ export const CHAT_LIMITS = {
 export const chatSubjectKindSchema = z.enum(['draft', 'edit']);
 export type ChatSubjectKind = z.infer<typeof chatSubjectKindSchema>;
 
-// What the chat is about, as the app sees it when it sends: the server fills the briefing with it
-// (chatContext; `text` is its {caption}). The app cuts `text` to CHAT_LIMITS.text (a post's text has no cap) so a long caption never makes a 400.
+// What the chat is about, as the app sees it when it sends: the server fills the briefing with its
+// media, tags, mentions and `text` (the {caption}); `kind` is only the app's (ChatSubjectCard), the
+// default briefing doesn't name it. The app cuts `text` to CHAT_LIMITS.text (a post's text has no
+// cap) so a long caption never makes a 400.
 export const chatContextSchema = z.object({
   kind: chatSubjectKindSchema,
   text: z.string().max(CHAT_LIMITS.text),
@@ -134,9 +136,12 @@ export const chatContextSchema = z.object({
 export type ChatContext = z.infer<typeof chatContextSchema>;
 
 // A reply: what the assistant says, and options for the post only when the user asked for posts.
-export const chatReplySchema = z.object({
-  reply: z.string().max(CHAT_LIMITS.message),
-  postOptions: z.array(z.string().min(1)).max(CHAT_LIMITS.posts),
+// `chatReplyFieldsSchema` is how the server reads a model's answer, unbounded (checkChatReply trims
+// and cuts it to fit); `chatReplySchema` is the checked reply the app gets and sends back.
+export const chatReplyFieldsSchema = z.object({ reply: z.string(), postOptions: z.array(z.string()) });
+export const chatReplySchema = chatReplyFieldsSchema.extend({
+  reply: chatReplyFieldsSchema.shape.reply.max(CHAT_LIMITS.message),
+  postOptions: z.array(z.string().min(1).max(CHAT_LIMITS.message)).max(CHAT_LIMITS.posts),
 });
 export type ChatReply = z.infer<typeof chatReplySchema>;
 

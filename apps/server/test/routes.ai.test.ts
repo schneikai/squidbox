@@ -49,6 +49,7 @@ import {
   DEFAULT_INSTRUCTIONS,
   DEFAULT_MODEL_IDS,
   resolveInstructions,
+  type ChatReply,
 } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
 import { writingFormatText } from '../src/ai/prompts.js';
@@ -65,14 +66,14 @@ const tags = ['forest', 'morning fog', 'moss', 'trail', 'backpack', 'morning lig
 const fetchMock = vi.fn();
 
 // Venice: the model list, and a chat reply per model.
-const CHAT_REPLY = { reply: 'Here are three.', postOptions: ['one', 'two', 'three'] };
+const CHAT_REPLY: ChatReply = { reply: 'Here are three.', postOptions: ['one', 'two', 'three'] };
 
 function veniceAnswers({
   catalogStatus = 200,
   balanceStatus = 200,
   chatStatus = 200,
   tags: replyTags = tags,
-  chatReply = CHAT_REPLY as { reply: string; postOptions: string[] },
+  chatReply = CHAT_REPLY,
 } = {}) {
   fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
     if (url.endsWith('/api_keys/rate_limits')) {

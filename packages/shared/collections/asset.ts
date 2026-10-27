@@ -2,11 +2,7 @@ import { z } from 'zod';
 import { baseRecordSchema, defineCollection, textSchema, timestampSchema } from './define';
 
 // The server's integer (int4) columns.
-const int4Schema = z
-  .number()
-  .int()
-  .min(-(2 ** 31))
-  .max(2 ** 31 - 1);
+const int4Schema = z.number().int().min(-(2 ** 31)).max(2 ** 31 - 1);
 
 // What POST /ai/tags returns fits these, and so do the user's fixes.
 export const ASSET_TAG_LIMITS = { tags: 20, tag: 40 } as const;

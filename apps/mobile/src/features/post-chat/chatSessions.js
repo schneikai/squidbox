@@ -52,8 +52,9 @@ function wireTurns(messages) {
  * (`label`: the prompt button's name, or null for a typed message) or a reply `{ id, role:
  * 'assistant', status: 'loading' | 'done' | 'error', reply, postOptions, error, errorStatus }`
  * (`reply`: what the assistant says; `postOptions`: the options for the post, when the user asked for
- * posts; `errorStatus`: the failed request's HTTP status, if any). `isSending` while a reply loads. The editor's caption and assets (`getDraft()`) change with every keystroke, so they are
- * read when needed, not told.
+ * posts; `errorStatus`: the failed request's HTTP status, if any). `isSending` while a reply loads.
+ * The editor's caption and assets (`getDraft()`) change with every keystroke, so they are read when
+ * needed, not told.
  */
 function createSession(kind) {
   const store = createStore({ kind, messages: [], isSending: false, canApply: false });

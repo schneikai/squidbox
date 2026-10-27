@@ -75,6 +75,7 @@ async function chatCompletionAsync({
   messages: ChatMessage[];
   signal?: AbortSignal;
   response_format?: Record<string, unknown>;
+  reasoning_effort?: string;
 }): Promise<string> {
   const response = await veniceFetch('/chat/completions', {
     method: 'POST',
@@ -83,8 +84,8 @@ async function chatCompletionAsync({
       model,
       messages,
       ...extra,
-      // Every model runs on its own defaults (effort, thinking, reply length). Venice's own system
-      // prompt would shape the reply, and thinking text must not reach it.
+      // A model runs on its own defaults (thinking, reply length) unless a reasoning_effort is given.
+      // Venice's own system prompt would shape the reply, and thinking text must not reach it.
       venice_parameters: { include_venice_system_prompt: false, strip_thinking_response: true },
     }),
     timeoutMs: CHAT_TIMEOUT_MS,
@@ -117,15 +118,15 @@ async function chatCompletionAsync({
  * One chat completion whose reply is JSON of `schema`; anything else is a VeniceError, unless
  * `onUnreadable` is given: then a reply that isn't that JSON is `onUnreadable(its text)`. A model
  * without `supportsResponseSchema` is asked without the schema (the messages say the shape), and
- * its reply may wrap the JSON in a code fence or words. `reasoning` goes into the request as it is
- * (reasoningParams in tasks.ts).
+ * its reply may wrap the JSON in a code fence or words. `reasoningEffort` sets the model's reasoning
+ * effort (reasoningEffort in tasks.ts); without it the model reasons as it does by default.
  */
 export async function chatJsonAsync<T>({
   model,
   messages,
   schema,
   supportsResponseSchema = true,
-  reasoning = {},
+  reasoningEffort,
   onUnreadable,
   signal,
 }: {
@@ -133,7 +134,7 @@ export async function chatJsonAsync<T>({
   messages: ChatMessage[];
   schema: JsonSchemaSpec<T>;
   supportsResponseSchema?: boolean;
-  reasoning?: Record<string, unknown>;
+  reasoningEffort?: string;
   onUnreadable?: (content: string) => T;
   signal?: AbortSignal;
 }): Promise<T> {
@@ -146,7 +147,7 @@ export async function chatJsonAsync<T>({
     messages,
     signal,
     ...(supportsResponseSchema && { response_format: responseFormat }),
-    ...reasoning,
+    ...(reasoningEffort && { reasoning_effort: reasoningEffort }),
   });
   const parsed = schema.zod.safeParse(parseJsonReply(content));
   if (parsed.success) return parsed.data;

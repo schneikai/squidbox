@@ -1,12 +1,11 @@
 import { PERSONA_LIMITS } from '@squidbox/shared';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert } from 'react-native';
 
-import GradientFill from '@/components/GradientFill';
-import IconMenuButton from '@/components/IconMenuButton';
+import ChatBubble from './ChatBubble';
+
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useHaptics from '@/hooks/useHaptics';
 import useLibrary from '@/library/useLibrary';
-import { colors, lineHeights, sizes, typography } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { addRule } from '@/sync/personaRepository';
 import { requestSync } from '@/sync/worker';
@@ -41,51 +40,8 @@ export default function UserMessage({ label, content }) {
   }
 
   return (
-    <View style={styles.message}>
-      <GradientFill style={styles.bubble}>
-        {!!label && <Text style={styles.label}>{label}</Text>}
-        <Text style={styles.content} selectable>
-          {content}
-        </Text>
-      </GradientFill>
-      <IconMenuButton
-        size={sizes.iconSmall}
-        color={colors.text.secondary}
-        accessibilityLabel="More for this message"
-        style={styles.menu}
-      >
-        <MenuOption label="Add to rules" icon="list-checks" onPress={handleAddToRules} />
-      </IconMenuButton>
-    </View>
+    <ChatBubble side="user" label={label} text={content}>
+      <MenuOption label="Add to rules" icon="list-checks" onPress={handleAddToRules} />
+    </ChatBubble>
   );
 }
-
-const styles = StyleSheet.create({
-  message: {
-    alignItems: 'flex-end',
-    paddingLeft: 48,
-  },
-  bubble: {
-    borderRadius: 18,
-    borderBottomRightRadius: 4,
-    paddingVertical: 9,
-    paddingHorizontal: 14,
-    gap: 4,
-  },
-  label: {
-    fontSize: typography.caption,
-    fontWeight: '600',
-    color: colors.text.inverse,
-    opacity: 0.8,
-  },
-  content: {
-    fontSize: typography.subheadline,
-    lineHeight: lineHeights.subheadline,
-    color: colors.text.inverse,
-  },
-  // Close under the bubble: the button's tap target overlaps the gap above it.
-  menu: {
-    marginTop: -6,
-    marginBottom: -10,
-  },
-});

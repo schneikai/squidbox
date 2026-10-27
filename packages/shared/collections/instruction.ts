@@ -88,8 +88,8 @@ export const DEFAULT_INSTRUCTIONS: Instructions = Object.freeze({
   // The chat briefing (the kind keeps its first name, chatContext): the one prompt the chat sends, as
   // the whole system message, holding who the creator is, the post and how to answer. A line whose
   // placeholder is empty is left out, and so is a heading left with nothing under it (fillLines);
-  // `{caption}` reads (empty) when the caption is. The template is 2,152 characters against
-  // INSTRUCTION_LIMITS.text (4,000), which an edit must stay under.
+  // `{caption}` reads (empty) when the caption is. It and any edit stay under INSTRUCTION_LIMITS.text
+  // (a test holds every default to it).
   chatContext: `You are the writing assistant inside Squidbox, a content creator's post editor. The creator chats with you to think through ideas and to get posts written in their voice. Be a sharp, warm collaborator: plain language, short turns, no headings, no "Great question". The newest message decides what the chat is about; follow it even when it changes the subject.
 
 # The creator

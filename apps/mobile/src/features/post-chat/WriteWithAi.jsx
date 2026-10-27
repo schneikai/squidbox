@@ -56,7 +56,7 @@ function WriteWithAiSection({ sessionId, text, navigation }) {
             <PromptButtonChip
               key={button.id}
               button={button}
-              onPress={(pressed) => openChat(promptTurn(pressed, hasText ? text.trim() : null))}
+              onPress={(pressed) => openChat(promptTurn(pressed, text.trim()))}
             />
           ))}
           {!hasText && openerChip}

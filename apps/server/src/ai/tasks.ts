@@ -13,7 +13,7 @@ import type { Db } from '../db/client.js';
 import { AppError } from '../errors.js';
 import { catalogAsync, findModel, type CatalogEntry } from './catalog.js';
 import { readChosenModelId } from './modelChoices.js';
-import { chatReplySchema, tagsSchema, tweetsSchema } from './prompts.js';
+import { chatReplyJsonSpec, tagsSchema, tweetsSchema } from './prompts.js';
 import { chatJsonAsync, VeniceError, type ChatMessage, type JsonSchemaSpec } from './venice.js';
 
 /** The trimmed tweets when there are exactly WRITING_TWEET_COUNT non-empty ones; throws otherwise. */
@@ -26,15 +26,15 @@ export function checkTweets(tweets: string[]): string[] {
 }
 
 /**
- * A chat reply trimmed: the reply (cut to CHAT_LIMITS.message, so the app can send it back), and the
- * non-empty post options, the first CHAT_LIMITS.posts of them; throws when neither is left (a useless
- * reply, so Retry shows).
+ * A chat reply trimmed to chatReplySchema, so the app can send it back: the reply and each post option
+ * cut to CHAT_LIMITS.message, the non-empty options, the first CHAT_LIMITS.posts of them; throws when
+ * neither is left (a useless reply, so Retry shows).
  */
 export function checkChatReply({ reply, postOptions }: ChatReply): ChatReply {
   const kept = {
     reply: reply.trim().slice(0, CHAT_LIMITS.message),
     postOptions: postOptions
-      .map((option) => option.trim())
+      .map((option) => option.trim().slice(0, CHAT_LIMITS.message))
       .filter(Boolean)
       .slice(0, CHAT_LIMITS.posts),
   };
@@ -68,7 +68,7 @@ export function fitTags(tags: string[]): string[] {
 /**
  * What the assistant asks a model for, and the check its reply must pass to be its result.
  * `quickReply`: the task wants a fast answer over a thought-through one, so the model's reasoning is
- * turned down (reasoningParams); a task without it runs on the model's defaults. `onUnreadable`: what
+ * turned down (reasoningEffort); a task without it runs on the model's defaults. `onUnreadable`: what
  * a reply that isn't the schema's JSON becomes (its text), instead of failing.
  */
 export type AiTask<T> = {
@@ -82,18 +82,15 @@ export type AiTask<T> = {
 const EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 
 /**
- * The request fields that turn a model's reasoning down: the lowest effort above 'none' it lists
- * ('low' when it lists none) for a model whose effort can be set; 'none' for one that only reasons
- * (Venice then skips its thinking); nothing for a model that doesn't reason.
+ * The effort that turns a model's reasoning down: the lowest above 'none' it lists ('low' when it
+ * lists none) for a model whose effort can be set; 'none' for one that only reasons (Venice then skips
+ * its thinking); undefined for a model that doesn't reason.
  */
-export function reasoningParams(entry: CatalogEntry): Record<string, unknown> {
+export function reasoningEffort(entry: CatalogEntry): string | undefined {
   const { supportsReasoning, supportsReasoningEffort, reasoningEffortOptions } = entry.model_spec.capabilities;
-  if (supportsReasoningEffort) {
-    const lowest = EFFORTS.find((effort) => reasoningEffortOptions?.includes(effort));
-    return { reasoning_effort: lowest ?? 'low' };
-  }
-  if (supportsReasoning) return { reasoning_effort: 'none' };
-  return {};
+  if (supportsReasoningEffort) return EFFORTS.find((effort) => reasoningEffortOptions?.includes(effort)) ?? 'low';
+  if (supportsReasoning) return 'none';
+  return undefined;
 }
 
 export const writingTask: AiTask<{ tweets: string[] }> = {
@@ -103,7 +100,7 @@ export const writingTask: AiTask<{ tweets: string[] }> = {
 
 // A chat reply comes quickly, and one that isn't the JSON is still the model's answer: its text.
 export const chatTask: AiTask<ChatReply> = {
-  schema: chatReplySchema,
+  schema: chatReplyJsonSpec,
   check: checkChatReply,
   quickReply: true,
   onUnreadable: (content) => ({ reply: content, postOptions: [] }),
@@ -141,7 +138,7 @@ export async function runTask<T>({
     messages,
     schema: task.schema,
     supportsResponseSchema: model.model_spec.capabilities.supportsResponseSchema !== false,
-    reasoning: task.quickReply ? reasoningParams(model) : {},
+    reasoningEffort: task.quickReply ? reasoningEffort(model) : undefined,
     onUnreadable: task.onUnreadable,
     signal,
   });

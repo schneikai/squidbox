@@ -1,7 +1,9 @@
 // The AI's prompts and the JSON each model must answer with.
 import {
+  chatReplyFieldsSchema,
   WRITING_TWEET_COUNT,
   type ChatContext,
+  type ChatReply,
   type ChatTurn,
   type Instructions,
   type PersonaFields,
@@ -162,7 +164,9 @@ export function chatBriefingText(
   const caption = context.text.trim();
   return fillLines(template, {
     ...personaValues(persona),
-    favorites: favorites.map((post) => `- ${post}`).join('\n'),
+    // "- " lines as the briefing was tested with (the Compare's personaFraming keeps its --- blocks), a
+    // favorite's own line breaks made spaces so each stays one line.
+    favorites: favorites.map((post) => `- ${post.trim().replace(/\s*\n\s*/g, ' ')}`).join('\n'),
     media: mediaText(context.media),
     tags: context.tags.join(', '),
     mentions: context.mentions.join(', '),
@@ -221,7 +225,7 @@ export const tweetsSchema: JsonSchemaSpec<{ tweets: string[] }> = {
 
 // A chat reply: what the assistant says and the options for the post, when asked for (tasks.ts checks
 // them and keeps the first CHAT_LIMITS.posts; a maxItems here invited ten options).
-export const chatReplySchema: JsonSchemaSpec<{ reply: string; postOptions: string[] }> = {
+export const chatReplyJsonSpec: JsonSchemaSpec<ChatReply> = {
   name: 'chat_reply',
   jsonSchema: objectSchema({
     reply: { type: 'string' },
@@ -232,7 +236,7 @@ export const chatReplySchema: JsonSchemaSpec<{ reply: string; postOptions: strin
         'Options for the post being edited: finished post texts, one per item. Empty unless the creator asked for posts.',
     },
   }),
-  zod: z.object({ reply: z.string(), postOptions: z.array(z.string()) }),
+  zod: chatReplyFieldsSchema,
 };
 
 export const tagsSchema: JsonSchemaSpec<{ tags: string[] }> = {

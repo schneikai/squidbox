@@ -1,17 +1,17 @@
+import type { ChatReply } from '@squidbox/shared';
 import { describe, expect, it, vi } from 'vitest';
 
 import chatSessions from '../src/features/post-chat/chatSessions';
 
 const context = { kind: 'draft', text: '', media: { photo: 1, video: 0 }, tags: [], mentions: [] };
-const REPLY = { reply: 'Here are three.', postOptions: ['one', 'two', 'three'] };
-type Reply = typeof REPLY;
+const REPLY: ChatReply = { reply: 'Here are three.', postOptions: ['one', 'two', 'three'] };
 
 // A request whose answers the test settles by hand, in order.
 function deferredRequest() {
-  const calls: { body: any; signal: AbortSignal; resolve: (v: Reply) => void; reject: (e: unknown) => void }[] = [];
+  const calls: { body: any; signal: AbortSignal; resolve: (v: ChatReply) => void; reject: (e: unknown) => void }[] = [];
   const request = vi.fn(
     (body: any, { signal }: { signal: AbortSignal }) =>
-      new Promise<Reply>((resolve, reject) => calls.push({ body, signal, resolve, reject })),
+      new Promise<ChatReply>((resolve, reject) => calls.push({ body, signal, resolve, reject })),
   );
   return { request, calls };
 }

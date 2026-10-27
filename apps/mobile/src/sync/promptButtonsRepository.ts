@@ -7,12 +7,12 @@ import {
   type PromptButtonPlacement,
   type PromptButtonRecord,
 } from '@squidbox/shared';
-import { and, asc, count, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, count, desc, eq, isNull } from 'drizzle-orm';
 
 import { nextVersion } from './clock';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
-import { readByIds } from './readByIds';
+import { readByIdMap, readByIds } from './readByIds';
 import { makeRepository } from './repository';
 import { saveRecords } from './saveRecords';
 import { isFirstSyncDone } from './status';
@@ -128,17 +128,12 @@ export async function seedPromptButtons(
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
     if (!(await isFirstSyncDone(tx))) return false;
-    const held = await tx
-      .select({ id: t.id })
-      .from(t)
-      .where(
-        inArray(
-          t.id,
-          defaults.map((button) => button.id),
-        ),
-      );
-    const heldIds = new Set(held.map((row) => row.id));
-    const missing = defaults.filter((button) => !heldIds.has(button.id));
+    const held = await readByIdMap(
+      tx,
+      t,
+      defaults.map((button) => button.id),
+    );
+    const missing = defaults.filter((button) => !held.has(button.id));
     if (missing.length === 0) return false;
     const last = new Map<string, string>();
     const records = [];

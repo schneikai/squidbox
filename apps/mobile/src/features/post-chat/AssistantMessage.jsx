@@ -30,7 +30,7 @@ function AssistantMessage({ reply, source, favorites, onRetry, onMoreLikeThis, o
   }
 
   return (
-    <View style={styles.options}>
+    <View style={styles.reply}>
       {!!reply.reply && <AssistantBubble text={reply.reply} />}
       {reply.postOptions.map((text, index) => (
         <OptionCard
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     fontSize: typography.subheadline,
     color: colors.text.secondary,
   },
-  options: {
+  reply: {
     gap: 10,
   },
 });

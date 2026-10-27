@@ -31,9 +31,8 @@ const ASK_ANYTHING = 'Ask anything';
  * The assistant chat about the post being written (`{ sessionId }`, the editor's chat; `prompt`, a
  * prompt button's `{ label, content }`, waits in the composer): what it's about (ChatSubjectCard),
  * the user's turns and the assistant's replies with their options, the Refine buttons under the last
- * reply once the chat has options, and the
- * composer (usePostChat does the sending). Use puts an option into the caption and goes back to the
- * editor. The chat lasts while the editor is open.
+ * reply once the chat has options, and the composer (usePostChat does the sending). Use puts an
+ * option into the caption and goes back to the editor. The chat lasts while the editor is open.
  */
 export default function PostChatScreen({ route, navigation }) {
   const { sessionId, prompt } = route.params;

@@ -13,7 +13,7 @@ vi.mock('../src/config.js', async (importOriginal) => {
   };
 });
 
-import { DEFAULT_INSTRUCTIONS } from '@squidbox/shared';
+import { CHAT_LIMITS, DEFAULT_INSTRUCTIONS } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
 import { compareModels } from '../src/ai/compare.js';
 import {
@@ -22,7 +22,7 @@ import {
   checkTags,
   checkTweets,
   fitTags,
-  reasoningParams,
+  reasoningEffort,
   runTask,
   visionTask,
   writingTask,
@@ -117,7 +117,7 @@ describe('checking the replies', () => {
     expect(() => checkTweets(['a', 'b', ' '])).toThrow('Returned 2 tweets instead of 3');
   });
 
-  it('takes a chat reply trimmed, without empty options, the first 10 of them', () => {
+  it('takes a chat reply trimmed and cut to fit, without empty options, the first 10 of them', () => {
     const many = Array.from({ length: 12 }, (_, index) => `post ${index}`);
     expect(checkChatReply({ reply: ' Hi ', postOptions: [' a ', ' ', ...many] })).toEqual({
       reply: 'Hi',
@@ -128,16 +128,21 @@ describe('checking the replies', () => {
       postOptions: [],
     });
     expect(checkChatReply({ reply: '', postOptions: ['a'] })).toEqual({ reply: '', postOptions: ['a'] });
+    const long = 'x'.repeat(CHAT_LIMITS.message + 5);
+    expect(checkChatReply({ reply: long, postOptions: [long] })).toEqual({
+      reply: long.slice(0, CHAT_LIMITS.message),
+      postOptions: [long.slice(0, CHAT_LIMITS.message)],
+    });
     expect(() => checkChatReply({ reply: ' ', postOptions: [' '] })).toThrow(
       new VeniceError('Returned neither a reply nor posts'),
     );
   });
 
   it("turns a model's reasoning down as far as its spec allows", () => {
-    expect(reasoningParams(model('deepseek-v4-1-flash-uncensored'))).toEqual({ reasoning_effort: 'low' });
-    expect(reasoningParams(model('grok-4-7'))).toEqual({ reasoning_effort: 'low' });
-    expect(reasoningParams(model('qwen-3-6-plus'))).toEqual({ reasoning_effort: 'none' });
-    expect(reasoningParams(model('venice-uncensored-1-2'))).toEqual({});
+    expect(reasoningEffort(model('deepseek-v4-1-flash-uncensored'))).toBe('low');
+    expect(reasoningEffort(model('grok-4-7'))).toBe('low');
+    expect(reasoningEffort(model('qwen-3-6-plus'))).toBe('none');
+    expect(reasoningEffort(model('venice-uncensored-1-2'))).toBeUndefined();
   });
 
   it('takes any number of tags, trimmed, without empty ones and case-insensitive duplicates, in order', () => {
