@@ -16,8 +16,9 @@ import useSeedPromptButtons from '@/hooks/useSeedPromptButtons';
 /**
  * "Write with AI" under the post editor's caption, for an account with the assistant: without text the
  * new-post prompt buttons and Ask anything, with text Back to chat (Ask anything before there is a
- * chat) and the Refine buttons. Each opens the chat (`sessionId`), a prompt button with its prompt
- * in the composer, ready to send.
+ * chat) and the buttons for under the caption. Each opens the chat (`sessionId`), a prompt button
+ * with its prompt in the composer (a caption button's with the caption under it), ready to edit and
+ * send.
  */
 export default function WriteWithAi(props) {
   const isAvailable = useIsAssistantAvailable();
@@ -32,7 +33,7 @@ function WriteWithAiSection({ sessionId, text, navigation }) {
 
   const hasText = Boolean(text.trim());
   const hasMessages = (chat?.messages.length ?? 0) > 0;
-  const buttons = (hasText ? groups?.refine : groups?.newPost) ?? [];
+  const buttons = (hasText ? groups?.caption : groups?.newPost) ?? [];
   const opener =
     hasText && hasMessages
       ? { label: 'Back to chat', icon: 'message-circle' }
@@ -52,7 +53,11 @@ function WriteWithAiSection({ sessionId, text, navigation }) {
         <ChipRow>
           {hasText && openerChip}
           {buttons.map((button) => (
-            <PromptButtonChip key={button.id} button={button} onPress={(pressed) => openChat(promptTurn(pressed))} />
+            <PromptButtonChip
+              key={button.id}
+              button={button}
+              onPress={(pressed) => openChat(promptTurn(pressed, hasText ? text.trim() : null))}
+            />
           ))}
           {!hasText && openerChip}
         </ChipRow>

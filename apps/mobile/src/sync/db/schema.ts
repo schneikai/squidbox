@@ -176,7 +176,7 @@ export const promptButtons = sqliteTable('prompt_buttons', {
   deletedAt: integer('deleted_at'),
   name: text('name').notNull(),
   prompt: text('prompt').notNull(),
-  placement: text('placement', { enum: ['post', 'newPost', 'refine'] }).notNull(),
+  placement: text('placement', { enum: ['post', 'newPost', 'caption', 'refine'] }).notNull(),
   icon: text('icon'),
   position: text('position').notNull(),
 });

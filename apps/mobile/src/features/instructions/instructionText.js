@@ -3,7 +3,7 @@ const instructionText = {
   writing: {
     title: 'Writing',
     description:
-      "Before every post it writes. The reply format (how many posts, JSON) is added by the app and can't be changed.",
+      'Before every post the Compare writes; the chat has its own briefing. The reply format (how many posts, JSON) is added by the app.',
   },
   visionTagging: {
     title: 'Photo tags',
@@ -13,7 +13,7 @@ const instructionText = {
   writingFormat: {
     title: 'Writing reply format',
     description:
-      'Ends every writing request. {count} is the number of posts. The reply is still read as a JSON object with a "tweets" list.',
+      'Ends every Compare request. {count} is the number of posts. The reply is still read as a JSON object with a "tweets" list.',
   },
   tagsSystem: {
     title: 'Photo tags system message',
@@ -28,12 +28,12 @@ const instructionText = {
   personaFraming: {
     title: 'Writing as you framing',
     description:
-      'How Writing as you and your Favorites appear in every writing request: {aboutYou}, {tone}, {contentTags}, {rules} and {favorites}. A line whose placeholder is empty is left out, with a heading ending in ":" just above it.',
+      'How Writing as you and your Favorites appear in a Compare request: {aboutYou}, {tone}, {contentTags}, {rules} and {favorites}. A line whose placeholder is empty is left out, with a heading ending in ":" just above it.',
   },
   chatContext: {
-    title: 'Chat context',
+    title: 'Chat briefing',
     description:
-      'How the post is described to the assistant in the chat: {subject}, {media}, {tags}, {mentions} and {text}. A line whose placeholder is empty is left out.',
+      'The whole system message of the chat: who you are ({aboutYou}, {tone}, {contentTags}, {rules}, {favorites}), the post ({media}, {tags}, {mentions}, {caption}) and how to answer, with {count} options when you ask for posts. A line whose placeholder is empty is left out, with its heading.',
   },
   moreLikeThis: {
     title: 'More like this',

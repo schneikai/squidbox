@@ -3,14 +3,15 @@ import { describe, expect, it, vi } from 'vitest';
 import chatSessions from '../src/features/post-chat/chatSessions';
 
 const context = { kind: 'draft', text: '', media: { photo: 1, video: 0 }, tags: [], mentions: [] };
-const TWEETS = ['one', 'two', 'three'];
+const REPLY = { reply: 'Here are three.', postOptions: ['one', 'two', 'three'] };
+type Reply = typeof REPLY;
 
 // A request whose answers the test settles by hand, in order.
 function deferredRequest() {
-  const calls: { body: any; signal: AbortSignal; resolve: (v: string[]) => void; reject: (e: unknown) => void }[] = [];
+  const calls: { body: any; signal: AbortSignal; resolve: (v: Reply) => void; reject: (e: unknown) => void }[] = [];
   const request = vi.fn(
     (body: any, { signal }: { signal: AbortSignal }) =>
-      new Promise<string[]>((resolve, reject) => calls.push({ body, signal, resolve, reject })),
+      new Promise<Reply>((resolve, reject) => calls.push({ body, signal, resolve, reject })),
   );
   return { request, calls };
 }
@@ -21,7 +22,7 @@ function open() {
 }
 
 describe('chatSessions', () => {
-  it('appends the user turn and a loading reply, then lands the tweets', async () => {
+  it('appends the user turn and a loading reply, then lands the reply and its options', async () => {
     const { session } = open();
     const { request, calls } = deferredRequest();
     const sending = session.send({ label: 'Caption', content: 'Write a caption' }, context, request);
@@ -29,20 +30,20 @@ describe('chatSessions', () => {
     expect(isSending).toBe(true);
     expect(messages).toMatchObject([
       { role: 'user', label: 'Caption', content: 'Write a caption' },
-      { role: 'assistant', status: 'loading', tweets: [] },
+      { role: 'assistant', status: 'loading', reply: '', postOptions: [] },
     ]);
     expect(calls[0]!.body).toEqual({ context, messages: [{ role: 'user', content: 'Write a caption' }] });
-    calls[0]!.resolve(TWEETS);
+    calls[0]!.resolve(REPLY);
     await sending;
     expect(session.getState().isSending).toBe(false);
-    expect(session.getState().messages[1]).toMatchObject({ status: 'done', tweets: TWEETS });
+    expect(session.getState().messages[1]).toMatchObject({ status: 'done', ...REPLY });
   });
 
   it('sends the answered turns and the new one, but not a failed reply', async () => {
     const { session } = open();
     const { request, calls } = deferredRequest();
     let sending = session.send({ content: 'First' }, context, request);
-    calls[0]!.resolve(TWEETS);
+    calls[0]!.resolve(REPLY);
     await sending;
     sending = session.send({ content: 'Second' }, context, request);
     calls[1]!.reject({ response: { data: { error: { message: 'Model is busy' } } } });
@@ -51,10 +52,25 @@ describe('chatSessions', () => {
     session.send({ content: 'Third' }, context, request);
     expect(calls[2]!.body.messages).toEqual([
       { role: 'user', content: 'First' },
-      { role: 'assistant', tweets: TWEETS },
+      { role: 'assistant', ...REPLY },
       { role: 'user', content: 'Second' },
       { role: 'user', content: 'Third' },
     ]);
+  });
+
+  it('sends only the newest 30 turns', async () => {
+    const { session } = open();
+    const { request, calls } = deferredRequest();
+    for (let turn = 0; turn < 16; turn++) {
+      const sending = session.send({ content: `Turn ${turn}` }, context, request);
+      calls[turn]!.resolve(REPLY);
+      await sending;
+    }
+    session.send({ content: 'Last' }, context, request);
+    const { messages } = calls[16]!.body;
+    expect(messages).toHaveLength(30);
+    expect(messages[0]).toEqual({ role: 'assistant', ...REPLY });
+    expect(messages[29]).toEqual({ role: 'user', content: 'Last' });
   });
 
   it('does nothing on a send while a reply loads', () => {
@@ -79,9 +95,9 @@ describe('chatSessions', () => {
     expect(calls[1]!.body.messages).toEqual([{ role: 'user', content: 'First' }]);
     expect(session.getState().messages).toHaveLength(2);
     expect(session.getState().messages[1]).toMatchObject({ status: 'loading', error: null });
-    calls[1]!.resolve(TWEETS);
+    calls[1]!.resolve(REPLY);
     await retrying;
-    expect(session.getState().messages[1]).toMatchObject({ status: 'done', tweets: TWEETS });
+    expect(session.getState().messages[1]).toMatchObject({ status: 'done', ...REPLY });
   });
 
   it('leaves out of later sends a turn the server refused as invalid', async () => {
@@ -93,7 +109,7 @@ describe('chatSessions', () => {
     expect(session.getState().messages[1]).toMatchObject({ status: 'error', errorStatus: 400 });
     sending = session.send({ content: 'Shorter' }, context, request);
     expect(calls[1]!.body.messages).toEqual([{ role: 'user', content: 'Shorter' }]);
-    calls[1]!.resolve(TWEETS);
+    calls[1]!.resolve(REPLY);
     await sending;
   });
 
@@ -108,7 +124,7 @@ describe('chatSessions', () => {
       { role: 'user', content: 'First' },
       { role: 'user', content: 'Second' },
     ]);
-    calls[1]!.resolve(TWEETS);
+    calls[1]!.resolve(REPLY);
     await sending;
   });
 
@@ -125,7 +141,7 @@ describe('chatSessions', () => {
     session.reset();
     expect(calls[0]!.signal.aborted).toBe(true);
     expect(session.getState()).toMatchObject({ messages: [], isSending: false });
-    calls[0]!.resolve(TWEETS);
+    calls[0]!.resolve(REPLY);
     await sending;
     expect(session.getState().messages).toEqual([]);
   });
@@ -141,7 +157,7 @@ describe('chatSessions', () => {
     chatSessions.close(id);
     expect(chatSessions.get(id)).toBeUndefined();
     expect(calls[0]!.signal.aborted).toBe(true);
-    calls[0]!.resolve(TWEETS);
+    calls[0]!.resolve(REPLY);
     await sending;
     expect(session.getState()).toBe(before);
     expect(listener).not.toHaveBeenCalled();

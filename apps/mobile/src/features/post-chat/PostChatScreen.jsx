@@ -3,9 +3,9 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import AssistantMessage from './AssistantMessage';
 import ChatComposer from './ChatComposer';
 import ChatSubjectCard from './ChatSubjectCard';
-import OptionsMessage from './OptionsMessage';
 import RefineRow from './RefineRow';
 import UserMessage from './UserMessage';
 import usePostChat from './usePostChat';
@@ -30,7 +30,8 @@ const ASK_ANYTHING = 'Ask anything';
 /**
  * The assistant chat about the post being written (`{ sessionId }`, the editor's chat; `prompt`, a
  * prompt button's `{ label, content }`, waits in the composer): what it's about (ChatSubjectCard),
- * the user's turns and the assistant's options, the Refine buttons under the last reply, and the
+ * the user's turns and the assistant's replies with their options, the Refine buttons under the last
+ * reply once the chat has options, and the
  * composer (usePostChat does the sending). Use puts an option into the caption and goes back to the
  * editor. The chat lasts while the editor is open.
  */
@@ -58,6 +59,8 @@ export default function PostChatScreen({ route, navigation }) {
   }));
 
   const last = messages?.[messages.length - 1];
+  // The Refine buttons change the newest options, so they show once there are any.
+  const hasOptions = messages?.some((message) => message.status === 'done' && message.postOptions.length > 0);
   const applyText = chat?.canApply ? chat.applyText : null;
 
   const handleUse = useCallback(
@@ -112,7 +115,7 @@ export default function PostChatScreen({ route, navigation }) {
         />
         {messages.length === 0 && (
           <View style={styles.empty}>
-            <IntroText>Ask anything about this post, or start from a button.</IntroText>
+            <IntroText>Ask anything about this post, talk an idea through, or start from a button.</IntroText>
             <ChipRow>
               {(groups?.newPost ?? []).map((button) => (
                 <PromptButtonChip key={button.id} button={button} onPress={sendButton} />
@@ -124,7 +127,7 @@ export default function PostChatScreen({ route, navigation }) {
           message.role === 'user' ? (
             <UserMessage key={message.id} label={message.label} content={message.content} />
           ) : (
-            <OptionsMessage
+            <AssistantMessage
               key={message.id}
               reply={message}
               source={messages[index - 1]?.label ?? ASK_ANYTHING}
@@ -135,14 +138,14 @@ export default function PostChatScreen({ route, navigation }) {
             />
           ),
         )}
-        {last?.role === 'assistant' && last.status === 'done' && (
+        {hasOptions && last?.role === 'assistant' && last.status === 'done' && (
           <RefineRow buttons={groups?.refine ?? []} onSend={sendButton} />
         )}
       </ScrollView>
       <Animated.View style={[styles.composer, composerStyle]}>
         <ChatComposer
           seed={prompt}
-          placeholder={messages.length === 0 ? ASK_ANYTHING : 'Tell it what to change'}
+          placeholder={messages.length === 0 ? ASK_ANYTHING : 'Message'}
           isDisabled={chat.isSending}
           isWaiting={isWaiting}
           onSend={send}

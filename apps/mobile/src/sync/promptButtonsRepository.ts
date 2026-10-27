@@ -7,7 +7,7 @@ import {
   type PromptButtonPlacement,
   type PromptButtonRecord,
 } from '@squidbox/shared';
-import { and, asc, count, desc, eq, isNull } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNull } from 'drizzle-orm';
 
 import { nextVersion } from './clock';
 import * as schema from './db/schema';
@@ -115,10 +115,12 @@ export async function movePromptButton(db: SyncDb, id: string, afterId: string |
 }
 
 /**
- * Insert `defaults` once per library: only after the first full pull (which brings another device's
- * buttons and deletions) and while the table has no rows at all, tombstones included, so deleting
- * every button never brings the defaults back. Their ids are fixed, so two devices that both seed
- * before syncing converge on one row each. Returns whether it seeded.
+ * Insert each of `defaults` once per library: only after the first full pull (which brings another
+ * device's buttons and deletions), and only the defaults whose id the table doesn't hold yet,
+ * tombstones included, so a deleted default never comes back and one moved to another placement stays
+ * where it is. A default added in a later version reaches a library that already has buttons once,
+ * at the end of its placement. Their ids are fixed, so two devices that both seed before syncing
+ * converge on one row each. Returns whether it seeded any.
  */
 export async function seedPromptButtons(
   db: SyncDb,
@@ -126,14 +128,26 @@ export async function seedPromptButtons(
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
     if (!(await isFirstSyncDone(tx))) return false;
-    const [{ rows }] = await tx.select({ rows: count() }).from(t);
-    if (rows > 0) return false;
-    const last = new Map<string, string | null>();
-    const records = defaults.map((button) => {
-      const position = keyBetween(last.get(button.placement) ?? null, null);
+    const held = await tx
+      .select({ id: t.id })
+      .from(t)
+      .where(
+        inArray(
+          t.id,
+          defaults.map((button) => button.id),
+        ),
+      );
+    const heldIds = new Set(held.map((row) => row.id));
+    const missing = defaults.filter((button) => !heldIds.has(button.id));
+    if (missing.length === 0) return false;
+    const last = new Map<string, string>();
+    const records = [];
+    for (const button of missing) {
+      const before = last.get(button.placement);
+      const position = before ? keyBetween(before, null) : await positionAtEnd(tx, button.placement);
       last.set(button.placement, position);
-      return newRecord(promptButtonCollection, {}, { ...button, position });
-    });
+      records.push(newRecord(promptButtonCollection, {}, { ...button, position }));
+    }
     await saveRecords(tx, 'prompt_buttons', t, records, { isNew: true });
     return true;
   });

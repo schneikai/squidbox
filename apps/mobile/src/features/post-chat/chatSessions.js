@@ -31,14 +31,17 @@ export default chatSessions;
 
 // The transcript as the server takes it: the user's turns and the assistant's answered replies,
 // oldest first (a reply loading or failed is left out, and a turn the server refused as invalid with
-// its reply, so it doesn't fail every later send), the newest CHAT_LIMITS.messages of them.
+// its reply, so it doesn't fail every later send), the newest CHAT_LIMITS.messages of them. A reply
+// goes as `{ reply, postOptions }`, as it came.
 function wireTurns(messages) {
   const turns = messages.flatMap((message, index) => {
     if (message.role === 'user') {
       const reply = messages[index + 1];
       return reply?.status === 'error' && reply.errorStatus === 400 ? [] : [{ role: 'user', content: message.content }];
     }
-    return message.status === 'done' ? [{ role: 'assistant', tweets: message.tweets }] : [];
+    return message.status === 'done'
+      ? [{ role: 'assistant', reply: message.reply, postOptions: message.postOptions }]
+      : [];
   });
   return turns.slice(-CHAT_LIMITS.messages);
 }
@@ -47,9 +50,9 @@ function wireTurns(messages) {
  * One chat: `getState()` → `{ kind, messages, isSending, canApply }`, a new object on each change,
  * which `subscribe(listener)` tells. A message is the user's `{ id, role: 'user', label, content }`
  * (`label`: the prompt button's name, or null for a typed message) or a reply `{ id, role:
- * 'assistant', status: 'loading' | 'done' | 'error', tweets, error, errorStatus }` (`errorStatus`:
- * the failed request's HTTP status, if any). `isSending` while a reply
- * loads. The editor's caption and assets (`getDraft()`) change with every keystroke, so they are
+ * 'assistant', status: 'loading' | 'done' | 'error', reply, postOptions, error, errorStatus }`
+ * (`reply`: what the assistant says; `postOptions`: the options for the post, when the user asked for
+ * posts; `errorStatus`: the failed request's HTTP status, if any). `isSending` while a reply loads. The editor's caption and assets (`getDraft()`) change with every keystroke, so they are
  * read when needed, not told.
  */
 function createSession(kind) {
@@ -82,8 +85,8 @@ function createSession(kind) {
     const at = messages.findIndex((message) => message.id === replyId);
     const body = { context, messages: wireTurns(messages.slice(0, at)) };
     try {
-      const tweets = await request(body, { signal });
-      if (!signal.aborted) replaceMessage(replyId, { status: 'done', tweets });
+      const { reply, postOptions } = await request(body, { signal });
+      if (!signal.aborted) replaceMessage(replyId, { status: 'done', reply, postOptions });
     } catch (error) {
       if (!signal.aborted) {
         replaceMessage(replyId, {
@@ -130,7 +133,8 @@ function createSession(kind) {
         id: `m${++lastMessageId}`,
         role: 'assistant',
         status: 'loading',
-        tweets: [],
+        reply: '',
+        postOptions: [],
         error: null,
         errorStatus: null,
       };

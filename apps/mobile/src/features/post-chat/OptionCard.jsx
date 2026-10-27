@@ -1,13 +1,13 @@
-import * as Clipboard from 'expo-clipboard';
 import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+
+import useCopyText from './useCopyText';
 
 import Card from '@/components/Card';
 import IconMenuButton from '@/components/IconMenuButton';
 import TextButton from '@/components/TextButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import FavoriteHeartButton from '@/features/favorites/FavoriteHeartButton';
-import useHaptics from '@/hooks/useHaptics';
 import { colors, lineHeights, typography } from '@/styles/designTokens';
 
 /**
@@ -15,12 +15,7 @@ import { colors, lineHeights, typography } from '@/styles/designTokens';
  * like this (`onMoreLikeThis(text)`), and Use (`onUse(text)`, when given) or else Copy.
  */
 function OptionCard({ text, source, isFavorite, onToggleFavorite, onMoreLikeThis, onUse }) {
-  const haptics = useHaptics();
-
-  async function handleCopy() {
-    await Clipboard.setStringAsync(text);
-    haptics.success();
-  }
+  const copy = useCopyText();
 
   return (
     <Card style={styles.card}>
@@ -36,7 +31,7 @@ function OptionCard({ text, source, isFavorite, onToggleFavorite, onMoreLikeThis
           {onUse ? (
             <TextButton label="Use" size="small" onPress={() => onUse(text)} />
           ) : (
-            <TextButton label="Copy" icon="copy" size="small" onPress={handleCopy} />
+            <TextButton label="Copy" icon="copy" size="small" onPress={() => copy(text)} />
           )}
         </View>
       </View>
