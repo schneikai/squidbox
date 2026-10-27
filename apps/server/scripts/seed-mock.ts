@@ -114,9 +114,9 @@ const ALBUMS: { name: string; media?: number[]; smartAlbumType?: 'FAVORITES' | '
 
 const POSTS: { text: string; media: number[]; postedDaysAgo: number | null; isFavorite?: boolean }[] = [
   { text: 'First light over the hills ☀️', media: [0, 1], postedDaysAgo: 40, isFavorite: true },
-  { text: 'Lost in the forest for a day 🌲', media: [14, 15, 17, 32], postedDaysAgo: 32 },
+  { text: 'Lost in the forest for a day with @ridgeline.bsky.social 🌲', media: [14, 15, 17, 32], postedDaysAgo: 32 },
   { text: 'Coffee and a view. That is all.', media: [4, 33], postedDaysAgo: 21 },
-  { text: 'Summer recap, part 1', media: [3, 5, 7, 8, 11], postedDaysAgo: 12 },
+  { text: 'Summer recap, part 1, with @ridgeline.bsky.social', media: [3, 5, 7, 8, 11], postedDaysAgo: 12 },
   { text: 'Quiet roads, loud thoughts.', media: [19], postedDaysAgo: 5, isFavorite: true },
   { text: 'Draft: weekend dump', media: [35, 36, 37], postedDaysAgo: null },
   { text: 'Draft: which one should I post?', media: [38, 40], postedDaysAgo: null },
