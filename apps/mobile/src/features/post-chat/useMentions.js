@@ -1,0 +1,19 @@
+import { useMemo } from 'react';
+
+import { schema } from '@/sync/db/client';
+import { readMentionTexts } from '@/sync/postsRepository';
+import { useLiveQuery } from '@/sync/useLiveQuery';
+import extractHandles from '@/utils/posts/extractHandles';
+
+/**
+ * The @handles the user mentions in posts like the one with these assets: those of the posts of the
+ * assets' albums (`fromAlbum`), else of their newest posts; undefined while reading.
+ */
+export default function useMentions(assetIds) {
+  const result = useLiveQuery(
+    (db) => readMentionTexts(db, assetIds),
+    [schema.posts, schema.postAssets, schema.albumAssets, schema.albums],
+    [assetIds],
+  );
+  return useMemo(() => result && { handles: extractHandles(result.texts), fromAlbum: result.fromAlbum }, [result]);
+}

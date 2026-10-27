@@ -14,11 +14,12 @@ import { colors, lineHeights, sizes, typography } from '@/styles/designTokens';
  *     </Field>
  *   </Card>
  *
- * `onInfo` ends the label with an ⓘ that calls it, to explain what goes in the field.
+ * `onInfo` ends the label with an ⓘ that calls it, to explain what goes in the field. `rightSlot`
+ * sits at the label row's far end (a small button, say).
  *
  * style applies to the outer View.
  */
-export default function Field({ label, description, onInfo, children, style }) {
+export default function Field({ label, description, onInfo, rightSlot, children, style }) {
   return (
     <View style={[styles.field, style]}>
       <View style={styles.labelRow}>
@@ -33,6 +34,7 @@ export default function Field({ label, description, onInfo, children, style }) {
             style={styles.info}
           />
         )}
+        {rightSlot != null && <View style={styles.rightSlot}>{rightSlot}</View>}
       </View>
       {children}
       {description != null && <Text style={styles.description}>{description}</Text>}
@@ -52,6 +54,11 @@ const styles = StyleSheet.create({
   info: {
     marginVertical: -(sizes.iconButton - lineHeights.footnote) / 2,
     marginLeft: -6,
+  },
+  // A slot's 44 pt button overlaps the space around the label, as the ⓘ does.
+  rightSlot: {
+    marginLeft: 'auto',
+    marginVertical: -(sizes.iconButton - lineHeights.footnote) / 2,
   },
   label: {
     fontSize: typography.footnote,

@@ -11,6 +11,8 @@ import PrimaryButton from '@/components/PrimaryButton';
 import Textarea from '@/components/Textarea';
 import { SCREEN_PADDING } from '@/constants';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
+import WriteWithAi from '@/features/post-chat/WriteWithAi';
+import useEditorChat from '@/features/post-chat/useEditorChat';
 import useScrollY from '@/hooks/useScrollY';
 import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
 
@@ -23,6 +25,7 @@ export default function PostEditor({ post, navigation, onSave }) {
   const [text, setText] = useState(post.text);
   const [postAssets, setPostAssets] = useState(post.postAssets);
   const [postedAt, setPostedAt] = useState(post.postedAt);
+  const sessionId = useEditorChat({ text, postAssets, setText });
 
   const data = postData({ text, postAssets, postedAt });
   const canSave = hasContent(data);
@@ -64,6 +67,7 @@ export default function PostEditor({ post, navigation, onSave }) {
             value={text}
             style={styles.textArea}
           />
+          <WriteWithAi sessionId={sessionId} text={text} navigation={navigation} />
         </Card>
 
         <DateTimePicker timestamp={postedAt} onChange={setPostedAt} />

@@ -4,20 +4,14 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import ProgressOverlayHost from '@/components/progress-overlay/ProgressOverlayHost';
 import AssetPickerScreen from '@/features/asset-picker/AssetPickerScreen';
-import FavoriteScreen from '@/features/favorites/FavoriteScreen';
-import FavoritesScreen from '@/features/favorites/FavoritesScreen';
 import InstructionScreen from '@/features/instructions/InstructionScreen';
 import InstructionsScreen from '@/features/instructions/InstructionsScreen';
 import AddModelsScreen from '@/features/model-compare/AddModelsScreen';
-import PhotoTagsScreen from '@/features/photo-tags/PhotoTagsScreen';
-import PromptButtonScreen from '@/features/prompt-buttons/PromptButtonScreen';
-import PromptButtonsScreen from '@/features/prompt-buttons/PromptButtonsScreen';
-import RuleScreen from '@/features/voice/RuleScreen';
-import VoiceScreen from '@/features/voice/VoiceScreen';
 import AddEditPostNavigator from '@/navigators/AddEditPostNavigator';
 import CreatePostNavigator from '@/navigators/CreatePostNavigator';
 import MainTabNavigator from '@/navigators/MainTabNavigator';
 import ModelCompareNavigator from '@/navigators/ModelCompareNavigator';
+import assistantScreens from '@/navigators/assistantScreens';
 import AddToAlbumScreen from '@/screens/AddToAlbumScreen';
 import AlbumNotesScreen from '@/screens/AlbumNotesScreen';
 import AlbumScreen from '@/screens/AlbumScreen';
@@ -67,20 +61,8 @@ const postId = ({ params }) => params?.postId;
 // One compare and one Add screen per kind of model.
 const modelKind = ({ params }) => params?.kind;
 
-// One screen per prompt button, and one Add per placement.
-const promptButtonId = ({ params }) => params?.id ?? `new:${params?.placement}`;
-
-// One screen per favorite, and one Add.
-const favoriteId = ({ params }) => params?.id ?? 'new';
-
 // One screen per kind of instructions.
 const instructionKind = ({ params }) => params?.kind;
-
-// One screen per photo's tags.
-const assetId = ({ params }) => params?.assetId;
-
-// One screen per rule, and one Add.
-const ruleIndex = ({ params }) => String(params?.index ?? 'new');
 
 export default function RootNavigator() {
   return (
@@ -116,16 +98,10 @@ export default function RootNavigator() {
         <RootStack.Screen name="AlbumScreen" component={AlbumScreen} />
         <RootStack.Screen name="PostScreen" component={PostScreen} getId={postId} />
         <RootStack.Screen name="AssetScreen" component={AssetScreen} />
-        <RootStack.Screen name="PromptButtonsScreen" component={PromptButtonsScreen} />
-        <RootStack.Screen name="FavoritesScreen" component={FavoritesScreen} />
         <RootStack.Screen name="InstructionsScreen" component={InstructionsScreen} />
         <RootStack.Screen name="InstructionScreen" component={InstructionScreen} getId={instructionKind} />
-        <RootStack.Screen name="FavoriteScreen" component={FavoriteScreen} getId={favoriteId} />
-        <RootStack.Screen name="PromptButtonScreen" component={PromptButtonScreen} getId={promptButtonId} />
-        <RootStack.Screen name="VoiceScreen" component={VoiceScreen} />
-        <RootStack.Screen name="RuleScreen" component={RuleScreen} getId={ruleIndex} />
         <RootStack.Screen name="AlbumNotesScreen" component={AlbumNotesScreen} />
-        <RootStack.Screen name="PhotoTagsScreen" component={PhotoTagsScreen} getId={assetId} />
+        {assistantScreens(RootStack.Screen)}
       </RootStack.Group>
     </RootStack.Navigator>
   );
