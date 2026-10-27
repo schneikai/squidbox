@@ -135,6 +135,13 @@ General ideas:
 - **Memory.** What the user tells the assistant is remembered, e.g. "make it more about the action
   and less about the filming", "less influencer style, more guy next door".
 
+### [ ] Saved assistant chats
+
+Wanted by the owner. The assistant chat (`features/post-chat`, `chatSessions`) lives only while
+the post editor is open. Keep past chats and list them to reopen, like the ChatGPT or Claude apps,
+not tied to one post, so a chat about a trip or a bio can go on later. Needs a synced collection
+for chats and their turns, a list screen, and a rule for when a new chat starts.
+
 ### [ ] Fill in Writing as you from your posts
 
 Bring back "Fill it in for me" as an agent chat session that drafts About you, Tone, Your content and
