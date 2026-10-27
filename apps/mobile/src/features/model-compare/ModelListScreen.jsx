@@ -18,7 +18,6 @@ import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAct
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import { SCREEN_PADDING } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
 import useHasFeature from '@/hooks/useHasFeature';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
@@ -80,6 +79,7 @@ export default function ModelListScreen({ navigation, route }) {
           ))}
         </Section>
         {isAiAdmin && <SectionFooter>{text.footer}</SectionFooter>}
+        {text.note && <SectionFooter>{text.note}</SectionFooter>}
       </>
     );
   }
@@ -132,7 +132,7 @@ export default function ModelListScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   intro: {
-    paddingHorizontal: SCREEN_PADDING,
+    marginHorizontal: 4,
     paddingBottom: 4,
   },
 });
