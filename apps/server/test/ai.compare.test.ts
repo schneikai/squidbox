@@ -16,7 +16,7 @@ vi.mock('../src/config.js', async (importOriginal) => {
 import { DEFAULT_INSTRUCTIONS } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
 import { compareModels } from '../src/ai/compare.js';
-import { checkTags, checkTweets, fitTags, runTask, visionTask, writingTask } from '../src/ai/tasks.js';
+import { checkChatReply, checkTags, checkTweets, fitTags, runTask, visionTask, writingTask } from '../src/ai/tasks.js';
 import { VeniceError } from '../src/ai/venice.js';
 import { contentThemesText, visionMessages, writingMessages } from '../src/ai/prompts.js';
 import type { CatalogEntry } from '../src/ai/catalog.js';
@@ -105,6 +105,19 @@ describe('checking the replies', () => {
   it('takes exactly 3 non-empty tweets', () => {
     expect(checkTweets([' a ', 'b', 'c'])).toEqual(['a', 'b', 'c']);
     expect(() => checkTweets(['a', 'b', ' '])).toThrow('Returned 2 tweets instead of 3');
+  });
+
+  it('takes a chat reply trimmed, without empty posts, the first 10 of them', () => {
+    const many = Array.from({ length: 12 }, (_, index) => `post ${index}`);
+    expect(checkChatReply({ message: ' Hi ', posts: [' a ', ' ', ...many] })).toEqual({
+      message: 'Hi',
+      posts: ['a', ...many.slice(0, 9)],
+    });
+    expect(checkChatReply({ message: 'Sounds good.', posts: [] })).toEqual({ message: 'Sounds good.', posts: [] });
+    expect(checkChatReply({ message: '', posts: ['a'] })).toEqual({ message: '', posts: ['a'] });
+    expect(() => checkChatReply({ message: ' ', posts: [' '] })).toThrow(
+      new VeniceError('Returned neither a message nor posts'),
+    );
   });
 
   it('takes any number of tags, trimmed, without empty ones and case-insensitive duplicates, in order', () => {

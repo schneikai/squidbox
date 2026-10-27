@@ -106,8 +106,8 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       },
     });
 
-    // POST /ai/chat — the assistant chat: the user's writing model answers the transcript with posts
-    // for the chat's post (Write with AI in the post editor). Nothing is stored.
+    // POST /ai/chat — the assistant chat: the user's writing model answers the transcript, with posts
+    // when asked, about the chat's post (Write with AI in the post editor). Nothing is stored.
     r.route({
       method: 'POST',
       url: '/ai/chat',
@@ -115,8 +115,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       schema: { body: chatRequestSchema, response: { 200: chatResponseSchema } },
       handler: async (request, reply) => {
         const signal = untilClientLeaves(reply);
-        const tweets = await chatAsync({ db: getDb(), user: requireUser(request), request: request.body, signal });
-        return { tweets };
+        return chatAsync({ db: getDb(), user: requireUser(request), request: request.body, signal });
       },
     });
 

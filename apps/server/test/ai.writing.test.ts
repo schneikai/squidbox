@@ -145,44 +145,51 @@ describe('chatMessages', () => {
   };
   const transcript = [
     { role: 'user' as const, content: 'Write a caption' },
-    { role: 'assistant' as const, tweets: ['one', 'two', 'three'] },
+    { role: 'assistant' as const, message: 'Here you go.', posts: ['one', 'two', 'three'] },
     { role: 'user' as const, content: 'Shorter' },
   ];
+  const ROLE_LINE = "You are the writing assistant in a content creator's social media app.";
+  const FORMAT_LINE = 'Always reply as a JSON object {"message": "...", "posts": [...]}.';
 
-  it('puts the instructions, persona, chat context and reply format in the system message, in order', () => {
+  it('puts the instructions, persona and chat briefing in the system message, in order', () => {
     const [system] = chatMessages({ instructions: DEFAULT_INSTRUCTIONS, context, transcript, persona, favorites });
     const content = system!.content as string;
     expect(system!.role).toBe('system');
-    const order = [
-      DEFAULT_INSTRUCTIONS.writing,
-      'About the creator',
-      'The user is working on a new post in their app',
-      WRITING_FORMAT,
-    ];
+    const order = [DEFAULT_INSTRUCTIONS.writing, 'About the creator', ROLE_LINE, 'They have a new post open.', FORMAT_LINE];
     const at = order.map((text) => content.indexOf(text));
     expect(at.every((index) => index >= 0)).toBe(true);
     expect(at).toEqual([...at].sort((a, b) => a - b));
-    expect(content.endsWith(WRITING_FORMAT)).toBe(true);
     expect(content).toContain('In it: 2 photos, 1 video.');
     expect(content).toContain('What the photos show, as tags: forest, fog.');
     expect(content).toContain('Handles they mention in posts like this one: @ridgeline.bsky.social.');
     expect(content).toContain("The post's text so far: Fog on the trail");
+    expect(content).toContain('3 of them unless they say how many');
+    expect(content).toContain('their newest message decides what you answer');
   });
 
-  it('leaves out a context line whose value is empty', () => {
+  it("leaves the Compare's reply format out", () => {
+    const [system] = chatMessages({ instructions: DEFAULT_INSTRUCTIONS, context, transcript, persona, favorites });
+    const content = system!.content as string;
+    expect(content).not.toContain(WRITING_FORMAT);
+    expect(content).not.toContain('{"tweets"');
+  });
+
+  it('leaves out a briefing line whose value is empty, and keeps the role, subject and format lines', () => {
     const [system] = chatMessages({
       instructions: DEFAULT_INSTRUCTIONS,
-      context: { ...context, text: '', media: { photo: 1, video: 0 }, tags: [], mentions: [] },
+      context: { ...context, text: '', media: { photo: 0, video: 0 }, tags: [], mentions: [] },
       transcript,
       persona: null,
       favorites: [],
     });
     const content = system!.content as string;
-    expect(content).toContain('In it: 1 photo.');
+    expect(content).toContain(ROLE_LINE);
+    expect(content).toContain('They have a new post open.');
+    expect(content).toContain(FORMAT_LINE);
+    expect(content).not.toContain('In it:');
     expect(content).not.toContain('as tags');
     expect(content).not.toContain('Handles');
     expect(content).not.toContain("The post's text so far:");
-    expect(content).toContain('Reply with exactly 3 posts');
   });
 
   it('says when the post is one of theirs being edited', () => {
@@ -193,15 +200,22 @@ describe('chatMessages', () => {
       persona: null,
       favorites: [],
     });
-    expect(system!.content).toContain('The user is working on a post of theirs they are changing in their app');
+    expect(system!.content).toContain('They have a post of theirs they are changing open.');
   });
 
   it('follows with the transcript, the past replies as their JSON', () => {
     const [, ...rest] = chatMessages({ instructions: DEFAULT_INSTRUCTIONS, context, transcript, persona, favorites });
     expect(rest).toEqual([
       { role: 'user', content: 'Write a caption' },
-      { role: 'assistant', content: '{"tweets":["one","two","three"]}' },
+      { role: 'assistant', content: '{"message":"Here you go.","posts":["one","two","three"]}' },
       { role: 'user', content: 'Shorter' },
     ]);
+  });
+});
+
+describe('writingMessages', () => {
+  it('still ends with the reply format', () => {
+    const [system] = writingMessages({ prompt: 'Write', instructions: DEFAULT_INSTRUCTIONS, persona: null, favorites: [] });
+    expect((system!.content as string).endsWith(WRITING_FORMAT)).toBe(true);
   });
 });

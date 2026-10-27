@@ -1,14 +1,15 @@
-// The assistant chat (POST /ai/chat): the user's writing model answers the transcript with posts, as
-// the user (writing instructions, persona, Favorites) and about the chat's post (the chat context).
-import type { ChatRequest } from '@squidbox/shared';
+// The assistant chat (POST /ai/chat): the user's writing model answers the transcript in the chat's
+// voice, with posts only when asked, as the user (writing instructions, persona, Favorites) and about
+// the chat's post (the chat briefing).
+import type { ChatReply, ChatRequest } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import type { User } from '../db/schema.js';
 import { readInstructions } from './instructions.js';
 import { readFavorites, readPersona } from './persona.js';
 import { chatMessages } from './prompts.js';
-import { runChosenModelTask, writingTask } from './tasks.js';
+import { chatTask, runChosenModelTask } from './tasks.js';
 
-/** The posts the user's writing model writes for the chat's last turn (runChosenModelTask's errors). */
+/** The user's writing model's reply to the chat's last turn (runChosenModelTask's errors). */
 export async function chatAsync({
   db,
   user,
@@ -19,7 +20,7 @@ export async function chatAsync({
   user: Pick<User, 'id' | 'features'>;
   request: ChatRequest;
   signal?: AbortSignal;
-}): Promise<string[]> {
+}): Promise<ChatReply> {
   async function messagesAsync() {
     const [persona, favorites, instructions] = await Promise.all([
       readPersona(db, user.id),
@@ -28,13 +29,12 @@ export async function chatAsync({
     ]);
     return chatMessages({ context: request.context, transcript: request.messages, persona, favorites, instructions });
   }
-  const { tweets } = await runChosenModelTask({
+  return runChosenModelTask({
     db,
     userId: user.id,
     kind: 'writing',
-    task: writingTask,
+    task: chatTask,
     messagesAsync: messagesAsync(),
     signal,
   });
-  return tweets;
 }

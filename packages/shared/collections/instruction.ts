@@ -31,9 +31,10 @@ export const INSTRUCTION_KINDS = ['writing', 'visionTagging'] as const;
 
 /**
  * The app's own prompt texts, in the order the Instructions screen's App prompts lists them. Each is a
- * template the server fills in: `{count}` (writingFormat), `{themes}` (themesContext), `{aboutYou}`,
- * `{tone}`, `{contentTags}`, `{rules}`, `{favorites}` (personaFraming), and `{subject}`, `{media}`,
- * `{tags}`, `{mentions}`, `{text}` (chatContext). moreLikeThis is the app's: it sends it with the option
+ * template the server fills in: `{count}` (writingFormat, the Compare's reply format), `{themes}`
+ * (themesContext), `{aboutYou}`, `{tone}`, `{contentTags}`, `{rules}`, `{favorites}` (personaFraming),
+ * and `{subject}`, `{media}`, `{tags}`, `{mentions}`, `{text}`, `{count}` (chatContext, the whole chat
+ * briefing). moreLikeThis is the app's: it sends it with the option
  * after it.
  */
 export const APP_PROMPT_KINDS = [
@@ -57,7 +58,8 @@ export const DEFAULT_INSTRUCTIONS: Instructions = Object.freeze({
   visionTagging:
     "Tag this photo with 8 short, specific tags. Capture what's visible, the atmosphere, aesthetic, and " +
     'possible story angles. Lowercase, 1–2 words per tag, preferably one.',
-  // The reply format after the writing instructions, which the reply's schema relies on.
+  // The Compare's reply format, after the writing instructions, which the reply's schema relies on
+  // (the chat's is in chatContext).
   writingFormat:
     'Reply with exactly {count} posts, each only the finished post text, no numbering, quotes or commentary, ' +
     'as a JSON object: {"tweets": [...]}.',
@@ -81,14 +83,24 @@ export const DEFAULT_INSTRUCTIONS: Instructions = Object.freeze({
     'Example posts they wrote. Write like these:',
     '{favorites}',
   ].join('\n'),
-  // What the assistant chat adds to the writing system message about the post it helps with. A line
-  // whose placeholder is empty is left out.
+  // The chat briefing (the kind keeps its first name, chatContext): the one prompt the chat adds to
+  // the writing system message, holding its role, the facts about the post and the reply shape. A
+  // line whose placeholder is empty is left out; the first, the second and the last always stay. The
+  // first also tells the model the topic may change, so a new request needs no New chat.
   chatContext: [
-    'The user is working on {subject} in their app and you help them write it.',
+    "You are the writing assistant in a content creator's social media app. Talk with them like a good " +
+      'collaborator: answer what they ask, help them think an idea through, write what they ask for, and ' +
+      'write posts only when they ask for posts. They may switch to a new request at any time: their newest ' +
+      'message decides what you answer, and earlier turns are only background.',
+    'They have {subject} open.',
     'In it: {media}.',
     'What the photos show, as tags: {tags}.',
     'Handles they mention in posts like this one: {mentions}. Mention one when it fits, written as given.',
     "The post's text so far: {text}",
+    'Always reply as a JSON object {"message": "...", "posts": [...]}. "message" is what you say to them, in ' +
+      'plain text. "posts" holds finished post texts only when they asked for posts, {count} of them unless ' +
+      'they say how many, each only the post text, no numbering, quotes or commentary; otherwise an empty ' +
+      'list. A request to change posts (shorter, funnier, …) means new posts.',
   ].join('\n'),
   // What ⋯ → More like this on an option sends; the app adds the option on its own lines after it.
   moreLikeThis: 'Write more options like this one: the same idea and tone, different wording each time.',

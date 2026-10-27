@@ -1,11 +1,18 @@
 // What the assistant asks a model for: the JSON shape of the reply and the check it must pass, and
 // the one call that runs a task on a model (a compare runs it on several at once).
-import { ASSET_TAG_LIMITS, assetTagSchema, uniqueTags, WRITING_TWEET_COUNT, type AiModelKind } from '@squidbox/shared';
+import {
+  ASSET_TAG_LIMITS,
+  assetTagSchema,
+  CHAT_LIMITS,
+  uniqueTags,
+  WRITING_TWEET_COUNT,
+  type AiModelKind,
+} from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import { AppError } from '../errors.js';
 import { catalogAsync, findModel, type CatalogEntry } from './catalog.js';
 import { readChosenModelId } from './modelChoices.js';
-import { tagsSchema, tweetsSchema } from './prompts.js';
+import { chatReplySchema, tagsSchema, tweetsSchema } from './prompts.js';
 import { chatJsonAsync, VeniceError, type ChatMessage, type JsonSchemaSpec } from './venice.js';
 
 /** The trimmed tweets when there are exactly WRITING_TWEET_COUNT non-empty ones; throws otherwise. */
@@ -14,6 +21,23 @@ export function checkTweets(tweets: string[]): string[] {
   if (kept.length !== WRITING_TWEET_COUNT) {
     throw new VeniceError(`Returned ${kept.length} tweets instead of ${WRITING_TWEET_COUNT}`);
   }
+  return kept;
+}
+
+/**
+ * A chat reply trimmed: the message (cut to CHAT_LIMITS.message, so the app can send it back), and
+ * the non-empty posts, the first CHAT_LIMITS.posts of them;
+ * throws when neither is left (a useless reply, so Retry shows).
+ */
+export function checkChatReply({ message, posts }: { message: string; posts: string[] }) {
+  const kept = {
+    message: message.trim().slice(0, CHAT_LIMITS.message),
+    posts: posts
+      .map((post) => post.trim())
+      .filter(Boolean)
+      .slice(0, CHAT_LIMITS.posts),
+  };
+  if (!kept.message && kept.posts.length === 0) throw new VeniceError('Returned neither a message nor posts');
   return kept;
 }
 
@@ -46,6 +70,11 @@ export type AiTask<T> = { schema: JsonSchemaSpec<T>; check: (reply: T) => T };
 export const writingTask: AiTask<{ tweets: string[] }> = {
   schema: tweetsSchema,
   check: ({ tweets }) => ({ tweets: checkTweets(tweets) }),
+};
+
+export const chatTask: AiTask<{ message: string; posts: string[] }> = {
+  schema: chatReplySchema,
+  check: checkChatReply,
 };
 
 // A compare's tags: as many as the prompt asked for.

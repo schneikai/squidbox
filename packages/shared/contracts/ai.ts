@@ -104,10 +104,18 @@ export type TagPhotoRequest = z.infer<typeof tagPhotoRequestSchema>;
 export const tagPhotoResponseSchema = z.object({ tags: z.array(assetTagSchema).max(ASSET_TAG_LIMITS.tags) });
 export type TagPhotoResponse = z.infer<typeof tagPhotoResponseSchema>;
 
-// POST /ai/chat — the assistant chat: the user's writing model answers the transcript with
-// WRITING_TWEET_COUNT posts, framed by their writing instructions, persona, Favorites and the chat
-// context (instructions.chatContext). Nothing is stored: the app sends the whole chat each time.
-export const CHAT_LIMITS = { messages: 40, message: 4000, text: 4000, tags: 100, mentions: 30, mention: 80 } as const;
+// POST /ai/chat — the assistant chat: the user's writing model answers the transcript in the chat's
+// voice, with posts only when asked, framed by their writing instructions, persona, Favorites and the
+// chat briefing (instructions.chatContext). Nothing is stored: the app sends the whole chat each time.
+export const CHAT_LIMITS = {
+  messages: 40,
+  message: 4000,
+  text: 4000,
+  tags: 100,
+  mentions: 30,
+  mention: 80,
+  posts: 10,
+} as const;
 
 // The chat's subject, a post open in the editor: 'draft' a new one, 'edit' one of the user's posts.
 // PR 3 adds 'post' (a published post, outside the editor).
@@ -125,11 +133,18 @@ export const chatContextSchema = z.object({
 });
 export type ChatContext = z.infer<typeof chatContextSchema>;
 
-// The transcript so far: the user's turns and the options the assistant gave, oldest first, ending
-// with the user's new turn.
+// A reply: what the assistant says, and post options when the user asked for posts (else none).
+export const chatReplySchema = z.object({
+  message: z.string().max(CHAT_LIMITS.message),
+  posts: z.array(z.string().min(1)).max(CHAT_LIMITS.posts),
+});
+export type ChatReply = z.infer<typeof chatReplySchema>;
+
+// The transcript so far: the user's turns and the assistant's replies, oldest first, ending with the
+// user's new turn.
 export const chatTurnSchema = z.union([
   z.object({ role: z.literal('user'), content: z.string().trim().min(1).max(CHAT_LIMITS.message) }),
-  z.object({ role: z.literal('assistant'), tweets: z.array(z.string().min(1)).length(WRITING_TWEET_COUNT) }),
+  chatReplySchema.extend({ role: z.literal('assistant') }),
 ]);
 export type ChatTurn = z.infer<typeof chatTurnSchema>;
 
@@ -143,5 +158,5 @@ export const chatRequestSchema = z.object({
 });
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
 
-export const chatResponseSchema = z.object({ tweets: z.array(z.string()) });
+export const chatResponseSchema = chatReplySchema;
 export type ChatResponse = z.infer<typeof chatResponseSchema>;

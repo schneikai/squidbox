@@ -1,5 +1,6 @@
 // The AI's prompts and the JSON each model must answer with.
 import {
+  CHAT_LIMITS,
   WRITING_TWEET_COUNT,
   type ChatContext,
   type ChatTurn,
@@ -31,35 +32,31 @@ export function contentThemesText(template: string, contentTags: string[]): stri
   return fillTemplate(template, { themes: contentTags.join(', ') });
 }
 
-/**
- * The writing system message: the user's writing instructions (theirs or the default), their persona
- * and their Favorites (`favorites`, the texts, newest first), either of which may be missing, framed
- * by `instructions.personaFraming`, the chat's context when there is one (`instructions.chatContext`),
- * then the reply format (`instructions.writingFormat`).
- */
-function writingSystem({
+// The user's writing instructions (theirs or the default), then their persona and Favorites
+// (`favorites`, the texts, newest first) framed by `instructions.personaFraming`, when either exists.
+function writingAsUser({
   persona,
   favorites,
   instructions,
-  context,
 }: {
   persona: Persona;
   favorites: string[];
   instructions: Instructions;
-  context?: ChatContext;
-}): ChatMessage {
-  const content = [
+}): (string | false)[] {
+  return [
     instructions.writing,
     (persona || favorites.length > 0) && personaText(instructions.personaFraming, persona, favorites),
-    context && chatContextText(instructions.chatContext, context),
-    writingFormatText(instructions.writingFormat),
-  ]
-    .filter(Boolean)
-    .join('\n\n');
-  return { role: 'system', content };
+  ];
 }
 
-/** The writing prompt of a compare, as the user: the writing system message, then the prompt. */
+function systemMessage(parts: (string | false)[]): ChatMessage {
+  return { role: 'system', content: parts.filter(Boolean).join('\n\n') };
+}
+
+/**
+ * The writing prompt of a compare, as the user: the writing instructions, persona and Favorites and
+ * the reply format (`instructions.writingFormat`) as the system message, then the prompt.
+ */
 export function writingMessages({
   prompt,
   persona,
@@ -71,12 +68,19 @@ export function writingMessages({
   favorites: string[];
   instructions: Instructions;
 }): ChatMessage[] {
-  return [writingSystem({ persona, favorites, instructions }), { role: 'user', content: prompt }];
+  return [
+    systemMessage([
+      ...writingAsUser({ persona, favorites, instructions }),
+      writingFormatText(instructions.writingFormat),
+    ]),
+    { role: 'user', content: prompt },
+  ];
 }
 
 /**
- * The assistant chat, as the user: the writing system message with the chat's context, then the
- * transcript, a past reply in the JSON the model replies in.
+ * The assistant chat, as the user: the writing instructions, persona and Favorites and the chat
+ * briefing (`instructions.chatContext`: its role, the post and the reply shape) as the system message,
+ * then the transcript, a past reply in the JSON the model replies in.
  */
 export function chatMessages({
   context,
@@ -92,11 +96,14 @@ export function chatMessages({
   instructions: Instructions;
 }): ChatMessage[] {
   return [
-    writingSystem({ persona, favorites, instructions, context }),
+    systemMessage([
+      ...writingAsUser({ persona, favorites, instructions }),
+      chatBriefingText(instructions.chatContext, context),
+    ]),
     ...transcript.map((turn): ChatMessage =>
       turn.role === 'user'
         ? { role: 'user', content: turn.content }
-        : { role: 'assistant', content: JSON.stringify({ tweets: turn.tweets }) },
+        : { role: 'assistant', content: JSON.stringify({ message: turn.message, posts: turn.posts }) },
     ),
   ];
 }
@@ -144,9 +151,13 @@ function mediaText({ photo, video }: ChatContext['media']): string {
   return [count(photo, 'photo'), count(video, 'video')].filter(Boolean).join(', ');
 }
 
-/** What the chat's post is, in `template` (chatContext); a line whose value is empty is left out. */
-export function chatContextText(template: string, context: ChatContext): string {
+/**
+ * The chat briefing, `template` (chatContext) filled with the chat's post and the post count; a line
+ * whose value is empty is left out.
+ */
+export function chatBriefingText(template: string, context: ChatContext): string {
   return fillLines(template, {
+    count: String(WRITING_TWEET_COUNT),
     subject: SUBJECTS[context.kind],
     media: mediaText(context.media),
     tags: context.tags.join(', '),
@@ -201,6 +212,16 @@ export const tweetsSchema: JsonSchemaSpec<{ tweets: string[] }> = {
   name: 'tweets',
   jsonSchema: stringListSchema('tweets', WRITING_TWEET_COUNT),
   zod: z.object({ tweets: z.array(z.string()) }),
+};
+
+// A chat reply: what the assistant says and the posts, when asked for (tasks.ts checks them).
+export const chatReplySchema: JsonSchemaSpec<{ message: string; posts: string[] }> = {
+  name: 'chat',
+  jsonSchema: objectSchema({
+    message: { type: 'string' },
+    posts: { type: 'array', items: { type: 'string' }, maxItems: CHAT_LIMITS.posts },
+  }),
+  zod: z.object({ message: z.string(), posts: z.array(z.string()) }),
 };
 
 export const tagsSchema: JsonSchemaSpec<{ tags: string[] }> = {
