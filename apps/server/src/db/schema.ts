@@ -239,7 +239,7 @@ export const promptButtons = pgTable(
     ...syncableBase(),
     name: text('name').notNull(),
     prompt: text('prompt').notNull(),
-    placement: text('placement').notNull(), // 'post' | 'newPost' | 'refine' (validated via Zod)
+    placement: text('placement').notNull(), // 'post' | 'newPost' | 'caption' | 'refine' (validated via Zod)
     icon: text('icon'),
     position: text('position').notNull(),
   },

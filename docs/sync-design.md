@@ -873,8 +873,9 @@ beats by its clock. The writing prompt sends the newest 20 (`FAVORITES_IN_PROMPT
 
 **instructions** (Settings → Assistant → Instructions: what the assistant is told before each
 request). Synced: `writing`, `visionTagging` and the app prompts (`writingFormat`, `tagsSystem`,
-`themesContext`, `personaFraming`, `chatContext`: the server's own texts around them, templates it
-fills in, and `moreLikeThis`, what the chat's More like this sends; editable by an `ai_admin` account
+`themesContext`, `personaFraming`: the server's own texts around them, templates it fills in;
+`chatContext`, the chat's briefing (the persona, the post and the reply shape), its whole system
+message; and `moreLikeThis`, what the chat's More like this sends; editable by an `ai_admin` account
 for trying a change on one account), each the user's text or null for the app's default
 (`DEFAULT_INSTRUCTIONS` in `packages/shared`, resolved by `resolveInstructions`, which gives an
 account without `ai_admin` the app's text for every app prompt), plus

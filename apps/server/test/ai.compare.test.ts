@@ -16,7 +16,17 @@ vi.mock('../src/config.js', async (importOriginal) => {
 import { DEFAULT_INSTRUCTIONS } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
 import { compareModels } from '../src/ai/compare.js';
-import { checkChatReply, checkTags, checkTweets, fitTags, runTask, visionTask, writingTask } from '../src/ai/tasks.js';
+import {
+  chatTask,
+  checkChatReply,
+  checkTags,
+  checkTweets,
+  fitTags,
+  reasoningParams,
+  runTask,
+  visionTask,
+  writingTask,
+} from '../src/ai/tasks.js';
 import { VeniceError } from '../src/ai/venice.js';
 import { contentThemesText, visionMessages, writingMessages } from '../src/ai/prompts.js';
 import type { CatalogEntry } from '../src/ai/catalog.js';
@@ -107,17 +117,27 @@ describe('checking the replies', () => {
     expect(() => checkTweets(['a', 'b', ' '])).toThrow('Returned 2 tweets instead of 3');
   });
 
-  it('takes a chat reply trimmed, without empty posts, the first 10 of them', () => {
+  it('takes a chat reply trimmed, without empty options, the first 10 of them', () => {
     const many = Array.from({ length: 12 }, (_, index) => `post ${index}`);
-    expect(checkChatReply({ message: ' Hi ', posts: [' a ', ' ', ...many] })).toEqual({
-      message: 'Hi',
-      posts: ['a', ...many.slice(0, 9)],
+    expect(checkChatReply({ reply: ' Hi ', postOptions: [' a ', ' ', ...many] })).toEqual({
+      reply: 'Hi',
+      postOptions: ['a', ...many.slice(0, 9)],
     });
-    expect(checkChatReply({ message: 'Sounds good.', posts: [] })).toEqual({ message: 'Sounds good.', posts: [] });
-    expect(checkChatReply({ message: '', posts: ['a'] })).toEqual({ message: '', posts: ['a'] });
-    expect(() => checkChatReply({ message: ' ', posts: [' '] })).toThrow(
-      new VeniceError('Returned neither a message nor posts'),
+    expect(checkChatReply({ reply: 'Sounds good.', postOptions: [] })).toEqual({
+      reply: 'Sounds good.',
+      postOptions: [],
+    });
+    expect(checkChatReply({ reply: '', postOptions: ['a'] })).toEqual({ reply: '', postOptions: ['a'] });
+    expect(() => checkChatReply({ reply: ' ', postOptions: [' '] })).toThrow(
+      new VeniceError('Returned neither a reply nor posts'),
     );
+  });
+
+  it("turns a model's reasoning down as far as its spec allows", () => {
+    expect(reasoningParams(model('deepseek-v4-1-flash-uncensored'))).toEqual({ reasoning_effort: 'low' });
+    expect(reasoningParams(model('grok-4-7'))).toEqual({ reasoning_effort: 'low' });
+    expect(reasoningParams(model('qwen-3-6-plus'))).toEqual({ reasoning_effort: 'none' });
+    expect(reasoningParams(model('venice-uncensored-1-2'))).toEqual({});
   });
 
   it('takes any number of tags, trimmed, without empty ones and case-insensitive duplicates, in order', () => {
@@ -149,6 +169,29 @@ describe('runTask', () => {
     await expect(runTask({ task: visionTask, messages, model: model('gemma-4-uncensored') })).resolves.toEqual({
       tags: ['moss', 'fog'],
     });
+  });
+
+  it('runs a chat reply with reasoning turned down, and keeps an unreadable one as its text', async () => {
+    const chat = [{ role: 'user' as const, content: 'Hi' }];
+    replies({ 'deepseek-v4-1-flash-uncensored': 'Sure, tell me about the trip.' });
+    await expect(
+      runTask({ task: chatTask, messages: chat, model: model('deepseek-v4-1-flash-uncensored') }),
+    ).resolves.toEqual({ reply: 'Sure, tell me about the trip.', postOptions: [] });
+    const sent = JSON.parse(fetchMock.mock.calls[0]![1].body);
+    expect(sent.reasoning_effort).toBe('low');
+    expect(sent.response_format.json_schema.name).toBe('chat_reply');
+    expect(sent.response_format.json_schema.schema.properties.postOptions).not.toHaveProperty('maxItems');
+  });
+
+  it("runs any other task on the model's own reasoning defaults, and fails an unreadable reply", async () => {
+    replies({ 'deepseek-v4-1-flash-uncensored': 'not json' });
+    const writing = runTask({
+      task: writingTask,
+      messages: [{ role: 'user', content: 'Write' }],
+      model: model('deepseek-v4-1-flash-uncensored'),
+    });
+    await expect(writing).rejects.toThrow("The reply couldn't be read");
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).not.toHaveProperty('reasoning_effort');
   });
 
   it('throws the VeniceError a compare shows on the model card', async () => {

@@ -32,10 +32,10 @@ export const INSTRUCTION_KINDS = ['writing', 'visionTagging'] as const;
 /**
  * The app's own prompt texts, in the order the Instructions screen's App prompts lists them. Each is a
  * template the server fills in: `{count}` (writingFormat, the Compare's reply format), `{themes}`
- * (themesContext), `{aboutYou}`, `{tone}`, `{contentTags}`, `{rules}`, `{favorites}` (personaFraming),
- * and `{subject}`, `{media}`, `{tags}`, `{mentions}`, `{text}`, `{count}` (chatContext, the whole chat
- * briefing). moreLikeThis is the app's: it sends it with the option
- * after it.
+ * (themesContext), `{aboutYou}`, `{tone}`, `{contentTags}`, `{rules}`, `{favorites}` (personaFraming,
+ * the Compare's), and `{aboutYou}`, `{tone}`, `{contentTags}`, `{rules}`, `{favorites}`, `{media}`,
+ * `{tags}`, `{mentions}`, `{caption}`, `{count}` (chatContext, the whole chat briefing). moreLikeThis
+ * is the app's: it sends it with the option after it.
  */
 export const APP_PROMPT_KINDS = [
   'writingFormat',
@@ -54,6 +54,7 @@ export type Instructions = Record<InstructionKind, string>;
 
 /** The app's text for each kind, used while the user's is null. */
 export const DEFAULT_INSTRUCTIONS: Instructions = Object.freeze({
+  // The Compare's writing instructions; the chat has its own briefing (chatContext).
   writing: 'You write social posts for a content creator, in their voice. Each post is ready to publish as it is.',
   visionTagging:
     "Tag this photo with 8 short, specific tags. Capture what's visible, the atmosphere, aesthetic, and " +
@@ -72,8 +73,9 @@ export const DEFAULT_INSTRUCTIONS: Instructions = Object.freeze({
     'Treat these themes as a creative starting point, not a fixed vocabulary. Reuse their exact wording ' +
     'when relevant, but freely discover related subjects, moods, styles, and new ideas. Never force a ' +
     "theme that doesn't fit the image.",
-  // Writing as you and the Favorites, in the writing system message. A line whose placeholder is empty
-  // is left out, and so is a heading line ending in ':' right above it.
+  // Writing as you and the Favorites, in the Compare's writing system message (the chat has its
+  // briefing). A line whose placeholder is empty is left out, and so is a heading line ending in ':'
+  // right above it.
   personaFraming: [
     'About the creator: {aboutYou}',
     'Their tone: {tone}',
@@ -83,25 +85,42 @@ export const DEFAULT_INSTRUCTIONS: Instructions = Object.freeze({
     'Example posts they wrote. Write like these:',
     '{favorites}',
   ].join('\n'),
-  // The chat briefing (the kind keeps its first name, chatContext): the one prompt the chat adds to
-  // the writing system message, holding its role, the facts about the post and the reply shape. A
-  // line whose placeholder is empty is left out; the first, the second and the last always stay. The
-  // first also tells the model the topic may change, so a new request needs no New chat.
-  chatContext: [
-    "You are the writing assistant in a content creator's social media app. Talk with them like a good " +
-      'collaborator: answer what they ask, help them think an idea through, write what they ask for, and ' +
-      'write posts only when they ask for posts. They may switch to a new request at any time: their newest ' +
-      'message decides what you answer, and earlier turns are only background.',
-    'They have {subject} open.',
-    'In it: {media}.',
-    'What the photos show, as tags: {tags}.',
-    'Handles they mention in posts like this one: {mentions}. Mention one when it fits, written as given.',
-    "The post's text so far: {text}",
-    'Always reply as a JSON object {"message": "...", "posts": [...]}. "message" is what you say to them, in ' +
-      'plain text. "posts" holds finished post texts only when they asked for posts, {count} of them unless ' +
-      'they say how many, each only the post text, no numbering, quotes or commentary; otherwise an empty ' +
-      'list. A request to change posts (shorter, funnier, …) means new posts.',
-  ].join('\n'),
+  // The chat briefing (the kind keeps its first name, chatContext): the one prompt the chat sends, as
+  // the whole system message, holding who the creator is, the post and how to answer. A line whose
+  // placeholder is empty is left out, and so is a heading left with nothing under it (fillLines);
+  // `{caption}` reads (empty) when the caption is. The template is 2,152 characters against
+  // INSTRUCTION_LIMITS.text (4,000), which an edit must stay under.
+  chatContext: `You are the writing assistant inside Squidbox, a content creator's post editor. The creator chats with you to think through ideas and to get posts written in their voice. Be a sharp, warm collaborator: plain language, short turns, no headings, no "Great question". The newest message decides what the chat is about; follow it even when it changes the subject.
+
+# The creator
+{aboutYou}
+Tone: {tone}
+Themes they post about: {contentTags}
+
+# Their rules
+Every post you write follows these, no exceptions:
+{rules}
+
+# Posts they liked
+Write posts that sound like these (voice, length, rhythm; never copy them):
+{favorites}
+
+# The post they're working on
+Media: {media}
+What's in the photos (from image recognition): {tags}
+People they've tagged in posts from the same album: {mentions}
+Caption so far: {caption}
+
+# How to answer
+Answer with one JSON object: {"reply": "…", "postOptions": ["…"]}.
+
+"reply" is what you say in the chat, as prose with line breaks where they help: a few sentences, unless they ask for more, and never empty. It doesn't repeat the posts or the creator's words: the app shows the posts as cards under it.
+
+"postOptions" holds finished post texts, one array item per option (never several posts in one string), each ready to publish as it is. Fill it ONLY when the creator asks you to write posts or captions, or to change a text (shorter, drier, funnier, a different angle…): "each post" or "each option" means the newest set of posts in this chat, "this" with a text under it means that text; return the whole changed set. Everything else leaves it empty: when they tell you about a trip, ask a question or want your take, talk with them and offer to write posts when they're ready. {count} options unless they say how many.
+
+Bios, profile text, names, ideas, lists and everything that isn't a post go into "reply": the full text of each one, one per line. A reply that only announces them ("here are three bios") without the bios themselves is wrong.
+
+Use only what the creator, the photos or this briefing give you: never invent places, names, dates or events, and ask when a detail is missing. Write handles exactly as given.`,
   // What ⋯ → More like this on an option sends; the app adds the option on its own lines after it.
   moreLikeThis: 'Write more options like this one: the same idea and tone, different wording each time.',
 });

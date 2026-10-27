@@ -114,21 +114,27 @@ async function chatCompletionAsync({
 }
 
 /**
- * One chat completion whose reply is JSON of `schema`; anything else is a VeniceError. A model
+ * One chat completion whose reply is JSON of `schema`; anything else is a VeniceError, unless
+ * `onUnreadable` is given: then a reply that isn't that JSON is `onUnreadable(its text)`. A model
  * without `supportsResponseSchema` is asked without the schema (the messages say the shape), and
- * its reply may wrap the JSON in a code fence or words.
+ * its reply may wrap the JSON in a code fence or words. `reasoning` goes into the request as it is
+ * (reasoningParams in tasks.ts).
  */
 export async function chatJsonAsync<T>({
   model,
   messages,
   schema,
   supportsResponseSchema = true,
+  reasoning = {},
+  onUnreadable,
   signal,
 }: {
   model: string;
   messages: ChatMessage[];
   schema: JsonSchemaSpec<T>;
   supportsResponseSchema?: boolean;
+  reasoning?: Record<string, unknown>;
+  onUnreadable?: (content: string) => T;
   signal?: AbortSignal;
 }): Promise<T> {
   const responseFormat = {
@@ -140,14 +146,16 @@ export async function chatJsonAsync<T>({
     messages,
     signal,
     ...(supportsResponseSchema && { response_format: responseFormat }),
+    ...reasoning,
   });
   const parsed = schema.zod.safeParse(parseJsonReply(content));
-  if (!parsed.success) throw new VeniceError("The reply couldn't be read");
-  return parsed.data;
+  if (parsed.success) return parsed.data;
+  if (onUnreadable) return onUnreadable(content);
+  throw new VeniceError("The reply couldn't be read");
 }
 
 // The reply's JSON object: the whole reply, a ```json fenced block in it, or from its first { to
-// its last }.
+// its last }; null when there is none.
 function parseJsonReply(content: string): unknown {
   const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(content)?.[1] ?? '';
   for (const text of [content, fenced, content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1)]) {
@@ -157,7 +165,7 @@ function parseJsonReply(content: string): unknown {
       // the next form
     }
   }
-  throw new VeniceError("The reply couldn't be read");
+  return null;
 }
 
 // Venice answers errors as { error: { message } } or, on some routes, { error: "…" }.

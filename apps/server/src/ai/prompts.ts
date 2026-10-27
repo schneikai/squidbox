@@ -1,6 +1,5 @@
 // The AI's prompts and the JSON each model must answer with.
 import {
-  CHAT_LIMITS,
   WRITING_TWEET_COUNT,
   type ChatContext,
   type ChatTurn,
@@ -32,30 +31,10 @@ export function contentThemesText(template: string, contentTags: string[]): stri
   return fillTemplate(template, { themes: contentTags.join(', ') });
 }
 
-// The user's writing instructions (theirs or the default), then their persona and Favorites
-// (`favorites`, the texts, newest first) framed by `instructions.personaFraming`, when either exists.
-function writingAsUser({
-  persona,
-  favorites,
-  instructions,
-}: {
-  persona: Persona;
-  favorites: string[];
-  instructions: Instructions;
-}): (string | false)[] {
-  return [
-    instructions.writing,
-    (persona || favorites.length > 0) && personaText(instructions.personaFraming, persona, favorites),
-  ];
-}
-
-function systemMessage(parts: (string | false)[]): ChatMessage {
-  return { role: 'system', content: parts.filter(Boolean).join('\n\n') };
-}
-
 /**
- * The writing prompt of a compare, as the user: the writing instructions, persona and Favorites and
- * the reply format (`instructions.writingFormat`) as the system message, then the prompt.
+ * The writing prompt of a compare, as the user: the writing instructions, their persona and Favorites
+ * framed by `instructions.personaFraming` (when either exists) and the reply format
+ * (`instructions.writingFormat`) as the system message, then the prompt.
  */
 export function writingMessages({
   prompt,
@@ -68,19 +47,23 @@ export function writingMessages({
   favorites: string[];
   instructions: Instructions;
 }): ChatMessage[] {
+  const content = [
+    instructions.writing,
+    (persona || favorites.length > 0) && personaText(instructions.personaFraming, persona, favorites),
+    writingFormatText(instructions.writingFormat),
+  ]
+    .filter(Boolean)
+    .join('\n\n');
   return [
-    systemMessage([
-      ...writingAsUser({ persona, favorites, instructions }),
-      writingFormatText(instructions.writingFormat),
-    ]),
+    { role: 'system', content },
     { role: 'user', content: prompt },
   ];
 }
 
 /**
- * The assistant chat, as the user: the writing instructions, persona and Favorites and the chat
- * briefing (`instructions.chatContext`: its role, the post and the reply shape) as the system message,
- * then the transcript, a past reply in the JSON the model replies in.
+ * The assistant chat, as the user: the chat briefing (`instructions.chatContext`, filled with their
+ * persona, Favorites and the post) as the whole system message, then the transcript, a past reply in
+ * the JSON the model replies in.
  */
 export function chatMessages({
   context,
@@ -96,23 +79,24 @@ export function chatMessages({
   instructions: Instructions;
 }): ChatMessage[] {
   return [
-    systemMessage([
-      ...writingAsUser({ persona, favorites, instructions }),
-      chatBriefingText(instructions.chatContext, context),
-    ]),
+    { role: 'system', content: chatBriefingText(instructions.chatContext, { persona, favorites, context }) },
     ...transcript.map((turn): ChatMessage =>
       turn.role === 'user'
         ? { role: 'user', content: turn.content }
-        : { role: 'assistant', content: JSON.stringify({ message: turn.message, posts: turn.posts }) },
+        : { role: 'assistant', content: JSON.stringify({ reply: turn.reply, postOptions: turn.postOptions }) },
     ),
   ];
 }
 
 const PLACEHOLDER = /\{(\w+)\}/;
 
+const HEADING = /^#/;
+
 /**
  * `template` filled with `values`, where a line whose placeholder is empty goes, with a heading line
- * (one ending in ':', without a placeholder) right above it. The result is trimmed.
+ * (one ending in ':', without a placeholder) right above it. Then a `#` heading left with nothing
+ * under it before the next `#` heading or the end goes too, from the end up, so emptied sections go
+ * one after the other; and blank lines left in a row become one. The result is trimmed.
  */
 export function fillLines(template: string, values: Record<string, string>): string {
   const lines: string[] = [];
@@ -125,44 +109,65 @@ export function fillLines(template: string, values: Record<string, string>): str
     const above = lines[lines.length - 1];
     if (above !== undefined && above.trimEnd().endsWith(':') && !PLACEHOLDER.test(above)) lines.pop();
   }
-  return fillTemplate(lines.join('\n'), values).trim();
+  const kept: string[] = [];
+  let isSectionEmpty = true; // nothing but blank lines since the next heading or the end
+  for (const line of lines.reverse()) {
+    if (HEADING.test(line)) {
+      if (isSectionEmpty) continue;
+      isSectionEmpty = true;
+    } else if (line.trim()) {
+      isSectionEmpty = false;
+    }
+    if (!line.trim() && kept.length > 0 && !kept[kept.length - 1]!.trim()) continue;
+    kept.push(line);
+  }
+  return fillTemplate(kept.reverse().join('\n'), values).trim();
+}
+
+// The persona's own fields as template values: empty ones when there is none; rules as "- " lines.
+function personaValues(persona: Persona): Record<string, string> {
+  return {
+    aboutYou: persona?.aboutYou ?? '',
+    tone: persona?.tone ?? '',
+    contentTags: persona?.contentTags.join(', ') ?? '',
+    rules: persona?.rules.map((rule) => `- ${rule}`).join('\n') ?? '',
+  };
 }
 
 // The persona and favorites in `template` (personaFraming): every field that is filled, and the
 // favorites as example posts.
 function personaText(template: string, persona: Persona, favorites: string[]): string {
   return fillLines(template, {
-    aboutYou: persona?.aboutYou ?? '',
-    tone: persona?.tone ?? '',
-    contentTags: persona?.contentTags.join(', ') ?? '',
-    rules: persona?.rules.map((rule) => `- ${rule}`).join('\n') ?? '',
+    ...personaValues(persona),
     favorites: favorites.length > 0 ? `${favorites.map((post) => `---\n${post}`).join('\n')}\n---` : '',
   });
 }
 
-const SUBJECTS: Record<ChatContext['kind'], string> = {
-  draft: 'a new post',
-  edit: 'a post of theirs they are changing',
-};
-
-// "2 photos, 1 video", empty without media.
+// "4 photos and 1 video", "none yet" without media.
 function mediaText({ photo, video }: ChatContext['media']): string {
   const count = (n: number, one: string) => (n === 0 ? null : `${n} ${one}${n === 1 ? '' : 's'}`);
-  return [count(photo, 'photo'), count(video, 'video')].filter(Boolean).join(', ');
+  return [count(photo, 'photo'), count(video, 'video')].filter(Boolean).join(' and ') || 'none yet';
 }
 
 /**
- * The chat briefing, `template` (chatContext) filled with the chat's post and the post count; a line
- * whose value is empty is left out.
+ * The chat briefing, `template` (chatContext) filled with the creator's persona, their Favorites
+ * (the texts, newest first, as "- " lines like the rules) and the chat's post: `{caption}` is the
+ * caption as a JSON string, or (empty); `{count}` the options to write. A line whose value is empty is
+ * left out, with its heading (fillLines).
  */
-export function chatBriefingText(template: string, context: ChatContext): string {
+export function chatBriefingText(
+  template: string,
+  { persona, favorites, context }: { persona: Persona; favorites: string[]; context: ChatContext },
+): string {
+  const caption = context.text.trim();
   return fillLines(template, {
-    count: String(WRITING_TWEET_COUNT),
-    subject: SUBJECTS[context.kind],
+    ...personaValues(persona),
+    favorites: favorites.map((post) => `- ${post}`).join('\n'),
     media: mediaText(context.media),
     tags: context.tags.join(', '),
     mentions: context.mentions.join(', '),
-    text: context.text.trim(),
+    caption: caption ? JSON.stringify(caption) : '(empty)',
+    count: String(WRITING_TWEET_COUNT),
   });
 }
 
@@ -214,14 +219,20 @@ export const tweetsSchema: JsonSchemaSpec<{ tweets: string[] }> = {
   zod: z.object({ tweets: z.array(z.string()) }),
 };
 
-// A chat reply: what the assistant says and the posts, when asked for (tasks.ts checks them).
-export const chatReplySchema: JsonSchemaSpec<{ message: string; posts: string[] }> = {
-  name: 'chat',
+// A chat reply: what the assistant says and the options for the post, when asked for (tasks.ts checks
+// them and keeps the first CHAT_LIMITS.posts; a maxItems here invited ten options).
+export const chatReplySchema: JsonSchemaSpec<{ reply: string; postOptions: string[] }> = {
+  name: 'chat_reply',
   jsonSchema: objectSchema({
-    message: { type: 'string' },
-    posts: { type: 'array', items: { type: 'string' }, maxItems: CHAT_LIMITS.posts },
+    reply: { type: 'string' },
+    postOptions: {
+      type: 'array',
+      items: { type: 'string' },
+      description:
+        'Options for the post being edited: finished post texts, one per item. Empty unless the creator asked for posts.',
+    },
   }),
-  zod: z.object({ message: z.string(), posts: z.array(z.string()) }),
+  zod: z.object({ reply: z.string(), postOptions: z.array(z.string()) }),
 };
 
 export const tagsSchema: JsonSchemaSpec<{ tags: string[] }> = {

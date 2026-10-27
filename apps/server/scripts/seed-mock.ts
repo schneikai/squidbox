@@ -152,8 +152,8 @@ const PERSONA = {
 const PROFILE_LINK = 'https://bsky.app/profile/quietroads.bsky.social';
 
 // The app's default prompt buttons (by placement and name) in his words, for Bluesky: Thread becomes a
-// print teaser, Behind the scenes his photo of the week and Funnier Drier, under the same ids. And a
-// trip recap.
+// print teaser, Behind the scenes his photo of the week and Funnier Drier (under the caption and in
+// the chat), under the same ids. And a trip recap.
 const OVERRIDES: Record<string, Pick<NewPromptButton, 'name' | 'icon' | 'prompt'>> = {
   'post:Repost ideas': {
     name: 'Repost ideas',
@@ -182,6 +182,16 @@ const OVERRIDES: Record<string, Pick<NewPromptButton, 'name' | 'icon' | 'prompt'
     icon: 'award',
     prompt:
       'Write a Bluesky thread of 3 short posts for my photo of the week: the shot, where and when, and one thing about how I took it.',
+  },
+  'caption:Shorter': {
+    name: 'Shorter',
+    icon: 'scissors',
+    prompt: 'Make this shorter. Keep the first line, cut the rest.',
+  },
+  'caption:Funnier': {
+    name: 'Drier',
+    icon: 'feather',
+    prompt: 'Make this drier and a little funnier. Same idea, one wry twist.',
   },
   'refine:Shorter': {
     name: 'Shorter',

@@ -3,8 +3,8 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   aiBalanceResponseSchema,
   aiModelsResponseSchema,
+  chatReplySchema,
   chatRequestSchema,
-  chatResponseSchema,
   compareVisionRequestSchema,
   compareVisionResponseSchema,
   compareWritingRequestSchema,
@@ -106,13 +106,13 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       },
     });
 
-    // POST /ai/chat — the assistant chat: the user's writing model answers the transcript, with posts
-    // when asked, about the chat's post (Write with AI in the post editor). Nothing is stored.
+    // POST /ai/chat — the assistant chat: the user's writing model answers the transcript, with post
+    // options when asked, about the chat's post (Write with AI in the post editor). Nothing is stored.
     r.route({
       method: 'POST',
       url: '/ai/chat',
       config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
-      schema: { body: chatRequestSchema, response: { 200: chatResponseSchema } },
+      schema: { body: chatRequestSchema, response: { 200: chatReplySchema } },
       handler: async (request, reply) => {
         const signal = untilClientLeaves(reply);
         return chatAsync({ db: getDb(), user: requireUser(request), request: request.body, signal });

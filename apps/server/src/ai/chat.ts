@@ -1,6 +1,6 @@
-// The assistant chat (POST /ai/chat): the user's writing model answers the transcript in the chat's
-// voice, with posts only when asked, as the user (writing instructions, persona, Favorites) and about
-// the chat's post (the chat briefing).
+// The assistant chat (POST /ai/chat): the user's writing model answers the transcript as the
+// creator's collaborator, with post options only when asked, briefed by the chat briefing filled with
+// their persona, Favorites and the chat's post.
 import type { ChatReply, ChatRequest } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import type { User } from '../db/schema.js';

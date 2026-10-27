@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import { baseRecordSchema, defineCollection, textSchema } from './define';
 
-// Where a prompt button shows in the chat: on a post, on a new post, or under every reply (Refine).
-export const promptButtonPlacementSchema = z.enum(['post', 'newPost', 'refine']);
+// Where a prompt button shows: on a post, on a new post, under the caption in the editor (a tap puts
+// the prompt and the caption in the chat's composer), or under every reply in the chat (Refine).
+export const promptButtonPlacementSchema = z.enum(['post', 'newPost', 'caption', 'refine']);
 export type PromptButtonPlacement = z.infer<typeof promptButtonPlacementSchema>;
 
 // `prompt_buttons` — the chat's one-tap prompts (Settings → Assistant → Prompt buttons). `position`

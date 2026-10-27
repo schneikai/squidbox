@@ -104,11 +104,11 @@ export type TagPhotoRequest = z.infer<typeof tagPhotoRequestSchema>;
 export const tagPhotoResponseSchema = z.object({ tags: z.array(assetTagSchema).max(ASSET_TAG_LIMITS.tags) });
 export type TagPhotoResponse = z.infer<typeof tagPhotoResponseSchema>;
 
-// POST /ai/chat — the assistant chat: the user's writing model answers the transcript in the chat's
-// voice, with posts only when asked, framed by their writing instructions, persona, Favorites and the
-// chat briefing (instructions.chatContext). Nothing is stored: the app sends the whole chat each time.
+// POST /ai/chat — the assistant chat: the writing model answers the transcript as the creator's
+// collaborator, with post options only when asked, briefed by instructions.chatContext filled with
+// their persona, Favorites and the post. Nothing is stored: the app sends the whole chat each time.
 export const CHAT_LIMITS = {
-  messages: 40,
+  messages: 30,
   message: 4000,
   text: 4000,
   tags: 100,
@@ -122,8 +122,8 @@ export const CHAT_LIMITS = {
 export const chatSubjectKindSchema = z.enum(['draft', 'edit']);
 export type ChatSubjectKind = z.infer<typeof chatSubjectKindSchema>;
 
-// What the chat is about, as the app sees it when it sends: the server frames it (chatContext). The
-// app cuts `text` to CHAT_LIMITS.text (a post's text has no cap) so a long caption never makes a 400.
+// What the chat is about, as the app sees it when it sends: the server fills the briefing with it
+// (chatContext; `text` is its {caption}). The app cuts `text` to CHAT_LIMITS.text (a post's text has no cap) so a long caption never makes a 400.
 export const chatContextSchema = z.object({
   kind: chatSubjectKindSchema,
   text: z.string().max(CHAT_LIMITS.text),
@@ -133,10 +133,10 @@ export const chatContextSchema = z.object({
 });
 export type ChatContext = z.infer<typeof chatContextSchema>;
 
-// A reply: what the assistant says, and post options when the user asked for posts (else none).
+// A reply: what the assistant says, and options for the post only when the user asked for posts.
 export const chatReplySchema = z.object({
-  message: z.string().max(CHAT_LIMITS.message),
-  posts: z.array(z.string().min(1)).max(CHAT_LIMITS.posts),
+  reply: z.string().max(CHAT_LIMITS.message),
+  postOptions: z.array(z.string().min(1)).max(CHAT_LIMITS.posts),
 });
 export type ChatReply = z.infer<typeof chatReplySchema>;
 
@@ -157,6 +157,3 @@ export const chatRequestSchema = z.object({
     .refine((turns) => turns[turns.length - 1]!.role === 'user', "The last turn is the user's"),
 });
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
-
-export const chatResponseSchema = chatReplySchema;
-export type ChatResponse = z.infer<typeof chatResponseSchema>;
