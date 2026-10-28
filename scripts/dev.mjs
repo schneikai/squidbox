@@ -16,7 +16,8 @@
  *   npm run dev:local -- --live-backend-on-owner-request   # the live backend, on the owner's request only
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { copyFileSync, createWriteStream, existsSync, readFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
+import { appendFileSync, copyFileSync, createWriteStream, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { parseEnv } from 'node:util';
@@ -63,7 +64,19 @@ async function startLocalBackendAndMetro() {
     copyFileSync(`${SERVER_DIR}/.env.docker`, SERVER_ENV);
     log('Created apps/server/.env from .env.docker');
   }
-  const serverEnv = parseEnv(readFileSync(SERVER_ENV, 'utf8'));
+  // The copy of the owner's library has a password of this checkout's own, kept in apps/server/.env.
+  if (!parseEnv(readFileSync(SERVER_ENV, 'utf8')).LIBRARY_COPY_PASSWORD) {
+    appendFileSync(SERVER_ENV, `\nLIBRARY_COPY_PASSWORD=${randomBytes(18).toString('base64url')}\n`);
+  }
+  // .env.docker supplies what an older apps/server/.env lacks (the library-copy account's email).
+  const serverEnv = {
+    ...parseEnv(readFileSync(`${SERVER_DIR}/.env.docker`, 'utf8')),
+    ...parseEnv(readFileSync(SERVER_ENV, 'utf8')),
+  };
+  const copyAccountEnv = {
+    LIBRARY_COPY_EMAIL: serverEnv.LIBRARY_COPY_EMAIL,
+    LIBRARY_COPY_PASSWORD: serverEnv.LIBRARY_COPY_PASSWORD,
+  };
 
   log('Starting Postgres + MinIO');
   run('docker', ['compose', 'up', '-d'], SERVER_DIR);
@@ -73,18 +86,40 @@ async function startLocalBackendAndMetro() {
       spawnSync('docker', ['compose', 'exec', '-T', 'postgres', 'pg_isready', '-q'], { cwd: SERVER_DIR }).status === 0,
   );
   run('docker', ['compose', 'wait', 'createbuckets'], SERVER_DIR);
-  run('npm', ['run', 'db:setup', '--silent'], SERVER_DIR, backendEnv());
+  run('npm', ['run', 'db:setup', '--silent'], SERVER_DIR, backendEnv(copyAccountEnv));
 
   const metroEnv = {
     EXPO_PUBLIC_LOCAL_BACKEND: 'true',
     // In development, .env.local wins over these; leave the login prefill out of it.
     EXPO_PUBLIC_LOGIN_FORM_EMAIL: serverEnv.SEED_USER_EMAIL,
     EXPO_PUBLIC_LOGIN_FORM_PASSWORD: serverEnv.SEED_USER_PASSWORD,
+    // The one-tap sign-ins in Settings (features/dev-accounts).
+    EXPO_PUBLIC_DEV_ACCOUNTS: JSON.stringify([
+      { label: 'Mock library', email: serverEnv.SEED_USER_EMAIL, password: serverEnv.SEED_USER_PASSWORD },
+      {
+        label: 'Copy of my library',
+        email: copyAccountEnv.LIBRARY_COPY_EMAIL,
+        password: copyAccountEnv.LIBRARY_COPY_PASSWORD,
+        isLiveLibraryCopy: true,
+      },
+    ]),
   };
   const publicUrl = webOnly ? await startMetroLocally(metroEnv) : await startMetroWithTunnel(metroEnv);
 
   log('Starting the API server');
-  const server = start('npm', ['run', 'dev', '--silent'], SERVER_DIR, backendEnv({ S3_PUBLIC_ENDPOINT: publicUrl }));
+  // The copy of the owner's library reads the live database (through the cloud workspace's proxy
+  // when there is one) and signs read-only URLs for its files (apps/server/src/dev/libraryCopy.ts).
+  const server = start(
+    'npm',
+    ['run', 'dev', '--silent'],
+    SERVER_DIR,
+    backendEnv({
+      S3_PUBLIC_ENDPOINT: publicUrl,
+      LIBRARY_COPY_EMAIL: copyAccountEnv.LIBRARY_COPY_EMAIL,
+      ...liveLibraryEnv(),
+      NODE_USE_ENV_PROXY: '1',
+    }),
+  );
   const serverLog = createWriteStream(SERVER_LOG);
   server.stdout.pipe(serverLog);
   server.stderr.pipe(serverLog);
@@ -100,9 +135,48 @@ async function startLocalBackendAndMetro() {
 
   console.log(`
   ${webOnly ? 'Web preview:            ' : 'Open in Squidbox (Dev): '} ${publicUrl}
-  Sign in as:              ${serverEnv.SEED_USER_EMAIL} (prefilled)
+  Sign in as:              ${serverEnv.SEED_USER_EMAIL} (prefilled), or tap an account in Settings
   Server log:              ${SERVER_LOG}
 `);
+}
+
+// What the copy of the owner's library reads from: the live database and the live bucket, with the
+// live server's own DATABASE_URL and AWS keys, read from it through `fly` (or LIVE_DATABASE_URL and
+// LIVE_AWS_* from the environment). They stay in the API server's memory, never on disk; the server
+// opens the database read-only and signs only GET URLs with the keys. Without them the app still
+// runs; opening the copy then says what's missing.
+function liveLibraryEnv() {
+  // Each live setting under the name the live server knows it by.
+  const names = {
+    LIVE_DATABASE_URL: 'DATABASE_URL',
+    LIVE_AWS_ACCESS_KEY_ID: 'AWS_ACCESS_KEY_ID',
+    LIVE_AWS_SECRET_ACCESS_KEY: 'AWS_SECRET_ACCESS_KEY',
+    LIVE_AWS_REGION: 'AWS_REGION',
+  };
+  const live = Object.fromEntries(Object.keys(names).map((key) => [key, process.env[key]]));
+  if (Object.values(live).some((value) => !value) && spawnSync('which', ['fly']).status === 0) {
+    // Read by name, so a line fly adds can't shift one value into another's place.
+    const script = Object.values(names)
+      .map((name) => `echo "${name}=$${name}"`)
+      .join('; ');
+    const { stdout } = spawnSync('fly', ['ssh', 'console', '--app', 'squidbox-server', '-C', `sh -c '${script}'`], {
+      encoding: 'utf8',
+      timeout: 60_000,
+    });
+    const found = Object.fromEntries(
+      (stdout ?? '')
+        .split('\n')
+        .map((line) => line.trim().match(/^([A-Z_]+)=(.+)$/))
+        .filter(Boolean)
+        .map(([, name, value]) => [name, value]),
+    );
+    for (const [key, name] of Object.entries(names)) live[key] ||= found[name];
+  }
+  if (!/^postgres(ql)?:\/\//.test(live.LIVE_DATABASE_URL ?? '')) delete live.LIVE_DATABASE_URL;
+  if (!live.LIVE_DATABASE_URL || !live.LIVE_AWS_ACCESS_KEY_ID || !live.LIVE_AWS_SECRET_ACCESS_KEY) {
+    log("The live server's settings are out of reach (no fly, no LIVE_* variables): the library copy is off");
+  }
+  return Object.fromEntries(Object.entries(live).filter(([, value]) => value));
 }
 
 // The phone gives up on a bundle that takes a minute to build; build it before handing out the URL.

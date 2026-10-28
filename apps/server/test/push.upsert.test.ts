@@ -8,7 +8,6 @@ import * as schema from '../src/db/schema.js';
 import { serverCollections } from '../src/sync/collections.js';
 import { push } from '../src/sync/push.js';
 import { pull } from '../src/sync/pull.js';
-import { importLegacy } from '../src/convert/legacy.js';
 
 // The one multi-row upsert per collection, against the same pushes one by
 // one; duplicate ids, the savepoint fallback, server_seq per row, the upsert's guard, upper-case ids.
@@ -251,7 +250,8 @@ d('push: one upsert per collection', () => {
     } finally {
       await pool.query('ALTER TABLE assets DROP CONSTRAINT test_r4_notes');
     }
-  });
+    // The ALTER TABLEs wait for the other test files' pushes into assets to commit.
+  }, 60_000);
 
   it('the guard: a purge and pushes after it in one batch leave the row purged, its updated_at never set back', async () => {
     const r = asset({ updatedAt: 5000, deletedAt: 5000 });
@@ -296,39 +296,14 @@ d('push: one upsert per collection', () => {
   });
 
   // One push reads its records and writes each collection in as many statements as Postgres' 65,535
-  // bind parameters need, so the legacy importer, which pushes each collection whole, imports any size.
-  it('the legacy importer imports a library of 5,000 photos', async () => {
-    const legacy = Object.fromEntries(
-      Array.from({ length: 5000 }, (_, i) => {
-        const id = randomUUID();
-        const entry = {
-          id,
-          mediaLibraryAssetId: `m${i}`,
-          mediaType: 'image',
-          width: 10,
-          height: 10,
-          fileSize: 100,
-          duration: null,
-          filename: `${i}.jpg`,
-          thumbnailFilename: `t${i}.jpg`,
-          isFileSynced: true,
-          isThumbnailSynced: true,
-          isSynced: true,
-          syncError: null,
-          isFavorite: false,
-          isDeleted: false,
-          createdAt: 1000,
-          updatedAt: 1000,
-          postHistory: [],
-          lastPostedAt: null,
-          oldFileId: null,
-          notes: null,
-        };
-        return [id, entry];
-      }),
+  // bind parameters need, so one push of a whole collection takes any size.
+  it('one push takes a library of 5,000 photos', async () => {
+    const results = await push(
+      db,
+      ME,
+      Array.from({ length: 5000 }, (_, i) => whole(asset({ filename: `${i}.jpg`, thumbnailFilename: `t${i}.jpg` }))),
     );
-    const results = await importLegacy(db as any, ME, { assets: legacy } as any);
-    expect(results.find((r) => r.collection === 'assets')).toMatchObject({ applied: 5000, rejected: 0 });
+    expect(results.filter((r) => r.status === 'applied')).toHaveLength(5000);
   }, 60_000);
 
   it('field_clock is null exactly when every clock is updated_at, and reads back the same', async () => {

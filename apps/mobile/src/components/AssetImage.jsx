@@ -24,8 +24,9 @@ function rememberShown(uri) {
 
 // contentFit: "cover" | "contain". The placeholder pulses until the picture has loaded (and holds
 // still while nobody is signed in to fetch it, once its download gave up, or without a thumbnail at
-// all). `renderOverlay(hasPicture)`
-// draws over the cell either way, e.g. corner badges that only make sense over a loaded picture. A
+// all). `renderOverlay(hasPicture, status)`
+// draws over the cell either way, e.g. corner badges that only make sense over a loaded picture;
+// `status` is getAssetThumbnailStatusAsync's once known. A
 // thumbnail its device hasn't backed up yet gets a crossed-out cloud on the placeholder while
 // `showNotUploaded`.
 export default function AssetImage({
@@ -141,7 +142,7 @@ export default function AssetImage({
           )}
         </LoadingPlaceholder>
       )}
-      {renderOverlay?.(hasPicture)}
+      {renderOverlay?.(hasPicture, current?.status)}
     </>
   );
 }

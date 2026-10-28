@@ -16,6 +16,7 @@ import useCloud from '@/features/cloud/useCloud';
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
 import useBackupCounts from '@/features/cloud-sync/useBackupCounts';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
+import DevAccountsSection from '@/features/dev-accounts/DevAccountsSection';
 import useHasFeature from '@/hooks/useHasFeature';
 import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
 import useLibrary from '@/library/useLibrary';
@@ -126,6 +127,7 @@ export default function SettingsScreen() {
       <DetailScrollView>
         <ScreenSectionHeader title="Account" />
         {renderAccount()}
+        <DevAccountsSection />
 
         {isAccountLibrary && (
           <>
