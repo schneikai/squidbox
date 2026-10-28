@@ -1,19 +1,19 @@
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ModelCheckSection from './ModelCheckSection';
 import ModelCheckSummary from './ModelCheckSummary';
 import VerificationMenuOptions from './VerificationMenuOptions';
-import confirmCheckAsync from './confirmCheckAsync';
+import startCheckAsync from './startCheckAsync';
 import useModelCheck from './useModelCheck';
 
+import CatalogStatus from '@/components/CatalogStatus';
 import EmptyState from '@/components/EmptyState';
 import IconMenuButton from '@/components/IconMenuButton';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
-import TextButton from '@/components/TextButton';
 import MenuDivider from '@/components/popup-menu-options/MenuDivider';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { SCREEN_PADDING } from '@/constants';
@@ -21,46 +21,33 @@ import useAiCatalog from '@/hooks/useAiCatalog';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useScrollY from '@/hooks/useScrollY';
 import { colors, typography } from '@/styles/designTokens';
-import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
+import findCatalogModel from '@/utils/ai/findCatalogModel';
 
 const KIND_TITLE = { writing: 'Chat check', vision: 'Tagging check' };
 
-// A model's check of a kind (route params `kind`, `modelId`, `name`; an ai_admin tool): its progress
+// A model's check of a kind (route params `kind`, `modelId`, `name`, and `check` when the caller just
+// started it; an ai_admin tool): its progress
 // while it runs, then the totals and every turn to read, and in the header menu Run again and the
 // model's marks, so the verdict is made right where the replies are.
 export default function ModelCheckScreen({ navigation, route }) {
-  const { kind, modelId, name } = route.params;
+  const { kind, modelId, name, check: startedCheck } = route.params;
   const isAvailable = useLeaveWhenUnavailable();
   const { scrollY, onScroll } = useScrollY();
   const { bottom } = useSafeAreaInsets();
   const { models } = useAiCatalog();
-  const { check, error, retry, start } = useModelCheck(kind, modelId);
+  const { check, error, retry, show } = useModelCheck(kind, modelId, startedCheck);
 
   // The catalog's model, null once Venice no longer offers it (no new run, no marks).
-  const model = models?.find(({ id }) => id === modelId) ?? null;
+  const model = findCatalogModel(models, modelId);
   const isRunning = check?.status === 'running';
 
   async function handleRunAgain() {
-    if (!(await confirmCheckAsync(kind, model, models))) return;
-    try {
-      await start();
-    } catch (startError) {
-      Alert.alert("Couldn't start the check", apiErrorMessage(startError));
-    }
+    const started = await startCheckAsync(kind, model, models);
+    if (started) show(started);
   }
 
   function renderBody() {
-    if (check === undefined) {
-      if (error) {
-        return (
-          <View>
-            <EmptyState icon="alert" title="Couldn't load the check" subtitle={error} />
-            <TextButton label="Try again" onPress={retry} />
-          </View>
-        );
-      }
-      return <ActivityIndicator style={styles.loading} color={colors.text.secondary} />;
-    }
+    if (check === undefined) return <CatalogStatus title="Couldn't load the check" error={error} retry={retry} />;
     if (check === null) {
       return <EmptyState icon="list-checks" title="Not checked yet" subtitle="Run a check from the menu." />;
     }
@@ -129,9 +116,6 @@ const styles = StyleSheet.create({
     paddingTop: MODAL_HEADER_HEIGHT,
     paddingHorizontal: SCREEN_PADDING,
     gap: 16,
-  },
-  loading: {
-    paddingVertical: 40,
   },
   progress: {
     flexDirection: 'row',

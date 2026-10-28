@@ -29,19 +29,15 @@ vi.mock('../src/ai/verification.js', () => {
     vision: { regular: 'gemma-4-uncensored', unrestricted: 'gemma-4-uncensored' },
   };
   const verification = () => ({
-    verified: {
-      writing: new Map([
-        ['claude-sonnet-5-5', { unrestricted: null }],
-        ['kimi-k3', { unrestricted: true }],
-      ]),
-      vision: new Map([['gemma-4-uncensored', { unrestricted: null }]]),
-    },
+    verified: { writing: new Set(['claude-sonnet-5-5', 'kimi-k3']), vision: new Set(['gemma-4-uncensored']) },
+    overrides: new Map([['kimi-k3', true]]),
     defaults,
   });
   return {
     readVerification: vi.fn(async () => verification()),
     readModelDefaults: vi.fn(async () => defaults),
     setVerification: vi.fn(async () => {}),
+    setUncensored: vi.fn(async () => {}),
     setModelDefault: vi.fn(async () => {}),
   };
 });
@@ -50,7 +46,6 @@ vi.mock('../src/ai/modelChecks.js', () => ({
   readLatestCheck: vi.fn(async () => null),
   startCheck: vi.fn(),
   runCheck: vi.fn(async () => {}),
-  failCheck: vi.fn(async () => {}),
 }));
 // The instructions likewise: the defaults unless a test changes one.
 vi.mock('../src/ai/instructions.js', async () => {
@@ -84,7 +79,7 @@ import { clearCatalogCache } from '../src/ai/catalog.js';
 import { readInstructions } from '../src/ai/instructions.js';
 import { readChosenModelId } from '../src/ai/modelChoices.js';
 import { readLatestCheck, runCheck, startCheck } from '../src/ai/modelChecks.js';
-import { setModelDefault, setVerification } from '../src/ai/verification.js';
+import { setModelDefault, setUncensored, setVerification } from '../src/ai/verification.js';
 import { AppError } from '../src/errors.js';
 import { readFavorites, readPersona } from '../src/ai/persona.js';
 import { findUserById } from '../src/users.js';
@@ -224,7 +219,8 @@ describe('account features', () => {
       ['GET', '/ai/balance', undefined],
       ['GET', '/ai/checks/writing/kimi-k3', undefined],
       ['POST', '/ai/checks/writing/kimi-k3', undefined],
-      ['PUT', '/ai/verification/writing/kimi-k3', { isVerified: true, isUnrestricted: null }],
+      ['PUT', '/ai/verification/writing/kimi-k3', { isVerified: true }],
+      ['PUT', '/ai/uncensored/kimi-k3', { uncensored: true }],
       ['PUT', '/ai/defaults/writing/regular', { modelId: 'kimi-k3' }],
       ['POST', '/ai/compare/writing', writing],
       ['POST', '/ai/compare/vision', vision],
@@ -265,7 +261,7 @@ describe('GET /api/v1/ai/models', () => {
       isUncensored: false,
       isVeniceUncensored: false,
       verifiedKinds: [],
-      unrestrictedMarks: { writing: null, vision: null },
+      uncensoredOverride: null,
       costPerReplyUsd: expect.any(Number),
       costPer100PhotosUsd: null,
     });
@@ -278,7 +274,7 @@ describe('GET /api/v1/ai/models', () => {
     const kimi = models.find((m: { id: string }) => m.id === 'kimi-k3');
     // Venice doesn't label Kimi; the override does.
     expect(kimi).toMatchObject({ isUncensored: true, isVeniceUncensored: false, verifiedKinds: ['writing'] });
-    expect(kimi.unrestrictedMarks).toEqual({ writing: true, vision: null });
+    expect(kimi.uncensoredOverride).toBe(true);
     expect(models.find((m: { id: string }) => m.id === 'gemma-4-uncensored').verifiedKinds).toEqual(['vision']);
     expect(defaults.writing).toEqual({ regular: 'claude-sonnet-5-5', unrestricted: 'deepseek-v4-1-flash-uncensored' });
   });
@@ -707,11 +703,9 @@ describe('the model checks', () => {
     expect(res.json()).toEqual({ check: CHECK });
     expect(startCheck).toHaveBeenCalledWith(expect.anything(), { kind: 'writing', modelId: 'kimi-k3', userId: 'u1' });
     expect(runCheck).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(runCheck).mock.calls[0]![1]).toMatchObject({
-      check: CHECK,
-      model: { id: 'kimi-k3' },
-      instructions: mine,
-    });
+    const run = vi.mocked(runCheck).mock.calls[0]![1];
+    expect(run).toMatchObject({ check: CHECK, model: { id: 'kimi-k3' } });
+    expect(await run.instructionsAsync()).toEqual(mine);
     expect(chatBodies()).toHaveLength(0);
   });
 
@@ -720,6 +714,7 @@ describe('the model checks', () => {
     vi.mocked(startCheck).mockResolvedValueOnce({ check: CHECK, isNew: false });
     expect((await call('POST', '/ai/checks/writing/kimi-k3')).json()).toEqual({ check: CHECK });
     expect(runCheck).not.toHaveBeenCalled();
+    expect(readInstructions).not.toHaveBeenCalled();
   });
 
   it("POST 502 for a model that can't see photos or is gone, 400 for an unknown kind", async () => {
@@ -734,12 +729,9 @@ describe('the model checks', () => {
 });
 
 describe('the marks', () => {
-  it("PUT /ai/verification passes Venice's label and answers the catalog", async () => {
+  it('PUT /ai/verification marks the model and answers the catalog', async () => {
     veniceAnswers();
-    const res = await call('PUT', '/ai/verification/writing/qwen-3-6-plus', {
-      isVerified: true,
-      isUnrestricted: false,
-    });
+    const res = await call('PUT', '/ai/verification/writing/qwen-3-6-plus', { isVerified: true });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toHaveProperty('defaults');
     expect(res.json().models).toHaveLength(fixture.data.length);
@@ -747,27 +739,39 @@ describe('the marks', () => {
       kind: 'writing',
       modelId: 'qwen-3-6-plus',
       isVerified: true,
-      isUnrestricted: false,
-      isVeniceUncensored: true,
       userId: 'u1',
     });
   });
 
+  it('PUT /ai/uncensored passes the catalog entry and the override, of any model Venice offers', async () => {
+    veniceAnswers();
+    const res = await call('PUT', '/ai/uncensored/z-ai-glm-5-3', { uncensored: null });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toHaveProperty('models');
+    expect(setUncensored).toHaveBeenCalledWith(expect.anything(), {
+      entry: expect.objectContaining({ id: 'z-ai-glm-5-3' }),
+      uncensored: null,
+      userId: 'u1',
+    });
+    expect((await call('PUT', '/ai/uncensored/gone', { uncensored: true })).statusCode).toBe(502);
+    expect((await call('PUT', '/ai/uncensored/kimi-k3', { uncensored: 'yes' })).statusCode).toBe(400);
+  });
+
   it('PUT /ai/verification unmarks a model Venice no longer offers', async () => {
     veniceAnswers();
-    const res = await call('PUT', '/ai/verification/writing/gone', { isVerified: false, isUnrestricted: null });
+    const res = await call('PUT', '/ai/verification/writing/gone', { isVerified: false });
     expect(res.statusCode).toBe(200);
     expect(setVerification).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ modelId: 'gone' }));
   });
 
   it('PUT /ai/verification 502 for marking a model Venice no longer offers', async () => {
     veniceAnswers();
-    const res = await call('PUT', '/ai/verification/writing/gone', { isVerified: true, isUnrestricted: null });
+    const res = await call('PUT', '/ai/verification/writing/gone', { isVerified: true });
     expect(res.statusCode).toBe(502);
     expect(setVerification).not.toHaveBeenCalled();
   });
 
-  it('PUT /ai/defaults passes the variant and the label, and a 400 through', async () => {
+  it('PUT /ai/defaults passes the variant and the catalog entry, and a 400 through', async () => {
     veniceAnswers();
     const res = await call('PUT', '/ai/defaults/writing/unrestricted', { modelId: 'kimi-k3' });
     expect(res.statusCode).toBe(200);
@@ -775,8 +779,7 @@ describe('the marks', () => {
     expect(setModelDefault).toHaveBeenCalledWith(expect.anything(), {
       kind: 'writing',
       variant: 'unrestricted',
-      modelId: 'kimi-k3',
-      isVeniceUncensored: false,
+      entry: expect.objectContaining({ id: 'kimi-k3' }),
     });
     vi.mocked(setModelDefault).mockRejectedValueOnce(
       new AppError(400, 'validation_error', 'Mark the model verified first'),

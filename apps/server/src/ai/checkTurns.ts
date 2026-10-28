@@ -1,6 +1,7 @@
 // The turns of a model check as they grow (chatCheck.ts, tagCheck.ts): the result with its totals,
 // a turn without a reply, and the timing of a model's call.
 import type { ModelCheckResult, ModelCheckSection, ModelCheckTurn } from '@squidbox/shared';
+import { errorMessage } from '../errors.js';
 import type { CheckOptions } from './modelCheck.js';
 
 export function median(values: number[]): number {
@@ -10,13 +11,13 @@ export function median(values: number[]): number {
   return sorted.length % 2 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2;
 }
 
-/** The sections with their totals, so a partial result is complete in itself (a copy: the run goes on). */
+/** The sections with their totals, so a partial result is complete in itself. */
 export function withTotals(sections: ModelCheckSection[]): ModelCheckResult {
   const turns = sections.flatMap((section) => section.turns);
   const checks = turns.flatMap((turn) => turn.checks);
   const seconds = turns.flatMap((turn) => (turn.seconds === null ? [] : [turn.seconds]));
   return {
-    sections: structuredClone(sections),
+    sections,
     passes: checks.filter((check) => check.ok).length,
     fails: checks.filter((check) => !check.ok).length,
     unreadable: turns.filter((turn) => turn.unreadable).length,
@@ -68,6 +69,6 @@ export async function timedCall<T>(call: () => Promise<T>): Promise<{ value: T; 
     const value = await call();
     return { value, seconds: (Date.now() - started) / 1000 };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : String(error) };
+    return { error: errorMessage(error) };
   }
 }

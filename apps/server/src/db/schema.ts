@@ -304,14 +304,12 @@ export type ModelChoiceRow = typeof modelChoices.$inferSelect;
 // Facts an ai_admin sets for every account, read through the API and never synced: plain tables
 // outside the collection registry (no user_id, no server_seq). sync-design §12.
 
-// A model Squidbox verified for a kind (`kind`: writing | vision). `unrestricted` overrides Venice's
-// Uncensored label for it (true uncensored, false not); null follows Venice (catalog.ts resolves it).
+// A model Squidbox verified for a kind (`kind`: writing | vision).
 export const verifiedModels = pgTable(
   'verified_models',
   {
     kind: text('kind').notNull(),
     modelId: text('model_id').notNull(),
-    unrestricted: boolean('unrestricted'),
     verifiedBy: uuid('verified_by').references(() => users.id, { onDelete: 'set null' }),
     verifiedAt: timestamp('verified_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -319,6 +317,15 @@ export const verifiedModels = pgTable(
     pk: primaryKey({ columns: [t.kind, t.modelId] }),
   }),
 );
+
+// An override of Venice's Uncensored label for a model, whatever the kind (true uncensored, false
+// not). No row follows Venice (catalog.ts isUncensored resolves it).
+export const uncensoredOverrides = pgTable('uncensored_overrides', {
+  modelId: text('model_id').primaryKey(),
+  uncensored: boolean('uncensored').notNull(),
+  setBy: uuid('set_by').references(() => users.id, { onDelete: 'set null' }),
+  setAt: timestamp('set_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 // The model the assistant uses for a kind while the user chose none, per `variant` (regular |
 // unrestricted: the persona's Adult content switch off or on). Always a verified model of the kind:
@@ -350,6 +357,8 @@ export const modelChecks = pgTable(
     status: text('status').notNull(), // 'running' | 'done' | 'failed'
     startedBy: uuid('started_by').references(() => users.id, { onDelete: 'set null' }),
     startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    // The heartbeat: set on each turn written, so a running row that stopped changing is abandoned.
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     finishedAt: timestamp('finished_at', { withTimezone: true }),
     turnsDone: integer('turns_done').notNull().default(0),
     turnsTotal: integer('turns_total').notNull(),

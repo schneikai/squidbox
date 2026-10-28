@@ -3,7 +3,7 @@
 // (chatMessages with the briefing, the chat task with its reply schema, the unreadable-reply fallback
 // and checkChatReply), briefed as the mock account's creator (mockPersona.ts) with his Favorites, each
 // real reply appended to the transcript as the app keeps it. Each turn gets the checks that can be
-// made in code, then one judge question to JUDGE_MODEL_ID: did the reply answer the request and hold
+// made in code, then one judge question to CHECK_JUDGE_MODEL_ID: did the reply answer the request and hold
 // the conversation.
 import {
   CHECK_JUDGE_MODEL_ID,
@@ -11,6 +11,7 @@ import {
   type ChatReply,
   type ChatTurn,
   type ModelCheckSection,
+  type ModelCheckTurn,
 } from '@squidbox/shared';
 import { findModel } from './catalog.js';
 import { checkProgress, failedTurn, timedCall } from './checkTurns.js';
@@ -18,9 +19,6 @@ import { MOCK_FAVORITES, MOCK_PERSONA } from './mockPersona.js';
 import type { CheckRunner } from './modelCheck.js';
 import { chatMessages, judgeMessages } from './prompts.js';
 import { chatTask, judgeTask, runTask } from './tasks.js';
-
-// The judge of every turn, the same for every model checked.
-export const JUDGE_MODEL_ID = CHECK_JUDGE_MODEL_ID;
 
 type Post = { photos: number; videos: number; tags: string[]; mentions: string[]; caption: string };
 
@@ -159,20 +157,33 @@ export function check(expectation: string, reply: ChatReply, before: string[] | 
 }
 
 // The checks every set of cards gets: the persona's rules, no copied Favorite, only the post's handles.
-export function cardChecks(cards: string[], post: Post, isBare: boolean): [string, boolean][] {
+export function cardChecks(cards: string[], post: Post, isBare: boolean): ModelCheckTurn['checks'] {
   if (cards.length === 0) return [];
-  const checks: [string, boolean][] = [];
+  const checks: ModelCheckTurn['checks'] = [];
+  const add = (name: string, ok: boolean) => checks.push({ name, ok, reason: null });
   if (!isBare) {
-    checks.push(['rules: no hashtags', cards.every((card) => !/(^|\s)#\w/.test(card))]);
-    checks.push(['rules: no exclamation marks', cards.every((card) => !card.includes('!'))]);
-    checks.push(['rules: under 300 characters', cards.every((card) => card.length < 300)]);
-    checks.push([
+    add(
+      'rules: no hashtags',
+      cards.every((card) => !/(^|\s)#\w/.test(card)),
+    );
+    add(
+      'rules: no exclamation marks',
+      cards.every((card) => !card.includes('!')),
+    );
+    add(
+      'rules: under 300 characters',
+      cards.every((card) => card.length < 300),
+    );
+    add(
       'favorites: none copied',
       cards.every((card) => !FAVORITE_TEXTS.some((text) => normalized(card).includes(normalized(text)))),
-    ]);
+    );
   }
   const handles = cards.flatMap((card) => card.match(HANDLE) ?? []);
-  checks.push(["handles: only the post's, exact", handles.every((handle) => post.mentions.includes(handle))]);
+  add(
+    "handles: only the post's, exact",
+    handles.every((handle) => post.mentions.includes(handle)),
+  );
   return checks;
 }
 
@@ -194,8 +205,8 @@ function contextOf(post: Post): ChatContext {
  * when Venice doesn't offer the judge.
  */
 export const checkChatModel: CheckRunner = async (model, { catalog, instructions, onTurn, sectionIds }) => {
-  const judgeFound = findModel(catalog, JUDGE_MODEL_ID, 'writing');
-  if ('error' in judgeFound) throw new Error(`The judge ${JUDGE_MODEL_ID}: ${judgeFound.error}`);
+  const judgeFound = findModel(catalog, CHECK_JUDGE_MODEL_ID, 'writing');
+  if ('error' in judgeFound) throw new Error(`The judge ${CHECK_JUDGE_MODEL_ID}: ${judgeFound.error}`);
   const judge = judgeFound.entry;
   const progress = checkProgress(onTurn);
   let isFirstSection = true;
@@ -262,7 +273,7 @@ export const checkChatModel: CheckRunner = async (model, { catalog, instructions
       );
       const checks = [
         ...step.expect.map((name) => ({ name, ok: check(name, reply, before), reason: null })),
-        ...cardChecks(reply.postOptions, post, isBare).map(([name, ok]) => ({ name, ok, reason: null })),
+        ...cardChecks(reply.postOptions, post, isBare),
         'error' in verdict
           ? { name: 'judge', ok: false, reason: verdict.error }
           : { name: 'judge', ok: verdict.value.pass, reason: verdict.value.reason || null },

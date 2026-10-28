@@ -20,8 +20,8 @@ export type CheckOptions = {
 /** Runs one kind's check on a model; rejects only when the check can't run at all. */
 export type CheckRunner = (model: CatalogEntry, options: CheckOptions) => Promise<ModelCheckResult>;
 
-/** Each kind's check: its runner, its sections and the turns a whole run has (CHECK_TURNS in shared). */
-export const CHECKS: Record<AiModelKind, { run: CheckRunner; sectionIds: string[]; turnCount: number }> = {
-  writing: { run: checkChatModel, sectionIds: CHAT_SECTION_IDS, turnCount: 21 },
-  vision: { run: checkTaggingModel, sectionIds: TAG_SECTION_IDS, turnCount: 4 },
+/** Each kind's check: its runner and its sections (a whole run has CHECK_TURNS[kind] turns, in shared). */
+export const CHECKS: Record<AiModelKind, { run: CheckRunner; sectionIds: string[] }> = {
+  writing: { run: checkChatModel, sectionIds: CHAT_SECTION_IDS },
+  vision: { run: checkTaggingModel, sectionIds: TAG_SECTION_IDS },
 };

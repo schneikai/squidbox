@@ -17,7 +17,7 @@ const instructionText = {
   modelCheckJudge: {
     title: 'Model check judge',
     description:
-      'What a model\'s chat check (⋯ → Run check in a Writing list) asks claude-sonnet-5-5 after each turn: {context} is what the assistant was told about you and the post (photo tags, tagged people, caption, the posts you liked), {transcript} the chat before it, {request} the creator\'s last message, {reply} the reply with its numbered options. The answer is still read as a JSON object with "pass" and "reason".',
+      'What a model\'s chat check (⋯ → Run check in a Writing list) asks claude-sonnet-5-5 after each turn: what the assistant was told, as Writing has it (the creator: {aboutYou}, {tone}, {contentTags}, {rules}, {favorites}; the post: {media}, {tags}, {mentions}, {caption}), {transcript} the chat before it, {request} the creator\'s last message, {reply} the reply with its numbered options. A line whose placeholder is empty is left out, and so is a heading with nothing left under it. The answer is still read as a JSON object with "pass" and "reason".',
   },
 };
 

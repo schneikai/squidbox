@@ -1,8 +1,7 @@
 import { COMPARE_MIN_MODELS } from '@squidbox/shared';
-import { Alert, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import ModelRow from './ModelRow';
-import isVerifiedModel from './isVerifiedModel';
 import modelKindText from './modelKindText';
 
 import CatalogStatus from '@/components/CatalogStatus';
@@ -19,15 +18,14 @@ import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAct
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import confirmCheckAsync from '@/features/model-verify/confirmCheckAsync';
+import startCheckAsync from '@/features/model-verify/startCheckAsync';
 import useHaptics from '@/hooks/useHaptics';
 import useHasFeature from '@/hooks/useHasFeature';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useYourModels from '@/hooks/useYourModels';
 import { removeYourModel, resetScores } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
-import startModelCheckAsync from '@/utils/cloud-api/ai/startModelCheckAsync';
-import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
+import isVerifiedModel from '@/utils/ai/isVerifiedModel';
 import confirmAsync from '@/utils/confirmAsync';
 
 // Your models of one kind (route param `kind`: writing | vision), the one the assistant uses, and the
@@ -54,14 +52,8 @@ export default function ModelListScreen({ navigation, route }) {
 
   // Starts the model's check on the server, then opens it to watch.
   async function handleCheck(row) {
-    if (!(await confirmCheckAsync(kind, row.model, catalog))) return;
-    try {
-      await startModelCheckAsync(kind, row.id);
-    } catch (error) {
-      Alert.alert("Couldn't start the check", apiErrorMessage(error));
-      return;
-    }
-    navigation.navigate('ModelCheckModal', { kind, modelId: row.id, name: row.name });
+    const check = await startCheckAsync(kind, row.model, catalog);
+    if (check) navigation.navigate('ModelCheckModal', { kind, modelId: row.id, name: row.name, check });
   }
 
   async function handleResetScore(row) {

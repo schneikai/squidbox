@@ -14,15 +14,15 @@ export const apiAiModelSchema = z.object({
   id: z.string(),
   name: z.string(),
   supportsVision: z.boolean(),
-  // Labelled Uncensored: the override of `unrestrictedMarks` where one is set, else Venice's own label
+  // Labelled Uncensored: `uncensoredOverride` where one is set, else Venice's own label
   // (`isVeniceUncensored`). apps/server/src/ai/catalog.ts works it out.
   isUncensored: z.boolean(),
   isVeniceUncensored: z.boolean(),
   // The kinds Squidbox verified the model for (the server's verified_models, set by an ai_admin).
   verifiedKinds: z.array(aiModelKindSchema),
-  // Per kind, a verified model's override of Venice's label: true uncensored, false not, null (also
-  // for a kind it isn't verified for) follows Venice.
-  unrestrictedMarks: z.object({ writing: z.boolean().nullable(), vision: z.boolean().nullable() }),
+  // The model's override of Venice's label, whatever the kind: true uncensored, false not, null
+  // follows Venice.
+  uncensoredOverride: z.boolean().nullable(),
   costPerReplyUsd: z.number(),
   costPer100PhotosUsd: z.number().nullable(),
 });
@@ -39,15 +39,19 @@ const variantsSchema = z.object({ regular: z.string(), unrestricted: z.string() 
 export const modelDefaultsSchema = z.object({ writing: variantsSchema, vision: variantsSchema });
 export type ModelDefaults = z.infer<typeof modelDefaultsSchema>;
 
-// GET /ai/models — also the answer of PUT /ai/verification and PUT /ai/defaults, so the app replaces
+// GET /ai/models — also the answer of PUT /ai/verification, /ai/uncensored and /ai/defaults, so the app replaces
 // its catalog with the new marks in one round trip.
 export const aiModelsResponseSchema = z.object({ models: z.array(apiAiModelSchema), defaults: modelDefaultsSchema });
 export type AiModelsResponse = z.infer<typeof aiModelsResponseSchema>;
 
-// PUT /ai/verification/:kind/:modelId — whether the model is verified for the kind, and whether it
-// counts as uncensored: true or false overrides Venice's label, null follows it.
-export const verificationRequestSchema = z.object({ isVerified: z.boolean(), isUnrestricted: z.boolean().nullable() });
+// PUT /ai/verification/:kind/:modelId — whether the model is verified for the kind.
+export const verificationRequestSchema = z.object({ isVerified: z.boolean() });
 export type VerificationRequest = z.infer<typeof verificationRequestSchema>;
+
+// PUT /ai/uncensored/:modelId — whether the model counts as uncensored: true or false overrides
+// Venice's label, null follows it.
+export const uncensoredRequestSchema = z.object({ uncensored: z.boolean().nullable() });
+export type UncensoredRequest = z.infer<typeof uncensoredRequestSchema>;
 
 // PUT /ai/defaults/:kind/:variant — the model that becomes that default.
 export const modelDefaultRequestSchema = z.object({ modelId: z.string().min(1) });

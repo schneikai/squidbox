@@ -12,7 +12,7 @@ const model = (id: string, name: string, supportsVision = true, verifiedKinds: s
   isUncensored: false,
   isVeniceUncensored: false,
   verifiedKinds,
-  unrestrictedMarks: { writing: null, vision: null },
+  uncensoredOverride: null,
   costPerReplyUsd: 0.001,
   costPer100PhotosUsd: supportsVision ? 0.02 : null,
 });

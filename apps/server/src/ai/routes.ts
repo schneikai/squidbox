@@ -15,6 +15,7 @@ import {
   modelDefaultVariantSchema,
   tagPhotoRequestSchema,
   tagPhotoResponseSchema,
+  uncensoredRequestSchema,
   verificationRequestSchema,
   type AiModelKind,
   type AiModelsResponse,
@@ -24,17 +25,17 @@ import { getDb } from '../db/client.js';
 import { AppError } from '../errors.js';
 import { authenticate, requireFeature, requireUser } from '../auth/authenticate.js';
 import { fetchBalanceAsync } from './balance.js';
-import { catalogAsync, findModel, isVeniceUncensored, toApiModel, type CatalogEntry } from './catalog.js';
+import { catalogAsync, findModel, toApiModel, type CatalogEntry } from './catalog.js';
 import { chatAsync } from './chat.js';
 import { compareModels } from './compare.js';
 import { readInstructions } from './instructions.js';
-import { failCheck, readLatestCheck, runCheck, startCheck } from './modelChecks.js';
+import { readLatestCheck, runCheck, startCheck } from './modelChecks.js';
 import { readFavorites, readPersona } from './persona.js';
 import { visionMessages, writingMessages } from './prompts.js';
 import { tagPhotoAsync } from './tagging.js';
 import { visionTask, writingTask } from './tasks.js';
 import { orAiUnavailable, VeniceError } from './venice.js';
-import { readVerification, setModelDefault, setVerification } from './verification.js';
+import { readVerification, setModelDefault, setUncensored, setVerification } from './verification.js';
 import { loadConfig } from '../config.js';
 
 // Aborted once the app stops waiting (a closed compare), so the Venice calls stop too.
@@ -80,11 +81,11 @@ async function aiModelsAsync(): Promise<AiModelsResponse> {
   return { models: entries.map((entry) => toApiModel(entry, verification)), defaults: verification.defaults };
 }
 
-// The model of a kind for a check or a mark: 502 ai_unavailable when Venice no longer offers it or it
-// can't do the kind.
+// The model of a kind (null: any kind) for a check or a mark: 502 ai_unavailable when Venice no
+// longer offers it or it can't do the kind.
 async function catalogModel(
   modelId: string,
-  kind: AiModelKind,
+  kind: AiModelKind | null,
 ): Promise<{ entry: CatalogEntry; entries: CatalogEntry[] }> {
   const { entries } = await catalogAsync();
   const found = findModel(entries, modelId, kind);
@@ -181,41 +182,45 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
           const { kind, modelId } = request.params;
           const user = requireUser(request);
           const db = getDb();
-          const [{ entry, entries }, instructions] = await Promise.all([
-            catalogModel(modelId, kind),
-            readInstructions(db, user),
-          ]);
+          const { entry, entries } = await catalogModel(modelId, kind);
           const { check, isNew } = await startCheck(db, { kind, modelId, userId: user.id });
           if (isNew) {
-            const log = request.log;
-            runCheck(db, { check, model: entry, catalog: entries, instructions, log }).catch((error) => {
-              log.error({ err: error, checkId: check.id }, 'Model check could not finish');
-              return failCheck(db, check.id, String(error)).catch(() => {});
-            });
+            const instructionsAsync = () => readInstructions(db, user);
+            void runCheck(db, { check, model: entry, catalog: entries, instructionsAsync, log: request.log });
           }
           return { check };
         },
       });
 
-      // PUT /ai/verification/:kind/:modelId — marks the model verified for the kind or not, and its
-      // Uncensored override; answers the catalog with the new marks. Unmarking needs no catalog, so a
-      // model Venice dropped can still be unmarked.
+      // PUT /ai/verification/:kind/:modelId — marks the model verified for the kind or not; answers the
+      // catalog with the new marks. Unmarking needs no catalog, so a model Venice dropped can still be
+      // unmarked.
       r.route({
         method: 'PUT',
         url: '/ai/verification/:kind/:modelId',
         schema: { params: modelParams, body: verificationRequestSchema, response: { 200: aiModelsResponseSchema } },
         handler: async (request) => {
           const { kind, modelId } = request.params;
-          const { isVerified, isUnrestricted } = request.body;
-          const entry = isVerified ? (await catalogModel(modelId, kind)).entry : null;
-          await setVerification(getDb(), {
-            kind,
-            modelId,
-            isVerified,
-            isUnrestricted,
-            isVeniceUncensored: entry ? isVeniceUncensored(entry) : false,
-            userId: requireUser(request).id,
-          });
+          const { isVerified } = request.body;
+          if (isVerified) await catalogModel(modelId, kind);
+          await setVerification(getDb(), { kind, modelId, isVerified, userId: requireUser(request).id });
+          return aiModelsAsync();
+        },
+      });
+
+      // PUT /ai/uncensored/:modelId — the model's override of Venice's Uncensored label, whatever the
+      // kind (null follows Venice); answers the catalog with the new marks.
+      r.route({
+        method: 'PUT',
+        url: '/ai/uncensored/:modelId',
+        schema: {
+          params: z.object({ modelId: z.string().min(1) }),
+          body: uncensoredRequestSchema,
+          response: { 200: aiModelsResponseSchema },
+        },
+        handler: async (request) => {
+          const { entry } = await catalogModel(request.params.modelId, null);
+          await setUncensored(getDb(), { entry, uncensored: request.body.uncensored, userId: requireUser(request).id });
           return aiModelsAsync();
         },
       });
@@ -232,9 +237,8 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         },
         handler: async (request) => {
           const { kind, variant } = request.params;
-          const { modelId } = request.body;
-          const { entry } = await catalogModel(modelId, kind);
-          await setModelDefault(getDb(), { kind, variant, modelId, isVeniceUncensored: isVeniceUncensored(entry) });
+          const { entry } = await catalogModel(request.body.modelId, kind);
+          await setModelDefault(getDb(), { kind, variant, entry });
           return aiModelsAsync();
         },
       });

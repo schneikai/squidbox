@@ -1,40 +1,30 @@
 // The marks an ai_admin sets for the whole app (Settings → Assistant → a model list → ⋯): which models
-// are verified for each kind, whether each counts as uncensored (an override of Venice's label, or
-// null to follow it), and the defaults the assistant uses while a user chose none. Server-owned
+// are verified for each kind, whether a model counts as uncensored (an override of Venice's label,
+// or none to follow it), and the defaults the assistant uses while a user chose none. Server-owned
 // tables, read by every account through GET /ai/models, never synced (sync-design §12).
 import { and, eq } from 'drizzle-orm';
-import {
-  aiModelKindSchema,
-  MODEL_DEFAULT_VARIANTS,
-  type AiModelKind,
-  type ModelDefaultVariant,
-  type ModelDefaults,
-} from '@squidbox/shared';
+import { modelDefaultsSchema, type AiModelKind, type ModelDefaultVariant, type ModelDefaults } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
-import { modelDefaults, verifiedModels } from '../db/schema.js';
+import { modelDefaults, uncensoredOverrides, verifiedModels } from '../db/schema.js';
 import { AppError } from '../errors.js';
+import { isUncensored, type CatalogEntry } from './catalog.js';
 
-/** The verified models of each kind, by id, with their override of Venice's Uncensored label. */
-export type VerifiedModels = Record<AiModelKind, Map<string, { unrestricted: boolean | null }>>;
-
-export type Verification = { verified: VerifiedModels; defaults: ModelDefaults };
+export type Verification = {
+  /** The ids of the verified models of each kind. */
+  verified: Record<AiModelKind, Set<string>>;
+  /** The overrides of Venice's Uncensored label, by model id; a model without one follows Venice. */
+  overrides: Map<string, boolean>;
+  defaults: ModelDefaults;
+};
 
 const invalid = (message: string) => new AppError(400, 'validation_error', message);
 
-// The four defaults as one object. A missing one is a broken seed, so it throws (a 500), never a
-// fallback in code.
+// The four defaults as one object. A missing one is a broken seed, so parsing throws (a 500), never
+// a fallback in code.
 function toDefaults(rows: { kind: string; variant: string; modelId: string }[]): ModelDefaults {
-  const find = (kind: AiModelKind, variant: ModelDefaultVariant) => {
-    const row = rows.find((each) => each.kind === kind && each.variant === variant);
-    if (!row) throw new Error(`No default ${kind} model for ${variant}`);
-    return row.modelId;
-  };
-  return Object.fromEntries(
-    aiModelKindSchema.options.map((kind) => [
-      kind,
-      Object.fromEntries(MODEL_DEFAULT_VARIANTS.map((variant) => [variant, find(kind, variant)])),
-    ]),
-  ) as ModelDefaults;
+  const defaults: Record<string, Record<string, string>> = { writing: {}, vision: {} };
+  for (const { kind, variant, modelId } of rows) defaults[kind] = { ...defaults[kind], [variant]: modelId };
+  return modelDefaultsSchema.parse(defaults);
 }
 
 /** The defaults of every kind and variant. */
@@ -42,24 +32,24 @@ export async function readModelDefaults(db: Db): Promise<ModelDefaults> {
   return toDefaults(await db.select().from(modelDefaults));
 }
 
-/** Every mark: the verified models of each kind and the defaults. */
+/** Every mark: the verified models of each kind, the Uncensored overrides and the defaults. */
 export async function readVerification(db: Db): Promise<Verification> {
-  const [rows, defaultRows] = await Promise.all([
+  const [rows, overrideRows, defaults] = await Promise.all([
+    db.select({ kind: verifiedModels.kind, modelId: verifiedModels.modelId }).from(verifiedModels),
     db
-      .select({ kind: verifiedModels.kind, modelId: verifiedModels.modelId, unrestricted: verifiedModels.unrestricted })
-      .from(verifiedModels),
-    db.select().from(modelDefaults),
+      .select({ modelId: uncensoredOverrides.modelId, uncensored: uncensoredOverrides.uncensored })
+      .from(uncensoredOverrides),
+    readModelDefaults(db),
   ]);
-  const verified: VerifiedModels = { writing: new Map(), vision: new Map() };
-  for (const row of rows) verified[row.kind as AiModelKind]?.set(row.modelId, { unrestricted: row.unrestricted });
-  return { verified, defaults: toDefaults(defaultRows) };
+  const verified: Verification['verified'] = { writing: new Set(), vision: new Set() };
+  for (const row of rows) verified[row.kind as AiModelKind]?.add(row.modelId);
+  const overrides = new Map(overrideRows.map((row) => [row.modelId, row.uncensored]));
+  return { verified, overrides, defaults };
 }
 
 /**
- * Marks the model verified for `kind` or not. Verified, `isUnrestricted` is its override of Venice's
- * label (null follows it, `isVeniceUncensored`); the first mark records who and when, a later one
- * changes only the override. 400 when that would leave the kind's Adult content default not
- * uncensored, when unmarking a default, or for an override on an unverified model.
+ * Marks the model verified for `kind` or not; a second mark keeps who and when. 400 when unmarking a
+ * default of the kind.
  */
 export async function setVerification(
   db: Db,
@@ -67,72 +57,81 @@ export async function setVerification(
     kind,
     modelId,
     isVerified,
-    isUnrestricted,
-    isVeniceUncensored = false,
     userId,
-  }: {
-    kind: AiModelKind;
-    modelId: string;
-    isVerified: boolean;
-    isUnrestricted: boolean | null;
-    isVeniceUncensored?: boolean;
-    userId: string | null;
-  },
+  }: { kind: AiModelKind; modelId: string; isVerified: boolean; userId: string | null },
 ): Promise<void> {
-  if (!isVerified && isUnrestricted !== null) throw invalid('Mark the model verified first');
+  if (isVerified) {
+    await db.insert(verifiedModels).values({ kind, modelId, verifiedBy: userId }).onConflictDoNothing();
+    return;
+  }
   await db.transaction(async (tx) => {
-    const defaults = await tx
+    const [isDefault] = await tx
       .select({ variant: modelDefaults.variant })
       .from(modelDefaults)
       .where(and(eq(modelDefaults.kind, kind), eq(modelDefaults.modelId, modelId)));
-    const variants = new Set(defaults.map(({ variant }) => variant));
-    if (isVerified) {
-      if (variants.has('unrestricted') && !(isUnrestricted ?? isVeniceUncensored)) {
-        throw invalid(
-          `${modelId} is the default ${kind} model for Adult content; make another model that default first`,
-        );
-      }
-      await tx
-        .insert(verifiedModels)
-        .values({ kind, modelId, unrestricted: isUnrestricted, verifiedBy: userId })
-        .onConflictDoUpdate({
-          target: [verifiedModels.kind, verifiedModels.modelId],
-          set: { unrestricted: isUnrestricted },
-        });
-      return;
-    }
-    if (variants.size > 0)
-      throw invalid(`${modelId} is the default ${kind} model; make another model the default first`);
+    if (isDefault) throw invalid(`${modelId} is the default ${kind} model; make another model the default first`);
     await tx.delete(verifiedModels).where(and(eq(verifiedModels.kind, kind), eq(verifiedModels.modelId, modelId)));
   });
 }
 
 /**
+ * Sets the model's override of Venice's Uncensored label (`uncensored`; null follows Venice). 400
+ * when that leaves an Adult content default of any kind not uncensored.
+ */
+export async function setUncensored(
+  db: Db,
+  { entry, uncensored, userId }: { entry: CatalogEntry; uncensored: boolean | null; userId: string | null },
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    if (!isUncensored(entry, uncensored)) {
+      const [adultDefault] = await tx
+        .select({ kind: modelDefaults.kind })
+        .from(modelDefaults)
+        .where(and(eq(modelDefaults.variant, 'unrestricted'), eq(modelDefaults.modelId, entry.id)));
+      if (adultDefault) {
+        throw invalid(
+          `${entry.id} is the default ${adultDefault.kind} model for Adult content; make another model that default first`,
+        );
+      }
+    }
+    if (uncensored === null) {
+      await tx.delete(uncensoredOverrides).where(eq(uncensoredOverrides.modelId, entry.id));
+      return;
+    }
+    await tx
+      .insert(uncensoredOverrides)
+      .values({ modelId: entry.id, uncensored, setBy: userId })
+      .onConflictDoUpdate({
+        target: uncensoredOverrides.modelId,
+        set: { uncensored, setBy: userId, setAt: new Date() },
+      });
+  });
+}
+
+/**
  * Makes the model the default of `kind` for `variant`. 400 unless it is verified for the kind, and
- * for Adult content (`unrestricted`) unless it counts as uncensored: its override, else Venice's
- * label (`isVeniceUncensored`).
+ * for Adult content (`unrestricted`) unless it counts as uncensored (catalog.ts isUncensored).
  */
 export async function setModelDefault(
   db: Db,
-  {
-    kind,
-    variant,
-    modelId,
-    isVeniceUncensored,
-  }: { kind: AiModelKind; variant: ModelDefaultVariant; modelId: string; isVeniceUncensored: boolean },
+  { kind, variant, entry }: { kind: AiModelKind; variant: ModelDefaultVariant; entry: CatalogEntry },
 ): Promise<void> {
   await db.transaction(async (tx) => {
-    const [row] = await tx
-      .select({ unrestricted: verifiedModels.unrestricted })
+    const [verified] = await tx
+      .select({ modelId: verifiedModels.modelId })
       .from(verifiedModels)
-      .where(and(eq(verifiedModels.kind, kind), eq(verifiedModels.modelId, modelId)));
-    if (!row) throw invalid('Mark the model verified first');
-    if (variant === 'unrestricted' && !(row.unrestricted ?? isVeniceUncensored)) {
-      throw invalid('Mark the model uncensored first');
+      .where(and(eq(verifiedModels.kind, kind), eq(verifiedModels.modelId, entry.id)));
+    if (!verified) throw invalid('Mark the model verified first');
+    if (variant === 'unrestricted') {
+      const [override] = await tx
+        .select({ uncensored: uncensoredOverrides.uncensored })
+        .from(uncensoredOverrides)
+        .where(eq(uncensoredOverrides.modelId, entry.id));
+      if (!isUncensored(entry, override?.uncensored ?? null)) throw invalid('Mark the model uncensored first');
     }
     await tx
       .insert(modelDefaults)
-      .values({ kind, variant, modelId })
-      .onConflictDoUpdate({ target: [modelDefaults.kind, modelDefaults.variant], set: { modelId } });
+      .values({ kind, variant, modelId: entry.id })
+      .onConflictDoUpdate({ target: [modelDefaults.kind, modelDefaults.variant], set: { modelId: entry.id } });
   });
 }

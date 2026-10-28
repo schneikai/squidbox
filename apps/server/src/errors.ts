@@ -64,3 +64,8 @@ export class AppError extends Error {
 export function errorBody(code: ErrorCode, message: string) {
   return { error: { code, message } };
 }
+
+/** What went wrong, as one line: an Error's message, else the thrown value as text. */
+export function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}

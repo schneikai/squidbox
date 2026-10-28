@@ -5,8 +5,6 @@ import { failAbandonedChecks } from './ai/modelChecks.js';
 
 const config = loadConfig();
 const app = await buildApp();
-// A model check that was running when the last process stopped never finishes now.
-await failAbandonedChecks(getDb());
 
 try {
   await app.listen({ port: config.PORT, host: config.HOST });
@@ -14,6 +12,9 @@ try {
   app.log.error(err);
   process.exit(1);
 }
+
+// A model check whose server stopped never finishes now; the boot doesn't wait for this.
+failAbandonedChecks(getDb()).catch((err: unknown) => app.log.error({ err }, 'Failing abandoned model checks failed'));
 
 async function shutdown(signal: string): Promise<void> {
   app.log.info(`Received ${signal}, shutting down`);

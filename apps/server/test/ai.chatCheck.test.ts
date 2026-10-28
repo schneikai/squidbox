@@ -13,25 +13,29 @@ vi.mock('../src/config.js', async (importOriginal) => {
   };
 });
 
-import { CHECK_TURNS, resolveInstructions, type ChatReply } from '@squidbox/shared';
+import { CHECK_JUDGE_MODEL_ID, CHECK_TURNS, resolveInstructions, type ChatReply } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
 import type { CatalogEntry } from '../src/ai/catalog.js';
-import {
-  BARE,
-  cardChecks,
-  CHAT_SECTION_IDS,
-  check,
-  checkChatModel,
-  JUDGE_MODEL_ID,
-  SCENARIOS,
-} from '../src/ai/chatCheck.js';
-import { CHECKS } from '../src/ai/modelCheck.js';
+import { BARE, cardChecks, CHAT_SECTION_IDS, check, checkChatModel, SCENARIOS } from '../src/ai/chatCheck.js';
 
 const catalog = fixture.data as CatalogEntry[];
 const model = catalog.find((entry) => entry.id === 'kimi-k3')!;
 const instructions = {
   ...resolveInstructions(null),
-  modelCheckJudge: 'Judge.\nTold:\n{context}\nBefore:\n{transcript}\nAsked: {request}\nReply: {reply}',
+  modelCheckJudge: [
+    'Judge.',
+    'About the creator: {aboutYou}',
+    'Posts they liked:',
+    '{favorites}',
+    'Media: {media}',
+    "What's in the photos (from image recognition): {tags}",
+    "People they've tagged in posts from the same album: {mentions}",
+    'Caption so far: {caption}',
+    'Before:',
+    '{transcript}',
+    'Asked: {request}',
+    'Reply: {reply}',
+  ].join('\n'),
 };
 const fetchMock = vi.fn();
 
@@ -106,8 +110,10 @@ describe('cardChecks', () => {
   it("holds cards to the persona's rules and the post's handles", () => {
     expect(cardChecks([], post, false)).toEqual([]);
     const fine = cardChecks(['Quiet coast with @ridgeline.bsky.social.'], post, false);
-    expect(fine.every(([, ok]) => ok)).toBe(true);
-    const failed = Object.fromEntries(cardChecks(['Wow! #coast with @someone.bsky.social'], post, false));
+    expect(fine.every(({ ok }) => ok)).toBe(true);
+    const failed = Object.fromEntries(
+      cardChecks(['Wow! #coast with @someone.bsky.social'], post, false).map(({ name, ok }) => [name, ok]),
+    );
     expect(failed).toMatchObject({
       'rules: no hashtags': false,
       'rules: no exclamation marks': false,
@@ -116,7 +122,9 @@ describe('cardChecks', () => {
   });
 
   it('checks only the handles without the persona', () => {
-    expect(cardChecks(['Wow! #coast'], post, true).map(([name]) => name)).toEqual(["handles: only the post's, exact"]);
+    expect(cardChecks(['Wow! #coast'], post, true)).toEqual([
+      { name: "handles: only the post's, exact", ok: true, reason: null },
+    ]);
   });
 });
 
@@ -132,7 +140,7 @@ describe('checkChatModel', () => {
     const calls = bodies();
     expect(calls).toHaveLength(8);
     expect(calls.map((body) => body.model)).toEqual(
-      Array.from({ length: 4 }, () => ['kimi-k3', JUDGE_MODEL_ID]).flat(),
+      Array.from({ length: 4 }, () => ['kimi-k3', CHECK_JUDGE_MODEL_ID]).flat(),
     );
     const judge = calls[3]!;
     expect(judge.messages).toHaveLength(1);
@@ -204,7 +212,7 @@ describe('checkChatModel', () => {
     expect(result.sections[2]!.systemMessage).not.toContain('# The creator');
     // the bare section's judge is told the post, not a persona
     const judgeOfBare = bodies()
-      .filter((body) => body.model === JUDGE_MODEL_ID)
+      .filter((body) => body.model === CHECK_JUDGE_MODEL_ID)
       .at(-1)!;
     expect(judgeOfBare.messages[0].content).not.toContain('About the creator');
     expect(judgeOfBare.messages[0].content).not.toContain('Posts they liked');
@@ -213,7 +221,7 @@ describe('checkChatModel', () => {
 
   it('rejects before any call when Venice does not offer the judge', async () => {
     venice();
-    const withoutJudge = catalog.filter((entry) => entry.id !== JUDGE_MODEL_ID);
+    const withoutJudge = catalog.filter((entry) => entry.id !== CHECK_JUDGE_MODEL_ID);
     await expect(checkChatModel(model, { catalog: withoutJudge, instructions })).rejects.toThrow(
       'The judge claude-sonnet-5-5: Venice no longer offers this model',
     );
@@ -221,7 +229,6 @@ describe('checkChatModel', () => {
   });
 
   it('has as many turns as the app says', () => {
-    expect(CHECKS.writing.turnCount).toBe(CHECK_TURNS.writing);
     const steps = CHAT_SECTION_IDS.map((id) => SCENARIOS[id === BARE ? 'talk' : id]!.steps.length);
     expect(steps.reduce((sum, count) => sum + count, 0)).toBe(CHECK_TURNS.writing);
   });

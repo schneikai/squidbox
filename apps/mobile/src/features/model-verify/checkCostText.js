@@ -1,10 +1,10 @@
 import { CHECK_TURNS } from '@squidbox/shared';
 
+import centsText from '@/utils/ai/centsText';
+
 // Dollars as the cost lines show them: cents below a dollar ("21¢"), dollars from one up ("$1.20").
 function money(usd) {
-  if (usd >= 1) return `$${usd.toFixed(2)}`;
-  const cents = usd * 100;
-  return `${Number(cents.toFixed(cents >= 10 ? 0 : cents >= 1 ? 1 : 2))}¢`;
+  return usd >= 1 ? `$${usd.toFixed(2)}` : centsText(usd);
 }
 
 /**

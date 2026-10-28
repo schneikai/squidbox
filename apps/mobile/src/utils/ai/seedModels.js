@@ -1,3 +1,5 @@
+import isVerifiedModel from './isVerifiedModel';
+
 // The vision list's first run after the default model: the owner's starting picks. The only model
 // ids in the app: the verified models and the defaults come with the catalog (the server's marks),
 // everything else from Venice's catalog.
@@ -12,7 +14,7 @@ export default function seedModels(catalogOfKind, kind, defaults) {
   const first = defaults[kind].regular;
   const ids =
     kind === 'writing'
-      ? [first, ...catalogOfKind.filter((model) => model.verifiedKinds.includes('writing')).map(({ id }) => id)]
+      ? [first, ...catalogOfKind.filter((model) => isVerifiedModel('writing', model)).map(({ id }) => id)]
       : [first, ...VISION_SEED_IDS];
   return [...new Set(ids)].flatMap((id) => catalogOfKind.filter((model) => model.id === id));
 }

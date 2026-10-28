@@ -78,33 +78,12 @@ function replyText({ reply, postOptions }: ChatReply): string {
   return [reply || '(no reply text)', ...postOptions.map((option, index) => `${index + 1}. ${option}`)].join('\n');
 }
 
-// What the writing model was told about the creator and the post, as the judge reads it: the
-// persona's facts and the posts they liked (none for a check without them) and the post's media,
-// photo tags, tagged people and caption, so a name, handle or tag it was given never counts as
-// invented.
-function judgeContextText(context: ChatContext, persona: Persona, favorites: string[]): string {
-  const creator = personaValues(persona);
-  const post = postValues(context);
-  return [
-    creator.aboutYou && `About the creator: ${creator.aboutYou}`,
-    creator.tone && `Tone: ${creator.tone}`,
-    creator.contentTags && `Themes they post about: ${creator.contentTags}`,
-    creator.rules && `Their rules:\n${creator.rules}`,
-    favorites.length > 0 && `Posts they liked:\n${favorites.map((post) => `- ${post}`).join('\n')}`,
-    `Media: ${post.media}`,
-    post.tags && `What's in the photos (from image recognition): ${post.tags}`,
-    post.mentions && `People they've tagged in posts from the same album: ${post.mentions}`,
-    `Caption so far: ${post.caption}`,
-  ]
-    .filter(Boolean)
-    .join('\n');
-}
-
 /**
  * The model check's judge question after a chat turn: `template` (instructions.modelCheckJudge)
- * filled with what the writing model was told about the creator and the post (`{context}`: the
- * persona's facts, the posts they liked, and the post's media, photo tags, tagged people and
- * caption), the turns before it (`{transcript}`, "Creator: …" and "Assistant: …" with its numbered
+ * filled with what the writing model was told about the creator and the post, with the writing
+ * briefing's placeholders (the persona's facts, the posts they liked, none for a check without them,
+ * and the post's media, photo tags, tagged people and caption), so a name, handle or tag it was given
+ * never counts as invented; the turns before it (`{transcript}`, "Creator: …" and "Assistant: …" with its numbered
  * options, "(none)" on the first turn), the creator's last message (`{request}`) and the reply to
  * judge (`{reply}`), as the one message.
  */
@@ -129,7 +108,9 @@ export function judgeMessages({
     turn.role === 'user' ? `Creator: ${turn.content}` : `Assistant: ${replyText(turn)}`,
   );
   const content = fillLines(template, {
-    context: judgeContextText(context, persona, favorites),
+    ...personaValues(persona),
+    favorites: favoritesText(favorites),
+    ...postValues(context),
     transcript: before.join('\n\n') || '(none)',
     request,
     reply: replyText(reply),
@@ -185,6 +166,11 @@ function personaValues(persona: Persona): Record<string, string> {
   };
 }
 
+// The Favorites' texts as "- " lines like the rules, each on one line.
+function favoritesText(favorites: string[]): string {
+  return favorites.map((post) => `- ${post.trim().replace(/\s*\n\s*/g, ' ')}`).join('\n');
+}
+
 // "4 photos and 1 video", "none yet" without media.
 function mediaText({ photo, video }: ChatContext['media']): string {
   const count = (n: number, one: string) => (n === 0 ? null : `${n} ${one}${n === 1 ? '' : 's'}`);
@@ -216,7 +202,7 @@ export function writingBriefingText(
 ): string {
   return fillLines(template, {
     ...personaValues(persona),
-    favorites: favorites.map((post) => `- ${post.trim().replace(/\s*\n\s*/g, ' ')}`).join('\n'),
+    favorites: favoritesText(favorites),
     ...postValues(context),
     count: String(WRITING_TWEET_COUNT),
   });

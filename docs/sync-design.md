@@ -950,8 +950,9 @@ gone. Imported records kept deterministic uuid v5 ids, and their files stay at t
   app returns to the foreground, on a new edit, or Retry All (§6).
 - Sync runs in the foreground and on each local write (§8).
 - Users are isolated; there is no cross-user sharing (§2a).
-- What an ai_admin sets for the whole app — which models are verified for each kind and whether each
-  counts as uncensored (`verified_models`), the defaults (`model_defaults`) and the model check runs
+- What an ai_admin sets for the whole app — which models are verified for each kind
+  (`verified_models`), whether a model counts as uncensored where that overrides Venice's label
+  (`uncensored_overrides`), the defaults (`model_defaults`) and the model check runs
   (`model_checks`) — lives in plain server tables outside the collection registry: no `user_id`, no
   `server_seq` trigger, never pushed or pulled. Every account reads the marks and the defaults with
   the catalog (`GET /ai/models`), the admin the checks through the admin routes; the app keeps them

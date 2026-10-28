@@ -17,7 +17,6 @@ vi.mock('../src/config.js', async (importOriginal) => {
 import { CHECK_TURNS, resolveInstructions } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
 import type { CatalogEntry } from '../src/ai/catalog.js';
-import { CHECKS } from '../src/ai/modelCheck.js';
 import { checkTaggingModel, PHOTO_FILES } from '../src/ai/tagCheck.js';
 
 const catalog = fixture.data as CatalogEntry[];
@@ -93,7 +92,6 @@ describe('checkTaggingModel', () => {
   });
 
   it('has as many turns as the app says', () => {
-    expect(CHECKS.vision.turnCount).toBe(CHECK_TURNS.vision);
     expect(PHOTO_FILES).toHaveLength(CHECK_TURNS.vision);
   });
 });

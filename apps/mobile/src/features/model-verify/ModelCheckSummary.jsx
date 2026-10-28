@@ -1,3 +1,5 @@
+import secondsText from './secondsText';
+
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import relativeTime from '@/utils/relativeTime';
 
@@ -9,8 +11,8 @@ export default function ModelCheckSummary({ kind, check }) {
       <Row label="Passed" value={String(passes)} />
       <Row label="Failed" value={String(fails)} />
       {kind === 'writing' && <Row label="Not JSON" value={String(unreadable)} />}
-      <Row label="Median per turn" value={`${medianSeconds.toFixed(1)} s`} />
-      <Row label="Slowest turn" value={`${slowestSeconds.toFixed(1)} s`} />
+      <Row label="Median per turn" value={secondsText(medianSeconds)} />
+      <Row label="Slowest turn" value={secondsText(slowestSeconds)} />
       <Row label="Checked" value={relativeTime(Date.parse(check.startedAt))} />
     </Section>
   );

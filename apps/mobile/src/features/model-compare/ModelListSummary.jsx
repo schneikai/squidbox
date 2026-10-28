@@ -1,9 +1,9 @@
 import ModelSummary from './ModelSummary';
 import formatCost from './formatCost';
-import isVerifiedModel from './isVerifiedModel';
 import scoreText from './scoreText';
 
 import useHasFeature from '@/hooks/useHasFeature';
+import isVerifiedModel from '@/utils/ai/isVerifiedModel';
 
 /**
  * A model of your list as the list and the compare's pick step show it: its name with the Verified

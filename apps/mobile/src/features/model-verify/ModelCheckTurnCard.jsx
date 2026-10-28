@@ -1,20 +1,28 @@
+import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+
+import secondsText from './secondsText';
 
 import Badge from '@/components/Badge';
 import Card from '@/components/Card';
 import Chip from '@/components/Chip';
 import ChipRow from '@/components/ChipRow';
+import IntroText from '@/components/IntroText';
 import { colors, lineHeights, typography } from '@/styles/designTokens';
+
+// Memoized: a poll that brings a new turn renders only its card (useModelCheck keeps the earlier
+// turns as they were).
+export default memo(ModelCheckTurnCard);
 
 /**
  * One turn of a check: the change to the post before it, what was asked (the creator's message, or the
  * photo), how long the model took, its reply with the post options numbered (writing) or the tags
  * (vision), then each check passed or failed, the judge's reason under its badge.
  */
-export default function ModelCheckTurnCard({ kind, turn }) {
+function ModelCheckTurnCard({ kind, turn }) {
   return (
     <Card style={styles.card}>
-      {turn.note && <Text style={styles.note}>The editor changed the post: {turn.note}</Text>}
+      {turn.note && <IntroText>The editor changed the post: {turn.note}</IntroText>}
       <View style={styles.quote}>
         <Text style={styles.prompt} selectable>
           {turn.prompt}
@@ -24,9 +32,10 @@ export default function ModelCheckTurnCard({ kind, turn }) {
         <Text style={styles.error}>{turn.error}</Text>
       ) : (
         <>
-          <Text style={styles.note}>
-            {turn.seconds?.toFixed(1)} s{turn.unreadable ? ', not the JSON: kept as text' : ''}
-          </Text>
+          <IntroText>
+            {secondsText(turn.seconds)}
+            {turn.unreadable ? ', not the JSON: kept as text' : ''}
+          </IntroText>
           {turn.reply !== null && (
             <Text style={styles.reply} selectable>
               {turn.reply || '(no reply text)'}
@@ -51,7 +60,7 @@ export default function ModelCheckTurnCard({ kind, turn }) {
         {turn.checks.map((check, index) => (
           <View key={index} style={styles.check}>
             <Badge label={`${check.ok ? 'Pass' : 'Fail'} ${check.name}`} tone={check.ok ? 'success' : 'danger'} />
-            {check.reason && <Text style={styles.note}>{check.reason}</Text>}
+            {check.reason && <IntroText>{check.reason}</IntroText>}
           </View>
         ))}
       </View>
@@ -63,11 +72,6 @@ const styles = StyleSheet.create({
   card: {
     padding: 14,
     gap: 10,
-  },
-  note: {
-    fontSize: typography.footnote,
-    lineHeight: lineHeights.footnote,
-    color: colors.text.secondary,
   },
   quote: {
     borderLeftWidth: 3,

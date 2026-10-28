@@ -28,13 +28,17 @@ export type InstructionRecord = z.infer<typeof instructionCollection.schema>;
  *   `{mentions}`, `{caption}` (the post; the Compare has none), `{count}` (the options to write);
  * - `visionTagging`, the system message of every photo tags request: `{themes}` (Your content);
  * - `moreLikeThis`, what the chat's More like this sends, with the option after it;
- * - `modelCheckJudge`, what a model check (ai_admin) asks its judge after each chat turn:
- *   `{context}` (the creator and the post the assistant was told about), `{transcript}` (the turns
- *   before), `{request}` (the creator's last message), `{reply}`.
+ * - `modelCheckJudge`, what a model check (ai_admin) asks its judge after each chat turn: the
+ *   creator and the post the assistant was told about, as `writing` has them (`{aboutYou}` …
+ *   `{caption}`, without `{count}`), `{transcript}` (the turns before), `{request}` (the creator's
+ *   last message), `{reply}`.
  */
 export const INSTRUCTION_KINDS = ['writing', 'visionTagging', 'moreLikeThis', 'modelCheckJudge'] as const;
 
 export type InstructionKind = (typeof INSTRUCTION_KINDS)[number];
+
+/** The kinds only an ai_admin account sees and edits (the model check's). */
+export const ADMIN_INSTRUCTION_KINDS: readonly InstructionKind[] = ['modelCheckJudge'];
 
 export type Instructions = Record<InstructionKind, string>;
 
@@ -87,8 +91,22 @@ Use only what the creator, the photos or this briefing give you: never invent pl
   modelCheckJudge: [
     'You judge one turn of a writing assistant\'s chat with a content creator. Did the reply respond to what the creator asked in their last message, and hold the conversation (not change the subject, not invent facts it wasn\'t given, posts only when asked)? The assistant was given the creator, the posts they liked and the post below: names, handles, places, tags and details found there or earlier in the chat are given, not invented. Answer as JSON: {"pass": true or false, "reason": one short line}.',
     '',
-    '# What the assistant was told about the creator and the post',
-    '{context}',
+    '# The creator',
+    '{aboutYou}',
+    'Tone: {tone}',
+    'Themes they post about: {contentTags}',
+    '',
+    '# Their rules',
+    '{rules}',
+    '',
+    '# Posts they liked',
+    '{favorites}',
+    '',
+    '# The post',
+    'Media: {media}',
+    "What's in the photos (from image recognition): {tags}",
+    "People they've tagged in posts from the same album: {mentions}",
+    'Caption so far: {caption}',
     '',
     '# The conversation so far',
     '{transcript}',

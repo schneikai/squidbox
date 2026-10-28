@@ -43,21 +43,8 @@ export default function AssistantScreen() {
   const promptButtonCount = useLiveQuery((db) => countPromptButtons(db), [schema.promptButtons]);
   const instructions = useLiveQuery((db) => readInstructions(db, userId), [schema.instructions], [userId]);
   useSeedPromptButtons();
-  const chosen = useLiveQuery((db) => readChosenModels(db, userId), [schema.modelChoices], [userId]);
-  const { models: catalog } = useAiCatalog();
   const isAiAdmin = useHasFeature('ai_admin');
   const instructionKinds = useInstructionKinds();
-
-  // The chosen model's name, or a muted "No longer available" once Venice dropped it (its list
-  // says which; a catalog still loading or failed to load leaves the plain name). The name and the
-  // label together would wrap the row's label.
-  function chosenText(kind) {
-    if (chosen === undefined) return { value: null, isGone: false };
-    const model = chosen[kind];
-    if (!model) return { value: 'Not chosen', isGone: false };
-    const isGone = !!catalog && !modelsOfKind(catalog, kind).some(({ id }) => id === model.id);
-    return { value: isGone ? 'No longer available' : model.name, isGone };
-  }
 
   const changedCount = instructionKinds.filter((kind) => instructions?.[kind] != null).length;
 
@@ -99,29 +86,50 @@ export default function AssistantScreen() {
             chevron
           />
         </Section>
-        {isAiAdmin && (
-          <>
-            <ScreenSectionHeader title="Models" />
-            <Section>
-              {aiModelKindSchema.options.map((kind) => {
-                const { value, isGone } = chosenText(kind);
-                return (
-                  <Row
-                    key={kind}
-                    label={modelKindText[kind].title}
-                    value={value}
-                    isValueMuted={isGone}
-                    onPress={() => navigation.navigate('ModelListScreen', { kind })}
-                    chevron
-                  />
-                );
-              })}
-            </Section>
-            <VeniceBalanceFooter />
-          </>
-        )}
+        {isAiAdmin && <ModelsSection userId={userId} />}
       </DetailScrollView>
     </Page>
+  );
+}
+
+// The models the assistant uses, for an ai_admin account only: rendered only for one, so no other
+// account reads its model choices or loads Venice's models here.
+function ModelsSection({ userId }) {
+  const navigation = useNavigation();
+  const chosen = useLiveQuery((db) => readChosenModels(db, userId), [schema.modelChoices], [userId]);
+  const { models: catalog } = useAiCatalog();
+
+  // The chosen model's name, or a muted "No longer available" once Venice dropped it (its list
+  // says which; a catalog still loading or failed to load leaves the plain name). The name and the
+  // label together would wrap the row's label.
+  function chosenText(kind) {
+    if (chosen === undefined) return { value: null, isGone: false };
+    const model = chosen[kind];
+    if (!model) return { value: 'Not chosen', isGone: false };
+    const isGone = !!catalog && !modelsOfKind(catalog, kind).some(({ id }) => id === model.id);
+    return { value: isGone ? 'No longer available' : model.name, isGone };
+  }
+
+  return (
+    <>
+      <ScreenSectionHeader title="Models" />
+      <Section>
+        {aiModelKindSchema.options.map((kind) => {
+          const { value, isGone } = chosenText(kind);
+          return (
+            <Row
+              key={kind}
+              label={modelKindText[kind].title}
+              value={value}
+              isValueMuted={isGone}
+              onPress={() => navigation.navigate('ModelListScreen', { kind })}
+              chevron
+            />
+          );
+        })}
+      </Section>
+      <VeniceBalanceFooter />
+    </>
   );
 }
 

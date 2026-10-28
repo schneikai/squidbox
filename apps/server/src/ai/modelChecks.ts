@@ -1,15 +1,25 @@
 // The model check runs an ai_admin starts from the app (POST /ai/checks/:kind/:modelId): one row per
 // run in model_checks, of which a model keeps only its latest per kind, and the job that runs the
 // check in the background, writing the result after each turn so the app can show it growing.
-import { and, desc, eq } from 'drizzle-orm';
-import type { AiModelKind, Instructions, ModelCheck } from '@squidbox/shared';
+import { and, desc, eq, lt } from 'drizzle-orm';
+import { CHECK_TURNS, type AiModelKind, type Instructions, type ModelCheck } from '@squidbox/shared';
 import type { FastifyBaseLogger } from 'fastify';
 import type { Db } from '../db/client.js';
 import { modelChecks, type ModelCheckRow } from '../db/schema.js';
+import { errorMessage } from '../errors.js';
 import type { CatalogEntry } from './catalog.js';
 import { CHECKS } from './modelCheck.js';
 
 const RESTARTED = 'The server restarted during the check';
+
+// A running check whose last turn is older than this was abandoned: its server stopped. Far above a
+// turn's longest Venice call (the model's and the judge's), so a check that runs is never caught.
+const STALE_MS = 10 * 60 * 1000;
+
+// The row while it is still running: each write of a run applies only then, so a row failed meanwhile
+// stays failed.
+const isRunning = eq(modelChecks.status, 'running');
+const failed = (error: string) => ({ status: 'failed', finishedAt: new Date(), error });
 
 function toModelCheck(row: ModelCheckRow): ModelCheck {
   return {
@@ -48,7 +58,7 @@ export async function startCheck(
   db: Db,
   { kind, modelId, userId }: { kind: AiModelKind; modelId: string; userId: string | null },
 ): Promise<{ check: ModelCheck; isNew: boolean }> {
-  const running = and(eq(modelChecks.kind, kind), eq(modelChecks.modelId, modelId), eq(modelChecks.status, 'running'));
+  const running = and(eq(modelChecks.kind, kind), eq(modelChecks.modelId, modelId), isRunning);
   try {
     return await db.transaction(async (tx) => {
       const [current] = await tx.select().from(modelChecks).where(running);
@@ -56,7 +66,7 @@ export async function startCheck(
       await tx.delete(modelChecks).where(and(eq(modelChecks.kind, kind), eq(modelChecks.modelId, modelId)));
       const [row] = await tx
         .insert(modelChecks)
-        .values({ kind, modelId, status: 'running', startedBy: userId, turnsTotal: CHECKS[kind].turnCount })
+        .values({ kind, modelId, status: 'running', startedBy: userId, turnsTotal: CHECK_TURNS[kind] })
         .returning();
       return { check: toModelCheck(row!), isNew: true };
     });
@@ -69,9 +79,9 @@ export async function startCheck(
 }
 
 /**
- * Runs the check of a row startCheck made, writing its result after each turn, then `done` with the
- * final result, or `failed` with the error's message (logged too). Each write applies only while the
- * row is still running, so one failAbandonedChecks failed stays failed.
+ * Runs the check of a row startCheck made, with the instructions `instructionsAsync` reads, writing
+ * its result after each turn (the heartbeat failAbandonedChecks reads), then `done` with the final
+ * result, or `failed` with the error's message (logged too). Never throws: the route doesn't wait.
  */
 export async function runCheck(
   db: Db,
@@ -79,44 +89,46 @@ export async function runCheck(
     check,
     model,
     catalog,
-    instructions,
+    instructionsAsync,
     log,
   }: {
     check: Pick<ModelCheck, 'id' | 'kind'>;
     model: CatalogEntry;
     catalog: CatalogEntry[];
-    instructions: Instructions;
+    instructionsAsync: () => Promise<Instructions>;
     log: FastifyBaseLogger;
   },
 ): Promise<void> {
-  const thisRun = and(eq(modelChecks.id, check.id), eq(modelChecks.status, 'running'));
+  const thisRun = and(eq(modelChecks.id, check.id), isRunning);
   try {
     const result = await CHECKS[check.kind].run(model, {
       catalog,
-      instructions,
+      instructions: await instructionsAsync(),
       onTurn: async (soFar, turnsDone) => {
-        await db.update(modelChecks).set({ result: soFar, turnsDone }).where(thisRun);
+        await db.update(modelChecks).set({ result: soFar, turnsDone, updatedAt: new Date() }).where(thisRun);
       },
     });
     await db.update(modelChecks).set({ status: 'done', finishedAt: new Date(), result }).where(thisRun);
   } catch (error) {
     log.error({ err: error, checkId: check.id }, 'Model check failed');
-    await failCheck(db, check.id, error instanceof Error ? error.message : String(error));
+    try {
+      await db
+        .update(modelChecks)
+        .set(failed(errorMessage(error)))
+        .where(thisRun);
+    } catch (failError) {
+      log.error({ err: failError, checkId: check.id }, 'Model check could not be marked failed');
+    }
   }
 }
 
-/** Marks a running check failed with `error`. */
-export async function failCheck(db: Db, id: string, error: string): Promise<void> {
+/**
+ * Fails the running checks whose heartbeat stopped (no turn written for STALE_MS): their server
+ * stopped, so nothing runs them any more. A check another machine runs keeps going.
+ */
+export async function failAbandonedChecks(db: Db, now = new Date()): Promise<void> {
   await db
     .update(modelChecks)
-    .set({ status: 'failed', finishedAt: new Date(), error })
-    .where(and(eq(modelChecks.id, id), eq(modelChecks.status, 'running')));
-}
-
-/** Fails every running check: at boot, nothing runs them any more. */
-export async function failAbandonedChecks(db: Db): Promise<void> {
-  await db
-    .update(modelChecks)
-    .set({ status: 'failed', finishedAt: new Date(), error: RESTARTED })
-    .where(eq(modelChecks.status, 'running'));
+    .set(failed(RESTARTED))
+    .where(and(isRunning, lt(modelChecks.updatedAt, new Date(now.getTime() - STALE_MS))));
 }

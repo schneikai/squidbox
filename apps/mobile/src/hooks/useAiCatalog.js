@@ -13,22 +13,20 @@ const catalog = createStore({ models: null, defaults: null, error: null, at: 0 }
 
 // One fetch in flight, shared by the screens that open while it runs.
 let inFlight = null;
-// Counts the catalogs applied, so a fetch that started before a mark's answer can't undo it.
-let applied = 0;
 
 /** Puts a catalog the server answered (`{ models, defaults }`) in front of every screen. */
 export function applyAiCatalog({ models, defaults }) {
-  applied++;
   catalog.set({ models, defaults, error: null, at: Date.now() });
 }
 
 /** Fetches the catalog now, unless a fetch is running; a failure is the store's `error`. */
 function refreshAiCatalogAsync() {
   if (inFlight) return inFlight;
-  const before = applied;
+  // A catalog applied meanwhile (a mark's answer) is newer than this fetch's: it stays.
+  const { at } = catalog.get();
   inFlight = fetchAiModelsAsync()
     .then((response) => {
-      if (applied === before) applyAiCatalog(response);
+      if (catalog.get().at === at) applyAiCatalog(response);
     })
     .catch((error) => catalog.set((current) => ({ ...current, error: apiErrorMessage(error) })))
     .finally(() => {

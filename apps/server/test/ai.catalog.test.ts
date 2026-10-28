@@ -39,8 +39,7 @@ async function catalog(): Promise<CatalogEntry[]> {
 const byId = (entries: CatalogEntry[], id: string) => entries.find((entry) => entry.id === id)!;
 
 // No overrides: the label is Venice's.
-const NO_MARKS = { writing: null, vision: null };
-const NOTHING_VERIFIED = { verified: { writing: new Map(), vision: new Map() } };
+const NOTHING_VERIFIED = { verified: { writing: new Set<string>(), vision: new Set<string>() }, overrides: new Map() };
 
 beforeEach(() => {
   clearCatalogCache();
@@ -111,26 +110,20 @@ describe('isUncensored', () => {
       'deepseek-v4-1-flash-uncensored',
     ]) {
       expect(isVeniceUncensored(byId(entries, id))).toBe(true);
-      expect(isUncensored(byId(entries, id), NO_MARKS)).toBe(true);
+      expect(isUncensored(byId(entries, id), null)).toBe(true);
     }
     const traitOnly = byId(entries, 'z-ai-glm-5-3');
     const traited = { ...traitOnly, model_spec: { ...traitOnly.model_spec, traits: ['most_uncensored'] } };
-    expect(isUncensored(traited, NO_MARKS)).toBe(true);
+    expect(isUncensored(traited, null)).toBe(true);
     for (const id of ['z-ai-glm-5-3', 'grok-4-7', 'kimi-k3']) {
-      expect(isUncensored(byId(entries, id), NO_MARKS)).toBe(false);
+      expect(isUncensored(byId(entries, id), null)).toBe(false);
     }
   });
 
   it('takes an override over Venice either way', async () => {
     const entries = await catalog();
-    expect(isUncensored(byId(entries, 'kimi-k3'), { writing: true, vision: null })).toBe(true);
-    expect(isUncensored(byId(entries, 'qwen-3-6-plus'), { writing: false, vision: null })).toBe(false);
-    expect(isUncensored(byId(entries, 'qwen-3-6-plus'), { writing: null, vision: false })).toBe(false);
-  });
-
-  it('is uncensored when any kind marks it so', async () => {
-    const plain = byId(await catalog(), 'kimi-k3');
-    expect(isUncensored(plain, { writing: false, vision: true })).toBe(true);
+    expect(isUncensored(byId(entries, 'kimi-k3'), true)).toBe(true);
+    expect(isUncensored(byId(entries, 'qwen-3-6-plus'), false)).toBe(false);
   });
 });
 
@@ -146,7 +139,7 @@ describe('toApiModel', () => {
       isUncensored: true,
       isVeniceUncensored: true,
       verifiedKinds: [],
-      unrestrictedMarks: NO_MARKS,
+      uncensoredOverride: null,
       costPerReplyUsd: expect.closeTo((1000 * 0.1625 + 200 * 0.5) / 1e6, 12),
       costPer100PhotosUsd: expect.closeTo((100 * (1500 * 0.1625 + 100 * 0.5)) / 1e6, 12),
     });
@@ -159,22 +152,20 @@ describe('toApiModel', () => {
     expect(glm.costPer100PhotosUsd).toBeNull();
   });
 
-  it('carries the kinds it is verified for and their overrides', async () => {
+  it('carries the kinds it is verified for and its override', async () => {
     const plain = byId(await catalog(), 'kimi-k3');
     const abliterated = {
       ...plain,
       id: 'abliteration-abliterated-model-large-flash',
       model_spec: { ...plain.model_spec, name: 'Abliterated Large Flash', traits: [] },
     };
-    const verified = {
-      writing: new Map([[abliterated.id, { unrestricted: true }]]),
-      vision: new Map([[abliterated.id, { unrestricted: null }]]),
-    };
-    expect(toApiModel(abliterated, { verified })).toMatchObject({
+    const verified = { writing: new Set([abliterated.id]), vision: new Set([abliterated.id]) };
+    const overrides = new Map([[abliterated.id, true]]);
+    expect(toApiModel(abliterated, { verified, overrides })).toMatchObject({
       isUncensored: true,
       isVeniceUncensored: false,
       verifiedKinds: ['writing', 'vision'],
-      unrestrictedMarks: { writing: true, vision: null },
+      uncensoredOverride: true,
     });
   });
 });
@@ -186,5 +177,6 @@ describe('findModel', () => {
     expect(findModel(entries, 'gone', 'writing')).toEqual({ error: 'Venice no longer offers this model' });
     expect(findModel(entries, 'z-ai-glm-5-3', 'vision')).toEqual({ error: "This model can't see photos" });
     expect(findModel(entries, 'gemma-4-uncensored', 'vision')).toHaveProperty('entry');
+    expect(findModel(entries, 'z-ai-glm-5-3', null)).toHaveProperty('entry');
   });
 });

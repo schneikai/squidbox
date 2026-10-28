@@ -3,11 +3,11 @@ import { StyleSheet, TouchableOpacity } from 'react-native';
 
 import ModelSummary from './ModelSummary';
 import formatCost from './formatCost';
-import isVerifiedModel from './isVerifiedModel';
 
 import Icon from '@/components/Icon';
 import { SCREEN_PADDING } from '@/constants';
 import { colors, sizes } from '@/styles/designTokens';
+import isVerifiedModel from '@/utils/ai/isVerifiedModel';
 
 // Memoized: a keystroke in the search or an add re-renders only the rows that changed.
 export default memo(AddModelRow);

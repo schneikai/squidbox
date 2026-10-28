@@ -9,12 +9,12 @@ import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 /**
  * A model's marks for `kind` as menu rows, a dot on what is set (an ai_admin tool): Verified, and
- * while verified whether it counts as uncensored (Venice's own label, or our override either way) and
- * the two defaults. Used by the model list's row menu and the check screen's.
+ * while verified whether it counts as uncensored (Venice's own label, or our override either way, the
+ * same for every kind) and the two defaults. Used by the model list's row menu and the check screen's.
  */
 export default function VerificationMenuOptions({ kind, model }) {
   const haptics = useHaptics();
-  const { isVerified, unrestrictedMark, isVeniceUncensored, isDefault, setVerification, makeDefault } =
+  const { isVerified, uncensoredOverride, isVeniceUncensored, isDefault, setVerified, setUncensored, makeDefault } =
     useModelVerification(kind, model);
 
   async function change(changeAsync) {
@@ -27,9 +27,9 @@ export default function VerificationMenuOptions({ kind, model }) {
     }
   }
 
-  const setMark = (isUnrestricted) => () => {
-    if (unrestrictedMark === isUnrestricted) return;
-    change(() => setVerification({ isVerified: true, isUnrestricted }));
+  const setOverride = (uncensored) => () => {
+    if (uncensoredOverride === uncensored) return;
+    change(() => setUncensored(uncensored));
   };
   const setDefault = (variant) => () => {
     if (isDefault[variant]) return;
@@ -42,7 +42,7 @@ export default function VerificationMenuOptions({ kind, model }) {
         label="Verified"
         icon="check-circle"
         active={isVerified}
-        onPress={() => change(() => setVerification({ isVerified: !isVerified, isUnrestricted: null }))}
+        onPress={() => change(() => setVerified(!isVerified))}
       />
       {isVerified && (
         <>
@@ -50,15 +50,15 @@ export default function VerificationMenuOptions({ kind, model }) {
           <MenuOption
             label={`Follow Venice: ${isVeniceUncensored ? 'uncensored' : 'not labelled'}`}
             icon="link"
-            active={unrestrictedMark === null}
-            onPress={setMark(null)}
+            active={uncensoredOverride === null}
+            onPress={setOverride(null)}
           />
-          <MenuOption label="Uncensored" icon="eye" active={unrestrictedMark === true} onPress={setMark(true)} />
+          <MenuOption label="Uncensored" icon="eye" active={uncensoredOverride === true} onPress={setOverride(true)} />
           <MenuOption
             label="Not uncensored"
             icon="eye-off"
-            active={unrestrictedMark === false}
-            onPress={setMark(false)}
+            active={uncensoredOverride === false}
+            onPress={setOverride(false)}
           />
           <MenuDivider />
           <MenuOption label="Default model" icon="star" active={isDefault.regular} onPress={setDefault('regular')} />
