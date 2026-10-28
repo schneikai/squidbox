@@ -1,6 +1,6 @@
 import { PERSONA_LIMITS, uniqueTags } from '@squidbox/shared';
 import { useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 
 import FieldInfoSheet from './FieldInfoSheet';
 import RulesField from './RulesField';
@@ -13,7 +13,7 @@ import Page from '@/components/Page';
 import Switch from '@/components/Switch';
 import TagsField from '@/components/TagsField';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
-import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
+import { Row, Section } from '@/components/settings-list/SettingsList';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
@@ -110,22 +110,16 @@ function VoiceEditor({ userId, seed, navigation }) {
             maxTagLength={PERSONA_LIMITS.contentTag}
           />
         </Field>
-        <View>
-          <Section>
-            <Row label="Adult content">
-              <Switch
-                value={persona?.adultContent ?? false}
-                onValueChange={handleAdultContentChange}
-                disabled={persona === undefined}
-                accessibilityLabel="Adult content"
-              />
-            </Row>
-          </Section>
-          <SectionFooter>
-            On, the assistant writes with an unrestricted model that allows adult content; off, with a regular one. A
-            writing model you chose in Models stays chosen.
-          </SectionFooter>
-        </View>
+        <Section>
+          <Row label="Adult content">
+            <Switch
+              value={persona?.adultContent ?? false}
+              onValueChange={handleAdultContentChange}
+              disabled={persona === undefined}
+              accessibilityLabel="Adult content"
+            />
+          </Row>
+        </Section>
         <Field label={voiceFields.rules.label} onInfo={() => showInfo('rules')}>
           <RulesField
             rules={rules}
