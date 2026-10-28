@@ -11,13 +11,16 @@ export const DEFAULT_MODEL_IDS: Record<AiModelKind, string> = {
 };
 
 // The models Squidbox checked itself for each kind (writing: `npm run check:chat-models` in
-// apps/server; vision: the photo tags), marked Verified in the model lists. `unrestricted`: an
-// uncensored model, for a later adult-content switch.
+// apps/server, results in the post-chat model recommendations; vision: the photo tags), marked
+// Verified in the model lists, and the writing list's first run. `unrestricted`: an uncensored model.
 export const VERIFIED_MODELS: Record<AiModelKind, readonly { id: string; unrestricted: boolean }[]> = {
   writing: [
     { id: 'deepseek-v4-1-flash-uncensored', unrestricted: true },
-    { id: 'venice-uncensored-1-2', unrestricted: true },
-    { id: 'qwen-3-6-plus', unrestricted: true },
+    { id: 'abliteration-abliterated-model-large-flash', unrestricted: true },
+    { id: 'claude-sonnet-5-5', unrestricted: false },
+    { id: 'kimi-k3', unrestricted: false },
+    { id: 'grok-4-7', unrestricted: false },
+    { id: 'openai-gpt-6-luna', unrestricted: false },
   ],
   vision: [{ id: 'gemma-4-uncensored', unrestricted: true }],
 };
