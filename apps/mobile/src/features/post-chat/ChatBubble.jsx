@@ -62,9 +62,10 @@ const styles = StyleSheet.create({
     color: colors.text.inverse,
     opacity: 0.8,
   },
+  // The chat's message size, the same as the options' cards and the composer.
   text: {
-    fontSize: typography.subheadline,
-    lineHeight: lineHeights.subheadline,
+    fontSize: typography.body,
+    lineHeight: lineHeights.reading,
   },
   userText: {
     color: colors.text.inverse,
