@@ -90,7 +90,7 @@ async function readLiveLibrary(liveUrl: string) {
     { readOnly: true },
   )) as unknown as Array<Array<Record<string, unknown>>>;
 
-  const records = Object.fromEntries(
+  const records: Record<string, Array<Record<string, unknown> & { id: string }>> = Object.fromEntries(
     collections.map((col, index) => [
       col.descriptor.name,
       results[index]!.map((row) =>
@@ -103,7 +103,21 @@ async function readLiveLibrary(liveUrl: string) {
       ) as Array<Record<string, unknown> & { id: string }>,
     ]),
   );
-  return { owner, records };
+  return { owner, records: withoutUnuploadedAssets(records) };
+}
+
+// Photos another device hasn't backed up yet have no files to link to, so the copy leaves them out,
+// with their places in albums and posts.
+function withoutUnuploadedAssets(records: Record<string, Array<Record<string, unknown> & { id: string }>>) {
+  const left = new Set(
+    (records.assets ?? []).filter((a) => !a.isFileSynced || !a.isThumbnailSynced).map((a) => a.id),
+  );
+  return Object.fromEntries(
+    Object.entries(records).map(([collection, rows]) => [
+      collection,
+      rows.filter((row) => !left.has(collection === 'assets' ? row.id : (row.assetId as string))),
+    ]),
+  );
 }
 
 /** Read-only URLs for the copy's files, signed for the live bucket. */
