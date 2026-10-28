@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -24,6 +24,7 @@ import usePromptButtons from '@/features/prompt-buttons/usePromptButtons';
 import useCloseWhen from '@/hooks/useCloseWhen';
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import useScrollY from '@/hooks/useScrollY';
 
 const ASK_ANYTHING = 'Ask anything';
 
@@ -43,6 +44,8 @@ export default function PostChatScreen({ route, navigation }) {
   const groups = usePromptButtons();
   const favorites = useFavoriteToggle();
   const scrollRef = useRef(null);
+  // The title fades as the messages scroll under the header, as on the other sheets (ModalHeader).
+  const { scrollY, onScroll } = useScrollY();
   const shouldScrollRef = useRef(false);
   const keyboard = useAnimatedKeyboard();
   const { bottom: bottomInset } = useSafeAreaInsets();
@@ -85,6 +88,7 @@ export default function PostChatScreen({ route, navigation }) {
         leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />}
         centerSlot="Assistant"
         subtitle="Writing as you"
+        scrollY={scrollY}
         rightSlot={
           <IconMenuButton accessibilityLabel="Chat options">
             <MenuOption label="New chat" icon="edit" onPress={chat.reset} />
@@ -98,8 +102,10 @@ export default function PostChatScreen({ route, navigation }) {
           </IconMenuButton>
         }
       />
-      <ScrollView
+      <Animated.ScrollView
         ref={scrollRef}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         onContentSizeChange={handleContentSizeChange}
@@ -134,7 +140,7 @@ export default function PostChatScreen({ route, navigation }) {
         {hasOptions && last?.role === 'assistant' && last.status === 'done' && (
           <RefineRow buttons={groups?.refine ?? []} onSend={sendButton} />
         )}
-      </ScrollView>
+      </Animated.ScrollView>
       <Animated.View style={[styles.composer, composerStyle]}>
         <ChatComposer
           seed={prompt}
