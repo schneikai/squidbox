@@ -51,7 +51,7 @@ export function keysBetween(a: string | null, b: string | null, n: number): stri
   return [...keysBetween(a, mid, below), mid, ...keysBetween(mid, b, n - 1 - below)];
 }
 
-/** N increasing keys for an initial ordered list (e.g. the legacy converter's array → edges). */
+/** N increasing keys for an initial ordered list (e.g. a seeded album's assets). */
 export function initialKeys(n: number): string[] {
   const keys: string[] = [];
   let prev: string | null = null;

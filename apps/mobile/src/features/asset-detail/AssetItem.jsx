@@ -3,11 +3,13 @@ import { StyleSheet, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated from 'react-native-reanimated';
 
+import AssetMessage from './AssetMessage';
 import AssetVideo from './AssetVideo';
 import useZoomGesture from './useZoomGesture';
 
 import AssetImage from '@/components/AssetImage';
 import { MEDIA_TYPES } from '@/utils/assets/constants';
+import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';
 
 // Memoized: the pager re-renders on every swipe, its pages shouldn't.
 export default memo(AssetItem);
@@ -37,13 +39,31 @@ function AssetItem({ asset, style, isZoomable, onTap, onZoomChange, video, verti
             asset={asset}
             contentFit="contain"
             placeholderColor="transparent"
-            // AssetVideo says itself why the current video can't play.
-            showNotUploaded={!video}
+            // The page says in words why there's no picture; AssetVideo does for the current video.
+            showNotUploaded={false}
+            renderOverlay={video ? undefined : renderUnavailable}
           />
         </Animated.View>
         {video && <AssetVideo key={video.key} video={video} />}
       </View>
     </GestureDetector>
+  );
+}
+
+const FAILED_MESSAGE = { icon: 'alert', text: "Couldn't load this photo." };
+
+// A photo its device hasn't backed up yet, one only in the cloud while signed out, or one whose
+// download gave up.
+function renderUnavailable(hasPicture, status) {
+  const unavailable = assetFileUnavailableMessages[status];
+  const message = unavailable
+    ? { icon: unavailable.icon, text: unavailable.message }
+    : status === 'failed' && FAILED_MESSAGE;
+  if (hasPicture || !message) return null;
+  return (
+    <View style={[StyleSheet.absoluteFill, styles.overlay]}>
+      <AssetMessage message={message} />
+    </View>
   );
 }
 
@@ -54,5 +74,10 @@ const styles = StyleSheet.create({
   },
   image: {
     flex: 1,
+  },
+  overlay: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    pointerEvents: 'none',
   },
 });

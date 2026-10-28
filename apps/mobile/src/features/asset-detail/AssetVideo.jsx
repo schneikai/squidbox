@@ -1,13 +1,14 @@
 import { useEvent } from 'expo';
 import { VideoView } from 'expo-video';
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
 
-import Icon from '@/components/Icon';
+import AssetMessage from './AssetMessage';
+
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 import useAppSettings from '@/features/app-settings/useAppSettings';
-import { colors, layout, motion, sizes, typography } from '@/styles/designTokens';
+import { colors, motion, sizes } from '@/styles/designTokens';
 import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';
 
 const MESSAGES = {
@@ -27,7 +28,7 @@ export default function AssetVideo({ video }) {
       {video.player ? (
         <Playback player={video.player} isRemote={video.isRemote} />
       ) : (
-        <Message message={messageFor(video.status)} />
+        <AssetMessage message={messageFor(video.status)} />
       )}
     </View>
   );
@@ -62,7 +63,7 @@ function Playback({ player, isRemote }) {
           <ActivityIndicator color={colors.text.secondary} style={styles.spinner} />
         </FloatingPill>
       )}
-      {isFailed && <Message message={MESSAGES.playerError} />}
+      {isFailed && <AssetMessage message={MESSAGES.playerError} />}
     </>
   );
 }
@@ -71,17 +72,6 @@ function messageFor(status) {
   const unavailable = assetFileUnavailableMessages[status];
   if (!unavailable) return MESSAGES[status];
   return { icon: unavailable.icon, text: unavailable.message };
-}
-
-function Message({ message }) {
-  if (!message) return null;
-
-  return (
-    <FloatingPill style={styles.message}>
-      <Icon name={message.icon} color={colors.text.secondary} style={styles.messageIcon} />
-      <Text style={styles.messageText}>{message.text}</Text>
-    </FloatingPill>
-  );
 }
 
 const styles = StyleSheet.create({
@@ -98,19 +88,5 @@ const styles = StyleSheet.create({
   spinner: {
     width: sizes.iconButton,
     height: sizes.iconButton,
-  },
-  message: {
-    marginHorizontal: layout.sideGutter,
-  },
-  // Sits where a button would: a toolbar is one button tall.
-  messageIcon: {
-    marginLeft: layout.barPaddingX,
-    marginVertical: (sizes.iconButton - sizes.icon) / 2,
-  },
-  messageText: {
-    flexShrink: 1,
-    paddingHorizontal: layout.barPaddingX,
-    fontSize: typography.footnote,
-    color: colors.text.primary,
   },
 });

@@ -71,20 +71,6 @@ export async function uploadStream(
   }
 }
 
-// Download an object's contents as a UTF-8 string (used by the legacy converter to read the
-// JSON backups). Returns null if the object doesn't exist.
-export async function getObjectText(loc: StorageLocation, fileKey: string): Promise<string | null> {
-  try {
-    const res = await s3().send(new GetObjectCommand({ Bucket: loc.bucket, Key: fullKey(loc, fileKey) }));
-    return (await res.Body?.transformToString()) ?? null;
-  } catch (err) {
-    if (err && typeof err === 'object' && 'name' in err && (err.name === 'NoSuchKey' || err.name === 'NotFound')) {
-      return null;
-    }
-    throw AppError.s3(err instanceof Error ? err.message : 'Get failed');
-  }
-}
-
 // One request per DELETE_KEYS_MAX keys (the S3 limit). Resolves to the keys S3 reported an error for;
 // a key that doesn't exist counts as deleted. A failed request, or an invalid key, throws.
 export async function deleteObjects(loc: StorageLocation, fileKeys: string[]): Promise<string[]> {

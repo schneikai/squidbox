@@ -11,8 +11,8 @@ import { hashPassword } from '../auth/passwords.js';
 //     plaintext SEED_USER_PASSWORD.
 //  2. An isolated fixture user (shared bucket + prefix, storageBucket = null) for the
 //     multi-tenant isolation checks.
-//  3. Local only: the library-copy account (shared bucket + prefix, every feature), which
-//     `npm run copy:my-library` fills with a copy of the owner's live library.
+//  3. Local only: the library-copy account (shared bucket + prefix, every feature), which holds a
+//     copy of the owner's live library (dev/libraryCopy.ts).
 const env = process.env;
 const db = getDb();
 

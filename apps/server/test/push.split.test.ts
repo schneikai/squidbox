@@ -8,11 +8,10 @@ import * as schema from '../src/db/schema.js';
 import { serverCollections } from '../src/sync/collections.js';
 import { push } from '../src/sync/push.js';
 import { pull } from '../src/sync/pull.js';
-import { importLegacy } from '../src/convert/legacy.js';
 
 // Pushes split into statements under Postgres' bind parameter limit. Rows
 // merged twice across a statement boundary, the per-row fallback inside a split push, the read split
-// at 65,534 ids, server_seq across statements, and the legacy importer at 10,000 photos.
+// at 65,534 ids, server_seq across statements, and a whole library of 10,000 photos.
 const TEST_URL = process.env.TEST_DATABASE_URL;
 const d = TEST_URL ? describe : describe.skip;
 
@@ -242,79 +241,85 @@ d('push: split statements', () => {
     await clear(ME);
   }, 300_000);
 
-  it('the legacy importer at 10,000 photos, 300 albums of 40 and 200 posts, run twice: the same rows, nothing moved', async () => {
-    const assets = Object.fromEntries(
-      Array.from({ length: 10_000 }, (_, i) => {
-        const id = randomUUID();
-        return [
-          id,
-          {
-            id,
-            mediaLibraryAssetId: `m${i}`,
-            mediaType: 'image',
-            width: 10,
-            height: 10,
-            fileSize: 100,
-            duration: null,
-            filename: `${i}.jpg`,
-            thumbnailFilename: `t${i}.jpg`,
-            isFileSynced: true,
-            isThumbnailSynced: true,
-            isSynced: true,
-            isFavorite: i % 7 === 0,
-            isDeleted: i % 11 === 0,
-            createdAt: 1000 + i,
-            updatedAt: 2000 + i + 0.25,
-            oldFileId: null,
-            notes: null,
-          },
-        ];
+  it('a library of 10,000 photos, 300 albums of 40 and 200 posts, each collection pushed whole, twice: the same rows, nothing moved', async () => {
+    const assets = Array.from({ length: 10_000 }, (_, i) =>
+      asset({
+        mediaLibraryAssetId: `m${i}`,
+        filename: `${i}.jpg`,
+        thumbnailFilename: `t${i}.jpg`,
+        isFavorite: i % 7 === 0,
+        deletedAt: i % 11 === 0 ? 2500 : null,
+        createdAt: 1000 + i,
+        updatedAt: 2000 + i,
       }),
     );
-    const ids = Object.keys(assets);
-    const albums = Object.fromEntries(
-      Array.from({ length: 300 }, (_, i) => {
-        const id = randomUUID();
-        return [
-          id,
-          {
-            id,
-            name: `Album ${i}`,
-            isFavorite: false,
-            createdAt: 1000,
-            updatedAt: 3000 + i,
-            isDeleted: i % 13 === 0,
-            assets: Array.from({ length: 40 }, (_, j) => ids[(i * 40 + j) % ids.length]),
-          },
-        ];
+    const albums = Array.from({ length: 300 }, (_, i) => ({
+      id: randomUUID(),
+      createdAt: 1000,
+      updatedAt: 3000 + i,
+      deletedAt: i % 13 === 0 ? 3500 : null,
+      name: `Album ${i}`,
+      isFavorite: false,
+      archivedAt: null,
+      showInPostSuggestionsAfter: null,
+      oldCollectionName: null,
+      notes: null,
+      sortOrder: null,
+      smartAlbumType: null,
+      position: null,
+    }));
+    const posts = Array.from({ length: 200 }, (_, i) => ({
+      id: randomUUID(),
+      createdAt: 1000,
+      updatedAt: 4000 + i,
+      deletedAt: null,
+      text: `post ${i}`,
+      isFavorite: false,
+      postedAt: null,
+      rePostId: null,
+      isIgnoredForRepost: false,
+      suggestRepostAt: 0,
+      hasBeenReposted: false,
+    }));
+    const albumEdges = albums.flatMap((album, i) =>
+      Array.from({ length: 40 }, (_, j) =>
+        edge({ albumId: album.id, assetId: assets[(i * 40 + j) % assets.length]!.id, position: `a${j}` }),
+      ),
+    );
+    const postEdges = posts.flatMap((post, i) =>
+      Array.from({ length: 5 }, (_, j) => {
+        const { albumId: _a, ...rest } = edge({ assetId: assets[i * 5 + j]!.id, position: `a${j}` });
+        return { ...rest, postId: post.id };
       }),
     );
-    const posts = Object.fromEntries(
-      Array.from({ length: 200 }, (_, i) => {
-        const id = randomUUID();
-        return [
-          id,
-          {
-            id,
-            text: `post ${i}`,
-            createdAt: 1000,
-            updatedAt: 4000 + i,
-            assetRefs: Array.from({ length: 5 }, (_, j) => ({ id: randomUUID(), assetId: ids[i * 5 + j] })),
-          },
-        ];
-      }),
-    );
-    const data = { assets, albums, posts } as any;
-    const first = await importLegacy(db as any, ME, data);
-    expect(
-      first.map(({ collection, applied, skipped, rejected }) => ({ collection, applied, skipped, rejected })),
-    ).toEqual([
-      { collection: 'assets', applied: 10_000, skipped: 0, rejected: 0 },
-      { collection: 'albums', applied: 300, skipped: 0, rejected: 0 },
-      { collection: 'posts', applied: 200, skipped: 0, rejected: 0 },
-      { collection: 'album_assets', applied: 12_000, skipped: 0, rejected: 0 },
-      { collection: 'post_assets', applied: 1000, skipped: 0, rejected: 0 },
-    ]);
+    const library: [string, Rec[]][] = [
+      ['assets', assets],
+      ['albums', albums],
+      ['posts', posts],
+      ['album_assets', albumEdges],
+      ['post_assets', postEdges],
+    ];
+    const pushAll = async () => {
+      const counts: Record<string, Record<string, number>> = {};
+      for (const [collection, records] of library) {
+        const results = await push(
+          db,
+          ME,
+          records.map((record) => whole(record, collection)),
+        );
+        counts[collection] = {};
+        for (const { status } of results) counts[collection]![status] = (counts[collection]![status] ?? 0) + 1;
+      }
+      return counts;
+    };
+    const first = await pushAll();
+    expect(first).toEqual({
+      assets: { applied: 10_000 },
+      albums: { applied: 300 },
+      posts: { applied: 200 },
+      album_assets: { applied: 12_000 },
+      post_assets: { applied: 1000 },
+    });
     const seqs = async () =>
       (
         await db
@@ -323,8 +328,135 @@ d('push: split statements', () => {
           .where(eq(schema.assets.userId, ME))
       ).sort((a, b) => a.id.localeCompare(b.id));
     const before = await seqs();
-    const again = await importLegacy(db as any, ME, data);
-    expect(again).toEqual(first);
+    expect(await pushAll()).toEqual(first);
+    expect(await seqs()).toEqual(before);
+    await clear(ME);
+  }, 180_000);
+
+  it('a push of 70,000 edges reads in two statements: the ids on both sides of the split merge right', async () => {
+    const edges = Array.from({ length: 70_000 }, () => edge());
+    const first = await push(
+      db,
+      ME,
+      edges.map((r) => whole(r, 'album_assets')),
+    );
+    expect(first.filter((r) => r.status !== 'applied')).toEqual([]);
+    // Edits of the ids around index 65,534 (the read's split), each twice, older second, and the rest replayed.
+    const around = [0, 65_532, 65_533, 65_534, 65_535, 69_999];
+    const mutations: PushMutation[] = edges.map((r) => whole(r, 'album_assets'));
+    for (const i of around) {
+      mutations.push(at({ ...edges[i]!, updatedAt: 3000, position: `z${i}` }, 3000, ['position'], 'album_assets'));
+      mutations.push(at({ ...edges[i]!, updatedAt: 2000, position: `y${i}` }, 2000, ['position'], 'album_assets'));
+    }
+    const results = await push(db, ME, mutations);
+    expect(results.slice(0, 70_000).filter((r) => r.status !== 'applied')).toEqual([]);
+    expect(results.slice(70_000).map((r) => r.status)).toEqual(around.flatMap(() => ['applied', 'skipped-lww']));
+    const stored = await db
+      .select({ id: schema.albumAssets.id, position: schema.albumAssets.position })
+      .from(schema.albumAssets)
+      .where(
+        and(
+          eq(schema.albumAssets.userId, ME),
+          inArray(
+            schema.albumAssets.id,
+            around.map((i) => edges[i]!.id),
+          ),
+        ),
+      );
+    expect(new Map(stored.map((row) => [row.id, row.position]))).toEqual(
+      new Map(around.map((i) => [edges[i]!.id, `z${i}`])),
+    );
+    await clear(ME);
+  }, 300_000);
+
+  it('a library of 10,000 photos, 300 albums of 40 and 200 posts, each collection pushed whole, twice: the same rows, nothing moved', async () => {
+    const assets = Array.from({ length: 10_000 }, (_, i) =>
+      asset({
+        mediaLibraryAssetId: `m${i}`,
+        filename: `${i}.jpg`,
+        thumbnailFilename: `t${i}.jpg`,
+        isFavorite: i % 7 === 0,
+        deletedAt: i % 11 === 0 ? 2500 : null,
+        createdAt: 1000 + i,
+        updatedAt: 2000 + i,
+      }),
+    );
+    const albums = Array.from({ length: 300 }, (_, i) => ({
+      id: randomUUID(),
+      createdAt: 1000,
+      updatedAt: 3000 + i,
+      deletedAt: i % 13 === 0 ? 3500 : null,
+      name: `Album ${i}`,
+      isFavorite: false,
+      archivedAt: null,
+      showInPostSuggestionsAfter: null,
+      oldCollectionName: null,
+      notes: null,
+      sortOrder: null,
+      smartAlbumType: null,
+      position: null,
+    }));
+    const posts = Array.from({ length: 200 }, (_, i) => ({
+      id: randomUUID(),
+      createdAt: 1000,
+      updatedAt: 4000 + i,
+      deletedAt: null,
+      text: `post ${i}`,
+      isFavorite: false,
+      postedAt: null,
+      rePostId: null,
+      isIgnoredForRepost: false,
+      suggestRepostAt: 0,
+      hasBeenReposted: false,
+    }));
+    const albumEdges = albums.flatMap((album, i) =>
+      Array.from({ length: 40 }, (_, j) =>
+        edge({ albumId: album.id, assetId: assets[(i * 40 + j) % assets.length]!.id, position: `a${j}` }),
+      ),
+    );
+    const postEdges = posts.flatMap((post, i) =>
+      Array.from({ length: 5 }, (_, j) => {
+        const { albumId: _a, ...rest } = edge({ assetId: assets[i * 5 + j]!.id, position: `a${j}` });
+        return { ...rest, postId: post.id };
+      }),
+    );
+    const library: [string, Rec[]][] = [
+      ['assets', assets],
+      ['albums', albums],
+      ['posts', posts],
+      ['album_assets', albumEdges],
+      ['post_assets', postEdges],
+    ];
+    const pushAll = async () => {
+      const counts: Record<string, Record<string, number>> = {};
+      for (const [collection, records] of library) {
+        const results = await push(
+          db,
+          ME,
+          records.map((record) => whole(record, collection)),
+        );
+        counts[collection] = {};
+        for (const { status } of results) counts[collection]![status] = (counts[collection]![status] ?? 0) + 1;
+      }
+      return counts;
+    };
+    const first = await pushAll();
+    expect(first).toEqual({
+      assets: { applied: 10_000 },
+      albums: { applied: 300 },
+      posts: { applied: 200 },
+      album_assets: { applied: 12_000 },
+      post_assets: { applied: 1000 },
+    });
+    const seqs = async () =>
+      (
+        await db
+          .select({ id: schema.assets.id, serverSeq: schema.assets.serverSeq, updatedAt: schema.assets.updatedAt })
+          .from(schema.assets)
+          .where(eq(schema.assets.userId, ME))
+      ).sort((a, b) => a.id.localeCompare(b.id));
+    const before = await seqs();
+    expect(await pushAll()).toEqual(first);
     expect(await seqs()).toEqual(before);
     await clear(ME);
   }, 300_000);

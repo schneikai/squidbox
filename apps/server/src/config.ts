@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+// An empty value counts as unset.
+function optionalString<T extends z.ZodTypeAny>(schema: T) {
+  return z.preprocess((v) => (v === '' ? undefined : v), schema.optional());
+}
+
 // Fail fast at boot if required config is missing/invalid.
 const envSchema = z.object({
   PORT: z.coerce.number().default(3100),
@@ -33,10 +38,14 @@ const envSchema = z.object({
   VENICE_API_KEY: z.preprocess((v) => (v === '' ? undefined : v), z.string().min(1).optional()),
   VENICE_BASE_URL: z.string().url().default('https://api.venice.ai/api/v1'),
 
-  // Local dev only: the account `npm run copy:my-library` fills with a copy of the owner's live
-  // library. Its files stay in the live storage: download URLs come from the live backend, through the
-  // session the copy saved (storage/linkedLibrary.ts), and uploads are refused.
-  LIBRARY_COPY_EMAIL: z.preprocess((v) => (v === '' ? undefined : v), z.string().email().optional()),
+  // Local dev only: the copy of the owner's live library (dev/libraryCopy.ts). The account it fills,
+  // the live database it reads, and the keys that sign read-only URLs for its files in the live bucket.
+  // `npm run dev:local` sets them all.
+  LIBRARY_COPY_EMAIL: optionalString(z.string().email()),
+  LIVE_DATABASE_URL: optionalString(z.string().url()),
+  LIVE_AWS_ACCESS_KEY_ID: optionalString(z.string()),
+  LIVE_AWS_SECRET_ACCESS_KEY: optionalString(z.string()),
+  LIVE_AWS_REGION: z.string().default('eu-west-1'),
 });
 
 export type Config = z.infer<typeof envSchema>;
