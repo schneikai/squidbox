@@ -10,6 +10,18 @@ export const DEFAULT_MODEL_IDS: Record<AiModelKind, string> = {
   vision: 'gemma-4-uncensored',
 };
 
+// The models Squidbox checked itself for each kind (writing: `npm run check:chat-models` in
+// apps/server; vision: the photo tags), marked Verified in the model lists. `unrestricted`: an
+// uncensored model, for a later adult-content switch.
+export const VERIFIED_MODELS: Record<AiModelKind, readonly { id: string; unrestricted: boolean }[]> = {
+  writing: [
+    { id: 'deepseek-v4-1-flash-uncensored', unrestricted: true },
+    { id: 'venice-uncensored-1-2', unrestricted: true },
+    { id: 'qwen-3-6-plus', unrestricted: true },
+  ],
+  vision: [{ id: 'gemma-4-uncensored', unrestricted: true }],
+};
+
 // `model_choices` — the model the assistant uses for each kind (Settings → Assistant → Models), when
 // the user chose one: its id, and its name for a model Venice no longer offers. One record per user,
 // whose id is the user's id, like `personas`, so every device writes the same record and the per-field

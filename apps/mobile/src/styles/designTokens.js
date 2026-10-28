@@ -58,6 +58,7 @@ export const colors = {
   },
   status: {
     success: palette.green500, // a confirmation that just happened (copied)
+    successLight: alpha(palette.green500, 0.12),
     danger: palette.rose600,
     dangerLight: alpha(palette.rose600, 0.1),
   },
