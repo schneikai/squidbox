@@ -1,0 +1,1 @@
+ALTER TABLE `personas` ADD `adult_content` integer DEFAULT false NOT NULL;

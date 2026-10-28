@@ -18,10 +18,10 @@ vi.mock('../src/ai/persona.js', async (importOriginal) => ({
 }));
 // The chosen model likewise: the default unless a test chooses one.
 vi.mock('../src/ai/modelChoices.js', async () => {
-  const { DEFAULT_MODEL_IDS } = await import('@squidbox/shared');
+  const { defaultModelId } = await import('@squidbox/shared');
   return {
-    readChosenModelId: vi.fn(
-      async (_db: unknown, _userId: string, kind: 'writing' | 'vision') => DEFAULT_MODEL_IDS[kind],
+    readChosenModelId: vi.fn(async (_db: unknown, _userId: string, kind: 'writing' | 'vision') =>
+      defaultModelId(kind, false),
     ),
   };
 });
@@ -47,7 +47,7 @@ import {
   ASSET_TAG_LIMITS,
   CHAT_LIMITS,
   DEFAULT_INSTRUCTIONS,
-  DEFAULT_MODEL_IDS,
+  defaultModelId,
   resolveInstructions,
   type ChatReply,
 } from '@squidbox/shared';
@@ -423,7 +423,7 @@ describe('POST /api/v1/ai/tags', () => {
     expect(readChosenModelId).toHaveBeenCalledWith(expect.anything(), 'u1', 'vision');
     const [body, ...others] = chatBodies();
     expect(others).toHaveLength(0);
-    expect(body.model).toBe(DEFAULT_MODEL_IDS.vision);
+    expect(body.model).toBe(defaultModelId('vision', false));
     expect(body.messages[0]).toEqual({ role: 'system', content: mine });
     expect(body.messages[1].content).toEqual([
       { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,AAAA' } },
@@ -534,7 +534,7 @@ describe('POST /api/v1/ai/chat', () => {
     expect(readChosenModelId).toHaveBeenCalledWith(expect.anything(), 'u1', 'writing');
     const [body, ...others] = chatBodies();
     expect(others).toHaveLength(0);
-    expect(body.model).toBe(DEFAULT_MODEL_IDS.writing);
+    expect(body.model).toBe(defaultModelId('writing', false));
     expect(body.response_format.json_schema.name).toBe('chat_reply');
     expect(body.response_format.json_schema.schema.properties.postOptions).not.toHaveProperty('maxItems');
     const [system, ...turns] = body.messages;

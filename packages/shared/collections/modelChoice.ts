@@ -4,11 +4,29 @@ import { baseRecordSchema, defineCollection, textSchema } from './define';
 
 export const MODEL_CHOICE_LIMITS = { modelId: 200, modelName: 200 } as const;
 
-// The model the assistant uses for each kind while the user has chosen none.
-export const DEFAULT_MODEL_IDS: Record<AiModelKind, string> = {
-  writing: 'venice-uncensored-1-2',
-  vision: 'gemma-4-uncensored',
+// The model the assistant uses for each kind while the user has chosen none, per the persona's
+// Adult content switch: `unrestricted` while it is on, `regular` while it is off.
+export const DEFAULT_MODEL_IDS: Record<AiModelKind, { regular: string; unrestricted: string }> = {
+  writing: { regular: 'claude-sonnet-5-5', unrestricted: 'deepseek-v4-1-flash-uncensored' },
+  vision: { regular: 'gemma-4-uncensored', unrestricted: 'gemma-4-uncensored' },
 };
+
+/** The default model of `kind` for the persona's `adultContent` (false while unset). */
+export function defaultModelId(kind: AiModelKind, adultContent: boolean | undefined): string {
+  return DEFAULT_MODEL_IDS[kind][adultContent ? 'unrestricted' : 'regular'];
+}
+
+/**
+ * The model the assistant uses for `kind`, the same on the server and in the app: the one the user
+ * chose (`chosen`, null for none), else the default for the persona's `adultContent`.
+ */
+export function resolveModelId(
+  kind: AiModelKind,
+  chosen: { id: string } | null | undefined,
+  adultContent: boolean | undefined,
+): string {
+  return chosen?.id ?? defaultModelId(kind, adultContent);
+}
 
 // The models Squidbox checked itself for each kind (writing: `npm run check:chat-models` in
 // apps/server, results in the post-chat model recommendations; vision: the photo tags), marked

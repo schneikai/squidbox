@@ -225,6 +225,7 @@ export const personas = pgTable(
     contentTags: jsonb('content_tags').$type<string[]>().notNull(),
     tone: text('tone').notNull(),
     rules: jsonb('rules').$type<string[]>().notNull(),
+    adultContent: boolean('adult_content').notNull().default(false),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.id] }),

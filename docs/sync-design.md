@@ -844,7 +844,10 @@ columns. One record per album and asset.
 columns. The edge id is the `assetRefs[].id` the UI sees.
 
 **personas** ("Writing as you", Settings → Assistant). Synced: `aboutYou`, `tone`,
-`contentTags` (string[]), `rules` (string[]), plus the base columns (`examplePosts` left for
+`contentTags` (string[]), `rules` (string[]), `adultContent` (the Adult content switch, which picks
+the default writing model while none is chosen, `resolveModelId` on the server and in the app;
+optional and false while unset, so a push from a build without it keeps the stored value; server
+0023, app 0025), plus the base columns (`examplePosts` left for
 `favorites` in migration 0012/0016, and `useEmoji` was dropped in 0014/0018, Tone and Rules saying how
 to use emoji; both unreleased, so no carry-over, and a push from an older build that still sends
 `useEmoji` has it stripped by the schema like any unknown field). One record per user: its `id` is the user's id, so every device writes the same record and

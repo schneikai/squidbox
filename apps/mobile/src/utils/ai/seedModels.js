@@ -1,11 +1,12 @@
-import { DEFAULT_MODEL_IDS, VERIFIED_MODELS } from '@squidbox/shared';
+import { VERIFIED_MODELS, defaultModelId } from '@squidbox/shared';
 
-// Your models on first run, when Venice still has them: for writing the verified models, for vision
-// the owner's starting list, starting with the default model. The only model ids in the app besides
+// Your models on first run, when Venice still has them: for writing the verified models, whatever
+// the Adult content switch says (it picks only the default), for vision the owner's starting list,
+// starting with the default model. The only model ids in the app besides
 // the defaults and the verified models (packages/shared): everything else comes from Venice's catalog.
 const SEED_MODEL_IDS = {
   writing: VERIFIED_MODELS.writing.map(({ id }) => id),
-  vision: [DEFAULT_MODEL_IDS.vision, 'venice-uncensored-1-2', 'deepseek-v4-1-flash-uncensored', 'qwen-3-6-plus'],
+  vision: [defaultModelId('vision', false), 'venice-uncensored-1-2', 'deepseek-v4-1-flash-uncensored', 'qwen-3-6-plus'],
 };
 
 /** The first-run models of this kind that the catalog still offers, in the seed order. */

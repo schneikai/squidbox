@@ -210,6 +210,34 @@ d('sync engine (Postgres)', () => {
     await pool.query('DELETE FROM personas WHERE user_id = $1 AND id = $2', [USER_A, id]);
   });
 
+  it("a persona's Adult content starts off and survives a push from a build without it", async () => {
+    const id = randomUUID();
+    const persona = {
+      id,
+      createdAt: 1000,
+      updatedAt: 1000,
+      deletedAt: null,
+      aboutYou: 'Me.',
+      contentTags: [],
+      tone: '',
+      rules: [],
+    };
+    const pulled = async () =>
+      (await pull(db, USER_A, { cursor: 0 })).changes.personas.records.find((record) => record.id === id);
+    expect(
+      (await push(db, USER_A, [{ collection: 'personas', record: persona, fields: { aboutYou: 1000 } }]))[0],
+    ).toMatchObject({ status: 'applied' });
+    expect(await pulled()).toMatchObject({ adultContent: false });
+    const on = { ...persona, updatedAt: 2000, adultContent: true };
+    await push(db, USER_A, [{ collection: 'personas', record: on, fields: { adultContent: 2000 } }]);
+    const older = { ...persona, updatedAt: 3000, aboutYou: 'Me, later.' };
+    expect(
+      (await push(db, USER_A, [{ collection: 'personas', record: older, fields: { aboutYou: 3000 } }]))[0],
+    ).toMatchObject({ status: 'applied' });
+    expect(await pulled()).toMatchObject({ aboutYou: 'Me, later.', adultContent: true });
+    await pool.query('DELETE FROM personas WHERE user_id = $1 AND id = $2', [USER_A, id]);
+  });
+
   it('an unknown collection, Object.prototype’s names included, is rejected per mutation', async () => {
     const album = albumRecord();
     const results = await push(db as any, USER_A, [
@@ -1378,6 +1406,7 @@ d('sync engine (Postgres)', () => {
         contentTags: ['hiking', 'forest'],
         tone: 'Short and calm.',
         rules: ['Never use hashtags'],
+        adultContent: true,
       }),
       prompt_buttons: () => ({
         ...base(),

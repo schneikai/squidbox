@@ -16,6 +16,7 @@ export const EMPTY_PERSONA: PersonaFields = Object.freeze({
   tone: '',
   contentTags: [],
   rules: [],
+  adultContent: false,
 }) as PersonaFields;
 
 /** The user's persona, or null before the first save. */
