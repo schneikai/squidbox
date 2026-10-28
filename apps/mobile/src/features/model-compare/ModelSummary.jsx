@@ -5,9 +5,10 @@ import Icon from '@/components/Icon';
 import { colors, typography } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
-// A model's name with Squidbox's Verified label (`isVerified`) and Venice's Uncensored one, and a
-// detail line under it (its cost, score) with an optional leading icon. `isDimmed` greys both, for a
-// model Venice no longer offers.
+// A model's name with Squidbox's Verified label (`isVerified`) and the Uncensored one (`isUncensored`,
+// the catalog's: Venice's label or an unrestricted verified model), and a detail line under it (its
+// cost, score) with an optional leading icon. `isDimmed` greys both, for a model Venice no longer
+// offers.
 export default function ModelSummary({ name, isVerified, isUncensored, detail, detailIcon, isDimmed = false }) {
   return (
     <View style={styles.summary}>
