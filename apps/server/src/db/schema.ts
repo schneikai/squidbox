@@ -69,7 +69,7 @@ function fieldClock() {
 // (§2a). server_seq is stamped by a BEFORE INSERT/UPDATE trigger (created in migrate.ts).
 // Timestamps are epoch-ms numbers (client's logical clock), stored as bigint.
 // id is a canonical uuid: the client mints ids (getNewItemId = uuid.v4()) and legacy rows were
-// canonicalized to uuids during the one-time import (convert/remap.ts).
+// canonicalized to uuids during the one-time import (sync-design §11).
 export const assets = pgTable(
   'assets',
   {

@@ -393,3 +393,11 @@ deleted or restored.
 
 The distribution certificate and both ad hoc profiles expire then, and installed apps stop opening.
 Renew them via the **`/build`** skill (see "expired signing" there) a few weeks ahead.
+
+### [ ] A read-only AWS key for the library copy
+
+The dev client's copy of the owner's library signs its photo links with the live server's own AWS
+keys, read from Fly at `npm run dev:local` (`scripts/dev.mjs` → `liveLibraryEnv`). The code only
+signs GETs, but those keys can also delete. Create an IAM key that can only `s3:GetObject` on the
+owner's bucket, add it to the cloud environment as `LIVE_AWS_ACCESS_KEY_ID` /
+`LIVE_AWS_SECRET_ACCESS_KEY`, and drop the AWS keys from the Fly read.

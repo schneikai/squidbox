@@ -11,6 +11,8 @@ import { hashPassword } from '../auth/passwords.js';
 //     plaintext SEED_USER_PASSWORD.
 //  2. An isolated fixture user (shared bucket + prefix, storageBucket = null) for the
 //     multi-tenant isolation checks.
+//  3. Local only: the library-copy account (shared bucket + prefix, every feature), which holds a
+//     copy of the owner's live library (dev/libraryCopy.ts).
 const env = process.env;
 const db = getDb();
 
@@ -59,7 +61,21 @@ async function seedFixtureUser(): Promise<void> {
   console.log(`Seeded fixture user ${email} (shared bucket + prefix).`);
 }
 
+async function seedLibraryCopyUser(): Promise<void> {
+  const email = env.LIBRARY_COPY_EMAIL;
+  const password = env.LIBRARY_COPY_PASSWORD;
+  if (!email || !password) return;
+  const digest = await hashPassword(password);
+  const features = [...ACCOUNT_FEATURES];
+  await db
+    .insert(users)
+    .values({ email, passwordDigest: digest, storageBucket: null, features })
+    .onConflictDoUpdate({ target: users.email, set: { passwordDigest: digest, updatedAt: new Date() } });
+  console.log(`Seeded library-copy user ${email} (shared bucket + prefix).`);
+}
+
 await seedExistingUser();
 await seedFixtureUser();
+await seedLibraryCopyUser();
 console.log('Seed complete.');
 await closeDb();

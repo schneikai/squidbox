@@ -3,3 +3,6 @@ dist/
 .env
 *.log
 .model-checks/
+.library-copy.json
+# Left by the old copy script; it holds a session token
+.library-copy-session.json
