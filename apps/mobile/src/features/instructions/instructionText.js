@@ -14,6 +14,11 @@ const instructionText = {
     title: 'More like this',
     description: 'What ⋯ → More like this on an option sends, with the option after it.',
   },
+  modelCheckJudge: {
+    title: 'Model check judge',
+    description:
+      'What a model\'s chat check (⋯ → Run check in a Writing list) asks claude-sonnet-5-5 after each turn: {transcript} is the chat before it, {request} the creator\'s last message, {reply} the reply with its numbered options. The answer is still read as a JSON object with "pass" and "reason".',
+  },
 };
 
 export default instructionText;

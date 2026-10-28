@@ -1,26 +1,26 @@
-/**
- * Evaluates Venice models as the assistant chat's writing model, on demand: each scenario runs turn
- * by turn through the server's own chat code (chatMessages with the default briefing, the chat task
- * with its reply schema, the unreadable-reply fallback and checkChatReply), briefed with the mock
- * account's creator (mockPersona.ts) and his Favorites, each real reply appended to the transcript as
- * the app keeps it. Checks what can be checked automatically and writes every transcript to a
- * Markdown report, with per-model pass counts and seconds per turn, for a human to read the replies.
- *
- * Run from apps/server:
- *   npm run check:chat-models -- deepseek-v4-1-flash-uncensored kimi-k3
- *   npm run check:chat-models -- qwen-3-6-plus --scenario 4 --out /tmp/qwen.md
- *
- * Calls Venice directly with VENICE_API_KEY (apps/server/.env or the shell), and refuses any other
- * VENICE_BASE_URL. No database, no backend. The report goes to .model-checks/ (gitignored) unless
- * --out names a file.
- */
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { DEFAULT_INSTRUCTIONS, type ChatContext, type ChatReply, type ChatTurn } from '@squidbox/shared';
-import { catalogAsync, findModel, type CatalogEntry } from '../src/ai/catalog.js';
-import { chatMessages } from '../src/ai/prompts.js';
-import { chatTask, runTask } from '../src/ai/tasks.js';
+// The chat check of a writing model (Settings → Assistant → Writing → ⋯ → Run check for an ai_admin,
+// or `npm run check:models`): fixed scenarios run turn by turn through the server's own chat code
+// (chatMessages with the briefing, the chat task with its reply schema, the unreadable-reply fallback
+// and checkChatReply), briefed as the mock account's creator (mockPersona.ts) with his Favorites, each
+// real reply appended to the transcript as the app keeps it. Each turn gets the checks that can be
+// made in code, then one judge question to JUDGE_MODEL_ID: did the reply answer the request and hold
+// the conversation.
+import {
+  CHECK_JUDGE_MODEL_ID,
+  type ChatContext,
+  type ChatReply,
+  type ChatTurn,
+  type ModelCheckSection,
+} from '@squidbox/shared';
+import { findModel } from './catalog.js';
+import { checkProgress, failedTurn, timedCall } from './checkTurns.js';
 import { MOCK_FAVORITES, MOCK_PERSONA } from './mockPersona.js';
+import type { CheckRunner } from './modelCheck.js';
+import { chatMessages, judgeMessages } from './prompts.js';
+import { chatTask, judgeTask, runTask } from './tasks.js';
+
+// The judge of every turn, the same for every model checked.
+export const JUDGE_MODEL_ID = CHECK_JUDGE_MODEL_ID;
 
 type Post = { photos: number; videos: number; tags: string[]; mentions: string[]; caption: string };
 
@@ -64,7 +64,7 @@ const TRIP_POSTS =
   'Write 3 posts about the coast trip: rain the first day, then an empty beach, the tent flooded and I slept in the car.';
 const BRIDGE = 'Moss on the old stone bridge after a week of rain.';
 
-const SCENARIOS: Record<string, { title: string; steps: Step[] }> = {
+export const SCENARIOS: Record<string, { title: string; steps: Step[] }> = {
   talk: {
     title: 'Talk first, posts when asked, refine, then a bio',
     steps: [
@@ -131,8 +131,11 @@ const SCENARIOS: Record<string, { title: string; steps: Step[] }> = {
   },
 };
 
-// The same scenario without Writing as you or Favorites: the briefing with those sections dropped.
-const BARE = 'bare';
+// The talk scenario without Writing as you or Favorites: the briefing with those sections dropped.
+export const BARE = 'bare';
+
+// Every section, in the order a whole run has them.
+export const CHAT_SECTION_IDS = [...Object.keys(SCENARIOS), BARE];
 
 const FAVORITE_TEXTS = MOCK_FAVORITES.map((favorite) => favorite.text);
 const HANDLE = /@[\w-]+(?:\.[\w-]+)+/g;
@@ -141,7 +144,7 @@ const normalized = (text: string) => text.toLowerCase().replace(/\s+/g, ' ').tri
 const meanLength = (texts: string[]) => texts.reduce((sum, text) => sum + text.length, 0) / (texts.length || 1);
 
 // One expectation on a reply, given the previous set of cards.
-function check(expectation: string, reply: ChatReply, before: string[] | null): boolean {
+export function check(expectation: string, reply: ChatReply, before: string[] | null): boolean {
   const [kind, arg] = expectation.split(/:(.*)/s);
   const cards = reply.postOptions;
   if (kind === 'talk') return reply.reply.length > 0 && cards.length === 0;
@@ -156,7 +159,7 @@ function check(expectation: string, reply: ChatReply, before: string[] | null): 
 }
 
 // The checks every set of cards gets: the persona's rules, no copied Favorite, only the post's handles.
-function cardChecks(cards: string[], post: Post, isBare: boolean): [string, boolean][] {
+export function cardChecks(cards: string[], post: Post, isBare: boolean): [string, boolean][] {
   if (cards.length === 0) return [];
   const checks: [string, boolean][] = [];
   if (!isBare) {
@@ -183,53 +186,50 @@ function contextOf(post: Post): ChatContext {
   };
 }
 
-type ModelResult = {
-  id: string;
-  passes: number;
-  fails: number;
-  unreadable: number;
-  seconds: number[];
-  lines: string[];
-};
-
-async function checkModel(model: CatalogEntry, scenarioIds: string[]): Promise<ModelResult> {
-  const result: ModelResult = { id: model.id, passes: 0, fails: 0, unreadable: 0, seconds: [], lines: [] };
-  const say = (line = '') => result.lines.push(line);
-  let shownBriefing = false;
-  for (const id of scenarioIds) {
+/**
+ * Runs the chat check's sections (`sectionIds`, all by default) on `model`, briefed with
+ * `instructions.writing` and judged with `instructions.modelCheckJudge`. A thrown model call is its
+ * turn's error, and the scenario's later turns are skipped as failed (they build on its reply); a
+ * thrown judge call is a failed judge check with the error as its reason. Rejects before any call
+ * when Venice doesn't offer the judge.
+ */
+export const checkChatModel: CheckRunner = async (model, { catalog, instructions, onTurn, sectionIds }) => {
+  const judgeFound = findModel(catalog, JUDGE_MODEL_ID, 'writing');
+  if ('error' in judgeFound) throw new Error(`The judge ${JUDGE_MODEL_ID}: ${judgeFound.error}`);
+  const judge = judgeFound.entry;
+  const progress = checkProgress(onTurn);
+  let isFirstSection = true;
+  for (const id of sectionIds ?? CHAT_SECTION_IDS) {
     const isBare = id === BARE;
     const scenario = SCENARIOS[isBare ? 'talk' : id]!;
-    say(`### ${id}: ${isBare ? `${scenario.title}, without Writing as you or Favorites` : scenario.title}`);
+    const title = isBare ? `${scenario.title}, without Writing as you or Favorites` : scenario.title;
+    let section: ModelCheckSection | null = null;
     let post = { ...BASE_POST };
     const transcript: ChatTurn[] = [];
     let before: string[] | null = null;
+    let failure: string | null = null;
     for (const step of scenario.steps) {
-      if (step.post) {
-        post = { ...post, ...step.post };
-        say(`*The editor changed the post: ${JSON.stringify(step.post)}*`);
-        say();
-      }
+      if (step.post) post = { ...post, ...step.post };
+      const note = step.post ? JSON.stringify(step.post) : null;
       const content = step.caption ? `${step.user}\n\n${post.caption}` : step.user;
-      transcript.push({ role: 'user', content });
       const messages = chatMessages({
         context: contextOf(post),
-        transcript,
+        transcript: [...transcript, { role: 'user', content }],
         persona: isBare ? null : MOCK_PERSONA,
         favorites: isBare ? [] : FAVORITE_TEXTS,
-        instructions: DEFAULT_INSTRUCTIONS,
+        instructions,
       });
-      if (!shownBriefing || (isBare && transcript.length === 1)) {
-        say(`<details><summary>System message${isBare ? ' (no persona, no Favorites)' : ''}</summary>`);
-        say();
-        say('```');
-        say(String(messages[0]!.content));
-        say('```');
-        say('</details>');
-        say();
-        shownBriefing = true;
+      if (!section) {
+        // The briefing shows once, and again for the bare one, which differs.
+        const systemMessage = isFirstSection || isBare ? String(messages[0]!.content) : null;
+        section = progress.section(id, title, systemMessage);
+        isFirstSection = false;
       }
-      say(content.replace(/^/gm, '> '));
-      say();
+      const expected = [...step.expect, 'judge'];
+      if (failure) {
+        await progress.add(section, failedTurn({ prompt: content, note }, `Skipped: ${failure}`, expected));
+        continue;
+      }
       let unreadable = false;
       const task = {
         ...chatTask,
@@ -238,115 +238,40 @@ async function checkModel(model: CatalogEntry, scenarioIds: string[]): Promise<M
           return chatTask.onUnreadable!(text, json);
         },
       };
-      const started = Date.now();
-      let reply: ChatReply;
-      try {
-        reply = await runTask({ task, messages, model });
-      } catch (error) {
-        say(`**Error:** ${(error as Error).message}`);
-        say();
-        result.fails += step.expect.length;
-        break;
+      const call = await timedCall(() => runTask({ task, messages, model }));
+      if ('error' in call) {
+        failure = `an earlier turn failed (${call.error})`;
+        await progress.add(section, failedTurn({ prompt: content, note }, call.error, expected));
+        continue;
       }
-      const seconds = (Date.now() - started) / 1000;
-      result.seconds.push(seconds);
-      if (unreadable) result.unreadable++;
-      say(`*${seconds.toFixed(1)} s${unreadable ? ', not the JSON: kept as text' : ''}*`);
-      say();
-      say(reply.reply ? reply.reply.replace(/^/gm, '    ') : '    (no reply text)');
-      say();
-      reply.postOptions.forEach((option, index) => say(`${index + 1}. ${option.replace(/\n/g, ' / ')}`));
-      if (reply.postOptions.length > 0) say();
-      const outcomes: [string, boolean][] = [
-        ...step.expect.map((expectation): [string, boolean] => [expectation, check(expectation, reply, before)]),
-        ...cardChecks(reply.postOptions, post, isBare),
+      const reply: ChatReply = call.value;
+      const verdict = await timedCall(() =>
+        runTask({
+          task: judgeTask,
+          messages: judgeMessages({ template: instructions.modelCheckJudge, transcript, request: content, reply }),
+          model: judge,
+        }),
+      );
+      const checks = [
+        ...step.expect.map((name) => ({ name, ok: check(name, reply, before), reason: null })),
+        ...cardChecks(reply.postOptions, post, isBare).map(([name, ok]) => ({ name, ok, reason: null })),
+        'error' in verdict
+          ? { name: 'judge', ok: false, reason: verdict.error }
+          : { name: 'judge', ok: verdict.value.pass, reason: verdict.value.reason || null },
       ];
-      for (const [, ok] of outcomes) {
-        if (ok) result.passes++;
-        else result.fails++;
-      }
-      say(outcomes.map(([name, ok]) => `${ok ? 'PASS' : '**FAIL**'} ${name}`).join(' · '));
-      say();
-      transcript.push({ role: 'assistant', ...reply });
+      await progress.add(section, {
+        prompt: content,
+        note,
+        seconds: call.seconds,
+        unreadable,
+        reply: reply.reply,
+        items: reply.postOptions,
+        checks,
+        error: null,
+      });
+      transcript.push({ role: 'user', content }, { role: 'assistant', ...reply });
       if (reply.postOptions.length > 0) before = reply.postOptions;
     }
   }
-  return result;
-}
-
-function median(values: number[]): number {
-  const sorted = [...values].sort((a, b) => a - b);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length === 0 ? 0 : sorted.length % 2 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2;
-}
-
-function parseArgs(args: string[]): { models: string[]; scenarios: string[]; out: string | null } {
-  const models: string[] = [];
-  const scenarios: string[] = [];
-  let out: string | null = null;
-  for (let index = 0; index < args.length; index++) {
-    const arg = args[index]!;
-    if (arg === '--scenario') scenarios.push(args[++index]!);
-    else if (arg === '--out') out = args[++index]!;
-    else models.push(arg);
-  }
-  const known = [...Object.keys(SCENARIOS), BARE];
-  for (const id of scenarios) if (!known.includes(id)) throw new Error(`No scenario ${id} (${known.join(', ')})`);
-  return { models, scenarios: scenarios.length > 0 ? scenarios : known, out };
-}
-
-async function main() {
-  const { models, scenarios, out } = parseArgs(process.argv.slice(2));
-  if (models.length === 0) {
-    throw new Error('Usage: npm run check:chat-models -- <modelId>… [--scenario <id>]… [--out <file.md>]');
-  }
-  if (!process.env.VENICE_API_KEY) throw new Error('VENICE_API_KEY is not set (apps/server/.env or the shell)');
-  const base = process.env.VENICE_BASE_URL ?? 'https://api.venice.ai/api/v1';
-  if (!base.startsWith('https://api.venice.ai/')) throw new Error(`Not Venice: ${base}`);
-
-  const { entries } = await catalogAsync();
-  const results: ModelResult[] = [];
-  for (const id of models) {
-    const found = findModel(entries, id, 'writing');
-    if ('error' in found) {
-      console.error(`${id}: ${found.error}`);
-      continue;
-    }
-    console.log(`${id}…`);
-    const result = await checkModel(found.entry, scenarios);
-    console.log(`${id}: ${result.passes} passed, ${result.fails} failed, ${result.unreadable} not JSON`);
-    results.push(result);
-  }
-
-  const startedAt = new Date().toISOString();
-  const report = [
-    `# Chat model check, ${startedAt}`,
-    '',
-    `Scenarios: ${scenarios.join(', ')}. The default briefing, the mock creator, the server's chat task.`,
-    '',
-    '| Model | Passed | Failed | Not JSON | Median s/turn | Slowest turn |',
-    '|---|---|---|---|---|---|',
-    ...results.map(
-      (result) =>
-        `| ${result.id} | ${result.passes} | ${result.fails} | ${result.unreadable} | ${median(result.seconds).toFixed(1)} | ${Math.max(0, ...result.seconds).toFixed(1)} |`,
-    ),
-    '',
-    ...results.flatMap((result) => [`## ${result.id}`, '', ...result.lines]),
-  ].join('\n');
-  const file =
-    out ??
-    join(
-      dirname(new URL(import.meta.url).pathname),
-      '..',
-      '.model-checks',
-      `chat-${startedAt.replace(/[:.]/g, '-')}.md`,
-    );
-  mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, `${report}\n`);
-  console.log(`Report: ${file}`);
-}
-
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+  return progress.result();
+};

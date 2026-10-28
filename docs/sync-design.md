@@ -883,7 +883,8 @@ beats by its clock. The writing prompt sends the newest 20 (`FAVORITES_IN_PROMPT
 request). Synced: `writing` (the writing briefing: the chat's whole system message and the
 Compare's, filled with the persona, the Favorites and the post), `visionTagging` (the photo tags
 briefing, the system message of every tags request, filled with Your content's themes) and
-`moreLikeThis` (what the chat's More like this sends), templates the server fills in, each the
+`moreLikeThis` (what the chat's More like this sends) and `modelCheckJudge` (what a model check asks
+its judge after each chat turn; listed only for an ai_admin account), templates the server fills in, each the
 user's text or null for the app's default (`DEFAULT_INSTRUCTIONS` in `packages/shared`, resolved by
 `resolveInstructions`), plus the base columns. Migrations 0022 (server) and 0024 (app) dropped the
 earlier app prompts (`writingFormat`, `tagsSystem`, `themesContext`, `personaFraming`,
@@ -901,7 +902,9 @@ or null for the app's default, plus the base columns. One record per user with t
 id, like `personas`, so a choice made on one device is the choice on all of them. The model list to
 choose from and the model testing (the compare prompts, the scores and the vision compare's photos)
 stay in the library's local `ai_*` tables: they are a developer tool for one device. Taking the
-chosen model off a device's list leaves the choice as it is.
+chosen model off a device's list leaves the choice as it is. Choosing a model is an ai_admin tool:
+for any other account the server ignores the stored choice (it stays as it is) and uses the default
+for the persona's Adult content switch, from the server's `model_defaults` (§12).
 
 The per-user records are written by `saveUserRecord` (`userRecord.ts`), which brings a tombstoned
 record back instead of inserting it again.
@@ -947,6 +950,12 @@ gone. Imported records kept deterministic uuid v5 ids, and their files stay at t
   app returns to the foreground, on a new edit, or Retry All (§6).
 - Sync runs in the foreground and on each local write (§8).
 - Users are isolated; there is no cross-user sharing (§2a).
+- What an ai_admin sets for the whole app — which models are verified for each kind and whether each
+  counts as uncensored (`verified_models`), the defaults (`model_defaults`) and the model check runs
+  (`model_checks`) — lives in plain server tables outside the collection registry: no `user_id`, no
+  `server_seq` trigger, never pushed or pulled. Every account reads the marks and the defaults with
+  the catalog (`GET /ai/models`), the admin the checks through the admin routes; the app keeps them
+  only in memory.
 
 ---
 

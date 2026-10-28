@@ -14,15 +14,109 @@ export const apiAiModelSchema = z.object({
   id: z.string(),
   name: z.string(),
   supportsVision: z.boolean(),
+  // Labelled Uncensored: the override of `unrestrictedMarks` where one is set, else Venice's own label
+  // (`isVeniceUncensored`). apps/server/src/ai/catalog.ts works it out.
   isUncensored: z.boolean(),
+  isVeniceUncensored: z.boolean(),
+  // The kinds Squidbox verified the model for (the server's verified_models, set by an ai_admin).
+  verifiedKinds: z.array(aiModelKindSchema),
+  // Per kind, a verified model's override of Venice's label: true uncensored, false not, null (also
+  // for a kind it isn't verified for) follows Venice.
+  unrestrictedMarks: z.object({ writing: z.boolean().nullable(), vision: z.boolean().nullable() }),
   costPerReplyUsd: z.number(),
   costPer100PhotosUsd: z.number().nullable(),
 });
 export type ApiAiModel = z.infer<typeof apiAiModelSchema>;
 
-// GET /ai/models
-export const aiModelsResponseSchema = z.object({ models: z.array(apiAiModelSchema) });
+// The model the assistant uses for a kind while the user chose none, per the persona's Adult content
+// switch: `unrestricted` while it is on, `regular` while it is off.
+export const MODEL_DEFAULT_VARIANTS = ['regular', 'unrestricted'] as const;
+export const modelDefaultVariantSchema = z.enum(MODEL_DEFAULT_VARIANTS);
+export type ModelDefaultVariant = z.infer<typeof modelDefaultVariantSchema>;
+
+const variantsSchema = z.object({ regular: z.string(), unrestricted: z.string() });
+// The defaults of each kind, from the server's model_defaults (an ai_admin sets them in the app).
+export const modelDefaultsSchema = z.object({ writing: variantsSchema, vision: variantsSchema });
+export type ModelDefaults = z.infer<typeof modelDefaultsSchema>;
+
+// GET /ai/models — also the answer of PUT /ai/verification and PUT /ai/defaults, so the app replaces
+// its catalog with the new marks in one round trip.
+export const aiModelsResponseSchema = z.object({ models: z.array(apiAiModelSchema), defaults: modelDefaultsSchema });
 export type AiModelsResponse = z.infer<typeof aiModelsResponseSchema>;
+
+// PUT /ai/verification/:kind/:modelId — whether the model is verified for the kind, and whether it
+// counts as uncensored: true or false overrides Venice's label, null follows it.
+export const verificationRequestSchema = z.object({ isVerified: z.boolean(), isUnrestricted: z.boolean().nullable() });
+export type VerificationRequest = z.infer<typeof verificationRequestSchema>;
+
+// PUT /ai/defaults/:kind/:variant — the model that becomes that default.
+export const modelDefaultRequestSchema = z.object({ modelId: z.string().min(1) });
+export type ModelDefaultRequest = z.infer<typeof modelDefaultRequestSchema>;
+
+// The replies one check run asks a model for (apps/server/src/ai/chatCheck.ts and tagCheck.ts hold
+// their server's CHECKS to it), so the app can name the count and the cost before the first run.
+export const CHECK_TURNS: Record<AiModelKind, number> = { writing: 21, vision: 4 };
+
+// The writing model that judges every chat check turn, the same for every model checked.
+export const CHECK_JUDGE_MODEL_ID = 'claude-sonnet-5-5';
+
+// One turn of a model check. Chat: `prompt` the creator's message, `note` the change to the post
+// before it, `items` the post options, the judge's verdict one of the `checks` with its `reason`.
+// Tagging: `prompt` the photo's file name, `reply` null, `items` the tags. `seconds` is the model's
+// call only; `error` the reason the turn got no reply (its checks count as failed).
+export const modelCheckTurnSchema = z.object({
+  prompt: z.string(),
+  note: z.string().nullable(),
+  seconds: z.number().nullable(),
+  unreadable: z.boolean(),
+  reply: z.string().nullable(),
+  items: z.array(z.string()),
+  checks: z.array(z.object({ name: z.string(), ok: z.boolean(), reason: z.string().nullable() })),
+  error: z.string().nullable(),
+});
+export type ModelCheckTurn = z.infer<typeof modelCheckTurnSchema>;
+
+export const modelCheckSectionSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  systemMessage: z.string().nullable(),
+  turns: z.array(modelCheckTurnSchema),
+});
+export type ModelCheckSection = z.infer<typeof modelCheckSectionSchema>;
+
+// A check's result so far: the turns by section, and the totals over them.
+export const modelCheckResultSchema = z.object({
+  sections: z.array(modelCheckSectionSchema),
+  passes: z.number(),
+  fails: z.number(),
+  unreadable: z.number(),
+  medianSeconds: z.number(),
+  slowestSeconds: z.number(),
+});
+export type ModelCheckResult = z.infer<typeof modelCheckResultSchema>;
+
+export const modelCheckStatusSchema = z.enum(['running', 'done', 'failed']);
+export type ModelCheckStatus = z.infer<typeof modelCheckStatusSchema>;
+
+// A model's latest check run of a kind (the server keeps only that one).
+export const modelCheckSchema = z.object({
+  id: z.string(),
+  kind: aiModelKindSchema,
+  modelId: z.string(),
+  status: modelCheckStatusSchema,
+  startedAt: z.string(),
+  finishedAt: z.string().nullable(),
+  turnsDone: z.number().int(),
+  turnsTotal: z.number().int(),
+  result: modelCheckResultSchema.nullable(),
+  error: z.string().nullable(),
+});
+export type ModelCheck = z.infer<typeof modelCheckSchema>;
+
+// GET and POST /ai/checks/:kind/:modelId — the latest check (null before the first); a POST starts
+// one unless one is running, and answers it at once.
+export const modelCheckResponseSchema = z.object({ check: modelCheckSchema.nullable() });
+export type ModelCheckResponse = z.infer<typeof modelCheckResponseSchema>;
 
 // GET /ai/balance — what is left on the Venice account the server's key belongs to: US dollars
 // and DIEM (Venice's daily allowance for staked VVV; it resets each day at nextResetAt).

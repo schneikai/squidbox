@@ -1,61 +1,61 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 
+import createStore from '@/lib/createStore';
 import fetchAiModelsAsync from '@/utils/cloud-api/ai/fetchAiModelsAsync';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 // As long as the server keeps its own copy of Venice's list.
 const CACHE_MS = 5 * 60 * 1000;
 
-// One fetch for every screen that shows the models, as its promise: screens opened while it runs
-// share it, and a failed one is dropped so the next screen (or Try again) fetches anew.
-let cache = null;
+// The catalog every screen that shows the models reads: Venice's models with Squidbox's marks, and
+// the defaults. `at` is when it came in; a mark an ai_admin sets replaces it at once (applyAiCatalog).
+const catalog = createStore({ models: null, defaults: null, error: null, at: 0 });
 
-function isFresh() {
-  return !!cache && Date.now() - cache.at < CACHE_MS;
+// One fetch in flight, shared by the screens that open while it runs.
+let inFlight = null;
+// Counts the catalogs applied, so a fetch that started before a mark's answer can't undo it.
+let applied = 0;
+
+/** Puts a catalog the server answered (`{ models, defaults }`) in front of every screen. */
+export function applyAiCatalog({ models, defaults }) {
+  applied++;
+  catalog.set({ models, defaults, error: null, at: Date.now() });
 }
 
-function catalogAsync() {
-  if (isFresh()) return cache.promise;
-  const entry = { at: Date.now(), promise: fetchAiModelsAsync(), models: null };
-  cache = entry;
-  entry.promise.then(
-    (models) => {
-      entry.models = models;
-    },
-    () => {
-      if (cache === entry) cache = null;
-    },
-  );
-  return entry.promise;
-}
-
-// The models already in, so a screen opened after the fetch draws them in its first render.
-function cachedModels() {
-  return isFresh() ? cache.models : null;
+/** Fetches the catalog now, unless a fetch is running; a failure is the store's `error`. */
+function refreshAiCatalogAsync() {
+  if (inFlight) return inFlight;
+  const before = applied;
+  inFlight = fetchAiModelsAsync()
+    .then((response) => {
+      if (applied === before) applyAiCatalog(response);
+    })
+    .catch((error) => catalog.set((current) => ({ ...current, error: apiErrorMessage(error) })))
+    .finally(() => {
+      inFlight = null;
+    });
+  return inFlight;
 }
 
 /**
- * Venice's current models: `models` is null until they're in, `error` the message when the fetch
- * failed, and `retry` fetches again.
+ * Venice's current models with the marks, and the defaults: `models` and `defaults` are null until
+ * they're in, `error` the message when the fetch failed (while there are none to show), and `retry`
+ * fetches again. A screen opened after the catalog is five minutes old fetches it anew, showing the
+ * old one meanwhile.
  */
 export default function useAiCatalog() {
-  const [state, setState] = useState(() => ({ models: cachedModels(), error: null }));
-  const [attempt, setAttempt] = useState(0);
+  const { models, defaults, error } = useSyncExternalStore(catalog.subscribe, catalog.get);
 
+  const retry = useCallback(() => {
+    if (catalog.get().error) catalog.set((current) => ({ ...current, error: null }));
+    refreshAiCatalogAsync();
+  }, []);
+
+  // A failed fetch is tried again by the next screen that opens, like Try again.
   useEffect(() => {
-    let isCurrent = true;
-    setState((current) => (current.error ? { models: null, error: null } : current));
-    catalogAsync()
-      .then(
-        (models) => isCurrent && setState((current) => (current.models === models ? current : { models, error: null })),
-      )
-      .catch((error) => isCurrent && setState({ models: null, error: apiErrorMessage(error) }));
-    return () => {
-      isCurrent = false;
-    };
-  }, [attempt]);
+    const { at, error: current } = catalog.get();
+    if (current || Date.now() - at >= CACHE_MS) retry();
+  }, [retry]);
 
-  const retry = useCallback(() => setAttempt((count) => count + 1), []);
-
-  return { ...state, retry };
+  return { models, defaults, error: models ? null : error, retry };
 }

@@ -1,5 +1,5 @@
-// The mock account's creator, shared by seed-mock.ts (his Writing as you and Favorites) and
-// check-chat-models.ts (the persona the chat check briefs each model with): a guy who posts his
+// The mock account's creator, shared by scripts/seed-mock.ts (his Writing as you and Favorites) and
+// the model checks (chatCheck.ts and tagCheck.ts brief each model with him): a guy who posts his
 // outdoor photos on Bluesky, one line each, at most one emoji, at the end.
 
 // His Bluesky profile (made up), where Follow-up with link sends people.

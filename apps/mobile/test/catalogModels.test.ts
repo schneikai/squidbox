@@ -5,22 +5,30 @@ import joinYourModels from '../src/utils/ai/joinYourModels';
 import modelsOfKind from '../src/utils/ai/modelsOfKind';
 import seedModels from '../src/utils/ai/seedModels';
 
-const model = (id: string, name: string, supportsVision = true) => ({
+const model = (id: string, name: string, supportsVision = true, verifiedKinds: string[] = []) => ({
   id,
   name,
   supportsVision,
   isUncensored: false,
+  isVeniceUncensored: false,
+  verifiedKinds,
+  unrestrictedMarks: { writing: null, vision: null },
   costPerReplyUsd: 0.001,
   costPer100PhotosUsd: supportsVision ? 0.02 : null,
 });
 
 const catalog = [
-  model('kimi-k3', 'Kimi K3'),
+  model('kimi-k3', 'Kimi K3', true, ['writing']),
   model('z-ai-glm-5-3', 'GLM 5.3', false),
   model('gemma-4-uncensored', 'Gemma 4 Uncensored'),
   model('venice-uncensored-1-2', 'Venice Uncensored 1.2'),
-  model('claude-sonnet-5-5', 'Claude Sonnet 5.5', false),
+  model('claude-sonnet-5-5', 'Claude Sonnet 5.5', false, ['writing']),
 ];
+
+const defaults = {
+  writing: { regular: 'claude-sonnet-5-5', unrestricted: 'deepseek-v4-1-flash-uncensored' },
+  vision: { regular: 'gemma-4-uncensored', unrestricted: 'gemma-4-uncensored' },
+};
 
 describe('modelsOfKind', () => {
   it('is every model for writing and those that see photos for vision', () => {
@@ -63,12 +71,12 @@ describe('joinYourModels', () => {
 
 describe('seedModels', () => {
   it("is the starting list's models that the catalog still has, in the seed order", () => {
-    // writing: the verified models
-    expect(seedModels(modelsOfKind(catalog, 'writing'), 'writing').map(({ id }) => id)).toEqual([
+    // writing: the verified models (the catalog's marks), the regular default first
+    expect(seedModels(modelsOfKind(catalog, 'writing'), 'writing', defaults).map(({ id }) => id)).toEqual([
       'claude-sonnet-5-5',
       'kimi-k3',
     ]);
-    expect(seedModels(modelsOfKind(catalog, 'vision'), 'vision').map(({ id }) => id)).toEqual([
+    expect(seedModels(modelsOfKind(catalog, 'vision'), 'vision', defaults).map(({ id }) => id)).toEqual([
       'gemma-4-uncensored',
       'venice-uncensored-1-2',
     ]);

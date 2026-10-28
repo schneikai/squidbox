@@ -1,9 +1,12 @@
 import { loadConfig } from './config.js';
 import { buildApp } from './app.js';
-import { closeDb } from './db/client.js';
+import { closeDb, getDb } from './db/client.js';
+import { failAbandonedChecks } from './ai/modelChecks.js';
 
 const config = loadConfig();
 const app = await buildApp();
+// A model check that was running when the last process stopped never finishes now.
+await failAbandonedChecks(getDb());
 
 try {
   await app.listen({ port: config.PORT, host: config.HOST });

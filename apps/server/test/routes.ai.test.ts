@@ -16,15 +16,42 @@ vi.mock('../src/ai/persona.js', async (importOriginal) => ({
   readPersona: vi.fn().mockResolvedValue(null),
   readFavorites: vi.fn().mockResolvedValue([]),
 }));
-// The chosen model likewise: the default unless a test chooses one.
-vi.mock('../src/ai/modelChoices.js', async () => {
-  const { defaultModelId } = await import('@squidbox/shared');
+// The chosen model likewise: the seeded default unless a test chooses one.
+vi.mock('../src/ai/modelChoices.js', () => ({
+  readChosenModelId: vi.fn(async (_db: unknown, _user: unknown, kind: 'writing' | 'vision') =>
+    kind === 'writing' ? 'claude-sonnet-5-5' : 'gemma-4-uncensored',
+  ),
+}));
+// The marks likewise: kimi-k3 verified for writing with an Uncensored override, the seeded defaults.
+vi.mock('../src/ai/verification.js', () => {
+  const defaults = {
+    writing: { regular: 'claude-sonnet-5-5', unrestricted: 'deepseek-v4-1-flash-uncensored' },
+    vision: { regular: 'gemma-4-uncensored', unrestricted: 'gemma-4-uncensored' },
+  };
+  const verification = () => ({
+    verified: {
+      writing: new Map([
+        ['claude-sonnet-5-5', { unrestricted: null }],
+        ['kimi-k3', { unrestricted: true }],
+      ]),
+      vision: new Map([['gemma-4-uncensored', { unrestricted: null }]]),
+    },
+    defaults,
+  });
   return {
-    readChosenModelId: vi.fn(async (_db: unknown, _userId: string, kind: 'writing' | 'vision') =>
-      defaultModelId(kind, false),
-    ),
+    readVerification: vi.fn(async () => verification()),
+    readModelDefaults: vi.fn(async () => defaults),
+    setVerification: vi.fn(async () => {}),
+    setModelDefault: vi.fn(async () => {}),
   };
 });
+// The check rows likewise: no run starts Venice here.
+vi.mock('../src/ai/modelChecks.js', () => ({
+  readLatestCheck: vi.fn(async () => null),
+  startCheck: vi.fn(),
+  runCheck: vi.fn(async () => {}),
+  failCheck: vi.fn(async () => {}),
+}));
 // The instructions likewise: the defaults unless a test changes one.
 vi.mock('../src/ai/instructions.js', async () => {
   const { resolveInstructions } = await import('@squidbox/shared');
@@ -47,7 +74,6 @@ import {
   ASSET_TAG_LIMITS,
   CHAT_LIMITS,
   DEFAULT_INSTRUCTIONS,
-  defaultModelId,
   resolveInstructions,
   type ChatReply,
 } from '@squidbox/shared';
@@ -57,6 +83,9 @@ import { signAccessToken } from '../src/auth/jwt.js';
 import { clearCatalogCache } from '../src/ai/catalog.js';
 import { readInstructions } from '../src/ai/instructions.js';
 import { readChosenModelId } from '../src/ai/modelChoices.js';
+import { readLatestCheck, runCheck, startCheck } from '../src/ai/modelChecks.js';
+import { setModelDefault, setVerification } from '../src/ai/verification.js';
+import { AppError } from '../src/errors.js';
 import { readFavorites, readPersona } from '../src/ai/persona.js';
 import { findUserById } from '../src/users.js';
 
@@ -140,7 +169,12 @@ function signedInWith(features: string[]) {
   vi.mocked(findUserById).mockResolvedValue({ id: 'u1', email: 'a@b.co', storageBucket: null, features } as any);
 }
 
-async function call(method: 'GET' | 'POST', url: string, payload?: unknown, headers: Record<string, string> = auth) {
+async function call(
+  method: 'GET' | 'POST' | 'PUT',
+  url: string,
+  payload?: unknown,
+  headers: Record<string, string> = auth,
+) {
   const app = await buildApp({ logger: false });
   return app.inject({ method, url: `/api/v1${url}`, headers, payload: payload as any });
 }
@@ -184,10 +218,14 @@ describe('account features', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('answers 403 ai_admin_not_allowed on the compares and the balance to an account without ai_admin', async () => {
+  it('answers 403 ai_admin_not_allowed on the compares, the balance, the checks and the marks to an account without ai_admin', async () => {
     signedInWith(['ai']);
     for (const [method, url, body] of [
       ['GET', '/ai/balance', undefined],
+      ['GET', '/ai/checks/writing/kimi-k3', undefined],
+      ['POST', '/ai/checks/writing/kimi-k3', undefined],
+      ['PUT', '/ai/verification/writing/kimi-k3', { isVerified: true, isUnrestricted: null }],
+      ['PUT', '/ai/defaults/writing/regular', { modelId: 'kimi-k3' }],
       ['POST', '/ai/compare/writing', writing],
       ['POST', '/ai/compare/vision', vision],
     ] as const) {
@@ -225,10 +263,24 @@ describe('GET /api/v1/ai/models', () => {
       name: 'GLM 5.3',
       supportsVision: false,
       isUncensored: false,
+      isVeniceUncensored: false,
+      verifiedKinds: [],
+      unrestrictedMarks: { writing: null, vision: null },
       costPerReplyUsd: expect.any(Number),
       costPer100PhotosUsd: null,
     });
     expect(fetchMock.mock.calls[0]![0]).toBe('https://api.venice.ai/api/v1/models');
+  });
+
+  it('carries the marks and the defaults', async () => {
+    veniceAnswers();
+    const { models, defaults } = (await call('GET', '/ai/models')).json();
+    const kimi = models.find((m: { id: string }) => m.id === 'kimi-k3');
+    // Venice doesn't label Kimi; the override does.
+    expect(kimi).toMatchObject({ isUncensored: true, isVeniceUncensored: false, verifiedKinds: ['writing'] });
+    expect(kimi.unrestrictedMarks).toEqual({ writing: true, vision: null });
+    expect(models.find((m: { id: string }) => m.id === 'gemma-4-uncensored').verifiedKinds).toEqual(['vision']);
+    expect(defaults.writing).toEqual({ regular: 'claude-sonnet-5-5', unrestricted: 'deepseek-v4-1-flash-uncensored' });
   });
 
   it('502 ai_unavailable when the model list cannot be fetched', async () => {
@@ -420,10 +472,10 @@ describe('POST /api/v1/ai/tags', () => {
     const res = await call('POST', '/ai/tags', tagRequest);
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ tags });
-    expect(readChosenModelId).toHaveBeenCalledWith(expect.anything(), 'u1', 'vision');
+    expect(readChosenModelId).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ id: 'u1' }), 'vision');
     const [body, ...others] = chatBodies();
     expect(others).toHaveLength(0);
-    expect(body.model).toBe(defaultModelId('vision', false));
+    expect(body.model).toBe('gemma-4-uncensored');
     expect(body.messages[0]).toEqual({ role: 'system', content: mine });
     expect(body.messages[1].content).toEqual([
       { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,AAAA' } },
@@ -531,10 +583,10 @@ describe('POST /api/v1/ai/chat', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual(CHAT_REPLY);
-    expect(readChosenModelId).toHaveBeenCalledWith(expect.anything(), 'u1', 'writing');
+    expect(readChosenModelId).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ id: 'u1' }), 'writing');
     const [body, ...others] = chatBodies();
     expect(others).toHaveLength(0);
-    expect(body.model).toBe(defaultModelId('writing', false));
+    expect(body.model).toBe('claude-sonnet-5-5');
     expect(body.response_format.json_schema.name).toBe('chat_reply');
     expect(body.response_format.json_schema.schema.properties.postOptions).not.toHaveProperty('maxItems');
     const [system, ...turns] = body.messages;
@@ -619,5 +671,119 @@ describe('POST /api/v1/ai/chat', () => {
       expect((await call('POST', '/ai/chat', { ...chatRequest, messages })).statusCode).toBe(400);
     }
     expect(chatBodies()).toHaveLength(0);
+  });
+});
+
+const CHECK = {
+  id: 'c1',
+  kind: 'writing' as const,
+  modelId: 'kimi-k3',
+  status: 'running' as const,
+  startedAt: '2026-10-28T10:00:00.000Z',
+  finishedAt: null,
+  turnsDone: 0,
+  turnsTotal: 21,
+  result: null,
+  error: null,
+};
+
+describe('the model checks', () => {
+  it("GET answers the model's latest check", async () => {
+    veniceAnswers();
+    vi.mocked(readLatestCheck).mockResolvedValueOnce(CHECK);
+    const res = await call('GET', '/ai/checks/writing/kimi-k3');
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ check: CHECK });
+    expect(readLatestCheck).toHaveBeenCalledWith(expect.anything(), 'writing', 'kimi-k3');
+  });
+
+  it('POST starts a run once, with the admin instructions, and answers the running check at once', async () => {
+    veniceAnswers();
+    const mine = { ...resolveInstructions(null), modelCheckJudge: 'Judge it: {reply}' };
+    vi.mocked(readInstructions).mockResolvedValueOnce(mine);
+    vi.mocked(startCheck).mockResolvedValueOnce({ check: CHECK, isNew: true });
+    const res = await call('POST', '/ai/checks/writing/kimi-k3');
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ check: CHECK });
+    expect(startCheck).toHaveBeenCalledWith(expect.anything(), { kind: 'writing', modelId: 'kimi-k3', userId: 'u1' });
+    expect(runCheck).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(runCheck).mock.calls[0]![1]).toMatchObject({
+      check: CHECK,
+      model: { id: 'kimi-k3' },
+      instructions: mine,
+    });
+    expect(chatBodies()).toHaveLength(0);
+  });
+
+  it('POST answers a run already running without starting another', async () => {
+    veniceAnswers();
+    vi.mocked(startCheck).mockResolvedValueOnce({ check: CHECK, isNew: false });
+    expect((await call('POST', '/ai/checks/writing/kimi-k3')).json()).toEqual({ check: CHECK });
+    expect(runCheck).not.toHaveBeenCalled();
+  });
+
+  it("POST 502 for a model that can't see photos or is gone, 400 for an unknown kind", async () => {
+    veniceAnswers();
+    const blind = await call('POST', '/ai/checks/vision/z-ai-glm-5-3');
+    expect(blind.statusCode).toBe(502);
+    expect(blind.json()).toEqual({ error: { code: 'ai_unavailable', message: "This model can't see photos" } });
+    expect((await call('POST', '/ai/checks/writing/gone')).statusCode).toBe(502);
+    expect((await call('POST', '/ai/checks/audio/kimi-k3')).statusCode).toBe(400);
+    expect(startCheck).not.toHaveBeenCalled();
+  });
+});
+
+describe('the marks', () => {
+  it("PUT /ai/verification passes Venice's label and answers the catalog", async () => {
+    veniceAnswers();
+    const res = await call('PUT', '/ai/verification/writing/qwen-3-6-plus', {
+      isVerified: true,
+      isUnrestricted: false,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toHaveProperty('defaults');
+    expect(res.json().models).toHaveLength(fixture.data.length);
+    expect(setVerification).toHaveBeenCalledWith(expect.anything(), {
+      kind: 'writing',
+      modelId: 'qwen-3-6-plus',
+      isVerified: true,
+      isUnrestricted: false,
+      isVeniceUncensored: true,
+      userId: 'u1',
+    });
+  });
+
+  it('PUT /ai/verification unmarks a model Venice no longer offers', async () => {
+    veniceAnswers();
+    const res = await call('PUT', '/ai/verification/writing/gone', { isVerified: false, isUnrestricted: null });
+    expect(res.statusCode).toBe(200);
+    expect(setVerification).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ modelId: 'gone' }));
+  });
+
+  it('PUT /ai/verification 502 for marking a model Venice no longer offers', async () => {
+    veniceAnswers();
+    const res = await call('PUT', '/ai/verification/writing/gone', { isVerified: true, isUnrestricted: null });
+    expect(res.statusCode).toBe(502);
+    expect(setVerification).not.toHaveBeenCalled();
+  });
+
+  it('PUT /ai/defaults passes the variant and the label, and a 400 through', async () => {
+    veniceAnswers();
+    const res = await call('PUT', '/ai/defaults/writing/unrestricted', { modelId: 'kimi-k3' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toHaveProperty('models');
+    expect(setModelDefault).toHaveBeenCalledWith(expect.anything(), {
+      kind: 'writing',
+      variant: 'unrestricted',
+      modelId: 'kimi-k3',
+      isVeniceUncensored: false,
+    });
+    vi.mocked(setModelDefault).mockRejectedValueOnce(
+      new AppError(400, 'validation_error', 'Mark the model verified first'),
+    );
+    const refused = await call('PUT', '/ai/defaults/writing/regular', { modelId: 'z-ai-glm-5-3' });
+    expect(refused.statusCode).toBe(400);
+    expect(refused.json().error.message).toBe('Mark the model verified first');
+    expect((await call('PUT', '/ai/defaults/writing/weird', { modelId: 'kimi-k3' })).statusCode).toBe(400);
   });
 });

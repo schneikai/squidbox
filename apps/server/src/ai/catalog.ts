@@ -1,9 +1,10 @@
 // The one reader of Venice's model list. GET /models answers every model Venice offers right now;
 // new models show up and dropped ones disappear with no code change here. The list is cached in
 // memory for a few minutes, and a failed refresh throws: it never serves stale data silently.
-import { VERIFIED_MODELS, type AiModelKind, type ApiAiModel } from '@squidbox/shared';
+import type { AiModelKind, ApiAiModel } from '@squidbox/shared';
 import { z } from 'zod';
 import { orAiUnavailable, veniceGetJson } from './venice.js';
+import type { Verification } from './verification.js';
 
 const CACHE_MS = 5 * 60 * 1000;
 
@@ -37,8 +38,8 @@ export type CatalogEntry = z.infer<typeof catalogEntrySchema>;
 
 const catalogResponseSchema = z.object({ data: z.array(z.unknown()) });
 
-/** The catalog's entries, and the same models as the app gets them. */
-export type Catalog = { entries: CatalogEntry[]; models: ApiAiModel[] };
+/** The catalog's entries. The marks (verification.ts) are read with each request, never cached. */
+export type Catalog = { entries: CatalogEntry[] };
 
 /**
  * Venice's current models. An entry that lacks a field this server needs (a name, prices) is left
@@ -61,7 +62,7 @@ export function getCatalogAsync(now = Date.now()): Promise<Catalog> {
   if (cache && now - cache.at < CACHE_MS) return cache.promise;
   const entry = {
     at: now,
-    promise: fetchCatalogAsync().then((entries) => ({ entries, models: entries.map(toApiModel) })),
+    promise: fetchCatalogAsync().then((entries) => ({ entries })),
   };
   cache = entry;
   entry.promise.catch(() => {
@@ -75,21 +76,20 @@ export function clearCatalogCache(): void {
   cache = null;
 }
 
-// The models VERIFIED_MODELS marks unrestricted, of either kind.
-const UNRESTRICTED_IDS = new Set(
-  Object.values(VERIFIED_MODELS).flatMap((models) => models.filter((model) => model.unrestricted).map(({ id }) => id)),
-);
+/** Venice's own Uncensored label: "Uncensored" in the model's name, or its most_uncensored trait. */
+export function isVeniceUncensored(entry: CatalogEntry): boolean {
+  return /uncensored/i.test(entry.model_spec.name) || entry.model_spec.traits.includes('most_uncensored');
+}
 
 /**
- * Whether the app labels the model Uncensored: Venice's own label ("Uncensored" in the name, or its
- * most_uncensored trait), or VERIFIED_MODELS marking it unrestricted (an abliterated model, say).
+ * Whether the app labels the model Uncensored, the one place that works it out: the overrides of
+ * the kinds it's verified for (`marks`, null follows Venice), uncensored when any says so, else
+ * Venice's label. So an abliterated model Venice doesn't label can be marked uncensored, and one it
+ * labels can be marked not.
  */
-export function isUncensored(entry: CatalogEntry): boolean {
-  return (
-    /uncensored/i.test(entry.model_spec.name) ||
-    entry.model_spec.traits.includes('most_uncensored') ||
-    UNRESTRICTED_IDS.has(entry.id)
-  );
+export function isUncensored(entry: CatalogEntry, marks: Record<AiModelKind, boolean | null>): boolean {
+  const overrides = Object.values(marks).filter((mark): mark is boolean => mark !== null);
+  return overrides.length > 0 ? overrides.includes(true) : isVeniceUncensored(entry);
 }
 
 function costUsd(entry: CatalogEntry, inputTokens: number, outputTokens: number): number {
@@ -97,14 +97,21 @@ function costUsd(entry: CatalogEntry, inputTokens: number, outputTokens: number)
   return (inputTokens * input.usd + outputTokens * output.usd) / 1_000_000;
 }
 
-/** A catalog entry as the app shows it, with the estimated costs. */
-export function toApiModel(entry: CatalogEntry): ApiAiModel {
+/** A catalog entry as the app shows it, with the estimated costs and the marks of `verification`. */
+export function toApiModel(entry: CatalogEntry, { verified }: Pick<Verification, 'verified'>): ApiAiModel {
   const supportsVision = entry.model_spec.capabilities.supportsVision === true;
+  const marks = {
+    writing: verified.writing.get(entry.id)?.unrestricted ?? null,
+    vision: verified.vision.get(entry.id)?.unrestricted ?? null,
+  };
   return {
     id: entry.id,
     name: entry.model_spec.name,
     supportsVision,
-    isUncensored: isUncensored(entry),
+    isUncensored: isUncensored(entry, marks),
+    isVeniceUncensored: isVeniceUncensored(entry),
+    verifiedKinds: (['writing', 'vision'] as const).filter((kind) => verified[kind].has(entry.id)),
+    unrestrictedMarks: marks,
     costPerReplyUsd: costUsd(entry, REPLY_INPUT_TOKENS, REPLY_OUTPUT_TOKENS),
     costPer100PhotosUsd: supportsVision ? 100 * costUsd(entry, PHOTO_INPUT_TOKENS, PHOTO_OUTPUT_TOKENS) : null,
   };

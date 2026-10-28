@@ -1,5 +1,5 @@
 import { COMPARE_MIN_MODELS } from '@squidbox/shared';
-import { StyleSheet } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 
 import ModelRow from './ModelRow';
 import isVerifiedModel from './isVerifiedModel';
@@ -19,16 +19,20 @@ import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAct
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { Section, SectionFooter } from '@/components/settings-list/SettingsList';
+import confirmCheckAsync from '@/features/model-verify/confirmCheckAsync';
 import useHaptics from '@/hooks/useHaptics';
 import useHasFeature from '@/hooks/useHasFeature';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useYourModels from '@/hooks/useYourModels';
 import { removeYourModel, resetScores } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
+import startModelCheckAsync from '@/utils/cloud-api/ai/startModelCheckAsync';
+import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import confirmAsync from '@/utils/confirmAsync';
 
 // Your models of one kind (route param `kind`: writing | vision), the one the assistant uses, and the
-// way to add and remove them. For an ai_admin account also their scores from Compare, and Compare.
+// way to add and remove them. For an ai_admin account also their scores from Compare, Compare, and
+// in each row's menu the model's check and its marks (Verified, Uncensored, the defaults).
 export default function ModelListScreen({ navigation, route }) {
   const { kind } = route.params;
   const isAvailable = useLeaveWhenUnavailable();
@@ -39,13 +43,25 @@ export default function ModelListScreen({ navigation, route }) {
 
   const availableCount = rows?.filter((row) => row.model !== null).length ?? 0;
   const hasScores = isAiAdmin && (rows?.some(({ score }) => score !== null) ?? false);
-  const hasVerified = rows?.some((row) => row.model !== null && isVerifiedModel(kind, row.id)) ?? false;
+  const hasVerified = rows?.some((row) => row.model !== null && isVerifiedModel(kind, row.model)) ?? false;
   const text = modelKindText[kind];
 
   async function handleChoose(row) {
     if (row.id === chosenId) return;
     await choose(row);
     haptics.selection();
+  }
+
+  // Starts the model's check on the server, then opens it to watch.
+  async function handleCheck(row) {
+    if (!(await confirmCheckAsync(kind, row.model, catalog))) return;
+    try {
+      await startModelCheckAsync(kind, row.id);
+    } catch (error) {
+      Alert.alert("Couldn't start the check", apiErrorMessage(error));
+      return;
+    }
+    navigation.navigate('ModelCheckModal', { kind, modelId: row.id, name: row.name });
   }
 
   async function handleResetScore(row) {
@@ -75,6 +91,7 @@ export default function ModelListScreen({ navigation, route }) {
               score={row.score}
               isChosen={row.id === chosenId}
               onChoose={() => handleChoose(row)}
+              onCheck={() => handleCheck(row)}
               onResetScore={() => handleResetScore(row)}
               onRemove={() => removeYourModel(getDb(), kind, row.id)}
             />

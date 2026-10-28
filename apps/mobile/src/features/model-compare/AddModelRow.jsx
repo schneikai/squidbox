@@ -26,7 +26,7 @@ function AddModelRow({ model, kind, isAdded, onAdd }) {
     >
       <ModelSummary
         name={model.name}
-        isVerified={isVerifiedModel(kind, model.id)}
+        isVerified={isVerifiedModel(kind, model)}
         isUncensored={model.isUncensored}
         detail={formatCost(model, kind)}
       />

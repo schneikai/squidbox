@@ -17,7 +17,7 @@ export default function ModelListSummary({ name, model, kind, score }) {
   return (
     <ModelSummary
       name={name}
-      isVerified={isAvailable && isVerifiedModel(kind, model.id)}
+      isVerified={isAvailable && isVerifiedModel(kind, model)}
       isUncensored={model?.isUncensored}
       detail={isScored ? `${scoreText(score, kind)} · ${cost}` : cost}
       detailIcon={isScored && kind === 'writing' && score !== null ? 'thumbs-up' : null}

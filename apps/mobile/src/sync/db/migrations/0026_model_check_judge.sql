@@ -1,0 +1,1 @@
+ALTER TABLE `instructions` ADD `model_check_judge` text;

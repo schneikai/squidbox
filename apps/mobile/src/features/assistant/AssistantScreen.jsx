@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { aiModelKindSchema, INSTRUCTION_KINDS } from '@squidbox/shared';
+import { aiModelKindSchema } from '@squidbox/shared';
 import { StyleSheet } from 'react-native';
 
 import personaSummary from './personaSummary';
@@ -12,6 +12,7 @@ import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
+import useInstructionKinds from '@/features/instructions/useInstructionKinds';
 import modelKindText from '@/features/model-compare/modelKindText';
 import useAiCatalog from '@/hooks/useAiCatalog';
 import useHasFeature from '@/hooks/useHasFeature';
@@ -29,8 +30,9 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
 
 // Settings → Assistant: how the assistant writes as you, the posts it writes like (Favorites), its
-// prompt buttons, what it is told before each request (Instructions), and the Models section (the
-// models it uses, and for an ai_admin account what is left on the Venice account).
+// prompt buttons, what it is told before each request (Instructions), and for an ai_admin account the
+// Models section (the models it uses, what is left on the Venice account). Every other account uses
+// the default models, which the Adult content switch picks between.
 export default function AssistantScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
@@ -44,6 +46,7 @@ export default function AssistantScreen() {
   const chosen = useLiveQuery((db) => readChosenModels(db, userId), [schema.modelChoices], [userId]);
   const { models: catalog } = useAiCatalog();
   const isAiAdmin = useHasFeature('ai_admin');
+  const instructionKinds = useInstructionKinds();
 
   // The chosen model's name, or a muted "No longer available" once Venice dropped it (its list
   // says which; a catalog still loading or failed to load leaves the plain name). The name and the
@@ -56,7 +59,7 @@ export default function AssistantScreen() {
     return { value: isGone ? 'No longer available' : model.name, isGone };
   }
 
-  const changedCount = INSTRUCTION_KINDS.filter((kind) => instructions?.[kind] != null).length;
+  const changedCount = instructionKinds.filter((kind) => instructions?.[kind] != null).length;
 
   if (!isAvailable) return null;
 
@@ -96,23 +99,27 @@ export default function AssistantScreen() {
             chevron
           />
         </Section>
-        <ScreenSectionHeader title="Models" />
-        <Section>
-          {aiModelKindSchema.options.map((kind) => {
-            const { value, isGone } = chosenText(kind);
-            return (
-              <Row
-                key={kind}
-                label={modelKindText[kind].title}
-                value={value}
-                isValueMuted={isGone}
-                onPress={() => navigation.navigate('ModelListScreen', { kind })}
-                chevron
-              />
-            );
-          })}
-        </Section>
-        {isAiAdmin && <VeniceBalanceFooter />}
+        {isAiAdmin && (
+          <>
+            <ScreenSectionHeader title="Models" />
+            <Section>
+              {aiModelKindSchema.options.map((kind) => {
+                const { value, isGone } = chosenText(kind);
+                return (
+                  <Row
+                    key={kind}
+                    label={modelKindText[kind].title}
+                    value={value}
+                    isValueMuted={isGone}
+                    onPress={() => navigation.navigate('ModelListScreen', { kind })}
+                    chevron
+                  />
+                );
+              })}
+            </Section>
+            <VeniceBalanceFooter />
+          </>
+        )}
       </DetailScrollView>
     </Page>
   );

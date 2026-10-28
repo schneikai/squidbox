@@ -31,7 +31,7 @@ export async function chatAsync({
   }
   return runChosenModelTask({
     db,
-    userId: user.id,
+    user,
     kind: 'writing',
     task: chatTask,
     messagesAsync: messagesAsync(),

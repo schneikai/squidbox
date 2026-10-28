@@ -14,6 +14,7 @@ export const instructionCollection = defineCollection({
     writing: instructionText,
     visionTagging: instructionText,
     moreLikeThis: instructionText,
+    modelCheckJudge: instructionText,
   }),
 });
 
@@ -26,9 +27,11 @@ export type InstructionRecord = z.infer<typeof instructionCollection.schema>;
  *   `{contentTags}`, `{rules}`, `{favorites}` (Writing as you and the Favorites), `{media}`, `{tags}`,
  *   `{mentions}`, `{caption}` (the post; the Compare has none), `{count}` (the options to write);
  * - `visionTagging`, the system message of every photo tags request: `{themes}` (Your content);
- * - `moreLikeThis`, what the chat's More like this sends, with the option after it.
+ * - `moreLikeThis`, what the chat's More like this sends, with the option after it;
+ * - `modelCheckJudge`, what a model check (ai_admin) asks its judge after each chat turn:
+ *   `{transcript}` (the turns before), `{request}` (the creator's last message), `{reply}`.
  */
-export const INSTRUCTION_KINDS = ['writing', 'visionTagging', 'moreLikeThis'] as const;
+export const INSTRUCTION_KINDS = ['writing', 'visionTagging', 'moreLikeThis', 'modelCheckJudge'] as const;
 
 export type InstructionKind = (typeof INSTRUCTION_KINDS)[number];
 
@@ -79,6 +82,19 @@ Use only what the creator, the photos or this briefing give you: never invent pl
   ].join('\n'),
   // What ⋯ → More like this on an option sends; the app adds the option on its own lines after it.
   moreLikeThis: 'Write more options like this one: the same idea and tone, different wording each time.',
+  // The model check's judge (claude-sonnet-5-5): its whole question after each turn.
+  modelCheckJudge: [
+    'You judge one turn of a writing assistant\'s chat with a content creator. Did the reply respond to what the creator asked in their last message, and hold the conversation (not change the subject, not invent facts it wasn\'t given, posts only when asked)? Answer as JSON: {"pass": true or false, "reason": one short line}.',
+    '',
+    '# The conversation so far',
+    '{transcript}',
+    '',
+    "# The creator's last message",
+    '{request}',
+    '',
+    '# The reply to judge',
+    '{reply}',
+  ].join('\n'),
 });
 
 /** Each kind's text: the user's where they saved one, else the default. */

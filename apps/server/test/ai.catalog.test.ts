@@ -20,6 +20,7 @@ import {
   findModel,
   getCatalogAsync,
   isUncensored,
+  isVeniceUncensored,
   toApiModel,
   type CatalogEntry,
 } from '../src/ai/catalog.js';
@@ -36,6 +37,10 @@ async function catalog(): Promise<CatalogEntry[]> {
 }
 
 const byId = (entries: CatalogEntry[], id: string) => entries.find((entry) => entry.id === id)!;
+
+// No overrides: the label is Venice's.
+const NO_MARKS = { writing: null, vision: null };
+const NOTHING_VERIFIED = { verified: { writing: new Map(), vision: new Map() } };
 
 beforeEach(() => {
   clearCatalogCache();
@@ -79,7 +84,6 @@ describe('getCatalogAsync', () => {
     const [first, second] = await Promise.all([getCatalogAsync(0), getCatalogAsync(1)]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(second).toBe(first);
-    expect(first.models.map(({ id }) => id)).toEqual(first.entries.map(({ id }) => id));
   });
 
   it('tries again on the next call after a failed fetch', async () => {
@@ -98,7 +102,7 @@ describe('getCatalogAsync', () => {
 });
 
 describe('isUncensored', () => {
-  it('is true for the "Uncensored" names and the most_uncensored trait', async () => {
+  it('follows Venice without an override: the "Uncensored" names and the most_uncensored trait', async () => {
     const entries = await catalog();
     for (const id of [
       'venice-uncensored-1-2',
@@ -106,28 +110,27 @@ describe('isUncensored', () => {
       'gemma-4-uncensored',
       'deepseek-v4-1-flash-uncensored',
     ]) {
-      expect(isUncensored(byId(entries, id))).toBe(true);
+      expect(isVeniceUncensored(byId(entries, id))).toBe(true);
+      expect(isUncensored(byId(entries, id), NO_MARKS)).toBe(true);
     }
     const traitOnly = byId(entries, 'z-ai-glm-5-3');
-    expect(isUncensored({ ...traitOnly, model_spec: { ...traitOnly.model_spec, traits: ['most_uncensored'] } })).toBe(
-      true,
-    );
+    const traited = { ...traitOnly, model_spec: { ...traitOnly.model_spec, traits: ['most_uncensored'] } };
+    expect(isUncensored(traited, NO_MARKS)).toBe(true);
+    for (const id of ['z-ai-glm-5-3', 'grok-4-7', 'kimi-k3']) {
+      expect(isUncensored(byId(entries, id), NO_MARKS)).toBe(false);
+    }
   });
 
-  it('is true for a model VERIFIED_MODELS marks unrestricted, whatever Venice says', async () => {
-    const plain = byId(await catalog(), 'kimi-k3');
-    const abliterated = {
-      ...plain,
-      id: 'abliteration-abliterated-model-large-flash',
-      model_spec: { ...plain.model_spec, name: 'Abliterated Large Flash', traits: [] },
-    };
-    expect(isUncensored(abliterated)).toBe(true);
-    expect(toApiModel(abliterated).isUncensored).toBe(true);
-  });
-
-  it('is false for GLM, Grok and Kimi', async () => {
+  it('takes an override over Venice either way', async () => {
     const entries = await catalog();
-    for (const id of ['z-ai-glm-5-3', 'grok-4-7', 'kimi-k3']) expect(isUncensored(byId(entries, id))).toBe(false);
+    expect(isUncensored(byId(entries, 'kimi-k3'), { writing: true, vision: null })).toBe(true);
+    expect(isUncensored(byId(entries, 'qwen-3-6-plus'), { writing: false, vision: null })).toBe(false);
+    expect(isUncensored(byId(entries, 'qwen-3-6-plus'), { writing: null, vision: false })).toBe(false);
+  });
+
+  it('is uncensored when any kind marks it so', async () => {
+    const plain = byId(await catalog(), 'kimi-k3');
+    expect(isUncensored(plain, { writing: false, vision: true })).toBe(true);
   });
 });
 
@@ -135,22 +138,44 @@ describe('toApiModel', () => {
   it('estimates the costs from the per-1M-token prices', async () => {
     const entries = await catalog();
     // Gemma 4 Uncensored: $0.1625 in, $0.5 out per 1M tokens.
-    const gemma = toApiModel(byId(entries, 'gemma-4-uncensored'));
+    const gemma = toApiModel(byId(entries, 'gemma-4-uncensored'), NOTHING_VERIFIED);
     expect(gemma).toEqual({
       id: 'gemma-4-uncensored',
       name: 'Gemma 4 Uncensored',
       supportsVision: true,
       isUncensored: true,
+      isVeniceUncensored: true,
+      verifiedKinds: [],
+      unrestrictedMarks: NO_MARKS,
       costPerReplyUsd: expect.closeTo((1000 * 0.1625 + 200 * 0.5) / 1e6, 12),
       costPer100PhotosUsd: expect.closeTo((100 * (1500 * 0.1625 + 100 * 0.5)) / 1e6, 12),
     });
   });
 
   it('has no photo cost for a model without vision', async () => {
-    const glm = toApiModel(byId(await catalog(), 'z-ai-glm-5-3'));
+    const glm = toApiModel(byId(await catalog(), 'z-ai-glm-5-3'), NOTHING_VERIFIED);
     expect(glm.costPerReplyUsd).toBeGreaterThan(0);
     expect(glm.supportsVision).toBe(false);
     expect(glm.costPer100PhotosUsd).toBeNull();
+  });
+
+  it('carries the kinds it is verified for and their overrides', async () => {
+    const plain = byId(await catalog(), 'kimi-k3');
+    const abliterated = {
+      ...plain,
+      id: 'abliteration-abliterated-model-large-flash',
+      model_spec: { ...plain.model_spec, name: 'Abliterated Large Flash', traits: [] },
+    };
+    const verified = {
+      writing: new Map([[abliterated.id, { unrestricted: true }]]),
+      vision: new Map([[abliterated.id, { unrestricted: null }]]),
+    };
+    expect(toApiModel(abliterated, { verified })).toMatchObject({
+      isUncensored: true,
+      isVeniceUncensored: false,
+      verifiedKinds: ['writing', 'vision'],
+      unrestrictedMarks: { writing: true, vision: null },
+    });
   });
 });
 

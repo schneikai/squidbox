@@ -73,6 +73,40 @@ export function chatMessages({
   ];
 }
 
+// A reply as the judge reads it: its text, then its post options numbered.
+function replyText({ reply, postOptions }: ChatReply): string {
+  return [reply || '(no reply text)', ...postOptions.map((option, index) => `${index + 1}. ${option}`)].join('\n');
+}
+
+/**
+ * The model check's judge question after a chat turn: `template` (instructions.modelCheckJudge)
+ * filled with the turns before it (`{transcript}`, "Creator: …" and "Assistant: …" with its numbered
+ * options, "(none)" on the first turn), the creator's last message (`{request}`) and the reply to
+ * judge (`{reply}`), as the one message.
+ */
+export function judgeMessages({
+  template,
+  transcript,
+  request,
+  reply,
+}: {
+  template: string;
+  transcript: ChatTurn[];
+  request: string;
+  reply: ChatReply;
+}): ChatMessage[] {
+  const before = transcript.map((turn) =>
+    turn.role === 'user' ? `Creator: ${turn.content}` : `Assistant: ${replyText(turn)}`,
+  );
+  const content = fillLines(template, {
+    transcript: before.join('\n\n') || '(none)',
+    request,
+    reply: replyText(reply),
+  });
+  // A user message: a model behind Venice (Claude) refuses a request with only a system message.
+  return [{ role: 'user', content }];
+}
+
 const PLACEHOLDER = /\{(\w+)\}/;
 
 // A markdown heading ("# The creator"), not a line that starts with a hashtag.
@@ -207,4 +241,11 @@ export const tagsSchema: JsonSchemaSpec<{ tags: string[] }> = {
   name: 'tags',
   jsonSchema: stringListSchema('tags'),
   zod: z.object({ tags: z.array(z.string()) }),
+};
+
+// The judge's verdict on one chat turn.
+export const judgeVerdictJsonSpec: JsonSchemaSpec<{ pass: boolean; reason: string }> = {
+  name: 'judge_verdict',
+  jsonSchema: objectSchema({ pass: { type: 'boolean' }, reason: { type: 'string' } }),
+  zod: z.object({ pass: z.boolean(), reason: z.string() }),
 };

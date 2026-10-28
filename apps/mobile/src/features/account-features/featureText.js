@@ -4,11 +4,12 @@
 const featureText = {
   ai: {
     title: 'Assistant',
-    description: 'Settings → Assistant: writing as you, favorites, prompt buttons and models.',
+    description: 'Settings → Assistant: writing as you, favorites, prompt buttons and instructions.',
   },
   ai_admin: {
     title: 'AI admin',
-    description: 'Compare models, their scores and the Venice balance.',
+    description:
+      'Choose the models, compare them, their scores, model checks, which models count as verified, and the Venice balance.',
     requires: 'ai',
   },
 };

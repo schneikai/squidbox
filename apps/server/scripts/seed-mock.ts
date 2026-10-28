@@ -33,7 +33,7 @@ import {
   type PushMutation,
   type PushResponse,
 } from '@squidbox/shared';
-import { MOCK_FAVORITES, MOCK_PERSONA, PROFILE_LINK } from './mockPersona.js';
+import { MOCK_FAVORITES, MOCK_PERSONA, PROFILE_LINK } from '../src/ai/mockPersona.js';
 
 const API_URL = process.env.MOCK_API_URL ?? `http://localhost:${process.env.PORT ?? 3100}/api/v1`;
 const email = process.env.SEED_USER_EMAIL;
@@ -279,6 +279,7 @@ const instructions: InstructionRecord[] = [
     writing: null,
     visionTagging: null,
     moreLikeThis: null,
+    modelCheckJudge: null,
   },
 ];
 
