@@ -105,7 +105,7 @@ export const tagPhotoResponseSchema = z.object({ tags: z.array(assetTagSchema).m
 export type TagPhotoResponse = z.infer<typeof tagPhotoResponseSchema>;
 
 // POST /ai/chat — the assistant chat: the writing model answers the transcript as the creator's
-// collaborator, with post options only when asked, briefed by instructions.chatContext filled with
+// collaborator, with post options only when asked, briefed by instructions.writing filled with
 // their persona, Favorites and the post. Nothing is stored: the app sends the whole chat each time.
 export const CHAT_LIMITS = {
   messages: 30,

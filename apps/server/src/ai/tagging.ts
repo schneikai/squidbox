@@ -28,7 +28,6 @@ export async function tagPhotoAsync({
     return visionMessages({
       prompt: instructions.visionTagging,
       imageDataUrl: `data:${image.mimeType};base64,${image.base64}`,
-      instructions,
       contentTags: persona?.contentTags ?? [],
     });
   }

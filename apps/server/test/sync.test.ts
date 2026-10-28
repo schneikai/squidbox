@@ -1392,11 +1392,6 @@ d('sync engine (Postgres)', () => {
         ...base(),
         writing: 'Write like me.',
         visionTagging: null,
-        writingFormat: null,
-        tagsSystem: null,
-        themesContext: null,
-        personaFraming: null,
-        chatContext: null,
         moreLikeThis: null,
       }),
       model_choices: () => ({

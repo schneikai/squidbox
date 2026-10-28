@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_INSTRUCTIONS, INSTRUCTION_LIMITS } from '@squidbox/shared';
-import { chatMessages, fillLines, writingFormatText, writingMessages } from '../src/ai/prompts.js';
-
-const WRITING_FORMAT = writingFormatText(DEFAULT_INSTRUCTIONS.writingFormat);
+import { chatMessages, fillLines, writingMessages } from '../src/ai/prompts.js';
 
 const persona = {
   aboutYou: '34, outdoor photographer from Oregon, a bit dry.',
@@ -15,117 +13,18 @@ const empty = { aboutYou: '', contentTags: [], tone: '', rules: [] };
 
 const systemOf = (messages: ReturnType<typeof writingMessages>) => messages[0]!.content as string;
 
-describe('writingMessages with a persona', () => {
-  it('writes every field of a full persona and the favorites into the system message', () => {
-    const system = systemOf(
-      writingMessages({ instructions: DEFAULT_INSTRUCTIONS, prompt: 'Write', persona, favorites }),
-    );
-    expect(system).toContain('About the creator: 34, outdoor photographer from Oregon, a bit dry.');
-    expect(system).toContain('Their content: hiking, forest');
-    expect(system).toContain('Their tone: Short and calm. Never salesy.');
-    expect(system).not.toContain('emoji');
-    expect(system).toContain('- Never use hashtags\n- Never name the exact spot');
-    expect(system).toContain(
-      'Example posts they wrote. Write like these:\n---\nFirst light on the ridge.\n---\nFog on the lake.\n---',
-    );
-    // In the screen's order: About you, Tone, Your content, Rules.
-    const order = ['About the creator', 'Their tone', 'Their content', 'Rules', 'Example posts'];
-    const at = order.map((text) => system.indexOf(text));
-    expect(at).toEqual([...at].sort((a, b) => a - b));
-  });
-
-  it('sends the favorites without a saved persona', () => {
-    const system = systemOf(
-      writingMessages({ instructions: DEFAULT_INSTRUCTIONS, prompt: 'Write', persona: null, favorites }),
-    );
-    expect(system).toContain('Write like these:\n---\nFirst light on the ridge.');
-    expect(system).not.toContain('emoji');
-  });
-
-  it('leaves out the empty fields of a partly filled one', () => {
-    const system = systemOf(
-      writingMessages({
-        instructions: DEFAULT_INSTRUCTIONS,
-        prompt: 'Write',
-        persona: { ...empty, tone: 'Sweet.' },
-        favorites: [],
-      }),
-    );
-    expect(system).toContain('Their tone: Sweet.');
-    expect(system).not.toContain('About the creator');
-    expect(system).not.toContain('Their content');
-    expect(system).not.toContain('Rules');
-    expect(system).not.toContain('Example posts');
-  });
-
-  it("starts with the user's writing instructions and ends with the fixed reply format", () => {
-    const system = systemOf(
-      writingMessages({ instructions: DEFAULT_INSTRUCTIONS, prompt: 'Write', persona, favorites }),
-    );
-    expect(system.startsWith(DEFAULT_INSTRUCTIONS.writing)).toBe(true);
-    expect(system.endsWith(WRITING_FORMAT)).toBe(true);
-    const mine = 'Write like a ranger. Reply in prose, one paragraph.';
-    const changed = systemOf(
-      writingMessages({
-        instructions: { ...DEFAULT_INSTRUCTIONS, writing: mine },
-        prompt: 'Write',
-        persona,
-        favorites,
-      }),
-    );
-    expect(changed.startsWith(mine)).toBe(true);
-    expect(changed).not.toContain(DEFAULT_INSTRUCTIONS.writing);
-    expect(changed).toContain('About the creator');
-    expect(changed.endsWith(WRITING_FORMAT)).toBe(true);
-  });
-
-  it('has no persona text without one or favorites', () => {
-    expect(
-      systemOf(writingMessages({ instructions: DEFAULT_INSTRUCTIONS, prompt: 'Write', persona: null, favorites: [] })),
-    ).toBe(`${DEFAULT_INSTRUCTIONS.writing}\n\n${WRITING_FORMAT}`);
-  });
-});
-
-describe('the app prompts, edited', () => {
-  it("frames a full persona exactly as the app's fixed text did", () => {
-    const system = systemOf(
-      writingMessages({ instructions: DEFAULT_INSTRUCTIONS, prompt: 'Write', persona, favorites }),
-    );
-    expect(system).toBe(
-      [
-        DEFAULT_INSTRUCTIONS.writing,
-        [
-          'About the creator: 34, outdoor photographer from Oregon, a bit dry.',
-          'Their tone: Short and calm. Never salesy.',
-          'Their content: hiking, forest',
-          'Rules, always follow them:\n- Never use hashtags\n- Never name the exact spot',
-          'Example posts they wrote. Write like these:\n---\nFirst light on the ridge.\n---\nFog on the lake.\n---',
-        ].join('\n'),
-        'Reply with exactly 3 posts, each only the finished post text, no numbering, quotes or commentary, ' +
-          'as a JSON object: {"tweets": [...]}.',
-      ].join('\n\n'),
-    );
-  });
-
-  it("uses the user's persona framing and reply format, dropping an empty line and its heading", () => {
-    const instructions = {
-      ...DEFAULT_INSTRUCTIONS,
-      personaFraming: 'Who: {aboutYou}\nMust do:\n{rules}\nVoice: {tone} ({unknown})',
-      writingFormat: 'Give {count} posts as {"tweets": [...]}',
-    };
-    const system = systemOf(
-      writingMessages({
-        instructions,
-        prompt: 'Write',
-        persona: { ...empty, aboutYou: 'Hiker.', tone: 'Dry.' },
-        favorites: [],
-      }),
-    );
-    expect(system).toBe(
-      `${DEFAULT_INSTRUCTIONS.writing}\n\nWho: Hiker.\nVoice: Dry. ({unknown})\n\nGive 3 posts as {"tweets": [...]}`,
-    );
-  });
-});
+const context = {
+  kind: 'draft' as const,
+  text: 'Fog on the trail',
+  media: { photo: 4, video: 1 },
+  tags: ['forest', 'fog'],
+  mentions: ['@ridgeline.bsky.social'],
+};
+const transcript = [
+  { role: 'user' as const, content: 'Write a caption' },
+  { role: 'assistant' as const, reply: 'Here you go.', postOptions: ['one', 'two', 'three'] },
+  { role: 'user' as const, content: 'Shorter' },
+];
 
 describe('fillLines', () => {
   it('drops a heading above an empty placeholder and keeps the filled lines', () => {
@@ -145,18 +44,6 @@ describe('fillLines', () => {
 });
 
 describe('chatMessages', () => {
-  const context = {
-    kind: 'draft' as const,
-    text: 'Fog on the trail',
-    media: { photo: 4, video: 1 },
-    tags: ['forest', 'fog'],
-    mentions: ['@ridgeline.bsky.social'],
-  };
-  const transcript = [
-    { role: 'user' as const, content: 'Write a caption' },
-    { role: 'assistant' as const, reply: 'Here you go.', postOptions: ['one', 'two', 'three'] },
-    { role: 'user' as const, content: 'Shorter' },
-  ];
   const systemOfChat = (overrides: Partial<Parameters<typeof chatMessages>[0]> = {}) =>
     chatMessages({ instructions: DEFAULT_INSTRUCTIONS, context, transcript, persona, favorites, ...overrides })[0]!
       .content as string;
@@ -166,22 +53,8 @@ describe('chatMessages', () => {
     const content = system!.content as string;
     expect(system!.role).toBe('system');
     expect(content.startsWith('You are the writing assistant inside Squidbox')).toBe(true);
-    expect(content).not.toContain(DEFAULT_INSTRUCTIONS.writing);
-    expect(content).not.toContain('About the creator:');
-    expect(content).not.toContain(WRITING_FORMAT);
     expect(content).not.toContain('{"tweets"');
-    expect(content).not.toMatch(
-      /\{(aboutYou|tone|contentTags|rules|instructions|favorites|media|tags|mentions|caption|count)\}/,
-    );
-    expect(content).not.toContain('# Their own instructions');
-  });
-
-  it("adds the user's own Writing instructions once they changed the default", () => {
-    const writing = 'Always end with a question.';
-    const content = systemOfChat({ instructions: { ...DEFAULT_INSTRUCTIONS, writing } });
-    expect(content).toContain(
-      `- Never name the exact spot\n\n# Their own instructions\n${writing}\n\n# Posts they liked`,
-    );
+    expect(content).not.toMatch(/\{(aboutYou|tone|contentTags|rules|favorites|media|tags|mentions|caption|count)\}/);
   });
 
   it('puts the persona and Favorites under their headings, the rules and favorites as lines', () => {
@@ -245,20 +118,38 @@ describe('chatMessages', () => {
     ]);
   });
 
-  it("uses the user's own briefing", () => {
-    const content = systemOfChat({ instructions: { ...DEFAULT_INSTRUCTIONS, chatContext: 'Be brief. {caption}' } });
+  it("uses the user's own Writing text as the briefing", () => {
+    const content = systemOfChat({ instructions: { ...DEFAULT_INSTRUCTIONS, writing: 'Be brief. {caption}' } });
     expect(content).toBe('Be brief. "Fog on the trail"');
   });
 });
 
-describe('writingMessages', () => {
-  it('still ends with the reply format', () => {
-    const [system] = writingMessages({
-      prompt: 'Write',
+describe('writingMessages (the Compare)', () => {
+  const compare = (overrides: Partial<Parameters<typeof writingMessages>[0]> = {}) =>
+    writingMessages({
+      prompt: 'Write posts about a sunrise hike',
       instructions: DEFAULT_INSTRUCTIONS,
-      persona: null,
-      favorites: [],
+      persona,
+      favorites,
+      ...overrides,
     });
-    expect((system!.content as string).endsWith(WRITING_FORMAT)).toBe(true);
+
+  it('sends the same filled briefing the chat sends, without a post, then the prompt', () => {
+    const [system, user] = compare();
+    const chat = chatMessages({ instructions: DEFAULT_INSTRUCTIONS, context, transcript, persona, favorites })[0]!
+      .content as string;
+    const withoutPost = chat.replace(/# The post they're working on\n[\s\S]*?\n\n(?=# How to answer)/, '');
+    expect(system).toEqual({ role: 'system', content: withoutPost });
+    expect(system!.content).not.toContain("# The post they're working on");
+    expect(system!.content).toContain('3 options unless they say how many');
+    expect(user).toEqual({ role: 'user', content: 'Write posts about a sunrise hike' });
+  });
+
+  it("uses the user's own Writing text, and drops the creator's sections without a persona", () => {
+    const [system] = compare({ persona: null, favorites: [] });
+    expect(system!.content).not.toContain('# The creator');
+    expect(system!.content).not.toContain('# Posts they liked');
+    const [mine] = compare({ instructions: { ...DEFAULT_INSTRUCTIONS, writing: 'Tone: {tone}. {count} posts.' } });
+    expect(mine!.content).toBe('Tone: Short and calm. Never salesy.. 3 posts.');
   });
 });

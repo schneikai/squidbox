@@ -13,11 +13,6 @@ const t = schema.instructions;
 const EMPTY_INSTRUCTIONS = Object.freeze({
   writing: null,
   visionTagging: null,
-  writingFormat: null,
-  tagsSystem: null,
-  themesContext: null,
-  personaFraming: null,
-  chatContext: null,
   moreLikeThis: null,
 });
 

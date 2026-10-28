@@ -13,7 +13,7 @@ import type { Db } from '../db/client.js';
 import { AppError } from '../errors.js';
 import { catalogAsync, findModel, type CatalogEntry } from './catalog.js';
 import { readChosenModelId } from './modelChoices.js';
-import { chatReplyJsonSpec, tagsSchema, tweetsSchema } from './prompts.js';
+import { chatReplyJsonSpec, tagsSchema } from './prompts.js';
 import { chatJsonAsync, VeniceError, type ChatMessage, type JsonSchemaSpec } from './venice.js';
 
 /** The trimmed tweets when there are exactly WRITING_TWEET_COUNT non-empty ones; throws otherwise. */
@@ -76,9 +76,10 @@ export type AiTask<T> = {
   onUnreadable?: (content: string, json: unknown) => T;
 };
 
-export const writingTask: AiTask<{ tweets: string[] }> = {
-  schema: tweetsSchema,
-  check: ({ tweets }) => ({ tweets: checkTweets(tweets) }),
+// A compare's posts: the chat's reply schema, with exactly WRITING_TWEET_COUNT options.
+export const writingTask: AiTask<ChatReply> = {
+  schema: chatReplyJsonSpec,
+  check: (reply) => ({ ...reply, postOptions: checkTweets(reply.postOptions) }),
 };
 
 /**

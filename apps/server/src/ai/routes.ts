@@ -158,7 +158,12 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
           const results = await compareRequested(request.body.modelIds, 'writing', (models) =>
             compareModels({ task: writingTask, messages, models, log: request.log, signal }),
           );
-          return { results };
+          // A model's posts are its reply's options.
+          return {
+            results: results.map((result) =>
+              'error' in result ? result : { modelId: result.modelId, tweets: result.postOptions },
+            ),
+          };
         },
       });
 
@@ -174,14 +179,10 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
           const signal = untilClientLeaves(reply);
           const { base64, mimeType } = request.body.image;
           const user = requireUser(request);
-          const [persona, instructions] = await Promise.all([
-            readPersona(getDb(), user.id),
-            readInstructions(getDb(), user),
-          ]);
+          const persona = await readPersona(getDb(), user.id);
           const messages = visionMessages({
             prompt: request.body.prompt,
             imageDataUrl: `data:${mimeType};base64,${base64}`,
-            instructions,
             contentTags: persona?.contentTags ?? [],
           });
           const results = await compareRequested(request.body.modelIds, 'vision', (models) =>

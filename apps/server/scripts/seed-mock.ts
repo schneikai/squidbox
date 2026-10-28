@@ -278,11 +278,6 @@ const instructions: InstructionRecord[] = [
     id: userId,
     writing: null,
     visionTagging: null,
-    writingFormat: null,
-    tagsSystem: null,
-    themesContext: null,
-    personaFraming: null,
-    chatContext: null,
     moreLikeThis: null,
   },
 ];

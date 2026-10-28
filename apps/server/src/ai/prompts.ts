@@ -1,7 +1,6 @@
 // The AI's prompts and the JSON each model must answer with.
 import {
   chatReplyFieldsSchema,
-  DEFAULT_INSTRUCTIONS,
   WRITING_TWEET_COUNT,
   type ChatContext,
   type ChatReply,
@@ -16,28 +15,18 @@ import type { ChatMessage, JsonSchemaSpec } from './venice.js';
 export type Persona = PersonaFields | null;
 
 /**
- * `template` with each `{name}` of `values` filled in (other braces stay as they are). The app
- * prompts are the user's to edit (APP_PROMPT_KINDS), so a template may lack a placeholder or have an
- * unknown one: neither fails, the reply's schema and checks still hold the model to its format.
+ * `template` with each `{name}` of `values` filled in (other braces stay as they are). The
+ * instructions are the user's to edit, so a template may lack a placeholder or have an unknown one:
+ * neither fails, the reply's schema and checks still hold the model to its format.
  */
 export function fillTemplate(template: string, values: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (match, name: string) => (name in values ? values[name]! : match));
 }
 
-/** The reply format the writing prompt ends with, `{count}` filled in. */
-export function writingFormatText(template: string): string {
-  return fillTemplate(template, { count: String(WRITING_TWEET_COUNT) });
-}
-
-/** The text the tags prompt adds after the user's instructions when the creator named their content. */
-export function contentThemesText(template: string, contentTags: string[]): string {
-  return fillTemplate(template, { themes: contentTags.join(', ') });
-}
-
 /**
- * The writing prompt of a compare, as the user: the writing instructions, their persona and Favorites
- * framed by `instructions.personaFraming` (when either exists) and the reply format
- * (`instructions.writingFormat`) as the system message, then the prompt.
+ * The writing prompt of a compare, as the user: the writing briefing (`instructions.writing`, filled
+ * as the chat fills it but without a post, so its post section is left out) as the system message,
+ * then the prompt as the user's message. So a compare tests what the chat sends.
  */
 export function writingMessages({
   prompt,
@@ -50,23 +39,15 @@ export function writingMessages({
   favorites: string[];
   instructions: Instructions;
 }): ChatMessage[] {
-  const content = [
-    instructions.writing,
-    (persona || favorites.length > 0) && personaText(instructions.personaFraming, persona, favorites),
-    writingFormatText(instructions.writingFormat),
-  ]
-    .filter(Boolean)
-    .join('\n\n');
   return [
-    { role: 'system', content },
+    { role: 'system', content: writingBriefingText(instructions.writing, { persona, favorites, context: null }) },
     { role: 'user', content: prompt },
   ];
 }
 
 /**
- * The assistant chat, as the user: the chat briefing (`instructions.chatContext`, filled with their
- * persona, their own Writing instructions when they changed the default, Favorites and the post) as
- * the whole system message, then the transcript, a past reply in
+ * The assistant chat, as the user: the writing briefing (`instructions.writing`, filled with their
+ * persona, Favorites and the post) as the whole system message, then the transcript, a past reply in
  * the JSON the model replies in.
  */
 export function chatMessages({
@@ -83,15 +64,7 @@ export function chatMessages({
   instructions: Instructions;
 }): ChatMessage[] {
   return [
-    {
-      role: 'system',
-      content: chatBriefingText(instructions.chatContext, {
-        persona,
-        favorites,
-        context,
-        writing: instructions.writing === DEFAULT_INSTRUCTIONS.writing ? '' : instructions.writing,
-      }),
-    },
+    { role: 'system', content: writingBriefingText(instructions.writing, { persona, favorites, context }) },
     ...transcript.map((turn): ChatMessage =>
       turn.role === 'user'
         ? { role: 'user', content: turn.content }
@@ -147,77 +120,60 @@ function personaValues(persona: Persona): Record<string, string> {
   };
 }
 
-// The persona and favorites in `template` (personaFraming): every field that is filled, and the
-// favorites as example posts.
-function personaText(template: string, persona: Persona, favorites: string[]): string {
-  return fillLines(template, {
-    ...personaValues(persona),
-    favorites: favorites.length > 0 ? `${favorites.map((post) => `---\n${post}`).join('\n')}\n---` : '',
-  });
-}
-
 // "4 photos and 1 video", "none yet" without media.
 function mediaText({ photo, video }: ChatContext['media']): string {
   const count = (n: number, one: string) => (n === 0 ? null : `${n} ${one}${n === 1 ? '' : 's'}`);
   return [count(photo, 'photo'), count(video, 'video')].filter(Boolean).join(' and ') || 'none yet';
 }
 
-/**
- * The chat briefing, `template` (chatContext) filled with the creator's persona, their Favorites
- * (the texts, newest first, as "- " lines like the rules) and the chat's post: `{caption}` is the
- * caption as a JSON string, or (empty); `{count}` the options to write. A line whose value is empty is
- * left out, with its heading (fillLines).
- */
-export function chatBriefingText(
-  template: string,
-  {
-    persona,
-    favorites,
-    context,
-    writing = '',
-  }: { persona: Persona; favorites: string[]; context: ChatContext; writing?: string },
-): string {
+// The post's values: none for a compare (`context` null), so its lines and heading are left out.
+function postValues(context: ChatContext | null): Record<string, string> {
+  if (!context) return { media: '', tags: '', mentions: '', caption: '' };
   const caption = context.text.trim();
-  return fillLines(template, {
-    ...personaValues(persona),
-    instructions: writing.trim(),
-    // "- " lines as the briefing was tested with (the Compare's personaFraming keeps its --- blocks), a
-    // favorite's own line breaks made spaces so each stays one line.
-    favorites: favorites.map((post) => `- ${post.trim().replace(/\s*\n\s*/g, ' ')}`).join('\n'),
+  return {
     media: mediaText(context.media),
     tags: context.tags.join(', '),
     mentions: context.mentions.join(', '),
     caption: caption ? JSON.stringify(caption) : '(empty)',
+  };
+}
+
+/**
+ * The writing briefing, `template` (instructions.writing) filled with the creator's persona, their
+ * Favorites (the texts, newest first, as "- " lines like the rules, each on one line) and the chat's
+ * post (`context`, null for a compare): `{caption}` is the caption as a JSON string, or (empty);
+ * `{count}` the options to write. A line whose value is empty is left out, with its heading
+ * (fillLines).
+ */
+export function writingBriefingText(
+  template: string,
+  { persona, favorites, context }: { persona: Persona; favorites: string[]; context: ChatContext | null },
+): string {
+  return fillLines(template, {
+    ...personaValues(persona),
+    favorites: favorites.map((post) => `- ${post.trim().replace(/\s*\n\s*/g, ' ')}`).join('\n'),
+    ...postValues(context),
     count: String(WRITING_TWEET_COUNT),
   });
 }
 
-// The user's prompt (their Photo tags instructions, which the app sends) says what to look for and how
-// many tags; the system message (`instructions.tagsSystem`) fixes the answer's shape. The creator's
-// content themes (their persona's `contentTags`, in `instructions.themesContext`), when they have any,
-// follow the prompt as a text of their own, so they apply whatever the prompt says.
+/**
+ * A photo tags request: the photo tags briefing (`prompt`: the user's Photo tags instructions, or a
+ * compare's prompt) filled with the creator's content themes (their persona's `contentTags`; the line
+ * is left out without any) as the system message, then the photo.
+ */
 export function visionMessages({
   prompt,
   imageDataUrl,
-  instructions,
   contentTags = [],
 }: {
   prompt: string;
   imageDataUrl: string;
-  instructions: Instructions;
   contentTags?: string[];
 }): ChatMessage[] {
-  const themes = contentTags.length > 0 ? [contentThemesText(instructions.themesContext, contentTags)] : [];
   return [
-    { role: 'system', content: instructions.tagsSystem },
-    {
-      role: 'user',
-      content: [
-        { type: 'text', text: prompt },
-        ...themes.map((text) => ({ type: 'text' as const, text })),
-        { type: 'image_url', image_url: { url: imageDataUrl } },
-      ],
-    },
+    { role: 'system', content: fillLines(prompt, { themes: contentTags.join(', ') }) },
+    { role: 'user', content: [{ type: 'image_url', image_url: { url: imageDataUrl } }] },
   ];
 }
 
@@ -226,19 +182,10 @@ function objectSchema(properties: Record<string, unknown>) {
   return { type: 'object', properties, required: Object.keys(properties), additionalProperties: false };
 }
 
-// A JSON object holding one list of strings, of exactly `count` when given.
-function stringListSchema(key: string, count?: number) {
-  const sized = count === undefined ? {} : { minItems: count, maxItems: count };
-  return objectSchema({ [key]: { type: 'array', items: { type: 'string' }, ...sized } });
+// A JSON object holding one list of strings.
+function stringListSchema(key: string) {
+  return objectSchema({ [key]: { type: 'array', items: { type: 'string' } } });
 }
-
-// The zod side is loose on purpose: the counts are checked in compare.ts, so a model that
-// returns the wrong number gets that said on its card instead of "couldn't be read".
-export const tweetsSchema: JsonSchemaSpec<{ tweets: string[] }> = {
-  name: 'tweets',
-  jsonSchema: stringListSchema('tweets', WRITING_TWEET_COUNT),
-  zod: z.object({ tweets: z.array(z.string()) }),
-};
 
 // A chat reply: what the assistant says and the options for the post, when asked for (tasks.ts checks
 // them and keeps the first CHAT_LIMITS.posts; a maxItems here invited ten options).

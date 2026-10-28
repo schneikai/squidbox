@@ -878,17 +878,20 @@ by writing `deletedAt: null`, a per-field write that a later tombstone from anot
 beats by its clock. The writing prompt sends the newest 20 (`FAVORITES_IN_PROMPT`).
 
 **instructions** (Settings → Assistant → Instructions: what the assistant is told before each
-request). Synced: `writing`, `visionTagging` and the app prompts (`writingFormat`, `tagsSystem`,
-`themesContext`, `personaFraming`: the server's own texts around them, templates it fills in;
-`chatContext`, the chat's briefing (the persona, the post and the reply shape), its whole system
-message; and `moreLikeThis`, what the chat's More like this sends; editable by an `ai_admin` account
-for trying a change on one account), each the user's text or null for the app's default
-(`DEFAULT_INSTRUCTIONS` in `packages/shared`, resolved by `resolveInstructions`, which gives an
-account without `ai_admin` the app's text for every app prompt), plus
-the base columns. One record per user with the user's id as its id, like `personas`, so two devices
-editing different kinds merge per field, and Reset is a per-field write of null that wins or loses by
-its clock like any edit. A text equal to the default is stored as null. The reply format each kind
-needs (the post count, the JSON) is the server's and never stored.
+request). Synced: `writing` (the writing briefing: the chat's whole system message and the
+Compare's, filled with the persona, the Favorites and the post), `visionTagging` (the photo tags
+briefing, the system message of every tags request, filled with Your content's themes) and
+`moreLikeThis` (what the chat's More like this sends), templates the server fills in, each the
+user's text or null for the app's default (`DEFAULT_INSTRUCTIONS` in `packages/shared`, resolved by
+`resolveInstructions`), plus the base columns. Migrations 0022 (server) and 0024 (app) dropped the
+earlier app prompts (`writingFormat`, `tagsSystem`, `themesContext`, `personaFraming`,
+`chatContext`) and reset `writing` and `visionTagging` to the default, their meaning having changed;
+the server's reset carries a fresh clock for both fields and a new `server_seq`, so every device
+pulls it and an older pending edit loses. One record per user with the user's id as its id, like
+`personas`, so two devices editing different kinds merge per field, and Reset is a per-field write
+of null that wins or loses by its clock like any edit. A text equal to the default is stored as
+null. The schema each reply is read with (`chat_reply`, the tags list) is the server's and never
+stored.
 
 **model_choices** (Settings → Assistant → Models: the model the assistant uses). Synced per kind:
 `writingModel` and `visionModel`, each `{ id, name }` (the name for a model Venice no longer offers)

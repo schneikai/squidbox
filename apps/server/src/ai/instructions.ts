@@ -5,24 +5,16 @@ import { resolveInstructions, type Instructions } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import { instructions, type User } from '../db/schema.js';
 
-/**
- * The user's instructions, with the default for every kind they haven't changed. Their own app
- * prompts (APP_PROMPT_KINDS) apply only to an ai_admin account; anyone else's requests get the app's.
- */
-export async function readInstructions(db: Db, user: Pick<User, 'id' | 'features'>): Promise<Instructions> {
+/** The user's instructions, with the default for every kind they haven't changed. */
+export async function readInstructions(db: Db, user: Pick<User, 'id'>): Promise<Instructions> {
   const userId = user.id;
   const [row] = await db
     .select({
       writing: instructions.writing,
       visionTagging: instructions.visionTagging,
-      writingFormat: instructions.writingFormat,
-      tagsSystem: instructions.tagsSystem,
-      themesContext: instructions.themesContext,
-      personaFraming: instructions.personaFraming,
-      chatContext: instructions.chatContext,
       moreLikeThis: instructions.moreLikeThis,
     })
     .from(instructions)
     .where(and(eq(instructions.userId, userId), eq(instructions.id, userId), isNull(instructions.deletedAt)));
-  return resolveInstructions(row ?? null, { isAiAdmin: user.features.includes('ai_admin') });
+  return resolveInstructions(row ?? null);
 }
