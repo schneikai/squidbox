@@ -5,12 +5,11 @@ import { getDb } from '@/sync/db/client';
 import { requestSync } from '@/sync/worker';
 
 /**
- * Edits the tags of the assets with these ids (`{ add, remove }`, editedTags'): one setTags each,
- * made on the stored tags inside its write, so an edit never undoes another stored meanwhile; a photo
- * the edit leaves as it was isn't written. Then syncs.
+ * Edits the tags of the asset with this id (`{ add, remove }`, editedTags'), made on its stored tags
+ * inside the write (setTags), so an edit never undoes another stored meanwhile; an edit that leaves
+ * them as they were writes nothing. Then syncs.
  */
-export default async function editTagsAsync(ids, edit) {
-  const db = getDb();
-  await Promise.all(ids.map((id) => setTags(db, id, (stored) => editedTags(stored, edit))));
+export default async function editTagsAsync(id, edit) {
+  await setTags(getDb(), id, (stored) => editedTags(stored, edit));
   requestSync();
 }

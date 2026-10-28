@@ -1,9 +1,8 @@
 import { ASSET_TAG_LIMITS, uniqueTags } from '@squidbox/shared';
 
 /**
- * A photo's `tags` (null while never tagged) after an edit of the tags of several photos at once:
- * `remove` taken out (in any case), then `add` added while it has room (ASSET_TAG_LIMITS.tags), so a
- * photo already full skips them. Null when the edit leaves it as it was.
+ * A photo's `tags` (null while never tagged) after an edit: `remove` taken out (in any case), then
+ * `add` added while it has room (ASSET_TAG_LIMITS.tags). Null when the edit leaves it as it was.
  */
 export default function editedTags(tags, { add = [], remove = [] }) {
   const removed = new Set(remove.map(keyOf));

@@ -1,7 +1,13 @@
-import { CHAT_LIMITS } from '@squidbox/shared';
+import { CHAT_LIMITS, uniqueTags } from '@squidbox/shared';
 
 import createStore from '@/lib/createStore';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
+
+const NO_TAG_EDITS = Object.freeze({ addedTags: [], removedTags: [] });
+
+function tagKey(tag) {
+  return tag.trim().toLowerCase();
+}
 
 // The open assistant chats by id. A chat lives while its editor is open and is never saved: the
 // editor and the chat screen (a route, whose params are plain data) share it by id.
@@ -56,10 +62,11 @@ function wireTurns(messages) {
  * (`reply`: what the assistant says; `postOptions`: the options for the post, when the user asked for
  * posts; `errorStatus`: the failed request's HTTP status, if any). `isSending` while a reply loads.
  * The editor's caption and assets (`getDraft()`) change with every keystroke, so they are read when
- * needed, not told.
+ * needed, not told. `tagEdits` (`{ addedTags, removedTags }`) is what the chat card changed in the
+ * post's tags (postTags): kept here only, while the editor is open, never on the photos.
  */
 function createSession(kind) {
-  const store = createStore({ kind, messages: [], isSending: false, canApply: false });
+  const store = createStore({ kind, messages: [], isSending: false, canApply: false, tagEdits: NO_TAG_EDITS });
   let draft = { text: '', assets: [] };
   let applier = null;
   let controller = null;
@@ -155,6 +162,24 @@ function createSession(kind) {
     },
 
     /** Starts over (New chat): the reply under way, if any, is dropped. */
+    /**
+     * The card's change to the post's tags (`{ add, remove }`): a tag taken off goes on the removed
+     * list (and off the added one), one added the other way round, by tag in any case.
+     */
+    editTags({ add = [], remove = [] }) {
+      const { addedTags, removedTags } = store.get().tagEdits;
+      const without = (list, tags) => {
+        const keys = new Set(tags.map(tagKey));
+        return list.filter((tag) => !keys.has(tagKey(tag)));
+      };
+      update({
+        tagEdits: {
+          addedTags: uniqueTags([...without(addedTags, remove), ...add]),
+          removedTags: uniqueTags([...without(removedTags, add), ...remove]),
+        },
+      });
+    },
+
     reset() {
       controller?.abort();
       controller = null;

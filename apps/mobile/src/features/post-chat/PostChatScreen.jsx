@@ -111,7 +111,14 @@ export default function PostChatScreen({ route, navigation }) {
         onContentSizeChange={handleContentSizeChange}
         contentContainerStyle={styles.content}
       >
-        <ChatSubjectCard kind={chat.kind} assets={assets} tagging={tagging} mentions={mentions} />
+        <ChatSubjectCard
+          kind={chat.kind}
+          assets={assets}
+          tagging={tagging}
+          tagEdits={chat.tagEdits}
+          onEditTags={chat.editTags}
+          mentions={mentions}
+        />
         {messages.length === 0 && (
           <View style={styles.empty}>
             <IntroText>Ask anything about this post, talk an idea through, or start from a button.</IntroText>

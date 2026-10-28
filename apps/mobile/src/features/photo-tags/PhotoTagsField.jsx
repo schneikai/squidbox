@@ -5,21 +5,19 @@ import usePhotoTagsEdit from './usePhotoTagsEdit';
 import TagsField from '@/components/TagsField';
 
 /**
- * The tags of `rows` (live assets: one photo, or the chat's photos), edited in place
- * (usePhotoTagsEdit): a tap on a chip takes it off, Add adds one. `isDisabled` while a tagging
- * runs; `isBare` inside a card; `guardPress`, TagsField's.
+ * The tags of `asset` (its live row), edited in place (usePhotoTagsEdit): a tap on a chip takes it
+ * off, Add adds one. `isDisabled` while a tagging runs; `guardPress`, TagsField's.
  */
-export default function PhotoTagsField({ rows, placeholder, isDisabled, isBare, guardPress }) {
-  const { tags, change } = usePhotoTagsEdit(rows);
+export default function PhotoTagsField({ asset, placeholder, isDisabled, guardPress }) {
+  const { tags, change } = usePhotoTagsEdit(asset);
   return (
     <TagsField
       tags={tags}
       onChange={change}
       placeholder={placeholder}
-      maxTags={ASSET_TAG_LIMITS.tags * rows.length}
+      maxTags={ASSET_TAG_LIMITS.tags}
       maxTagLength={ASSET_TAG_LIMITS.tag}
       isDisabled={isDisabled}
-      isBare={isBare}
       guardPress={guardPress}
     />
   );

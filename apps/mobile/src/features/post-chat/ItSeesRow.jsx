@@ -1,22 +1,28 @@
+import { ASSET_TAG_LIMITS, CHAT_LIMITS } from '@squidbox/shared';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
+import postTags from './postTags';
+
+import TagsField from '@/components/TagsField';
 import TextButton from '@/components/TextButton';
-import PhotoTagsField from '@/features/photo-tags/PhotoTagsField';
 import { colors } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
+import tagsDifference from '@/utils/tagsDifference';
 
 /**
  * What the assistant sees in the chat's photos (`rows`, the live assets, their `attempts` and
- * `isTagging` and `untagged`, as useAssetTags gives them): "It sees:" and the tags the chat sends,
- * edited in place (PhotoTagsField: a tag taken off leaves every photo, one added goes on each, the
- * field taking no changes while a tagging runs); "Looking at the photos…" while any is tagged; the
+ * `isTagging` and `untagged`, as useAssetTags gives them): "It sees:" and the post's tags the chat
+ * sends (postTags, with the chat's `tagEdits`), edited in place: a tag taken off or added changes
+ * the post's tags only (`onEditTags({ add, remove })`, the chat's editTags), never the photos'; the
+ * field takes no changes while a tagging runs. "Looking at the photos…" while any is tagged; the
  * photos whose tagging failed, with Retry (`onRetry(assetId)` for each); a photo never tagged, with
  * Tag. The field shows once a photo is tagged, or once nothing is being tagged.
  */
-export default function ItSeesRow({ rows, attempts, isTagging, untagged, onRetry }) {
+export default function ItSeesRow({ rows, attempts, isTagging, untagged, tagEdits, onEditTags, onRetry }) {
   const failed = rows.filter((row) => row.tags === null && attempts[row.id]?.status === 'error');
   const isTagged = rows.some((row) => row.tags !== null);
+  const tags = postTags(rows, tagEdits);
 
   function retryAll(list) {
     for (const row of list) onRetry(row.id);
@@ -27,7 +33,15 @@ export default function ItSeesRow({ rows, attempts, isTagging, untagged, onRetry
       {(isTagged || !isTagging) && (
         <View style={styles.field}>
           <Text style={listTextStyles.subtitle}>It sees:</Text>
-          <PhotoTagsField rows={rows} placeholder="No tags" isDisabled={isTagging} isBare />
+          <TagsField
+            tags={tags}
+            onChange={(next) => onEditTags(tagsDifference(tags, next))}
+            placeholder="No tags"
+            maxTags={CHAT_LIMITS.tags}
+            maxTagLength={ASSET_TAG_LIMITS.tag}
+            isDisabled={isTagging}
+            isBare
+          />
         </View>
       )}
       {isTagging && (

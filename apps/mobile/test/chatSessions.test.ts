@@ -3,6 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 import chatSessions from '../src/features/post-chat/chatSessions';
 
+// The card's tag edits stay in the chat: nothing writes a photo's tags.
+const setTags = vi.hoisted(() => vi.fn());
+vi.mock('../src/sync/assetsRepository', () => ({ setTags }));
+
 const context = { kind: 'draft', text: '', media: { photo: 1, video: 0 }, tags: [], mentions: [] };
 const REPLY: ChatReply = { reply: 'Here are three.', postOptions: ['one', 'two', 'three'] };
 
@@ -132,6 +136,19 @@ describe('chatSessions', () => {
     const { id, session } = open();
     chatSessions.close(id);
     expect(session.send({ content: 'First' }, context, deferredRequest().request)).toBeNull();
+  });
+
+  it("holds the card's tag edits: a removed tag leaves the added ones, an added one the removed", () => {
+    const { session } = open();
+    expect(session.getState().tagEdits).toEqual({ addedTags: [], removedTags: [] });
+    session.editTags({ remove: ['selfie'] });
+    session.editTags({ add: ['campfire', 'Ridge'] });
+    expect(session.getState().tagEdits).toEqual({ addedTags: ['campfire', 'Ridge'], removedTags: ['selfie'] });
+    session.editTags({ remove: ['ridge'], add: ['SELFIE'] });
+    expect(session.getState().tagEdits).toEqual({ addedTags: ['campfire', 'SELFIE'], removedTags: ['ridge'] });
+    session.reset();
+    expect(session.getState().tagEdits.removedTags).toEqual(['ridge']);
+    expect(setTags).not.toHaveBeenCalled();
   });
 
   it('clears the chat on reset', async () => {

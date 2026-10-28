@@ -1,6 +1,7 @@
-import { CHAT_LIMITS, uniqueTags } from '@squidbox/shared';
+import { CHAT_LIMITS } from '@squidbox/shared';
 import { useCallback, useMemo, useRef, useState } from 'react';
 
+import postTags from './postTags';
 import promptTurn from './promptTurn';
 import useChatSession from './useChatSession';
 import useMentions from './useMentions';
@@ -34,8 +35,9 @@ export default function usePostChat(sessionId) {
   const waitingRef = useRef(false);
   const { taggingAsync, rows: taggedRows, isTagging } = tagging;
 
-  // What the chat is about as it is now: the editor's latest caption and assets, their tags (read
-  // again once a tagging under way landed) and the handles found in their albums' posts.
+  // What the chat is about as it is now: the editor's latest caption and assets, the post's tags
+  // (their tags, read again once a tagging under way landed, with the card's edits: postTags) and the
+  // handles found in their albums' posts.
   const readContextAsync = useCallback(async () => {
     const hasWaited = await taggingAsync();
     const { text, assets: now } = chat.getDraft();
@@ -46,7 +48,7 @@ export default function usePostChat(sessionId) {
       kind: chat.kind,
       text: text.slice(0, CHAT_LIMITS.text),
       media: countMediaTypes(now),
-      tags: uniqueTags(rows.flatMap((row) => row.tags ?? [])).slice(0, CHAT_LIMITS.tags),
+      tags: postTags(rows, chat.tagEdits).slice(0, CHAT_LIMITS.tags),
       mentions: (mentions?.handles ?? [])
         .filter((handle) => handle.length <= CHAT_LIMITS.mention)
         .slice(0, CHAT_LIMITS.mentions),
