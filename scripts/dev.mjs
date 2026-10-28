@@ -140,24 +140,32 @@ async function startLocalBackendAndMetro() {
 `);
 }
 
-// What the copy of the owner's library reads from: the live database (LIVE_DATABASE_URL, or the live
-// server's own from Fly) and read-only keys for the live bucket (LIVE_AWS_*). Without them the app
-// still runs; opening the copy then says what's missing.
+// What the copy of the owner's library reads from: the live database and the live bucket, with the
+// live server's own DATABASE_URL and AWS keys, read from it through `fly` (or LIVE_DATABASE_URL and
+// LIVE_AWS_* from the environment). They stay in the API server's memory, never on disk; the server
+// opens the database read-only and signs only GET URLs with the keys. Without them the app still
+// runs; opening the copy then says what's missing.
 function liveLibraryEnv() {
-  let databaseUrl = process.env.LIVE_DATABASE_URL;
-  if (!databaseUrl && spawnSync('which', ['fly']).status === 0) {
-    const { stdout } = spawnSync('fly', ['ssh', 'console', '--app', 'squidbox-server', '-C', 'printenv DATABASE_URL'], {
+  const live = {
+    LIVE_DATABASE_URL: process.env.LIVE_DATABASE_URL,
+    LIVE_AWS_ACCESS_KEY_ID: process.env.LIVE_AWS_ACCESS_KEY_ID,
+    LIVE_AWS_SECRET_ACCESS_KEY: process.env.LIVE_AWS_SECRET_ACCESS_KEY,
+  };
+  if (Object.values(live).some((value) => !value) && spawnSync('which', ['fly']).status === 0) {
+    const script = 'echo "$DATABASE_URL"; echo "$AWS_ACCESS_KEY_ID"; echo "$AWS_SECRET_ACCESS_KEY"';
+    const { stdout } = spawnSync('fly', ['ssh', 'console', '--app', 'squidbox-server', '-C', `sh -c '${script}'`], {
       encoding: 'utf8',
       timeout: 60_000,
     });
-    databaseUrl = stdout?.trim().split('\n')[0]?.trim();
+    const [databaseUrl, accessKeyId, secretAccessKey] = (stdout ?? '').split('\n').map((line) => line.trim());
+    live.LIVE_DATABASE_URL ||= databaseUrl;
+    live.LIVE_AWS_ACCESS_KEY_ID ||= accessKeyId;
+    live.LIVE_AWS_SECRET_ACCESS_KEY ||= secretAccessKey;
   }
-  if (!databaseUrl) log('The live database is out of reach (no LIVE_DATABASE_URL, no fly): the library copy is off');
-  return {
-    LIVE_DATABASE_URL: databaseUrl ?? '',
-    LIVE_AWS_ACCESS_KEY_ID: process.env.LIVE_AWS_ACCESS_KEY_ID ?? '',
-    LIVE_AWS_SECRET_ACCESS_KEY: process.env.LIVE_AWS_SECRET_ACCESS_KEY ?? '',
-  };
+  if (Object.values(live).some((value) => !value)) {
+    log("The live server's settings are out of reach (no fly, no LIVE_* variables): the library copy is off");
+  }
+  return Object.fromEntries(Object.entries(live).map(([key, value]) => [key, value ?? '']));
 }
 
 // The phone gives up on a bundle that takes a minute to build; build it before handing out the URL.
