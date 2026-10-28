@@ -1,6 +1,6 @@
 import { PERSONA_LIMITS, uniqueTags } from '@squidbox/shared';
 import { useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 
 import FieldInfoSheet from './FieldInfoSheet';
 import RulesField from './RulesField';
@@ -10,8 +10,10 @@ import CardTextField from '@/components/CardTextField';
 import DetailScrollView from '@/components/DetailScrollView';
 import Field from '@/components/Field';
 import Page from '@/components/Page';
+import Switch from '@/components/Switch';
 import TagsField from '@/components/TagsField';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
+import { Row, Section } from '@/components/settings-list/SettingsList';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
@@ -20,13 +22,15 @@ import { scale } from '@/styles/designTokens';
 import { getDb, schema } from '@/sync/db/client';
 import { EMPTY_PERSONA, readPersona, savePersona } from '@/sync/personaRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
+import { requestSync } from '@/sync/worker';
 import changedValues from '@/utils/changedValues';
 
 // The fields this screen edits in place; Rules are edited one by one on their own screen.
 const TEXT_FIELDS = ['aboutYou', 'tone', 'contentTags'];
 
 // Settings → Assistant → Writing as you: what the assistant writes with, as plain fields, saved as
-// you type. Reachable from anywhere (a root screen), so the chat opens it too.
+// you type, and the Adult content switch under Your content, saved as it flips. Reachable from
+// anywhere (a root screen), so the chat opens it too.
 export default function VoiceScreen({ navigation }) {
   const isAvailable = useLeaveWhenUnavailable();
   const { library } = useLibrary();
@@ -57,6 +61,13 @@ function VoiceEditor({ userId, seed, navigation }) {
   // Only what the user changed, so a field another device edited meanwhile keeps that edit.
   async function saveFields(next, stored) {
     await savePersona(getDb(), userId, changedValues(stored, next));
+  }
+
+  function handleAdultContentChange(isOn) {
+    savePersona(getDb(), userId, { adultContent: isOn }).then(requestSync, (error) => {
+      console.error('Saving Adult content failed', error);
+      Alert.alert("Couldn't save your changes", error.message);
+    });
   }
 
   function showInfo(field) {
@@ -99,6 +110,16 @@ function VoiceEditor({ userId, seed, navigation }) {
             maxTagLength={PERSONA_LIMITS.contentTag}
           />
         </Field>
+        <Section>
+          <Row label="Adult content">
+            <Switch
+              value={persona?.adultContent ?? false}
+              onValueChange={handleAdultContentChange}
+              disabled={persona === undefined}
+              accessibilityLabel="Adult content"
+            />
+          </Row>
+        </Section>
         <Field label={voiceFields.rules.label} onInfo={() => showInfo('rules')}>
           <RulesField
             rules={rules}

@@ -19,6 +19,11 @@ export const ALREADY_IN_FAVORITES = 'Already in Favorites';
 
 const newestFirst = [desc(t.createdAt), desc(t.id)];
 
+/** A favorite's text as it is stored and matched: trimmed. */
+export function favoriteText(text: string): string {
+  return text.trim();
+}
+
 /** The live favorites, newest first. */
 export async function readFavorites(db: SyncDb): Promise<FavoriteRecord[]> {
   return (await db
@@ -48,7 +53,7 @@ export async function countFavorites(db: SyncDb): Promise<number> {
  * each once, and none a live favorite already has. Returns the ones it created.
  */
 export async function addFavorites(db: SyncDb, texts: string[], source: string | null): Promise<FavoriteRecord[]> {
-  const wanted = [...new Set(texts.map((text) => text.trim()).filter(Boolean))];
+  const wanted = [...new Set(texts.map(favoriteText).filter(Boolean))];
   if (wanted.length === 0) return [];
   return db.transaction(async (tx) => {
     const existing = await tx
@@ -66,7 +71,7 @@ export async function addFavorites(db: SyncDb, texts: string[], source: string |
 
 /** Change a favorite's text (trimmed); throws ALREADY_IN_FAVORITES when another live one has it. */
 export async function updateFavorite(db: SyncDb, id: string, text: string): Promise<void> {
-  const trimmed = text.trim();
+  const trimmed = favoriteText(text);
   await db.transaction(async (tx) => {
     const [twin] = await tx
       .select({ id: t.id })

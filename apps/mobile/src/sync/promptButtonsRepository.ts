@@ -12,7 +12,7 @@ import { and, asc, count, desc, eq, isNull } from 'drizzle-orm';
 import { nextVersion } from './clock';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
-import { readByIds } from './readByIds';
+import { readByIdMap, readByIds } from './readByIds';
 import { makeRepository } from './repository';
 import { saveRecords } from './saveRecords';
 import { isFirstSyncDone } from './status';
@@ -25,6 +25,8 @@ import newRecord from '@/utils/newRecord';
 type PromptButtonChanges = Partial<Pick<PromptButtonRecord, 'name' | 'prompt' | 'placement' | 'icon'>>;
 
 const t = schema.promptButtons;
+// A seeded default's clock: older than any real write, so every edit of the default wins over it.
+const SEED_CLOCK = 1;
 const repository = makeRepository<PromptButtonRecord>('prompt_buttons', t);
 
 /** The live buttons, by placement, each placement in its order. */
@@ -115,10 +117,15 @@ export async function movePromptButton(db: SyncDb, id: string, afterId: string |
 }
 
 /**
- * Insert `defaults` once per library: only after the first full pull (which brings another device's
- * buttons and deletions) and while the table has no rows at all, tombstones included, so deleting
- * every button never brings the defaults back. Their ids are fixed, so two devices that both seed
- * before syncing converge on one row each. Returns whether it seeded.
+ * Insert each of `defaults` once per library: only after the first full pull (which brings another
+ * device's buttons and deletions), and only the defaults whose id the table doesn't hold yet,
+ * tombstones included, so a deleted default never comes back and one moved to another placement stays
+ * where it is. A default added in a later version reaches a library that already has buttons once,
+ * at the end of its placement. Their ids are fixed, so two devices that both seed before syncing
+ * converge on one row each. A seeded button carries the lowest clock (SEED_CLOCK): a device can seed
+ * before this launch's pull has brought another device's deletion or move of that default, and any
+ * real edit, tombstone included, then wins over the seed on the server (the push answers
+ * `skipped-lww` with the stored row). Returns whether it seeded any.
  */
 export async function seedPromptButtons(
   db: SyncDb,
@@ -126,14 +133,21 @@ export async function seedPromptButtons(
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
     if (!(await isFirstSyncDone(tx))) return false;
-    const [{ rows }] = await tx.select({ rows: count() }).from(t);
-    if (rows > 0) return false;
-    const last = new Map<string, string | null>();
-    const records = defaults.map((button) => {
-      const position = keyBetween(last.get(button.placement) ?? null, null);
+    const held = await readByIdMap(
+      tx,
+      t,
+      defaults.map((button) => button.id),
+    );
+    const missing = defaults.filter((button) => !held.has(button.id));
+    if (missing.length === 0) return false;
+    const last = new Map<string, string>();
+    const records = [];
+    for (const button of missing) {
+      const before = last.get(button.placement);
+      const position = before ? keyBetween(before, null) : await positionAtEnd(tx, button.placement);
       last.set(button.placement, position);
-      return newRecord(promptButtonCollection, {}, { ...button, position });
-    });
+      records.push(newRecord(promptButtonCollection, {}, { ...button, position, updatedAt: SEED_CLOCK }));
+    }
     await saveRecords(tx, 'prompt_buttons', t, records, { isNew: true });
     return true;
   });

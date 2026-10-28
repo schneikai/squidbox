@@ -2,19 +2,15 @@
 // instructions and content themes, their chosen vision model or the default one.
 import type { Db } from '../db/client.js';
 import type { User } from '../db/schema.js';
-import { AppError } from '../errors.js';
-import { catalogAsync, findModel } from './catalog.js';
 import { readInstructions } from './instructions.js';
-import { readChosenModelId } from './modelChoices.js';
 import { readPersona } from './persona.js';
 import { visionMessages } from './prompts.js';
-import { photoTagsTask, runTask } from './tasks.js';
-import { VeniceError } from './venice.js';
+import { photoTagsTask, runChosenModelTask } from './tasks.js';
 
 /**
  * The tags the user's vision model sees in the photo, as many as fit the asset. 502 ai_unavailable
- * when the model is gone or can't see photos, when Venice fails, or when no tag fits; anything else
- * is the error handler's 500. `signal` stops the Venice call.
+ * when the model is gone or can't see photos, when Venice fails, or when no tag fits
+ * (runChosenModelTask). `signal` stops the Venice call.
  */
 export async function tagPhotoAsync({
   db,
@@ -27,25 +23,21 @@ export async function tagPhotoAsync({
   image: { base64: string; mimeType: string };
   signal?: AbortSignal;
 }): Promise<string[]> {
-  const [persona, instructions, modelId, catalog] = await Promise.all([
-    readPersona(db, user.id),
-    readInstructions(db, user),
-    readChosenModelId(db, user.id, 'vision'),
-    catalogAsync(),
-  ]);
-  const found = findModel(catalog.entries, modelId, 'vision');
-  if ('error' in found) throw AppError.aiUnavailable(`Your vision model: ${found.error}`);
-  const messages = visionMessages({
-    prompt: instructions.visionTagging,
-    imageDataUrl: `data:${image.mimeType};base64,${image.base64}`,
-    instructions,
-    contentTags: persona?.contentTags ?? [],
-  });
-  try {
-    const { tags } = await runTask({ task: photoTagsTask, messages, model: found.entry, signal });
-    return tags;
-  } catch (error) {
-    if (error instanceof VeniceError) throw AppError.aiUnavailable(error.message);
-    throw error;
+  async function messagesAsync() {
+    const [persona, instructions] = await Promise.all([readPersona(db, user.id), readInstructions(db, user)]);
+    return visionMessages({
+      prompt: instructions.visionTagging,
+      imageDataUrl: `data:${image.mimeType};base64,${image.base64}`,
+      contentTags: persona?.contentTags ?? [],
+    });
   }
+  const { tags } = await runChosenModelTask({
+    db,
+    userId: user.id,
+    kind: 'vision',
+    task: photoTagsTask,
+    messagesAsync: messagesAsync(),
+    signal,
+  });
+  return tags;
 }

@@ -1,11 +1,9 @@
 import { useNavigation } from '@react-navigation/native';
-import { useMemo } from 'react';
 import { Text } from 'react-native';
 
 import ThumbnailRow from '@/components/ThumbnailRow';
-import sortAlbumsByCustomOrder from '@/features/album-list/actions/sort-albums-action/sortAlbumsByCustomOrder';
 import albumLastPostedText from '@/features/album-list/albumLastPostedText';
-import useAlbumRows from '@/features/album-list/useAlbumRows';
+import useAssetAlbums from '@/hooks/useAssetAlbums';
 import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
 
@@ -19,8 +17,7 @@ const identity = (onPress) => onPress;
  */
 export default function AssetAlbums({ assetIds, emptyText, guardPress = identity, isLive }) {
   const navigation = useNavigation();
-  const { rows } = useAlbumRows({ assetIds }, { isLive });
-  const albums = useMemo(() => rows && [...rows].sort(sortAlbumsByCustomOrder), [rows]);
+  const albums = useAssetAlbums(assetIds, { isLive });
 
   if (!albums) return null;
   if (albums.length === 0) return <Text style={listTextStyles.subtitle}>{emptyText}</Text>;

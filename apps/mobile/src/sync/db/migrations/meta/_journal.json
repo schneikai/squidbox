@@ -162,6 +162,27 @@
       "when": 1793032178154,
       "tag": "0022_photo_tags",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1793088689454,
+      "tag": "0023_chat_prompts",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1793171731918,
+      "tag": "0024_merge_prompts",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1793180395894,
+      "tag": "0025_adult_content",
+      "breakpoints": true
     }
   ]
 }

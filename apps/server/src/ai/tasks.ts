@@ -1,8 +1,19 @@
 // What the assistant asks a model for: the JSON shape of the reply and the check it must pass, and
 // the one call that runs a task on a model (a compare runs it on several at once).
-import { ASSET_TAG_LIMITS, assetTagSchema, uniqueTags, WRITING_TWEET_COUNT } from '@squidbox/shared';
-import type { CatalogEntry } from './catalog.js';
-import { tagsSchema, tweetsSchema } from './prompts.js';
+import {
+  ASSET_TAG_LIMITS,
+  assetTagSchema,
+  CHAT_LIMITS,
+  uniqueTags,
+  WRITING_TWEET_COUNT,
+  type AiModelKind,
+  type ChatReply,
+} from '@squidbox/shared';
+import type { Db } from '../db/client.js';
+import { AppError } from '../errors.js';
+import { catalogAsync, findModel, type CatalogEntry } from './catalog.js';
+import { readChosenModelId } from './modelChoices.js';
+import { chatReplyJsonSpec, tagsSchema } from './prompts.js';
 import { chatJsonAsync, VeniceError, type ChatMessage, type JsonSchemaSpec } from './venice.js';
 
 /** The trimmed tweets when there are exactly WRITING_TWEET_COUNT non-empty ones; throws otherwise. */
@@ -11,6 +22,23 @@ export function checkTweets(tweets: string[]): string[] {
   if (kept.length !== WRITING_TWEET_COUNT) {
     throw new VeniceError(`Returned ${kept.length} tweets instead of ${WRITING_TWEET_COUNT}`);
   }
+  return kept;
+}
+
+/**
+ * A chat reply trimmed to chatReplySchema, so the app can send it back: the reply and each post option
+ * cut to CHAT_LIMITS.message, the non-empty options, the first CHAT_LIMITS.posts of them; throws when
+ * neither is left (a useless reply, so Retry shows).
+ */
+export function checkChatReply({ reply, postOptions }: ChatReply): ChatReply {
+  const kept = {
+    reply: reply.trim().slice(0, CHAT_LIMITS.message),
+    postOptions: postOptions
+      .map((option) => option.trim().slice(0, CHAT_LIMITS.message))
+      .filter(Boolean)
+      .slice(0, CHAT_LIMITS.posts),
+  };
+  if (!kept.reply && kept.postOptions.length === 0) throw new VeniceError('Returned neither a reply nor posts');
   return kept;
 }
 
@@ -37,12 +65,40 @@ export function fitTags(tags: string[]): string[] {
   return kept;
 }
 
-/** What the assistant asks a model for, and the check its reply must pass to be its result. */
-export type AiTask<T> = { schema: JsonSchemaSpec<T>; check: (reply: T) => T };
+/**
+ * What the assistant asks a model for, and the check its reply must pass to be its result, on the
+ * model's own defaults. `onUnreadable`: what a reply that isn't the schema's JSON becomes (its text),
+ * instead of failing.
+ */
+export type AiTask<T> = {
+  schema: JsonSchemaSpec<T>;
+  check: (reply: T) => T;
+  onUnreadable?: (content: string, json: unknown) => T;
+};
 
-export const writingTask: AiTask<{ tweets: string[] }> = {
-  schema: tweetsSchema,
-  check: ({ tweets }) => ({ tweets: checkTweets(tweets) }),
+// A compare's posts: the chat's reply schema, with exactly WRITING_TWEET_COUNT options.
+export const writingTask: AiTask<ChatReply> = {
+  schema: chatReplyJsonSpec,
+  check: (reply) => ({ ...reply, postOptions: checkTweets(reply.postOptions) }),
+};
+
+/**
+ * A chat reply that isn't quite the schema's JSON, read as far as it goes: its `reply` when that is a
+ * string, with the `postOptions` that are strings (none when it has no list); without a `reply`
+ * string, the model's whole text is the reply.
+ */
+export function readChatReplyLeniently(content: string, json: unknown): ChatReply {
+  const { reply, postOptions } = (json ?? {}) as { reply?: unknown; postOptions?: unknown };
+  if (typeof reply !== 'string') return { reply: content, postOptions: [] };
+  const options = Array.isArray(postOptions) ? postOptions : [];
+  return { reply, postOptions: options.filter((option): option is string => typeof option === 'string') };
+}
+
+// A chat reply that isn't the JSON is still the model's answer.
+export const chatTask: AiTask<ChatReply> = {
+  schema: chatReplyJsonSpec,
+  check: checkChatReply,
+  onUnreadable: readChatReplyLeniently,
 };
 
 // A compare's tags: as many as the prompt asked for.
@@ -77,7 +133,43 @@ export async function runTask<T>({
     messages,
     schema: task.schema,
     supportsResponseSchema: model.model_spec.capabilities.supportsResponseSchema !== false,
+    onUnreadable: task.onUnreadable,
     signal,
   });
   return task.check(reply);
+}
+
+/**
+ * Runs the task on the user's chosen model of `kind` (or the default one) with the messages
+ * `messagesAsync` resolves to, read meanwhile. 502 ai_unavailable when the model is gone or can't do
+ * the kind, or when Venice fails; anything else is the error handler's 500. `signal` stops the call.
+ */
+export async function runChosenModelTask<T>({
+  db,
+  userId,
+  kind,
+  task,
+  messagesAsync,
+  signal,
+}: {
+  db: Db;
+  userId: string;
+  kind: AiModelKind;
+  task: AiTask<T>;
+  messagesAsync: Promise<ChatMessage[]>;
+  signal?: AbortSignal;
+}): Promise<T> {
+  const [modelId, catalog, messages] = await Promise.all([
+    readChosenModelId(db, userId, kind),
+    catalogAsync(),
+    messagesAsync,
+  ]);
+  const found = findModel(catalog.entries, modelId, kind);
+  if ('error' in found) throw AppError.aiUnavailable(`Your ${kind} model: ${found.error}`);
+  try {
+    return await runTask({ task, messages, model: found.entry, signal });
+  } catch (error) {
+    if (error instanceof VeniceError) throw AppError.aiUnavailable(error.message);
+    throw error;
+  }
 }

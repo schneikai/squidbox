@@ -19,11 +19,12 @@ const catalog = [
   model('z-ai-glm-5-3', 'GLM 5.3', false),
   model('gemma-4-uncensored', 'Gemma 4 Uncensored'),
   model('venice-uncensored-1-2', 'Venice Uncensored 1.2'),
+  model('claude-sonnet-5-5', 'Claude Sonnet 5.5', false),
 ];
 
 describe('modelsOfKind', () => {
   it('is every model for writing and those that see photos for vision', () => {
-    expect(modelsOfKind(catalog, 'writing')).toHaveLength(4);
+    expect(modelsOfKind(catalog, 'writing')).toHaveLength(5);
     expect(modelsOfKind(catalog, 'vision').map(({ id }) => id)).toEqual([
       'kimi-k3',
       'gemma-4-uncensored',
@@ -62,9 +63,9 @@ describe('joinYourModels', () => {
 
 describe('seedModels', () => {
   it("is the starting list's models that the catalog still has, in the seed order", () => {
+    // writing: the verified models
     expect(seedModels(modelsOfKind(catalog, 'writing'), 'writing').map(({ id }) => id)).toEqual([
-      'venice-uncensored-1-2',
-      'z-ai-glm-5-3',
+      'claude-sonnet-5-5',
       'kimi-k3',
     ]);
     expect(seedModels(modelsOfKind(catalog, 'vision'), 'vision').map(({ id }) => id)).toEqual([

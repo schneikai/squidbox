@@ -1,3 +1,4 @@
+import { PERSONA_LIMITS } from '@squidbox/shared';
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
@@ -5,7 +6,7 @@ import { makeTestDb } from './helpers/testDb';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { clearOutboxRows } from '../src/sync/outbox';
-import { EMPTY_PERSONA, readPersona, savePersona } from '../src/sync/personaRepository';
+import { addRule, EMPTY_PERSONA, readPersona, savePersona } from '../src/sync/personaRepository';
 
 const USER = '6f1c1c39-6c1c-4a36-9d0e-2d6c1ad4e0f1';
 const filled = {
@@ -80,5 +81,17 @@ describe('personaRepository', () => {
     const db = makeTestDb();
     await savePersona(db, USER, {});
     expect(await readPersona(db, USER)).toBeNull();
+  });
+
+  it('adds a rule once, within the limits', async () => {
+    const db = makeTestDb();
+    expect(await addRule(db, USER, ' Never use hashtags ')).toBe('added');
+    expect(await addRule(db, USER, 'Never use hashtags')).toBe('present');
+    expect(await addRule(db, USER, 'x'.repeat(PERSONA_LIMITS.rule + 1))).toBe('tooLong');
+    expect((await readPersona(db, USER))!.rules).toEqual(['Never use hashtags']);
+    const rules = Array.from({ length: PERSONA_LIMITS.rules }, (_, i) => `Rule ${i}`);
+    await savePersona(db, USER, { rules });
+    expect(await addRule(db, USER, 'One more')).toBe('full');
+    expect((await readPersona(db, USER))!.rules).toEqual(rules);
   });
 });

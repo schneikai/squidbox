@@ -1,7 +1,7 @@
 // The one reader of Venice's model list. GET /models answers every model Venice offers right now;
 // new models show up and dropped ones disappear with no code change here. The list is cached in
 // memory for a few minutes, and a failed refresh throws: it never serves stale data silently.
-import type { AiModelKind, ApiAiModel } from '@squidbox/shared';
+import { VERIFIED_MODELS, type AiModelKind, type ApiAiModel } from '@squidbox/shared';
 import { z } from 'zod';
 import { orAiUnavailable, veniceGetJson } from './venice.js';
 
@@ -75,9 +75,21 @@ export function clearCatalogCache(): void {
   cache = null;
 }
 
-/** Venice's own uncensored label: "Uncensored" in the name, or its most_uncensored trait. */
+// The models VERIFIED_MODELS marks unrestricted, of either kind.
+const UNRESTRICTED_IDS = new Set(
+  Object.values(VERIFIED_MODELS).flatMap((models) => models.filter((model) => model.unrestricted).map(({ id }) => id)),
+);
+
+/**
+ * Whether the app labels the model Uncensored: Venice's own label ("Uncensored" in the name, or its
+ * most_uncensored trait), or VERIFIED_MODELS marking it unrestricted (an abliterated model, say).
+ */
 export function isUncensored(entry: CatalogEntry): boolean {
-  return /uncensored/i.test(entry.model_spec.name) || entry.model_spec.traits.includes('most_uncensored');
+  return (
+    /uncensored/i.test(entry.model_spec.name) ||
+    entry.model_spec.traits.includes('most_uncensored') ||
+    UNRESTRICTED_IDS.has(entry.id)
+  );
 }
 
 function costUsd(entry: CatalogEntry, inputTokens: number, outputTokens: number): number {

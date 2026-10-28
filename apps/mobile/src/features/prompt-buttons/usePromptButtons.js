@@ -8,7 +8,7 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
 
 /**
  * The prompt buttons, live, grouped by placement in their order (`{ post: [...], newPost: [...],
- * refine: [...] }`), undefined while reading.
+ * caption: [...], refine: [...] }`), undefined while reading.
  */
 export default function usePromptButtons() {
   const rows = useLiveQuery((db) => readPromptButtons(db), [schema.promptButtons]);

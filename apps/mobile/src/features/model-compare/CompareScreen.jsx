@@ -9,7 +9,7 @@ import { readPrompt, readVisionPhotos } from '@/sync/aiStateRepository';
 import { readInstructions } from '@/sync/instructionsRepository';
 
 // The writing compare's sample request before the first compare; after it, the last one used. The
-// server adds the user's writing instructions and asks for the post count itself.
+// server sends it after the user's Writing briefing, filled without a post.
 const WRITING_PROMPT =
   'Write posts about a sunrise hike for my followers. Calm, a little dry. Under 200 characters each.';
 

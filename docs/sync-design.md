@@ -844,7 +844,10 @@ columns. One record per album and asset.
 columns. The edge id is the `assetRefs[].id` the UI sees.
 
 **personas** ("Writing as you", Settings → Assistant). Synced: `aboutYou`, `tone`,
-`contentTags` (string[]), `rules` (string[]), plus the base columns (`examplePosts` left for
+`contentTags` (string[]), `rules` (string[]), `adultContent` (the Adult content switch, which picks
+the default writing model while none is chosen, `resolveModelId` on the server and in the app;
+optional and false while unset, so a push from a build without it keeps the stored value; server
+0023, app 0025), plus the base columns (`examplePosts` left for
 `favorites` in migration 0012/0016, and `useEmoji` was dropped in 0014/0018, Tone and Rules saying how
 to use emoji; both unreleased, so no carry-over, and a push from an older build that still sends
 `useEmoji` has it stripped by the schema like any unknown field). One record per user: its `id` is the user's id, so every device writes the same record and
@@ -855,12 +858,18 @@ new clock. A save names only the fields the user changed in the editor, the firs
 (its record goes whole, but only those fields carry clocks), so a device that hasn't pulled
 another's persona yet never overwrites it with empty fields. No field groups.
 
-**prompt_buttons** (the chat's one-tap prompts). Synced: `name`, `prompt`, `placement` (`post` |
-`newPost` | `refine`), `icon` (an Icon name or null), `position` (a fractional-index key, the order
-within the placement by `(position, id)`), plus the base columns. A button for two places is two
-records. The app seeds a default set once per library, only while the table has no rows at all
-(tombstones included), with fixed ids, so a deleted default never comes back and two devices that
-both seed converge on one row each.
+**prompt_buttons** (the chat's one-tap prompts). Synced: `name`, `prompt`, `placement` (`post` on a
+post, `newPost` on a new post, `caption` under the caption in the editor, `refine` under every reply
+in the chat), `icon` (an Icon name or null), `position` (a fractional-index key, the order within the
+placement by `(position, id)`), plus the base columns. A button for two places is two records. The
+defaults have fixed ids (`DEFAULT_PROMPT_BUTTONS`). After the library's first full pull the app
+seeds each default whose id the table doesn't hold, tombstones included, at the end of its
+placement: so a deleted default never comes back, one moved to another placement stays there, a
+default added in a later version reaches a library with buttons once, and two devices that both
+seed converge on one row each. A seeded row carries the lowest clock (1, `SEED_CLOCK` in
+`promptButtonsRepository.ts`): a device may seed before this launch's pull brings another device's
+deletion or move of that default, and any real write then wins over the seed (the push answers
+`skipped-lww` with the stored row).
 
 **favorites** (Settings → Assistant → Favorites: the posts the assistant writes like). Synced:
 `text`, `source` (the prompt button's name for an option hearted in the chat, null for the user's
@@ -871,14 +880,20 @@ by writing `deletedAt: null`, a per-field write that a later tombstone from anot
 beats by its clock. The writing prompt sends the newest 20 (`FAVORITES_IN_PROMPT`).
 
 **instructions** (Settings → Assistant → Instructions: what the assistant is told before each
-request). Synced: `writing`, `visionTagging` and the app prompts (`writingFormat`, `tagsSystem`,
-`themesContext`, `personaFraming`: the server's own texts around them, templates it fills in, editable
-in the dev client for trying a change on one account), each the user's text or null for the
-app's default (`DEFAULT_INSTRUCTIONS` in `packages/shared`, resolved by `resolveInstructions`), plus
-the base columns. One record per user with the user's id as its id, like `personas`, so two devices
-editing different kinds merge per field, and Reset is a per-field write of null that wins or loses by
-its clock like any edit. A text equal to the default is stored as null. The reply format each kind
-needs (the post count, the JSON) is the server's and never stored.
+request). Synced: `writing` (the writing briefing: the chat's whole system message and the
+Compare's, filled with the persona, the Favorites and the post), `visionTagging` (the photo tags
+briefing, the system message of every tags request, filled with Your content's themes) and
+`moreLikeThis` (what the chat's More like this sends), templates the server fills in, each the
+user's text or null for the app's default (`DEFAULT_INSTRUCTIONS` in `packages/shared`, resolved by
+`resolveInstructions`), plus the base columns. Migrations 0022 (server) and 0024 (app) dropped the
+earlier app prompts (`writingFormat`, `tagsSystem`, `themesContext`, `personaFraming`,
+`chatContext`) and reset `writing` and `visionTagging` to the default, their meaning having changed;
+the server's reset carries a fresh clock for both fields and a new `server_seq`, so every device
+pulls it and an older pending edit loses. One record per user with the user's id as its id, like
+`personas`, so two devices editing different kinds merge per field, and Reset is a per-field write
+of null that wins or loses by its clock like any edit. A text equal to the default is stored as
+null. The schema each reply is read with (`chat_reply`, the tags list) is the server's and never
+stored.
 
 **model_choices** (Settings → Assistant → Models: the model the assistant uses). Synced per kind:
 `writingModel` and `visionModel`, each `{ id, name }` (the name for a model Venice no longer offers)

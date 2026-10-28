@@ -103,3 +103,62 @@ export type TagPhotoRequest = z.infer<typeof tagPhotoRequestSchema>;
 
 export const tagPhotoResponseSchema = z.object({ tags: z.array(assetTagSchema).max(ASSET_TAG_LIMITS.tags) });
 export type TagPhotoResponse = z.infer<typeof tagPhotoResponseSchema>;
+
+// POST /ai/chat — the assistant chat: the writing model answers the transcript as the creator's
+// collaborator, with post options only when asked, briefed by instructions.writing filled with
+// their persona, Favorites and the post. Nothing is stored: the app sends the whole chat each time.
+export const CHAT_LIMITS = {
+  messages: 30,
+  message: 4000,
+  text: 4000,
+  tags: 100,
+  mentions: 30,
+  mention: 80,
+  posts: 10,
+} as const;
+
+// The chat's subject, a post open in the editor: 'draft' a new one, 'edit' one of the user's posts.
+// PR 3 adds 'post' (a published post, outside the editor).
+export const chatSubjectKindSchema = z.enum(['draft', 'edit']);
+export type ChatSubjectKind = z.infer<typeof chatSubjectKindSchema>;
+
+// What the chat is about, as the app sees it when it sends: the server fills the briefing with its
+// media, tags, mentions and `text` (the {caption}); `kind` is only the app's (ChatSubjectCard), the
+// default briefing doesn't name it. The app cuts `text` to CHAT_LIMITS.text (a post's text has no
+// cap) so a long caption never makes a 400.
+export const chatContextSchema = z.object({
+  kind: chatSubjectKindSchema,
+  text: z.string().max(CHAT_LIMITS.text),
+  media: z.object({ photo: z.number().int().min(0), video: z.number().int().min(0) }),
+  tags: z.array(assetTagSchema).max(CHAT_LIMITS.tags),
+  mentions: z.array(z.string().min(1).max(CHAT_LIMITS.mention)).max(CHAT_LIMITS.mentions),
+});
+export type ChatContext = z.infer<typeof chatContextSchema>;
+
+// A reply: what the assistant says, and options for the post only when the user asked for posts.
+// `chatReplyFieldsSchema` is how the server reads a model's answer, unbounded (checkChatReply trims
+// and cuts it to fit); `chatReplySchema` is the checked reply the app gets and sends back.
+export const chatReplyFieldsSchema = z.object({ reply: z.string(), postOptions: z.array(z.string()) });
+export const chatReplySchema = chatReplyFieldsSchema.extend({
+  reply: chatReplyFieldsSchema.shape.reply.max(CHAT_LIMITS.message),
+  postOptions: z.array(z.string().min(1).max(CHAT_LIMITS.message)).max(CHAT_LIMITS.posts),
+});
+export type ChatReply = z.infer<typeof chatReplySchema>;
+
+// The transcript so far: the user's turns and the assistant's replies, oldest first, ending with the
+// user's new turn.
+export const chatTurnSchema = z.union([
+  z.object({ role: z.literal('user'), content: z.string().trim().min(1).max(CHAT_LIMITS.message) }),
+  chatReplySchema.extend({ role: z.literal('assistant') }),
+]);
+export type ChatTurn = z.infer<typeof chatTurnSchema>;
+
+export const chatRequestSchema = z.object({
+  context: chatContextSchema,
+  messages: z
+    .array(chatTurnSchema)
+    .min(1)
+    .max(CHAT_LIMITS.messages)
+    .refine((turns) => turns[turns.length - 1]!.role === 'user', "The last turn is the user's"),
+});
+export type ChatRequest = z.infer<typeof chatRequestSchema>;

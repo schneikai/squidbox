@@ -166,6 +166,7 @@ export const personas = sqliteTable('personas', {
   contentTags: text('content_tags', { mode: 'json' }).$type<string[]>().notNull(),
   tone: text('tone').notNull(),
   rules: text('rules', { mode: 'json' }).$type<string[]>().notNull(),
+  adultContent: integer('adult_content', { mode: 'boolean' }).notNull().default(false),
 });
 export type PersonaRow = typeof personas.$inferSelect;
 
@@ -176,7 +177,7 @@ export const promptButtons = sqliteTable('prompt_buttons', {
   deletedAt: integer('deleted_at'),
   name: text('name').notNull(),
   prompt: text('prompt').notNull(),
-  placement: text('placement', { enum: ['post', 'newPost', 'refine'] }).notNull(),
+  placement: text('placement', { enum: ['post', 'newPost', 'caption', 'refine'] }).notNull(),
   icon: text('icon'),
   position: text('position').notNull(),
 });
@@ -202,10 +203,7 @@ export const instructions = sqliteTable('instructions', {
   deletedAt: integer('deleted_at'),
   writing: text('writing'),
   visionTagging: text('vision_tagging'),
-  writingFormat: text('writing_format'),
-  tagsSystem: text('tags_system'),
-  themesContext: text('themes_context'),
-  personaFraming: text('persona_framing'),
+  moreLikeThis: text('more_like_this'),
 });
 export type InstructionRow = typeof instructions.$inferSelect;
 

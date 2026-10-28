@@ -69,4 +69,17 @@ describe('instructionsRepository', () => {
     const [row] = await outbox(db);
     expect(Object.keys(row!.fields)).toEqual(expect.arrayContaining(['visionTagging', 'deletedAt']));
   });
+
+  it("gives every account its own texts, and the app's for the kinds it hasn't changed", async () => {
+    const db = makeTestDb();
+    await saveInstruction(db, USER, 'writing', MINE);
+    await saveInstruction(db, USER, 'moreLikeThis', 'Again, please.');
+    const stored = await readInstructions(db, USER);
+    expect(resolveInstructions(stored)).toEqual({
+      ...DEFAULT_INSTRUCTIONS,
+      writing: MINE,
+      moreLikeThis: 'Again, please.',
+    });
+    expect(resolveInstructions(null)).toEqual(DEFAULT_INSTRUCTIONS);
+  });
 });

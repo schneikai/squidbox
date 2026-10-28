@@ -3,6 +3,8 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   aiBalanceResponseSchema,
   aiModelsResponseSchema,
+  chatReplySchema,
+  chatRequestSchema,
   compareVisionRequestSchema,
   compareVisionResponseSchema,
   compareWritingRequestSchema,
@@ -16,6 +18,7 @@ import { AppError } from '../errors.js';
 import { authenticate, requireFeature, requireUser } from '../auth/authenticate.js';
 import { fetchBalanceAsync } from './balance.js';
 import { catalogAsync, findModel, type CatalogEntry } from './catalog.js';
+import { chatAsync } from './chat.js';
 import { compareModels } from './compare.js';
 import { readInstructions } from './instructions.js';
 import { readFavorites, readPersona } from './persona.js';
@@ -103,6 +106,19 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       },
     });
 
+    // POST /ai/chat — the assistant chat: the user's writing model answers the transcript, with post
+    // options when asked, about the chat's post (Write with AI in the post editor). Nothing is stored.
+    r.route({
+      method: 'POST',
+      url: '/ai/chat',
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+      schema: { body: chatRequestSchema, response: { 200: chatReplySchema } },
+      handler: async (request, reply) => {
+        const signal = untilClientLeaves(reply);
+        return chatAsync({ db: getDb(), user: requireUser(request), request: request.body, signal });
+      },
+    });
+
     // The ai_admin routes (the compares, the Venice balance): 403 ai_admin_not_allowed for an
     // account without the `ai_admin` feature, so a new one can't skip that gate either.
     await ai.register(async (admin) => {
@@ -142,7 +158,12 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
           const results = await compareRequested(request.body.modelIds, 'writing', (models) =>
             compareModels({ task: writingTask, messages, models, log: request.log, signal }),
           );
-          return { results };
+          // A model's posts are its reply's options.
+          return {
+            results: results.map((result) =>
+              'error' in result ? result : { modelId: result.modelId, tweets: result.postOptions },
+            ),
+          };
         },
       });
 
@@ -158,14 +179,10 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
           const signal = untilClientLeaves(reply);
           const { base64, mimeType } = request.body.image;
           const user = requireUser(request);
-          const [persona, instructions] = await Promise.all([
-            readPersona(getDb(), user.id),
-            readInstructions(getDb(), user),
-          ]);
+          const persona = await readPersona(getDb(), user.id);
           const messages = visionMessages({
             prompt: request.body.prompt,
             imageDataUrl: `data:${mimeType};base64,${base64}`,
-            instructions,
             contentTags: persona?.contentTags ?? [],
           });
           const results = await compareRequested(request.body.modelIds, 'vision', (models) =>

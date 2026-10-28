@@ -24,5 +24,5 @@ export default function EditPostScreen({ route, navigation }) {
 
   if (!post) return null;
 
-  return <PostEditor post={post} navigation={navigation} onSave={handleUpdatePost} />;
+  return <PostEditor kind="edit" post={post} navigation={navigation} onSave={handleUpdatePost} />;
 }

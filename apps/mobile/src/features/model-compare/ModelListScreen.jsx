@@ -2,6 +2,7 @@ import { COMPARE_MIN_MODELS } from '@squidbox/shared';
 import { StyleSheet } from 'react-native';
 
 import ModelRow from './ModelRow';
+import isVerifiedModel from './isVerifiedModel';
 import modelKindText from './modelKindText';
 
 import CatalogStatus from '@/components/CatalogStatus';
@@ -38,6 +39,7 @@ export default function ModelListScreen({ navigation, route }) {
 
   const availableCount = rows?.filter((row) => row.model !== null).length ?? 0;
   const hasScores = isAiAdmin && (rows?.some(({ score }) => score !== null) ?? false);
+  const hasVerified = rows?.some((row) => row.model !== null && isVerifiedModel(kind, row.id)) ?? false;
   const text = modelKindText[kind];
 
   async function handleChoose(row) {
@@ -78,6 +80,7 @@ export default function ModelListScreen({ navigation, route }) {
             />
           ))}
         </Section>
+        {hasVerified && <SectionFooter>{text.verified}</SectionFooter>}
         {isAiAdmin && <SectionFooter>{text.footer}</SectionFooter>}
         {isAiAdmin && text.note && <SectionFooter>{text.note}</SectionFooter>}
       </>

@@ -114,6 +114,17 @@ describe('isUncensored', () => {
     );
   });
 
+  it('is true for a model VERIFIED_MODELS marks unrestricted, whatever Venice says', async () => {
+    const plain = byId(await catalog(), 'kimi-k3');
+    const abliterated = {
+      ...plain,
+      id: 'abliteration-abliterated-model-large-flash',
+      model_spec: { ...plain.model_spec, name: 'Abliterated Large Flash', traits: [] },
+    };
+    expect(isUncensored(abliterated)).toBe(true);
+    expect(toApiModel(abliterated).isUncensored).toBe(true);
+  });
+
   it('is false for GLM, Grok and Kimi', async () => {
     const entries = await catalog();
     for (const id of ['z-ai-glm-5-3', 'grok-4-7', 'kimi-k3']) expect(isUncensored(byId(entries, id))).toBe(false);

@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, interpolate, Extrapolation, useSharedValue } from 'react-native-reanimated';
 
 import FloatingPill from '@/components/floating-bars/FloatingPill';
@@ -22,13 +22,14 @@ import { colors, layout, sizes, typography } from '@/styles/designTokens';
  *   leftSlot    ReactElement  — typically <ModalCloseButton>
  *   rightSlot   ReactElement  — e.g. icon buttons; auto-wrapped in FloatingPill
  *   centerSlot  string | ReactElement
+ *   subtitle    string (optional) — a smaller grey line under a string title
  *   centerStyle "plain" (default) | "pill"  — wraps string title in FloatingPill when "pill"
  *   scrollY     Reanimated SharedValue<number> (optional) — drives title fade-out on scroll
  */
 
 export const MODAL_HEADER_HEIGHT = sizes.iconButton + layout.barBottom * 2 + 8;
 
-export default function ModalHeader({ leftSlot, rightSlot, centerSlot, centerStyle = 'plain', scrollY }) {
+export default function ModalHeader({ leftSlot, rightSlot, centerSlot, subtitle, centerStyle = 'plain', scrollY }) {
   // Stable fallback so animated style always has a value to read
   const fallback = useSharedValue(0);
   const anim = scrollY ?? fallback;
@@ -39,9 +40,16 @@ export default function ModalHeader({ leftSlot, rightSlot, centerSlot, centerSty
 
   const center =
     typeof centerSlot === 'string' ? (
-      <Animated.Text style={[styles.centerTitle, titleStyle]} numberOfLines={1}>
-        {centerSlot}
-      </Animated.Text>
+      <Animated.View style={[styles.centerTitles, titleStyle]}>
+        <Text style={styles.centerTitle} numberOfLines={1}>
+          {centerSlot}
+        </Text>
+        {!!subtitle && (
+          <Text style={styles.centerSubtitle} numberOfLines={1}>
+            {subtitle}
+          </Text>
+        )}
+      </Animated.View>
     ) : (
       (centerSlot ?? null)
     );
@@ -96,9 +104,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: sizes.iconButton + layout.sideGutter,
   },
+  centerTitles: {
+    alignItems: 'center',
+  },
   centerTitle: {
     fontSize: typography.body,
     fontWeight: '600',
     color: colors.text.primary,
+  },
+  centerSubtitle: {
+    fontSize: typography.footnote,
+    color: colors.text.secondary,
   },
 });

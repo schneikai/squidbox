@@ -4,7 +4,7 @@ import type { z } from 'zod';
 import { loadConfig } from '../config.js';
 import { AppError } from '../errors.js';
 
-// Models think at their default effort, which can take a minute or two.
+// Models reason at their defaults, which can take a minute or two (Qwen 3.6 Plus: 35–69 s).
 const CHAT_TIMEOUT_MS = 150_000;
 const GET_TIMEOUT_MS = 15_000;
 
@@ -83,7 +83,7 @@ async function chatCompletionAsync({
       model,
       messages,
       ...extra,
-      // Every model runs on its own defaults (effort, thinking, reply length). Venice's own system
+      // Every model runs on Venice's defaults (reasoning, effort, reply length). Venice's own system
       // prompt would shape the reply, and thinking text must not reach it.
       venice_parameters: { include_venice_system_prompt: false, strip_thinking_response: true },
     }),
@@ -114,7 +114,9 @@ async function chatCompletionAsync({
 }
 
 /**
- * One chat completion whose reply is JSON of `schema`; anything else is a VeniceError. A model
+ * One chat completion whose reply is JSON of `schema`; anything else is a VeniceError, unless
+ * `onUnreadable` is given: then a reply that isn't that JSON is `onUnreadable(its text, the JSON
+ * object found in it or null)`. A model
  * without `supportsResponseSchema` is asked without the schema (the messages say the shape), and
  * its reply may wrap the JSON in a code fence or words.
  */
@@ -123,12 +125,14 @@ export async function chatJsonAsync<T>({
   messages,
   schema,
   supportsResponseSchema = true,
+  onUnreadable,
   signal,
 }: {
   model: string;
   messages: ChatMessage[];
   schema: JsonSchemaSpec<T>;
   supportsResponseSchema?: boolean;
+  onUnreadable?: (content: string, json: unknown) => T;
   signal?: AbortSignal;
 }): Promise<T> {
   const responseFormat = {
@@ -141,13 +145,15 @@ export async function chatJsonAsync<T>({
     signal,
     ...(supportsResponseSchema && { response_format: responseFormat }),
   });
-  const parsed = schema.zod.safeParse(parseJsonReply(content));
-  if (!parsed.success) throw new VeniceError("The reply couldn't be read");
-  return parsed.data;
+  const json = parseJsonReply(content);
+  const parsed = schema.zod.safeParse(json);
+  if (parsed.success) return parsed.data;
+  if (onUnreadable) return onUnreadable(content, json);
+  throw new VeniceError("The reply couldn't be read");
 }
 
 // The reply's JSON object: the whole reply, a ```json fenced block in it, or from its first { to
-// its last }.
+// its last }; null when there is none.
 function parseJsonReply(content: string): unknown {
   const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(content)?.[1] ?? '';
   for (const text of [content, fenced, content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1)]) {
@@ -157,7 +163,7 @@ function parseJsonReply(content: string): unknown {
       // the next form
     }
   }
-  throw new VeniceError("The reply couldn't be read");
+  return null;
 }
 
 // Venice answers errors as { error: { message } } or, on some routes, { error: "…" }.

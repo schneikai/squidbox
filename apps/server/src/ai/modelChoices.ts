@@ -1,9 +1,10 @@
 // The model the assistant uses for each kind: the user's synced `model_choices` record (its id is
-// the user's id), or the app's default while they have chosen none.
+// the user's id), or while they have chosen none the app's default for their persona's Adult
+// content switch (resolveModelId, as the app shows it).
 import { and, eq, isNull } from 'drizzle-orm';
-import { DEFAULT_MODEL_IDS, type AiModelKind } from '@squidbox/shared';
+import { resolveModelId, type AiModelKind } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
-import { modelChoices } from '../db/schema.js';
+import { modelChoices, personas } from '../db/schema.js';
 
 const columns = { writing: modelChoices.writingModel, vision: modelChoices.visionModel };
 
@@ -13,5 +14,10 @@ export async function readChosenModelId(db: Db, userId: string, kind: AiModelKin
     .select({ model: columns[kind] })
     .from(modelChoices)
     .where(and(eq(modelChoices.userId, userId), eq(modelChoices.id, userId), isNull(modelChoices.deletedAt)));
-  return row?.model?.id ?? DEFAULT_MODEL_IDS[kind];
+  if (row?.model) return row.model.id;
+  const [persona] = await db
+    .select({ adultContent: personas.adultContent })
+    .from(personas)
+    .where(and(eq(personas.userId, userId), eq(personas.id, userId), isNull(personas.deletedAt)));
+  return resolveModelId(kind, null, persona?.adultContent);
 }

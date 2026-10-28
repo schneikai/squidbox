@@ -96,6 +96,18 @@ describe('assetsRepository', () => {
     expect((await readByIds(db, schema.assets, ['a1']))[0].tags).toEqual([]);
   });
 
+  it('edits the stored tags with a function, and writes nothing when it returns null', async () => {
+    const { db } = makeMeasuredTestDb();
+    await repo.createMany(db, [makeAssetRecord({ id: 'a1' })]);
+    await repo.setTags(db, 'a1', ['forest']);
+    expect(await repo.setTags(db, 'a1', (stored) => [...(stored ?? []), 'fog'])).toEqual(['forest', 'fog']);
+    const [row] = await readByIds(db, schema.assets, ['a1']);
+    await clearOutboxRows(db, 'assets', ['a1']);
+    expect(await repo.setTags(db, 'a1', () => null)).toEqual(['forest', 'fog']);
+    expect((await readByIds(db, schema.assets, ['a1']))[0].updatedAt).toBe(row.updatedAt);
+    expect(await db.select().from(schema.outbox)).toHaveLength(0);
+  });
+
   it('stores no tags on a deleted or missing asset, and says so', async () => {
     const { db } = makeMeasuredTestDb();
     await repo.createMany(db, [makeAssetRecord({ id: 'a1', deletedAt: 5 })]);

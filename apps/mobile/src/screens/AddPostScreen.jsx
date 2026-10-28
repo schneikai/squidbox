@@ -29,7 +29,7 @@ export default function AddPostScreen({ route, navigation }) {
 
   if (!seed) return null;
 
-  return <PostEditor post={seed} navigation={navigation} onSave={handleAddPost} />;
+  return <PostEditor kind="draft" post={seed} navigation={navigation} onSave={handleAddPost} />;
 }
 
 async function readSeed(db, { rePostId, assetIds }) {

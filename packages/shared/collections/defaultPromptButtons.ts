@@ -51,6 +51,20 @@ export const DEFAULT_PROMPT_BUTTONS: readonly NewPromptButton[] = [
       'Write 3 posts about how these photos came about: where and when, and one detail from that day only I would know.',
   },
   {
+    id: 'feb830b9-dcfb-401d-8d7b-90b029be4d8d',
+    placement: 'caption',
+    name: 'Shorter',
+    icon: 'scissors',
+    prompt: 'Make this shorter. Keep the first line, cut the rest.',
+  },
+  {
+    id: '0ed89837-869a-4bee-85c0-0eccceb8ef89',
+    placement: 'caption',
+    name: 'Funnier',
+    icon: 'laugh',
+    prompt: 'Make this a little funnier. Same idea, one light twist.',
+  },
+  {
     id: '8f23a0a7-7d1c-48e4-985b-f930365d8a63',
     placement: 'refine',
     name: 'Shorter',

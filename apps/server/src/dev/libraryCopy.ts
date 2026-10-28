@@ -90,13 +90,22 @@ async function readLiveLibrary(liveUrl: string) {
   }
   const owner = { id: found[0]!.id, storageBucket: found[0]!.storage_bucket };
 
+  // The live database can be a migration or two behind this code: a column it doesn't have yet is
+  // left out of the read, and of the copied record, so the copy takes that field's default.
+  const liveColumns = (await live.transaction(
+    (tx) => [tx`select table_name, column_name from information_schema.columns where table_schema = 'public'`],
+    { readOnly: true },
+  )) as unknown as Array<Array<{ table_name: string; column_name: string }>>;
+  const hasColumn = new Set((liveColumns[0] ?? []).map((c) => `${c.table_name}.${c.column_name}`));
   const collections = Object.values(serverCollections);
+  const columnsOf = (col: (typeof collections)[number]) =>
+    Object.entries(col.wireColumns).filter(([, column]) => hasColumn.has(`${getTableName(col.table)}.${column.name}`));
   const results = (await live.transaction(
     (tx) =>
       collections.map((col) =>
         tx.query(
-          `select ${Object.values(col.wireColumns)
-            .map((column) => JSON.stringify(column.name))
+          `select ${columnsOf(col)
+            .map(([, column]) => JSON.stringify(column.name))
             .join(', ')} from ${JSON.stringify(getTableName(col.table))} where user_id = $1`,
           [owner.id],
         ),
@@ -109,7 +118,7 @@ async function readLiveLibrary(liveUrl: string) {
       col.descriptor.name,
       results[index]!.map((row) =>
         Object.fromEntries(
-          Object.entries(col.wireColumns).map(([key, column]) => {
+          columnsOf(col).map(([key, column]) => {
             const value = row[column.name];
             return [key, value === null || value === undefined ? null : column.mapFromDriverValue(value)];
           }),

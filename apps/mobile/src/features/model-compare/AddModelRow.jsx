@@ -3,6 +3,7 @@ import { StyleSheet, TouchableOpacity } from 'react-native';
 
 import ModelSummary from './ModelSummary';
 import formatCost from './formatCost';
+import isVerifiedModel from './isVerifiedModel';
 
 import Icon from '@/components/Icon';
 import { SCREEN_PADDING } from '@/constants';
@@ -23,7 +24,12 @@ function AddModelRow({ model, kind, isAdded, onAdd }) {
       accessibilityRole="button"
       accessibilityState={{ selected: isAdded }}
     >
-      <ModelSummary name={model.name} isUncensored={model.isUncensored} detail={formatCost(model, kind)} />
+      <ModelSummary
+        name={model.name}
+        isVerified={isVerifiedModel(kind, model.id)}
+        isUncensored={model.isUncensored}
+        detail={formatCost(model, kind)}
+      />
       {isAdded && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
     </TouchableOpacity>
   );

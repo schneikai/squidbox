@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 
+import FavoriteHeartButton from './FavoriteHeartButton';
+
 import Card from '@/components/Card';
-import IconButton from '@/components/IconButton';
 import { colors, lineHeights, typography } from '@/styles/designTokens';
 
 /**
@@ -21,12 +22,12 @@ export default function FavoriteCard({ favorite, isRemoved, onOpen, onUnheart, o
       >
         <Text style={styles.text}>{favorite.text}</Text>
       </Pressable>
-      <IconButton
-        icon="heart"
-        filled={!isRemoved}
-        color={isRemoved ? colors.text.tertiary : colors.status.danger}
+      {/* The outline heart keeps the secondary colour of every other heart: the card is dimmed already,
+          and tertiary is for placeholders and disabled controls, while this one still hearts it again. */}
+      <FavoriteHeartButton
+        isFavorite={!isRemoved}
         onPress={isRemoved ? onUndo : () => onUnheart(favorite)}
-        accessibilityLabel={isRemoved ? 'Add back to favorites' : 'Remove from favorites'}
+        accessibilityLabel={isRemoved ? 'Add back to favorites' : undefined}
       />
     </Card>
   );

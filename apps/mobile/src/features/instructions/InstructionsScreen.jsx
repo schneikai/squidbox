@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { APP_PROMPT_KINDS, INSTRUCTION_KINDS, resolveInstructions } from '@squidbox/shared';
+import { INSTRUCTION_KINDS } from '@squidbox/shared';
 import { StyleSheet } from 'react-native';
 
 import instructionText from './instructionText';
@@ -8,28 +8,17 @@ import Badge from '@/components/Badge';
 import DetailScrollView from '@/components/DetailScrollView';
 import IntroText from '@/components/IntroText';
 import Page from '@/components/Page';
-import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
-import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import useHasFeature from '@/hooks/useHasFeature';
+import { Row, Section } from '@/components/settings-list/SettingsList';
+import useInstructions from '@/hooks/useInstructions';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
-import useLibrary from '@/library/useLibrary';
-import { schema } from '@/sync/db/client';
-import { readInstructions } from '@/sync/instructionsRepository';
-import { useLiveQuery } from '@/sync/useLiveQuery';
 
 // Settings → Assistant → Instructions: what the assistant is told before each kind of request, one
-// row per kind with the first line of its text, a Changed badge while it isn't the app's. App prompts: the
-// app's own texts around them, the same way, for this account only, and only for an ai_admin account.
+// row per kind with the first line of its text, a Changed badge while it isn't the app's.
 export default function InstructionsScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
-  const canEditAppPrompts = useHasFeature('ai_admin');
-  const { library } = useLibrary();
-  const userId = library.owner.userId;
-  const stored = useLiveQuery((db) => readInstructions(db, userId), [schema.instructions], [userId]);
-
-  const texts = stored === undefined ? null : resolveInstructions(stored);
+  const { stored, texts } = useInstructions();
 
   function row(kind) {
     return (
@@ -56,16 +45,6 @@ export default function InstructionsScreen() {
           back.
         </IntroText>
         <Section>{INSTRUCTION_KINDS.map(row)}</Section>
-        {canEditAppPrompts && (
-          <>
-            <ScreenSectionHeader title="App prompts" />
-            <Section>{APP_PROMPT_KINDS.map(row)}</Section>
-            <SectionFooter>
-              Hidden prompts the app adds around yours. Changes apply to your account only; changing them for everyone
-              takes an app update.
-            </SectionFooter>
-          </>
-        )}
       </DetailScrollView>
     </Page>
   );

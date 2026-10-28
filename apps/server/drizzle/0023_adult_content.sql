@@ -1,0 +1,1 @@
+ALTER TABLE "personas" ADD COLUMN "adult_content" boolean DEFAULT false NOT NULL;

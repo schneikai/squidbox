@@ -225,6 +225,7 @@ export const personas = pgTable(
     contentTags: jsonb('content_tags').$type<string[]>().notNull(),
     tone: text('tone').notNull(),
     rules: jsonb('rules').$type<string[]>().notNull(),
+    adultContent: boolean('adult_content').notNull().default(false),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.id] }),
@@ -239,7 +240,7 @@ export const promptButtons = pgTable(
     ...syncableBase(),
     name: text('name').notNull(),
     prompt: text('prompt').notNull(),
-    placement: text('placement').notNull(), // 'post' | 'newPost' | 'refine' (validated via Zod)
+    placement: text('placement').notNull(), // 'post' | 'newPost' | 'caption' | 'refine' (validated via Zod)
     icon: text('icon'),
     position: text('position').notNull(),
   },
@@ -271,10 +272,7 @@ export const instructions = pgTable(
     ...syncableBase(),
     writing: text('writing'),
     visionTagging: text('vision_tagging'),
-    writingFormat: text('writing_format'),
-    tagsSystem: text('tags_system'),
-    themesContext: text('themes_context'),
-    personaFraming: text('persona_framing'),
+    moreLikeThis: text('more_like_this'),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.id] }),
