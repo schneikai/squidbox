@@ -3,7 +3,7 @@
 // memory for a few minutes, and a failed refresh throws: it never serves stale data silently.
 import type { AiModelKind, ApiAiModel } from '@squidbox/shared';
 import { z } from 'zod';
-import { veniceGetJson } from './venice.js';
+import { orAiUnavailable, veniceGetJson } from './venice.js';
 
 const CACHE_MS = 5 * 60 * 1000;
 
@@ -110,4 +110,9 @@ export function findModel(
     return { error: "This model can't see photos" };
   }
   return { entry };
+}
+
+/** The catalog for a route: 502 ai_unavailable when Venice's model list can't be loaded. */
+export function catalogAsync(): Promise<Catalog> {
+  return orAiUnavailable(getCatalogAsync(), "Couldn't load the models from Venice");
 }

@@ -374,6 +374,11 @@ deleted or restored.
   exported AWS credentials silently win over `apps/server/.env`. `npm run dev:local` strips them;
   plain `npm run dev` in `apps/server` doesn't. Loading `.env` with override semantics for local
   runs would remove the pitfall.
+- **Location in photo tags.** Assets keep `latitude` and `longitude`, but tagging
+  (`apps/server/src/ai/tagging.ts`) sends only the image. Turning the coordinates into a place name
+  (reverse geocoding) and adding it to the vision prompt would let tags name the landmark or park
+  ("Half Dome", "Yosemite") instead of guessing. Decide first: on the phone or the server, and
+  whether a photo's place may go to the AI provider.
 
 ## Owner-side (needs a device, infra or secrets)
 

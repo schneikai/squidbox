@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Icon from '@/components/Icon';
 import chipFrame from '@/styles/chipFrame';
@@ -12,6 +12,7 @@ import { colors, sizes, typography } from '@/styles/designTokens';
  * variant — `muted` (grey, a tag not chosen), `accent` (violet tint, a chosen or added tag),
  *           `outlined` (white with a violet frame, a prompt button), `add` (dashed, violet "+ label").
  * icon    — leads the label (Icon name), in the accent color; `add` always has the plus.
+ * Without `onPress` it is a plain label, so it can sit inside a pressable (a tap goes to the parent).
  */
 export default function Chip({
   label,
@@ -24,18 +25,31 @@ export default function Chip({
   accessibilityHint,
 }) {
   const leadingIcon = variant === 'add' ? 'add' : icon;
+  const content = (
+    <>
+      {leadingIcon && <Icon name={leadingIcon} size={sizes.menuIcon} color={colors.accent.base} />}
+      <Text style={[styles.label, (variant === 'accent' || variant === 'add') && styles.accentLabel]}>{label}</Text>
+    </>
+  );
+
+  if (!onPress) {
+    return (
+      <View accessibilityLabel={accessibilityLabel} style={[chipFrame, styles.chip, styles[variant]]}>
+        {content}
+      </View>
+    );
+  }
+
   return (
     <Pressable
       onPress={onPress}
-      disabled={!onPress}
       accessibilityRole={accessibilityRole}
       accessibilityState={accessibilityState}
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
       style={({ pressed }) => [chipFrame, styles.chip, styles[variant], pressed && styles.pressed]}
     >
-      {leadingIcon && <Icon name={leadingIcon} size={sizes.menuIcon} color={colors.accent.base} />}
-      <Text style={[styles.label, (variant === 'accent' || variant === 'add') && styles.accentLabel]}>{label}</Text>
+      {content}
     </Pressable>
   );
 }

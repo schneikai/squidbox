@@ -1,9 +1,11 @@
+import { eq } from 'drizzle-orm';
 import { describe, it, expect } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
 import { makeMeasuredTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
+import { clearOutboxRows } from '../src/sync/outbox';
 import { readByIds } from '../src/sync/readByIds';
 
 describe('assetsRepository', () => {
@@ -70,5 +72,40 @@ describe('assetsRepository', () => {
     expect(await repo.countSyncErrors(db)).toBe(0);
     await repo.updateMany(db, { a3: { deletedAt: null } });
     expect(await repo.countSyncErrors(db)).toBe(1); // a deleted asset keeps its error
+  });
+
+  it('stores the tags trimmed and each once, sends only them, and nothing for the same list again', async () => {
+    const { db } = makeMeasuredTestDb();
+    const [asset] = await repo.createMany(db, [makeAssetRecord({ id: 'a1' })]);
+    expect(asset!.tags ?? null).toBeNull();
+    await clearOutboxRows(db, 'assets', ['a1']);
+    const outbox = () => db.select().from(schema.outbox).where(eq(schema.outbox.collection, 'assets'));
+
+    expect(await repo.setTags(db, 'a1', [' forest ', 'Forest', 'morning fog'])).toEqual(['forest', 'morning fog']);
+    const [row] = await readByIds(db, schema.assets, ['a1']);
+    expect(row.tags).toEqual(['forest', 'morning fog']);
+    const [pending] = await outbox();
+    expect(Object.keys(pending!.fields)).toEqual(['tags']);
+
+    await clearOutboxRows(db, 'assets', ['a1']);
+    await repo.setTags(db, 'a1', ['forest', 'morning fog']);
+    expect(await outbox()).toHaveLength(0);
+    expect((await readByIds(db, schema.assets, ['a1']))[0].updatedAt).toBe(row.updatedAt);
+
+    await repo.setTags(db, 'a1', []);
+    expect((await readByIds(db, schema.assets, ['a1']))[0].tags).toEqual([]);
+  });
+
+  it('stores no tags on a deleted or missing asset, and says so', async () => {
+    const { db } = makeMeasuredTestDb();
+    await repo.createMany(db, [makeAssetRecord({ id: 'a1', deletedAt: 5 })]);
+    const [before] = await readByIds(db, schema.assets, ['a1']);
+    await clearOutboxRows(db, 'assets', ['a1']);
+
+    expect(await repo.setTags(db, 'a1', ['forest'])).toBeNull();
+    expect(await repo.setTags(db, 'gone', ['forest'])).toBeNull();
+    const [after] = await readByIds(db, schema.assets, ['a1']);
+    expect(after).toEqual(before);
+    expect(await db.select().from(schema.outbox)).toHaveLength(0);
   });
 });

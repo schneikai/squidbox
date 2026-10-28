@@ -1,4 +1,3 @@
-import { PERSONA_LIMITS } from '@squidbox/shared';
 import { StyleSheet } from 'react-native';
 
 import TextInput from '@/components/TextInput';
@@ -6,8 +5,8 @@ import chipFrame from '@/styles/chipFrame';
 import { colors, typography } from '@/styles/designTokens';
 
 // The input that stands in for a chip while a tag is typed: a Chip's frame in the accent border.
-// Return adds the tag and keeps it open for the next one.
-export default function TagInput({ value, onChangeText, onSubmit, onBlur }) {
+// Return adds the tag and keeps it open for the next one; a tag is at most `maxLength` long.
+export default function TagInput({ value, onChangeText, onSubmit, onBlur, maxLength }) {
   return (
     <TextInput
       value={value}
@@ -22,7 +21,7 @@ export default function TagInput({ value, onChangeText, onSubmit, onBlur }) {
       autoCapitalize="none"
       autoCorrect={false}
       spellCheck={false}
-      maxLength={PERSONA_LIMITS.contentTag}
+      maxLength={maxLength}
       placeholder="Tag"
       style={[chipFrame, styles.input]}
     />

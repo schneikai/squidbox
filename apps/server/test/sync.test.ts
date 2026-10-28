@@ -1367,7 +1367,7 @@ d('sync engine (Postgres)', () => {
   describe('collection registry guard', () => {
     const base = () => ({ id: randomUUID(), createdAt: 1000, updatedAt: 1000, deletedAt: null });
     const sample: Record<string, () => Record<string, unknown>> = {
-      assets: () => assetRecord(),
+      assets: () => assetRecord({ tags: ['forest', 'morning fog'] }),
       albums: () => albumRecord(),
       posts: () => postRecord(),
       album_assets: () => ({ ...base(), albumId: randomUUID(), assetId: randomUUID(), position: 'a0' }),

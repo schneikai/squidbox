@@ -823,8 +823,10 @@ null | epoch ms: deleted permanently, §7), and, recorded for later use, all opt
 `favoritedAt` (epoch ms of the last favoriting, null once unfavorited or when unknown: a favorite
 from the camera roll or a sign-in merge; an app from before it leaves it as it was), `takenAt`
 (epoch ms, the camera roll's creation time at import), `originalFilename` (the camera roll's file
-name), `latitude` and `longitude` (where it was taken), plus the base columns. Local-only:
-`syncError`.
+name), `latitude` and `longitude` (where it was taken), `tags` (optional, null | a list of at most
+20 strings of 1 to 40 characters: what the assistant sees in it, from `POST /ai/tags` or the user's
+fixes; null until it was tagged, `[]` once every tag was removed; the list merges as one value),
+plus the base columns. Local-only: `syncError`.
 
 **albums**. Synced: `name`, `isFavorite`, `archivedAt`, `showInPostSuggestionsAfter`,
 `oldCollectionName`, `notes`, `sortOrder` (null | `custom`), `smartAlbumType`

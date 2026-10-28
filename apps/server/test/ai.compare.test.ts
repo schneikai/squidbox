@@ -15,7 +15,9 @@ vi.mock('../src/config.js', async (importOriginal) => {
 
 import { DEFAULT_INSTRUCTIONS } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
-import { checkTags, checkTweets, compareModels, visionTask, writingTask } from '../src/ai/compare.js';
+import { compareModels } from '../src/ai/compare.js';
+import { checkTags, checkTweets, fitTags, runTask, visionTask, writingTask } from '../src/ai/tasks.js';
+import { VeniceError } from '../src/ai/venice.js';
 import { contentThemesText, visionMessages, writingMessages } from '../src/ai/prompts.js';
 import type { CatalogEntry } from '../src/ai/catalog.js';
 
@@ -112,6 +114,35 @@ describe('checking the replies', () => {
       'moss',
     ]);
     expect(() => checkTags([' ', ''])).toThrow('Returned no tags');
+  });
+
+  it("keeps a photo's tags that fit the asset: up to the length, the first ones up to the count", () => {
+    const many = Array.from({ length: 25 }, (_, index) => `tag ${index}`);
+    expect(fitTags(['x'.repeat(41), ' moss ', ...many])).toEqual(['moss', ...many.slice(0, 19)]);
+    expect(fitTags(['fo\u0000g', 'moss'])).toEqual(['moss']);
+    expect(() => fitTags(['x'.repeat(41), 'a\u0000'])).toThrow(new VeniceError('The model returned no usable tags'));
+  });
+});
+
+describe('runTask', () => {
+  const messages = visionMessages({
+    prompt: 'Tag it',
+    imageDataUrl: 'data:image/jpeg;base64,AAAA',
+    instructions: DEFAULT_INSTRUCTIONS,
+  });
+
+  it("resolves the model's reply once it passes the task's check", async () => {
+    replies({ 'gemma-4-uncensored': { tags: [' moss ', 'Moss', 'fog'] } });
+    await expect(runTask({ task: visionTask, messages, model: model('gemma-4-uncensored') })).resolves.toEqual({
+      tags: ['moss', 'fog'],
+    });
+  });
+
+  it('throws the VeniceError a compare shows on the model card', async () => {
+    replies({ 'gemma-4-uncensored': { tags: [' '] } });
+    const failed = runTask({ task: visionTask, messages, model: model('gemma-4-uncensored') });
+    await expect(failed).rejects.toBeInstanceOf(VeniceError);
+    await expect(failed).rejects.toThrow('Returned no tags');
   });
 });
 

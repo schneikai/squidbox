@@ -1,3 +1,4 @@
+import { DEFAULT_MODEL_IDS } from '@squidbox/shared';
 import { useCallback, useEffect, useMemo } from 'react';
 
 import useAiCatalog from '@/hooks/useAiCatalog';
@@ -12,8 +13,9 @@ import seedModels from '@/utils/ai/seedModels';
 
 /**
  * Your models of a kind, live: `rows` your list joined with Venice's models (useAiCatalog's
- * `catalog`, `error` and `retry`), null until both are in; `chosenId` the one the assistant uses, which
- * `choose` changes (it syncs with the account; the list stays on the device).
+ * `catalog`, `error` and `retry`), null until both are in; `chosenId` the one the assistant uses (the
+ * default while none is chosen, which stays unstored), which `choose` changes (it syncs with the
+ * account; the list stays on the device).
  * On the first run the list starts with the owner's picks that Venice still has.
  */
 export default function useYourModels(kind) {
@@ -38,5 +40,5 @@ export default function useYourModels(kind) {
   // Memoized: the Add screen's rows stay memoized across its search keystrokes.
   const rows = useMemo(() => (catalog && list ? joinYourModels(list, catalog, kind) : null), [catalog, list, kind]);
   const choose = useCallback((model) => setChosenModel(getDb(), userId, kind, model), [userId, kind]);
-  return { catalog, error, retry, rows, chosenId: chosen?.[kind]?.id ?? null, choose };
+  return { catalog, error, retry, rows, chosenId: chosen?.[kind]?.id ?? DEFAULT_MODEL_IDS[kind], choose };
 }

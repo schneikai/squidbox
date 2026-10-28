@@ -1,7 +1,6 @@
-import apiWithAuthentication from '@/utils/cloud-api/apiWithAuthentication';
+import { AI_REQUEST_TIMEOUT_MS } from './aiRequestTimeout';
 
-// A compare waits on the slowest model, so it gets more than the instance's 15 s.
-const COMPARE_TIMEOUT_MS = 180_000;
+import apiWithAuthentication from '@/utils/cloud-api/apiWithAuthentication';
 
 /**
  * A blind compare of `kind`: writing `{ prompt, modelIds }`, vision `{ prompt, image: { base64,
@@ -9,7 +8,7 @@ const COMPARE_TIMEOUT_MS = 180_000;
  */
 export default async function compareAsync(kind, body, { signal } = {}) {
   const { data } = await apiWithAuthentication.post(`ai/compare/${kind}`, body, {
-    timeout: COMPARE_TIMEOUT_MS,
+    timeout: AI_REQUEST_TIMEOUT_MS,
     signal,
   });
   return data.results;

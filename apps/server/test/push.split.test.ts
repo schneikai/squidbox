@@ -51,6 +51,7 @@ d('push: split statements', () => {
     originalFilename: null,
     latitude: null,
     longitude: null,
+    tags: null,
     ...over,
   });
   const edge = (over: Record<string, unknown> = {}): Rec => ({

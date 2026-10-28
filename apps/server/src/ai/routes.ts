@@ -7,18 +7,22 @@ import {
   compareVisionResponseSchema,
   compareWritingRequestSchema,
   compareWritingResponseSchema,
+  tagPhotoRequestSchema,
+  tagPhotoResponseSchema,
   type AiModelKind,
 } from '@squidbox/shared';
 import { getDb } from '../db/client.js';
 import { AppError } from '../errors.js';
 import { authenticate, requireFeature, requireUser } from '../auth/authenticate.js';
 import { fetchBalanceAsync } from './balance.js';
-import { findModel, getCatalogAsync, type Catalog, type CatalogEntry } from './catalog.js';
-import { compareModels, visionTask, writingTask } from './compare.js';
+import { catalogAsync, findModel, type CatalogEntry } from './catalog.js';
+import { compareModels } from './compare.js';
 import { readInstructions } from './instructions.js';
 import { readFavorites, readPersona } from './persona.js';
 import { visionMessages, writingMessages } from './prompts.js';
-import { VeniceError } from './venice.js';
+import { tagPhotoAsync } from './tagging.js';
+import { visionTask, writingTask } from './tasks.js';
+import { orAiUnavailable, VeniceError } from './venice.js';
 import { loadConfig } from '../config.js';
 
 // Aborted once the app stops waiting (a closed compare), so the Venice calls stop too.
@@ -30,25 +34,12 @@ function untilClientLeaves(reply: FastifyReply): AbortSignal {
   return controller.signal;
 }
 
-// A body holds one photo's base64 (VISION_IMAGE_MAX_BASE64_LENGTH) and the model ids.
+// A body holds one photo's base64 (VISION_IMAGE_MAX_BASE64_LENGTH) and, for a compare, the model ids.
 const VISION_REQUEST_BODY_LIMIT = 2 * 1024 * 1024;
 
 // Before any Venice call: 503 ai_not_configured when the server has no Venice key.
 async function aiConfigured(): Promise<void> {
   if (!loadConfig().VENICE_API_KEY) throw AppError.aiNotConfigured();
-}
-
-// A read from Venice the route can't answer without: 502 ai_unavailable when it fails.
-async function orAiUnavailable<T>(promise: Promise<T>, message: string): Promise<T> {
-  try {
-    return await promise;
-  } catch {
-    throw AppError.aiUnavailable(message);
-  }
-}
-
-function catalogAsync(): Promise<Catalog> {
-  return orAiUnavailable(getCatalogAsync(), "Couldn't load the models from Venice");
 }
 
 type CompareResult<T> = (T & { modelId: string }) | { modelId: string; error: string };
@@ -88,6 +79,27 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       handler: async () => {
         const { models } = await catalogAsync();
         return { models };
+      },
+    });
+
+    // POST /ai/tags — the user's vision model tags one photo, as their Photo tags instructions say;
+    // the app stores the tags on the asset (Tag it / Tag again in its details). Every request is a
+    // paid Venice call, so the limit is lower than the compares' per-photo one.
+    r.route({
+      method: 'POST',
+      url: '/ai/tags',
+      bodyLimit: VISION_REQUEST_BODY_LIMIT,
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+      schema: { body: tagPhotoRequestSchema, response: { 200: tagPhotoResponseSchema } },
+      handler: async (request, reply) => {
+        const signal = untilClientLeaves(reply);
+        const tags = await tagPhotoAsync({
+          db: getDb(),
+          user: requireUser(request),
+          image: request.body.image,
+          signal,
+        });
+        return { tags };
       },
     });
 

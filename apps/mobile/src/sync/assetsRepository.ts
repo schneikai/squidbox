@@ -1,7 +1,7 @@
-import type { AssetRecord } from '@squidbox/shared';
+import { uniqueTags, type AssetRecord } from '@squidbox/shared';
 import { and, asc, count, eq, isNotNull, isNull, sql, type SQL } from 'drizzle-orm';
 
-import { nextUpdatedAt } from './clock';
+import { nextUpdatedAt, nextVersion } from './clock';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { inJson } from './inJson';
@@ -37,6 +37,24 @@ function purged(row: schema.AssetRow): schema.AssetRow {
 // favoritedAt is the time of the favoriting, null once unfavorited.
 export const toggleFavorite = (db: SyncDb, id: string) =>
   repository.toggle(db, id, 'isFavorite', (row) => ({ favoritedAt: row.isFavorite ? row.updatedAt : null }));
+
+/**
+ * Stores the asset's tags (POST /ai/tags, or the user's fixes), trimmed and each once; [] is "No
+ * tags". Only on an asset still in the library: resolves to the stored list, or null when it is
+ * gone or deleted (a tagging that ended after a delete writes nothing).
+ */
+export async function setTags(db: SyncDb, id: string, tags: string[]): Promise<string[] | null> {
+  const stored = uniqueTags(tags);
+  return db.transaction(async (tx) => {
+    const previous = (await readByIds<schema.AssetRow>(tx, schema.assets, [id])).filter(
+      (row) => row.deletedAt === null,
+    );
+    if (previous.length === 0) return null;
+    const rows = previous.map((row) => nextVersion(row, { tags: stored }));
+    await saveRecords(tx, 'assets', schema.assets, rows, { previous });
+    return stored;
+  });
+}
 
 // The local-only sync-error marker (never synced) of the assets matching `where`, written only where
 // it changes.

@@ -34,6 +34,7 @@ export const assets = sqliteTable(
     originalFilename: text('original_filename'),
     latitude: real('latitude'),
     longitude: real('longitude'),
+    tags: text('tags', { mode: 'json' }).$type<string[]>(), // null until the assistant tagged it
     // local-only (never synced)
     syncError: text('sync_error'),
     // The purge (its purgedAt) this device removed the asset's files for (§7a): a later purge, after

@@ -2,6 +2,7 @@
 // models (Settings → Assistant → Testing, test builds only). The server holds the Venice key; the
 // app only ever talks to these endpoints.
 import { z } from 'zod';
+import { ASSET_TAG_LIMITS, assetTagSchema } from '../collections/asset';
 
 export const aiModelKindSchema = z.enum(['writing', 'vision']);
 export type AiModelKind = z.infer<typeof aiModelKindSchema>;
@@ -38,8 +39,15 @@ export const WRITING_TWEET_COUNT = 3;
 // Photos in one vision compare: each is a request, so two rounds in a minute stay well within the
 // vision route's rate limit (240 a minute).
 export const VISION_COMPARE_MAX_PHOTOS = 50;
-// The app sends the 1000 px thumbnail as a JPEG, ~150–400 KB (~0.5 MB as base64).
+// The app sends a 512 px JPEG (readVisionImageAsync); the limit still takes the 1000 px thumbnail
+// (~150–400 KB, ~0.5 MB as base64) that older apps send.
 export const VISION_IMAGE_MAX_BASE64_LENGTH = 1_500_000;
+
+// One photo as the app sends it.
+const visionImageSchema = z.object({
+  base64: z.string().min(1).max(VISION_IMAGE_MAX_BASE64_LENGTH),
+  mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
+});
 
 // Each model once: every id is a paid call.
 const modelIdsSchema = z
@@ -74,10 +82,7 @@ export type CompareWritingResponse = z.infer<typeof compareWritingResponseSchema
 // the prompt is the same for every photo of a round.
 export const compareVisionRequestSchema = z.object({
   prompt: promptSchema,
-  image: z.object({
-    base64: z.string().min(1).max(VISION_IMAGE_MAX_BASE64_LENGTH),
-    mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
-  }),
+  image: visionImageSchema,
   modelIds: modelIdsSchema,
 });
 export type CompareVisionRequest = z.infer<typeof compareVisionRequestSchema>;
@@ -90,3 +95,11 @@ export type VisionResult = z.infer<typeof visionResultSchema>;
 
 export const compareVisionResponseSchema = z.object({ results: z.array(visionResultSchema) });
 export type CompareVisionResponse = z.infer<typeof compareVisionResponseSchema>;
+
+// POST /ai/tags — the assistant tags one photo with the user's Photo tags instructions and their
+// chosen vision model; the app stores the tags on the asset, so they fit its schema.
+export const tagPhotoRequestSchema = z.object({ image: visionImageSchema });
+export type TagPhotoRequest = z.infer<typeof tagPhotoRequestSchema>;
+
+export const tagPhotoResponseSchema = z.object({ tags: z.array(assetTagSchema).max(ASSET_TAG_LIMITS.tags) });
+export type TagPhotoResponse = z.infer<typeof tagPhotoResponseSchema>;
