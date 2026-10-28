@@ -29,7 +29,8 @@ export type InstructionRecord = z.infer<typeof instructionCollection.schema>;
  * - `visionTagging`, the system message of every photo tags request: `{themes}` (Your content);
  * - `moreLikeThis`, what the chat's More like this sends, with the option after it;
  * - `modelCheckJudge`, what a model check (ai_admin) asks its judge after each chat turn:
- *   `{transcript}` (the turns before), `{request}` (the creator's last message), `{reply}`.
+ *   `{context}` (the creator and the post the assistant was told about), `{transcript}` (the turns
+ *   before), `{request}` (the creator's last message), `{reply}`.
  */
 export const INSTRUCTION_KINDS = ['writing', 'visionTagging', 'moreLikeThis', 'modelCheckJudge'] as const;
 
@@ -84,7 +85,10 @@ Use only what the creator, the photos or this briefing give you: never invent pl
   moreLikeThis: 'Write more options like this one: the same idea and tone, different wording each time.',
   // The model check's judge (claude-sonnet-5-5): its whole question after each turn.
   modelCheckJudge: [
-    'You judge one turn of a writing assistant\'s chat with a content creator. Did the reply respond to what the creator asked in their last message, and hold the conversation (not change the subject, not invent facts it wasn\'t given, posts only when asked)? Answer as JSON: {"pass": true or false, "reason": one short line}.',
+    'You judge one turn of a writing assistant\'s chat with a content creator. Did the reply respond to what the creator asked in their last message, and hold the conversation (not change the subject, not invent facts it wasn\'t given, posts only when asked)? The assistant was given the creator, the posts they liked and the post below: names, handles, places, tags and details found there or earlier in the chat are given, not invented. Answer as JSON: {"pass": true or false, "reason": one short line}.',
+    '',
+    '# What the assistant was told about the creator and the post',
+    '{context}',
     '',
     '# The conversation so far',
     '{transcript}',

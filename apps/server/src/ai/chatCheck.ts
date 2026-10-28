@@ -248,7 +248,15 @@ export const checkChatModel: CheckRunner = async (model, { catalog, instructions
       const verdict = await timedCall(() =>
         runTask({
           task: judgeTask,
-          messages: judgeMessages({ template: instructions.modelCheckJudge, transcript, request: content, reply }),
+          messages: judgeMessages({
+            template: instructions.modelCheckJudge,
+            context: contextOf(post),
+            persona: isBare ? null : MOCK_PERSONA,
+            favorites: isBare ? [] : FAVORITE_TEXTS,
+            transcript,
+            request: content,
+            reply,
+          }),
           model: judge,
         }),
       );

@@ -31,7 +31,7 @@ const catalog = fixture.data as CatalogEntry[];
 const model = catalog.find((entry) => entry.id === 'kimi-k3')!;
 const instructions = {
   ...resolveInstructions(null),
-  modelCheckJudge: 'Judge.\nBefore:\n{transcript}\nAsked: {request}\nReply: {reply}',
+  modelCheckJudge: 'Judge.\nTold:\n{context}\nBefore:\n{transcript}\nAsked: {request}\nReply: {reply}',
 };
 const fetchMock = vi.fn();
 
@@ -144,6 +144,15 @@ describe('checkChatModel', () => {
     expect(judge.messages[0].content).toContain('Creator: Just got back');
     expect(judge.messages[0].content).toContain('Assistant: Sounds like a trip. Want posts?');
     expect(calls[1]!.messages[0].content).toContain('Before:\n(none)');
+    // what the writing model was told about the creator and the post
+    expect(judge.messages[0].content).toContain("About the creator: I'm a guy who shoots outdoors");
+    expect(judge.messages[0].content).toContain(
+      "People they've tagged in posts from the same album: @ridgeline.bsky.social",
+    );
+    expect(judge.messages[0].content).toContain("What's in the photos (from image recognition): coastline, grey sky");
+    expect(judge.messages[0].content).toContain('Media: 4 photos and 1 video');
+    expect(judge.messages[0].content).toContain('Caption so far: (empty)');
+    expect(judge.messages[0].content).toContain('Posts they liked:\n- ');
 
     expect(onTurn.mock.calls.map(([, turnsDone]) => turnsDone)).toEqual([1, 2, 3, 4]);
     const [section] = result.sections;
@@ -193,6 +202,13 @@ describe('checkChatModel', () => {
     const result = await checkChatModel(model, { catalog, instructions, sectionIds: ['talk', 'facts', 'bare'] });
     expect(result.sections.map((section) => section.systemMessage !== null)).toEqual([true, false, true]);
     expect(result.sections[2]!.systemMessage).not.toContain('# The creator');
+    // the bare section's judge is told the post, not a persona
+    const judgeOfBare = bodies()
+      .filter((body) => body.model === JUDGE_MODEL_ID)
+      .at(-1)!;
+    expect(judgeOfBare.messages[0].content).not.toContain('About the creator');
+    expect(judgeOfBare.messages[0].content).not.toContain('Posts they liked');
+    expect(judgeOfBare.messages[0].content).toContain('@ridgeline.bsky.social');
   });
 
   it('rejects before any call when Venice does not offer the judge', async () => {
