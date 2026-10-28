@@ -11,6 +11,7 @@
     "migrate:prod": "node --import tsx src/db/migrate.ts",
     "seed:prod": "node --import tsx src/db/seed.ts",
     "seed:mock": "NODE_USE_ENV_PROXY=1 NODE_NO_WARNINGS=1 node --env-file=.env --import tsx scripts/seed-mock.ts",
+    "check:chat-models": "NODE_USE_ENV_PROXY=1 NODE_NO_WARNINGS=1 node --env-file=.env --import tsx scripts/check-chat-models.ts",
     "convert:prod": "node --import tsx scripts/convert-legacy.ts",
     "user:features:prod": "node --import tsx scripts/user-features.ts",
     "typecheck": "tsc --noEmit",

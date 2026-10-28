@@ -33,6 +33,7 @@ import {
   type PushMutation,
   type PushResponse,
 } from '@squidbox/shared';
+import { MOCK_FAVORITES, MOCK_PERSONA, PROFILE_LINK } from './mockPersona.js';
 
 const API_URL = process.env.MOCK_API_URL ?? `http://localhost:${process.env.PORT ?? 3100}/api/v1`;
 const email = process.env.SEED_USER_EMAIL;
@@ -133,24 +134,6 @@ const POSTS: { text: string; media: number[]; postedDaysAgo: number | null; isFa
   { text: 'Where it all started', media: [0, 8], postedDaysAgo: 400 },
 ];
 
-// Writing as you, for the creator the posts above are by: a guy who posts his outdoor photos on
-// Bluesky, one line each, at most one emoji, at the end.
-const PERSONA = {
-  aboutYou:
-    "I'm a guy who shoots outdoors and posts it on Bluesky: hills, forests, quiet coast and the roads between them. People follow for the light and the slow mornings, and the odd story from the trip.",
-  tone: 'Short and calm, a little dry. One line, never salesy. At most one emoji, at the end.',
-  contentTags: ['landscape', 'hiking', 'forest', 'golden hour', 'road trip', 'coast', 'film look'],
-  rules: [
-    'Never use hashtags',
-    'No exclamation marks',
-    'Never name the exact spot, only the region',
-    'Keep each post well under 300 characters',
-  ],
-};
-
-// His Bluesky profile (made up), where Follow-up with link sends people.
-const PROFILE_LINK = 'https://bsky.app/profile/quietroads.bsky.social';
-
 // The app's default prompt buttons (by placement and name) in his words, for Bluesky: Thread becomes a
 // print teaser, Behind the scenes his photo of the week and Funnier Drier (under the caption and in
 // the chat), under the same ids. And a trip recap.
@@ -214,21 +197,6 @@ const PROMPT_BUTTONS: NewPromptButton[] = [
     prompt:
       'Write 3 Bluesky posts that recap this trip from these photos: where it went, one thing that happened, one detail only I would notice.',
   },
-];
-
-// The posts it writes like, newest first: his own posts, and two options he hearted in the chat.
-const FAVORITES: { text: string; source: string | null; daysAgo: number }[] = [
-  { text: "Up before the sun again. The hills don't wait, and neither does the light.", source: null, daysAgo: 2 },
-  { text: 'Golden hour on the ridge. Stayed until it was gone 🌅', source: 'Caption', daysAgo: 4 },
-  { text: 'Three days, one tent, zero signal. Best weekend this year 🌲', source: null, daysAgo: 9 },
-  {
-    text: `The rest of the coast trip is on my profile. The last one is the photo I almost didn't post. ${PROFILE_LINK}`,
-    source: 'Follow-up with link',
-    daysAgo: 13,
-  },
-  { text: "Coffee on a cold rock tastes better. I don't make the rules.", source: null, daysAgo: 20 },
-  { text: 'Some trails you hike for the view. This one was for the quiet.', source: null, daysAgo: 34 },
-  { text: 'Packed for rain, got a sunburn. Classic.', source: null, daysAgo: 51 },
 ];
 
 if (!email || !password) throw new Error('SEED_USER_EMAIL and SEED_USER_PASSWORD must be set (see .env.docker)');
@@ -300,7 +268,7 @@ const postAssets: PostAssetRecord[] = POSTS.flatMap((post, postIndex) => {
 });
 
 // One persona per user, whose id is the user's id.
-const personas: PersonaRecord[] = [{ ...baseRecord('persona', now - 60 * DAY), ...PERSONA, id: userId }];
+const personas: PersonaRecord[] = [{ ...baseRecord('persona', now - 60 * DAY), ...MOCK_PERSONA, id: userId }];
 
 // The instructions on the app's defaults (one record per user, like the persona), so a reset puts back
 // a tester's edits rather than tombstoning their record.
@@ -327,7 +295,7 @@ const promptButtons: PromptButtonRecord[] = PROMPT_BUTTONS.map((button) => {
   return { ...baseRecord(`prompt-button:${button.id}`, now - 60 * DAY), ...button, position };
 });
 
-const favorites: FavoriteRecord[] = FAVORITES.map((favorite, index) => ({
+const favorites: FavoriteRecord[] = MOCK_FAVORITES.map((favorite, index) => ({
   ...baseRecord(`favorite:${index}`, now - favorite.daysAgo * DAY),
   text: favorite.text,
   source: favorite.source,

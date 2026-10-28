@@ -113,6 +113,10 @@ Scripts can drive it through `openWebPreview()` and `settleAsync()` in `scripts/
 
 The web build is a preview, not a target. Platform files (`*.web.js`) stand in for what the browser lacks: the session record and the library list live in `localStorage` (the preview script seeds the session once per browser context, with the page's origin as `apiBaseUrl`), and thumbnails load straight from their signed URLs. The camera roll, uploads, file downloads and native gestures don't work there, so confirm those on a device. The database works the same as on iOS: the app only uses expo-sqlite's async API (`docs/sync-design.md` §8). Web storage holds a fixed number of database files, so besides the open library about three parked ones (other accounts signed in to in the same browser context) fit; a fourth fails to open and the sign-in shows the error, with the previous library still open. A preview run is a fresh context, so this never builds up.
 
+## Checking a chat model
+
+Before offering a Venice model as the assistant's writing model, run the chat check on it from `apps/server/`: `npm run check:chat-models -- deepseek-v4-1-flash-uncensored kimi-k3` (`--scenario <id>` for one scenario, `--out <file.md>` for the report's path). It runs fixed conversations through the server's own chat code and default briefing, as the mock account's creator, against Venice directly with `VENICE_API_KEY` (no database, no backend). It checks what it can by itself: talk before posts, the counts asked for, shorter when asked, bios in the text, "this" meaning the caption, the persona's rules, no copied Favorites, exact handles, asking instead of inventing. Every transcript goes to a Markdown report in `apps/server/.model-checks/` (gitignored), with pass counts and seconds per turn, so read the replies too.
+
 ## Deploying the backend
 
 Run `/deploy-server`. It handles first-time setup (Fly app + Neon DB + secrets + seed) and routine deploys (build, migrate, release) via the `fly` and `neonctl` CLIs. To import a user's old backups, run `/legacy-import`.
