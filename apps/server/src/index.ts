@@ -1,7 +1,7 @@
 import { loadConfig } from './config.js';
 import { buildApp } from './app.js';
 import { closeDb, getDb } from './db/client.js';
-import { failAbandonedChecks } from './ai/modelChecks.js';
+import { failAbandonedChecks, failOwnChecks } from './ai/modelChecks.js';
 
 const config = loadConfig();
 const app = await buildApp();
@@ -18,6 +18,9 @@ failAbandonedChecks(getDb()).catch((err: unknown) => app.log.error({ err }, 'Fai
 
 async function shutdown(signal: string): Promise<void> {
   app.log.info(`Received ${signal}, shutting down`);
+  await failOwnChecks(getDb()).catch((err: unknown) =>
+    app.log.error({ err }, 'Failing the running model checks failed'),
+  );
   await app.close();
   await closeDb();
   process.exit(0);

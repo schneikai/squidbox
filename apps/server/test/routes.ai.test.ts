@@ -749,11 +749,20 @@ describe('the marks', () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toHaveProperty('models');
     expect(setUncensored).toHaveBeenCalledWith(expect.anything(), {
+      modelId: 'z-ai-glm-5-3',
       entry: expect.objectContaining({ id: 'z-ai-glm-5-3' }),
       uncensored: null,
       userId: 'u1',
     });
     expect((await call('PUT', '/ai/uncensored/gone', { uncensored: true })).statusCode).toBe(502);
+    // clearing the override of a model Venice dropped needs no catalog entry
+    expect((await call('PUT', '/ai/uncensored/gone', { uncensored: null })).statusCode).toBe(200);
+    expect(setUncensored).toHaveBeenLastCalledWith(expect.anything(), {
+      modelId: 'gone',
+      entry: null,
+      uncensored: null,
+      userId: 'u1',
+    });
     expect((await call('PUT', '/ai/uncensored/kimi-k3', { uncensored: 'yes' })).statusCode).toBe(400);
   });
 

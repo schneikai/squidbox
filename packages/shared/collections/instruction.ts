@@ -14,7 +14,9 @@ export const instructionCollection = defineCollection({
     writing: instructionText,
     visionTagging: instructionText,
     moreLikeThis: instructionText,
-    modelCheckJudge: instructionText,
+    // Optional: the builds before it push instructions without it (sync-design §6, a new synced
+    // column is optional and the server ships first); its stored value stays as it is then.
+    modelCheckJudge: instructionText.optional(),
   }),
 });
 
@@ -87,7 +89,7 @@ Use only what the creator, the photos or this briefing give you: never invent pl
   ].join('\n'),
   // What ⋯ → More like this on an option sends; the app adds the option on its own lines after it.
   moreLikeThis: 'Write more options like this one: the same idea and tone, different wording each time.',
-  // The model check's judge (claude-sonnet-5-5): its whole question after each turn.
+  // The model check's judge (CHECK_JUDGE_MODEL_ID in contracts/ai.ts): its whole question after each turn.
   modelCheckJudge: [
     'You judge one turn of a writing assistant\'s chat with a content creator. Did the reply respond to what the creator asked in their last message, and hold the conversation (not change the subject, not invent facts it wasn\'t given, posts only when asked)? The assistant was given the creator, the posts they liked and the post below: names, handles, places, tags and details found there or earlier in the chat are given, not invented. Answer as JSON: {"pass": true or false, "reason": one short line}.',
     '',

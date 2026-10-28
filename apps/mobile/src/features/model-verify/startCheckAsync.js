@@ -2,18 +2,27 @@ import { CHECK_JUDGE_MODEL_ID, CHECK_TURNS } from '@squidbox/shared';
 import { Alert } from 'react-native';
 
 import checkCostText from './checkCostText';
+import findCatalogModel from './findCatalogModel';
 
-import findCatalogModel from '@/utils/ai/findCatalogModel';
+import fetchModelCheckAsync from '@/utils/cloud-api/ai/fetchModelCheckAsync';
 import startModelCheckAsync from '@/utils/cloud-api/ai/startModelCheckAsync';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import confirmAsync from '@/utils/confirmAsync';
 
 /**
  * Asks the admin to run `model`'s check of `kind` (a catalog model; `catalog` holds the judge), with
- * what it asks for and about what it costs, then starts it on the server. The running check, or null
- * when the admin declined or the start failed (an alert says why).
+ * what it asks for and about what it costs, then starts it on the server. A check already running is
+ * answered as it is, without the question (nothing new would start or cost). The running check, or
+ * null when the admin declined or the start failed (an alert says why).
  */
 export default async function startCheckAsync(kind, model, catalog) {
+  try {
+    const latest = await fetchModelCheckAsync(kind, model.id);
+    if (latest?.status === 'running') return latest;
+  } catch (error) {
+    Alert.alert("Couldn't start the check", apiErrorMessage(error));
+    return null;
+  }
   const judge = findCatalogModel(catalog, CHECK_JUDGE_MODEL_ID);
   const cost = checkCostText(kind, model, judge);
   const asks =

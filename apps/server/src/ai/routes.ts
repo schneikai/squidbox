@@ -81,11 +81,11 @@ async function aiModelsAsync(): Promise<AiModelsResponse> {
   return { models: entries.map((entry) => toApiModel(entry, verification)), defaults: verification.defaults };
 }
 
-// The model of a kind (null: any kind) for a check or a mark: 502 ai_unavailable when Venice no
-// longer offers it or it can't do the kind.
+// The model of a kind for a check or a mark: 502 ai_unavailable when Venice no longer offers it or it
+// can't do the kind.
 async function catalogModel(
   modelId: string,
-  kind: AiModelKind | null,
+  kind: AiModelKind,
 ): Promise<{ entry: CatalogEntry; entries: CatalogEntry[] }> {
   const { entries } = await catalogAsync();
   const found = findModel(entries, modelId, kind);
@@ -209,7 +209,8 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       });
 
       // PUT /ai/uncensored/:modelId — the model's override of Venice's Uncensored label, whatever the
-      // kind (null follows Venice); answers the catalog with the new marks.
+      // kind (null follows Venice); answers the catalog with the new marks. Clearing it needs no model
+      // in the catalog, so an override on a model Venice dropped can still be removed.
       r.route({
         method: 'PUT',
         url: '/ai/uncensored/:modelId',
@@ -219,8 +220,12 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
           response: { 200: aiModelsResponseSchema },
         },
         handler: async (request) => {
-          const { entry } = await catalogModel(request.params.modelId, null);
-          await setUncensored(getDb(), { entry, uncensored: request.body.uncensored, userId: requireUser(request).id });
+          const { modelId } = request.params;
+          const { uncensored } = request.body;
+          const found = findModel((await catalogAsync()).entries, modelId, null);
+          if ('error' in found && uncensored !== null) throw AppError.aiUnavailable(found.error);
+          const entry = 'entry' in found ? found.entry : null;
+          await setUncensored(getDb(), { modelId, entry, uncensored, userId: requireUser(request).id });
           return aiModelsAsync();
         },
       });

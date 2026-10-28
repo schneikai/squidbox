@@ -1,4 +1,5 @@
-import useAiCatalog, { applyAiCatalog } from '@/hooks/useAiCatalog';
+import useAiCatalog from '@/hooks/useAiCatalog';
+import applyAiCatalog from '@/lib/applyAiCatalog';
 import isVerifiedModel from '@/utils/ai/isVerifiedModel';
 import setModelDefaultAsync from '@/utils/cloud-api/ai/setModelDefaultAsync';
 import setUncensoredAsync from '@/utils/cloud-api/ai/setUncensoredAsync';

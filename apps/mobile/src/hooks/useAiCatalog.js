@@ -1,34 +1,26 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 
-import createStore from '@/lib/createStore';
+import aiCatalogStore from '@/lib/aiCatalogStore';
+import applyAiCatalog from '@/lib/applyAiCatalog';
 import fetchAiModelsAsync from '@/utils/cloud-api/ai/fetchAiModelsAsync';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 // As long as the server keeps its own copy of Venice's list.
 const CACHE_MS = 5 * 60 * 1000;
 
-// The catalog every screen that shows the models reads: Venice's models with Squidbox's marks, and
-// the defaults. `at` is when it came in; a mark an ai_admin sets replaces it at once (applyAiCatalog).
-const catalog = createStore({ models: null, defaults: null, error: null, at: 0 });
-
 // One fetch in flight, shared by the screens that open while it runs.
 let inFlight = null;
-
-/** Puts a catalog the server answered (`{ models, defaults }`) in front of every screen. */
-export function applyAiCatalog({ models, defaults }) {
-  catalog.set({ models, defaults, error: null, at: Date.now() });
-}
 
 /** Fetches the catalog now, unless a fetch is running; a failure is the store's `error`. */
 function refreshAiCatalogAsync() {
   if (inFlight) return inFlight;
   // A catalog applied meanwhile (a mark's answer) is newer than this fetch's: it stays.
-  const { at } = catalog.get();
+  const { at } = aiCatalogStore.get();
   inFlight = fetchAiModelsAsync()
     .then((response) => {
-      if (catalog.get().at === at) applyAiCatalog(response);
+      if (aiCatalogStore.get().at === at) applyAiCatalog(response);
     })
-    .catch((error) => catalog.set((current) => ({ ...current, error: apiErrorMessage(error) })))
+    .catch((error) => aiCatalogStore.set((current) => ({ ...current, error: apiErrorMessage(error) })))
     .finally(() => {
       inFlight = null;
     });
@@ -42,16 +34,16 @@ function refreshAiCatalogAsync() {
  * old one meanwhile.
  */
 export default function useAiCatalog() {
-  const { models, defaults, error } = useSyncExternalStore(catalog.subscribe, catalog.get);
+  const { models, defaults, error } = useSyncExternalStore(aiCatalogStore.subscribe, aiCatalogStore.get);
 
   const retry = useCallback(() => {
-    if (catalog.get().error) catalog.set((current) => ({ ...current, error: null }));
+    if (aiCatalogStore.get().error) aiCatalogStore.set((current) => ({ ...current, error: null }));
     refreshAiCatalogAsync();
   }, []);
 
   // A failed fetch is tried again by the next screen that opens, like Try again.
   useEffect(() => {
-    const { at, error: current } = catalog.get();
+    const { at, error: current } = aiCatalogStore.get();
     if (current || Date.now() - at >= CACHE_MS) retry();
   }, [retry]);
 

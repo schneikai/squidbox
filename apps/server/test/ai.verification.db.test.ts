@@ -7,7 +7,7 @@ import * as schema from '../src/db/schema.js';
 import type { Db } from '../src/db/client.js';
 import type { CatalogEntry } from '../src/ai/catalog.js';
 import { CHECKS } from '../src/ai/modelCheck.js';
-import { failAbandonedChecks, readLatestCheck, runCheck, startCheck } from '../src/ai/modelChecks.js';
+import { failAbandonedChecks, failOwnChecks, readLatestCheck, runCheck, startCheck } from '../src/ai/modelChecks.js';
 import {
   readModelDefaults,
   readVerification,
@@ -111,11 +111,15 @@ d('the model marks and checks', () => {
 
   it('sets the Uncensored override once per model, and drops it to follow Venice', async () => {
     const plain = entry('test-writing-3');
-    await setUncensored(db, { entry: plain, uncensored: true, userId: null });
+    await setUncensored(db, { modelId: plain.id, entry: plain, uncensored: true, userId: null });
     expect((await readVerification(db)).overrides.get('test-writing-3')).toBe(true);
-    await setUncensored(db, { entry: plain, uncensored: false, userId: null });
+    await setUncensored(db, { modelId: plain.id, entry: plain, uncensored: false, userId: null });
     expect((await readVerification(db)).overrides.get('test-writing-3')).toBe(false);
-    await setUncensored(db, { entry: plain, uncensored: null, userId: null });
+    await setUncensored(db, { modelId: plain.id, entry: plain, uncensored: null, userId: null });
+    expect((await readVerification(db)).overrides.has('test-writing-3')).toBe(false);
+    // a model Venice dropped: its override can still be set and cleared
+    await setUncensored(db, { modelId: 'test-writing-3', entry: null, uncensored: true, userId: null });
+    await setUncensored(db, { modelId: 'test-writing-3', entry: null, uncensored: null, userId: null });
     expect((await readVerification(db)).overrides.has('test-writing-3')).toBe(false);
   });
 
@@ -134,7 +138,7 @@ d('the model marks and checks', () => {
       await setModelDefault(tx, { kind: 'writing', variant: 'unrestricted', entry: entry('test-writing-2', true) });
       expect((await readModelDefaults(tx)).writing.unrestricted).toBe('test-writing-2');
       // and so does an override where Venice has no label
-      await setUncensored(tx, { entry: plain, uncensored: true, userId: null });
+      await setUncensored(tx, { modelId: plain.id, entry: plain, uncensored: true, userId: null });
       await setModelDefault(tx, { kind: 'writing', variant: 'unrestricted', entry: plain });
       await setModelDefault(tx, { kind: 'writing', variant: 'regular', entry: plain });
       expect((await readModelDefaults(tx)).writing.regular).toBe('test-writing-2');
@@ -151,16 +155,20 @@ d('the model marks and checks', () => {
         message: expect.stringContaining('is the default writing model;'),
       });
       const labelled = entry('test-writing-2', true);
-      await expect(setUncensored(tx, { entry: labelled, uncensored: false, userId: null })).rejects.toMatchObject({
+      await expect(
+        setUncensored(tx, { modelId: labelled.id, entry: labelled, uncensored: false, userId: null }),
+      ).rejects.toMatchObject({
         statusCode: 400,
         message: expect.stringContaining('default writing model for Adult content'),
       });
       // following Venice while Venice no longer labels it is not uncensored either
       const unlabelled = entry('test-writing-2');
-      await expect(setUncensored(tx, { entry: unlabelled, uncensored: null, userId: null })).rejects.toMatchObject({
+      await expect(
+        setUncensored(tx, { modelId: unlabelled.id, entry: unlabelled, uncensored: null, userId: null }),
+      ).rejects.toMatchObject({
         statusCode: 400,
       });
-      await setUncensored(tx, { entry: unlabelled, uncensored: true, userId: null });
+      await setUncensored(tx, { modelId: unlabelled.id, entry: unlabelled, uncensored: true, userId: null });
       // Postgres itself refuses deleting a default's mark
       await expect(
         tx.transaction((savepoint) =>
@@ -260,6 +268,42 @@ d('the model marks and checks', () => {
       status: 'failed',
       error: 'The server restarted during the check',
       result: null,
+    });
+  });
+
+  it('reads and restarts a check whose heartbeat stopped as failed, so it never blocks a new one', async () => {
+    const { check } = await startCheck(db, { kind: 'writing', modelId: 'test-check-2', userId: null });
+    const backdate = (id: string) =>
+      db
+        .update(schema.modelChecks)
+        .set({ updatedAt: new Date(Date.now() - 3 * 60 * 1000) })
+        .where(eq(schema.modelChecks.id, id));
+    await backdate(check.id);
+    expect(await readLatestCheck(db, 'writing', 'test-check-2')).toMatchObject({
+      id: check.id,
+      status: 'failed',
+      error: 'The server restarted during the check',
+    });
+    const next = await startCheck(db, { kind: 'writing', modelId: 'test-check-2', userId: null });
+    expect(next.isNew).toBe(true);
+    // a stale row that is still running when a start comes in is failed and replaced
+    await backdate(next.check.id);
+    const third = await startCheck(db, { kind: 'writing', modelId: 'test-check-2', userId: null });
+    expect(third.isNew).toBe(true);
+    expect(third.check.id).not.toBe(next.check.id);
+  });
+
+  it("fails this process's own running checks at shutdown", async () => {
+    const { check } = await startCheck(db, { kind: 'writing', modelId: 'test-check-1', userId: null });
+    const run = vi.spyOn(CHECKS.writing, 'run').mockImplementationOnce(async () => {
+      await failOwnChecks(db);
+      return RESULT;
+    });
+    await runCheck(db, { check, model, catalog: [], instructionsAsync, log });
+    run.mockRestore();
+    expect(await readLatestCheck(db, 'writing', 'test-check-1')).toMatchObject({
+      status: 'failed',
+      error: 'The server stopped during the check',
     });
   });
 });

@@ -38,6 +38,9 @@ export class AppError extends Error {
   static invalidToken(message = 'Invalid or expired token') {
     return new AppError(401, 'invalid_token', message);
   }
+  static validation(message: string) {
+    return new AppError(400, 'validation_error', message);
+  }
   static notFound(message = 'Not found') {
     return new AppError(404, 'not_found', message);
   }

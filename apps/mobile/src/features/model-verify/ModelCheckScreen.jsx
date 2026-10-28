@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ModelCheckSection from './ModelCheckSection';
 import ModelCheckSummary from './ModelCheckSummary';
 import VerificationMenuOptions from './VerificationMenuOptions';
+import findCatalogModel from './findCatalogModel';
 import startCheckAsync from './startCheckAsync';
 import useModelCheck from './useModelCheck';
 
@@ -16,12 +17,12 @@ import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import MenuDivider from '@/components/popup-menu-options/MenuDivider';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
+import { Row, Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import useAiCatalog from '@/hooks/useAiCatalog';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useScrollY from '@/hooks/useScrollY';
 import { colors, typography } from '@/styles/designTokens';
-import findCatalogModel from '@/utils/ai/findCatalogModel';
 
 const KIND_TITLE = { writing: 'Chat check', vision: 'Tagging check' };
 
@@ -53,6 +54,11 @@ export default function ModelCheckScreen({ navigation, route }) {
     }
     return (
       <>
+        {error && (
+          <Section>
+            <Row label="Couldn't refresh the check" description={error} value="Try again" onPress={retry} />
+          </Section>
+        )}
         {check.status === 'failed' && <EmptyState icon="alert" title="The check failed" subtitle={check.error} />}
         {isRunning && <CheckProgress kind={kind} check={check} />}
         {check.status === 'done' && <ModelCheckSummary kind={kind} check={check} />}

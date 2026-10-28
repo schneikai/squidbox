@@ -50,6 +50,11 @@ export default function ModelListScreen({ navigation, route }) {
     haptics.selection();
   }
 
+  // Opens the model's last check, without starting one (the screen reads it).
+  function handleShowCheck(row) {
+    navigation.navigate('ModelCheckModal', { kind, modelId: row.id, name: row.name });
+  }
+
   // Starts the model's check on the server, then opens it to watch.
   async function handleCheck(row) {
     const check = await startCheckAsync(kind, row.model, catalog);
@@ -83,6 +88,7 @@ export default function ModelListScreen({ navigation, route }) {
               score={row.score}
               isChosen={row.id === chosenId}
               onChoose={() => handleChoose(row)}
+              onShowCheck={() => handleShowCheck(row)}
               onCheck={() => handleCheck(row)}
               onResetScore={() => handleResetScore(row)}
               onRemove={() => removeYourModel(getDb(), kind, row.id)}

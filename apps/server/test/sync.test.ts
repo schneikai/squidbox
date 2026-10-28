@@ -238,6 +238,32 @@ d('sync engine (Postgres)', () => {
     await pool.query('DELETE FROM personas WHERE user_id = $1 AND id = $2', [USER_A, id]);
   });
 
+  it("instructions from a build without the model check's judge are applied, and keep a judge set elsewhere", async () => {
+    const record = {
+      id: USER_A,
+      createdAt: 1000,
+      updatedAt: 1000,
+      deletedAt: null,
+      writing: null,
+      visionTagging: null,
+      moreLikeThis: null,
+    };
+    const pulled = async () =>
+      (await pull(db, USER_A, { cursor: 0 })).changes.instructions.records.find((each) => each.id === USER_A);
+    expect(
+      (await push(db, USER_A, [{ collection: 'instructions', record, fields: { writing: 1000 } }]))[0],
+    ).toMatchObject({ status: 'applied' });
+    expect(await pulled()).toMatchObject({ modelCheckJudge: null });
+    const judged = { ...record, updatedAt: 2000, modelCheckJudge: 'Judge it: {reply}' };
+    await push(db, USER_A, [{ collection: 'instructions', record: judged, fields: { modelCheckJudge: 2000 } }]);
+    const older = { ...record, updatedAt: 3000, writing: 'Write like me.' };
+    expect(
+      (await push(db, USER_A, [{ collection: 'instructions', record: older, fields: { writing: 3000 } }]))[0],
+    ).toMatchObject({ status: 'applied' });
+    expect(await pulled()).toMatchObject({ writing: 'Write like me.', modelCheckJudge: 'Judge it: {reply}' });
+    await pool.query('DELETE FROM instructions WHERE user_id = $1', [USER_A]);
+  });
+
   it('an unknown collection, Object.prototype’s names included, is rejected per mutation', async () => {
     const album = albumRecord();
     const results = await push(db as any, USER_A, [

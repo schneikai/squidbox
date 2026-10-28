@@ -134,6 +134,7 @@ describe('error envelope', () => {
     expect(AppError.unauthorized()).toMatchObject({ statusCode: 401, code: 'unauthorized' });
     expect(AppError.invalidCredentials()).toMatchObject({ statusCode: 401, code: 'invalid_credentials' });
     expect(AppError.invalidToken()).toMatchObject({ statusCode: 401, code: 'invalid_token' });
+    expect(AppError.validation('bad')).toMatchObject({ statusCode: 400, code: 'validation_error', message: 'bad' });
     expect(AppError.notFound()).toMatchObject({ statusCode: 404, code: 'not_found' });
     expect(AppError.s3('boom')).toMatchObject({ statusCode: 502, code: 's3_error' });
   });

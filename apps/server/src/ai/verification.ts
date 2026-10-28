@@ -17,8 +17,6 @@ export type Verification = {
   defaults: ModelDefaults;
 };
 
-const invalid = (message: string) => new AppError(400, 'validation_error', message);
-
 // The four defaults as one object. A missing one is a broken seed, so parsing throws (a 500), never
 // a fallback in code.
 function toDefaults(rows: { kind: string; variant: string; modelId: string }[]): ModelDefaults {
@@ -69,38 +67,47 @@ export async function setVerification(
       .select({ variant: modelDefaults.variant })
       .from(modelDefaults)
       .where(and(eq(modelDefaults.kind, kind), eq(modelDefaults.modelId, modelId)));
-    if (isDefault) throw invalid(`${modelId} is the default ${kind} model; make another model the default first`);
+    if (isDefault)
+      throw AppError.validation(`${modelId} is the default ${kind} model; make another model the default first`);
     await tx.delete(verifiedModels).where(and(eq(verifiedModels.kind, kind), eq(verifiedModels.modelId, modelId)));
   });
 }
 
 /**
  * Sets the model's override of Venice's Uncensored label (`uncensored`; null follows Venice). 400
- * when that leaves an Adult content default of any kind not uncensored.
+ * when that leaves an Adult content default of any kind not uncensored. `entry` is the model's
+ * catalog entry, null once Venice dropped it: then there is no label to follow, and only false
+ * counts as not uncensored.
  */
 export async function setUncensored(
   db: Db,
-  { entry, uncensored, userId }: { entry: CatalogEntry; uncensored: boolean | null; userId: string | null },
+  {
+    modelId,
+    entry,
+    uncensored,
+    userId,
+  }: { modelId: string; entry: CatalogEntry | null; uncensored: boolean | null; userId: string | null },
 ): Promise<void> {
+  const counts = entry ? isUncensored(entry, uncensored) : uncensored !== false;
   await db.transaction(async (tx) => {
-    if (!isUncensored(entry, uncensored)) {
+    if (!counts) {
       const [adultDefault] = await tx
         .select({ kind: modelDefaults.kind })
         .from(modelDefaults)
-        .where(and(eq(modelDefaults.variant, 'unrestricted'), eq(modelDefaults.modelId, entry.id)));
+        .where(and(eq(modelDefaults.variant, 'unrestricted'), eq(modelDefaults.modelId, modelId)));
       if (adultDefault) {
-        throw invalid(
-          `${entry.id} is the default ${adultDefault.kind} model for Adult content; make another model that default first`,
+        throw AppError.validation(
+          `${modelId} is the default ${adultDefault.kind} model for Adult content; make another model that default first`,
         );
       }
     }
     if (uncensored === null) {
-      await tx.delete(uncensoredOverrides).where(eq(uncensoredOverrides.modelId, entry.id));
+      await tx.delete(uncensoredOverrides).where(eq(uncensoredOverrides.modelId, modelId));
       return;
     }
     await tx
       .insert(uncensoredOverrides)
-      .values({ modelId: entry.id, uncensored, setBy: userId })
+      .values({ modelId, uncensored, setBy: userId })
       .onConflictDoUpdate({
         target: uncensoredOverrides.modelId,
         set: { uncensored, setBy: userId, setAt: new Date() },
@@ -121,13 +128,14 @@ export async function setModelDefault(
       .select({ modelId: verifiedModels.modelId })
       .from(verifiedModels)
       .where(and(eq(verifiedModels.kind, kind), eq(verifiedModels.modelId, entry.id)));
-    if (!verified) throw invalid('Mark the model verified first');
+    if (!verified) throw AppError.validation('Mark the model verified first');
     if (variant === 'unrestricted') {
       const [override] = await tx
         .select({ uncensored: uncensoredOverrides.uncensored })
         .from(uncensoredOverrides)
         .where(eq(uncensoredOverrides.modelId, entry.id));
-      if (!isUncensored(entry, override?.uncensored ?? null)) throw invalid('Mark the model uncensored first');
+      if (!isUncensored(entry, override?.uncensored ?? null))
+        throw AppError.validation('Mark the model uncensored first');
     }
     await tx
       .insert(modelDefaults)
