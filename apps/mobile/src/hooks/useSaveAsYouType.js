@@ -9,9 +9,8 @@ import createAutoSaver from '@/utils/createAutoSaver';
  * Stores `value` as it changes, the iOS Settings way: no Save button. A change is stored once typing
  * pauses, and at once on `flush()` (a field's blur), when the app goes to the background and when
  * the screen goes away, so nothing typed is lost; it syncs only then, so a half-typed record stays
- * on the device. `save(next, stored, { isLeaving })`: see createAutoSaver (`isLeaving` lets it drop
- * a new item left empty). `end(write)` runs a last write, such as a Delete, after the saves under
- * way, and saves nothing after it. A failed save says so. Values compare by their JSON.
+ * on the device. `save(next, stored)`: see createAutoSaver. A failed save says so. Values compare by
+ * their JSON.
  */
 export default function useSaveAsYouType(value, save) {
   const haptics = useHaptics();
@@ -49,7 +48,7 @@ export default function useSaveAsYouType(value, save) {
     );
     return () => {
       subscription.remove();
-      saver.flush({ isLeaving: true, shouldSync: true });
+      saver.flush({ shouldSync: true });
     };
   }, [saver]);
 

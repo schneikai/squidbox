@@ -1,5 +1,3 @@
-import { Alert } from 'react-native';
-
 import readPost from '@/features/post-detail/readPost';
 import PostEditor from '@/features/posts/PostEditor';
 import usePosts from '@/features/posts-context/usePosts';
@@ -14,12 +12,7 @@ export default function EditPostScreen({ route, navigation }) {
   const post = useSeedOrClose((db) => readPost(db, postId), postId, 'This post was deleted');
 
   async function handleUpdatePost(data, seed) {
-    try {
-      await updatePost(postId, changedValues(seed, data), seed);
-      navigation.goBack();
-    } catch (error) {
-      Alert.alert('Failed to update post!', error.message);
-    }
+    await updatePost(postId, changedValues(seed, data), seed);
   }
 
   if (!post) return null;

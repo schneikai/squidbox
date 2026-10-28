@@ -32,7 +32,8 @@ Decide this before the app stores anything new:
 - Components define their appearance; parents define layout
 - Animate with the `motion` tokens in `styles/designTokens.js` (`enter`, `exit`, `move`, `spring`), not ad-hoc durations, easings or spring values
 - Give haptic feedback through `hooks/useHaptics`, never expo-haptics directly: it respects the Haptics setting and skips builds and web without the native module. Use it only for meaningful moments (a lift, a drop, a peek, a selection change, a success or an error), never for every tap
-- Edits save as you type, like iOS Settings (`hooks/useSaveAsYouType`): no Save buttons or discard prompts; a new item is created once it has content
+- Push a screen to go deeper (a photo, post or album, a Settings section, a list). Open a sheet (`presentation: 'modal'` with `asModalRoute`) for a task that ends where it started: creating or editing one item (`components/EditSheet`, `TextEditSheet`), picking something, a flow. A sheet is a draft: Cancel on the left closes it without saving, Add (new item) or Done (edit) on the right saves and closes it, both off until the item is valid and changed; leaving with changes asks first (`hooks/useDiscardGuard`). Inside a sheet, more steps push inside it with Back, never a second sheet. Short info about the current screen goes in a `BottomSheet`, one line of text in an alert prompt
+- A pushed screen's edits save as you type, like iOS Settings (`hooks/useSaveAsYouType`): no Save buttons or discard prompts
 
 ## Code Quality
 

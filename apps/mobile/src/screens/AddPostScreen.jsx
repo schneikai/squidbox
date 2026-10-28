@@ -1,5 +1,3 @@
-import { Alert } from 'react-native';
-
 import readPost from '@/features/post-detail/readPost';
 import PostEditor from '@/features/posts/PostEditor';
 import usePosts from '@/features/posts-context/usePosts';
@@ -18,13 +16,8 @@ export default function AddPostScreen({ route, navigation }) {
   const seed = useSeedOrClose((db) => readSeed(db, route.params ?? {}), route.params, 'This post was deleted');
 
   async function handleAddPost(data) {
-    try {
-      await addPost({ ...data, rePostId });
-      if (rePostId) await updatePost(rePostId, { hasBeenReposted: true });
-      navigation.getParent().goBack(); // closes this editor only, not one it was opened over
-    } catch (error) {
-      Alert.alert('Failed to create post!', error.message);
-    }
+    await addPost({ ...data, rePostId });
+    if (rePostId) await updatePost(rePostId, { hasBeenReposted: true });
   }
 
   if (!seed) return null;

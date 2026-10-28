@@ -1,9 +1,9 @@
-import { PERSONA_LIMITS } from '@squidbox/shared';
 import { Alert } from 'react-native';
 
 import ChatBubble from './ChatBubble';
 
 import MenuOption from '@/components/popup-menu-options/MenuOption';
+import addRuleText from '@/features/voice/addRuleText';
 import useHaptics from '@/hooks/useHaptics';
 import useLibrary from '@/library/useLibrary';
 import { getDb } from '@/sync/db/client';
@@ -23,11 +23,11 @@ export default function UserMessage({ label, content }) {
     try {
       const result = await addRule(getDb(), userId, content);
       if (result === 'tooLong') {
-        Alert.alert('Too long for a rule', `A rule can have up to ${PERSONA_LIMITS.rule} characters.`);
+        Alert.alert('Too long for a rule', addRuleText.tooLong);
         return;
       }
       if (result === 'full') {
-        Alert.alert('No room for another rule', `Writing as you has up to ${PERSONA_LIMITS.rules} rules.`);
+        Alert.alert('No room for another rule', addRuleText.full);
         return;
       }
       if (result === 'added') requestSync();

@@ -1,11 +1,9 @@
 import { FAVORITE_LIMITS } from '@squidbox/shared';
-import { useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import { useState } from 'react';
 
-import TextEditScreen from '@/components/TextEditScreen';
-import useHaptics from '@/hooks/useHaptics';
+import TextEditSheet from '@/components/TextEditSheet';
+import useEditSheet from '@/hooks/useEditSheet';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
-import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import { getDb } from '@/sync/db/client';
 import {
@@ -15,13 +13,13 @@ import {
   removeFavorite,
   updateFavorite,
 } from '@/sync/favoritesRepository';
-import { requestSync } from '@/sync/worker';
 
 const NEW_FAVORITE = { text: '' };
+const ALREADY_TEXT = 'This post is in your Favorites already.';
 
-// One favorite, saved as you type: `{ id }` edits it (or Delete, which the Favorites screen offers to
-// undo); no params adds one of your own posts, created once it has text and dropped if you leave it
-// empty. Reachable from anywhere (a root screen), so the chat opens it too.
+// One favorite, as a draft sheet: `{ id }` edits it (Done, or Delete, which the Favorites screen
+// offers to undo); no params adds one of your own posts (Add). A text in your Favorites already says
+// so and keeps the sheet open. Reachable from anywhere (a root screen), so the chat opens it too.
 export default function FavoriteScreen({ route, navigation }) {
   const id = route.params?.id;
   const isAvailable = useLeaveWhenUnavailable();
@@ -35,66 +33,57 @@ export default function FavoriteScreen({ route, navigation }) {
 }
 
 function FavoriteEditor({ id, seed, navigation }) {
-  const haptics = useHaptics();
   const [text, setText] = useState(seed.text);
-  const [isTaken, setIsTaken] = useState(false);
-  // The favorite's id once there is one (a new one gets it with its first text).
-  const idRef = useRef(id);
-  const { flush, end } = useSaveAsYouType(text.trim(), saveText);
+  // Why Add or Done didn't save the favorite, until the text changes.
+  const [notice, setNotice] = useState(null);
+  const { sheetProps, finish } = useEditSheet({
+    isNew: !id,
+    isValid: Boolean(text.trim()),
+    isDirty: text.trim() !== seed.text,
+    save,
+  });
 
-  async function saveText(next, stored, { isLeaving }) {
+  async function save() {
     const db = getDb();
-    if (!next) {
-      // Empty: a favorite this screen added goes when you leave; one you opened keeps its text.
-      if (isLeaving && !id && idRef.current) await removeFavorite(db, idRef.current);
+    if (!id) {
+      if ((await addFavorites(db, [text], null)).length > 0) return true;
+      setNotice(ALREADY_TEXT);
       return false;
     }
-    if (idRef.current) {
-      try {
-        await updateFavorite(db, idRef.current, next);
-      } catch (error) {
-        if (error.message !== ALREADY_IN_FAVORITES) throw error;
-        setIsTaken(true);
-        return false;
-      }
-    } else {
-      const [created] = await addFavorites(db, [next], null);
-      if (!created) {
-        setIsTaken(true);
-        return false;
-      }
-      idRef.current = created.id;
+    try {
+      await updateFavorite(db, id, text);
+      return true;
+    } catch (error) {
+      if (error.message !== ALREADY_IN_FAVORITES) throw error;
+      setNotice(ALREADY_TEXT);
+      return false;
     }
-    setIsTaken(false);
-    return true;
   }
 
-  // No confirm: the Favorites screen shows the card dimmed with Undo. After the saves under way, and
-  // nothing typed is saved after it.
-  async function handleDelete() {
-    try {
-      await end(() => removeFavorite(getDb(), id));
-      requestSync();
-      navigation.navigate({ name: 'FavoritesScreen', params: { removedId: id }, merge: true });
-    } catch (error) {
-      console.error('Deleting the favorite failed', error);
-      haptics.error();
-      Alert.alert("Couldn't delete the favorite", error.message);
-    }
+  // No confirm: the Favorites screen shows the card dimmed with Undo.
+  function handleDelete() {
+    finish(async () => {
+      await removeFavorite(getDb(), id);
+      return () => navigation.navigate({ name: 'FavoritesScreen', params: { removedId: id }, merge: true });
+    }, "Couldn't delete the favorite");
+  }
+
+  function handleChangeText(next) {
+    setText(next);
+    setNotice(null);
   }
 
   return (
-    <TextEditScreen
+    <TextEditSheet
+      {...sheetProps}
       title="Favorite"
       value={text}
-      onChangeText={setText}
-      onBlur={() => flush()}
-      onBack={() => navigation.goBack()}
+      onChangeText={handleChangeText}
       placeholder="Paste one of your posts"
       maxLength={FAVORITE_LIMITS.text}
       autoFocus={!id}
-      description={isTaken ? 'This post is in your Favorites already.' : null}
-      action={id ? { label: 'Delete favorite', tone: 'danger', onPress: handleDelete } : null}
+      description={notice}
+      actions={id ? [{ label: 'Delete favorite', tone: 'danger', onPress: handleDelete }] : null}
     />
   );
 }

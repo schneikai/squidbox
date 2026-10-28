@@ -3,20 +3,19 @@ import { useState } from 'react';
 
 import instructionText from './instructionText';
 
-import TextEditScreen from '@/components/TextEditScreen';
-import useHaptics from '@/hooks/useHaptics';
+import TextEditSheet from '@/components/TextEditSheet';
+import useEditSheet from '@/hooks/useEditSheet';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
-import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import useLibrary from '@/library/useLibrary';
 import { scale } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { readInstructions, saveInstruction } from '@/sync/instructionsRepository';
-import confirmAsync from '@/utils/confirmAsync';
 
-// One kind of instructions (`{ kind }`): its text, the user's or the app's, saved as you type, and
-// Reset to default while the user's is stored. A root screen, one per kind.
-export default function InstructionScreen({ route, navigation }) {
+// One kind of instructions (`{ kind }`) as a draft sheet: its text, the user's or the app's, saved on
+// Done, and Reset to default while the draft differs from the app's (Cancel undoes it, so no
+// confirm). A root screen, one per kind.
+export default function InstructionScreen({ route }) {
   const { kind } = route.params;
   const isAvailable = useLeaveWhenUnavailable();
   const { library } = useLibrary();
@@ -26,49 +25,36 @@ export default function InstructionScreen({ route, navigation }) {
     `${userId}:${kind}`,
   );
   if (!isAvailable || !seed) return null;
-  return <InstructionEditor kind={kind} userId={userId} seed={seed} navigation={navigation} />;
+  return <InstructionEditor kind={kind} userId={userId} seed={seed} />;
 }
 
-function InstructionEditor({ kind, userId, seed, navigation }) {
-  const haptics = useHaptics();
-  const [text, setText] = useState(seed.stored ?? DEFAULT_INSTRUCTIONS[kind]);
-  const { flush } = useSaveAsYouType(text.trim(), saveText);
+function InstructionEditor({ kind, userId, seed }) {
+  const initialText = seed.stored ?? DEFAULT_INSTRUCTIONS[kind];
+  const [text, setText] = useState(initialText);
+  const { sheetProps } = useEditSheet({ isValid: Boolean(text.trim()), isDirty: text.trim() !== initialText, save });
 
   const isChanged = text.trim() !== DEFAULT_INSTRUCTIONS[kind];
 
-  // An empty text isn't saved (Reset is the way back to the default); the default's text is stored
-  // as null.
-  async function saveText(next) {
-    if (!next) return false;
-    await saveInstruction(getDb(), userId, kind, next);
-    return true;
-  }
-
-  // The default's text, saved as you type like any other (as null).
-  async function handleReset() {
-    const isConfirmed = await confirmAsync({
-      title: 'Reset to default?',
-      message: "Your text is replaced by the app's.",
-      action: 'Reset',
-      destructive: true,
-    });
-    if (!isConfirmed) return;
-    setText(DEFAULT_INSTRUCTIONS[kind]);
-    haptics.success();
+  // The default's text is stored as null.
+  async function save() {
+    await saveInstruction(getDb(), userId, kind, text.trim());
   }
 
   return (
-    <TextEditScreen
+    <TextEditSheet
+      {...sheetProps}
       title={instructionText[kind].title}
       value={text}
       onChangeText={setText}
-      onBlur={() => flush()}
-      onBack={() => navigation.goBack()}
       placeholder="What the assistant is told"
       maxLength={INSTRUCTION_LIMITS.text}
       minHeight={scale(240)}
       description={instructionText[kind].description}
-      action={isChanged ? { label: 'Reset to default', tone: 'danger', onPress: handleReset } : null}
+      actions={
+        isChanged
+          ? [{ label: 'Reset to default', tone: 'danger', onPress: () => setText(DEFAULT_INSTRUCTIONS[kind]) }]
+          : null
+      }
     />
   );
 }
