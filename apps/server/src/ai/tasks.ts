@@ -14,7 +14,7 @@ import { AppError } from '../errors.js';
 import { catalogAsync, findModel, type CatalogEntry } from './catalog.js';
 import { readChosenModelId } from './modelChoices.js';
 import { chatReplyJsonSpec, tagsSchema, tweetsSchema } from './prompts.js';
-import { chatJsonAsync, VeniceError, type ChatMessage, type JsonSchemaSpec, type Reasoning } from './venice.js';
+import { chatJsonAsync, VeniceError, type ChatMessage, type JsonSchemaSpec } from './venice.js';
 
 /** The trimmed tweets when there are exactly WRITING_TWEET_COUNT non-empty ones; throws otherwise. */
 export function checkTweets(tweets: string[]): string[] {
@@ -66,34 +66,15 @@ export function fitTags(tags: string[]): string[] {
 }
 
 /**
- * What the assistant asks a model for, and the check its reply must pass to be its result.
- * `quickReply`: the task wants a fast answer over a thought-through one, so the model's reasoning is
- * turned down (quickReasoning); a task without it runs on the model's defaults. `onUnreadable`: what
- * a reply that isn't the schema's JSON becomes (its text), instead of failing.
+ * What the assistant asks a model for, and the check its reply must pass to be its result, on the
+ * model's own defaults. `onUnreadable`: what a reply that isn't the schema's JSON becomes (its text),
+ * instead of failing.
  */
 export type AiTask<T> = {
   schema: JsonSchemaSpec<T>;
   check: (reply: T) => T;
-  quickReply?: true;
   onUnreadable?: (content: string, json: unknown) => T;
 };
-
-// Reasoning efforts from the least to the most, as Venice names them.
-const EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
-
-/**
- * The reasoning that turns a model down for a quick reply: the lowest effort above 'none' it lists
- * ('low' when it lists none) for a model whose effort can be set; no thinking for one that only
- * reasons; undefined for a model that doesn't reason.
- */
-export function quickReasoning(entry: CatalogEntry): Reasoning | undefined {
-  const { supportsReasoning, supportsReasoningEffort, reasoningEffortOptions } = entry.model_spec.capabilities;
-  if (supportsReasoningEffort) {
-    return { effort: EFFORTS.find((effort) => reasoningEffortOptions?.includes(effort)) ?? 'low' };
-  }
-  if (supportsReasoning) return { disableThinking: true };
-  return undefined;
-}
 
 export const writingTask: AiTask<{ tweets: string[] }> = {
   schema: tweetsSchema,
@@ -112,11 +93,10 @@ export function readChatReplyLeniently(content: string, json: unknown): ChatRepl
   return { reply, postOptions: options.filter((option): option is string => typeof option === 'string') };
 }
 
-// A chat reply comes quickly, and one that isn't the JSON is still the model's answer.
+// A chat reply that isn't the JSON is still the model's answer.
 export const chatTask: AiTask<ChatReply> = {
   schema: chatReplyJsonSpec,
   check: checkChatReply,
-  quickReply: true,
   onUnreadable: readChatReplyLeniently,
 };
 
@@ -152,7 +132,6 @@ export async function runTask<T>({
     messages,
     schema: task.schema,
     supportsResponseSchema: model.model_spec.capabilities.supportsResponseSchema !== false,
-    reasoning: task.quickReply ? quickReasoning(model) : undefined,
     onUnreadable: task.onUnreadable,
     signal,
   });

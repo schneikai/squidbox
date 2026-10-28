@@ -560,20 +560,17 @@ describe('POST /api/v1/ai/chat', () => {
     expect(res.json()).toEqual({ reply: 'Sounds like a good trip.', postOptions: [] });
   });
 
-  it("turns the model's reasoning down for the chat: low when it takes an effort, thinking off when it only reasons, nothing when it can't", async () => {
+  it("runs the chat on each model's own defaults: no reasoning or effort settings", async () => {
     veniceAnswers();
-    vi.mocked(readChosenModelId).mockResolvedValueOnce('deepseek-v4-1-flash-uncensored');
-    await call('POST', '/ai/chat', chatRequest);
-    vi.mocked(readChosenModelId).mockResolvedValueOnce('qwen-3-6-plus');
-    await call('POST', '/ai/chat', chatRequest);
-    vi.mocked(readChosenModelId).mockResolvedValueOnce('venice-uncensored-1-2');
-    await call('POST', '/ai/chat', chatRequest);
-    const [deepseek, qwen, venice] = chatBodies();
-    expect(deepseek.reasoning_effort).toBe('low');
-    expect(qwen).not.toHaveProperty('reasoning_effort');
-    expect(qwen.venice_parameters.disable_thinking).toBe(true);
-    expect(venice).not.toHaveProperty('reasoning_effort');
-    expect(venice.venice_parameters).not.toHaveProperty('disable_thinking');
+    for (const id of ['deepseek-v4-1-flash-uncensored', 'qwen-3-6-plus', 'venice-uncensored-1-2']) {
+      vi.mocked(readChosenModelId).mockResolvedValueOnce(id);
+      await call('POST', '/ai/chat', chatRequest);
+    }
+    for (const body of chatBodies()) {
+      expect(body).not.toHaveProperty('reasoning_effort');
+      expect(body).not.toHaveProperty('reasoning');
+      expect(body.venice_parameters).toEqual({ include_venice_system_prompt: false, strip_thinking_response: true });
+    }
   });
 
   it("uses the user's chosen writing model", async () => {

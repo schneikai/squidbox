@@ -36,7 +36,6 @@
         },
         "capabilities": {
           "supportsVision": true,
-          "supportsReasoning": true,
           "supportsReasoningEffort": false
         },
         "traits": []

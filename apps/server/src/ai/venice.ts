@@ -4,7 +4,7 @@ import type { z } from 'zod';
 import { loadConfig } from '../config.js';
 import { AppError } from '../errors.js';
 
-// Models think at their default effort, which can take a minute or two.
+// Models reason at their defaults, which can take a minute or two (Qwen 3.6 Plus: 35–69 s).
 const CHAT_TIMEOUT_MS = 150_000;
 const GET_TIMEOUT_MS = 15_000;
 
@@ -54,13 +54,6 @@ export async function veniceGetJson<S extends z.ZodTypeAny>(path: string, schema
 type ChatContentPart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } };
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string | ChatContentPart[] };
 
-/**
- * How far a model reasons: an `effort` for a model that takes one (`reasoning_effort`), or no
- * thinking at all for one that only reasons (`venice_parameters.disable_thinking`; Venice documents
- * `reasoning_effort` 'none' as left to the provider).
- */
-export type Reasoning = { effort: string } | { disableThinking: true };
-
 export type JsonSchemaSpec<T> = { name: string; jsonSchema: Record<string, unknown>; zod: z.ZodType<T> };
 
 type ChatCompletion = {
@@ -76,14 +69,12 @@ async function chatCompletionAsync({
   model,
   messages,
   signal,
-  reasoning,
   ...extra
 }: {
   model: string;
   messages: ChatMessage[];
   signal?: AbortSignal;
   response_format?: Record<string, unknown>;
-  reasoning?: Reasoning;
 }): Promise<string> {
   const response = await veniceFetch('/chat/completions', {
     method: 'POST',
@@ -92,14 +83,9 @@ async function chatCompletionAsync({
       model,
       messages,
       ...extra,
-      // A model runs on its own defaults (thinking, reply length) unless `reasoning` turns it down.
-      // Venice's own system prompt would shape the reply, and thinking text must not reach it.
-      ...(reasoning && 'effort' in reasoning && { reasoning_effort: reasoning.effort }),
-      venice_parameters: {
-        include_venice_system_prompt: false,
-        strip_thinking_response: true,
-        ...(reasoning && 'disableThinking' in reasoning && { disable_thinking: true }),
-      },
+      // Every model runs on Venice's defaults (reasoning, effort, reply length). Venice's own system
+      // prompt would shape the reply, and thinking text must not reach it.
+      venice_parameters: { include_venice_system_prompt: false, strip_thinking_response: true },
     }),
     timeoutMs: CHAT_TIMEOUT_MS,
     signal,
@@ -132,15 +118,13 @@ async function chatCompletionAsync({
  * `onUnreadable` is given: then a reply that isn't that JSON is `onUnreadable(its text, the JSON
  * object found in it or null)`. A model
  * without `supportsResponseSchema` is asked without the schema (the messages say the shape), and
- * its reply may wrap the JSON in a code fence or words. `reasoning` turns the model's reasoning down
- * (quickReasoning in tasks.ts); without it the model reasons as it does by default.
+ * its reply may wrap the JSON in a code fence or words.
  */
 export async function chatJsonAsync<T>({
   model,
   messages,
   schema,
   supportsResponseSchema = true,
-  reasoning,
   onUnreadable,
   signal,
 }: {
@@ -148,7 +132,6 @@ export async function chatJsonAsync<T>({
   messages: ChatMessage[];
   schema: JsonSchemaSpec<T>;
   supportsResponseSchema?: boolean;
-  reasoning?: Reasoning;
   onUnreadable?: (content: string, json: unknown) => T;
   signal?: AbortSignal;
 }): Promise<T> {
@@ -161,7 +144,6 @@ export async function chatJsonAsync<T>({
     messages,
     signal,
     ...(supportsResponseSchema && { response_format: responseFormat }),
-    reasoning,
   });
   const json = parseJsonReply(content);
   const parsed = schema.zod.safeParse(json);

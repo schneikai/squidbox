@@ -28,11 +28,6 @@ const catalogEntrySchema = z.object({
         supportsVision: z.boolean().optional(),
         // false for a model that can't hold its reply to a JSON schema (it gets the shape in words)
         supportsResponseSchema: z.boolean().optional(),
-        // A model that reasons before it answers, and whether (and how far) its effort can be set:
-        // quickReasoning (tasks.ts) turns it down for a task that wants a quick reply.
-        supportsReasoning: z.boolean().optional(),
-        supportsReasoningEffort: z.boolean().optional(),
-        reasoningEffortOptions: z.array(z.string()).optional(),
       })
       .default({}),
     traits: z.array(z.string()).default([]),

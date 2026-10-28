@@ -22,7 +22,6 @@ import {
   checkTags,
   checkTweets,
   fitTags,
-  quickReasoning,
   runTask,
   visionTask,
   writingTask,
@@ -138,13 +137,6 @@ describe('checking the replies', () => {
     );
   });
 
-  it("turns a model's reasoning down as far as its spec allows", () => {
-    expect(quickReasoning(model('deepseek-v4-1-flash-uncensored'))).toEqual({ effort: 'low' });
-    expect(quickReasoning(model('grok-4-7'))).toEqual({ effort: 'low' });
-    expect(quickReasoning(model('qwen-3-6-plus'))).toEqual({ disableThinking: true });
-    expect(quickReasoning(model('venice-uncensored-1-2'))).toBeUndefined();
-  });
-
   it('takes any number of tags, trimmed, without empty ones and case-insensitive duplicates, in order', () => {
     expect(checkTags([' Forest ', 'forest', '', '  ', 'morning fog', 'FOREST', 'moss'])).toEqual([
       'Forest',
@@ -176,25 +168,18 @@ describe('runTask', () => {
     });
   });
 
-  it('runs a chat reply with reasoning turned down, and keeps an unreadable one as its text', async () => {
+  it("runs a chat reply on the model's own defaults, and keeps an unreadable one as its text", async () => {
     const chat = [{ role: 'user' as const, content: 'Hi' }];
     replies({ 'deepseek-v4-1-flash-uncensored': 'Sure, tell me about the trip.' });
     await expect(
       runTask({ task: chatTask, messages: chat, model: model('deepseek-v4-1-flash-uncensored') }),
     ).resolves.toEqual({ reply: 'Sure, tell me about the trip.', postOptions: [] });
     const sent = JSON.parse(fetchMock.mock.calls[0]![1].body);
-    expect(sent.reasoning_effort).toBe('low');
+    expect(sent).not.toHaveProperty('reasoning_effort');
+    expect(sent).not.toHaveProperty('reasoning');
+    expect(sent.venice_parameters).toEqual({ include_venice_system_prompt: false, strip_thinking_response: true });
     expect(sent.response_format.json_schema.name).toBe('chat_reply');
     expect(sent.response_format.json_schema.schema.properties.postOptions).not.toHaveProperty('maxItems');
-    expect(sent.venice_parameters).not.toHaveProperty('disable_thinking');
-  });
-
-  it('runs a chat reply on a model that only reasons with its thinking off', async () => {
-    replies({ 'qwen-3-6-plus': { reply: 'Sure.', postOptions: [] } });
-    await runTask({ task: chatTask, messages: [{ role: 'user', content: 'Hi' }], model: model('qwen-3-6-plus') });
-    const sent = JSON.parse(fetchMock.mock.calls[0]![1].body);
-    expect(sent.venice_parameters.disable_thinking).toBe(true);
-    expect(sent).not.toHaveProperty('reasoning_effort');
   });
 
   it('reads a chat reply that misses the schema as far as it goes', async () => {
