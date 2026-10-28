@@ -146,26 +146,37 @@ async function startLocalBackendAndMetro() {
 // opens the database read-only and signs only GET URLs with the keys. Without them the app still
 // runs; opening the copy then says what's missing.
 function liveLibraryEnv() {
-  const live = {
-    LIVE_DATABASE_URL: process.env.LIVE_DATABASE_URL,
-    LIVE_AWS_ACCESS_KEY_ID: process.env.LIVE_AWS_ACCESS_KEY_ID,
-    LIVE_AWS_SECRET_ACCESS_KEY: process.env.LIVE_AWS_SECRET_ACCESS_KEY,
+  // Each live setting under the name the live server knows it by.
+  const names = {
+    LIVE_DATABASE_URL: 'DATABASE_URL',
+    LIVE_AWS_ACCESS_KEY_ID: 'AWS_ACCESS_KEY_ID',
+    LIVE_AWS_SECRET_ACCESS_KEY: 'AWS_SECRET_ACCESS_KEY',
+    LIVE_AWS_REGION: 'AWS_REGION',
   };
+  const live = Object.fromEntries(Object.keys(names).map((key) => [key, process.env[key]]));
   if (Object.values(live).some((value) => !value) && spawnSync('which', ['fly']).status === 0) {
-    const script = 'echo "$DATABASE_URL"; echo "$AWS_ACCESS_KEY_ID"; echo "$AWS_SECRET_ACCESS_KEY"';
+    // Read by name, so a line fly adds can't shift one value into another's place.
+    const script = Object.values(names)
+      .map((name) => `echo "${name}=$${name}"`)
+      .join('; ');
     const { stdout } = spawnSync('fly', ['ssh', 'console', '--app', 'squidbox-server', '-C', `sh -c '${script}'`], {
       encoding: 'utf8',
       timeout: 60_000,
     });
-    const [databaseUrl, accessKeyId, secretAccessKey] = (stdout ?? '').split('\n').map((line) => line.trim());
-    live.LIVE_DATABASE_URL ||= databaseUrl;
-    live.LIVE_AWS_ACCESS_KEY_ID ||= accessKeyId;
-    live.LIVE_AWS_SECRET_ACCESS_KEY ||= secretAccessKey;
+    const found = Object.fromEntries(
+      (stdout ?? '')
+        .split('\n')
+        .map((line) => line.trim().match(/^([A-Z_]+)=(.+)$/))
+        .filter(Boolean)
+        .map(([, name, value]) => [name, value]),
+    );
+    for (const [key, name] of Object.entries(names)) live[key] ||= found[name];
   }
-  if (Object.values(live).some((value) => !value)) {
+  if (!/^postgres(ql)?:\/\//.test(live.LIVE_DATABASE_URL ?? '')) delete live.LIVE_DATABASE_URL;
+  if (!live.LIVE_DATABASE_URL || !live.LIVE_AWS_ACCESS_KEY_ID || !live.LIVE_AWS_SECRET_ACCESS_KEY) {
     log("The live server's settings are out of reach (no fly, no LIVE_* variables): the library copy is off");
   }
-  return Object.fromEntries(Object.entries(live).map(([key, value]) => [key, value ?? '']));
+  return Object.fromEntries(Object.entries(live).filter(([, value]) => value));
 }
 
 // The phone gives up on a bundle that takes a minute to build; build it before handing out the URL.

@@ -50,13 +50,19 @@ function AssetItem({ asset, style, isZoomable, onTap, onZoomChange, video, verti
   );
 }
 
-// A photo its device hasn't backed up yet, or one only in the cloud while signed out.
+const FAILED_MESSAGE = { icon: 'alert', text: "Couldn't load this photo." };
+
+// A photo its device hasn't backed up yet, one only in the cloud while signed out, or one whose
+// download gave up.
 function renderUnavailable(hasPicture, status) {
   const unavailable = assetFileUnavailableMessages[status];
-  if (hasPicture || !unavailable) return null;
+  const message = unavailable
+    ? { icon: unavailable.icon, text: unavailable.message }
+    : status === 'failed' && FAILED_MESSAGE;
+  if (hasPicture || !message) return null;
   return (
     <View style={[StyleSheet.absoluteFill, styles.overlay]}>
-      <AssetMessage message={{ icon: unavailable.icon, text: unavailable.message }} />
+      <AssetMessage message={message} />
     </View>
   );
 }

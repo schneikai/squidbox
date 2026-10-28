@@ -1,8 +1,8 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { neon } from '@neondatabase/serverless';
-import { getTableName } from 'drizzle-orm';
+import { getTableName, sql } from 'drizzle-orm';
 import type { PushMutation } from '@squidbox/shared';
 import { loadConfig } from '../config.js';
 import type { Db } from '../db/client.js';
@@ -38,14 +38,23 @@ export function readOnlyLibraryError(): AppError {
 }
 
 /**
- * Copies the owner's live library into the copy account, unless the copy holds records already (then
- * it stays as it is). Resolves whether it copied.
+ * Copies the owner's live library into the copy account, unless a finished copy is there already
+ * (then it stays as it is). A copy cut short is cleared and made again. Resolves whether it copied.
  */
 export async function copyLiveLibraryIfMissing(db: Db, copyUser: User): Promise<boolean> {
   const { LIVE_DATABASE_URL: liveUrl } = loadConfig();
   if (!liveUrl) throw new AppError(503, 'internal', 'LIVE_DATABASE_URL is not set: start with npm run dev:local');
+  // The link is written last, so it marks a finished copy.
   const existing = await pull(db, copyUser.id, { limit: 1 });
-  if (Object.values(existing.changes).some(({ records }) => records.length > 0)) return false;
+  const hasRecords = Object.values(existing.changes).some(({ records }) => records.length > 0);
+  if (hasRecords && (await readLink())) return false;
+  link = null;
+  await rm(LINK_FILE, { force: true });
+  if (hasRecords) {
+    for (const col of Object.values(serverCollections)) {
+      await db.execute(sql`delete from ${col.table} where user_id = ${copyUser.id}`);
+    }
+  }
 
   const { owner, records } = await readLiveLibrary(liveUrl);
   const now = Date.now();
@@ -70,8 +79,8 @@ export async function copyLiveLibraryIfMissing(db: Db, copyUser: User): Promise<
 // The owner (the live account with the `developer` feature) and every record of their library, in
 // the wire format of a pull, from one read-only transaction.
 async function readLiveLibrary(liveUrl: string) {
-  const sql = neon(liveUrl);
-  const owners = (await sql.transaction(
+  const live = neon(liveUrl);
+  const owners = (await live.transaction(
     (tx) => [tx`select id, storage_bucket from users where 'developer' = any(features)`],
     { readOnly: true },
   )) as unknown as Array<Array<{ id: string; storage_bucket: string | null }>>;
@@ -82,10 +91,15 @@ async function readLiveLibrary(liveUrl: string) {
   const owner = { id: found[0]!.id, storageBucket: found[0]!.storage_bucket };
 
   const collections = Object.values(serverCollections);
-  const results = (await sql.transaction(
+  const results = (await live.transaction(
     (tx) =>
       collections.map((col) =>
-        tx.query(`select * from ${JSON.stringify(getTableName(col.table))} where user_id = $1`, [owner.id]),
+        tx.query(
+          `select ${Object.values(col.wireColumns)
+            .map((column) => JSON.stringify(column.name))
+            .join(', ')} from ${JSON.stringify(getTableName(col.table))} where user_id = $1`,
+          [owner.id],
+        ),
       ),
     { readOnly: true },
   )) as unknown as Array<Array<Record<string, unknown>>>;
@@ -109,9 +123,7 @@ async function readLiveLibrary(liveUrl: string) {
 // Photos another device hasn't backed up yet have no files to link to, so the copy leaves them out,
 // with their places in albums and posts.
 function withoutUnuploadedAssets(records: Record<string, Array<Record<string, unknown> & { id: string }>>) {
-  const left = new Set(
-    (records.assets ?? []).filter((a) => !a.isFileSynced || !a.isThumbnailSynced).map((a) => a.id),
-  );
+  const left = new Set((records.assets ?? []).filter((a) => !a.isFileSynced || !a.isThumbnailSynced).map((a) => a.id));
   return Object.fromEntries(
     Object.entries(records).map(([collection, rows]) => [
       collection,
@@ -136,15 +148,19 @@ export async function liveDownloadUrls(keys: string[], expiresIn: number) {
 }
 
 async function linkedLocation(): Promise<StorageLocation> {
+  const location = await readLink();
+  if (location) return location;
+  throw AppError.s3('The copy of your library has no link to the live files yet: open it from Settings → Dev accounts');
+}
+
+async function readLink(): Promise<StorageLocation | null> {
   if (link) return link;
   try {
     link = JSON.parse(await readFile(LINK_FILE, 'utf8')) as StorageLocation;
-    return link;
   } catch {
-    throw AppError.s3(
-      'The copy of your library has no link to the live files yet: open it from Settings → Dev accounts',
-    );
+    // Not copied yet
   }
+  return link;
 }
 
 function liveS3Client(): S3Client {
