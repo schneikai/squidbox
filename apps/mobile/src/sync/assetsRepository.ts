@@ -40,16 +40,25 @@ export const toggleFavorite = (db: SyncDb, id: string) =>
 
 /**
  * Stores the asset's tags (POST /ai/tags, or the user's fixes), trimmed and each once; [] is "No
- * tags". Only on an asset still in the library: resolves to the stored list, or null when it is
- * gone or deleted (a tagging that ended after a delete writes nothing).
+ * tags". `tags` can be a function of the stored ones (null while never tagged), run inside the
+ * write's transaction, so an edit based on them never loses one stored in between; it returns null to
+ * leave them. A list equal to the stored one writes nothing. Only on an asset still in the library: resolves to the stored list,
+ * or null when it is gone or deleted (a tagging that ended after a delete writes nothing).
  */
-export async function setTags(db: SyncDb, id: string, tags: string[]): Promise<string[] | null> {
-  const stored = uniqueTags(tags);
+export async function setTags(
+  db: SyncDb,
+  id: string,
+  tags: string[] | ((stored: string[] | null) => string[] | null),
+): Promise<string[] | null> {
   return db.transaction(async (tx) => {
     const previous = (await readByIds<schema.AssetRow>(tx, schema.assets, [id])).filter(
       (row) => row.deletedAt === null,
     );
     if (previous.length === 0) return null;
+    const next = typeof tags === 'function' ? tags(previous[0]!.tags) : tags;
+    if (next === null) return previous[0]!.tags;
+    const stored = uniqueTags(next);
+    if (JSON.stringify(stored) === JSON.stringify(previous[0]!.tags)) return stored;
     const rows = previous.map((row) => nextVersion(row, { tags: stored }));
     await saveRecords(tx, 'assets', schema.assets, rows, { previous });
     return stored;

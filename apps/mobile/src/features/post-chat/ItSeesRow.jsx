@@ -1,28 +1,22 @@
-import { uniqueTags } from '@squidbox/shared';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-import Chip from '@/components/Chip';
-import ChipRow from '@/components/ChipRow';
 import TextButton from '@/components/TextButton';
+import PhotoTagsField from '@/features/photo-tags/PhotoTagsField';
 import { colors } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
 
 /**
  * What the assistant sees in the chat's photos (`rows`, the live assets, their `attempts` and
- * `isTagging` and `untagged`, as useAssetTags gives them): "It sees:" and the tags the chat sends, a tap opening
- * the tags of the first photo with it (`onOpen(assetId)`) to fix them; "Looking at the photos…"
- * while any is tagged; the photos whose tagging failed, with Retry (`onRetry(assetId)` for each); a
- * photo never tagged, with Tag.
+ * `isTagging` and `untagged`, as useAssetTags gives them): "It sees:" and the tags the chat sends,
+ * edited in place (PhotoTagsField: a tag taken off leaves every photo, one added goes on each, the
+ * field taking no changes while a tagging runs); "Looking at the photos…" while any is tagged; the
+ * photos whose tagging failed, with Retry (`onRetry(assetId)` for each); a photo never tagged, with
+ * Tag. The field shows once a photo is tagged, or once nothing is being tagged.
  */
-export default function ItSeesRow({ rows, attempts, isTagging, untagged, onOpen, onRetry }) {
-  const tags = uniqueTags(rows.flatMap((row) => row.tags ?? []));
+export default function ItSeesRow({ rows, attempts, isTagging, untagged, onRetry }) {
   const failed = rows.filter((row) => row.tags === null && attempts[row.id]?.status === 'error');
-
-  function firstAssetWith(tag) {
-    const key = tag.toLowerCase();
-    return rows.find((row) => row.tags?.some((each) => each.trim().toLowerCase() === key))?.id;
-  }
+  const isTagged = rows.some((row) => row.tags !== null);
 
   function retryAll(list) {
     for (const row of list) onRetry(row.id);
@@ -30,19 +24,11 @@ export default function ItSeesRow({ rows, attempts, isTagging, untagged, onOpen,
 
   return (
     <View style={styles.rows}>
-      {tags.length > 0 && (
-        <ChipRow>
-          <Text style={[listTextStyles.subtitle, styles.inline]}>It sees:</Text>
-          {tags.map((tag) => (
-            <Chip
-              key={tag}
-              label={tag}
-              onPress={() => onOpen(firstAssetWith(tag))}
-              accessibilityHint="Opens the photo's tags"
-            />
-          ))}
-          <Text style={[listTextStyles.subtitle, styles.inline]}>Tap to fix</Text>
-        </ChipRow>
+      {(isTagged || !isTagging) && (
+        <View style={styles.field}>
+          <Text style={listTextStyles.subtitle}>It sees:</Text>
+          <PhotoTagsField rows={rows} placeholder="No tags" isDisabled={isTagging} isBare />
+        </View>
       )}
       {isTagging && (
         <View style={styles.line}>
@@ -72,6 +58,9 @@ export default function ItSeesRow({ rows, attempts, isTagging, untagged, onOpen,
 const styles = StyleSheet.create({
   rows: {
     gap: 8,
+  },
+  field: {
+    gap: 6,
   },
   line: {
     flexDirection: 'row',

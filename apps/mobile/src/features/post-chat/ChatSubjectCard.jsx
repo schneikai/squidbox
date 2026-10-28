@@ -17,10 +17,10 @@ const SUBJECTS = { draft: 'New post', edit: 'Edit post' };
 /**
  * What the chat is about, at its top: the post's first photos, "New post · 2 Photos · <album>" (the
  * album named when every photo is in it; "Edit post" for a saved post), what the assistant sees in
- * them (ItSeesRow, from `tagging`, useAssetTags'; a tag opens the photo's tags with
- * `onOpenTags(assetId)`) and the handles it may mention (`mentions`, useMentions').
+ * them (ItSeesRow, from `tagging`, useAssetTags', edited in place) and the handles it may mention
+ * (`mentions`, useMentions').
  */
-export default function ChatSubjectCard({ kind, assets, tagging, mentions, onOpenTags }) {
+export default function ChatSubjectCard({ kind, assets, tagging, mentions }) {
   const assetIds = assets.map((asset) => asset.id);
   const albums = useAssetAlbums(assetIds, { isLive: false });
 
@@ -51,7 +51,6 @@ export default function ChatSubjectCard({ kind, assets, tagging, mentions, onOpe
           attempts={tagging.attempts}
           isTagging={tagging.isTagging}
           untagged={tagging.untagged}
-          onOpen={onOpenTags}
           onRetry={tagging.retry}
         />
       )}
