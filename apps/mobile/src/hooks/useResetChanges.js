@@ -1,28 +1,15 @@
-import { Alert } from 'react-native';
-
-import useHaptics from '@/hooks/useHaptics';
-import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
-import confirmAsync from '@/utils/confirmAsync';
+import useConfirmedRun from '@/hooks/useConfirmedRun';
 
 /**
- * Reset changes, the same for every screen that goes back to the app's defaults:
- * `reset(message, run)` confirms with `message`, then runs `run`, with a success haptic, or an error
- * haptic and an alert with the reason.
+ * Reset changes, the same for every screen that goes back to the app's defaults: `reset(message,
+ * run)` and `isResetting`, useConfirmedRun's `run` and `isRunning`.
  */
 export default function useResetChanges() {
-  const haptics = useHaptics();
-
-  async function reset(message, run) {
-    const isConfirmed = await confirmAsync({ title: 'Reset changes?', message, action: 'Reset', destructive: true });
-    if (!isConfirmed) return;
-    try {
-      await run();
-      haptics.success();
-    } catch (error) {
-      haptics.error();
-      Alert.alert("Couldn't reset the changes", apiErrorMessage(error));
-    }
-  }
-
-  return reset;
+  const { isRunning, run } = useConfirmedRun({
+    title: 'Reset changes?',
+    action: 'Reset',
+    destructive: true,
+    errorTitle: "Couldn't reset the changes",
+  });
+  return { isResetting: isRunning, reset: run };
 }

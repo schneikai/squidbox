@@ -14,7 +14,7 @@ import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
-import { layout, scale } from '@/styles/designTokens';
+import { scale } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import {
   createPromptButton,
@@ -163,7 +163,7 @@ function PromptButtonEditor({ id, seed, navigation }) {
         </Field>
         {id && (
           <ActionButtons
-            style={styles.actions}
+            isScreenEnd
             actions={[
               { label: 'Duplicate', onPress: handleDuplicate },
               { label: 'Delete prompt button', tone: 'danger', onPress: handleDelete },
@@ -178,8 +178,5 @@ function PromptButtonEditor({ id, seed, navigation }) {
 const styles = StyleSheet.create({
   content: {
     gap: 20,
-  },
-  actions: {
-    paddingTop: layout.actionsGap,
   },
 });

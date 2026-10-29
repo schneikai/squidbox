@@ -9,7 +9,6 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import { SCREEN_PADDING } from '@/constants';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
 import useScreenPadding from '@/hooks/useScreenPadding';
-import { layout } from '@/styles/designTokens';
 
 /**
  * A pushed screen that edits one text, the iOS Settings way: Back, the `title`, and a Textarea whose
@@ -53,7 +52,7 @@ export default function TextEditScreen({
           maxLength={maxLength}
           autoFocus={autoFocus}
         />
-        <ActionButtons actions={actions} style={styles.actions} />
+        <ActionButtons actions={actions} isScreenEnd />
       </Animated.View>
     </Page>
   );
@@ -63,8 +62,5 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: SCREEN_PADDING,
-  },
-  actions: {
-    paddingTop: layout.actionsGap,
   },
 });

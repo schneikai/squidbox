@@ -50,18 +50,32 @@ type ModelChoiceField = (typeof MODEL_CHOICE_FIELDS)[AiModelKind][ModelDefaultVa
 export type ModelChoiceFields = Pick<ModelChoiceRecord, ModelChoiceField>;
 
 /**
- * The defaults an account uses for `kind`: each variant's pick in `picks` (an ai_admin's record
- * fields; null, or an undefined field, is none), else the published default. The `defaults` are the
- * server's model_defaults; the app gets them with the catalog.
+ * The ids an ai_admin picked for `kind`'s defaults, by variant, null for none (`picks` the record
+ * fields; null, or an undefined field, is none).
+ */
+export function modelPickIds(
+  kind: AiModelKind,
+  picks: Partial<ModelChoiceFields> | null | undefined,
+): Record<ModelDefaultVariant, string | null> {
+  const fields = MODEL_CHOICE_FIELDS[kind];
+  return Object.fromEntries(
+    MODEL_DEFAULT_VARIANTS.map((variant) => [variant, picks?.[fields[variant]]?.id ?? null]),
+  ) as Record<ModelDefaultVariant, string | null>;
+}
+
+/**
+ * The defaults an account uses for `kind`: each variant's pick in `picks` (modelPickIds), else the
+ * published default. The `defaults` are the server's model_defaults; the app gets them with the
+ * catalog.
  */
 export function resolveModelDefaults(
   kind: AiModelKind,
   picks: Partial<ModelChoiceFields> | null | undefined,
   defaults: ModelDefaults,
 ): ModelDefaultVariants {
-  const fields = MODEL_CHOICE_FIELDS[kind];
+  const ids = modelPickIds(kind, picks);
   return Object.fromEntries(
-    MODEL_DEFAULT_VARIANTS.map((variant) => [variant, picks?.[fields[variant]]?.id ?? defaults[kind][variant]]),
+    MODEL_DEFAULT_VARIANTS.map((variant) => [variant, ids[variant] ?? defaults[kind][variant]]),
   ) as ModelDefaultVariants;
 }
 

@@ -38,7 +38,7 @@ export default function ModelScreen({ route }) {
   const model = row?.model ?? null;
   const verification = useModelVerification(kind, { modelId, name, model }, yourModels);
 
-  const score = row?.score ?? null;
+  const score = row?.score;
   const detail = model ? modelDetailText(model, kind) : null;
 
   async function handleResetScore() {
@@ -70,7 +70,7 @@ export default function ModelScreen({ route }) {
         )}
         <VerifySection kind={kind} modelId={modelId} name={name} model={model} />
         <Section isHeaderless>
-          {score !== null && <Row label="Reset score" onPress={handleResetScore} />}
+          {score > 0 && <Row label="Reset score" onPress={handleResetScore} />}
           <Row label="Remove" destructive onPress={handleRemove} />
         </Section>
       </>

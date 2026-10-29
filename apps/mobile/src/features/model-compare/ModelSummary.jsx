@@ -30,7 +30,7 @@ export default function ModelSummary({ name, labels, detail, score, isDimmed = f
         style={[listTextStyles.subtitle, styles.detail, isDimmed && styles.dimmed]}
         accessibilityLabel={scoreDetailLabel(score, detail)}
       >
-        <ScoreDetail score={score} detail={detail} isDimmed={isDimmed} />
+        <ScoreDetail score={score} detail={detail} />
       </Text>
     </View>
   );

@@ -14,24 +14,36 @@ function usesText(lead, { regular, unrestricted }) {
 
 /**
  * The end of a model list of `kind` while this account's picks differ from the published defaults:
- * Apply changes for everyone (`publishDefaults`, confirmed with `yourDefaults` named from `catalog`)
- * and Reset changes (`resetDefaults`), all useYourModels'. `style` from the parent.
+ * Apply changes for everyone (`publishDefaults`, confirmed with what `readDefaultsToApply` reads)
+ * and Reset changes (`resetDefaults`), all useYourModels'. `isScreenEnd` as ActionButtons'.
  */
-export default function ModelDefaultsActions({ kind, catalog, yourDefaults, publishDefaults, resetDefaults, style }) {
-  const reset = useResetChanges();
+export default function ModelDefaultsActions({
+  kind,
+  readDefaultsToApply,
+  publishDefaults,
+  resetDefaults,
+  isScreenEnd,
+}) {
+  const { isResetting, reset } = useResetChanges();
   const { isPublishing, publish } = useApplyChangesForEveryone();
 
-  const ids = yourDefaults[kind];
-  const names = Object.fromEntries(
-    MODEL_DEFAULT_VARIANTS.map((variant) => [variant, findCatalogModel(catalog, ids[variant])?.name ?? ids[variant]]),
-  );
   const actions = [
     { label: 'Apply changes for everyone', tone: 'accent', onPress: handlePublish, loading: isPublishing },
-    { label: 'Reset changes', tone: 'danger', onPress: handleReset },
+    { label: 'Reset changes', tone: 'danger', onPress: handleReset, loading: isResetting },
   ];
 
+  // The confirm names the models that will apply, read fresh.
   function handlePublish() {
-    return publish(usesText(modelKindText[kind].everyAccountUses, names), publishDefaults);
+    return publish(async () => {
+      const { models, ids } = await readDefaultsToApply();
+      const names = Object.fromEntries(
+        MODEL_DEFAULT_VARIANTS.map((variant) => [
+          variant,
+          findCatalogModel(models, ids[variant])?.name ?? ids[variant],
+        ]),
+      );
+      return usesText(modelKindText[kind].everyAccountUses, names);
+    }, publishDefaults);
   }
 
   // Back to the published defaults, a local write like a pick on a model's page.
@@ -39,5 +51,5 @@ export default function ModelDefaultsActions({ kind, catalog, yourDefaults, publ
     return reset("Your picks are replaced by the app's.", resetDefaults);
   }
 
-  return <ActionButtons actions={actions} style={style} />;
+  return <ActionButtons actions={actions} isScreenEnd={isScreenEnd} />;
 }

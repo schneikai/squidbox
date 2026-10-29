@@ -61,7 +61,7 @@ export default function InstructionScreen({ route, navigation }) {
 // draft is the account's override only, null while it has none, so the text shown follows the
 // default until the user types.
 function InstructionEditor({ kind, userId, seed, defaultText, navigation }) {
-  const reset = useResetChanges();
+  const { isResetting, reset } = useResetChanges();
   const [draft, setDraft] = useState(seed.stored);
   const { isPublishing, publish } = useApplyChangesForEveryone();
   const { flush } = useSaveAsYouType(draft === null ? null : draft.trim(), saveText);
@@ -76,7 +76,7 @@ function InstructionEditor({ kind, userId, seed, defaultText, navigation }) {
         onPress: handlePublish,
         loading: isPublishing,
       },
-    isChanged && { label: 'Reset changes', tone: 'danger', onPress: handleReset },
+    isChanged && { label: 'Reset changes', tone: 'danger', onPress: handleReset, loading: isResetting },
   ].filter(Boolean);
 
   // An empty text isn't saved (Reset is the way back to the default); null and the default's text

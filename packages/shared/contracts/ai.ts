@@ -87,9 +87,13 @@ export type UncensoredRequest = z.infer<typeof uncensoredRequestSchema>;
 // without a pick, so one another admin published meanwhile stays. At least one pick.
 const modelPickSchema = z.string().min(1).nullable();
 export const modelDefaultRequestSchema = z
-  .object({ regular: modelPickSchema, unrestricted: modelPickSchema })
-  .refine(({ regular, unrestricted }) => regular !== null || unrestricted !== null, 'Pick at least one default');
-export type ModelDefaultRequest = z.infer<typeof modelDefaultRequestSchema>;
+  .object(
+    Object.fromEntries(MODEL_DEFAULT_VARIANTS.map((variant) => [variant, modelPickSchema])) as Record<
+      ModelDefaultVariant,
+      typeof modelPickSchema
+    >,
+  )
+  .refine((picks) => Object.values(picks).some((id) => id !== null), 'Pick at least one default');
 
 // PUT /ai/instructions/:kind — Apply changes for everyone: the text becomes the kind's default for
 // every account. Trimmed before the instruction's checks, so a text of only spaces is empty.

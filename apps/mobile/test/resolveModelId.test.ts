@@ -1,4 +1,4 @@
-import { resolveModelDefaults, resolveModelId, type ModelDefaults } from '@squidbox/shared';
+import { modelPickIds, resolveModelDefaults, resolveModelId, type ModelDefaults } from '@squidbox/shared';
 import { describe, expect, it } from 'vitest';
 
 // The server's model_defaults, as the catalog brings them.
@@ -8,6 +8,17 @@ const defaults: ModelDefaults = {
 };
 const kimi = { id: 'kimi-k3', name: 'Kimi K3' };
 const venice = { id: 'venice-uncensored-1-2', name: 'Venice Uncensored' };
+
+// What Apply changes for everyone sends: the picks' ids, null for none.
+describe('modelPickIds', () => {
+  it("is each variant's pick of the kind, null without one", () => {
+    expect(modelPickIds('writing', null)).toEqual({ regular: null, unrestricted: null });
+    expect(modelPickIds('writing', { writingUncensoredModel: venice, visionModel: kimi })).toEqual({
+      regular: null,
+      unrestricted: 'venice-uncensored-1-2',
+    });
+  });
+});
 
 // The defaults an ai_admin's account uses: their picks over the published ones.
 describe('resolveModelDefaults', () => {

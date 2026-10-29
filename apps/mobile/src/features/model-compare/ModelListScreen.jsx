@@ -21,7 +21,6 @@ import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useYourModels from '@/hooks/useYourModels';
-import { layout } from '@/styles/designTokens';
 import { resetScores } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 import confirmAsync from '@/utils/confirmAsync';
@@ -34,11 +33,21 @@ export default function ModelListScreen({ navigation, route }) {
   const { kind } = route.params;
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const paddingBottom = useFloatingPrimaryActionPadding();
-  const { catalog, defaults, yourDefaults, isChanged, error, retry, rows, publishDefaults, resetDefaults } =
-    useYourModels(kind);
+  const {
+    catalog,
+    defaults,
+    yourDefaults,
+    isChanged,
+    error,
+    retry,
+    rows,
+    readDefaultsToApply,
+    publishDefaults,
+    resetDefaults,
+  } = useYourModels(kind);
 
   const availableCount = rows?.filter((row) => row.model !== null).length ?? 0;
-  const hasScores = rows?.some(({ score }) => score !== null) ?? false;
+  const hasScores = rows?.some(({ score }) => score > 0) ?? false;
   const text = modelKindText[kind];
 
   function handleOpen(row) {
@@ -76,11 +85,10 @@ export default function ModelListScreen({ navigation, route }) {
         {isChanged && (
           <ModelDefaultsActions
             kind={kind}
-            catalog={catalog}
-            yourDefaults={yourDefaults}
+            readDefaultsToApply={readDefaultsToApply}
             publishDefaults={publishDefaults}
             resetDefaults={resetDefaults}
-            style={styles.actions}
+            isScreenEnd
           />
         )}
       </>
@@ -134,8 +142,5 @@ export default function ModelListScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   intro: {
     marginHorizontal: 4,
-  },
-  actions: {
-    paddingTop: layout.actionsGap,
   },
 });
