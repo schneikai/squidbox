@@ -2,6 +2,7 @@ import { and, eq, isNull, lte } from 'drizzle-orm';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
+import { fuzzRuns } from './helpers/fuzzRuns';
 import { mergeLosses } from './helpers/mergeLosses';
 import { prng } from './helpers/prng';
 import { seedAccountPhotos } from './helpers/seedAccountPhotos';
@@ -1006,7 +1007,7 @@ describe('round 15: a camera-roll match an earlier library never pushed', () => 
 // Then the account pushes and a later edit of the account waits in its outbox, which holds no merge
 // (only the rows the passes wrote do). The merge completes and nothing of the device library is lost.
 describe('round 19: seeded merges', () => {
-  const SEEDS = Number(process.env.FUZZ_SEEDS ?? 150);
+  const SEEDS = fuzzRuns(40, 150);
 
   async function seeded(seed: number): Promise<string[]> {
     const rand = prng(seed);

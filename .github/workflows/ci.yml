@@ -52,5 +52,10 @@ jobs:
       - run: npm run typecheck
       - run: cp .env.docker .env && npm run db:migrate
         working-directory: apps/server
+      # FUZZ_DEEP: every seeded case, not the tenth a plain run takes.
       - run: npm run test:db --workspace apps/server
+        env:
+          FUZZ_DEEP: 1
       - run: npm run test:e2e --workspace apps/mobile
+        env:
+          FUZZ_DEEP: 1

@@ -14,7 +14,7 @@ npm workspaces. `npm install` runs once at the repo root.
 
 The backend lives in `apps/server` and runs on **Fly.io** (app `squidbox-server`, region `lhr`) with **Neon Postgres** + **AWS S3** (eu-west-1). API base: `https://squidbox-server.fly.dev/api/v1`.
 
-CI (`.github/workflows/ci.yml`) checks every push and pull request to `main`. Locally: `npm run lint`, `npm run knip`, `npm run typecheck`, and for the tests, with the compose Postgres up and migrated (`npm run compose:up` and `npm run db:migrate` in `apps/server`), `npm run test:db -w apps/server` and `npm run test:e2e -w apps/mobile`. Plain `npm test` skips the DB-backed suites.
+CI (`.github/workflows/ci.yml`) checks every push and pull request to `main`. Locally: `npm run lint`, `npm run knip`, `npm run typecheck`, and for the tests, with the compose Postgres up and migrated (`npm run compose:up` and `npm run db:migrate` in `apps/server`), `npm run test:db -w apps/server` and `npm run test:e2e -w apps/mobile`. Plain `npm test` skips the DB-backed suites, and the seeded fuzz tests run a tenth of their cases; `FUZZ_DEEP=1` runs them all, as CI does.
 
 ## Multi-device sync
 
