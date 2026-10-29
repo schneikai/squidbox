@@ -30,8 +30,9 @@ const catalogEntrySchema = z.object({
         // false for a model that can't hold its reply to a JSON schema (it gets the shape in words)
         supportsResponseSchema: z.boolean().optional(),
         // whether the model reasons, and at which effort by default (display only)
-        supportsReasoning: z.boolean().optional(),
-        defaultReasoningEffort: z.string().optional(),
+        // (lenient: a display field never drops a model from the catalog)
+        supportsReasoning: z.boolean().nullish().catch(undefined),
+        defaultReasoningEffort: z.string().nullish().catch(undefined),
       })
       .default({}),
     traits: z.array(z.string()).default([]),

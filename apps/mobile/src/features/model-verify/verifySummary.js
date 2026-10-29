@@ -1,4 +1,5 @@
 import isTurnPassed from './isTurnPassed';
+import runTurns from './runTurns';
 import secondsText from './secondsText';
 import turnUnit from './turnUnit';
 
@@ -25,7 +26,7 @@ export default function verifySummary(kind, run) {
       icon: 'stopped',
     };
   }
-  const turns = run.result?.sections.flatMap((section) => section.turns) ?? [];
+  const turns = runTurns(run);
   const passed = turns.filter(isTurnPassed).length;
   return {
     title: `Passed ${passed} of ${run.turnsTotal}`,

@@ -69,6 +69,7 @@ function venice({
     if (name === 'judge_verdict') content = judge(judgeCalls++);
     else content = answerModel(body.messages[body.messages.length - 1].content);
     if (content instanceof Response) return content;
+    if (content instanceof Error) throw content;
     return new Response(
       JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(content) } }] }),
     );
@@ -200,6 +201,19 @@ describe('verifyChatModel', () => {
     expect(result.unreadable).toBe(0);
   });
 
+  it('misses a turn the model was too slow for, with its seconds, and goes on', async () => {
+    venice({
+      model: (last) =>
+        last.startsWith('nice, create')
+          ? Object.assign(new Error('timed out'), { name: 'TimeoutError' })
+          : modelReply(last),
+    });
+    const result = await verifyChatModel(model, { catalog, instructions, sectionIds: ['talk', 'facts'] });
+    const turns = result.sections[0]!.turns;
+    expect(turns[1]).toMatchObject({ error: 'The model took too long to answer', seconds: expect.any(Number) });
+    expect(result.sections).toHaveLength(2);
+  });
+
   it("misses a turn the model refused, skips the scenario's later turns and goes on", async () => {
     venice({
       model: (last) =>
@@ -210,7 +224,7 @@ describe('verifyChatModel', () => {
     const result = await verifyChatModel(model, { catalog, instructions, sectionIds: ['talk', 'facts'] });
     const turns = result.sections[0]!.turns;
     expect(turns).toHaveLength(4);
-    expect(turns[1]).toMatchObject({ error: 'The model refused: No.', reply: null, seconds: null });
+    expect(turns[1]).toMatchObject({ error: 'The model refused: No.', reply: null, seconds: expect.any(Number) });
     expect(turns[1]!.checks).toEqual([
       { name: 'cards:3', ok: false, reason: null },
       { name: 'judge', ok: false, reason: null },
@@ -249,7 +263,11 @@ describe('verifyChatModel', () => {
     venice({ judge: (call) => (call === 0 ? 'not json' : { pass: true, reason: 'Fine.' }) });
     const result = await verifyChatModel(model, { catalog, instructions, sectionIds: ['talk'] });
     const turns = result.sections[0]!.turns;
-    expect(turns[0]!.checks.at(-1)).toEqual({ name: 'judge', ok: false, reason: "The reply couldn't be read" });
+    expect(turns[0]!.checks.at(-1)).toEqual({
+      name: 'judge',
+      ok: false,
+      reason: "the judge failed: The reply couldn't be read",
+    });
     expect(turns[0]!.error).toBeNull();
     expect(turns).toHaveLength(4);
     expect(turns[3]!.checks.at(-1)).toMatchObject({ ok: true });

@@ -27,7 +27,7 @@ function AddModelRow({ model, kind, defaults, isAdded, onAdd }) {
     >
       <ModelSummary
         name={model.name}
-        labels={modelLabels(kind, model, defaults)}
+        labels={modelLabels(kind, model.id, model, defaults)}
         detail={modelDetailText(model, kind)}
       />
       {isAdded && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}

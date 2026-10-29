@@ -20,6 +20,7 @@ export default function ModelLabelsSection({ kind, model }) {
   const haptics = useHaptics();
   const { labels, locks, isVeniceUncensored, setVerified, setUncensored, makeDefault } = useModelVerification(
     kind,
+    model.id,
     model,
   );
   // The switch on its way to the server, `{ label, isOn }`, null otherwise.

@@ -304,7 +304,7 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
         const call = await timedCall(() => runTask({ task, messages, model }));
         if ('error' in call) {
           failure = `an earlier turn failed (${call.error})`;
-          await progress.add(section, missedTurn(turn, call.error, expected));
+          await progress.add(section, missedTurn(turn, call.error, expected, call.seconds));
           continue;
         }
         const reply: ChatReply = call.value;
@@ -327,7 +327,7 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
           ...step.expect.map((name) => check(name, reply, before)),
           ...cardChecks(reply.postOptions, post, isBare),
           'error' in verdict
-            ? { name: 'judge', ok: false, reason: verdict.error }
+            ? { name: 'judge', ok: false, reason: `the judge failed: ${verdict.error}` }
             : { name: 'judge', ok: verdict.value.pass, reason: verdict.value.reason || null },
         ];
         await progress.add(section, {

@@ -11,22 +11,22 @@ const LOCKED = { locked: true, reason: null };
 const ALL_LOCKED = { verified: LOCKED, unrestricted: LOCKED, default: LOCKED, adultDefault: LOCKED };
 
 /**
- * A catalog model's labels (an ai_admin tool; `model` from useAiCatalog, so a mark shows at once, or
- * null once Venice dropped it): `labels` (modelLabels), `locks` (modelLabelLocks: whether each may
+ * The labels of the model `modelId` (an ai_admin tool; `model` its catalog model from useAiCatalog,
+ * so a mark shows at once, or null once Venice dropped it: then only its defaults are known): `labels` (modelLabels), `locks` (modelLabelLocks: whether each may
  * change, and why not; all locked without a model or while the defaults load), `isVeniceUncensored`
  * (Venice's own label), `defaultName` (the default it is, null for none), and `setVerified(isVerified)`,
  * `setUncensored(uncensored)` and `makeDefault(variant)`, which resolve once every screen shows the
  * server's answer, or reject with its reason.
  */
-export default function useModelVerification(kind, model) {
+export default function useModelVerification(kind, modelId, model) {
   const { defaults } = useAiCatalog();
 
-  const labels = modelLabels(kind, model, defaults);
+  const labels = modelLabels(kind, modelId, model, defaults);
   const locks =
     model && defaults
       ? modelLabelLocks({
           kind,
-          modelId: model.id,
+          modelId,
           isVerified: labels.verified,
           isUncensored: labels.unrestricted,
           defaults,
@@ -37,15 +37,14 @@ export default function useModelVerification(kind, model) {
     : labels.adultDefault
       ? MODEL_LABEL_NAMES.adultDefault
       : null;
-  const id = model?.id;
 
   return {
     labels,
     locks,
     isVeniceUncensored: model?.isVeniceUncensored ?? false,
     defaultName,
-    setVerified: async (isVerified) => applyAiCatalog(await setVerificationAsync(kind, id, isVerified)),
-    setUncensored: async (uncensored) => applyAiCatalog(await setUncensoredAsync(id, uncensored)),
-    makeDefault: async (variant) => applyAiCatalog(await setModelDefaultAsync(kind, variant, { modelId: id })),
+    setVerified: async (isVerified) => applyAiCatalog(await setVerificationAsync(kind, modelId, isVerified)),
+    setUncensored: async (uncensored) => applyAiCatalog(await setUncensoredAsync(modelId, uncensored)),
+    makeDefault: async (variant) => applyAiCatalog(await setModelDefaultAsync(kind, variant, { modelId })),
   };
 }

@@ -26,12 +26,12 @@ const ownRuns = new Set<string>();
 // The row while it is still running: each write of a run applies only then, so a row stopped
 // meanwhile stays stopped.
 const isRunning = eq(verifyRuns.status, 'running');
-// A run's error is a phrase without an end mark ("Venice took too long to answer"), so the app can
-// go on after it the same way whatever stopped it.
+// A run's error is a phrase without an end mark ("Couldn't reach Venice"), so the app can go on
+// after it the same way whatever stopped it; an error with no words gets a fixed one.
 const stopped = (error: string) => ({
   status: 'stopped',
   finishedAt: new Date(),
-  error: error.replace(/[.!?\s]+$/, ''),
+  error: error.replace(/[.!?\s]+$/, '') || 'It stopped without a reason',
 });
 const ofModel = (kind: AiModelKind, modelId: string) => and(eq(verifyRuns.kind, kind), eq(verifyRuns.modelId, modelId));
 

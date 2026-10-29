@@ -26,8 +26,8 @@ export class VeniceError extends Error {
 }
 
 /**
- * Venice itself didn't answer: it couldn't be reached, took too long, was busy (429) or failed (5xx). Unlike
- * the model's own failures (a refusal, a cut-off or unreadable reply), it says nothing about the model.
+ * Venice itself didn't answer: it couldn't be reached, was busy (429) or failed (5xx). Unlike
+ * the model's own failures (a refusal, a cut-off, unreadable or too slow reply), it says nothing about the model.
  */
 export class VeniceUnavailableError extends VeniceError {
   constructor(message: string) {
@@ -67,15 +67,18 @@ export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: stri
 
 export type JsonSchemaSpec<T> = { name: string; jsonSchema: Record<string, unknown>; zod: z.ZodType<T> };
 
+const TOO_SLOW = 'The model took too long to answer';
+
 type ChatCompletion = {
   choices?: { finish_reason?: string | null; message?: { content?: string | null; refusal?: string | null } }[];
 };
 
 /**
  * One chat completion's reply text. Every way it can fail is a VeniceError that says why: Venice
- * unreachable, slow, busy (429) or failing (5xx) is a VeniceUnavailableError; any other error status,
- * a refusal, a cut-off, filtered or empty reply a plain VeniceError. `signal`
- * stops it, when nobody waits for the reply anymore.
+ * unreachable, busy (429) or failing (5xx) is a VeniceUnavailableError; a reply slower than
+ * CHAT_TIMEOUT_MS (the model's own slowness, a reasoning model on high effort say), any other error
+ * status, a refusal, a cut-off, filtered or empty reply a plain VeniceError. `signal` stops it, when
+ * nobody waits for the reply anymore.
  */
 async function chatCompletionAsync({
   model,
@@ -102,15 +105,15 @@ async function chatCompletionAsync({
     timeoutMs: CHAT_TIMEOUT_MS,
     signal,
   }).catch((error: unknown) => {
-    const timedOut = error instanceof Error && error.name === 'TimeoutError';
-    throw new VeniceUnavailableError(timedOut ? 'Venice took too long to answer' : "Couldn't reach Venice");
+    if (error instanceof Error && error.name === 'TimeoutError') throw new VeniceError(TOO_SLOW);
+    throw new VeniceUnavailableError("Couldn't reach Venice");
   });
 
   // The timeout also covers reading the body: a cut-off reply is a slow one, not an empty one.
   const body = (await response.json().catch((error: unknown) => {
-    if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
-      throw new VeniceUnavailableError('Venice took too long to answer');
-    }
+    if (error instanceof Error && error.name === 'TimeoutError') throw new VeniceError(TOO_SLOW);
+    if (error instanceof Error && error.name === 'AbortError')
+      throw new VeniceUnavailableError("Couldn't reach Venice");
     return null;
   })) as (ChatCompletion & { error?: unknown }) | null;
   if (!response.ok) {

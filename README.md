@@ -121,7 +121,7 @@ Before offering a Venice model as one of the assistant's models, verify it. An a
 - **Writing**: fixed conversations run through the server's own chat code and briefing, as the mock account's creator. It checks what code can: talk before posts, the counts asked for, shorter when asked, bios in the text, "this" meaning the caption, the persona's rules, no copied Favorites, exact handles, asking instead of inventing. Then the judge (`VERIFY_JUDGE_MODEL_ID` in `packages/shared/contracts/ai.ts`) judges each turn: did the reply answer the request and hold the conversation (its prompt is the Verify judge in Instructions).
 - **Vision**: four fixed photos (`apps/server/src/ai/verifyPhotos/`) tagged with the Photo tags briefing; it checks only that valid tags come back (JSON, within the limits, no refusal). What they say is judged in Compare.
 
-A wrong answer is the model's miss and the run goes on; Venice not answering (unreachable, too slow, an error) stops the run, with the turns before kept. The CLI writes every turn to a Markdown report in `apps/server/.model-verify/` (gitignored), with pass counts and seconds per turn, so read the replies too.
+A wrong, refused or too slow answer (or any other error about the call) is the model's miss and the run goes on; Venice not answering (unreachable, busy or failing: 429, 5xx) stops the run, with the turns before kept. The CLI writes every turn to a Markdown report in `apps/server/.model-verify/` (gitignored), with pass counts and seconds per turn, so read the replies too.
 
 ## Deploying the backend
 

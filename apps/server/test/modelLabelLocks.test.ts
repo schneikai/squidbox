@@ -1,4 +1,4 @@
-import { modelLabelLocks, type ModelDefaults } from '@squidbox/shared';
+import { modelLabelLocks, unrestrictedLock, type ModelDefaults } from '@squidbox/shared';
 import { describe, expect, it } from 'vitest';
 
 const DEFAULTS: ModelDefaults = {
@@ -44,5 +44,13 @@ describe('modelLabelLocks', () => {
       unrestricted: { locked: true, reason: "It's the Vision Default for Adult content" },
     });
     expect(locks('both-adult', true, true, 'vision').unrestricted.reason).toBe("It's the Default for Adult content");
+  });
+
+  it('names the kind of a Default for Adult content when the caller has none', () => {
+    expect(unrestrictedLock(null, 'w-adult', DEFAULTS)).toEqual({
+      locked: true,
+      reason: "It's the Writing Default for Adult content",
+    });
+    expect(unrestrictedLock(null, 'other', DEFAULTS)).toEqual(open);
   });
 });

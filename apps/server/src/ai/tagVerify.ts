@@ -76,7 +76,7 @@ export const verifyTaggingModel: VerifyRunner = async (model, { instructions, on
       };
       const call = await timedCall(() => runTask({ task, messages, model }));
       if ('error' in call) {
-        await progress.add(section, missedTurn({ prompt: file, note: null }, call.error, [LIMITS_CHECK]));
+        await progress.add(section, missedTurn({ prompt: file, note: null }, call.error, [LIMITS_CHECK], call.seconds));
         continue;
       }
       await progress.add(section, {

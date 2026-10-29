@@ -154,6 +154,22 @@ describe('toApiModel', () => {
     expect(reasoning('claude-sonnet-5-5')).toEqual({ supported: true, defaultEffort: 'high' });
   });
 
+  it('keeps a model whose reasoning fields are null or odd: they are display only', async () => {
+    const odd = structuredClone(fixture) as { data: { id: string; model_spec: { capabilities: object } }[] };
+    const kimi = odd.data.find((entry) => entry.id === 'kimi-k3')!;
+    kimi.model_spec.capabilities = {
+      ...kimi.model_spec.capabilities,
+      supportsReasoning: null,
+      defaultReasoningEffort: 3,
+    };
+    fetchMock.mockResolvedValueOnce(answer(odd));
+    const entries = await fetchCatalogAsync();
+    expect(toApiModel(byId(entries, 'kimi-k3'), NOTHING_VERIFIED).reasoning).toEqual({
+      supported: false,
+      defaultEffort: null,
+    });
+  });
+
   it('has no photo cost for a model without vision', async () => {
     const glm = toApiModel(byId(await catalog(), 'z-ai-glm-5-3'), NOTHING_VERIFIED);
     expect(glm.costPerReplyUsd).toBeGreaterThan(0);

@@ -6,6 +6,8 @@ import { and, eq } from 'drizzle-orm';
 import {
   modelDefaultsSchema,
   modelLabelLocks,
+  unrestrictedLock,
+  verifiedLock,
   type AiModelKind,
   type LabelLock,
   type ModelDefaultVariant,
@@ -76,7 +78,7 @@ function refuseLocked(lock: LabelLock): void {
 
 /**
  * Marks the model verified for `kind` or not; a second mark keeps who and when. 400 when unmarking a
- * default of the kind (modelLabelLocks).
+ * default of the kind (verifiedLock).
  */
 export async function setVerification(
   db: Db,
@@ -93,15 +95,14 @@ export async function setVerification(
   }
   await db.transaction(async (tx) => {
     const defaults = await readModelDefaults(tx);
-    // only the defaults matter to unmarking
-    refuseLocked(modelLabelLocks({ kind, modelId, isVerified: true, isUncensored: true, defaults }).verified);
+    refuseLocked(verifiedLock(kind, modelId, defaults));
     await tx.delete(verifiedModels).where(and(eq(verifiedModels.kind, kind), eq(verifiedModels.modelId, modelId)));
   });
 }
 
 /**
  * Sets the model's override of Venice's Uncensored label (`uncensored`; null follows Venice). 400
- * when that leaves the Default for Adult content of any kind not uncensored (modelLabelLocks).
+ * when that leaves the Default for Adult content of any kind not uncensored (unrestrictedLock).
  * `entry` is the model's catalog entry, null once Venice dropped it: then there is no label to
  * follow, and only false counts as not uncensored.
  */
@@ -118,10 +119,7 @@ export async function setUncensored(
   await db.transaction(async (tx) => {
     if (!counts) {
       const defaults = await readModelDefaults(tx);
-      // the lock covers every kind; `writing` only names the kind in its reason
-      refuseLocked(
-        modelLabelLocks({ kind: 'writing', modelId, isVerified: true, isUncensored: true, defaults }).unrestricted,
-      );
+      refuseLocked(unrestrictedLock(null, modelId, defaults));
     }
     if (uncensored === null) {
       await tx.delete(uncensoredOverrides).where(eq(uncensoredOverrides.modelId, modelId));

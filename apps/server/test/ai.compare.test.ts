@@ -223,14 +223,18 @@ describe('runTask', () => {
     await expect(failed).rejects.toThrow('Returned no tags');
   });
 
-  it("tells Venice not answering (a 5xx answer, a timeout) from the model's own failure (a refusal)", async () => {
+  it("tells Venice not answering (a 5xx answer, no connection) from the model's own failure (a refusal, a timeout)", async () => {
     const run = () => runTask({ task: visionTask, messages, model: model('gemma-4-uncensored') });
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: { message: 'Down' } }), { status: 503 }));
     await expect(run()).rejects.toEqual(new VeniceUnavailableError('Down'));
+    fetchMock.mockRejectedValueOnce(new Error('connection refused'));
+    await expect(run()).rejects.toEqual(new VeniceUnavailableError("Couldn't reach Venice"));
+    // too slow is the model's: a reasoning model on high effort, say
     fetchMock.mockRejectedValueOnce(Object.assign(new Error('timed out'), { name: 'TimeoutError' }));
     const timedOut = run();
-    await expect(timedOut).rejects.toBeInstanceOf(VeniceUnavailableError);
-    await expect(timedOut).rejects.toThrow('Venice took too long to answer');
+    await expect(timedOut).rejects.toBeInstanceOf(VeniceError);
+    await expect(timedOut).rejects.not.toBeInstanceOf(VeniceUnavailableError);
+    await expect(timedOut).rejects.toThrow('The model took too long to answer');
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { refusal: 'No.' } }] })),
     );

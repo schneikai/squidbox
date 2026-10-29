@@ -69,10 +69,13 @@ function createVerifyRun(kind, modelId) {
   return {
     get: store.get,
     subscribe: store.subscribe,
-    /** Reads the run while the caller follows it (as needed: at once, then while it runs); answers the stop. */
+    /**
+     * Reads the run while the caller follows it: at once when the first follower comes (a run may
+     * have started or finished elsewhere meanwhile), then while it runs; answers the stop.
+     */
     follow() {
       followers += 1;
-      if (followers === 1) schedule(nextDelay(store.get().run));
+      if (followers === 1) schedule(0);
       return () => {
         followers -= 1;
         if (followers === 0) schedule(null);
@@ -84,6 +87,7 @@ function createVerifyRun(kind, modelId) {
     },
     show({ run, plan }) {
       version += 1;
+      failures = 0;
       store.set({ run, plan, error: null });
       schedule(nextDelay(run));
     },

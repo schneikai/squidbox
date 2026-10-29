@@ -4,6 +4,7 @@ import ProgressBar from './ProgressBar';
 import VerifyStatusIcon from './VerifyStatusIcon';
 import isTurnPassed from './isTurnPassed';
 import missSummary from './missSummary';
+import runTurns from './runTurns';
 import turnUnit from './turnUnit';
 import verifySummary from './verifySummary';
 
@@ -36,8 +37,7 @@ export default function VerifyStatusCard({ kind, name, run, plan }) {
   }
 
   // Stopped: the server's reason (a phrase without an end mark), and that the turns before passed.
-  const turns = run.result?.sections.flatMap((section) => section.turns) ?? [];
-  const allBeforePassed = run.turnsDone > 0 && turns.every(isTurnPassed);
+  const allBeforePassed = run.turnsDone > 0 && runTurns(run).every(isTurnPassed);
   const before = pluralizeText(`The ${unit.one} before`, `The %{count} ${unit.plural} before`, run.turnsDone);
   const stoppedText = [run.error, allBeforePassed && `${before} passed`].filter(Boolean).join('. ');
 
@@ -50,9 +50,10 @@ export default function VerifyStatusCard({ kind, name, run, plan }) {
       <IntroText>
         {name} · {detail}
       </IntroText>
-      {run.status === 'stopped'
-        ? stoppedText && <Text style={styles.text}>{stoppedText}.</Text>
-        : run.result && <Text style={styles.text}>{missSummary(run.result, plan, kind)}</Text>}
+      {run.status === 'stopped' && stoppedText !== '' ? <Text style={styles.text}>{stoppedText}.</Text> : null}
+      {run.status === 'done' && run.result ? (
+        <Text style={styles.text}>{missSummary(run.result, plan, kind)}</Text>
+      ) : null}
     </Card>
   );
 }

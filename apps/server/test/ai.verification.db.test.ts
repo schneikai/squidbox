@@ -160,7 +160,7 @@ d('the model marks and Verify runs', () => {
         setUncensored(tx, { modelId: labelled.id, entry: labelled, uncensored: false, userId: null }),
       ).rejects.toMatchObject({
         statusCode: 400,
-        message: "It's the Default for Adult content",
+        message: "It's the Writing Default for Adult content",
       });
       // following Venice while Venice no longer labels it is not uncensored either
       const unlabelled = entry('test-writing-2');

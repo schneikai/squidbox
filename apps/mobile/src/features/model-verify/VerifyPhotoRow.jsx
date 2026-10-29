@@ -2,8 +2,8 @@ import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import VerifyStatusIcon from './VerifyStatusIcon';
-import isTurnPassed from './isTurnPassed';
 import missReason from './missReason';
+import turnStatus from './turnStatus';
 
 import Chip from '@/components/Chip';
 import ChipRow from '@/components/ChipRow';
@@ -22,8 +22,7 @@ export default memo(VerifyPhotoRow);
  * the photo (`uri`, a data URL, over a placeholder until it's in), and its tags or why it got none.
  */
 function VerifyPhotoRow({ uri, turn, isRunning }) {
-  const isPassed = turn !== null && isTurnPassed(turn);
-  const status = turn ? (isPassed ? 'passed' : 'missed') : isRunning ? 'running' : 'waiting';
+  const status = turnStatus(turn, isRunning);
 
   return (
     <View style={styles.row}>
@@ -38,7 +37,7 @@ function VerifyPhotoRow({ uri, turn, isRunning }) {
             ))}
           </ChipRow>
         )}
-        {turn && !isPassed && <ErrorText>Missed: {missReason(turn)}</ErrorText>}
+        {status === 'missed' && <ErrorText>Missed: {missReason(turn)}</ErrorText>}
       </View>
     </View>
   );

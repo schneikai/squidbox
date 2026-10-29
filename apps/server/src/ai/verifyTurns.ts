@@ -69,11 +69,19 @@ export function verifyProgress(onTurn: VerifyOptions['onTurn']) {
   };
 }
 
-/** A turn with no reply: `error` says why, and each of the `expected` checks counts as failed. */
-export function missedTurn(turn: Pick<VerifyTurn, 'prompt' | 'note'>, error: string, expected: string[]): VerifyTurn {
+/**
+ * A turn with no reply: `error` says why, each of the `expected` checks counts as failed, and
+ * `seconds` is how long the model took to fail (null for a turn it never got).
+ */
+export function missedTurn(
+  turn: Pick<VerifyTurn, 'prompt' | 'note'>,
+  error: string,
+  expected: string[],
+  seconds: number | null = null,
+): VerifyTurn {
   return {
     ...turn,
-    seconds: null,
+    seconds,
     unreadable: false,
     reply: null,
     items: [],
@@ -83,16 +91,20 @@ export function missedTurn(turn: Pick<VerifyTurn, 'prompt' | 'note'>, error: str
 }
 
 /**
- * The model's call timed, or its error's message: what the model answered wrong (a VeniceError or
- * anything else). Venice not answering (VeniceUnavailableError) is thrown on: it stops the Verify.
+ * The model's call timed, or its error's message with how long it took to fail: what the model
+ * answered wrong, or too slowly (a VeniceError or anything else). Venice not answering
+ * (VeniceUnavailableError) is thrown on: it stops the Verify.
  */
-export async function timedCall<T>(call: () => Promise<T>): Promise<{ value: T; seconds: number } | { error: string }> {
+export async function timedCall<T>(
+  call: () => Promise<T>,
+): Promise<{ value: T; seconds: number } | { error: string; seconds: number }> {
   const started = Date.now();
+  const seconds = () => (Date.now() - started) / 1000;
   try {
     const value = await call();
-    return { value, seconds: (Date.now() - started) / 1000 };
+    return { value, seconds: seconds() };
   } catch (error) {
     if (error instanceof VeniceUnavailableError) throw error;
-    return { error: errorMessage(error) };
+    return { error: errorMessage(error), seconds: seconds() };
   }
 }

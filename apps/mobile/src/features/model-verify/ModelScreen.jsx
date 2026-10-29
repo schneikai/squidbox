@@ -37,7 +37,7 @@ export default function ModelScreen({ route }) {
   const row = rows?.find((each) => each.id === modelId);
   // The catalog's model, null once Venice no longer offers it.
   const model = row?.model ?? null;
-  const { defaultName } = useModelVerification(kind, model);
+  const { defaultName } = useModelVerification(kind, modelId, model);
 
   const score = row?.score ?? null;
   const text = modelKindText[kind];
