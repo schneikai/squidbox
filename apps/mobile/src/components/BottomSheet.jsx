@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, {
+  runOnJS,
+  useAnimatedKeyboard,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import IconButton from '@/components/IconButton';
@@ -14,7 +20,8 @@ const HIDDEN_OFFSET = 1000;
  * A sheet over the current screen, as tall as its content (up to most of the screen): a title with
  * a close button over `children`. It slides up while `isVisible` and back down once it turns false;
  * a tap on the dimmed screen around it, the close button or Android's back calls `onClose`. The
- * grabber only says it's a sheet: there is no pan to close it. Drawn in-app rather than as a native
+ * grabber only says it's a sheet: there is no pan to close it. It rises above the keyboard, for a
+ * field in it. Drawn in-app rather than as a native
  * form sheet, so it needs no route of its own and works on the web too.
  */
 export default function BottomSheet({ isVisible, onClose, title, children }) {
@@ -22,6 +29,7 @@ export default function BottomSheet({ isVisible, onClose, title, children }) {
   const [isMounted, setIsMounted] = useState(isVisible);
   const progress = useSharedValue(0);
   const panelHeight = useSharedValue(HIDDEN_OFFSET);
+  const keyboard = useAnimatedKeyboard();
 
   useEffect(() => {
     if (isVisible) {
@@ -37,6 +45,8 @@ export default function BottomSheet({ isVisible, onClose, title, children }) {
 
   const scrimStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
   const panelStyle = useAnimatedStyle(() => ({
+    // The keyboard's height on iOS includes the bottom safe area, which the padding already holds.
+    paddingBottom: Math.max(bottom, keyboard.height.value) + SCREEN_PADDING,
     transform: [{ translateY: (1 - progress.value) * panelHeight.value }],
   }));
 
@@ -50,11 +60,7 @@ export default function BottomSheet({ isVisible, onClose, title, children }) {
         <Animated.View style={[StyleSheet.absoluteFill, styles.scrim, scrimStyle]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
         </Animated.View>
-        <Animated.View
-          style={[styles.panel, { paddingBottom: bottom + SCREEN_PADDING }, panelStyle]}
-          onLayout={handlePanelLayout}
-          accessibilityViewIsModal
-        >
+        <Animated.View style={[styles.panel, panelStyle]} onLayout={handlePanelLayout} accessibilityViewIsModal>
           <View style={styles.grabber} />
           <View style={styles.header}>
             <Text style={styles.title} accessibilityRole="header">
