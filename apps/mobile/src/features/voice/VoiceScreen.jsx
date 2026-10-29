@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { Alert, StyleSheet } from 'react-native';
 
 import FieldInfoSheet from './FieldInfoSheet';
-import RulesField from './RulesField';
 import voiceFields from './voiceFields';
 
 import CardTextField from '@/components/CardTextField';
@@ -25,7 +24,7 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
 import { requestSync } from '@/sync/worker';
 import changedValues from '@/utils/changedValues';
 
-// The fields this screen edits in place; Rules are edited one by one on their own screen.
+// The fields this screen edits in place (Rules have their own screen, from Assistant).
 const TEXT_FIELDS = ['aboutYou', 'tone', 'contentTags'];
 
 // Settings → Assistant → Writing as you: what the assistant writes with, as plain fields, saved as
@@ -55,8 +54,6 @@ function VoiceEditor({ userId, seed, navigation }) {
   );
   const persona = useLiveQuery((db) => readPersona(db, userId), [schema.personas], [userId]);
   const { flush } = useSaveAsYouType(normalized(draft), saveFields);
-
-  const rules = persona?.rules ?? [];
 
   // Only what the user changed, so a field another device edited meanwhile keeps that edit.
   async function saveFields(next, stored) {
@@ -120,13 +117,6 @@ function VoiceEditor({ userId, seed, navigation }) {
             />
           </Row>
         </Section>
-        <Field label={voiceFields.rules.label} onInfo={() => showInfo('rules')}>
-          <RulesField
-            rules={rules}
-            onOpen={(index) => navigation.navigate('RuleScreen', { index })}
-            onAdd={() => navigation.navigate('RuleScreen')}
-          />
-        </Field>
       </DetailScrollView>
       <FieldInfoSheet
         field={info.field}

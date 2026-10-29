@@ -43,7 +43,7 @@ Decide this before the app stores anything new:
 
 ## AI prompts
 
-- Every prompt the app sends to the AI is editable: by the user (Settings → Assistant → Instructions) or, for an `ai_admin` account, as an override for that account (App prompts). Give new prompts the same treatment
+- Every prompt the app sends to the AI is editable by an `ai_admin` account, as an override for that account (Settings → Assistant → Admin → Instructions). Give new prompts the same treatment
 - The built-in defaults live in `packages/shared`. Change one only in a PR, after the new text was tested as an override
 
 ## TODO list

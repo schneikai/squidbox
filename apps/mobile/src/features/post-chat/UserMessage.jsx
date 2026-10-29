@@ -11,7 +11,7 @@ import { requestSync } from '@/sync/worker';
 
 /**
  * One of the user's turns in the chat: a violet bubble with the prompt button's name (`label`) over
- * what was sent (`content`), and a ⋯ under it to add the text to the rules of Writing as you.
+ * what was sent (`content`), and a ⋯ under it to add the text to the Rules.
  */
 export default function UserMessage({ label, content }) {
   const haptics = useHaptics();
@@ -26,7 +26,7 @@ export default function UserMessage({ label, content }) {
         return;
       }
       if (result === 'full') {
-        Alert.alert('No room for another rule', `Writing as you has up to ${PERSONA_LIMITS.rules} rules.`);
+        Alert.alert('No room for another rule', `You can have up to ${PERSONA_LIMITS.rules} rules.`);
         return;
       }
       if (result === 'added') requestSync();

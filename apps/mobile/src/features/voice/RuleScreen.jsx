@@ -15,7 +15,7 @@ import { getDb } from '@/sync/db/client';
 import { readPersona, savePersona } from '@/sync/personaRepository';
 import { requestSync } from '@/sync/worker';
 
-// One rule of Writing as you, saved as you type: `{ index }` edits that rule (or Delete), no params
+// One of the Rules, saved as you type: `{ index }` edits that rule (or Delete), no params
 // adds one, appended once it has text. A rule left empty is dropped when you leave.
 export default function RuleScreen({ route, navigation }) {
   const index = route.params?.index;

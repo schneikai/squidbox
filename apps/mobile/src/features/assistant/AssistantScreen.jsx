@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { aiModelKindSchema, resolveModelId } from '@squidbox/shared';
+import { aiModelKindSchema, INSTRUCTION_KINDS, resolveModelId } from '@squidbox/shared';
 import { StyleSheet } from 'react-native';
 
 import personaSummary from './personaSummary';
@@ -12,7 +12,6 @@ import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import useInstructionKinds from '@/features/instructions/useInstructionKinds';
 import modelKindText from '@/features/model-compare/modelKindText';
 import useAiCatalog from '@/hooks/useAiCatalog';
 import useHasFeature from '@/hooks/useHasFeature';
@@ -29,10 +28,10 @@ import { countPromptButtons } from '@/sync/promptButtonsRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
 
-// Settings → Assistant: how the assistant writes as you, the posts it writes like (Favorites), its
-// prompt buttons, what it is told before each request (Instructions), and for an ai_admin account the
-// Models section (the models it uses, what is left on the Venice account). Every other account uses
-// the default models, which the Adult content switch picks between.
+// Settings → Assistant: how the assistant writes as you, its prompt buttons, the posts it writes like
+// (Favorites), its Rules, and for an ai_admin account the Admin section (the models it uses, what it
+// is told before each request: Instructions, what is left on the Venice account). Every other account
+// uses the default models, which the Adult content switch picks between.
 export default function AssistantScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
@@ -44,9 +43,8 @@ export default function AssistantScreen() {
   const instructions = useLiveQuery((db) => readInstructions(db, userId), [schema.instructions], [userId]);
   useSeedPromptButtons();
   const isAiAdmin = useHasFeature('ai_admin');
-  const instructionKinds = useInstructionKinds();
 
-  const changedCount = instructionKinds.filter((kind) => instructions?.[kind] != null).length;
+  const changedCount = INSTRUCTION_KINDS.filter((kind) => instructions?.[kind] != null).length;
 
   if (!isAvailable) return null;
 
@@ -65,13 +63,6 @@ export default function AssistantScreen() {
         </Section>
         <Section isHeaderless>
           <Row
-            leading={<Icon name="heart" color={colors.status.danger} />}
-            label="Favorites"
-            value={favoriteCount === undefined ? null : String(favoriteCount)}
-            onPress={() => navigation.navigate('FavoritesScreen')}
-            chevron
-          />
-          <Row
             leading={<Icon name="prompt-buttons" color={colors.text.secondary} />}
             label="Prompt buttons"
             value={promptButtonCount === undefined ? null : String(promptButtonCount)}
@@ -79,22 +70,38 @@ export default function AssistantScreen() {
             chevron
           />
           <Row
-            leading={<Icon name="document" color={colors.text.secondary} />}
-            label="Instructions"
-            value={instructions === undefined ? null : changedCount > 0 ? `${changedCount} changed` : 'Default'}
-            onPress={() => navigation.navigate('InstructionsScreen')}
+            leading={<Icon name="heart" color={colors.status.danger} />}
+            label="Favorites"
+            value={favoriteCount === undefined ? null : String(favoriteCount)}
+            onPress={() => navigation.navigate('FavoritesScreen')}
+            chevron
+          />
+          <Row
+            leading={<Icon name="list-checks" color={colors.text.secondary} />}
+            label="Rules"
+            value={persona === undefined ? null : String(persona?.rules.length ?? 0)}
+            onPress={() => navigation.navigate('RulesScreen')}
             chevron
           />
         </Section>
-        {isAiAdmin && <ModelsSection userId={userId} />}
+        {isAiAdmin && (
+          <AdminSection userId={userId}>
+            <Row
+              label="Instructions"
+              value={instructions === undefined ? null : changedCount > 0 ? `${changedCount} changed` : 'Default'}
+              onPress={() => navigation.navigate('InstructionsScreen')}
+              chevron
+            />
+          </AdminSection>
+        )}
       </DetailScrollView>
     </Page>
   );
 }
 
-// The models the assistant uses, for an ai_admin account only: rendered only for one, so no other
-// account reads its model choices or loads Venice's models here.
-function ModelsSection({ userId }) {
+// Admin, for an ai_admin account only: the models the assistant uses, then `children` (Instructions).
+// Rendered only for one, so no other account reads its model choices or loads Venice's models here.
+function AdminSection({ userId, children }) {
   const navigation = useNavigation();
   const chosen = useLiveQuery((db) => readChosenModels(db, userId), [schema.modelChoices], [userId]);
   const persona = useLiveQuery((db) => readPersona(db, userId), [schema.personas], [userId]);
@@ -118,7 +125,7 @@ function ModelsSection({ userId }) {
 
   return (
     <>
-      <ScreenSectionHeader title="Models" />
+      <ScreenSectionHeader title="Admin" />
       <Section>
         {aiModelKindSchema.options.map((kind) => {
           const { value, isGone } = chosenText(kind);
@@ -133,6 +140,7 @@ function ModelsSection({ userId }) {
             />
           );
         })}
+        {children}
       </Section>
       <VeniceBalanceFooter />
     </>

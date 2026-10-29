@@ -1,8 +1,8 @@
 import { useNavigation } from '@react-navigation/native';
+import { INSTRUCTION_KINDS } from '@squidbox/shared';
 import { StyleSheet } from 'react-native';
 
 import instructionText from './instructionText';
-import useInstructionKinds from './useInstructionKinds';
 
 import Badge from '@/components/Badge';
 import DetailScrollView from '@/components/DetailScrollView';
@@ -14,14 +14,13 @@ import useInstructions from '@/hooks/useInstructions';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import { layout } from '@/styles/designTokens';
 
-// Settings → Assistant → Instructions: what the assistant is told before each kind of request, one
-// row per kind with the first line of its text, a Changed badge while it isn't the app's. The judge
-// of Verify shows only to an ai_admin account, the only one that runs it.
+// Settings → Assistant → Admin → Instructions, for an ai_admin account: what the assistant is told
+// before each kind of request, one row per kind with the first line of its text, a Changed badge
+// while it isn't the app's.
 export default function InstructionsScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
   const { stored, texts } = useInstructions();
-  const kinds = useInstructionKinds();
 
   function row(kind) {
     return (
@@ -47,7 +46,7 @@ export default function InstructionsScreen() {
           What the assistant is told before each request. Change it to fit how you work; Reset brings the app's text
           back.
         </IntroText>
-        <Section>{kinds.map(row)}</Section>
+        <Section>{INSTRUCTION_KINDS.map(row)}</Section>
       </DetailScrollView>
     </Page>
   );

@@ -3,6 +3,7 @@ import FavoritesScreen from '@/features/favorites/FavoritesScreen';
 import PromptButtonScreen from '@/features/prompt-buttons/PromptButtonScreen';
 import PromptButtonsScreen from '@/features/prompt-buttons/PromptButtonsScreen';
 import RuleScreen from '@/features/voice/RuleScreen';
+import RulesScreen from '@/features/voice/RulesScreen';
 import VoiceScreen from '@/features/voice/VoiceScreen';
 
 // One screen per prompt button, and one Add.
@@ -27,6 +28,7 @@ export default function assistantScreens(Screen) {
       <Screen name="FavoritesScreen" component={FavoritesScreen} />
       <Screen name="FavoriteScreen" component={FavoriteScreen} getId={favoriteId} />
       <Screen name="VoiceScreen" component={VoiceScreen} />
+      <Screen name="RulesScreen" component={RulesScreen} />
       <Screen name="RuleScreen" component={RuleScreen} getId={ruleIndex} />
     </>
   );
