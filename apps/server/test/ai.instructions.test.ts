@@ -76,9 +76,10 @@ d('instructions', () => {
     expect(await readAppInstructions(db)).toEqual({ ...DEFAULT_INSTRUCTIONS, moreLikeThis: 'More, please.' });
   });
 
-  it('throws on a row of an unknown kind', async () => {
+  it('leaves out a row of an unknown kind', async () => {
     await db.insert(schema.appInstructions).values({ kind: 'weird', text: 'Nope.' });
-    await expect(readAppInstructions(db)).rejects.toThrow();
+    await db.insert(schema.appInstructions).values({ kind: 'writing', text: 'Everyone.' });
+    expect(await readAppInstructions(db)).toEqual({ ...DEFAULT_INSTRUCTIONS, writing: 'Everyone.' });
   });
 
   it('gives a member the published text', async () => {

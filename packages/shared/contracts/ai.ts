@@ -3,7 +3,7 @@
 // app only ever talks to these endpoints.
 import { z } from 'zod';
 import { ASSET_TAG_LIMITS, assetTagSchema } from '../collections/asset';
-import { INSTRUCTION_KINDS, instructionTextSchema, type InstructionKind } from '../collections/instruction';
+import { instructionsSchema, instructionTextSchema } from '../collections/instruction';
 
 export const aiModelKindSchema = z.enum(['writing', 'vision']);
 export type AiModelKind = z.infer<typeof aiModelKindSchema>;
@@ -53,13 +53,9 @@ const variantsSchema = z.object({ regular: z.string(), unrestricted: z.string() 
 export const modelDefaultsSchema = z.object({ writing: variantsSchema, vision: variantsSchema });
 export type ModelDefaults = z.infer<typeof modelDefaultsSchema>;
 
-// The app's default instruction of each kind, as every account gets it (resolveInstructions).
-export const instructionsSchema = z.object(
-  Object.fromEntries(INSTRUCTION_KINDS.map((kind) => [kind, z.string()])) as Record<InstructionKind, z.ZodString>,
-);
-
-// GET /ai/models — also the answer of PUT /ai/verification, /ai/uncensored, /ai/defaults and
-// /ai/instructions, so the app replaces its catalog with the new marks in one round trip.
+// GET /ai/models — also the answer of PUT /ai/verification, /ai/uncensored and /ai/defaults, so the
+// app replaces its catalog with the new marks in one round trip. `instructions`: the app's default
+// instruction of each kind, as every account gets it (resolveInstructions).
 export const aiModelsResponseSchema = z.object({
   models: z.array(apiAiModelSchema),
   defaults: modelDefaultsSchema,
@@ -84,6 +80,11 @@ export type ModelDefaultRequest = z.infer<typeof modelDefaultRequestSchema>;
 // every account. Trimmed before the instruction's checks, so a text of only spaces is empty.
 export const publishInstructionRequestSchema = z.object({ text: z.string().trim().pipe(instructionTextSchema) });
 export type PublishInstructionRequest = z.infer<typeof publishInstructionRequestSchema>;
+
+// Its answer: the app's default instructions with the new one, without the catalog (no Venice call
+// after the text is published).
+export const publishInstructionResponseSchema = z.object({ instructions: instructionsSchema });
+export type PublishInstructionResponse = z.infer<typeof publishInstructionResponseSchema>;
 
 // The writing model that judges every turn of a writing Verify, the same for every model verified.
 export const VERIFY_JUDGE_MODEL_ID = 'claude-sonnet-5-5';

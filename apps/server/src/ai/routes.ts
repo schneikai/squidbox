@@ -13,6 +13,7 @@ import {
   modelDefaultRequestSchema,
   modelDefaultVariantSchema,
   publishInstructionRequestSchema,
+  publishInstructionResponseSchema,
   tagPhotoRequestSchema,
   tagPhotoResponseSchema,
   uncensoredRequestSchema,
@@ -276,19 +277,20 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       });
 
       // PUT /ai/instructions/:kind — Make default for everyone: the text becomes the kind's default
-      // for every account (an ai_admin's own override still applies to them); answers the catalog
-      // with the new defaults.
+      // for every account (an ai_admin's own override still applies to them); answers the app's
+      // default instructions, without the catalog, so a Venice outage can't fail a done publish.
       r.route({
         method: 'PUT',
         url: '/ai/instructions/:kind',
         schema: {
           params: z.object({ kind: instructionKindSchema }),
           body: publishInstructionRequestSchema,
-          response: { 200: aiModelsResponseSchema },
+          response: { 200: publishInstructionResponseSchema },
         },
         handler: async (request) => {
-          await publishInstruction(getDb(), { kind: request.params.kind, text: request.body.text });
-          return aiModelsAsync();
+          const db = getDb();
+          await publishInstruction(db, { kind: request.params.kind, text: request.body.text });
+          return { instructions: await readAppInstructions(db) };
         },
       });
 

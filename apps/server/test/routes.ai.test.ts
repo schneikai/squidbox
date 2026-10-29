@@ -845,14 +845,14 @@ describe('the marks', () => {
 });
 
 describe('PUT /api/v1/ai/instructions/:kind', () => {
-  it('publishes the trimmed text and answers the catalog', async () => {
+  it('publishes the trimmed text and answers the instructions, without asking Venice', async () => {
     veniceAnswers();
     const published = { ...DEFAULT_INSTRUCTIONS, writing: 'Be brief.' };
     vi.mocked(readAppInstructions).mockResolvedValueOnce(published);
     const res = await call('PUT', '/ai/instructions/writing', { text: '  Be brief.\n' });
     expect(res.statusCode).toBe(200);
-    expect(res.json().instructions).toEqual(published);
-    expect(res.json().models).toHaveLength(fixture.data.length);
+    expect(res.json()).toEqual({ instructions: published });
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(publishInstruction).toHaveBeenCalledWith(expect.anything(), { kind: 'writing', text: 'Be brief.' });
   });
 

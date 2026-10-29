@@ -136,7 +136,7 @@ function AdminSection({ persona, children }) {
   );
 }
 
-// Instructions, with how many kinds aren't the app's default (once the catalog brings the defaults).
+// Instructions, with how many kinds the user stored their own text for.
 function InstructionsRow() {
   const navigation = useNavigation();
   const { changedKinds } = useInstructions();

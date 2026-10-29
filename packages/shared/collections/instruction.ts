@@ -42,7 +42,11 @@ export const instructionKindSchema = z.enum(INSTRUCTION_KINDS);
 
 export type InstructionKind = (typeof INSTRUCTION_KINDS)[number];
 
-export type Instructions = Record<InstructionKind, string>;
+// Every kind's text, as the assistant gets it.
+export const instructionsSchema = z.object(
+  Object.fromEntries(INSTRUCTION_KINDS.map((kind) => [kind, z.string()])) as Record<InstructionKind, z.ZodString>,
+);
+export type Instructions = z.infer<typeof instructionsSchema>;
 
 /**
  * The built-in text for each kind: the app's default while nothing was published for it (Make

@@ -6,7 +6,7 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import {
   DEFAULT_INSTRUCTIONS,
-  instructionsSchema,
+  instructionKindSchema,
   resolveInstructions,
   type InstructionKind,
   type Instructions,
@@ -15,13 +15,18 @@ import type { Db } from '../db/client.js';
 import { appInstructions, instructions, type User } from '../db/schema.js';
 
 /**
- * The app's default of every kind: the published text, else the built-in one. A row of an unknown
- * kind is broken data, so parsing throws (a 500), never a skip.
+ * The app's default of every kind: the published text, else the built-in one. A row of a kind the
+ * app no longer has is left out (and logged), so it never breaks the assistant for every account.
  */
 export async function readAppInstructions(db: Db): Promise<Instructions> {
   const rows = await db.select({ kind: appInstructions.kind, text: appInstructions.text }).from(appInstructions);
-  const published = Object.fromEntries(rows.map((row) => [row.kind, row.text]));
-  return instructionsSchema.strict().parse({ ...DEFAULT_INSTRUCTIONS, ...published });
+  const published: Partial<Record<InstructionKind, string>> = {};
+  for (const { kind, text } of rows) {
+    const known = instructionKindSchema.safeParse(kind);
+    if (known.success) published[known.data] = text;
+    else console.warn(`app_instructions: skipped the row of unknown kind ${JSON.stringify(kind)}`);
+  }
+  return resolveInstructions(published, DEFAULT_INSTRUCTIONS);
 }
 
 /** The user's instructions: an ai_admin's overrides, with the app's default for every kind not changed. */
