@@ -49,8 +49,8 @@ export const instructionsSchema = z.object(
 export type Instructions = z.infer<typeof instructionsSchema>;
 
 /**
- * The built-in text for each kind: the app's default while nothing was published for it (Make
- * default for everyone, the server's app_instructions). Each stays under INSTRUCTION_LIMITS.text (a
+ * The built-in text for each kind: the app's default while nothing was published for it (Apply
+ * changes for everyone, the server's app_instructions). Each stays under INSTRUCTION_LIMITS.text (a
  * test holds them to it).
  */
 export const DEFAULT_INSTRUCTIONS: Instructions = Object.freeze({

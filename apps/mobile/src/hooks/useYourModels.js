@@ -20,10 +20,10 @@ import setModelDefaultsAsync from '@/utils/cloud-api/ai/setModelDefaultsAsync';
  * (useAiCatalog's `catalog`, `defaults` what everyone uses, `error` and `retry`), null until both
  * are in; `yourDefaults` the defaults this account uses, your picks over `defaults`, by kind and
  * variant like `defaults` (null while either loads), and `isChanged` whether they differ from
- * `defaults` for this kind (useYourDefaults'); `usedId` the one the assistant uses now, the
- * default for the persona's Adult content switch (null while loading). `pickDefault(variant, model)`
- * picks your Default (`regular`) or Uncensored default (`unrestricted`) of the kind, null to follow
- * the published one; `publishDefaults()` is Make default for everyone: your two defaults of the kind
+ * `defaults` for this kind (useYourDefaults'); `usedId` the one the assistant uses now, the default
+ * for the persona's Adult content switch (null while loading). `pickDefault(variant, model)` picks
+ * your Default (`regular`) or Uncensored default (`unrestricted`) of the kind, null to follow the
+ * published one; `publishDefaults()` is Apply changes for everyone: your two defaults of the kind
  * become everyone's, and the picks now equal to them are cleared (one changed during the request
  * stays); `resetDefaults()` clears both picks of the kind, back to the published defaults. The
  * picks sync with the account, the list stays on the device. On the first run the list starts with

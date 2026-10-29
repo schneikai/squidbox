@@ -14,9 +14,9 @@ import type { SyncDb } from './db/types';
 import { saveUserRecord } from './userRecord';
 
 // An ai_admin's picks of each kind's Default and Uncensored default (the switches on a model's
-// page), which their account uses until Make default for everyone publishes them: the only reader
-// and writer of the model_choices table. One record per user, whose id is the user's id; null is the
-// published default.
+// page), which their account uses until Apply changes for everyone publishes them: the only reader
+// and writer of the model_choices table. One record per user, whose id is the user's id; null is
+// the published default.
 
 const t = schema.modelChoices;
 
@@ -46,9 +46,10 @@ export async function readModelPicks(db: SyncDb, userId: string): Promise<ModelC
 
 /**
  * Picks `model` as this account's default of `kind` for `variant`, or null to follow the published
- * default again. A pick equal to the published default (`publishedId`) is no pick, so it is stored as
- * null. `publishedId` comes from a catalog that may be up to five minutes old: a pick equal to a newer
- * publish is then stored as a pick, resolves to the same id, and clears on the next equal publish.
+ * default again. A pick equal to the published default (`publishedId`) is no pick, so it is stored
+ * as null. `publishedId` comes from a catalog that may be up to five minutes old: a pick equal to a
+ * newer publish is then stored as a pick, resolves to the same id, and clears on the next equal
+ * publish.
  */
 export function pickDefault(
   db: SyncDb,
@@ -66,7 +67,7 @@ export function pickDefault(
 }
 
 /**
- * After Make default for everyone: clears the picks of `kind` equal to the newly `published`
+ * After Apply changes for everyone: clears the picks of `kind` equal to the newly `published`
  * defaults, so the account follows them again. A pick changed during the request is kept.
  */
 export function clearPicksEqualTo(
@@ -85,7 +86,7 @@ export function clearPicksEqualTo(
   });
 }
 
-/** Reset to default: clears both picks of `kind`, so the account follows the published defaults. */
+/** Reset changes: clears both picks of `kind`, so the account follows the published defaults. */
 export function clearPicks(db: SyncDb, userId: string, kind: AiModelKind): Promise<void> {
   return save(db, userId, (stored) => {
     const changes: Partial<ModelChoiceFields> = {};

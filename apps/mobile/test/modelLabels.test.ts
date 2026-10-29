@@ -7,7 +7,7 @@ const yourDefaults = {
   vision: { regular: 'gemma', unrestricted: 'gemma' },
 };
 const model = (id: string, verifiedKinds: string[], isUncensored = false) => ({ id, verifiedKinds, isUncensored });
-const NONE = { verified: false, uncensored: false, default: false, uncensoredDefault: false };
+const NONE = { verified: false, uncensored: false, default: false, uncensoredDefault: false, changed: false };
 
 describe('modelLabels', () => {
   it('has the labels of the model for the kind', () => {
@@ -21,6 +21,7 @@ describe('modelLabels', () => {
       uncensored: true,
       default: false,
       uncensoredDefault: true,
+      changed: false,
     });
     expect(modelLabels('vision', 'claude', model('claude', ['writing']), yourDefaults)).toEqual(NONE);
     expect(modelLabels('vision', 'gemma', model('gemma', ['vision'], true), yourDefaults)).toEqual({
@@ -28,6 +29,7 @@ describe('modelLabels', () => {
       uncensored: true,
       default: true,
       uncensoredDefault: true,
+      changed: false,
     });
   });
 
@@ -48,5 +50,16 @@ describe('modelLabels', () => {
     // a dropped model that is still a default keeps that label
     expect(modelLabels('writing', 'claude', null, yourDefaults)).toEqual({ ...NONE, default: true });
     expect(modelLabels('writing', 'claude', model('claude', ['writing']), null)).toEqual(NONE);
+  });
+
+  it('marks a default of yours that everyone does not use as changed, only with the published defaults', () => {
+    const published = {
+      writing: { regular: 'kimi', unrestricted: 'venice' },
+      vision: { regular: 'gemma', unrestricted: 'gemma' },
+    };
+    expect(modelLabels('writing', 'claude', model('claude', []), yourDefaults, published).changed).toBe(true);
+    expect(modelLabels('writing', 'venice', model('venice', []), yourDefaults, published).changed).toBe(false);
+    expect(modelLabels('writing', 'kimi', model('kimi', []), yourDefaults, published).changed).toBe(false);
+    expect(modelLabels('writing', 'claude', model('claude', []), yourDefaults).changed).toBe(false);
   });
 });

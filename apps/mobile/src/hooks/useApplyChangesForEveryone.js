@@ -6,20 +6,20 @@ import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import confirmAsync from '@/utils/confirmAsync';
 
 /**
- * Make default for everyone, the same for every screen that publishes for every account:
+ * Apply changes for everyone, the same for every screen that publishes for every account:
  * `publish(message, run)` confirms with `message`, then runs `run` (the publish), with a success
  * haptic, or an error haptic and an alert with the reason. `isPublishing` is true while `run` runs,
  * for the button's `loading`, which blocks a second tap.
  */
-export default function useMakeDefaultForEveryone() {
+export default function useApplyChangesForEveryone() {
   const haptics = useHaptics();
   const [isPublishing, setIsPublishing] = useState(false);
 
   async function publish(message, run) {
     const isConfirmed = await confirmAsync({
-      title: 'Make default for everyone?',
+      title: 'Apply changes for everyone?',
       message,
-      action: 'Make default for everyone',
+      action: 'Apply changes for everyone',
     });
     if (!isConfirmed) return;
     setIsPublishing(true);
@@ -28,7 +28,7 @@ export default function useMakeDefaultForEveryone() {
       haptics.success();
     } catch (error) {
       haptics.error();
-      Alert.alert("Couldn't make it the default for everyone", apiErrorMessage(error));
+      Alert.alert("Couldn't apply the changes for everyone", apiErrorMessage(error));
     } finally {
       setIsPublishing(false);
     }

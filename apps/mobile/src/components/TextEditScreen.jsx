@@ -14,7 +14,7 @@ import useScreenPadding from '@/hooks/useScreenPadding';
  * A pushed screen that edits one text, the iOS Settings way: Back, the `title`, and a Textarea whose
  * text the screen stores as it changes (useSaveAsYouType; `onBlur` saves at once), with an optional
  * `description` over it and `actions` at the bottom, in order (`{ label, tone, onPress, loading }`,
- * e.g. Delete or Reset to default; `loading` shows a spinner and blocks presses). No Save button.
+ * e.g. Delete or Reset changes; `loading` shows a spinner and blocks presses). No Save button.
  * The Textarea fills the screen above the keyboard and scrolls its text inside, as in Notes: a drag
  * scrolls, a tap edits.
  */

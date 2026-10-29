@@ -82,11 +82,11 @@ export type VerificationRequest = z.infer<typeof verificationRequestSchema>;
 export const uncensoredRequestSchema = z.object({ uncensored: z.boolean().nullable() });
 export type UncensoredRequest = z.infer<typeof uncensoredRequestSchema>;
 
-// PUT /ai/defaults/:kind — Make default for everyone: both defaults of the kind at once, so a failure
+// PUT /ai/defaults/:kind — Apply changes for everyone: both defaults of the kind at once, so a failure
 // leaves both as they were.
 export const modelDefaultRequestSchema = modelDefaultVariantsSchema;
 
-// PUT /ai/instructions/:kind — Make default for everyone: the text becomes the kind's default for
+// PUT /ai/instructions/:kind — Apply changes for everyone: the text becomes the kind's default for
 // every account. Trimmed before the instruction's checks, so a text of only spaces is empty.
 export const publishInstructionRequestSchema = z.object({ text: z.string().trim().pipe(instructionTextSchema) });
 export type PublishInstructionRequest = z.infer<typeof publishInstructionRequestSchema>;

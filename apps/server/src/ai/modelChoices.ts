@@ -1,6 +1,6 @@
 // The model the assistant uses for each kind. For an ai_admin, their synced `model_choices` record
 // (its id is the user's id): their picks of the Default and Uncensored default, tried on their own
-// account before Make default for everyone publishes them, over the published defaults
+// account before Apply changes for everyone publishes them, over the published defaults
 // (model_defaults). For every other account the published defaults. Either way the variant follows
 // the persona's Adult content switch (resolveModelId, as the app shows it). Another account's stored
 // picks stay as they are; they only don't apply.

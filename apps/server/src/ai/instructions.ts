@@ -1,6 +1,6 @@
 // What the assistant is told before each request. A kind's text resolves the same way here and in
 // the app: an ai_admin's synced `instructions` record (its id is the user's id), where the field is
-// set; else the default published for every account (Make default for everyone, app_instructions);
+// set; else the default published for every account (Apply changes for everyone, app_instructions);
 // else the built-in DEFAULT_INSTRUCTIONS. Overrides apply to ai_admins only: another account's stored
 // overrides stay as they are; they only don't apply. Published defaults apply to every account.
 import { and, eq, isNull } from 'drizzle-orm';

@@ -903,7 +903,7 @@ Uncensored default (`unrestricted`, optional so a push from an older build keeps
 `{ id, name }` (the name for a model Venice no longer offers) or null for the published default, plus
 the base columns. One record per user with the user's id as its id, like `personas`, so a pick made
 on one device is the pick on all of them. A pick equal to the published default is stored as null,
-and Make default for everyone clears the picks it made equal. The model list to choose from and the
+and Apply changes for everyone clears the picks it made equal. The model list to choose from and the
 model testing (the compare prompts, the scores and the vision compare's photos) stay in the library's
 local `ai_*` tables: they are a developer tool for one device. Taking a picked model off a device's
 list leaves the pick as it is. The server uses the picks for an ai_admin only, the one for the
@@ -956,9 +956,9 @@ gone. Imported records kept deterministic uuid v5 ids, and their files stay at t
 - Users are isolated; there is no cross-user sharing (§2a).
 - What an ai_admin sets for the whole app — which models are verified for each kind
   (`verified_models`), whether a model counts as uncensored where that overrides Venice's label
-  (`uncensored_overrides`), the defaults (`model_defaults`, set by Make default for everyone from an
+  (`uncensored_overrides`), the defaults (`model_defaults`, set by Apply changes for everyone from an
   admin's picks, both variants of a kind at once), the Verify runs (`verify_runs`) and
-  the instructions published for every account (`app_instructions`, Make default for everyone) —
+  the instructions published for every account (`app_instructions`, Apply changes for everyone) —
   lives in plain server tables outside the collection registry: no `user_id`, no `server_seq`
   trigger, never pushed or pulled. Every account reads the marks, the defaults and the published
   instructions with the catalog (`GET /ai/models`), the admin the Verify runs through the admin routes; the app keeps them

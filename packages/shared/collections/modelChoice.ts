@@ -11,7 +11,7 @@ import { baseRecordSchema, defineCollection, textSchema } from './define';
 export const MODEL_CHOICE_LIMITS = { modelId: 200, modelName: 200 } as const;
 
 // `model_choices` — an ai_admin's picks of the defaults (the Default and Uncensored default switches
-// on a model's page), which their own account uses before Make default for everyone publishes them
+// on a model's page), which their own account uses before Apply changes for everyone publishes them
 // to every account. Per kind: `writingModel`/`visionModel` the pick of the Default (`regular`),
 // `writingUncensoredModel`/`visionUncensoredModel` the pick of the Uncensored default
 // (`unrestricted`); each its id, and its name for a model Venice no longer offers. Null is no pick:

@@ -344,7 +344,7 @@ export const modelDefaults = pgTable(
   }),
 );
 
-// The instruction of a kind every account gets while it has no override (Make default for everyone,
+// The instruction of a kind every account gets while it has no override (Apply changes for everyone,
 // ai/instructions.ts): `kind` one of INSTRUCTION_KINDS. No row is the built-in DEFAULT_INSTRUCTIONS
 // text, so a row is never stored equal to it.
 export const appInstructions = pgTable('app_instructions', {

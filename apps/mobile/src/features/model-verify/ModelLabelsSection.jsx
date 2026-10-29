@@ -13,11 +13,11 @@ import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 /**
  * A catalog model's labels for `kind`, a switch each: Verified and Uncensored (with Venice's own
  * rating), marks every account sees, and Default and Uncensored default, this account's picks until
- * Make default for everyone in the list. Each is a flag of its own: making a model a default changes
- * no other label, and a default's Verified and Uncensored turn off like any other model's. Turning a
- * default off goes back to the published one; on the published default itself there is nothing to go
- * back to, so it says so, like Remove. One switch is on its way at a time. `verification` is the
- * model's useModelVerification.
+ * Apply changes for everyone in the list. Each is a flag of its own: making a model a default
+ * changes no other label, and a default's Verified and Uncensored turn off like any other model's.
+ * Turning a default off goes back to the published one; on the published default itself there is
+ * nothing to go back to, so it says so, like Remove. One switch is on its way at a time.
+ * `verification` is the model's useModelVerification.
  */
 export default function ModelLabelsSection({ kind, model, verification }) {
   const haptics = useHaptics();

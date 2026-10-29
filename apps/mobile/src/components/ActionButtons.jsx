@@ -4,7 +4,7 @@ import TextButton from '@/components/TextButton';
 
 /**
  * A screen's text actions at the end of its content, in order (`{ label, tone, onPress, loading }`,
- * e.g. Delete or Reset to default; `loading` shows a spinner and blocks presses). Nothing without
+ * e.g. Delete or Reset changes; `loading` shows a spinner and blocks presses). Nothing without
  * any.
  */
 export default function ActionButtons({ actions }) {

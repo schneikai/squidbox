@@ -92,7 +92,7 @@ export async function setUncensored(
 }
 
 /**
- * Makes the models the two defaults of `kind` (Make default for everyone), in one statement so a
+ * Makes the models the two defaults of `kind` (Apply changes for everyone), in one statement so a
  * failure leaves both as they were. It changes no label: Verified and Uncensored are flags of their
  * own.
  */

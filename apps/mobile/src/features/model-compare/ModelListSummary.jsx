@@ -5,15 +5,16 @@ import modelLabels from '@/utils/ai/modelLabels';
 
 /**
  * A model of your list as the list and the compare's pick step show it: its name with its labels
- * over its score, cost and reasoning (`yourDefaults` the defaults this account uses, useYourModels',
- * for the Default labels). `model` null is one Venice no longer offers: greyed, so labelled.
+ * over its score, cost and reasoning (`yourDefaults` the defaults this account uses,
+ * useYourModels', for the Default labels; with the published `defaults`, Changed on a default of
+ * yours that differs). `model` null is one Venice no longer offers: greyed, so labelled.
  */
-export default function ModelListSummary({ name, model, kind, score, yourDefaults }) {
+export default function ModelListSummary({ name, model, kind, score, yourDefaults, defaults }) {
   const isAvailable = model !== null;
   return (
     <ModelSummary
       name={name}
-      labels={modelLabels(kind, model?.id ?? null, model, yourDefaults)}
+      labels={modelLabels(kind, model?.id ?? null, model, yourDefaults, defaults)}
       detail={isAvailable ? modelDetailText(model, kind, score) : 'No longer available'}
       isDimmed={!isAvailable}
     />

@@ -256,7 +256,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         },
       });
 
-      // PUT /ai/defaults/:kind — Make default for everyone: the models become the kind's Default
+      // PUT /ai/defaults/:kind — Apply changes for everyone: the models become the kind's Default
       // (`regular`) and Uncensored default (`unrestricted`) for every account, both at once. Each is
       // checked against Venice's catalog before anything is written; answers the catalog with the
       // new defaults.
@@ -281,7 +281,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         },
       });
 
-      // PUT /ai/instructions/:kind — Make default for everyone: the text becomes the kind's default
+      // PUT /ai/instructions/:kind — Apply changes for everyone: the text becomes the kind's default
       // for every account (an ai_admin's own override still applies to them); answers the app's
       // default instructions, without the catalog, so a Venice outage can't fail a done publish.
       r.route({
