@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 
 import Card from '@/components/Card';
@@ -15,12 +16,21 @@ const MAX_FORM_HEIGHT = scale(240);
  * (`minHeight` sets its height; it grows up to MAX_FORM_HEIGHT). `isFilling` makes the Textarea
  * fill the space its parent gives the card, scrolling its text inside, as in Notes (TextEditScreen).
  * Other props go to the input.
+ *
+ * A filling Textarea scrolls only once it has its size: iOS lays a long text out before the box's
+ * final layout and would open it scrolled down a little.
  */
 export default function CardTextField({ multiline = false, isFilling = false, ...rest }) {
+  const [isLaidOut, setIsLaidOut] = useState(!isFilling);
   const Input = multiline ? Textarea : TextInput;
   return (
     <Card style={isFilling && styles.filling}>
-      <Input style={[styles.input, multiline && (isFilling ? styles.filling : styles.capped)]} {...rest} />
+      <Input
+        style={[styles.input, multiline && (isFilling ? styles.filling : styles.capped)]}
+        scrollEnabled={isLaidOut}
+        onLayout={isLaidOut ? undefined : () => setIsLaidOut(true)}
+        {...rest}
+      />
     </Card>
   );
 }
