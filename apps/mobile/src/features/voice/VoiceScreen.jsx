@@ -1,6 +1,6 @@
 import { PERSONA_LIMITS, uniqueTags } from '@squidbox/shared';
 import { useState } from 'react';
-import { Alert, StyleSheet } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
 import FieldInfoSheet from './FieldInfoSheet';
 import voiceFields from './voiceFields';
@@ -12,7 +12,7 @@ import Page from '@/components/Page';
 import Switch from '@/components/Switch';
 import TagsField from '@/components/TagsField';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
-import { Row, Section } from '@/components/settings-list/SettingsList';
+import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import usePersona from '@/hooks/usePersona';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
@@ -107,16 +107,20 @@ function VoiceEditor({ userId, seed, navigation }) {
             maxTagLength={PERSONA_LIMITS.contentTag}
           />
         </Field>
-        <Section>
-          <Row label="Adult content">
-            <Switch
-              value={persona?.adultContent ?? false}
-              onValueChange={handleAdultContentChange}
-              disabled={persona === undefined}
-              accessibilityLabel="Adult content"
-            />
-          </Row>
-        </Section>
+        {/* one block, so the content's gap doesn't part the footnote from its switch */}
+        <View>
+          <Section>
+            <Row label="Adult content">
+              <Switch
+                value={persona?.adultContent ?? false}
+                onValueChange={handleAdultContentChange}
+                disabled={persona === undefined}
+                accessibilityLabel="Adult content"
+              />
+            </Row>
+          </Section>
+          <SectionFooter>Adult content gets an uncensored assistant.</SectionFooter>
+        </View>
       </DetailScrollView>
       <FieldInfoSheet
         field={info.field}
