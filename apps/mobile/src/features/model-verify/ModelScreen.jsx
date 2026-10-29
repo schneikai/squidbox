@@ -9,6 +9,7 @@ import CatalogStatus from '@/components/CatalogStatus';
 import DetailScrollView from '@/components/DetailScrollView';
 import IntroText from '@/components/IntroText';
 import Page from '@/components/Page';
+import ScoreDetail from '@/components/ScoreDetail';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
@@ -16,6 +17,7 @@ import useYourModels from '@/hooks/useYourModels';
 import { removeYourModel, resetScores } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 import modelDetailText from '@/utils/ai/modelDetailText';
+import scoreText from '@/utils/ai/scoreText';
 import confirmAsync from '@/utils/confirmAsync';
 
 /**
@@ -37,9 +39,10 @@ export default function ModelScreen({ route }) {
   const verification = useModelVerification(kind, { modelId, name, model }, yourModels);
 
   const score = row?.score ?? null;
+  const detail = model ? modelDetailText(model, kind) : null;
 
   async function handleResetScore() {
-    const message = `${name} goes back to Not tried yet.`;
+    const message = `${name} loses its thumbs up.`;
     if (!(await confirmAsync({ title: 'Reset score', message, action: 'Reset', destructive: true }))) return;
     await resetScores(getDb(), kind, modelId);
   }
@@ -57,7 +60,12 @@ export default function ModelScreen({ route }) {
     if (!rows) return <CatalogStatus error={error} retry={retry} />;
     return (
       <>
-        <IntroText isScreenIntro>{model ? modelDetailText(model, kind, score) : 'No longer available'}</IntroText>
+        <IntroText
+          isScreenIntro
+          accessibilityLabel={detail && score > 0 ? `${scoreText(score, kind)} · ${detail}` : undefined}
+        >
+          {detail ? <ScoreDetail score={score} detail={detail} /> : 'No longer available'}
+        </IntroText>
         {model ? (
           <ModelLabelsSection kind={kind} model={model} verification={verification} />
         ) : (

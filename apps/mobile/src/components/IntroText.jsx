@@ -6,13 +6,23 @@ import { colors, layout, lineHeights, typography } from '@/styles/designTokens';
 // note beside it. `isScreenIntro` is a screen's intro at the top of its content: a little in from the
 // cards' edge, with the gap every screen's intro has to what follows it. Otherwise the parent
 // positions it through `style`. `label` leads the line in bold ("Sees coastline, tent"); `selectable`
-// lets the text be copied, and `numberOfLines` cuts a long one short.
-export default function IntroText({ children, label, isScreenIntro = false, style, selectable, numberOfLines }) {
+// lets the text be copied, `numberOfLines` cuts a long one short, and `accessibilityLabel` is
+// what a screen reader says instead.
+export default function IntroText({
+  children,
+  label,
+  isScreenIntro = false,
+  style,
+  selectable,
+  numberOfLines,
+  accessibilityLabel,
+}) {
   return (
     <Text
       style={[styles.text, isScreenIntro && styles.screenIntro, style]}
       selectable={selectable}
       numberOfLines={numberOfLines}
+      accessibilityLabel={accessibilityLabel}
     >
       {label != null && <Text style={styles.label}>{label} </Text>}
       {children}

@@ -9,21 +9,25 @@ const model = {
 };
 
 describe('modelDetailText', () => {
-  it('joins the score, the reasoning and the cost', () => {
-    expect(modelDetailText(model, 'writing', 9)).toBe('9 thumbs up · no reasoning · 0.04¢ a reply');
-    expect(modelDetailText(model, 'writing', null)).toBe('Not tried yet · no reasoning · 0.04¢ a reply');
-    expect(modelDetailText({ ...model, reasoning: { supported: true, defaultEffort: 'max' } }, 'vision', 34)).toBe(
-      '34 tags fit · reasons · effort max · 0.02¢ a photo',
+  it('joins the reasoning and the cost, leaving out a reasoning the model lacks', () => {
+    expect(modelDetailText(model, 'writing')).toBe('0.04¢ a reply');
+    expect(modelDetailText({ ...model, reasoning: { supported: true, defaultEffort: 'max' } }, 'vision')).toBe(
+      'reasons · effort max · 0.02¢ a photo',
     );
   });
 
-  it('puts Uncensored after the score for a model that counts as uncensored', () => {
-    expect(modelDetailText({ ...model, isUncensored: true }, 'writing', 9)).toBe(
-      '9 thumbs up · Uncensored · no reasoning · 0.04¢ a reply',
-    );
+  it('puts uncensored first for a model that counts as uncensored', () => {
+    expect(modelDetailText({ ...model, isUncensored: true }, 'writing')).toBe('uncensored · 0.04¢ a reply');
   });
 
-  it('leaves the score out when there is none to show', () => {
-    expect(modelDetailText(model, 'writing')).toBe('no reasoning · 0.04¢ a reply');
+  it('names vision after uncensored for a writing model that sees photos, not for a vision model', () => {
+    const seeing = {
+      ...model,
+      isUncensored: true,
+      supportsVision: true,
+      reasoning: { supported: true, defaultEffort: null },
+    };
+    expect(modelDetailText(seeing, 'writing')).toBe('uncensored · vision · reasons · 0.04¢ a reply');
+    expect(modelDetailText(seeing, 'vision')).toBe('uncensored · reasons · 0.02¢ a photo');
   });
 });

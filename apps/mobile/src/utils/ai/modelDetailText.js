@@ -1,14 +1,18 @@
 import formatCost from '@/utils/ai/formatCost';
 import reasoningText from '@/utils/ai/reasoningText';
-import scoreText from '@/utils/ai/scoreText';
 
 /**
- * A catalog model's grey line for its kind: "9 thumbs up · Uncensored · no reasoning · 0.04¢ a
- * reply", Uncensored only when it counts as uncensored, the reasoning only when the server says
- * it. `score` null reads "Not tried yet"; `score` undefined leaves the score out (an account without
- * scores).
+ * A catalog model's grey line for its kind after its score (ModelDetail puts the score first), all
+ * lower case: "uncensored · vision · reasons · 0.04¢ a reply". It names only what the model has:
+ * uncensored when it counts as so, "vision" for a writing model that can see photos, the reasoning
+ * when it reasons.
  */
-export default function modelDetailText(model, kind, score) {
-  const parts = [model.isUncensored && 'Uncensored', reasoningText(model), formatCost(model, kind)].filter(Boolean);
-  return (score === undefined ? parts : [scoreText(score, kind), ...parts]).join(' · ');
+export default function modelDetailText(model, kind) {
+  const parts = [
+    model.isUncensored && 'uncensored',
+    kind === 'writing' && model.supportsVision && 'vision',
+    reasoningText(model),
+    formatCost(model, kind),
+  ].filter(Boolean);
+  return parts.join(' · ');
 }

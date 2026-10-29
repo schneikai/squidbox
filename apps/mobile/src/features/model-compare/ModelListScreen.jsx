@@ -45,7 +45,7 @@ export default function ModelListScreen({ navigation, route }) {
   }
 
   async function handleResetAllScores() {
-    const message = 'Every model in this list goes back to Not tried yet.';
+    const message = 'Every model in this list loses its thumbs up.';
     if (!(await confirmAsync({ title: 'Reset all scores', message, action: 'Reset', destructive: true }))) return;
     await resetScores(getDb(), kind);
   }
@@ -120,7 +120,7 @@ export default function ModelListScreen({ navigation, route }) {
       </DetailScrollView>
       <FloatingPrimaryAction>
         <PrimaryButton
-          icon="repeat"
+          icon="thumbs-up"
           label="Compare"
           onPress={() => navigation.navigate('ModelCompareModal', { kind })}
           disabled={availableCount < COMPARE_MIN_MODELS}

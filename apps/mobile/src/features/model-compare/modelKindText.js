@@ -16,7 +16,7 @@ const modelKindText = {
   vision: {
     title: 'Vision',
     intro: 'Tags your photos and videos.',
-    footer: 'The count is every tag you tapped as fitting in Compare. They add up like thumbs up.',
+    footer: 'Every tag you tap as fitting in Compare adds a thumbs up.',
     labelsFootnote: LABELS_FOOTNOTE,
     everyAccountUses: 'Every account tags with',
     note: `Each photo goes to the model as a JPEG ${visionImage.longSide} px on its longer side, at quality ${Math.round(visionImage.quality * 100)}.`,

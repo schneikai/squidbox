@@ -106,7 +106,6 @@ export default function ComparePickScreen({ navigation, route }) {
                 yourDefaults={yourDefaults}
                 defaults={defaults}
                 isTicked={ticked.includes(id)}
-                isCurrent={id === usedId}
                 onToggle={() => setTickedIds(toggleItem(ticked, id))}
               />
             ))}

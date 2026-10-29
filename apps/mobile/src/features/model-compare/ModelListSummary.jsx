@@ -15,7 +15,9 @@ export default function ModelListSummary({ id, name, model, kind, score, yourDef
     <ModelSummary
       name={name}
       labels={modelLabels(kind, id, model, yourDefaults, defaults)}
-      detail={isAvailable ? modelDetailText(model, kind, score) : 'No longer available'}
+      detail={isAvailable ? modelDetailText(model, kind) : 'No longer available'}
+      kind={kind}
+      score={isAvailable ? score : undefined}
       isDimmed={!isAvailable}
     />
   );
