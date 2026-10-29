@@ -7,27 +7,27 @@ const defaults = {
   vision: { regular: 'gemma', unrestricted: 'gemma' },
 };
 const model = (id: string, verifiedKinds: string[], isUncensored = false) => ({ id, verifiedKinds, isUncensored });
-const NONE = { isVerified: false, isUnrestricted: false, isDefault: false, isAdultDefault: false };
+const NONE = { verified: false, unrestricted: false, default: false, adultDefault: false };
 
 describe('modelLabels', () => {
   it('has the labels of the model for the kind', () => {
     expect(modelLabels('writing', model('claude', ['writing']), defaults)).toEqual({
       ...NONE,
-      isVerified: true,
-      isDefault: true,
+      verified: true,
+      default: true,
     });
     expect(modelLabels('writing', model('venice', ['writing'], true), defaults)).toEqual({
-      isVerified: true,
-      isUnrestricted: true,
-      isDefault: false,
-      isAdultDefault: true,
+      verified: true,
+      unrestricted: true,
+      default: false,
+      adultDefault: true,
     });
     expect(modelLabels('vision', model('claude', ['writing']), defaults)).toEqual(NONE);
     expect(modelLabels('vision', model('gemma', ['vision'], true), defaults)).toEqual({
-      isVerified: true,
-      isUnrestricted: true,
-      isDefault: true,
-      isAdultDefault: true,
+      verified: true,
+      unrestricted: true,
+      default: true,
+      adultDefault: true,
     });
   });
 

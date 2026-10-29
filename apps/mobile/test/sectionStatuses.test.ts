@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { DONE_ONE_MISS, RUNNING, STOPPED, WRITING_PLAN } from './helpers/verifyRuns';
-import sectionStatus from '../src/features/model-verify/sectionStatus';
+import sectionStatuses from '../src/features/model-verify/sectionStatuses';
 
-const statuses = (run: Parameters<typeof sectionStatus>[2]) =>
-  WRITING_PLAN.sections.map((_, index) => sectionStatus(WRITING_PLAN, index, run));
+const statuses = (run: Parameters<typeof sectionStatuses>[1]) =>
+  sectionStatuses(WRITING_PLAN, run).map(({ icon, text }) => ({ icon, text }));
 
-describe('sectionStatus', () => {
+describe('sectionStatuses', () => {
   it('shows a running run: done, running so far, waiting', () => {
     expect(statuses(RUNNING)).toEqual([
       { icon: 'passed', text: '4 of 4 passed' },
@@ -43,5 +43,9 @@ describe('sectionStatus', () => {
       { icon: 'stopped', text: 'No answer' },
       { icon: 'waiting', text: 'Not reached' },
     ]);
+  });
+
+  it('opens only the sections with turns', () => {
+    expect(sectionStatuses(WRITING_PLAN, RUNNING).map(({ hasTurns }) => hasTurns)).toEqual([true, true, false]);
   });
 });

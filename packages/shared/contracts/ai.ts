@@ -37,6 +37,15 @@ export const MODEL_DEFAULT_VARIANTS = ['regular', 'unrestricted'] as const;
 export const modelDefaultVariantSchema = z.enum(MODEL_DEFAULT_VARIANTS);
 export type ModelDefaultVariant = z.infer<typeof modelDefaultVariantSchema>;
 
+// What every account sees on a model, by the key the app and modelLabelLocks use.
+export const MODEL_LABEL_NAMES = {
+  verified: 'Verified',
+  unrestricted: 'Unrestricted',
+  default: 'Default',
+  adultDefault: 'Default for Adult content',
+} as const;
+export type ModelLabel = keyof typeof MODEL_LABEL_NAMES;
+
 const variantsSchema = z.object({ regular: z.string(), unrestricted: z.string() });
 // The defaults of each kind, from the server's model_defaults (an ai_admin sets them in the app).
 export const modelDefaultsSchema = z.object({ writing: variantsSchema, vision: variantsSchema });
@@ -62,8 +71,6 @@ export type ModelDefaultRequest = z.infer<typeof modelDefaultRequestSchema>;
 
 // The replies one Verify run asks a model for (apps/server/src/ai/chatVerify.ts and tagVerify.ts
 // hold their server's VERIFY to it), so the app can name the count and the cost before the first run.
-export const VERIFY_TURNS: Record<AiModelKind, number> = { writing: 21, vision: 4 };
-
 // The writing model that judges every turn of a writing Verify, the same for every model verified.
 export const VERIFY_JUDGE_MODEL_ID = 'claude-sonnet-5-5';
 
@@ -73,6 +80,11 @@ export const verifyPlanSchema = z.object({
   sections: z.array(z.object({ id: z.string(), title: z.string(), prompts: z.array(z.string()) })),
 });
 export type VerifyPlan = z.infer<typeof verifyPlanSchema>;
+
+/** How many turns a Verify of `plan` plays (a vision turn is a photo). */
+export function verifyPlanTurns(plan: VerifyPlan): number {
+  return plan.sections.reduce((count, section) => count + section.prompts.length, 0);
+}
 
 // The post a writing section started with.
 export const verifyPostSchema = z.object({

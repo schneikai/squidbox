@@ -14,7 +14,7 @@ const EMPTY_INSTRUCTIONS = Object.freeze({
   writing: null,
   visionTagging: null,
   moreLikeThis: null,
-  verifyJudge: null,
+  modelCheckJudge: null,
 });
 
 /** The user's instructions, or null before the first save. */

@@ -30,6 +30,7 @@ export * from './movePositions';
 export * from './positionsInOrder';
 export * from './chunk';
 export * from './uniqueTags';
+export * from './modelLabelLocks';
 
 // Wire contracts shared between the mobile app and the server.
 export * from './contracts/auth';

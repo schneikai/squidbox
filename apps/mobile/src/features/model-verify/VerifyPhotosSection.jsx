@@ -6,7 +6,7 @@ import { Section, SectionFooter } from '@/components/settings-list/SettingsList'
 
 /** A vision Verify's photos, one row per photo of its `plan` with its tags or what went wrong. */
 export default function VerifyPhotosSection({ run, plan }) {
-  const { photos } = useVerifyPhotos();
+  const photos = useVerifyPhotos();
   const [planSection] = plan.sections;
   const turns = run.result?.sections.find((section) => section.id === planSection.id)?.turns ?? [];
 

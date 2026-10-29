@@ -23,7 +23,7 @@ export type VerifyOptions = {
  */
 export type VerifyRunner = (model: CatalogEntry, options: VerifyOptions) => Promise<VerifyResult>;
 
-/** Each kind's Verify: its runner and its plan (a whole run has VERIFY_TURNS[kind] turns, in shared). */
+/** Each kind's Verify: its runner and its plan (verifyPlanTurns counts a whole run's turns). */
 export const VERIFY: Record<AiModelKind, { run: VerifyRunner; plan: VerifyPlan }> = {
   writing: { run: verifyChatModel, plan: CHAT_PLAN },
   vision: { run: verifyTaggingModel, plan: TAG_PLAN },

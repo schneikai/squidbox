@@ -14,7 +14,7 @@ vi.mock('../src/config.js', async (importOriginal) => {
   };
 });
 
-import { VERIFY_TURNS, resolveInstructions } from '@squidbox/shared';
+import { resolveInstructions } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
 import type { CatalogEntry } from '../src/ai/catalog.js';
 import { PHOTO_FILES, TAG_PLAN, verifyTaggingModel } from '../src/ai/tagVerify.js';
@@ -114,8 +114,8 @@ describe('verifyTaggingModel', () => {
     expect(bodies()).toHaveLength(2);
   });
 
-  it('plans as many turns as the app says', () => {
+  it('plans one turn for each of the four photos', () => {
     expect(TAG_PLAN.sections.flatMap((section) => section.prompts)).toEqual(PHOTO_FILES);
-    expect(PHOTO_FILES).toHaveLength(VERIFY_TURNS.vision);
+    expect(PHOTO_FILES).toHaveLength(4);
   });
 });

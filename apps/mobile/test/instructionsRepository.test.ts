@@ -74,13 +74,13 @@ describe('instructionsRepository', () => {
     const db = makeTestDb();
     await saveInstruction(db, USER, 'writing', MINE);
     await saveInstruction(db, USER, 'moreLikeThis', 'Again, please.');
-    await saveInstruction(db, USER, 'verifyJudge', 'Judge it: {reply}');
+    await saveInstruction(db, USER, 'modelCheckJudge', 'Judge it: {reply}');
     const stored = await readInstructions(db, USER);
     expect(resolveInstructions(stored)).toEqual({
       ...DEFAULT_INSTRUCTIONS,
       writing: MINE,
       moreLikeThis: 'Again, please.',
-      verifyJudge: 'Judge it: {reply}',
+      modelCheckJudge: 'Judge it: {reply}',
     });
     expect(resolveInstructions(null)).toEqual(DEFAULT_INSTRUCTIONS);
   });

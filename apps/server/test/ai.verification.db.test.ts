@@ -2,13 +2,13 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { and, eq, inArray } from 'drizzle-orm';
 import pg from 'pg';
-import { VERIFY_TURNS, resolveInstructions, type VerifyResult } from '@squidbox/shared';
+import { resolveInstructions, type VerifyResult } from '@squidbox/shared';
 import * as schema from '../src/db/schema.js';
 import type { Db } from '../src/db/client.js';
 import type { CatalogEntry } from '../src/ai/catalog.js';
 import { VERIFY } from '../src/ai/verify.js';
 import { VerifyStopped } from '../src/ai/verifyTurns.js';
-import { failAbandonedRuns, failOwnRuns, readLatestRun, runVerify, startRun } from '../src/ai/verifyRuns.js';
+import { stopAbandonedRuns, stopOwnRuns, readLatestRun, runVerify, startRun } from '../src/ai/verifyRuns.js';
 import {
   readModelDefaults,
   readVerification,
@@ -129,12 +129,12 @@ d('the model marks and Verify runs', () => {
       const plain = entry('test-writing-2');
       await expect(setModelDefault(tx, { kind: 'writing', variant: 'regular', entry: plain })).rejects.toMatchObject({
         statusCode: 400,
-        message: 'Mark the model verified first',
+        message: 'Turn on Verified first',
       });
       await mark(tx, 'writing', 'test-writing-2');
       await expect(
         setModelDefault(tx, { kind: 'writing', variant: 'unrestricted', entry: plain }),
-      ).rejects.toMatchObject({ statusCode: 400, message: 'Mark the model uncensored first' });
+      ).rejects.toMatchObject({ statusCode: 400, message: 'Turn on Unrestricted first' });
       // Venice's label counts without an override
       await setModelDefault(tx, { kind: 'writing', variant: 'unrestricted', entry: entry('test-writing-2', true) });
       expect((await readModelDefaults(tx)).writing.unrestricted).toBe('test-writing-2');
@@ -153,14 +153,14 @@ d('the model marks and Verify runs', () => {
       await setModelDefault(tx, { kind: 'writing', variant: 'unrestricted', entry: entry('test-writing-2', true) });
       await expect(mark(tx, 'writing', 'test-writing-2', false)).rejects.toMatchObject({
         statusCode: 400,
-        message: expect.stringContaining('is the default writing model;'),
+        message: "It's the Default for Adult content",
       });
       const labelled = entry('test-writing-2', true);
       await expect(
         setUncensored(tx, { modelId: labelled.id, entry: labelled, uncensored: false, userId: null }),
       ).rejects.toMatchObject({
         statusCode: 400,
-        message: expect.stringContaining('default writing model for Adult content'),
+        message: "It's the Default for Adult content",
       });
       // following Venice while Venice no longer labels it is not uncensored either
       const unlabelled = entry('test-writing-2');
@@ -194,7 +194,7 @@ d('the model marks and Verify runs', () => {
     const first = await startRun(db, { kind: 'writing', modelId: 'test-verify-1', userId: null });
     expect(first).toMatchObject({
       isNew: true,
-      run: { status: 'running', turnsDone: 0, turnsTotal: VERIFY_TURNS.writing },
+      run: { status: 'running', turnsDone: 0, turnsTotal: 21 },
     });
     const again = await startRun(db, { kind: 'writing', modelId: 'test-verify-1', userId: null });
     expect(again).toEqual({ run: first.run, isNew: false });
@@ -253,14 +253,14 @@ d('the model marks and Verify runs', () => {
     const restarted = await startRun(db, { kind: 'vision', modelId: 'test-verify-2', userId: null });
     run.mockImplementationOnce(async () => {
       // a machine that boots meanwhile leaves a run that is still writing turns alone
-      await failAbandonedRuns(db);
+      await stopAbandonedRuns(db);
       expect((await readLatestRun(db, 'vision', 'test-verify-2'))!.status).toBe('running');
       // until its turns stop coming: its server stopped
       await db
         .update(schema.verifyRuns)
         .set({ updatedAt: new Date(Date.now() - 11 * 60 * 1000) })
         .where(eq(schema.verifyRuns.id, restarted.run.id));
-      await failAbandonedRuns(db);
+      await stopAbandonedRuns(db);
       return { ...RESULT, passes: 4 };
     });
     await runVerify(db, { run: restarted.run, model, catalog: [], instructionsAsync, log });
@@ -310,7 +310,7 @@ d('the model marks and Verify runs', () => {
   it("stops this process's own running runs at shutdown", async () => {
     const { run: started } = await startRun(db, { kind: 'writing', modelId: 'test-verify-1', userId: null });
     const run = vi.spyOn(VERIFY.writing, 'run').mockImplementationOnce(async () => {
-      await failOwnRuns(db);
+      await stopOwnRuns(db);
       return RESULT;
     });
     await runVerify(db, { run: started, model, catalog: [], instructionsAsync, log });

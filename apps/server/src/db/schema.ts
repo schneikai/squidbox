@@ -275,7 +275,7 @@ export const instructions = pgTable(
     writing: text('writing'),
     visionTagging: text('vision_tagging'),
     moreLikeThis: text('more_like_this'),
-    verifyJudge: text('verify_judge'),
+    modelCheckJudge: text('model_check_judge'),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.id] }),

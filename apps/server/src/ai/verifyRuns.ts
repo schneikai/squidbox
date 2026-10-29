@@ -2,7 +2,7 @@
 // in verify_runs, of which a model keeps only its latest per kind, and the job that runs Verify in
 // the background, writing the result after each turn so the app can show it growing.
 import { and, desc, eq, inArray, lt, type SQL } from 'drizzle-orm';
-import { VERIFY_TURNS, type AiModelKind, type Instructions, type VerifyRun } from '@squidbox/shared';
+import { verifyPlanTurns, type AiModelKind, type Instructions, type VerifyRun } from '@squidbox/shared';
 import type { FastifyBaseLogger } from 'fastify';
 import type { Db } from '../db/client.js';
 import { driverError } from '../db/pgError.js';
@@ -20,22 +20,30 @@ const STOPPED = 'The server stopped while it ran';
 const HEARTBEAT_MS = 30 * 1000;
 const STALE_MS = 2 * 60 * 1000;
 
-// The runs this process runs, so a shutdown can stop them (failOwnRuns).
+// The runs this process runs, so a shutdown can stop them (stopOwnRuns).
 const ownRuns = new Set<string>();
 
 // The row while it is still running: each write of a run applies only then, so a row stopped
 // meanwhile stays stopped.
 const isRunning = eq(verifyRuns.status, 'running');
-const stopped = (error: string) => ({ status: 'stopped', finishedAt: new Date(), error });
+// A run's error is a phrase without an end mark ("Venice took too long to answer"), so the app can
+// go on after it the same way whatever stopped it.
+const stopped = (error: string) => ({
+  status: 'stopped',
+  finishedAt: new Date(),
+  error: error.replace(/[.!?\s]+$/, ''),
+});
 const ofModel = (kind: AiModelKind, modelId: string) => and(eq(verifyRuns.kind, kind), eq(verifyRuns.modelId, modelId));
 
+const isStale = () => lt(verifyRuns.updatedAt, new Date(Date.now() - STALE_MS));
+
 // Stops the running runs (of `where`, else all) whose heartbeat stopped: nothing runs them any more.
-async function failStaleRuns(db: Db, where?: SQL): Promise<void> {
-  const isStale = lt(verifyRuns.updatedAt, new Date(Date.now() - STALE_MS));
-  await db
+async function stopStaleRuns(db: Db, where?: SQL): Promise<VerifyRunRow[]> {
+  return db
     .update(verifyRuns)
     .set(stopped(RESTARTED))
-    .where(and(isRunning, isStale, where));
+    .where(and(isRunning, isStale(), where))
+    .returning();
 }
 
 function toVerifyRun(row: VerifyRunRow): VerifyRun {
@@ -55,14 +63,17 @@ function toVerifyRun(row: VerifyRunRow): VerifyRun {
 
 /** The model's latest run of `kind`, or null before its first; an abandoned one reads stopped. */
 export async function readLatestRun(db: Db, kind: AiModelKind, modelId: string): Promise<VerifyRun | null> {
-  await failStaleRuns(db, ofModel(kind, modelId));
   const [row] = await db
     .select()
     .from(verifyRuns)
     .where(ofModel(kind, modelId))
     .orderBy(desc(verifyRuns.startedAt))
     .limit(1);
-  return row ? toVerifyRun(row) : null;
+  if (!row) return null;
+  // Only a running row can be abandoned: a poll of a live or finished run writes nothing.
+  const isAbandoned = row.status === 'running' && row.updatedAt.getTime() < Date.now() - STALE_MS;
+  const [stoppedRow] = isAbandoned ? await stopStaleRuns(db, eq(verifyRuns.id, row.id)) : [];
+  return toVerifyRun(stoppedRow ?? row);
 }
 
 // Postgres' unique_violation: another start of the same model and kind won the race.
@@ -78,7 +89,7 @@ export async function startRun(
   { kind, modelId, userId }: { kind: AiModelKind; modelId: string; userId: string | null },
 ): Promise<{ run: VerifyRun; isNew: boolean }> {
   const running = and(ofModel(kind, modelId), isRunning);
-  await failStaleRuns(db, ofModel(kind, modelId));
+  await stopStaleRuns(db, ofModel(kind, modelId));
   try {
     return await db.transaction(async (tx) => {
       const [current] = await tx.select().from(verifyRuns).where(running);
@@ -86,7 +97,7 @@ export async function startRun(
       await tx.delete(verifyRuns).where(ofModel(kind, modelId));
       const [row] = await tx
         .insert(verifyRuns)
-        .values({ kind, modelId, status: 'running', startedBy: userId, turnsTotal: VERIFY_TURNS[kind] })
+        .values({ kind, modelId, status: 'running', startedBy: userId, turnsTotal: verifyPlanTurns(VERIFY[kind].plan) })
         .returning();
       return { run: toVerifyRun(row!), isNew: true };
     });
@@ -154,12 +165,12 @@ export async function runVerify(
 }
 
 /** Stops every running run whose heartbeat stopped (at boot: their server stopped). */
-export async function failAbandonedRuns(db: Db): Promise<void> {
-  await failStaleRuns(db);
+export async function stopAbandonedRuns(db: Db): Promise<void> {
+  await stopStaleRuns(db);
 }
 
 /** Stops the runs this process still runs (at shutdown: nothing will finish them). */
-export async function failOwnRuns(db: Db): Promise<void> {
+export async function stopOwnRuns(db: Db): Promise<void> {
   if (ownRuns.size === 0) return;
   await db
     .update(verifyRuns)

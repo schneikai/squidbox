@@ -1,1 +1,0 @@
-ALTER TABLE `instructions` RENAME COLUMN `model_check_judge` TO `verify_judge`;

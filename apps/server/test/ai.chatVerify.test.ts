@@ -13,7 +13,7 @@ vi.mock('../src/config.js', async (importOriginal) => {
   };
 });
 
-import { VERIFY_JUDGE_MODEL_ID, VERIFY_TURNS, resolveInstructions, type ChatReply } from '@squidbox/shared';
+import { VERIFY_JUDGE_MODEL_ID, resolveInstructions, type ChatReply } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
 import type { CatalogEntry } from '../src/ai/catalog.js';
 import { cardChecks, changeNote, CHAT_PLAN, check, verifyChatModel } from '../src/ai/chatVerify.js';
@@ -23,7 +23,7 @@ const catalog = fixture.data as CatalogEntry[];
 const model = catalog.find((entry) => entry.id === 'kimi-k3')!;
 const instructions = {
   ...resolveInstructions(null),
-  verifyJudge: [
+  modelCheckJudge: [
     'Judge.',
     'About the creator: {aboutYou}',
     'Posts they liked:',
@@ -289,8 +289,8 @@ describe('verifyChatModel', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('plans as many turns as the app says, in seven titled sections', () => {
-    expect(CHAT_PLAN.sections.flatMap((section) => section.prompts)).toHaveLength(VERIFY_TURNS.writing);
+  it('plans 21 turns (the model page says so) in seven titled sections', () => {
+    expect(CHAT_PLAN.sections.flatMap((section) => section.prompts)).toHaveLength(21);
     expect(CHAT_PLAN.sections.map((section) => section.title)).toEqual([
       'Talk first, then posts',
       'Changes on request',

@@ -2,9 +2,9 @@ import { memo, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import AssistantBubble from './AssistantBubble';
+import ChatOptionCard from './ChatOptionCard';
 
 import Card from '@/components/Card';
-import OptionCard from '@/components/OptionCard';
 import TextButton from '@/components/TextButton';
 import { colors, typography } from '@/styles/designTokens';
 
@@ -14,7 +14,7 @@ const SLOW_MS = 20_000;
 /**
  * One of the assistant's replies (`reply`, a chat message): a spinner while it's written, what went
  * wrong with Retry (`onRetry`, for the last reply only), or what it says (AssistantBubble) and its
- * options for the post as OptionCards, hearted through `favorites` (useFavoriteToggle's) from
+ * options for the post as ChatOptionCards, hearted through `favorites` (useFavoriteToggle's) from
  * `source`, Favorites' name for where they came from.
  */
 function AssistantMessage({ reply, source, favorites, onRetry, onMoreLikeThis, onUse }) {
@@ -33,7 +33,7 @@ function AssistantMessage({ reply, source, favorites, onRetry, onMoreLikeThis, o
     <View style={styles.reply}>
       {!!reply.reply && <AssistantBubble text={reply.reply} />}
       {reply.postOptions.map((text, index) => (
-        <OptionCard
+        <ChatOptionCard
           key={`${index}:${text}`}
           text={text}
           isFavorite={Boolean(favorites.favoriteIdOf(text))}

@@ -743,8 +743,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "verify_judge": {
-          "name": "verify_judge",
+        "model_check_judge": {
+          "name": "model_check_judge",
           "type": "text",
           "primaryKey": false,
           "notNull": false

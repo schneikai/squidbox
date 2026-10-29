@@ -1,5 +1,5 @@
 import { memo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import VerifyPostCard from './VerifyPostCard';
 import VerifyVerdict from './VerifyVerdict';
@@ -10,13 +10,13 @@ import CatalogStatus from '@/components/CatalogStatus';
 import ChatBubble from '@/components/ChatBubble';
 import DetailScrollView from '@/components/DetailScrollView';
 import EmptyState from '@/components/EmptyState';
+import ErrorText from '@/components/ErrorText';
 import IntroText from '@/components/IntroText';
 import OptionCard from '@/components/OptionCard';
 import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
-import { colors, lineHeights, typography } from '@/styles/designTokens';
 
 /**
  * One conversation of a writing Verify (route params `kind`, `modelId`, `name`, `sectionId`; an
@@ -32,7 +32,7 @@ export default function VerifyConversationScreen({ navigation, route }) {
 
   const sections = run?.result?.sections ?? [];
   const section = sections.find((each) => each.id === sectionId);
-  const title = plan?.sections.find((each) => each.id === sectionId)?.title ?? section?.title ?? '';
+  const title = plan?.sections.find((each) => each.id === sectionId)?.title ?? '';
   const systemMessage = section?.systemMessage ?? sections[0]?.systemMessage ?? null;
 
   function renderBody() {
@@ -82,7 +82,7 @@ const VerifyTurn = memo(function VerifyTurn({ turn }) {
       {turn.note && <IntroText style={styles.note}>{turn.note}</IntroText>}
       <ChatBubble side="user" text={turn.prompt} />
       {turn.error ? (
-        <Text style={styles.error}>{turn.error}</Text>
+        <ErrorText>{turn.error}</ErrorText>
       ) : (
         <>
           {!!turn.reply && <ChatBubble side="assistant" text={turn.reply} />}
@@ -109,10 +109,5 @@ const styles = StyleSheet.create({
   },
   note: {
     textAlign: 'center',
-  },
-  error: {
-    fontSize: typography.subheadline,
-    lineHeight: lineHeights.subheadline,
-    color: colors.status.danger,
   },
 });

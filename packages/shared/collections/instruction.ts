@@ -16,7 +16,7 @@ export const instructionCollection = defineCollection({
     moreLikeThis: instructionText,
     // Optional: the builds before it push instructions without it (sync-design §6, a new synced
     // column is optional and the server ships first); its stored value stays as it is then.
-    verifyJudge: instructionText.optional(),
+    modelCheckJudge: instructionText.optional(),
   }),
 });
 
@@ -30,17 +30,17 @@ export type InstructionRecord = z.infer<typeof instructionCollection.schema>;
  *   `{mentions}`, `{caption}` (the post; the Compare has none), `{count}` (the options to write);
  * - `visionTagging`, the system message of every photo tags request: `{themes}` (Your content);
  * - `moreLikeThis`, what the chat's More like this sends, with the option after it;
- * - `verifyJudge`, what a writing Verify (ai_admin) asks its judge after each chat turn: the
+ * - `modelCheckJudge`, what a writing Verify (ai_admin) asks its judge after each chat turn: the
  *   creator and the post the assistant was told about, as `writing` has them (`{aboutYou}` …
  *   `{caption}`, without `{count}`), `{transcript}` (the turns before), `{request}` (the creator's
  *   last message), `{reply}`.
  */
-export const INSTRUCTION_KINDS = ['writing', 'visionTagging', 'moreLikeThis', 'verifyJudge'] as const;
+export const INSTRUCTION_KINDS = ['writing', 'visionTagging', 'moreLikeThis', 'modelCheckJudge'] as const;
 
 export type InstructionKind = (typeof INSTRUCTION_KINDS)[number];
 
 /** The kinds only an ai_admin account sees and edits (Verify's). */
-export const ADMIN_INSTRUCTION_KINDS: readonly InstructionKind[] = ['verifyJudge'];
+export const ADMIN_INSTRUCTION_KINDS: readonly InstructionKind[] = ['modelCheckJudge'];
 
 export type Instructions = Record<InstructionKind, string>;
 
@@ -90,7 +90,7 @@ Use only what the creator, the photos or this briefing give you: never invent pl
   // What ⋯ → More like this on an option sends; the app adds the option on its own lines after it.
   moreLikeThis: 'Write more options like this one: the same idea and tone, different wording each time.',
   // Verify's judge (VERIFY_JUDGE_MODEL_ID in contracts/ai.ts): its whole question after each turn.
-  verifyJudge: [
+  modelCheckJudge: [
     'You judge one turn of a writing assistant\'s chat with a content creator. Did the reply respond to what the creator asked in their last message, and hold the conversation (not change the subject, not invent facts it wasn\'t given, posts only when asked)? The assistant was given the creator, the posts they liked and the post below: names, handles, places, tags and details found there or earlier in the chat are given, not invented. Answer as JSON: {"pass": true or false, "reason": one short line}.',
     '',
     '# The creator',

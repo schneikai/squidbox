@@ -35,7 +35,7 @@ import { visionMessages, writingMessages } from './prompts.js';
 import { tagPhotoAsync } from './tagging.js';
 import { visionTask, writingTask } from './tasks.js';
 import { orAiUnavailable, VeniceError } from './venice.js';
-import { PHOTO_FILES, photoDataUrl } from './tagVerify.js';
+import { verifyPhotos } from './tagVerify.js';
 import { readVerification, setModelDefault, setUncensored, setVerification } from './verification.js';
 import { VERIFY } from './verify.js';
 import { readLatestRun, runVerify, startRun } from './verifyRuns.js';
@@ -203,10 +203,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         method: 'GET',
         url: '/ai/verify-photos',
         schema: { response: { 200: verifyPhotosResponseSchema } },
-        handler: async () => {
-          const urls = await Promise.all(PHOTO_FILES.map(photoDataUrl));
-          return { photos: Object.fromEntries(PHOTO_FILES.map((file, index) => [file, urls[index]!])) };
-        },
+        handler: async () => ({ photos: await verifyPhotos() }),
       });
 
       // PUT /ai/verification/:kind/:modelId — marks the model verified for the kind or not; answers the

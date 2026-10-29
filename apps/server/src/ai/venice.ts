@@ -26,7 +26,7 @@ export class VeniceError extends Error {
 }
 
 /**
- * Venice itself didn't answer: it couldn't be reached, took too long, or answered an error. Unlike
+ * Venice itself didn't answer: it couldn't be reached, took too long, was busy (429) or failed (5xx). Unlike
  * the model's own failures (a refusal, a cut-off or unreadable reply), it says nothing about the model.
  */
 export class VeniceUnavailableError extends VeniceError {
@@ -73,8 +73,8 @@ type ChatCompletion = {
 
 /**
  * One chat completion's reply text. Every way it can fail is a VeniceError that says why: Venice
- * unreachable, slow or answering an error is a VeniceUnavailableError; a refusal, a cut-off,
- * filtered or empty reply a plain VeniceError. `signal`
+ * unreachable, slow, busy (429) or failing (5xx) is a VeniceUnavailableError; any other error status,
+ * a refusal, a cut-off, filtered or empty reply a plain VeniceError. `signal`
  * stops it, when nobody waits for the reply anymore.
  */
 async function chatCompletionAsync({
@@ -113,8 +113,12 @@ async function chatCompletionAsync({
     }
     return null;
   })) as (ChatCompletion & { error?: unknown }) | null;
-  if (!response.ok)
-    throw new VeniceUnavailableError(errorMessage(body) ?? `Venice request failed (${response.status})`);
+  if (!response.ok) {
+    const message = errorMessage(body) ?? `Venice request failed (${response.status})`;
+    // Busy or down is Venice's trouble; any other refusal (a bad request, an unknown model) is about this call.
+    if (response.status === 429 || response.status >= 500) throw new VeniceUnavailableError(message);
+    throw new VeniceError(message);
+  }
 
   const choice = body?.choices?.[0];
   if (choice?.message?.refusal) throw new VeniceError(`The model refused: ${choice.message.refusal}`);

@@ -79,7 +79,7 @@ function replyText({ reply, postOptions }: ChatReply): string {
 }
 
 /**
- * Verify's judge question after a chat turn: `template` (instructions.verifyJudge)
+ * Verify's judge question after a chat turn: `template` (instructions.modelCheckJudge)
  * filled with what the writing model was told about the creator and the post, with the writing
  * briefing's placeholders (the persona's facts, the posts they liked, none for a section without them,
  * and the post's media, photo tags, tagged people and caption), so a name, handle or tag it was given

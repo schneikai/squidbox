@@ -3,6 +3,7 @@ import { Alert, StyleSheet } from 'react-native';
 
 import ModelLabelsSection from './ModelLabelsSection';
 import VerifySection from './VerifySection';
+import useModelVerification from './useModelVerification';
 
 import CatalogStatus from '@/components/CatalogStatus';
 import DetailScrollView from '@/components/DetailScrollView';
@@ -12,7 +13,6 @@ import Switch from '@/components/Switch';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import modelKindText from '@/features/model-compare/modelKindText';
-import useAiCatalog from '@/hooks/useAiCatalog';
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useYourModels from '@/hooks/useYourModels';
@@ -32,20 +32,18 @@ export default function ModelScreen({ route }) {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const haptics = useHaptics();
-  const { defaults } = useAiCatalog();
-  const { error, retry, rows, chosenId, choose } = useYourModels(kind);
+  const { error, retry, rows, chosenId, hasChoice, choose } = useYourModels(kind);
 
   const row = rows?.find((each) => each.id === modelId);
   // The catalog's model, null once Venice no longer offers it.
   const model = row?.model ?? null;
+  const { defaultName } = useModelVerification(kind, model);
+
   const score = row?.score ?? null;
   const text = modelKindText[kind];
-  const defaultName =
-    defaults?.[kind].regular === modelId
-      ? 'the Default'
-      : defaults?.[kind].unrestricted === modelId
-        ? 'the Default for Adult content'
-        : null;
+  const isUsed = chosenId === modelId;
+  // This account writes with it because it chose none: there is no choice to take back.
+  const isUsedAsDefault = isUsed && !hasChoice;
 
   async function handleUse(isOn) {
     await choose(isOn ? row : null);
@@ -60,7 +58,7 @@ export default function ModelScreen({ route }) {
 
   async function handleRemove() {
     if (defaultName) {
-      Alert.alert(`${name} is ${defaultName}`, `Make another model ${defaultName} before you remove this one.`);
+      Alert.alert(`${name} is the ${defaultName}`, `Make another model the ${defaultName} before you remove this one.`);
       return;
     }
     await removeYourModel(getDb(), kind, modelId);
@@ -75,11 +73,11 @@ export default function ModelScreen({ route }) {
           {model ? modelDetailText(model, kind, score) : 'No longer available'}
         </IntroText>
         <Section>
-          <Row label={text.useLabel}>
+          <Row label={text.useLabel} description={isUsedAsDefault ? "It's the default" : undefined}>
             <Switch
-              value={chosenId === modelId}
+              value={isUsed}
               onValueChange={handleUse}
-              disabled={!model || !row}
+              disabled={!model || isUsedAsDefault}
               accessibilityLabel={text.useLabel}
             />
           </Row>

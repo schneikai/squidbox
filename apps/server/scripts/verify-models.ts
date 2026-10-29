@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 import {
   aiModelKindSchema,
   resolveInstructions,
-  VERIFY_TURNS,
+  verifyPlanTurns,
   type AiModelKind,
   type VerifyResult,
 } from '@squidbox/shared';
@@ -106,6 +106,11 @@ async function main() {
   const { entries } = await catalogAsync();
   const instructions = resolveInstructions(null);
   const results: { id: string; result: VerifyResult; stopped: string | null }[] = [];
+  // The turns of the sections that run (--scenario), all without one.
+  const { plan } = VERIFY[kind];
+  const total = verifyPlanTurns(
+    sections ? { sections: plan.sections.filter((section) => sections.includes(section.id)) } : plan,
+  );
   for (const id of models) {
     const found = findModel(entries, id, kind);
     if ('error' in found) {
@@ -113,17 +118,20 @@ async function main() {
       continue;
     }
     console.log(`${id}…`);
-    const run = await VERIFY[kind].run(found.entry, { catalog: entries, instructions, sectionIds: sections }).then(
-      (result) => ({ result, stopped: null }),
-      (error: unknown) => {
-        if (!(error instanceof VerifyStopped)) throw error;
-        return { result: error.result, stopped: error.message };
-      },
-    );
+    let run: { result: VerifyResult; stopped: string | null };
+    try {
+      run = {
+        result: await VERIFY[kind].run(found.entry, { catalog: entries, instructions, sectionIds: sections }),
+        stopped: null,
+      };
+    } catch (error) {
+      if (!(error instanceof VerifyStopped)) throw error;
+      run = { result: error.result, stopped: error.message };
+    }
     const { result, stopped } = run;
     if (stopped) {
       const turns = result.sections.reduce((sum, section) => sum + section.turns.length, 0);
-      console.log(`${id}: stopped at turn ${turns + 1} of ${VERIFY_TURNS[kind]}: ${stopped}`);
+      console.log(`${id}: stopped at turn ${turns + 1} of ${total}: ${stopped}`);
     }
     console.log(`${id}: ${result.passes} passed, ${result.fails} failed, ${result.unreadable} not JSON`);
     results.push({ id, ...run });

@@ -251,7 +251,7 @@ function contextOf(post: VerifyPost): ChatContext {
 
 /**
  * Runs the writing Verify's sections (`sectionIds`, all by default) on `model`, briefed with
- * `instructions.writing` and judged with `instructions.verifyJudge`. A model's wrong answer (a
+ * `instructions.writing` and judged with `instructions.modelCheckJudge`. A model's wrong answer (a
  * refusal, an unreadable or empty reply) is its turn's error, and the scenario's later turns are
  * skipped as missed (they build on its reply); a judge's is a failed judge check with the error as
  * its reason. Venice not answering stops the run (VerifyStopped). Rejects before any call when
@@ -312,7 +312,7 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
           runTask({
             task: judgeTask,
             messages: judgeMessages({
-              template: instructions.verifyJudge,
+              template: instructions.modelCheckJudge,
               context: contextOf(post),
               persona: isBare ? null : MOCK_PERSONA,
               favorites: isBare ? [] : FAVORITE_TEXTS,

@@ -1,3 +1,4 @@
+import { MODEL_LABEL_NAMES } from '@squidbox/shared';
 import { useState } from 'react';
 import { Alert } from 'react-native';
 
@@ -12,58 +13,34 @@ import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 /**
  * A catalog model's labels for `kind`, a switch each, as every account sees them: Verified,
  * Unrestricted (with Venice's own rating), Default and Default for Adult content. A switch the
- * server would refuse is off limits, with the reason under its label; one switch is on its way to
- * the server at a time.
+ * server would refuse is off limits (modelLabelLocks), with the reason under its label; one switch
+ * is on its way to the server at a time.
  */
 export default function ModelLabelsSection({ kind, model }) {
   const haptics = useHaptics();
-  const { isVerified, isUncensored, isVeniceUncensored, isDefault, setVerified, setUncensored, makeDefault } =
-    useModelVerification(kind, model);
+  const { labels, locks, isVeniceUncensored, setVerified, setUncensored, makeDefault } = useModelVerification(
+    kind,
+    model,
+  );
   // The switch on its way to the server, `{ label, isOn }`, null otherwise.
   const [pending, setPending] = useState(null);
 
-  const isAnyDefault = isDefault.regular || isDefault.unrestricted;
+  const changes = {
+    verified: (isOn) => setVerified(isOn),
+    unrestricted: (isOn) => setUncensored(isOn === isVeniceUncensored ? null : isOn),
+    default: () => makeDefault('regular'),
+    adultDefault: () => makeDefault('unrestricted'),
+  };
   const veniceRating = isVeniceUncensored ? 'Venice rates it uncensored' : "Venice doesn't rate it uncensored";
-  const labels = [
-    {
-      label: 'Verified',
-      value: isVerified,
-      reason: isDefault.regular
-        ? "It's the Default"
-        : isDefault.unrestricted
-          ? "It's the Default for Adult content"
-          : null,
-      isLocked: isAnyDefault,
-      change: (isOn) => setVerified(isOn),
-    },
-    {
-      label: 'Unrestricted',
-      value: isUncensored,
-      description: veniceRating,
-      reason: isDefault.unrestricted ? "It's the Default for Adult content" : null,
-      isLocked: isDefault.unrestricted,
-      change: (isOn) => setUncensored(isOn === isVeniceUncensored ? null : isOn),
-    },
-    {
-      label: 'Default',
-      value: isDefault.regular,
-      reason: isVerified ? null : 'Turn on Verified first',
-      isLocked: !isVerified || isDefault.regular,
-      change: () => makeDefault('regular'),
-    },
-    {
-      label: 'Default for Adult content',
-      value: isDefault.unrestricted,
-      reason: !isVerified ? 'Turn on Verified first' : !isUncensored ? 'Turn on Unrestricted first' : null,
-      isLocked: !isVerified || !isUncensored || isDefault.unrestricted,
-      change: () => makeDefault('unrestricted'),
-    },
-  ];
+  const rows = Object.keys(changes).map((label) => ({
+    label,
+    description: [label === 'unrestricted' ? veniceRating : null, locks[label].reason].filter(Boolean).join(' · '),
+  }));
 
-  async function handleChange({ label, change }, isOn) {
+  async function handleChange(label, isOn) {
     setPending({ label, isOn });
     try {
-      await change(isOn);
+      await changes[label](isOn);
       haptics.selection();
     } catch (error) {
       haptics.error();
@@ -76,17 +53,13 @@ export default function ModelLabelsSection({ kind, model }) {
   return (
     <>
       <Section isHeaderless>
-        {labels.map((each) => (
-          <Row
-            key={each.label}
-            label={each.label}
-            description={[each.description, each.reason].filter(Boolean).join(' · ') || undefined}
-          >
+        {rows.map(({ label, description }) => (
+          <Row key={label} label={MODEL_LABEL_NAMES[label]} description={description || undefined}>
             <Switch
-              value={pending?.label === each.label ? pending.isOn : each.value}
-              onValueChange={(isOn) => handleChange(each, isOn)}
-              disabled={pending !== null || each.isLocked}
-              accessibilityLabel={each.label}
+              value={pending?.label === label ? pending.isOn : labels[label]}
+              onValueChange={(isOn) => handleChange(label, isOn)}
+              disabled={pending !== null || locks[label].locked}
+              accessibilityLabel={MODEL_LABEL_NAMES[label]}
             />
           </Row>
         ))}

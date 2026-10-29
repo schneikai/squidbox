@@ -204,7 +204,7 @@ export const instructions = sqliteTable('instructions', {
   writing: text('writing'),
   visionTagging: text('vision_tagging'),
   moreLikeThis: text('more_like_this'),
-  verifyJudge: text('verify_judge'),
+  modelCheckJudge: text('model_check_judge'),
 });
 export type InstructionRow = typeof instructions.$inferSelect;
 

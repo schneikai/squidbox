@@ -14,6 +14,7 @@ import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import SearchInput from '@/components/SearchInput';
 import { SCREEN_PADDING } from '@/constants';
+import useAiCatalog from '@/hooks/useAiCatalog';
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useScrollY from '@/hooks/useScrollY';
@@ -23,7 +24,7 @@ import { getDb } from '@/sync/db/client';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
 
 // Every model Venice offers for a kind (route param `kind`), with a search box; a tap adds one to
-// your list. Removing is in the list's row menu.
+// your list. Removing is on the model's page.
 export default function AddModelsScreen({ navigation, route }) {
   const { kind } = route.params;
   const isAvailable = useLeaveWhenUnavailable();
@@ -32,6 +33,7 @@ export default function AddModelsScreen({ navigation, route }) {
   const { bottom } = useSafeAreaInsets();
   const haptics = useHaptics();
   const { catalog, error, retry, rows } = useYourModels(kind);
+  const { defaults } = useAiCatalog();
 
   const addedIds = useMemo(() => new Set((rows ?? []).map(({ id }) => id)), [rows]);
   const models = useMemo(
@@ -48,8 +50,10 @@ export default function AddModelsScreen({ navigation, route }) {
   );
 
   const renderItem = useCallback(
-    ({ item }) => <AddModelRow model={item} kind={kind} isAdded={addedIds.has(item.id)} onAdd={handleAdd} />,
-    [kind, addedIds, handleAdd],
+    ({ item }) => (
+      <AddModelRow model={item} kind={kind} defaults={defaults} isAdded={addedIds.has(item.id)} onAdd={handleAdd} />
+    ),
+    [kind, defaults, addedIds, handleAdd],
   );
 
   function renderEmpty() {

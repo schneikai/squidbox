@@ -7,8 +7,7 @@
 // The photos (verifyPhotos/) are four of the mock account's picsum.photos images (Unsplash photos,
 // free to use), at the app's vision size: https://picsum.photos/id/<id>/512/341.jpg.
 import { readFile } from 'node:fs/promises';
-import { ASSET_TAG_LIMITS } from '@squidbox/shared';
-import type { VerifyPlan } from '@squidbox/shared';
+import { ASSET_TAG_LIMITS, type VerifyPlan } from '@squidbox/shared';
 import { MOCK_PERSONA } from './mockPersona.js';
 import { visionMessages } from './prompts.js';
 import { photoTagsTask, runTask } from './tasks.js';
@@ -34,10 +33,21 @@ function limitsCheck(raw: string[], kept: string[]) {
   return { name: LIMITS_CHECK, ok, reason: ok ? null : reason };
 }
 
-/** A Verify photo as a data URL, as the app sends one. */
-export async function photoDataUrl(file: string): Promise<string> {
-  const bytes = await readFile(new URL(`./verifyPhotos/${file}`, import.meta.url));
-  return `data:image/jpeg;base64,${bytes.toString('base64')}`;
+// The photos, read once per process (they never change); a failed read is tried again next time.
+let photos: Promise<Record<string, string>> | null = null;
+
+/** The Verify photos as data URLs, as the app sends one, by file name. */
+export function verifyPhotos(): Promise<Record<string, string>> {
+  photos ??= Promise.all(
+    PHOTO_FILES.map(async (file) => {
+      const bytes = await readFile(new URL(`./verifyPhotos/${file}`, import.meta.url));
+      return [file, `data:image/jpeg;base64,${bytes.toString('base64')}`] as const;
+    }),
+  ).then(Object.fromEntries, (error: unknown) => {
+    photos = null;
+    throw error;
+  });
+  return photos;
 }
 
 /**
@@ -53,7 +63,7 @@ export const verifyTaggingModel: VerifyRunner = async (model, { instructions, on
     for (const file of PHOTO_FILES) {
       const messages = visionMessages({
         prompt: instructions.visionTagging,
-        imageDataUrl: await photoDataUrl(file),
+        imageDataUrl: (await verifyPhotos())[file]!,
         contentTags: MOCK_PERSONA.contentTags,
       });
       let raw: string[] = [];

@@ -16,7 +16,7 @@ import seedModels from '@/utils/ai/seedModels';
  * Your models of a kind (an ai_admin tool), live: `rows` your list joined with Venice's models
  * (useAiCatalog's `catalog`, `error` and `retry`), null until both are in; `chosenId` the one the
  * assistant uses (the default for the persona's Adult content switch while none is chosen, which
- * stays unstored; null while reading), which `choose` changes (it syncs with the account; the list
+ * stays unstored; null while reading), `hasChoice` whether this account chose one, which `choose` changes (it syncs with the account; the list
  * stays on the device). On the first run the list starts with the verified models Venice still has.
  */
 export default function useYourModels(kind) {
@@ -46,5 +46,6 @@ export default function useYourModels(kind) {
     chosen === undefined || persona === undefined || !defaults
       ? null
       : resolveModelId(kind, chosen[kind], persona?.adultContent, defaults);
-  return { catalog, error, retry, rows, chosenId, choose };
+  const hasChoice = Boolean(chosen?.[kind]);
+  return { catalog, error, retry, rows, chosenId, hasChoice, choose };
 }

@@ -1,15 +1,16 @@
 import { memo } from 'react';
-import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import countPassed from './countPassed';
+import VerifyStatusIcon from './VerifyStatusIcon';
+import isTurnPassed from './isTurnPassed';
 import missReason from './missReason';
 
 import Chip from '@/components/Chip';
 import ChipRow from '@/components/ChipRow';
-import Icon from '@/components/Icon';
+import CoverImage from '@/components/CoverImage';
+import ErrorText from '@/components/ErrorText';
 import IntroText from '@/components/IntroText';
 import { SCREEN_PADDING } from '@/constants';
-import { colors, lineHeights, radii, sizes, typography } from '@/styles/designTokens';
 
 const THUMBNAIL = 56;
 
@@ -21,25 +22,13 @@ export default memo(VerifyPhotoRow);
  * the photo (`uri`, a data URL, over a placeholder until it's in), and its tags or why it got none.
  */
 function VerifyPhotoRow({ uri, turn, isRunning }) {
-  const isPassed = turn && countPassed([turn]) === 1;
-  const reason = turn && missReason(turn);
-
-  function renderIcon() {
-    if (!turn && isRunning) return <ActivityIndicator color={colors.text.secondary} />;
-    if (!turn) return <Icon name="clock" size={sizes.icon} color={colors.text.tertiary} />;
-    return (
-      <Icon
-        name={isPassed ? 'check-circle' : 'close-circle'}
-        size={sizes.icon}
-        color={isPassed ? colors.status.success : colors.status.danger}
-      />
-    );
-  }
+  const isPassed = turn !== null && isTurnPassed(turn);
+  const status = turn ? (isPassed ? 'passed' : 'missed') : isRunning ? 'running' : 'waiting';
 
   return (
     <View style={styles.row}>
-      {renderIcon()}
-      <View style={styles.thumbnail}>{uri && <Image source={{ uri }} style={styles.image} />}</View>
+      <VerifyStatusIcon status={status} />
+      <CoverImage uri={uri ?? undefined} style={styles.thumbnail} />
       <View style={styles.tags}>
         {!turn && <IntroText>{isRunning ? 'Tagging…' : 'Waiting'}</IntroText>}
         {turn?.items.length > 0 && (
@@ -49,7 +38,7 @@ function VerifyPhotoRow({ uri, turn, isRunning }) {
             ))}
           </ChipRow>
         )}
-        {turn && !isPassed && <Text style={styles.error}>Missed: {reason}</Text>}
+        {turn && !isPassed && <ErrorText>Missed: {missReason(turn)}</ErrorText>}
       </View>
     </View>
   );
@@ -66,21 +55,9 @@ const styles = StyleSheet.create({
   thumbnail: {
     width: THUMBNAIL,
     height: THUMBNAIL,
-    borderRadius: radii.cover,
-    overflow: 'hidden',
-    backgroundColor: colors.background.placeholder,
-  },
-  image: {
-    width: THUMBNAIL,
-    height: THUMBNAIL,
   },
   tags: {
     flex: 1,
     gap: 6,
-  },
-  error: {
-    fontSize: typography.subheadline,
-    lineHeight: lineHeights.subheadline,
-    color: colors.status.danger,
   },
 });

@@ -28,9 +28,10 @@ function rememberShown(uri) {
 // draws over the cell either way, e.g. corner badges that only make sense over a loaded picture;
 // `status` is getAssetThumbnailStatusAsync's once known. A
 // thumbnail its device hasn't backed up yet gets a crossed-out cloud on the placeholder while
-// `showNotUploaded`.
+// `showNotUploaded`. `uri` shows that picture (a data URL, say) in place of an asset's thumbnail.
 export default function AssetImage({
   asset = {},
+  uri,
   contentFit,
   placeholderColor = colors.background.placeholder,
   renderOverlay,
@@ -87,7 +88,7 @@ export default function AssetImage({
     };
   }, [asset.thumbnailFilename, asset.isThumbnailSynced, isAuthenticated, isLocal, library, loadThumbnail]);
 
-  const thumbnailUri = isLocal ? localUri : null;
+  const thumbnailUri = uri ?? (isLocal ? localUri : null);
   const hasPicture = !!thumbnailUri && (wasShown || loadedUri === thumbnailUri);
   const showNotUploadedIcon = showNotUploaded && current?.status === 'notUploaded';
 
@@ -124,7 +125,7 @@ export default function AssetImage({
         <LoadingPlaceholder
           color={placeholderColor}
           style={!!thumbnailUri && StyleSheet.absoluteFill}
-          still={!asset.thumbnailFilename || current?.status === 'signedOut' || current?.status === 'failed'}
+          still={!uri && (!asset.thumbnailFilename || current?.status === 'signedOut' || current?.status === 'failed')}
         >
           {showNotUploadedIcon && (
             <View

@@ -1,9 +1,16 @@
-// The marks an ai_admin sets for the whole app (Settings → Assistant → a model list → ⋯): which models
+// The marks an ai_admin sets for the whole app (Settings → Assistant → a model list → a model): which models
 // are verified for each kind, whether a model counts as uncensored (an override of Venice's label,
 // or none to follow it), and the defaults the assistant uses while a user chose none. Server-owned
 // tables, read by every account through GET /ai/models, never synced (sync-design §12).
 import { and, eq } from 'drizzle-orm';
-import { modelDefaultsSchema, type AiModelKind, type ModelDefaultVariant, type ModelDefaults } from '@squidbox/shared';
+import {
+  modelDefaultsSchema,
+  modelLabelLocks,
+  type AiModelKind,
+  type LabelLock,
+  type ModelDefaultVariant,
+  type ModelDefaults,
+} from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import { modelDefaults, uncensoredOverrides, verifiedModels } from '../db/schema.js';
 import { AppError } from '../errors.js';
@@ -25,8 +32,8 @@ function toDefaults(rows: { kind: string; variant: string; modelId: string }[]):
   return modelDefaultsSchema.parse(defaults);
 }
 
-/** The defaults of every kind and variant. */
-export async function readModelDefaults(db: Db): Promise<ModelDefaults> {
+/** The defaults of every kind and variant (`db` may be a transaction). */
+export async function readModelDefaults(db: Pick<Db, 'select'>): Promise<ModelDefaults> {
   return toDefaults(await db.select().from(modelDefaults));
 }
 
@@ -45,9 +52,31 @@ export async function readVerification(db: Db): Promise<Verification> {
   return { verified, overrides, defaults };
 }
 
+// What a guard needs of a model in `tx`: whether it is verified for `kind`, its Uncensored override
+// (null: follows Venice) and the defaults.
+async function readLabels(tx: Pick<Db, 'select'>, kind: AiModelKind, modelId: string) {
+  const [[verified], [override], defaults] = await Promise.all([
+    tx
+      .select({ modelId: verifiedModels.modelId })
+      .from(verifiedModels)
+      .where(and(eq(verifiedModels.kind, kind), eq(verifiedModels.modelId, modelId))),
+    tx
+      .select({ uncensored: uncensoredOverrides.uncensored })
+      .from(uncensoredOverrides)
+      .where(eq(uncensoredOverrides.modelId, modelId)),
+    readModelDefaults(tx),
+  ]);
+  return { isVerified: verified !== undefined, override: override?.uncensored ?? null, defaults };
+}
+
+// Refuses a change that modelLabelLocks (shared) locks, with its reason.
+function refuseLocked(lock: LabelLock): void {
+  if (lock.locked) throw AppError.validation(lock.reason ?? "This label can't change");
+}
+
 /**
  * Marks the model verified for `kind` or not; a second mark keeps who and when. 400 when unmarking a
- * default of the kind.
+ * default of the kind (modelLabelLocks).
  */
 export async function setVerification(
   db: Db,
@@ -63,21 +92,18 @@ export async function setVerification(
     return;
   }
   await db.transaction(async (tx) => {
-    const [isDefault] = await tx
-      .select({ variant: modelDefaults.variant })
-      .from(modelDefaults)
-      .where(and(eq(modelDefaults.kind, kind), eq(modelDefaults.modelId, modelId)));
-    if (isDefault)
-      throw AppError.validation(`${modelId} is the default ${kind} model; make another model the default first`);
+    const defaults = await readModelDefaults(tx);
+    // only the defaults matter to unmarking
+    refuseLocked(modelLabelLocks({ kind, modelId, isVerified: true, isUncensored: true, defaults }).verified);
     await tx.delete(verifiedModels).where(and(eq(verifiedModels.kind, kind), eq(verifiedModels.modelId, modelId)));
   });
 }
 
 /**
  * Sets the model's override of Venice's Uncensored label (`uncensored`; null follows Venice). 400
- * when that leaves an Adult content default of any kind not uncensored. `entry` is the model's
- * catalog entry, null once Venice dropped it: then there is no label to follow, and only false
- * counts as not uncensored.
+ * when that leaves the Default for Adult content of any kind not uncensored (modelLabelLocks).
+ * `entry` is the model's catalog entry, null once Venice dropped it: then there is no label to
+ * follow, and only false counts as not uncensored.
  */
 export async function setUncensored(
   db: Db,
@@ -91,15 +117,11 @@ export async function setUncensored(
   const counts = entry ? isUncensored(entry, uncensored) : uncensored !== false;
   await db.transaction(async (tx) => {
     if (!counts) {
-      const [adultDefault] = await tx
-        .select({ kind: modelDefaults.kind })
-        .from(modelDefaults)
-        .where(and(eq(modelDefaults.variant, 'unrestricted'), eq(modelDefaults.modelId, modelId)));
-      if (adultDefault) {
-        throw AppError.validation(
-          `${modelId} is the default ${adultDefault.kind} model for Adult content; make another model that default first`,
-        );
-      }
+      const defaults = await readModelDefaults(tx);
+      // the lock covers every kind; `writing` only names the kind in its reason
+      refuseLocked(
+        modelLabelLocks({ kind: 'writing', modelId, isVerified: true, isUncensored: true, defaults }).unrestricted,
+      );
     }
     if (uncensored === null) {
       await tx.delete(uncensoredOverrides).where(eq(uncensoredOverrides.modelId, modelId));
@@ -117,26 +139,23 @@ export async function setUncensored(
 
 /**
  * Makes the model the default of `kind` for `variant`. 400 unless it is verified for the kind, and
- * for Adult content (`unrestricted`) unless it counts as uncensored (catalog.ts isUncensored).
+ * for Adult content (`unrestricted`) unless it counts as uncensored (modelLabelLocks).
  */
 export async function setModelDefault(
   db: Db,
   { kind, variant, entry }: { kind: AiModelKind; variant: ModelDefaultVariant; entry: CatalogEntry },
 ): Promise<void> {
   await db.transaction(async (tx) => {
-    const [verified] = await tx
-      .select({ modelId: verifiedModels.modelId })
-      .from(verifiedModels)
-      .where(and(eq(verifiedModels.kind, kind), eq(verifiedModels.modelId, entry.id)));
-    if (!verified) throw AppError.validation('Mark the model verified first');
-    if (variant === 'unrestricted') {
-      const [override] = await tx
-        .select({ uncensored: uncensoredOverrides.uncensored })
-        .from(uncensoredOverrides)
-        .where(eq(uncensoredOverrides.modelId, entry.id));
-      if (!isUncensored(entry, override?.uncensored ?? null))
-        throw AppError.validation('Mark the model uncensored first');
-    }
+    const { isVerified, override, defaults } = await readLabels(tx, kind, entry.id);
+    if (defaults[kind][variant] === entry.id) return;
+    const locks = modelLabelLocks({
+      kind,
+      modelId: entry.id,
+      isVerified,
+      isUncensored: isUncensored(entry, override),
+      defaults,
+    });
+    refuseLocked(variant === 'regular' ? locks.default : locks.adultDefault);
     await tx
       .insert(modelDefaults)
       .values({ kind, variant, modelId: entry.id })

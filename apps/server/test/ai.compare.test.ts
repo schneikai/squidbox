@@ -223,7 +223,7 @@ describe('runTask', () => {
     await expect(failed).rejects.toThrow('Returned no tags');
   });
 
-  it("tells Venice not answering (an error answer, a timeout) from the model's own failure (a refusal)", async () => {
+  it("tells Venice not answering (a 5xx answer, a timeout) from the model's own failure (a refusal)", async () => {
     const run = () => runTask({ task: visionTask, messages, model: model('gemma-4-uncensored') });
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: { message: 'Down' } }), { status: 503 }));
     await expect(run()).rejects.toEqual(new VeniceUnavailableError('Down'));
@@ -237,6 +237,19 @@ describe('runTask', () => {
     const refused = run();
     await expect(refused).rejects.toBeInstanceOf(VeniceError);
     await expect(refused).rejects.not.toBeInstanceOf(VeniceUnavailableError);
+  });
+
+  it('counts 429 as Venice not answering, and any other 4xx as about the model', async () => {
+    const run = () => runTask({ task: visionTask, messages, model: model('gemma-4-uncensored') });
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: { message: 'Slow down' } }), { status: 429 }));
+    await expect(run()).rejects.toEqual(new VeniceUnavailableError('Slow down'));
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { message: 'No such model' } }), { status: 404 }),
+    );
+    const missing = run();
+    await expect(missing).rejects.toBeInstanceOf(VeniceError);
+    await expect(missing).rejects.not.toBeInstanceOf(VeniceUnavailableError);
+    await expect(missing).rejects.toThrow('No such model');
   });
 });
 

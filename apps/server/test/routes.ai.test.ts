@@ -708,7 +708,7 @@ describe('Verify', () => {
 
   it('POST starts a run once, with the admin instructions, and answers the running one at once', async () => {
     veniceAnswers();
-    const mine = { ...resolveInstructions(null), verifyJudge: 'Judge it: {reply}' };
+    const mine = { ...resolveInstructions(null), modelCheckJudge: 'Judge it: {reply}' };
     vi.mocked(readInstructions).mockResolvedValueOnce(mine);
     vi.mocked(startRun).mockResolvedValueOnce({ run: RUN, isNew: true });
     const res = await call('POST', '/ai/verify/writing/kimi-k3');
@@ -813,12 +813,10 @@ describe('the marks', () => {
       variant: 'unrestricted',
       entry: expect.objectContaining({ id: 'kimi-k3' }),
     });
-    vi.mocked(setModelDefault).mockRejectedValueOnce(
-      new AppError(400, 'validation_error', 'Mark the model verified first'),
-    );
+    vi.mocked(setModelDefault).mockRejectedValueOnce(new AppError(400, 'validation_error', 'Turn on Verified first'));
     const refused = await call('PUT', '/ai/defaults/writing/regular', { modelId: 'z-ai-glm-5-3' });
     expect(refused.statusCode).toBe(400);
-    expect(refused.json().error.message).toBe('Mark the model verified first');
+    expect(refused.json().error.message).toBe('Turn on Verified first');
     expect((await call('PUT', '/ai/defaults/writing/weird', { modelId: 'kimi-k3' })).statusCode).toBe(400);
   });
 });

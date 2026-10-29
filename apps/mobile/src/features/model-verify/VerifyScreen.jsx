@@ -1,13 +1,11 @@
-import { VERIFY_JUDGE_MODEL_ID } from '@squidbox/shared';
 import { useEffect, useRef } from 'react';
 
 import VerifyConversationsSection from './VerifyConversationsSection';
 import VerifyPhotosSection from './VerifyPhotosSection';
+import VerifyRunRow from './VerifyRunRow';
 import VerifyStatusCard from './VerifyStatusCard';
-import confirmVerifyAsync from './confirmVerifyAsync';
 import findCatalogModel from './findCatalogModel';
 import useVerifyRun from './useVerifyRun';
-import verifyCostText from './verifyCostText';
 
 import CatalogStatus from '@/components/CatalogStatus';
 import DetailScrollView from '@/components/DetailScrollView';
@@ -20,17 +18,17 @@ import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 
 /**
- * A model's latest Verify of a kind (route params `kind`, `modelId`, `name`, and `initial`, a `{ run,
- * plan }` the caller has already; an ai_admin tool), in any state: its status on top, then its
+ * A model's latest Verify of a kind (route params `kind`, `modelId`, `name`; an ai_admin tool), in
+ * any state, the same run the model page shows (useVerifyRun): its status on top, then its
  * conversations (writing) or its photos (vision), and Verify again once it's no longer running. A
  * haptic marks the run finishing while the page is open.
  */
 export default function VerifyScreen({ navigation, route }) {
-  const { kind, modelId, name, initial } = route.params;
+  const { kind, modelId, name } = route.params;
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const haptics = useHaptics();
   const { models } = useAiCatalog();
-  const { run, plan, error, retry, show } = useVerifyRun(kind, modelId, initial);
+  const { run, plan, error, retry, show } = useVerifyRun(kind, modelId);
   const previousStatus = useRef(run?.status);
 
   useEffect(() => {
@@ -43,13 +41,7 @@ export default function VerifyScreen({ navigation, route }) {
 
   // The catalog's model, null once Venice no longer offers it (no new run).
   const model = findCatalogModel(models, modelId);
-  const judge = findCatalogModel(models, VERIFY_JUDGE_MODEL_ID);
   const canVerify = model !== null && run?.status !== 'running';
-
-  async function handleVerify() {
-    const answer = await confirmVerifyAsync(kind, model, models);
-    if (answer) show(answer);
-  }
 
   function renderBody() {
     if (run === undefined || plan === undefined) {
@@ -76,11 +68,7 @@ export default function VerifyScreen({ navigation, route }) {
         )}
         {canVerify && (
           <Section isHeaderless>
-            <Row
-              label={run ? 'Verify again' : 'Verify'}
-              value={verifyCostText(kind, model, judge)}
-              onPress={handleVerify}
-            />
+            <VerifyRunRow kind={kind} plan={plan} model={model} hasRun={run !== null} onStarted={show} />
           </Section>
         )}
       </>

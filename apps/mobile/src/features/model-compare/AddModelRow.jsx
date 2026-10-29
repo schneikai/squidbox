@@ -5,7 +5,6 @@ import ModelSummary from './ModelSummary';
 
 import Icon from '@/components/Icon';
 import { SCREEN_PADDING } from '@/constants';
-import useAiCatalog from '@/hooks/useAiCatalog';
 import { colors, sizes } from '@/styles/designTokens';
 import modelDetailText from '@/utils/ai/modelDetailText';
 import modelLabels from '@/utils/ai/modelLabels';
@@ -14,9 +13,9 @@ import modelLabels from '@/utils/ai/modelLabels';
 export default memo(AddModelRow);
 
 // A Venice model on the Add screen: its summary with its labels, cost and thinking, and a check once
-// it's in your list. `onAdd(model)` is stable, so the row stays memoized.
-function AddModelRow({ model, kind, isAdded, onAdd }) {
-  const { defaults } = useAiCatalog();
+// it's in your list (its labels from `defaults`, useAiCatalog's). `onAdd(model)` is stable, so the
+// row stays memoized.
+function AddModelRow({ model, kind, defaults, isAdded, onAdd }) {
   return (
     <TouchableOpacity
       style={styles.row}

@@ -1,6 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
 
+import dollarsText from '@/utils/ai/dollarsText';
 import fetchAiBalanceAsync from '@/utils/cloud-api/ai/fetchAiBalanceAsync';
 
 /**
@@ -27,6 +28,6 @@ export default function useVeniceBalance() {
 }
 
 function balanceText({ usd, diem }) {
-  const dollars = `$${usd.toFixed(2)}`;
+  const dollars = dollarsText(usd);
   return diem > 0 ? `${dollars} · ${diem.toFixed(2)} DIEM` : dollars;
 }

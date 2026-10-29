@@ -1,17 +1,16 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import ProgressBar from './ProgressBar';
-import countPassed from './countPassed';
+import VerifyStatusIcon from './VerifyStatusIcon';
+import isTurnPassed from './isTurnPassed';
 import missSummary from './missSummary';
-import secondsText from './secondsText';
 import turnUnit from './turnUnit';
+import verifySummary from './verifySummary';
 
 import Card from '@/components/Card';
-import Icon from '@/components/Icon';
 import IntroText from '@/components/IntroText';
-import { colors, lineHeights, sizes, typography } from '@/styles/designTokens';
+import { colors, lineHeights, typography } from '@/styles/designTokens';
 import pluralizeText from '@/utils/pluralizeText';
-import relativeTime from '@/utils/relativeTime';
 
 /**
  * The top of the Verify page for a `run` of `kind` on the model `name`: while it runs what this turn
@@ -20,9 +19,7 @@ import relativeTime from '@/utils/relativeTime';
  */
 export default function VerifyStatusCard({ kind, name, run, plan }) {
   const unit = turnUnit(kind);
-  const turns = run.result?.sections.flatMap((section) => section.turns) ?? [];
-  const passed = countPassed(turns);
-  const when = relativeTime(Date.parse(run.finishedAt ?? run.startedAt));
+  const { title, detail, icon } = verifySummary(kind, run);
 
   if (run.status === 'running') {
     const next = plan.sections.flatMap((section) => section.prompts)[run.turnsDone];
@@ -38,43 +35,24 @@ export default function VerifyStatusCard({ kind, name, run, plan }) {
     );
   }
 
-  if (run.status === 'stopped') {
-    const before = pluralizeText(`The ${unit.one} before`, `The %{count} ${unit.plural} before`, run.turnsDone);
-    const allBeforePassed = run.turnsDone > 0 && passed === run.turnsDone;
-    return (
-      <Card style={styles.card}>
-        <View style={styles.heading}>
-          <Icon name="alert" size={sizes.icon} color={colors.status.danger} />
-          <Text style={styles.title}>Verify stopped</Text>
-        </View>
-        <IntroText>
-          {name} · {when} · at turn {run.turnsDone + 1} of {run.turnsTotal}
-        </IntroText>
-        <Text style={styles.text}>
-          {run.error}
-          {allBeforePassed && `${/[.!?]$/.test(run.error ?? '') ? '' : '.'} ${before} passed.`}
-        </Text>
-      </Card>
-    );
-  }
+  // Stopped: the server's reason (a phrase without an end mark), and that the turns before passed.
+  const turns = run.result?.sections.flatMap((section) => section.turns) ?? [];
+  const allBeforePassed = run.turnsDone > 0 && turns.every(isTurnPassed);
+  const before = pluralizeText(`The ${unit.one} before`, `The %{count} ${unit.plural} before`, run.turnsDone);
+  const stoppedText = [run.error, allBeforePassed && `${before} passed`].filter(Boolean).join('. ');
 
-  const hasMisses = passed < turns.length;
   return (
     <Card style={styles.card}>
       <View style={styles.heading}>
-        <Icon
-          name={hasMisses ? 'close-circle' : 'check-circle'}
-          size={sizes.icon}
-          color={hasMisses ? colors.status.danger : colors.status.success}
-        />
-        <Text style={styles.title}>
-          Passed {passed} of {run.turnsTotal}
-        </Text>
+        <VerifyStatusIcon status={icon} />
+        <Text style={styles.title}>{title}</Text>
       </View>
       <IntroText>
-        {name} · {when} · {secondsText(run.result?.medianSeconds ?? 0)} {unit.each}
+        {name} · {detail}
       </IntroText>
-      {run.result && <Text style={styles.text}>{missSummary(run.result, plan, kind)}</Text>}
+      {run.status === 'stopped'
+        ? stoppedText && <Text style={styles.text}>{stoppedText}.</Text>
+        : run.result && <Text style={styles.text}>{missSummary(run.result, plan, kind)}</Text>}
     </Card>
   );
 }

@@ -18,7 +18,6 @@ import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAct
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import useHasFeature from '@/hooks/useHasFeature';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useYourModels from '@/hooks/useYourModels';
 import { resetScores } from '@/sync/aiStateRepository';
@@ -28,16 +27,15 @@ import confirmAsync from '@/utils/confirmAsync';
 
 // Your models of one kind (route param `kind`: writing | vision), with their labels, the one the
 // assistant uses, and the way to add them; a row opens the model's page (ModelScreen: its choice,
-// labels, Verify and Remove). For an ai_admin account also their scores from Compare, and Compare.
+// labels, Verify and Remove), their scores from Compare, and Compare. An ai_admin tool.
 export default function ModelListScreen({ navigation, route }) {
   const { kind } = route.params;
-  const isAvailable = useLeaveWhenUnavailable();
-  const isAiAdmin = useHasFeature('ai_admin');
+  const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const paddingBottom = useFloatingPrimaryActionPadding();
   const { catalog, error, retry, rows, chosenId } = useYourModels(kind);
 
   const availableCount = rows?.filter((row) => row.model !== null).length ?? 0;
-  const hasScores = isAiAdmin && (rows?.some(({ score }) => score !== null) ?? false);
+  const hasScores = rows?.some(({ score }) => score !== null) ?? false;
   const hasVerified = rows?.some((row) => row.model !== null && isVerifiedModel(kind, row.model)) ?? false;
   const text = modelKindText[kind];
 
@@ -70,8 +68,8 @@ export default function ModelListScreen({ navigation, route }) {
           ))}
         </Section>
         {hasVerified && <SectionFooter>{text.verified}</SectionFooter>}
-        {isAiAdmin && <SectionFooter>{text.footer}</SectionFooter>}
-        {isAiAdmin && text.note && <SectionFooter>{text.note}</SectionFooter>}
+        <SectionFooter>{text.footer}</SectionFooter>
+        {text.note && <SectionFooter>{text.note}</SectionFooter>}
       </>
     );
   }
@@ -91,7 +89,7 @@ export default function ModelListScreen({ navigation, route }) {
           )
         }
       />
-      <DetailScrollView contentContainerStyle={isAiAdmin && { paddingBottom }}>
+      <DetailScrollView contentContainerStyle={{ paddingBottom }}>
         <IntroText style={styles.intro}>{text.intro}</IntroText>
         <ScreenSectionHeader
           title="Your models"
@@ -108,16 +106,14 @@ export default function ModelListScreen({ navigation, route }) {
         />
         {renderModels()}
       </DetailScrollView>
-      {isAiAdmin && (
-        <FloatingPrimaryAction>
-          <PrimaryButton
-            icon="repeat"
-            label="Compare"
-            onPress={() => navigation.navigate('ModelCompareModal', { kind })}
-            disabled={availableCount < COMPARE_MIN_MODELS}
-          />
-        </FloatingPrimaryAction>
-      )}
+      <FloatingPrimaryAction>
+        <PrimaryButton
+          icon="repeat"
+          label="Compare"
+          onPress={() => navigation.navigate('ModelCompareModal', { kind })}
+          disabled={availableCount < COMPARE_MIN_MODELS}
+        />
+      </FloatingPrimaryAction>
     </Page>
   );
 }

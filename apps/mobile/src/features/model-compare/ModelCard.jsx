@@ -3,7 +3,8 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import BlindModelName from './BlindModelName';
 
 import Card from '@/components/Card';
-import { colors, lineHeights, typography } from '@/styles/designTokens';
+import ErrorText from '@/components/ErrorText';
+import { colors, typography } from '@/styles/designTokens';
 
 /**
  * One model's answer in a blind compare: its letter, its blurred name, and `children` (the tweets
@@ -19,7 +20,7 @@ export default function ModelCard({ label, name, result, children }) {
       </View>
       {result?.status === 'done' && children}
       {result?.status === 'loading' && <ActivityIndicator style={styles.loading} color={colors.text.secondary} />}
-      {result?.status === 'error' && <Text style={styles.error}>{result.error}</Text>}
+      {result?.status === 'error' && <ErrorText>{result.error}</ErrorText>}
     </Card>
   );
 }
@@ -43,10 +44,5 @@ const styles = StyleSheet.create({
   },
   loading: {
     paddingVertical: 16,
-  },
-  error: {
-    fontSize: typography.subheadline,
-    lineHeight: lineHeights.subheadline,
-    color: colors.status.danger,
   },
 });
