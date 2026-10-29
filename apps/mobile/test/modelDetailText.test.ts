@@ -9,21 +9,21 @@ const model = {
 };
 
 describe('modelDetailText', () => {
-  it('joins the score, the cost and the thinking', () => {
-    expect(modelDetailText(model, 'writing', 9)).toBe('9 thumbs up · 0.04¢ a reply · no thinking');
-    expect(modelDetailText(model, 'writing', null)).toBe('Not tried yet · 0.04¢ a reply · no thinking');
+  it('joins the score, the thinking and the cost', () => {
+    expect(modelDetailText(model, 'writing', 9)).toBe('9 thumbs up · no thinking · 0.04¢ a reply');
+    expect(modelDetailText(model, 'writing', null)).toBe('Not tried yet · no thinking · 0.04¢ a reply');
     expect(modelDetailText({ ...model, reasoning: { supported: true, defaultEffort: 'max' } }, 'vision', 34)).toBe(
-      '34 tags fit · 0.02¢ a photo · effort max',
+      '34 tags fit · effort max · 0.02¢ a photo',
     );
   });
 
-  it('ends with Unrestricted for a model that counts as unrestricted', () => {
+  it('puts Unrestricted after the score for a model that counts as unrestricted', () => {
     expect(modelDetailText({ ...model, isUncensored: true }, 'writing', 9)).toBe(
-      '9 thumbs up · 0.04¢ a reply · no thinking · Unrestricted',
+      '9 thumbs up · Unrestricted · no thinking · 0.04¢ a reply',
     );
   });
 
   it('leaves the score out when there is none to show', () => {
-    expect(modelDetailText(model, 'writing')).toBe('0.04¢ a reply · no thinking');
+    expect(modelDetailText(model, 'writing')).toBe('no thinking · 0.04¢ a reply');
   });
 });
