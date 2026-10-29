@@ -11,12 +11,11 @@ import UserMessage from './UserMessage';
 import usePostChat from './usePostChat';
 
 import ChipRow from '@/components/ChipRow';
-import IconMenuButton from '@/components/IconMenuButton';
+import IconButton from '@/components/IconButton';
 import IntroText from '@/components/IntroText';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
-import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { SCREEN_PADDING } from '@/constants';
 import useFavoriteToggle from '@/features/favorites/useFavoriteToggle';
 import PromptButtonChip from '@/features/prompt-buttons/PromptButtonChip';
@@ -89,18 +88,7 @@ export default function PostChatScreen({ route, navigation }) {
         centerSlot="Assistant"
         subtitle="Writing as you"
         scrollY={scrollY}
-        rightSlot={
-          <IconMenuButton accessibilityLabel="Chat options">
-            <MenuOption label="New chat" icon="edit" onPress={chat.reset} />
-            <MenuOption label="Writing as you" icon="user" onPress={() => navigation.navigate('VoiceScreen')} />
-            <MenuOption
-              label="Prompt buttons"
-              icon="prompt-buttons"
-              onPress={() => navigation.navigate('PromptButtonsScreen')}
-            />
-            <MenuOption label="Favorites" icon="heart" onPress={() => navigation.navigate('FavoritesScreen')} />
-          </IconMenuButton>
-        }
+        rightSlot={<IconButton icon="edit" onPress={chat.reset} accessibilityLabel="New chat" />}
       />
       <Animated.ScrollView
         ref={scrollRef}
