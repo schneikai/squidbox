@@ -271,8 +271,10 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         handler: async (request) => {
           const { kind } = request.params;
           const defaults = request.body;
+          const { entries } = await catalogAsync();
           for (const modelId of new Set([defaults.regular, defaults.unrestricted])) {
-            await catalogModel(modelId, kind);
+            const found = findModel(entries, modelId, kind);
+            if ('error' in found) throw AppError.aiUnavailable(found.error);
           }
           await setModelDefaults(getDb(), { kind, defaults });
           return aiModelsAsync();

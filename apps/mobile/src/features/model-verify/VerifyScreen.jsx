@@ -4,7 +4,6 @@ import VerifyConversationsSection from './VerifyConversationsSection';
 import VerifyPhotosSection from './VerifyPhotosSection';
 import VerifyRunRow from './VerifyRunRow';
 import VerifyStatusCard from './VerifyStatusCard';
-import findCatalogModel from './findCatalogModel';
 import useVerifyRun from './useVerifyRun';
 
 import CatalogStatus from '@/components/CatalogStatus';
@@ -16,6 +15,7 @@ import { Row, Section } from '@/components/settings-list/SettingsList';
 import useAiCatalog from '@/hooks/useAiCatalog';
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import findCatalogModel from '@/utils/ai/findCatalogModel';
 
 /**
  * A model's latest Verify of a kind (route params `kind`, `modelId`, `name`; an ai_admin tool), in

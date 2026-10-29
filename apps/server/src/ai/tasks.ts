@@ -147,8 +147,8 @@ export async function runTask<T>({
 }
 
 /**
- * Runs the task on the user's model of `kind` (readChosenModelId: an ai_admin's choice, else the
- * default) with the messages `messagesAsync` resolves to, read meanwhile. 502 ai_unavailable when the model is gone or can't do
+ * Runs the task on the user's model of `kind` (readChosenModelId: an ai_admin's pick, else the
+ * published default) with the messages `messagesAsync` resolves to, read meanwhile. 502 ai_unavailable when the model is gone or can't do
  * the kind, or when Venice fails; anything else is the error handler's 500. `signal` stops the call.
  */
 export async function runChosenModelTask<T>({

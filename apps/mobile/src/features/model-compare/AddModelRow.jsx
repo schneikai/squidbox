@@ -13,8 +13,8 @@ import modelLabels from '@/utils/ai/modelLabels';
 export default memo(AddModelRow);
 
 // A Venice model on the Add screen: its summary with its labels, cost and reasoning, and a check once
-// it's in your list (its labels from `yourDefaults`, the defaults this account uses). `onAdd(model)` is stable, so the
-// row stays memoized.
+// it's in your list (its labels from `yourDefaults`, the defaults this account uses). `onAdd(model)`
+// is stable, so the row stays memoized.
 function AddModelRow({ model, kind, yourDefaults, isAdded, onAdd }) {
   return (
     <TouchableOpacity

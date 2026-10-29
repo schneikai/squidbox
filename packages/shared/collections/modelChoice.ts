@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import type { AiModelKind, ModelDefaults, ModelDefaultVariant } from '../contracts/ai';
+import {
+  MODEL_DEFAULT_VARIANTS,
+  type AiModelKind,
+  type ModelDefaults,
+  type ModelDefaultVariant,
+  type ModelDefaultVariants,
+} from '../contracts/ai';
 import { baseRecordSchema, defineCollection, textSchema } from './define';
 
 export const MODEL_CHOICE_LIMITS = { modelId: 200, modelName: 200 } as const;
@@ -32,17 +38,16 @@ export const modelChoiceCollection = defineCollection({
 
 export type ModelChoiceRecord = z.infer<typeof modelChoiceCollection.schema>;
 
-/** The picks themselves: the record without its base columns. */
-export type ModelChoiceFields = Pick<
-  ModelChoiceRecord,
-  'writingModel' | 'visionModel' | 'writingUncensoredModel' | 'visionUncensoredModel'
->;
-
 /** The record's field that holds the pick of each kind's default variant. */
 export const MODEL_CHOICE_FIELDS = {
   writing: { regular: 'writingModel', unrestricted: 'writingUncensoredModel' },
   vision: { regular: 'visionModel', unrestricted: 'visionUncensoredModel' },
-} as const satisfies Record<AiModelKind, Record<ModelDefaultVariant, keyof ModelChoiceFields>>;
+} as const satisfies Record<AiModelKind, Record<ModelDefaultVariant, keyof ModelChoiceRecord>>;
+
+type ModelChoiceField = (typeof MODEL_CHOICE_FIELDS)[AiModelKind][ModelDefaultVariant];
+
+/** The picks themselves: the record without its base columns. */
+export type ModelChoiceFields = Pick<ModelChoiceRecord, ModelChoiceField>;
 
 /**
  * The defaults an account uses for `kind`: each variant's pick in `picks` (an ai_admin's record
@@ -53,12 +58,11 @@ export function resolveModelDefaults(
   kind: AiModelKind,
   picks: Partial<ModelChoiceFields> | null | undefined,
   defaults: ModelDefaults,
-): { regular: string; unrestricted: string } {
+): ModelDefaultVariants {
   const fields = MODEL_CHOICE_FIELDS[kind];
-  return {
-    regular: picks?.[fields.regular]?.id ?? defaults[kind].regular,
-    unrestricted: picks?.[fields.unrestricted]?.id ?? defaults[kind].unrestricted,
-  };
+  return Object.fromEntries(
+    MODEL_DEFAULT_VARIANTS.map((variant) => [variant, picks?.[fields[variant]]?.id ?? defaults[kind][variant]]),
+  ) as ModelDefaultVariants;
 }
 
 /**

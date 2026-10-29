@@ -1,6 +1,5 @@
 import { INSTRUCTION_LIMITS } from '@squidbox/shared';
 import { useState } from 'react';
-import { Alert } from 'react-native';
 
 import instructionText from './instructionText';
 
@@ -12,6 +11,7 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import useHaptics from '@/hooks/useHaptics';
 import useInstructions from '@/hooks/useInstructions';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import useMakeDefaultForEveryone from '@/hooks/useMakeDefaultForEveryone';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import applyAppInstructions from '@/lib/applyAppInstructions';
@@ -19,7 +19,6 @@ import useLibrary from '@/library/useLibrary';
 import { getDb } from '@/sync/db/client';
 import { readInstructions, saveInstruction } from '@/sync/instructionsRepository';
 import publishInstructionAsync from '@/utils/cloud-api/ai/publishInstructionAsync';
-import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import confirmAsync from '@/utils/confirmAsync';
 
 // One kind of instructions (`{ kind }`): its text, the user's override or the app's default, saved
@@ -65,7 +64,7 @@ export default function InstructionScreen({ route, navigation }) {
 function InstructionEditor({ kind, userId, seed, defaultText, navigation }) {
   const haptics = useHaptics();
   const [draft, setDraft] = useState(seed.stored);
-  const [isPublishing, setIsPublishing] = useState(false);
+  const { isPublishing, publish } = useMakeDefaultForEveryone();
   const { flush } = useSaveAsYouType(draft === null ? null : draft.trim(), saveText);
 
   const text = draft ?? defaultText;
@@ -104,27 +103,14 @@ function InstructionEditor({ kind, userId, seed, defaultText, navigation }) {
 
   // The text becomes the default for every account. The draft, now equal to it, goes back to null
   // (the override is cleared as you type); a text typed meanwhile stays.
-  async function handlePublish() {
-    const isConfirmed = await confirmAsync({
-      title: 'Make default for everyone?',
-      message: "Every account's assistant gets this text.",
-      action: 'Make default for everyone',
-    });
-    if (!isConfirmed) return;
-    setIsPublishing(true);
-    try {
+  function handlePublish() {
+    return publish("Every account's assistant gets this text.", async () => {
       await flush();
       const answer = await publishInstructionAsync(kind, { text: text.trim() });
       applyAppInstructions(answer);
       const published = answer.instructions[kind];
       setDraft((current) => (current?.trim() === published ? null : current));
-      haptics.success();
-    } catch (error) {
-      haptics.error();
-      Alert.alert("Couldn't make it the default for everyone", apiErrorMessage(error));
-    } finally {
-      setIsPublishing(false);
-    }
+    });
   }
 
   return (

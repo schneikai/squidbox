@@ -8,8 +8,8 @@ import { colors, sizes } from '@/styles/designTokens';
 
 /**
  * A model in your list: its summary with the labels, score and cost, a check when it's the one
- * this account uses, and a chevron: a tap opens its page (`onOpen`). `model` null is a model Venice no longer
- * offers: greyed, its page still opens (to remove it). `yourDefaults` the defaults this
+ * this account uses, and a chevron: a tap opens its page (`onOpen`). `model` null is a model Venice
+ * no longer offers: greyed, its page still opens (to remove it). `yourDefaults` the defaults this
  * account uses (useYourModels').
  */
 export default function ModelRow({ name, model, kind, score, yourDefaults, isUsed, onOpen }) {

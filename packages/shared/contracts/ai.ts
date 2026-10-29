@@ -47,8 +47,15 @@ export const MODEL_LABEL_NAMES = {
 } as const;
 export type ModelLabel = keyof typeof MODEL_LABEL_NAMES;
 
+// The labels that are a kind's defaults, by their variant.
+export const MODEL_DEFAULT_LABELS = {
+  default: 'regular',
+  uncensoredDefault: 'unrestricted',
+} as const satisfies Partial<Record<ModelLabel, ModelDefaultVariant>>;
+
 // A kind's two defaults, by variant: model ids.
-const modelDefaultVariantsSchema = z.object({ regular: z.string(), unrestricted: z.string() });
+const modelDefaultVariantsSchema = z.object({ regular: z.string().min(1), unrestricted: z.string().min(1) });
+export type ModelDefaultVariants = z.infer<typeof modelDefaultVariantsSchema>;
 // The defaults of each kind, from the server's model_defaults (an ai_admin sets them in the app).
 export const modelDefaultsSchema = z.object({
   writing: modelDefaultVariantsSchema,
@@ -77,11 +84,7 @@ export type UncensoredRequest = z.infer<typeof uncensoredRequestSchema>;
 
 // PUT /ai/defaults/:kind — Make default for everyone: both defaults of the kind at once, so a failure
 // leaves both as they were.
-export const modelDefaultRequestSchema = z.object({
-  regular: z.string().min(1),
-  unrestricted: z.string().min(1),
-});
-export type ModelDefaultRequest = z.infer<typeof modelDefaultRequestSchema>;
+export const modelDefaultRequestSchema = modelDefaultVariantsSchema;
 
 // PUT /ai/instructions/:kind — Make default for everyone: the text becomes the kind's default for
 // every account. Trimmed before the instruction's checks, so a text of only spaces is empty.

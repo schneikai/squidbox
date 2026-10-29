@@ -1,14 +1,14 @@
 import { promptButtonCollection } from '@squidbox/shared';
 import { useRef, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 
 import IconPicker from './IconPicker';
 
+import ActionButtons from '@/components/ActionButtons';
 import CardTextField from '@/components/CardTextField';
 import DetailScrollView from '@/components/DetailScrollView';
 import Field from '@/components/Field';
 import Page from '@/components/Page';
-import TextButton from '@/components/TextButton';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
@@ -162,10 +162,12 @@ function PromptButtonEditor({ id, seed, navigation }) {
           <IconPicker value={draft.icon} onChange={(icon) => setField('icon', icon)} />
         </Field>
         {id && (
-          <View style={styles.actions}>
-            <TextButton label="Duplicate" onPress={handleDuplicate} />
-            <TextButton label="Delete prompt button" tone="danger" onPress={handleDelete} />
-          </View>
+          <ActionButtons
+            actions={[
+              { label: 'Duplicate', onPress: handleDuplicate },
+              { label: 'Delete prompt button', tone: 'danger', onPress: handleDelete },
+            ]}
+          />
         )}
       </DetailScrollView>
     </Page>
@@ -175,8 +177,5 @@ function PromptButtonEditor({ id, seed, navigation }) {
 const styles = StyleSheet.create({
   content: {
     gap: 20,
-  },
-  actions: {
-    paddingTop: 24,
   },
 });

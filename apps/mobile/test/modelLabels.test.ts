@@ -43,7 +43,7 @@ describe('modelLabels', () => {
     });
   });
 
-  it('has only its yourDefaults for a model Venice dropped, and none while the yourDefaults load', () => {
+  it('has only its defaults for a model Venice dropped, and none while the defaults load', () => {
     expect(modelLabels('writing', 'gone', null, yourDefaults)).toEqual(NONE);
     // a dropped model that is still a default keeps that label
     expect(modelLabels('writing', 'claude', null, yourDefaults)).toEqual({ ...NONE, default: true });

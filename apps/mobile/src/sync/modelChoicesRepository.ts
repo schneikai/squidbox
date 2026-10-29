@@ -1,8 +1,10 @@
 import {
   MODEL_CHOICE_FIELDS,
+  MODEL_DEFAULT_VARIANTS,
   type AiModelKind,
   type ModelChoiceFields,
   type ModelDefaultVariant,
+  type ModelDefaultVariants,
 } from '@squidbox/shared';
 import { and, eq, isNull } from 'drizzle-orm';
 
@@ -18,12 +20,12 @@ import { saveUserRecord } from './userRecord';
 
 const t = schema.modelChoices;
 
-const EMPTY_MODEL_CHOICES: ModelChoiceFields = Object.freeze({
-  writingModel: null,
-  visionModel: null,
-  writingUncensoredModel: null,
-  visionUncensoredModel: null,
-});
+// Every pick field, of every kind and variant.
+const FIELDS = Object.values(MODEL_CHOICE_FIELDS).flatMap((fields) => Object.values(fields));
+
+const EMPTY_MODEL_CHOICES = Object.freeze(
+  Object.fromEntries(FIELDS.map((field) => [field, null])),
+) as ModelChoiceFields;
 
 function save(
   db: SyncDb,
@@ -34,17 +36,12 @@ function save(
 }
 
 /** The picks of every kind and variant (null where there is none). */
-export async function readChosenModels(db: SyncDb, userId: string): Promise<ModelChoiceFields> {
+export async function readModelPicks(db: SyncDb, userId: string): Promise<ModelChoiceFields> {
   const [row] = await db
     .select()
     .from(t)
     .where(and(eq(t.id, userId), isNull(t.deletedAt)));
-  return {
-    writingModel: row?.writingModel ?? null,
-    visionModel: row?.visionModel ?? null,
-    writingUncensoredModel: row?.writingUncensoredModel ?? null,
-    visionUncensoredModel: row?.visionUncensoredModel ?? null,
-  };
+  return Object.fromEntries(FIELDS.map((field) => [field, row?.[field] ?? null])) as ModelChoiceFields;
 }
 
 /**
@@ -76,14 +73,12 @@ export function clearPicksEqualTo(
   db: SyncDb,
   userId: string,
   kind: AiModelKind,
-  published: Record<ModelDefaultVariant, string>,
+  published: ModelDefaultVariants,
 ): Promise<void> {
   return save(db, userId, (stored) => {
     const changes: Partial<ModelChoiceFields> = {};
-    for (const [variant, field] of Object.entries(MODEL_CHOICE_FIELDS[kind]) as [
-      ModelDefaultVariant,
-      keyof ModelChoiceFields,
-    ][]) {
+    for (const variant of MODEL_DEFAULT_VARIANTS) {
+      const field = MODEL_CHOICE_FIELDS[kind][variant];
       if (stored?.[field] && stored[field].id === published[variant]) changes[field] = null;
     }
     return changes;

@@ -1,10 +1,10 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
+import ActionButtons from '@/components/ActionButtons';
 import CardTextField from '@/components/CardTextField';
 import IntroText from '@/components/IntroText';
 import Page from '@/components/Page';
-import TextButton from '@/components/TextButton';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { SCREEN_PADDING } from '@/constants';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
@@ -52,19 +52,7 @@ export default function TextEditScreen({
           maxLength={maxLength}
           autoFocus={autoFocus}
         />
-        {actions.length > 0 && (
-          <View style={styles.actions}>
-            {actions.map((action) => (
-              <TextButton
-                key={action.label}
-                label={action.label}
-                tone={action.tone}
-                onPress={action.onPress}
-                loading={action.loading}
-              />
-            ))}
-          </View>
-        )}
+        <ActionButtons actions={actions} />
       </Animated.View>
     </Page>
   );
@@ -74,8 +62,5 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: SCREEN_PADDING,
-  },
-  actions: {
-    paddingTop: 24,
   },
 });

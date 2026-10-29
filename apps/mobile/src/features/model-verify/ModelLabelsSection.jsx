@@ -1,4 +1,4 @@
-import { MODEL_LABEL_NAMES } from '@squidbox/shared';
+import { MODEL_DEFAULT_LABELS, MODEL_LABEL_NAMES } from '@squidbox/shared';
 import { useState } from 'react';
 import { Alert } from 'react-native';
 
@@ -9,9 +9,6 @@ import { Row, Section, SectionFooter } from '@/components/settings-list/Settings
 import modelKindText from '@/features/model-compare/modelKindText';
 import useHaptics from '@/hooks/useHaptics';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
-
-// The labels that are this account's picks, by their default's variant.
-const DEFAULT_LABELS = { default: 'regular', uncensoredDefault: 'unrestricted' };
 
 /**
  * A catalog model's labels for `kind`, a switch each: Verified and Uncensored (with Venice's own
@@ -24,21 +21,20 @@ const DEFAULT_LABELS = { default: 'regular', uncensoredDefault: 'unrestricted' }
  */
 export default function ModelLabelsSection({ kind, model, verification }) {
   const haptics = useHaptics();
-  const { labels, isVeniceUncensored, isPublishedDefault, setVerified, setUncensored, makeDefault, clearDefault } =
-    verification;
+  const { labels, isVeniceUncensored, isPublishedDefault, setVerified, setUncensored, setDefault } = verification;
   // The switch on its way to the server, `{ label, isOn }`, null otherwise.
   const [pending, setPending] = useState(null);
 
   const changes = {
     verified: (isOn) => setVerified(isOn),
     uncensored: (isOn) => setUncensored(isOn === isVeniceUncensored ? null : isOn),
-    default: (isOn) => (isOn ? makeDefault : clearDefault)(DEFAULT_LABELS.default),
-    uncensoredDefault: (isOn) => (isOn ? makeDefault : clearDefault)(DEFAULT_LABELS.uncensoredDefault),
+    default: (isOn) => setDefault(MODEL_DEFAULT_LABELS.default, isOn),
+    uncensoredDefault: (isOn) => setDefault(MODEL_DEFAULT_LABELS.uncensoredDefault, isOn),
   };
   const veniceRating = isVeniceUncensored ? 'Venice rates it uncensored' : "Venice doesn't rate it uncensored";
 
   async function handleChange(label, isOn) {
-    if (!isOn && label in DEFAULT_LABELS && isPublishedDefault(DEFAULT_LABELS[label])) {
+    if (!isOn && label in MODEL_DEFAULT_LABELS && isPublishedDefault(MODEL_DEFAULT_LABELS[label])) {
       alertDefaultHeld(model.name, MODEL_LABEL_NAMES[label]);
       return;
     }

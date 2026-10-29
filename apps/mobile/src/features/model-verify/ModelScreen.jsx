@@ -34,7 +34,7 @@ export default function ModelScreen({ route }) {
   const row = rows?.find((each) => each.id === modelId);
   // The catalog's model, null once Venice no longer offers it.
   const model = row?.model ?? null;
-  const verification = useModelVerification(kind, modelId, model, yourModels);
+  const verification = useModelVerification(kind, { modelId, name, model }, yourModels);
 
   const score = row?.score ?? null;
 

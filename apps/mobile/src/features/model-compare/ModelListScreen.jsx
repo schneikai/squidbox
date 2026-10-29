@@ -34,7 +34,7 @@ export default function ModelListScreen({ navigation, route }) {
   const { kind } = route.params;
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const paddingBottom = useFloatingPrimaryActionPadding();
-  const { catalog, defaults, yourDefaults, error, retry, rows, usedId } = useYourModels(kind);
+  const { catalog, defaults, yourDefaults, error, retry, rows, usedId, publishDefaults } = useYourModels(kind);
 
   const availableCount = rows?.filter((row) => row.model !== null).length ?? 0;
   const hasScores = rows?.some(({ score }) => score !== null) ?? false;
@@ -74,7 +74,13 @@ export default function ModelListScreen({ navigation, route }) {
         <SectionFooter>{text.footer}</SectionFooter>
         {text.note && <SectionFooter>{text.note}</SectionFooter>}
         {yourDefaults && (
-          <MakeDefaultForEveryone kind={kind} catalog={catalog} defaults={defaults} yourDefaults={yourDefaults} />
+          <MakeDefaultForEveryone
+            kind={kind}
+            catalog={catalog}
+            defaults={defaults}
+            yourDefaults={yourDefaults}
+            publishDefaults={publishDefaults}
+          />
         )}
       </>
     );

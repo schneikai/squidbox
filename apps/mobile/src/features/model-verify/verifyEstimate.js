@@ -1,9 +1,8 @@
 import { VERIFY_JUDGE_MODEL_ID, verifyPlanTurns } from '@squidbox/shared';
 
-import findCatalogModel from './findCatalogModel';
-
 import centsText from '@/utils/ai/centsText';
 import dollarsText from '@/utils/ai/dollarsText';
+import findCatalogModel from '@/utils/ai/findCatalogModel';
 import unitCostUsd from '@/utils/ai/unitCostUsd';
 
 /**

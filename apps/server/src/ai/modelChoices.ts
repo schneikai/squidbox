@@ -20,12 +20,7 @@ export async function readChosenModelId(
   const [picks, persona, defaults] = await Promise.all([
     user.features.includes('ai_admin')
       ? db
-          .select({
-            writingModel: modelChoices.writingModel,
-            visionModel: modelChoices.visionModel,
-            writingUncensoredModel: modelChoices.writingUncensoredModel,
-            visionUncensoredModel: modelChoices.visionUncensoredModel,
-          })
+          .select()
           .from(modelChoices)
           .where(and(eq(modelChoices.userId, userId), eq(modelChoices.id, userId), isNull(modelChoices.deletedAt)))
           .then(([row]) => row ?? null)
