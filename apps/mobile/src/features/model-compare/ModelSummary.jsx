@@ -6,13 +6,13 @@ import ChangedBadge from '@/components/ChangedBadge';
 import ScoreDetail from '@/components/ScoreDetail';
 import { colors } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
-import scoreText from '@/utils/ai/scoreText';
+import scoreDetailLabel from '@/utils/ai/scoreDetailLabel';
 
 // A model's name, its labels (`labels`, from modelLabels) as badges below it: Changed (a default of
 // yours that everyone doesn't use), Verified, then the defaults; and a detail line under them, led
-// by a `score` above 0 (thumbs up, or tags that fit, for `kind`). `isDimmed` greys the text, for a
+// by a `score` above 0 (its thumbs up). `isDimmed` greys the text, for a
 // model Venice no longer offers.
-export default function ModelSummary({ name, labels, detail, kind, score, isDimmed = false }) {
+export default function ModelSummary({ name, labels, detail, score, isDimmed = false }) {
   const hasBadges = labels.default || labels.uncensoredDefault || labels.verified;
   return (
     <View style={styles.summary}>
@@ -28,7 +28,7 @@ export default function ModelSummary({ name, labels, detail, kind, score, isDimm
       )}
       <Text
         style={[listTextStyles.subtitle, styles.detail, isDimmed && styles.dimmed]}
-        accessibilityLabel={score > 0 ? `${scoreText(score, kind)} · ${detail}` : undefined}
+        accessibilityLabel={scoreDetailLabel(score, detail)}
       >
         <ScoreDetail score={score} detail={detail} isDimmed={isDimmed} />
       </Text>
@@ -43,6 +43,7 @@ const styles = StyleSheet.create({
   badges: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    alignItems: 'flex-start',
     columnGap: 8,
     rowGap: 4,
     marginTop: 4,

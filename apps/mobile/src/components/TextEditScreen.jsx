@@ -9,6 +9,7 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import { SCREEN_PADDING } from '@/constants';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import { layout } from '@/styles/designTokens';
 
 /**
  * A pushed screen that edits one text, the iOS Settings way: Back, the `title`, and a Textarea whose
@@ -64,6 +65,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SCREEN_PADDING,
   },
   actions: {
-    paddingTop: 24,
+    paddingTop: layout.actionsGap,
   },
 });

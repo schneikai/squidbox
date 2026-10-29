@@ -6,24 +6,19 @@ import setUncensoredAsync from '@/utils/cloud-api/ai/setUncensoredAsync';
 import setVerificationAsync from '@/utils/cloud-api/ai/setVerificationAsync';
 
 /**
- * The labels of the model `modelId` named `name` (an ai_admin tool; `model` its catalog model from
- * useAiCatalog, so a mark shows at once, or null once Venice dropped it: then only its defaults are
- * known; `defaults`, `yourDefaults` and `pickDefault` the kind's useYourModels'): `labels`
- * (modelLabels, with the defaults this account uses), `isVeniceUncensored` (Venice's own label),
- * `defaultName` (the default it is, yours or everyone's, which keeps it in the list; null for
- * none), `isPublishedDefault(variant)` whether it is that default for everyone, and
- * `setVerified(isVerified)` and `setUncensored(uncensored)`, marks every account sees, which
- * resolve once every screen shows the server's answer, or reject with its reason.
- * `setDefault(variant, isOn)` picks it as this account's default of that variant, or goes back to
- * the published one, a local write every screen shows at once.
+ * The labels of the model `modelId` named `name` (an ai_admin tool; `model` its catalog model, null
+ * once Venice dropped it; the rest the kind's useYourModels'): `labels` (modelLabels),
+ * `isVeniceUncensored`, `defaultName` (the default it is, yours or everyone's, which keeps it in the
+ * list), `isPublishedDefault(variant)`, the server marks `setVerified` and `setUncensored`, and
+ * `setDefault(variant, isOn)`, this account's pick of that default (a local write).
  */
 export default function useModelVerification(kind, { modelId, name, model }, { defaults, yourDefaults, pickDefault }) {
-  const labels = modelLabels(kind, modelId, model, yourDefaults);
+  const labels = modelLabels(kind, modelId, model, yourDefaults, defaults);
   const isPublishedDefault = (variant) => defaults?.[kind][variant] === modelId;
   // A default of yours, or one everyone uses (Reset changes or another device could bring it back).
-  const defaultKey = Object.entries(MODEL_DEFAULT_LABELS).find(
-    ([label, variant]) => labels[label] || isPublishedDefault(variant),
-  )?.[0];
+  const defaultKey = Object.keys(MODEL_DEFAULT_LABELS).find(
+    (label) => labels[label] || isPublishedDefault(MODEL_DEFAULT_LABELS[label]),
+  );
   const defaultName = defaultKey ? MODEL_LABEL_NAMES[defaultKey] : null;
 
   return {

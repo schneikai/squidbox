@@ -4,9 +4,8 @@ import modelKindText from './modelKindText';
 
 import ActionButtons from '@/components/ActionButtons';
 import useApplyChangesForEveryone from '@/hooks/useApplyChangesForEveryone';
-import useHaptics from '@/hooks/useHaptics';
+import useResetChanges from '@/hooks/useResetChanges';
 import findCatalogModel from '@/utils/ai/findCatalogModel';
-import confirmAsync from '@/utils/confirmAsync';
 
 // "<lead> A, or B for Adult content." or, for one model, "<lead> A." (`names` by variant).
 function usesText(lead, { regular, unrestricted }) {
@@ -14,14 +13,12 @@ function usesText(lead, { regular, unrestricted }) {
 }
 
 /**
- * The end of a model list of `kind`, while this account's picks of the defaults differ from the
- * published ones: Apply changes for everyone, which confirms with `yourDefaults` (named from
- * `catalog`, or by id) and runs `publishDefaults`, and Reset changes, which confirms and runs
- * `resetDefaults` (all useYourModels'). The parent renders it only then, and spaces it through
- * `style`.
+ * The end of a model list of `kind` while this account's picks differ from the published defaults:
+ * Apply changes for everyone (`publishDefaults`, confirmed with `yourDefaults` named from `catalog`)
+ * and Reset changes (`resetDefaults`), all useYourModels'. `style` from the parent.
  */
 export default function ModelDefaultsActions({ kind, catalog, yourDefaults, publishDefaults, resetDefaults, style }) {
-  const haptics = useHaptics();
+  const reset = useResetChanges();
   const { isPublishing, publish } = useApplyChangesForEveryone();
 
   const ids = yourDefaults[kind];
@@ -38,21 +35,8 @@ export default function ModelDefaultsActions({ kind, catalog, yourDefaults, publ
   }
 
   // Back to the published defaults, a local write like a pick on a model's page.
-  async function handleReset() {
-    const isConfirmed = await confirmAsync({
-      title: 'Reset changes?',
-      message: "Your picks are replaced by the app's.",
-      action: 'Reset',
-      destructive: true,
-    });
-    if (!isConfirmed) return;
-    try {
-      await resetDefaults();
-      haptics.success();
-    } catch (error) {
-      haptics.error();
-      console.error('Resetting the picks failed', error);
-    }
+  function handleReset() {
+    return reset("Your picks are replaced by the app's.", resetDefaults);
   }
 
   return <ActionButtons actions={actions} style={style} />;

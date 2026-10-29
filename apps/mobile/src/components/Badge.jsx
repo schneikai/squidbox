@@ -17,7 +17,6 @@ export default function Badge({ label, tone, style }) {
 
 const styles = StyleSheet.create({
   badge: {
-    alignSelf: 'flex-start',
     overflow: 'hidden',
     borderRadius: radii.badge,
     paddingHorizontal: 6,

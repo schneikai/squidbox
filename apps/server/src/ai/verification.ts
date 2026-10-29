@@ -92,17 +92,23 @@ export async function setUncensored(
 }
 
 /**
- * Makes the models the two defaults of `kind` (Apply changes for everyone), in one statement so a
- * failure leaves both as they were. It changes no label: Verified and Uncensored are flags of their
- * own.
+ * Makes the models the defaults of `kind` for the variants `defaults` names (Apply changes for
+ * everyone); a variant it leaves out keeps its default. One statement, so a failure leaves them all
+ * as they were. It changes no label: Verified and Uncensored are flags of their own.
  */
 export async function setModelDefaults(
   db: Db,
-  { kind, defaults }: { kind: AiModelKind; defaults: ModelDefaultVariants },
+  { kind, defaults }: { kind: AiModelKind; defaults: Partial<ModelDefaultVariants> },
 ): Promise<void> {
+  const rows = MODEL_DEFAULT_VARIANTS.filter((variant) => defaults[variant]).map((variant) => ({
+    kind,
+    variant,
+    modelId: defaults[variant]!,
+  }));
+  if (rows.length === 0) return;
   await db
     .insert(modelDefaults)
-    .values(MODEL_DEFAULT_VARIANTS.map((variant) => ({ kind, variant, modelId: defaults[variant] })))
+    .values(rows)
     .onConflictDoUpdate({
       target: [modelDefaults.kind, modelDefaults.variant],
       set: { modelId: sql`excluded.model_id` },

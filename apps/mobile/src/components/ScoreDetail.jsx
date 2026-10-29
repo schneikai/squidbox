@@ -4,10 +4,9 @@ import Icon from '@/components/Icon';
 import { colors, typography } from '@/styles/designTokens';
 
 /**
- * A model's grey line inside its Text: a score above 0, then the thumbs-up icon, sized to the
- * footnote line, then ` · ${detail}`; only `detail` for a model never compared (`score` null) or
- * with none yet. `isDimmed` greys the icon like a dimmed line. The parent Text carries the spoken
- * label while a score shows (scoreText, not the icon).
+ * A model's grey line inside its Text: a score above 0 and the thumbs-up icon, then ` · ${detail}`;
+ * only `detail` without one. `isDimmed` greys the icon like the line. The parent Text's
+ * accessibilityLabel is scoreDetailLabel.
  */
 export default function ScoreDetail({ score, detail, isDimmed = false }) {
   if (!(score > 0)) return detail;

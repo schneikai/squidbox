@@ -9,9 +9,9 @@ import Page from '@/components/Page';
 import TextEditScreen from '@/components/TextEditScreen';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import useApplyChangesForEveryone from '@/hooks/useApplyChangesForEveryone';
-import useHaptics from '@/hooks/useHaptics';
 import useInstructions from '@/hooks/useInstructions';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import useResetChanges from '@/hooks/useResetChanges';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import applyAppInstructions from '@/lib/applyAppInstructions';
@@ -19,7 +19,6 @@ import useLibrary from '@/library/useLibrary';
 import { getDb } from '@/sync/db/client';
 import { readInstructions, saveInstruction } from '@/sync/instructionsRepository';
 import publishInstructionAsync from '@/utils/cloud-api/ai/publishInstructionAsync';
-import confirmAsync from '@/utils/confirmAsync';
 
 // One kind of instructions (`{ kind }`): its text, the user's override or the app's default, saved
 // as you type. While it differs from the app's default: Apply changes for everyone (for a text that
@@ -62,7 +61,7 @@ export default function InstructionScreen({ route, navigation }) {
 // draft is the account's override only, null while it has none, so the text shown follows the
 // default until the user types.
 function InstructionEditor({ kind, userId, seed, defaultText, navigation }) {
-  const haptics = useHaptics();
+  const reset = useResetChanges();
   const [draft, setDraft] = useState(seed.stored);
   const { isPublishing, publish } = useApplyChangesForEveryone();
   const { flush } = useSaveAsYouType(draft === null ? null : draft.trim(), saveText);
@@ -89,16 +88,8 @@ function InstructionEditor({ kind, userId, seed, defaultText, navigation }) {
   }
 
   // Back to the app's default, saved as you type like any other edit (as null).
-  async function handleReset() {
-    const isConfirmed = await confirmAsync({
-      title: 'Reset changes?',
-      message: "Your text is replaced by the app's.",
-      action: 'Reset',
-      destructive: true,
-    });
-    if (!isConfirmed) return;
-    setDraft(null);
-    haptics.success();
+  function handleReset() {
+    return reset("Your text is replaced by the app's.", () => setDraft(null));
   }
 
   // The text becomes the default for every account. The draft, now equal to it, goes back to null

@@ -21,6 +21,7 @@ import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useYourModels from '@/hooks/useYourModels';
+import { layout } from '@/styles/designTokens';
 import { resetScores } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 import confirmAsync from '@/utils/confirmAsync';
@@ -135,6 +136,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   actions: {
-    paddingTop: 24,
+    paddingTop: layout.actionsGap,
   },
 });

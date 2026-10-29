@@ -22,6 +22,8 @@ import {
   instructionKindSchema,
   type AiModelKind,
   type AiModelsResponse,
+  type ModelDefaultVariants,
+  MODEL_DEFAULT_VARIANTS,
 } from '@squidbox/shared';
 import { z } from 'zod';
 import { getDb } from '../db/client.js';
@@ -261,10 +263,10 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         },
       });
 
-      // PUT /ai/defaults/:kind — Apply changes for everyone: the models become the kind's Default
-      // (`regular`) and Uncensored default (`unrestricted`) for every account, both at once. Each is
-      // checked against Venice's catalog before anything is written; answers the catalog with the
-      // new defaults.
+      // PUT /ai/defaults/:kind — Apply changes for everyone: the account's picks become the kind's
+      // Default (`regular`) and Uncensored default (`unrestricted`) for every account, in one write;
+      // a variant without a pick (null) keeps its published default. Each pick is checked against
+      // Venice's catalog before anything is written; answers the catalog with the new defaults.
       r.route({
         method: 'PUT',
         url: '/ai/defaults/:kind',
@@ -275,11 +277,16 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         },
         handler: async (request) => {
           const { kind } = request.params;
-          const defaults = request.body;
+          const picks: Partial<ModelDefaultVariants> = {};
+          for (const variant of MODEL_DEFAULT_VARIANTS) {
+            const modelId = request.body[variant];
+            if (modelId !== null) picks[variant] = modelId;
+          }
           const { entries } = await catalogAsync();
-          for (const modelId of new Set([defaults.regular, defaults.unrestricted]))
+          for (const modelId of new Set(Object.values(picks) as string[])) {
             requireModel(entries, modelId, kind);
-          await setModelDefaults(getDb(), { kind, defaults });
+          }
+          await setModelDefaults(getDb(), { kind, defaults: picks });
           return aiModelsAsync();
         },
       });

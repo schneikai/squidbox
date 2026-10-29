@@ -17,7 +17,7 @@ import useYourModels from '@/hooks/useYourModels';
 import { removeYourModel, resetScores } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 import modelDetailText from '@/utils/ai/modelDetailText';
-import scoreText from '@/utils/ai/scoreText';
+import scoreDetailLabel from '@/utils/ai/scoreDetailLabel';
 import confirmAsync from '@/utils/confirmAsync';
 
 /**
@@ -60,10 +60,7 @@ export default function ModelScreen({ route }) {
     if (!rows) return <CatalogStatus error={error} retry={retry} />;
     return (
       <>
-        <IntroText
-          isScreenIntro
-          accessibilityLabel={detail && score > 0 ? `${scoreText(score, kind)} · ${detail}` : undefined}
-        >
+        <IntroText isScreenIntro accessibilityLabel={detail ? scoreDetailLabel(score, detail) : undefined}>
           {detail ? <ScoreDetail score={score} detail={detail} /> : 'No longer available'}
         </IntroText>
         {model ? (

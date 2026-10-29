@@ -4,6 +4,6 @@
  * reason, and when the server doesn't say (one deployed before `reasoning`).
  */
 export default function reasoningText({ reasoning }) {
-  if (!reasoning || (!reasoning.supported && !reasoning.defaultEffort)) return null;
+  if (!reasoning?.supported && !reasoning?.defaultEffort) return null;
   return reasoning.defaultEffort ? `reasons · effort ${reasoning.defaultEffort}` : 'reasons';
 }

@@ -82,9 +82,14 @@ export type VerificationRequest = z.infer<typeof verificationRequestSchema>;
 export const uncensoredRequestSchema = z.object({ uncensored: z.boolean().nullable() });
 export type UncensoredRequest = z.infer<typeof uncensoredRequestSchema>;
 
-// PUT /ai/defaults/:kind — Apply changes for everyone: both defaults of the kind at once, so a failure
-// leaves both as they were.
-export const modelDefaultRequestSchema = modelDefaultVariantsSchema;
+// PUT /ai/defaults/:kind — Apply changes for everyone: the account's picks of the kind's defaults, a
+// model id per variant or null for none; the server keeps the published default of a variant
+// without a pick, so one another admin published meanwhile stays. At least one pick.
+const modelPickSchema = z.string().min(1).nullable();
+export const modelDefaultRequestSchema = z
+  .object({ regular: modelPickSchema, unrestricted: modelPickSchema })
+  .refine(({ regular, unrestricted }) => regular !== null || unrestricted !== null, 'Pick at least one default');
+export type ModelDefaultRequest = z.infer<typeof modelDefaultRequestSchema>;
 
 // PUT /ai/instructions/:kind — Apply changes for everyone: the text becomes the kind's default for
 // every account. Trimmed before the instruction's checks, so a text of only spaces is empty.

@@ -828,7 +828,7 @@ describe('the marks', () => {
     expect(setVerification).not.toHaveBeenCalled();
   });
 
-  it('PUT /ai/defaults sets both defaults of the kind at once, of any models Venice offers', async () => {
+  it('PUT /ai/defaults sets the picked defaults of the kind in one write, of any models Venice offers', async () => {
     veniceAnswers();
     const res = await call('PUT', '/ai/defaults/writing', { regular: 'claude-sonnet-5-5', unrestricted: 'kimi-k3' });
     expect(res.statusCode).toBe(200);
@@ -837,19 +837,31 @@ describe('the marks', () => {
       kind: 'writing',
       defaults: { regular: 'claude-sonnet-5-5', unrestricted: 'kimi-k3' },
     });
-    // either one gone: nothing is written
-    expect((await call('PUT', '/ai/defaults/writing', { regular: 'gone', unrestricted: 'kimi-k3' })).statusCode).toBe(
-      502,
+    // a variant without a pick keeps its published default
+    expect((await call('PUT', '/ai/defaults/writing', { regular: null, unrestricted: 'kimi-k3' })).statusCode).toBe(
+      200,
     );
-    expect((await call('PUT', '/ai/defaults/writing', { regular: 'kimi-k3', unrestricted: 'gone' })).statusCode).toBe(
-      502,
-    );
-    expect(setModelDefaults).toHaveBeenCalledTimes(1);
-    expect((await call('PUT', '/ai/defaults/writing', { regular: 'kimi-k3' })).statusCode).toBe(400);
-    expect((await call('PUT', '/ai/defaults/weird', { regular: 'kimi-k3', unrestricted: 'kimi-k3' })).statusCode).toBe(
-      400,
-    );
-    expect(setModelDefaults).toHaveBeenCalledTimes(1);
+    expect(setModelDefaults).toHaveBeenLastCalledWith(expect.anything(), {
+      kind: 'writing',
+      defaults: { unrestricted: 'kimi-k3' },
+    });
+    expect(setModelDefaults).toHaveBeenCalledTimes(2);
+    // either pick gone: nothing is written
+    for (const body of [
+      { regular: 'gone', unrestricted: 'kimi-k3' },
+      { regular: 'kimi-k3', unrestricted: 'gone' },
+    ]) {
+      expect((await call('PUT', '/ai/defaults/writing', body)).statusCode).toBe(502);
+    }
+    // no pick, a missing variant, an unknown kind
+    for (const [url, body] of [
+      ['/ai/defaults/writing', { regular: null, unrestricted: null }],
+      ['/ai/defaults/writing', { regular: 'kimi-k3' }],
+      ['/ai/defaults/weird', { regular: 'kimi-k3', unrestricted: 'kimi-k3' }],
+    ] as const) {
+      expect((await call('PUT', url, body)).statusCode).toBe(400);
+    }
+    expect(setModelDefaults).toHaveBeenCalledTimes(2);
   });
 });
 

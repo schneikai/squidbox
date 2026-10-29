@@ -14,7 +14,7 @@ import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
-import { scale } from '@/styles/designTokens';
+import { layout, scale } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import {
   createPromptButton,
@@ -180,6 +180,6 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   actions: {
-    paddingTop: 24,
+    paddingTop: layout.actionsGap,
   },
 });

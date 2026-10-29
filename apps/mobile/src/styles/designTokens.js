@@ -142,6 +142,7 @@ export const layout = {
   contentBottom: scale(128), // clears the floating bottom bars
   popoverGap: 25, // between a trigger button and the popover that opens from it
   introGap: 12, // between a screen's intro text (IntroText at its top) and the content below it
+  actionsGap: 24, // between a screen's content and its text actions under it (ActionButtons)
   menuRowPaddingX: scale(16),
   menuRowPaddingY: scale(13),
   menuIconGap: scale(12), // between a menu row's leading icon and its label

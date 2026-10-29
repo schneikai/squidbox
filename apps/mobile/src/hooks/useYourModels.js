@@ -1,4 +1,4 @@
-import { resolveModelDefaults } from '@squidbox/shared';
+import { MODEL_CHOICE_FIELDS, MODEL_DEFAULT_VARIANTS } from '@squidbox/shared';
 import { useCallback, useEffect, useMemo } from 'react';
 
 import useAiCatalog from '@/hooks/useAiCatalog';
@@ -14,7 +14,6 @@ import { requestSync } from '@/sync/worker';
 import joinYourModels from '@/utils/ai/joinYourModels';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
 import seedModels from '@/utils/ai/seedModels';
-import fetchAiModelsAsync from '@/utils/cloud-api/ai/fetchAiModelsAsync';
 import setModelDefaultsAsync from '@/utils/cloud-api/ai/setModelDefaultsAsync';
 
 /**
@@ -67,14 +66,15 @@ export default function useYourModels(kind) {
     [userId, kind, defaults],
   );
 
-  // The catalog is fetched anew first and the picks resolved against it, so a default another admin
-  // published meanwhile (one this account didn't pick) isn't put back. Once the server applied it, a
-  // failing local clean-up is only logged: an equal pick resolves the same and clears next time.
+  // The server keeps the published default of a variant without a pick, so one another admin
+  // published meanwhile stays. A failing local clean-up after a done publish is only logged.
   async function publishDefaults() {
-    const fresh = await fetchAiModelsAsync();
-    applyAiCatalog(fresh);
     const picks = await readModelPicks(getDb(), userId);
-    const answer = await setModelDefaultsAsync(kind, resolveModelDefaults(kind, picks, fresh.defaults));
+    const fields = MODEL_CHOICE_FIELDS[kind];
+    const answer = await setModelDefaultsAsync(
+      kind,
+      Object.fromEntries(MODEL_DEFAULT_VARIANTS.map((variant) => [variant, picks[fields[variant]]?.id ?? null])),
+    );
     applyAiCatalog(answer);
     try {
       await clearPicksEqualTo(getDb(), userId, kind, answer.defaults[kind]);

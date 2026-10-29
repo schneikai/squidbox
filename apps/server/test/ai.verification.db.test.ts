@@ -135,6 +135,17 @@ d('the model marks and Verify runs', () => {
     expect(await readModelDefaults(db)).toEqual(SEEDED);
   });
 
+  it('sets only the variants it is given, the other keeps its default', async () => {
+    await rolledBack(async (tx) => {
+      const before = await readModelDefaults(tx);
+      await setModelDefaults(tx, { kind: 'writing', defaults: { unrestricted: 'test-writing-2' } });
+      expect((await readModelDefaults(tx)).writing).toEqual({
+        regular: before.writing.regular,
+        unrestricted: 'test-writing-2',
+      });
+    });
+  });
+
   it('throws when a default is missing, never a fallback', async () => {
     await rolledBack(async (tx) => {
       await tx

@@ -1,6 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
 import { INSTRUCTION_KINDS } from '@squidbox/shared';
-import { StyleSheet } from 'react-native';
 
 import instructionText from './instructionText';
 
@@ -30,7 +29,7 @@ export default function InstructionsScreen() {
         onPress={() => navigation.navigate('InstructionScreen', { kind })}
         chevron
       >
-        {changedKinds?.includes(kind) && <ChangedBadge style={styles.changed} />}
+        {changedKinds?.includes(kind) && <ChangedBadge />}
       </Row>
     );
   }
@@ -47,9 +46,3 @@ export default function InstructionsScreen() {
     </Page>
   );
 }
-
-const styles = StyleSheet.create({
-  changed: {
-    alignSelf: 'center',
-  },
-});
