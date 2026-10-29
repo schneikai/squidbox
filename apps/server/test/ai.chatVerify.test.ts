@@ -188,7 +188,7 @@ describe('verifyChatModel', () => {
     expect(onTurn.mock.calls.map(([, turnsDone]) => turnsDone)).toEqual([1, 2, 3, 4]);
     const [section] = result.sections;
     expect(section).toMatchObject({ id: 'talk', title: expect.stringContaining('Talk first') });
-    expect(section!.systemMessage).toContain('You are the writing assistant inside Squidbox');
+    expect(section!.systemMessage).toContain('You are a writing assistant for a content creator');
     expect(section!.turns).toHaveLength(4);
     const third = section!.turns[2]!;
     expect(third.items).toEqual(SHORTER);

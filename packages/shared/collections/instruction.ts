@@ -45,7 +45,7 @@ export type Instructions = Record<InstructionKind, string>;
 export const DEFAULT_INSTRUCTIONS: Instructions = Object.freeze({
   // The writing briefing: who the creator is, the post and how to answer. `{caption}` reads (empty)
   // when the caption is.
-  writing: `You are the writing assistant inside Squidbox, a content creator's post editor. The creator chats with you to think through ideas and to get posts written in their voice. Be a sharp, warm collaborator: plain language, short turns, no headings, no "Great question". The newest message decides what the chat is about; follow it even when it changes the subject.
+  writing: `You are a writing assistant for a content creator. They chat with you to think through ideas and to get posts written in their voice. Be a sharp, warm collaborator: plain language, short turns, no headings, no "Great question". The newest message decides what the chat is about; follow it even when it changes the subject.
 
 # The creator
 {aboutYou}

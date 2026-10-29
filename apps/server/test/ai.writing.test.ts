@@ -52,7 +52,7 @@ describe('chatMessages', () => {
     const [system] = chatMessages({ instructions: DEFAULT_INSTRUCTIONS, context, transcript, persona, favorites });
     const content = system!.content as string;
     expect(system!.role).toBe('system');
-    expect(content.startsWith('You are the writing assistant inside Squidbox')).toBe(true);
+    expect(content.startsWith('You are a writing assistant for a content creator')).toBe(true);
     expect(content).not.toContain('{"tweets"');
     expect(content).not.toMatch(/\{(aboutYou|tone|contentTags|rules|favorites|media|tags|mentions|caption|count)\}/);
   });
