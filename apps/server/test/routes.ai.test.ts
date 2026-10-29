@@ -82,7 +82,6 @@ import { CHAT_PLAN } from '../src/ai/chatVerify.js';
 import { PHOTO_FILES } from '../src/ai/tagVerify.js';
 import { readLatestRun, runVerify, startRun } from '../src/ai/verifyRuns.js';
 import { setModelDefault, setUncensored, setVerification } from '../src/ai/verification.js';
-import { AppError } from '../src/errors.js';
 import { readFavorites, readPersona } from '../src/ai/persona.js';
 import { findUserById } from '../src/users.js';
 
@@ -766,14 +765,13 @@ describe('the marks', () => {
     });
   });
 
-  it('PUT /ai/uncensored passes the catalog entry and the override, of any model Venice offers', async () => {
+  it('PUT /ai/uncensored passes the override, of any model Venice offers', async () => {
     veniceAnswers();
     const res = await call('PUT', '/ai/uncensored/z-ai-glm-5-3', { uncensored: null });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toHaveProperty('models');
     expect(setUncensored).toHaveBeenCalledWith(expect.anything(), {
       modelId: 'z-ai-glm-5-3',
-      entry: expect.objectContaining({ id: 'z-ai-glm-5-3' }),
       uncensored: null,
       userId: 'u1',
     });
@@ -782,7 +780,6 @@ describe('the marks', () => {
     expect((await call('PUT', '/ai/uncensored/gone', { uncensored: null })).statusCode).toBe(200);
     expect(setUncensored).toHaveBeenLastCalledWith(expect.anything(), {
       modelId: 'gone',
-      entry: null,
       uncensored: null,
       userId: 'u1',
     });
@@ -803,7 +800,7 @@ describe('the marks', () => {
     expect(setVerification).not.toHaveBeenCalled();
   });
 
-  it('PUT /ai/defaults passes the variant and the catalog entry, and a 400 through', async () => {
+  it('PUT /ai/defaults passes the variant and the model, of any model Venice offers', async () => {
     veniceAnswers();
     const res = await call('PUT', '/ai/defaults/writing/unrestricted', { modelId: 'kimi-k3' });
     expect(res.statusCode).toBe(200);
@@ -811,13 +808,10 @@ describe('the marks', () => {
     expect(setModelDefault).toHaveBeenCalledWith(expect.anything(), {
       kind: 'writing',
       variant: 'unrestricted',
-      entry: expect.objectContaining({ id: 'kimi-k3' }),
-      userId: expect.any(String),
+      modelId: 'kimi-k3',
     });
-    vi.mocked(setModelDefault).mockRejectedValueOnce(new AppError(400, 'validation_error', 'Venice is down'));
-    const refused = await call('PUT', '/ai/defaults/writing/regular', { modelId: 'z-ai-glm-5-3' });
-    expect(refused.statusCode).toBe(400);
-    expect(refused.json().error.message).toBe('Venice is down');
+    expect((await call('PUT', '/ai/defaults/writing/regular', { modelId: 'gone' })).statusCode).toBe(502);
+    expect(setModelDefault).toHaveBeenCalledTimes(1);
     expect((await call('PUT', '/ai/defaults/writing/weird', { modelId: 'kimi-k3' })).statusCode).toBe(400);
   });
 });

@@ -238,8 +238,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
           const { uncensored } = request.body;
           const found = findModel((await catalogAsync()).entries, modelId, null);
           if ('error' in found && uncensored !== null) throw AppError.aiUnavailable(found.error);
-          const entry = 'entry' in found ? found.entry : null;
-          await setUncensored(getDb(), { modelId, entry, uncensored, userId: requireUser(request).id });
+          await setUncensored(getDb(), { modelId, uncensored, userId: requireUser(request).id });
           return aiModelsAsync();
         },
       });
@@ -256,8 +255,9 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         },
         handler: async (request) => {
           const { kind, variant } = request.params;
-          const { entry } = await catalogModel(request.body.modelId, kind);
-          await setModelDefault(getDb(), { kind, variant, entry, userId: requireUser(request).id });
+          const { modelId } = request.body;
+          await catalogModel(modelId, kind);
+          await setModelDefault(getDb(), { kind, variant, modelId });
           return aiModelsAsync();
         },
       });

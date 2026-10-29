@@ -10,17 +10,20 @@ import modelKindText from '@/features/model-compare/modelKindText';
 import useHaptics from '@/hooks/useHaptics';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
+// The labels that go off only when another model takes them.
+const DEFAULT_LABELS = ['default', 'adultDefault'];
+
 /**
  * A catalog model's labels for `kind`, a switch each, as every account sees them: Verified,
- * Unrestricted (with Venice's own rating), Default and Default for Adult content. Every switch
- * works the same on every model: turning on a default turns on what it needs (the server does that),
- * and turning off a label a default keeps on (modelLabelLocks) says which default to move first, like
- * Remove. One switch is on its way to the server at a time. `verification` is the model's
- * useModelVerification.
+ * Unrestricted (with Venice's own rating), Default and Default for Adult content. Each is a flag of
+ * its own: making a model a default changes no other label, and a default's Verified and Unrestricted
+ * turn off like any other model's. A default stays on until another model takes it, so turning it off
+ * says so, like Remove. One switch is on its way to the server at a time. `verification` is the
+ * model's useModelVerification.
  */
 export default function ModelLabelsSection({ kind, model, verification }) {
   const haptics = useHaptics();
-  const { labels, locks, isVeniceUncensored, setVerified, setUncensored, makeDefault } = verification;
+  const { labels, isVeniceUncensored, setVerified, setUncensored, makeDefault } = verification;
   // The switch on its way to the server, `{ label, isOn }`, null otherwise.
   const [pending, setPending] = useState(null);
 
@@ -33,9 +36,8 @@ export default function ModelLabelsSection({ kind, model, verification }) {
   const veniceRating = isVeniceUncensored ? 'Venice rates it unrestricted' : "Venice doesn't rate it unrestricted";
 
   async function handleChange(label, isOn) {
-    const { defaultName } = locks[label];
-    if (!isOn && defaultName) {
-      alertDefaultHeld(model.name, defaultName);
+    if (!isOn && DEFAULT_LABELS.includes(label)) {
+      alertDefaultHeld(model.name, MODEL_LABEL_NAMES[label]);
       return;
     }
     setPending({ label, isOn });
@@ -62,7 +64,7 @@ export default function ModelLabelsSection({ kind, model, verification }) {
             <Switch
               value={pending?.label === label ? pending.isOn : labels[label]}
               onValueChange={(isOn) => handleChange(label, isOn)}
-              disabled={pending !== null || !locks}
+              disabled={pending !== null}
               accessibilityLabel={MODEL_LABEL_NAMES[label]}
             />
           </Row>

@@ -31,6 +31,15 @@ describe('modelLabels', () => {
     });
   });
 
+  it('keeps each label a flag of its own: a default may be unverified and restricted', () => {
+    expect(modelLabels('writing', 'venice', model('venice', []), defaults)).toEqual({ ...NONE, adultDefault: true });
+    expect(modelLabels('writing', 'claude', model('claude', [], true), defaults)).toEqual({
+      ...NONE,
+      unrestricted: true,
+      default: true,
+    });
+  });
+
   it('has only its defaults for a model Venice dropped, and none while the defaults load', () => {
     expect(modelLabels('writing', 'gone', null, defaults)).toEqual(NONE);
     // a dropped model that is still a default keeps that label

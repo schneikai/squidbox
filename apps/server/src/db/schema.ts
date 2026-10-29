@@ -12,7 +12,6 @@ import {
   jsonb,
   doublePrecision,
   primaryKey,
-  foreignKey,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
@@ -328,8 +327,8 @@ export const uncensoredOverrides = pgTable('uncensored_overrides', {
 });
 
 // The model the assistant uses for a kind while the user chose none, per `variant` (regular |
-// unrestricted: the persona's Adult content switch off or on). Always a verified model of the kind:
-// Postgres refuses unmarking a default. The seed makes all four rows; nothing deletes one.
+// unrestricted: the persona's Adult content switch off or on). Any model of the kind: Verified is a
+// flag of its own. The seed makes all four rows; nothing deletes one.
 export const modelDefaults = pgTable(
   'model_defaults',
   {
@@ -339,10 +338,6 @@ export const modelDefaults = pgTable(
   },
   (t) => ({
     pk: primaryKey({ columns: [t.kind, t.variant] }),
-    verified: foreignKey({
-      columns: [t.kind, t.modelId],
-      foreignColumns: [verifiedModels.kind, verifiedModels.modelId],
-    }).onDelete('restrict'),
   }),
 );
 

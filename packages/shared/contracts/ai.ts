@@ -37,7 +37,7 @@ export const MODEL_DEFAULT_VARIANTS = ['regular', 'unrestricted'] as const;
 export const modelDefaultVariantSchema = z.enum(MODEL_DEFAULT_VARIANTS);
 export type ModelDefaultVariant = z.infer<typeof modelDefaultVariantSchema>;
 
-// What every account sees on a model, by the key the app and modelLabelLocks use.
+// What every account sees on a model, by the key the app uses. Each is a flag of its own.
 export const MODEL_LABEL_NAMES = {
   verified: 'Verified',
   unrestricted: 'Unrestricted',
