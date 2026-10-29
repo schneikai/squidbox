@@ -42,7 +42,6 @@ export default function ChatComposer({ seed, placeholder, isDisabled, isWaiting,
         onChangeText={handleChangeText}
         placeholder={placeholder}
         maxLength={CHAT_LIMITS.message}
-        scrollEnabled
         style={styles.input}
         accessibilityLabel="Message"
       />

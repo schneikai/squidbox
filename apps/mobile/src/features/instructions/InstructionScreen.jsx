@@ -9,7 +9,6 @@ import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import useLibrary from '@/library/useLibrary';
-import { scale } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { readInstructions, saveInstruction } from '@/sync/instructionsRepository';
 import confirmAsync from '@/utils/confirmAsync';
@@ -66,7 +65,6 @@ function InstructionEditor({ kind, userId, seed, navigation }) {
       onBack={() => navigation.goBack()}
       placeholder="What the assistant is told"
       maxLength={INSTRUCTION_LIMITS.text}
-      minHeight={scale(240)}
       description={instructionText[kind].description}
       action={isChanged ? { label: 'Reset to default', tone: 'danger', onPress: handleReset } : null}
     />
