@@ -51,7 +51,7 @@ export default function ModelListScreen({ navigation, route }) {
 
   function renderModels() {
     if (!rows) return <CatalogStatus error={error} retry={retry} />;
-    if (rows.length === 0) return <EmptyState icon="cpu" title="No models yet" subtitle="Add a model to test." />;
+    if (rows.length === 0) return <EmptyState icon="cpu" title="No models yet" subtitle="Add a model to compare." />;
     return (
       <>
         <Section>
