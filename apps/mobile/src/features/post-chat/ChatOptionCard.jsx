@@ -24,7 +24,7 @@ function ChatOptionCard({ text, source, isFavorite, onToggleFavorite, onMoreLike
   return (
     <OptionCard text={text}>
       <FavoriteHeartButton isFavorite={isFavorite} onPress={() => onToggleFavorite(text, source)} />
-      <IconMenuButton color={colors.text.secondary} accessibilityLabel="More for this option">
+      <IconMenuButton color={colors.text.secondary} accessibilityLabel="More for this suggestion">
         <MenuOption label="More like this" icon="repeat" onPress={() => onMoreLikeThis(text)} />
       </IconMenuButton>
       <View style={styles.action}>

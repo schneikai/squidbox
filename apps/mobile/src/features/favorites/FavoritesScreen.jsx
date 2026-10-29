@@ -71,7 +71,7 @@ export default function FavoritesScreen() {
           <EmptyState
             icon="heart"
             title="No favorites yet"
-            subtitle="Heart an option in the chat, or add one of your own posts with +"
+            subtitle="Heart a suggestion in the chat, or add one of your own posts with +"
           />
         )}
         <View style={styles.cards}>
