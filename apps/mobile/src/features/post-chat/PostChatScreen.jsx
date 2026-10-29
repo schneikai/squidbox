@@ -24,6 +24,7 @@ import useCloseWhen from '@/hooks/useCloseWhen';
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useScrollY from '@/hooks/useScrollY';
+import confirmAsync from '@/utils/confirmAsync';
 
 const ASK_ANYTHING = 'Ask anything';
 
@@ -73,6 +74,13 @@ export default function PostChatScreen({ route, navigation }) {
     [applyText, haptics, navigation],
   );
 
+  // There is no chat history yet, so a cleared chat is gone for good.
+  async function handleNewChat() {
+    const message = "This chat is cleared and can't be brought back.";
+    if (!(await confirmAsync({ title: 'New chat', message, action: 'New chat', destructive: true }))) return;
+    chat.reset();
+  }
+
   function handleContentSizeChange() {
     if (!shouldScrollRef.current) return;
     shouldScrollRef.current = false;
@@ -88,7 +96,9 @@ export default function PostChatScreen({ route, navigation }) {
         centerSlot="Assistant"
         subtitle="Writing as you"
         scrollY={scrollY}
-        rightSlot={<IconButton icon="edit" onPress={chat.reset} accessibilityLabel="New chat" />}
+        rightSlot={
+          <IconButton icon="edit" onPress={handleNewChat} disabled={!messages?.length} accessibilityLabel="New chat" />
+        }
       />
       <Animated.ScrollView
         ref={scrollRef}
