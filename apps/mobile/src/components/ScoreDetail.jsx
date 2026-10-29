@@ -26,9 +26,8 @@ export default function ScoreDetail({ score, detail, isDimmed = false }) {
 }
 
 const styles = StyleSheet.create({
-  // iOS sets an inline view's bottom on the baseline; the icon's strokes end 2/24 above its box, so
-  // this puts them on the baseline with the digits.
+  // Lines the icon's strokes up with the digits (checked on iOS).
   icon: {
-    transform: [{ translateY: typography.footnote / 12 }],
+    transform: [{ translateY: -typography.footnote / 24 }],
   },
 });
