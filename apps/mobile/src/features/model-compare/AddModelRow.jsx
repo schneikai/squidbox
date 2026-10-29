@@ -2,19 +2,21 @@ import { memo } from 'react';
 import { StyleSheet, TouchableOpacity } from 'react-native';
 
 import ModelSummary from './ModelSummary';
-import formatCost from './formatCost';
 
 import Icon from '@/components/Icon';
 import { SCREEN_PADDING } from '@/constants';
+import useAiCatalog from '@/hooks/useAiCatalog';
 import { colors, sizes } from '@/styles/designTokens';
-import isVerifiedModel from '@/utils/ai/isVerifiedModel';
+import modelDetailText from '@/utils/ai/modelDetailText';
+import modelLabels from '@/utils/ai/modelLabels';
 
 // Memoized: a keystroke in the search or an add re-renders only the rows that changed.
 export default memo(AddModelRow);
 
-// A Venice model on the Add screen: its summary with the cost, and a check once it's in your list.
-// `onAdd(model)` is stable, so the row stays memoized.
+// A Venice model on the Add screen: its summary with its labels, cost and thinking, and a check once
+// it's in your list. `onAdd(model)` is stable, so the row stays memoized.
 function AddModelRow({ model, kind, isAdded, onAdd }) {
+  const { defaults } = useAiCatalog();
   return (
     <TouchableOpacity
       style={styles.row}
@@ -26,9 +28,8 @@ function AddModelRow({ model, kind, isAdded, onAdd }) {
     >
       <ModelSummary
         name={model.name}
-        isVerified={isVerifiedModel(kind, model)}
-        isUncensored={model.isUncensored}
-        detail={formatCost(model, kind)}
+        labels={modelLabels(kind, model, defaults)}
+        detail={modelDetailText(model, kind)}
       />
       {isAdded && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
     </TouchableOpacity>

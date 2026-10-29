@@ -10,13 +10,14 @@ import {
   compareVisionResponseSchema,
   compareWritingRequestSchema,
   compareWritingResponseSchema,
-  modelCheckResponseSchema,
   modelDefaultRequestSchema,
   modelDefaultVariantSchema,
   tagPhotoRequestSchema,
   tagPhotoResponseSchema,
   uncensoredRequestSchema,
   verificationRequestSchema,
+  verifyPhotosResponseSchema,
+  verifyRunResponseSchema,
   type AiModelKind,
   type AiModelsResponse,
 } from '@squidbox/shared';
@@ -29,13 +30,15 @@ import { catalogAsync, findModel, toApiModel, type CatalogEntry } from './catalo
 import { chatAsync } from './chat.js';
 import { compareModels } from './compare.js';
 import { readInstructions } from './instructions.js';
-import { readLatestCheck, runCheck, startCheck } from './modelChecks.js';
 import { readFavorites, readPersona } from './persona.js';
 import { visionMessages, writingMessages } from './prompts.js';
 import { tagPhotoAsync } from './tagging.js';
 import { visionTask, writingTask } from './tasks.js';
 import { orAiUnavailable, VeniceError } from './venice.js';
+import { PHOTO_FILES, photoDataUrl } from './tagVerify.js';
 import { readVerification, setModelDefault, setUncensored, setVerification } from './verification.js';
+import { VERIFY } from './verify.js';
+import { readLatestRun, runVerify, startRun } from './verifyRuns.js';
 import { loadConfig } from '../config.js';
 
 // Aborted once the app stops waiting (a closed compare), so the Venice calls stop too.
@@ -81,7 +84,7 @@ async function aiModelsAsync(): Promise<AiModelsResponse> {
   return { models: entries.map((entry) => toApiModel(entry, verification)), defaults: verification.defaults };
 }
 
-// The model of a kind for a check or a mark: 502 ai_unavailable when Venice no longer offers it or it
+// The model of a kind for a Verify or a mark: 502 ai_unavailable when Venice no longer offers it or it
 // can't do the kind.
 async function catalogModel(
   modelId: string,
@@ -146,7 +149,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       },
     });
 
-    // The ai_admin routes (the compares, the Venice balance, the model checks and marks): 403 ai_admin_not_allowed for an
+    // The ai_admin routes (the compares, the Venice balance, Verify and the marks): 403 ai_admin_not_allowed for an
     // account without the `ai_admin` feature, so a new one can't skip that gate either.
     await ai.register(async (admin) => {
       admin.addHook('preHandler', requireFeature('ai_admin', AppError.aiAdminNotAllowed));
@@ -160,35 +163,49 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         handler: () => orAiUnavailable(fetchBalanceAsync(), "Couldn't load the balance from Venice"),
       });
 
-      // GET /ai/checks/:kind/:modelId — the model's latest check of the kind (null before its first).
+      // GET /ai/verify/:kind/:modelId — the model's latest Verify of the kind (null before its first)
+      // and what the kind's Verify does.
       r.route({
         method: 'GET',
-        url: '/ai/checks/:kind/:modelId',
-        schema: { params: modelParams, response: { 200: modelCheckResponseSchema } },
-        handler: async (request) => ({
-          check: await readLatestCheck(getDb(), request.params.kind, request.params.modelId),
-        }),
+        url: '/ai/verify/:kind/:modelId',
+        schema: { params: modelParams, response: { 200: verifyRunResponseSchema } },
+        handler: async (request) => {
+          const { kind, modelId } = request.params;
+          return { run: await readLatestRun(getDb(), kind, modelId), plan: VERIFY[kind].plan };
+        },
       });
 
-      // POST /ai/checks/:kind/:modelId — starts the model's check of the kind, unless one is running,
-      // and answers the running check at once: the run goes on in the background (modelChecks.ts), with
+      // POST /ai/verify/:kind/:modelId — starts the model's Verify of the kind, unless one is running,
+      // and answers the running one at once: the run goes on in the background (verifyRuns.ts), with
       // the admin's own instructions (an edited judge or Photo tags text is what runs).
       r.route({
         method: 'POST',
-        url: '/ai/checks/:kind/:modelId',
+        url: '/ai/verify/:kind/:modelId',
         config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
-        schema: { params: modelParams, response: { 200: modelCheckResponseSchema } },
+        schema: { params: modelParams, response: { 200: verifyRunResponseSchema } },
         handler: async (request) => {
           const { kind, modelId } = request.params;
           const user = requireUser(request);
           const db = getDb();
           const { entry, entries } = await catalogModel(modelId, kind);
-          const { check, isNew } = await startCheck(db, { kind, modelId, userId: user.id });
+          const { run, isNew } = await startRun(db, { kind, modelId, userId: user.id });
           if (isNew) {
             const instructionsAsync = () => readInstructions(db, user);
-            void runCheck(db, { check, model: entry, catalog: entries, instructionsAsync, log: request.log });
+            void runVerify(db, { run, model: entry, catalog: entries, instructionsAsync, log: request.log });
           }
-          return { check };
+          return { run, plan: VERIFY[kind].plan };
+        },
+      });
+
+      // GET /ai/verify-photos — the vision Verify's four photos as data URLs (~210 KB), so the app
+      // shows each next to its tags.
+      r.route({
+        method: 'GET',
+        url: '/ai/verify-photos',
+        schema: { response: { 200: verifyPhotosResponseSchema } },
+        handler: async () => {
+          const urls = await Promise.all(PHOTO_FILES.map(photoDataUrl));
+          return { photos: Object.fromEntries(PHOTO_FILES.map((file, index) => [file, urls[index]!])) };
         },
       });
 

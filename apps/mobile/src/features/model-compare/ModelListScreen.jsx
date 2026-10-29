@@ -18,53 +18,31 @@ import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAct
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import startCheckAsync from '@/features/model-verify/startCheckAsync';
-import useHaptics from '@/hooks/useHaptics';
 import useHasFeature from '@/hooks/useHasFeature';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useYourModels from '@/hooks/useYourModels';
-import { removeYourModel, resetScores } from '@/sync/aiStateRepository';
+import { resetScores } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 import isVerifiedModel from '@/utils/ai/isVerifiedModel';
 import confirmAsync from '@/utils/confirmAsync';
 
-// Your models of one kind (route param `kind`: writing | vision), the one the assistant uses, and the
-// way to add and remove them. For an ai_admin account also their scores from Compare, Compare, and
-// in each row's menu the model's check and its marks (Verified, Uncensored, the defaults).
+// Your models of one kind (route param `kind`: writing | vision), with their labels, the one the
+// assistant uses, and the way to add them; a row opens the model's page (ModelScreen: its choice,
+// labels, Verify and Remove). For an ai_admin account also their scores from Compare, and Compare.
 export default function ModelListScreen({ navigation, route }) {
   const { kind } = route.params;
   const isAvailable = useLeaveWhenUnavailable();
   const isAiAdmin = useHasFeature('ai_admin');
-  const haptics = useHaptics();
   const paddingBottom = useFloatingPrimaryActionPadding();
-  const { catalog, error, retry, rows, chosenId, choose } = useYourModels(kind);
+  const { catalog, error, retry, rows, chosenId } = useYourModels(kind);
 
   const availableCount = rows?.filter((row) => row.model !== null).length ?? 0;
   const hasScores = isAiAdmin && (rows?.some(({ score }) => score !== null) ?? false);
   const hasVerified = rows?.some((row) => row.model !== null && isVerifiedModel(kind, row.model)) ?? false;
   const text = modelKindText[kind];
 
-  async function handleChoose(row) {
-    if (row.id === chosenId) return;
-    await choose(row);
-    haptics.selection();
-  }
-
-  // Opens the model's last check, without starting one (the screen reads it).
-  function handleShowCheck(row) {
-    navigation.navigate('ModelCheckModal', { kind, modelId: row.id, name: row.name });
-  }
-
-  // Starts the model's check on the server, then opens it to watch.
-  async function handleCheck(row) {
-    const check = await startCheckAsync(kind, row.model, catalog);
-    if (check) navigation.navigate('ModelCheckModal', { kind, modelId: row.id, name: row.name, check });
-  }
-
-  async function handleResetScore(row) {
-    const message = `${row.name} goes back to Not tried yet.`;
-    if (!(await confirmAsync({ title: 'Reset score', message, action: 'Reset', destructive: true }))) return;
-    await resetScores(getDb(), kind, row.id);
+  function handleOpen(row) {
+    navigation.navigate('ModelScreen', { kind, modelId: row.id, name: row.name });
   }
 
   async function handleResetAllScores() {
@@ -87,11 +65,7 @@ export default function ModelListScreen({ navigation, route }) {
               kind={kind}
               score={row.score}
               isChosen={row.id === chosenId}
-              onChoose={() => handleChoose(row)}
-              onShowCheck={() => handleShowCheck(row)}
-              onCheck={() => handleCheck(row)}
-              onResetScore={() => handleResetScore(row)}
-              onRemove={() => removeYourModel(getDb(), kind, row.id)}
+              onOpen={() => handleOpen(row)}
             />
           ))}
         </Section>

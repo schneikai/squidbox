@@ -279,7 +279,7 @@ const instructions: InstructionRecord[] = [
     writing: null,
     visionTagging: null,
     moreLikeThis: null,
-    modelCheckJudge: null,
+    verifyJudge: null,
   },
 ];
 

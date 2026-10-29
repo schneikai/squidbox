@@ -41,11 +41,11 @@ vi.mock('../src/ai/verification.js', () => {
     setModelDefault: vi.fn(async () => {}),
   };
 });
-// The check rows likewise: no run starts Venice here.
-vi.mock('../src/ai/modelChecks.js', () => ({
-  readLatestCheck: vi.fn(async () => null),
-  startCheck: vi.fn(),
-  runCheck: vi.fn(async () => {}),
+// The Verify rows likewise: no run starts Venice here.
+vi.mock('../src/ai/verifyRuns.js', () => ({
+  readLatestRun: vi.fn(async () => null),
+  startRun: vi.fn(),
+  runVerify: vi.fn(async () => {}),
 }));
 // The instructions likewise: the defaults unless a test changes one.
 vi.mock('../src/ai/instructions.js', async () => {
@@ -78,7 +78,9 @@ import { signAccessToken } from '../src/auth/jwt.js';
 import { clearCatalogCache } from '../src/ai/catalog.js';
 import { readInstructions } from '../src/ai/instructions.js';
 import { readChosenModelId } from '../src/ai/modelChoices.js';
-import { readLatestCheck, runCheck, startCheck } from '../src/ai/modelChecks.js';
+import { CHAT_PLAN } from '../src/ai/chatVerify.js';
+import { PHOTO_FILES } from '../src/ai/tagVerify.js';
+import { readLatestRun, runVerify, startRun } from '../src/ai/verifyRuns.js';
 import { setModelDefault, setUncensored, setVerification } from '../src/ai/verification.js';
 import { AppError } from '../src/errors.js';
 import { readFavorites, readPersona } from '../src/ai/persona.js';
@@ -213,12 +215,13 @@ describe('account features', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('answers 403 ai_admin_not_allowed on the compares, the balance, the checks and the marks to an account without ai_admin', async () => {
+  it('answers 403 ai_admin_not_allowed on the compares, the balance, Verify and the marks to an account without ai_admin', async () => {
     signedInWith(['ai']);
     for (const [method, url, body] of [
       ['GET', '/ai/balance', undefined],
-      ['GET', '/ai/checks/writing/kimi-k3', undefined],
-      ['POST', '/ai/checks/writing/kimi-k3', undefined],
+      ['GET', '/ai/verify/writing/kimi-k3', undefined],
+      ['POST', '/ai/verify/writing/kimi-k3', undefined],
+      ['GET', '/ai/verify-photos', undefined],
       ['PUT', '/ai/verification/writing/kimi-k3', { isVerified: true }],
       ['PUT', '/ai/uncensored/kimi-k3', { uncensored: true }],
       ['PUT', '/ai/defaults/writing/regular', { modelId: 'kimi-k3' }],
@@ -262,8 +265,13 @@ describe('GET /api/v1/ai/models', () => {
       isVeniceUncensored: false,
       verifiedKinds: [],
       uncensoredOverride: null,
+      reasoning: { supported: false, defaultEffort: null },
       costPerReplyUsd: expect.any(Number),
       costPer100PhotosUsd: null,
+    });
+    expect(models.find((m: { id: string }) => m.id === 'claude-sonnet-5-5').reasoning).toEqual({
+      supported: true,
+      defaultEffort: 'high',
     });
     expect(fetchMock.mock.calls[0]![0]).toBe('https://api.venice.ai/api/v1/models');
   });
@@ -670,7 +678,7 @@ describe('POST /api/v1/ai/chat', () => {
   });
 });
 
-const CHECK = {
+const RUN = {
   id: 'c1',
   kind: 'writing' as const,
   modelId: 'kimi-k3',
@@ -683,48 +691,63 @@ const CHECK = {
   error: null,
 };
 
-describe('the model checks', () => {
-  it("GET answers the model's latest check", async () => {
+describe('Verify', () => {
+  it("GET answers the model's latest run and the kind's plan", async () => {
     veniceAnswers();
-    vi.mocked(readLatestCheck).mockResolvedValueOnce(CHECK);
-    const res = await call('GET', '/ai/checks/writing/kimi-k3');
+    vi.mocked(readLatestRun).mockResolvedValueOnce(RUN);
+    const res = await call('GET', '/ai/verify/writing/kimi-k3');
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ check: CHECK });
-    expect(readLatestCheck).toHaveBeenCalledWith(expect.anything(), 'writing', 'kimi-k3');
+    expect(res.json()).toEqual({ run: RUN, plan: CHAT_PLAN });
+    expect(readLatestRun).toHaveBeenCalledWith(expect.anything(), 'writing', 'kimi-k3');
+    const vision = (await call('GET', '/ai/verify/vision/gemma-4-uncensored')).json();
+    expect(vision).toEqual({
+      run: null,
+      plan: { sections: [{ id: 'photos', title: 'Photo tags', prompts: PHOTO_FILES }] },
+    });
   });
 
-  it('POST starts a run once, with the admin instructions, and answers the running check at once', async () => {
+  it('POST starts a run once, with the admin instructions, and answers the running one at once', async () => {
     veniceAnswers();
-    const mine = { ...resolveInstructions(null), modelCheckJudge: 'Judge it: {reply}' };
+    const mine = { ...resolveInstructions(null), verifyJudge: 'Judge it: {reply}' };
     vi.mocked(readInstructions).mockResolvedValueOnce(mine);
-    vi.mocked(startCheck).mockResolvedValueOnce({ check: CHECK, isNew: true });
-    const res = await call('POST', '/ai/checks/writing/kimi-k3');
+    vi.mocked(startRun).mockResolvedValueOnce({ run: RUN, isNew: true });
+    const res = await call('POST', '/ai/verify/writing/kimi-k3');
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ check: CHECK });
-    expect(startCheck).toHaveBeenCalledWith(expect.anything(), { kind: 'writing', modelId: 'kimi-k3', userId: 'u1' });
-    expect(runCheck).toHaveBeenCalledTimes(1);
-    const run = vi.mocked(runCheck).mock.calls[0]![1];
-    expect(run).toMatchObject({ check: CHECK, model: { id: 'kimi-k3' } });
+    expect(res.json()).toEqual({ run: RUN, plan: CHAT_PLAN });
+    expect(startRun).toHaveBeenCalledWith(expect.anything(), { kind: 'writing', modelId: 'kimi-k3', userId: 'u1' });
+    expect(runVerify).toHaveBeenCalledTimes(1);
+    const run = vi.mocked(runVerify).mock.calls[0]![1];
+    expect(run).toMatchObject({ run: RUN, model: { id: 'kimi-k3' } });
     expect(await run.instructionsAsync()).toEqual(mine);
     expect(chatBodies()).toHaveLength(0);
   });
 
   it('POST answers a run already running without starting another', async () => {
     veniceAnswers();
-    vi.mocked(startCheck).mockResolvedValueOnce({ check: CHECK, isNew: false });
-    expect((await call('POST', '/ai/checks/writing/kimi-k3')).json()).toEqual({ check: CHECK });
-    expect(runCheck).not.toHaveBeenCalled();
+    vi.mocked(startRun).mockResolvedValueOnce({ run: RUN, isNew: false });
+    expect((await call('POST', '/ai/verify/writing/kimi-k3')).json()).toEqual({ run: RUN, plan: CHAT_PLAN });
+    expect(runVerify).not.toHaveBeenCalled();
     expect(readInstructions).not.toHaveBeenCalled();
   });
 
   it("POST 502 for a model that can't see photos or is gone, 400 for an unknown kind", async () => {
     veniceAnswers();
-    const blind = await call('POST', '/ai/checks/vision/z-ai-glm-5-3');
+    const blind = await call('POST', '/ai/verify/vision/z-ai-glm-5-3');
     expect(blind.statusCode).toBe(502);
     expect(blind.json()).toEqual({ error: { code: 'ai_unavailable', message: "This model can't see photos" } });
-    expect((await call('POST', '/ai/checks/writing/gone')).statusCode).toBe(502);
-    expect((await call('POST', '/ai/checks/audio/kimi-k3')).statusCode).toBe(400);
-    expect(startCheck).not.toHaveBeenCalled();
+    expect((await call('POST', '/ai/verify/writing/gone')).statusCode).toBe(502);
+    expect((await call('POST', '/ai/verify/audio/kimi-k3')).statusCode).toBe(400);
+    expect(startRun).not.toHaveBeenCalled();
+  });
+
+  it("GET /ai/verify-photos answers the vision Verify's four photos as data URLs", async () => {
+    veniceAnswers();
+    const res = await call('GET', '/ai/verify-photos');
+    expect(res.statusCode).toBe(200);
+    const { photos } = res.json();
+    expect(Object.keys(photos)).toEqual(PHOTO_FILES);
+    for (const url of Object.values(photos)) expect(url).toMatch(/^data:image\/jpeg;base64,\/9j\//);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

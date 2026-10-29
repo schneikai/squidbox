@@ -1,6 +1,6 @@
-import ChatBubble from './ChatBubble';
 import useCopyText from './useCopyText';
 
+import ChatBubble from '@/components/ChatBubble';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 
 /**

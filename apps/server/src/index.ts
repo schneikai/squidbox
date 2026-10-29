@@ -1,7 +1,7 @@
 import { loadConfig } from './config.js';
 import { buildApp } from './app.js';
 import { closeDb, getDb } from './db/client.js';
-import { failAbandonedChecks, failOwnChecks } from './ai/modelChecks.js';
+import { failAbandonedRuns, failOwnRuns } from './ai/verifyRuns.js';
 
 const config = loadConfig();
 const app = await buildApp();
@@ -13,14 +13,12 @@ try {
   process.exit(1);
 }
 
-// A model check whose server stopped never finishes now; the boot doesn't wait for this.
-failAbandonedChecks(getDb()).catch((err: unknown) => app.log.error({ err }, 'Failing abandoned model checks failed'));
+// A Verify whose server stopped never finishes now; the boot doesn't wait for this.
+failAbandonedRuns(getDb()).catch((err: unknown) => app.log.error({ err }, 'Stopping abandoned Verify runs failed'));
 
 async function shutdown(signal: string): Promise<void> {
   app.log.info(`Received ${signal}, shutting down`);
-  await failOwnChecks(getDb()).catch((err: unknown) =>
-    app.log.error({ err }, 'Failing the running model checks failed'),
-  );
+  await failOwnRuns(getDb()).catch((err: unknown) => app.log.error({ err }, 'Stopping the running Verify runs failed'));
   await app.close();
   await closeDb();
   process.exit(0);

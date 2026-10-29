@@ -1,68 +1,29 @@
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, TouchableOpacity } from 'react-native';
 
 import ModelListSummary from './ModelListSummary';
 
 import Icon from '@/components/Icon';
-import IconMenuButton from '@/components/IconMenuButton';
-import MenuDivider from '@/components/popup-menu-options/MenuDivider';
-import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { SCREEN_PADDING } from '@/constants';
-import VerificationMenuOptions from '@/features/model-verify/VerificationMenuOptions';
-import useHasFeature from '@/hooks/useHasFeature';
 import { colors, sizes } from '@/styles/designTokens';
 
 /**
- * A model in your list: its summary with the score and cost, a check when it's the chosen one, and
- * a menu to open its last check (`onShowCheck`) or run one (`onCheck`), set its marks, reset its score
- * or remove it. `model` null is a model Venice no longer offers: greyed, not choosable, its score and
- * its last check kept. The checks, the marks, the score and its reset are only for an ai_admin account.
+ * A model in your list: its summary with the labels, score and cost, a check when it's the chosen
+ * one, and a chevron: a tap opens its page (`onOpen`). `model` null is a model Venice no longer
+ * offers: greyed, its page still opens (to remove it).
  */
-export default function ModelRow({
-  name,
-  model,
-  kind,
-  score,
-  isChosen,
-  onChoose,
-  onShowCheck,
-  onCheck,
-  onResetScore,
-  onRemove,
-}) {
-  const isAiAdmin = useHasFeature('ai_admin');
-  const isAvailable = model !== null;
-
+export default function ModelRow({ name, model, kind, score, isChosen, onOpen }) {
   return (
-    <View style={styles.row}>
-      <TouchableOpacity
-        style={styles.main}
-        onPress={onChoose}
-        disabled={!isAvailable}
-        activeOpacity={0.6}
-        accessibilityRole="button"
-        accessibilityState={{ selected: isChosen, disabled: !isAvailable }}
-      >
-        <ModelListSummary name={name} model={model} kind={kind} score={score} />
-        {isChosen && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
-      </TouchableOpacity>
-      <IconMenuButton accessibilityLabel={`${name} options`} color={colors.text.secondary}>
-        {isAiAdmin && <MenuOption label="Check results" icon="document" onPress={onShowCheck} />}
-        {isAiAdmin && isAvailable && (
-          <>
-            <MenuOption label="Run check" icon="list-checks" onPress={onCheck} />
-            <VerificationMenuOptions kind={kind} model={model} />
-          </>
-        )}
-        {isAiAdmin && <MenuDivider />}
-        {isAiAdmin && score !== null && (
-          <>
-            <MenuOption label="Reset score" icon="undo" onPress={onResetScore} />
-            <MenuDivider />
-          </>
-        )}
-        <MenuOption label="Remove" icon="trash" onPress={onRemove} danger />
-      </IconMenuButton>
-    </View>
+    <TouchableOpacity
+      style={styles.row}
+      onPress={onOpen}
+      activeOpacity={0.6}
+      accessibilityRole="button"
+      accessibilityState={{ selected: isChosen }}
+    >
+      <ModelListSummary name={name} model={model} kind={kind} score={score} />
+      {isChosen && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
+      <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.tertiary} />
+    </TouchableOpacity>
   );
 }
 
@@ -70,14 +31,9 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingRight: 4,
-  },
-  main: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 8,
     paddingLeft: SCREEN_PADDING,
+    paddingRight: 12,
     paddingVertical: 12,
   },
 });

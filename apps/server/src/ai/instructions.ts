@@ -13,7 +13,7 @@ export async function readInstructions(db: Db, user: Pick<User, 'id'>): Promise<
       writing: instructions.writing,
       visionTagging: instructions.visionTagging,
       moreLikeThis: instructions.moreLikeThis,
-      modelCheckJudge: instructions.modelCheckJudge,
+      verifyJudge: instructions.verifyJudge,
     })
     .from(instructions)
     .where(and(eq(instructions.userId, userId), eq(instructions.id, userId), isNull(instructions.deletedAt)));

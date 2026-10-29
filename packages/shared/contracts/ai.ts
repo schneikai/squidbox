@@ -23,6 +23,9 @@ export const apiAiModelSchema = z.object({
   // The model's override of Venice's label, whatever the kind: true uncensored, false not, null
   // follows Venice.
   uncensoredOverride: z.boolean().nullable(),
+  // Venice's reasoning capabilities, display only (nothing about it is sent to Venice): whether the
+  // model reasons, and the effort it reasons at by default when Venice names one.
+  reasoning: z.object({ supported: z.boolean(), defaultEffort: z.string().nullable() }),
   costPerReplyUsd: z.number(),
   costPer100PhotosUsd: z.number().nullable(),
 });
@@ -57,18 +60,36 @@ export type UncensoredRequest = z.infer<typeof uncensoredRequestSchema>;
 export const modelDefaultRequestSchema = z.object({ modelId: z.string().min(1) });
 export type ModelDefaultRequest = z.infer<typeof modelDefaultRequestSchema>;
 
-// The replies one check run asks a model for (apps/server/src/ai/chatCheck.ts and tagCheck.ts hold
-// their server's CHECKS to it), so the app can name the count and the cost before the first run.
-export const CHECK_TURNS: Record<AiModelKind, number> = { writing: 21, vision: 4 };
+// The replies one Verify run asks a model for (apps/server/src/ai/chatVerify.ts and tagVerify.ts
+// hold their server's VERIFY to it), so the app can name the count and the cost before the first run.
+export const VERIFY_TURNS: Record<AiModelKind, number> = { writing: 21, vision: 4 };
 
-// The writing model that judges every chat check turn, the same for every model checked.
-export const CHECK_JUDGE_MODEL_ID = 'claude-sonnet-5-5';
+// The writing model that judges every turn of a writing Verify, the same for every model verified.
+export const VERIFY_JUDGE_MODEL_ID = 'claude-sonnet-5-5';
 
-// One turn of a model check. Chat: `prompt` the creator's message, `note` the change to the post
-// before it, `items` the post options, the judge's verdict one of the `checks` with its `reason`.
-// Tagging: `prompt` the photo's file name, `reply` null, `items` the tags. `seconds` is the model's
-// call only; `error` the reason the turn got no reply (its checks count as failed).
-export const modelCheckTurnSchema = z.object({
+// What a kind's Verify will do, known before it runs: its sections with each turn's prompt (writing:
+// the creator's messages; vision: one section `photos` with the photo files).
+export const verifyPlanSchema = z.object({
+  sections: z.array(z.object({ id: z.string(), title: z.string(), prompts: z.array(z.string()) })),
+});
+export type VerifyPlan = z.infer<typeof verifyPlanSchema>;
+
+// The post a writing section started with.
+export const verifyPostSchema = z.object({
+  photos: z.number().int(),
+  videos: z.number().int(),
+  tags: z.array(z.string()),
+  mentions: z.array(z.string()),
+  caption: z.string(),
+});
+export type VerifyPost = z.infer<typeof verifyPostSchema>;
+
+// One turn of a Verify. Writing: `prompt` the creator's message, `note` a sentence on the editor's
+// change to the post before it, `items` the post options, the judge's verdict one of the `checks`.
+// Vision: `prompt` the photo's file name, `reply` null, `items` the tags. A failed check's `reason`
+// says what went wrong in words. `seconds` is the model's call only; `error` the reason the turn got
+// no reply (its checks count as failed).
+export const verifyTurnSchema = z.object({
   prompt: z.string(),
   note: z.string().nullable(),
   seconds: z.number().nullable(),
@@ -78,49 +99,56 @@ export const modelCheckTurnSchema = z.object({
   checks: z.array(z.object({ name: z.string(), ok: z.boolean(), reason: z.string().nullable() })),
   error: z.string().nullable(),
 });
-export type ModelCheckTurn = z.infer<typeof modelCheckTurnSchema>;
+export type VerifyTurn = z.infer<typeof verifyTurnSchema>;
 
-export const modelCheckSectionSchema = z.object({
+export const verifySectionSchema = z.object({
   id: z.string(),
   title: z.string(),
   systemMessage: z.string().nullable(),
-  turns: z.array(modelCheckTurnSchema),
+  post: verifyPostSchema.nullable(),
+  turns: z.array(verifyTurnSchema),
 });
-export type ModelCheckSection = z.infer<typeof modelCheckSectionSchema>;
+export type VerifySection = z.infer<typeof verifySectionSchema>;
 
-// A check's result so far: the turns by section, and the totals over them.
-export const modelCheckResultSchema = z.object({
-  sections: z.array(modelCheckSectionSchema),
+// A Verify's result so far: the turns by section, and the totals over them (`passes` and `fails`
+// count checks).
+export const verifyResultSchema = z.object({
+  sections: z.array(verifySectionSchema),
   passes: z.number(),
   fails: z.number(),
   unreadable: z.number(),
   medianSeconds: z.number(),
   slowestSeconds: z.number(),
 });
-export type ModelCheckResult = z.infer<typeof modelCheckResultSchema>;
+export type VerifyResult = z.infer<typeof verifyResultSchema>;
 
-export const modelCheckStatusSchema = z.enum(['running', 'done', 'failed']);
-export type ModelCheckStatus = z.infer<typeof modelCheckStatusSchema>;
+// `stopped`: the run didn't finish (Venice didn't answer, or the server stopped); `error` says why.
+export const verifyRunStatusSchema = z.enum(['running', 'done', 'stopped']);
+export type VerifyRunStatus = z.infer<typeof verifyRunStatusSchema>;
 
-// A model's latest check run of a kind (the server keeps only that one).
-export const modelCheckSchema = z.object({
+// A model's latest Verify run of a kind (the server keeps only that one).
+export const verifyRunSchema = z.object({
   id: z.string(),
   kind: aiModelKindSchema,
   modelId: z.string(),
-  status: modelCheckStatusSchema,
+  status: verifyRunStatusSchema,
   startedAt: z.string(),
   finishedAt: z.string().nullable(),
   turnsDone: z.number().int(),
   turnsTotal: z.number().int(),
-  result: modelCheckResultSchema.nullable(),
+  result: verifyResultSchema.nullable(),
   error: z.string().nullable(),
 });
-export type ModelCheck = z.infer<typeof modelCheckSchema>;
+export type VerifyRun = z.infer<typeof verifyRunSchema>;
 
-// GET and POST /ai/checks/:kind/:modelId — the latest check (null before the first); a POST starts
-// one unless one is running, and answers it at once.
-export const modelCheckResponseSchema = z.object({ check: modelCheckSchema.nullable() });
-export type ModelCheckResponse = z.infer<typeof modelCheckResponseSchema>;
+// GET and POST /ai/verify/:kind/:modelId — the latest run (null before the first) and the kind's
+// plan; a POST starts one unless one is running, and answers it at once.
+export const verifyRunResponseSchema = z.object({ run: verifyRunSchema.nullable(), plan: verifyPlanSchema });
+export type VerifyRunResponse = z.infer<typeof verifyRunResponseSchema>;
+
+// GET /ai/verify-photos — the vision Verify's photos, file name → data:image/jpeg;base64,… URL.
+export const verifyPhotosResponseSchema = z.object({ photos: z.record(z.string(), z.string()) });
+export type VerifyPhotosResponse = z.infer<typeof verifyPhotosResponseSchema>;
 
 // GET /ai/balance — what is left on the Venice account the server's key belongs to: US dollars
 // and DIEM (Venice's daily allowance for staked VVV; it resets each day at nextResetAt).

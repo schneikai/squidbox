@@ -25,6 +25,17 @@ export class VeniceError extends Error {
   }
 }
 
+/**
+ * Venice itself didn't answer: it couldn't be reached, took too long, or answered an error. Unlike
+ * the model's own failures (a refusal, a cut-off or unreadable reply), it says nothing about the model.
+ */
+export class VeniceUnavailableError extends VeniceError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'VeniceUnavailableError';
+  }
+}
+
 /** A request to Venice's API at `path`, with the key and a timeout; `signal` stops it sooner. */
 function veniceFetch(
   path: string,
@@ -61,8 +72,9 @@ type ChatCompletion = {
 };
 
 /**
- * One chat completion's reply text. Every way it can fail (Venice unreachable or slow, an error
- * answer, a refusal, a cut-off, filtered or empty reply) is a VeniceError that says why. `signal`
+ * One chat completion's reply text. Every way it can fail is a VeniceError that says why: Venice
+ * unreachable, slow or answering an error is a VeniceUnavailableError; a refusal, a cut-off,
+ * filtered or empty reply a plain VeniceError. `signal`
  * stops it, when nobody waits for the reply anymore.
  */
 async function chatCompletionAsync({
@@ -91,17 +103,18 @@ async function chatCompletionAsync({
     signal,
   }).catch((error: unknown) => {
     const timedOut = error instanceof Error && error.name === 'TimeoutError';
-    throw new VeniceError(timedOut ? 'Venice took too long to answer' : "Couldn't reach Venice");
+    throw new VeniceUnavailableError(timedOut ? 'Venice took too long to answer' : "Couldn't reach Venice");
   });
 
   // The timeout also covers reading the body: a cut-off reply is a slow one, not an empty one.
   const body = (await response.json().catch((error: unknown) => {
     if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
-      throw new VeniceError('Venice took too long to answer');
+      throw new VeniceUnavailableError('Venice took too long to answer');
     }
     return null;
   })) as (ChatCompletion & { error?: unknown }) | null;
-  if (!response.ok) throw new VeniceError(errorMessage(body) ?? `Venice request failed (${response.status})`);
+  if (!response.ok)
+    throw new VeniceUnavailableError(errorMessage(body) ?? `Venice request failed (${response.status})`);
 
   const choice = body?.choices?.[0];
   if (choice?.message?.refusal) throw new VeniceError(`The model refused: ${choice.message.refusal}`);

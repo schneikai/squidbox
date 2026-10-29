@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import formatCost from '../src/features/model-compare/formatCost';
+import formatCost from '../src/utils/ai/formatCost';
 
 const writing = (usd: number) => formatCost({ costPerReplyUsd: usd, costPer100PhotosUsd: null }, 'writing');
 
@@ -13,7 +13,7 @@ describe('formatCost', () => {
     expect(writing(0.1234)).toBe('12¢ a reply');
   });
 
-  it('shows the cost per 100 photos for vision', () => {
-    expect(formatCost({ costPerReplyUsd: 0.0004, costPer100PhotosUsd: 0.02 }, 'vision')).toBe('2¢ per 100 photos');
+  it('shows the cost of a photo for vision', () => {
+    expect(formatCost({ costPerReplyUsd: 0.0004, costPer100PhotosUsd: 0.02 }, 'vision')).toBe('0.02¢ a photo');
   });
 });

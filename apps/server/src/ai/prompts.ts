@@ -79,9 +79,9 @@ function replyText({ reply, postOptions }: ChatReply): string {
 }
 
 /**
- * The model check's judge question after a chat turn: `template` (instructions.modelCheckJudge)
+ * Verify's judge question after a chat turn: `template` (instructions.verifyJudge)
  * filled with what the writing model was told about the creator and the post, with the writing
- * briefing's placeholders (the persona's facts, the posts they liked, none for a check without them,
+ * briefing's placeholders (the persona's facts, the posts they liked, none for a section without them,
  * and the post's media, photo tags, tagged people and caption), so a name, handle or tag it was given
  * never counts as invented; the turns before it (`{transcript}`, "Creator: …" and "Assistant: …" with its numbered
  * options, "(none)" on the first turn), the creator's last message (`{request}`) and the reply to

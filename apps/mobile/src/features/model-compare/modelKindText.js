@@ -5,15 +5,24 @@ const modelKindText = {
   writing: {
     title: 'Writing',
     intro: 'Writes the captions and replies.',
-    footer: 'Thumbs up from Compare add up here.',
-    verified: "Verified models passed Squidbox's own writing checks.",
+    footer: 'The check mark is the model you write with. Thumbs up from Compare add up here.',
+    verified: "Verified models passed Squidbox's own Verify.",
+    useLabel: 'Write with this model',
+    useFootnote: 'Only for you. Other accounts write with the defaults.',
+    labelsFootnote:
+      'Every account sees these labels. Accounts without model choice write with the Default, or with the Default for Adult content when their persona has Adult content on.',
     pickIntro: 'Pick 2 or more models. Each one writes posts for the same prompt.',
   },
   vision: {
     title: 'Vision',
     intro: 'Tags your photos and videos.',
-    footer: 'The count is every tag you tapped as fitting in Compare. They add up like thumbs up.',
-    verified: "Verified models passed Squidbox's own photo tag checks.",
+    footer:
+      'The check mark is the model you tag with. The count is every tag you tapped as fitting in Compare. They add up like thumbs up.',
+    verified: "Verified models passed Squidbox's own Verify.",
+    useLabel: 'Tag with this model',
+    useFootnote: 'Only for you. Other accounts tag with the defaults.',
+    labelsFootnote:
+      'Every account sees these labels. Accounts without model choice tag with the Default, or with the Default for Adult content when their persona has Adult content on.',
     note: `Each photo goes to the model as a JPEG ${visionImage.longSide} px on its longer side, at quality ${Math.round(visionImage.quality * 100)}.`,
     pickIntro: 'Pick the photos and 2 or more models. Each model tags the same photos.',
   },

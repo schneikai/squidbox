@@ -6,10 +6,12 @@ const TONES = {
   danger: { backgroundColor: colors.status.dangerLight, color: colors.status.danger },
   accent: { backgroundColor: colors.accent.light, color: colors.accent.base },
   success: { backgroundColor: colors.status.successLight, color: colors.status.success },
+  info: { backgroundColor: colors.status.infoLight, color: colors.status.info },
+  warning: { backgroundColor: colors.status.warningLight, color: colors.status.warning },
 };
 
-// A small uppercase label on a list entry or a screen ("Archived", "Uncensored", "Verified"), in a
-// `tone`: danger | accent | success. The parent positions it through `style`.
+// A small uppercase label on a list entry or a screen ("Archived", "Unrestricted", "Verified"), in a
+// `tone`: danger | accent | success | info | warning. The parent positions it through `style`.
 export default function Badge({ label, tone, style }) {
   return <Text style={[styles.badge, TONES[tone], style]}>{label}</Text>;
 }

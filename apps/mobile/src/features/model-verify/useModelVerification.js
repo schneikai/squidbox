@@ -7,8 +7,9 @@ import setVerificationAsync from '@/utils/cloud-api/ai/setVerificationAsync';
 
 /**
  * A catalog model's marks (an ai_admin tool; `model` from useAiCatalog, so a mark shows at once):
- * `isVerified` for `kind`, `uncensoredOverride` (true or false overrides Venice's Uncensored label,
- * null follows it, whatever the kind), `isVeniceUncensored` (Venice's own label),
+ * `isVerified` for `kind`, `isUncensored` (the resolved label: Unrestricted), `uncensoredOverride`
+ * (true or false overrides Venice's Uncensored label, null follows it, whatever the kind),
+ * `isVeniceUncensored` (Venice's own label),
  * `isDefault.regular` / `isDefault.unrestricted` for `kind`, and `setVerified(isVerified)`,
  * `setUncensored(uncensored)` and `makeDefault(variant)`, which resolve once every screen shows the
  * server's answer, or reject with its reason.
@@ -19,6 +20,7 @@ export default function useModelVerification(kind, model) {
 
   return {
     isVerified: isVerifiedModel(kind, model),
+    isUncensored: model.isUncensored,
     uncensoredOverride: model.uncensoredOverride,
     isVeniceUncensored: model.isVeniceUncensored,
     isDefault: { regular: defaults?.[kind].regular === id, unrestricted: defaults?.[kind].unrestricted === id },

@@ -1,28 +1,25 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import Badge from '@/components/Badge';
-import Icon from '@/components/Icon';
-import { colors, typography } from '@/styles/designTokens';
+import { colors } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
-// A model's name with Squidbox's Verified label (`isVerified`) and the Uncensored one (`isUncensored`,
-// the catalog's: Venice's label or an unrestricted verified model), and a detail line under it (its
-// cost, score) with an optional leading icon. `isDimmed` greys both, for a model Venice no longer
-// offers.
-export default function ModelSummary({ name, isVerified, isUncensored, detail, detailIcon, isDimmed = false }) {
+// A model's name with its labels (`labels`, from modelLabels: Verified, Unrestricted, Default,
+// Default for Adult content), and a detail line under it (its score, cost and thinking). `isDimmed`
+// greys both, for a model Venice no longer offers.
+export default function ModelSummary({ name, labels, detail, isDimmed = false }) {
   return (
     <View style={styles.summary}>
       <View style={styles.titleLine}>
         <Text style={[listTextStyles.title, styles.name, isDimmed && styles.dimmed]}>{name}</Text>
-        {isVerified && <Badge label="Verified" tone="success" />}
-        {isUncensored && <Badge label="Uncensored" tone="accent" />}
+        {labels.isVerified && <Badge label="Verified" tone="success" />}
+        {labels.isUnrestricted && <Badge label="Unrestricted" tone="accent" />}
+        {labels.isDefault && <Badge label="Default" tone="info" />}
+        {labels.isAdultDefault && <Badge label="Adult default" tone="warning" />}
       </View>
-      <View style={styles.detailLine}>
-        {detailIcon && <Icon name={detailIcon} size={typography.footnote} color={colors.text.secondary} />}
-        <Text style={[listTextStyles.subtitle, styles.detail, isDimmed && styles.dimmed]} numberOfLines={1}>
-          {detail}
-        </Text>
-      </View>
+      <Text style={[listTextStyles.subtitle, styles.detail, isDimmed && styles.dimmed]} numberOfLines={1}>
+        {detail}
+      </Text>
     </View>
   );
 }
@@ -41,15 +38,8 @@ const styles = StyleSheet.create({
   name: {
     flexShrink: 1,
   },
-  detailLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
-  },
   detail: {
-    flexShrink: 1,
-    marginTop: 0,
+    marginTop: 2,
   },
   dimmed: {
     color: colors.text.tertiary,

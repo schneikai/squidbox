@@ -883,7 +883,7 @@ beats by its clock. The writing prompt sends the newest 20 (`FAVORITES_IN_PROMPT
 request). Synced: `writing` (the writing briefing: the chat's whole system message and the
 Compare's, filled with the persona, the Favorites and the post), `visionTagging` (the photo tags
 briefing, the system message of every tags request, filled with Your content's themes) and
-`moreLikeThis` (what the chat's More like this sends) and `modelCheckJudge` (what a model check asks
+`moreLikeThis` (what the chat's More like this sends) and `verifyJudge` (what a writing Verify asks
 its judge after each chat turn; listed only for an ai_admin account), templates the server fills in, each the
 user's text or null for the app's default (`DEFAULT_INSTRUCTIONS` in `packages/shared`, resolved by
 `resolveInstructions`), plus the base columns. Migrations 0022 (server) and 0024 (app) dropped the
@@ -952,10 +952,10 @@ gone. Imported records kept deterministic uuid v5 ids, and their files stay at t
 - Users are isolated; there is no cross-user sharing (§2a).
 - What an ai_admin sets for the whole app — which models are verified for each kind
   (`verified_models`), whether a model counts as uncensored where that overrides Venice's label
-  (`uncensored_overrides`), the defaults (`model_defaults`) and the model check runs
-  (`model_checks`) — lives in plain server tables outside the collection registry: no `user_id`, no
+  (`uncensored_overrides`), the defaults (`model_defaults`) and the Verify runs
+  (`verify_runs`) — lives in plain server tables outside the collection registry: no `user_id`, no
   `server_seq` trigger, never pushed or pulled. Every account reads the marks and the defaults with
-  the catalog (`GET /ai/models`), the admin the checks through the admin routes; the app keeps them
+  the catalog (`GET /ai/models`), the admin the Verify runs through the admin routes; the app keeps them
   only in memory.
 
 ---

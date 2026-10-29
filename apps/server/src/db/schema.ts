@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import type { FieldClocks, ModelCheckResult } from '@squidbox/shared';
+import type { FieldClocks, VerifyResult } from '@squidbox/shared';
 import {
   pgTable,
   uuid,
@@ -275,7 +275,7 @@ export const instructions = pgTable(
     writing: text('writing'),
     visionTagging: text('vision_tagging'),
     moreLikeThis: text('more_like_this'),
-    modelCheckJudge: text('model_check_judge'),
+    verifyJudge: text('verify_judge'),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.id] }),
@@ -346,15 +346,15 @@ export const modelDefaults = pgTable(
   }),
 );
 
-// A check run of a model for a kind (ai/modelChecks.ts): only a model's latest one per kind is
-// kept, and the database allows one running at a time. `result` is the ModelCheckResult so far.
-export const modelChecks = pgTable(
-  'model_checks',
+// A Verify run of a model for a kind (ai/verifyRuns.ts): only a model's latest one per kind is
+// kept, and the database allows one running at a time. `result` is the VerifyResult so far.
+export const verifyRuns = pgTable(
+  'verify_runs',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     kind: text('kind').notNull(),
     modelId: text('model_id').notNull(),
-    status: text('status').notNull(), // 'running' | 'done' | 'failed'
+    status: text('status').notNull(), // 'running' | 'done' | 'stopped'
     startedBy: uuid('started_by').references(() => users.id, { onDelete: 'set null' }),
     startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
     // The heartbeat: set on each turn written, so a running row that stopped changing is abandoned.
@@ -362,17 +362,17 @@ export const modelChecks = pgTable(
     finishedAt: timestamp('finished_at', { withTimezone: true }),
     turnsDone: integer('turns_done').notNull().default(0),
     turnsTotal: integer('turns_total').notNull(),
-    result: jsonb('result').$type<ModelCheckResult>(),
+    result: jsonb('result').$type<VerifyResult>(),
     error: text('error'),
   },
   (t) => ({
-    running: uniqueIndex('model_checks_running_idx')
+    running: uniqueIndex('verify_runs_running_idx')
       .on(t.kind, t.modelId)
       .where(sql`${t.status} = 'running'`),
-    latest: index('model_checks_latest_idx').on(t.kind, t.modelId, t.startedAt.desc()),
+    latest: index('verify_runs_latest_idx').on(t.kind, t.modelId, t.startedAt.desc()),
   }),
 );
-export type ModelCheckRow = typeof modelChecks.$inferSelect;
+export type VerifyRunRow = typeof verifyRuns.$inferSelect;
 
 // Global monotonic sequence stamped onto every syncable row by a BEFORE INSERT/UPDATE trigger.
 // Created here so the sequence exists before any syncable table. Raw SQL

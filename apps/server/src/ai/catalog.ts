@@ -29,6 +29,9 @@ const catalogEntrySchema = z.object({
         supportsVision: z.boolean().optional(),
         // false for a model that can't hold its reply to a JSON schema (it gets the shape in words)
         supportsResponseSchema: z.boolean().optional(),
+        // whether the model reasons, and at which effort by default (display only)
+        supportsReasoning: z.boolean().optional(),
+        defaultReasoningEffort: z.string().optional(),
       })
       .default({}),
     traits: z.array(z.string()).default([]),
@@ -100,7 +103,8 @@ export function toApiModel(
   entry: CatalogEntry,
   { verified, overrides }: Pick<Verification, 'verified' | 'overrides'>,
 ): ApiAiModel {
-  const supportsVision = entry.model_spec.capabilities.supportsVision === true;
+  const { capabilities } = entry.model_spec;
+  const supportsVision = capabilities.supportsVision === true;
   const override = overrides.get(entry.id) ?? null;
   return {
     id: entry.id,
@@ -110,6 +114,10 @@ export function toApiModel(
     isVeniceUncensored: isVeniceUncensored(entry),
     verifiedKinds: aiModelKindSchema.options.filter((kind) => verified[kind].has(entry.id)),
     uncensoredOverride: override,
+    reasoning: {
+      supported: capabilities.supportsReasoning === true,
+      defaultEffort: capabilities.defaultReasoningEffort ?? null,
+    },
     costPerReplyUsd: costUsd(entry, REPLY_INPUT_TOKENS, REPLY_OUTPUT_TOKENS),
     costPer100PhotosUsd: supportsVision ? 100 * costUsd(entry, PHOTO_INPUT_TOKENS, PHOTO_OUTPUT_TOKENS) : null,
   };

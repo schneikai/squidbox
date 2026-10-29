@@ -253,14 +253,14 @@ d('sync engine (Postgres)', () => {
     expect(
       (await push(db, USER_A, [{ collection: 'instructions', record, fields: { writing: 1000 } }]))[0],
     ).toMatchObject({ status: 'applied' });
-    expect(await pulled()).toMatchObject({ modelCheckJudge: null });
-    const judged = { ...record, updatedAt: 2000, modelCheckJudge: 'Judge it: {reply}' };
-    await push(db, USER_A, [{ collection: 'instructions', record: judged, fields: { modelCheckJudge: 2000 } }]);
+    expect(await pulled()).toMatchObject({ verifyJudge: null });
+    const judged = { ...record, updatedAt: 2000, verifyJudge: 'Judge it: {reply}' };
+    await push(db, USER_A, [{ collection: 'instructions', record: judged, fields: { verifyJudge: 2000 } }]);
     const older = { ...record, updatedAt: 3000, writing: 'Write like me.' };
     expect(
       (await push(db, USER_A, [{ collection: 'instructions', record: older, fields: { writing: 3000 } }]))[0],
     ).toMatchObject({ status: 'applied' });
-    expect(await pulled()).toMatchObject({ writing: 'Write like me.', modelCheckJudge: 'Judge it: {reply}' });
+    expect(await pulled()).toMatchObject({ writing: 'Write like me.', verifyJudge: 'Judge it: {reply}' });
     await pool.query('DELETE FROM instructions WHERE user_id = $1', [USER_A]);
   });
 
@@ -1448,7 +1448,7 @@ d('sync engine (Postgres)', () => {
         writing: 'Write like me.',
         visionTagging: null,
         moreLikeThis: null,
-        modelCheckJudge: null,
+        verifyJudge: null,
       }),
       model_choices: () => ({
         ...base(),

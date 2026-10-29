@@ -36,6 +36,8 @@ const palette = {
   indigo600: '#4F46E5',
   rose600: '#E11D48',
   green500: '#34C759',
+  blue600: '#2563EB',
+  orange600: '#EA580C',
   cyan100: '#B1F1FF',
 };
 
@@ -61,6 +63,10 @@ export const colors = {
     successLight: alpha(palette.green500, 0.12),
     danger: palette.rose600,
     dangerLight: alpha(palette.rose600, 0.1),
+    info: palette.blue600, // a neutral fact about an entry (a model is the Default)
+    infoLight: alpha(palette.blue600, 0.12),
+    warning: palette.orange600, // a fact to keep in mind (a model is the Default for Adult content)
+    warningLight: alpha(palette.orange600, 0.12),
   },
   background: {
     app: [palette.gray50, palette.white, palette.violet50], // the page gradient

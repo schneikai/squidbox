@@ -26,7 +26,7 @@ import {
   visionTask,
   writingTask,
 } from '../src/ai/tasks.js';
-import { VeniceError } from '../src/ai/venice.js';
+import { VeniceError, VeniceUnavailableError } from '../src/ai/venice.js';
 import { visionMessages, writingMessages } from '../src/ai/prompts.js';
 import type { CatalogEntry } from '../src/ai/catalog.js';
 
@@ -221,6 +221,22 @@ describe('runTask', () => {
     const failed = runTask({ task: visionTask, messages, model: model('gemma-4-uncensored') });
     await expect(failed).rejects.toBeInstanceOf(VeniceError);
     await expect(failed).rejects.toThrow('Returned no tags');
+  });
+
+  it("tells Venice not answering (an error answer, a timeout) from the model's own failure (a refusal)", async () => {
+    const run = () => runTask({ task: visionTask, messages, model: model('gemma-4-uncensored') });
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: { message: 'Down' } }), { status: 503 }));
+    await expect(run()).rejects.toEqual(new VeniceUnavailableError('Down'));
+    fetchMock.mockRejectedValueOnce(Object.assign(new Error('timed out'), { name: 'TimeoutError' }));
+    const timedOut = run();
+    await expect(timedOut).rejects.toBeInstanceOf(VeniceUnavailableError);
+    await expect(timedOut).rejects.toThrow('Venice took too long to answer');
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { refusal: 'No.' } }] })),
+    );
+    const refused = run();
+    await expect(refused).rejects.toBeInstanceOf(VeniceError);
+    await expect(refused).rejects.not.toBeInstanceOf(VeniceUnavailableError);
   });
 });
 

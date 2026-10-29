@@ -19,7 +19,7 @@ Decide this before the app stores anything new:
 - **Synced with the account**: what the user makes or sets up and would miss on another device: media, albums, posts, the assistant setup, prompts, and choices that change what the app produces (like the model the assistant uses). Add a collection (`docs/sync-design.md` §9). When unsure, sync it
 - **On the device, in the library**: developer and testing tools (the model list and its testing) and data tied to this device's copy of the library. Local tables in `src/sync/db/schema.ts`, outside the collection registry
 - **On the device, for the whole app**: how this device looks and behaves (sort orders, thumbnail style, autoplay, haptics), like iOS settings. `AppSettingsProvider`
-- **On the server, for every account**: facts the admin sets for the whole app (which models are verified, the defaults, their check results). Plain tables outside the collection registry, read through the API, never synced
+- **On the server, for every account**: facts the admin sets for the whole app (which models are verified, the defaults, their Verify runs). Plain tables outside the collection registry, read through the API, never synced
 - Sessions, sync bookkeeping and caches never sync
 
 ## React

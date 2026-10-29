@@ -7,7 +7,6 @@ import AssetPickerScreen from '@/features/asset-picker/AssetPickerScreen';
 import InstructionScreen from '@/features/instructions/InstructionScreen';
 import InstructionsScreen from '@/features/instructions/InstructionsScreen';
 import AddModelsScreen from '@/features/model-compare/AddModelsScreen';
-import ModelCheckScreen from '@/features/model-verify/ModelCheckScreen';
 import AddEditPostNavigator from '@/navigators/AddEditPostNavigator';
 import CreatePostNavigator from '@/navigators/CreatePostNavigator';
 import MainTabNavigator from '@/navigators/MainTabNavigator';
@@ -50,7 +49,6 @@ const AssetPickerModalRoute = asModalRoute(AssetPickerScreen);
 const AddToAlbumModalRoute = asModalRoute(AddToAlbumScreen);
 const ModelCompareModalRoute = asModalRoute(ModelCompareNavigator);
 const AddAiModelsModalRoute = asModalRoute(AddModelsScreen);
-const ModelCheckModalRoute = asModalRoute(ModelCheckScreen);
 
 // One editor per params: opening the editor for another post or other assets, also from inside an
 // open editor's sheet, opens a new one on top; the same params go back to the editor that has them.
@@ -62,9 +60,6 @@ const postId = ({ params }) => params?.postId;
 
 // One compare and one Add screen per kind of model.
 const modelKind = ({ params }) => params?.kind;
-
-// One check screen per model and kind.
-const modelCheckId = ({ params }) => `${params?.kind}:${params?.modelId}`;
 
 // One screen per kind of instructions.
 const instructionKind = ({ params }) => params?.kind;
@@ -96,12 +91,6 @@ export default function RootNavigator() {
           component={AddAiModelsModalRoute}
           options={{ headerShown: false }}
           getId={modelKind}
-        />
-        <RootStack.Screen
-          name="ModelCheckModal"
-          component={ModelCheckModalRoute}
-          options={{ headerShown: false }}
-          getId={modelCheckId}
         />
       </RootStack.Group>
       <RootStack.Group screenOptions={{ headerShown: false }}>

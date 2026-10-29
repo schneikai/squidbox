@@ -2,7 +2,7 @@ node_modules/
 dist/
 .env
 *.log
-.model-checks/
+.model-verify/
 .library-copy.json
 # Left by the old copy script; it holds a session token
 .library-copy-session.json

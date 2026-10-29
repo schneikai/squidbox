@@ -15,7 +15,7 @@ import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 
 // Settings → Assistant → Instructions: what the assistant is told before each kind of request, one
 // row per kind with the first line of its text, a Changed badge while it isn't the app's. The judge
-// of the model checks shows only to an ai_admin account, the only one that runs them.
+// of Verify shows only to an ai_admin account, the only one that runs it.
 export default function InstructionsScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();

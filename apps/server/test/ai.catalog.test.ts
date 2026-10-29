@@ -140,9 +140,18 @@ describe('toApiModel', () => {
       isVeniceUncensored: true,
       verifiedKinds: [],
       uncensoredOverride: null,
+      reasoning: { supported: false, defaultEffort: null },
       costPerReplyUsd: expect.closeTo((1000 * 0.1625 + 200 * 0.5) / 1e6, 12),
       costPer100PhotosUsd: expect.closeTo((100 * (1500 * 0.1625 + 100 * 0.5)) / 1e6, 12),
     });
+  });
+
+  it("carries Venice's reasoning: none, reasoning without a default effort, and a default effort", async () => {
+    const entries = await catalog();
+    const reasoning = (id: string) => toApiModel(byId(entries, id), NOTHING_VERIFIED).reasoning;
+    expect(reasoning('gemma-4-uncensored')).toEqual({ supported: false, defaultEffort: null });
+    expect(reasoning('kimi-k3')).toEqual({ supported: true, defaultEffort: null });
+    expect(reasoning('claude-sonnet-5-5')).toEqual({ supported: true, defaultEffort: 'high' });
   });
 
   it('has no photo cost for a model without vision', async () => {

@@ -2,9 +2,9 @@ import { memo, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import AssistantBubble from './AssistantBubble';
-import OptionCard from './OptionCard';
 
 import Card from '@/components/Card';
+import OptionCard from '@/components/OptionCard';
 import TextButton from '@/components/TextButton';
 import { colors, typography } from '@/styles/designTokens';
 

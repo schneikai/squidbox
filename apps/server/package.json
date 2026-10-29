@@ -10,7 +10,7 @@
     "start:prod": "node --import tsx src/index.ts",
     "migrate:prod": "node --import tsx src/db/migrate.ts",
     "seed:mock": "NODE_USE_ENV_PROXY=1 NODE_NO_WARNINGS=1 node --env-file=.env --import tsx scripts/seed-mock.ts",
-    "check:models": "NODE_USE_ENV_PROXY=1 NODE_NO_WARNINGS=1 node --env-file=.env --import tsx scripts/check-models.ts",
+    "verify:models": "NODE_USE_ENV_PROXY=1 NODE_NO_WARNINGS=1 node --env-file=.env --import tsx scripts/verify-models.ts",
     "user:features:prod": "node --import tsx scripts/user-features.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

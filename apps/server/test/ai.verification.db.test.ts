@@ -2,12 +2,13 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { and, eq, inArray } from 'drizzle-orm';
 import pg from 'pg';
-import { CHECK_TURNS, resolveInstructions, type ModelCheckResult } from '@squidbox/shared';
+import { VERIFY_TURNS, resolveInstructions, type VerifyResult } from '@squidbox/shared';
 import * as schema from '../src/db/schema.js';
 import type { Db } from '../src/db/client.js';
 import type { CatalogEntry } from '../src/ai/catalog.js';
-import { CHECKS } from '../src/ai/modelCheck.js';
-import { failAbandonedChecks, failOwnChecks, readLatestCheck, runCheck, startCheck } from '../src/ai/modelChecks.js';
+import { VERIFY } from '../src/ai/verify.js';
+import { VerifyStopped } from '../src/ai/verifyTurns.js';
+import { failAbandonedRuns, failOwnRuns, readLatestRun, runVerify, startRun } from '../src/ai/verifyRuns.js';
 import {
   readModelDefaults,
   readVerification,
@@ -16,7 +17,7 @@ import {
   setVerification,
 } from '../src/ai/verification.js';
 
-// The app-wide marks and check runs against Postgres (npm run test:db, on a database the migration
+// The app-wide marks and Verify runs against Postgres (npm run test:db, on a database the migration
 // seeded). Every case uses its own model ids, and afterAll deletes them; a case that changes the
 // seeded defaults does it in a transaction it rolls back, so the other test files, which read the
 // defaults at the same time, always see the seed.
@@ -27,9 +28,9 @@ const SEEDED = {
   writing: { regular: 'claude-sonnet-5-5', unrestricted: 'deepseek-v4-1-flash-uncensored' },
   vision: { regular: 'gemma-4-uncensored', unrestricted: 'gemma-4-uncensored' },
 };
-const IDS = ['test-writing-1', 'test-writing-2', 'test-writing-3', 'test-check-1', 'test-check-2'];
+const IDS = ['test-writing-1', 'test-writing-2', 'test-writing-3', 'test-verify-1', 'test-verify-2'];
 
-const RESULT: ModelCheckResult = {
+const RESULT: VerifyResult = {
   sections: [],
   passes: 0,
   fails: 0,
@@ -38,7 +39,7 @@ const RESULT: ModelCheckResult = {
   slowestSeconds: 0,
 };
 const log = { error: vi.fn() } as never;
-const model = { id: 'test-check-1' } as CatalogEntry;
+const model = { id: 'test-verify-1' } as CatalogEntry;
 const instructionsAsync = async () => resolveInstructions(null);
 
 // A catalog entry as Venice lists it, labelled Uncensored or not.
@@ -50,7 +51,7 @@ const entry = (id: string, isVeniceUncensored = false) =>
 
 const ROLLBACK = new Error('rollback');
 
-d('the model marks and checks', () => {
+d('the model marks and Verify runs', () => {
   let pool: pg.Pool;
   let db: Db;
 
@@ -75,7 +76,7 @@ d('the model marks and checks', () => {
   });
 
   afterAll(async () => {
-    await db.delete(schema.modelChecks).where(inArray(schema.modelChecks.modelId, IDS));
+    await db.delete(schema.verifyRuns).where(inArray(schema.verifyRuns.modelId, IDS));
     await db.delete(schema.uncensoredOverrides).where(inArray(schema.uncensoredOverrides.modelId, IDS));
     await db.delete(schema.verifiedModels).where(inArray(schema.verifiedModels.modelId, IDS));
     await pool.end();
@@ -189,121 +190,134 @@ d('the model marks and checks', () => {
     });
   });
 
-  it('runs one check per model and kind at a time, and keeps only the latest', async () => {
-    const first = await startCheck(db, { kind: 'writing', modelId: 'test-check-1', userId: null });
+  it('runs one Verify per model and kind at a time, and keeps only the latest', async () => {
+    const first = await startRun(db, { kind: 'writing', modelId: 'test-verify-1', userId: null });
     expect(first).toMatchObject({
       isNew: true,
-      check: { status: 'running', turnsDone: 0, turnsTotal: CHECK_TURNS.writing },
+      run: { status: 'running', turnsDone: 0, turnsTotal: VERIFY_TURNS.writing },
     });
-    const again = await startCheck(db, { kind: 'writing', modelId: 'test-check-1', userId: null });
-    expect(again).toEqual({ check: first.check, isNew: false });
-    const vision = await startCheck(db, { kind: 'vision', modelId: 'test-check-1', userId: null });
+    const again = await startRun(db, { kind: 'writing', modelId: 'test-verify-1', userId: null });
+    expect(again).toEqual({ run: first.run, isNew: false });
+    const vision = await startRun(db, { kind: 'vision', modelId: 'test-verify-1', userId: null });
     expect(vision.isNew).toBe(true);
     // a second running row is refused by the database itself
     await expect(
       db
-        .insert(schema.modelChecks)
-        .values({ kind: 'writing', modelId: 'test-check-1', status: 'running', turnsTotal: 1 }),
+        .insert(schema.verifyRuns)
+        .values({ kind: 'writing', modelId: 'test-verify-1', status: 'running', turnsTotal: 1 }),
     ).rejects.toThrow();
 
-    await db.update(schema.modelChecks).set({ status: 'done' }).where(eq(schema.modelChecks.id, first.check.id));
-    const next = await startCheck(db, { kind: 'writing', modelId: 'test-check-1', userId: null });
+    await db.update(schema.verifyRuns).set({ status: 'done' }).where(eq(schema.verifyRuns.id, first.run.id));
+    const next = await startRun(db, { kind: 'writing', modelId: 'test-verify-1', userId: null });
     expect(next.isNew).toBe(true);
     const rows = await db
       .select()
-      .from(schema.modelChecks)
-      .where(and(eq(schema.modelChecks.kind, 'writing'), eq(schema.modelChecks.modelId, 'test-check-1')));
-    expect(rows.map((row) => row.id)).toEqual([next.check.id]);
-    expect((await readLatestCheck(db, 'writing', 'test-check-1'))!.id).toBe(next.check.id);
-    expect(await readLatestCheck(db, 'writing', 'test-check-2')).toBeNull();
+      .from(schema.verifyRuns)
+      .where(and(eq(schema.verifyRuns.kind, 'writing'), eq(schema.verifyRuns.modelId, 'test-verify-1')));
+    expect(rows.map((row) => row.id)).toEqual([next.run.id]);
+    expect((await readLatestRun(db, 'writing', 'test-verify-1'))!.id).toBe(next.run.id);
+    expect(await readLatestRun(db, 'writing', 'test-verify-2')).toBeNull();
   });
 
   it('writes the result as it runs, then done', async () => {
-    const { check } = await startCheck(db, { kind: 'vision', modelId: 'test-check-2', userId: null });
+    const { run: started } = await startRun(db, { kind: 'vision', modelId: 'test-verify-2', userId: null });
     const stale = new Date(Date.now() - 60 * 60 * 1000);
-    await db.update(schema.modelChecks).set({ updatedAt: stale }).where(eq(schema.modelChecks.id, check.id));
-    const run = vi.spyOn(CHECKS.vision, 'run').mockImplementation(async (_model, { onTurn }) => {
+    await db.update(schema.verifyRuns).set({ updatedAt: stale }).where(eq(schema.verifyRuns.id, started.id));
+    const run = vi.spyOn(VERIFY.vision, 'run').mockImplementation(async (_model, { onTurn }) => {
       await onTurn!({ ...RESULT, passes: 1 }, 1);
       // each turn written is the heartbeat
-      const [row] = await db.select().from(schema.modelChecks).where(eq(schema.modelChecks.id, check.id));
+      const [row] = await db.select().from(schema.verifyRuns).where(eq(schema.verifyRuns.id, started.id));
       expect(row!.updatedAt.getTime()).toBeGreaterThan(stale.getTime());
-      expect(await readLatestCheck(db, 'vision', 'test-check-2')).toMatchObject({
+      expect(await readLatestRun(db, 'vision', 'test-verify-2')).toMatchObject({
         turnsDone: 1,
         result: { passes: 1 },
       });
       return { ...RESULT, passes: 4 };
     });
-    await runCheck(db, { check, model, catalog: [], instructionsAsync, log });
+    await runVerify(db, { run: started, model, catalog: [], instructionsAsync, log });
     run.mockRestore();
-    const done = await readLatestCheck(db, 'vision', 'test-check-2');
+    const done = await readLatestRun(db, 'vision', 'test-verify-2');
     expect(done).toMatchObject({ status: 'done', result: { passes: 4 }, error: null });
     expect(done!.finishedAt).toEqual(expect.any(String));
   });
 
-  it('fails a run whose check throws, and leaves a row already failed as it is', async () => {
-    const { check } = await startCheck(db, { kind: 'vision', modelId: 'test-check-2', userId: null });
-    const run = vi.spyOn(CHECKS.vision, 'run').mockRejectedValueOnce(new Error('The judge is gone'));
-    await runCheck(db, { check, model, catalog: [], instructionsAsync, log });
-    expect(await readLatestCheck(db, 'vision', 'test-check-2')).toMatchObject({
-      status: 'failed',
+  it('stops a run whose Verify throws, and leaves a row already stopped as it is', async () => {
+    const { run: started } = await startRun(db, { kind: 'vision', modelId: 'test-verify-2', userId: null });
+    const run = vi.spyOn(VERIFY.vision, 'run').mockRejectedValueOnce(new Error('The judge is gone'));
+    await runVerify(db, { run: started, model, catalog: [], instructionsAsync, log });
+    expect(await readLatestRun(db, 'vision', 'test-verify-2')).toMatchObject({
+      status: 'stopped',
       error: 'The judge is gone',
     });
 
-    const restarted = await startCheck(db, { kind: 'vision', modelId: 'test-check-2', userId: null });
+    const restarted = await startRun(db, { kind: 'vision', modelId: 'test-verify-2', userId: null });
     run.mockImplementationOnce(async () => {
-      // a machine that boots meanwhile leaves a check that is still writing turns alone
-      await failAbandonedChecks(db);
-      expect((await readLatestCheck(db, 'vision', 'test-check-2'))!.status).toBe('running');
+      // a machine that boots meanwhile leaves a run that is still writing turns alone
+      await failAbandonedRuns(db);
+      expect((await readLatestRun(db, 'vision', 'test-verify-2'))!.status).toBe('running');
       // until its turns stop coming: its server stopped
       await db
-        .update(schema.modelChecks)
+        .update(schema.verifyRuns)
         .set({ updatedAt: new Date(Date.now() - 11 * 60 * 1000) })
-        .where(eq(schema.modelChecks.id, restarted.check.id));
-      await failAbandonedChecks(db);
+        .where(eq(schema.verifyRuns.id, restarted.run.id));
+      await failAbandonedRuns(db);
       return { ...RESULT, passes: 4 };
     });
-    await runCheck(db, { check: restarted.check, model, catalog: [], instructionsAsync, log });
+    await runVerify(db, { run: restarted.run, model, catalog: [], instructionsAsync, log });
     run.mockRestore();
-    expect(await readLatestCheck(db, 'vision', 'test-check-2')).toMatchObject({
-      status: 'failed',
-      error: 'The server restarted during the check',
+    expect(await readLatestRun(db, 'vision', 'test-verify-2')).toMatchObject({
+      status: 'stopped',
+      error: 'The server restarted while it ran',
       result: null,
     });
   });
 
-  it('reads and restarts a check whose heartbeat stopped as failed, so it never blocks a new one', async () => {
-    const { check } = await startCheck(db, { kind: 'writing', modelId: 'test-check-2', userId: null });
-    const backdate = (id: string) =>
-      db
-        .update(schema.modelChecks)
-        .set({ updatedAt: new Date(Date.now() - 3 * 60 * 1000) })
-        .where(eq(schema.modelChecks.id, id));
-    await backdate(check.id);
-    expect(await readLatestCheck(db, 'writing', 'test-check-2')).toMatchObject({
-      id: check.id,
-      status: 'failed',
-      error: 'The server restarted during the check',
-    });
-    const next = await startCheck(db, { kind: 'writing', modelId: 'test-check-2', userId: null });
-    expect(next.isNew).toBe(true);
-    // a stale row that is still running when a start comes in is failed and replaced
-    await backdate(next.check.id);
-    const third = await startCheck(db, { kind: 'writing', modelId: 'test-check-2', userId: null });
-    expect(third.isNew).toBe(true);
-    expect(third.check.id).not.toBe(next.check.id);
+  it('stops a run when Venice stops answering, with the turns before', async () => {
+    const { run: started } = await startRun(db, { kind: 'writing', modelId: 'test-verify-1', userId: null });
+    const partial = { ...RESULT, passes: 7 };
+    const run = vi
+      .spyOn(VERIFY.writing, 'run')
+      .mockRejectedValueOnce(new VerifyStopped('Venice is down for the test', partial));
+    await runVerify(db, { run: started, model, catalog: [], instructionsAsync, log });
+    run.mockRestore();
+    const stopped = await readLatestRun(db, 'writing', 'test-verify-1');
+    expect(stopped).toMatchObject({ status: 'stopped', error: 'Venice is down for the test', result: partial });
+    expect(stopped!.finishedAt).toEqual(expect.any(String));
   });
 
-  it("fails this process's own running checks at shutdown", async () => {
-    const { check } = await startCheck(db, { kind: 'writing', modelId: 'test-check-1', userId: null });
-    const run = vi.spyOn(CHECKS.writing, 'run').mockImplementationOnce(async () => {
-      await failOwnChecks(db);
+  it('reads and restarts a run whose heartbeat stopped as stopped, so it never blocks a new one', async () => {
+    const { run: started } = await startRun(db, { kind: 'writing', modelId: 'test-verify-2', userId: null });
+    const backdate = (id: string) =>
+      db
+        .update(schema.verifyRuns)
+        .set({ updatedAt: new Date(Date.now() - 3 * 60 * 1000) })
+        .where(eq(schema.verifyRuns.id, id));
+    await backdate(started.id);
+    expect(await readLatestRun(db, 'writing', 'test-verify-2')).toMatchObject({
+      id: started.id,
+      status: 'stopped',
+      error: 'The server restarted while it ran',
+    });
+    const next = await startRun(db, { kind: 'writing', modelId: 'test-verify-2', userId: null });
+    expect(next.isNew).toBe(true);
+    // a stale row that is still running when a start comes in is stopped and replaced
+    await backdate(next.run.id);
+    const third = await startRun(db, { kind: 'writing', modelId: 'test-verify-2', userId: null });
+    expect(third.isNew).toBe(true);
+    expect(third.run.id).not.toBe(next.run.id);
+  });
+
+  it("stops this process's own running runs at shutdown", async () => {
+    const { run: started } = await startRun(db, { kind: 'writing', modelId: 'test-verify-1', userId: null });
+    const run = vi.spyOn(VERIFY.writing, 'run').mockImplementationOnce(async () => {
+      await failOwnRuns(db);
       return RESULT;
     });
-    await runCheck(db, { check, model, catalog: [], instructionsAsync, log });
+    await runVerify(db, { run: started, model, catalog: [], instructionsAsync, log });
     run.mockRestore();
-    expect(await readLatestCheck(db, 'writing', 'test-check-1')).toMatchObject({
-      status: 'failed',
-      error: 'The server stopped during the check',
+    expect(await readLatestRun(db, 'writing', 'test-verify-1')).toMatchObject({
+      status: 'stopped',
+      error: 'The server stopped while it ran',
     });
   });
 });

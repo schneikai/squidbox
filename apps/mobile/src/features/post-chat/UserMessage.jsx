@@ -1,8 +1,7 @@
 import { PERSONA_LIMITS } from '@squidbox/shared';
 import { Alert } from 'react-native';
 
-import ChatBubble from './ChatBubble';
-
+import ChatBubble from '@/components/ChatBubble';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useHaptics from '@/hooks/useHaptics';
 import useLibrary from '@/library/useLibrary';

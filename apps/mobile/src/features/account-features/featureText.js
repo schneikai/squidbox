@@ -9,7 +9,7 @@ const featureText = {
   ai_admin: {
     title: 'AI admin',
     description:
-      'Choose the models, compare them, their scores, model checks, which models count as verified, and the Venice balance.',
+      'Choose the models, compare them, verify them, set which are verified and the defaults, and see the Venice balance.',
     requires: 'ai',
   },
 };
