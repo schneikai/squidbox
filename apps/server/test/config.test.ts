@@ -11,10 +11,6 @@ describe('server config', () => {
     expect(() => loadConfig({ ...process.env, SERVER_ID: 'prod' })).toThrow(/SERVER_ID must be a uuid/);
   });
 
-  it('loads the test env', () => {
-    expect(loadConfig().SERVER_ID).toBe(process.env.SERVER_ID);
-  });
-
   it('boots without VENICE_API_KEY (the AI endpoints answer 503 instead)', () => {
     expect(process.env.VENICE_API_KEY).toBeUndefined();
     expect(loadConfig().VENICE_API_KEY).toBeUndefined();

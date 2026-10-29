@@ -17,8 +17,8 @@
     "web": "expo start --web",
     "web:preview": "node scripts/webPreview.mjs",
     "web:measure": "node scripts/measurePerformance.mjs",
-    "lint": "eslint . --max-warnings 0",
-    "typecheck": "tsc -p tsconfig.synccheck.json --noEmit",
+    "lint": "eslint . --max-warnings 0 --cache --cache-strategy content --cache-location node_modules/.cache/eslint/",
+    "typecheck": "tsc -p tsconfig.synccheck.json --noEmit --incremental --tsBuildInfoFile node_modules/.cache/tsc/synccheck.tsbuildinfo",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "TEST_DATABASE_URL=postgres://squidbox:squidbox@localhost:5432/squidbox vitest run"

@@ -10,6 +10,8 @@ import { sentFields } from '../src/sync/sentFields.js';
 // the server around mergeRecord. Every case is seeded: a failure names its seed, and
 // `REPLAY=<seed> npx vitest run test/mergeRecord.property.test.ts -t none` reruns just that case,
 // printing its steps.
+//
+// A plain run takes the first tenth of each case range, a few seconds; `FUZZ_DEEP=1` (CI) runs them all.
 
 type Rec = Record<string, any> & {
   id: string;
@@ -77,6 +79,11 @@ interface Device {
   /** A push whose response was lost ends the run: the next run pushes again before it pulls. */
   unanswered: boolean;
 }
+
+const DEEP = Boolean(process.env.FUZZ_DEEP);
+/** The number of cases a test runs: all of them under FUZZ_DEEP, else a tenth. */
+const cases = (all: number) => (DEEP ? all : all / 10);
+const count = (n: number) => n.toLocaleString('en-US');
 
 const stats = {
   purgeOverRedelete: 0,
@@ -472,18 +479,18 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
 }
 
 describe('mergeRecord, property-style (seeded)', () => {
-  it('3,000 random cases of three devices converge and keep every documented rule', () => {
+  it(`${count(cases(3000))} random cases of three devices converge and keep every documented rule`, () => {
     const violations: string[] = [];
-    for (let seed = 1; seed <= 3000; seed++) violations.push(...runCase(seed, 60));
+    for (let seed = 1; seed <= cases(3000); seed++) violations.push(...runCase(seed, 60));
     expect(violations.slice(0, 10)).toEqual([]);
     // The cases exercise what they claim: purges that applied, and purges a restore beat.
-    expect(stats.purged).toBeGreaterThan(300);
-    expect(stats.restoredThenPurgeLost).toBeGreaterThan(30);
+    expect(stats.purged).toBeGreaterThan(cases(300));
+    expect(stats.restoredThenPurgeLost).toBeGreaterThan(cases(30));
   });
 
   it('long cases (400 steps) converge too', () => {
     const violations: string[] = [];
-    for (let seed = 10_001; seed <= 10_200; seed++) violations.push(...runCase(seed, 400));
+    for (let seed = 10_001; seed <= 10_000 + cases(200); seed++) violations.push(...runCase(seed, 400));
     expect(violations.slice(0, 10)).toEqual([]);
   });
 });
@@ -499,46 +506,46 @@ describe('mergeRecord, property-style, with updates and skew (seeded)', () => {
     expect(runCase(116_884, 60)).toEqual([]);
   });
 
-  it('20,000 more random cases converge and keep every documented rule', () => {
+  it(`${count(cases(20_000))} more random cases converge and keep every documented rule`, () => {
     const violations: string[] = [];
-    for (let seed = 100_001; seed <= 120_000; seed++) violations.push(...runCase(seed, 60));
+    for (let seed = 100_001; seed <= 100_000 + cases(20_000); seed++) violations.push(...runCase(seed, 60));
     expect(violations.slice(0, 10)).toEqual([]);
   }, 120_000);
 
-  it('10,000 cases where the old apps update mid-case, a pending row carried over whole, converge', () => {
+  it(`${count(cases(10_000))} cases where the old apps update mid-case, a pending row carried over whole, converge`, () => {
     const violations: string[] = [];
-    for (let seed = 1; seed <= 10_000; seed++) violations.push(...runCase(seed, 80, undefined, { upgrades: true }));
+    for (let seed = 1; seed <= cases(10_000); seed++) violations.push(...runCase(seed, 80, undefined, { upgrades: true }));
     expect(violations.slice(0, 10)).toEqual([]);
-    expect(stats.upgradedWithPending).toBeGreaterThan(500);
-    expect(stats.wholeRowPushed).toBeGreaterThan(500);
+    expect(stats.upgradedWithPending).toBeGreaterThan(cases(500));
+    expect(stats.wholeRowPushed).toBeGreaterThan(cases(500));
   }, 120_000);
 
-  it('10,000 cases with clocks days apart, half of them with old apps updating, converge', () => {
+  it(`${count(cases(10_000))} cases with clocks days apart, half of them with old apps updating, converge`, () => {
     const DAY = 24 * HOUR;
     const skews = [0, DAY, -DAY, 3 * DAY, -3 * DAY, 50, -50, HOUR];
     const violations: string[] = [];
-    for (let seed = 200_001; seed <= 210_000; seed++)
+    for (let seed = 200_001; seed <= 200_000 + cases(10_000); seed++)
       violations.push(...runCase(seed, 80, undefined, { upgrades: seed % 2 === 0, skews }));
     expect(violations.slice(0, 10)).toEqual([]);
   }, 120_000);
 
-  // Round 6: 50,000 more cases, each with a random mix of the options (updates, clocks days apart),
+  // Round 6: 50,000 more cases (a tenth without FUZZ_DEEP), each with a random mix of the options (updates, clocks days apart),
   // under the check above that judges a purge by every restore the server applied.
-  it('50,000 cases mixing updates and skews: no purge beats a restore it hadn’t seen, but past ten or a rollback', () => {
+  it(`${count(cases(50_000))} cases mixing updates and skews: no purge beats a restore it hadn’t seen, but past ten or a rollback`, () => {
     const DAY = 24 * HOUR;
     const days = [0, DAY, -DAY, 3 * DAY, -3 * DAY, 50, -50, HOUR];
     const violations: string[] = [];
-    for (let seed = 300_001; seed <= 350_000; seed++)
+    for (let seed = 300_001; seed <= 300_000 + cases(50_000); seed++)
       violations.push(
         ...runCase(seed, 80, undefined, { upgrades: seed % 3 !== 0, skews: seed % 2 ? days : undefined }),
       );
     expect(violations.slice(0, 10)).toEqual([]);
-    expect(stats.purgeOverRolledBackRestore).toBeGreaterThan(50); // the rollback window is exercised
+    expect(stats.purgeOverRolledBackRestore).toBeGreaterThan(cases(50)); // the rollback window is exercised
   }, 240_000);
 
   it('long cases with updates (400 steps) converge too', () => {
     const violations: string[] = [];
-    for (let seed = 50_001; seed <= 50_500; seed++)
+    for (let seed = 50_001; seed <= 50_000 + cases(500); seed++)
       violations.push(...runCase(seed, 400, undefined, { upgrades: true }));
     expect(violations.slice(0, 10)).toEqual([]);
   }, 120_000);
@@ -549,9 +556,9 @@ describe('mergeRecord, property-style, with updates and skew (seeded)', () => {
 // final. Random inputs, seeded: a second pass of the same replay changes nothing, a deletion never
 // replaces a pending purge, and only a newer restore undoes one.
 describe('mergeRecord for a library merge, property-style (seeded)', () => {
-  it('2,000 random replays: idempotent, and a pending purge yields to a newer restore only', () => {
+  it(`${count(cases(2000))} random replays: idempotent, and a pending purge yields to a newer restore only`, () => {
     const problems: string[] = [];
-    for (let seed = 1; seed <= 2000; seed++) {
+    for (let seed = 1; seed <= cases(2000); seed++) {
       const rand = prng(seed);
       const value = () => rand.pick([null, 1000, 1500, 2000]);
       const deletedAt = value();
