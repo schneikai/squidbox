@@ -10,11 +10,11 @@ const instructionText = {
   },
   moreLikeThis: {
     title: 'More like this',
-    description: 'The system instructions for the assistant when you choose More like this.',
+    description: 'The system instructions for the assistant when you choose More like this on a post suggestion.',
   },
   modelCheckJudge: {
     title: 'Verify judge',
-    description: 'The system instructions for the judge when Verify judges a reply.',
+    description: 'The system instructions for the model that decides if a reply passes Verify.',
   },
 };
 
