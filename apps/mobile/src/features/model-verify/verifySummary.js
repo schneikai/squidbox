@@ -22,7 +22,7 @@ export default function verifySummary(kind, run) {
   if (run.status === 'stopped') {
     return {
       title: 'Verify stopped',
-      detail: `${when} · at ${unit.one} ${run.turnsDone + 1} of ${run.turnsTotal}`,
+      detail: `${when} · at ${unit.one} ${Math.min(run.turnsDone + 1, run.turnsTotal)} of ${run.turnsTotal}`,
       icon: 'stopped',
     };
   }

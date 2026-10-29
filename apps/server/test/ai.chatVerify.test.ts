@@ -248,14 +248,17 @@ describe('verifyChatModel', () => {
     expect(bodies()).toHaveLength(3);
   });
 
-  it('stops when Venice stops answering the judge', async () => {
+  it("stops when Venice stops answering the judge, with that turn's reply", async () => {
     venice({ judge: (call) => (call === 1 ? busy() : { pass: true, reason: 'Fine.' }) });
     const stopped = (await verifyChatModel(model, { catalog, instructions, sectionIds: ['talk'] }).catch(
       (error: unknown) => error,
     )) as VerifyStopped;
     expect(stopped).toBeInstanceOf(VerifyStopped);
     expect(stopped.message).toBe('Model is busy');
-    expect(stopped.result.sections[0]!.turns).toHaveLength(1);
+    const turns = stopped.result.sections[0]!.turns;
+    expect(turns).toHaveLength(2);
+    expect(turns[1]!.reply).not.toBeNull();
+    expect(turns[1]!.checks.at(-1)).toEqual({ name: 'judge', ok: false, reason: 'the judge failed: Model is busy' });
     expect(bodies()).toHaveLength(4);
   });
 

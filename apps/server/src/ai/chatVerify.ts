@@ -20,6 +20,7 @@ import { findModel } from './catalog.js';
 import { MOCK_FAVORITES, MOCK_PERSONA } from './mockPersona.js';
 import { chatMessages, judgeMessages } from './prompts.js';
 import { chatTask, judgeTask, runTask } from './tasks.js';
+import { VeniceUnavailableError } from './venice.js';
 import type { VerifyRunner } from './verify.js';
 import { missedTurn, timedCall, verifyProgress } from './verifyTurns.js';
 
@@ -312,6 +313,8 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
           continue;
         }
         const reply: ChatReply = call.value;
+        // Venice not answering the judge stops the run, after this turn: the model's reply is in.
+        let judgeStopped: VeniceUnavailableError | null = null;
         const verdict = await timedCall(() =>
           runTask({
             task: judgeTask,
@@ -326,7 +329,11 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
             }),
             model: judge,
           }),
-        );
+        ).catch((error: unknown) => {
+          if (!(error instanceof VeniceUnavailableError)) throw error;
+          judgeStopped = error;
+          return { error: error.message, seconds: 0 };
+        });
         const checks = [
           ...step.expect.map((name) => check(name, reply, before)),
           ...cardChecks(reply.postOptions, post, isBare),
@@ -343,6 +350,7 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
           checks,
           error: null,
         });
+        if (judgeStopped) throw judgeStopped;
         transcript.push({ role: 'user', content }, { role: 'assistant', ...reply });
         if (reply.postOptions.length > 0) before = reply.postOptions;
       }

@@ -7,5 +7,7 @@ describe('reasoningText', () => {
     expect(reasoningText({ reasoning: { supported: false, defaultEffort: null } })).toBe('no reasoning');
     expect(reasoningText({ reasoning: { supported: true, defaultEffort: null } })).toBe('reasons');
     expect(reasoningText({ reasoning: { supported: true, defaultEffort: 'high' } })).toBe('reasons · effort high');
+    // a server deployed before `reasoning`
+    expect(reasoningText({})).toBeNull();
   });
 });

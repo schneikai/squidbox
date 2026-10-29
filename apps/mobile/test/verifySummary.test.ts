@@ -28,5 +28,9 @@ describe('verifySummary', () => {
     expect(verifySummary('vision', { ...STOPPED, kind: 'vision', turnsDone: 2, turnsTotal: 4 }).detail).toBe(
       'just now · at photo 3 of 4',
     );
+    // stopped after its last turn, before it was marked done
+    expect(verifySummary('writing', { ...STOPPED, turnsDone: 9, turnsTotal: 9 }).detail).toBe(
+      'just now · at turn 9 of 9',
+    );
   });
 });

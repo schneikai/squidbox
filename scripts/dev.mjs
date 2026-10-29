@@ -44,8 +44,10 @@ const NGROK_API = 'http://127.0.0.1:4040/api/tunnels';
 // later attempt gets through. Expo ends every tunnel error with this hint.
 const TUNNEL_FAILED = /Check the Ngrok status page/;
 const TUNNEL_ATTEMPTS = 20;
-// What Metro's cache was built from, by the last start (see metroCacheArgs).
+// What Metro's cache was built from, by the last start that got Metro up (see metroCacheArgs).
 const METRO_CACHE_KEY = `${ROOT}node_modules/.cache/squidbox-dev/metro-cache-key`;
+// This start's key, saved once Metro is up (saveMetroCacheKey).
+let metroCacheKey = null;
 
 const live = process.argv.includes('--live-backend-on-owner-request');
 const resetData = process.argv.includes('--reset-data');
@@ -214,7 +216,8 @@ function startMetro(args, extraEnv) {
 
 // Metro keeps its cache across starts, so a restart rebuilds only what changed. The EXPO_PUBLIC_*
 // values are baked into the cached files, though, so it starts with a cleared cache when they, the
-// packages or the Babel and Metro configs changed since the last start, and on --clear.
+// packages or the Babel and Metro configs changed since the last start, and on --clear. The key is
+// saved only once Metro is up, so a start that fails before clearing the cache clears it next time.
 function metroCacheArgs(env) {
   const hash = createHash('sha256');
   for (const key of Object.keys(env)
@@ -230,11 +233,14 @@ function metroCacheArgs(env) {
   ]) {
     hash.update(existsSync(`${ROOT}${file}`) ? readFileSync(`${ROOT}${file}`) : '');
   }
-  const key = hash.digest('hex');
-  const isSame = existsSync(METRO_CACHE_KEY) && readFileSync(METRO_CACHE_KEY, 'utf8') === key;
-  mkdirSync(dirname(METRO_CACHE_KEY), { recursive: true });
-  writeFileSync(METRO_CACHE_KEY, key);
+  metroCacheKey = hash.digest('hex');
+  const isSame = existsSync(METRO_CACHE_KEY) && readFileSync(METRO_CACHE_KEY, 'utf8') === metroCacheKey;
   return clearCache || !isSame ? ['--clear'] : [];
+}
+
+function saveMetroCacheKey() {
+  mkdirSync(dirname(METRO_CACHE_KEY), { recursive: true });
+  writeFileSync(METRO_CACHE_KEY, metroCacheKey);
 }
 
 async function startMetroLocally(extraEnv) {
@@ -244,6 +250,7 @@ async function startMetroLocally(extraEnv) {
   metro.stderr.pipe(process.stderr);
   superviseExit(metro);
   await waitFor('Metro', async () => (await fetch(`${METRO_URL}/status`).catch(() => null))?.ok);
+  saveMetroCacheKey();
   return METRO_URL;
 }
 
@@ -261,6 +268,7 @@ async function startMetroWithTunnel(extraEnv) {
       metro.stdout.removeAllListeners('data').pipe(process.stdout);
       metro.stderr.removeAllListeners('data').pipe(process.stderr);
       superviseExit(metro);
+      saveMetroCacheKey();
       return url;
     }
     stop(metro);

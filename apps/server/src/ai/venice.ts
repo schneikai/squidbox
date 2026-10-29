@@ -25,9 +25,13 @@ export class VeniceError extends Error {
   }
 }
 
+// Venice turning the account away: a bad key (401), the balance used up (402), forbidden (403).
+const ACCOUNT_STATUSES = new Set([401, 402, 403]);
+
 /**
- * Venice itself didn't answer: it couldn't be reached, was busy (429) or failed (5xx). Unlike
- * the model's own failures (a refusal, a cut-off, unreadable or too slow reply), it says nothing about the model.
+ * Venice itself didn't answer: it couldn't be reached, turned the account away (401 a bad key, 402
+ * the balance used up, 403), was busy (429) or failed (5xx). Unlike the model's own failures (a
+ * refusal, a cut-off, unreadable or too slow reply), it says nothing about the model.
  */
 export class VeniceUnavailableError extends VeniceError {
   constructor(message: string) {
@@ -75,10 +79,10 @@ type ChatCompletion = {
 
 /**
  * One chat completion's reply text. Every way it can fail is a VeniceError that says why: Venice
- * unreachable, busy (429) or failing (5xx) is a VeniceUnavailableError; a reply slower than
- * CHAT_TIMEOUT_MS (the model's own slowness, a reasoning model on high effort say), any other error
- * status, a refusal, a cut-off, filtered or empty reply a plain VeniceError. `signal` stops it, when
- * nobody waits for the reply anymore.
+ * unreachable, turning the account away (401, 402, 403), busy (429) or failing (5xx) is a
+ * VeniceUnavailableError; a reply slower than CHAT_TIMEOUT_MS (the model's own slowness, a
+ * reasoning model on high effort say), any other error status, a refusal, a cut-off, filtered or
+ * empty reply a plain VeniceError. `signal` stops it, when nobody waits for the reply anymore.
  */
 async function chatCompletionAsync({
   model,
@@ -118,8 +122,10 @@ async function chatCompletionAsync({
   })) as (ChatCompletion & { error?: unknown }) | null;
   if (!response.ok) {
     const message = errorMessage(body) ?? `Venice request failed (${response.status})`;
-    // Busy or down is Venice's trouble; any other refusal (a bad request, an unknown model) is about this call.
-    if (response.status === 429 || response.status >= 500) throw new VeniceUnavailableError(message);
+    // The account, busy or down is Venice's trouble; any other refusal (a bad request, an unknown
+    // model) is about this call.
+    if (ACCOUNT_STATUSES.has(response.status) || response.status === 429 || response.status >= 500)
+      throw new VeniceUnavailableError(message);
     throw new VeniceError(message);
   }
 

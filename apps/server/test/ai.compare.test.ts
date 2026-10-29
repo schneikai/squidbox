@@ -243,10 +243,14 @@ describe('runTask', () => {
     await expect(refused).rejects.not.toBeInstanceOf(VeniceUnavailableError);
   });
 
-  it('counts 429 as Venice not answering, and any other 4xx as about the model', async () => {
+  it('counts 401, 402, 403 and 429 as Venice not answering, and any other 4xx as about the model', async () => {
     const run = () => runTask({ task: visionTask, messages, model: model('gemma-4-uncensored') });
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: { message: 'Slow down' } }), { status: 429 }));
     await expect(run()).rejects.toEqual(new VeniceUnavailableError('Slow down'));
+    for (const status of [401, 402, 403]) {
+      fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: { message: 'Account' } }), { status }));
+      await expect(run()).rejects.toEqual(new VeniceUnavailableError('Account'));
+    }
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ error: { message: 'No such model' } }), { status: 404 }),
     );
