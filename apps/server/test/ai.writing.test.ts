@@ -118,6 +118,13 @@ describe('chatMessages', () => {
     ]);
   });
 
+  it("puts the user's More like this instruction before a More like this turn's option", () => {
+    const instructions = { ...DEFAULT_INSTRUCTIONS, moreLikeThis: 'Again, please.' };
+    const turns = [...transcript, { role: 'user' as const, content: 'one', moreLikeThis: true }];
+    const messages = chatMessages({ instructions, context, transcript: turns, persona, favorites });
+    expect(messages.at(-1)).toEqual({ role: 'user', content: 'Again, please.\n\none' });
+  });
+
   it("uses the user's own Writing text as the briefing", () => {
     const content = systemOfChat({ instructions: { ...DEFAULT_INSTRUCTIONS, writing: 'Be brief. {caption}' } });
     expect(content).toBe('Be brief. "Fog on the trail"');

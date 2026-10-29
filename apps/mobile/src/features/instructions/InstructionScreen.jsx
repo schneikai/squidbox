@@ -9,8 +9,8 @@ import DetailScrollView from '@/components/DetailScrollView';
 import Page from '@/components/Page';
 import TextEditScreen from '@/components/TextEditScreen';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
-import useAiCatalog from '@/hooks/useAiCatalog';
 import useHaptics from '@/hooks/useHaptics';
+import useInstructions from '@/hooks/useInstructions';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
@@ -23,8 +23,8 @@ import publishInstructionAsync from '@/utils/cloud-api/ai/publishInstructionAsyn
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import confirmAsync from '@/utils/confirmAsync';
 
-// One kind of instructions (`{ kind }`): its text, the user's override or the app's default (the
-// published text, else the built-in one), saved as you type. While it differs from the app's
+// One kind of instructions (`{ kind }`): its text, the user's override or the app's default, saved
+// as you type. While it differs from the app's
 // default: Make default for everyone, which publishes it for every account, and Reset to default. It
 // waits for the app's defaults (they come with the catalog). A root screen, one per kind.
 export default function InstructionScreen({ route, navigation }) {
@@ -32,14 +32,14 @@ export default function InstructionScreen({ route, navigation }) {
   const isAvailable = useLeaveWhenUnavailable();
   const { library } = useLibrary();
   const userId = library.owner.userId;
-  const { instructions, error, retry } = useAiCatalog();
+  const { defaultTexts, error, retry } = useInstructions();
   const seed = useSeedOrClose(
     async (db) => ({ stored: (await readInstructions(db, userId))?.[kind] ?? null }),
     `${userId}:${kind}`,
   );
 
   if (!isAvailable || !seed) return null;
-  if (!instructions) {
+  if (!defaultTexts) {
     return (
       <Page>
         <FloatingDetailHeader title={instructionText[kind].title} onBack={() => navigation.goBack()} />
@@ -54,18 +54,16 @@ export default function InstructionScreen({ route, navigation }) {
       kind={kind}
       userId={userId}
       seed={seed}
-      initialDefaultText={instructions[kind]}
+      defaultText={defaultTexts[kind]}
       navigation={navigation}
     />
   );
 }
 
-function InstructionEditor({ kind, userId, seed, initialDefaultText, navigation }) {
+// `defaultText` is the app's default as the catalog has it now: a publish replaces it at once.
+function InstructionEditor({ kind, userId, seed, defaultText, navigation }) {
   const haptics = useHaptics();
-  // The app's default as the editor opened, or as this admin published it: another admin's publish
-  // shows on reopening.
-  const [defaultText, setDefaultText] = useState(initialDefaultText);
-  const [text, setText] = useState(seed.stored ?? initialDefaultText);
+  const [text, setText] = useState(seed.stored ?? defaultText);
   const [isPublishing, setIsPublishing] = useState(false);
   const { flush } = useSaveAsYouType(text.trim(), saveText);
 
@@ -104,7 +102,7 @@ function InstructionEditor({ kind, userId, seed, initialDefaultText, navigation 
   async function handlePublish() {
     const isConfirmed = await confirmAsync({
       title: 'Make default for everyone?',
-      message: "Every account's assistant gets this text. Admins who changed theirs keep their own.",
+      message: "Every account's assistant gets this text.",
       action: 'Make default for everyone',
     });
     if (!isConfirmed) return;
@@ -113,12 +111,10 @@ function InstructionEditor({ kind, userId, seed, initialDefaultText, navigation 
       await flush();
       const catalog = await publishInstructionAsync(kind, { text: text.trim() });
       applyAiCatalog(catalog);
-      const published = catalog.instructions[kind];
-      setDefaultText(published);
       const db = getDb();
-      if ((await readInstructions(db, userId))?.[kind] === published) {
-        await saveInstruction(db, userId, kind, published, published);
-      }
+      // Stored as null once it equals the published text; a newer one stays.
+      const stored = (await readInstructions(db, userId))?.[kind] ?? null;
+      await saveInstruction(db, userId, kind, stored, catalog.instructions[kind]);
       requestSync();
       haptics.success();
     } catch (error) {

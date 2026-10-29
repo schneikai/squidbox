@@ -44,7 +44,8 @@ function wireTurns(messages) {
   const turns = messages.flatMap((message, index) => {
     if (message.role === 'user') {
       const reply = messages[index + 1];
-      return reply?.status === 'error' && reply.errorStatus === 400 ? [] : [{ role: 'user', content: message.content }];
+      if (reply?.status === 'error' && reply.errorStatus === 400) return [];
+      return [{ role: 'user', content: message.content, ...(message.moreLikeThis && { moreLikeThis: true }) }];
     }
     return message.status === 'done'
       ? [{ role: 'assistant', reply: message.reply, postOptions: message.postOptions }]
@@ -56,8 +57,9 @@ function wireTurns(messages) {
 
 /**
  * One chat: `getState()` → `{ kind, messages, isSending, canApply }`, a new object on each change,
- * which `subscribe(listener)` tells. A message is the user's `{ id, role: 'user', label, content }`
- * (`label`: the prompt button's name, or null for a typed message) or a reply `{ id, role:
+ * which `subscribe(listener)` tells. A message is the user's `{ id, role: 'user', label, content,
+ * moreLikeThis }` (`label`: the prompt button's name, or null for a typed message; `moreLikeThis`:
+ * More like this on the option `content`, which the server puts its instruction before) or a reply `{ id, role:
  * 'assistant', status: 'loading' | 'done' | 'error', reply, postOptions, error, errorStatus }`
  * (`reply`: what the assistant says; `postOptions`: the options for the post, when the user asked for
  * posts; `errorStatus`: the failed request's HTTP status, if any). `isSending` while a reply loads.
@@ -132,13 +134,13 @@ function createSession(kind) {
     },
 
     /**
-     * Sends the user's turn (`{ label, content }`) about `context` (chatContextSchema) through
+     * Sends the user's turn (`{ label, content, moreLikeThis }`) about `context` (chatContextSchema) through
      * `request(body, { signal })`, which resolves to the reply, `{ reply, postOptions }`. → the
      * reply's promise, or null when nothing was sent (a reply is loading, or the chat was closed).
      */
-    send({ label = null, content }, context, request) {
+    send({ label = null, content, moreLikeThis = false }, context, request) {
       if (store.get().isSending || isClosed) return null;
-      const userMessage = { id: `m${++lastMessageId}`, role: 'user', label, content };
+      const userMessage = { id: `m${++lastMessageId}`, role: 'user', label, content, moreLikeThis };
       const reply = {
         id: `m${++lastMessageId}`,
         role: 'assistant',

@@ -15,12 +15,11 @@ import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 
 // Settings → Assistant → Admin → Instructions, for an ai_admin account: what the assistant is told
 // before each kind of request, one row per kind with its name and what it is for (instructionText), a Changed badge
-// while it isn't the app's default (the published text, else the built-in one; once the catalog
-// brings it in).
+// while it isn't the app's default (once the catalog brings the defaults).
 export default function InstructionsScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
-  const { texts, defaultTexts, error, retry } = useInstructions();
+  const { changedKinds, error, retry } = useInstructions();
 
   function row(kind) {
     return (
@@ -31,7 +30,7 @@ export default function InstructionsScreen() {
         onPress={() => navigation.navigate('InstructionScreen', { kind })}
         chevron
       >
-        {texts && texts[kind] !== defaultTexts[kind] && <Badge label="Changed" tone="accent" style={styles.changed} />}
+        {changedKinds?.includes(kind) && <Badge label="Changed" tone="accent" style={styles.changed} />}
       </Row>
     );
   }

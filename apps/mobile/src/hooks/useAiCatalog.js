@@ -28,10 +28,9 @@ function refreshAiCatalogAsync() {
 }
 
 /**
- * Venice's current models with the marks, the model defaults and the app's default instructions
- * (each kind's published text, else the built-in one): `models`, `defaults` and `instructions` are
- * null until they're in, `error` the message when the fetch failed (while there are none to show), and `retry`
- * fetches again. A screen opened after the catalog is five minutes old fetches it anew, showing the
+ * Venice's current models with the marks, the model defaults and the app's default instructions:
+ * `models`, `defaults` and `instructions` are null until they're in, `error` the message when the
+ * fetch failed (while there are none to show), and `retry` fetches again. A screen opened after the catalog is five minutes old fetches it anew, showing the
  * old one meanwhile.
  */
 export default function useAiCatalog() {

@@ -1,13 +1,11 @@
 import { CHAT_LIMITS } from '@squidbox/shared';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Alert } from 'react-native';
 
 import postTags from './postTags';
 import useChatSession from './useChatSession';
 import useMentions from './useMentions';
 
 import useAssetTags from '@/features/photo-tags/useAssetTags';
-import useInstructions from '@/hooks/useInstructions';
 import { readLiveAssets } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
@@ -29,7 +27,6 @@ export default function usePostChat(sessionId) {
   const assetIds = useMemo(() => assets.map((asset) => asset.id), [assets]);
   const tagging = useAssetTags(assets);
   const mentions = useMentions(assetIds);
-  const { texts: instructions, error: instructionsError, retry: retryInstructions } = useInstructions();
   const [isWaiting, setIsWaiting] = useState(false);
   // Set at once, so a second send in the same moment (a typed one while Retry waits) is refused.
   const waitingRef = useRef(false);
@@ -78,21 +75,10 @@ export default function usePostChat(sessionId) {
     [chat, withContext],
   );
 
-  // The option stays whole: the instruction (an ai_admin's may be long) gives way to it. Without the
-  // app's default instructions (the catalog failed) it says so and fetches them again.
+  // The server puts the user's More like this instruction before the option.
   const moreLikeThis = useCallback(
-    (text) => {
-      if (!instructions) {
-        if (instructionsError) {
-          Alert.alert("Couldn't load the instructions", instructionsError);
-          retryInstructions();
-        }
-        return false;
-      }
-      const room = Math.max(0, CHAT_LIMITS.message - text.length - 2);
-      return send({ label: MORE_LIKE_THIS, content: `${instructions.moreLikeThis.slice(0, room)}\n\n${text}` });
-    },
-    [send, instructions, instructionsError, retryInstructions],
+    (text) => send({ label: MORE_LIKE_THIS, content: text, moreLikeThis: true }),
+    [send],
   );
 
   const retry = useCallback(() => withContext((context) => chat.retry(context)), [chat, withContext]);

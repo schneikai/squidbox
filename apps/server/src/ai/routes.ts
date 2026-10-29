@@ -19,7 +19,7 @@ import {
   verificationRequestSchema,
   verifyPhotosResponseSchema,
   verifyRunResponseSchema,
-  INSTRUCTION_KINDS,
+  instructionKindSchema,
   type AiModelKind,
   type AiModelsResponse,
 } from '@squidbox/shared';
@@ -282,7 +282,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         method: 'PUT',
         url: '/ai/instructions/:kind',
         schema: {
-          params: z.object({ kind: z.enum(INSTRUCTION_KINDS) }),
+          params: z.object({ kind: instructionKindSchema }),
           body: publishInstructionRequestSchema,
           response: { 200: aiModelsResponseSchema },
         },

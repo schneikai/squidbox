@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { aiModelKindSchema, INSTRUCTION_KINDS } from '@squidbox/shared';
+import { aiModelKindSchema } from '@squidbox/shared';
 import { StyleSheet } from 'react-native';
 
 import personaSummary from './personaSummary';
@@ -16,14 +16,13 @@ import modelKindText from '@/features/model-compare/modelKindText';
 import useAiCatalog from '@/hooks/useAiCatalog';
 import useChosenModels from '@/hooks/useChosenModels';
 import useHasFeature from '@/hooks/useHasFeature';
+import useInstructions from '@/hooks/useInstructions';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import usePersona from '@/hooks/usePersona';
 import useSeedPromptButtons from '@/hooks/useSeedPromptButtons';
-import useLibrary from '@/library/useLibrary';
 import { colors, radii, sizes } from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
 import { countFavorites } from '@/sync/favoritesRepository';
-import { readInstructions } from '@/sync/instructionsRepository';
 import { countPromptButtons } from '@/sync/promptButtonsRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
@@ -35,16 +34,11 @@ import modelsOfKind from '@/utils/ai/modelsOfKind';
 export default function AssistantScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
-  const { library } = useLibrary();
-  const userId = library.owner.userId;
   const persona = usePersona();
   const favoriteCount = useLiveQuery((db) => countFavorites(db), [schema.favorites]);
   const promptButtonCount = useLiveQuery((db) => countPromptButtons(db), [schema.promptButtons]);
-  const instructions = useLiveQuery((db) => readInstructions(db, userId), [schema.instructions], [userId]);
   useSeedPromptButtons();
   const isAiAdmin = useHasFeature('ai_admin');
-
-  const changedCount = INSTRUCTION_KINDS.filter((kind) => instructions?.[kind] != null).length;
 
   if (!isAvailable) return null;
 
@@ -86,12 +80,7 @@ export default function AssistantScreen() {
         </Section>
         {isAiAdmin && (
           <AdminSection persona={persona}>
-            <Row
-              label="Instructions"
-              value={instructions === undefined ? null : changedCount > 0 ? `${changedCount} changed` : 'Default'}
-              onPress={() => navigation.navigate('InstructionsScreen')}
-              chevron
-            />
+            <InstructionsRow />
           </AdminSection>
         )}
       </DetailScrollView>
@@ -144,6 +133,21 @@ function AdminSection({ persona, children }) {
       </Section>
       <VeniceBalanceFooter />
     </>
+  );
+}
+
+// Instructions, with how many kinds aren't the app's default (once the catalog brings the defaults).
+function InstructionsRow() {
+  const navigation = useNavigation();
+  const { changedKinds } = useInstructions();
+
+  function valueText() {
+    if (!changedKinds) return null;
+    return changedKinds.length > 0 ? `${changedKinds.length} changed` : 'Default';
+  }
+
+  return (
+    <Row label="Instructions" value={valueText()} onPress={() => navigation.navigate('InstructionsScreen')} chevron />
   );
 }
 

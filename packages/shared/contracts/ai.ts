@@ -3,7 +3,7 @@
 // app only ever talks to these endpoints.
 import { z } from 'zod';
 import { ASSET_TAG_LIMITS, assetTagSchema } from '../collections/asset';
-import { instructionTextSchema } from '../collections/instruction';
+import { INSTRUCTION_KINDS, instructionTextSchema, type InstructionKind } from '../collections/instruction';
 
 export const aiModelKindSchema = z.enum(['writing', 'vision']);
 export type AiModelKind = z.infer<typeof aiModelKindSchema>;
@@ -53,14 +53,10 @@ const variantsSchema = z.object({ regular: z.string(), unrestricted: z.string() 
 export const modelDefaultsSchema = z.object({ writing: variantsSchema, vision: variantsSchema });
 export type ModelDefaults = z.infer<typeof modelDefaultsSchema>;
 
-// The app's default instruction of each kind, as every account gets it: the text published for every
-// account (the server's app_instructions), else the built-in DEFAULT_INSTRUCTIONS.
-export const instructionsSchema = z.object({
-  writing: z.string(),
-  visionTagging: z.string(),
-  moreLikeThis: z.string(),
-  modelCheckJudge: z.string(),
-});
+// The app's default instruction of each kind, as every account gets it (resolveInstructions).
+export const instructionsSchema = z.object(
+  Object.fromEntries(INSTRUCTION_KINDS.map((kind) => [kind, z.string()])) as Record<InstructionKind, z.ZodString>,
+);
 
 // GET /ai/models — also the answer of PUT /ai/verification, /ai/uncensored, /ai/defaults and
 // /ai/instructions, so the app replaces its catalog with the new marks in one round trip.
@@ -302,9 +298,14 @@ export const chatReplySchema = chatReplyFieldsSchema.extend({
 export type ChatReply = z.infer<typeof chatReplySchema>;
 
 // The transcript so far: the user's turns and the assistant's replies, oldest first, ending with the
-// user's new turn.
+// user's new turn. A user turn with `moreLikeThis` is More like this on an option (`content`): the
+// server puts the user's More like this instruction before it.
 export const chatTurnSchema = z.union([
-  z.object({ role: z.literal('user'), content: z.string().trim().min(1).max(CHAT_LIMITS.message) }),
+  z.object({
+    role: z.literal('user'),
+    content: z.string().trim().min(1).max(CHAT_LIMITS.message),
+    moreLikeThis: z.boolean().optional(),
+  }),
   chatReplySchema.extend({ role: z.literal('assistant') }),
 ]);
 export type ChatTurn = z.infer<typeof chatTurnSchema>;

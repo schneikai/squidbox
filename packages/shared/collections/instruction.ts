@@ -5,9 +5,8 @@ export const INSTRUCTION_LIMITS = { text: 4000 } as const;
 
 // `instructions` — what the assistant is told (Settings → Assistant → Admin → Instructions, for an
 // ai_admin account), one text per kind, each that account's to edit. One record per user, whose id is the user's id, like `personas`, so
-// two devices editing different kinds converge. Null is "the app's default" (the text published
-// for every account, else the built-in DEFAULT_INSTRUCTIONS), so a reset is a per-field write like
-// any edit.
+// two devices editing different kinds converge. Null is "the app's default" (resolveInstructions),
+// so a reset is a per-field write like any edit.
 export const instructionTextSchema = textSchema.min(1).max(INSTRUCTION_LIMITS.text);
 const instructionText = instructionTextSchema.nullable();
 export const instructionCollection = defineCollection({
@@ -38,6 +37,8 @@ export type InstructionRecord = z.infer<typeof instructionCollection.schema>;
  *   last message), `{reply}`.
  */
 export const INSTRUCTION_KINDS = ['writing', 'visionTagging', 'moreLikeThis', 'modelCheckJudge'] as const;
+
+export const instructionKindSchema = z.enum(INSTRUCTION_KINDS);
 
 export type InstructionKind = (typeof INSTRUCTION_KINDS)[number];
 

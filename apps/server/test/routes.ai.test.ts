@@ -617,6 +617,22 @@ describe('POST /api/v1/ai/chat', () => {
     ]);
   });
 
+  it("sends a More like this turn with the user's More like this instruction before the option", async () => {
+    veniceAnswers();
+    vi.mocked(readInstructions).mockResolvedValueOnce({ ...DEFAULT_INSTRUCTIONS, moreLikeThis: 'Again, please.' });
+    const res = await call('POST', '/ai/chat', {
+      ...chatRequest,
+      messages: [
+        ...chatRequest.messages,
+        { role: 'assistant', reply: 'Three for you.', postOptions: ['a', 'b', 'c'] },
+        { role: 'user', content: 'b', moreLikeThis: true },
+      ],
+    });
+    expect(res.statusCode).toBe(200);
+    const [body] = chatBodies();
+    expect(body.messages.at(-1)).toEqual({ role: 'user', content: 'Again, please.\n\nb' });
+  });
+
   it('returns a reply without options as it is', async () => {
     veniceAnswers({ chatReply: { reply: 'Sounds like a good trip.', postOptions: [] } });
     const res = await call('POST', '/ai/chat', chatRequest);

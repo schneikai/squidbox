@@ -1,4 +1,4 @@
-import { DEFAULT_INSTRUCTIONS, resolveInstructions } from '@squidbox/shared';
+import { DEFAULT_INSTRUCTIONS, resolveInstructions, type InstructionKind } from '@squidbox/shared';
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
@@ -11,6 +11,9 @@ import { clearOutboxRows } from '../src/sync/outbox';
 const USER = '6f1c1c39-6c1c-4a36-9d0e-2d6c1ad4e0f1';
 const MINE = 'Write like me: short, calm, never salesy.';
 
+// Saves against the built-in texts as the app's defaults.
+const save = (db: SyncDb, kind: InstructionKind, text: string | null) =>
+  saveInstruction(db, USER, kind, text, DEFAULT_INSTRUCTIONS[kind]);
 const outbox = (db: SyncDb) => db.select().from(schema.outbox).where(eq(schema.outbox.collection, 'instructions'));
 
 describe('instructionsRepository', () => {
@@ -22,7 +25,7 @@ describe('instructionsRepository', () => {
 
   it("creates the record with the user's id on the first save, sending only that kind", async () => {
     const db = makeTestDb();
-    await saveInstruction(db, USER, 'writing', ` ${MINE} `, DEFAULT_INSTRUCTIONS.writing);
+    await save(db, 'writing', ` ${MINE} `);
     expect(await readInstructions(db, USER)).toMatchObject({
       id: USER,
       writing: MINE,
@@ -38,11 +41,11 @@ describe('instructionsRepository', () => {
 
   it('updates the same record, and a reset stores null', async () => {
     const db = makeTestDb();
-    await saveInstruction(db, USER, 'writing', MINE, DEFAULT_INSTRUCTIONS.writing);
-    await saveInstruction(db, USER, 'visionTagging', 'Tag the trees.', DEFAULT_INSTRUCTIONS.visionTagging);
+    await save(db, 'writing', MINE);
+    await save(db, 'visionTagging', 'Tag the trees.');
     expect(await db.select().from(schema.instructions)).toHaveLength(1);
     await clearOutboxRows(db, 'instructions', [USER]);
-    await saveInstruction(db, USER, 'writing', null, DEFAULT_INSTRUCTIONS.writing);
+    await save(db, 'writing', null);
     expect(await readInstructions(db, USER)).toMatchObject({ writing: null, visionTagging: 'Tag the trees.' });
     const [row] = await outbox(db);
     expect(Object.keys(row!.fields)).toEqual(['writing']);
@@ -50,35 +53,23 @@ describe('instructionsRepository', () => {
 
   it('stores a text equal to the default as null, and writes nothing when that changes nothing', async () => {
     const db = makeTestDb();
-    await saveInstruction(
-      db,
-      USER,
-      'visionTagging',
-      DEFAULT_INSTRUCTIONS.visionTagging,
-      DEFAULT_INSTRUCTIONS.visionTagging,
-    );
+    await save(db, 'visionTagging', DEFAULT_INSTRUCTIONS.visionTagging);
     expect(await readInstructions(db, USER)).toBeNull();
-    await saveInstruction(db, USER, 'visionTagging', MINE, DEFAULT_INSTRUCTIONS.visionTagging);
+    await save(db, 'visionTagging', MINE);
     await clearOutboxRows(db, 'instructions', [USER]);
-    await saveInstruction(
-      db,
-      USER,
-      'visionTagging',
-      `${DEFAULT_INSTRUCTIONS.visionTagging}\n`,
-      DEFAULT_INSTRUCTIONS.visionTagging,
-    );
+    await save(db, 'visionTagging', `${DEFAULT_INSTRUCTIONS.visionTagging}\n`);
     expect((await readInstructions(db, USER))!.visionTagging).toBeNull();
     await clearOutboxRows(db, 'instructions', [USER]);
-    await saveInstruction(db, USER, 'visionTagging', null, DEFAULT_INSTRUCTIONS.visionTagging);
+    await save(db, 'visionTagging', null);
     expect(await outbox(db)).toHaveLength(0);
   });
 
   it('brings a tombstoned record back instead of inserting it again', async () => {
     const db = makeTestDb();
-    await saveInstruction(db, USER, 'writing', MINE, DEFAULT_INSTRUCTIONS.writing);
+    await save(db, 'writing', MINE);
     await db.update(schema.instructions).set({ deletedAt: 5 }).where(eq(schema.instructions.id, USER));
     await clearOutboxRows(db, 'instructions', [USER]);
-    await saveInstruction(db, USER, 'visionTagging', 'Tag the trees.', DEFAULT_INSTRUCTIONS.visionTagging);
+    await save(db, 'visionTagging', 'Tag the trees.');
     expect(await readInstructions(db, USER)).toMatchObject({ deletedAt: null, visionTagging: 'Tag the trees.' });
     expect(await db.select().from(schema.instructions)).toHaveLength(1);
     const [row] = await outbox(db);
@@ -87,9 +78,9 @@ describe('instructionsRepository', () => {
 
   it("gives every account its own texts, and the app's for the kinds it hasn't changed", async () => {
     const db = makeTestDb();
-    await saveInstruction(db, USER, 'writing', MINE, DEFAULT_INSTRUCTIONS.writing);
-    await saveInstruction(db, USER, 'moreLikeThis', 'Again, please.', DEFAULT_INSTRUCTIONS.moreLikeThis);
-    await saveInstruction(db, USER, 'modelCheckJudge', 'Judge it: {reply}', DEFAULT_INSTRUCTIONS.modelCheckJudge);
+    await save(db, 'writing', MINE);
+    await save(db, 'moreLikeThis', 'Again, please.');
+    await save(db, 'modelCheckJudge', 'Judge it: {reply}');
     const stored = await readInstructions(db, USER);
     expect(resolveInstructions(stored, DEFAULT_INSTRUCTIONS)).toEqual({
       ...DEFAULT_INSTRUCTIONS,

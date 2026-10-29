@@ -48,7 +48,8 @@ export function writingMessages({
 /**
  * The assistant chat, as the user: the writing briefing (`instructions.writing`, filled with their
  * persona, Favorites and the post) as the whole system message, then the transcript, a past reply in
- * the JSON the model replies in.
+ * the JSON the model replies in and a More like this turn as `instructions.moreLikeThis` with the
+ * option after it.
  */
 export function chatMessages({
   context,
@@ -67,7 +68,10 @@ export function chatMessages({
     { role: 'system', content: writingBriefingText(instructions.writing, { persona, favorites, context }) },
     ...transcript.map((turn): ChatMessage =>
       turn.role === 'user'
-        ? { role: 'user', content: turn.content }
+        ? {
+            role: 'user',
+            content: turn.moreLikeThis ? `${instructions.moreLikeThis}\n\n${turn.content}` : turn.content,
+          }
         : { role: 'assistant', content: JSON.stringify({ reply: turn.reply, postOptions: turn.postOptions }) },
     ),
   ];
