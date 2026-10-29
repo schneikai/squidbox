@@ -13,12 +13,22 @@
  *   npm run dev:local                    # local backend
  *   npm run dev:local -- --reset-data    # also reset the account to exactly the mock data set
  *   npm run dev:local -- --web           # no tunnel: only for the web preview on this machine
+ *   npm run dev:local -- --clear         # rebuild the bundle from scratch (README → "Dev client")
  *   npm run dev:local -- --live-backend-on-owner-request   # the live backend, on the owner's request only
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
-import { appendFileSync, copyFileSync, createWriteStream, existsSync, readFileSync } from 'node:fs';
+import { createHash, randomBytes } from 'node:crypto';
+import {
+  appendFileSync,
+  copyFileSync,
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
+import { dirname } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { parseEnv } from 'node:util';
 
@@ -34,10 +44,13 @@ const NGROK_API = 'http://127.0.0.1:4040/api/tunnels';
 // later attempt gets through. Expo ends every tunnel error with this hint.
 const TUNNEL_FAILED = /Check the Ngrok status page/;
 const TUNNEL_ATTEMPTS = 20;
+// What Metro's cache was built from, by the last start (see metroCacheArgs).
+const METRO_CACHE_KEY = `${ROOT}node_modules/.cache/squidbox-dev/metro-cache-key`;
 
 const live = process.argv.includes('--live-backend-on-owner-request');
 const resetData = process.argv.includes('--reset-data');
 const webOnly = process.argv.includes('--web');
+const clearCache = process.argv.includes('--clear');
 const children = new Set();
 
 process.on('SIGINT', () => shutdown(0));
@@ -185,12 +198,43 @@ function prewarmBundle() {
 }
 
 function startMetro(args, extraEnv) {
-  return start('npx', ['expo', 'start', '--dev-client', '--port', '8081', '--clear', ...args], MOBILE_DIR, {
+  const env = {
     ...withoutKeys(process.env, (key) => key === 'CI'), // CI makes Expo skip file watching
     ...proxyEnv(),
     EXPO_NO_TELEMETRY: '1',
     ...extraEnv,
-  });
+  };
+  return start(
+    'npx',
+    ['expo', 'start', '--dev-client', '--port', '8081', ...metroCacheArgs(env), ...args],
+    MOBILE_DIR,
+    env,
+  );
+}
+
+// Metro keeps its cache across starts, so a restart rebuilds only what changed. The EXPO_PUBLIC_*
+// values are baked into the cached files, though, so it starts with a cleared cache when they, the
+// packages or the Babel and Metro configs changed since the last start, and on --clear.
+function metroCacheArgs(env) {
+  const hash = createHash('sha256');
+  for (const key of Object.keys(env)
+    .filter((each) => each.startsWith('EXPO_PUBLIC_'))
+    .sort()) {
+    hash.update(`${key}=${env[key]}\n`);
+  }
+  for (const file of [
+    'package-lock.json',
+    'apps/mobile/.env.local',
+    'apps/mobile/babel.config.js',
+    'apps/mobile/metro.config.js',
+  ]) {
+    hash.update(existsSync(`${ROOT}${file}`) ? readFileSync(`${ROOT}${file}`) : '');
+  }
+  const key = hash.digest('hex');
+  const isSame = existsSync(METRO_CACHE_KEY) && readFileSync(METRO_CACHE_KEY, 'utf8') === key;
+  mkdirSync(dirname(METRO_CACHE_KEY), { recursive: true });
+  writeFileSync(METRO_CACHE_KEY, key);
+  return clearCache || !isSame ? ['--clear'] : [];
 }
 
 async function startMetroLocally(extraEnv) {
