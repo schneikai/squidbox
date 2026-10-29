@@ -5,7 +5,7 @@ import confirmDiscardAsync from '@/utils/confirmDiscardAsync';
 
 /**
  * Asks "Discard changes?" before a sheet with unsaved changes (`isDirty`) goes, whichever way it
- * goes: Cancel, Back, a swipe down or back, or another screen navigated to in its place. React
+ * goes: ×, Back, a swipe down or back, or another screen navigated to in its place. React
  * Navigation's usePreventRemove blocks the removal: a native swipe snaps the sheet back and the
  * question comes from `beforeRemove`, and a screen pushed inside another sheet blocks that sheet's
  * swipe too. On Discard the blocked action runs. `leave(navigate)` goes without asking, for the

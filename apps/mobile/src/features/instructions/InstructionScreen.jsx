@@ -13,7 +13,7 @@ import { getDb } from '@/sync/db/client';
 import { readInstructions, saveInstruction } from '@/sync/instructionsRepository';
 
 // One kind of instructions (`{ kind }`) as a draft sheet: its text, the user's or the app's, saved on
-// Done, and Reset to default while the draft differs from the app's (Cancel undoes it, so no
+// Save, and Reset to default while the draft differs from the app's (× undoes it, so no
 // confirm). A root screen, one per kind.
 export default function InstructionScreen({ route }) {
   const { kind } = route.params;

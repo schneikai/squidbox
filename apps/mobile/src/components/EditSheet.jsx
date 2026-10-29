@@ -3,7 +3,6 @@ import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import ModalCancelButton from '@/components/ModalCancelButton';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
@@ -13,9 +12,9 @@ import { SCREEN_PADDING } from '@/constants';
 import useScrollY from '@/hooks/useScrollY';
 
 /**
- * The sheet that edits one item as a draft (hooks/useEditSheet gives its props): Cancel on the
- * leading side (Back when pushed inside another sheet), the optional `title`, and `confirmLabel`
- * (Add for a new item, Done for an edit) on the trailing side, off unless `canConfirm`, with a
+ * The sheet that edits one item as a draft (hooks/useEditSheet gives its props): × on the
+ * leading side to cancel (Back when pushed inside another sheet), the optional `title`, and `confirmLabel`
+ * (Add for a new item, Save for an edit) on the trailing side, off unless `canConfirm`, with a
  * spinner while `isSaving`. The body (`children`) scrolls under the header, with optional `actions`
  * (`[{ label, tone, onPress }]`, e.g. Delete) as text buttons at the bottom, off while `isSaving`.
  */
@@ -36,9 +35,7 @@ export default function EditSheet({
   return (
     <ModalSheet>
       <ModalHeader
-        leftSlot={
-          isSheetRoute ? <ModalCancelButton onPress={onCancel} /> : <ModalCloseButton kind="back" onPress={onCancel} />
-        }
+        leftSlot={<ModalCloseButton kind={isSheetRoute ? 'close' : 'back'} onPress={onCancel} />}
         centerSlot={title}
         scrollY={scrollY}
         rightSlot={

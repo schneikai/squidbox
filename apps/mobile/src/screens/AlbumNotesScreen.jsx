@@ -5,7 +5,7 @@ import useAlbums from '@/features/albums-context/useAlbums';
 import useEditSheet from '@/hooks/useEditSheet';
 import noteText from '@/utils/noteText';
 
-// An album's notes as a draft sheet, saved on Done (an asset's are edited in its details, AssetNote).
+// An album's notes as a draft sheet, saved on Save (an asset's are edited in its details, AssetNote).
 // An emptied note saves as none.
 export default function AlbumNotesScreen({ route }) {
   const { id, notes: initialNotes } = route.params;
@@ -17,7 +17,7 @@ export default function AlbumNotesScreen({ route }) {
     syncsItself: true,
   });
 
-  // Sent only on Done, so a notes edit another device made meanwhile is kept unless you change them.
+  // Sent only on Save, so a notes edit another device made meanwhile is kept unless you change them.
   async function save() {
     await updateAlbum(id, { notes: noteText(notes) });
   }

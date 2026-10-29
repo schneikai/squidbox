@@ -15,10 +15,10 @@ import isPresent from '@/utils/isPresent';
 import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
 
 // Edits a post seeded from `post` ({ text, postAssets, postedAt }) as a draft sheet: Add (a new
-// post, `kind` 'draft') or Done (an edit) hands `onSave` the post the posts store takes ({ text,
-// assetRefs, postedAt }), allowed once it is valid (and, for Done, changed), and the seed in the same
+// post, `kind` 'draft') or Save (an edit) hands `onSave` the post the posts store takes ({ text,
+// assetRefs, postedAt }), allowed once it is valid (and, for Save, changed), and the seed in the same
 // shape, so an edit can save only what changed; a save that throws says so and keeps the editor open.
-// Cancel or a swipe down with changes asks first. `kind` is also what its assistant chat is about
+// × or a swipe down with changes asks first. `kind` is also what its assistant chat is about
 // (chatSubjectKindSchema: 'draft' a new post, 'edit' a saved one).
 export default function PostEditor({ kind, post, navigation, onSave }) {
   const [text, setText] = useState(post.text);

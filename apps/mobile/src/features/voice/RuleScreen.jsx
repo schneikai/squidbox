@@ -15,7 +15,7 @@ import { scale } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { addRule, readPersona, savePersona } from '@/sync/personaRepository';
 
-// One rule of Writing as you, as a draft sheet: `{ index }` edits that rule (Done, or Delete), no
+// One rule of Writing as you, as a draft sheet: `{ index }` edits that rule (Save, or Delete), no
 // params adds one (Add).
 export default function RuleScreen({ route }) {
   const index = route.params?.index;

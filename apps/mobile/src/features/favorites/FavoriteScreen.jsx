@@ -17,7 +17,7 @@ import {
 const NEW_FAVORITE = { text: '' };
 const ALREADY_TEXT = 'This post is in your Favorites already.';
 
-// One favorite, as a draft sheet: `{ id }` edits it (Done, or Delete, which the Favorites screen
+// One favorite, as a draft sheet: `{ id }` edits it (Save, or Delete, which the Favorites screen
 // offers to undo); no params adds one of your own posts (Add). A text in your Favorites already says
 // so and keeps the sheet open. Reachable from anywhere (a root screen), so the chat opens it too.
 export default function FavoriteScreen({ route, navigation }) {
@@ -34,7 +34,7 @@ export default function FavoriteScreen({ route, navigation }) {
 
 function FavoriteEditor({ id, seed, navigation }) {
   const [text, setText] = useState(seed.text);
-  // Why Add or Done didn't save the favorite, until the text changes.
+  // Why Add or Save didn't save the favorite, until the text changes.
   const [notice, setNotice] = useState(null);
   const { sheetProps, finish } = useEditSheet({
     isNew: !id,

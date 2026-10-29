@@ -32,7 +32,7 @@ const SHOW_IT_ITEMS = PLACEMENTS.map((key) => ({ key, label: placementText[key].
 // A button can't be without these.
 const REQUIRED_FIELDS = ['name', 'prompt'];
 
-// One prompt button as a draft sheet: `{ id }` edits it (Done, Duplicate, Delete), `{ placement }`
+// One prompt button as a draft sheet: `{ id }` edits it (Save, Duplicate, Delete), `{ placement }`
 // adds one there (Add, once it has a name and a prompt). Reachable from anywhere (a root screen, one
 // per button), so the chat opens it too.
 export default function PromptButtonScreen({ route, navigation }) {

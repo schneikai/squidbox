@@ -8,11 +8,11 @@ import { requestSync } from '@/sync/worker';
 
 /**
  * A sheet that edits one item as a draft (components/EditSheet). Returns `sheetProps` for EditSheet:
- * Add for a new item (`isNew`) or Done, on while the item `isValid` and, for Done, `isDirty`; it runs
- * `save()` once and closes the sheet, and Cancel closes it. Leaving while `isDirty` asks first
+ * Add for a new item (`isNew`) or Save, on while the item `isValid` and, for Save, `isDirty`; it runs
+ * `save()` once and closes the sheet, and × closes it. Leaving while `isDirty` asks first
  * (useDiscardGuard; `confirmDiscard()` asks before another action that would drop the changes).
  *
- * `finish(write, failure)` is every last write of the sheet (Add/Done, Delete, Duplicate): it runs
+ * `finish(write, failure)` is every last write of the sheet (Add/Save, Delete, Duplicate): it runs
  * `write()`, syncs (unless the store the sheet writes to syncs by itself, `syncsItself`) and leaves
  * the sheet with what `write` resolves to (a navigate callback; `navigation.goBack()` otherwise), or
  * keeps it open when that is false (the item exists already, say). A write that throws says so with
@@ -52,7 +52,7 @@ export default function useEditSheet({ isNew = false, isValid = true, isDirty, s
   }
 
   const sheetProps = {
-    confirmLabel: isNew ? 'Add' : 'Done',
+    confirmLabel: isNew ? 'Add' : 'Save',
     canConfirm: isValid && (isNew || isDirty),
     isSaving,
     onConfirm: () => finish(save, "Couldn't save your changes"),
