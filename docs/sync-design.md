@@ -878,14 +878,14 @@ per post, and each keeps where and when it came from. Removing one is a tombston
 by writing `deletedAt: null`, a per-field write that a later tombstone from another device still
 beats by its clock. The writing prompt sends the newest 20 (`FAVORITES_IN_PROMPT`).
 
-**instructions** (Settings → Assistant → Instructions: what the assistant is told before each
-request). Synced: `writing` (the writing briefing: the chat's whole system message and the
-Compare's, filled with the persona, the Favorites and the post), `visionTagging` (the photo tags
-briefing, the system message of every tags request, filled with Your content's themes) and
-`moreLikeThis` (what the chat's More like this sends) and `modelCheckJudge` (what a writing Verify asks
-its judge after each chat turn; listed only for an ai_admin account), templates the server fills in, each the
-user's text or null for the app's default (`DEFAULT_INSTRUCTIONS` in `packages/shared`, resolved by
-`resolveInstructions`), plus the base columns. Migrations 0022 (server) and 0024 (app) dropped the
+**instructions** (Settings → Assistant → Admin → Instructions, for an ai_admin account: what the
+assistant is told before each request). Synced: `writing` (the writing briefing: the chat's whole
+system message and the Compare's, filled with the persona, the Favorites and the post),
+`visionTagging` (the photo tags briefing, the system message of every tags request, filled with Your
+content's themes), `moreLikeThis` (what the chat's More like this sends) and `modelCheckJudge` (what
+a writing Verify asks its judge after each chat turn), templates the server fills in, each that
+account's override or null for the app's default (`DEFAULT_INSTRUCTIONS` in `packages/shared`,
+resolved by `resolveInstructions`), plus the base columns. Migrations 0022 (server) and 0024 (app) dropped the
 earlier app prompts (`writingFormat`, `tagsSystem`, `themesContext`, `personaFraming`,
 `chatContext`) and reset `writing` and `visionTagging` to the default, their meaning having changed;
 the server's reset carries a fresh clock for both fields and a new `server_seq`, so every device

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
-import Animated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 import AssistantMessage from './AssistantMessage';
 import ChatComposer from './ChatComposer';
@@ -21,6 +20,7 @@ import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import usePromptButtons from '@/features/prompt-buttons/usePromptButtons';
 import useCloseWhen from '@/hooks/useCloseWhen';
 import useHaptics from '@/hooks/useHaptics';
+import useKeyboardInset from '@/hooks/useKeyboardInset';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useScrollY from '@/hooks/useScrollY';
 import confirmAsync from '@/utils/confirmAsync';
@@ -49,8 +49,7 @@ export default function PostChatScreen({ route, navigation }) {
   // The title fades as the messages scroll under the header, as on the other sheets (ModalHeader).
   const { scrollY, onScroll } = useScrollY();
   const shouldScrollRef = useRef(false);
-  const keyboard = useAnimatedKeyboard();
-  const { bottom: bottomInset } = useSafeAreaInsets();
+  const bottomInset = useKeyboardInset(8);
   const messages = chat?.messages;
 
   // A new turn or a reply that landed: show the end of the chat once it's laid out.
@@ -59,7 +58,7 @@ export default function PostChatScreen({ route, navigation }) {
   }, [messages]);
 
   const composerStyle = useAnimatedStyle(() => ({
-    paddingBottom: Math.max(bottomInset, keyboard.height.value) + 8,
+    paddingBottom: bottomInset.value,
   }));
 
   const last = messages?.[messages.length - 1];

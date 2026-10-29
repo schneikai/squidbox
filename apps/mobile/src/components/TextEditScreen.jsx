@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 import CardTextField from '@/components/CardTextField';
 import IntroText from '@/components/IntroText';
@@ -7,8 +7,8 @@ import Page from '@/components/Page';
 import TextButton from '@/components/TextButton';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { SCREEN_PADDING } from '@/constants';
+import useKeyboardInset from '@/hooks/useKeyboardInset';
 import useScreenPadding from '@/hooks/useScreenPadding';
-import { layout } from '@/styles/designTokens';
 
 /**
  * A pushed screen that edits one text, the iOS Settings way: Back, the `title`, and a Textarea whose
@@ -30,17 +30,17 @@ export default function TextEditScreen({
   action,
 }) {
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
-  const keyboard = useAnimatedKeyboard();
+  const keyboardInset = useKeyboardInset(12);
 
   const contentStyle = useAnimatedStyle(() => ({
-    paddingBottom: Math.max(paddingBottom, keyboard.height.value + 12),
+    paddingBottom: Math.max(paddingBottom, keyboardInset.value),
   }));
 
   return (
     <Page>
       <FloatingDetailHeader title={title} onBack={onBack} />
       <Animated.View style={[styles.content, { paddingTop }, contentStyle]}>
-        {description != null && <IntroText style={styles.description}>{description}</IntroText>}
+        {description != null && <IntroText isScreenIntro>{description}</IntroText>}
         <CardTextField
           multiline
           isFilling
@@ -65,13 +65,8 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: SCREEN_PADDING,
-    // The gap every screen's intro text has to what follows it.
-    gap: layout.introGap,
-  },
-  description: {
-    marginHorizontal: 4,
   },
   action: {
-    paddingTop: 12,
+    paddingTop: 24,
   },
 });

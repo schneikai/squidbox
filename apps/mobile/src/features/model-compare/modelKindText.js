@@ -1,12 +1,15 @@
 import visionImage from '@/utils/assets/visionImage';
 
+// The same for every kind: what Verified means.
+const VERIFIED = "Verified models passed Squidbox's own Verify.";
+
 // What each kind of model is called and does, as its screens say it.
 const modelKindText = {
   writing: {
     title: 'Writing',
     intro: 'Writes the captions and replies.',
     footer: 'The check mark is the model you write with. Thumbs up from Compare add up here.',
-    verified: "Verified models passed Squidbox's own Verify.",
+    verified: VERIFIED,
     useLabel: 'Write with this model',
     useFootnote: 'Only for you. Other accounts write with the defaults.',
     labelsFootnote:
@@ -18,7 +21,7 @@ const modelKindText = {
     intro: 'Tags your photos and videos.',
     footer:
       'The check mark is the model you tag with. The count is every tag you tapped as fitting in Compare. They add up like thumbs up.',
-    verified: "Verified models passed Squidbox's own Verify.",
+    verified: VERIFIED,
     useLabel: 'Tag with this model',
     useFootnote: 'Only for you. Other accounts tag with the defaults.',
     labelsFootnote:

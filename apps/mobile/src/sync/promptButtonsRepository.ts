@@ -2,7 +2,6 @@ import {
   DEFAULT_PROMPT_BUTTONS,
   keyBetween,
   movePositions,
-  ONE_LIST_PLACEMENT,
   promptButtonCollection,
   type NewPromptButton,
   type PromptButtonRecord,
@@ -20,8 +19,8 @@ import { isFirstSyncDone } from './status';
 import newRecord from '@/utils/newRecord';
 
 // The chat's prompt buttons (Settings → Assistant → Prompt buttons): the only reader and writer of
-// the prompt_buttons table. One list, in the order `(position, id)`; every record it writes has the
-// retired placement ONE_LIST_PLACEMENT.
+// the prompt_buttons table. One list, in the order `(position, id)`; every record it writes takes the
+// retired placement's default (ONE_LIST_PLACEMENT).
 
 type PromptButtonChanges = Partial<Pick<PromptButtonRecord, 'name' | 'prompt' | 'icon'>>;
 
@@ -66,7 +65,7 @@ async function positionAtEnd(db: SyncDb): Promise<string> {
 export async function createPromptButton(db: SyncDb, fields: NewPromptButton): Promise<PromptButtonRecord> {
   return db.transaction(async (tx) => {
     const position = await positionAtEnd(tx);
-    const record = newRecord(promptButtonCollection, {}, { ...fields, placement: ONE_LIST_PLACEMENT, position });
+    const record = newRecord(promptButtonCollection, {}, { ...fields, position });
     await saveRecords(tx, 'prompt_buttons', t, [record], { isNew: true });
     return record;
   });
@@ -129,13 +128,7 @@ export async function seedPromptButtons(
     let position = await positionAtEnd(tx);
     const records = [];
     for (const button of missing) {
-      records.push(
-        newRecord(
-          promptButtonCollection,
-          {},
-          { ...button, placement: ONE_LIST_PLACEMENT, position, updatedAt: SEED_CLOCK },
-        ),
-      );
+      records.push(newRecord(promptButtonCollection, {}, { ...button, position, updatedAt: SEED_CLOCK }));
       position = keyBetween(position, null);
     }
     await saveRecords(tx, 'prompt_buttons', t, records, { isNew: true });

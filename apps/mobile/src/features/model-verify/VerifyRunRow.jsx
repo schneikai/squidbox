@@ -1,5 +1,5 @@
 import confirmVerifyAsync from './confirmVerifyAsync';
-import verifyCostText from './verifyCostText';
+import verifyEstimate from './verifyEstimate';
 
 import { Row } from '@/components/settings-list/SettingsList';
 import useAiCatalog from '@/hooks/useAiCatalog';
@@ -12,16 +12,12 @@ import useAiCatalog from '@/hooks/useAiCatalog';
 export default function VerifyRunRow({ kind, plan, model, hasRun, onStarted }) {
   const { models } = useAiCatalog();
 
+  const estimate = verifyEstimate(kind, plan, model, models);
+
   async function handlePress() {
-    const answer = await confirmVerifyAsync(kind, plan, model, models);
+    const answer = await confirmVerifyAsync(kind, model, estimate);
     if (answer) onStarted(answer);
   }
 
-  return (
-    <Row
-      label={hasRun ? 'Verify again' : 'Verify'}
-      value={verifyCostText(kind, plan, model, models)}
-      onPress={handlePress}
-    />
-  );
+  return <Row label={hasRun ? 'Verify again' : 'Verify'} value={estimate.costText} onPress={handlePress} />;
 }

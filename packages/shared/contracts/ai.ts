@@ -69,8 +69,6 @@ export type UncensoredRequest = z.infer<typeof uncensoredRequestSchema>;
 export const modelDefaultRequestSchema = z.object({ modelId: z.string().min(1) });
 export type ModelDefaultRequest = z.infer<typeof modelDefaultRequestSchema>;
 
-// The replies one Verify run asks a model for (apps/server/src/ai/chatVerify.ts and tagVerify.ts
-// hold their server's VERIFY to it), so the app can name the count and the cost before the first run.
 // The writing model that judges every turn of a writing Verify, the same for every model verified.
 export const VERIFY_JUDGE_MODEL_ID = 'claude-sonnet-5-5';
 

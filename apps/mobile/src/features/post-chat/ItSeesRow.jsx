@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import ChatTagsSheet from './ChatTagsSheet';
 import postTags from './postTags';
@@ -39,8 +39,7 @@ export default function ItSeesRow({ rows, attempts, isTagging, untagged, tagEdit
           accessibilityHint="Edits the tags"
           style={({ pressed }) => [styles.line, pressed && styles.pressed]}
         >
-          <IntroText style={styles.text}>
-            <Text style={styles.label}>Sees </Text>
+          <IntroText label="Sees" style={styles.text}>
             {tags.length > 0 ? tags.join(', ') : 'no tags'}
           </IntroText>
           <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.tertiary} />
@@ -89,8 +88,5 @@ const styles = StyleSheet.create({
   },
   text: {
     flex: 1,
-  },
-  label: {
-    fontWeight: '600',
   },
 });

@@ -14,7 +14,6 @@ import UndoBar from '@/components/UndoBar';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
-import { layout } from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
 import { readFavorites } from '@/sync/favoritesRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
@@ -63,7 +62,7 @@ export default function FavoritesScreen() {
         }
       />
       <DetailScrollView contentContainerStyle={{ paddingBottom }}>
-        <IntroText style={styles.intro}>
+        <IntroText isScreenIntro>
           Posts that worked for you. The assistant learns from them what makes a good post.
         </IntroText>
         {removal.list?.length === 0 && (
@@ -92,10 +91,6 @@ export default function FavoritesScreen() {
 }
 
 const styles = StyleSheet.create({
-  intro: {
-    marginHorizontal: 4,
-    marginBottom: layout.introGap,
-  },
   cards: {
     gap: 12,
   },

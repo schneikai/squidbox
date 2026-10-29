@@ -1,10 +1,11 @@
 import { StyleSheet, Text } from 'react-native';
 
+import TagChips from './TagChips';
+
 import Card from '@/components/Card';
-import Chip from '@/components/Chip';
-import ChipRow from '@/components/ChipRow';
 import IntroText from '@/components/IntroText';
-import { colors, lineHeights, typography } from '@/styles/designTokens';
+import PostText from '@/components/PostText';
+import { colors, typography } from '@/styles/designTokens';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
 /** The post a Verify conversation started with: its media and tagged people, its tags, its caption. */
@@ -18,14 +19,8 @@ export default function VerifyPostCard({ post }) {
         New post · {media}
         {people}
       </Text>
-      {post.tags.length > 0 && (
-        <ChipRow>
-          {post.tags.map((tag) => (
-            <Chip key={tag} label={tag} />
-          ))}
-        </ChipRow>
-      )}
-      {post.caption ? <Text style={styles.caption}>{post.caption}</Text> : <IntroText>No caption yet</IntroText>}
+      {post.tags.length > 0 && <TagChips tags={post.tags} />}
+      {post.caption ? <PostText>{post.caption}</PostText> : <IntroText>No caption yet</IntroText>}
     </Card>
   );
 }
@@ -38,11 +33,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: typography.subheadline,
     fontWeight: '600',
-    color: colors.text.primary,
-  },
-  caption: {
-    fontSize: typography.body,
-    lineHeight: lineHeights.reading,
     color: colors.text.primary,
   },
 });

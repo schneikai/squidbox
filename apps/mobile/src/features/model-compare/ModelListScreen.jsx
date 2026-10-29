@@ -32,7 +32,7 @@ export default function ModelListScreen({ navigation, route }) {
   const { kind } = route.params;
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const paddingBottom = useFloatingPrimaryActionPadding();
-  const { catalog, error, retry, rows, chosenId } = useYourModels(kind);
+  const { catalog, defaults, error, retry, rows, chosenId } = useYourModels(kind);
 
   const availableCount = rows?.filter((row) => row.model !== null).length ?? 0;
   const hasScores = rows?.some(({ score }) => score !== null) ?? false;
@@ -62,6 +62,7 @@ export default function ModelListScreen({ navigation, route }) {
               model={row.model}
               kind={kind}
               score={row.score}
+              defaults={defaults}
               isChosen={row.id === chosenId}
               onOpen={() => handleOpen(row)}
             />

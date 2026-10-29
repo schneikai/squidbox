@@ -6,6 +6,7 @@
 // checks that can be made in code, then one judge question to VERIFY_JUDGE_MODEL_ID: did the reply
 // answer the request and hold the conversation.
 import {
+  DEFAULT_PROMPT_BUTTONS,
   VERIFY_JUDGE_MODEL_ID,
   type ChatContext,
   type ChatReply,
@@ -23,9 +24,9 @@ import type { VerifyRunner } from './verify.js';
 import { missedTurn, timedCall, verifyProgress } from './verifyTurns.js';
 
 /**
- * A user message, after an optional change to the post (`post`, as the editor would make it). With
- * `caption`, the message is the editor's caption button: its prompt, a blank line and the caption,
- * as promptTurn builds it. `expect` names what the reply should be:
+ * A user message, after an optional change to the post (`post`, as the editor would make it). A
+ * prompt button's message is its prompt as is, as promptTurn sends it: the caption is in the post.
+ * `expect` names what the reply should be:
  *   talk      a reply and no cards
  *   asks      no cards, and the reply asks something back (a detail it wasn't given)
  *   cards:N   N cards
@@ -35,7 +36,7 @@ import { missedTurn, timedCall, verifyProgress } from './verifyTurns.js';
  * Every reply with cards is also checked against the persona's rules, the Favorites (never copied)
  * and the post's handles (only those, spelled exactly).
  */
-type Step = { user: string; post?: Partial<VerifyPost>; caption?: true; expect: string[] };
+type Step = { user: string; post?: Partial<VerifyPost>; expect: string[] };
 
 const BASE_POST: VerifyPost = {
   photos: 4,
@@ -61,6 +62,9 @@ const BASE_POST: VerifyPost = {
 const TRIP_POSTS =
   'Write 3 posts about the coast trip: rain the first day, then an empty beach, the tent flooded and I slept in the car.';
 const BRIDGE = 'Moss on the old stone bridge after a week of rain.';
+
+// A default prompt button's prompt, by its name.
+const buttonPrompt = (name: string) => DEFAULT_PROMPT_BUTTONS.find((button) => button.name === name)!.prompt;
 
 export const SCENARIOS: Record<string, { title: string; steps: Step[] }> = {
   // Talk first, posts when asked, refine, then a bio
@@ -114,18 +118,18 @@ export const SCENARIOS: Record<string, { title: string; steps: Step[] }> = {
       },
     ],
   },
-  // The caption button after a chat about other posts ("this" means the caption)
+  // Prompt buttons on a post with a caption: before any posts they work on the caption, then on the
+  // newest posts
   caption: {
-    title: 'The caption button',
+    title: 'Prompt buttons',
     steps: [
-      { user: TRIP_POSTS, expect: ['cards:3'] },
       {
         post: { caption: BRIDGE, tags: ['moss', 'stone bridge', 'rain', 'wet stone', 'forest', 'creek'] },
-        caption: true,
-        user: 'Make this drier and a little funnier. Same idea, one wry twist.',
+        user: buttonPrompt('Shorter'),
         expect: ['cards:3', 'about:moss|bridge|stone'],
       },
-      { user: 'Make each post shorter. Keep the first line, cut the rest.', expect: ['cards:3', 'shorter'] },
+      { user: buttonPrompt('Funnier'), expect: ['cards:3', 'about:moss|bridge|stone'] },
+      { user: buttonPrompt('Shorter'), expect: ['cards:3', 'shorter'] },
     ],
   },
   // A detail it was never given: it asks instead of inventing
@@ -273,7 +277,7 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
       let failure: string | null = null;
       for (const step of steps) {
         if (step.post) post = { ...post, ...step.post };
-        const content = step.caption ? `${step.user}\n\n${post.caption}` : step.user;
+        const content = step.user;
         const messages = chatMessages({
           context: contextOf(post),
           transcript: [...transcript, { role: 'user', content }],

@@ -14,7 +14,6 @@ import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import SearchInput from '@/components/SearchInput';
 import { SCREEN_PADDING } from '@/constants';
-import useAiCatalog from '@/hooks/useAiCatalog';
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useScrollY from '@/hooks/useScrollY';
@@ -32,8 +31,7 @@ export default function AddModelsScreen({ navigation, route }) {
   const { scrollY, onScroll } = useScrollY();
   const { bottom } = useSafeAreaInsets();
   const haptics = useHaptics();
-  const { catalog, error, retry, rows } = useYourModels(kind);
-  const { defaults } = useAiCatalog();
+  const { catalog, defaults, error, retry, rows } = useYourModels(kind);
 
   const addedIds = useMemo(() => new Set((rows ?? []).map(({ id }) => id)), [rows]);
   const models = useMemo(

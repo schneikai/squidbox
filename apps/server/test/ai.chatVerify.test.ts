@@ -314,7 +314,7 @@ describe('verifyChatModel', () => {
       'Changes on request',
       'Captions, bios and back',
       'An opinion and a question',
-      'The caption button',
+      'Prompt buttons',
       'Sticks to the facts',
       'Without Writing as you',
     ]);

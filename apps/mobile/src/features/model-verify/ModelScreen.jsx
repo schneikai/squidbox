@@ -1,8 +1,8 @@
 import { useNavigation } from '@react-navigation/native';
-import { Alert, StyleSheet } from 'react-native';
 
 import ModelLabelsSection from './ModelLabelsSection';
 import VerifySection from './VerifySection';
+import alertDefaultHeld from './alertDefaultHeld';
 import useModelVerification from './useModelVerification';
 
 import CatalogStatus from '@/components/CatalogStatus';
@@ -16,7 +16,6 @@ import modelKindText from '@/features/model-compare/modelKindText';
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useYourModels from '@/hooks/useYourModels';
-import { layout } from '@/styles/designTokens';
 import { removeYourModel, resetScores } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 import modelDetailText from '@/utils/ai/modelDetailText';
@@ -38,7 +37,7 @@ export default function ModelScreen({ route }) {
   const row = rows?.find((each) => each.id === modelId);
   // The catalog's model, null once Venice no longer offers it.
   const model = row?.model ?? null;
-  const { defaultName } = useModelVerification(kind, modelId, model);
+  const verification = useModelVerification(kind, modelId, model);
 
   const score = row?.score ?? null;
   const text = modelKindText[kind];
@@ -58,8 +57,8 @@ export default function ModelScreen({ route }) {
   }
 
   async function handleRemove() {
-    if (defaultName) {
-      Alert.alert(`${name} is the ${defaultName}`, `Make another model the ${defaultName} before you remove this one.`);
+    if (verification.defaultName) {
+      alertDefaultHeld(name, verification.defaultName);
       return;
     }
     await removeYourModel(getDb(), kind, modelId);
@@ -70,9 +69,7 @@ export default function ModelScreen({ route }) {
     if (!rows) return <CatalogStatus error={error} retry={retry} />;
     return (
       <>
-        <IntroText style={styles.intro}>
-          {model ? modelDetailText(model, kind, score) : 'No longer available'}
-        </IntroText>
+        <IntroText isScreenIntro>{model ? modelDetailText(model, kind, score) : 'No longer available'}</IntroText>
         <Section>
           <Row label={text.useLabel} description={isUsedAsDefault ? "It's the default" : undefined}>
             <Switch
@@ -85,7 +82,7 @@ export default function ModelScreen({ route }) {
         </Section>
         <SectionFooter>{text.useFootnote}</SectionFooter>
         {model ? (
-          <ModelLabelsSection kind={kind} model={model} />
+          <ModelLabelsSection kind={kind} model={model} verification={verification} />
         ) : (
           <SectionFooter>Venice no longer offers this model; its labels stay until it's back.</SectionFooter>
         )}
@@ -107,10 +104,3 @@ export default function ModelScreen({ route }) {
     </Page>
   );
 }
-
-const styles = StyleSheet.create({
-  intro: {
-    marginHorizontal: 4,
-    marginBottom: layout.introGap,
-  },
-});

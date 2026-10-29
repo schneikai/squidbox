@@ -1,5 +1,4 @@
 import { useNavigation } from '@react-navigation/native';
-import { StyleSheet } from 'react-native';
 
 import PromptButtonGroup from './PromptButtonGroup';
 import usePromptButtons from './usePromptButtons';
@@ -11,7 +10,6 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSeedPromptButtons from '@/hooks/useSeedPromptButtons';
-import { layout } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { movePromptButton } from '@/sync/promptButtonsRepository';
 import { requestSync } from '@/sync/worker';
@@ -46,16 +44,9 @@ export default function PromptButtonsScreen() {
     <Page>
       <FloatingDetailHeader title="Prompt buttons" onBack={() => navigation.goBack()} />
       <DetailScrollView>
-        <IntroText style={styles.intro}>Add shortcuts for requests you make on every post.</IntroText>
+        <IntroText isScreenIntro>Add shortcuts for requests you make on every post.</IntroText>
         {buttons && <PromptButtonGroup buttons={buttons} onOpen={handleOpen} onAdd={handleAdd} onMove={handleMove} />}
       </DetailScrollView>
     </Page>
   );
 }
-
-const styles = StyleSheet.create({
-  intro: {
-    marginHorizontal: 4,
-    marginBottom: layout.introGap,
-  },
-});

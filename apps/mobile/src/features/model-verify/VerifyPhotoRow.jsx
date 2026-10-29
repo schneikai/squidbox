@@ -1,12 +1,11 @@
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import TagChips from './TagChips';
 import VerifyStatusIcon from './VerifyStatusIcon';
 import missReason from './missReason';
 import turnStatus from './turnStatus';
 
-import Chip from '@/components/Chip';
-import ChipRow from '@/components/ChipRow';
 import CoverImage from '@/components/CoverImage';
 import ErrorText from '@/components/ErrorText';
 import IntroText from '@/components/IntroText';
@@ -30,13 +29,7 @@ function VerifyPhotoRow({ uri, turn, isRunning }) {
       <CoverImage uri={uri ?? undefined} style={styles.thumbnail} />
       <View style={styles.tags}>
         {!turn && <IntroText>{isRunning ? 'Tagging…' : 'Waiting'}</IntroText>}
-        {turn?.items.length > 0 && (
-          <ChipRow>
-            {turn.items.map((tag) => (
-              <Chip key={tag} label={tag} />
-            ))}
-          </ChipRow>
-        )}
+        {turn?.items.length > 0 && <TagChips tags={turn.items} />}
         {status === 'missed' && <ErrorText>Missed: {missReason(turn)}</ErrorText>}
       </View>
     </View>

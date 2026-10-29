@@ -57,8 +57,7 @@ export default function ChatSubjectCard({ kind, assets, tagging, tagEdits, onEdi
         />
       )}
       {mentions?.handles.length > 0 && (
-        <IntroText>
-          <Text style={styles.label}>Mentions </Text>
+        <IntroText label="Mentions">
           {mentions.handles.slice(0, 5).join(', ')} from {mentionsFrom}
         </IntroText>
       )}
@@ -92,8 +91,5 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: typography.subheadline,
     color: colors.text.primary,
-  },
-  label: {
-    fontWeight: '600',
   },
 });

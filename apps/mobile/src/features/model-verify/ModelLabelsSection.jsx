@@ -2,7 +2,7 @@ import { MODEL_LABEL_NAMES } from '@squidbox/shared';
 import { useState } from 'react';
 import { Alert } from 'react-native';
 
-import useModelVerification from './useModelVerification';
+import alertDefaultHeld from './alertDefaultHeld';
 
 import Switch from '@/components/Switch';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
@@ -15,15 +15,12 @@ import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
  * Unrestricted (with Venice's own rating), Default and Default for Adult content. Every switch
  * works the same on every model: turning on a default turns on what it needs (the server does that),
  * and turning off a label a default keeps on (modelLabelLocks) says which default to move first, like
- * Remove. One switch is on its way to the server at a time.
+ * Remove. One switch is on its way to the server at a time. `verification` is the model's
+ * useModelVerification.
  */
-export default function ModelLabelsSection({ kind, model }) {
+export default function ModelLabelsSection({ kind, model, verification }) {
   const haptics = useHaptics();
-  const { labels, locks, isVeniceUncensored, setVerified, setUncensored, makeDefault } = useModelVerification(
-    kind,
-    model.id,
-    model,
-  );
+  const { labels, locks, isVeniceUncensored, setVerified, setUncensored, makeDefault } = verification;
   // The switch on its way to the server, `{ label, isOn }`, null otherwise.
   const [pending, setPending] = useState(null);
 
@@ -38,7 +35,7 @@ export default function ModelLabelsSection({ kind, model }) {
   async function handleChange(label, isOn) {
     const { defaultName } = locks[label];
     if (!isOn && defaultName) {
-      Alert.alert(`${model.name} is the ${defaultName}`, `Make another model the ${defaultName} first.`);
+      alertDefaultHeld(model.name, defaultName);
       return;
     }
     setPending({ label, isOn });

@@ -1,16 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  runOnJS,
-  useAnimatedKeyboard,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import IconButton from '@/components/IconButton';
 import { SCREEN_PADDING } from '@/constants';
+import useKeyboardInset from '@/hooks/useKeyboardInset';
 import { colors, motion, radii, typography } from '@/styles/designTokens';
 
 // Off screen before the panel has measured itself.
@@ -25,11 +19,10 @@ const HIDDEN_OFFSET = 1000;
  * form sheet, so it needs no route of its own and works on the web too.
  */
 export default function BottomSheet({ isVisible, onClose, title, children }) {
-  const { bottom } = useSafeAreaInsets();
   const [isMounted, setIsMounted] = useState(isVisible);
   const progress = useSharedValue(0);
   const panelHeight = useSharedValue(HIDDEN_OFFSET);
-  const keyboard = useAnimatedKeyboard();
+  const bottomInset = useKeyboardInset(SCREEN_PADDING);
 
   useEffect(() => {
     if (isVisible) {
@@ -45,8 +38,7 @@ export default function BottomSheet({ isVisible, onClose, title, children }) {
 
   const scrimStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
   const panelStyle = useAnimatedStyle(() => ({
-    // The keyboard's height on iOS includes the bottom safe area, which the padding already holds.
-    paddingBottom: Math.max(bottom, keyboard.height.value) + SCREEN_PADDING,
+    paddingBottom: bottomInset.value,
     transform: [{ translateY: (1 - progress.value) * panelHeight.value }],
   }));
 

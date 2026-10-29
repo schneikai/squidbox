@@ -19,7 +19,7 @@ import {
   DEFAULT_PROMPT_BUTTONS,
   initialKeys,
   keyBetween,
-  ONE_LIST_PLACEMENT,
+  promptButtonCollection,
   type AlbumAssetRecord,
   type AlbumRecord,
   type AssetRecord,
@@ -149,13 +149,13 @@ const OVERRIDES: Record<string, Pick<NewPromptButton, 'name' | 'icon' | 'prompt'
     icon: 'link',
     prompt: `Write a short Bluesky reply to this post that points people to the rest of the trip on my profile. Say what else is there in one line. End with the link: ${PROFILE_LINK}`,
   },
-  'Thread': {
+  Thread: {
     name: 'Print teaser',
     icon: 'printer',
     prompt:
       'Write a Bluesky post saying this photo is coming as a print. What makes it worth a wall, in one or two lines. No hard sell.',
   },
-  'Caption': {
+  Caption: {
     name: 'Caption',
     icon: 'quote',
     prompt: 'Write 3 captions for these photos. Short, for Bluesky, one line each. Name the place only by its region.',
@@ -276,14 +276,14 @@ const instructions: InstructionRecord[] = [
 
 // In order, positioned like the app's seed (seedPromptButtons).
 let lastPosition: string | null = null;
+// Parsed, so each takes the schema's default placement.
 const promptButtons: PromptButtonRecord[] = PROMPT_BUTTONS.map((button) => {
   lastPosition = keyBetween(lastPosition, null);
-  return {
+  return promptButtonCollection.schema.parse({
     ...baseRecord(`prompt-button:${button.id}`, now - 60 * DAY),
     ...button,
-    placement: ONE_LIST_PLACEMENT,
     position: lastPosition,
-  };
+  });
 });
 
 const favorites: FavoriteRecord[] = MOCK_FAVORITES.map((favorite, index) => ({

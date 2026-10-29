@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { aiModelKindSchema, INSTRUCTION_KINDS, resolveModelId } from '@squidbox/shared';
+import { aiModelKindSchema, INSTRUCTION_KINDS } from '@squidbox/shared';
 import { StyleSheet } from 'react-native';
 
 import personaSummary from './personaSummary';
@@ -14,16 +14,16 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import modelKindText from '@/features/model-compare/modelKindText';
 import useAiCatalog from '@/hooks/useAiCatalog';
+import useChosenModels from '@/hooks/useChosenModels';
 import useHasFeature from '@/hooks/useHasFeature';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import usePersona from '@/hooks/usePersona';
 import useSeedPromptButtons from '@/hooks/useSeedPromptButtons';
 import useLibrary from '@/library/useLibrary';
 import { colors, radii, sizes } from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
 import { countFavorites } from '@/sync/favoritesRepository';
 import { readInstructions } from '@/sync/instructionsRepository';
-import { readChosenModels } from '@/sync/modelChoicesRepository';
-import { readPersona } from '@/sync/personaRepository';
 import { countPromptButtons } from '@/sync/promptButtonsRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
@@ -37,7 +37,7 @@ export default function AssistantScreen() {
   const isAvailable = useLeaveWhenUnavailable();
   const { library } = useLibrary();
   const userId = library.owner.userId;
-  const persona = useLiveQuery((db) => readPersona(db, userId), [schema.personas], [userId]);
+  const persona = usePersona();
   const favoriteCount = useLiveQuery((db) => countFavorites(db), [schema.favorites]);
   const promptButtonCount = useLiveQuery((db) => countPromptButtons(db), [schema.promptButtons]);
   const instructions = useLiveQuery((db) => readInstructions(db, userId), [schema.instructions], [userId]);
@@ -85,7 +85,7 @@ export default function AssistantScreen() {
           />
         </Section>
         {isAiAdmin && (
-          <AdminSection userId={userId}>
+          <AdminSection persona={persona}>
             <Row
               label="Instructions"
               value={instructions === undefined ? null : changedCount > 0 ? `${changedCount} changed` : 'Default'}
@@ -99,13 +99,13 @@ export default function AssistantScreen() {
   );
 }
 
-// Admin, for an ai_admin account only: the models the assistant uses, then `children` (Instructions).
-// Rendered only for one, so no other account reads its model choices or loads Venice's models here.
-function AdminSection({ userId, children }) {
+// Admin, for an ai_admin account only: the models the assistant uses (for `persona`, usePersona's),
+// then `children` (Instructions). Rendered only for one, so no other account reads its model choices
+// or loads Venice's models here.
+function AdminSection({ persona, children }) {
   const navigation = useNavigation();
-  const chosen = useLiveQuery((db) => readChosenModels(db, userId), [schema.modelChoices], [userId]);
-  const persona = useLiveQuery((db) => readPersona(db, userId), [schema.personas], [userId]);
   const { models: catalog, defaults } = useAiCatalog();
+  const { chosen, usedId } = useChosenModels(persona, defaults);
 
   // The chosen model's name, or a muted "No longer available" once Venice dropped it (its list
   // says which; a catalog still loading or failed to load leaves the plain name). The name and the
@@ -115,7 +115,7 @@ function AdminSection({ userId, children }) {
     if (chosen === undefined || persona === undefined) return { value: null, isGone: false };
     const model = chosen[kind];
     if (!model) {
-      const defaultId = defaults ? resolveModelId(kind, null, persona?.adultContent, defaults) : null;
+      const defaultId = usedId(kind);
       const name = catalog && modelsOfKind(catalog, kind).find(({ id }) => id === defaultId)?.name;
       return { value: name ?? null, isGone: false };
     }

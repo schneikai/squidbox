@@ -14,13 +14,13 @@ import TagsField from '@/components/TagsField';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import usePersona from '@/hooks/usePersona';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import useLibrary from '@/library/useLibrary';
 import { scale } from '@/styles/designTokens';
-import { getDb, schema } from '@/sync/db/client';
+import { getDb } from '@/sync/db/client';
 import { EMPTY_PERSONA, readPersona, savePersona } from '@/sync/personaRepository';
-import { useLiveQuery } from '@/sync/useLiveQuery';
 import { requestSync } from '@/sync/worker';
 import changedValues from '@/utils/changedValues';
 
@@ -52,7 +52,7 @@ function VoiceEditor({ userId, seed, navigation }) {
       TEXT_FIELDS.map((field) => [field, (value) => setDraft((current) => ({ ...current, [field]: value }))]),
     ),
   );
-  const persona = useLiveQuery((db) => readPersona(db, userId), [schema.personas], [userId]);
+  const persona = usePersona();
   const { flush } = useSaveAsYouType(normalized(draft), saveFields);
 
   // Only what the user changed, so a field another device edited meanwhile keeps that edit.
