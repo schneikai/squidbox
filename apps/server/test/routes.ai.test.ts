@@ -38,7 +38,7 @@ vi.mock('../src/ai/verification.js', () => {
     readModelDefaults: vi.fn(async () => defaults),
     setVerification: vi.fn(async () => {}),
     setUncensored: vi.fn(async () => {}),
-    setModelDefault: vi.fn(async () => {}),
+    setModelDefaults: vi.fn(async () => {}),
   };
 });
 // The Verify rows likewise: no run starts Venice here.
@@ -85,7 +85,7 @@ import { readChosenModelId } from '../src/ai/modelChoices.js';
 import { CHAT_PLAN } from '../src/ai/chatVerify.js';
 import { PHOTO_FILES } from '../src/ai/tagVerify.js';
 import { readLatestRun, runVerify, startRun } from '../src/ai/verifyRuns.js';
-import { setModelDefault, setUncensored, setVerification } from '../src/ai/verification.js';
+import { setModelDefaults, setUncensored, setVerification } from '../src/ai/verification.js';
 import { readFavorites, readPersona } from '../src/ai/persona.js';
 import { findUserById } from '../src/users.js';
 
@@ -227,7 +227,7 @@ describe('account features', () => {
       ['GET', '/ai/verify-photos', undefined],
       ['PUT', '/ai/verification/writing/kimi-k3', { isVerified: true }],
       ['PUT', '/ai/uncensored/kimi-k3', { uncensored: true }],
-      ['PUT', '/ai/defaults/writing/regular', { modelId: 'kimi-k3' }],
+      ['PUT', '/ai/defaults/writing', { regular: 'kimi-k3', unrestricted: 'kimi-k3' }],
       ['PUT', '/ai/instructions/writing', { text: 'Be brief.' }],
       ['POST', '/ai/compare/writing', writing],
       ['POST', '/ai/compare/vision', vision],
@@ -828,19 +828,28 @@ describe('the marks', () => {
     expect(setVerification).not.toHaveBeenCalled();
   });
 
-  it('PUT /ai/defaults passes the variant and the model, of any model Venice offers', async () => {
+  it('PUT /ai/defaults sets both defaults of the kind at once, of any models Venice offers', async () => {
     veniceAnswers();
-    const res = await call('PUT', '/ai/defaults/writing/unrestricted', { modelId: 'kimi-k3' });
+    const res = await call('PUT', '/ai/defaults/writing', { regular: 'claude-sonnet-5-5', unrestricted: 'kimi-k3' });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toHaveProperty('models');
-    expect(setModelDefault).toHaveBeenCalledWith(expect.anything(), {
+    expect(setModelDefaults).toHaveBeenCalledWith(expect.anything(), {
       kind: 'writing',
-      variant: 'unrestricted',
-      modelId: 'kimi-k3',
+      defaults: { regular: 'claude-sonnet-5-5', unrestricted: 'kimi-k3' },
     });
-    expect((await call('PUT', '/ai/defaults/writing/regular', { modelId: 'gone' })).statusCode).toBe(502);
-    expect(setModelDefault).toHaveBeenCalledTimes(1);
-    expect((await call('PUT', '/ai/defaults/writing/weird', { modelId: 'kimi-k3' })).statusCode).toBe(400);
+    // either one gone: nothing is written
+    expect((await call('PUT', '/ai/defaults/writing', { regular: 'gone', unrestricted: 'kimi-k3' })).statusCode).toBe(
+      502,
+    );
+    expect((await call('PUT', '/ai/defaults/writing', { regular: 'kimi-k3', unrestricted: 'gone' })).statusCode).toBe(
+      502,
+    );
+    expect(setModelDefaults).toHaveBeenCalledTimes(1);
+    expect((await call('PUT', '/ai/defaults/writing', { regular: 'kimi-k3' })).statusCode).toBe(400);
+    expect((await call('PUT', '/ai/defaults/weird', { regular: 'kimi-k3', unrestricted: 'kimi-k3' })).statusCode).toBe(
+      400,
+    );
+    expect(setModelDefaults).toHaveBeenCalledTimes(1);
   });
 });
 

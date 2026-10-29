@@ -9,11 +9,8 @@ import CatalogStatus from '@/components/CatalogStatus';
 import DetailScrollView from '@/components/DetailScrollView';
 import IntroText from '@/components/IntroText';
 import Page from '@/components/Page';
-import Switch from '@/components/Switch';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import modelKindText from '@/features/model-compare/modelKindText';
-import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useYourModels from '@/hooks/useYourModels';
 import { removeYourModel, resetScores } from '@/sync/aiStateRepository';
@@ -23,7 +20,7 @@ import confirmAsync from '@/utils/confirmAsync';
 
 /**
  * A model of your list (route params `kind`, `modelId`, `name`; an ai_admin tool): its grey line,
- * whether this account writes (or tags) with it, the labels every account sees, its Verify, and
+ * its labels (marks every account sees, and this account's picks of the defaults), its Verify, and
  * Reset score and Remove. A model Venice no longer offers keeps its page, to read its Verify and
  * remove it.
  */
@@ -31,24 +28,15 @@ export default function ModelScreen({ route }) {
   const { kind, modelId, name } = route.params;
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
-  const haptics = useHaptics();
-  const { error, retry, rows, chosenId, hasChoice, choose } = useYourModels(kind);
+  const yourModels = useYourModels(kind);
+  const { error, retry, rows } = yourModels;
 
   const row = rows?.find((each) => each.id === modelId);
   // The catalog's model, null once Venice no longer offers it.
   const model = row?.model ?? null;
-  const verification = useModelVerification(kind, modelId, model);
+  const verification = useModelVerification(kind, modelId, model, yourModels);
 
   const score = row?.score ?? null;
-  const text = modelKindText[kind];
-  const isUsed = chosenId === modelId;
-  // This account writes with it because it chose none: there is no choice to take back.
-  const isUsedAsDefault = isUsed && !hasChoice;
-
-  async function handleUse(isOn) {
-    await choose(isOn ? row : null);
-    haptics.selection();
-  }
 
   async function handleResetScore() {
     const message = `${name} goes back to Not tried yet.`;
@@ -70,17 +58,6 @@ export default function ModelScreen({ route }) {
     return (
       <>
         <IntroText isScreenIntro>{model ? modelDetailText(model, kind, score) : 'No longer available'}</IntroText>
-        <Section>
-          <Row label={text.useLabel} description={isUsedAsDefault ? "It's the default" : undefined}>
-            <Switch
-              value={isUsed}
-              onValueChange={handleUse}
-              disabled={!model || isUsedAsDefault}
-              accessibilityLabel={text.useLabel}
-            />
-          </Row>
-        </Section>
-        <SectionFooter>{text.useFootnote}</SectionFooter>
         {model ? (
           <ModelLabelsSection kind={kind} model={model} verification={verification} />
         ) : (

@@ -1454,6 +1454,8 @@ d('sync engine (Postgres)', () => {
         ...base(),
         writingModel: { id: 'venice-uncensored-1-2', name: 'Venice Uncensored' },
         visionModel: null,
+        writingUncensoredModel: { id: 'venice-uncensored-1-2', name: 'Venice Uncensored' },
+        visionUncensoredModel: null,
       }),
     };
 

@@ -12,7 +12,7 @@ import { stopAbandonedRuns, stopOwnRuns, readLatestRun, runVerify, startRun } fr
 import {
   readModelDefaults,
   readVerification,
-  setModelDefault,
+  setModelDefaults,
   setUncensored,
   setVerification,
 } from '../src/ai/verification.js';
@@ -116,8 +116,10 @@ d('the model marks and Verify runs', () => {
 
   it('makes a model a default without changing its labels, which turn off like any other', async () => {
     await rolledBack(async (tx) => {
-      await setModelDefault(tx, { kind: 'writing', variant: 'regular', modelId: 'test-writing-2' });
-      await setModelDefault(tx, { kind: 'writing', variant: 'unrestricted', modelId: 'test-writing-2' });
+      await setModelDefaults(tx, {
+        kind: 'writing',
+        defaults: { regular: 'test-writing-2', unrestricted: 'test-writing-2' },
+      });
       let verification = await readVerification(tx);
       expect(verification.defaults.writing).toEqual({ regular: 'test-writing-2', unrestricted: 'test-writing-2' });
       expect(verification.verified.writing.has('test-writing-2')).toBe(false);

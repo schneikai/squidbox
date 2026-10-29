@@ -6,18 +6,21 @@ import usePersona from '@/hooks/usePersona';
 import useLibrary from '@/library/useLibrary';
 import { readModelList, seedYourModels } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
-import { setChosenModel } from '@/sync/modelChoicesRepository';
+import { pickDefault as savePick } from '@/sync/modelChoicesRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
+import { requestSync } from '@/sync/worker';
 import joinYourModels from '@/utils/ai/joinYourModels';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
 import seedModels from '@/utils/ai/seedModels';
 
 /**
  * Your models of a kind (an ai_admin tool), live: `rows` your list joined with Venice's models
- * (useAiCatalog's `catalog`, `defaults`, `error` and `retry`), null until both are in; `chosenId`
- * the one the assistant uses (useChosenModels' `usedId`); `hasChoice` whether this account chose
- * one, which `choose` changes (the choice syncs with the account, the list stays on the device). On
- * the first run the list starts with the verified models Venice still has.
+ * (useAiCatalog's `catalog`, `defaults` what everyone uses, `error` and `retry`), null until both
+ * are in; `yourDefaults` the defaults this account uses, your picks over `defaults`
+ * (useChosenModels'); `usedId` the one the assistant uses now; `pickDefault(variant, model)` picks
+ * your Default (`regular`) or Uncensored default (`unrestricted`) of the kind, null to follow the
+ * published one (the picks sync with the account, the list stays on the device). On the first run
+ * the list starts with the verified models Venice still has.
  */
 export default function useYourModels(kind) {
   const { models: catalog, defaults, error, retry } = useAiCatalog();
@@ -30,7 +33,7 @@ export default function useYourModels(kind) {
     [kind],
   );
   const persona = usePersona();
-  const { chosen, usedId } = useChosenModels(persona, defaults);
+  const { yourDefaults, usedId } = useChosenModels(persona, defaults);
 
   useEffect(() => {
     if (!catalog || !defaults || list !== null) return;
@@ -41,8 +44,12 @@ export default function useYourModels(kind) {
 
   // Memoized: the Add screen's rows stay memoized across its search keystrokes.
   const rows = useMemo(() => (catalog && list ? joinYourModels(list, catalog, kind) : null), [catalog, list, kind]);
-  const choose = useCallback((model) => setChosenModel(getDb(), userId, kind, model), [userId, kind]);
-  const chosenId = usedId(kind);
-  const hasChoice = Boolean(chosen?.[kind]);
-  return { catalog, defaults, error, retry, rows, chosenId, hasChoice, choose };
+  const pickDefault = useCallback(
+    async (variant, model) => {
+      await savePick(getDb(), userId, kind, variant, model, defaults[kind][variant]);
+      requestSync();
+    },
+    [userId, kind, defaults],
+  );
+  return { catalog, defaults, yourDefaults, error, retry, rows, usedId: usedId(kind), pickDefault };
 }

@@ -208,8 +208,9 @@ export const instructions = sqliteTable('instructions', {
 });
 export type InstructionRow = typeof instructions.$inferSelect;
 
-// The model the assistant uses per kind (mirror @squidbox/shared model_choices). One record per user
-// (its id is the user's id); each choice is JSON text ({ id, name }), null the app's default.
+// An ai_admin's picks of each kind's Default and Uncensored default (mirror @squidbox/shared
+// model_choices). One record per user (its id is the user's id); each pick is JSON text
+// ({ id, name }), null the published default.
 export const modelChoices = sqliteTable('model_choices', {
   id: text('id').primaryKey(),
   createdAt: integer('created_at').notNull(),
@@ -217,6 +218,8 @@ export const modelChoices = sqliteTable('model_choices', {
   deletedAt: integer('deleted_at'),
   writingModel: text('writing_model', { mode: 'json' }).$type<{ id: string; name: string }>(),
   visionModel: text('vision_model', { mode: 'json' }).$type<{ id: string; name: string }>(),
+  writingUncensoredModel: text('writing_uncensored_model', { mode: 'json' }).$type<{ id: string; name: string }>(),
+  visionUncensoredModel: text('vision_uncensored_model', { mode: 'json' }).$type<{ id: string; name: string }>(),
 });
 export type ModelChoiceRow = typeof modelChoices.$inferSelect;
 
@@ -272,7 +275,7 @@ export type SyncLogRow = typeof syncLog.$inferSelect;
 // Local-only and not synced: it stays with this library on this device. `kind` is writing | vision.
 
 // One row per kind once its list was seeded: the last compare's prompt. `chosen_model_id` is unused
-// since the choice syncs (model_choices).
+// since the picks sync (model_choices).
 export const aiKinds = sqliteTable('ai_kinds', {
   kind: text('kind').primaryKey(),
   chosenModelId: text('chosen_model_id'),

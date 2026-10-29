@@ -7,21 +7,22 @@ import { SCREEN_PADDING } from '@/constants';
 import { colors, sizes } from '@/styles/designTokens';
 
 /**
- * A model in your list: its summary with the labels, score and cost, a check when it's the chosen
- * one, and a chevron: a tap opens its page (`onOpen`). `model` null is a model Venice no longer
- * offers: greyed, its page still opens (to remove it). `defaults` useAiCatalog's.
+ * A model in your list: its summary with the labels, score and cost, a check when it's the one
+ * this account uses, and a chevron: a tap opens its page (`onOpen`). `model` null is a model Venice no longer
+ * offers: greyed, its page still opens (to remove it). `yourDefaults` the defaults this
+ * account uses (useYourModels').
  */
-export default function ModelRow({ name, model, kind, score, defaults, isChosen, onOpen }) {
+export default function ModelRow({ name, model, kind, score, yourDefaults, isUsed, onOpen }) {
   return (
     <TouchableOpacity
       style={styles.row}
       onPress={onOpen}
       activeOpacity={0.6}
       accessibilityRole="button"
-      accessibilityState={{ selected: isChosen }}
+      accessibilityState={{ selected: isUsed }}
     >
-      <ModelListSummary name={name} model={model} kind={kind} score={score} defaults={defaults} />
-      {isChosen && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
+      <ModelListSummary name={name} model={model} kind={kind} score={score} yourDefaults={yourDefaults} />
+      {isUsed && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
       <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.tertiary} />
     </TouchableOpacity>
   );

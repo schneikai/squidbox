@@ -283,14 +283,17 @@ export const instructions = pgTable(
 );
 export type InstructionRow = typeof instructions.$inferSelect;
 
-// One model_choices record per user: its id is the user's id. Each kind's chosen model is jsonb
-// ({ id, name }); null is the app's default.
+// One model_choices record per user: its id is the user's id. An ai_admin's picks of each kind's
+// Default (`*_model`) and Uncensored default (`*_uncensored_model`), jsonb ({ id, name }); null is
+// the published default (model_defaults).
 export const modelChoices = pgTable(
   'model_choices',
   {
     ...syncableBase(),
     writingModel: jsonb('writing_model').$type<{ id: string; name: string }>(),
     visionModel: jsonb('vision_model').$type<{ id: string; name: string }>(),
+    writingUncensoredModel: jsonb('writing_uncensored_model').$type<{ id: string; name: string }>(),
+    visionUncensoredModel: jsonb('vision_uncensored_model').$type<{ id: string; name: string }>(),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.id] }),

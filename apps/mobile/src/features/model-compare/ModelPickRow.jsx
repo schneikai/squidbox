@@ -6,9 +6,9 @@ import SelectIndicator from '@/components/SelectIndicator';
 import { SCREEN_PADDING } from '@/constants';
 import { colors, typography } from '@/styles/designTokens';
 
-// A model of your list to tick for a compare, as the list shows it, with "Current" on the chosen one
-// (`defaults` useAiCatalog's).
-export default function ModelPickRow({ name, model, kind, score, defaults, isTicked, isCurrent, onToggle }) {
+// A model of your list to tick for a compare, as the list shows it, with "Current" on the one this account
+// uses (`yourDefaults` the defaults it uses, useYourModels').
+export default function ModelPickRow({ name, model, kind, score, yourDefaults, isTicked, isCurrent, onToggle }) {
   return (
     <TouchableOpacity
       style={styles.row}
@@ -18,7 +18,7 @@ export default function ModelPickRow({ name, model, kind, score, defaults, isTic
       accessibilityState={{ checked: isTicked }}
     >
       <SelectIndicator isSelected={isTicked} />
-      <ModelListSummary name={name} model={model} kind={kind} score={score} defaults={defaults} />
+      <ModelListSummary name={name} model={model} kind={kind} score={score} yourDefaults={yourDefaults} />
       {isCurrent && <Text style={styles.current}>Current</Text>}
     </TouchableOpacity>
   );

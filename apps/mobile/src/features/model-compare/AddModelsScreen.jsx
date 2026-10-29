@@ -31,7 +31,7 @@ export default function AddModelsScreen({ navigation, route }) {
   const { scrollY, onScroll } = useScrollY();
   const { bottom } = useSafeAreaInsets();
   const haptics = useHaptics();
-  const { catalog, defaults, error, retry, rows } = useYourModels(kind);
+  const { catalog, yourDefaults, error, retry, rows } = useYourModels(kind);
 
   const addedIds = useMemo(() => new Set((rows ?? []).map(({ id }) => id)), [rows]);
   const models = useMemo(
@@ -49,9 +49,15 @@ export default function AddModelsScreen({ navigation, route }) {
 
   const renderItem = useCallback(
     ({ item }) => (
-      <AddModelRow model={item} kind={kind} defaults={defaults} isAdded={addedIds.has(item.id)} onAdd={handleAdd} />
+      <AddModelRow
+        model={item}
+        kind={kind}
+        yourDefaults={yourDefaults}
+        isAdded={addedIds.has(item.id)}
+        onAdd={handleAdd}
+      />
     ),
-    [kind, defaults, addedIds, handleAdd],
+    [kind, yourDefaults, addedIds, handleAdd],
   );
 
   function renderEmpty() {

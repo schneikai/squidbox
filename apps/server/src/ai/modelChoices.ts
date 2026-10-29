@@ -1,29 +1,34 @@
-// The model the assistant uses for each kind. Choosing a model is an ai_admin tool: for such an
-// account its synced `model_choices` record (its id is the user's id), else, and for every other
-// account, the default for its persona's Adult content switch (model_defaults, resolveModelId as the
-// app shows it). Another account's stored choice stays as it is; it only doesn't apply.
+// The model the assistant uses for each kind. For an ai_admin, their synced `model_choices` record
+// (its id is the user's id): their picks of the Default and Uncensored default, tried on their own
+// account before Make default for everyone publishes them, over the published defaults
+// (model_defaults). For every other account the published defaults. Either way the variant follows
+// the persona's Adult content switch (resolveModelId, as the app shows it). Another account's stored
+// picks stay as they are; they only don't apply.
 import { and, eq, isNull } from 'drizzle-orm';
 import { resolveModelId, type AiModelKind } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import { modelChoices, personas, type User } from '../db/schema.js';
 import { readModelDefaults } from './verification.js';
 
-const columns = { writing: modelChoices.writingModel, vision: modelChoices.visionModel };
-
-/** The id of the model the user chose for `kind` (an ai_admin only), or the default one. */
+/** The id of the model the user uses for `kind`: an ai_admin's pick, or the published default. */
 export async function readChosenModelId(
   db: Db,
   user: Pick<User, 'id' | 'features'>,
   kind: AiModelKind,
 ): Promise<string> {
   const userId = user.id;
-  const [choice, persona, defaults] = await Promise.all([
+  const [picks, persona, defaults] = await Promise.all([
     user.features.includes('ai_admin')
       ? db
-          .select({ model: columns[kind] })
+          .select({
+            writingModel: modelChoices.writingModel,
+            visionModel: modelChoices.visionModel,
+            writingUncensoredModel: modelChoices.writingUncensoredModel,
+            visionUncensoredModel: modelChoices.visionUncensoredModel,
+          })
           .from(modelChoices)
           .where(and(eq(modelChoices.userId, userId), eq(modelChoices.id, userId), isNull(modelChoices.deletedAt)))
-          .then(([row]) => row?.model ?? null)
+          .then(([row]) => row ?? null)
       : null,
     db
       .select({ adultContent: personas.adultContent })
@@ -32,5 +37,5 @@ export async function readChosenModelId(
       .then(([row]) => row),
     readModelDefaults(db),
   ]);
-  return resolveModelId(kind, choice, persona?.adultContent, defaults);
+  return resolveModelId(kind, picks, persona?.adultContent, defaults);
 }

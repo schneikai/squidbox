@@ -11,7 +11,6 @@ import {
   compareWritingRequestSchema,
   compareWritingResponseSchema,
   modelDefaultRequestSchema,
-  modelDefaultVariantSchema,
   publishInstructionRequestSchema,
   publishInstructionResponseSchema,
   tagPhotoRequestSchema,
@@ -39,7 +38,7 @@ import { tagPhotoAsync } from './tagging.js';
 import { visionTask, writingTask } from './tasks.js';
 import { orAiUnavailable, VeniceError } from './venice.js';
 import { verifyPhotos } from './tagVerify.js';
-import { readVerification, setModelDefault, setUncensored, setVerification } from './verification.js';
+import { readVerification, setModelDefaults, setUncensored, setVerification } from './verification.js';
 import { VERIFY } from './verify.js';
 import { readLatestRun, runVerify, startRun } from './verifyRuns.js';
 import { loadConfig } from '../config.js';
@@ -257,21 +256,25 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         },
       });
 
-      // PUT /ai/defaults/:kind/:variant — makes the model the kind's default for the variant (regular,
-      // or `unrestricted`, the Uncensored default); answers the catalog with the new defaults.
+      // PUT /ai/defaults/:kind — Make default for everyone: the models become the kind's Default
+      // (`regular`) and Uncensored default (`unrestricted`) for every account, both at once. Each is
+      // checked against Venice's catalog before anything is written; answers the catalog with the
+      // new defaults.
       r.route({
         method: 'PUT',
-        url: '/ai/defaults/:kind/:variant',
+        url: '/ai/defaults/:kind',
         schema: {
-          params: z.object({ kind: aiModelKindSchema, variant: modelDefaultVariantSchema }),
+          params: z.object({ kind: aiModelKindSchema }),
           body: modelDefaultRequestSchema,
           response: { 200: aiModelsResponseSchema },
         },
         handler: async (request) => {
-          const { kind, variant } = request.params;
-          const { modelId } = request.body;
-          await catalogModel(modelId, kind);
-          await setModelDefault(getDb(), { kind, variant, modelId });
+          const { kind } = request.params;
+          const defaults = request.body;
+          for (const modelId of new Set([defaults.regular, defaults.unrestricted])) {
+            await catalogModel(modelId, kind);
+          }
+          await setModelDefaults(getDb(), { kind, defaults });
           return aiModelsAsync();
         },
       });

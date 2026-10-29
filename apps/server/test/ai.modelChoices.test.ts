@@ -6,8 +6,9 @@ import * as schema from '../src/db/schema.js';
 import { readChosenModelId } from '../src/ai/modelChoices.js';
 import type { Db } from '../src/db/client.js';
 
-// readChosenModelId against Postgres (npm run test:db): an ai_admin's choice, else the seeded default
-// (model_defaults) for the persona's Adult content switch, as the app resolves it (resolveModelId).
+// readChosenModelId against Postgres (npm run test:db): an ai_admin's pick of the default for the
+// persona's Adult content switch, else the seeded default (model_defaults) for it, as the app
+// resolves it (resolveModelId).
 // It only reads the app-wide defaults.
 const TEST_URL = process.env.TEST_DATABASE_URL;
 const d = TEST_URL ? describe : describe.skip;
@@ -56,11 +57,26 @@ d('readChosenModelId', () => {
     expect(await readChosenModelId(db, admin, 'vision')).toBe('gemma-4-uncensored');
   });
 
-  it("uses the user's own choice whatever the switch says", async () => {
+  const picks = () =>
+    db.insert(schema.modelChoices).values({
+      ...base,
+      writingModel: { id: 'kimi-k3', name: 'Kimi K3' },
+      visionModel: null,
+      writingUncensoredModel: { id: 'venice-uncensored-1-2', name: 'Venice Uncensored' },
+      visionUncensoredModel: null,
+    });
+
+  it("uses the admin's Uncensored default pick with Adult content on, not their Default pick", async () => {
     await persona(true);
-    await db
-      .insert(schema.modelChoices)
-      .values({ ...base, writingModel: { id: 'kimi-k3', name: 'Kimi K3' }, visionModel: null });
+    await picks();
+    expect(await readChosenModelId(db, admin, 'writing')).toBe('venice-uncensored-1-2');
+    // no pick of that variant: the published default
+    expect(await readChosenModelId(db, admin, 'vision')).toBe('gemma-4-uncensored');
+  });
+
+  it("uses the admin's Default pick with Adult content off, not their Uncensored default pick", async () => {
+    await persona(false);
+    await picks();
     expect(await readChosenModelId(db, admin, 'writing')).toBe('kimi-k3');
   });
 

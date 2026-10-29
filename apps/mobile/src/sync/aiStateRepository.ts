@@ -7,8 +7,8 @@ import type { SyncDb } from './db/types';
 import { inJson } from './inJson';
 
 // The model testing's memory in the library's local ai_* tables (schema.ts): your models per kind,
-// the scores, each kind's prompt and the vision photo set. Their only reader and writer. The model the
-// assistant uses syncs with the account (modelChoicesRepository).
+// the scores, each kind's prompt and the vision photo set. Their only reader and writer. An ai_admin's
+// picks of the defaults sync with the account (modelChoicesRepository).
 
 export type ModelRef = { id: string; name: string };
 // score: null for a model never compared, else its thumbs up or tags that fit (0 and up).

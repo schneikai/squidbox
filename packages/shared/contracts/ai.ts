@@ -32,12 +32,11 @@ export const apiAiModelSchema = z.object({
 });
 export type ApiAiModel = z.infer<typeof apiAiModelSchema>;
 
-// The model the assistant uses for a kind while the user chose none, per the persona's Adult content
-// switch: `unrestricted` (the Uncensored default) while it is on, `regular` while it is off. The
-// variant names are stored and on the wire, so they keep their names.
+// A kind's two defaults, per the persona's Adult content switch: `unrestricted` (the Uncensored
+// default) while it is on, `regular` (the Default) while it is off. The variant names are stored and
+// on the wire, so they keep their names.
 export const MODEL_DEFAULT_VARIANTS = ['regular', 'unrestricted'] as const;
-export const modelDefaultVariantSchema = z.enum(MODEL_DEFAULT_VARIANTS);
-export type ModelDefaultVariant = z.infer<typeof modelDefaultVariantSchema>;
+export type ModelDefaultVariant = (typeof MODEL_DEFAULT_VARIANTS)[number];
 
 // What every account sees on a model, by the key the app uses. Each is a flag of its own.
 export const MODEL_LABEL_NAMES = {
@@ -48,9 +47,13 @@ export const MODEL_LABEL_NAMES = {
 } as const;
 export type ModelLabel = keyof typeof MODEL_LABEL_NAMES;
 
-const variantsSchema = z.object({ regular: z.string(), unrestricted: z.string() });
+// A kind's two defaults, by variant: model ids.
+const modelDefaultVariantsSchema = z.object({ regular: z.string(), unrestricted: z.string() });
 // The defaults of each kind, from the server's model_defaults (an ai_admin sets them in the app).
-export const modelDefaultsSchema = z.object({ writing: variantsSchema, vision: variantsSchema });
+export const modelDefaultsSchema = z.object({
+  writing: modelDefaultVariantsSchema,
+  vision: modelDefaultVariantsSchema,
+});
 export type ModelDefaults = z.infer<typeof modelDefaultsSchema>;
 
 // GET /ai/models — also the answer of PUT /ai/verification, /ai/uncensored and /ai/defaults, so the
@@ -72,8 +75,12 @@ export type VerificationRequest = z.infer<typeof verificationRequestSchema>;
 export const uncensoredRequestSchema = z.object({ uncensored: z.boolean().nullable() });
 export type UncensoredRequest = z.infer<typeof uncensoredRequestSchema>;
 
-// PUT /ai/defaults/:kind/:variant — the model that becomes that default.
-export const modelDefaultRequestSchema = z.object({ modelId: z.string().min(1) });
+// PUT /ai/defaults/:kind — Make default for everyone: both defaults of the kind at once, so a failure
+// leaves both as they were.
+export const modelDefaultRequestSchema = z.object({
+  regular: z.string().min(1),
+  unrestricted: z.string().min(1),
+});
 export type ModelDefaultRequest = z.infer<typeof modelDefaultRequestSchema>;
 
 // PUT /ai/instructions/:kind — Make default for everyone: the text becomes the kind's default for

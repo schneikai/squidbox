@@ -1,9 +1,16 @@
 // The marks an ai_admin sets for the whole app (Settings → Assistant → a model list → a model): which models
 // are verified for each kind, whether a model counts as uncensored (an override of Venice's label,
-// or none to follow it), and the defaults the assistant uses while a user chose none. Server-owned
+// or none to follow it), and the defaults every account uses (an ai_admin's own picks apply to them,
+// modelChoices.ts). Server-owned
 // tables, read by every account through GET /ai/models, never synced (sync-design §12).
 import { and, eq } from 'drizzle-orm';
-import { modelDefaultsSchema, type AiModelKind, type ModelDefaultVariant, type ModelDefaults } from '@squidbox/shared';
+import {
+  MODEL_DEFAULT_VARIANTS,
+  modelDefaultsSchema,
+  type AiModelKind,
+  type ModelDefaultVariant,
+  type ModelDefaults,
+} from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import { modelDefaults, uncensoredOverrides, verifiedModels } from '../db/schema.js';
 
@@ -85,15 +92,21 @@ export async function setUncensored(
 }
 
 /**
- * Makes the model the default of `kind` for `variant`. It changes no label: Verified and Uncensored
- * are flags of their own.
+ * Makes the models the two defaults of `kind` (Make default for everyone), in one transaction so a
+ * failure leaves both as they were. It changes no label: Verified and Uncensored are flags of their
+ * own.
  */
-export async function setModelDefault(
+export async function setModelDefaults(
   db: Db,
-  { kind, variant, modelId }: { kind: AiModelKind; variant: ModelDefaultVariant; modelId: string },
+  { kind, defaults }: { kind: AiModelKind; defaults: Record<ModelDefaultVariant, string> },
 ): Promise<void> {
-  await db
-    .insert(modelDefaults)
-    .values({ kind, variant, modelId })
-    .onConflictDoUpdate({ target: [modelDefaults.kind, modelDefaults.variant], set: { modelId } });
+  await db.transaction(async (tx) => {
+    for (const variant of MODEL_DEFAULT_VARIANTS) {
+      const modelId = defaults[variant];
+      await tx
+        .insert(modelDefaults)
+        .values({ kind, variant, modelId })
+        .onConflictDoUpdate({ target: [modelDefaults.kind, modelDefaults.variant], set: { modelId } });
+    }
+  });
 }

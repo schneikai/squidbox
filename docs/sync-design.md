@@ -896,15 +896,19 @@ of null that wins or loses by its clock like any edit. A text equal to the app's
 stored as null. The schema each reply is read with (`chat_reply`, the tags list) is the server's and never
 stored.
 
-**model_choices** (Settings → Assistant → Models: the model the assistant uses). Synced per kind:
-`writingModel` and `visionModel`, each `{ id, name }` (the name for a model Venice no longer offers)
-or null for the app's default, plus the base columns. One record per user with the user's id as its
-id, like `personas`, so a choice made on one device is the choice on all of them. The model list to
-choose from and the model testing (the compare prompts, the scores and the vision compare's photos)
-stay in the library's local `ai_*` tables: they are a developer tool for one device. Taking the
-chosen model off a device's list leaves the choice as it is. Choosing a model is an ai_admin tool:
-for any other account the server ignores the stored choice (it stays as it is) and uses the default
-for the persona's Adult content switch, from the server's `model_defaults` (§12).
+**model_choices** (Settings → Assistant → Writing or Vision → a model: the Default and Uncensored
+default switches). An ai_admin's picks of the defaults, per kind and variant: `writingModel` and
+`visionModel` the Default (`regular`), `writingUncensoredModel` and `visionUncensoredModel` the
+Uncensored default (`unrestricted`, optional so a push from an older build keeps them), each
+`{ id, name }` (the name for a model Venice no longer offers) or null for the published default, plus
+the base columns. One record per user with the user's id as its id, like `personas`, so a pick made
+on one device is the pick on all of them. A pick equal to the published default is stored as null,
+and Make default for everyone clears the picks it made equal. The model list to choose from and the
+model testing (the compare prompts, the scores and the vision compare's photos) stay in the library's
+local `ai_*` tables: they are a developer tool for one device. Taking a picked model off a device's
+list leaves the pick as it is. The server uses the picks for an ai_admin only, the one for the
+persona's Adult content switch: for any other account it ignores the stored picks (they stay as they
+are) and uses the published default for that switch, from the server's `model_defaults` (§12).
 
 The per-user records are written by `saveUserRecord` (`userRecord.ts`), which brings a tombstoned
 record back instead of inserting it again.
@@ -952,7 +956,8 @@ gone. Imported records kept deterministic uuid v5 ids, and their files stay at t
 - Users are isolated; there is no cross-user sharing (§2a).
 - What an ai_admin sets for the whole app — which models are verified for each kind
   (`verified_models`), whether a model counts as uncensored where that overrides Venice's label
-  (`uncensored_overrides`), the defaults (`model_defaults`), the Verify runs (`verify_runs`) and
+  (`uncensored_overrides`), the defaults (`model_defaults`, set by Make default for everyone from an
+  admin's picks, both variants of a kind at once), the Verify runs (`verify_runs`) and
   the instructions published for every account (`app_instructions`, Make default for everyone) —
   lives in plain server tables outside the collection registry: no `user_id`, no `server_seq`
   trigger, never pushed or pulled. Every account reads the marks, the defaults and the published

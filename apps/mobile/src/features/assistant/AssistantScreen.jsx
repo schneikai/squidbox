@@ -13,8 +13,6 @@ import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import modelKindText from '@/features/model-compare/modelKindText';
-import useAiCatalog from '@/hooks/useAiCatalog';
-import useChosenModels from '@/hooks/useChosenModels';
 import useHasFeature from '@/hooks/useHasFeature';
 import useInstructions from '@/hooks/useInstructions';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
@@ -25,12 +23,10 @@ import { schema } from '@/sync/db/client';
 import { countFavorites } from '@/sync/favoritesRepository';
 import { countPromptButtons } from '@/sync/promptButtonsRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
-import modelsOfKind from '@/utils/ai/modelsOfKind';
 
 // Settings → Assistant: how the assistant writes as you, its prompt buttons, the posts it writes like
-// (Favorites), its Rules, and for an ai_admin account the Admin section (the models it uses, what it
-// is told before each request: Instructions, what is left on the Venice account). Every other account
-// uses the default models, which the Adult content switch picks between.
+// (Favorites), its Rules, and for an ai_admin account the Admin section (the model lists, what it is
+// told before each request: Instructions, what is left on the Venice account).
 export default function AssistantScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
@@ -79,7 +75,7 @@ export default function AssistantScreen() {
           />
         </Section>
         {isAiAdmin && (
-          <AdminSection persona={persona}>
+          <AdminSection>
             <InstructionsRow />
           </AdminSection>
         )}
@@ -88,47 +84,23 @@ export default function AssistantScreen() {
   );
 }
 
-// Admin, for an ai_admin account only: the models the assistant uses (for `persona`, usePersona's),
-// then `children` (Instructions). Rendered only for one, so no other account reads its model choices
-// or loads Venice's models here.
-function AdminSection({ persona, children }) {
+// Admin, for an ai_admin account only: the model lists of each kind (Writing, Vision), then
+// `children` (Instructions), and the Venice balance.
+function AdminSection({ children }) {
   const navigation = useNavigation();
-  const { models: catalog, defaults } = useAiCatalog();
-  const { chosen, usedId } = useChosenModels(persona, defaults);
-
-  // The chosen model's name, or a muted "No longer available" once Venice dropped it (its list
-  // says which; a catalog still loading or failed to load leaves the plain name). The name and the
-  // label together would wrap the row's label. Without a choice, the default it uses (for the
-  // persona's Adult content switch), once the catalog names it.
-  function chosenText(kind) {
-    if (chosen === undefined || persona === undefined) return { value: null, isGone: false };
-    const model = chosen[kind];
-    if (!model) {
-      const defaultId = usedId(kind);
-      const name = catalog && modelsOfKind(catalog, kind).find(({ id }) => id === defaultId)?.name;
-      return { value: name ?? null, isGone: false };
-    }
-    const isGone = !!catalog && !modelsOfKind(catalog, kind).some(({ id }) => id === model.id);
-    return { value: isGone ? 'No longer available' : model.name, isGone };
-  }
 
   return (
     <>
       <ScreenSectionHeader title="Admin" />
       <Section>
-        {aiModelKindSchema.options.map((kind) => {
-          const { value, isGone } = chosenText(kind);
-          return (
-            <Row
-              key={kind}
-              label={modelKindText[kind].title}
-              value={value}
-              isValueMuted={isGone}
-              onPress={() => navigation.navigate('ModelListScreen', { kind })}
-              chevron
-            />
-          );
-        })}
+        {aiModelKindSchema.options.map((kind) => (
+          <Row
+            key={kind}
+            label={modelKindText[kind].title}
+            onPress={() => navigation.navigate('ModelListScreen', { kind })}
+            chevron
+          />
+        ))}
         {children}
       </Section>
       <VeniceBalanceFooter />

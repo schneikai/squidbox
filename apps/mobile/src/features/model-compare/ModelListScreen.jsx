@@ -1,6 +1,7 @@
 import { COMPARE_MIN_MODELS } from '@squidbox/shared';
 import { StyleSheet } from 'react-native';
 
+import MakeDefaultForEveryone from './MakeDefaultForEveryone';
 import ModelRow from './ModelRow';
 import modelKindText from './modelKindText';
 
@@ -26,13 +27,14 @@ import isVerifiedModel from '@/utils/ai/isVerifiedModel';
 import confirmAsync from '@/utils/confirmAsync';
 
 // Your models of one kind (route param `kind`: writing | vision), with their labels, the one the
-// assistant uses, and the way to add them; a row opens the model's page (ModelScreen: its choice,
-// labels, Verify and Remove), their scores from Compare, and Compare. An ai_admin tool.
+// assistant uses, and the way to add them; a row opens the model's page (ModelScreen: its labels,
+// Verify and Remove), their scores from Compare, and Compare. The list ends with what everyone uses
+// and Make default for everyone (MakeDefaultForEveryone). An ai_admin tool.
 export default function ModelListScreen({ navigation, route }) {
   const { kind } = route.params;
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const paddingBottom = useFloatingPrimaryActionPadding();
-  const { catalog, defaults, error, retry, rows, chosenId } = useYourModels(kind);
+  const { catalog, defaults, yourDefaults, error, retry, rows, usedId } = useYourModels(kind);
 
   const availableCount = rows?.filter((row) => row.model !== null).length ?? 0;
   const hasScores = rows?.some(({ score }) => score !== null) ?? false;
@@ -62,8 +64,8 @@ export default function ModelListScreen({ navigation, route }) {
               model={row.model}
               kind={kind}
               score={row.score}
-              defaults={defaults}
-              isChosen={row.id === chosenId}
+              yourDefaults={yourDefaults}
+              isUsed={row.id === usedId}
               onOpen={() => handleOpen(row)}
             />
           ))}
@@ -71,6 +73,9 @@ export default function ModelListScreen({ navigation, route }) {
         {hasVerified && <SectionFooter>{text.verified}</SectionFooter>}
         <SectionFooter>{text.footer}</SectionFooter>
         {text.note && <SectionFooter>{text.note}</SectionFooter>}
+        {yourDefaults && (
+          <MakeDefaultForEveryone kind={kind} catalog={catalog} defaults={defaults} yourDefaults={yourDefaults} />
+        )}
       </>
     );
   }

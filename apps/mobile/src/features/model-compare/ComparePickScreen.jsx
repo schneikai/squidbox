@@ -34,7 +34,7 @@ export default function ComparePickScreen({ navigation, route }) {
   const isVision = kind === 'vision';
   const paddingBottom = useFloatingPrimaryActionPadding();
   const { openAssetPicker } = useAssetPicker();
-  const { rows, defaults, chosenId, error, retry } = useYourModels(kind);
+  const { rows, yourDefaults, usedId, error, retry } = useYourModels(kind);
   // Your changes only: null keeps the default, the current choice ticked.
   const [tickedIds, setTickedIds] = useState(null);
   // Every photo picked here, of which the first VISION_COMPARE_MAX_PHOTOS count; null keeps the
@@ -50,7 +50,7 @@ export default function ComparePickScreen({ navigation, route }) {
   );
 
   const models = rows?.filter((row) => row.model !== null) ?? [];
-  const ticked = tickedIds ?? (models.some(({ id }) => id === chosenId) ? [chosenId] : []);
+  const ticked = tickedIds ?? (models.some(({ id }) => id === usedId) ? [usedId] : []);
   const modelCount = ticked.length;
   const hasPhotos = !isVision || (photos?.length ?? 0) > 0;
   const canStart = modelCount >= COMPARE_MIN_MODELS && hasPhotos;
@@ -102,9 +102,9 @@ export default function ComparePickScreen({ navigation, route }) {
                 model={model}
                 kind={kind}
                 score={score}
-                defaults={defaults}
+                yourDefaults={yourDefaults}
                 isTicked={ticked.includes(id)}
-                isCurrent={id === chosenId}
+                isCurrent={id === usedId}
                 onToggle={() => setTickedIds(toggleItem(ticked, id))}
               />
             ))}
