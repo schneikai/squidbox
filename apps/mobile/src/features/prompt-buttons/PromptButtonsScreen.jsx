@@ -2,7 +2,6 @@ import { useNavigation } from '@react-navigation/native';
 import { StyleSheet } from 'react-native';
 
 import PromptButtonGroup from './PromptButtonGroup';
-import { PLACEMENTS } from './placementText';
 import usePromptButtons from './usePromptButtons';
 
 import DetailScrollView from '@/components/DetailScrollView';
@@ -12,16 +11,17 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSeedPromptButtons from '@/hooks/useSeedPromptButtons';
+import { layout } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { movePromptButton } from '@/sync/promptButtonsRepository';
 import { requestSync } from '@/sync/worker';
 
-// Settings → Assistant → Prompt buttons: the chat's one-tap prompts, in three groups. Reachable from
+// Settings → Assistant → Prompt buttons: the chat's one-tap prompts, one list. Reachable from
 // anywhere (a root screen), so the chat opens it too.
 export default function PromptButtonsScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
-  const groups = usePromptButtons();
+  const buttons = usePromptButtons();
   useSeedPromptButtons();
   const haptics = useHaptics();
 
@@ -29,8 +29,8 @@ export default function PromptButtonsScreen() {
     navigation.navigate('PromptButtonScreen', { id: button.id });
   }
 
-  function handleAdd(placement) {
-    navigation.navigate('PromptButtonScreen', { placement });
+  function handleAdd() {
+    navigation.navigate('PromptButtonScreen', {});
   }
 
   function handleMove(id, afterId) {
@@ -46,18 +46,8 @@ export default function PromptButtonsScreen() {
     <Page>
       <FloatingDetailHeader title="Prompt buttons" onBack={() => navigation.goBack()} />
       <DetailScrollView>
-        <IntroText style={styles.intro}>Tap a button to edit it, drag to move it.</IntroText>
-        {groups &&
-          PLACEMENTS.map((placement) => (
-            <PromptButtonGroup
-              key={placement}
-              placement={placement}
-              buttons={groups[placement]}
-              onOpen={handleOpen}
-              onAdd={handleAdd}
-              onMove={handleMove}
-            />
-          ))}
+        <IntroText style={styles.intro}>Add shortcuts for requests you make on every post.</IntroText>
+        {buttons && <PromptButtonGroup buttons={buttons} onOpen={handleOpen} onAdd={handleAdd} onMove={handleMove} />}
       </DetailScrollView>
     </Page>
   );
@@ -66,5 +56,6 @@ export default function PromptButtonsScreen() {
 const styles = StyleSheet.create({
   intro: {
     marginHorizontal: 4,
+    marginBottom: layout.introGap,
   },
 });

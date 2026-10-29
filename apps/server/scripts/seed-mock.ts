@@ -19,6 +19,7 @@ import {
   DEFAULT_PROMPT_BUTTONS,
   initialKeys,
   keyBetween,
+  ONE_LIST_PLACEMENT,
   type AlbumAssetRecord,
   type AlbumRecord,
   type AssetRecord,
@@ -134,64 +135,54 @@ const POSTS: { text: string; media: number[]; postedDaysAgo: number | null; isFa
   { text: 'Where it all started', media: [0, 8], postedDaysAgo: 400 },
 ];
 
-// The app's default prompt buttons (by placement and name) in his words, for Bluesky: Thread becomes a
-// print teaser, Behind the scenes his photo of the week and Funnier Drier (under the caption and in
-// the chat), under the same ids. And a trip recap.
+// The app's default prompt buttons (by name) in his words, for Bluesky: Thread becomes a print teaser,
+// Behind the scenes his photo of the week and Funnier Drier, under the same ids. And a trip recap.
 const OVERRIDES: Record<string, Pick<NewPromptButton, 'name' | 'icon' | 'prompt'>> = {
-  'post:Repost ideas': {
+  'Repost ideas': {
     name: 'Repost ideas',
     icon: 'repeat',
     prompt:
       "Write 3 fresh Bluesky posts that bring this back for people who missed it. Same trip, a new angle each time: the view, the moment, how it felt. Don't repeat the original wording.",
   },
-  'post:Follow-up with link': {
+  'Follow-up with link': {
     name: 'Follow-up with link',
     icon: 'link',
     prompt: `Write a short Bluesky reply to this post that points people to the rest of the trip on my profile. Say what else is there in one line. End with the link: ${PROFILE_LINK}`,
   },
-  'post:Thread': {
+  'Thread': {
     name: 'Print teaser',
     icon: 'printer',
     prompt:
       'Write a Bluesky post saying this photo is coming as a print. What makes it worth a wall, in one or two lines. No hard sell.',
   },
-  'newPost:Caption': {
+  'Caption': {
     name: 'Caption',
     icon: 'quote',
     prompt: 'Write 3 captions for these photos. Short, for Bluesky, one line each. Name the place only by its region.',
   },
-  'newPost:Behind the scenes': {
+  'Behind the scenes': {
     name: 'Photo of the week',
     icon: 'award',
     prompt:
       'Write a Bluesky thread of 3 short posts for my photo of the week: the shot, where and when, and one thing about how I took it.',
   },
-  'caption:Shorter': {
+  Shorter: {
     name: 'Shorter',
     icon: 'scissors',
-    prompt: 'Make this shorter. Keep the first line, cut the rest.',
+    prompt:
+      'Make it shorter: the newest posts in this chat, or my caption when there are none yet. Keep the first line, cut the rest.',
   },
-  'caption:Funnier': {
+  Funnier: {
     name: 'Drier',
     icon: 'feather',
-    prompt: 'Make this drier and a little funnier. Same idea, one wry twist.',
-  },
-  'refine:Shorter': {
-    name: 'Shorter',
-    icon: 'scissors',
-    prompt: 'Make each post shorter. Keep the first line, cut the rest.',
-  },
-  'refine:Funnier': {
-    name: 'Drier',
-    icon: 'feather',
-    prompt: 'Make each post drier and a little funnier. Same idea, one wry twist.',
+    prompt:
+      'Make it drier and a little funnier: the newest posts in this chat, or my caption when there are none yet. Same idea, one wry twist.',
   },
 };
 const PROMPT_BUTTONS: NewPromptButton[] = [
-  ...DEFAULT_PROMPT_BUTTONS.map((button) => ({ ...button, ...OVERRIDES[`${button.placement}:${button.name}`] })),
+  ...DEFAULT_PROMPT_BUTTONS.map((button) => ({ ...button, ...OVERRIDES[button.name] })),
   {
     id: mockUuid('prompt-button:trip-recap'),
-    placement: 'newPost',
     name: 'Trip recap',
     icon: 'mountain',
     prompt:
@@ -283,12 +274,16 @@ const instructions: InstructionRecord[] = [
   },
 ];
 
-// In each placement's order, positioned like the app's seed (seedPromptButtons).
-const lastPosition = new Map<string, string | null>();
+// In order, positioned like the app's seed (seedPromptButtons).
+let lastPosition: string | null = null;
 const promptButtons: PromptButtonRecord[] = PROMPT_BUTTONS.map((button) => {
-  const position = keyBetween(lastPosition.get(button.placement) ?? null, null);
-  lastPosition.set(button.placement, position);
-  return { ...baseRecord(`prompt-button:${button.id}`, now - 60 * DAY), ...button, position };
+  lastPosition = keyBetween(lastPosition, null);
+  return {
+    ...baseRecord(`prompt-button:${button.id}`, now - 60 * DAY),
+    ...button,
+    placement: ONE_LIST_PLACEMENT,
+    position: lastPosition,
+  };
 });
 
 const favorites: FavoriteRecord[] = MOCK_FAVORITES.map((favorite, index) => ({

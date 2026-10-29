@@ -12,6 +12,7 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import useInstructions from '@/hooks/useInstructions';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import { layout } from '@/styles/designTokens';
 
 // Settings → Assistant → Instructions: what the assistant is told before each kind of request, one
 // row per kind with the first line of its text, a Changed badge while it isn't the app's. The judge
@@ -55,6 +56,7 @@ export default function InstructionsScreen() {
 const styles = StyleSheet.create({
   intro: {
     marginHorizontal: 4,
+    marginBottom: layout.introGap,
   },
   changed: {
     alignSelf: 'center',

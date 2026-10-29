@@ -121,6 +121,5 @@ export default function ModelListScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   intro: {
     marginHorizontal: 4,
-    paddingBottom: 4,
   },
 });

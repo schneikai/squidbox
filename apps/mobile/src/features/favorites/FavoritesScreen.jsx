@@ -14,6 +14,7 @@ import UndoBar from '@/components/UndoBar';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import { layout } from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
 import { readFavorites } from '@/sync/favoritesRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
@@ -94,9 +95,9 @@ export default function FavoritesScreen() {
 const styles = StyleSheet.create({
   intro: {
     marginHorizontal: 4,
+    marginBottom: layout.introGap,
   },
   cards: {
-    marginTop: 16,
     gap: 12,
   },
 });

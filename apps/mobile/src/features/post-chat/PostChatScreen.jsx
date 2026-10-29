@@ -1,24 +1,23 @@
-import { useCallback, useEffect, useRef } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { StyleSheet } from 'react-native';
 import Animated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AssistantMessage from './AssistantMessage';
 import ChatComposer from './ChatComposer';
 import ChatSubjectCard from './ChatSubjectCard';
-import RefineRow from './RefineRow';
 import UserMessage from './UserMessage';
+import promptTurn from './promptTurn';
 import usePostChat from './usePostChat';
 
-import ChipRow from '@/components/ChipRow';
 import IconButton from '@/components/IconButton';
-import IntroText from '@/components/IntroText';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import { SCREEN_PADDING } from '@/constants';
 import useFavoriteToggle from '@/features/favorites/useFavoriteToggle';
-import PromptButtonChip from '@/features/prompt-buttons/PromptButtonChip';
+import EditPromptButtonsButton from '@/features/prompt-buttons/EditPromptButtonsButton';
+import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import usePromptButtons from '@/features/prompt-buttons/usePromptButtons';
 import useCloseWhen from '@/hooks/useCloseWhen';
 import useHaptics from '@/hooks/useHaptics';
@@ -30,18 +29,21 @@ const ASK_ANYTHING = 'Ask anything';
 
 /**
  * The assistant chat about the post being written (`{ sessionId }`, the editor's chat; `prompt`, a
- * prompt button's `{ label, content }`, waits in the composer): what it's about (ChatSubjectCard),
- * the user's turns and the assistant's replies with their options, the Refine buttons under the last
- * reply once the chat has options, and the composer (usePostChat does the sending). Use puts an
- * option into the caption and goes back to the editor. The chat lasts while the editor is open.
+ * prompt button's `{ label, content }`, waits in the composer): what it's about (ChatSubjectCard,
+ * left out for a new post without photos yet), the user's turns and the assistant's replies with
+ * their options, and the prompt buttons over the composer, a tap putting the prompt in it
+ * (usePostChat does the sending). Use puts an option into the caption and goes back to the editor.
+ * The chat lasts while the editor is open.
  */
 export default function PostChatScreen({ route, navigation }) {
   const { sessionId, prompt } = route.params;
   const isAvailable = useLeaveWhenUnavailable();
-  const { chat, assets, tagging, mentions, isWaiting, send, sendButton, moreLikeThis, retry } = usePostChat(sessionId);
+  const { chat, assets, tagging, mentions, isWaiting, send, moreLikeThis, retry } = usePostChat(sessionId);
   useCloseWhen(chat === null);
   const haptics = useHaptics();
-  const groups = usePromptButtons();
+  const buttons = usePromptButtons();
+  // What waits in the composer: a new `key` remounts it with the prompt a button put there.
+  const [seed, setSeed] = useState(() => ({ key: 0, turn: prompt }));
   const favorites = useFavoriteToggle();
   const scrollRef = useRef(null);
   // The title fades as the messages scroll under the header, as on the other sheets (ModalHeader).
@@ -61,8 +63,8 @@ export default function PostChatScreen({ route, navigation }) {
   }));
 
   const last = messages?.[messages.length - 1];
-  // The Refine buttons change the newest options, so they show once there are any.
-  const hasOptions = messages?.some((message) => message.status === 'done' && message.postOptions.length > 0);
+  // A new post's card would say only "New post" until it has photos.
+  const hasSubject = chat?.kind !== 'draft' || assets.length > 0;
   const applyText = chat?.canApply ? chat.applyText : null;
 
   const handleUse = useCallback(
@@ -73,6 +75,10 @@ export default function PostChatScreen({ route, navigation }) {
     },
     [applyText, haptics, navigation],
   );
+
+  function handlePromptButton(button) {
+    setSeed((current) => ({ key: current.key + 1, turn: promptTurn(button) }));
+  }
 
   // There is no chat history yet, so a cleared chat is gone for good.
   async function handleNewChat() {
@@ -109,23 +115,15 @@ export default function PostChatScreen({ route, navigation }) {
         onContentSizeChange={handleContentSizeChange}
         contentContainerStyle={styles.content}
       >
-        <ChatSubjectCard
-          kind={chat.kind}
-          assets={assets}
-          tagging={tagging}
-          tagEdits={chat.tagEdits}
-          onEditTags={chat.editTags}
-          mentions={mentions}
-        />
-        {messages.length === 0 && (
-          <View style={styles.empty}>
-            <IntroText>Ask anything about this post, talk an idea through, or start from a button.</IntroText>
-            <ChipRow>
-              {(groups?.newPost ?? []).map((button) => (
-                <PromptButtonChip key={button.id} button={button} onPress={sendButton} />
-              ))}
-            </ChipRow>
-          </View>
+        {hasSubject && (
+          <ChatSubjectCard
+            kind={chat.kind}
+            assets={assets}
+            tagging={tagging}
+            tagEdits={chat.tagEdits}
+            onEditTags={chat.editTags}
+            mentions={mentions}
+          />
         )}
         {messages.map((message, index) =>
           message.role === 'user' ? (
@@ -142,13 +140,19 @@ export default function PostChatScreen({ route, navigation }) {
             />
           ),
         )}
-        {hasOptions && last?.role === 'assistant' && last.status === 'done' && (
-          <RefineRow buttons={groups?.refine ?? []} onSend={sendButton} />
-        )}
       </Animated.ScrollView>
       <Animated.View style={[styles.composer, composerStyle]}>
+        <PromptButtonRow
+          buttons={buttons ?? []}
+          onPress={handlePromptButton}
+          style={styles.buttons}
+          contentContainerStyle={styles.buttonsContent}
+        >
+          <EditPromptButtonsButton />
+        </PromptButtonRow>
         <ChatComposer
-          seed={prompt}
+          key={seed.key}
+          seed={seed.turn}
           placeholder={messages.length === 0 ? ASK_ANYTHING : 'Message'}
           isDisabled={chat.isSending}
           isWaiting={isWaiting}
@@ -166,12 +170,16 @@ const styles = StyleSheet.create({
     paddingBottom: SCREEN_PADDING,
     gap: 12,
   },
-  empty: {
-    gap: 12,
-    paddingTop: 8,
-  },
   composer: {
     paddingTop: 8,
+    paddingHorizontal: SCREEN_PADDING,
+    gap: 8,
+  },
+  // The buttons scroll to the screen's edges, under the composer's inset.
+  buttons: {
+    marginHorizontal: -SCREEN_PADDING,
+  },
+  buttonsContent: {
     paddingHorizontal: SCREEN_PADDING,
   },
 });

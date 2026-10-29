@@ -2,7 +2,6 @@ import { CHAT_LIMITS } from '@squidbox/shared';
 import { useCallback, useMemo, useRef, useState } from 'react';
 
 import postTags from './postTags';
-import promptTurn from './promptTurn';
 import useChatSession from './useChatSession';
 import useMentions from './useMentions';
 
@@ -19,8 +18,8 @@ const MORE_LIKE_THIS = 'More like this';
  * (useChatSession; null once closed), its post's `assets`, their `tagging` (useAssetTags) and the
  * `mentions` (useMentions), and the sends: `send(turn)` waits for the photos being tagged
  * (`isWaiting`), then sends with the post as it is then (the turn cut to CHAT_LIMITS.message); it
- * resolves to whether the turn went. `sendButton(button)`, `moreLikeThis(text)` and `retry()` (the
- * last reply, after it failed) do the same.
+ * resolves to whether the turn went. `moreLikeThis(text)` and `retry()` (the last reply, after it
+ * failed) do the same.
  */
 export default function usePostChat(sessionId) {
   const chat = useChatSession(sessionId);
@@ -78,8 +77,6 @@ export default function usePostChat(sessionId) {
     [chat, withContext],
   );
 
-  const sendButton = useCallback((button) => send(promptTurn(button)), [send]);
-
   // The option stays whole: the instruction (an ai_admin's may be long) gives way to it.
   const moreLikeThis = useCallback(
     (text) => {
@@ -92,5 +89,5 @@ export default function usePostChat(sessionId) {
 
   const retry = useCallback(() => withContext((context) => chat.retry(context)), [chat, withContext]);
 
-  return { chat, assets, tagging, mentions, isWaiting, send, sendButton, moreLikeThis, retry };
+  return { chat, assets, tagging, mentions, isWaiting, send, moreLikeThis, retry };
 }

@@ -15,7 +15,7 @@ import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorV
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
 import useBackupCounts from '@/features/cloud-sync/useBackupCounts';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
-import { colors, lineHeights, typography } from '@/styles/designTokens';
+import { colors, layout, lineHeights, typography } from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
 import { readUploadFailures } from '@/sync/readUploadFailures';
 
@@ -96,8 +96,8 @@ export default function BackupScreen() {
 
 const styles = StyleSheet.create({
   intro: {
-    paddingHorizontal: SCREEN_PADDING,
-    paddingBottom: 12,
+    marginHorizontal: 4,
+    marginBottom: layout.introGap,
   },
   panel: {
     paddingHorizontal: SCREEN_PADDING,

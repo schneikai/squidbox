@@ -3,8 +3,6 @@ import { useRef, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import IconPicker from './IconPicker';
-import SegmentedControl from './SegmentedControl';
-import placementText, { PLACEMENTS } from './placementText';
 
 import CardTextField from '@/components/CardTextField';
 import DetailScrollView from '@/components/DetailScrollView';
@@ -32,19 +30,18 @@ import getNewItemId from '@/utils/getNewItemId';
 const { shape } = promptButtonCollection.schema;
 const NAME_MAX_LENGTH = shape.name.maxLength;
 const PROMPT_MAX_LENGTH = shape.prompt.maxLength;
-const SHOW_IT_ITEMS = PLACEMENTS.map((key) => ({ key, label: placementText[key].title }));
 // A button can't be without these.
 const REQUIRED_FIELDS = ['name', 'prompt'];
 
-// One prompt button, saved as you type: `{ id }` edits it, `{ placement }` adds one there, created
+// One prompt button, saved as you type: `{ id }` edits it, `{}` adds one at the end, created
 // once it has a name and a prompt and dropped if you leave without them. Reachable from anywhere (a
 // root screen, one per button), so the chat opens it too.
 export default function PromptButtonScreen({ route, navigation }) {
-  const { id, placement } = route.params;
+  const { id } = route.params;
   const isAvailable = useLeaveWhenUnavailable();
   const seed = useSeedOrClose(
-    (db) => (id ? readPromptButton(db, id) : Promise.resolve({ name: '', prompt: '', placement, icon: null })),
-    id ?? placement,
+    (db) => (id ? readPromptButton(db, id) : Promise.resolve({ name: '', prompt: '', icon: null })),
+    id ?? 'new',
     'This prompt button was deleted.',
   );
   if (!isAvailable || !seed) return null;
@@ -56,13 +53,12 @@ function PromptButtonEditor({ id, seed, navigation }) {
   const [draft, setDraft] = useState({
     name: seed.name,
     prompt: seed.prompt,
-    placement: seed.placement,
     icon: seed.icon,
   });
   // The button's id once there is one (a new one gets it with its name and prompt).
   const idRef = useRef(id);
   const { flush, end } = useSaveAsYouType(
-    { name: draft.name.trim(), prompt: draft.prompt.trim(), placement: draft.placement, icon: draft.icon },
+    { name: draft.name.trim(), prompt: draft.prompt.trim(), icon: draft.icon },
     saveFields,
   );
 
@@ -106,7 +102,7 @@ function PromptButtonEditor({ id, seed, navigation }) {
     }
   }
 
-  // A copy of the button as it is now at the end of its group, opened in place of this one.
+  // A copy of the button as it is now at the end of the list, opened in place of this one.
   async function handleDuplicate() {
     await flush();
     await finish(async () => {
@@ -117,7 +113,6 @@ function PromptButtonEditor({ id, seed, navigation }) {
         id: getNewItemId(),
         name: `${button.name} copy`.slice(0, NAME_MAX_LENGTH),
         prompt: button.prompt,
-        placement: button.placement,
         icon: button.icon,
       });
       navigation.replace('PromptButtonScreen', { id: copy.id });
@@ -158,16 +153,9 @@ function PromptButtonEditor({ id, seed, navigation }) {
             value={draft.prompt}
             onChangeText={(text) => setField('prompt', text)}
             onBlur={() => flush()}
-            placeholder="e.g. Make each option shorter. Keep the hook, cut the rest."
+            placeholder="e.g. Make it shorter. Keep the hook, cut the rest."
             maxLength={PROMPT_MAX_LENGTH}
             minHeight={scale(140)}
-          />
-        </Field>
-        <Field label="Show it">
-          <SegmentedControl
-            items={SHOW_IT_ITEMS}
-            activeKey={draft.placement}
-            onSelect={(key) => setField('placement', key)}
           />
         </Field>
         <Field label="Icon">

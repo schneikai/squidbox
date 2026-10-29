@@ -5,8 +5,8 @@ import PromptButtonsScreen from '@/features/prompt-buttons/PromptButtonsScreen';
 import RuleScreen from '@/features/voice/RuleScreen';
 import VoiceScreen from '@/features/voice/VoiceScreen';
 
-// One screen per prompt button, and one Add per placement.
-const promptButtonId = ({ params }) => params?.id ?? `new:${params?.placement}`;
+// One screen per prompt button, and one Add.
+const promptButtonId = ({ params }) => params?.id ?? 'new';
 
 // One screen per favorite, and one Add.
 const favoriteId = ({ params }) => params?.id ?? 'new';

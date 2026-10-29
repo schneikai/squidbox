@@ -24,7 +24,6 @@ export default function ChatTagsSheet({ isVisible, onClose, tags, onEditTags, is
           maxTagLength={ASSET_TAG_LIMITS.tag}
           isDisabled={isDisabled}
         />
-        <IntroText>For this post only: your photos keep their own tags.</IntroText>
       </View>
     </BottomSheet>
   );

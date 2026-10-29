@@ -16,6 +16,7 @@ import modelKindText from '@/features/model-compare/modelKindText';
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useYourModels from '@/hooks/useYourModels';
+import { layout } from '@/styles/designTokens';
 import { removeYourModel, resetScores } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 import modelDetailText from '@/utils/ai/modelDetailText';
@@ -110,6 +111,6 @@ export default function ModelScreen({ route }) {
 const styles = StyleSheet.create({
   intro: {
     marginHorizontal: 4,
-    paddingBottom: 12,
+    marginBottom: layout.introGap,
   },
 });

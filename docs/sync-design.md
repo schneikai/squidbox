@@ -858,15 +858,14 @@ new clock. A save names only the fields the user changed in the editor, the firs
 (its record goes whole, but only those fields carry clocks), so a device that hasn't pulled
 another's persona yet never overwrites it with empty fields. No field groups.
 
-**prompt_buttons** (the chat's one-tap prompts). Synced: `name`, `prompt`, `placement` (`post` on a
-post, `newPost` on a new post, `caption` under the caption in the editor, `refine` under every reply
-in the chat), `icon` (an Icon name or null), `position` (a fractional-index key, the order within the
-placement by `(position, id)`), plus the base columns. A button for two places is two records. The
-defaults have fixed ids (`DEFAULT_PROMPT_BUTTONS`). After the library's first full pull the app
-seeds each default whose id the table doesn't hold, tombstones included, at the end of its
-placement: so a deleted default never comes back, one moved to another placement stays there, a
-default added in a later version reaches a library with buttons once, and two devices that both
-seed converge on one row each. A seeded row carries the lowest clock (1, `SEED_CLOCK` in
+**prompt_buttons** (the chat's one-tap prompts, one list under the post editor's caption and over
+the chat's message box). Synced: `name`, `prompt`, `icon` (an Icon name or null), `position` (a
+fractional-index key, the order by `(position, id)`), plus the base columns. `placement` is retired:
+the app writes `ONE_LIST_PLACEMENT` and reads none, and the field stays so an older build still
+syncs. The defaults have fixed ids (`DEFAULT_PROMPT_BUTTONS`). After the library's first full pull
+the app seeds each default whose id the table doesn't hold, tombstones included, at the end of the
+list: so a deleted default never comes back, a default added in a later version reaches a library
+with buttons once, and two devices that both seed converge on one row each. A seeded row carries the lowest clock (1, `SEED_CLOCK` in
 `promptButtonsRepository.ts`): a device may seed before this launch's pull brings another device's
 deletion or move of that default, and any real write then wins over the seed (the push answers
 `skipped-lww` with the stored row).
