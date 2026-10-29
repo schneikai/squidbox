@@ -12,12 +12,14 @@ import {
   compareWritingResponseSchema,
   modelDefaultRequestSchema,
   modelDefaultVariantSchema,
+  publishInstructionRequestSchema,
   tagPhotoRequestSchema,
   tagPhotoResponseSchema,
   uncensoredRequestSchema,
   verificationRequestSchema,
   verifyPhotosResponseSchema,
   verifyRunResponseSchema,
+  INSTRUCTION_KINDS,
   type AiModelKind,
   type AiModelsResponse,
 } from '@squidbox/shared';
@@ -29,7 +31,7 @@ import { fetchBalanceAsync } from './balance.js';
 import { catalogAsync, findModel, toApiModel, type CatalogEntry } from './catalog.js';
 import { chatAsync } from './chat.js';
 import { compareModels } from './compare.js';
-import { readInstructions } from './instructions.js';
+import { publishInstruction, readAppInstructions, readInstructions } from './instructions.js';
 import { readFavorites, readPersona } from './persona.js';
 import { visionMessages, writingMessages } from './prompts.js';
 import { tagPhotoAsync } from './tagging.js';
@@ -78,10 +80,20 @@ async function compareRequested<T>(
   );
 }
 
-// The catalog as every account gets it: Venice's models with the marks, and the defaults.
+// The catalog as every account gets it: Venice's models with the marks, the model defaults and the
+// app's default instructions.
 async function aiModelsAsync(): Promise<AiModelsResponse> {
-  const [{ entries }, verification] = await Promise.all([catalogAsync(), readVerification(getDb())]);
-  return { models: entries.map((entry) => toApiModel(entry, verification)), defaults: verification.defaults };
+  const db = getDb();
+  const [{ entries }, verification, instructions] = await Promise.all([
+    catalogAsync(),
+    readVerification(db),
+    readAppInstructions(db),
+  ]);
+  return {
+    models: entries.map((entry) => toApiModel(entry, verification)),
+    defaults: verification.defaults,
+    instructions,
+  };
 }
 
 // The model of a kind for a Verify or a mark: 502 ai_unavailable when Venice no longer offers it or it
@@ -107,7 +119,8 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     ai.addHook('preHandler', requireFeature('ai', AppError.aiNotAllowed));
     const r = ai.withTypeProvider<ZodTypeProvider>();
 
-    // GET /ai/models — every model Venice offers now, with Squidbox's marks, and the defaults.
+    // GET /ai/models — every model Venice offers now, with Squidbox's marks, the model defaults and
+    // the app's default instructions.
     r.route({
       method: 'GET',
       url: '/ai/models',
@@ -149,7 +162,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       },
     });
 
-    // The ai_admin routes (the compares, the Venice balance, Verify and the marks): 403 ai_admin_not_allowed for an
+    // The ai_admin routes (the compares, the Venice balance, Verify, the marks and the published instructions): 403 ai_admin_not_allowed for an
     // account without the `ai_admin` feature, so a new one can't skip that gate either.
     await ai.register(async (admin) => {
       admin.addHook('preHandler', requireFeature('ai_admin', AppError.aiAdminNotAllowed));
@@ -258,6 +271,23 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
           const { modelId } = request.body;
           await catalogModel(modelId, kind);
           await setModelDefault(getDb(), { kind, variant, modelId });
+          return aiModelsAsync();
+        },
+      });
+
+      // PUT /ai/instructions/:kind — Make default for everyone: the text becomes the kind's default
+      // for every account (an ai_admin's own override still applies to them); answers the catalog
+      // with the new defaults.
+      r.route({
+        method: 'PUT',
+        url: '/ai/instructions/:kind',
+        schema: {
+          params: z.object({ kind: z.enum(INSTRUCTION_KINDS) }),
+          body: publishInstructionRequestSchema,
+          response: { 200: aiModelsResponseSchema },
+        },
+        handler: async (request) => {
+          await publishInstruction(getDb(), { kind: request.params.kind, text: request.body.text });
           return aiModelsAsync();
         },
       });

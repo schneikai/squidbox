@@ -14,7 +14,7 @@ vi.mock('../src/config.js', async (importOriginal) => {
   };
 });
 
-import { resolveInstructions } from '@squidbox/shared';
+import { DEFAULT_INSTRUCTIONS } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
 import type { CatalogEntry } from '../src/ai/catalog.js';
 import { PHOTO_FILES, TAG_PLAN, verifyTaggingModel } from '../src/ai/tagVerify.js';
@@ -22,7 +22,7 @@ import { VerifyStopped } from '../src/ai/verifyTurns.js';
 
 const catalog = fixture.data as CatalogEntry[];
 const model = catalog.find((entry) => entry.id === 'gemma-4-uncensored')!;
-const instructions = resolveInstructions(null);
+const instructions = DEFAULT_INSTRUCTIONS;
 const fetchMock = vi.fn();
 
 const EIGHT = ['coast', 'fog', 'pine', 'trail', 'moss', 'creek', 'calm', 'film look'];

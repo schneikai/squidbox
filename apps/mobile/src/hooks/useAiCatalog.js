@@ -28,13 +28,14 @@ function refreshAiCatalogAsync() {
 }
 
 /**
- * Venice's current models with the marks, and the defaults: `models` and `defaults` are null until
- * they're in, `error` the message when the fetch failed (while there are none to show), and `retry`
+ * Venice's current models with the marks, the model defaults and the app's default instructions
+ * (each kind's published text, else the built-in one): `models`, `defaults` and `instructions` are
+ * null until they're in, `error` the message when the fetch failed (while there are none to show), and `retry`
  * fetches again. A screen opened after the catalog is five minutes old fetches it anew, showing the
  * old one meanwhile.
  */
 export default function useAiCatalog() {
-  const { models, defaults, error } = useSyncExternalStore(aiCatalogStore.subscribe, aiCatalogStore.get);
+  const { models, defaults, instructions, error } = useSyncExternalStore(aiCatalogStore.subscribe, aiCatalogStore.get);
 
   const retry = useCallback(() => {
     if (aiCatalogStore.get().error) aiCatalogStore.set((current) => ({ ...current, error: null }));
@@ -47,5 +48,5 @@ export default function useAiCatalog() {
     if (current || Date.now() - at >= CACHE_MS) retry();
   }, [retry]);
 
-  return { models, defaults, error: models ? null : error, retry };
+  return { models, defaults, instructions, error: models ? null : error, retry };
 }

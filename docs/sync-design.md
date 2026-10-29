@@ -884,15 +884,16 @@ system message and the Compare's, filled with the persona, the Favorites and the
 `visionTagging` (the photo tags briefing, the system message of every tags request, filled with Your
 content's themes), `moreLikeThis` (what the chat's More like this sends) and `modelCheckJudge` (what
 a writing Verify asks its judge after each chat turn), templates the server fills in, each that
-account's override or null for the app's default (`DEFAULT_INSTRUCTIONS` in `packages/shared`,
-resolved by `resolveInstructions`), plus the base columns. Migrations 0022 (server) and 0024 (app) dropped the
+account's override or null for the app's default (the text published for every account in the
+server's `app_instructions`, §12, else `DEFAULT_INSTRUCTIONS` in `packages/shared`; resolved by
+`resolveInstructions`), plus the base columns. Migrations 0022 (server) and 0024 (app) dropped the
 earlier app prompts (`writingFormat`, `tagsSystem`, `themesContext`, `personaFraming`,
 `chatContext`) and reset `writing` and `visionTagging` to the default, their meaning having changed;
 the server's reset carries a fresh clock for both fields and a new `server_seq`, so every device
 pulls it and an older pending edit loses. One record per user with the user's id as its id, like
 `personas`, so two devices editing different kinds merge per field, and Reset is a per-field write
-of null that wins or loses by its clock like any edit. A text equal to the default is stored as
-null. The schema each reply is read with (`chat_reply`, the tags list) is the server's and never
+of null that wins or loses by its clock like any edit. A text equal to the app's default (the
+published one, else the built-in one) is stored as null. The schema each reply is read with (`chat_reply`, the tags list) is the server's and never
 stored.
 
 **model_choices** (Settings → Assistant → Models: the model the assistant uses). Synced per kind:
@@ -951,10 +952,11 @@ gone. Imported records kept deterministic uuid v5 ids, and their files stay at t
 - Users are isolated; there is no cross-user sharing (§2a).
 - What an ai_admin sets for the whole app — which models are verified for each kind
   (`verified_models`), whether a model counts as uncensored where that overrides Venice's label
-  (`uncensored_overrides`), the defaults (`model_defaults`) and the Verify runs
-  (`verify_runs`) — lives in plain server tables outside the collection registry: no `user_id`, no
-  `server_seq` trigger, never pushed or pulled. Every account reads the marks and the defaults with
-  the catalog (`GET /ai/models`), the admin the Verify runs through the admin routes; the app keeps them
+  (`uncensored_overrides`), the defaults (`model_defaults`), the Verify runs (`verify_runs`) and
+  the instructions published for every account (`app_instructions`, Make default for everyone) —
+  lives in plain server tables outside the collection registry: no `user_id`, no `server_seq`
+  trigger, never pushed or pulled. Every account reads the marks, the defaults and the published
+  instructions with the catalog (`GET /ai/models`), the admin the Verify runs through the admin routes; the app keeps them
   only in memory.
 
 ---

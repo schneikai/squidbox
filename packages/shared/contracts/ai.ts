@@ -3,6 +3,7 @@
 // app only ever talks to these endpoints.
 import { z } from 'zod';
 import { ASSET_TAG_LIMITS, assetTagSchema } from '../collections/asset';
+import { instructionTextSchema } from '../collections/instruction';
 
 export const aiModelKindSchema = z.enum(['writing', 'vision']);
 export type AiModelKind = z.infer<typeof aiModelKindSchema>;
@@ -52,9 +53,22 @@ const variantsSchema = z.object({ regular: z.string(), unrestricted: z.string() 
 export const modelDefaultsSchema = z.object({ writing: variantsSchema, vision: variantsSchema });
 export type ModelDefaults = z.infer<typeof modelDefaultsSchema>;
 
-// GET /ai/models — also the answer of PUT /ai/verification, /ai/uncensored and /ai/defaults, so the app replaces
-// its catalog with the new marks in one round trip.
-export const aiModelsResponseSchema = z.object({ models: z.array(apiAiModelSchema), defaults: modelDefaultsSchema });
+// The app's default instruction of each kind, as every account gets it: the text published for every
+// account (the server's app_instructions), else the built-in DEFAULT_INSTRUCTIONS.
+export const instructionsSchema = z.object({
+  writing: z.string(),
+  visionTagging: z.string(),
+  moreLikeThis: z.string(),
+  modelCheckJudge: z.string(),
+});
+
+// GET /ai/models — also the answer of PUT /ai/verification, /ai/uncensored, /ai/defaults and
+// /ai/instructions, so the app replaces its catalog with the new marks in one round trip.
+export const aiModelsResponseSchema = z.object({
+  models: z.array(apiAiModelSchema),
+  defaults: modelDefaultsSchema,
+  instructions: instructionsSchema,
+});
 export type AiModelsResponse = z.infer<typeof aiModelsResponseSchema>;
 
 // PUT /ai/verification/:kind/:modelId — whether the model is verified for the kind.
@@ -69,6 +83,11 @@ export type UncensoredRequest = z.infer<typeof uncensoredRequestSchema>;
 // PUT /ai/defaults/:kind/:variant — the model that becomes that default.
 export const modelDefaultRequestSchema = z.object({ modelId: z.string().min(1) });
 export type ModelDefaultRequest = z.infer<typeof modelDefaultRequestSchema>;
+
+// PUT /ai/instructions/:kind — Make default for everyone: the text becomes the kind's default for
+// every account. Trimmed before the instruction's checks, so a text of only spaces is empty.
+export const publishInstructionRequestSchema = z.object({ text: z.string().trim().pipe(instructionTextSchema) });
+export type PublishInstructionRequest = z.infer<typeof publishInstructionRequestSchema>;
 
 // The writing model that judges every turn of a writing Verify, the same for every model verified.
 export const VERIFY_JUDGE_MODEL_ID = 'claude-sonnet-5-5';

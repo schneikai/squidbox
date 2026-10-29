@@ -5,9 +5,11 @@ export const INSTRUCTION_LIMITS = { text: 4000 } as const;
 
 // `instructions` — what the assistant is told (Settings → Assistant → Admin → Instructions, for an
 // ai_admin account), one text per kind, each that account's to edit. One record per user, whose id is the user's id, like `personas`, so
-// two devices editing different kinds converge. Null is "the app's default", so a reset is a
-// per-field write like any edit.
-const instructionText = textSchema.min(1).max(INSTRUCTION_LIMITS.text).nullable();
+// two devices editing different kinds converge. Null is "the app's default" (the text published
+// for every account, else the built-in DEFAULT_INSTRUCTIONS), so a reset is a per-field write like
+// any edit.
+export const instructionTextSchema = textSchema.min(1).max(INSTRUCTION_LIMITS.text);
+const instructionText = instructionTextSchema.nullable();
 export const instructionCollection = defineCollection({
   name: 'instructions',
   schema: baseRecordSchema.extend({
@@ -41,7 +43,11 @@ export type InstructionKind = (typeof INSTRUCTION_KINDS)[number];
 
 export type Instructions = Record<InstructionKind, string>;
 
-/** The app's text for each kind, used while the user's is null. Each stays under INSTRUCTION_LIMITS.text (a test holds them to it). */
+/**
+ * The built-in text for each kind: the app's default while nothing was published for it (Make
+ * default for everyone, the server's app_instructions). Each stays under INSTRUCTION_LIMITS.text (a
+ * test holds them to it).
+ */
 export const DEFAULT_INSTRUCTIONS: Instructions = Object.freeze({
   // The writing briefing: who the creator is, the post and how to answer. `{caption}` reads (empty)
   // when the caption is.
@@ -118,9 +124,14 @@ Use only what the creator, the photos or this briefing give you: never invent pl
   ].join('\n'),
 });
 
-/** Each kind's text: the user's where they saved one, else the default. */
-export function resolveInstructions(record: Partial<Record<InstructionKind, string | null>> | null): Instructions {
-  return Object.fromEntries(
-    INSTRUCTION_KINDS.map((kind) => [kind, record?.[kind] ?? DEFAULT_INSTRUCTIONS[kind]]),
-  ) as Instructions;
+/**
+ * Each kind's text: the user's where they saved one, else the app's default from `defaults` (the
+ * published text, else the built-in one). `defaults` is required, so no caller skips the published
+ * text by accident.
+ */
+export function resolveInstructions(
+  record: Partial<Record<InstructionKind, string | null>> | null,
+  defaults: Instructions,
+): Instructions {
+  return Object.fromEntries(INSTRUCTION_KINDS.map((kind) => [kind, record?.[kind] ?? defaults[kind]])) as Instructions;
 }

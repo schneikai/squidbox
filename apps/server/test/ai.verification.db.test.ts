@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { and, eq, inArray } from 'drizzle-orm';
 import pg from 'pg';
-import { resolveInstructions, type VerifyResult } from '@squidbox/shared';
+import { DEFAULT_INSTRUCTIONS, type VerifyResult } from '@squidbox/shared';
 import * as schema from '../src/db/schema.js';
 import type { Db } from '../src/db/client.js';
 import type { CatalogEntry } from '../src/ai/catalog.js';
@@ -40,7 +40,7 @@ const RESULT: VerifyResult = {
 };
 const log = { error: vi.fn() } as never;
 const model = { id: 'test-verify-1' } as CatalogEntry;
-const instructionsAsync = async () => resolveInstructions(null);
+const instructionsAsync = async () => DEFAULT_INSTRUCTIONS;
 
 const ROLLBACK = new Error('rollback');
 

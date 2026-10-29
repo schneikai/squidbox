@@ -13,7 +13,7 @@ vi.mock('../src/config.js', async (importOriginal) => {
   };
 });
 
-import { VERIFY_JUDGE_MODEL_ID, resolveInstructions, type ChatReply } from '@squidbox/shared';
+import { DEFAULT_INSTRUCTIONS, VERIFY_JUDGE_MODEL_ID, type ChatReply } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
 import type { CatalogEntry } from '../src/ai/catalog.js';
 import { cardChecks, changeNote, CHAT_PLAN, check, verifyChatModel } from '../src/ai/chatVerify.js';
@@ -22,7 +22,7 @@ import { VerifyStopped } from '../src/ai/verifyTurns.js';
 const catalog = fixture.data as CatalogEntry[];
 const model = catalog.find((entry) => entry.id === 'kimi-k3')!;
 const instructions = {
-  ...resolveInstructions(null),
+  ...DEFAULT_INSTRUCTIONS,
   modelCheckJudge: [
     'Judge.',
     'About the creator: {aboutYou}',

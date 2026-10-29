@@ -11,7 +11,7 @@
  *   npm run verify:models -- --kind vision gemma-4-uncensored
  *
  * Calls Venice directly with VENICE_API_KEY (apps/server/.env or the shell), and refuses any other
- * VENICE_BASE_URL. No database, no backend: the app's default instructions. The report goes to
+ * VENICE_BASE_URL. No database, no backend: the built-in instructions. The report goes to
  * .model-verify/ (gitignored) unless --out names a file.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -19,7 +19,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   aiModelKindSchema,
-  resolveInstructions,
+  DEFAULT_INSTRUCTIONS,
   verifyPlanTurns,
   type AiModelKind,
   type VerifyResult,
@@ -104,7 +104,7 @@ async function main() {
   if (!base.startsWith('https://api.venice.ai/')) throw new Error(`Not Venice: ${base}`);
 
   const { entries } = await catalogAsync();
-  const instructions = resolveInstructions(null);
+  const instructions = DEFAULT_INSTRUCTIONS;
   const results: { id: string; result: VerifyResult; stopped: string | null }[] = [];
   // The turns of the sections that run (--scenario), all without one.
   const { plan } = VERIFY[kind];

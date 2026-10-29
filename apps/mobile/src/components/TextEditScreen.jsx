@@ -13,9 +13,10 @@ import useScreenPadding from '@/hooks/useScreenPadding';
 /**
  * A pushed screen that edits one text, the iOS Settings way: Back, the `title`, and a Textarea whose
  * text the screen stores as it changes (useSaveAsYouType; `onBlur` saves at once), with an optional
- * `description` over it and an optional `action` at the bottom (`{ label, tone, onPress }`, e.g.
- * Delete or Reset to default). No Save button. The Textarea fills the screen above the keyboard and
- * scrolls its text inside, as in Notes: a drag scrolls, a tap edits.
+ * `description` over it and `actions` at the bottom, in order (`{ label, tone, onPress, loading }`,
+ * e.g. Delete or Reset to default; `loading` shows a spinner and blocks presses). No Save button.
+ * The Textarea fills the screen above the keyboard and scrolls its text inside, as in Notes: a drag
+ * scrolls, a tap edits.
  */
 export default function TextEditScreen({
   title,
@@ -27,7 +28,7 @@ export default function TextEditScreen({
   maxLength,
   autoFocus = false,
   description,
-  action,
+  actions = [],
 }) {
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
   const keyboardInset = useKeyboardInset(12);
@@ -51,9 +52,17 @@ export default function TextEditScreen({
           maxLength={maxLength}
           autoFocus={autoFocus}
         />
-        {action && (
-          <View style={styles.action}>
-            <TextButton label={action.label} tone={action.tone} onPress={action.onPress} />
+        {actions.length > 0 && (
+          <View style={styles.actions}>
+            {actions.map((action) => (
+              <TextButton
+                key={action.label}
+                label={action.label}
+                tone={action.tone}
+                onPress={action.onPress}
+                loading={action.loading}
+              />
+            ))}
           </View>
         )}
       </Animated.View>
@@ -66,7 +75,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: SCREEN_PADDING,
   },
-  action: {
+  actions: {
     paddingTop: 24,
   },
 });

@@ -47,10 +47,14 @@ vi.mock('../src/ai/verifyRuns.js', () => ({
   startRun: vi.fn(),
   runVerify: vi.fn(async () => {}),
 }));
-// The instructions likewise: the defaults unless a test changes one.
+// The instructions likewise: the built-in texts unless a test changes one, nothing published.
 vi.mock('../src/ai/instructions.js', async () => {
-  const { resolveInstructions } = await import('@squidbox/shared');
-  return { readInstructions: vi.fn().mockResolvedValue(resolveInstructions(null)) };
+  const { DEFAULT_INSTRUCTIONS } = await import('@squidbox/shared');
+  return {
+    readInstructions: vi.fn().mockResolvedValue(DEFAULT_INSTRUCTIONS),
+    readAppInstructions: vi.fn().mockResolvedValue(DEFAULT_INSTRUCTIONS),
+    publishInstruction: vi.fn(async () => {}),
+  };
 });
 // The test env has no Venice key; each test sets the one the routes see.
 const venice = vi.hoisted(() => ({ apiKey: undefined as string | undefined }));
@@ -69,14 +73,14 @@ import {
   ASSET_TAG_LIMITS,
   CHAT_LIMITS,
   DEFAULT_INSTRUCTIONS,
-  resolveInstructions,
+  INSTRUCTION_LIMITS,
   type ChatReply,
 } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
 import { buildApp } from '../src/app.js';
 import { signAccessToken } from '../src/auth/jwt.js';
 import { clearCatalogCache } from '../src/ai/catalog.js';
-import { readInstructions } from '../src/ai/instructions.js';
+import { publishInstruction, readAppInstructions, readInstructions } from '../src/ai/instructions.js';
 import { readChosenModelId } from '../src/ai/modelChoices.js';
 import { CHAT_PLAN } from '../src/ai/chatVerify.js';
 import { PHOTO_FILES } from '../src/ai/tagVerify.js';
@@ -224,6 +228,7 @@ describe('account features', () => {
       ['PUT', '/ai/verification/writing/kimi-k3', { isVerified: true }],
       ['PUT', '/ai/uncensored/kimi-k3', { uncensored: true }],
       ['PUT', '/ai/defaults/writing/regular', { modelId: 'kimi-k3' }],
+      ['PUT', '/ai/instructions/writing', { text: 'Be brief.' }],
       ['POST', '/ai/compare/writing', writing],
       ['POST', '/ai/compare/vision', vision],
     ] as const) {
@@ -284,6 +289,13 @@ describe('GET /api/v1/ai/models', () => {
     expect(kimi.uncensoredOverride).toBe(true);
     expect(models.find((m: { id: string }) => m.id === 'gemma-4-uncensored').verifiedKinds).toEqual(['vision']);
     expect(defaults.writing).toEqual({ regular: 'claude-sonnet-5-5', unrestricted: 'deepseek-v4-1-flash-uncensored' });
+  });
+
+  it("carries the app's default instructions", async () => {
+    veniceAnswers();
+    const published = { ...DEFAULT_INSTRUCTIONS, writing: 'Everyone gets this.' };
+    vi.mocked(readAppInstructions).mockResolvedValueOnce(published);
+    expect((await call('GET', '/ai/models')).json().instructions).toEqual(published);
   });
 
   it('502 ai_unavailable when the model list cannot be fetched', async () => {
@@ -375,7 +387,7 @@ describe('POST /api/v1/ai/compare/writing', () => {
   it("briefs the models with the user's own Writing text", async () => {
     veniceAnswers({ chatReply: { reply: '', postOptions: ['one', 'two', 'three'] } });
     const mine = 'Write like a park ranger.';
-    vi.mocked(readInstructions).mockResolvedValueOnce({ ...resolveInstructions(null), writing: mine });
+    vi.mocked(readInstructions).mockResolvedValueOnce({ ...DEFAULT_INSTRUCTIONS, writing: mine });
     expect((await call('POST', '/ai/compare/writing', writing)).statusCode).toBe(200);
     expect(readInstructions).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ id: 'u1' }));
     for (const body of chatBodies()) {
@@ -471,7 +483,7 @@ describe('POST /api/v1/ai/tags', () => {
   it("tags the photo with the user's Photo tags instructions on the default vision model", async () => {
     veniceAnswers();
     const mine = 'Tag the trail, the weather and the light.';
-    vi.mocked(readInstructions).mockResolvedValueOnce({ ...resolveInstructions(null), visionTagging: mine });
+    vi.mocked(readInstructions).mockResolvedValueOnce({ ...DEFAULT_INSTRUCTIONS, visionTagging: mine });
     const res = await call('POST', '/ai/tags', tagRequest);
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ tags });
@@ -634,7 +646,7 @@ describe('POST /api/v1/ai/chat', () => {
   it("uses the user's own Writing text as the chat briefing", async () => {
     veniceAnswers();
     vi.mocked(readInstructions).mockResolvedValueOnce({
-      ...resolveInstructions(null),
+      ...DEFAULT_INSTRUCTIONS,
       writing: 'Post: {caption}\nTags: {tags}',
     });
     expect((await call('POST', '/ai/chat', chatRequest)).statusCode).toBe(200);
@@ -707,7 +719,7 @@ describe('Verify', () => {
 
   it('POST starts a run once, with the admin instructions, and answers the running one at once', async () => {
     veniceAnswers();
-    const mine = { ...resolveInstructions(null), modelCheckJudge: 'Judge it: {reply}' };
+    const mine = { ...DEFAULT_INSTRUCTIONS, modelCheckJudge: 'Judge it: {reply}' };
     vi.mocked(readInstructions).mockResolvedValueOnce(mine);
     vi.mocked(startRun).mockResolvedValueOnce({ run: RUN, isNew: true });
     const res = await call('POST', '/ai/verify/writing/kimi-k3');
@@ -813,5 +825,32 @@ describe('the marks', () => {
     expect((await call('PUT', '/ai/defaults/writing/regular', { modelId: 'gone' })).statusCode).toBe(502);
     expect(setModelDefault).toHaveBeenCalledTimes(1);
     expect((await call('PUT', '/ai/defaults/writing/weird', { modelId: 'kimi-k3' })).statusCode).toBe(400);
+  });
+});
+
+describe('PUT /api/v1/ai/instructions/:kind', () => {
+  it('publishes the trimmed text and answers the catalog', async () => {
+    veniceAnswers();
+    const published = { ...DEFAULT_INSTRUCTIONS, writing: 'Be brief.' };
+    vi.mocked(readAppInstructions).mockResolvedValueOnce(published);
+    const res = await call('PUT', '/ai/instructions/writing', { text: '  Be brief.\n' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().instructions).toEqual(published);
+    expect(res.json().models).toHaveLength(fixture.data.length);
+    expect(publishInstruction).toHaveBeenCalledWith(expect.anything(), { kind: 'writing', text: 'Be brief.' });
+  });
+
+  it('400 on an empty text, a text over the limit and an unknown kind', async () => {
+    veniceAnswers();
+    for (const [url, text] of [
+      ['/ai/instructions/writing', ''],
+      ['/ai/instructions/writing', '   '],
+      ['/ai/instructions/writing', 'x'.repeat(INSTRUCTION_LIMITS.text + 1)],
+      ['/ai/instructions/writing', 'a\0b'],
+      ['/ai/instructions/weird', 'Be brief.'],
+    ] as const) {
+      expect((await call('PUT', url, { text })).statusCode).toBe(400);
+    }
+    expect(publishInstruction).not.toHaveBeenCalled();
   });
 });

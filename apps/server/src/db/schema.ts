@@ -341,6 +341,14 @@ export const modelDefaults = pgTable(
   }),
 );
 
+// The instruction of a kind every account gets while it has no override (Make default for everyone,
+// ai/instructions.ts): `kind` one of INSTRUCTION_KINDS. No row is the built-in DEFAULT_INSTRUCTIONS
+// text, so a row is never stored equal to it.
+export const appInstructions = pgTable('app_instructions', {
+  kind: text('kind').primaryKey(),
+  text: text('text').notNull(),
+});
+
 // A Verify run of a model for a kind (ai/verifyRuns.ts): only a model's latest one per kind is
 // kept, and the database allows one running at a time. `result` is the VerifyResult so far.
 export const verifyRuns = pgTable(

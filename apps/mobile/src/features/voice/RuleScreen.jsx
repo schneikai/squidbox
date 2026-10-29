@@ -115,7 +115,7 @@ function RuleEditor({ index, userId, seed, navigation }) {
       maxLength={PERSONA_LIMITS.rule}
       autoFocus={index == null}
       description={voiceFields.rules.description}
-      action={index != null ? { label: 'Delete rule', tone: 'danger', onPress: handleDelete } : null}
+      actions={index != null ? [{ label: 'Delete rule', tone: 'danger', onPress: handleDelete }] : []}
     />
   );
 }

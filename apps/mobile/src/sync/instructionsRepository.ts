@@ -1,4 +1,4 @@
-import { DEFAULT_INSTRUCTIONS, type InstructionKind, type InstructionRecord } from '@squidbox/shared';
+import type { InstructionKind, InstructionRecord } from '@squidbox/shared';
 import { and, eq, isNull } from 'drizzle-orm';
 
 import * as schema from './db/schema';
@@ -6,7 +6,8 @@ import type { SyncDb } from './db/types';
 import { saveUserRecord } from './userRecord';
 
 // Instructions (Settings → Assistant): the only reader and writer of the instructions table. One
-// record per user, whose id is the user's id; a null text is the app's default (resolveInstructions).
+// record per user, whose id is the user's id; a null text is the app's default (the published text,
+// else the built-in one; resolveInstructions).
 
 const t = schema.instructions;
 
@@ -27,16 +28,18 @@ export async function readInstructions(db: SyncDb, userId: string): Promise<Inst
 }
 
 /**
- * Save the user's text for one kind, or null to go back to the default. A text equal to the default
- * is stored as null, so a kind counts as changed only while its text differs.
+ * Save the user's text for one kind, or null to go back to the app's default, `defaultText` (the
+ * published text, else the built-in one). A text equal to it is stored as null, so a kind counts as
+ * changed only while its text differs.
  */
 export async function saveInstruction(
   db: SyncDb,
   userId: string,
   kind: InstructionKind,
   text: string | null,
+  defaultText: string,
 ): Promise<void> {
-  const value = text === null || text.trim() === DEFAULT_INSTRUCTIONS[kind] ? null : text.trim();
+  const value = text === null || text.trim() === defaultText ? null : text.trim();
   const stored = await readInstructions(db, userId);
   if (stored ? stored[kind] === value : value === null) return;
   await saveUserRecord(db, 'instructions', t, userId, { [kind]: value }, EMPTY_INSTRUCTIONS);

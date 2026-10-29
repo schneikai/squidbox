@@ -94,7 +94,7 @@ function FavoriteEditor({ id, seed, navigation }) {
       maxLength={FAVORITE_LIMITS.text}
       autoFocus={!id}
       description={isTaken ? 'This post is in your Favorites already.' : null}
-      action={id ? { label: 'Delete favorite', tone: 'danger', onPress: handleDelete } : null}
+      actions={id ? [{ label: 'Delete favorite', tone: 'danger', onPress: handleDelete }] : []}
     />
   );
 }
