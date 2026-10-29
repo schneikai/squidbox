@@ -34,7 +34,7 @@ const voiceFields = {
   rules: {
     label: 'Rules',
     placeholder: 'e.g. Never use hashtags',
-    description: 'What it must always or never do, one rule each. It follows them in every post it writes.',
+    description: 'What the assistant must always or never do. It follows these in every post.',
     examples: ['Never use hashtags', 'Link only in follow-ups', 'Never name the exact spot'],
   },
 };
