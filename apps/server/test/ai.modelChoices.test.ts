@@ -50,7 +50,7 @@ d('readChosenModelId', () => {
     expect(await readChosenModelId(db, admin, 'writing')).toBe('claude-sonnet-5-5');
   });
 
-  it('defaults writing to an unrestricted model with Adult content on, vision either way', async () => {
+  it('defaults writing to the Uncensored default with Adult content on, vision either way', async () => {
     await persona(true);
     expect(await readChosenModelId(db, admin, 'writing')).toBe('deepseek-v4-1-flash-uncensored');
     expect(await readChosenModelId(db, admin, 'vision')).toBe('gemma-4-uncensored');

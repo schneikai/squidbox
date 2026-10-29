@@ -6,10 +6,10 @@ import { colors } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
 // A model's name, its labels (`labels`, from modelLabels) as badges below it, the defaults first, and
-// a detail line under them (its score, Unrestricted, reasoning and cost). `isDimmed` greys the text,
+// a detail line under them (its score, Uncensored, reasoning and cost). `isDimmed` greys the text,
 // for a model Venice no longer offers.
 export default function ModelSummary({ name, labels, detail, isDimmed = false }) {
-  const hasBadges = labels.default || labels.adultDefault || labels.verified;
+  const hasBadges = labels.default || labels.uncensoredDefault || labels.verified;
   return (
     <View style={styles.summary}>
       <Text style={[listTextStyles.title, isDimmed && styles.dimmed]}>{name}</Text>
@@ -17,7 +17,7 @@ export default function ModelSummary({ name, labels, detail, isDimmed = false })
         <View style={styles.badges}>
           {labels.default && <Badge label={MODEL_LABEL_NAMES.default} tone="info" />}
           {/* the long name doesn't fit a badge */}
-          {labels.adultDefault && <Badge label="Adult default" tone="info" />}
+          {labels.uncensoredDefault && <Badge label={MODEL_LABEL_NAMES.uncensoredDefault} tone="info" />}
           {labels.verified && <Badge label={MODEL_LABEL_NAMES.verified} tone="success" />}
         </View>
       )}

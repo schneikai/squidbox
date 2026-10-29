@@ -32,7 +32,8 @@ export const apiAiModelSchema = z.object({
 export type ApiAiModel = z.infer<typeof apiAiModelSchema>;
 
 // The model the assistant uses for a kind while the user chose none, per the persona's Adult content
-// switch: `unrestricted` while it is on, `regular` while it is off.
+// switch: `unrestricted` (the Uncensored default) while it is on, `regular` while it is off. The
+// variant names are stored and on the wire, so they keep their names.
 export const MODEL_DEFAULT_VARIANTS = ['regular', 'unrestricted'] as const;
 export const modelDefaultVariantSchema = z.enum(MODEL_DEFAULT_VARIANTS);
 export type ModelDefaultVariant = z.infer<typeof modelDefaultVariantSchema>;
@@ -40,9 +41,9 @@ export type ModelDefaultVariant = z.infer<typeof modelDefaultVariantSchema>;
 // What every account sees on a model, by the key the app uses. Each is a flag of its own.
 export const MODEL_LABEL_NAMES = {
   verified: 'Verified',
-  unrestricted: 'Unrestricted',
+  uncensored: 'Uncensored',
   default: 'Default',
-  adultDefault: 'Default for Adult content',
+  uncensoredDefault: 'Uncensored default',
 } as const;
 export type ModelLabel = keyof typeof MODEL_LABEL_NAMES;
 

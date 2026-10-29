@@ -17,9 +17,9 @@ describe('modelDetailText', () => {
     );
   });
 
-  it('puts Unrestricted after the score for a model that counts as unrestricted', () => {
+  it('puts Uncensored after the score for a model that counts as uncensored', () => {
     expect(modelDetailText({ ...model, isUncensored: true }, 'writing', 9)).toBe(
-      '9 thumbs up · Unrestricted · no reasoning · 0.04¢ a reply',
+      '9 thumbs up · Uncensored · no reasoning · 0.04¢ a reply',
     );
   });
 

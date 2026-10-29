@@ -13,7 +13,7 @@ const modelKindText = {
     useLabel: 'Write with this model',
     useFootnote: 'Only for you. Other accounts write with the defaults.',
     labelsFootnote:
-      'Every account sees these labels. Accounts without model choice write with the Default, or with the Default for Adult content when their persona has Adult content on.',
+      'Every account sees these labels. Accounts without model choice write with the Default, or with the Uncensored default when their persona has Adult content on.',
     pickIntro: 'Pick 2 or more models. Each one writes posts for the same prompt.',
   },
   vision: {
@@ -25,7 +25,7 @@ const modelKindText = {
     useLabel: 'Tag with this model',
     useFootnote: 'Only for you. Other accounts tag with the defaults.',
     labelsFootnote:
-      'Every account sees these labels. Accounts without model choice tag with the Default, or with the Default for Adult content when their persona has Adult content on.',
+      'Every account sees these labels. Accounts without model choice tag with the Default, or with the Uncensored default when their persona has Adult content on.',
     note: `Each photo goes to the model as a JPEG ${visionImage.longSide} px on its longer side, at quality ${Math.round(visionImage.quality * 100)}.`,
     pickIntro: 'Pick the photos and 2 or more models. Each model tags the same photos.',
   },

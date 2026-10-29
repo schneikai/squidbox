@@ -11,13 +11,12 @@ import useHaptics from '@/hooks/useHaptics';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 // The labels that go off only when another model takes them.
-const DEFAULT_LABELS = ['default', 'adultDefault'];
+const DEFAULT_LABELS = ['default', 'uncensoredDefault'];
 
 /**
  * A catalog model's labels for `kind`, a switch each, as every account sees them: Verified,
- * Unrestricted (with Venice's own rating), Default and Default for Adult content. Each is a flag of
- * its own: making a model a default changes no other label, and a default's Verified and Unrestricted
- * turn off like any other model's. A default stays on until another model takes it, so turning it off
+ * Uncensored (with Venice's own rating), Default and Uncensored default. Each is a flag of its own:
+ * making a model a default changes no other label, and a default's Verified and Uncensored turn off like any other model's. A default stays on until another model takes it, so turning it off
  * says so, like Remove. One switch is on its way to the server at a time. `verification` is the
  * model's useModelVerification.
  */
@@ -29,11 +28,11 @@ export default function ModelLabelsSection({ kind, model, verification }) {
 
   const changes = {
     verified: (isOn) => setVerified(isOn),
-    unrestricted: (isOn) => setUncensored(isOn === isVeniceUncensored ? null : isOn),
+    uncensored: (isOn) => setUncensored(isOn === isVeniceUncensored ? null : isOn),
     default: () => makeDefault('regular'),
-    adultDefault: () => makeDefault('unrestricted'),
+    uncensoredDefault: () => makeDefault('unrestricted'),
   };
-  const veniceRating = isVeniceUncensored ? 'Venice rates it unrestricted' : "Venice doesn't rate it unrestricted";
+  const veniceRating = isVeniceUncensored ? 'Venice rates it uncensored' : "Venice doesn't rate it uncensored";
 
   async function handleChange(label, isOn) {
     if (!isOn && DEFAULT_LABELS.includes(label)) {
@@ -59,7 +58,7 @@ export default function ModelLabelsSection({ kind, model, verification }) {
           <Row
             key={label}
             label={MODEL_LABEL_NAMES[label]}
-            description={label === 'unrestricted' ? veniceRating : undefined}
+            description={label === 'uncensored' ? veniceRating : undefined}
           >
             <Switch
               value={pending?.label === label ? pending.isOn : labels[label]}

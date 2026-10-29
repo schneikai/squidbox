@@ -19,7 +19,7 @@ export default function useModelVerification(kind, modelId, model) {
   const { defaults } = useAiCatalog();
 
   const labels = modelLabels(kind, modelId, model, defaults);
-  const defaultKey = ['default', 'adultDefault'].find((label) => labels[label]);
+  const defaultKey = ['default', 'uncensoredDefault'].find((label) => labels[label]);
   const defaultName = defaultKey ? MODEL_LABEL_NAMES[defaultKey] : null;
 
   return {

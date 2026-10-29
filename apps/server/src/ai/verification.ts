@@ -65,7 +65,7 @@ export async function setVerification(
 
 /**
  * Sets the model's override of Venice's Uncensored label (`uncensored`; null follows Venice). A
- * label is a flag of its own: the Default for Adult content may be restricted.
+ * label is a flag of its own: the Uncensored default may be a model that isn't uncensored.
  */
 export async function setUncensored(
   db: Db,
@@ -85,7 +85,7 @@ export async function setUncensored(
 }
 
 /**
- * Makes the model the default of `kind` for `variant`. It changes no label: Verified and Unrestricted
+ * Makes the model the default of `kind` for `variant`. It changes no label: Verified and Uncensored
  * are flags of their own.
  */
 export async function setModelDefault(

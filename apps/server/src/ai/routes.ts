@@ -244,7 +244,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       });
 
       // PUT /ai/defaults/:kind/:variant — makes the model the kind's default for the variant (regular,
-      // or unrestricted for Adult content); answers the catalog with the new defaults.
+      // or `unrestricted`, the Uncensored default); answers the catalog with the new defaults.
       r.route({
         method: 'PUT',
         url: '/ai/defaults/:kind/:variant',

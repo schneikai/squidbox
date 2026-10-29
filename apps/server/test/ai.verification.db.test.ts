@@ -122,7 +122,7 @@ d('the model marks and Verify runs', () => {
       expect(verification.defaults.writing).toEqual({ regular: 'test-writing-2', unrestricted: 'test-writing-2' });
       expect(verification.verified.writing.has('test-writing-2')).toBe(false);
       expect(verification.overrides.has('test-writing-2')).toBe(false);
-      // a default's Verified and Unrestricted turn off
+      // a default's Verified and Uncensored turn off
       await mark(tx, 'writing', SEEDED.writing.unrestricted, false);
       await setUncensored(tx, { modelId: SEEDED.writing.unrestricted, uncensored: false, userId: null });
       verification = await readVerification(tx);

@@ -9,7 +9,7 @@ const TONES = {
   info: { backgroundColor: colors.status.infoLight, color: colors.status.info },
 };
 
-// A small uppercase label on a list entry or a screen ("Archived", "Unrestricted", "Verified"), in a
+// A small uppercase label on a list entry or a screen ("Archived", "Uncensored", "Verified"), in a
 // `tone`: danger | accent | success | info. The parent positions it through `style`.
 export default function Badge({ label, tone, style }) {
   return <Text style={[styles.badge, TONES[tone], style]}>{label}</Text>;
