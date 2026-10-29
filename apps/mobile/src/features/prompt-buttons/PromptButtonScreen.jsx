@@ -163,6 +163,7 @@ function PromptButtonEditor({ id, seed, navigation }) {
         </Field>
         {id && (
           <ActionButtons
+            style={styles.actions}
             actions={[
               { label: 'Duplicate', onPress: handleDuplicate },
               { label: 'Delete prompt button', tone: 'danger', onPress: handleDelete },
@@ -177,5 +178,8 @@ function PromptButtonEditor({ id, seed, navigation }) {
 const styles = StyleSheet.create({
   content: {
     gap: 20,
+  },
+  actions: {
+    paddingTop: 24,
   },
 });

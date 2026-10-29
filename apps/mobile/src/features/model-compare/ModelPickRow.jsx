@@ -7,8 +7,20 @@ import { SCREEN_PADDING } from '@/constants';
 import { colors, typography } from '@/styles/designTokens';
 
 // A model of your list to tick for a compare, as the list shows it, with "Current" on the one this
-// account uses (`yourDefaults` the defaults it uses, useYourModels').
-export default function ModelPickRow({ name, model, kind, score, yourDefaults, isTicked, isCurrent, onToggle }) {
+// account uses (`yourDefaults` the defaults it uses and `defaults` the published ones,
+// useYourModels').
+export default function ModelPickRow({
+  id,
+  name,
+  model,
+  kind,
+  score,
+  yourDefaults,
+  defaults,
+  isTicked,
+  isCurrent,
+  onToggle,
+}) {
   return (
     <TouchableOpacity
       style={styles.row}
@@ -18,7 +30,15 @@ export default function ModelPickRow({ name, model, kind, score, yourDefaults, i
       accessibilityState={{ checked: isTicked }}
     >
       <SelectIndicator isSelected={isTicked} />
-      <ModelListSummary name={name} model={model} kind={kind} score={score} yourDefaults={yourDefaults} />
+      <ModelListSummary
+        id={id}
+        name={name}
+        model={model}
+        kind={kind}
+        score={score}
+        yourDefaults={yourDefaults}
+        defaults={defaults}
+      />
       {isCurrent && <Text style={styles.current}>Current</Text>}
     </TouchableOpacity>
   );

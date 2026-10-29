@@ -104,7 +104,7 @@ function AdminSection({ children }) {
             onPress={() => navigation.navigate('ModelListScreen', { kind })}
             chevron
           >
-            {changedKinds?.includes(kind) && <ChangedBadge />}
+            {changedKinds?.includes(kind) && <ChangedBadge style={styles.changed} />}
           </Row>
         ))}
         {children}
@@ -121,7 +121,7 @@ function InstructionsRow() {
 
   return (
     <Row label="Instructions" onPress={() => navigation.navigate('InstructionsScreen')} chevron>
-      {changedKinds?.length > 0 && <ChangedBadge />}
+      {changedKinds?.length > 0 && <ChangedBadge style={styles.changed} />}
     </Row>
   );
 }
@@ -149,5 +149,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  changed: {
+    alignSelf: 'center',
   },
 });

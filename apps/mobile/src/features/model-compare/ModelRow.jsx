@@ -12,10 +12,11 @@ import { colors, sizes } from '@/styles/designTokens';
  * (to remove it). `yourDefaults` the defaults this account uses and `defaults` the published ones
  * (useYourModels').
  */
-export default function ModelRow({ name, model, kind, score, yourDefaults, defaults, onOpen }) {
+export default function ModelRow({ id, name, model, kind, score, yourDefaults, defaults, onOpen }) {
   return (
     <TouchableOpacity style={styles.row} onPress={onOpen} activeOpacity={0.6} accessibilityRole="button">
       <ModelListSummary
+        id={id}
         name={name}
         model={model}
         kind={kind}

@@ -59,6 +59,7 @@ export default function ModelListScreen({ navigation, route }) {
           {rows.map((row) => (
             <ModelRow
               key={row.id}
+              id={row.id}
               name={row.name}
               model={row.model}
               kind={kind}
@@ -78,6 +79,7 @@ export default function ModelListScreen({ navigation, route }) {
             yourDefaults={yourDefaults}
             publishDefaults={publishDefaults}
             resetDefaults={resetDefaults}
+            style={styles.actions}
           />
         )}
       </>
@@ -131,5 +133,8 @@ export default function ModelListScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   intro: {
     marginHorizontal: 4,
+  },
+  actions: {
+    paddingTop: 24,
   },
 });

@@ -52,7 +52,7 @@ export default function TextEditScreen({
           maxLength={maxLength}
           autoFocus={autoFocus}
         />
-        <ActionButtons actions={actions} />
+        <ActionButtons actions={actions} style={styles.actions} />
       </Animated.View>
     </Page>
   );
@@ -62,5 +62,8 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: SCREEN_PADDING,
+  },
+  actions: {
+    paddingTop: 24,
   },
 });

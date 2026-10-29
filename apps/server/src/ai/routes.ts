@@ -96,16 +96,21 @@ async function aiModelsAsync(): Promise<AiModelsResponse> {
   };
 }
 
-// The model of a kind for a Verify or a mark: 502 ai_unavailable when Venice no longer offers it or it
-// can't do the kind.
+// The model of a kind in Venice's catalog (`entries`): 502 ai_unavailable when Venice no longer
+// offers it or it can't do the kind.
+function requireModel(entries: CatalogEntry[], modelId: string, kind: AiModelKind): CatalogEntry {
+  const found = findModel(entries, modelId, kind);
+  if ('error' in found) throw AppError.aiUnavailable(found.error);
+  return found.entry;
+}
+
+// The model of a kind for a Verify or a mark, as requireModel says.
 async function catalogModel(
   modelId: string,
   kind: AiModelKind,
 ): Promise<{ entry: CatalogEntry; entries: CatalogEntry[] }> {
   const { entries } = await catalogAsync();
-  const found = findModel(entries, modelId, kind);
-  if ('error' in found) throw AppError.aiUnavailable(found.error);
-  return { entry: found.entry, entries };
+  return { entry: requireModel(entries, modelId, kind), entries };
 }
 
 const modelParams = z.object({ kind: aiModelKindSchema, modelId: z.string().min(1) });
@@ -272,10 +277,8 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
           const { kind } = request.params;
           const defaults = request.body;
           const { entries } = await catalogAsync();
-          for (const modelId of new Set([defaults.regular, defaults.unrestricted])) {
-            const found = findModel(entries, modelId, kind);
-            if ('error' in found) throw AppError.aiUnavailable(found.error);
-          }
+          for (const modelId of new Set([defaults.regular, defaults.unrestricted]))
+            requireModel(entries, modelId, kind);
           await setModelDefaults(getDb(), { kind, defaults });
           return aiModelsAsync();
         },

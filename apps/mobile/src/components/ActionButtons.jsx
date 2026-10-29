@@ -1,16 +1,16 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import TextButton from '@/components/TextButton';
 
 /**
  * A screen's text actions at the end of its content, in order (`{ label, tone, onPress, loading }`,
  * e.g. Delete or Reset changes; `loading` shows a spinner and blocks presses). Nothing without
- * any.
+ * any. The parent spaces it through `style`.
  */
-export default function ActionButtons({ actions }) {
+export default function ActionButtons({ actions, style }) {
   if (actions.length === 0) return null;
   return (
-    <View style={styles.actions}>
+    <View style={style}>
       {actions.map((action) => (
         <TextButton
           key={action.label}
@@ -23,9 +23,3 @@ export default function ActionButtons({ actions }) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  actions: {
-    paddingTop: 24,
-  },
-});

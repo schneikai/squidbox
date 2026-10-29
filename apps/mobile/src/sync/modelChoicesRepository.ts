@@ -66,6 +66,25 @@ export function pickDefault(
   );
 }
 
+// Clears the picks of `kind` for which `test(variant, id)` holds (`id` the stored pick's), in one save
+// inside its transaction.
+function clearPicksWhere(
+  db: SyncDb,
+  userId: string,
+  kind: AiModelKind,
+  test: (variant: ModelDefaultVariant, id: string) => boolean,
+): Promise<void> {
+  return save(db, userId, (stored) => {
+    const changes: Partial<ModelChoiceFields> = {};
+    for (const variant of MODEL_DEFAULT_VARIANTS) {
+      const field = MODEL_CHOICE_FIELDS[kind][variant];
+      const id = stored?.[field]?.id;
+      if (id && test(variant, id)) changes[field] = null;
+    }
+    return changes;
+  });
+}
+
 /**
  * After Apply changes for everyone: clears the picks of `kind` equal to the newly `published`
  * defaults, so the account follows them again. A pick changed during the request is kept.
@@ -76,23 +95,10 @@ export function clearPicksEqualTo(
   kind: AiModelKind,
   published: ModelDefaultVariants,
 ): Promise<void> {
-  return save(db, userId, (stored) => {
-    const changes: Partial<ModelChoiceFields> = {};
-    for (const variant of MODEL_DEFAULT_VARIANTS) {
-      const field = MODEL_CHOICE_FIELDS[kind][variant];
-      if (stored?.[field] && stored[field].id === published[variant]) changes[field] = null;
-    }
-    return changes;
-  });
+  return clearPicksWhere(db, userId, kind, (variant, id) => id === published[variant]);
 }
 
 /** Reset changes: clears both picks of `kind`, so the account follows the published defaults. */
 export function clearPicks(db: SyncDb, userId: string, kind: AiModelKind): Promise<void> {
-  return save(db, userId, (stored) => {
-    const changes: Partial<ModelChoiceFields> = {};
-    for (const field of Object.values(MODEL_CHOICE_FIELDS[kind])) {
-      if (stored?.[field]) changes[field] = null;
-    }
-    return changes;
-  });
+  return clearPicksWhere(db, userId, kind, () => true);
 }

@@ -6,6 +6,7 @@ import ActionButtons from '@/components/ActionButtons';
 import useApplyChangesForEveryone from '@/hooks/useApplyChangesForEveryone';
 import useHaptics from '@/hooks/useHaptics';
 import findCatalogModel from '@/utils/ai/findCatalogModel';
+import confirmAsync from '@/utils/confirmAsync';
 
 // "<lead> A, or B for Adult content." or, for one model, "<lead> A." (`names` by variant).
 function usesText(lead, { regular, unrestricted }) {
@@ -15,10 +16,11 @@ function usesText(lead, { regular, unrestricted }) {
 /**
  * The end of a model list of `kind`, while this account's picks of the defaults differ from the
  * published ones: Apply changes for everyone, which confirms with `yourDefaults` (named from
- * `catalog`, or by id) and runs `publishDefaults`, and Reset changes, which runs `resetDefaults`
- * (all useYourModels'). The parent renders it only then.
+ * `catalog`, or by id) and runs `publishDefaults`, and Reset changes, which confirms and runs
+ * `resetDefaults` (all useYourModels'). The parent renders it only then, and spaces it through
+ * `style`.
  */
-export default function ModelDefaultsActions({ kind, catalog, yourDefaults, publishDefaults, resetDefaults }) {
+export default function ModelDefaultsActions({ kind, catalog, yourDefaults, publishDefaults, resetDefaults, style }) {
   const haptics = useHaptics();
   const { isPublishing, publish } = useApplyChangesForEveryone();
 
@@ -37,9 +39,21 @@ export default function ModelDefaultsActions({ kind, catalog, yourDefaults, publ
 
   // Back to the published defaults, a local write like a pick on a model's page.
   async function handleReset() {
-    await resetDefaults();
-    haptics.success();
+    const isConfirmed = await confirmAsync({
+      title: 'Reset changes?',
+      message: "Your picks are replaced by the app's.",
+      action: 'Reset',
+      destructive: true,
+    });
+    if (!isConfirmed) return;
+    try {
+      await resetDefaults();
+      haptics.success();
+    } catch (error) {
+      haptics.error();
+      console.error('Resetting the picks failed', error);
+    }
   }
 
-  return <ActionButtons actions={actions} />;
+  return <ActionButtons actions={actions} style={style} />;
 }

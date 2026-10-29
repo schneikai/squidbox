@@ -13,9 +13,9 @@ import modelLabels from '@/utils/ai/modelLabels';
 export default memo(AddModelRow);
 
 // A Venice model on the Add screen: its summary with its labels, cost and reasoning, and a check once
-// it's in your list (its labels from `yourDefaults`, the defaults this account uses). `onAdd(model)`
-// is stable, so the row stays memoized.
-function AddModelRow({ model, kind, yourDefaults, isAdded, onAdd }) {
+// it's in your list (its labels from `yourDefaults`, the defaults this account uses, and `defaults`,
+// the published ones). `onAdd(model)` is stable, so the row stays memoized.
+function AddModelRow({ model, kind, yourDefaults, defaults, isAdded, onAdd }) {
   return (
     <TouchableOpacity
       style={styles.row}
@@ -27,7 +27,7 @@ function AddModelRow({ model, kind, yourDefaults, isAdded, onAdd }) {
     >
       <ModelSummary
         name={model.name}
-        labels={modelLabels(kind, model.id, model, yourDefaults)}
+        labels={modelLabels(kind, model.id, model, yourDefaults, defaults)}
         detail={modelDetailText(model, kind)}
       />
       {isAdded && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
