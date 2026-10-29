@@ -1,13 +1,13 @@
-import { aiModelKindSchema, resolveModelDefaults } from '@squidbox/shared';
 import { useCallback, useEffect, useMemo } from 'react';
 
 import useAiCatalog from '@/hooks/useAiCatalog';
 import usePersona from '@/hooks/usePersona';
+import useYourDefaults from '@/hooks/useYourDefaults';
 import applyAiCatalog from '@/lib/applyAiCatalog';
 import useLibrary from '@/library/useLibrary';
 import { readModelList, seedYourModels } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
-import { clearPicksEqualTo, pickDefault as savePick, readModelPicks } from '@/sync/modelChoicesRepository';
+import { clearPicks, clearPicksEqualTo, pickDefault as savePick } from '@/sync/modelChoicesRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import { requestSync } from '@/sync/worker';
 import joinYourModels from '@/utils/ai/joinYourModels';
@@ -19,13 +19,15 @@ import setModelDefaultsAsync from '@/utils/cloud-api/ai/setModelDefaultsAsync';
  * Your models of a kind (an ai_admin tool), live: `rows` your list joined with Venice's models
  * (useAiCatalog's `catalog`, `defaults` what everyone uses, `error` and `retry`), null until both
  * are in; `yourDefaults` the defaults this account uses, your picks over `defaults`, by kind and
- * variant like `defaults` (null while either loads); `usedId` the one the assistant uses now, the
+ * variant like `defaults` (null while either loads), and `isChanged` whether they differ from
+ * `defaults` for this kind (useYourDefaults'); `usedId` the one the assistant uses now, the
  * default for the persona's Adult content switch (null while loading). `pickDefault(variant, model)`
  * picks your Default (`regular`) or Uncensored default (`unrestricted`) of the kind, null to follow
  * the published one; `publishDefaults()` is Make default for everyone: your two defaults of the kind
  * become everyone's, and the picks now equal to them are cleared (one changed during the request
- * stays). The picks sync with the account, the list stays on the device. On the first run the list
- * starts with the verified models Venice still has.
+ * stays); `resetDefaults()` clears both picks of the kind, back to the published defaults. The
+ * picks sync with the account, the list stays on the device. On the first run the list starts with
+ * the verified models Venice still has.
  */
 export default function useYourModels(kind) {
   const { models: catalog, defaults, error, retry } = useAiCatalog();
@@ -38,7 +40,7 @@ export default function useYourModels(kind) {
     [kind],
   );
   const persona = usePersona();
-  const picks = useLiveQuery((db) => readModelPicks(db, userId), [schema.modelChoices], [userId]);
+  const { yourDefaults, changedKinds } = useYourDefaults();
 
   useEffect(() => {
     if (!catalog || !defaults || list !== null) return;
@@ -49,15 +51,7 @@ export default function useYourModels(kind) {
 
   // Memoized: the Add screen's rows stay memoized across its search keystrokes.
   const rows = useMemo(() => (catalog && list ? joinYourModels(list, catalog, kind) : null), [catalog, list, kind]);
-  const yourDefaults = useMemo(
-    () =>
-      picks === undefined || !defaults
-        ? null
-        : Object.fromEntries(
-            aiModelKindSchema.options.map((each) => [each, resolveModelDefaults(each, picks, defaults)]),
-          ),
-    [picks, defaults],
-  );
+  const isChanged = changedKinds?.includes(kind) ?? false;
   const usedId =
     yourDefaults && persona !== undefined
       ? yourDefaults[kind][persona?.adultContent ? 'unrestricted' : 'regular']
@@ -78,5 +72,22 @@ export default function useYourModels(kind) {
     requestSync();
   }
 
-  return { catalog, defaults, yourDefaults, error, retry, rows, usedId, pickDefault, publishDefaults };
+  async function resetDefaults() {
+    await clearPicks(getDb(), userId, kind);
+    requestSync();
+  }
+
+  return {
+    catalog,
+    defaults,
+    yourDefaults,
+    isChanged,
+    error,
+    retry,
+    rows,
+    usedId,
+    pickDefault,
+    publishDefaults,
+    resetDefaults,
+  };
 }

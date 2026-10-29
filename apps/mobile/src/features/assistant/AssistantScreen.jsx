@@ -5,6 +5,7 @@ import { StyleSheet } from 'react-native';
 import personaSummary from './personaSummary';
 import useVeniceBalance from './useVeniceBalance';
 
+import ChangedBadge from '@/components/ChangedBadge';
 import DetailScrollView from '@/components/DetailScrollView';
 import GradientFill from '@/components/GradientFill';
 import Icon from '@/components/Icon';
@@ -18,6 +19,7 @@ import useInstructions from '@/hooks/useInstructions';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import usePersona from '@/hooks/usePersona';
 import useSeedPromptButtons from '@/hooks/useSeedPromptButtons';
+import useYourDefaults from '@/hooks/useYourDefaults';
 import { colors, radii, sizes } from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
 import { countFavorites } from '@/sync/favoritesRepository';
@@ -84,10 +86,12 @@ export default function AssistantScreen() {
   );
 }
 
-// Admin, for an ai_admin account only: the model lists of each kind (Writing, Vision), then
-// `children` (Instructions), and the Venice balance.
+// Admin, for an ai_admin account only: the model lists of each kind (Writing, Vision), Changed
+// while this account's picks differ from the published defaults, then `children` (Instructions),
+// and the Venice balance.
 function AdminSection({ children }) {
   const navigation = useNavigation();
+  const { changedKinds } = useYourDefaults();
 
   return (
     <>
@@ -99,7 +103,9 @@ function AdminSection({ children }) {
             label={modelKindText[kind].title}
             onPress={() => navigation.navigate('ModelListScreen', { kind })}
             chevron
-          />
+          >
+            {changedKinds?.includes(kind) && <ChangedBadge />}
+          </Row>
         ))}
         {children}
       </Section>
@@ -108,18 +114,15 @@ function AdminSection({ children }) {
   );
 }
 
-// Instructions, with how many kinds the user stored their own text for.
+// Instructions, Changed while the user stored their own text for any kind.
 function InstructionsRow() {
   const navigation = useNavigation();
   const { changedKinds } = useInstructions();
 
-  function valueText() {
-    if (!changedKinds) return null;
-    return changedKinds.length > 0 ? `${changedKinds.length} changed` : 'Default';
-  }
-
   return (
-    <Row label="Instructions" value={valueText()} onPress={() => navigation.navigate('InstructionsScreen')} chevron />
+    <Row label="Instructions" onPress={() => navigation.navigate('InstructionsScreen')} chevron>
+      {changedKinds?.length > 0 && <ChangedBadge />}
+    </Row>
   );
 }
 

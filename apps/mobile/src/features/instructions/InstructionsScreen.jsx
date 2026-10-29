@@ -1,11 +1,10 @@
 import { useNavigation } from '@react-navigation/native';
 import { INSTRUCTION_KINDS } from '@squidbox/shared';
-import { StyleSheet } from 'react-native';
 
 import instructionText from './instructionText';
 
-import Badge from '@/components/Badge';
 import CatalogStatus from '@/components/CatalogStatus';
+import ChangedBadge from '@/components/ChangedBadge';
 import DetailScrollView from '@/components/DetailScrollView';
 import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
@@ -30,7 +29,7 @@ export default function InstructionsScreen() {
         onPress={() => navigation.navigate('InstructionScreen', { kind })}
         chevron
       >
-        {changedKinds?.includes(kind) && <Badge label="Changed" tone="accent" style={styles.changed} />}
+        {changedKinds?.includes(kind) && <ChangedBadge />}
       </Row>
     );
   }
@@ -47,9 +46,3 @@ export default function InstructionsScreen() {
     </Page>
   );
 }
-
-const styles = StyleSheet.create({
-  changed: {
-    alignSelf: 'center',
-  },
-});

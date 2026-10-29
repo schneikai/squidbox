@@ -84,3 +84,14 @@ export function clearPicksEqualTo(
     return changes;
   });
 }
+
+/** Reset to default: clears both picks of `kind`, so the account follows the published defaults. */
+export function clearPicks(db: SyncDb, userId: string, kind: AiModelKind): Promise<void> {
+  return save(db, userId, (stored) => {
+    const changes: Partial<ModelChoiceFields> = {};
+    for (const field of Object.values(MODEL_CHOICE_FIELDS[kind])) {
+      if (stored?.[field]) changes[field] = null;
+    }
+    return changes;
+  });
+}

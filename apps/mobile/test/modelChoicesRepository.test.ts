@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { makeTestDb } from './helpers/testDb';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
-import { clearPicksEqualTo, pickDefault, readModelPicks } from '../src/sync/modelChoicesRepository';
+import { clearPicks, clearPicksEqualTo, pickDefault, readModelPicks } from '../src/sync/modelChoicesRepository';
 
 const USER = '6f1c1c39-6c1c-4a36-9d0e-2d6c1ad4e0f1';
 const kimi = { id: 'kimi-k3', name: 'Kimi K3' };
@@ -51,5 +51,14 @@ describe('modelChoicesRepository', () => {
       writingUncensoredModel: grok,
       visionModel: kimi,
     });
+  });
+
+  it('resets both picks of a kind, and leaves the other kind', async () => {
+    const db = makeTestDb();
+    await pickDefault(db, USER, 'writing', 'regular', kimi, PUBLISHED);
+    await pickDefault(db, USER, 'writing', 'unrestricted', grok, PUBLISHED);
+    await pickDefault(db, USER, 'vision', 'regular', kimi, PUBLISHED);
+    await clearPicks(db, USER, 'writing');
+    expect(await readModelPicks(db, USER)).toEqual({ ...NONE, visionModel: kimi });
   });
 });

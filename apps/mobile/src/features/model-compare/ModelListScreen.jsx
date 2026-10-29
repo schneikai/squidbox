@@ -1,7 +1,7 @@
 import { COMPARE_MIN_MODELS } from '@squidbox/shared';
 import { StyleSheet } from 'react-native';
 
-import MakeDefaultForEveryone from './MakeDefaultForEveryone';
+import ModelDefaultsFooter from './ModelDefaultsFooter';
 import ModelRow from './ModelRow';
 import modelKindText from './modelKindText';
 
@@ -29,12 +29,13 @@ import confirmAsync from '@/utils/confirmAsync';
 // Your models of one kind (route param `kind`: writing | vision), with their labels, the one the
 // assistant uses, and the way to add them; a row opens the model's page (ModelScreen: its labels,
 // Verify and Remove), their scores from Compare, and Compare. The list ends with what everyone uses
-// and Make default for everyone (MakeDefaultForEveryone). An ai_admin tool.
+// and Make default for everyone (ModelDefaultsFooter). An ai_admin tool.
 export default function ModelListScreen({ navigation, route }) {
   const { kind } = route.params;
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const paddingBottom = useFloatingPrimaryActionPadding();
-  const { catalog, defaults, yourDefaults, error, retry, rows, usedId, publishDefaults } = useYourModels(kind);
+  const { catalog, defaults, yourDefaults, isChanged, error, retry, rows, publishDefaults, resetDefaults } =
+    useYourModels(kind);
 
   const availableCount = rows?.filter((row) => row.model !== null).length ?? 0;
   const hasScores = rows?.some(({ score }) => score !== null) ?? false;
@@ -65,7 +66,6 @@ export default function ModelListScreen({ navigation, route }) {
               kind={kind}
               score={row.score}
               yourDefaults={yourDefaults}
-              isUsed={row.id === usedId}
               onOpen={() => handleOpen(row)}
             />
           ))}
@@ -74,12 +74,14 @@ export default function ModelListScreen({ navigation, route }) {
         <SectionFooter>{text.footer}</SectionFooter>
         {text.note && <SectionFooter>{text.note}</SectionFooter>}
         {yourDefaults && (
-          <MakeDefaultForEveryone
+          <ModelDefaultsFooter
             kind={kind}
             catalog={catalog}
             defaults={defaults}
             yourDefaults={yourDefaults}
+            isChanged={isChanged}
             publishDefaults={publishDefaults}
+            resetDefaults={resetDefaults}
           />
         )}
       </>

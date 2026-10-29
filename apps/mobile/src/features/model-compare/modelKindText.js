@@ -10,7 +10,7 @@ const modelKindText = {
   writing: {
     title: 'Writing',
     intro: 'Writes the captions and replies.',
-    footer: 'The check mark is the model you write with. Thumbs up from Compare add up here.',
+    footer: 'Thumbs up from Compare add up here.',
     verified: VERIFIED,
     labelsFootnote: LABELS_FOOTNOTE,
     everyoneUses: 'Everyone writes with',
@@ -20,8 +20,7 @@ const modelKindText = {
   vision: {
     title: 'Vision',
     intro: 'Tags your photos and videos.',
-    footer:
-      'The check mark is the model you tag with. The count is every tag you tapped as fitting in Compare. They add up like thumbs up.',
+    footer: 'The count is every tag you tapped as fitting in Compare. They add up like thumbs up.',
     verified: VERIFIED,
     labelsFootnote: LABELS_FOOTNOTE,
     everyoneUses: 'Everyone tags with',
