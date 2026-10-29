@@ -12,7 +12,7 @@ import modelLabels from '@/utils/ai/modelLabels';
 // Memoized: a keystroke in the search or an add re-renders only the rows that changed.
 export default memo(AddModelRow);
 
-// A Venice model on the Add screen: its summary with its labels, cost and thinking, and a check once
+// A Venice model on the Add screen: its summary with its labels, cost and reasoning, and a check once
 // it's in your list (its labels from `defaults`, useAiCatalog's). `onAdd(model)` is stable, so the
 // row stays memoized.
 function AddModelRow({ model, kind, defaults, isAdded, onAdd }) {

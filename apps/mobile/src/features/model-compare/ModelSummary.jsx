@@ -6,7 +6,7 @@ import { colors } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
 // A model's name, its labels (`labels`, from modelLabels) as badges below it, the defaults first, and
-// a detail line under them (its score, cost, thinking and Unrestricted). `isDimmed` greys the text,
+// a detail line under them (its score, Unrestricted, reasoning and cost). `isDimmed` greys the text,
 // for a model Venice no longer offers.
 export default function ModelSummary({ name, labels, detail, isDimmed = false }) {
   const hasBadges = labels.default || labels.adultDefault || labels.verified;
