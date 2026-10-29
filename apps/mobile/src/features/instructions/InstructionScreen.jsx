@@ -26,7 +26,7 @@ import publishInstructionAsync from '@/utils/cloud-api/ai/publishInstructionAsyn
 // defaults (they come with the catalog). A root screen, one per kind.
 export default function InstructionScreen({ route, navigation }) {
   const { kind } = route.params;
-  const isAvailable = useLeaveWhenUnavailable();
+  const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const { library } = useLibrary();
   const userId = library.owner.userId;
   const { defaultTexts, error, retry } = useInstructions();

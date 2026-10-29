@@ -17,7 +17,7 @@ import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 // while the user stored their own text.
 export default function InstructionsScreen() {
   const navigation = useNavigation();
-  const isAvailable = useLeaveWhenUnavailable();
+  const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const { changedKinds, error, retry } = useInstructions();
 
   function row(kind) {

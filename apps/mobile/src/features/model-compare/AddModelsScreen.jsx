@@ -26,7 +26,7 @@ import modelsOfKind from '@/utils/ai/modelsOfKind';
 // your list. Removing is on the model's page.
 export default function AddModelsScreen({ navigation, route }) {
   const { kind } = route.params;
-  const isAvailable = useLeaveWhenUnavailable();
+  const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const [searchText, setSearchText] = useState('');
   const { scrollY, onScroll } = useScrollY();
   const { bottom } = useSafeAreaInsets();
