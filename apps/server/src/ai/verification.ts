@@ -5,7 +5,6 @@
 import { and, eq } from 'drizzle-orm';
 import {
   modelDefaultsSchema,
-  modelLabelLocks,
   unrestrictedLock,
   verifiedLock,
   type AiModelKind,
@@ -16,7 +15,7 @@ import {
 import type { Db } from '../db/client.js';
 import { modelDefaults, uncensoredOverrides, verifiedModels } from '../db/schema.js';
 import { AppError } from '../errors.js';
-import { isUncensored, type CatalogEntry } from './catalog.js';
+import { isUncensored, isVeniceUncensored, type CatalogEntry } from './catalog.js';
 
 export type Verification = {
   /** The ids of the verified models of each kind. */
@@ -71,9 +70,9 @@ async function readLabels(tx: Pick<Db, 'select'>, kind: AiModelKind, modelId: st
   return { isVerified: verified !== undefined, override: override?.uncensored ?? null, defaults };
 }
 
-// Refuses a change that modelLabelLocks (shared) locks, with its reason.
+// Refuses to turn off a label that modelLabelLocks (shared) keeps on, naming the default it is.
 function refuseLocked(lock: LabelLock): void {
-  if (lock.locked) throw AppError.validation(lock.reason ?? "This label can't change");
+  if (lock.defaultName) throw AppError.validation(`It's the ${lock.defaultName}`);
 }
 
 /**
@@ -136,24 +135,36 @@ export async function setUncensored(
 }
 
 /**
- * Makes the model the default of `kind` for `variant`. 400 unless it is verified for the kind, and
- * for Adult content (`unrestricted`) unless it counts as uncensored (modelLabelLocks).
+ * Makes the model the default of `kind` for `variant`, and turns on what that default needs: Verified
+ * for the kind, and for Adult content (`unrestricted`) Unrestricted, by following Venice when Venice
+ * rates it uncensored, else by an override.
  */
 export async function setModelDefault(
   db: Db,
-  { kind, variant, entry }: { kind: AiModelKind; variant: ModelDefaultVariant; entry: CatalogEntry },
+  {
+    kind,
+    variant,
+    entry,
+    userId,
+  }: { kind: AiModelKind; variant: ModelDefaultVariant; entry: CatalogEntry; userId: string | null },
 ): Promise<void> {
   await db.transaction(async (tx) => {
     const { isVerified, override, defaults } = await readLabels(tx, kind, entry.id);
     if (defaults[kind][variant] === entry.id) return;
-    const locks = modelLabelLocks({
-      kind,
-      modelId: entry.id,
-      isVerified,
-      isUncensored: isUncensored(entry, override),
-      defaults,
-    });
-    refuseLocked(variant === 'regular' ? locks.default : locks.adultDefault);
+    if (!isVerified) await tx.insert(verifiedModels).values({ kind, modelId: entry.id, verifiedBy: userId });
+    if (variant === 'unrestricted' && !isUncensored(entry, override)) {
+      if (isVeniceUncensored(entry)) {
+        await tx.delete(uncensoredOverrides).where(eq(uncensoredOverrides.modelId, entry.id));
+      } else {
+        await tx
+          .insert(uncensoredOverrides)
+          .values({ modelId: entry.id, uncensored: true, setBy: userId })
+          .onConflictDoUpdate({
+            target: uncensoredOverrides.modelId,
+            set: { uncensored: true, setBy: userId, setAt: new Date() },
+          });
+      }
+    }
     await tx
       .insert(modelDefaults)
       .values({ kind, variant, modelId: entry.id })

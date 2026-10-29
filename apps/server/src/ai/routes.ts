@@ -257,7 +257,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         handler: async (request) => {
           const { kind, variant } = request.params;
           const { entry } = await catalogModel(request.body.modelId, kind);
-          await setModelDefault(getDb(), { kind, variant, entry });
+          await setModelDefault(getDb(), { kind, variant, entry, userId: requireUser(request).id });
           return aiModelsAsync();
         },
       });

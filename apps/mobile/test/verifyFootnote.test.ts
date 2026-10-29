@@ -9,7 +9,7 @@ describe('verifyFootnote', () => {
       'Verify plays 3 conversations, 9 turns in all. A judge reads each reply and says whether it did what was asked.',
     );
     expect(verifyFootnote('vision', VISION_PLAN)).toBe(
-      'Verify sends 4 photos and checks that tags come back for each.',
+      'Verify sends 4 photos and passes when tags come back for each.',
     );
   });
 });

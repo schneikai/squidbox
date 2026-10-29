@@ -30,6 +30,7 @@ Decide this before the app stores anything new:
 
 - Build screens from the components in `src/components`. Don't recreate their look with styles or use low-level primitives (raw `TextInput`, menu primitives) in features when a project component exists. If a UI pattern repeats, extract a component
 - Don't spread style objects in screens or features
+- One name per feature or label, in every text that mentions it (rows, footnotes, alerts, badges, errors), even when quoting a provider: Verify, never check or test; "Venice rates it unrestricted", never uncensored. Before writing UI text, grep for the name the app already uses
 - Components define their appearance; parents define layout
 - Animate with the `motion` tokens in `styles/designTokens.js` (`enter`, `exit`, `move`, `spring`), not ad-hoc durations, easings or spring values
 - Give haptic feedback through `hooks/useHaptics`, never expo-haptics directly: it respects the Haptics setting and skips builds and web without the native module. Use it only for meaningful moments (a lift, a drop, a peek, a selection change, a success or an error), never for every tap

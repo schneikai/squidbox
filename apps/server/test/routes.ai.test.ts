@@ -812,11 +812,12 @@ describe('the marks', () => {
       kind: 'writing',
       variant: 'unrestricted',
       entry: expect.objectContaining({ id: 'kimi-k3' }),
+      userId: expect.any(String),
     });
-    vi.mocked(setModelDefault).mockRejectedValueOnce(new AppError(400, 'validation_error', 'Turn on Verified first'));
+    vi.mocked(setModelDefault).mockRejectedValueOnce(new AppError(400, 'validation_error', 'Venice is down'));
     const refused = await call('PUT', '/ai/defaults/writing/regular', { modelId: 'z-ai-glm-5-3' });
     expect(refused.statusCode).toBe(400);
-    expect(refused.json().error.message).toBe('Turn on Verified first');
+    expect(refused.json().error.message).toBe('Venice is down');
     expect((await call('PUT', '/ai/defaults/writing/weird', { modelId: 'kimi-k3' })).statusCode).toBe(400);
   });
 });

@@ -124,33 +124,39 @@ d('the model marks and Verify runs', () => {
     expect((await readVerification(db)).overrides.has('test-writing-3')).toBe(false);
   });
 
-  it('makes a verified model a default, and refuses an unverified or censored one', async () => {
+  it('makes a model a default, turning on Verified, and Unrestricted for Adult content', async () => {
     await rolledBack(async (tx) => {
       const plain = entry('test-writing-2');
-      await expect(setModelDefault(tx, { kind: 'writing', variant: 'regular', entry: plain })).rejects.toMatchObject({
-        statusCode: 400,
-        message: 'Turn on Verified first',
-      });
-      await mark(tx, 'writing', 'test-writing-2');
-      await expect(
-        setModelDefault(tx, { kind: 'writing', variant: 'unrestricted', entry: plain }),
-      ).rejects.toMatchObject({ statusCode: 400, message: 'Turn on Unrestricted first' });
-      // Venice's label counts without an override
-      await setModelDefault(tx, { kind: 'writing', variant: 'unrestricted', entry: entry('test-writing-2', true) });
-      expect((await readModelDefaults(tx)).writing.unrestricted).toBe('test-writing-2');
-      // and so does an override where Venice has no label
-      await setUncensored(tx, { modelId: plain.id, entry: plain, uncensored: true, userId: null });
-      await setModelDefault(tx, { kind: 'writing', variant: 'unrestricted', entry: plain });
-      await setModelDefault(tx, { kind: 'writing', variant: 'regular', entry: plain });
-      expect((await readModelDefaults(tx)).writing.regular).toBe('test-writing-2');
+      await setModelDefault(tx, { kind: 'writing', variant: 'regular', entry: plain, userId: null });
+      let verification = await readVerification(tx);
+      expect(verification.defaults.writing.regular).toBe('test-writing-2');
+      expect(verification.verified.writing.has('test-writing-2')).toBe(true);
+      expect(verification.overrides.has('test-writing-2')).toBe(false);
+      // Venice doesn't rate it uncensored: an override turns Unrestricted on
+      await setModelDefault(tx, { kind: 'writing', variant: 'unrestricted', entry: plain, userId: null });
+      verification = await readVerification(tx);
+      expect(verification.defaults.writing.unrestricted).toBe('test-writing-2');
+      expect(verification.overrides.get('test-writing-2')).toBe(true);
+      // Venice rates it uncensored but an override says no: the override goes, to follow Venice
+      const labelled = entry('test-writing-3', true);
+      await setUncensored(tx, { modelId: labelled.id, entry: labelled, uncensored: false, userId: null });
+      await setModelDefault(tx, { kind: 'writing', variant: 'unrestricted', entry: labelled, userId: null });
+      verification = await readVerification(tx);
+      expect(verification.defaults.writing.unrestricted).toBe('test-writing-3');
+      expect(verification.overrides.has('test-writing-3')).toBe(false);
+      expect(verification.verified.writing.has('test-writing-3')).toBe(true);
     });
     expect(await readModelDefaults(db)).toEqual(SEEDED);
   });
 
   it('refuses to unmark a default, or to make an Adult content default not uncensored', async () => {
     await rolledBack(async (tx) => {
-      await mark(tx, 'writing', 'test-writing-2');
-      await setModelDefault(tx, { kind: 'writing', variant: 'unrestricted', entry: entry('test-writing-2', true) });
+      await setModelDefault(tx, {
+        kind: 'writing',
+        variant: 'unrestricted',
+        entry: entry('test-writing-2', true),
+        userId: null,
+      });
       await expect(mark(tx, 'writing', 'test-writing-2', false)).rejects.toMatchObject({
         statusCode: 400,
         message: "It's the Default for Adult content",
