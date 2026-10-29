@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { aiModelKindSchema } from '@squidbox/shared';
+import { aiModelKindSchema, resolveModelId } from '@squidbox/shared';
 import { StyleSheet } from 'react-native';
 
 import personaSummary from './personaSummary';
@@ -97,15 +97,21 @@ export default function AssistantScreen() {
 function ModelsSection({ userId }) {
   const navigation = useNavigation();
   const chosen = useLiveQuery((db) => readChosenModels(db, userId), [schema.modelChoices], [userId]);
-  const { models: catalog } = useAiCatalog();
+  const persona = useLiveQuery((db) => readPersona(db, userId), [schema.personas], [userId]);
+  const { models: catalog, defaults } = useAiCatalog();
 
   // The chosen model's name, or a muted "No longer available" once Venice dropped it (its list
   // says which; a catalog still loading or failed to load leaves the plain name). The name and the
-  // label together would wrap the row's label.
+  // label together would wrap the row's label. Without a choice, the default it uses (for the
+  // persona's Adult content switch), once the catalog names it.
   function chosenText(kind) {
-    if (chosen === undefined) return { value: null, isGone: false };
+    if (chosen === undefined || persona === undefined) return { value: null, isGone: false };
     const model = chosen[kind];
-    if (!model) return { value: 'Not chosen', isGone: false };
+    if (!model) {
+      const defaultId = defaults ? resolveModelId(kind, null, persona?.adultContent, defaults) : null;
+      const name = catalog && modelsOfKind(catalog, kind).find(({ id }) => id === defaultId)?.name;
+      return { value: name ?? null, isGone: false };
+    }
     const isGone = !!catalog && !modelsOfKind(catalog, kind).some(({ id }) => id === model.id);
     return { value: isGone ? 'No longer available' : model.name, isGone };
   }
