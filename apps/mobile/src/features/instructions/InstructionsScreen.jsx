@@ -15,19 +15,19 @@ import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import { layout } from '@/styles/designTokens';
 
 // Settings → Assistant → Admin → Instructions, for an ai_admin account: what the assistant is told
-// before each kind of request, one row per kind with the first line of its text, a Changed badge
+// before each kind of request, one row per kind with its name and what it is for (instructionText), a Changed badge
 // while it isn't the app's.
 export default function InstructionsScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
-  const { stored, texts } = useInstructions();
+  const { stored } = useInstructions();
 
   function row(kind) {
     return (
       <Row
         key={kind}
         label={instructionText[kind].title}
-        description={texts && texts[kind].split('\n')[0]}
+        description={instructionText[kind].description}
         onPress={() => navigation.navigate('InstructionScreen', { kind })}
         chevron
       >
