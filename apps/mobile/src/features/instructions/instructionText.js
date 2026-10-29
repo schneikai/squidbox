@@ -2,19 +2,19 @@
 const instructionText = {
   writing: {
     title: 'Writing',
-    description: 'Instructions for writing posts in the chat.',
+    description: 'The system instructions for the assistant when writing posts for you.',
   },
   visionTagging: {
     title: 'Photo tags',
-    description: 'Instructions for tagging photos.',
+    description: 'The system instructions for the assistant when tagging your photos.',
   },
   moreLikeThis: {
     title: 'More like this',
-    description: 'Instructions for More like this on a post option.',
+    description: 'The system instructions for the assistant when you choose More like this.',
   },
   modelCheckJudge: {
     title: 'Verify judge',
-    description: 'Instructions for judging replies in Verify.',
+    description: 'The system instructions for the judge when Verify judges a reply.',
   },
 };
 
