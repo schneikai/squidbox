@@ -31,7 +31,6 @@ d('switchUserFeature', () => {
       email: 'features@test.local',
       passwordDigest: 'x',
       storageBucket: null,
-      features: ['developer', 'retired'],
     });
   });
   beforeEach(async () => {

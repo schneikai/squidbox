@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { deferred } from './helpers/deferred';
 import { makeAssetRecord } from './helpers/factory';
 import { flushTurns } from './helpers/flushTurns';
+import { gate } from './helpers/gate';
 import { makeTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
 import { isBackupRunning, runBackup, type BackupUploads } from '../src/sync/backupRun';
@@ -456,20 +457,12 @@ describe('runBackup', () => {
 
   it('refuses a second run while one is running, and does not start while a pause holds', async () => {
     const a = await unsyncedAsset('a.jpg');
-    const uploading = deferred();
-    const upload = deferred();
-    const first = runBackup(db, {
-      uploads: uploads({
-        uploadFile: () => {
-          uploading.resolve();
-          return upload.promise;
-        },
-      }),
-    });
-    await uploading.promise;
+    const upload = gate();
+    const first = runBackup(db, { uploads: uploads({ uploadFile: upload.hold }) });
+    await upload.entered;
     expect(isBackupRunning()).toBe(true);
     expect(() => runBackup(db, { uploads: uploads() })).toThrow('already running');
-    upload.resolve();
+    upload.release();
     await first;
     expect(await row(a.id)).toMatchObject({ isSynced: true });
 

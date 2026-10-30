@@ -1,13 +1,12 @@
 import { eq, lte } from 'drizzle-orm';
 import { describe, it, expect, vi, beforeEach, onTestFinished } from 'vitest';
 
-import { deferred } from './helpers/deferred';
 import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { fuzzRuns } from './helpers/fuzzRuns';
+import { gate } from './helpers/gate';
 import { mergeLosses } from './helpers/mergeLosses';
 import { prng } from './helpers/prng';
 import { seedAccountPhotos } from './helpers/seedAccountPhotos';
-import { forgetSweeps, sweepsSettled } from './helpers/sweeps';
 import { makeTestDb } from './helpers/testDb';
 import { purgedFilesRemover } from '../src/library/fs';
 import { libraryPaths } from '../src/library/libraryPaths';
@@ -98,11 +97,6 @@ vi.mock('../src/library/fs', () => ({
       }
     },
 }));
-vi.mock('../src/sync/sweepPurgedFiles', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../src/sync/sweepPurgedFiles')>();
-  const { trackSweeps } = await import('./helpers/sweeps');
-  return { ...original, sweepPurgedFiles: trackSweeps(original.sweepPurgedFiles) };
-});
 vi.mock('../src/sync/status', async (importOriginal) => {
   const original = await importOriginal<typeof import('../src/sync/status')>();
   return {
@@ -167,7 +161,8 @@ vi.mock('../src/library/registry', async (importOriginal) => {
   };
 });
 
-const { closeLibrary, openLibrary, openLibraryId, sweepOpenLibrary } = await import('../src/library/current');
+const { closeLibrary, librarySweepsSettled, openLibrary, openLibraryId, sweepOpenLibrary } =
+  await import('../src/library/current');
 const { getRegistry, loadRegistry } = await import('../src/library/registry');
 const { mergeLibrary, resumeMerges } = await import('../src/library/mergeRun');
 const { getDb } = await import('../src/sync/db/client');
@@ -186,7 +181,6 @@ async function resetLibraries(): Promise<AppDb> {
   files.clear();
   storage.clear();
   Object.assign(inject, { step: null, crash: false, dead: false, autoPush: true, removing: null });
-  forgetSweeps();
   await loadRegistry(async () => ({ libraries: [DEV, ACC] }));
   const source = makeTestDb();
   stores.set(SRC.dbName, source);
@@ -265,7 +259,7 @@ async function scenario(step: string, crash: boolean, keepsSource: boolean): Pro
     await repo.remove(getDb(), [photo.id]);
     await repo.purgeAssets(getDb(), [photo.id]);
     sweepOpenLibrary();
-    await sweepsSettled();
+    await librarySweepsSettled();
     if ((await inAccount()) && !hasFile())
       problems.push(`${at}: the account holds the photo, but the device purge removed its only file`);
     await closeLibrary();
@@ -345,23 +339,19 @@ describe('a device library’s sweep running when the sign-in merges it', () => 
     const sharing = await devicePhoto(source, { filename: 'gone7.jpg', mediaLibraryAssetId: 'm-s' });
     const own = await devicePhoto(source, { filename: 'own.jpg', mediaLibraryAssetId: 'm-o' });
 
-    const entered = deferred();
-    const release = deferred();
-    onTestFinished(() => release.resolve());
-    inject.removing = () => {
-      entered.resolve();
-      return release.promise;
-    };
+    const removal = gate();
+    onTestFinished(() => removal.release());
+    inject.removing = removal.hold;
     await openLibrary(DEV); // its sweep starts, without holding up the open
-    await entered.promise; // its first batch is being removed
+    await removal.entered; // its first batch is being removed
     const left = () => [...files].filter((uri) => uri.startsWith(getAssetFileUri('gone', SRC))).length;
     // The sign-in: the switch closes the device library, then its records join the account's.
     await closeLibrary();
     await openLibrary(ACC);
     await status.markFirstSyncDone(getDb());
     await mergeLibrary('dev', 'acc'); // committed, and the account's library pushes it
-    release.resolve(); // the batch in flight at the switch finishes
-    await sweepsSettled();
+    removal.release(); // the batch in flight at the switch finishes
+    await librarySweepsSettled();
     // The sweep stopped at the switch (a second batch at most): the rest goes with the source's folders.
     expect(left()).toBeGreaterThanOrEqual(2000 - 2 * 500 - 1);
 
@@ -575,7 +565,7 @@ describe('round 19: seeded crashes', () => {
               await repo.remove(getDb(), [photo.id]);
               await repo.purgeAssets(getDb(), [photo.id]);
               sweepOpenLibrary();
-              await sweepsSettled();
+              await librarySweepsSettled();
             }
           }
           liveDevice = (await getDb().select().from(schema.assets)).filter((row) => row.deletedAt === null);

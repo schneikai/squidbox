@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { deferred } from './helpers/deferred';
 import { makeAssetRecord } from './helpers/factory';
 import { flushTurns } from './helpers/flushTurns';
+import { gate } from './helpers/gate';
 import { makeTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
@@ -16,6 +17,7 @@ import {
   runFullResync,
   runSyncOnce,
   setSyncTarget,
+  syncSettled,
   withSyncPaused,
   type SyncTarget,
 } from '../src/sync/worker';
@@ -48,20 +50,14 @@ function server(total: number, onPull: (cursor: number) => void = () => {}): Syn
   };
 }
 
-// Resolves the first time a write to the outbox leaves it empty (or at once, when it is).
-function outboxEmptied(db: AppDb): Promise<void> {
+// Resolves at the first commit that writes this table.
+function committedTo(db: AppDb, table: string): Promise<void> {
   return new Promise((resolve) => {
-    let isEmptied = false;
-    const check = async () => {
-      if (isEmptied || (await db.select().from(schema.outbox)).length > 0) return;
-      isEmptied = true;
-      unsubscribe();
+    const stop = db.onTablesChanged((tables) => {
+      if (!tables.has(table)) return;
+      stop();
       resolve();
-    };
-    const unsubscribe = db.onTablesChanged((tables) => {
-      if (tables.has('outbox')) check();
     });
-    check();
   });
 }
 
@@ -69,13 +65,11 @@ describe('withSyncPaused', () => {
   it('lets no run start while its work runs, aborts and awaits the running ones, and resumes after a throw', async () => {
     let aborted = false;
     let ended = false;
-    const abortSeen = deferred();
-    const finish = deferred();
+    const finish = gate();
     const run = startRun(async (signal) => {
       await new Promise<void>((resolve) => signal.addEventListener('abort', () => resolve()));
       aborted = true;
-      abortSeen.resolve();
-      await finish.promise;
+      await finish.hold();
       ended = true;
     });
     expect(run).not.toBeNull();
@@ -85,9 +79,9 @@ describe('withSyncPaused', () => {
       expect(aborted && ended).toBe(true);
       during = startRun(async () => {});
     });
-    await abortSeen.promise;
+    await finish.entered;
     await flushTurns(); // a section that didn't wait for the run would have run by now
-    finish.resolve();
+    finish.release();
     await section;
     expect(during).toBeNull();
     await expect(withSyncPaused(() => Promise.reject(new Error('boom')))).rejects.toThrow('boom');
@@ -102,26 +96,25 @@ describe('withSyncPaused', () => {
       Array.from({ length: 1001 }, () => makeAssetRecord()),
     );
     const base = server(0);
-    const pushing = deferred();
-    const pushGate = deferred();
+    const pushing = gate();
     transportImpl.current = {
       ...base,
       push: async (req: PushRequest) => {
-        pushing.resolve();
-        await pushGate.promise;
+        await pushing.hold();
         return base.push(req);
       },
     };
     setSyncTarget({ db, identity: {}, library: {} } as SyncTarget); // starts a run
 
-    await pushing.promise;
+    await pushing.entered;
     const section = withSyncPaused(async () => {
       expect(await db.select().from(schema.outbox)).toHaveLength(501); // stopped after its first batch
     });
-    pushGate.resolve();
+    pushing.release();
     await section;
 
-    await outboxEmptied(db);
+    await syncSettled();
+    expect(await db.select().from(schema.outbox)).toHaveLength(0);
     await withSyncPaused(async () => setSyncTarget(null));
   });
 
@@ -133,7 +126,8 @@ describe('withSyncPaused', () => {
     setSyncTarget({ db, identity: {}, library: {} } as SyncTarget); // queues a run
     await withSyncPaused(async () => {}); // paused before that run starts
 
-    await outboxEmptied(db);
+    await syncSettled();
+    expect(await db.select().from(schema.outbox)).toHaveLength(0);
     await withSyncPaused(async () => setSyncTarget(null));
   });
 
@@ -142,18 +136,15 @@ describe('withSyncPaused', () => {
   it('a full resync held back by a pause fails, to be tapped again', async () => {
     await setCursor(db, 5000); // a sync pulls from here, a full resync from the start
     const pulls: number[] = [];
-    const pulled = deferred();
     transportImpl.current = {
       push: async () => ({ results: [] }),
       pull: async ({ cursor }: { cursor: number }) => {
         pulls.push(cursor);
-        pulled.resolve();
         return { changes: {}, cursor, hasMore: false };
       },
     };
     await withSyncPaused(async () => setSyncTarget({ db, identity: {}, library: {} } as SyncTarget));
-    await pulled.promise;
-    await flushTurns(); // that run ends: a pause now would abort it, and its rerun would pull again
+    await syncSettled(); // that run ends: a pause during it would abort it, and its rerun would pull again
     expect(pulls).toEqual([5000]); // the sync setting the target asks for
 
     const resync = runFullResync();
@@ -234,14 +225,30 @@ describe('a pull downloading the next batch while it applies one', () => {
 
   it('keeps the cursor of the last applied batch when an apply fails, dropping the download meanwhile', async () => {
     const base = server(APPLY_BATCH * 3);
+    const download = gate(); // the next batch's, still pending when the apply fails
     const transport = withPull(base, async (req) => {
-      if (req.cursor >= APPLY_BATCH * 2) throw new Error('offline');
+      if (req.cursor >= APPLY_BATCH * 2) {
+        await download.hold();
+        throw new Error('offline');
+      }
       const page = await base.pull(req);
       if (req.cursor === APPLY_BATCH) (page.changes.assets!.records[0] as { width: unknown }).width = null;
       return page;
     });
+    const applyFailed = deferred();
+    const watched: AppDb = Object.assign(Object.create(db), {
+      transaction: ((work) =>
+        db.transaction(work).catch((error: unknown) => {
+          applyFailed.resolve();
+          throw error;
+        })) as AppDb['transaction'],
+    });
 
-    await expect(runSyncOnce(db, transport)).rejects.toThrow('NOT NULL');
+    const run = runSyncOnce(watched, transport);
+    await download.entered;
+    await applyFailed.promise;
+    download.release();
+    await expect(run).rejects.toThrow('NOT NULL');
 
     expect(await getCursor(db)).toBe(APPLY_BATCH);
     expect(await db.select().from(schema.assets)).toHaveLength(APPLY_BATCH);
@@ -267,11 +274,8 @@ describe('a pull downloading the next batch while it applies one', () => {
       const pulls: number[] = [];
       let isRunDone = false;
       let answeredBeforeRunDone = false;
-      const applied = deferred();
+      const applied = committedTo(db, 'assets');
       const answer = deferred();
-      db.onTablesChanged((tables) => {
-        if (tables.has('assets')) applied.resolve();
-      });
       const base = server(APPLY_BATCH * 2);
       const transport = withPull(base, async (req) => {
         pulls.push(req.cursor);
@@ -284,7 +288,7 @@ describe('a pull downloading the next batch while it applies one', () => {
       });
 
       const run = runSyncOnce(db, transport, { signal: controller.signal }).finally(() => (isRunDone = true));
-      await applied.promise;
+      await applied;
       await flushTurns(); // a run that didn't wait for the download would have ended by now
       answer.resolve();
       await run;
@@ -299,13 +303,10 @@ describe('a pull downloading the next batch while it applies one', () => {
 
   it('applies what the next batch has when a stop comes while the run waits for it', async () => {
     const controller = new AbortController();
-    const committed = deferred();
-    db.onTablesChanged((tables) => {
-      if (tables.has('assets')) committed.resolve();
-    });
+    const committed = committedTo(db, 'assets');
     const base = server(APPLY_BATCH * 2);
     const transport = withPull(base, async (req) => {
-      if (req.cursor === APPLY_BATCH) await committed.promise;
+      if (req.cursor === APPLY_BATCH) await committed;
       if (req.cursor === APPLY_BATCH + 1000) controller.abort();
       return base.pull(req);
     });

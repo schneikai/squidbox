@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
-import { fakeClock } from './helpers/fakeClock';
+import { fakeClock, tick } from './helpers/fakeClock';
 import { makeTestDb } from './helpers/testDb';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
@@ -21,7 +21,7 @@ const texts = async (db: SyncDb) => (await readFavorites(db)).map((row) => row.t
 const outbox = (db: SyncDb) => db.select().from(schema.outbox).where(eq(schema.outbox.collection, 'favorites'));
 
 // One add per call, the clock moved on after each, so each has its own (later) createdAt.
-async function addEach(db: SyncDb, list: string[], tick: () => void) {
+async function addEach(db: SyncDb, list: string[]) {
   for (const text of list) {
     await addFavorites(db, [text], null);
     tick();
@@ -30,9 +30,9 @@ async function addEach(db: SyncDb, list: string[], tick: () => void) {
 
 describe('favoritesRepository', () => {
   it('reads the live favorites newest first, and counts them', async () => {
-    const { tick } = fakeClock();
+    fakeClock();
     const db = makeTestDb();
-    await addEach(db, ['first', 'second', 'third'], tick);
+    await addEach(db, ['first', 'second', 'third']);
     expect(await texts(db)).toEqual(['third', 'second', 'first']);
     expect(await countFavorites(db)).toBe(3);
   });

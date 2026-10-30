@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach, onTestFinished, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { and, eq, getTableColumns, inArray } from 'drizzle-orm';
@@ -14,6 +14,8 @@ import {
   isPurgedFileKey,
   purgedFileCleanupsSettled,
 } from '../src/sync/purgedFiles.js';
+import { fakeClock, tick } from './helpers/fakeClock.js';
+import { gate } from './helpers/gate.js';
 
 // DB-backed integration tests (advisory locks, trigger, ON CONFLICT) — require a real
 // Postgres. Run with `npm run test:db` (points at the docker-compose stack); plain `npm test`
@@ -111,8 +113,11 @@ d('sync engine (Postgres)', () => {
     // Scope deletes to THIS test's users — vitest runs test files in parallel against the same
     // Postgres, so an unscoped delete would wipe other files' rows mid-test (a real race).
     const users = [USER_A, USER_B];
-    for (const { table } of Object.values(serverCollections))
-      await db.delete(table).where(inArray(getTableColumns(table).userId!, users));
+    await Promise.all(
+      Object.values(serverCollections).map(({ table }) =>
+        db.delete(table).where(inArray(getTableColumns(table).userId!, users)),
+      ),
+    );
   }
   afterAll(async () => {
     await clearAll();
@@ -441,31 +446,24 @@ d('sync engine (Postgres)', () => {
       let running = 0;
       let overlapped = false;
       const errors: unknown[] = [];
-      // The first delete holds the user's lock until the test releases it.
-      let entered!: () => void;
-      const deleting = new Promise<void>((resolve) => (entered = resolve));
-      let release!: () => void;
-      const released = new Promise<void>((resolve) => (release = resolve));
+      const firstDelete = gate(); // holds the user's lock until the test releases it
       let calls = 0;
       const heldDelete = async (keys: string[]) => {
         overlapped ||= running > 0;
         running += 1;
-        if (calls++ === 0) {
-          entered();
-          await released;
-        }
+        if (calls++ === 0) await firstDelete.hold();
         running -= 1;
         return deleteKeys(keys);
       };
 
       cleanUpPurgedFiles(db, USER_A, heldDelete, (error) => errors.push(error));
-      await deleting;
+      await firstDelete.entered;
       const pushed = push(db, USER_A, [
         mut(purgedAsset({ filename: 'second.jpg', thumbnailFilename: 'second-t.jpg' })),
       ]); // waits for the lock
       cleanUpPurgedFiles(db, USER_A, heldDelete, (error) => errors.push(error));
       cleanUpPurgedFiles(db, USER_A, heldDelete, (error) => errors.push(error));
-      release();
+      firstDelete.release();
       await pushed;
       cleanUpPurgedFiles(db, USER_A, heldDelete, (error) => errors.push(error)); // the push's, after its reply
       await purgedFileCleanupsSettled();
@@ -878,11 +876,7 @@ d('sync engine (Postgres)', () => {
 
     // The restore remembers the deletion value it undid, so a purge made of it loses whatever the clocks.
     it('a restore beats a purge that hadn’t seen it when the deletion came from a fast clock', async () => {
-      vi.useFakeTimers({ toFake: ['Date'] });
-      onTestFinished(() => {
-        vi.useRealTimers();
-      });
-      const tick = () => vi.setSystemTime(Date.now() + 1000);
+      fakeClock();
       const r = { ...assetRecord(), purgedAt: null as number | null };
       await push(db, USER_A, [mut(r)]);
       const fastDeletion = Date.now() + 3_600_000; // the deleting device is an hour ahead

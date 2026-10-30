@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { deferred } from './helpers/deferred';
 import createAutoSaver from '../src/utils/createAutoSaver';
 
 type Value = Record<string, string>;
@@ -38,11 +39,11 @@ describe('createAutoSaver', () => {
 
   it('gives a save queued behind one that stored nothing what is really stored', async () => {
     const storedArgs: Value[] = [];
-    let release = () => {};
+    const release = deferred();
     const { saver } = makeSaver({ text: 'a' }, async (next, stored) => {
       storedArgs.push(stored);
       if (next.text === 'b') {
-        await new Promise<void>((resolve) => (release = resolve));
+        await release.promise;
         return false;
       }
       return true;
@@ -52,7 +53,7 @@ describe('createAutoSaver', () => {
     await Promise.resolve();
     saver.change({ text: 'c' });
     const second = saver.flush();
-    release();
+    release.resolve();
     await Promise.all([first, second]);
     expect(storedArgs).toEqual([{ text: 'a' }, { text: 'a' }]);
   });
@@ -76,10 +77,10 @@ describe('createAutoSaver', () => {
 
   it('runs end() after the save under way and saves nothing after it', async () => {
     const order: string[] = [];
-    let release = () => {};
+    const release = deferred();
     const { saver } = makeSaver({ text: 'a' }, async (next) => {
       order.push(`save ${next.text} start`);
-      await new Promise<void>((resolve) => (release = resolve));
+      await release.promise;
       order.push(`save ${next.text} end`);
       return true;
     });
@@ -89,7 +90,7 @@ describe('createAutoSaver', () => {
     const ending = saver.end(async () => {
       order.push('delete');
     });
-    release();
+    release.resolve();
     await Promise.all([saving, ending]);
     saver.change({ text: 'c' });
     await saver.flush({ isLeaving: true });

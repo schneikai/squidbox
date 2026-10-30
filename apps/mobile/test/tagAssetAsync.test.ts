@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { deferred } from './helpers/deferred';
 import { makeAssetRecord } from './helpers/factory';
+import { gate } from './helpers/gate';
 import { makeTestDb } from './helpers/testDb';
 import tagAssetAsync from '../src/features/photo-tags/tagAssetAsync';
 import * as repo from '../src/sync/assetsRepository';
@@ -65,16 +66,12 @@ describe('tagAssetAsync', () => {
 
   it('fails and stores nothing when the photo was deleted while it was being tagged', async () => {
     const [asset] = await repo.createMany(current.db!, [makeAssetRecord({ id: 'a1' })]);
-    const called = deferred();
-    const reply = deferred<string[]>();
-    vi.mocked(tagPhotoAsync).mockImplementationOnce(() => {
-      called.resolve();
-      return reply.promise;
-    });
+    const reply = gate<string[]>();
+    vi.mocked(tagPhotoAsync).mockImplementationOnce(reply.hold);
     const tagging = tagAssetAsync(asset!, deps);
-    await called.promise;
+    await reply.entered;
     await repo.remove(current.db!, ['a1']);
-    reply.resolve(['creek']);
+    reply.release(['creek']);
 
     await expect(tagging).rejects.toThrow('This photo was deleted');
     expect(await tagsOf('a1')).toBeNull();

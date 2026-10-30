@@ -37,5 +37,9 @@ export function createSingleFlight(task: () => Promise<void>) {
       enqueue(task).catch(() => {});
     },
     exclusive: enqueue,
+    /** Resolves once nothing is running or queued. */
+    async idle(): Promise<void> {
+      while (active > 0) await tail;
+    },
   };
 }

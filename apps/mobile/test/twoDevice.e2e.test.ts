@@ -7,7 +7,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } 
 
 import { albumOrder } from './helpers/albumOrder';
 import { createPost, makeAlbumRecord, makeAssetRecord, makePostRecord } from './helpers/factory';
-import { fakeClock } from './helpers/fakeClock';
+import { fakeClock, tick } from './helpers/fakeClock';
 import { prng } from './helpers/prng';
 import { readLiveAsset } from './helpers/readLiveAsset';
 import { makeTestDb } from './helpers/testDb';
@@ -145,7 +145,7 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
   }
 
   it('a rename on A and a favorite on B both survive, on both devices', async () => {
-    const { tick } = fakeClock();
+    fakeClock();
     const album = makeAlbumRecord({ createdAt: 1000, updatedAt: 1000, name: 'Trip' });
     await albumRepo.create(deviceA, album);
     await settle();
@@ -164,7 +164,7 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
   });
 
   it('notes added on A to a photo deleted on B: it stays deleted, with the notes', async () => {
-    const { tick } = fakeClock();
+    fakeClock();
     const rec = await repo.create(deviceA, makeAssetRecord());
     await settle();
 
@@ -234,7 +234,7 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
   });
 
   it('a permanent delete wins over a stale restore: the cloud files go once and the asset stays gone on both', async () => {
-    const { tick } = fakeClock();
+    fakeClock();
     const rec = await repo.create(deviceA, makeAssetRecord({ filename: 'p.jpg', thumbnailFilename: 'p-t.jpg' }));
     await repo.remove(deviceA, [rec.id]);
     await runSyncOnce(deviceA, transport);
@@ -272,7 +272,7 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
   });
 
   it('an offline device’s purge loses to a restore another device pushed first: the asset and its cloud files stay', async () => {
-    const { tick } = fakeClock();
+    fakeClock();
     const rec = await repo.create(deviceA, makeAssetRecord({ filename: 'r.jpg', thumbnailFilename: 'r-t.jpg' }));
     await repo.remove(deviceA, [rec.id]);
     await runSyncOnce(deviceA, transport);

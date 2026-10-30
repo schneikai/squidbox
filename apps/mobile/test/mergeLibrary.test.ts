@@ -2,7 +2,7 @@ import { isNull } from 'drizzle-orm';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { createPost, makeAlbumRecord, makeAssetRecord } from './helpers/factory';
-import { fakeClock } from './helpers/fakeClock';
+import { fakeClock, tick } from './helpers/fakeClock';
 import { makeTestDb } from './helpers/testDb';
 import { libraryPaths } from '../src/library/libraryPaths';
 import { writesTarget, applyMerge, mergeWaits, moveMergedFiles, planMerge } from '../src/library/mergeLibrary';
@@ -161,7 +161,7 @@ describe('planMerge + applyMerge', () => {
   });
 
   it('a replay keeps each field’s own clock, also for a target row edited later', async () => {
-    const { tick } = fakeClock();
+    fakeClock();
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await repo.update(source, shared.id, { notes: 'first on the device' });
@@ -183,7 +183,7 @@ describe('planMerge + applyMerge', () => {
   });
 
   it('a newer pending edit of the target keeps its field; the device’s other fields replay', async () => {
-    const { tick } = fakeClock();
+    fakeClock();
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
@@ -199,7 +199,7 @@ describe('planMerge + applyMerge', () => {
   });
 
   it('does not replay over a newer pending edit of the target', async () => {
-    const { tick } = fakeClock();
+    fakeClock();
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
@@ -213,7 +213,7 @@ describe('planMerge + applyMerge', () => {
   });
 
   it('an edit made on the target between the plan and its commit isn’t set back by the replay', async () => {
-    const { tick } = fakeClock();
+    fakeClock();
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
@@ -283,7 +283,7 @@ describe('planMerge + applyMerge', () => {
   // Round 15: the device favorited X by id (its own clock, older than what the server may hold), and
   // P is a favorite: the match brings the favorite, so it goes at now too.
   it('a new match writes what it brings at now, even a value a replay set', async () => {
-    const { tick } = fakeClock();
+    fakeClock();
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-1', isFavorite: false, updatedAt: 5000 });
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
@@ -407,7 +407,7 @@ describe('planMerge + applyMerge', () => {
   });
 
   it("replays an unpushed edit of an edge the target has, like a record's", async () => {
-    const { tick } = fakeClock();
+    fakeClock();
     const a = await devicePhoto({ mediaLibraryAssetId: 'm-a' });
     const album = await albums.create(source, makeAlbumRecord({ name: 'Trip' }));
     await albumEdges.add(source, album.id, [a.id], newEdgeId);
@@ -430,10 +430,7 @@ describe('planMerge + applyMerge', () => {
 // Every field the target's outbox row names must carry the value of the side whose clock it holds,
 // or the server merges one side's value under the other side's clock.
 describe('replays against a pending edit of the target (adversarial)', () => {
-  let tick: () => void;
-  beforeEach(() => {
-    ({ tick } = fakeClock());
-  });
+  beforeEach(() => fakeClock());
 
   // One asset in both libraries, deleted in both (synced: no outbox rows).
   async function sharedDeletedAsset() {
@@ -551,10 +548,7 @@ describe('replays against a pending edit of the target (adversarial)', () => {
 // A device library that never synced holds a pending insert for every asset it made (the
 // insert names every field, deletedAt and purgedAt included), and its files are the only copy.
 describe('a device library merged again', () => {
-  let tick: () => void;
-  beforeEach(() => {
-    ({ tick } = fakeClock());
-  });
+  beforeEach(() => fakeClock());
   const targetRow = async () => (await target.select().from(schema.assets))[0]!;
 
   it('a delete and purge made on the device after a first pass reach the account', async () => {

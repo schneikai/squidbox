@@ -1,10 +1,6 @@
-/** A promise the test settles when it wants to: a gate a stub awaits, or a signal it gives. */
+/** A promise the test resolves when it wants to: a signal a stub gives, or one it waits for. */
 export function deferred<T = void>() {
   let resolve!: (value: T) => void;
-  let reject!: (error: Error) => void;
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
+  const promise = new Promise<T>((res) => (resolve = res));
+  return { promise, resolve };
 }

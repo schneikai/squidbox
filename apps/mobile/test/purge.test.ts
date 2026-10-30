@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { deferred } from './helpers/deferred';
 import { createPost, makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { fakeTransport } from './helpers/fakeTransport';
+import { gate } from './helpers/gate';
 import { makeTestDb } from './helpers/testDb';
 import assetQuery from '../src/features/asset-list/assetQuery';
 import postQuery from '../src/features/post-list/postQuery';
@@ -585,18 +586,14 @@ describe('the sweep: concurrent sweeps, aborts, stuck assets, resyncs', () => {
     const liveRow = await assetRow(live.id);
 
     const removed: string[] = [];
-    const entered = deferred();
-    const held = deferred();
+    const firstBatch = gate();
     let calls = 0;
     const sweep = sweepPurgedFiles(db, async (files) => {
-      if (calls++ === 0) {
-        entered.resolve();
-        await held.promise; // the first batch's files take a while to go
-      }
+      if (calls++ === 0) await firstBatch.hold(); // the first batch's files take a while to go
       for (const { filename, thumbnailFilename } of files)
         removed.push(...[filename, thumbnailFilename].filter((n) => n !== undefined));
     });
-    await entered.promise;
+    await firstBatch.entered;
     expect(calls).toBe(1);
 
     const stop = new AbortController();
@@ -613,7 +610,7 @@ describe('the sweep: concurrent sweeps, aborts, stuck assets, resyncs', () => {
       }),
       { signal: stop.signal },
     );
-    held.resolve();
+    firstBatch.release();
     await sweep;
     expect(removed).not.toContain('shared.jpg');
   });

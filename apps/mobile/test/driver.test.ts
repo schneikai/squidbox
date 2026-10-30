@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { deferred } from './helpers/deferred';
 import { makeAssetRecord } from './helpers/factory';
 import { flushTurns } from './helpers/flushTurns';
+import { gate } from './helpers/gate';
 import { makeTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
@@ -21,15 +22,15 @@ beforeEach(() => {
 describe('driver (createDb)', () => {
   it('runs a write issued during a transaction only after it commits', async () => {
     const order: string[] = [];
-    const gate = deferred();
+    const committing = deferred();
     const transaction = db.transaction(async (tx) => {
       await tx.insert(schema.assets).values({ ...makeAssetRecord({ filename: 'in-tx.jpg' }), syncError: null });
-      await gate.promise;
+      await committing.promise;
       order.push('transaction');
     });
     const outside = setCursor(db, 7).then(() => order.push('outside'));
     await flushTurns(); // a write not queued behind the transaction would have run by now
-    gate.resolve();
+    committing.resolve();
     await Promise.all([transaction, outside]);
     expect(order).toEqual(['transaction', 'outside']);
   });
@@ -101,23 +102,19 @@ describe('driver (createDb)', () => {
   it('skips the statements and transactions of a cancellable db cancelled by their turn', async () => {
     let isCancelled = false;
     const reads = db.cancellable(() => isCancelled);
-    const holding = deferred();
-    const release = deferred();
-    const busy = db.transaction(() => {
-      holding.resolve();
-      return release.promise;
-    });
+    const holding = gate();
+    const busy = db.transaction(holding.hold);
     const select = () =>
       reads
         .select({ id: schema.assets.id })
         .from(schema.assets)
         .then((rows) => rows); // queues it
-    await holding.promise; // the transaction holds the queue
+    await holding.entered; // the transaction holds the queue
 
     const before = select(); // queued while still wanted, cancelled before its turn
     const inTransaction = reads.transaction((tx) => tx.select().from(schema.assets));
     isCancelled = true;
-    release.resolve();
+    holding.release();
     await busy;
     await expect(before).rejects.toThrow('cancelled');
     await expect(inTransaction).rejects.toThrow('cancelled');

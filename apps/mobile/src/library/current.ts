@@ -15,6 +15,8 @@ export interface OpenLibrary extends LibraryPaths {
 let current: OpenLibrary | null = null;
 // A device library's sweeps (sweepOpenLibrary), stopped when it closes; null for an account library.
 let deviceSweeps: AbortController | null = null;
+// The sweeps sweepOpenLibrary started that haven't ended, from the moment it was called.
+const sweeping = new Set<Promise<void>>();
 
 export async function openLibrary(library: Library): Promise<void> {
   if (current) throw new Error(`Library ${current.id} is still open`);
@@ -47,9 +49,16 @@ export function sweepOpenLibrary(): void {
   const { signal } = deviceSweeps;
   const paths = current;
   // The file system needs the native modules the tests lack.
-  import('./fs')
+  const sweep: Promise<void> = import('./fs')
     .then(({ purgedFilesRemover }) => sweepPurgedFiles(db, purgedFilesRemover(paths), { signal }))
-    .catch((error) => console.warn('Could not remove the files of the purged assets', error));
+    .catch((error) => console.warn('Could not remove the files of the purged assets', error))
+    .finally(() => sweeping.delete(sweep));
+  sweeping.add(sweep);
+}
+
+/** Resolves once no sweep sweepOpenLibrary started is running (for tests). */
+export async function librarySweepsSettled(): Promise<void> {
+  while (sweeping.size > 0) await Promise.all(sweeping);
 }
 
 // Closes the open library once the statements queued before have run; everything queued after

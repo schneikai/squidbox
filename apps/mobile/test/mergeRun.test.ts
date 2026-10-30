@@ -1,14 +1,13 @@
 import { and, eq, isNull, lte } from 'drizzle-orm';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { deferred } from './helpers/deferred';
 import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { fakeClock } from './helpers/fakeClock';
 import { fuzzRuns } from './helpers/fuzzRuns';
+import { gate } from './helpers/gate';
 import { mergeLosses } from './helpers/mergeLosses';
 import { prng } from './helpers/prng';
 import { seedAccountPhotos } from './helpers/seedAccountPhotos';
-import { sweepsSettled } from './helpers/sweeps';
 import { makeTestDb } from './helpers/testDb';
 import { libraryPaths } from '../src/library/libraryPaths';
 import type { Registry } from '../src/library/registry';
@@ -99,18 +98,13 @@ vi.mock('../src/library/mergeLibrary', async (importOriginal) => {
   };
 });
 
-vi.mock('../src/sync/sweepPurgedFiles', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../src/sync/sweepPurgedFiles')>();
-  const { trackSweeps } = await import('./helpers/sweeps');
-  return { ...original, sweepPurgedFiles: trackSweeps(original.sweepPurgedFiles) };
-});
-
 vi.mock('../src/sync/worker', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/sync/worker')>()),
   requestSync: vi.fn(),
 }));
 
-const { closeLibrary, openLibrary, openLibraryId, sweepOpenLibrary } = await import('../src/library/current');
+const { closeLibrary, librarySweepsSettled, openLibrary, openLibraryId, sweepOpenLibrary } =
+  await import('../src/library/current');
 const { getRegistry, loadRegistry, updateLibrary, updateRegistry } = await import('../src/library/registry');
 const { mergeLibrary, resumeMerges } = await import('../src/library/mergeRun');
 const { getDb } = await import('../src/sync/db/client');
@@ -412,11 +406,11 @@ describe('the sweep at a library’s open', () => {
     await repo.remove(sourceDb(), [a.id, b.id]);
     await repo.purgeAssets(sourceDb(), [a.id]);
     await openLibrary(DEV);
-    await sweepsSettled();
+    await librarySweepsSettled();
     expect(files.has(getAssetFileUri('a.jpg', SRC))).toBe(false);
     await repo.purgeAssets(getDb(), [b.id]);
     sweepOpenLibrary(); // as AssetsProvider does after a purge
-    await sweepsSettled();
+    await librarySweepsSettled();
     expect(files.has(getAssetFileUri('b.jpg', SRC))).toBe(false);
   });
 
@@ -431,7 +425,7 @@ describe('the sweep at a library’s open', () => {
     await markFirstSyncDone(TGT_DB);
     await openLibrary(ACC);
     sweepOpenLibrary();
-    await sweepsSettled();
+    await librarySweepsSettled();
     expect(files.has(getAssetFileUri('acc.jpg', TGT))).toBe(true);
   });
 });
@@ -984,13 +978,10 @@ describe('round 15: a camera-roll match an earlier library never pushed', () => 
     const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-x', isFavorite: false, notes: null });
     await devicePhoto({ mediaLibraryAssetId: 'm-x', filename: 'd.jpg', isFavorite: true, notes: 'from the beach' });
     await passIntoAccThenLost(accountPhoto);
-    const committing = deferred();
-    vi.mocked(applyMerge).mockImplementationOnce(() => {
-      committing.resolve();
-      return new Promise<void>(() => {}); // the app is stopped: the transaction never commits
-    });
+    const committing = gate(); // never released: the app is stopped, the transaction never commits
+    vi.mocked(applyMerge).mockImplementationOnce(committing.hold);
     mergeLibrary('dev', 'acc2'); // never settles: the app stops inside it
-    await committing.promise;
+    await committing.entered;
 
     // The next launch: the same databases and list; the boot resumes the merge.
     await closeLibrary();
