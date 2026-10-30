@@ -1,10 +1,10 @@
 import { useNavigation } from '@react-navigation/native';
-import { aiModelKindSchema, INSTRUCTION_KINDS } from '@squidbox/shared';
+import { aiModelKindSchema } from '@squidbox/shared';
 import { StyleSheet } from 'react-native';
 
 import personaSummary from './personaSummary';
-import useVeniceBalance from './useVeniceBalance';
 
+import ChangedBadge from '@/components/ChangedBadge';
 import DetailScrollView from '@/components/DetailScrollView';
 import GradientFill from '@/components/GradientFill';
 import Icon from '@/components/Icon';
@@ -13,50 +13,30 @@ import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import modelKindText from '@/features/model-compare/modelKindText';
-import useAiCatalog from '@/hooks/useAiCatalog';
 import useHasFeature from '@/hooks/useHasFeature';
+import useInstructions from '@/hooks/useInstructions';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import usePersona from '@/hooks/usePersona';
 import useSeedPromptButtons from '@/hooks/useSeedPromptButtons';
-import useLibrary from '@/library/useLibrary';
+import useVeniceBalance from '@/hooks/useVeniceBalance';
+import useYourDefaults from '@/hooks/useYourDefaults';
 import { colors, radii, sizes } from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
 import { countFavorites } from '@/sync/favoritesRepository';
-import { readInstructions } from '@/sync/instructionsRepository';
-import { readChosenModels } from '@/sync/modelChoicesRepository';
-import { readPersona } from '@/sync/personaRepository';
 import { countPromptButtons } from '@/sync/promptButtonsRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
-import modelsOfKind from '@/utils/ai/modelsOfKind';
 
-// Settings → Assistant: how the assistant writes as you, the posts it writes like (Favorites), its
-// prompt buttons, what it is told before each request (Instructions), and the Models section (the
-// models it uses, and for an ai_admin account what is left on the Venice account).
+// Settings → Assistant: how the assistant writes as you, its prompt buttons, the posts it writes like
+// (Favorites), its Rules, and for an ai_admin account the Admin section (the model lists, what it is
+// told before each request: Instructions, what is left on the Venice account).
 export default function AssistantScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
-  const { library } = useLibrary();
-  const userId = library.owner.userId;
-  const persona = useLiveQuery((db) => readPersona(db, userId), [schema.personas], [userId]);
+  const persona = usePersona();
   const favoriteCount = useLiveQuery((db) => countFavorites(db), [schema.favorites]);
   const promptButtonCount = useLiveQuery((db) => countPromptButtons(db), [schema.promptButtons]);
-  const instructions = useLiveQuery((db) => readInstructions(db, userId), [schema.instructions], [userId]);
   useSeedPromptButtons();
-  const chosen = useLiveQuery((db) => readChosenModels(db, userId), [schema.modelChoices], [userId]);
-  const { models: catalog } = useAiCatalog();
   const isAiAdmin = useHasFeature('ai_admin');
-
-  // The chosen model's name, or a muted "No longer available" once Venice dropped it (its list
-  // says which; a catalog still loading or failed to load leaves the plain name). The name and the
-  // label together would wrap the row's label.
-  function chosenText(kind) {
-    if (chosen === undefined) return { value: null, isGone: false };
-    const model = chosen[kind];
-    if (!model) return { value: 'Not chosen', isGone: false };
-    const isGone = !!catalog && !modelsOfKind(catalog, kind).some(({ id }) => id === model.id);
-    return { value: isGone ? 'No longer available' : model.name, isGone };
-  }
-
-  const changedCount = INSTRUCTION_KINDS.filter((kind) => instructions?.[kind] != null).length;
 
   if (!isAvailable) return null;
 
@@ -75,13 +55,6 @@ export default function AssistantScreen() {
         </Section>
         <Section isHeaderless>
           <Row
-            leading={<Icon name="heart" color={colors.status.danger} />}
-            label="Favorites"
-            value={favoriteCount === undefined ? null : String(favoriteCount)}
-            onPress={() => navigation.navigate('FavoritesScreen')}
-            chevron
-          />
-          <Row
             leading={<Icon name="prompt-buttons" color={colors.text.secondary} />}
             label="Prompt buttons"
             value={promptButtonCount === undefined ? null : String(promptButtonCount)}
@@ -89,32 +62,67 @@ export default function AssistantScreen() {
             chevron
           />
           <Row
-            leading={<Icon name="document" color={colors.text.secondary} />}
-            label="Instructions"
-            value={instructions === undefined ? null : changedCount > 0 ? `${changedCount} changed` : 'Default'}
-            onPress={() => navigation.navigate('InstructionsScreen')}
+            leading={<Icon name="heart" color={colors.status.danger} />}
+            label="Favorites"
+            value={favoriteCount === undefined ? null : String(favoriteCount)}
+            onPress={() => navigation.navigate('FavoritesScreen')}
+            chevron
+          />
+          <Row
+            leading={<Icon name="list-checks" color={colors.text.secondary} />}
+            label="Rules"
+            value={persona === undefined ? null : String(persona?.rules.length ?? 0)}
+            onPress={() => navigation.navigate('RulesScreen')}
             chevron
           />
         </Section>
-        <ScreenSectionHeader title="Models" />
-        <Section>
-          {aiModelKindSchema.options.map((kind) => {
-            const { value, isGone } = chosenText(kind);
-            return (
-              <Row
-                key={kind}
-                label={modelKindText[kind].title}
-                value={value}
-                isValueMuted={isGone}
-                onPress={() => navigation.navigate('ModelListScreen', { kind })}
-                chevron
-              />
-            );
-          })}
-        </Section>
-        {isAiAdmin && <VeniceBalanceFooter />}
+        {isAiAdmin && (
+          <AdminSection>
+            <InstructionsRow />
+          </AdminSection>
+        )}
       </DetailScrollView>
     </Page>
+  );
+}
+
+// Admin, for an ai_admin account only: the model lists of each kind (Writing, Vision), Changed
+// while this account's picks differ from the published defaults, then `children` (Instructions),
+// and the Venice balance.
+function AdminSection({ children }) {
+  const navigation = useNavigation();
+  const { changedKinds } = useYourDefaults();
+
+  return (
+    <>
+      <ScreenSectionHeader title="Admin" />
+      <Section>
+        {aiModelKindSchema.options.map((kind) => (
+          <Row
+            key={kind}
+            label={modelKindText[kind].title}
+            onPress={() => navigation.navigate('ModelListScreen', { kind })}
+            chevron
+          >
+            {changedKinds?.includes(kind) && <ChangedBadge />}
+          </Row>
+        ))}
+        {children}
+      </Section>
+      <VeniceBalanceFooter />
+    </>
+  );
+}
+
+// Instructions, Changed while the user's own text of any kind differs from the app's.
+function InstructionsRow() {
+  const navigation = useNavigation();
+  const { changedKinds } = useInstructions();
+
+  return (
+    <Row label="Instructions" onPress={() => navigation.navigate('InstructionsScreen')} chevron>
+      {changedKinds?.length > 0 && <ChangedBadge />}
+    </Row>
   );
 }
 

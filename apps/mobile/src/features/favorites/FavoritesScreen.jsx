@@ -62,15 +62,14 @@ export default function FavoritesScreen() {
         }
       />
       <DetailScrollView contentContainerStyle={{ paddingBottom }}>
-        <IntroText style={styles.intro}>
-          Posts the assistant writes like: ones you hearted in the chat or added here. Unheart one to stop it learning
-          from it.
+        <IntroText isScreenIntro>
+          Posts that worked for you. The assistant learns from them what makes a good post.
         </IntroText>
         {removal.list?.length === 0 && (
           <EmptyState
             icon="heart"
             title="No favorites yet"
-            subtitle="Heart an option in the chat, or add one of your own posts with +"
+            subtitle="Heart a suggestion in the chat, or add one of your own posts with +"
           />
         )}
         <View style={styles.cards}>
@@ -92,11 +91,7 @@ export default function FavoritesScreen() {
 }
 
 const styles = StyleSheet.create({
-  intro: {
-    marginHorizontal: 4,
-  },
   cards: {
-    marginTop: 16,
     gap: 12,
   },
 });

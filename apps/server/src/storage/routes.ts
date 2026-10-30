@@ -81,7 +81,7 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
         if (isLibraryCopy(user)) throw readOnlyLibraryError();
         const userId = user.id;
         const fileKey = (request.params as Record<string, string>)['*'];
-        if (!fileKey) throw new AppError(400, 'validation_error', 'Missing file key');
+        if (!fileKey) throw AppError.validation('Missing file key');
         const loc = storageFor(request);
         const contentType = request.headers['content-type'];
         // A purged asset's file is refused before its body is read, and deleted again when the purge

@@ -23,32 +23,44 @@ export function fillTemplate(template: string, values: Record<string, string>): 
   return template.replace(/\{(\w+)\}/g, (match, name: string) => (name in values ? values[name]! : match));
 }
 
+// Only how a writing compare answers, not what it writes, so it isn't one of the editable
+// instructions (the owner's call): the prompt box stays all the guidance a model gets. It names
+// JSON: some providers behind Venice refuse a response format when the messages don't.
+const COMPARE_WRITING_FORMAT =
+  'Answer in JSON, with only the posts the prompt asks for. Each item is one finished post, with no intro, notes or quotes around it.';
+
+// After the model's earlier posts, so New suggestions with the same prompt brings new ones.
+const COMPARE_WRITE_DIFFERENT = 'Write different ones.';
+
+// A vision compare's line on the answer's format, after the prompt box: a prompt about "each photo"
+// had a model answer a list of photos.
+const COMPARE_VISION_FORMAT = 'Answer in JSON, with the tags of this one photo.';
+
+// After the model's earlier tags of the photo, so a new round with the same prompt brings new ones.
+const COMPARE_TAG_DIFFERENT = 'Give different tags.';
+
 /**
- * The writing prompt of a compare, as the user: the writing briefing (`instructions.writing`, filled
- * as the chat fills it but without a post, so its post section is left out) as the system message,
- * then the prompt as the user's message. So a compare tests what the chat sends.
+ * The writing prompt of a compare: the prompt box as the user's message, after a system line on the
+ * answer's format only; the reply's JSON schema (postsSchema) asks for the posts alone. Each of
+ * `earlierRounds` (the model's posts of its last rounds, oldest first) follows as its answer, then
+ * asks for different ones.
  */
-export function writingMessages({
-  prompt,
-  persona,
-  favorites,
-  instructions,
-}: {
-  prompt: string;
-  persona: Persona;
-  favorites: string[];
-  instructions: Instructions;
-}): ChatMessage[] {
+export function writingMessages(prompt: string, earlierRounds: string[][] = []): ChatMessage[] {
   return [
-    { role: 'system', content: writingBriefingText(instructions.writing, { persona, favorites, context: null }) },
+    { role: 'system', content: COMPARE_WRITING_FORMAT },
     { role: 'user', content: prompt },
+    ...earlierRounds.flatMap((posts): ChatMessage[] => [
+      { role: 'assistant', content: JSON.stringify({ posts }) },
+      { role: 'user', content: COMPARE_WRITE_DIFFERENT },
+    ]),
   ];
 }
 
 /**
  * The assistant chat, as the user: the writing briefing (`instructions.writing`, filled with their
  * persona, Favorites and the post) as the whole system message, then the transcript, a past reply in
- * the JSON the model replies in.
+ * the JSON the model replies in and a More like this turn as `instructions.moreLikeThis` with the
+ * option after it.
  */
 export function chatMessages({
   context,
@@ -67,10 +79,59 @@ export function chatMessages({
     { role: 'system', content: writingBriefingText(instructions.writing, { persona, favorites, context }) },
     ...transcript.map((turn): ChatMessage =>
       turn.role === 'user'
-        ? { role: 'user', content: turn.content }
+        ? {
+            role: 'user',
+            content: turn.moreLikeThis ? `${instructions.moreLikeThis}\n\n${turn.content}` : turn.content,
+          }
         : { role: 'assistant', content: JSON.stringify({ reply: turn.reply, postOptions: turn.postOptions }) },
     ),
   ];
+}
+
+// A reply as the judge reads it: its text, then its post options numbered.
+function replyText({ reply, postOptions }: ChatReply): string {
+  return [reply || '(no reply text)', ...postOptions.map((option, index) => `${index + 1}. ${option}`)].join('\n');
+}
+
+/**
+ * Verify's judge question after a chat turn: `template` (instructions.modelCheckJudge)
+ * filled with what the writing model was told about the creator and the post, with the writing
+ * briefing's placeholders (the persona's facts, the posts they liked, none for a section without them,
+ * and the post's media, photo tags, tagged people and caption), so a name, handle or tag it was given
+ * never counts as invented; the turns before it (`{transcript}`, "Creator: …" and "Assistant: …" with its numbered
+ * options, "(none)" on the first turn), the creator's last message (`{request}`) and the reply to
+ * judge (`{reply}`), as the one message.
+ */
+export function judgeMessages({
+  template,
+  context,
+  persona,
+  favorites,
+  transcript,
+  request,
+  reply,
+}: {
+  template: string;
+  context: ChatContext;
+  persona: Persona;
+  favorites: string[];
+  transcript: ChatTurn[];
+  request: string;
+  reply: ChatReply;
+}): ChatMessage[] {
+  const before = transcript.map((turn) =>
+    turn.role === 'user' ? `Creator: ${turn.content}` : `Assistant: ${replyText(turn)}`,
+  );
+  const content = fillLines(template, {
+    ...personaValues(persona),
+    favorites: favoritesText(favorites),
+    ...postValues(context),
+    transcript: before.join('\n\n') || '(none)',
+    request,
+    reply: replyText(reply),
+  });
+  // A user message: a model behind Venice (Claude) refuses a request with only a system message.
+  return [{ role: 'user', content }];
 }
 
 const PLACEHOLDER = /\{(\w+)\}/;
@@ -120,13 +181,18 @@ function personaValues(persona: Persona): Record<string, string> {
   };
 }
 
+// The Favorites' texts as "- " lines like the rules, each on one line.
+function favoritesText(favorites: string[]): string {
+  return favorites.map((post) => `- ${post.trim().replace(/\s*\n\s*/g, ' ')}`).join('\n');
+}
+
 // "4 photos and 1 video", "none yet" without media.
 function mediaText({ photo, video }: ChatContext['media']): string {
   const count = (n: number, one: string) => (n === 0 ? null : `${n} ${one}${n === 1 ? '' : 's'}`);
   return [count(photo, 'photo'), count(video, 'video')].filter(Boolean).join(' and ') || 'none yet';
 }
 
-// The post's values: none for a compare (`context` null), so its lines and heading are left out.
+// The post's values: none without one (`context` null), so its lines and heading are left out.
 function postValues(context: ChatContext | null): Record<string, string> {
   if (!context) return { media: '', tags: '', mentions: '', caption: '' };
   const caption = context.text.trim();
@@ -141,7 +207,7 @@ function postValues(context: ChatContext | null): Record<string, string> {
 /**
  * The writing briefing, `template` (instructions.writing) filled with the creator's persona, their
  * Favorites (the texts, newest first, as "- " lines like the rules, each on one line) and the chat's
- * post (`context`, null for a compare): `{caption}` is the caption as a JSON string, or (empty);
+ * post (`context`, null for none): `{caption}` is the caption as a JSON string, or (empty);
  * `{count}` the options to write. A line whose value is empty is left out, with its heading
  * (fillLines).
  */
@@ -151,7 +217,7 @@ export function writingBriefingText(
 ): string {
   return fillLines(template, {
     ...personaValues(persona),
-    favorites: favorites.map((post) => `- ${post.trim().replace(/\s*\n\s*/g, ' ')}`).join('\n'),
+    favorites: favoritesText(favorites),
     ...postValues(context),
     count: String(WRITING_TWEET_COUNT),
   });
@@ -160,7 +226,7 @@ export function writingBriefingText(
 /**
  * A photo tags request: the photo tags briefing (`prompt`: the user's Photo tags instructions, or a
  * compare's prompt) filled with the creator's content themes (their persona's `contentTags`; the line
- * is left out without any) as the system message, then the photo.
+ * is left out without any, as for a compare) as the system message, then the photo.
  */
 export function visionMessages({
   prompt,
@@ -177,6 +243,31 @@ export function visionMessages({
   ];
 }
 
+/**
+ * A vision compare's request: the prompt box (visionMessages, without content themes) and a line on
+ * the answer's format, then the photo; each of `earlierRounds` (the model's tags of this photo in
+ * its last rounds, oldest first) follows as its answer, then asks for different ones.
+ */
+export function compareVisionMessages({
+  prompt,
+  imageDataUrl,
+  earlierRounds = [],
+}: {
+  prompt: string;
+  imageDataUrl: string;
+  earlierRounds?: string[][];
+}): ChatMessage[] {
+  const [system, photo] = visionMessages({ prompt, imageDataUrl });
+  return [
+    { role: 'system', content: `${system!.content}\n\n${COMPARE_VISION_FORMAT}` },
+    photo!,
+    ...earlierRounds.flatMap((tags): ChatMessage[] => [
+      { role: 'assistant', content: JSON.stringify({ tags }) },
+      { role: 'user', content: COMPARE_TAG_DIFFERENT },
+    ]),
+  ];
+}
+
 // A JSON object of these properties, all required.
 function objectSchema(properties: Record<string, unknown>) {
   return { type: 'object', properties, required: Object.keys(properties), additionalProperties: false };
@@ -185,6 +276,28 @@ function objectSchema(properties: Record<string, unknown>) {
 // A JSON object holding one list of strings.
 function stringListSchema(key: string) {
   return objectSchema({ [key]: { type: 'array', items: { type: 'string' } } });
+}
+
+/**
+ * A reply that is one list of strings under `key`. Some models answer the bare list instead of the
+ * object around it, or the object inside a list, even held to the schema: those read as the list
+ * too (the objects' lists joined).
+ */
+function stringListSpec<K extends string>(key: K): JsonSchemaSpec<Record<K, string[]>> {
+  const list = z.array(z.string());
+  const object = z.object({ [key]: list } as Record<K, typeof list>);
+  return {
+    name: key,
+    jsonSchema: stringListSchema(key),
+    zod: z.union([
+      object,
+      list.transform((items) => ({ [key]: items }) as Record<K, string[]>),
+      z
+        .array(object)
+        .min(1)
+        .transform((objects) => ({ [key]: objects.flatMap((item) => item[key]) }) as Record<K, string[]>),
+    ]),
+  };
 }
 
 // A chat reply: what the assistant says and the options for the post, when asked for (tasks.ts checks
@@ -203,8 +316,15 @@ export const chatReplyJsonSpec: JsonSchemaSpec<ChatReply> = {
   zod: chatReplyFieldsSchema,
 };
 
-export const tagsSchema: JsonSchemaSpec<{ tags: string[] }> = {
-  name: 'tags',
-  jsonSchema: stringListSchema('tags'),
-  zod: z.object({ tags: z.array(z.string()) }),
+// A writing compare's answer: only the posts its prompt asks for, so a model has nowhere else to put
+// them.
+export const postsSchema = stringListSpec('posts');
+
+export const tagsSchema = stringListSpec('tags');
+
+// The judge's verdict on one chat turn.
+export const judgeVerdictJsonSpec: JsonSchemaSpec<{ pass: boolean; reason: string }> = {
+  name: 'judge_verdict',
+  jsonSchema: objectSchema({ pass: { type: 'boolean' }, reason: { type: 'string' } }),
+  zod: z.object({ pass: z.boolean(), reason: z.string() }),
 };

@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Icon from '@/components/Icon';
 import chipFrame from '@/styles/chipFrame';
-import { colors, sizes, typography } from '@/styles/designTokens';
+import { colors, lineHeights, sizes, typography } from '@/styles/designTokens';
 
 /**
  * A pill with a short label: a tag, a prompt button, or the dashed Add at the end of a row of them.
@@ -79,6 +79,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: typography.subheadline,
+    lineHeight: lineHeights.subheadline,
     color: colors.text.primary,
   },
   accentLabel: {

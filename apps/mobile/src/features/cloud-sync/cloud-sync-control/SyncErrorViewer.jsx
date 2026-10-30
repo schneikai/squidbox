@@ -3,6 +3,7 @@ import { Modal, View, Text, StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import ErrorText from '@/components/ErrorText';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
@@ -10,7 +11,6 @@ import PrimaryButton from '@/components/PrimaryButton';
 import { Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import useScrollY from '@/hooks/useScrollY';
-import { colors, lineHeights, typography } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
@@ -50,7 +50,7 @@ export default function SyncErrorViewer({ query, onRetryAll, close }) {
                 <Text style={[listTextStyles.caption, styles.errorTitle]} numberOfLines={1}>
                   {row.title}
                 </Text>
-                <Text style={styles.errorMessage}>{row.error}</Text>
+                <ErrorText>{row.error}</ErrorText>
               </View>
             </Section>
           )}
@@ -80,11 +80,6 @@ const styles = StyleSheet.create({
   },
   errorTitle: {
     marginBottom: 4,
-  },
-  errorMessage: {
-    fontSize: typography.subheadline,
-    color: colors.status.danger,
-    lineHeight: lineHeights.subheadline,
   },
 
   footer: {

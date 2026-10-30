@@ -76,8 +76,10 @@
         },
         "capabilities": {
           "supportsVision": true,
+          "supportsReasoning": true,
           "supportsReasoningEffort": true,
-          "reasoningEffortOptions": ["low", "medium", "high", "xhigh"]
+          "reasoningEffortOptions": ["low", "medium", "high", "xhigh"],
+          "defaultReasoningEffort": "medium"
         },
         "traits": ["most_intelligent"]
       }
@@ -97,6 +99,7 @@
         },
         "capabilities": {
           "supportsVision": true,
+          "supportsReasoning": true,
           "supportsReasoningEffort": true,
           "reasoningEffortOptions": ["none", "low", "high", "max"]
         },
@@ -138,6 +141,7 @@
         },
         "capabilities": {
           "supportsVision": true,
+          "supportsReasoning": true,
           "supportsReasoningEffort": true,
           "reasoningEffortOptions": ["none", "low", "high", "max"]
         },
@@ -159,8 +163,10 @@
         },
         "capabilities": {
           "supportsVision": true,
+          "supportsReasoning": true,
           "supportsReasoningEffort": true,
-          "reasoningEffortOptions": ["low", "medium", "high", "xhigh", "max"]
+          "reasoningEffortOptions": ["low", "medium", "high", "xhigh", "max"],
+          "defaultReasoningEffort": "high"
         },
         "traits": []
       }

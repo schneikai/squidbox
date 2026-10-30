@@ -58,6 +58,7 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   archived: {
+    alignSelf: 'flex-start',
     marginTop: 4,
   },
 });

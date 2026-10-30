@@ -4,7 +4,8 @@ import TextInput from '@/components/TextInput';
 import chipFrame from '@/styles/chipFrame';
 import { colors, typography } from '@/styles/designTokens';
 
-// The input that stands in for a chip while a tag is typed: a Chip's frame in the accent border.
+// The input that stands in for a chip while a tag is typed: a Chip's frame with a thicker accent
+// border, so it reads as the field being typed in.
 // Return adds the tag and keeps it open for the next one; a tag is at most `maxLength` long.
 export default function TagInput({ value, onChangeText, onSubmit, onBlur, maxLength }) {
   return (
@@ -31,7 +32,9 @@ export default function TagInput({ value, onChangeText, onSubmit, onBlur, maxLen
 const styles = StyleSheet.create({
   input: {
     minWidth: 96,
-    borderColor: colors.accent.border,
+    paddingVertical: 0,
+    borderWidth: 1.5,
+    borderColor: colors.accent.base,
     fontSize: typography.subheadline,
   },
 });

@@ -1,8 +1,11 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import GradientFill from '@/components/GradientFill';
 import Icon from '@/components/Icon';
-import { colors, radii, sizes } from '@/styles/designTokens';
+import { colors, radii, scale, sizes, typography } from '@/styles/designTokens';
+
+// Two icons side by side, small enough to fit the disc apart.
+const PAIR_ICON_SIZE = scale(15);
 
 /**
  * Standard icon-only pressable with a 44pt tap target, pill clipping, and press feedback. Every
@@ -14,11 +17,16 @@ import { colors, radii, sizes } from '@/styles/designTokens';
  *            FloatingPill). Over content: `tinted` (a grey disc) or `destructive` (a red disc).
  * isActive — accent tint, for a control whose setting is on (e.g. a filter is active).
  * filled   — fills the icon (see Icon), e.g. a favorite's heart.
+ * label    — a few characters in place of the icon (18+), where no icon says it.
+ * iconCount — the icon twice (2), smaller and side by side, for a second step of the same mark.
+ * isSwitch — read as a switch, on while `isActive`, for a setting it turns on and off (18+).
  *
  * style applies to the Pressable (the tap target / visual container).
  */
 export default function IconButton({
   icon,
+  label,
+  iconCount = 1,
   onPress,
   variant = 'plain',
   color = colors.text.primary,
@@ -28,10 +36,20 @@ export default function IconButton({
   isActive = false,
   filled,
   accessibilityLabel,
+  isSwitch = false,
   style,
 }) {
-  const iconElement = (
-    <Icon name={icon} size={size} color={iconColorFor(variant, { color, disabled, isActive })} filled={filled} />
+  const contentColor = iconColorFor(variant, { color, disabled, isActive });
+  const iconSize = iconCount > 1 ? PAIR_ICON_SIZE : size;
+  const icons = Array.from({ length: iconCount }, (_, index) => (
+    <Icon key={index} name={icon} size={iconSize} color={contentColor} filled={filled} />
+  ));
+  const iconElement = label ? (
+    <Text style={[styles.label, { color: contentColor }]}>{label}</Text>
+  ) : iconCount > 1 ? (
+    <View style={styles.pair}>{icons}</View>
+  ) : (
+    icons[0]
   );
 
   return (
@@ -39,8 +57,8 @@ export default function IconButton({
       onPress={disabled ? undefined : onPress}
       hitSlop={hitSlop}
       accessibilityLabel={accessibilityLabel}
-      accessibilityRole="button"
-      accessibilityState={{ disabled, selected: isActive }}
+      accessibilityRole={isSwitch ? 'switch' : 'button'}
+      accessibilityState={isSwitch ? { disabled, checked: isActive } : { disabled, selected: isActive }}
       style={({ pressed }) => [
         styles.button,
         styles[variant],
@@ -88,6 +106,14 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.4,
+  },
+  pair: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  label: {
+    fontSize: typography.footnote,
+    fontWeight: '700',
   },
 });
 

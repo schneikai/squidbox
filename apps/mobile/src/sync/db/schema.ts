@@ -190,7 +190,6 @@ export const favorites = sqliteTable('favorites', {
   updatedAt: integer('updated_at').notNull(),
   deletedAt: integer('deleted_at'),
   text: text('text').notNull(),
-  source: text('source'),
 });
 export type FavoriteRow = typeof favorites.$inferSelect;
 
@@ -204,11 +203,13 @@ export const instructions = sqliteTable('instructions', {
   writing: text('writing'),
   visionTagging: text('vision_tagging'),
   moreLikeThis: text('more_like_this'),
+  modelCheckJudge: text('model_check_judge'),
 });
 export type InstructionRow = typeof instructions.$inferSelect;
 
-// The model the assistant uses per kind (mirror @squidbox/shared model_choices). One record per user
-// (its id is the user's id); each choice is JSON text ({ id, name }), null the app's default.
+// An ai_admin's picks of each kind's Default and Uncensored default (mirror @squidbox/shared
+// model_choices). One record per user (its id is the user's id); each pick is JSON text
+// ({ id, name }), null the published default.
 export const modelChoices = sqliteTable('model_choices', {
   id: text('id').primaryKey(),
   createdAt: integer('created_at').notNull(),
@@ -216,6 +217,8 @@ export const modelChoices = sqliteTable('model_choices', {
   deletedAt: integer('deleted_at'),
   writingModel: text('writing_model', { mode: 'json' }).$type<{ id: string; name: string }>(),
   visionModel: text('vision_model', { mode: 'json' }).$type<{ id: string; name: string }>(),
+  writingUncensoredModel: text('writing_uncensored_model', { mode: 'json' }).$type<{ id: string; name: string }>(),
+  visionUncensoredModel: text('vision_uncensored_model', { mode: 'json' }).$type<{ id: string; name: string }>(),
 });
 export type ModelChoiceRow = typeof modelChoices.$inferSelect;
 
@@ -271,7 +274,7 @@ export type SyncLogRow = typeof syncLog.$inferSelect;
 // Local-only and not synced: it stays with this library on this device. `kind` is writing | vision.
 
 // One row per kind once its list was seeded: the last compare's prompt. `chosen_model_id` is unused
-// since the choice syncs (model_choices).
+// since the picks sync (model_choices).
 export const aiKinds = sqliteTable('ai_kinds', {
   kind: text('kind').primaryKey(),
   chosenModelId: text('chosen_model_id'),
@@ -286,6 +289,10 @@ export const aiModels = sqliteTable(
     modelId: text('model_id').notNull(),
     name: text('name').notNull(),
     position: integer('position').notNull(),
+    // What the admin noted about the model (null without one).
+    note: text('note'),
+    // Removed from the list: kept, with its note, so it comes back as it was when added again.
+    isHidden: integer('is_hidden', { mode: 'boolean' }).notNull().default(false),
   },
   (t) => ({ pk: primaryKey({ columns: [t.kind, t.modelId] }) }),
 );

@@ -32,6 +32,6 @@ export function isValidFileKey(fileKey: string): boolean {
 }
 
 export function fullKey(loc: StorageLocation, fileKey: string): string {
-  if (!isValidFileKey(fileKey)) throw new AppError(400, 'validation_error', `Invalid file key: ${fileKey}`);
+  if (!isValidFileKey(fileKey)) throw AppError.validation(`Invalid file key: ${fileKey}`);
   return loc.keyPrefix + fileKey;
 }

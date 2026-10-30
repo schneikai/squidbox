@@ -241,6 +241,7 @@ function withAlbumSortOrder(albumSortOrders, albumId, order) {
 
 const styles = StyleSheet.create({
   subHeader: {
+    alignItems: 'flex-start',
     paddingHorizontal: 16,
     paddingBottom: 8,
     gap: 4,

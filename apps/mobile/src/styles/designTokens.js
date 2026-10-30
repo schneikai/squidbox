@@ -36,7 +36,9 @@ const palette = {
   indigo600: '#4F46E5',
   rose600: '#E11D48',
   green500: '#34C759',
+  blue600: '#2563EB',
   cyan100: '#B1F1FF',
+  yellow100: '#FEF6C7',
 };
 
 // Semantic roles, grouped by what they paint. To add a color, add its raw value to `palette` and
@@ -61,6 +63,8 @@ export const colors = {
     successLight: alpha(palette.green500, 0.12),
     danger: palette.rose600,
     dangerLight: alpha(palette.rose600, 0.1),
+    info: palette.blue600, // a neutral fact about an entry (a model is the Default)
+    infoLight: alpha(palette.blue600, 0.12),
   },
   background: {
     app: [palette.gray50, palette.white, palette.violet50], // the page gradient
@@ -70,6 +74,7 @@ export const colors = {
     menu: alpha(palette.white, 0.72), // tint over the BlurView of popover menus
     muted: palette.gray100, // `overlay.pressed` over white, opaque
     tint: palette.violet50, // a lavender card on a white sheet (an example to copy)
+    note: palette.yellow100, // a sticky note's yellow (a model's note in its list)
     placeholder: palette.gray300, // a picture's spot before it loads
     shimmer: palette.white, // the pulse over a loading picture's placeholder
     media: palette.black, // behind a photo or video shown full screen
@@ -138,6 +143,8 @@ export const layout = {
   contentTop: scale(88), // clears the floating header
   contentBottom: scale(128), // clears the floating bottom bars
   popoverGap: 25, // between a trigger button and the popover that opens from it
+  introGap: 12, // between a screen's intro text (IntroText at its top) and the content below it
+  actionsGap: 24, // between a screen's content and its text actions under it (ActionButtons)
   menuRowPaddingX: scale(16),
   menuRowPaddingY: scale(13),
   menuIconGap: scale(12), // between a menu row's leading icon and its label

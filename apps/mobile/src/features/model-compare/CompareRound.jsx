@@ -1,6 +1,6 @@
 import { COMPARE_PROMPT_MAX_LENGTH } from '@squidbox/shared';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import ModelAnswers from './ModelAnswers';
@@ -9,19 +9,25 @@ import useCompareRound, { TEXT_KEY } from './useCompareRound';
 
 import Card from '@/components/Card';
 import Field from '@/components/Field';
+import FoldingTextarea from '@/components/FoldingTextarea';
 import IntroText from '@/components/IntroText';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import PrimaryButton from '@/components/PrimaryButton';
-import Textarea from '@/components/Textarea';
+import TextButton from '@/components/TextButton';
 import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import { SCREEN_PADDING } from '@/constants';
 import useScrollY from '@/hooks/useScrollY';
+import useVeniceBalance from '@/hooks/useVeniceBalance';
 import { scale } from '@/styles/designTokens';
 import { setPrompt } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
+
+// A long prompt shows its first lines until tapped, so the answers stay in view.
+const PROMPT_FOLDED_LINES = 4;
+const PROMPT_MIN_HEIGHT = scale(72);
 
 /**
  * A blind compare of the `models` (`{ id, name }`) of `kind`, from `savedPrompt` (the last one
@@ -39,6 +45,8 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
   const savedPromptRef = useRef(savedPrompt);
   const modelIds = useMemo(() => models.map(({ id }) => id), [models]);
   const round = useCompareRound({ kind, modelIds });
+  // Read again once a round has ended, so it shows what the round cost.
+  const balance = useVeniceBalance(round.isRunning ? null : round.number);
 
   const namesById = useMemo(() => Object.fromEntries(models.map(({ id, name }) => [id, name])), [models]);
 
@@ -81,14 +89,26 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
       >
         <Card style={styles.promptCard}>
           <Field label="Prompt" description="Remembered for next time.">
-            <Textarea
+            <FoldingTextarea
+              foldedLines={PROMPT_FOLDED_LINES}
+              editHint="Edits the prompt"
               value={prompt}
               onChangeText={setPromptText}
               maxLength={COMPARE_PROMPT_MAX_LENGTH}
-              minHeight={scale(72)}
+              minHeight={PROMPT_MIN_HEIGHT}
+              style={styles.promptInput}
             />
           </Field>
         </Card>
+        <View style={styles.status}>
+          <IntroText>
+            Venice balance: {balance.value ?? '…'}
+            {round.promptRound > 1 && ` · Round ${round.promptRound}`}
+          </IntroText>
+          {round.promptRound > 1 && (
+            <TextButton label="Reset" size="small" onPress={round.resetRounds} disabled={round.isRunning} />
+          )}
+        </View>
         {isVision && hasStarted && <IntroText style={styles.hint}>Tap the tags that fit.</IntroText>}
         {isVision ? (
           photos.map((asset) => (
@@ -141,7 +161,18 @@ const styles = StyleSheet.create({
   promptCard: {
     padding: 14,
   },
+  // As the folded text, so the prompt doesn't move when the editing starts.
+  promptInput: {
+    padding: 0,
+  },
   hint: {
+    paddingHorizontal: 4,
+  },
+  // The balance, and the round with this prompt with its Reset.
+  status: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 4,
   },
 });

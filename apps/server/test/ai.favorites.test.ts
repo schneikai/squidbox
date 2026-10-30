@@ -25,7 +25,6 @@ d('readFavorites', () => {
     updatedAt: deletedAt ?? createdAt,
     deletedAt,
     text,
-    source: null,
   });
 
   beforeAll(async () => {

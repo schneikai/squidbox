@@ -1,0 +1,1 @@
+ALTER TABLE "model_defaults" DROP CONSTRAINT "model_defaults_kind_model_id_verified_models_kind_model_id_fk";

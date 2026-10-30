@@ -1,35 +1,35 @@
 import { useNavigation } from '@react-navigation/native';
 import { INSTRUCTION_KINDS } from '@squidbox/shared';
-import { StyleSheet } from 'react-native';
 
 import instructionText from './instructionText';
 
-import Badge from '@/components/Badge';
+import CatalogStatus from '@/components/CatalogStatus';
+import ChangedBadge from '@/components/ChangedBadge';
 import DetailScrollView from '@/components/DetailScrollView';
-import IntroText from '@/components/IntroText';
 import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import useInstructions from '@/hooks/useInstructions';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 
-// Settings → Assistant → Instructions: what the assistant is told before each kind of request, one
-// row per kind with the first line of its text, a Changed badge while it isn't the app's.
+// Settings → Assistant → Admin → Instructions, for an ai_admin account: what the assistant is told
+// before each kind of request, one row per kind with its name and what it is for (instructionText), a Changed badge
+// while the user's own text differs from the app's (useInstructions' changedKinds).
 export default function InstructionsScreen() {
   const navigation = useNavigation();
-  const isAvailable = useLeaveWhenUnavailable();
-  const { stored, texts } = useInstructions();
+  const isAvailable = useLeaveWhenUnavailable('ai_admin');
+  const { changedKinds, error, retry } = useInstructions();
 
   function row(kind) {
     return (
       <Row
         key={kind}
         label={instructionText[kind].title}
-        description={texts && texts[kind].split('\n')[0]}
+        description={instructionText[kind].description}
         onPress={() => navigation.navigate('InstructionScreen', { kind })}
         chevron
       >
-        {stored?.[kind] != null && <Badge label="Changed" tone="accent" style={styles.changed} />}
+        {changedKinds?.includes(kind) && <ChangedBadge />}
       </Row>
     );
   }
@@ -40,21 +40,9 @@ export default function InstructionsScreen() {
     <Page>
       <FloatingDetailHeader title="Instructions" onBack={() => navigation.goBack()} />
       <DetailScrollView>
-        <IntroText style={styles.intro}>
-          What the assistant is told before each request. Change it to fit how you work; Reset brings the app's text
-          back.
-        </IntroText>
         <Section>{INSTRUCTION_KINDS.map(row)}</Section>
+        {error && <CatalogStatus title="Couldn't load the instructions" error={error} retry={retry} />}
       </DetailScrollView>
     </Page>
   );
 }
-
-const styles = StyleSheet.create({
-  intro: {
-    marginHorizontal: 4,
-  },
-  changed: {
-    alignSelf: 'center',
-  },
-});

@@ -3,17 +3,21 @@ import { baseRecordSchema, defineCollection, textSchema } from './define';
 
 export const INSTRUCTION_LIMITS = { text: 4000 } as const;
 
-// `instructions` — what the assistant is told (Settings → Assistant → Instructions), one text per
-// kind, each the user's to edit. One record per user, whose id is the user's id, like `personas`, so
-// two devices editing different kinds converge. Null is "the app's default", so a reset is a
-// per-field write like any edit.
-const instructionText = textSchema.min(1).max(INSTRUCTION_LIMITS.text).nullable();
+// `instructions` — what the assistant is told (Settings → Assistant → Admin → Instructions, for an
+// ai_admin account), one text per kind, each that account's to edit. One record per user, whose id is the user's id, like `personas`, so
+// two devices editing different kinds converge. Null is "the app's default" (resolveInstructions),
+// so a reset is a per-field write like any edit.
+export const instructionTextSchema = textSchema.min(1).max(INSTRUCTION_LIMITS.text);
+const instructionText = instructionTextSchema.nullable();
 export const instructionCollection = defineCollection({
   name: 'instructions',
   schema: baseRecordSchema.extend({
     writing: instructionText,
     visionTagging: instructionText,
     moreLikeThis: instructionText,
+    // Optional: the builds before it push instructions without it (sync-design §6, a new synced
+    // column is optional and the server ships first); its stored value stays as it is then.
+    modelCheckJudge: instructionText.optional(),
   }),
 });
 
@@ -22,23 +26,38 @@ export type InstructionRecord = z.infer<typeof instructionCollection.schema>;
 /**
  * The kinds, in the order the Instructions screen lists them. Each is a template the server fills in
  * (a line whose placeholder is empty is left out, and so is a heading left with nothing under it):
- * - `writing`, the chat's whole system message and the Compare's: `{aboutYou}`, `{tone}`,
- *   `{contentTags}`, `{rules}`, `{favorites}` (Writing as you and the Favorites), `{media}`, `{tags}`,
- *   `{mentions}`, `{caption}` (the post; the Compare has none), `{count}` (the options to write);
- * - `visionTagging`, the system message of every photo tags request: `{themes}` (Your content);
- * - `moreLikeThis`, what the chat's More like this sends, with the option after it.
+ * - `writing`, the chat's whole system message: `{aboutYou}`, `{tone}`, `{contentTags}`, `{rules}`,
+ *   `{favorites}` (Writing as you and the Favorites), `{media}`, `{tags}`, `{mentions}`, `{caption}`
+ *   (the post), `{count}` (the options to write). A Compare sends only its prompt box;
+ * - `visionTagging`, the system message of every photo tags request: `{themes}` (Your content). A
+ *   Compare sends its prompt box in its place, without the themes;
+ * - `moreLikeThis`, what the chat's More like this sends, with the option after it;
+ * - `modelCheckJudge`, what a writing Verify (ai_admin) asks its judge after each chat turn: the
+ *   creator and the post the assistant was told about, as `writing` has them (`{aboutYou}` …
+ *   `{caption}`, without `{count}`), `{transcript}` (the turns before), `{request}` (the creator's
+ *   last message), `{reply}`.
  */
-export const INSTRUCTION_KINDS = ['writing', 'visionTagging', 'moreLikeThis'] as const;
+export const INSTRUCTION_KINDS = ['writing', 'visionTagging', 'moreLikeThis', 'modelCheckJudge'] as const;
+
+export const instructionKindSchema = z.enum(INSTRUCTION_KINDS);
 
 export type InstructionKind = (typeof INSTRUCTION_KINDS)[number];
 
-export type Instructions = Record<InstructionKind, string>;
+// Every kind's text, as the assistant gets it.
+export const instructionsSchema = z.object(
+  Object.fromEntries(INSTRUCTION_KINDS.map((kind) => [kind, z.string()])) as Record<InstructionKind, z.ZodString>,
+);
+export type Instructions = z.infer<typeof instructionsSchema>;
 
-/** The app's text for each kind, used while the user's is null. Each stays under INSTRUCTION_LIMITS.text (a test holds them to it). */
+/**
+ * The built-in text for each kind: the app's default while nothing was published for it (Apply
+ * changes for everyone, the server's app_instructions). Each stays under INSTRUCTION_LIMITS.text (a
+ * test holds them to it).
+ */
 export const DEFAULT_INSTRUCTIONS: Instructions = Object.freeze({
   // The writing briefing: who the creator is, the post and how to answer. `{caption}` reads (empty)
   // when the caption is.
-  writing: `You are the writing assistant inside Squidbox, a content creator's post editor. The creator chats with you to think through ideas and to get posts written in their voice. Be a sharp, warm collaborator: plain language, short turns, no headings, no "Great question". The newest message decides what the chat is about; follow it even when it changes the subject.
+  writing: `You are a writing assistant for a content creator. They chat with you to think through ideas and to get posts written in their voice. Be a sharp, warm collaborator: plain language, short turns, no headings, no "Great question". The newest message decides what the chat is about; follow it even when it changes the subject.
 
 # The creator
 {aboutYou}
@@ -79,11 +98,46 @@ Use only what the creator, the photos or this briefing give you: never invent pl
   ].join('\n'),
   // What ⋯ → More like this on an option sends; the app adds the option on its own lines after it.
   moreLikeThis: 'Write more options like this one: the same idea and tone, different wording each time.',
+  // Verify's judge (VERIFY_JUDGE_MODEL_ID in contracts/ai.ts): its whole question after each turn.
+  modelCheckJudge: [
+    'You judge one turn of a writing assistant\'s chat with a content creator. Did the reply respond to what the creator asked in their last message, and hold the conversation (not change the subject, not invent facts it wasn\'t given, posts only when asked)? The assistant was given the creator, the posts they liked and the post below: names, handles, places, tags and details found there or earlier in the chat are given, not invented. Answer as JSON: {"pass": true or false, "reason": one short line}.',
+    '',
+    '# The creator',
+    '{aboutYou}',
+    'Tone: {tone}',
+    'Themes they post about: {contentTags}',
+    '',
+    '# Their rules',
+    '{rules}',
+    '',
+    '# Posts they liked',
+    '{favorites}',
+    '',
+    '# The post',
+    'Media: {media}',
+    "What's in the photos (from image recognition): {tags}",
+    "People they've tagged in posts from the same album: {mentions}",
+    'Caption so far: {caption}',
+    '',
+    '# The conversation so far',
+    '{transcript}',
+    '',
+    "# The creator's last message",
+    '{request}',
+    '',
+    '# The reply to judge',
+    '{reply}',
+  ].join('\n'),
 });
 
-/** Each kind's text: the user's where they saved one, else the default. */
-export function resolveInstructions(record: Partial<Record<InstructionKind, string | null>> | null): Instructions {
-  return Object.fromEntries(
-    INSTRUCTION_KINDS.map((kind) => [kind, record?.[kind] ?? DEFAULT_INSTRUCTIONS[kind]]),
-  ) as Instructions;
+/**
+ * Each kind's text: the user's where they saved one, else the app's default from `defaults` (the
+ * published text, else the built-in one). `defaults` is required, so no caller skips the published
+ * text by accident.
+ */
+export function resolveInstructions(
+  record: Partial<Record<InstructionKind, string | null>> | null,
+  defaults: Instructions,
+): Instructions {
+  return Object.fromEntries(INSTRUCTION_KINDS.map((kind) => [kind, record?.[kind] ?? defaults[kind]])) as Instructions;
 }

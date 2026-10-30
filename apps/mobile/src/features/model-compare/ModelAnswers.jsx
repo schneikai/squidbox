@@ -5,6 +5,7 @@ import TweetRow from './TweetRow';
 
 import Chip from '@/components/Chip';
 import ChipRow from '@/components/ChipRow';
+import IntroText from '@/components/IntroText';
 
 // Memoized: a vision round settles photo by photo, and a tap changes one key's taps, so only the
 // cards whose `results` or `taps` changed re-render.
@@ -18,34 +19,52 @@ export default memo(ModelAnswers);
 function ModelAnswers({ answerKey, kind, letters, namesById, results = {}, taps = {}, roundNumber, toggle }) {
   return letters.map(({ modelId, label }) => {
     const items = results[modelId]?.items ?? [];
-    const tapped = taps[modelId] ?? [];
+    const levels = taps[modelId] ?? {};
     return (
-      <ModelCard key={`${roundNumber}-${modelId}`} label={label} name={namesById[modelId]} result={results[modelId]}>
+      <ModelCard
+        key={`${roundNumber}-${modelId}`}
+        modelId={modelId}
+        label={label}
+        name={namesById[modelId]}
+        result={results[modelId]}
+      >
         {kind === 'vision' ? (
-          <ChipRow>
-            {items.map((tag, index) => {
-              const isOn = tapped.includes(index);
-              return (
-                <Chip
-                  key={index}
-                  label={tag}
-                  variant={isOn ? 'accent' : 'muted'}
-                  onPress={() => toggle(answerKey, modelId, index)}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: isOn }}
-                />
-              );
-            })}
-          </ChipRow>
+          <VisionTags answerKey={answerKey} modelId={modelId} items={items} levels={levels} toggle={toggle} />
         ) : (
           items.map((tweet, index) => {
-            const isLiked = tapped.includes(index);
             return (
-              <TweetRow key={index} text={tweet} isLiked={isLiked} onToggle={() => toggle(answerKey, modelId, index)} />
+              <TweetRow
+                key={index}
+                text={tweet}
+                level={levels[index] ?? 0}
+                onToggle={() => toggle(answerKey, modelId, index)}
+              />
             );
           })
         )}
       </ModelCard>
     );
   });
+}
+
+// A model's tags of a photo to mark as fitting; none when it gave only tags shown in earlier rounds.
+function VisionTags({ answerKey, modelId, items, levels, toggle }) {
+  if (items.length === 0) return <IntroText>Only tags from earlier rounds</IntroText>;
+  return (
+    <ChipRow>
+      {items.map((tag, index) => {
+        const isOn = (levels[index] ?? 0) > 0;
+        return (
+          <Chip
+            key={index}
+            label={tag}
+            variant={isOn ? 'accent' : 'muted'}
+            onPress={() => toggle(answerKey, modelId, index)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: isOn }}
+          />
+        );
+      })}
+    </ChipRow>
+  );
 }

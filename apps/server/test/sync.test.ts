@@ -121,6 +121,7 @@ d('sync engine (Postgres)', () => {
     await db.delete(schema.promptButtons).where(inArray(schema.promptButtons.userId, users));
     await db.delete(schema.favorites).where(inArray(schema.favorites.userId, users));
     await db.delete(schema.instructions).where(inArray(schema.instructions.userId, users));
+    await db.delete(schema.modelChoices).where(inArray(schema.modelChoices.userId, users));
   }
   afterAll(async () => {
     await clearAll();
@@ -210,6 +211,20 @@ d('sync engine (Postgres)', () => {
     await pool.query('DELETE FROM personas WHERE user_id = $1 AND id = $2', [USER_A, id]);
   });
 
+  it('a favorite from an older build that still sends source is applied without it', async () => {
+    const id = randomUUID();
+    const favorite = { id, createdAt: 1000, updatedAt: 1000, deletedAt: null, text: 'First light.' };
+    const [result] = await push(db, USER_A, [
+      { collection: 'favorites', record: { ...favorite, source: 'Caption' }, fields: { text: 1000, source: 1000 } },
+    ]);
+    expect(result.status).toBe('applied');
+    const { changes } = await pull(db, USER_A, { cursor: 0 });
+    const pulled = changes.favorites.records.find((record) => record.id === id);
+    expect(pulled).toMatchObject({ text: 'First light.' });
+    expect(pulled).not.toHaveProperty('source');
+    await pool.query('DELETE FROM favorites WHERE user_id = $1 AND id = $2', [USER_A, id]);
+  });
+
   it("a persona's Adult content starts off and survives a push from a build without it", async () => {
     const id = randomUUID();
     const persona = {
@@ -236,6 +251,32 @@ d('sync engine (Postgres)', () => {
     ).toMatchObject({ status: 'applied' });
     expect(await pulled()).toMatchObject({ aboutYou: 'Me, later.', adultContent: true });
     await pool.query('DELETE FROM personas WHERE user_id = $1 AND id = $2', [USER_A, id]);
+  });
+
+  it("instructions from a build without the model check's judge are applied, and keep a judge set elsewhere", async () => {
+    const record = {
+      id: USER_A,
+      createdAt: 1000,
+      updatedAt: 1000,
+      deletedAt: null,
+      writing: null,
+      visionTagging: null,
+      moreLikeThis: null,
+    };
+    const pulled = async () =>
+      (await pull(db, USER_A, { cursor: 0 })).changes.instructions.records.find((each) => each.id === USER_A);
+    expect(
+      (await push(db, USER_A, [{ collection: 'instructions', record, fields: { writing: 1000 } }]))[0],
+    ).toMatchObject({ status: 'applied' });
+    expect(await pulled()).toMatchObject({ modelCheckJudge: null });
+    const judged = { ...record, updatedAt: 2000, modelCheckJudge: 'Judge it: {reply}' };
+    await push(db, USER_A, [{ collection: 'instructions', record: judged, fields: { modelCheckJudge: 2000 } }]);
+    const older = { ...record, updatedAt: 3000, writing: 'Write like me.' };
+    expect(
+      (await push(db, USER_A, [{ collection: 'instructions', record: older, fields: { writing: 3000 } }]))[0],
+    ).toMatchObject({ status: 'applied' });
+    expect(await pulled()).toMatchObject({ writing: 'Write like me.', modelCheckJudge: 'Judge it: {reply}' });
+    await pool.query('DELETE FROM instructions WHERE user_id = $1', [USER_A]);
   });
 
   it('an unknown collection, Object.prototype’s names included, is rejected per mutation', async () => {
@@ -1416,17 +1457,20 @@ d('sync engine (Postgres)', () => {
         icon: null,
         position: 'a0',
       }),
-      favorites: () => ({ ...base(), text: 'First light on the ridge.', source: null }),
+      favorites: () => ({ ...base(), text: 'First light on the ridge.' }),
       instructions: () => ({
         ...base(),
         writing: 'Write like me.',
         visionTagging: null,
         moreLikeThis: null,
+        modelCheckJudge: null,
       }),
       model_choices: () => ({
         ...base(),
         writingModel: { id: 'venice-uncensored-1-2', name: 'Venice Uncensored' },
         visionModel: null,
+        writingUncensoredModel: { id: 'venice-uncensored-1-2', name: 'Venice Uncensored' },
+        visionUncensoredModel: null,
       }),
     };
 

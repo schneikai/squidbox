@@ -68,7 +68,7 @@ export default function PostEditor({ kind, post, navigation, onSave }) {
             value={text}
             style={styles.textArea}
           />
-          <WriteWithAi sessionId={sessionId} text={text} navigation={navigation} />
+          <WriteWithAi sessionId={sessionId} navigation={navigation} />
         </Card>
 
         <DateTimePicker timestamp={postedAt} onChange={setPostedAt} />

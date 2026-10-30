@@ -32,9 +32,8 @@ export function SectionFooter({ children, isMuted = false }) {
 
 // The label always keeps its width; a long value wraps onto more lines beside it, as Apple's
 // guidance prefers over truncating or shrinking text.
-// `isValueMuted` greys the value further, for one that no longer applies. `leading` goes before the
-// label (an icon), `description` is secondary text under it.
-export function Row({ label, description, leading, value, isValueMuted, onPress, destructive, chevron, children }) {
+// `leading` goes before the label (an icon), `description` is secondary text under it.
+export function Row({ label, description, leading, value, onPress, destructive, chevron, children }) {
   const content = (
     <View style={styles.row}>
       {leading != null && <View style={styles.rowLeading}>{leading}</View>}
@@ -43,7 +42,7 @@ export function Row({ label, description, leading, value, isValueMuted, onPress,
         {description != null && <Text style={styles.rowDescription}>{description}</Text>}
       </View>
       <View style={[styles.rowRight, value && styles.rowRightFilling]}>
-        {value ? <Text style={[styles.rowValue, isValueMuted && styles.rowValueMuted]}>{value}</Text> : null}
+        {value ? <Text style={styles.rowValue}>{value}</Text> : null}
         {children}
         {chevron && (
           <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.tertiary} style={{ marginLeft: 4 }} />
@@ -119,9 +118,6 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     textAlign: 'right',
     flexShrink: 1,
-  },
-  rowValueMuted: {
-    color: colors.text.tertiary,
   },
   footer: {
     fontSize: typography.footnote,

@@ -1,13 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useRef } from 'react';
 import { StyleSheet } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useAnimatedKeyboard,
-  withTiming,
-  interpolate,
-  Extrapolation,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, withTiming, interpolate, Extrapolation } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
@@ -15,6 +9,7 @@ import FloatingPill from './FloatingPill';
 import IconButton from '@/components/IconButton';
 import IconMenuButton from '@/components/IconMenuButton';
 import SearchTextInput from '@/components/SearchTextInput';
+import useKeyboardInset from '@/hooks/useKeyboardInset';
 import { colors, glass, layout, motion, scale, sizes } from '@/styles/designTokens';
 
 /**
@@ -59,8 +54,8 @@ export default function SearchOptionsBar({
   maxWidth,
 }) {
   const inputRef = useRef(null);
-  const keyboard = useAnimatedKeyboard();
-  const { bottom: bottomInset } = useSafeAreaInsets();
+  const { bottom: safeBottom } = useSafeAreaInsets();
+  const keyboardInset = useKeyboardInset();
 
   useEffect(() => {
     expandProgress.value = withTiming(isSearchActive ? 1 : 0, motion.move);
@@ -82,9 +77,8 @@ export default function SearchOptionsBar({
 
   const containerStyle = useAnimatedStyle(() => ({
     width: interpolate(expandProgress.value, [0, 1], [COLLAPSED_WIDTH, maxWidth], Extrapolation.CLAMP),
-    // keyboard.height on iOS includes the bottom safe area inset, which is already
-    // baked into the `bottom` prop — subtract it to avoid double-counting.
-    bottom: bottom + Math.max(0, keyboard.height.value - bottomInset),
+    // The `bottom` prop already holds the bottom safe area: only what the keyboard adds over it.
+    bottom: bottom + keyboardInset.value - safeBottom,
   }));
 
   const collapsedStyle = useAnimatedStyle(() => ({

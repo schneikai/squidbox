@@ -1,5 +1,6 @@
-// The fields of Writing as you, in the screen's order: each one's label, the one-line example an empty field shows, and
-// what its ⓘ sheet says, with three examples.
+// The fields of Writing as you, in the screen's order: each one's label, the one-line example an
+// empty field shows, and what its ⓘ sheet says, with three examples. Then Rules, on screens of their
+// own (RulesScreen, RuleScreen): their label, an empty rule's example and the screens' intro.
 const voiceFields = {
   aboutYou: {
     label: 'About you',
@@ -34,8 +35,7 @@ const voiceFields = {
   rules: {
     label: 'Rules',
     placeholder: 'e.g. Never use hashtags',
-    description: 'What it must always or never do, one rule each. It follows them in every post it writes.',
-    examples: ['Never use hashtags', 'Link only in follow-ups', 'Never name the exact spot'],
+    description: 'What the assistant must always or never do. It follows these in every post.',
   },
 };
 
