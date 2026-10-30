@@ -4,13 +4,13 @@ import { StyleSheet, Text, View } from 'react-native';
 import Badge from '@/components/Badge';
 import ChangedBadge from '@/components/ChangedBadge';
 import ScoreDetail from '@/components/ScoreDetail';
-import { colors } from '@/styles/designTokens';
+import { colors, radii } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import scoreDetailLabel from '@/utils/ai/scoreDetailLabel';
 
 // A model's name, its labels (`labels`, from modelLabels) as badges below it: Changed (a default of
 // yours that everyone doesn't use), Verified, then the defaults; and a detail line under them, led
-// by a `score` above 0 (its thumbs up); the admin's `note` under it, at most two lines. `isDimmed`
+// by a `score` above 0 (its thumbs up); the admin's `note` under it on a sticky note, at most two lines. `isDimmed`
 // greys the text, for a model Venice no longer offers.
 export default function ModelSummary({ name, labels, detail, score, note, isDimmed = false }) {
   const hasBadges = labels.default || labels.uncensoredDefault || labels.verified;
@@ -56,7 +56,14 @@ const styles = StyleSheet.create({
   detail: {
     marginTop: 2,
   },
+  // A sticky note under the model.
   note: {
+    marginTop: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: radii.badge,
+    overflow: 'hidden',
+    backgroundColor: colors.background.note,
     color: colors.text.primary,
   },
   dimmed: {
