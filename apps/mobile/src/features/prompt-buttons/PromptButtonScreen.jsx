@@ -33,7 +33,7 @@ const REQUIRED_FIELDS = ['name', 'prompt'];
 // one at the end (Add, once it has a name and a prompt). Reachable from anywhere (a root screen, one
 // per button), so the chat opens it too.
 export default function PromptButtonScreen({ route, navigation }) {
-  const { id } = route.params ?? {};
+  const { id } = route.params;
   const isAvailable = useLeaveWhenUnavailable();
   const seed = useSeedOrClose(
     (db) => (id ? readPromptButton(db, id) : Promise.resolve({ name: '', prompt: '', icon: null })),

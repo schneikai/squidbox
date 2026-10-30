@@ -14,6 +14,9 @@ const LISTS = [
   { name: 'RulesScreen', component: RulesScreen },
 ];
 
+// One screen per prompt button or favorite, and one Add.
+const idOrNew = ({ params }) => params?.id ?? 'new';
+
 // Each editor's modal route is wrapped once, here: a wrap inside a render would remount an open
 // editor and lose its draft.
 const EDITORS = [
@@ -21,15 +24,13 @@ const EDITORS = [
     name: 'PromptButtonScreen',
     component: PromptButtonScreen,
     modalComponent: asModalRoute(PromptButtonScreen),
-    // One screen per prompt button, and one Add.
-    getId: ({ params }) => params?.id ?? 'new',
+    getId: idOrNew,
   },
   {
     name: 'FavoriteScreen',
     component: FavoriteScreen,
     modalComponent: asModalRoute(FavoriteScreen),
-    // One screen per favorite, and one Add.
-    getId: ({ params }) => params?.id ?? 'new',
+    getId: idOrNew,
   },
   {
     name: 'RuleScreen',

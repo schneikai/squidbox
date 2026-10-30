@@ -15,7 +15,6 @@ import {
 } from '@/sync/favoritesRepository';
 
 const NEW_FAVORITE = { text: '' };
-const ALREADY_TEXT = 'This post is in your Favorites already.';
 
 // One favorite, as a draft sheet: `{ id }` edits it (Save, or Delete, which the Favorites screen
 // offers to undo); no params adds one of your own posts (Add). A text in your Favorites already says
@@ -34,8 +33,8 @@ export default function FavoriteScreen({ route, navigation }) {
 
 function FavoriteEditor({ id, seed, navigation }) {
   const [text, setText] = useState(seed.text);
-  // Why Add or Save didn't save the favorite, until the text changes.
-  const [notice, setNotice] = useState(null);
+  // The text Add or Save refused as in your Favorites already: said while the text is still that one.
+  const [takenText, setTakenText] = useState(null);
   const { sheetProps, finish } = useEditSheet({
     isNew: !id,
     isValid: Boolean(text.trim()),
@@ -43,19 +42,20 @@ function FavoriteEditor({ id, seed, navigation }) {
     save,
   });
 
+  const notice = takenText === text ? 'This post is in your Favorites already.' : null;
+
   async function save() {
     const db = getDb();
     if (!id) {
-      if ((await addFavorites(db, [text])).length > 0) return true;
-      setNotice(ALREADY_TEXT);
+      if ((await addFavorites(db, [text])).length > 0) return;
+      setTakenText(text);
       return false;
     }
     try {
       await updateFavorite(db, id, text);
-      return true;
     } catch (error) {
       if (error.message !== ALREADY_IN_FAVORITES) throw error;
-      setNotice(ALREADY_TEXT);
+      setTakenText(text);
       return false;
     }
   }
@@ -68,17 +68,12 @@ function FavoriteEditor({ id, seed, navigation }) {
     }, "Couldn't delete the favorite");
   }
 
-  function handleChangeText(next) {
-    setText(next);
-    setNotice(null);
-  }
-
   return (
     <TextEditSheet
       {...sheetProps}
       title="Favorite"
       value={text}
-      onChangeText={handleChangeText}
+      onChangeText={setText}
       placeholder="Paste one of your posts"
       maxLength={FAVORITE_LIMITS.text}
       autoFocus={!id}

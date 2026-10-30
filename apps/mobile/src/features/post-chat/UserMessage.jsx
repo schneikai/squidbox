@@ -2,8 +2,8 @@ import { Alert } from 'react-native';
 
 import ChatBubble from '@/components/ChatBubble';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
-import addRuleText from '@/features/voice/addRuleText';
 import useHaptics from '@/hooks/useHaptics';
+import ruleResultText from '@/lib/ruleResultText';
 import useLibrary from '@/library/useLibrary';
 import { getDb } from '@/sync/db/client';
 import { addRule } from '@/sync/personaRepository';
@@ -22,11 +22,11 @@ export default function UserMessage({ label, content }) {
     try {
       const result = await addRule(getDb(), userId, content);
       if (result === 'tooLong') {
-        Alert.alert('Too long for a rule', addRuleText.tooLong);
+        Alert.alert('Too long for a rule', ruleResultText.tooLong);
         return;
       }
       if (result === 'full') {
-        Alert.alert('No room for another rule', addRuleText.full);
+        Alert.alert('No room for another rule', ruleResultText.full);
         return;
       }
       if (result === 'added') requestSync();

@@ -2,21 +2,20 @@ import { PERSONA_LIMITS } from '@squidbox/shared';
 import { useState } from 'react';
 import { Alert } from 'react-native';
 
-import addRuleText from './addRuleText';
-import locateRule from './locateRule';
 import voiceFields from './voiceFields';
 
 import TextEditSheet from '@/components/TextEditSheet';
 import useEditSheet from '@/hooks/useEditSheet';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
+import ruleResultText from '@/lib/ruleResultText';
 import useLibrary from '@/library/useLibrary';
 import { getDb } from '@/sync/db/client';
-import { addRule, readPersona, savePersona } from '@/sync/personaRepository';
+import { addRule, readPersona, removeRule, updateRule } from '@/sync/personaRepository';
 
 // One of the Rules, as a draft sheet: `{ index }` edits that rule (Save, or Delete), no
 // params adds one (Add).
-export default function RuleScreen({ route }) {
+export default function RuleScreen({ route, navigation }) {
   const index = route.params?.index;
   const isAvailable = useLeaveWhenUnavailable();
   const { library } = useLibrary();
@@ -31,64 +30,44 @@ export default function RuleScreen({ route }) {
     'This rule was deleted.',
   );
   if (!isAvailable || !seed) return null;
-  return <RuleEditor index={index} userId={userId} seed={seed} />;
+  return <RuleEditor index={index} userId={userId} seed={seed} navigation={navigation} />;
 }
 
-function RuleEditor({ index, userId, seed }) {
+function RuleEditor({ index, userId, seed, navigation }) {
   const [text, setText] = useState(seed.text);
-  // Why Add didn't add the rule, until the text changes.
-  const [notice, setNotice] = useState(null);
+  // The text Add or Save refused and why: shown while the text is still that one.
+  const [rejected, setRejected] = useState(null);
   const isNew = index == null;
-  const { sheetProps, finish, leave } = useEditSheet({
+  const { sheetProps, finish } = useEditSheet({
     isNew,
     isValid: Boolean(text.trim()),
     isDirty: text.trim() !== seed.text,
     save,
   });
 
-  async function readRules(db) {
-    return (await readPersona(db, userId))?.rules ?? [];
-  }
+  const notice = rejected?.text === text ? rejected.message : null;
 
-  // A stored rule is found again by its seeded text, so a sync that moved or changed the list
-  // meanwhile never gets another rule overwritten: a rule gone meanwhile closes the sheet.
+  // A rule changed or removed on another device meanwhile isn't saved over: the sheet says so and
+  // closes.
   async function save() {
     const db = getDb();
-    if (isNew) {
-      const result = await addRule(db, userId, text);
-      if (result === 'added') return true;
-      setNotice(addRuleText[result]);
+    const result = isNew
+      ? await addRule(db, userId, text)
+      : await updateRule(db, userId, { index, text: seed.text }, text);
+    if (result === 'gone') {
+      return () => {
+        Alert.alert('This rule was changed on another device.');
+        navigation.goBack();
+      };
+    }
+    if (result !== 'added' && result !== 'updated') {
+      setRejected({ text, message: ruleResultText[result] });
       return false;
     }
-    const rules = await readRules(db);
-    const at = locateRule(rules, { index, text: seed.text });
-    if (at === -1) {
-      Alert.alert('This rule was changed on another device.');
-      leave();
-      return false;
-    }
-    // Like Add: no rule twice.
-    if (rules.some((rule, i) => i !== at && rule === text.trim())) {
-      setNotice(addRuleText.present);
-      return false;
-    }
-    await savePersona(db, userId, { rules: rules.map((rule, i) => (i === at ? text.trim() : rule)) });
-    return true;
   }
 
   function handleDelete() {
-    finish(async () => {
-      const db = getDb();
-      const rules = await readRules(db);
-      const at = locateRule(rules, { index, text: seed.text });
-      // -1: gone already.
-      if (at !== -1) await savePersona(db, userId, { rules: rules.filter((_, i) => i !== at) });
-    }, "Couldn't delete the rule");
-  }
-
-  function handleChangeText(next) {
-    setText(next);
-    setNotice(null);
+    finish(() => removeRule(getDb(), userId, { index, text: seed.text }), "Couldn't delete the rule");
   }
 
   return (
@@ -96,7 +75,7 @@ function RuleEditor({ index, userId, seed }) {
       {...sheetProps}
       title="Rule"
       value={text}
-      onChangeText={handleChangeText}
+      onChangeText={setText}
       placeholder={voiceFields.rules.placeholder}
       maxLength={PERSONA_LIMITS.rule}
       autoFocus={isNew}

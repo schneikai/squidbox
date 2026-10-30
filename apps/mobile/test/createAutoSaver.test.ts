@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import createAutoSaver from '../src/utils/createAutoSaver';
 
 type Value = Record<string, string>;
-type Save = (next: Value, stored: Value) => Promise<unknown>;
+type Save = (next: Value, stored: Value) => Promise<void>;
 
 function makeSaver(value: Value, save: Save) {
   const onError = vi.fn();
@@ -16,7 +16,7 @@ describe('createAutoSaver', () => {
   it('saves once changes pause, and not what is stored already', async () => {
     vi.useFakeTimers();
     try {
-      const save = vi.fn(async () => true);
+      const save = vi.fn(async () => {});
       const { saver } = makeSaver({ text: 'a' }, save);
       saver.change({ text: 'ab' });
       saver.change({ text: 'abc' });
@@ -34,7 +34,6 @@ describe('createAutoSaver', () => {
     let fails = true;
     const { saver, onError, sync } = makeSaver({ text: 'a' }, async () => {
       if (fails) throw new Error('disk full');
-      return true;
     });
     saver.change({ text: 'b' });
     await saver.flush({ shouldSync: true });

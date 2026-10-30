@@ -5,6 +5,7 @@ import { Alert } from 'react-native';
 import useDiscardGuard from '@/hooks/useDiscardGuard';
 import useHaptics from '@/hooks/useHaptics';
 import { requestSync } from '@/sync/worker';
+import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 /**
  * A sheet that edits one item as a draft (components/EditSheet). Returns `sheetProps` for EditSheet:
@@ -13,49 +14,59 @@ import { requestSync } from '@/sync/worker';
  * (useDiscardGuard; `confirmDiscard()` asks before another action that would drop the changes).
  *
  * `finish(write, failure)` is every last write of the sheet (Add/Save, Delete, Duplicate): it runs
- * `write()`, syncs (unless the store the sheet writes to syncs by itself, `syncsItself`) and leaves
- * the sheet with what `write` resolves to (a navigate callback; `navigation.goBack()` otherwise), or
- * keeps it open when that is false (the item exists already, say). A write that throws says so with
- * `failure` as the title and keeps the sheet open. One write at a time: while one runs (`isSaving`,
- * which also turns the sheet's buttons off) another tap does nothing, and once the sheet is leaving
- * nothing more is written.
+ * `write()`, then syncs (unless the store the sheet writes to syncs by itself, `syncsItself`) and
+ * leaves the sheet. `write` resolves to false to keep the sheet open (the item exists already, say),
+ * to a function to leave with it (a navigate callback), or to anything else to go back. A write that
+ * throws says so with `failure` as the title and keeps the sheet open. One write at a time: while
+ * one runs, or while the screen is `isBusy` with work of its own, `isSaving` turns the sheet's
+ * buttons off and another tap does nothing; once the sheet is leaving nothing more is written.
  */
-export default function useEditSheet({ isNew = false, isValid = true, isDirty, save, syncsItself = false }) {
+export default function useEditSheet({
+  isNew = false,
+  isValid = true,
+  isDirty,
+  save,
+  syncsItself = false,
+  isBusy = false,
+}) {
   const navigation = useNavigation();
   const haptics = useHaptics();
-  const [isSaving, setIsSaving] = useState(false);
+  const [isWriting, setIsWriting] = useState(false);
+  // A ref, not state: two taps in one frame both see the state from before the first.
   const busyRef = useRef(false);
   const { leave, confirmDiscard } = useDiscardGuard(isDirty);
 
+  function release() {
+    busyRef.current = false;
+    setIsWriting(false);
+  }
+
   async function finish(write, failure) {
-    // A ref, not state: two taps in one frame both see the state from before the first.
     if (busyRef.current) return;
     busyRef.current = true;
-    setIsSaving(true);
-    let isLeaving = false;
+    setIsWriting(true);
     try {
       const navigate = await write();
-      if (navigate === false) return;
+      if (navigate === false) {
+        release();
+        return;
+      }
       if (!syncsItself) requestSync();
       leave(typeof navigate === 'function' ? navigate : undefined);
-      isLeaving = true;
     } catch (error) {
       console.error(failure, error);
       haptics.error();
-      Alert.alert(failure, error.message);
-    } finally {
-      if (!isLeaving) {
-        busyRef.current = false;
-        setIsSaving(false);
-      }
+      Alert.alert(failure, apiErrorMessage(error));
+      release();
     }
   }
 
+  const isSaving = isWriting || isBusy;
   const sheetProps = {
     confirmLabel: isNew ? 'Add' : 'Save',
     canConfirm: isValid && (isNew || isDirty),
     isSaving,
-    onConfirm: () => finish(save, "Couldn't save your changes"),
+    onConfirm: () => !isBusy && finish(save, "Couldn't save your changes"),
     onCancel: () => navigation.goBack(),
   };
 

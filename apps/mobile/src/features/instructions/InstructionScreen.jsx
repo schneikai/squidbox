@@ -3,11 +3,8 @@ import { useState } from 'react';
 
 import instructionText from './instructionText';
 
-import Button from '@/components/Button';
 import CatalogStatus from '@/components/CatalogStatus';
-import DetailScrollView from '@/components/DetailScrollView';
-import ModalHeader from '@/components/ModalHeader';
-import ModalSheet from '@/components/ModalSheet';
+import EditSheet from '@/components/EditSheet';
 import TextEditSheet from '@/components/TextEditSheet';
 import useApplyChangesForEveryone from '@/hooks/useApplyChangesForEveryone';
 import useEditSheet from '@/hooks/useEditSheet';
@@ -18,7 +15,6 @@ import applyAppInstructions from '@/lib/applyAppInstructions';
 import useLibrary from '@/library/useLibrary';
 import { getDb } from '@/sync/db/client';
 import { readInstructions, saveInstruction } from '@/sync/instructionsRepository';
-import { requestSync } from '@/sync/worker';
 import publishInstructionAsync from '@/utils/cloud-api/ai/publishInstructionAsync';
 
 // One kind of instructions (`{ kind }`) as a draft sheet: its text, the user's override or the app's
@@ -40,15 +36,14 @@ export default function InstructionScreen({ route, navigation }) {
   if (!isAvailable || !seed) return null;
   if (!defaultTexts) {
     return (
-      <ModalSheet>
-        <ModalHeader
-          leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
-          title={instructionText[kind].title}
-        />
-        <DetailScrollView>
-          <CatalogStatus title="Couldn't load the instructions" error={error} retry={retry} />
-        </DetailScrollView>
-      </ModalSheet>
+      <EditSheet
+        title={instructionText[kind].title}
+        confirmLabel="Save"
+        canConfirm={false}
+        onCancel={() => navigation.goBack()}
+      >
+        <CatalogStatus title="Couldn't load the instructions" error={error} retry={retry} />
+      </EditSheet>
     );
   }
   return <InstructionEditor kind={kind} userId={userId} seed={seed} defaultText={defaultTexts[kind]} />;
@@ -59,16 +54,18 @@ function InstructionEditor({ kind, userId, seed, defaultText }) {
   const initialText = seed.stored ?? defaultText;
   const [text, setText] = useState(initialText);
   const { isPublishing, publish } = useApplyChangesForEveryone();
-  const { sheetProps, leave } = useEditSheet({
+  const { sheetProps, finish } = useEditSheet({
     isValid: text.trim() !== '',
     isDirty: text.trim() !== initialText.trim(),
     save,
+    isBusy: isPublishing,
   });
 
-  const isChanged = text.trim() !== defaultText;
+  const trimmed = text.trim();
+  const isChanged = trimmed !== defaultText;
   const actions = [
     isChanged &&
-      text.trim() !== '' && {
+      trimmed !== '' && {
         label: 'Apply changes for everyone',
         colorPalette: 'accent',
         onPress: handlePublish,
@@ -79,18 +76,19 @@ function InstructionEditor({ kind, userId, seed, defaultText }) {
 
   // The default's text is stored as null.
   async function save() {
-    await saveInstruction(getDb(), userId, kind, text.trim(), defaultText);
+    await saveInstruction(getDb(), userId, kind, trimmed, defaultText);
   }
 
   // The text becomes the default for every account, so the account's own text is cleared and
   // nothing is left to save: the sheet closes.
   function handlePublish() {
     return publish("Every account's assistant gets this text.", async () => {
-      const answer = await publishInstructionAsync(kind, { text: text.trim() });
+      const answer = await publishInstructionAsync(kind, { text: trimmed });
       applyAppInstructions(answer);
-      await saveInstruction(getDb(), userId, kind, null, answer.instructions[kind]);
-      requestSync();
-      leave();
+      await finish(
+        () => saveInstruction(getDb(), userId, kind, null, answer.instructions[kind]),
+        "Couldn't save your changes",
+      );
     });
   }
 

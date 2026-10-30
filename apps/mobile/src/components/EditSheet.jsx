@@ -15,9 +15,9 @@ import useScrollY from '@/hooks/useScrollY';
  * The sheet that edits one item as a draft (hooks/useEditSheet gives its props): × on the leading
  * side to cancel (Back when pushed inside another sheet), the optional `title`, and `confirmLabel`
  * (Add for a new item, Save for an edit) on the trailing side, off unless `canConfirm`, with a
- * spinner while `isSaving`. The body (`children`) scrolls under the header, with optional `actions`
- * at its end (ActionButtons: `{ label, colorPalette, onPress, loading }`, e.g. Delete), off while
- * `isSaving`. `isFilling` lets the body fill the sheet above the keyboard instead of scrolling, for
+ * spinner while `isSaving`, when × and the actions are off too. The body (`children`) scrolls under
+ * the header, with optional `actions` at its end (ActionButtons: `{ label, colorPalette, onPress,
+ * loading, disabled }`, e.g. Delete). `isFilling` lets the body fill the sheet above the keyboard instead of scrolling, for
  * a text field that fills it (TextEditSheet).
  */
 export default function EditSheet({
@@ -40,7 +40,7 @@ export default function EditSheet({
     paddingBottom: Math.max(bottom + SCREEN_PADDING, keyboardInset.value),
   }));
 
-  const sheetActions = actions.map((action) => ({ ...action, disabled: isSaving }));
+  const sheetActions = actions.map((action) => ({ ...action, disabled: action.disabled || isSaving }));
   const header = (
     <ModalHeader
       leading={
@@ -48,6 +48,7 @@ export default function EditSheet({
           icon={isSheetRoute ? 'close' : 'chevron-left'}
           accessibilityLabel={isSheetRoute ? 'Close' : 'Back'}
           onPress={onCancel}
+          disabled={isSaving}
         />
       }
       title={title}
