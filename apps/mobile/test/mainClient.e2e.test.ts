@@ -12,6 +12,7 @@ import pg from 'pg';
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
+import { fuzzRuns } from './helpers/fuzzRuns';
 import * as serverSchema from '../../server/src/db/schema.js';
 import { serverCollections } from '../../server/src/sync/collections.js';
 import { pull as serverPull } from '../../server/src/sync/pull.js';
@@ -275,11 +276,13 @@ d('the installed app (its client code, as built) against this server', () => {
   // clocks ahead and behind, edits made during a push or between a push and its pull (its pull then
   // skips the record), purges from the Deleted album, and the installed apps updating mid-run. After
   // every run all phones and the server hold the same rows and every outbox is empty; a purge the
-  // server took stays; every app removes only the files of purges the server kept. RUNS_FROM,
-  // RUNS_TO, RUNS_STEPS and RUNS_SKEWS (ms per phone, comma-separated) widen a run by hand.
+  // server took stays; every app removes only the files of purges the server kept. FUZZ_SEEDS sets
+  // how many runs; RUNS_FROM, RUNS_STEPS and RUNS_SKEWS (ms per phone, comma-separated) widen them
+  // by hand.
   it('seeded runs of installed and new apps, with updates mid-run, converge every time', async () => {
     const SKEWS = process.env.RUNS_SKEWS ? process.env.RUNS_SKEWS.split(',').map(Number) : [0, -700, 900];
-    for (let n = Number(process.env.RUNS_FROM ?? 1); n <= Number(process.env.RUNS_TO ?? 24); n++) {
+    const from = Number(process.env.RUNS_FROM ?? 1);
+    for (let n = from; n < from + fuzzRuns(3, 24); n++) {
       let state = n * 7919;
       const rand = () => (state = (state * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
       const pick = <T>(list: readonly T[]) => list[Math.floor(rand() * list.length)]!;

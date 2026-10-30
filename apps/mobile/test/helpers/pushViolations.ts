@@ -4,7 +4,8 @@ import { expect } from 'vitest';
 import { serverCollections } from '../../../server/src/sync/collections.js';
 import { sentFields } from '../../../server/src/sync/sentFields.js';
 
-type ServerRow = (collection: string, id: string) => Promise<Record<string, any> | undefined>;
+/** The server's rows of `collection` with these ids, by id, as the wire carries them. */
+type ServerRows = (collection: string, ids: string[]) => Promise<Map<string, Record<string, any>>>;
 
 /**
  * The invariants one push's results must keep (sync-design §6), checked against the server's rows
@@ -15,9 +16,18 @@ type ServerRow = (collection: string, id: string) => Promise<Record<string, any>
 export async function pushViolations(
   mutations: PushMutation[],
   results: PushResult[],
-  serverRow: ServerRow,
+  serverRows: ServerRows,
 ): Promise<string[]> {
   const violations: string[] = [];
+  const rows = new Map<string, Map<string, Record<string, any>>>();
+  for (const collection of new Set(mutations.map((mutation) => mutation.collection)))
+    rows.set(
+      collection,
+      await serverRows(
+        collection,
+        results.filter((_, i) => mutations[i]!.collection === collection).map((result) => result.id),
+      ),
+    );
   for (const [i, result] of results.entries()) {
     const mutation = mutations[i]!;
     const col = serverCollections[mutation.collection]!;
@@ -25,13 +35,15 @@ export async function pushViolations(
     const merged = Object.keys(
       sentFields(col, record as never, mutation.fields as FieldClocks | undefined, Number.MAX_SAFE_INTEGER),
     );
-    const row = await serverRow(mutation.collection, result.id);
+    const row = rows.get(mutation.collection)!.get(result.id);
     const lost = merged.filter((field) => !Object.is(row?.[field], record[field]));
     const final = col.descriptor.finalField;
     const purgeMissing = !!final && row?.[final] != null && !Object.is(row[final], record[final] ?? null);
     const where = `${mutation.collection} ${result.id}`;
     if (result.status === 'applied' && (lost.length > 0 || purgeMissing))
-      violations.push(`${where}: applied, but lost ${lost}${purgeMissing ? ' (no purge)' : ''}`);
+      violations.push(
+        `${where}: applied, but ${[lost.length > 0 && `lost ${lost}`, purgeMissing && 'its row holds another purge'].filter(Boolean).join(' and ')}`,
+      );
     if (result.status === 'skipped-lww') {
       // A whole record (no fields) is also told it lost when the row ends newer than it (§6).
       const stale = !mutation.fields && Number(row?.updatedAt) > Math.min(Number(record.updatedAt), Date.now());

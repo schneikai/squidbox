@@ -15,7 +15,7 @@ function judge(
   current: Record<string, unknown> = row,
 ) {
   const result = { id: record.id, collection: 'assets', status, current } as PushResult;
-  return pushViolations([pushed], [result], async () => row);
+  return pushViolations([pushed], [result], async () => new Map([[record.id, row]]));
 }
 const notesEdit = (notes: string): PushMutation => ({
   collection: 'assets',
@@ -33,7 +33,9 @@ describe('pushViolations', () => {
 
   it('an applied push into a row that holds a purge it did not push is a violation', async () => {
     const row = { ...record, updatedAt: 3000, notes: 'dusk', deletedAt: 3000, purgedAt: 3000 };
-    expect(await judge('applied', notesEdit('dusk'), row)).toEqual([`${where}: applied, but lost  (no purge)`]);
+    expect(await judge('applied', notesEdit('dusk'), row)).toEqual([
+      `${where}: applied, but its row holds another purge`,
+    ]);
   });
 
   it('an applied push whose row holds every merged field and its purge is not a violation', async () => {

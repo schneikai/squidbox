@@ -1,10 +1,9 @@
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 import { albumOrder } from './helpers/albumOrder';
 import { createPost, makeAlbumRecord, makeAssetRecord, makePostRecord } from './helpers/factory';
-import { pushViolations } from './helpers/pushViolations';
 import {
   A,
   B,
@@ -24,18 +23,15 @@ import {
   pushLog,
   seedAlbum,
   seedAsset,
-  serverRaw,
   serverRow,
   settle,
   sync,
   synced,
   transportOf,
+  unansweredTransport,
   useTwoDeviceServer,
-  violations,
 } from './helpers/twoDeviceServer';
 import * as serverSchema from '../../server/src/db/schema.js';
-import { pull as serverPull } from '../../server/src/sync/pull.js';
-import { push as serverPush } from '../../server/src/sync/push.js';
 import readPost from '../src/features/post-detail/readPost';
 import * as repo from '../src/sync/assetsRepository';
 import * as clientSchema from '../src/sync/db/schema';
@@ -46,18 +42,11 @@ import changedValues from '../src/utils/changedValues';
 import noteText from '../src/utils/noteText';
 import postAssetsToAssetRefs from '../src/utils/posts/postAssetsToAssetRefs';
 
-// Two devices and an old app editing the same records: per-field merge, field groups, editors,
-// album edges, idempotency and many records.
-// Devices A, B and an old app C run against the real server engine on Postgres
-// (helpers/twoDeviceServer). A library merge only lists and moves files; these devices have none.
-vi.mock('expo-file-system/legacy', () => ({ documentDirectory: 'file:///docs/' }));
-vi.mock('../src/library/fs', async () => (await import('./helpers/fakeDevice')).noFiles());
+// Two devices and a whole-record app editing the same records: per-field merge, field groups,
+// editors, album edges, idempotency and many records. Devices A, B and the whole-record app C run
+// against the real server engine on Postgres (helpers/twoDeviceServer).
 
-// Run with `npm run test:e2e` (docker stack up); skipped otherwise.
-const TEST_URL = process.env.TEST_DATABASE_URL;
-const d = TEST_URL ? describe : describe.skip;
-
-d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => {
+describe('two devices and a whole-record app on one server', () => {
   useTwoDeviceServer();
 
   describe('two devices, one record', () => {
@@ -100,7 +89,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
         await sync(order[1]!);
         await settle();
         expect((await expectConverged('assets', id)).notes).toBe('newer, B');
-        expect((await serverRaw('assets', id))!.fieldClock.notes).toBe(S + 200);
+        expect((await serverRow('assets', id, { raw: true }))!.fieldClock.notes).toBe(S + 200);
       }
     });
 
@@ -118,7 +107,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       const id = await seedAsset();
       await edit(A, S + 1000 + HOUR, () => repo.update(A, id, { notes: 'A, clock ahead' }));
       await sync(A, { now: S + 1000 }); // clamped to the server's clock
-      expect((await serverRaw('assets', id))!.fieldClock.notes).toBe(S + 1000);
+      expect((await serverRow('assets', id, { raw: true }))!.fieldClock.notes).toBe(S + 1000);
       await edit(B, S + 2000, () => repo.update(B, id, { notes: 'B, later' }));
       await sync(B, { now: S + 3000 });
       await settle([A, B, C], S + 4000);
@@ -128,7 +117,10 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       await edit(A, S + 5000 + HOUR, () => repo.update(A, id, { notes: 'A again', isFavorite: true }));
       await settle([A, B, C], S + 6000);
       expect(await expectConverged('assets', id)).toMatchObject({ notes: 'A again', isFavorite: true });
-      expect((await serverRaw('assets', id))!.fieldClock).toMatchObject({ notes: S + 6000, isFavorite: S + 6000 });
+      expect((await serverRow('assets', id, { raw: true }))!.fieldClock).toMatchObject({
+        notes: S + 6000,
+        isFavorite: S + 6000,
+      });
     });
 
     it('a device whose clock is an hour behind loses an edit it made unseen, but wins once it pulled', async () => {
@@ -188,8 +180,8 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     });
   });
 
-  describe('an old app (whole-record pushes) beside the new ones', () => {
-    it('an older old-app edit keeps its field and loses its stale others: skipped-lww with the merged current', async () => {
+  describe('a whole-record app beside the per-field ones', () => {
+    it('an older whole-record edit keeps its field and loses its stale others: skipped-lww with the merged current', async () => {
       const id = await seedAsset({ notes: 'orig' });
       await edit(C, S + 100, () => repo.toggleFavorite(C, id));
       await edit(A, S + 200, () => repo.update(A, id, { notes: 'A' }));
@@ -201,7 +193,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       expect(await expectConverged('assets', id)).toMatchObject({ notes: 'A', isFavorite: true });
     });
 
-    it('a newer old-app edit stamps every field it carries, so it rewrites an older edit of another field (§7)', async () => {
+    it('a newer whole-record edit stamps every field it carries, so it rewrites an older edit of another field (§7)', async () => {
       const id = await seedAsset({ notes: 'orig' });
       await edit(A, S + 100, () => repo.update(A, id, { notes: 'A' }));
       await sync(A);
@@ -212,7 +204,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       expect(await expectConverged('assets', id)).toMatchObject({ notes: 'orig', isFavorite: true });
     });
 
-    it('interleaved on the same records, in every order, all converge and the old app never loses its edit unreported', async () => {
+    it('interleaved on the same records, in every order, all converge and the whole-record app never loses its edit unreported', async () => {
       const orders = [
         [A, C, B],
         [C, A, B],
@@ -248,7 +240,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: S + 300 });
     });
 
-    it('an old-app edit older than a purge never brings the record back', async () => {
+    it('a whole-record edit older than a purge never brings the record back', async () => {
       const id = await seedAsset();
       await edit(A, S + 100, () => repo.remove(A, [id]));
       await settle();
@@ -268,7 +260,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
           repo.update(A, id, { isFileSynced: true, isThumbnailSynced: true, isSynced: true }),
         );
         await edit(B, S + 200, () => repo.update(B, id, { isThumbnailSynced: true }));
-        await edit(C, S + 50, () => repo.update(C, id, { notes: 'C, oldest' })); // an old app, stale flags
+        await edit(C, S + 50, () => repo.update(C, id, { notes: 'C, oldest' })); // a whole-record app, stale flags
         await sync(B);
         await sync(A);
         await sync(C);
@@ -590,18 +582,18 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       await edit(A, S + 100, () => repo.update(A, id, { notes: 'A', isFavorite: true }));
       at(SERVER_NOW);
       let seqAfterFirst: unknown;
+      const transport = transportOf(A);
       await runSyncOnce(A, {
+        ...transport,
         push: async (req) => {
-          await serverPush(pgDb as any, USER, req.mutations);
-          seqAfterFirst = (await serverRaw('assets', id))!.serverSeq;
-          const results = await serverPush(pgDb as any, USER, req.mutations);
-          violations.push(...(await pushViolations(req.mutations, results, serverRow)));
-          expect(results.map((r) => r.status)).toEqual(['applied']);
-          return { results };
+          await transport.push(req);
+          seqAfterFirst = (await serverRow('assets', id, { raw: true }))!.serverSeq;
+          const answer = await transport.push(req);
+          expect(answer.results.map((r) => r.status)).toEqual(['applied']);
+          return answer;
         },
-        pull: (req) => serverPull(pgDb as any, USER, req),
       });
-      expect((await serverRaw('assets', id))!.serverSeq).toBe(seqAfterFirst);
+      expect((await serverRow('assets', id, { raw: true }))!.serverSeq).toBe(seqAfterFirst);
       await settle();
       expect(await expectConverged('assets', id)).toMatchObject({ notes: 'A', isFavorite: true });
     });
@@ -613,16 +605,10 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       await edit(A, S + 110, () => repo.update(A, quiet, { notes: 'A quiet' }));
       at(SERVER_NOW);
       await expect(
-        runSyncOnce(A, {
-          push: async (req) => {
-            await serverPush(pgDb as any, USER, req.mutations);
-            throw new Error('crashed before the results were applied');
-          },
-          pull: (req) => serverPull(pgDb as any, USER, req),
-        }),
+        runSyncOnce(A, unansweredTransport(A, { message: 'crashed before the results were applied' })),
       ).rejects.toThrow('crashed');
       expect(await A.select().from(clientSchema.outbox)).toHaveLength(2);
-      const quietSeq = (await serverRaw('assets', quiet))!.serverSeq;
+      const quietSeq = (await serverRow('assets', quiet, { raw: true }))!.serverSeq;
 
       await edit(B, S + 200, () => repo.update(B, contested, { notes: 'B, newer' }));
       await sync(B);
@@ -633,7 +619,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
         current: { notes: 'B, newer' },
       });
       expect(replay.find((r) => r.id === quiet)!.status).toBe('applied');
-      expect((await serverRaw('assets', quiet))!.serverSeq).toBe(quietSeq);
+      expect((await serverRow('assets', quiet, { raw: true }))!.serverSeq).toBe(quietSeq);
       await settle();
       expect((await expectConverged('assets', contested)).notes).toBe('B, newer');
       expect((await expectConverged('assets', quiet)).notes).toBe('A quiet');

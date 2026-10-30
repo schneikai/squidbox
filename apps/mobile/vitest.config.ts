@@ -16,9 +16,10 @@ const mocking = readdirSync(testDir)
   .filter((file) => /\bvi\.(do)?mock\(/.test(readFileSync(new URL(file, testDir), 'utf8')));
 
 export default defineConfig(async () => {
-  // vitest 2 never reads back its file timings (its results cache wants a 0.30+ minor version), so
-  // it starts the largest files first. The e2e files wait on Postgres the longest, whatever their
-  // size: start them first, so the run doesn't end on one of them alone.
+  // Without saved file timings (CI has none, and vitest 2.1.9 never reads its own back) vitest
+  // starts the largest files first. The e2e files wait on Postgres the longest, whatever their
+  // size: start them first, so the run doesn't end on one of them alone. vitest/node is ESM only
+  // and this config loads as CommonJS, hence the dynamic import.
   const { BaseSequencer } = await import('vitest/node');
   class E2eFirst extends BaseSequencer {
     async sort(files: Parameters<BaseSequencer['sort']>[0]) {
