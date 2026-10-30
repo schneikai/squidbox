@@ -17,7 +17,7 @@ export default function ModelCard({ modelId, label, name, result, children }) {
     <Card style={styles.card}>
       <View style={styles.header}>
         <BlindModelName label={label} name={name} />
-        <UncensoredToggle modelId={modelId} />
+        <UncensoredToggle modelId={modelId} label={label} />
       </View>
       {result?.status === 'done' && children}
       {result?.status === 'loading' && <ActivityIndicator style={styles.loading} color={colors.text.secondary} />}

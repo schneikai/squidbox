@@ -1,6 +1,6 @@
 import { COMPARE_PROMPT_MAX_LENGTH } from '@squidbox/shared';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import ModelAnswers from './ModelAnswers';
@@ -19,11 +19,14 @@ import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAct
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import { SCREEN_PADDING } from '@/constants';
 import useScrollY from '@/hooks/useScrollY';
-import { lineHeights, scale } from '@/styles/designTokens';
+import { scale } from '@/styles/designTokens';
+import textareaTextStyle from '@/styles/textareaTextStyle';
 import { setPrompt } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 
+// A long prompt shows its first lines until tapped, so the answers stay in view.
 const PROMPT_FOLDED_LINES = 4;
+const PROMPT_MIN_HEIGHT = scale(72);
 
 /**
  * A blind compare of the `models` (`{ id, name }`) of `kind`, from `savedPrompt` (the last one
@@ -38,7 +41,6 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
   const { scrollY, onScroll } = useScrollY();
   const paddingBottom = useFloatingPrimaryActionPadding();
   const [prompt, setPromptText] = useState(savedPrompt ?? defaultPrompt);
-  // A long prompt shows its first lines until tapped, so the answers stay in view.
   const [isEditingPrompt, setIsEditingPrompt] = useState(false);
   const savedPromptRef = useRef(savedPrompt);
   const modelIds = useMemo(() => models.map(({ id }) => id), [models]);
@@ -85,16 +87,27 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
       >
         <Card style={styles.promptCard}>
           <Field label="Prompt" description="Remembered for next time.">
-            <Textarea
-              value={prompt}
-              onChangeText={setPromptText}
-              onFocus={() => setIsEditingPrompt(true)}
-              onBlur={() => setIsEditingPrompt(false)}
-              maxLength={COMPARE_PROMPT_MAX_LENGTH}
-              minHeight={scale(72)}
-              scrollEnabled={isEditingPrompt}
-              style={!isEditingPrompt && styles.promptFolded}
-            />
+            {isEditingPrompt ? (
+              <Textarea
+                value={prompt}
+                onChangeText={setPromptText}
+                onBlur={() => setIsEditingPrompt(false)}
+                maxLength={COMPARE_PROMPT_MAX_LENGTH}
+                minHeight={PROMPT_MIN_HEIGHT}
+                autoFocus
+                style={styles.promptInput}
+              />
+            ) : (
+              <Pressable
+                onPress={() => setIsEditingPrompt(true)}
+                accessibilityRole="button"
+                accessibilityHint="Edits the prompt"
+              >
+                <Text style={[textareaTextStyle, styles.promptFolded]} numberOfLines={PROMPT_FOLDED_LINES}>
+                  {prompt}
+                </Text>
+              </Pressable>
+            )}
           </Field>
         </Card>
         {isVision && hasStarted && <IntroText style={styles.hint}>Tap the tags that fit.</IntroText>}
@@ -149,8 +162,12 @@ const styles = StyleSheet.create({
   promptCard: {
     padding: 14,
   },
+  // As the folded text, so the prompt doesn't move when the editing starts.
+  promptInput: {
+    padding: 0,
+  },
   promptFolded: {
-    maxHeight: PROMPT_FOLDED_LINES * lineHeights.reading,
+    minHeight: PROMPT_MIN_HEIGHT,
   },
   hint: {
     paddingHorizontal: 4,

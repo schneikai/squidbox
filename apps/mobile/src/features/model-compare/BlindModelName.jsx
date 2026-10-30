@@ -17,11 +17,12 @@ export default function BlindModelName({ label, name }) {
 
   useEffect(() => {
     if (!isRevealing) return;
-    blur.value = 1;
     blur.value = withTiming(0, motion.move, (finished) => finished && runOnJS(setIsRevealing)(false));
   }, [isRevealing]);
 
   function handlePress() {
+    // Blurred from the first frame the name shows.
+    if (!isShown) blur.value = 1;
     setIsShown(!isShown);
     setIsRevealing(!isShown);
   }
