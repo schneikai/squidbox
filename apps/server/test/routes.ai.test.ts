@@ -124,7 +124,6 @@ const vision = {
 };
 
 beforeEach(() => {
-  vi.clearAllMocks();
   clearCatalogCache();
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);

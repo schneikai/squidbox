@@ -7,7 +7,7 @@ import { defineConfig } from 'vitest/config';
 //
 // Most of a test file's time is importing the database layer, so files share their worker's module
 // cache (threads, not isolated). A file that mocks a module (vi.mock) gets a fresh fork of its own,
-// so its mocks never meet another file's imports.
+// so its mocks never meet another file's imports. Each test starts with empty mock calls.
 const testDir = new URL('./test/', import.meta.url);
 const mocking = readdirSync(testDir)
   .filter((file) => file.endsWith('.test.ts'))
@@ -17,6 +17,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['test/**/*.test.ts'],
+    clearMocks: true,
     pool: 'threads',
     poolOptions: { threads: { isolate: false } },
     poolMatchGlobs: mocking.map((file) => [`**/test/${file}`, 'forks']),

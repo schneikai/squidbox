@@ -35,7 +35,6 @@ async function tagsOf(id: string) {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
   current.db = makeTestDb();
   vi.mocked(readVisionImageAsync).mockResolvedValue(image);
   vi.mocked(tagPhotoAsync).mockResolvedValue(['forest', 'morning fog']);

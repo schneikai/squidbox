@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, getTableColumns, inArray } from 'drizzle-orm';
 import pg from 'pg';
 import { collectionNames, keyBetween } from '@squidbox/shared';
 import * as schema from '../src/db/schema.js';
@@ -111,16 +111,8 @@ d('sync engine (Postgres)', () => {
     // Scope deletes to THIS test's users — vitest runs test files in parallel against the same
     // Postgres, so an unscoped delete would wipe other files' rows mid-test (a real race).
     const users = [USER_A, USER_B];
-    await db.delete(schema.albumAssets).where(inArray(schema.albumAssets.userId, users));
-    await db.delete(schema.postAssets).where(inArray(schema.postAssets.userId, users));
-    await db.delete(schema.posts).where(inArray(schema.posts.userId, users));
-    await db.delete(schema.albums).where(inArray(schema.albums.userId, users));
-    await db.delete(schema.assets).where(inArray(schema.assets.userId, users));
-    // The assistant's collections too: rows left from earlier runs come first in a pull from 0.
-    await db.delete(schema.personas).where(inArray(schema.personas.userId, users));
-    await db.delete(schema.promptButtons).where(inArray(schema.promptButtons.userId, users));
-    await db.delete(schema.favorites).where(inArray(schema.favorites.userId, users));
-    await db.delete(schema.instructions).where(inArray(schema.instructions.userId, users));
+    for (const { table } of Object.values(serverCollections))
+      await db.delete(table).where(inArray(getTableColumns(table).userId!, users));
   }
   afterAll(async () => {
     await clearAll();

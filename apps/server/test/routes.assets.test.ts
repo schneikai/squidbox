@@ -28,7 +28,6 @@ function asNewUser() {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
   asNewUser();
 });
 
