@@ -16,5 +16,6 @@
       "entry": ["src/db/{migrate,seed}.ts", "scripts/*.ts"]
     },
     "packages/shared": {}
-  }
+  },
+  "ignoreDependencies": ["prettier"]
 }

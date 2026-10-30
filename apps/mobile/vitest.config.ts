@@ -44,8 +44,14 @@ export default defineConfig(async () => {
     resolve: {
       alias: { '@': new URL('./src', import.meta.url).pathname },
     },
-    // The app's migrations import their .sql files (Metro inlines them); `vitest related` walks
-    // those imports, the tests never run them.
-    assetsInclude: ['**/*.sql'],
+    // The app's migrations import their .sql files, which Metro inlines as text: the same here, so
+    // `vitest related` follows a .sql change to the tests that import it.
+    plugins: [
+      {
+        name: 'sql-as-text',
+        transform: (code: string, id: string) =>
+          id.endsWith('.sql') ? { code: `export default ${JSON.stringify(code)};`, map: null } : undefined,
+      },
+    ],
   };
 });

@@ -12,7 +12,7 @@
     "lint": "npm run --workspace apps/mobile lint",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "knip": "knip",
-    "format": "prettier --check \"{apps/server,packages/shared,scripts}/**/*.{ts,tsx,js,jsx,mjs,cjs}\"",
+    "format": "node scripts/check.mjs --format",
     "check": "node scripts/check.mjs",
     "check:all": "node scripts/check.mjs --all"
   },

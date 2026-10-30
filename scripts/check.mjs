@@ -5,12 +5,16 @@
  *
  *   npm run check       # what changed since the branch left main: committed, uncommitted, untracked
  *   npm run check:all   # the whole repo, knip too: before opening a PR or merging into main
+ *   npm run format      # (node scripts/check.mjs --format) prettier over FORMAT_ROOTS, as CI runs it
  *
- * lint: eslint on apps/mobile (its config also enforces prettier there). format: prettier on the
- * code elsewhere, the files `npm run format` checks. typecheck: both apps (incremental, whole
- * projects). tests: per app, the test files that import a changed file (`vitest related`), or the
- * app's whole suite when its config, package, test helpers or setup changed, or a file was deleted.
- * A packages/shared change counts for both apps. No DB suites: README says when to run those.
+ * lint: eslint on apps/mobile (`lint:files` there; its config also enforces prettier). format:
+ * prettier on the code in FORMAT_ROOTS. Either runs over the whole repo when its config or the
+ * packages changed. typecheck: `npm run typecheck`, whole projects, incremental: the server, and in
+ * the mobile app only src/sync and src/library (tsconfig.synccheck.json). tests: per app, the test
+ * files whose imports reach a changed file, in any app (`vitest related`), or the app's whole suite
+ * when its config, package, test helpers or setup, or the files its tests read from disk changed,
+ * or a file was deleted or moved. A packages/shared change counts for both apps. No DB suites:
+ * README says when to run those.
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -20,15 +24,24 @@ const BIN = `${ROOT}node_modules/.bin/`;
 const MOBILE = 'apps/mobile/';
 const APPS = [MOBILE, 'apps/server/'];
 const SHARED = 'packages/shared/';
-const CODE = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
-// The files `npm run format` checks (package.json): code outside apps/mobile.
-const FORMATTED = /^(apps\/server|packages\/shared|scripts)\//;
-// A change here runs the app's whole suite: what every test file depends on without importing it.
+const CODE_EXTENSIONS = ['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs'];
+const CODE = new RegExp(`\\.(${CODE_EXTENSIONS.join('|')})$`);
+// Where prettier checks the code (apps/mobile's eslint checks its own).
+const FORMAT_ROOTS = ['apps/server', 'packages/shared', 'scripts'];
+const FORMAT_GLOB = `{${FORMAT_ROOTS.join(',')}}/**/*.{${CODE_EXTENSIONS.join(',')}}`;
+const FORMATTED = (file) => FORMAT_ROOTS.some((root) => file.startsWith(`${root}/`)) && CODE.test(file);
+const PACKAGES = /^(apps\/mobile\/)?package(-lock)?\.json$/;
+// A change here lints or formats the whole repo: the tool's config, its version, its file list.
+const LINT_EVERYTHING = [PACKAGES, /^apps\/mobile\/\.eslint(rc\.js|ignore)$/];
+const FORMAT_EVERYTHING = [/^package(-lock)?\.json$/, /^\.prettier(rc|ignore)/, /^scripts\/check\.mjs$/];
+// A change here runs the app's whole suite: what every test file depends on without importing it,
+// and the files tests read from disk (the mobile migrations, through drizzle's readMigrationFiles).
 const WHOLE_SUITE = [
   /^package(-lock)?\.json$/,
   /^tsconfig\.base\.json$/,
   /^packages\/shared\/(package\.json|testing\/)/,
   /^apps\/[^/]+\/(package\.json|tsconfig[^/]*\.json|vitest\.config\.[cm]?[jt]s|test\/(helpers\/|setup\.ts|dbSetup\.ts))/,
+  /^apps\/mobile\/src\/sync\/db\/migrations\//,
 ];
 
 const all = process.argv.includes('--all');
@@ -44,17 +57,21 @@ function git(args, { mayFail = false } = {}) {
   process.exit(1);
 }
 
-// What changed since the branch left main, and what of it was deleted.
+// What changed since the branch left main, and what of it was deleted. A moved file counts as
+// deleted and added.
 function changes() {
   const mergeBase = (ref) => git(['merge-base', 'HEAD', ref], { mayFail: true })?.[0];
   const base = mergeBase('origin/main') ?? mergeBase('main');
   if (!base) console.warn(paint(33, 'No main branch to compare with: checking what changed since HEAD.'));
   const since = base ?? 'HEAD';
   const files = [
-    ...git(['diff', '--name-only', '--diff-filter=d', since]),
+    ...git(['diff', '--name-only', '--no-renames', '--diff-filter=d', since]),
     ...git(['ls-files', '--others', '--exclude-standard']),
   ];
-  return { files: [...new Set(files)], deleted: git(['diff', '--name-only', '--diff-filter=D', since]) };
+  return {
+    files: [...new Set(files)],
+    deleted: git(['diff', '--name-only', '--no-renames', '--diff-filter=D', since]),
+  };
 }
 
 // Runs a command with its output captured. Resolves to the check's result, never rejects.
@@ -87,7 +104,9 @@ async function steps(list) {
   };
 }
 
-async function lintFiles(files) {
+async function lint(files) {
+  if (files.some((file) => LINT_EVERYTHING.some((pattern) => pattern.test(file))))
+    return { steps: [npmRun('lint')], note: 'all files: its config or packages changed' };
   const mobile = files.filter((file) => file.startsWith(MOBILE) && CODE.test(file));
   if (mobile.length === 0) return null;
   const { ESLint } = await import('eslint');
@@ -96,13 +115,14 @@ async function lintFiles(files) {
   for (const file of mobile)
     if (!(await eslint.isPathIgnored(`${ROOT}${file}`))) linted.push(file.slice(MOBILE.length));
   if (linted.length === 0) return null;
-  const cache = ['--cache', '--cache-strategy', 'content', '--cache-location', 'node_modules/.cache/eslint/'];
-  return [[`${BIN}eslint`, ['--max-warnings', '0', ...cache, ...linted], `${ROOT}${MOBILE}`]];
+  return { steps: [['npm', ['run', '--silent', '-w', MOBILE.slice(0, -1), 'lint:files', '--', ...linted]]] };
 }
 
-function formatFiles(files) {
-  const formatted = files.filter((file) => FORMATTED.test(file) && CODE.test(file));
-  return formatted.length === 0 ? null : [[`${BIN}prettier`, ['--check', ...formatted]]];
+function format(files) {
+  if (files.some((file) => FORMAT_EVERYTHING.some((pattern) => pattern.test(file))))
+    return { steps: [prettier([FORMAT_GLOB])], note: 'all files: its config or packages changed' };
+  const formatted = files.filter(FORMATTED);
+  return formatted.length === 0 ? null : { steps: [prettier(formatted)] };
 }
 
 // An app's tests, printing only the failures.
@@ -112,7 +132,8 @@ const vitest = (app, args) => [
   `${ROOT}${app}`,
 ];
 
-// Per app: its whole suite, the test files related to its changed files, or nothing.
+// Per app: its whole suite, the test files whose imports reach a changed file in any app or package
+// (the mobile tests import server code; JSON and .sql files are imports too), or nothing.
 function testRuns({ files, deleted }) {
   const runs = [];
   for (const app of APPS) {
@@ -121,7 +142,7 @@ function testRuns({ files, deleted }) {
       files.some(
         (file) => WHOLE_SUITE.some((pattern) => pattern.test(file)) && (ours(file) || !file.startsWith('apps/')),
       ) || deleted.some(ours);
-    const related = files.filter((file) => ours(file) && CODE.test(file)).map((file) => `${ROOT}${file}`);
+    const related = files.filter((file) => /^(apps|packages)\//.test(file)).map((file) => `${ROOT}${file}`);
     const name = app.slice('apps/'.length, -1);
     if (whole) runs.push({ name: `${name} all`, step: vitest(app, ['run']) });
     else if (related.length > 0)
@@ -132,6 +153,12 @@ function testRuns({ files, deleted }) {
 
 // A root script, without npm's own lines (its banner, its "Lifecycle script failed" error).
 const npmRun = (script) => ['npm', ['run', '--silent', script]];
+const prettier = (files) => [`${BIN}prettier`, ['--check', ...files]];
+
+if (process.argv.includes('--format')) {
+  const [command, args] = prettier([FORMAT_GLOB]);
+  process.exit(spawnSync(command, args, { cwd: ROOT, stdio: 'inherit' }).status ?? 1);
+}
 
 // Each check's steps, or null when it has nothing to check. All checks run at once: measured faster
 // than the tests after the rest, for one changed file and for the whole repo.
@@ -139,10 +166,10 @@ async function plan() {
   if (all)
     return {
       checks: {
-        lint: [npmRun('lint')],
-        format: [npmRun('format')],
-        typecheck: [npmRun('typecheck')],
-        knip: [npmRun('knip')],
+        lint: { steps: [npmRun('lint')] },
+        format: { steps: [prettier([FORMAT_GLOB])] },
+        typecheck: { steps: [npmRun('typecheck')] },
+        knip: { steps: [npmRun('knip')] },
       },
       // `npm test --workspaces --if-present`, app by app: the apps are the workspaces with tests.
       tests: { steps: APPS.map((app) => vitest(app, ['run'])) },
@@ -151,9 +178,9 @@ async function plan() {
   const runs = testRuns(changed);
   return {
     checks: {
-      lint: await lintFiles(changed.files),
-      format: formatFiles(changed.files),
-      typecheck: [npmRun('typecheck')],
+      lint: await lint(changed.files),
+      format: format(changed.files),
+      typecheck: { steps: [npmRun('typecheck')] },
       knip: null,
     },
     tests: runs.length === 0 ? null : { steps: runs.map((r) => r.step), note: runs.map((r) => r.name).join(', ') },
@@ -162,10 +189,11 @@ async function plan() {
 
 const { checks, tests } = await plan();
 const results = new Map([...Object.keys(checks), 'tests'].map((name) => [name, null]));
-await Promise.all([
-  ...Object.entries(checks).map(async ([name, list]) => results.set(name, list ? await steps(list) : null)),
-  (async () => results.set('tests', tests ? { ...(await steps(tests.steps)), note: tests.note } : null))(),
-]);
+await Promise.all(
+  Object.entries({ ...checks, tests }).map(async ([name, check]) =>
+    results.set(name, check ? { ...(await steps(check.steps)), note: check.note } : null),
+  ),
+);
 
 let failed = false;
 for (const [name, result] of results)
