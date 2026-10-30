@@ -1,8 +1,8 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { StyleSheet, Text } from 'react-native';
 
+import Button from '@/components/Button';
 import StatusScreen from '@/components/StatusScreen';
-import TextButton from '@/components/TextButton';
 import useCloud from '@/features/cloud/useCloud';
 import { onRegistryChange } from '@/library/registry';
 import { deviceLibraryToJoin } from '@/library/sessionLibrary';
@@ -67,13 +67,13 @@ export default function FirstSyncScreen() {
       <Text style={styles.subtitle}>{subtitle()}</Text>
       {started && <Text style={styles.count}>{hasError ? `${counts} so far` : counts}</Text>}
       {hasError ? (
-        <TextButton label="Try again" onPress={() => requestSync()} />
+        <Button label="Try again" onPress={() => requestSync()} />
       ) : (
         <Text style={styles.hint}>Please keep the app open — it'll finish shortly.</Text>
       )}
       {addsDevicePhotos && <Text style={styles.hint}>This iPhone’s photos are added once this is done.</Text>}
       {/* A sign-out stops the pull at its next batch; the library keeps what it pulled. */}
-      <TextButton label="Sign out" onPress={handleSignOut} tone="muted" />
+      <Button label="Sign out" onPress={handleSignOut} colorPalette="muted" />
     </StatusScreen>
   );
 }

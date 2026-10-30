@@ -5,9 +5,9 @@ import { StyleSheet, View } from 'react-native';
 import FavoriteCard from './FavoriteCard';
 import useRemoveWithUndo from './useRemoveWithUndo';
 
+import Button from '@/components/Button';
 import DetailScrollView from '@/components/DetailScrollView';
 import EmptyState from '@/components/EmptyState';
-import IconButton from '@/components/IconButton';
 import IntroText from '@/components/IntroText';
 import Page from '@/components/Page';
 import UndoBar from '@/components/UndoBar';
@@ -54,7 +54,7 @@ export default function FavoritesScreen() {
         title="Favorites"
         onBack={() => navigation.goBack()}
         menuSlot={
-          <IconButton
+          <Button
             icon="add"
             onPress={() => navigation.navigate('FavoriteScreen')}
             accessibilityLabel="Add one of your posts"

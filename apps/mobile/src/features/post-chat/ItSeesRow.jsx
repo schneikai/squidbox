@@ -4,9 +4,9 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import ChatTagsSheet from './ChatTagsSheet';
 import postTags from './postTags';
 
+import Button from '@/components/Button';
 import Icon from '@/components/Icon';
 import IntroText from '@/components/IntroText';
-import TextButton from '@/components/TextButton';
 import { colors, sizes } from '@/styles/designTokens';
 import pluralizeText from '@/utils/pluralizeText';
 
@@ -57,13 +57,13 @@ export default function ItSeesRow({ rows, attempts, isTagging, untagged, tagEdit
             {pluralizeText("Couldn't tag %{count} photo", "Couldn't tag %{count} photos", failed.length)}
             {failed.length === 1 && attempts[failed[0].id].error ? `: ${attempts[failed[0].id].error}` : ''}
           </IntroText>
-          <TextButton label="Retry" size="small" onPress={() => retryAll(failed)} />
+          <Button label="Retry" size="small" onPress={() => retryAll(failed)} />
         </View>
       )}
       {untagged.length > 0 && !isTagging && (
         <View style={styles.line}>
           <IntroText style={styles.text}>Not tagged</IntroText>
-          <TextButton label="Tag" icon="sparkle" size="small" onPress={() => retryAll(untagged)} />
+          <Button label="Tag" icon="sparkle" size="small" onPress={() => retryAll(untagged)} />
         </View>
       )}
       <ChatTagsSheet
@@ -71,7 +71,7 @@ export default function ItSeesRow({ rows, attempts, isTagging, untagged, tagEdit
         onClose={() => setIsEditing(false)}
         tags={tags}
         onEditTags={onEditTags}
-        isDisabled={isTagging}
+        disabled={isTagging}
       />
     </>
   );

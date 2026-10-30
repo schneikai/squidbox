@@ -27,7 +27,7 @@ export default function InstructionsScreen() {
         label={instructionText[kind].title}
         description={instructionText[kind].description}
         onPress={() => navigation.navigate('InstructionScreen', { kind })}
-        chevron
+        hasChevron
       >
         {changedKinds?.includes(kind) && <ChangedBadge />}
       </Row>

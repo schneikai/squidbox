@@ -6,11 +6,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
 
-import IconButton from '@/components/IconButton';
-import IconMenuButton from '@/components/IconMenuButton';
-import SearchTextInput from '@/components/SearchTextInput';
+import Button from '@/components/Button';
+import MenuButton from '@/components/MenuButton';
+import SearchInput from '@/components/SearchInput';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
-import { colors, glass, layout, motion, scale, sizes } from '@/styles/designTokens';
+import { glass, layout, motion, scale, sizes } from '@/styles/designTokens';
 
 /**
  * Reusable bottom-left floating search + options bar, following the iOS search pattern:
@@ -103,23 +103,23 @@ export default function SearchOptionsBar({
     <Animated.View style={[styles.container, { left }, containerStyle]}>
       <FloatingPill style={styles.pill}>
         {/* Search icon — always visible */}
-        <IconButton icon="search" onPress={handleOpen} color={colors.text.secondary} accessibilityLabel="Search" />
+        <Button icon="search" onPress={handleOpen} accessibilityLabel="Search" />
 
         {/* Collapsed: options button */}
         <Animated.View style={collapsedStyle}>
-          <IconMenuButton
+          <MenuButton
             icon="options"
-            color={colors.text.secondary}
-            isActive={hasActiveState}
+
+            isSelected={hasActiveState}
             accessibilityLabel="Sort and filter"
           >
             {optionsMenu}
-          </IconMenuButton>
+          </MenuButton>
         </Animated.View>
 
         {/* Expanded: the field, with the native clear button inside */}
         <Animated.View style={[styles.expandedRow, expandedStyle]}>
-          <SearchTextInput
+          <SearchInput
             ref={inputRef}
             value={searchText}
             onChangeText={onChangeSearch}
@@ -134,12 +134,7 @@ export default function SearchOptionsBar({
       {/* Cancel: a separate round button next to the field */}
       <Animated.View style={[styles.cancelSlot, cancelStyle]} pointerEvents={isSearchActive ? 'auto' : 'none'}>
         <FloatingPill style={styles.cancelPill}>
-          <IconButton
-            icon="close"
-            onPress={handleCancel}
-            color={colors.text.secondary}
-            accessibilityLabel="Cancel search"
-          />
+          <Button icon="close" onPress={handleCancel} accessibilityLabel="Cancel search" />
         </FloatingPill>
       </Animated.View>
     </Animated.View>

@@ -2,9 +2,9 @@ import { CHAT_LIMITS } from '@squidbox/shared';
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import Button from '@/components/Button';
 import Card from '@/components/Card';
-import FoldingTextarea from '@/components/FoldingTextarea';
-import IconButton from '@/components/IconButton';
+import FoldingTextInput from '@/components/FoldingTextInput';
 import { colors, scale, sizes } from '@/styles/designTokens';
 
 const MAX_INPUT_HEIGHT = scale(120);
@@ -13,14 +13,14 @@ const MAX_INPUT_HEIGHT = scale(120);
  * Where the user writes to the assistant: a text field, one line while not typing, seeded with `seed` (`{ label, content }`, a
  * prompt button's, whose name goes with it until the text is edited), and Send, which hands
  * `onSend({ label, content })` the trimmed text and empties the field once it was sent. Send waits
- * while `isDisabled`, and shows a spinner while `isWaiting` (the send waits for the photos' tags).
+ * while `disabled`, and shows a spinner while `isWaiting` (the send waits for the photos' tags).
  */
-export default function ChatComposer({ seed, placeholder, isDisabled, isWaiting, onSend }) {
+export default function ChatComposer({ seed, placeholder, disabled, isWaiting, onSend }) {
   const [text, setText] = useState(seed?.content ?? '');
   const [label, setLabel] = useState(seed?.label ?? null);
 
   const content = text.trim();
-  const canSend = Boolean(content) && !isDisabled && !isWaiting;
+  const canSend = Boolean(content) && !disabled && !isWaiting;
 
   function handleChangeText(next) {
     setText(next);
@@ -37,7 +37,7 @@ export default function ChatComposer({ seed, placeholder, isDisabled, isWaiting,
 
   return (
     <Card style={styles.composer}>
-      <FoldingTextarea
+      <FoldingTextInput
         foldedLines={1}
         editHint="Writes a message"
         value={text}
@@ -51,7 +51,7 @@ export default function ChatComposer({ seed, placeholder, isDisabled, isWaiting,
         {isWaiting ? (
           <ActivityIndicator color={colors.accent.base} accessibilityLabel="Looking at the photos" />
         ) : (
-          <IconButton
+          <Button
             icon="arrow-up"
             variant="primary"
             onPress={handleSend}

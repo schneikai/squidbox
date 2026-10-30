@@ -7,7 +7,7 @@ import { Easing, useSharedValue, withTiming } from 'react-native-reanimated';
 import VideoScrubber from './VideoScrubber';
 import playVideo from './playVideo';
 
-import IconButton from '@/components/IconButton';
+import Button from '@/components/Button';
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 import useAppSettings from '@/features/app-settings/useAppSettings';
 import { colors, scale, typography } from '@/styles/designTokens';
@@ -95,7 +95,7 @@ export default function VideoControls({ player, fallbackDuration }) {
 
   return (
     <FloatingPill style={styles.pill}>
-      <IconButton
+      <Button
         icon={isPlaying ? 'pause' : 'play'}
         onPress={handlePlayPause}
         accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
@@ -108,7 +108,7 @@ export default function VideoControls({ player, fallbackDuration }) {
         onScrubEnd={handleScrubEnd}
       />
       <Text style={styles.time}>{formatVideoDuration(duration * 1000)}</Text>
-      <IconButton
+      <Button
         icon={muted ? 'volume-off' : 'volume-on'}
         onPress={handleToggleMute}
         accessibilityLabel={muted ? 'Unmute' : 'Mute'}

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import IconButton from '@/components/IconButton';
+import Button from '@/components/Button';
 import { colors, motion, typography } from '@/styles/designTokens';
 
 // A compare card's title: its letter (`label`, Model A) and an eye that puts the real model name in
@@ -39,11 +39,10 @@ export default function BlindModelName({ label, name }) {
           </Animated.View>
         )}
       </View>
-      <IconButton
+      <Button
         icon={isShown ? 'eye-off' : 'eye'}
-        variant="tinted"
-        color={colors.text.secondary}
-        isActive={isShown}
+        variant="secondary"
+        isSelected={isShown}
         onPress={handlePress}
         accessibilityLabel={isShown ? `${name}, hide the name` : `Show the name of ${label}`}
       />

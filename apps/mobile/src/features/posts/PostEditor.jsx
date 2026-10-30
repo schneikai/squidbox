@@ -2,13 +2,12 @@ import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
 
+import Button from '@/components/Button';
 import Card from '@/components/Card';
 import DateTimePicker from '@/components/DateTimePicker';
-import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
-import PrimaryButton from '@/components/PrimaryButton';
-import Textarea from '@/components/Textarea';
+import TextInput from '@/components/TextInput';
 import { SCREEN_PADDING } from '@/constants';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import WriteWithAi from '@/features/post-chat/WriteWithAi';
@@ -44,10 +43,14 @@ export default function PostEditor({ kind, post, navigation, onSave }) {
   return (
     <ModalSheet>
       <ModalHeader
-        leftSlot={navigation ? <ModalCloseButton onPress={() => navigation.goBack()} /> : null}
+        leading={
+          navigation ? <Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} /> : null
+        }
         scrollY={scrollY}
-        rightSlot={
-          onSave && <PrimaryButton size="compact" label="Save" onPress={handleSave} disabled={!canSave || isSaving} />
+        trailing={
+          onSave && (
+            <Button variant="primary" size="small" label="Save" onPress={handleSave} disabled={!canSave || isSaving} />
+          )
         }
       />
       <Animated.ScrollView
@@ -61,7 +64,8 @@ export default function PostEditor({ kind, post, navigation, onSave }) {
         </Card>
 
         <Card style={styles.textCard}>
-          <Textarea
+          <TextInput
+            multiline
             placeholder="What's new?"
             numberOfLines={4}
             onChangeText={setText}

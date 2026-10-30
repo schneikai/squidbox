@@ -6,10 +6,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AddModelRow from './AddModelRow';
 import searchModels from './searchModels';
 
+import Button from '@/components/Button';
 import CatalogStatus from '@/components/CatalogStatus';
+import Divider from '@/components/Divider';
 import EmptyState from '@/components/EmptyState';
-import ListDivider from '@/components/ListDivider';
-import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import SearchInput from '@/components/SearchInput';
@@ -74,17 +74,18 @@ export default function AddModelsScreen({ navigation, route }) {
   return (
     <ModalSheet>
       <ModalHeader
-        leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />}
-        centerSlot="Add models"
+        leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
+        title="Add models"
         scrollY={scrollY}
       />
       <Animated.FlatList
         data={models}
         keyExtractor={(model) => model.id}
         renderItem={renderItem}
-        ItemSeparatorComponent={ListDivider}
+        ItemSeparatorComponent={Divider}
         ListHeaderComponent={
           <SearchInput
+            variant="field"
             placeholder="Search models"
             value={searchText}
             onChangeText={setSearchText}

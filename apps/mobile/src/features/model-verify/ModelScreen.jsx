@@ -74,7 +74,7 @@ export default function ModelScreen({ route }) {
         <VerifySection kind={kind} modelId={modelId} name={name} model={model} />
         <Section isHeaderless>
           {score > 0 && <Row label="Reset score" onPress={handleResetScore} />}
-          <Row label="Remove" destructive onPress={handleRemove} />
+          <Row label="Remove" colorPalette="danger" onPress={handleRemove} />
         </Section>
       </>
     );

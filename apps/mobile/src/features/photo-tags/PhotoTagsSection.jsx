@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import PhotoTagsField from './PhotoTagsField';
 import useRetag from './useRetag';
 
-import TextButton from '@/components/TextButton';
+import Button from '@/components/Button';
 import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
 import listTextStyles from '@/styles/listTextStyles';
 
@@ -22,24 +22,18 @@ export default function PhotoTagsSection({ asset, guardPress }) {
     return (
       <View style={styles.line}>
         <Text style={listTextStyles.subtitle}>{error ?? 'Not tagged yet'}</Text>
-        <TextButton
-          label="Tag it"
-          icon="sparkle"
-          size="small"
-          onPress={guardPress(() => retag())}
-          loading={isRunning}
-        />
+        <Button label="Tag it" icon="sparkle" size="small" onPress={guardPress(() => retag())} loading={isRunning} />
       </View>
     );
   }
 
   return (
     <View style={styles.section}>
-      <PhotoTagsField asset={asset} placeholder="No tags" isDisabled={isRunning} guardPress={guardPress} />
+      <PhotoTagsField asset={asset} placeholder="No tags" disabled={isRunning} guardPress={guardPress} />
       {isAssistantAvailable && (
         <View style={styles.line}>
           {error && <Text style={listTextStyles.subtitle}>{error}</Text>}
-          <TextButton
+          <Button
             label="Tag again"
             icon="sparkle"
             size="small"

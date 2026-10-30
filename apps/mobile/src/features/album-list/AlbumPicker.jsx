@@ -1,4 +1,4 @@
-import { TouchableOpacity } from 'react-native';
+import { Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import SearchSortFilterBar, { SEARCH_SORT_FILTER_BAR_CLEARANCE } from '@/components/floating-bars/SearchSortFilterBar';
@@ -9,6 +9,7 @@ import albumSortOptions from '@/features/album-list/actions/sort-albums-action/a
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
 import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
 import useListControls from '@/hooks/useListControls';
+import { press } from '@/styles/designTokens';
 
 // The albums of a modal to pick one from, with search, sort and filter; a tap hands the album to
 // `onPick`. Smart albums show with `showSmartAlbums` (to pick assets from Favorites, not to add to
@@ -32,9 +33,9 @@ export default function AlbumPicker({ onPick, showSmartAlbums = false, paddingTo
         }}
         onScroll={onScroll}
         renderItem={({ album, elementWidth }) => (
-          <TouchableOpacity onPress={() => onPick(album)}>
+          <Pressable style={({ pressed }) => pressed && press.flat} onPress={() => onPick(album)}>
             <AlbumListItem album={album} elementWidth={elementWidth} showLastPostedAt={isSortedByLastPosted} />
-          </TouchableOpacity>
+          </Pressable>
         )}
       />
       <SearchSortFilterBar

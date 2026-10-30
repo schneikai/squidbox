@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import IconButton from '@/components/IconButton';
+import Button from '@/components/Button';
 import { colors, lineHeights, radii, typography } from '@/styles/designTokens';
 
 // A tweet a model wrote, with its thumbs up: `level` 0, 1 (a thumb up) or 2 (two, an outstanding
@@ -12,13 +12,12 @@ export default function TweetRow({ text, level, onToggle }) {
       <Text style={styles.text} selectable>
         {text}
       </Text>
-      <IconButton
+      <Button
         icon="thumbs-up"
-        variant="tinted"
+        variant="secondary"
         iconCount={level === 2 ? 2 : 1}
-        isActive={isLiked}
+        isSelected={isLiked}
         filled={isLiked}
-        color={colors.text.secondary}
         onPress={onToggle}
         accessibilityLabel={LEVEL_LABELS[level]}
       />

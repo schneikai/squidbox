@@ -28,8 +28,8 @@ export default function ModelDefaultsActions({
   const { isPublishing, publish } = useApplyChangesForEveryone();
 
   const actions = [
-    { label: 'Apply changes for everyone', tone: 'accent', onPress: handlePublish, loading: isPublishing },
-    { label: 'Reset changes', tone: 'danger', onPress: handleReset, loading: isResetting },
+    { label: 'Apply changes for everyone', colorPalette: 'accent', onPress: handlePublish, loading: isPublishing },
+    { label: 'Reset changes', colorPalette: 'danger', onPress: handleReset, loading: isResetting },
   ];
 
   // The confirm names the models that will apply, read fresh.

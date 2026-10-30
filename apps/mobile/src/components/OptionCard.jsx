@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
 import Card from '@/components/Card';
-import PostText from '@/components/PostText';
+import Text from '@/components/Text';
 
 /**
  * One post the assistant wrote: its text, and under it the row of actions in `children` when given
@@ -13,7 +13,7 @@ export default function OptionCard({ text, children }) {
 
   return (
     <Card style={[styles.card, !hasActions && styles.textOnly]}>
-      <PostText selectable>{text}</PostText>
+      <Text selectable>{text}</Text>
       {hasActions && <View style={styles.actions}>{children}</View>}
     </Card>
   );

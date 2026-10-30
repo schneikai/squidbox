@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Keyboard, Pressable, StyleSheet, Text } from 'react-native';
 
-import Textarea from '@/components/Textarea';
+import TextInput from '@/components/TextInput';
 import useAssets from '@/features/assets-context/useAssets';
 import { colors } from '@/styles/designTokens';
 import textareaTextStyle from '@/styles/textareaTextStyle';
@@ -67,7 +67,8 @@ export default function AssetNote({ asset, isEditable, guardPress, onEditingBott
 
   if (draft !== null) {
     return (
-      <Textarea
+      <TextInput
+        multiline
         value={draft}
         onChangeText={handleChangeText}
         onBlur={handleEnd}
@@ -89,7 +90,7 @@ export default function AssetNote({ asset, isEditable, guardPress, onEditingBott
 }
 
 const styles = StyleSheet.create({
-  // As Textarea's placeholder, so it doesn't change shade when the editing starts.
+  // As a multiline TextInput's placeholder, so it doesn't change shade when the editing starts.
   placeholder: {
     color: colors.text.tertiary,
   },

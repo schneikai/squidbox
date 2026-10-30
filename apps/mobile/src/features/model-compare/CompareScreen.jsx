@@ -2,8 +2,8 @@ import { StyleSheet, View } from 'react-native';
 
 import CompareRound from './CompareRound';
 
+import Button from '@/components/Button';
 import CatalogStatus from '@/components/CatalogStatus';
-import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import useInstructions from '@/hooks/useInstructions';
@@ -31,8 +31,8 @@ export default function CompareScreen({ navigation, route }) {
     return (
       <ModalSheet>
         <ModalHeader
-          leftSlot={<ModalCloseButton onPress={() => navigation.getParent().goBack()} />}
-          centerSlot="Compare"
+          leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.getParent().goBack()} />}
+          title="Compare"
         />
         <View style={styles.status}>
           <CatalogStatus title="Couldn't load the instructions" error={error} retry={retry} />

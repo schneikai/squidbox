@@ -1,10 +1,6 @@
-import { StyleSheet, TouchableOpacity } from 'react-native';
-
 import ModelListSummary from './ModelListSummary';
 
-import Icon from '@/components/Icon';
-import { SCREEN_PADDING } from '@/constants';
-import { colors, sizes } from '@/styles/designTokens';
+import { Row } from '@/components/settings-list/SettingsList';
 
 /**
  * A model in your list: its summary with the labels, score, cost and note, and a chevron: a tap opens its
@@ -14,29 +10,22 @@ import { colors, sizes } from '@/styles/designTokens';
  */
 export default function ModelRow({ id, name, model, kind, score, note, yourDefaults, defaults, onOpen }) {
   return (
-    <TouchableOpacity style={styles.row} onPress={onOpen} activeOpacity={0.6} accessibilityRole="button">
-      <ModelListSummary
-        id={id}
-        name={name}
-        model={model}
-        kind={kind}
-        score={score}
-        note={note}
-        yourDefaults={yourDefaults}
-        defaults={defaults}
-      />
-      <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.tertiary} />
-    </TouchableOpacity>
+    <Row
+      label={
+        <ModelListSummary
+          id={id}
+          name={name}
+          model={model}
+          kind={kind}
+          score={score}
+          note={note}
+          yourDefaults={yourDefaults}
+          defaults={defaults}
+        />
+      }
+      onPress={onOpen}
+      hasChevron
+      size="small"
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingLeft: SCREEN_PADDING,
-    paddingRight: 12,
-    paddingVertical: 12,
-  },
-});

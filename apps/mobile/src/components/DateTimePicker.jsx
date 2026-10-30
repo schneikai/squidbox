@@ -4,8 +4,9 @@
 import CommunityDateTimePicker from '@react-native-community/datetimepicker';
 import { StyleSheet, View, Text } from 'react-native';
 
+import Card from '@/components/Card';
 import Icon from '@/components/Icon';
-import { colors, glass, radii, sizes, typography } from '@/styles/designTokens';
+import { colors, sizes, typography } from '@/styles/designTokens';
 
 export default function DateTimePicker({ datetime: dt, timestamp, onChange, style = {} }) {
   const dateTime = dt || new Date(timestamp);
@@ -24,7 +25,7 @@ export default function DateTimePicker({ datetime: dt, timestamp, onChange, styl
 
   return (
     <View style={[styles.row, style]}>
-      <View style={styles.pill}>
+      <Card style={styles.pill}>
         <CommunityDateTimePicker
           mode="date"
           value={dateTime}
@@ -36,9 +37,9 @@ export default function DateTimePicker({ datetime: dt, timestamp, onChange, styl
           <Icon name="calendar" size={sizes.iconSmall} color={colors.text.secondary} />
           <Text style={styles.label}>{dateLabel}</Text>
         </View>
-      </View>
+      </Card>
 
-      <View style={styles.pill}>
+      <Card style={styles.pill}>
         <CommunityDateTimePicker
           mode="time"
           value={dateTime}
@@ -50,7 +51,7 @@ export default function DateTimePicker({ datetime: dt, timestamp, onChange, styl
           <Icon name="clock" size={sizes.iconSmall} color={colors.text.secondary} />
           <Text style={styles.label}>{timeLabel}</Text>
         </View>
-      </View>
+      </Card>
     </View>
   );
 }
@@ -62,9 +63,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   pill: {
-    ...glass,
-    borderRadius: radii.card,
-    overflow: 'hidden',
     paddingHorizontal: 20,
     paddingVertical: 16,
     alignItems: 'center',

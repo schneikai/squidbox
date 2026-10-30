@@ -2,39 +2,44 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Icon from '@/components/Icon';
 import chipFrame from '@/styles/chipFrame';
-import { colors, lineHeights, sizes, typography } from '@/styles/designTokens';
+import { colors, disabledOpacity, lineHeights, press, sizes, typography } from '@/styles/designTokens';
 
 /**
- * A pill with a short label: a tag, a prompt button, or the dashed Add at the end of a row of them.
- * Every variant has the same frame, so a change of variant (a tag tapped on) never changes its width
- * and moves the chips after it.
+ * A pill with a short label. `variant` says what it is: `tag` (the default: grey, violet once
+ * `isSelected`), `action` (white with a violet frame, a prompt button) or `add` (the dashed Add at
+ * the end of a row, with its plus). Every variant has the same frame, so a tag tapped on never
+ * changes its width and moves the chips after it.
  *
- * variant — `muted` (grey, a tag not chosen), `accent` (violet tint, a chosen or added tag),
- *           `outlined` (white with a violet frame, a prompt button), `add` (dashed, violet "+ label").
- * icon    — leads the label (Icon name), in the accent color; `add` always has the plus.
- * Without `onPress` it is a plain label, so it can sit inside a pressable (a tap goes to the parent).
+ * icon — leads the label (Icon name), in the accent color. `isSelected` tells VoiceOver it's on (as
+ * checked when `accessibilityRole` is a checkbox). `disabled` dims it and takes no presses. Without
+ * `onPress` it is a plain label, so it can sit inside a pressable (a tap goes to the parent).
+ * style is for layout only.
  */
 export default function Chip({
   label,
-  variant = 'muted',
+  variant = 'tag',
   icon,
+  isSelected = false,
+  disabled = false,
   onPress,
   accessibilityRole = 'button',
-  accessibilityState,
   accessibilityLabel,
   accessibilityHint,
+  style,
 }) {
   const leadingIcon = variant === 'add' ? 'add' : icon;
+  const isAccent = variant === 'add' || (variant === 'tag' && isSelected);
+  const frame = [chipFrame, styles.chip, styles[variant], variant === 'tag' && isSelected && styles.selected];
   const content = (
     <>
       {leadingIcon && <Icon name={leadingIcon} size={sizes.menuIcon} color={colors.accent.base} />}
-      <Text style={[styles.label, (variant === 'accent' || variant === 'add') && styles.accentLabel]}>{label}</Text>
+      <Text style={[styles.label, isAccent && styles.accentLabel]}>{label}</Text>
     </>
   );
 
   if (!onPress) {
     return (
-      <View accessibilityLabel={accessibilityLabel} style={[chipFrame, styles.chip, styles[variant]]}>
+      <View accessibilityLabel={accessibilityLabel} style={[frame, disabled && styles.disabled, style]}>
         {content}
       </View>
     );
@@ -43,11 +48,14 @@ export default function Chip({
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       accessibilityRole={accessibilityRole}
-      accessibilityState={accessibilityState}
+      accessibilityState={
+        accessibilityRole === 'checkbox' ? { checked: isSelected, disabled } : { selected: isSelected, disabled }
+      }
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
-      style={({ pressed }) => [chipFrame, styles.chip, styles[variant], pressed && styles.pressed]}
+      style={({ pressed }) => [frame, pressed && press.flat, disabled && styles.disabled, style]}
     >
       {content}
     </Pressable>
@@ -60,13 +68,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  muted: {
+  tag: {
     backgroundColor: colors.background.muted,
   },
-  accent: {
+  selected: {
     backgroundColor: colors.accent.light,
   },
-  outlined: {
+  action: {
     backgroundColor: colors.background.surface,
     borderColor: colors.accent.border,
   },
@@ -74,8 +82,8 @@ const styles = StyleSheet.create({
     borderColor: colors.accent.border,
     borderStyle: 'dashed',
   },
-  pressed: {
-    opacity: 0.6,
+  disabled: {
+    opacity: disabledOpacity,
   },
   label: {
     fontSize: typography.subheadline,

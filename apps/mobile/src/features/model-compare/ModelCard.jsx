@@ -4,7 +4,7 @@ import BlindModelName from './BlindModelName';
 import UncensoredToggle from './UncensoredToggle';
 
 import Card from '@/components/Card';
-import ErrorText from '@/components/ErrorText';
+import Text from '@/components/Text';
 import { colors } from '@/styles/designTokens';
 
 /**
@@ -21,7 +21,7 @@ export default function ModelCard({ modelId, label, name, result, children }) {
       </View>
       {result?.status === 'done' && children}
       {result?.status === 'loading' && <ActivityIndicator style={styles.loading} color={colors.text.secondary} />}
-      {result?.status === 'error' && <ErrorText>{result.error}</ErrorText>}
+      {result?.status === 'error' && <Text variant="error">{result.error}</Text>}
     </Card>
   );
 }

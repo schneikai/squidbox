@@ -4,8 +4,8 @@ import promptTurn from './promptTurn';
 import useChatSession from './useChatSession';
 
 import Chip from '@/components/Chip';
+import Divider from '@/components/Divider';
 import Field from '@/components/Field';
-import ListDivider from '@/components/ListDivider';
 import EditPromptButtonsButton from '@/features/prompt-buttons/EditPromptButtonsButton';
 import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import usePromptButtons from '@/features/prompt-buttons/usePromptButtons';
@@ -41,10 +41,10 @@ function WriteWithAiSection({ sessionId, navigation }) {
 
   return (
     <View style={styles.section}>
-      <ListDivider style={styles.divider} />
-      <Field label="Write with AI" rightSlot={<EditPromptButtonsButton />}>
+      <Divider style={styles.divider} />
+      <Field label="Write with AI" trailing={<EditPromptButtonsButton />}>
         <PromptButtonRow buttons={buttons ?? []} onPress={(button) => openChat(promptTurn(button))}>
-          <Chip label={opener.label} icon={opener.icon} variant="outlined" onPress={() => openChat()} />
+          <Chip label={opener.label} icon={opener.icon} variant="action" onPress={() => openChat()} />
         </PromptButtonRow>
       </Field>
     </View>

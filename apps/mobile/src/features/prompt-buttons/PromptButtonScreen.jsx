@@ -5,10 +5,10 @@ import { Alert, StyleSheet } from 'react-native';
 import IconPicker from './IconPicker';
 
 import ActionButtons from '@/components/ActionButtons';
-import CardTextField from '@/components/CardTextField';
 import DetailScrollView from '@/components/DetailScrollView';
 import Field from '@/components/Field';
 import Page from '@/components/Page';
+import TextInput from '@/components/TextInput';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
@@ -138,7 +138,8 @@ function PromptButtonEditor({ id, seed, navigation }) {
       <FloatingDetailHeader title="Prompt button" onBack={() => navigation.goBack()} />
       <DetailScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
         <Field label="Name">
-          <CardTextField
+          <TextInput
+            variant="field"
             value={draft.name}
             onChangeText={(text) => setField('name', text)}
             onBlur={() => flush()}
@@ -148,7 +149,8 @@ function PromptButtonEditor({ id, seed, navigation }) {
           />
         </Field>
         <Field label="Prompt">
-          <CardTextField
+          <TextInput
+            variant="field"
             multiline
             value={draft.prompt}
             onChangeText={(text) => setField('prompt', text)}
@@ -166,7 +168,7 @@ function PromptButtonEditor({ id, seed, navigation }) {
             isScreenEnd
             actions={[
               { label: 'Duplicate', onPress: handleDuplicate },
-              { label: 'Delete prompt button', tone: 'danger', onPress: handleDelete },
+              { label: 'Delete prompt button', colorPalette: 'danger', onPress: handleDelete },
             ]}
           />
         )}

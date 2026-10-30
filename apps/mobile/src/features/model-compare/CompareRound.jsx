@@ -7,15 +7,13 @@ import ModelAnswers from './ModelAnswers';
 import PhotoAnswers from './PhotoAnswers';
 import useCompareRound, { TEXT_KEY } from './useCompareRound';
 
+import Button from '@/components/Button';
 import Card from '@/components/Card';
 import Field from '@/components/Field';
-import FoldingTextarea from '@/components/FoldingTextarea';
+import FoldingTextInput from '@/components/FoldingTextInput';
 import IntroText from '@/components/IntroText';
-import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
-import PrimaryButton from '@/components/PrimaryButton';
-import TextButton from '@/components/TextButton';
 import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import { SCREEN_PADDING } from '@/constants';
@@ -74,8 +72,8 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
   return (
     <ModalSheet>
       <ModalHeader
-        leftSlot={<ModalCloseButton onPress={() => navigation.getParent().goBack()} />}
-        centerSlot="Compare"
+        leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.getParent().goBack()} />}
+        title="Compare"
         scrollY={scrollY}
       />
       {/* A plain scroll view (at most VISION_COMPARE_MAX_PHOTOS rows): each photo row's offset in
@@ -89,7 +87,7 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
       >
         <Card style={styles.promptCard}>
           <Field label="Prompt" description="Remembered for next time.">
-            <FoldingTextarea
+            <FoldingTextInput
               foldedLines={PROMPT_FOLDED_LINES}
               editHint="Edits the prompt"
               value={prompt}
@@ -106,7 +104,7 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
             {round.promptRound > 1 && ` · Round ${round.promptRound}`}
           </IntroText>
           {round.promptRound > 1 && (
-            <TextButton label="Reset" size="small" onPress={round.resetRounds} disabled={round.isRunning} />
+            <Button label="Reset" size="small" onPress={round.resetRounds} disabled={round.isRunning} />
           )}
         </View>
         {isVision && hasStarted && <IntroText style={styles.hint}>Tap the tags that fit.</IntroText>}
@@ -140,7 +138,8 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
         )}
       </Animated.ScrollView>
       <FloatingPrimaryAction>
-        <PrimaryButton
+        <Button
+          variant="primary"
           icon={hasStarted ? 'repeat' : 'play'}
           label={!hasStarted ? 'Start' : isVision ? 'New tags' : 'New suggestions'}
           onPress={handleStartRound}

@@ -1,5 +1,4 @@
-import IconButton from '@/components/IconButton';
-import ModalCloseButton from '@/components/ModalCloseButton';
+import Button from '@/components/Button';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
@@ -25,10 +24,10 @@ export default function AddToAlbumScreen({ route, navigation }) {
   return (
     <ModalSheet>
       <ModalHeader
-        leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />}
-        centerSlot="Add to Album"
+        leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
+        title="Add to Album"
         scrollY={scrollY}
-        rightSlot={<IconButton variant="primary" icon="add" onPress={promptAddAlbum} accessibilityLabel="New album" />}
+        trailing={<Button variant="primary" icon="add" onPress={promptAddAlbum} accessibilityLabel="New album" />}
       />
       <AlbumPicker onPick={handleAddAssetsToAlbum} paddingTop={MODAL_HEADER_HEIGHT} onScroll={onScroll} />
     </ModalSheet>

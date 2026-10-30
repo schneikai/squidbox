@@ -1,10 +1,12 @@
 import { Children } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, Text as RNText, StyleSheet, View } from 'react-native';
 
+import Card from '@/components/Card';
+import Divider from '@/components/Divider';
 import Icon from '@/components/Icon';
-import ListDivider from '@/components/ListDivider';
+import Text from '@/components/Text';
 import { SCREEN_PADDING } from '@/constants';
-import { colors, lineHeights, radii, shadows, sizes, typography } from '@/styles/designTokens';
+import { colors, lineHeights, press, sizes, typography } from '@/styles/designTokens';
 
 // iOS-style grouped-list building blocks shared by the Settings screen and its detail screens
 // (Backup, Sync), so they all look and behave the same.
@@ -13,39 +15,63 @@ import { colors, lineHeights, radii, shadows, sizes, typography } from '@/styles
 export function Section({ children, isHeaderless = false }) {
   const kids = Children.toArray(children);
   return (
-    <View style={[styles.section, isHeaderless && styles.headerless]}>
+    <Card style={[styles.section, isHeaderless && styles.headerless]}>
       {kids.map((child, i) => (
         <View key={child.key ?? i}>
           {child}
-          {i < kids.length - 1 && <ListDivider />}
+          {i < kids.length - 1 && <Divider />}
         </View>
       ))}
-    </View>
+    </Card>
   );
 }
 
-// iOS-style small gray explanatory text shown BELOW a grouped section. `isMuted` greys it further,
-// for a value that couldn't be read.
-export function SectionFooter({ children, isMuted = false }) {
-  return <Text style={[styles.footer, isMuted && styles.footerMuted]}>{children}</Text>;
+// iOS-style small gray explanatory text shown BELOW a grouped section.
+export function SectionFooter({ children }) {
+  return (
+    <Text variant="hint" style={styles.footer}>
+      {children}
+    </Text>
+  );
 }
 
 // The label always keeps its width; a long value wraps onto more lines beside it, as Apple's
 // guidance prefers over truncating or shrinking text.
-// `leading` goes before the label (an icon), `description` is secondary text under it.
-export function Row({ label, description, leading, value, onPress, destructive, chevron, children }) {
+// `label` is its text, or a component that takes the label's place (a model's summary). `leading`
+// goes before it (an icon), `description` is secondary text under it. `hasChevron` ends it with a
+// chevron (it opens a screen), `isSelected` with the accent check (the current one).
+// `colorPalette="danger"` for one that deletes or signs out; `size="small"` for a tighter row in a
+// long list. `disabled` keeps it from taking presses.
+export function Row({
+  label,
+  description,
+  leading,
+  value,
+  onPress,
+  disabled = false,
+  colorPalette,
+  hasChevron,
+  isSelected = false,
+  size = 'regular',
+  children,
+}) {
   const content = (
-    <View style={styles.row}>
+    <View style={[styles.row, size === 'small' && styles.rowSmall]}>
       {leading != null && <View style={styles.rowLeading}>{leading}</View>}
       <View style={value ? styles.rowTextKept : styles.rowText}>
-        <Text style={[styles.rowLabel, destructive && styles.rowLabelDestructive]}>{label}</Text>
-        {description != null && <Text style={styles.rowDescription}>{description}</Text>}
+        {typeof label === 'string' ? (
+          <RNText style={[styles.rowLabel, colorPalette === 'danger' && styles.rowLabelDanger]}>{label}</RNText>
+        ) : (
+          label
+        )}
+        {description != null && <RNText style={styles.rowDescription}>{description}</RNText>}
       </View>
       <View style={[styles.rowRight, value && styles.rowRightFilling]}>
-        {value ? <Text style={styles.rowValue}>{value}</Text> : null}
+        {value ? <RNText style={styles.rowValue}>{value}</RNText> : null}
         {children}
-        {chevron && (
-          <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.tertiary} style={{ marginLeft: 4 }} />
+        {isSelected && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
+        {hasChevron && (
+          <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.tertiary} style={styles.chevron} />
         )}
       </View>
     </View>
@@ -53,9 +79,15 @@ export function Row({ label, description, leading, value, onPress, destructive, 
 
   if (onPress) {
     return (
-      <TouchableOpacity onPress={onPress} activeOpacity={0.6}>
+      <Pressable
+        onPress={onPress}
+        disabled={disabled}
+        accessibilityRole="button"
+        accessibilityState={{ disabled, selected: isSelected }}
+        style={({ pressed }) => pressed && !disabled && press.flat}
+      >
         {content}
-      </TouchableOpacity>
+      </Pressable>
     );
   }
   return content;
@@ -66,10 +98,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   section: {
-    backgroundColor: colors.background.glass,
-    borderRadius: radii.card,
     marginBottom: 4,
-    ...shadows.section,
   },
   row: {
     flexDirection: 'row',
@@ -81,6 +110,12 @@ const styles = StyleSheet.create({
   rowLabel: {
     fontSize: typography.body,
     color: colors.text.primary,
+  },
+  rowSmall: {
+    paddingVertical: 12,
+  },
+  chevron: {
+    marginLeft: 4,
   },
   rowLeading: {
     marginRight: 12,
@@ -100,7 +135,7 @@ const styles = StyleSheet.create({
     lineHeight: lineHeights.subheadline,
     color: colors.text.secondary,
   },
-  rowLabelDestructive: {
+  rowLabelDanger: {
     color: colors.status.danger,
   },
   rowRight: {
@@ -120,14 +155,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   footer: {
-    fontSize: typography.footnote,
-    color: colors.text.secondary,
     marginTop: 8,
-    marginLeft: 4,
-    marginRight: 4,
-    lineHeight: lineHeights.footnote,
-  },
-  footerMuted: {
-    color: colors.text.tertiary,
+    marginHorizontal: 4,
   },
 });

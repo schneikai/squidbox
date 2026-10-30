@@ -3,11 +3,9 @@ import { ActivityIndicator, Alert } from 'react-native';
 
 import copyLiveLibraryAsync from './copyLiveLibraryAsync';
 
-import Icon from '@/components/Icon';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import useCloud from '@/features/cloud/useCloud';
-import { colors, sizes } from '@/styles/designTokens';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 // The local backend's accounts, which `npm run dev:local` passes in: the mock library and the copy of
@@ -48,9 +46,9 @@ export default function DevAccountsSection() {
               label={account.label}
               description={isPending && account.isLiveLibraryCopy ? 'Copying your library…' : account.email}
               onPress={isCurrent || pendingEmail ? undefined : () => handleSignIn(account)}
+              isSelected={isCurrent}
             >
               {isPending && <ActivityIndicator size="small" />}
-              {isCurrent && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
             </Row>
           );
         })}

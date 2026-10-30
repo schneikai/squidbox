@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import IconButton from '@/components/IconButton';
+import Button from '@/components/Button';
 import { SCREEN_PADDING } from '@/constants';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
 import { colors, motion, radii, typography } from '@/styles/designTokens';
@@ -58,7 +58,7 @@ export default function BottomSheet({ isVisible, onClose, title, children }) {
             <Text style={styles.title} accessibilityRole="header">
               {title}
             </Text>
-            <IconButton icon="close" variant="tinted" onPress={onClose} accessibilityLabel="Close" />
+            <Button icon="close" variant="secondary" onPress={onClose} accessibilityLabel="Close" />
           </View>
           {children}
         </Animated.View>

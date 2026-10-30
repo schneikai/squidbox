@@ -5,12 +5,12 @@ import { Alert, StyleSheet, View } from 'react-native';
 import FieldInfoSheet from './FieldInfoSheet';
 import voiceFields from './voiceFields';
 
-import CardTextField from '@/components/CardTextField';
 import DetailScrollView from '@/components/DetailScrollView';
 import Field from '@/components/Field';
 import Page from '@/components/Page';
 import Switch from '@/components/Switch';
 import TagsField from '@/components/TagsField';
+import TextInput from '@/components/TextInput';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
@@ -75,7 +75,8 @@ function VoiceEditor({ userId, seed, navigation }) {
     const { label, placeholder } = voiceFields[field];
     return (
       <Field label={label} onInfo={() => showInfo(field)}>
-        <CardTextField
+        <TextInput
+          variant="field"
           multiline
           value={draft[field]}
           onChangeText={setters[field]}

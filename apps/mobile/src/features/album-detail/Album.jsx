@@ -1,11 +1,12 @@
 import { useActionSheet } from '@expo/react-native-action-sheet';
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
-import { Text, StyleSheet, View, TouchableOpacity } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 
 import Badge from '@/components/Badge';
 import Page from '@/components/Page';
+import Text from '@/components/Text';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import FloatingSegmentPill from '@/components/floating-bars/FloatingSegmentPill';
 import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar';
@@ -26,7 +27,7 @@ import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionAct
 import useAssets from '@/features/assets-context/useAssets';
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
-import { colors, lineHeights, typography } from '@/styles/designTokens';
+import { press } from '@/styles/designTokens';
 import { countByMediaType } from '@/sync/assetsRepository';
 import { getDb } from '@/sync/db/client';
 import { usePagedQuery } from '@/sync/usePagedQuery';
@@ -167,11 +168,12 @@ export default function Album({ album }) {
         <View style={[styles.subHeader, { marginTop: paddingTop }]}>
           {!!album.archivedAt && <Badge label="Archived" tone="danger" />}
           {!!album.notes && (
-            <TouchableOpacity
+            <Pressable
+              style={({ pressed }) => pressed && press.flat}
               onPress={() => navigation.navigate('AlbumNotesScreen', { id: album.id, notes: album.notes })}
             >
-              <Text style={styles.notesText}>{album.notes}</Text>
-            </TouchableOpacity>
+              <Text variant="hint">{album.notes}</Text>
+            </Pressable>
           )}
         </View>
       )}
@@ -245,11 +247,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 8,
     gap: 4,
-  },
-  notesText: {
-    fontSize: typography.footnote,
-    color: colors.text.secondary,
-    lineHeight: lineHeights.footnote,
   },
   content: {
     flex: 1,

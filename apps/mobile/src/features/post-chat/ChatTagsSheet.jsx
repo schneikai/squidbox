@@ -8,10 +8,10 @@ import tagsDifference from '@/utils/tagsDifference';
 
 /**
  * The chat's tags in a sheet (`tags`, postTags'), edited in place: a tag taken off or added changes
- * the post's tags only (`onEditTags({ add, remove })`), never the photos'. `isDisabled` while a
+ * the post's tags only (`onEditTags({ add, remove })`), never the photos'. `disabled` while a
  * tagging runs.
  */
-export default function ChatTagsSheet({ isVisible, onClose, tags, onEditTags, isDisabled }) {
+export default function ChatTagsSheet({ isVisible, onClose, tags, onEditTags, disabled }) {
   return (
     <BottomSheet isVisible={isVisible} onClose={onClose} title="Tags">
       <View style={styles.body}>
@@ -22,7 +22,7 @@ export default function ChatTagsSheet({ isVisible, onClose, tags, onEditTags, is
           placeholder="No tags"
           maxTags={CHAT_LIMITS.tags}
           maxTagLength={ASSET_TAG_LIMITS.tag}
-          isDisabled={isDisabled}
+          disabled={disabled}
         />
       </View>
     </BottomSheet>

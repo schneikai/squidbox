@@ -1,6 +1,7 @@
-import { StyleSheet, Text } from 'react-native';
+import { Text as RNText, StyleSheet } from 'react-native';
 
-import { colors, layout, lineHeights, typography } from '@/styles/designTokens';
+import Text from '@/components/Text';
+import { layout } from '@/styles/designTokens';
 
 // The small grey text that says what a screen is for, or what to do on it, above its content, or a
 // note beside it. `isScreenIntro` is a screen's intro at the top of its content: a little in from the
@@ -19,23 +20,19 @@ export default function IntroText({
 }) {
   return (
     <Text
-      style={[styles.text, isScreenIntro && styles.screenIntro, style]}
+      variant="hint"
+      style={[isScreenIntro && styles.screenIntro, style]}
       selectable={selectable}
       numberOfLines={numberOfLines}
       accessibilityLabel={accessibilityLabel}
     >
-      {label != null && <Text style={styles.label}>{label} </Text>}
+      {label != null && <RNText style={styles.label}>{label} </RNText>}
       {children}
     </Text>
   );
 }
 
 const styles = StyleSheet.create({
-  text: {
-    fontSize: typography.footnote,
-    lineHeight: lineHeights.footnote,
-    color: colors.text.secondary,
-  },
   label: {
     fontWeight: '600',
   },

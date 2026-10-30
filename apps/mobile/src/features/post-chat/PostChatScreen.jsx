@@ -10,8 +10,7 @@ import promptTurn from './promptTurn';
 import usePostChat from './usePostChat';
 import useWritingModelName from './useWritingModelName';
 
-import IconButton from '@/components/IconButton';
-import ModalCloseButton from '@/components/ModalCloseButton';
+import Button from '@/components/Button';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import { SCREEN_PADDING } from '@/constants';
@@ -102,10 +101,10 @@ export default function PostChatScreen({ route, navigation }) {
     <ModalSheet>
       <ChatHeader
         isAiAdmin={isAiAdmin}
-        leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />}
+        leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
         scrollY={scrollY}
-        rightSlot={
-          <IconButton icon="edit" onPress={handleNewChat} disabled={!messages?.length} accessibilityLabel="New chat" />
+        trailing={
+          <Button icon="edit" onPress={handleNewChat} disabled={!messages?.length} accessibilityLabel="New chat" />
         }
       />
       <Animated.ScrollView
@@ -155,7 +154,7 @@ export default function PostChatScreen({ route, navigation }) {
           key={seed.key}
           seed={seed.turn}
           placeholder={messages.length === 0 ? ASK_ANYTHING : 'Message'}
-          isDisabled={chat.isSending}
+          disabled={chat.isSending}
           isWaiting={isWaiting}
           onSend={send}
         />
@@ -168,7 +167,7 @@ export default function PostChatScreen({ route, navigation }) {
 // (its hooks run only for one).
 function ChatHeader({ isAiAdmin, ...headerProps }) {
   if (isAiAdmin) return <ModelNameHeader {...headerProps} />;
-  return <ModalHeader {...headerProps} centerSlot="Assistant" subtitle={WRITING_AS_YOU} />;
+  return <ModalHeader {...headerProps} title="Assistant" subtitle={WRITING_AS_YOU} />;
 }
 
 function ModelNameHeader(headerProps) {
@@ -176,7 +175,7 @@ function ModelNameHeader(headerProps) {
   return (
     <ModalHeader
       {...headerProps}
-      centerSlot="Assistant"
+      title="Assistant"
       subtitle={modelName ?? WRITING_AS_YOU}
       subtitleSize={modelName ? 'small' : 'regular'}
     />

@@ -5,15 +5,14 @@ import ModelDefaultsActions from './ModelDefaultsActions';
 import ModelRow from './ModelRow';
 import modelKindText from './modelKindText';
 
+import Button from '@/components/Button';
 import CatalogStatus from '@/components/CatalogStatus';
 import DetailScrollView from '@/components/DetailScrollView';
 import EmptyState from '@/components/EmptyState';
-import IconMenuButton from '@/components/IconMenuButton';
 import IntroText from '@/components/IntroText';
+import MenuButton from '@/components/MenuButton';
 import Page from '@/components/Page';
-import PrimaryButton from '@/components/PrimaryButton';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
-import TextButton from '@/components/TextButton';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
@@ -105,9 +104,9 @@ export default function ModelListScreen({ navigation, route }) {
         onBack={() => navigation.goBack()}
         menuSlot={
           hasScores && (
-            <IconMenuButton accessibilityLabel="Score options">
-              <MenuOption label="Reset all scores" icon="undo" onPress={handleResetAllScores} danger />
-            </IconMenuButton>
+            <MenuButton accessibilityLabel="Score options">
+              <MenuOption label="Reset all scores" icon="undo" onPress={handleResetAllScores} colorPalette="danger" />
+            </MenuButton>
           )
         }
       />
@@ -115,9 +114,9 @@ export default function ModelListScreen({ navigation, route }) {
         <IntroText style={styles.intro}>{text.intro}</IntroText>
         <ScreenSectionHeader
           title="Your models"
-          rightSlot={
+          trailing={
             catalog && (
-              <TextButton
+              <Button
                 label="Add"
                 icon="add"
                 size="small"
@@ -129,7 +128,8 @@ export default function ModelListScreen({ navigation, route }) {
         {renderModels()}
       </DetailScrollView>
       <FloatingPrimaryAction>
-        <PrimaryButton
+        <Button
+          variant="primary"
           icon="thumbs-up"
           label="Compare"
           onPress={() => navigation.navigate('ModelCompareModal', { kind })}

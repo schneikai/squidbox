@@ -71,9 +71,9 @@ export default function BackupScreen() {
             </View>
           )}
 
-          {unsyncedCount > 0 && !isSyncing && <Row label="Back up now" onPress={() => syncNow()} chevron />}
+          {unsyncedCount > 0 && !isSyncing && <Row label="Back up now" onPress={() => syncNow()} hasChevron />}
           {syncErrorCount > 0 && (
-            <Row label="View errors" value={`${syncErrorCount}`} onPress={() => setShowErrors(true)} chevron />
+            <Row label="View errors" value={`${syncErrorCount}`} onPress={() => setShowErrors(true)} hasChevron />
           )}
         </Section>
 

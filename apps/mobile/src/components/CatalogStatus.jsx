@@ -1,7 +1,7 @@
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import Button from '@/components/Button';
 import EmptyState from '@/components/EmptyState';
-import TextButton from '@/components/TextButton';
 import { colors } from '@/styles/designTokens';
 
 // Where Venice's models (or what else loads from the server) will be: a spinner while they load, or
@@ -11,7 +11,7 @@ export default function CatalogStatus({ title = "Couldn't load the models", erro
   return (
     <View style={styles.status}>
       <EmptyState icon="alert" title={title} subtitle={error} />
-      <TextButton label="Try again" onPress={retry} />
+      <Button label="Try again" onPress={retry} />
     </View>
   );
 }

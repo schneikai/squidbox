@@ -82,7 +82,7 @@ export const colors = {
   },
   border: {
     glass: alpha(palette.black, 0.08),
-    divider: alpha(palette.black, 0.08), // between the rows of a grouped list (ListDivider)
+    divider: alpha(palette.black, 0.08), // between the rows of a grouped list (Divider)
   },
   overlay: {
     pressed: alpha(palette.black, 0.06), // a pressed or highlighted row on a light surface
@@ -99,14 +99,6 @@ export const shadows = {
     shadowOpacity: 0.12,
     shadowRadius: 16,
     elevation: 8,
-  },
-  // Grouped list sections (settings-list) lifted off the page
-  section: {
-    shadowColor: palette.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 4,
   },
   // A grid cell lifted under the finger while it's dragged
   lifted: {
@@ -153,7 +145,7 @@ export const layout = {
 // Fixed sizes of controls and icons; they scale with the screen like everything else.
 export const sizes = {
   iconButton: scale(44), // Apple's minimum tap target
-  primaryButton: scale(50), // the height of a large PrimaryButton, the main action of a form or list
+  primaryButton: scale(50), // the height of a primary Button with a label, the main action of a form or list
   icon: scale(20), // inside a button
   iconSmall: scale(18), // compact: avatars, secondary indicators
   iconLarge: scale(32), // stands for content (a not-uploaded thumbnail)
@@ -203,6 +195,16 @@ export const motion = {
   pulse: { duration: 1000, easing: Easing.inOut(Easing.sin) }, // one half of a loading placeholder's breath
   shoot: { easing: Easing.bezierFn(0.1, 0.6, 0.7, 0.75) }, // shoots off and slows, still moving when it ends
 };
+
+// How a pressable answers a touch: a filled one (a disc, the violet action) dims and shrinks a
+// little, a flat one (a text link) fades. A flat icon button tints behind it (`overlay.pressed`).
+export const press = {
+  filled: { opacity: 0.85, transform: [{ scale: 0.96 }] },
+  flat: { opacity: 0.6 },
+};
+
+// A control that can't be used right now.
+export const disabledOpacity = 0.4;
 
 // Apple's spring model (WWDC23 "Animate with springs"): perceptual duration in seconds and bounce
 // (0 = none), as the physics values both Animated.spring and Reanimated's withSpring take.
