@@ -24,7 +24,7 @@ const outbox = (db: SyncDb) => db.select().from(schema.outbox).where(eq(schema.o
 // One add per call, the clock moved on after each, so each has its own (later) createdAt.
 async function addEach(db: SyncDb, list: string[]) {
   for (const text of list) {
-    await addFavorites(db, [text], null);
+    await addFavorites(db, [text]);
     tick();
   }
 }
@@ -40,16 +40,15 @@ describe('favoritesRepository', () => {
 
   it('adds each text once, trimmed, without the empty ones and those already there', async () => {
     const db = makeTestDb();
-    await addFavorites(db, ['First light.'], 'Shorter');
-    const created = await addFavorites(db, [' First light. ', 'Fog on the lake.', 'Fog on the lake.', '  '], null);
+    await addFavorites(db, ['First light.']);
+    const created = await addFavorites(db, [' First light. ', 'Fog on the lake.', 'Fog on the lake.', '  ']);
     expect(created.map((row) => row.text)).toEqual(['Fog on the lake.']);
     expect((await texts(db)).sort()).toEqual(['First light.', 'Fog on the lake.']);
-    expect((await readFavorites(db)).find((row) => row.text === 'First light.')!.source).toBe('Shorter');
   });
 
   it("changes a favorite's text, but not to one another favorite has", async () => {
     const db = makeTestDb();
-    const [light, fog] = await addFavorites(db, ['First light.', 'Fog on the lake.'], null);
+    const [light, fog] = await addFavorites(db, ['First light.', 'Fog on the lake.']);
     await updateFavorite(db, light!.id, ' First light, again. ');
     expect((await readFavorite(db, light!.id))!.text).toBe('First light, again.');
     await expect(updateFavorite(db, light!.id, 'Fog on the lake.')).rejects.toThrow(ALREADY_IN_FAVORITES);
@@ -58,7 +57,7 @@ describe('favoritesRepository', () => {
 
   it('removes one, and Undo brings it back with only deletedAt in the outbox', async () => {
     const db = makeTestDb();
-    const [light] = await addFavorites(db, ['First light.'], null);
+    const [light] = await addFavorites(db, ['First light.']);
     await removeFavorite(db, light!.id);
     expect(await readFavorite(db, light!.id)).toBeNull();
     expect(await countFavorites(db)).toBe(0);
@@ -71,7 +70,7 @@ describe('favoritesRepository', () => {
 
   it('restores nothing for a favorite that was never removed', async () => {
     const db = makeTestDb();
-    const [light] = await addFavorites(db, ['First light.'], null);
+    const [light] = await addFavorites(db, ['First light.']);
     await clearOutboxRows(db, 'favorites', [light!.id]);
     await restoreFavorite(db, light!.id);
     expect(await outbox(db)).toHaveLength(0);
@@ -79,9 +78,9 @@ describe('favoritesRepository', () => {
 
   it('adds a removed text again as a new favorite', async () => {
     const db = makeTestDb();
-    const [light] = await addFavorites(db, ['First light.'], null);
+    const [light] = await addFavorites(db, ['First light.']);
     await removeFavorite(db, light!.id);
-    const [again] = await addFavorites(db, ['First light.'], null);
+    const [again] = await addFavorites(db, ['First light.']);
     expect(again!.id).not.toBe(light!.id);
     expect(await texts(db)).toEqual(['First light.']);
   });

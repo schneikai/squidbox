@@ -6,7 +6,7 @@ export default function PromptButtonChip({ button, onPress, accessibilityHint })
     <Chip
       label={button.name}
       icon={button.icon}
-      variant="outlined"
+      variant="action"
       onPress={() => onPress(button)}
       accessibilityHint={accessibilityHint}
     />

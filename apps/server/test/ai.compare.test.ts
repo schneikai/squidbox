@@ -26,8 +26,8 @@ import {
   visionTask,
   writingTask,
 } from '../src/ai/tasks.js';
-import { VeniceError } from '../src/ai/venice.js';
-import { visionMessages, writingMessages } from '../src/ai/prompts.js';
+import { VeniceError, VeniceUnavailableError } from '../src/ai/venice.js';
+import { compareVisionMessages, visionMessages, writingMessages } from '../src/ai/prompts.js';
 import type { CatalogEntry } from '../src/ai/catalog.js';
 
 const entries = fixture.data as CatalogEntry[];
@@ -37,18 +37,13 @@ const fetchMock = vi.fn();
 const compareWriting = (models: CatalogEntry[]) =>
   compareModels({
     task: writingTask,
-    messages: writingMessages({
-      prompt: 'Write',
-      persona: null,
-      favorites: [],
-      instructions: DEFAULT_INSTRUCTIONS,
-    }),
+    messages: writingMessages('Write'),
     models,
   });
 const compareVision = (models: CatalogEntry[]) =>
   compareModels({
     task: visionTask,
-    messages: visionMessages({
+    messages: compareVisionMessages({
       prompt: 'Tag it',
       imageDataUrl: 'data:image/jpeg;base64,AAAA',
     }),
@@ -114,9 +109,10 @@ describe('visionMessages', () => {
 });
 
 describe('checking the replies', () => {
-  it('takes exactly 3 non-empty tweets', () => {
+  it('takes the non-empty tweets, as many as there are, but at least one', () => {
     expect(checkTweets([' a ', 'b', 'c'])).toEqual(['a', 'b', 'c']);
-    expect(() => checkTweets(['a', 'b', ' '])).toThrow('Returned 2 tweets instead of 3');
+    expect(checkTweets(['a', ' ', 'b', 'c', 'd'])).toEqual(['a', 'b', 'c', 'd']);
+    expect(() => checkTweets([' ', ''])).toThrow('The model returned no posts');
   });
 
   it('takes a chat reply trimmed and cut to fit, without empty options, the first 10 of them', () => {
@@ -222,25 +218,68 @@ describe('runTask', () => {
     await expect(failed).rejects.toBeInstanceOf(VeniceError);
     await expect(failed).rejects.toThrow('Returned no tags');
   });
+
+  it("tells Venice not answering (a 5xx answer, no connection) from the model's own failure (a refusal, a timeout)", async () => {
+    const run = () => runTask({ task: visionTask, messages, model: model('gemma-4-uncensored') });
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: { message: 'Down' } }), { status: 503 }));
+    await expect(run()).rejects.toEqual(new VeniceUnavailableError('Down'));
+    fetchMock.mockRejectedValueOnce(new Error('connection refused'));
+    await expect(run()).rejects.toEqual(new VeniceUnavailableError("Couldn't reach Venice"));
+    // too slow is the model's: a reasoning model on high effort, say
+    fetchMock.mockRejectedValueOnce(Object.assign(new Error('timed out'), { name: 'TimeoutError' }));
+    const timedOut = run();
+    await expect(timedOut).rejects.toBeInstanceOf(VeniceError);
+    await expect(timedOut).rejects.not.toBeInstanceOf(VeniceUnavailableError);
+    await expect(timedOut).rejects.toThrow('The model took too long to answer');
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { refusal: 'No.' } }] })),
+    );
+    const refused = run();
+    await expect(refused).rejects.toBeInstanceOf(VeniceError);
+    await expect(refused).rejects.not.toBeInstanceOf(VeniceUnavailableError);
+  });
+
+  it('counts 401, 402, 403 and 429 as Venice not answering, and any other 4xx as about the model', async () => {
+    const run = () => runTask({ task: visionTask, messages, model: model('gemma-4-uncensored') });
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: { message: 'Slow down' } }), { status: 429 }));
+    await expect(run()).rejects.toEqual(new VeniceUnavailableError('Slow down'));
+    for (const status of [401, 402, 403]) {
+      fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: { message: 'Account' } }), { status }));
+      await expect(run()).rejects.toEqual(new VeniceUnavailableError('Account'));
+    }
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { message: 'No such model' } }), { status: 404 }),
+    );
+    const missing = run();
+    await expect(missing).rejects.toBeInstanceOf(VeniceError);
+    await expect(missing).rejects.not.toBeInstanceOf(VeniceUnavailableError);
+    await expect(missing).rejects.toThrow('No such model');
+  });
 });
 
 describe('compareModels: writing', () => {
   it("gives each model its result, and one model's failure stays on its own card", async () => {
     replies({
-      'kimi-k3': { reply: '', postOptions: ['one', 'two', 'three'] },
-      'grok-4-7': { reply: '', postOptions: ['one', 'two'] },
+      'kimi-k3': { posts: ['one', 'two', 'three'] },
+      'grok-4-7': { posts: [' '] },
       'z-ai-glm-5-3': new Response(JSON.stringify({ error: { message: 'Model is busy' } }), { status: 503 }),
     });
     const results = await compareWriting([model('kimi-k3'), model('grok-4-7'), model('z-ai-glm-5-3')]);
     expect(results).toEqual([
-      { modelId: 'kimi-k3', reply: '', postOptions: ['one', 'two', 'three'] },
-      { modelId: 'grok-4-7', error: 'Returned 2 tweets instead of 3' },
+      { modelId: 'kimi-k3', posts: ['one', 'two', 'three'] },
+      { modelId: 'grok-4-7', error: 'The model returned no posts' },
       { modelId: 'z-ai-glm-5-3', error: 'Model is busy' },
     ]);
   });
 
+  it('reads a bare list of posts, without the object around it', async () => {
+    replies({ 'kimi-k3': ['one', 'two'] });
+    const [kimi] = await compareWriting([model('kimi-k3')]);
+    expect(kimi).toEqual({ modelId: 'kimi-k3', posts: ['one', 'two'] });
+  });
+
   it("says the reply couldn't be read when it isn't the JSON asked for", async () => {
-    replies({ 'kimi-k3': 'thinking… here are your tweets', 'grok-4-7': { posts: [] } });
+    replies({ 'kimi-k3': 'thinking… here are your tweets', 'grok-4-7': { tweets: ['a'] } });
     const results = await compareWriting([model('kimi-k3'), model('grok-4-7')]);
     expect(results).toEqual([
       { modelId: 'kimi-k3', error: "The reply couldn't be read" },
@@ -255,13 +294,13 @@ describe('compareModels: writing', () => {
       capabilities: { ...plain.model_spec.capabilities, supportsResponseSchema: false },
     };
     replies({
-      plain: 'Here they are:\n```json\n{"reply": "", "postOptions": ["a", "b", "c"]}\n```',
-      'kimi-k3': { reply: '', postOptions: ['d', 'e', 'f'] },
+      plain: 'Here they are:\n```json\n{"posts": ["a", "b", "c"]}\n```',
+      'kimi-k3': { posts: ['d', 'e', 'f'] },
     });
     const results = await compareWriting([plain, model('kimi-k3')]);
     expect(results).toEqual([
-      { modelId: 'plain', reply: '', postOptions: ['a', 'b', 'c'] },
-      { modelId: 'kimi-k3', reply: '', postOptions: ['d', 'e', 'f'] },
+      { modelId: 'plain', posts: ['a', 'b', 'c'] },
+      { modelId: 'kimi-k3', posts: ['d', 'e', 'f'] },
     ]);
     const [plainBody, kimiBody] = fetchMock.mock.calls.map(([, init]) => JSON.parse(init.body));
     expect(plainBody).not.toHaveProperty('response_format');
@@ -271,20 +310,20 @@ describe('compareModels: writing', () => {
   it("keeps the model's name out of Venice's error text, so the card stays blind", async () => {
     replies({
       'kimi-k3': new Response(JSON.stringify({ error: { message: 'Model KIMI-K3 is at capacity' } }), { status: 503 }),
-      'grok-4-7': { reply: '', postOptions: ['a', 'b', 'c'] },
+      'grok-4-7': { posts: ['a', 'b', 'c'] },
     });
     const [kimi] = await compareWriting([model('kimi-k3'), model('grok-4-7')]);
     expect(kimi).toEqual({ modelId: 'kimi-k3', error: 'Model the model is at capacity' });
   });
 
   it('reports a model Venice could not be reached for without the network details', async () => {
-    replies({ 'kimi-k3': { reply: '', postOptions: ['a', 'b', 'c'] } });
+    replies({ 'kimi-k3': { posts: ['a', 'b', 'c'] } });
     fetchMock.mockImplementationOnce(async () => {
       throw new Error('socket hang up');
     });
     const results = await compareWriting([model('grok-4-7'), model('kimi-k3')]);
     expect(results[0]).toEqual({ modelId: 'grok-4-7', error: "Couldn't reach Venice" });
-    expect(results[1]).toEqual({ modelId: 'kimi-k3', reply: '', postOptions: ['a', 'b', 'c'] });
+    expect(results[1]).toEqual({ modelId: 'kimi-k3', posts: ['a', 'b', 'c'] });
   });
 });
 
@@ -298,11 +337,36 @@ describe('compareModels: vision', () => {
       { modelId: 'qwen-3-6-plus', tags: [...tags, 'extra'] },
     ]);
     const sent = JSON.parse(fetchMock.mock.calls[0]![1].body);
-    expect(sent.messages[0]).toEqual({ role: 'system', content: 'Tag it' });
+    expect(sent.messages[0]).toEqual({
+      role: 'system',
+      content: 'Tag it\n\nAnswer in JSON, with the tags of this one photo.',
+    });
     expect(sent.messages[1].content[0]).toEqual({
       type: 'image_url',
       image_url: { url: 'data:image/jpeg;base64,AAAA' },
     });
     expect(sent).not.toHaveProperty('max_tokens');
+  });
+
+  it('reads the tags inside a list, as for a list of photos', async () => {
+    replies({ 'qwen-3-6-plus': [{ tags: ['forest', 'creek'] }] });
+    const [qwen] = await compareVision([model('qwen-3-6-plus')]);
+    expect(qwen).toEqual({ modelId: 'qwen-3-6-plus', tags: ['forest', 'creek'] });
+  });
+});
+
+describe('compareVisionMessages', () => {
+  it("follows the photo with the model's earlier tags as its answers, each asking for different ones", () => {
+    const messages = compareVisionMessages({
+      prompt: 'Tag it',
+      imageDataUrl: 'data:image/jpeg;base64,AAAA',
+      earlierRounds: [['forest'], ['creek', 'moss']],
+    });
+    expect(messages.slice(2)).toEqual([
+      { role: 'assistant', content: '{"tags":["forest"]}' },
+      { role: 'user', content: 'Give different tags.' },
+      { role: 'assistant', content: '{"tags":["creek","moss"]}' },
+      { role: 'user', content: 'Give different tags.' },
+    ]);
   });
 });

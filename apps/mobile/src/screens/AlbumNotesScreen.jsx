@@ -41,7 +41,7 @@ export default function AlbumNotesScreen({ route, navigation }) {
       onBack={() => navigation.goBack()}
       placeholder="Add a note…"
       autoFocus
-      action={noteText(notes) ? { label: 'Delete note', tone: 'danger', onPress: handleDelete } : null}
+      actions={noteText(notes) ? [{ label: 'Delete note', colorPalette: 'danger', onPress: handleDelete }] : []}
     />
   );
 }

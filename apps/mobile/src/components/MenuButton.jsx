@@ -1,37 +1,34 @@
 import { useRef, useState } from 'react';
 import { Menu, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
 
+import Button from '@/components/Button';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
 /**
- * Generic anchored popup menu with a composable trigger.
- * Owns the toggle-safe Menu ref and open/close state.
+ * A button that opens an anchored popup menu of `children` (MenuOption rows). Owns the toggle-safe
+ * Menu ref and its open state.
  *
- * The trigger render prop receives { toggle, isOpen } so the trigger element
- * can reflect its active state visually without managing its own state.
+ * Without `trigger` it is a Button and takes Button's props: the ⋯ icon (`icon="menu"`) and "More
+ * options" unless told otherwise. `trigger` draws another one instead: a render prop that receives
+ * `{ toggle, isOpen }`, so it can show that its menu is open.
  *
  * Callers inside a React Native Modal must still wrap their content in
  * <MenuProvider skipInstanceCheck>. This component does not manage that.
  *
- * Usage:
- *   <MenuButton
- *     trigger={({ toggle, isOpen }) => (
- *       <SomePressable onPress={toggle} active={isOpen} />
- *     )}
- *   >
- *     <MenuOption label="..." onPress={...} />
- *     <MenuOption label="..." onPress={...} />
+ *   <MenuButton accessibilityLabel="Post options">
+ *     <MenuOption label="..." icon="..." onPress={...} />
  *   </MenuButton>
  *
- * triggerContainerStyle — optional style for the MenuTrigger wrapper. The wrapper
- *   is intentionally unstyled by default so the trigger element fully owns its own
- *   appearance. Only provide this when you genuinely need to constrain the wrapper
- *   (e.g. to override dimensions set by the parent layout).
- *
- * menuOptionsCustomStyles — optional override for MenuOptions customStyles object
- *   passed to react-native-popup-menu (rare).
+ * style is for layout only, on the trigger's wrapper.
  */
-export default function MenuButton({ trigger, triggerContainerStyle, menuOptionsCustomStyles, children }) {
+export default function MenuButton({
+  trigger,
+  icon = 'menu',
+  accessibilityLabel = 'More options',
+  style,
+  children,
+  ...buttonProps
+}) {
   const menuRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -45,10 +42,14 @@ export default function MenuButton({ trigger, triggerContainerStyle, menuOptions
 
   return (
     <Menu ref={menuRef} onOpen={() => setIsOpen(true)} onClose={() => setIsOpen(false)}>
-      <MenuTrigger disabled customStyles={{ triggerWrapper: triggerContainerStyle }}>
-        {trigger({ toggle, isOpen })}
+      <MenuTrigger disabled customStyles={{ triggerWrapper: style }}>
+        {trigger ? (
+          trigger({ toggle, isOpen })
+        ) : (
+          <Button {...buttonProps} icon={icon} onPress={toggle} accessibilityLabel={accessibilityLabel} />
+        )}
       </MenuTrigger>
-      <MenuOptions customStyles={menuOptionsCustomStyles ?? popupMenuStyles.menuOptions}>{children}</MenuOptions>
+      <MenuOptions customStyles={popupMenuStyles.menuOptions}>{children}</MenuOptions>
     </Menu>
   );
 }

@@ -1,31 +1,30 @@
 import { PERSONA_LIMITS, uniqueTags } from '@squidbox/shared';
 import { useState } from 'react';
-import { Alert, StyleSheet } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
 import FieldInfoSheet from './FieldInfoSheet';
-import RulesField from './RulesField';
 import voiceFields from './voiceFields';
 
-import CardTextField from '@/components/CardTextField';
 import DetailScrollView from '@/components/DetailScrollView';
 import Field from '@/components/Field';
 import Page from '@/components/Page';
 import Switch from '@/components/Switch';
 import TagsField from '@/components/TagsField';
+import TextInput from '@/components/TextInput';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
-import { Row, Section } from '@/components/settings-list/SettingsList';
+import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import usePersona from '@/hooks/usePersona';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import useLibrary from '@/library/useLibrary';
 import { scale } from '@/styles/designTokens';
-import { getDb, schema } from '@/sync/db/client';
+import { getDb } from '@/sync/db/client';
 import { EMPTY_PERSONA, readPersona, savePersona } from '@/sync/personaRepository';
-import { useLiveQuery } from '@/sync/useLiveQuery';
 import { requestSync } from '@/sync/worker';
 import changedValues from '@/utils/changedValues';
 
-// The fields this screen edits in place; Rules are edited one by one on their own screen.
+// The fields this screen edits in place (Rules have their own screen, from Assistant).
 const TEXT_FIELDS = ['aboutYou', 'tone', 'contentTags'];
 
 // Settings → Assistant → Writing as you: what the assistant writes with, as plain fields, saved as
@@ -53,10 +52,8 @@ function VoiceEditor({ userId, seed, navigation }) {
       TEXT_FIELDS.map((field) => [field, (value) => setDraft((current) => ({ ...current, [field]: value }))]),
     ),
   );
-  const persona = useLiveQuery((db) => readPersona(db, userId), [schema.personas], [userId]);
+  const persona = usePersona();
   const { flush } = useSaveAsYouType(normalized(draft), saveFields);
-
-  const rules = persona?.rules ?? [];
 
   // Only what the user changed, so a field another device edited meanwhile keeps that edit.
   async function saveFields(next, stored) {
@@ -78,7 +75,8 @@ function VoiceEditor({ userId, seed, navigation }) {
     const { label, placeholder } = voiceFields[field];
     return (
       <Field label={label} onInfo={() => showInfo(field)}>
-        <CardTextField
+        <TextInput
+          variant="field"
           multiline
           value={draft[field]}
           onChangeText={setters[field]}
@@ -110,23 +108,20 @@ function VoiceEditor({ userId, seed, navigation }) {
             maxTagLength={PERSONA_LIMITS.contentTag}
           />
         </Field>
-        <Section>
-          <Row label="Adult content">
-            <Switch
-              value={persona?.adultContent ?? false}
-              onValueChange={handleAdultContentChange}
-              disabled={persona === undefined}
-              accessibilityLabel="Adult content"
-            />
-          </Row>
-        </Section>
-        <Field label={voiceFields.rules.label} onInfo={() => showInfo('rules')}>
-          <RulesField
-            rules={rules}
-            onOpen={(index) => navigation.navigate('RuleScreen', { index })}
-            onAdd={() => navigation.navigate('RuleScreen')}
-          />
-        </Field>
+        {/* one block, so the content's gap doesn't part the footnote from its switch */}
+        <View>
+          <Section>
+            <Row label="Adult content">
+              <Switch
+                value={persona?.adultContent ?? false}
+                onValueChange={handleAdultContentChange}
+                disabled={persona === undefined}
+                accessibilityLabel="Adult content"
+              />
+            </Row>
+          </Section>
+          <SectionFooter>Adult content gets an uncensored assistant.</SectionFooter>
+        </View>
       </DetailScrollView>
       <FieldInfoSheet
         field={info.field}

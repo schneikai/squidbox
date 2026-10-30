@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { layout } from '@/styles/designTokens';
 
 // A screen's main action floating above the home indicator, over the content, placed like the
-// floating bars: a large PrimaryButton across the width, or with `align="center"` a pill-sized
+// floating bars: a large primary Button across the width, or with `align="center"` a pill-sized
 // action (a FloatingPill) in the middle. The content keeps useFloatingPrimaryActionPadding free.
 export default function FloatingPrimaryAction({ children, align = 'stretch' }) {
   const { bottom } = useSafeAreaInsets();

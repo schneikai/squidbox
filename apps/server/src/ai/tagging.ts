@@ -33,7 +33,7 @@ export async function tagPhotoAsync({
   }
   const { tags } = await runChosenModelTask({
     db,
-    userId: user.id,
+    user,
     kind: 'vision',
     task: photoTagsTask,
     messagesAsync: messagesAsync(),

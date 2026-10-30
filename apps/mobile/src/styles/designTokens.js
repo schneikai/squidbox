@@ -36,7 +36,9 @@ const palette = {
   indigo600: '#4F46E5',
   rose600: '#E11D48',
   green500: '#34C759',
+  blue600: '#2563EB',
   cyan100: '#B1F1FF',
+  yellow100: '#FEF6C7',
 };
 
 // Semantic roles, grouped by what they paint. To add a color, add its raw value to `palette` and
@@ -61,6 +63,8 @@ export const colors = {
     successLight: alpha(palette.green500, 0.12),
     danger: palette.rose600,
     dangerLight: alpha(palette.rose600, 0.1),
+    info: palette.blue600, // a neutral fact about an entry (a model is the Default)
+    infoLight: alpha(palette.blue600, 0.12),
   },
   background: {
     app: [palette.gray50, palette.white, palette.violet50], // the page gradient
@@ -70,6 +74,7 @@ export const colors = {
     menu: alpha(palette.white, 0.72), // tint over the BlurView of popover menus
     muted: palette.gray100, // `overlay.pressed` over white, opaque
     tint: palette.violet50, // a lavender card on a white sheet (an example to copy)
+    note: palette.yellow100, // a sticky note's yellow (a model's note in its list)
     placeholder: palette.gray300, // a picture's spot before it loads
     shimmer: palette.white, // the pulse over a loading picture's placeholder
     media: palette.black, // behind a photo or video shown full screen
@@ -77,7 +82,7 @@ export const colors = {
   },
   border: {
     glass: alpha(palette.black, 0.08),
-    divider: alpha(palette.black, 0.08), // between the rows of a grouped list (ListDivider)
+    divider: alpha(palette.black, 0.08), // between the rows of a grouped list (Divider)
   },
   overlay: {
     pressed: alpha(palette.black, 0.06), // a pressed or highlighted row on a light surface
@@ -94,14 +99,6 @@ export const shadows = {
     shadowOpacity: 0.12,
     shadowRadius: 16,
     elevation: 8,
-  },
-  // Grouped list sections (settings-list) lifted off the page
-  section: {
-    shadowColor: palette.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 4,
   },
   // A grid cell lifted under the finger while it's dragged
   lifted: {
@@ -138,6 +135,8 @@ export const layout = {
   contentTop: scale(88), // clears the floating header
   contentBottom: scale(128), // clears the floating bottom bars
   popoverGap: 25, // between a trigger button and the popover that opens from it
+  introGap: 12, // between a screen's intro text (IntroText at its top) and the content below it
+  actionsGap: 24, // between a screen's content and its text actions under it (ActionButtons)
   menuRowPaddingX: scale(16),
   menuRowPaddingY: scale(13),
   menuIconGap: scale(12), // between a menu row's leading icon and its label
@@ -146,7 +145,7 @@ export const layout = {
 // Fixed sizes of controls and icons; they scale with the screen like everything else.
 export const sizes = {
   iconButton: scale(44), // Apple's minimum tap target
-  primaryButton: scale(50), // the height of a large PrimaryButton, the main action of a form or list
+  primaryButton: scale(50), // the height of a primary Button with a label, the main action of a form or list
   icon: scale(20), // inside a button
   iconSmall: scale(18), // compact: avatars, secondary indicators
   iconLarge: scale(32), // stands for content (a not-uploaded thumbnail)
@@ -196,6 +195,16 @@ export const motion = {
   pulse: { duration: 1000, easing: Easing.inOut(Easing.sin) }, // one half of a loading placeholder's breath
   shoot: { easing: Easing.bezierFn(0.1, 0.6, 0.7, 0.75) }, // shoots off and slows, still moving when it ends
 };
+
+// How a pressable answers a touch: a filled one (a disc, the violet action) dims and shrinks a
+// little, a flat one (a text link) fades. A flat icon button tints behind it (`overlay.pressed`).
+export const press = {
+  filled: { opacity: 0.85, transform: [{ scale: 0.96 }] },
+  flat: { opacity: 0.6 },
+};
+
+// A control that can't be used right now.
+export const disabledOpacity = 0.4;
 
 // Apple's spring model (WWDC23 "Animate with springs"): perceptual duration in seconds and bounce
 // (0 = none), as the physics values both Animated.spring and Reanimated's withSpring take.

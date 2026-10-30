@@ -25,6 +25,21 @@ export class VeniceError extends Error {
   }
 }
 
+// Venice turning the account away: a bad key (401), the balance used up (402), forbidden (403).
+const ACCOUNT_STATUSES = new Set([401, 402, 403]);
+
+/**
+ * Venice itself didn't answer: it couldn't be reached, turned the account away (401 a bad key, 402
+ * the balance used up, 403), was busy (429) or failed (5xx). Unlike the model's own failures (a
+ * refusal, a cut-off, unreadable or too slow reply), it says nothing about the model.
+ */
+export class VeniceUnavailableError extends VeniceError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'VeniceUnavailableError';
+  }
+}
+
 /** A request to Venice's API at `path`, with the key and a timeout; `signal` stops it sooner. */
 function veniceFetch(
   path: string,
@@ -54,16 +69,24 @@ export async function veniceGetJson<S extends z.ZodTypeAny>(path: string, schema
 type ChatContentPart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } };
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string | ChatContentPart[] };
 
-export type JsonSchemaSpec<T> = { name: string; jsonSchema: Record<string, unknown>; zod: z.ZodType<T> };
+export type JsonSchemaSpec<T> = {
+  name: string;
+  jsonSchema: Record<string, unknown>;
+  zod: z.ZodType<T, z.ZodTypeDef, unknown>;
+};
+
+const TOO_SLOW = 'The model took too long to answer';
 
 type ChatCompletion = {
   choices?: { finish_reason?: string | null; message?: { content?: string | null; refusal?: string | null } }[];
 };
 
 /**
- * One chat completion's reply text. Every way it can fail (Venice unreachable or slow, an error
- * answer, a refusal, a cut-off, filtered or empty reply) is a VeniceError that says why. `signal`
- * stops it, when nobody waits for the reply anymore.
+ * One chat completion's reply text. Every way it can fail is a VeniceError that says why: Venice
+ * unreachable, turning the account away (401, 402, 403), busy (429) or failing (5xx) is a
+ * VeniceUnavailableError; a reply slower than CHAT_TIMEOUT_MS (the model's own slowness, a
+ * reasoning model on high effort say), any other error status, a refusal, a cut-off, filtered or
+ * empty reply a plain VeniceError. `signal` stops it, when nobody waits for the reply anymore.
  */
 async function chatCompletionAsync({
   model,
@@ -90,18 +113,25 @@ async function chatCompletionAsync({
     timeoutMs: CHAT_TIMEOUT_MS,
     signal,
   }).catch((error: unknown) => {
-    const timedOut = error instanceof Error && error.name === 'TimeoutError';
-    throw new VeniceError(timedOut ? 'Venice took too long to answer' : "Couldn't reach Venice");
+    if (error instanceof Error && error.name === 'TimeoutError') throw new VeniceError(TOO_SLOW);
+    throw new VeniceUnavailableError("Couldn't reach Venice");
   });
 
   // The timeout also covers reading the body: a cut-off reply is a slow one, not an empty one.
   const body = (await response.json().catch((error: unknown) => {
-    if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
-      throw new VeniceError('Venice took too long to answer');
-    }
+    if (error instanceof Error && error.name === 'TimeoutError') throw new VeniceError(TOO_SLOW);
+    if (error instanceof Error && error.name === 'AbortError')
+      throw new VeniceUnavailableError("Couldn't reach Venice");
     return null;
   })) as (ChatCompletion & { error?: unknown }) | null;
-  if (!response.ok) throw new VeniceError(errorMessage(body) ?? `Venice request failed (${response.status})`);
+  if (!response.ok) {
+    const message = errorMessage(body) ?? `Venice request failed (${response.status})`;
+    // The account, busy or down is Venice's trouble; any other refusal (a bad request, an unknown
+    // model) is about this call.
+    if (ACCOUNT_STATUSES.has(response.status) || response.status === 429 || response.status >= 500)
+      throw new VeniceUnavailableError(message);
+    throw new VeniceError(message);
+  }
 
   const choice = body?.choices?.[0];
   if (choice?.message?.refusal) throw new VeniceError(`The model refused: ${choice.message.refusal}`);

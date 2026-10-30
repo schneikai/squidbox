@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_INSTRUCTIONS, INSTRUCTION_LIMITS } from '@squidbox/shared';
+import { compareWritingRequestSchema, DEFAULT_INSTRUCTIONS, INSTRUCTION_LIMITS } from '@squidbox/shared';
 import { chatMessages, fillLines, writingMessages } from '../src/ai/prompts.js';
 
 const persona = {
@@ -11,7 +11,7 @@ const persona = {
 const favorites = ['First light on the ridge.', 'Fog on the lake.'];
 const empty = { aboutYou: '', contentTags: [], tone: '', rules: [] };
 
-const systemOf = (messages: ReturnType<typeof writingMessages>) => messages[0]!.content as string;
+const systemOf = (messages: ReturnType<typeof chatMessages>) => messages[0]!.content as string;
 
 const context = {
   kind: 'draft' as const,
@@ -52,7 +52,7 @@ describe('chatMessages', () => {
     const [system] = chatMessages({ instructions: DEFAULT_INSTRUCTIONS, context, transcript, persona, favorites });
     const content = system!.content as string;
     expect(system!.role).toBe('system');
-    expect(content.startsWith('You are the writing assistant inside Squidbox')).toBe(true);
+    expect(content.startsWith('You are a writing assistant for a content creator')).toBe(true);
     expect(content).not.toContain('{"tweets"');
     expect(content).not.toMatch(/\{(aboutYou|tone|contentTags|rules|favorites|media|tags|mentions|caption|count)\}/);
   });
@@ -118,6 +118,13 @@ describe('chatMessages', () => {
     ]);
   });
 
+  it("puts the user's More like this instruction before a More like this turn's option", () => {
+    const instructions = { ...DEFAULT_INSTRUCTIONS, moreLikeThis: 'Again, please.' };
+    const turns = [...transcript, { role: 'user' as const, content: 'one', moreLikeThis: true }];
+    const messages = chatMessages({ instructions, context, transcript: turns, persona, favorites });
+    expect(messages.at(-1)).toEqual({ role: 'user', content: 'Again, please.\n\none' });
+  });
+
   it("uses the user's own Writing text as the briefing", () => {
     const content = systemOfChat({ instructions: { ...DEFAULT_INSTRUCTIONS, writing: 'Be brief. {caption}' } });
     expect(content).toBe('Be brief. "Fog on the trail"');
@@ -125,31 +132,39 @@ describe('chatMessages', () => {
 });
 
 describe('writingMessages (the Compare)', () => {
-  const compare = (overrides: Partial<Parameters<typeof writingMessages>[0]> = {}) =>
-    writingMessages({
-      prompt: 'Write posts about a sunrise hike',
-      instructions: DEFAULT_INSTRUCTIONS,
-      persona,
-      favorites,
-      ...overrides,
-    });
-
-  it('sends the same filled briefing the chat sends, without a post, then the prompt', () => {
-    const [system, user] = compare();
-    const chat = chatMessages({ instructions: DEFAULT_INSTRUCTIONS, context, transcript, persona, favorites })[0]!
-      .content as string;
-    const withoutPost = chat.replace(/# The post they're working on\n[\s\S]*?\n\n(?=# How to answer)/, '');
-    expect(system).toEqual({ role: 'system', content: withoutPost });
-    expect(system!.content).not.toContain("# The post they're working on");
-    expect(system!.content).toContain('3 options unless they say how many');
-    expect(user).toEqual({ role: 'user', content: 'Write posts about a sunrise hike' });
+  it("follows with the model's earlier posts as its answers, each asking for different ones", () => {
+    const messages = writingMessages('Write 3 posts', [['a', 'b'], ['c']]);
+    expect(messages.slice(1)).toEqual([
+      { role: 'user', content: 'Write 3 posts' },
+      { role: 'assistant', content: '{"posts":["a","b"]}' },
+      { role: 'user', content: 'Write different ones.' },
+      { role: 'assistant', content: '{"posts":["c"]}' },
+      { role: 'user', content: 'Write different ones.' },
+    ]);
   });
 
-  it("uses the user's own Writing text, and drops the creator's sections without a persona", () => {
-    const [system] = compare({ persona: null, favorites: [] });
-    expect(system!.content).not.toContain('# The creator');
-    expect(system!.content).not.toContain('# Posts they liked');
-    const [mine] = compare({ instructions: { ...DEFAULT_INSTRUCTIONS, writing: 'Tone: {tone}. {count} posts.' } });
-    expect(mine!.content).toBe('Tone: Short and calm. Never salesy.. 3 posts.');
+  it('sends the prompt as the user, after a system line on the format only', () => {
+    expect(writingMessages('Write 3 posts about a sunrise hike')).toEqual([
+      {
+        role: 'system',
+        content:
+          'Answer in JSON, with only the posts the prompt asks for. Each item is one finished post, with no intro, notes or quotes around it.',
+      },
+      { role: 'user', content: 'Write 3 posts about a sunrise hike' },
+    ]);
+  });
+});
+
+describe('compareWritingRequestSchema', () => {
+  it('cuts long earlier rounds to the bound instead of refusing them', () => {
+    const posts = Array.from({ length: 12 }, (_, index) => `post ${index}`);
+    const rounds = Array.from({ length: 52 }, () => posts);
+    const { earlierRounds } = compareWritingRequestSchema.parse({
+      prompt: 'Write',
+      modelIds: ['a'],
+      earlierRounds: rounds,
+    });
+    expect(earlierRounds).toHaveLength(50);
+    expect(earlierRounds[0]).toEqual(posts.slice(0, 10));
   });
 });

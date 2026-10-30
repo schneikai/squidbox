@@ -9,7 +9,7 @@ import { requestSync } from '@/sync/worker';
 
 /**
  * Hearting posts the assistant wrote: `favoriteIdOf(text)` is the live favorite with this text, if
- * any; `toggle(text, source)` adds it from `source` or takes it out again.
+ * any; `toggle(text)` adds it or takes it out again.
  */
 export default function useFavoriteToggle() {
   const haptics = useHaptics();
@@ -22,12 +22,12 @@ export default function useFavoriteToggle() {
   const favoriteIdOf = useCallback((text) => idByText.get(favoriteText(text)), [idByText]);
 
   const toggle = useCallback(
-    async (text, source) => {
+    async (text) => {
       haptics.selection();
       try {
         const id = idByText.get(favoriteText(text));
         if (id) await removeFavorite(getDb(), id);
-        else await addFavorites(getDb(), [text], source);
+        else await addFavorites(getDb(), [text]);
         requestSync();
       } catch (error) {
         console.error('Changing the favorite failed', error);

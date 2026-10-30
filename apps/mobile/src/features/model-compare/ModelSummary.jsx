@@ -1,28 +1,42 @@
+import { MODEL_LABEL_NAMES } from '@squidbox/shared';
 import { StyleSheet, Text, View } from 'react-native';
 
 import Badge from '@/components/Badge';
-import Icon from '@/components/Icon';
-import { colors, typography } from '@/styles/designTokens';
+import ChangedBadge from '@/components/ChangedBadge';
+import ScoreDetail from '@/components/ScoreDetail';
+import { colors, radii } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
+import scoreDetailLabel from '@/utils/ai/scoreDetailLabel';
 
-// A model's name with Squidbox's Verified label (`isVerified`) and the Uncensored one (`isUncensored`,
-// the catalog's: Venice's label or an unrestricted verified model), and a detail line under it (its
-// cost, score) with an optional leading icon. `isDimmed` greys both, for a model Venice no longer
-// offers.
-export default function ModelSummary({ name, isVerified, isUncensored, detail, detailIcon, isDimmed = false }) {
+// A model's name, its labels (`labels`, from modelLabels) as badges below it: Changed (a default of
+// yours that everyone doesn't use), Verified, then the defaults; and a detail line under them, led
+// by a `score` above 0 (its thumbs up); the admin's `note` under it on a sticky note, at most two lines. `isDimmed`
+// greys the text, for a model Venice no longer offers.
+export default function ModelSummary({ name, labels, detail, score, note, isDimmed = false }) {
+  const hasBadges = labels.default || labels.uncensoredDefault || labels.verified;
   return (
     <View style={styles.summary}>
-      <View style={styles.titleLine}>
-        <Text style={[listTextStyles.title, styles.name, isDimmed && styles.dimmed]}>{name}</Text>
-        {isVerified && <Badge label="Verified" tone="success" />}
-        {isUncensored && <Badge label="Uncensored" tone="accent" />}
-      </View>
-      <View style={styles.detailLine}>
-        {detailIcon && <Icon name={detailIcon} size={typography.footnote} color={colors.text.secondary} />}
-        <Text style={[listTextStyles.subtitle, styles.detail, isDimmed && styles.dimmed]} numberOfLines={1}>
-          {detail}
+      <Text style={[listTextStyles.title, isDimmed && styles.dimmed]}>{name}</Text>
+      {hasBadges && (
+        <View style={styles.badges}>
+          {labels.changed && <ChangedBadge />}
+          {labels.verified && <Badge label={MODEL_LABEL_NAMES.verified} tone="success" />}
+          {labels.default && <Badge label={MODEL_LABEL_NAMES.default} tone="info" />}
+          {/* the long name doesn't fit a badge */}
+          {labels.uncensoredDefault && <Badge label={MODEL_LABEL_NAMES.uncensoredDefault} tone="info" />}
+        </View>
+      )}
+      <Text
+        style={[listTextStyles.subtitle, styles.detail, isDimmed && styles.dimmed]}
+        accessibilityLabel={scoreDetailLabel(score, detail)}
+      >
+        <ScoreDetail score={score} detail={detail} />
+      </Text>
+      {!!note && (
+        <Text style={[listTextStyles.subtitle, styles.note]} numberOfLines={2}>
+          {note}
         </Text>
-      </View>
+      )}
     </View>
   );
 }
@@ -31,25 +45,26 @@ const styles = StyleSheet.create({
   summary: {
     flex: 1,
   },
-  titleLine: {
+  badges: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     columnGap: 8,
     rowGap: 4,
-  },
-  name: {
-    flexShrink: 1,
-  },
-  detailLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
+    marginTop: 4,
   },
   detail: {
-    flexShrink: 1,
-    marginTop: 0,
+    marginTop: 2,
+  },
+  // A sticky note under the model.
+  note: {
+    marginTop: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: radii.badge,
+    overflow: 'hidden',
+    backgroundColor: colors.background.note,
+    color: colors.text.primary,
   },
   dimmed: {
     color: colors.text.tertiary,

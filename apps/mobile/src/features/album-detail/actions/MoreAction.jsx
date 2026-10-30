@@ -1,8 +1,8 @@
 import { useNavigation } from '@react-navigation/native';
 import { Alert } from 'react-native';
 
-import IconMenuButton from '@/components/IconMenuButton';
-import MenuDivider from '@/components/popup-menu-options/MenuDivider';
+import Divider from '@/components/Divider';
+import MenuButton from '@/components/MenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useAlbums from '@/features/albums-context/useAlbums';
 import confirmAsync from '@/utils/confirmAsync';
@@ -43,14 +43,14 @@ export default function MoreAction({ album, afterDelete, onSelect }) {
   }
 
   return (
-    <IconMenuButton>
+    <MenuButton>
       {!!onSelect && <MenuOption label="Select" icon="check-circle" onPress={onSelect} />}
       <MenuOption label={album.notes ? 'Edit note' : 'Add note'} icon="document" onPress={handleEditNotes} />
       <MenuOption label="Rename" icon="pencil" onPress={handleRenameAlbum} />
       {!!album.archivedAt && <MenuOption label="Unarchive" icon="arrow-up-circle" onPress={handleUnarchiveAlbum} />}
       {!album.archivedAt && <MenuOption label="Archive" icon="archive" onPress={handleArchiveAlbum} />}
-      <MenuDivider />
-      <MenuOption label="Delete" icon="trash" onPress={handleDeleteAlbum} danger />
-    </IconMenuButton>
+      <Divider variant="menu" />
+      <MenuOption label="Delete" icon="trash" onPress={handleDeleteAlbum} colorPalette="danger" />
+    </MenuButton>
   );
 }

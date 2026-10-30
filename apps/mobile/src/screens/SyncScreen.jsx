@@ -68,8 +68,8 @@ export default function SyncScreen() {
         <Section>
           <Row label="Status" value={statusText()} />
           <Row label="Last synced" value={relativeTime(lastPullAt)} />
-          {failedCount > 0 && <Row label="View errors" onPress={() => setShowErrors(true)} chevron />}
-          <Row label="Sync now" onPress={() => requestSync()} chevron />
+          {failedCount > 0 && <Row label="View errors" onPress={() => setShowErrors(true)} hasChevron />}
+          <Row label="Sync now" onPress={() => requestSync()} hasChevron />
         </Section>
 
         <ScreenSectionHeader title="Developer" />
@@ -99,8 +99,14 @@ export default function SyncScreen() {
 
         <ScreenSectionHeader title="Troubleshooting" />
         <Section>
-          <Row label="Rebuild from server" onPress={confirmFullResync} destructive chevron />
-          <Row label="Clear outbox" value={`${pendingCount}`} onPress={confirmClearOutbox} destructive chevron />
+          <Row label="Rebuild from server" onPress={confirmFullResync} colorPalette="danger" hasChevron />
+          <Row
+            label="Clear outbox"
+            value={`${pendingCount}`}
+            onPress={confirmClearOutbox}
+            colorPalette="danger"
+            hasChevron
+          />
         </Section>
         <SectionFooter>
           Rebuild your library from the server if something looks wrong — your photos are safe. Only clear the outbox if

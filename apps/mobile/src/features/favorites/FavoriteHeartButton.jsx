@@ -1,5 +1,4 @@
-import IconButton from '@/components/IconButton';
-import { colors } from '@/styles/designTokens';
+import Button from '@/components/Button';
 
 /**
  * The heart of a post that can be a favorite: filled red while it is one; a tap calls `onPress`.
@@ -8,10 +7,11 @@ import { colors } from '@/styles/designTokens';
  */
 export default function FavoriteHeartButton({ isFavorite, onPress, accessibilityLabel }) {
   return (
-    <IconButton
+    <Button
       icon="heart"
+      colorPalette="favorite"
+      isSelected={isFavorite}
       filled={isFavorite}
-      color={isFavorite ? colors.status.danger : colors.text.secondary}
       onPress={onPress}
       accessibilityLabel={accessibilityLabel ?? (isFavorite ? 'Remove from favorites' : 'Add to favorites')}
     />

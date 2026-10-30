@@ -10,12 +10,11 @@ import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import useLibrary from '@/library/useLibrary';
-import { scale } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { readPersona, savePersona } from '@/sync/personaRepository';
 import { requestSync } from '@/sync/worker';
 
-// One rule of Writing as you, saved as you type: `{ index }` edits that rule (or Delete), no params
+// One of the Rules, saved as you type: `{ index }` edits that rule (or Delete), no params
 // adds one, appended once it has text. A rule left empty is dropped when you leave.
 export default function RuleScreen({ route, navigation }) {
   const index = route.params?.index;
@@ -114,10 +113,9 @@ function RuleEditor({ index, userId, seed, navigation }) {
       onBack={() => navigation.goBack()}
       placeholder={voiceFields.rules.placeholder}
       maxLength={PERSONA_LIMITS.rule}
-      minHeight={scale(88)}
       autoFocus={index == null}
       description={voiceFields.rules.description}
-      action={index != null ? { label: 'Delete rule', tone: 'danger', onPress: handleDelete } : null}
+      actions={index != null ? [{ label: 'Delete rule', colorPalette: 'danger', onPress: handleDelete }] : []}
     />
   );
 }

@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 
-import IconButton from '@/components/IconButton';
+import Button from '@/components/Button';
 import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import AssetList from '@/features/asset-list/AssetList';
@@ -76,12 +76,12 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
         onBack={() => navigation.goBack()}
         menuSlot={
           <>
-            <IconButton icon="undo" onPress={handleRestoreAssets} accessibilityLabel="Restore" />
-            <IconButton icon="checkbox" onPress={toggleSelectMode} accessibilityLabel="Select" />
-            <IconButton
+            <Button icon="undo" onPress={handleRestoreAssets} accessibilityLabel="Restore" />
+            <Button icon="checkbox" onPress={toggleSelectMode} accessibilityLabel="Select" />
+            <Button
               icon="trash"
               onPress={handleDeleteAssets}
-              variant="danger"
+              colorPalette="danger"
               accessibilityLabel="Delete permanently"
             />
           </>

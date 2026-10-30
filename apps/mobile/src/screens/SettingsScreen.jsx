@@ -96,7 +96,12 @@ export default function SettingsScreen() {
       return (
         <Section>
           <Row label="Signed in as" value={user?.email} />
-          <Row label="Sign out" onPress={isLoggingOut ? undefined : handleLogout} destructive chevron={!isLoggingOut}>
+          <Row
+            label="Sign out"
+            onPress={isLoggingOut ? undefined : handleLogout}
+            colorPalette="danger"
+            hasChevron={!isLoggingOut}
+          >
             {isLoggingOut && <ActivityIndicator size="small" color={colors.status.danger} />}
           </Row>
         </Section>
@@ -137,13 +142,13 @@ export default function SettingsScreen() {
                 label="Photo backup"
                 value={getBackupStatusText({ ...cloudSync, ...counts, needsReauth })}
                 onPress={() => navigation.navigate('BackupScreen')}
-                chevron
+                hasChevron
               />
               <Row
                 label="Library sync"
                 value={librarySyncStatusText()}
                 onPress={() => navigation.navigate('SyncScreen')}
-                chevron
+                hasChevron
               />
             </Section>
           </>
@@ -153,7 +158,7 @@ export default function SettingsScreen() {
           <>
             <ScreenSectionHeader title="AI" />
             <Section>
-              <Row label="Assistant" onPress={() => navigation.navigate('AssistantScreen')} chevron />
+              <Row label="Assistant" onPress={() => navigation.navigate('AssistantScreen')} hasChevron />
             </Section>
           </>
         )}
@@ -182,9 +187,9 @@ export default function SettingsScreen() {
             <ScreenSectionHeader title="Developer" />
             <Section>
               <Row label="API URL" value={SERVER_URL} />
-              <Row label="Check API" onPress={handleCheckApi} chevron />
-              <Row label="Sort albums by name" onPress={handleResortAlbums} chevron />
-              <Row label="Features" onPress={() => navigation.navigate('FeaturesScreen')} chevron />
+              <Row label="Check API" onPress={handleCheckApi} hasChevron />
+              <Row label="Sort albums by name" onPress={handleResortAlbums} hasChevron />
+              <Row label="Features" onPress={() => navigation.navigate('FeaturesScreen')} hasChevron />
             </Section>
           </>
         )}

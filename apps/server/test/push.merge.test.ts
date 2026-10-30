@@ -90,6 +90,20 @@ d('push: the merge rules (Postgres)', () => {
     await pool.query('DELETE FROM personas WHERE user_id = $1 AND id = $2', [USER_A, id]);
   });
 
+  it('a favorite with a source field is applied without it', async () => {
+    const id = randomUUID();
+    const favorite = { id, createdAt: 1000, updatedAt: 1000, deletedAt: null, text: 'First light.' };
+    const [result] = await push(db, USER_A, [
+      { collection: 'favorites', record: { ...favorite, source: 'Caption' }, fields: { text: 1000, source: 1000 } },
+    ]);
+    expect(result.status).toBe('applied');
+    const { changes } = await pull(db, USER_A, { cursor: 0 });
+    const pulled = changes.favorites.records.find((record) => record.id === id);
+    expect(pulled).toMatchObject({ text: 'First light.' });
+    expect(pulled).not.toHaveProperty('source');
+    await pool.query('DELETE FROM favorites WHERE user_id = $1 AND id = $2', [USER_A, id]);
+  });
+
   it("a persona's Adult content starts off and survives a push without it", async () => {
     const id = randomUUID();
     const persona = {
@@ -116,6 +130,32 @@ d('push: the merge rules (Postgres)', () => {
     ).toMatchObject({ status: 'applied' });
     expect(await pulled()).toMatchObject({ aboutYou: 'Me, later.', adultContent: true });
     await pool.query('DELETE FROM personas WHERE user_id = $1 AND id = $2', [USER_A, id]);
+  });
+
+  it("instructions without the model check's judge are applied, and keep a judge set elsewhere", async () => {
+    const record = {
+      id: USER_A,
+      createdAt: 1000,
+      updatedAt: 1000,
+      deletedAt: null,
+      writing: null,
+      visionTagging: null,
+      moreLikeThis: null,
+    };
+    const pulled = async () =>
+      (await pull(db, USER_A, { cursor: 0 })).changes.instructions.records.find((each) => each.id === USER_A);
+    expect(
+      (await push(db, USER_A, [{ collection: 'instructions', record, fields: { writing: 1000 } }]))[0],
+    ).toMatchObject({ status: 'applied' });
+    expect(await pulled()).toMatchObject({ modelCheckJudge: null });
+    const judged = { ...record, updatedAt: 2000, modelCheckJudge: 'Judge it: {reply}' };
+    await push(db, USER_A, [{ collection: 'instructions', record: judged, fields: { modelCheckJudge: 2000 } }]);
+    const older = { ...record, updatedAt: 3000, writing: 'Write like me.' };
+    expect(
+      (await push(db, USER_A, [{ collection: 'instructions', record: older, fields: { writing: 3000 } }]))[0],
+    ).toMatchObject({ status: 'applied' });
+    expect(await pulled()).toMatchObject({ writing: 'Write like me.', modelCheckJudge: 'Judge it: {reply}' });
+    await pool.query('DELETE FROM instructions WHERE user_id = $1', [USER_A]);
   });
 
   it('album_assets: a concurrent add and reorder both survive (no membership loss)', async () => {

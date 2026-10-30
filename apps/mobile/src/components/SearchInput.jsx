@@ -1,24 +1,27 @@
 import { StyleSheet } from 'react-native';
 
-import Card from './Card';
-import SearchTextInput from './SearchTextInput';
-
+import Card from '@/components/Card';
 import Icon from '@/components/Icon';
+import TextInput from '@/components/TextInput';
 import { colors, sizes } from '@/styles/designTokens';
 
 /**
- * A search row for inline list filtering inside modals and sheets.
- * Composes Card (bordered container) + leading search icon + SearchTextInput.
- *
- * style — applied to the outer Card container only
- * inputStyle — applied to the inner SearchTextInput only
- * All other props are forwarded to the inner SearchTextInput.
+ * A TextInput for search terms: no autocorrect or autocapitalization. `variant` is where it sits:
+ *   inline — inside a layout of its own (the floating search bar), the default. style is the
+ *            input's own box
+ *   field  — a search row of its own on a Card, with the magnifier in front (Add models). style is
+ *            for layout only
+ * The other props, `ref` too, are React Native's TextInput's.
  */
-export default function SearchInput({ style, inputStyle, ...rest }) {
+export default function SearchInput({ variant = 'inline', style, ...rest }) {
+  if (variant !== 'field') {
+    return <TextInput placeholder="Search" autoCorrect={false} autoCapitalize="none" style={style} {...rest} />;
+  }
+
   return (
     <Card style={[styles.row, style]}>
       <Icon name="search" size={sizes.iconSmall} color={colors.text.secondary} />
-      <SearchTextInput style={[styles.input, inputStyle]} {...rest} />
+      <TextInput placeholder="Search" autoCorrect={false} autoCapitalize="none" style={styles.input} {...rest} />
     </Card>
   );
 }

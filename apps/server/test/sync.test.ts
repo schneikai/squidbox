@@ -354,17 +354,20 @@ d('sync engine (Postgres)', () => {
         icon: null,
         position: 'a0',
       }),
-      favorites: () => ({ ...base(), text: 'First light on the ridge.', source: null }),
+      favorites: () => ({ ...base(), text: 'First light on the ridge.' }),
       instructions: () => ({
         ...base(),
         writing: 'Write like me.',
         visionTagging: null,
         moreLikeThis: null,
+        modelCheckJudge: null,
       }),
       model_choices: () => ({
         ...base(),
         writingModel: { id: 'venice-uncensored-1-2', name: 'Venice Uncensored' },
         visionModel: null,
+        writingUncensoredModel: { id: 'venice-uncensored-1-2', name: 'Venice Uncensored' },
+        visionUncensoredModel: null,
       }),
     };
 

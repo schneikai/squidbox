@@ -53,7 +53,7 @@ function SelectGlow({ selection, assetId, hasPicture }) {
 function SelectRing({ selection, assetId }) {
   const state = useSelectionState(selection, assetId);
   if (state === 'off') return null;
-  return <SelectIndicator isSelected={state === 'selected'} onMedia style={styles.selectIndicator} />;
+  return <SelectIndicator isSelected={state === 'selected'} isOnMedia style={styles.selectIndicator} />;
 }
 
 // One pre-rendered radial fade (black at 42% in the top-left corner, easing out to transparent with no

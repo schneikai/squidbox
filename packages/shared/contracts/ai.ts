@@ -3,6 +3,7 @@
 // app only ever talks to these endpoints.
 import { z } from 'zod';
 import { ASSET_TAG_LIMITS, assetTagSchema } from '../collections/asset';
+import { instructionsSchema, instructionTextSchema } from '../collections/instruction';
 
 export const aiModelKindSchema = z.enum(['writing', 'vision']);
 export type AiModelKind = z.infer<typeof aiModelKindSchema>;
@@ -14,15 +15,186 @@ export const apiAiModelSchema = z.object({
   id: z.string(),
   name: z.string(),
   supportsVision: z.boolean(),
+  // Labelled Uncensored: `uncensoredOverride` where one is set, else Venice's own label
+  // (`isVeniceUncensored`). apps/server/src/ai/catalog.ts works it out.
   isUncensored: z.boolean(),
+  isVeniceUncensored: z.boolean(),
+  // The kinds Squidbox verified the model for (the server's verified_models, set by an ai_admin).
+  verifiedKinds: z.array(aiModelKindSchema),
+  // The model's override of Venice's label, whatever the kind: true uncensored, false not, null
+  // follows Venice.
+  uncensoredOverride: z.boolean().nullable(),
+  // Venice's reasoning capabilities, display only (nothing about it is sent to Venice): whether the
+  // model reasons, and the effort it reasons at by default when Venice names one.
+  reasoning: z.object({ supported: z.boolean(), defaultEffort: z.string().nullable() }),
   costPerReplyUsd: z.number(),
   costPer100PhotosUsd: z.number().nullable(),
 });
 export type ApiAiModel = z.infer<typeof apiAiModelSchema>;
 
-// GET /ai/models
-export const aiModelsResponseSchema = z.object({ models: z.array(apiAiModelSchema) });
+// A kind's two defaults, per the persona's Adult content switch: `unrestricted` (the Uncensored
+// default) while it is on, `regular` (the Default) while it is off. The variant names are stored and
+// on the wire, so they keep their names.
+export const MODEL_DEFAULT_VARIANTS = ['regular', 'unrestricted'] as const;
+export type ModelDefaultVariant = (typeof MODEL_DEFAULT_VARIANTS)[number];
+
+// What every account sees on a model, by the key the app uses. Each is a flag of its own.
+export const MODEL_LABEL_NAMES = {
+  verified: 'Verified',
+  uncensored: 'Uncensored',
+  default: 'Default',
+  uncensoredDefault: 'Uncensored default',
+} as const;
+export type ModelLabel = keyof typeof MODEL_LABEL_NAMES;
+
+// The labels that are a kind's defaults, by their variant.
+export const MODEL_DEFAULT_LABELS = {
+  default: 'regular',
+  uncensoredDefault: 'unrestricted',
+} as const satisfies Partial<Record<ModelLabel, ModelDefaultVariant>>;
+
+// A kind's two defaults, by variant: model ids.
+const modelDefaultVariantsSchema = z.object({ regular: z.string().min(1), unrestricted: z.string().min(1) });
+export type ModelDefaultVariants = z.infer<typeof modelDefaultVariantsSchema>;
+// The defaults of each kind, from the server's model_defaults (an ai_admin sets them in the app).
+export const modelDefaultsSchema = z.object({
+  writing: modelDefaultVariantsSchema,
+  vision: modelDefaultVariantsSchema,
+});
+export type ModelDefaults = z.infer<typeof modelDefaultsSchema>;
+
+// GET /ai/models — also the answer of PUT /ai/verification, /ai/uncensored and /ai/defaults, so the
+// app replaces its catalog with the new marks in one round trip. `instructions`: the app's default
+// instruction of each kind, as every account gets it (resolveInstructions).
+export const aiModelsResponseSchema = z.object({
+  models: z.array(apiAiModelSchema),
+  defaults: modelDefaultsSchema,
+  instructions: instructionsSchema,
+});
 export type AiModelsResponse = z.infer<typeof aiModelsResponseSchema>;
+
+// PUT /ai/verification/:kind/:modelId — whether the model is verified for the kind.
+export const verificationRequestSchema = z.object({ isVerified: z.boolean() });
+export type VerificationRequest = z.infer<typeof verificationRequestSchema>;
+
+// PUT /ai/uncensored/:modelId — whether the model counts as uncensored: true or false overrides
+// Venice's label, null follows it.
+export const uncensoredRequestSchema = z.object({ uncensored: z.boolean().nullable() });
+export type UncensoredRequest = z.infer<typeof uncensoredRequestSchema>;
+
+// PUT /ai/defaults/:kind — Apply changes for everyone: the account's picks of the kind's defaults, a
+// model id per variant or null for none; the server keeps the published default of a variant
+// without a pick, so one another admin published meanwhile stays. At least one pick.
+const modelPickSchema = z.string().min(1).nullable();
+export const modelDefaultRequestSchema = z
+  .object(
+    Object.fromEntries(MODEL_DEFAULT_VARIANTS.map((variant) => [variant, modelPickSchema])) as Record<
+      ModelDefaultVariant,
+      typeof modelPickSchema
+    >,
+  )
+  .refine((picks) => Object.values(picks).some((id) => id !== null), 'Pick at least one default');
+
+// PUT /ai/instructions/:kind — Apply changes for everyone: the text becomes the kind's default for
+// every account. Trimmed before the instruction's checks, so a text of only spaces is empty.
+export const publishInstructionRequestSchema = z.object({ text: z.string().trim().pipe(instructionTextSchema) });
+export type PublishInstructionRequest = z.infer<typeof publishInstructionRequestSchema>;
+
+// Its answer: the app's default instructions with the new one, without the catalog (no Venice call
+// after the text is published).
+export const publishInstructionResponseSchema = z.object({ instructions: instructionsSchema });
+export type PublishInstructionResponse = z.infer<typeof publishInstructionResponseSchema>;
+
+// The writing model that judges every turn of a writing Verify, the same for every model verified.
+export const VERIFY_JUDGE_MODEL_ID = 'claude-sonnet-5-5';
+
+// What a kind's Verify will do, known before it runs: its sections with each turn's prompt (writing:
+// the creator's messages; vision: one section `photos` with the photo files).
+export const verifyPlanSchema = z.object({
+  sections: z.array(z.object({ id: z.string(), title: z.string(), prompts: z.array(z.string()) })),
+});
+export type VerifyPlan = z.infer<typeof verifyPlanSchema>;
+
+/** How many turns a Verify of `plan` plays (a vision turn is a photo). */
+export function verifyPlanTurns(plan: VerifyPlan): number {
+  return plan.sections.reduce((count, section) => count + section.prompts.length, 0);
+}
+
+// The post a writing section started with.
+export const verifyPostSchema = z.object({
+  photos: z.number().int(),
+  videos: z.number().int(),
+  tags: z.array(z.string()),
+  mentions: z.array(z.string()),
+  caption: z.string(),
+});
+export type VerifyPost = z.infer<typeof verifyPostSchema>;
+
+// One turn of a Verify. Writing: `prompt` the creator's message, `note` a sentence on the editor's
+// change to the post before it, `items` the post options, the judge's verdict one of the `checks`.
+// Vision: `prompt` the photo's file name, `reply` null, `items` the tags. A failed check's `reason`
+// says what went wrong in words. `seconds` is the model's call only; `error` the reason the turn got
+// no reply (its checks count as failed).
+export const verifyTurnSchema = z.object({
+  prompt: z.string(),
+  note: z.string().nullable(),
+  seconds: z.number().nullable(),
+  unreadable: z.boolean(),
+  reply: z.string().nullable(),
+  items: z.array(z.string()),
+  checks: z.array(z.object({ name: z.string(), ok: z.boolean(), reason: z.string().nullable() })),
+  error: z.string().nullable(),
+});
+export type VerifyTurn = z.infer<typeof verifyTurnSchema>;
+
+export const verifySectionSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  systemMessage: z.string().nullable(),
+  post: verifyPostSchema.nullable(),
+  turns: z.array(verifyTurnSchema),
+});
+export type VerifySection = z.infer<typeof verifySectionSchema>;
+
+// A Verify's result so far: the turns by section, and the totals over them (`passes` and `fails`
+// count checks).
+export const verifyResultSchema = z.object({
+  sections: z.array(verifySectionSchema),
+  passes: z.number(),
+  fails: z.number(),
+  unreadable: z.number(),
+  medianSeconds: z.number(),
+  slowestSeconds: z.number(),
+});
+export type VerifyResult = z.infer<typeof verifyResultSchema>;
+
+// `stopped`: the run didn't finish (Venice didn't answer, or the server stopped); `error` says why.
+export const verifyRunStatusSchema = z.enum(['running', 'done', 'stopped']);
+export type VerifyRunStatus = z.infer<typeof verifyRunStatusSchema>;
+
+// A model's latest Verify run of a kind (the server keeps only that one).
+export const verifyRunSchema = z.object({
+  id: z.string(),
+  kind: aiModelKindSchema,
+  modelId: z.string(),
+  status: verifyRunStatusSchema,
+  startedAt: z.string(),
+  finishedAt: z.string().nullable(),
+  turnsDone: z.number().int(),
+  turnsTotal: z.number().int(),
+  result: verifyResultSchema.nullable(),
+  error: z.string().nullable(),
+});
+export type VerifyRun = z.infer<typeof verifyRunSchema>;
+
+// GET and POST /ai/verify/:kind/:modelId — the latest run (null before the first) and the kind's
+// plan; a POST starts one unless one is running, and answers it at once.
+export const verifyRunResponseSchema = z.object({ run: verifyRunSchema.nullable(), plan: verifyPlanSchema });
+export type VerifyRunResponse = z.infer<typeof verifyRunResponseSchema>;
+
+// GET /ai/verify-photos — the vision Verify's photos, file name → data:image/jpeg;base64,… URL.
+export const verifyPhotosResponseSchema = z.object({ photos: z.record(z.string(), z.string()) });
+export type VerifyPhotosResponse = z.infer<typeof verifyPhotosResponseSchema>;
 
 // GET /ai/balance — what is left on the Venice account the server's key belongs to: US dollars
 // and DIEM (Venice's daily allowance for staked VVV; it resets each day at nextResetAt).
@@ -35,9 +207,10 @@ export type AiBalanceResponse = z.infer<typeof aiBalanceResponseSchema>;
 
 export const COMPARE_MIN_MODELS = 2;
 export const COMPARE_PROMPT_MAX_LENGTH = 2000;
+// The options the chat's writing briefing asks for ({count}); a compare's prompt says its own.
 export const WRITING_TWEET_COUNT = 3;
-// Photos in one vision compare: each is a request, so two rounds in a minute stay well within the
-// vision route's rate limit (240 a minute).
+// Photos in one vision compare: each photo is a request per model, each model asked one photo at a
+// time (the vision route's rate limit is 600 a minute).
 export const VISION_COMPARE_MAX_PHOTOS = 50;
 // The app sends a 512 px JPEG (readVisionImageAsync); the limit still takes the 1000 px thumbnail
 // (~150–400 KB, ~0.5 MB as base64) that older apps send.
@@ -49,10 +222,11 @@ const visionImageSchema = z.object({
   mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
 });
 
-// Each model once: every id is a paid call.
+// Each model once: every id is a paid call. The app asks each model on its own, so its card fills
+// as soon as it answers; a compare still picks COMPARE_MIN_MODELS or more.
 const modelIdsSchema = z
   .array(z.string().min(1))
-  .min(COMPARE_MIN_MODELS)
+  .min(1)
   .refine((ids) => new Set(ids).size === ids.length, 'Each model can be compared only once');
 
 // The prompt of a compare: what to write, or what to look for in the photos.
@@ -61,11 +235,29 @@ const promptSchema = z.string().trim().min(1).max(COMPARE_PROMPT_MAX_LENGTH);
 // A model's failure is its own result, so one failing model leaves the others' results.
 const modelErrorSchema = z.object({ modelId: z.string(), error: z.string() });
 
-// POST /ai/compare/writing — one prompt, each model writes WRITING_TWEET_COUNT tweets. The
-// request has room for the user's persona later; the server adds it, the app doesn't send it.
+/**
+ * A model's answers (posts or a photo's tags) of its earlier rounds with the same prompt, oldest
+ * first, so it gives different ones. The app asks each model on its own, so they are that model's.
+ * Cut to a bound (the last 50 rounds, `maxItems` answers each, each answer as long as a prompt)
+ * rather than refused, so a long compare goes on.
+ */
+function earlierRoundsSchema(maxItems: number) {
+  return z
+    .array(z.array(z.string()))
+    .default([])
+    .transform((rounds) =>
+      rounds
+        .slice(-50)
+        .map((items) => items.slice(0, maxItems).map((item) => item.slice(0, COMPARE_PROMPT_MAX_LENGTH))),
+    );
+}
+
+// POST /ai/compare/writing — one prompt, each model writes the posts it asks for. The models get the
+// prompt and a fixed line on the answer's format: no persona or Favorites.
 export const compareWritingRequestSchema = z.object({
   prompt: promptSchema,
   modelIds: modelIdsSchema,
+  earlierRounds: earlierRoundsSchema(10),
 });
 export type CompareWritingRequest = z.infer<typeof compareWritingRequestSchema>;
 
@@ -84,6 +276,8 @@ export const compareVisionRequestSchema = z.object({
   prompt: promptSchema,
   image: visionImageSchema,
   modelIds: modelIdsSchema,
+  // Of this photo.
+  earlierRounds: earlierRoundsSchema(50),
 });
 export type CompareVisionRequest = z.infer<typeof compareVisionRequestSchema>;
 
@@ -146,9 +340,14 @@ export const chatReplySchema = chatReplyFieldsSchema.extend({
 export type ChatReply = z.infer<typeof chatReplySchema>;
 
 // The transcript so far: the user's turns and the assistant's replies, oldest first, ending with the
-// user's new turn.
+// user's new turn. A user turn with `moreLikeThis` is More like this on an option (`content`): the
+// server puts the user's More like this instruction before it.
 export const chatTurnSchema = z.union([
-  z.object({ role: z.literal('user'), content: z.string().trim().min(1).max(CHAT_LIMITS.message) }),
+  z.object({
+    role: z.literal('user'),
+    content: z.string().trim().min(1).max(CHAT_LIMITS.message),
+    moreLikeThis: z.boolean().optional(),
+  }),
   chatReplySchema.extend({ role: z.literal('assistant') }),
 ]);
 export type ChatTurn = z.infer<typeof chatTurnSchema>;

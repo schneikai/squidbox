@@ -5,8 +5,8 @@ import { baseRecordSchema, defineCollection, textSchema } from './define';
 // per user, whose id is the user's id, so every device writes the same record and the per-field
 // merge converges. The lists are JSON values that merge as a whole, each with its own clock. The
 // posts it writes like are Favorites (`favorites`), one record each. `adultContent` picks the
-// default writing model (defaultModelId); optional, so a push from a build without it keeps the
-// stored value, and false while unset.
+// default model (resolveModelId, from the server's model_defaults); optional, so a push from a
+// build without it keeps the stored value, and false while unset.
 export const PERSONA_LIMITS = {
   aboutYou: 2000,
   tone: 1000,

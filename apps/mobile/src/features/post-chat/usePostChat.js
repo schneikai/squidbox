@@ -2,12 +2,10 @@ import { CHAT_LIMITS } from '@squidbox/shared';
 import { useCallback, useMemo, useRef, useState } from 'react';
 
 import postTags from './postTags';
-import promptTurn from './promptTurn';
 import useChatSession from './useChatSession';
 import useMentions from './useMentions';
 
 import useAssetTags from '@/features/photo-tags/useAssetTags';
-import useInstructions from '@/hooks/useInstructions';
 import { readLiveAssets } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
@@ -19,8 +17,8 @@ const MORE_LIKE_THIS = 'More like this';
  * (useChatSession; null once closed), its post's `assets`, their `tagging` (useAssetTags) and the
  * `mentions` (useMentions), and the sends: `send(turn)` waits for the photos being tagged
  * (`isWaiting`), then sends with the post as it is then (the turn cut to CHAT_LIMITS.message); it
- * resolves to whether the turn went. `sendButton(button)`, `moreLikeThis(text)` and `retry()` (the
- * last reply, after it failed) do the same.
+ * resolves to whether the turn went. `moreLikeThis(text)` and `retry()` (the last reply, after it
+ * failed) do the same.
  */
 export default function usePostChat(sessionId) {
   const chat = useChatSession(sessionId);
@@ -29,7 +27,6 @@ export default function usePostChat(sessionId) {
   const assetIds = useMemo(() => assets.map((asset) => asset.id), [assets]);
   const tagging = useAssetTags(assets);
   const mentions = useMentions(assetIds);
-  const { texts: instructions } = useInstructions();
   const [isWaiting, setIsWaiting] = useState(false);
   // Set at once, so a second send in the same moment (a typed one while Retry waits) is refused.
   const waitingRef = useRef(false);
@@ -78,19 +75,13 @@ export default function usePostChat(sessionId) {
     [chat, withContext],
   );
 
-  const sendButton = useCallback((button) => send(promptTurn(button)), [send]);
-
-  // The option stays whole: the instruction (an ai_admin's may be long) gives way to it.
+  // The server puts the user's More like this instruction before the option.
   const moreLikeThis = useCallback(
-    (text) => {
-      if (!instructions) return false;
-      const room = Math.max(0, CHAT_LIMITS.message - text.length - 2);
-      return send({ label: MORE_LIKE_THIS, content: `${instructions.moreLikeThis.slice(0, room)}\n\n${text}` });
-    },
-    [send, instructions],
+    (text) => send({ label: MORE_LIKE_THIS, content: text, moreLikeThis: true }),
+    [send],
   );
 
   const retry = useCallback(() => withContext((context) => chat.retry(context)), [chat, withContext]);
 
-  return { chat, assets, tagging, mentions, isWaiting, send, sendButton, moreLikeThis, retry };
+  return { chat, assets, tagging, mentions, isWaiting, send, moreLikeThis, retry };
 }

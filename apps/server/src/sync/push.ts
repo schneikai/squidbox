@@ -8,12 +8,12 @@ import {
   type PushResult,
 } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
+import { driverError } from '../db/pgError.js';
 import { serverCollections, type ServerCollection } from './collections.js';
 import { sentFields } from './sentFields.js';
 
 export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 type ValidRecord = Record<string, unknown> & { id: string; updatedAt: number };
-type DriverError = { code?: unknown; constraint?: unknown; cause?: DriverError };
 
 // SQLSTATE classes 22 (data exception) and 23 (integrity constraint violation) on a row the schema
 // accepted: the row itself is at fault, so only that mutation is rejected. Anything else
@@ -24,12 +24,6 @@ function recordErrorCode(error: unknown): string | null {
   if (typeof code !== 'string' || !/^2[23]/.test(code)) return null;
   if (typeof constraint === 'string' && constraint.endsWith('_user_id_users_id_fk')) return null;
   return code;
-}
-
-// The pg error, unwrapped from the `cause` that newer drizzle versions wrap it in (DrizzleQueryError).
-function driverError(error: unknown): DriverError | undefined {
-  const wrapped = error as DriverError | undefined;
-  return wrapped?.code === undefined ? wrapped?.cause : wrapped;
 }
 
 /**

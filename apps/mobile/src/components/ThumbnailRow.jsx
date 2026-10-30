@@ -1,9 +1,9 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import CoverImage from '@/components/CoverImage';
+import Divider from '@/components/Divider';
 import Icon from '@/components/Icon';
-import ListDivider from '@/components/ListDivider';
-import { colors, scale, sizes } from '@/styles/designTokens';
+import { colors, press, scale, sizes } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
 const THUMBNAIL_SIZE = scale(72);
@@ -16,7 +16,11 @@ const THUMBNAIL_SIZE = scale(72);
  */
 export default function ThumbnailRow({ asset, hasThumbnail = true, title, subtitle, isLast, onPress }) {
   return (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.6}>
+    <Pressable
+      style={({ pressed }) => [styles.row, pressed && press.flat]}
+      onPress={onPress}
+      accessibilityRole="button"
+    >
       {hasThumbnail && <CoverImage asset={asset} style={styles.thumbnail} />}
       <View style={styles.text}>
         <View style={styles.labels}>
@@ -30,9 +34,9 @@ export default function ThumbnailRow({ asset, hasThumbnail = true, title, subtit
           )}
         </View>
         <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.tertiary} />
-        {!isLast && <ListDivider style={styles.divider} />}
+        {!isLast && <Divider style={styles.divider} />}
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

@@ -19,6 +19,7 @@ Decide this before the app stores anything new:
 - **Synced with the account**: what the user makes or sets up and would miss on another device: media, albums, posts, the assistant setup, prompts, and choices that change what the app produces (like the model the assistant uses). Add a collection (`docs/sync-design.md` §9). When unsure, sync it
 - **On the device, in the library**: developer and testing tools (the model list and its testing) and data tied to this device's copy of the library. Local tables in `src/sync/db/schema.ts`, outside the collection registry
 - **On the device, for the whole app**: how this device looks and behaves (sort orders, thumbnail style, autoplay, haptics), like iOS settings. `AppSettingsProvider`
+- **On the server, for every account**: facts the admin sets for the whole app (which models are verified, the defaults, their Verify runs, the published instructions). Plain tables outside the collection registry, read through the API, never synced
 - Sessions, sync bookkeeping and caches never sync
 
 ## React
@@ -29,6 +30,7 @@ Decide this before the app stores anything new:
 
 - Build screens from the components in `src/components`. Don't recreate their look with styles or use low-level primitives (raw `TextInput`, menu primitives) in features when a project component exists. If a UI pattern repeats, extract a component
 - Don't spread style objects in screens or features
+- One name per feature or label, in every text that mentions it (rows, footnotes, alerts, badges, errors), even when quoting a provider: Verify, never check or test; "Venice rates it uncensored", never unrestricted. Before writing UI text, grep for the name the app already uses
 - Components define their appearance; parents define layout
 - Animate with the `motion` tokens in `styles/designTokens.js` (`enter`, `exit`, `move`, `spring`), not ad-hoc durations, easings or spring values
 - Give haptic feedback through `hooks/useHaptics`, never expo-haptics directly: it respects the Haptics setting and skips builds and web without the native module. Use it only for meaningful moments (a lift, a drop, a peek, a selection change, a success or an error), never for every tap
@@ -50,8 +52,8 @@ Decide this before the app stores anything new:
 
 ## AI prompts
 
-- Every prompt the app sends to the AI is editable: by the user (Settings → Assistant → Instructions) or, for an `ai_admin` account, as an override for that account (App prompts). Give new prompts the same treatment
-- The built-in defaults live in `packages/shared`. Change one only in a PR, after the new text was tested as an override
+- Every prompt the app sends to the AI is editable by an `ai_admin` account (Settings → Assistant → Admin → Instructions): an edit is an override only that account uses, to try it in the app; Apply changes for everyone publishes it as the app's text for every account (`app_instructions`, served with the catalog). Give new prompts the same treatment
+- The built-in texts in `packages/shared` are the fallback for a kind nothing was published for. Change one only in a PR, after the new text was tried as an override
 
 ## TODO list
 

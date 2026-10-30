@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 
+import Divider from '@/components/Divider';
 import Icon from '@/components/Icon';
-import MenuDivider from '@/components/popup-menu-options/MenuDivider';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useAppSettings from '@/features/app-settings/useAppSettings';
 import { colors, sizes } from '@/styles/designTokens';
@@ -41,8 +41,8 @@ export default function SortFilterMenu({
   if (showFilterPanel) {
     return (
       <>
-        <MenuOption onPress={() => showPanel(false)} label="Filter" icon="chevron-left" emphasized />
-        <MenuDivider />
+        <MenuOption onPress={() => showPanel(false)} label="Filter" icon="chevron-left" isHeader />
+        <Divider variant="menu" />
         {filterOptions.map((option) => (
           <MenuOption
             key={option.key}
@@ -51,7 +51,7 @@ export default function SortFilterMenu({
             }}
             label={option.label}
             icon={option.icon}
-            active={option.key === 'all' ? activeFilter.length === 0 : activeFilter.includes(option.key)}
+            isSelected={option.key === 'all' ? activeFilter.length === 0 : activeFilter.includes(option.key)}
           />
         ))}
       </>
@@ -65,11 +65,11 @@ export default function SortFilterMenu({
           key={option.key}
           onPress={() => onSort?.(option.key)}
           label={option.label}
-          active={sortOrder === option.key}
+          isSelected={sortOrder === option.key}
         />
       ))}
 
-      {sortOptions.length > 0 && <MenuDivider />}
+      {sortOptions.length > 0 && <Divider variant="menu" />}
 
       <MenuOption
         onPress={() => showPanel(true)}
@@ -90,7 +90,7 @@ export default function SortFilterMenu({
 
       {showViewOptions && (
         <>
-          <MenuDivider />
+          <Divider variant="menu" />
           <MenuOption
             onPress={() => {
               setThumbnailStyle(thumbnailStyle === 'cover' ? 'contain' : 'cover');
