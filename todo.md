@@ -206,6 +206,13 @@ so a better wording can be tried and published.
 
 ## Code quality
 
+### [ ] Read the chat's "More from your posts" more cheaply
+
+The chat's Mentions sheet lists every handle the owner ever mentioned: `readMentionTexts`
+(`apps/mobile/src/sync/postsRepository.ts`) reads the text of every live post with an @, again on
+each post change, and `extractHandles` parses them all. Fine now, but costly with thousands of
+posts. Keep the handles with their counts in a table, or read them only while the sheet is open.
+
 ### [ ] Bump INSTALLED with each preview build
 
 `INSTALLED` in `apps/mobile/test/mainClient.e2e.test.ts` is the commit of the preview build on the

@@ -18,7 +18,7 @@ const MORE_LIKE_THIS = 'More like this';
  * The assistant chat about a post (`sessionId`, chatSessions'), for a screen that shows it: the chat
  * (useChatSession; null once closed), its post's `assets`, their `tagging` (useAssetTags) and the
  * `mentions` (`{ handles, more, fromAlbum }`: those it sends, useMentions' with the chat's
- * mentionEdits, and the posts' others), and the sends: `send(turn)` waits for the photos being tagged
+ * mentionEdits, and the others of all the posts), and the sends: `send(turn)` waits for the photos being tagged
  * (`isWaiting`), then sends with the post as it is then (the turn cut to CHAT_LIMITS.message); it
  * resolves to whether the turn went. `moreLikeThis(text)` and `retry()` (the last reply, after it
  * failed) do the same.
@@ -32,14 +32,14 @@ export default function usePostChat(sessionId) {
   const found = useMentions(assetIds);
   const mentionEdits = chat?.mentionEdits;
   // The handles the chat may mention (the posts', with the Mentions sheet's edits: chatMentions), the
-  // ones it sends, and the posts' others to add back.
+  // ones it sends, and the others of all the posts to add.
   const mentions = useMemo(() => {
     if (!found || !mentionEdits) return undefined;
     const handles = chatMentions(found.handles, mentionEdits)
       .filter((handle) => handle.length <= CHAT_LIMITS.mention)
       .slice(0, CHAT_LIMITS.mentions);
     const chosen = new Set(handles.map(tagKey));
-    const more = found.handles.filter((handle) => !chosen.has(tagKey(handle)));
+    const more = found.all.filter((handle) => !chosen.has(tagKey(handle)));
     return { handles, more, fromAlbum: found.fromAlbum };
   }, [found, mentionEdits]);
   const [isWaiting, setIsWaiting] = useState(false);

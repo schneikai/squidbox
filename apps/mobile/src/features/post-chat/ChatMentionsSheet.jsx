@@ -10,8 +10,8 @@ import tagsDifference from '@/utils/tagsDifference';
 
 /**
  * The handles the chat may mention, in a sheet (`handles`), edited in place like its tags: a tap
- * takes one off, Add types one in, and the posts' other handles (`more`) come back with a tap. Each
- * change is the chat's only (`onEditMentions({ add, remove })`), never the posts'.
+ * takes one off, Add types one in, and the other handles of all the posts (`more`) are added with
+ * a tap. Each change is the chat's only (`onEditMentions({ add, remove })`), never the posts'.
  */
 export default function ChatMentionsSheet({ isVisible, onClose, handles, more, onEditMentions }) {
   return (
