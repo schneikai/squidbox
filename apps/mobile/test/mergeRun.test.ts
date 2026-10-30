@@ -1,18 +1,32 @@
 import { fakeClock } from '@squidbox/shared/testing/fakeClock';
 import { gate } from '@squidbox/shared/testing/gate';
-import { and, eq, isNull, lte } from 'drizzle-orm';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { and, eq, isNull } from 'drizzle-orm';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
-import { deleted, faults, files, resetDevice, storage, stores } from './helpers/fakeDevice';
+import { deleted, faults, files, storage, stores } from './helpers/fakeDevice';
 import { fuzzRuns } from './helpers/fuzzRuns';
+import {
+  ACC,
+  DEV,
+  SRC,
+  TGT,
+  addToTrip,
+  deletedElsewhere,
+  devicePhoto,
+  entry,
+  pushOlderHalf,
+  resetLibraries,
+  resetToAccount,
+  sourceDb,
+} from './helpers/mergeDevice';
 import { mergeLosses } from './helpers/mergeLosses';
 import { prng } from './helpers/prng';
 import { seedAccountPhotos } from './helpers/seedAccountPhotos';
 import { seedDevicePhotos } from './helpers/seedDevicePhotos';
 import { makeTestDb } from './helpers/testDb';
+import { purgedFilesRemover } from '../src/library/fs';
 import { libraryPaths } from '../src/library/libraryPaths';
-import type { Registry } from '../src/library/registry';
 import * as repo from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
 import { makeRepository } from '../src/sync/repository';
@@ -41,9 +55,8 @@ vi.mock('../src/sync/worker', async (importOriginal) => ({
   requestSync: vi.fn(),
 }));
 
-const { closeLibrary, librarySweepsSettled, openLibrary, openLibraryId, sweepOpenLibrary } =
-  await import('../src/library/current');
-const { getRegistry, loadRegistry, updateLibrary, updateRegistry } = await import('../src/library/registry');
+const { closeLibrary, librarySweepsSettled, openLibrary, sweepOpenLibrary } = await import('../src/library/current');
+const { loadRegistry, updateLibrary, updateRegistry } = await import('../src/library/registry');
 const { mergeLibrary, resumeMerges } = await import('../src/library/mergeRun');
 const { getDb } = await import('../src/sync/db/client');
 const { requestSync } = await import('../src/sync/worker');
@@ -51,38 +64,8 @@ const { planMerge: plannedMerge } = await import('../src/library/mergeLibrary');
 const plans = () => vi.mocked(plannedMerge).mock.calls.length;
 
 const albums = makeRepository('albums', schema.albums);
-const DEV = { id: 'dev', owner: { kind: 'device' as const } };
-const ACC = { id: 'acc', owner: { kind: 'account' as const, serverId: 's1', userId: 'u1', email: 'u1@test' } };
-const SRC = libraryPaths('dev');
-const TGT = libraryPaths('acc');
-const sourceDb = () => stores.get(SRC.dbName)!;
-const entry = (id: string) => getRegistry().libraries.find((library) => library.id === id);
 // A merge marker for a library of account u1 (mergeMarker.ts).
 const marker = (library: string, userId = 'u1') => ({ library, serverId: 's1', userId });
-
-async function devicePhoto(over: Record<string, unknown> = {}) {
-  const asset = await repo.create(
-    sourceDb(),
-    makeAssetRecord({ isFileSynced: false, isThumbnailSynced: false, isSynced: false, ...over }),
-  );
-  files.add(getAssetFileUri(asset.filename, SRC));
-  files.add(`file:///docs/${SRC.thumbnailsDir}${asset.thumbnailFilename}`);
-  return asset;
-}
-
-// A fresh device: these libraries listed, the device library's database empty, no files.
-async function resetLibraries(libraries: Registry['libraries'] = [DEV, ACC]) {
-  if (openLibraryId()) await closeLibrary();
-  resetDevice();
-  await loadRegistry(async () => ({ libraries }));
-  stores.set(SRC.dbName, makeTestDb());
-}
-// ... with the account's library open, its first full pull done.
-async function resetToAccount(libraries: Registry['libraries'] = [DEV, ACC]) {
-  await resetLibraries(libraries);
-  await openLibrary(ACC);
-  await markFirstSyncDone(getDb());
-}
 
 // A pass committed into the open account library `library`, then the app stops before the files move.
 async function commitPass(library = 'acc') {
@@ -98,11 +81,6 @@ async function pushAndFinish() {
   await getDb().delete(schema.outbox);
   await resumeMerges();
 }
-
-afterEach(() => {
-  faults.failingMoves.clear();
-  faults.failApply = false;
-});
 
 describe('mergeLibrary / resumeMerges', () => {
   beforeEach(() => resetToAccount());
@@ -292,12 +270,7 @@ const { sweepPurgedFiles } = await import('../src/sync/sweepPurgedFiles');
 
 describe('a failed pass after an earlier one committed', () => {
   // removeAssetFiles for the open library, on the fake file system.
-  const removeFiles = async (names: { filename?: string; thumbnailFilename?: string }[]) => {
-    for (const { filename, thumbnailFilename } of names) {
-      if (filename) files.delete(getAssetFileUri(filename, SRC));
-      if (thumbnailFilename) files.delete(`file:///docs/${SRC.thumbnailsDir}${thumbnailFilename}`);
-    }
-  };
+  const removeFiles = purgedFilesRemover(SRC);
 
   beforeEach(() => resetToAccount());
 
@@ -943,8 +916,6 @@ describe('seeded merges', () => {
     const rand = prng(seed);
     const { pick } = rand;
     const r = rand.next;
-    faults.failingMoves.clear();
-    faults.failApply = false;
     await resetToAccount();
     const accountRows = await seedAccountPhotos(getDb(), rand, (name) => files.add(getAssetFileUri(name, TGT)));
     const problems: string[] = [];
@@ -955,14 +926,7 @@ describe('seeded merges', () => {
       (name) => files.has(getAssetFileUri(name, TGT)),
     );
     if (r() < 0.3) await repo.remove(sourceDb(), [device[4]!.id]);
-    const album = makeAlbumRecord({ name: 'Trip' });
-    await albums.create(sourceDb(), album);
-    await albumEdges.add(
-      sourceDb(),
-      album.id,
-      device.slice(0, 3).map((photo) => photo.id),
-      () => crypto.randomUUID(),
-    );
+    const inAlbum = await addToTrip(device);
     let liveDevice = (await sourceDb().select().from(schema.assets)).filter((row) => row.deletedAt === null);
     const accountAssets = () => getDb().select().from(schema.assets);
 
@@ -978,21 +942,10 @@ describe('seeded merges', () => {
       } else if (op < 0.45) {
         await pushAndFinish();
       } else if (op < 0.55) {
-        // A push cut short: the older half of the outbox.
-        const ids = (await getDb().select().from(schema.outbox)).map((row) => row.id).sort((a, b) => a - b);
-        const cut = ids[Math.floor(ids.length / 2)];
-        if (cut !== undefined) await getDb().delete(schema.outbox).where(lte(schema.outbox.id, cut));
+        await pushOlderHalf(getDb());
         if (r() < 0.5) await resumeMerges();
       } else if (op < 0.65) {
-        // Another device deletes one of the account's photos (pulled).
-        const [row] = await getDb()
-          .select()
-          .from(schema.assets)
-          .where(eq(schema.assets.id, pick(accountRows).id));
-        if (row && row.deletedAt === null)
-          await upsertRows(getDb(), 'assets', schema.assets, [
-            { ...row, deletedAt: 9000 + step, updatedAt: 9000 + step },
-          ]);
+        await deletedElsewhere(getDb(), pick(accountRows).id, 9000 + step);
       } else if (op < 0.75) {
         const rows = (await accountAssets()).filter((row) => row.deletedAt === null);
         if (rows.length) await repo.update(getDb(), pick(rows).id, { isFavorite: true });
@@ -1048,7 +1001,6 @@ describe('seeded merges', () => {
     }
     const at = `seed ${seed}`;
     if (entry('dev')) problems.push(`${at}: the device library stays ${JSON.stringify(entry('dev'))}`);
-    const inAlbum = device.slice(0, 3).map((photo) => photo.id);
     problems.push(
       ...(await mergeLosses(getDb(), liveDevice, inAlbum, (name) => files.has(getAssetFileUri(name, TGT)), at)),
     );

@@ -4,10 +4,10 @@ import type { SyncDb } from '../../src/sync/db/types';
 import { upsertRows } from '../../src/sync/upsertRows';
 
 /**
- * The seeded merge fuzz runs' device library (mergeRun.test.ts, mergeRunFailures.test.ts): five
- * photos of camera-roll items m0..m5 (`addPhoto` makes each), now and then with the file name of an
- * earlier one (two records can share one file name), a favorite, a note; now and then one an earlier
- * library copied into the `account` library and pushed, whose backup there found no file.
+ * The seeded merge fuzz runs' device library: five photos of camera-roll items m0..m5 (`addPhoto`
+ * makes each), now and then with the file name of an earlier one (two records can share one file
+ * name), a favorite, a note; now and then one an earlier library copied into the `account` library
+ * and pushed, whose backup there found no file.
  * `errorsGoneTooSoon(at)` lists those that lost that sync error before their file reached the account.
  */
 export async function seedDevicePhotos(
@@ -23,8 +23,11 @@ export async function seedDevicePhotos(
   for (let i = 0; i < 5; i++) {
     const name = i > 0 && r() < 0.2 ? `dev${Math.floor(r() * i)}` : `dev${i}`;
     const photo = (await addPhoto({
-      ...{ mediaLibraryAssetId: rand.pick(media), filename: `${name}.jpg`, thumbnailFilename: `${name}-t.jpg` },
-      ...{ isFavorite: r() < 0.3, notes: r() < 0.3 ? `dev note ${i}` : null },
+      mediaLibraryAssetId: rand.pick(media),
+      filename: `${name}.jpg`,
+      thumbnailFilename: `${name}-t.jpg`,
+      isFavorite: r() < 0.3,
+      notes: r() < 0.3 ? `dev note ${i}` : null,
     })) as schema.AssetRow;
     photos.push(photo);
     if (r() < 0.2) {
