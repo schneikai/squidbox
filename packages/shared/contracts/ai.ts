@@ -237,9 +237,19 @@ const modelErrorSchema = z.object({ modelId: z.string(), error: z.string() });
 
 // POST /ai/compare/writing — one prompt, each model writes the posts it asks for. The prompt is all
 // the models get: no system instructions, persona or Favorites.
+// The most earlier rounds a writing compare sends a model (New suggestions with the same prompt):
+// all of them, up to a bound on the request's size.
+const COMPARE_EARLIER_ROUNDS_MAX = 50;
+
 export const compareWritingRequestSchema = z.object({
   prompt: promptSchema,
   modelIds: modelIdsSchema,
+  // The model's posts of its earlier rounds with this prompt, oldest first, so it writes different
+  // ones; the app asks each model on its own, so they are that model's.
+  earlierRounds: z
+    .array(z.array(z.string().max(COMPARE_PROMPT_MAX_LENGTH)).max(10))
+    .max(COMPARE_EARLIER_ROUNDS_MAX)
+    .default([]),
 });
 export type CompareWritingRequest = z.infer<typeof compareWritingRequestSchema>;
 
@@ -258,6 +268,12 @@ export const compareVisionRequestSchema = z.object({
   prompt: promptSchema,
   image: visionImageSchema,
   modelIds: modelIdsSchema,
+  // The model's tags of this photo in its earlier rounds with this prompt, oldest first, so it gives
+  // different ones; the app asks each model on its own, so they are that model's.
+  earlierRounds: z
+    .array(z.array(z.string().max(COMPARE_PROMPT_MAX_LENGTH)).max(50))
+    .max(COMPARE_EARLIER_ROUNDS_MAX)
+    .default([]),
 });
 export type CompareVisionRequest = z.infer<typeof compareVisionRequestSchema>;
 

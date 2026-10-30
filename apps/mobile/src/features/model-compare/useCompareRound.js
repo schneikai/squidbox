@@ -10,15 +10,18 @@ import readVisionImageAsync from '@/utils/assets/readVisionImageAsync';
 import compareAsync from '@/utils/cloud-api/ai/compareAsync';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
-// Photos asked at once in a vision round, each of them of every model at once.
-const CONCURRENCY = 2;
+// A request the tunnel of the dev client turned away (503) is asked once more after this pause:
+// it never reached the server.
+const RETRY_DELAY_MS = 1500;
 // The results key of a writing round, which has no photos.
 export const TEXT_KEY = 'text';
 
 /**
  * One blind compare round at a time for `kind` over `modelIds`. `startRound({ prompt })` (writing)
  * or `startRound({ prompt, photos })` (vision, the assets) reshuffles the letters, clears the taps and asks
- * every model again; `number` counts the rounds. `results[key][modelId]` is `{ status: 'loading' |
+ * every model again; `number` counts the rounds, and `promptRound` the rounds with the same prompt,
+ * whose earlier posts (or a photo's tags) each model gets to give different ones (`resetRounds()`
+ * forgets them). `results[key][modelId]` is `{ status: 'loading' |
  * 'done' | 'error', items, error }`, keyed by TEXT_KEY or the photo's asset id, and `isRunning`
  * while any is loading. `taps[key][modelId][index]` is a tweet's thumbs up (0, 1 or 2, an
  * outstanding one) or a tag's mark as fitting (0 or 1) this round; `toggle(key, modelId, index)`
@@ -33,25 +36,48 @@ export default function useCompareRound({ kind, modelIds }) {
   const tapsRef = useRef({});
   // The models already marked as tried in this compare, so each is written once.
   const triedRef = useRef(new Set());
+  // Each model's posts (or tags of a photo, by results key) of its rounds with `prompt`, so a new
+  // round with the same prompt asks for different ones; a new prompt, resetRounds or closing the
+  // compare starts over.
+  const earlierRef = useRef({ prompt: null, byKey: {} });
+  // The rounds with the same prompt, this one included.
+  const [promptRound, setPromptRound] = useState(0);
 
   useEffect(() => () => controllerRef.current?.abort(), []);
 
-  function failAll(error) {
-    const message = apiErrorMessage(error);
-    return Object.fromEntries(modelIds.map((modelId) => [modelId, { status: 'error', error: message }]));
-  }
-
-  // One step of a round, asked of every model: its results key, the results' items key, and its body.
+  // The steps of a round, each asked of every model: its results key, the results' items key, and
+  // its body. Each model gets its own earlier answers to the step with this prompt, and its new ones
+  // join them once in.
   function jobsFor({ prompt, photos }) {
-    if (kind !== 'vision') return [{ key: TEXT_KEY, itemsKey: 'tweets', body: async () => ({ prompt }) }];
-    return photos.map((asset) => ({
-      key: asset.id,
-      itemsKey: 'tags',
-      body: async (signal) => ({
-        prompt,
-        image: await readVisionImageAsync(asset, { ...imageDeps, signal }),
-      }),
-    }));
+    const isSamePrompt = earlierRef.current.prompt === prompt;
+    if (!isSamePrompt) earlierRef.current = { prompt, byKey: {} };
+    setPromptRound((current) => (isSamePrompt ? current + 1 : 1));
+    const { byKey } = earlierRef.current;
+    const steps =
+      kind === 'vision'
+        ? photos.map((asset) => ({
+            key: asset.id,
+            itemsKey: 'tags',
+            body: async (signal) => ({
+              prompt,
+              image: await readVisionImageAsync(asset, { ...imageDeps, signal }),
+            }),
+          }))
+        : [{ key: TEXT_KEY, itemsKey: 'tweets', body: async () => ({ prompt }) }];
+    return steps.map((step) => {
+      const atStart = { ...byKey[step.key] };
+      // A photo's tags already shown in its earlier rounds, by any model: only new ones are listed,
+      // so a model that repeats itself doesn't earn its thumbs up again.
+      const seen = new Set(Object.values(atStart).flatMap((rounds) => rounds.flat().map(tagKey)));
+      return {
+        ...step,
+        newOnly: kind === 'vision' ? (items) => items.filter((tag) => !seen.has(tagKey(tag))) : (items) => items,
+        earlierFor: (modelId) => atStart[modelId] ?? [],
+        onDone: (modelId, items) => {
+          byKey[step.key] = { ...byKey[step.key], [modelId]: [...(byKey[step.key]?.[modelId] ?? []), items] };
+        },
+      };
+    });
   }
 
   function markTriedOnce(results) {
@@ -62,33 +88,43 @@ export default function useCompareRound({ kind, modelIds }) {
     markTried(getDb(), kind, newlyTried).catch((error) => console.error('Saving the score failed', error));
   }
 
-  // Each model is asked on its own, so its card fills as soon as it answers.
+  // Each model works through the steps on its own, one request at a time, so its cards fill as soon
+  // as it answers and a slow model doesn't hold up the others. A step's body (a photo) is read once.
   async function run(jobs, signal) {
-    const queue = [...jobs];
-    async function worker() {
-      while (queue.length > 0 && !signal.aborted) {
-        const job = queue.shift();
+    const bodies = new Map();
+    function bodyOf(job) {
+      if (!bodies.has(job.key)) bodies.set(job.key, job.body(signal));
+      return bodies.get(job.key);
+    }
+    async function worker(modelId) {
+      for (const job of jobs) {
+        if (signal.aborted) return;
         let body;
         try {
-          body = await job.body(signal);
+          body = await bodyOf(job);
         } catch (error) {
-          if (!signal.aborted) land(job.key, failAll(error));
+          if (!signal.aborted) land(job.key, { [modelId]: { status: 'error', error: apiErrorMessage(error) } });
           continue;
         }
-        await Promise.all(modelIds.map((modelId) => askModel(job, { ...body, modelIds: [modelId] }, modelId, signal)));
+        await askModel(job, { ...body, modelIds: [modelId], earlierRounds: job.earlierFor(modelId) }, modelId, signal);
       }
     }
-    await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+    await Promise.all(modelIds.map(worker));
   }
 
   async function askModel(job, body, modelId, signal) {
     let results;
     try {
-      results = byModel(await compareAsync(kind, body, { signal }), job.itemsKey);
+      results = byModel(await compareOnceMoreAsync(kind, body, signal), job.itemsKey);
     } catch (error) {
       results = { [modelId]: { status: 'error', error: apiErrorMessage(error) } };
     }
     if (signal.aborted) return;
+    const result = results[modelId];
+    if (result?.status === 'done') {
+      job.onDone(modelId, result.items);
+      results = { ...results, [modelId]: { ...result, items: job.newOnly(result.items) } };
+    }
     markTriedOnce(results);
     land(job.key, results);
   }
@@ -137,7 +173,29 @@ export default function useCompareRound({ kind, modelIds }) {
     Object.values(byModelId).some(({ status }) => status === 'loading'),
   );
 
-  return { ...round, isRunning, startRound, toggle };
+  // Forgets the earlier rounds: the next round starts over, as with a new prompt.
+  function resetRounds() {
+    earlierRef.current = { prompt: null, byKey: {} };
+    setPromptRound(0);
+  }
+
+  return { ...round, isRunning, promptRound, startRound, resetRounds, toggle };
+}
+
+// The same tag in any case and spacing.
+function tagKey(tag) {
+  return tag.trim().toLowerCase();
+}
+
+// A compare request, asked once more when the dev client's tunnel turned it away.
+async function compareOnceMoreAsync(kind, body, signal) {
+  try {
+    return await compareAsync(kind, body, { signal });
+  } catch (error) {
+    if (error?.response?.status !== 503 || signal.aborted) throw error;
+    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+    return compareAsync(kind, body, { signal });
+  }
 }
 
 // The server's results by model: `{ status: 'done', items }` or `{ status: 'error', error }`.

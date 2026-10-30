@@ -4,13 +4,13 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
-import Textarea from '@/components/Textarea';
+import FoldingTextarea from '@/components/FoldingTextarea';
 import { colors, scale, sizes } from '@/styles/designTokens';
 
 const MAX_INPUT_HEIGHT = scale(120);
 
 /**
- * Where the user writes to the assistant: a text field, seeded with `seed` (`{ label, content }`, a
+ * Where the user writes to the assistant: a text field, one line while not typing, seeded with `seed` (`{ label, content }`, a
  * prompt button's, whose name goes with it until the text is edited), and Send, which hands
  * `onSend({ label, content })` the trimmed text and empties the field once it was sent. Send waits
  * while `disabled`, and shows a spinner while `isWaiting` (the send waits for the photos' tags).
@@ -37,7 +37,9 @@ export default function ChatComposer({ seed, placeholder, disabled, isWaiting, o
 
   return (
     <Card style={styles.composer}>
-      <Textarea
+      <FoldingTextarea
+        foldedLines={1}
+        editHint="Writes a message"
         value={text}
         onChangeText={handleChangeText}
         placeholder={placeholder}

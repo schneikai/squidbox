@@ -8,6 +8,7 @@ import ChatSubjectCard from './ChatSubjectCard';
 import UserMessage from './UserMessage';
 import promptTurn from './promptTurn';
 import usePostChat from './usePostChat';
+import useWritingModelName from './useWritingModelName';
 
 import Button from '@/components/Button';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
@@ -44,6 +45,8 @@ export default function PostChatScreen({ route, navigation }) {
   // What waits in the composer: a new `key` remounts it with the prompt a button put there.
   const [seed, setSeed] = useState(() => ({ key: 0, turn: prompt }));
   const favorites = useFavoriteToggle();
+  // An ai_admin sees which model writes, instead of whose voice.
+  const modelName = useWritingModelName();
   const scrollRef = useRef(null);
   // The title fades as the messages scroll under the header, as on the other sheets (ModalHeader).
   const { scrollY, onScroll } = useScrollY();
@@ -98,7 +101,8 @@ export default function PostChatScreen({ route, navigation }) {
       <ModalHeader
         leftSlot={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
         centerSlot="Assistant"
-        subtitle="Writing as you"
+        subtitle={modelName ?? 'Writing as you'}
+        subtitleSize={modelName ? 'small' : 'regular'}
         scrollY={scrollY}
         rightSlot={
           <Button icon="edit" onPress={handleNewChat} disabled={!messages?.length} accessibilityLabel="New chat" />

@@ -23,12 +23,13 @@ import { colors, layout, sizes, typography } from '@/styles/designTokens';
  *   rightSlot   ReactElement  — e.g. icon buttons; auto-wrapped in FloatingPill
  *   centerSlot  string | ReactElement
  *   subtitle    string (optional) — a smaller grey line under a string title
+ *   subtitleSize 'regular' (default) | 'small', for a subtitle that may be long (a model's name)
  *   scrollY     Reanimated SharedValue<number> (optional) — drives title fade-out on scroll
  */
 
 export const MODAL_HEADER_HEIGHT = sizes.iconButton + layout.barBottom * 2 + 8;
 
-export default function ModalHeader({ leftSlot, rightSlot, centerSlot, subtitle, scrollY }) {
+export default function ModalHeader({ leftSlot, rightSlot, centerSlot, subtitle, subtitleSize = 'regular', scrollY }) {
   // Stable fallback so animated style always has a value to read
   const fallback = useSharedValue(0);
   const anim = scrollY ?? fallback;
@@ -44,7 +45,10 @@ export default function ModalHeader({ leftSlot, rightSlot, centerSlot, subtitle,
           {centerSlot}
         </Text>
         {!!subtitle && (
-          <Text style={styles.centerSubtitle} numberOfLines={1}>
+          <Text
+            style={[styles.centerSubtitle, subtitleSize === 'small' && styles.centerSubtitleSmall]}
+            numberOfLines={1}
+          >
             {subtitle}
           </Text>
         )}
@@ -114,5 +118,8 @@ const styles = StyleSheet.create({
   centerSubtitle: {
     fontSize: typography.footnote,
     color: colors.text.secondary,
+  },
+  centerSubtitleSmall: {
+    fontSize: typography.caption2,
   },
 });

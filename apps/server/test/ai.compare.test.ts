@@ -27,7 +27,7 @@ import {
   writingTask,
 } from '../src/ai/tasks.js';
 import { VeniceError, VeniceUnavailableError } from '../src/ai/venice.js';
-import { visionMessages, writingMessages } from '../src/ai/prompts.js';
+import { compareVisionMessages, visionMessages, writingMessages } from '../src/ai/prompts.js';
 import type { CatalogEntry } from '../src/ai/catalog.js';
 
 const entries = fixture.data as CatalogEntry[];
@@ -43,7 +43,7 @@ const compareWriting = (models: CatalogEntry[]) =>
 const compareVision = (models: CatalogEntry[]) =>
   compareModels({
     task: visionTask,
-    messages: visionMessages({
+    messages: compareVisionMessages({
       prompt: 'Tag it',
       imageDataUrl: 'data:image/jpeg;base64,AAAA',
     }),
@@ -337,11 +337,36 @@ describe('compareModels: vision', () => {
       { modelId: 'qwen-3-6-plus', tags: [...tags, 'extra'] },
     ]);
     const sent = JSON.parse(fetchMock.mock.calls[0]![1].body);
-    expect(sent.messages[0]).toEqual({ role: 'system', content: 'Tag it' });
+    expect(sent.messages[0]).toEqual({
+      role: 'system',
+      content: 'Tag it\n\nAnswer in JSON, with the tags of this one photo.',
+    });
     expect(sent.messages[1].content[0]).toEqual({
       type: 'image_url',
       image_url: { url: 'data:image/jpeg;base64,AAAA' },
     });
     expect(sent).not.toHaveProperty('max_tokens');
+  });
+
+  it('reads the tags inside a list, as for a list of photos', async () => {
+    replies({ 'qwen-3-6-plus': [{ tags: ['forest', 'creek'] }] });
+    const [qwen] = await compareVision([model('qwen-3-6-plus')]);
+    expect(qwen).toEqual({ modelId: 'qwen-3-6-plus', tags: ['forest', 'creek'] });
+  });
+});
+
+describe('compareVisionMessages', () => {
+  it("follows the photo with the model's earlier tags as its answers, each asking for different ones", () => {
+    const messages = compareVisionMessages({
+      prompt: 'Tag it',
+      imageDataUrl: 'data:image/jpeg;base64,AAAA',
+      earlierRounds: [['forest'], ['creek', 'moss']],
+    });
+    expect(messages.slice(2)).toEqual([
+      { role: 'assistant', content: '{"tags":["forest"]}' },
+      { role: 'user', content: 'Give different tags.' },
+      { role: 'assistant', content: '{"tags":["creek","moss"]}' },
+      { role: 'user', content: 'Give different tags.' },
+    ]);
   });
 });

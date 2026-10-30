@@ -34,7 +34,7 @@ import { catalogAsync, findModel, toApiModel, type CatalogEntry } from './catalo
 import { chatAsync } from './chat.js';
 import { compareModels } from './compare.js';
 import { publishInstruction, readAppInstructions, readInstructions } from './instructions.js';
-import { visionMessages, writingMessages } from './prompts.js';
+import { compareVisionMessages, writingMessages } from './prompts.js';
 import { tagPhotoAsync } from './tagging.js';
 import { visionTask, writingTask } from './tasks.js';
 import { orAiUnavailable, VeniceError } from './venice.js';
@@ -316,8 +316,8 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         schema: { body: compareWritingRequestSchema, response: { 200: compareWritingResponseSchema } },
         handler: async (request, reply) => {
           const signal = untilClientLeaves(reply);
-          // Only the prompt box: no instructions, persona or Favorites.
-          const messages = writingMessages(request.body.prompt);
+          // Only the prompt box (and the model's earlier posts): no instructions, persona or Favorites.
+          const messages = writingMessages(request.body.prompt, request.body.earlierRounds);
           const results = await compareRequested(request.body.modelIds, 'writing', (models) =>
             compareModels({ task: writingTask, messages, models, log: request.log, signal }),
           );
@@ -340,10 +340,10 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         handler: async (request, reply) => {
           const signal = untilClientLeaves(reply);
           const { base64, mimeType } = request.body.image;
-          // Only the prompt box, without the persona's content themes.
-          const messages = visionMessages({
+          const messages = compareVisionMessages({
             prompt: request.body.prompt,
             imageDataUrl: `data:${mimeType};base64,${base64}`,
+            earlierRounds: request.body.earlierRounds,
           });
           const results = await compareRequested(request.body.modelIds, 'vision', (models) =>
             compareModels({ task: visionTask, messages, models, log: request.log, signal }),
