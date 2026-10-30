@@ -158,7 +158,8 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
   // Only the app with purges updates: an app without purges misses the purges it skipped
   // (SQLite migration 0009 adds the column empty).
   if (options.upgrades)
-    for (const device of devices) if (device.wholeRecordApp && !device.withoutPurges) device.upgradeAt = rand.int(steps);
+    for (const device of devices)
+      if (device.wholeRecordApp && !device.withoutPurges) device.upgradeAt = rand.int(steps);
 
   // ── The server: a push, as push.ts merges it (or whole-record LWW while rolled back).
   function serverPush(step: number, mutation: Mutation): Result {
@@ -514,7 +515,8 @@ describe('mergeRecord, property-style, with updates and skew (seeded)', () => {
 
   it(`${count(cases(10_000))} cases where the whole-record apps update mid-case, a pending row carried over whole, converge`, () => {
     const violations: string[] = [];
-    for (let seed = 1; seed <= cases(10_000); seed++) violations.push(...runCase(seed, 80, undefined, { upgrades: true }));
+    for (let seed = 1; seed <= cases(10_000); seed++)
+      violations.push(...runCase(seed, 80, undefined, { upgrades: true }));
     expect(violations.slice(0, 10)).toEqual([]);
     expect(stats.upgradedWithPending).toBeGreaterThan(cases(500));
     expect(stats.wholeRowPushed).toBeGreaterThan(cases(500));
