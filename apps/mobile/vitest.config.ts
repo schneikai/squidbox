@@ -44,5 +44,8 @@ export default defineConfig(async () => {
     resolve: {
       alias: { '@': new URL('./src', import.meta.url).pathname },
     },
+    // The app's migrations import their .sql files (Metro inlines them); `vitest related` walks
+    // those imports, the tests never run them.
+    assetsInclude: ['**/*.sql'],
   };
 });

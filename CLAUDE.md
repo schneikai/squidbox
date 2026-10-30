@@ -36,7 +36,7 @@ Decide this before the app stores anything new:
 
 ## Code Quality
 
-- The project checks are `npm run lint`, `npm run typecheck`, `npm run knip` and `npm test --workspaces --if-present`, all from the repo root. Run them before committing and keep them clean
+- Run `npm run check` from the repo root while working and before each commit: it checks only what changed since the branch left main and prints only the failures. Run `npm run check:all` (every check over the whole repo, knip too) before opening a PR or merging into main. Keep both clean. The DB suites run as `README.md` says
 - Add to `knip.json` only files Expo or Metro load by convention. Delete code that is merely unused
 
 ## Tests
