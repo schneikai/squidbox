@@ -131,6 +131,16 @@ export function libraryFs() {
   };
 }
 
+/** The mock of `src/library/fs` for the two-device tests: no files, and moves that do nothing. */
+export function noFiles() {
+  return {
+    listFiles: async () => new Set<string>(),
+    fileExists: async () => false,
+    moveFile: async () => {},
+    copyFile: async () => {},
+  };
+}
+
 /** `src/library/mergeLibrary` with the faults: planMerge and applyMerge as `vi.fn`s that reach their steps. */
 export function mergeLibraryWithFaults(original: typeof MergeLibrary) {
   return {
