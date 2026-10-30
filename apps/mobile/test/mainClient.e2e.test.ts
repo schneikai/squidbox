@@ -8,9 +8,10 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
+import { fakeClock } from './helpers/fakeClock';
 import * as serverSchema from '../../server/src/db/schema.js';
 import { serverCollections } from '../../server/src/sync/collections.js';
 import { pull as serverPull } from '../../server/src/sync/pull.js';
@@ -215,11 +216,8 @@ d('the installed app (its client code, as built) against this server', () => {
     await pool.end();
   });
   beforeEach(async () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
+    fakeClock();
     await pgDb.delete(serverSchema.assets).where(eq(serverSchema.assets.userId, USER));
-  });
-  afterEach(() => {
-    vi.useRealTimers();
   });
 
   it('both apps converge on edits of different fields', async () => {

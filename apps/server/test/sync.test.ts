@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, onTestFinished, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { and, eq, getTableColumns, inArray } from 'drizzle-orm';
@@ -441,19 +441,33 @@ d('sync engine (Postgres)', () => {
       let running = 0;
       let overlapped = false;
       const errors: unknown[] = [];
-      const slowDelete = async (keys: string[]) => {
+      // The first delete holds the user's lock until the test releases it.
+      let entered!: () => void;
+      const deleting = new Promise<void>((resolve) => (entered = resolve));
+      let release!: () => void;
+      const released = new Promise<void>((resolve) => (release = resolve));
+      let calls = 0;
+      const heldDelete = async (keys: string[]) => {
         overlapped ||= running > 0;
         running += 1;
-        await new Promise((resolve) => setTimeout(resolve, 20));
+        if (calls++ === 0) {
+          entered();
+          await released;
+        }
         running -= 1;
         return deleteKeys(keys);
       };
 
-      cleanUpPurgedFiles(db, USER_A, slowDelete, (error) => errors.push(error));
-      await new Promise((resolve) => setTimeout(resolve, 5));
-      await push(db, USER_A, [mut(purgedAsset({ filename: 'second.jpg', thumbnailFilename: 'second-t.jpg' }))]);
-      cleanUpPurgedFiles(db, USER_A, slowDelete, (error) => errors.push(error));
-      cleanUpPurgedFiles(db, USER_A, slowDelete, (error) => errors.push(error));
+      cleanUpPurgedFiles(db, USER_A, heldDelete, (error) => errors.push(error));
+      await deleting;
+      const pushed = push(db, USER_A, [
+        mut(purgedAsset({ filename: 'second.jpg', thumbnailFilename: 'second-t.jpg' })),
+      ]); // waits for the lock
+      cleanUpPurgedFiles(db, USER_A, heldDelete, (error) => errors.push(error));
+      cleanUpPurgedFiles(db, USER_A, heldDelete, (error) => errors.push(error));
+      release();
+      await pushed;
+      cleanUpPurgedFiles(db, USER_A, heldDelete, (error) => errors.push(error)); // the push's, after its reply
       await purgedFileCleanupsSettled();
 
       expect(overlapped).toBe(false);
@@ -864,17 +878,21 @@ d('sync engine (Postgres)', () => {
 
     // The restore remembers the deletion value it undid, so a purge made of it loses whatever the clocks.
     it('a restore beats a purge that hadn’t seen it when the deletion came from a fast clock', async () => {
-      const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
+      vi.useFakeTimers({ toFake: ['Date'] });
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
+      const tick = () => vi.setSystemTime(Date.now() + 1000);
       const r = { ...assetRecord(), purgedAt: null as number | null };
       await push(db, USER_A, [mut(r)]);
       const fastDeletion = Date.now() + 3_600_000; // the deleting device is an hour ahead
       const deleted = { ...r, updatedAt: fastDeletion, deletedAt: fastDeletion };
       expect((await push(db, USER_A, [at(deleted, fastDeletion, ['deletedAt'])]))[0].status).toBe('applied');
-      await tick();
+      tick();
       const restoredAt = Date.now();
       await push(db, USER_A, [at({ ...r, updatedAt: restoredAt, deletedAt: null }, restoredAt, ['deletedAt'])]);
       expect(await raw(r.id)).toMatchObject({ deletedAt: null });
-      await tick();
+      tick();
       const purgedAt = Date.now(); // made on a device that only saw the deletion
       const [result] = await push(db, USER_A, [
         at({ ...deleted, updatedAt: purgedAt, purgedAt }, purgedAt, ['deletedAt', 'purgedAt']),

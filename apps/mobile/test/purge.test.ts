@@ -5,6 +5,7 @@ import { readMigrationFiles } from 'drizzle-orm/migrator';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach } from 'vitest';
 
+import { deferred } from './helpers/deferred';
 import { createPost, makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { fakeTransport } from './helpers/fakeTransport';
 import { makeTestDb } from './helpers/testDb';
@@ -485,15 +486,19 @@ describe('the sweep: concurrent sweeps, aborts, stuck assets, resyncs', () => {
   it('two sweeps at once (the open’s and a run’s) remove each name, mark every asset, and neither throws', async () => {
     await manyPurged(1200, (i) => ({ filename: `f${i % 700}.jpg`, thumbnailFilename: `t${i}.jpg` }));
     const removed: string[] = [];
-    const slow: RemoveFiles = async (files) => {
-      await new Promise((resolve) => setTimeout(resolve, 1));
+    // The first removal of each sweep waits until all three are inside one: they remove the same batch.
+    let calls = 0;
+    const allInside = deferred();
+    const together: RemoveFiles = async (files) => {
+      if (++calls === 3) allInside.resolve();
+      await allInside.promise;
       for (const { filename, thumbnailFilename } of files)
         removed.push(...[filename, thumbnailFilename].filter((n) => n !== undefined));
     };
     await Promise.all([
-      sweepPurgedFiles(db, slow),
-      runSyncOnce(db, applied, { removeFiles: slow }),
-      sweepPurgedFiles(db, slow),
+      sweepPurgedFiles(db, together),
+      runSyncOnce(db, applied, { removeFiles: together }),
+      sweepPurgedFiles(db, together),
     ]);
     expect(await unswept()).toEqual([]);
     expect(new Set(removed).size).toBe(700 + 1200);
@@ -580,15 +585,18 @@ describe('the sweep: concurrent sweeps, aborts, stuck assets, resyncs', () => {
     const liveRow = await assetRow(live.id);
 
     const removed: string[] = [];
-    let release!: () => void;
-    const held = new Promise<void>((resolve) => (release = resolve));
+    const entered = deferred();
+    const held = deferred();
     let calls = 0;
     const sweep = sweepPurgedFiles(db, async (files) => {
-      if (calls++ === 0) await held; // the first batch's files take a while to go
+      if (calls++ === 0) {
+        entered.resolve();
+        await held.promise; // the first batch's files take a while to go
+      }
       for (const { filename, thumbnailFilename } of files)
         removed.push(...[filename, thumbnailFilename].filter((n) => n !== undefined));
     });
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await entered.promise;
     expect(calls).toBe(1);
 
     const stop = new AbortController();
@@ -605,7 +613,7 @@ describe('the sweep: concurrent sweeps, aborts, stuck assets, resyncs', () => {
       }),
       { signal: stop.signal },
     );
-    release();
+    held.resolve();
     await sweep;
     expect(removed).not.toContain('shared.jpg');
   });

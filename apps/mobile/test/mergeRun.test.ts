@@ -1,11 +1,14 @@
 import { and, eq, isNull, lte } from 'drizzle-orm';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+import { deferred } from './helpers/deferred';
 import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
+import { fakeClock } from './helpers/fakeClock';
 import { fuzzRuns } from './helpers/fuzzRuns';
 import { mergeLosses } from './helpers/mergeLosses';
 import { prng } from './helpers/prng';
 import { seedAccountPhotos } from './helpers/seedAccountPhotos';
+import { sweepsSettled } from './helpers/sweeps';
 import { makeTestDb } from './helpers/testDb';
 import { libraryPaths } from '../src/library/libraryPaths';
 import type { Registry } from '../src/library/registry';
@@ -94,6 +97,12 @@ vi.mock('../src/library/mergeLibrary', async (importOriginal) => {
       return original.applyMerge(...args);
     }),
   };
+});
+
+vi.mock('../src/sync/sweepPurgedFiles', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../src/sync/sweepPurgedFiles')>();
+  const { trackSweeps } = await import('./helpers/sweeps');
+  return { ...original, sweepPurgedFiles: trackSweeps(original.sweepPurgedFiles) };
 });
 
 vi.mock('../src/sync/worker', async (importOriginal) => ({
@@ -395,8 +404,6 @@ describe('a failed pass after an earlier one committed', () => {
 });
 
 describe('the sweep at a library’s open', () => {
-  const settled = () => new Promise((resolve) => setTimeout(resolve, 20));
-
   beforeEach(() => resetLibraries());
 
   it('a device library sweeps when it opens and after a purge', async () => {
@@ -405,11 +412,11 @@ describe('the sweep at a library’s open', () => {
     await repo.remove(sourceDb(), [a.id, b.id]);
     await repo.purgeAssets(sourceDb(), [a.id]);
     await openLibrary(DEV);
-    await settled();
+    await sweepsSettled();
     expect(files.has(getAssetFileUri('a.jpg', SRC))).toBe(false);
     await repo.purgeAssets(getDb(), [b.id]);
     sweepOpenLibrary(); // as AssetsProvider does after a purge
-    await settled();
+    await sweepsSettled();
     expect(files.has(getAssetFileUri('b.jpg', SRC))).toBe(false);
   });
 
@@ -424,7 +431,7 @@ describe('the sweep at a library’s open', () => {
     await markFirstSyncDone(TGT_DB);
     await openLibrary(ACC);
     sweepOpenLibrary();
-    await settled();
+    await sweepsSettled();
     expect(files.has(getAssetFileUri('acc.jpg', TGT))).toBe(true);
   });
 });
@@ -442,9 +449,6 @@ describe('a merge pass run again (a crash, a failed file move)', () => {
   const newEdgeId = () => `00000000-0000-4000-8000-${String(++edgeIds).padStart(12, '0')}`;
 
   beforeEach(() => resetToAccount());
-  afterEach(() => {
-    vi.useRealTimers();
-  });
 
   async function openDevice() {
     await closeLibrary();
@@ -484,7 +488,7 @@ describe('a merge pass run again (a crash, a failed file move)', () => {
   // Clocks are per record (nextUpdatedAt), not across a library: a device clock that ran ahead when
   // one record was written (set by hand, then corrected) must not hide the later edits of the others.
   it('an edit made on the device after the pass, stamped below the pass’s mark (the clock went back), reaches the account', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
+    fakeClock();
     vi.setSystemTime(new Date('2026-10-21T10:00:00Z'));
     const kept = await devicePhoto({ filename: 'k.jpg', mediaLibraryAssetId: 'm-k' });
     vi.setSystemTime(new Date('2026-10-22T10:00:00Z')); // the clock a day ahead for a while
@@ -980,14 +984,13 @@ describe('round 15: a camera-roll match an earlier library never pushed', () => 
     const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-x', isFavorite: false, notes: null });
     await devicePhoto({ mediaLibraryAssetId: 'm-x', filename: 'd.jpg', isFavorite: true, notes: 'from the beach' });
     await passIntoAccThenLost(accountPhoto);
-    let inCommit!: () => void;
-    const committing = new Promise<void>((resolve) => (inCommit = resolve));
+    const committing = deferred();
     vi.mocked(applyMerge).mockImplementationOnce(() => {
-      inCommit();
+      committing.resolve();
       return new Promise<void>(() => {}); // the app is stopped: the transaction never commits
     });
     mergeLibrary('dev', 'acc2'); // never settles: the app stops inside it
-    await committing;
+    await committing.promise;
 
     // The next launch: the same databases and list; the boot resumes the merge.
     await closeLibrary();

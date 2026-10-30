@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { deferred } from './helpers/deferred';
 import { makeAssetRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
 import tagAssetAsync from '../src/features/photo-tags/tagAssetAsync';
@@ -21,13 +22,6 @@ vi.mock('../src/utils/cloud-api/ai/tagPhotoAsync', () => ({ default: vi.fn() }))
 
 const deps = { library: {}, isAuthenticated: true, preloadAssetThumbnailsAsync: vi.fn() };
 const image = { base64: 'AAAA', mimeType: 'image/jpeg' };
-
-// A request whose answer the test gives when it wants to.
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((done) => (resolve = done));
-  return { promise, resolve };
-}
 
 async function tagsOf(id: string) {
   const [row] = await readByIds(current.db!, schema.assets, [id]);
@@ -71,10 +65,14 @@ describe('tagAssetAsync', () => {
 
   it('fails and stores nothing when the photo was deleted while it was being tagged', async () => {
     const [asset] = await repo.createMany(current.db!, [makeAssetRecord({ id: 'a1' })]);
+    const called = deferred();
     const reply = deferred<string[]>();
-    vi.mocked(tagPhotoAsync).mockReturnValueOnce(reply.promise);
+    vi.mocked(tagPhotoAsync).mockImplementationOnce(() => {
+      called.resolve();
+      return reply.promise;
+    });
     const tagging = tagAssetAsync(asset!, deps);
-    await vi.waitFor(() => expect(vi.mocked(tagPhotoAsync)).toHaveBeenCalled());
+    await called.promise;
     await repo.remove(current.db!, ['a1']);
     reply.resolve(['creek']);
 

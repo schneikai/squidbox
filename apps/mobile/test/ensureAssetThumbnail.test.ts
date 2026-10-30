@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import { flushTurns } from './helpers/flushTurns';
 import { libraryPaths } from '../src/library/libraryPaths';
 
 // The files on the device, and the thumbnails being made (each until the test finishes it).
@@ -44,7 +45,6 @@ const withOriginal = (id: string) => {
   return assetOf(id);
 };
 const hasThumbnail = (id: string) => files.has(`${dir}thumbnails/${id}-thumb.png`);
-const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('ensureAssetThumbnailAsync', () => {
   beforeEach(() => {
@@ -65,7 +65,7 @@ describe('ensureAssetThumbnailAsync', () => {
       ensureAssetThumbnailAsync(asset, { library }),
       ensureAssetThumbnailAsync(asset, { library }),
     ]);
-    await flush();
+    await flushTurns();
     expect(making).toHaveLength(1);
     making[0]!.finish();
     expect(await both).toEqual([true, true]);
@@ -77,11 +77,11 @@ describe('ensureAssetThumbnailAsync', () => {
     const results = ['a', 'b', 'c', 'd'].map((id) =>
       ensureAssetThumbnailAsync(withOriginal(id), id === 'c' ? { library, signal: tile.signal } : { library }),
     );
-    await flush();
+    await flushTurns();
     expect(making.map((job) => job.uri.split('/').pop())).toEqual(['a.mov', 'b.mov']);
     tile.abort();
     making[0]!.finish();
-    await flush();
+    await flushTurns();
     expect(making.map((job) => job.uri.split('/').pop())).toEqual(['a.mov', 'b.mov', 'd.mov']);
     making[1]!.finish();
     making[2]!.finish();
@@ -92,7 +92,7 @@ describe('ensureAssetThumbnailAsync', () => {
   it('checks for the original when its turn comes: the backup may have deleted it meanwhile', async () => {
     const [a, b, c] = ['a', 'b', 'c'].map(withOriginal);
     const results = [ensureAssetThumbnailAsync(a!, { library }), ensureAssetThumbnailAsync(b!, { library })];
-    await flush();
+    await flushTurns();
     const late = ensureAssetThumbnailAsync(c!, { library });
     files.delete(`${dir}files/c.mov`);
     making[0]!.finish();
@@ -105,14 +105,14 @@ describe('ensureAssetThumbnailAsync', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const own = { ...withOriginal('a'), isThumbnailSynced: false };
     const status = getAssetThumbnailStatusAsync(own, { isAuthenticated: true, library });
-    await flush();
+    await flushTurns();
     making[0]!.finish();
     expect(await status).toBe('local');
 
     const broken = { ...withOriginal('b'), isThumbnailSynced: false };
     for (let attempt = 0; attempt < 2; attempt++) {
       const failing = getAssetThumbnailStatusAsync(broken, { isAuthenticated: true, library });
-      await flush();
+      await flushTurns();
       making.at(-1)!.fail(new Error('unreadable video'));
       expect(await failing).toBe('notUploaded');
     }
