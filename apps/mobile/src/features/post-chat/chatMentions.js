@@ -1,13 +1,13 @@
-import { uniqueTags } from '@squidbox/shared';
+import { CHAT_LIMITS } from '@squidbox/shared';
 
-import tagKey from '@/utils/tagKey';
+import withEdits from './withEdits';
 
 /**
- * The handles the chat shows and sends: those found in the posts (`handles`, useMentions'), without
- * the ones its Mentions sheet took off (`removed`) and with the ones it added (`added`), each once in
- * any case.
+ * The handles the chat shows and sends: those found in the posts (`handles`, useMentions'), with the
+ * Mentions sheet's edits (`mentionEdits`, withEdits'), each once in any case, within CHAT_LIMITS.
  */
-export default function chatMentions(handles, { added, removed }) {
-  const left = new Set(removed.map(tagKey));
-  return uniqueTags([...handles.filter((handle) => !left.has(tagKey(handle))), ...added]);
+export default function chatMentions(handles, mentionEdits) {
+  return withEdits(handles, mentionEdits)
+    .filter((handle) => handle.length <= CHAT_LIMITS.mention)
+    .slice(0, CHAT_LIMITS.mentions);
 }

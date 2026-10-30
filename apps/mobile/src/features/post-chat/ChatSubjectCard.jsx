@@ -57,9 +57,7 @@ export default function ChatSubjectCard({ kind, assets, tagging, tagEdits, onEdi
           onRetry={tagging.retry}
         />
       )}
-      {mentions && mentions.handles.length + mentions.more.length > 0 && (
-        <MentionsRow mentions={mentions} from={mentionsFrom} onEditMentions={onEditMentions} />
-      )}
+      {mentions?.hasAny && <MentionsRow mentions={mentions} from={mentionsFrom} onEditMentions={onEditMentions} />}
     </Card>
   );
 }

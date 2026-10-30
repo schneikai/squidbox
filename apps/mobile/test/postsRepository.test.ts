@@ -7,7 +7,7 @@ import { makeTestDb } from './helpers/testDb';
 import * as assets from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
-import { readMentionTexts, readNewestRepostDate } from '../src/sync/postsRepository';
+import { readMentionedTexts, readMentionTexts, readNewestRepostDate } from '../src/sync/postsRepository';
 import { makeRepository } from '../src/sync/repository';
 
 const posts = makeRepository('posts', schema.posts);
@@ -48,7 +48,7 @@ describe('postsRepository', () => {
       await createPost(db, { id: 'p3', text: 'not in the album', postedAt: 30 }, ['a3']);
       await createPost(db, { id: 'p4', text: 'deleted', postedAt: 40, deletedAt: 41 }, ['a2']);
       await createPost(db, { id: 'p5', text: 'only in a deleted album', postedAt: 50 }, ['a4']);
-      expect(await readMentionTexts(db, ['a1'])).toMatchObject({
+      expect(await readMentionTexts(db, ['a1'])).toEqual({
         texts: ['newer', 'older, with @ridge'],
         fromAlbum: true,
       });
@@ -61,7 +61,7 @@ describe('postsRepository', () => {
       await createPost(db, { id: 'p2', text: 'asset left the album', postedAt: 20 }, ['a1']);
       await db.update(schema.albumAssets).set({ deletedAt: 5 });
       await createPost(db, { id: 'p3', text: 'newest elsewhere', postedAt: 30 }, ['a3']);
-      expect(await readMentionTexts(db, ['a1'])).toMatchObject({
+      expect(await readMentionTexts(db, ['a1'])).toEqual({
         texts: ['newest elsewhere', 'asset left the album', 'edge removed'],
         fromAlbum: false,
       });
@@ -72,17 +72,17 @@ describe('postsRepository', () => {
       await createPost(db, { id: 'p1', text: 'one', postedAt: 10 }, ['a3']);
       await createPost(db, { id: 'p2', text: 'two', postedAt: 20 });
       await createPost(db, { id: 'p3', text: 'deleted', postedAt: 30, deletedAt: 31 });
-      expect(await readMentionTexts(db, ['a3'])).toMatchObject({ texts: ['two', 'one'], fromAlbum: false });
-      expect(await readMentionTexts(db, [])).toMatchObject({ texts: ['two', 'one'], fromAlbum: false });
+      expect(await readMentionTexts(db, ['a3'])).toEqual({ texts: ['two', 'one'], fromAlbum: false });
+      expect(await readMentionTexts(db, [])).toEqual({ texts: ['two', 'one'], fromAlbum: false });
     });
+  });
 
-    it('reads every live post with an @ for the handles ever mentioned, in or out of the album', async () => {
-      const db = await library();
-      await createPost(db, { id: 'p1', text: 'in the album, @ridge', postedAt: 10 }, ['a2']);
-      await createPost(db, { id: 'p2', text: 'elsewhere, @trailmike', postedAt: 20 }, ['a3']);
-      await createPost(db, { id: 'p3', text: 'no handle', postedAt: 30 }, ['a3']);
-      await createPost(db, { id: 'p4', text: 'deleted @gone', postedAt: 40, deletedAt: 41 });
-      expect((await readMentionTexts(db, ['a1'])).allTexts).toEqual(['elsewhere, @trailmike', 'in the album, @ridge']);
-    });
+  it('reads every live post with an @ for the handles ever mentioned, newest first', async () => {
+    const db = makeTestDb();
+    await createPost(db, { id: 'p1', text: 'older, @ridge', postedAt: 10 });
+    await createPost(db, { id: 'p2', text: 'newer, @trailmike', postedAt: 20 });
+    await createPost(db, { id: 'p3', text: 'no handle', postedAt: 30 });
+    await createPost(db, { id: 'p4', text: 'deleted @gone', postedAt: 40, deletedAt: 41 });
+    expect(await readMentionedTexts(db)).toEqual(['newer, @trailmike', 'older, @ridge']);
   });
 });

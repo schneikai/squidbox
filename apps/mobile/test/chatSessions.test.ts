@@ -148,14 +148,14 @@ describe('chatSessions', () => {
 
   it("holds the card's tag edits: a removed tag leaves the added ones, an added one the removed", () => {
     const { session } = open();
-    expect(session.getState().tagEdits).toEqual({ addedTags: [], removedTags: [] });
+    expect(session.getState().tagEdits).toEqual({ added: [], removed: [] });
     session.editTags({ remove: ['selfie'] });
     session.editTags({ add: ['campfire', 'Ridge'] });
-    expect(session.getState().tagEdits).toEqual({ addedTags: ['campfire', 'Ridge'], removedTags: ['selfie'] });
+    expect(session.getState().tagEdits).toEqual({ added: ['campfire', 'Ridge'], removed: ['selfie'] });
     session.editTags({ remove: ['ridge'], add: ['SELFIE'] });
-    expect(session.getState().tagEdits).toEqual({ addedTags: ['campfire', 'SELFIE'], removedTags: ['ridge'] });
+    expect(session.getState().tagEdits).toEqual({ added: ['campfire', 'SELFIE'], removed: ['ridge'] });
     session.reset();
-    expect(session.getState().tagEdits.removedTags).toEqual(['ridge']);
+    expect(session.getState().tagEdits.removed).toEqual(['ridge']);
     expect(setTags).not.toHaveBeenCalled();
   });
 

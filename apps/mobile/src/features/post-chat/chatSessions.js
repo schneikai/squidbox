@@ -1,11 +1,11 @@
-import { CHAT_LIMITS, uniqueTags } from '@squidbox/shared';
+import { CHAT_LIMITS } from '@squidbox/shared';
+
+import withEdits from './withEdits';
 
 import createStore from '@/lib/createStore';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
-import tagKey from '@/utils/tagKey';
 
-const NO_TAG_EDITS = Object.freeze({ addedTags: [], removedTags: [] });
-const NO_MENTION_EDITS = Object.freeze({ added: [], removed: [] });
+const NO_EDITS = Object.freeze({ added: [], removed: [] });
 
 // The open assistant chats by id. A chat lives while its editor is open and is never saved: the
 // editor and the chat screen (a route, whose params are plain data) share it by id.
@@ -62,7 +62,7 @@ function wireTurns(messages) {
  * (`reply`: what the assistant says; `postOptions`: the options for the post, when the user asked for
  * posts; `errorStatus`: the failed request's HTTP status, if any). `isSending` while a reply loads.
  * The editor's caption and assets (`getDraft()`) change with every keystroke, so they are read when
- * needed, not told. `tagEdits` (`{ addedTags, removedTags }`) is what the chat card changed in the
+ * needed, not told. `tagEdits` (`{ added, removed }`) is what the chat card changed in the
  * post's tags (postTags): kept here only, while the editor is open, never on the photos.
  * `mentionEdits` (`{ added, removed }`) is the same for the handles it may mention (chatMentions),
  * never on the posts.
@@ -73,8 +73,8 @@ function createSession(kind) {
     messages: [],
     isSending: false,
     canApply: false,
-    tagEdits: NO_TAG_EDITS,
-    mentionEdits: NO_MENTION_EDITS,
+    tagEdits: NO_EDITS,
+    mentionEdits: NO_EDITS,
   });
   let draft = { text: '', assets: [] };
   let applier = null;
@@ -172,16 +172,12 @@ function createSession(kind) {
 
     /** The card's change to the post's tags (`{ add, remove }`), as editedLists says. */
     editTags(edit) {
-      const { addedTags, removedTags } = store.get().tagEdits;
-      const [added, removed] = editedLists([addedTags, removedTags], edit);
-      update({ tagEdits: { addedTags: added, removedTags: removed } });
+      update({ tagEdits: editedLists(store.get().tagEdits, edit) });
     },
 
     /** The Mentions sheet's change to the handles (`{ add, remove }`), as editedLists says. */
     editMentions({ add = [], remove = [] }) {
-      const { added, removed } = store.get().mentionEdits;
-      const [nextAdded, nextRemoved] = editedLists([added, removed], { add: add.map(asHandle), remove });
-      update({ mentionEdits: { added: nextAdded, removed: nextRemoved } });
+      update({ mentionEdits: editedLists(store.get().mentionEdits, { add: add.map(asHandle), remove }) });
     },
 
     /** Starts over (New chat): the reply under way, if any, is dropped. */
@@ -199,15 +195,14 @@ function createSession(kind) {
 }
 
 /**
- * The added and removed lists (`[added, removed]`) after a change (`{ add, remove }`): an item taken
- * off goes on the removed list (and off the added one), one added the other way round, in any case.
+ * The edits (`{ added, removed }`) after a change (`{ add, remove }`): an item taken off goes on the
+ * removed list (and off the added one), one added the other way round, in any case.
  */
-function editedLists([added, removed], { add = [], remove = [] }) {
-  const without = (list, items) => {
-    const keys = new Set(items.map(tagKey));
-    return list.filter((item) => !keys.has(tagKey(item)));
+function editedLists({ added, removed }, { add = [], remove = [] }) {
+  return {
+    added: withEdits(added, { added: add, removed: remove }),
+    removed: withEdits(removed, { added: remove, removed: add }),
   };
-  return [uniqueTags([...without(added, remove), ...add]), uniqueTags([...without(removed, add), ...remove])];
 }
 
 // A handle as typed, with its @ and without spaces.

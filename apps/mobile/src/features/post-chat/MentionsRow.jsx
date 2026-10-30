@@ -13,7 +13,7 @@ const SHOWN = 5;
 export default function MentionsRow({ mentions, from, onEditMentions }) {
   const [isEditing, setIsEditing] = useState(false);
 
-  const { handles, more } = mentions;
+  const { handles } = mentions;
 
   return (
     <>
@@ -24,7 +24,6 @@ export default function MentionsRow({ mentions, from, onEditMentions }) {
         isVisible={isEditing}
         onClose={() => setIsEditing(false)}
         handles={handles}
-        more={more}
         onEditMentions={onEditMentions}
       />
     </>

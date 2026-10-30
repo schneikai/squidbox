@@ -34,13 +34,12 @@ const MENTION_POSTS = 100;
  * The texts of the live posts whose assets share a live album with `assetIds` (through live edges),
  * newest post date first, at most MENTION_POSTS, with `fromAlbum: true`; without any (no album, or one never
  * posted from), the newest live posts, with `fromAlbum: false`. Where the chat finds the
- * handles the user mentions in posts like the one they write. `allTexts`: those of every live post
- * with an @, for the handles the user ever mentioned.
+ * handles the user mentions in posts like the one they write.
  */
 export async function readMentionTexts(
   db: SyncDb,
   assetIds: string[],
-): Promise<{ texts: string[]; fromAlbum: boolean; allTexts: string[] }> {
+): Promise<{ texts: string[]; fromAlbum: boolean }> {
   const p = schema.posts;
   const newest = sql`${p.postedAt} desc, ${p.id} desc`;
   const inAlbums = sql`${p.id} in (select pe.post_id from post_assets pe
@@ -52,13 +51,18 @@ export async function readMentionTexts(
       .where(where ? sql`${p.deletedAt} is null and ${where}` : isNull(p.deletedAt))
       .orderBy(newest)
       .limit(MENTION_POSTS);
-  const all = await db
+  const fromAlbum = assetIds.length > 0 ? await read(inAlbums) : [];
+  if (fromAlbum.length > 0) return { texts: fromAlbum.map((row) => row.text), fromAlbum: true };
+  return { texts: (await read()).map((row) => row.text), fromAlbum: false };
+}
+
+/** The texts of every live post with an @, newest post date first: the handles the user ever mentioned. */
+export async function readMentionedTexts(db: SyncDb): Promise<string[]> {
+  const p = schema.posts;
+  const rows = await db
     .select({ text: p.text })
     .from(p)
     .where(sql`${p.deletedAt} is null and instr(${p.text}, '@') > 0`)
-    .orderBy(newest);
-  const allTexts = all.map((row) => row.text);
-  const fromAlbum = assetIds.length > 0 ? await read(inAlbums) : [];
-  if (fromAlbum.length > 0) return { texts: fromAlbum.map((row) => row.text), fromAlbum: true, allTexts };
-  return { texts: (await read()).map((row) => row.text), fromAlbum: false, allTexts };
+    .orderBy(sql`${p.postedAt} desc, ${p.id} desc`);
+  return rows.map((row) => row.text);
 }
