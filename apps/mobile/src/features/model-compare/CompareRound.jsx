@@ -1,6 +1,6 @@
 import { COMPARE_PROMPT_MAX_LENGTH } from '@squidbox/shared';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import ModelAnswers from './ModelAnswers';
@@ -9,20 +9,19 @@ import useCompareRound, { TEXT_KEY } from './useCompareRound';
 
 import Card from '@/components/Card';
 import Field from '@/components/Field';
+import FoldingTextarea from '@/components/FoldingTextarea';
 import IntroText from '@/components/IntroText';
 import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import PrimaryButton from '@/components/PrimaryButton';
 import TextButton from '@/components/TextButton';
-import Textarea from '@/components/Textarea';
 import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import { SCREEN_PADDING } from '@/constants';
 import useScrollY from '@/hooks/useScrollY';
 import useVeniceBalance from '@/hooks/useVeniceBalance';
 import { scale } from '@/styles/designTokens';
-import textareaTextStyle from '@/styles/textareaTextStyle';
 import { setPrompt } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 
@@ -43,7 +42,6 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
   const { scrollY, onScroll } = useScrollY();
   const paddingBottom = useFloatingPrimaryActionPadding();
   const [prompt, setPromptText] = useState(savedPrompt ?? defaultPrompt);
-  const [isEditingPrompt, setIsEditingPrompt] = useState(false);
   const savedPromptRef = useRef(savedPrompt);
   const modelIds = useMemo(() => models.map(({ id }) => id), [models]);
   const round = useCompareRound({ kind, modelIds });
@@ -91,27 +89,15 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
       >
         <Card style={styles.promptCard}>
           <Field label="Prompt" description="Remembered for next time.">
-            {isEditingPrompt ? (
-              <Textarea
-                value={prompt}
-                onChangeText={setPromptText}
-                onBlur={() => setIsEditingPrompt(false)}
-                maxLength={COMPARE_PROMPT_MAX_LENGTH}
-                minHeight={PROMPT_MIN_HEIGHT}
-                autoFocus
-                style={styles.promptInput}
-              />
-            ) : (
-              <Pressable
-                onPress={() => setIsEditingPrompt(true)}
-                accessibilityRole="button"
-                accessibilityHint="Edits the prompt"
-              >
-                <Text style={[textareaTextStyle, styles.promptFolded]} numberOfLines={PROMPT_FOLDED_LINES}>
-                  {prompt}
-                </Text>
-              </Pressable>
-            )}
+            <FoldingTextarea
+              foldedLines={PROMPT_FOLDED_LINES}
+              editHint="Edits the prompt"
+              value={prompt}
+              onChangeText={setPromptText}
+              maxLength={COMPARE_PROMPT_MAX_LENGTH}
+              minHeight={PROMPT_MIN_HEIGHT}
+              style={styles.promptInput}
+            />
           </Field>
         </Card>
         <View style={styles.status}>
@@ -178,9 +164,6 @@ const styles = StyleSheet.create({
   // As the folded text, so the prompt doesn't move when the editing starts.
   promptInput: {
     padding: 0,
-  },
-  promptFolded: {
-    minHeight: PROMPT_MIN_HEIGHT,
   },
   hint: {
     paddingHorizontal: 4,
