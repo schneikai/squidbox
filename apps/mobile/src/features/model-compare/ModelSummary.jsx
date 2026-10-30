@@ -10,9 +10,9 @@ import scoreDetailLabel from '@/utils/ai/scoreDetailLabel';
 
 // A model's name, its labels (`labels`, from modelLabels) as badges below it: Changed (a default of
 // yours that everyone doesn't use), Verified, then the defaults; and a detail line under them, led
-// by a `score` above 0 (its thumbs up). `isDimmed` greys the text, for a
-// model Venice no longer offers.
-export default function ModelSummary({ name, labels, detail, score, isDimmed = false }) {
+// by a `score` above 0 (its thumbs up); the admin's `note` under it, at most two lines. `isDimmed`
+// greys the text, for a model Venice no longer offers.
+export default function ModelSummary({ name, labels, detail, score, note, isDimmed = false }) {
   const hasBadges = labels.default || labels.uncensoredDefault || labels.verified;
   return (
     <View style={styles.summary}>
@@ -32,6 +32,11 @@ export default function ModelSummary({ name, labels, detail, score, isDimmed = f
       >
         <ScoreDetail score={score} detail={detail} />
       </Text>
+      {!!note && (
+        <Text style={[listTextStyles.subtitle, styles.note]} numberOfLines={2}>
+          {note}
+        </Text>
+      )}
     </View>
   );
 }
@@ -50,6 +55,9 @@ const styles = StyleSheet.create({
   },
   detail: {
     marginTop: 2,
+  },
+  note: {
+    color: colors.text.primary,
   },
   dimmed: {
     color: colors.text.tertiary,

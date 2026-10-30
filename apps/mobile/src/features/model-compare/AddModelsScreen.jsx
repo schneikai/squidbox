@@ -18,12 +18,13 @@ import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useScrollY from '@/hooks/useScrollY';
 import useYourModels from '@/hooks/useYourModels';
-import { addYourModel } from '@/sync/aiStateRepository';
-import { getDb } from '@/sync/db/client';
+import { addYourModel, readRemovedModels } from '@/sync/aiStateRepository';
+import { getDb, schema } from '@/sync/db/client';
+import { useLiveQuery } from '@/sync/useLiveQuery';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
 
 // Every model Venice offers for a kind (route param `kind`), with a search box; a tap adds one to
-// your list. Removing is on the model's page.
+// your list. Removing is on the model's page; a removed model shows its score and note here.
 export default function AddModelsScreen({ navigation, route }) {
   const { kind } = route.params;
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
@@ -32,6 +33,7 @@ export default function AddModelsScreen({ navigation, route }) {
   const { bottom } = useSafeAreaInsets();
   const haptics = useHaptics();
   const { catalog, defaults, yourDefaults, error, retry, rows } = useYourModels(kind);
+  const removed = useLiveQuery((db) => readRemovedModels(db, kind), [schema.aiModels, schema.aiScores], [kind]);
 
   const addedIds = useMemo(() => new Set((rows ?? []).map(({ id }) => id)), [rows]);
   const models = useMemo(
@@ -54,11 +56,12 @@ export default function AddModelsScreen({ navigation, route }) {
         kind={kind}
         yourDefaults={yourDefaults}
         defaults={defaults}
+        removed={removed?.get(item.id)}
         isAdded={addedIds.has(item.id)}
         onAdd={handleAdd}
       />
     ),
-    [kind, yourDefaults, defaults, addedIds, handleAdd],
+    [kind, yourDefaults, defaults, removed, addedIds, handleAdd],
   );
 
   function renderEmpty() {

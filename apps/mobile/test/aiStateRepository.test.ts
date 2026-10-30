@@ -10,9 +10,11 @@ import {
   readModelList,
   readVisionPhotos,
   readPrompt,
+  readRemovedModels,
   removeYourModel,
   resetScores,
   seedYourModels,
+  setModelNote,
   setVisionPhotos,
   setPrompt,
 } from '../src/sync/aiStateRepository';
@@ -20,7 +22,11 @@ import * as assetsRepository from '../src/sync/assetsRepository';
 
 const kimi = { id: 'kimi-k3', name: 'Kimi K3' };
 const grok = { id: 'grok-4-7', name: 'Grok 4.7' };
-const scored = (model: typeof kimi, score: number | null = null) => ({ ...model, score });
+const scored = (model: typeof kimi, score: number | null = null, note: string | null = null) => ({
+  ...model,
+  score,
+  note,
+});
 
 describe('aiStateRepository', () => {
   it('reads nothing before the first write', async () => {
@@ -58,6 +64,25 @@ describe('aiStateRepository', () => {
     // An add counts as the list's start: the seed no longer applies.
     await seedYourModels(db, 'vision', [{ id: 'gemma', name: 'Gemma' }]);
     expect((await readModelList(db, 'vision')).map(({ id }) => id)).toEqual([grok.id, kimi.id]);
+  });
+
+  it('keeps a removed model with its note, shows it as removed, and brings it back as it was', async () => {
+    const db = makeTestDb();
+    await seedYourModels(db, 'writing', [kimi, grok]);
+    await setModelNote(db, 'writing', kimi.id, 'Too wordy');
+    await addScore(db, 'writing', kimi.id, 1);
+    expect(await readModelList(db, 'writing')).toEqual([scored(kimi, 1, 'Too wordy'), scored(grok)]);
+
+    await removeYourModel(db, 'writing', kimi.id);
+    expect(await readModelList(db, 'writing')).toEqual([scored(grok)]);
+    expect(await readRemovedModels(db, 'writing')).toEqual(new Map([[kimi.id, { note: 'Too wordy', score: 1 }]]));
+
+    await addYourModel(db, 'writing', kimi);
+    expect(await readModelList(db, 'writing')).toEqual([scored(grok), scored(kimi, 1, 'Too wordy')]);
+    expect(await readRemovedModels(db, 'writing')).toEqual(new Map());
+
+    await setModelNote(db, 'writing', kimi.id, '');
+    expect((await readModelList(db, 'writing'))[1].note).toBeNull();
   });
 
   it('adds scores up across rounds, per kind, never below 0', async () => {

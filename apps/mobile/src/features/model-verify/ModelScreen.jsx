@@ -1,6 +1,8 @@
 import { useNavigation } from '@react-navigation/native';
+import { StyleSheet } from 'react-native';
 
 import ModelLabelsSection from './ModelLabelsSection';
+import ModelNoteField from './ModelNoteField';
 import VerifySection from './VerifySection';
 import alertDefaultHeld from './alertDefaultHeld';
 import useModelVerification from './useModelVerification';
@@ -22,8 +24,8 @@ import confirmAsync from '@/utils/confirmAsync';
 
 /**
  * A model of your list (route params `kind`, `modelId`, `name`; an ai_admin tool): its grey line,
- * its labels (marks every account sees, and this account's picks of the defaults), its Verify, and
- * Reset score and Remove. A model Venice no longer offers keeps its page, to read its Verify and
+ * its note, its labels (marks every account sees, and this account's picks of the defaults), its Verify, and
+ * Reset score and Remove (which hides it, its note and score kept for when it's added again). A model Venice no longer offers keeps its page, to read its Verify and
  * remove it.
  */
 export default function ModelScreen({ route }) {
@@ -63,6 +65,7 @@ export default function ModelScreen({ route }) {
         <IntroText isScreenIntro accessibilityLabel={detail ? scoreDetailLabel(score, detail) : undefined}>
           {detail ? <ScoreDetail score={score} detail={detail} /> : 'No longer available'}
         </IntroText>
+        {row && <ModelNoteField key={modelId} kind={kind} modelId={modelId} note={row.note} style={styles.note} />}
         {model ? (
           <ModelLabelsSection kind={kind} model={model} verification={verification} />
         ) : (
@@ -86,3 +89,10 @@ export default function ModelScreen({ route }) {
     </Page>
   );
 }
+
+const styles = StyleSheet.create({
+  // As far from the intro as a headerless section.
+  note: {
+    marginTop: 20,
+  },
+});

@@ -289,6 +289,10 @@ export const aiModels = sqliteTable(
     modelId: text('model_id').notNull(),
     name: text('name').notNull(),
     position: integer('position').notNull(),
+    // What the admin noted about the model (null without one).
+    note: text('note'),
+    // Removed from the list: kept, with its note, so it comes back as it was when added again.
+    isHidden: integer('is_hidden', { mode: 'boolean' }).notNull().default(false),
   },
   (t) => ({ pk: primaryKey({ columns: [t.kind, t.modelId] }) }),
 );

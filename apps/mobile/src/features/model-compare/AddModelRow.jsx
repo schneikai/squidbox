@@ -14,8 +14,9 @@ export default memo(AddModelRow);
 
 // A Venice model on the Add screen: its summary with its labels, cost and reasoning, and a check once
 // it's in your list (its labels from `yourDefaults`, the defaults this account uses, and `defaults`,
-// the published ones). `onAdd(model)` is stable, so the row stays memoized.
-function AddModelRow({ model, kind, yourDefaults, defaults, isAdded, onAdd }) {
+// the published ones). A model you removed shows its score and note (`removed`), so you see it was
+// tried. `onAdd(model)` is stable, so the row stays memoized.
+function AddModelRow({ model, kind, yourDefaults, defaults, removed, isAdded, onAdd }) {
   return (
     <TouchableOpacity
       style={styles.row}
@@ -29,6 +30,8 @@ function AddModelRow({ model, kind, yourDefaults, defaults, isAdded, onAdd }) {
         name={model.name}
         labels={modelLabels(kind, model.id, model, yourDefaults, defaults)}
         detail={modelDetailText(model, kind)}
+        score={removed?.score}
+        note={removed?.note}
       />
       {isAdded && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
     </TouchableOpacity>

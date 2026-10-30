@@ -74,6 +74,7 @@ export default function ModelListScreen({ navigation, route }) {
               model={row.model}
               kind={kind}
               score={row.score}
+              note={row.note}
               yourDefaults={yourDefaults}
               defaults={defaults}
               onOpen={() => handleOpen(row)}
