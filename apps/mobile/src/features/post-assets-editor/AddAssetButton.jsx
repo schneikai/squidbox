@@ -1,15 +1,19 @@
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import Icon from '@/components/Icon';
-import { colors, sizes } from '@/styles/designTokens';
+import { colors, press, sizes } from '@/styles/designTokens';
 
 export default function AddAssetButton({ onPress, itemDimension }) {
   return (
-    <TouchableOpacity onPress={onPress} style={[styles.rowItem, itemDimension]} accessibilityLabel="Add photos">
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.rowItem, itemDimension, pressed && press.flat]}
+      accessibilityLabel="Add photos"
+    >
       <View style={styles.addItem}>
         <Icon name="add" size={sizes.iconLarge} color={colors.text.secondary} />
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

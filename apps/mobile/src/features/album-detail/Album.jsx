@@ -1,7 +1,7 @@
 import { useActionSheet } from '@expo/react-native-action-sheet';
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
-import { StyleSheet, View, TouchableOpacity } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 
 import Badge from '@/components/Badge';
@@ -27,6 +27,7 @@ import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionAct
 import useAssets from '@/features/assets-context/useAssets';
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import { press } from '@/styles/designTokens';
 import { countByMediaType } from '@/sync/assetsRepository';
 import { getDb } from '@/sync/db/client';
 import { usePagedQuery } from '@/sync/usePagedQuery';
@@ -167,11 +168,12 @@ export default function Album({ album }) {
         <View style={[styles.subHeader, { marginTop: paddingTop }]}>
           {!!album.archivedAt && <Badge label="Archived" tone="danger" />}
           {!!album.notes && (
-            <TouchableOpacity
+            <Pressable
+              style={({ pressed }) => pressed && press.flat}
               onPress={() => navigation.navigate('AlbumNotesScreen', { id: album.id, notes: album.notes })}
             >
               <Text variant="hint">{album.notes}</Text>
-            </TouchableOpacity>
+            </Pressable>
           )}
         </View>
       )}

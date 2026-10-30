@@ -1,9 +1,10 @@
-import { StyleSheet, TouchableOpacity } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import { ScaleDecorator } from 'react-native-draggable-flatlist';
 
 import AssetImage from '@/components/AssetImage';
 import Button from '@/components/Button';
 import ThumbnailBadge from '@/components/ThumbnailBadge';
+import { press } from '@/styles/designTokens';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
 export default function PostAsset({ postAsset, onDelete, onLongPress, isActive, itemDimension }) {
@@ -11,7 +12,11 @@ export default function PostAsset({ postAsset, onDelete, onLongPress, isActive, 
 
   return (
     <ScaleDecorator>
-      <TouchableOpacity onLongPress={onLongPress} disabled={isActive} style={[styles.rowItem, itemDimension]}>
+      <Pressable
+        onLongPress={onLongPress}
+        disabled={isActive}
+        style={({ pressed }) => [styles.rowItem, itemDimension, pressed && press.flat]}
+      >
         <Button
           variant="secondary"
           colorPalette="danger"
@@ -25,7 +30,7 @@ export default function PostAsset({ postAsset, onDelete, onLongPress, isActive, 
           <ThumbnailBadge label={formatVideoDuration(asset.duration)} style={styles.videoDuration} />
         )}
         <AssetImage asset={asset} />
-      </TouchableOpacity>
+      </Pressable>
     </ScaleDecorator>
   );
 }
