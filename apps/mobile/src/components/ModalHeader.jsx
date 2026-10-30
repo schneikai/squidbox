@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   centerSubtitle: {
-    fontSize: typography.footnote,
+    fontSize: typography.caption,
     color: colors.text.secondary,
   },
 });
