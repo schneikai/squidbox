@@ -114,7 +114,7 @@ function AdminSection({ children }) {
   );
 }
 
-// Instructions, Changed while the user stored their own text for any kind.
+// Instructions, Changed while the user's own text of any kind differs from the app's.
 function InstructionsRow() {
   const navigation = useNavigation();
   const { changedKinds } = useInstructions();

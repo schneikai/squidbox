@@ -1,4 +1,4 @@
-import type { InstructionKind, InstructionRecord } from '@squidbox/shared';
+import { INSTRUCTION_KINDS, type InstructionKind, type InstructionRecord, type Instructions } from '@squidbox/shared';
 import { and, eq, isNull } from 'drizzle-orm';
 
 import * as schema from './db/schema';
@@ -41,4 +41,23 @@ export async function saveInstruction(
   const stored = await readInstructions(db, userId);
   if (stored ? stored[kind] === value : value === null) return;
   await saveUserRecord(db, 'instructions', t, userId, { [kind]: value }, EMPTY_INSTRUCTIONS);
+}
+
+/**
+ * Clears each override equal to the app's text of its kind (`defaultTexts`, as the server publishes
+ * it), so one that matches a text published since no longer shadows later publishes. Writes only
+ * when one does; returns whether it did.
+ */
+export async function clearInstructionsEqualTo(
+  db: SyncDb,
+  userId: string,
+  defaultTexts: Instructions,
+): Promise<boolean> {
+  const stored = await readInstructions(db, userId);
+  if (!stored) return false;
+  const kinds = INSTRUCTION_KINDS.filter((kind) => stored[kind]?.trim() === defaultTexts[kind]);
+  if (kinds.length === 0) return false;
+  const cleared = Object.fromEntries(kinds.map((kind) => [kind, null]));
+  await saveUserRecord(db, 'instructions', t, userId, cleared, EMPTY_INSTRUCTIONS);
+  return true;
 }

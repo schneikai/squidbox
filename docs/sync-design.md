@@ -896,7 +896,9 @@ the server's reset carries a fresh clock for both fields and a new `server_seq`,
 pulls it and an older pending edit loses. One record per user with the user's id as its id, like
 `personas`, so two devices editing different kinds merge per field, and Reset is a per-field write
 of null that wins or loses by its clock like any edit. A text equal to the app's default is
-stored as null. The schema each reply is read with (`chat_reply`, the tags list) is the server's and never
+stored as null, and an override that equals a text published since is cleared once the app has the
+catalog (`clearInstructionsEqualTo`), so it doesn't shadow later publishes; a kind counts as
+changed only while its override differs from the published text. The schema each reply is read with (`chat_reply`, the tags list) is the server's and never
 stored.
 
 **model_choices** (Settings → Assistant → Writing or Vision → a model: the Default and Uncensored

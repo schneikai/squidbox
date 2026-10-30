@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { makeTestDb } from './helpers/testDb';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
-import { readInstructions, saveInstruction } from '../src/sync/instructionsRepository';
+import { clearInstructionsEqualTo, readInstructions, saveInstruction } from '../src/sync/instructionsRepository';
 import { clearOutboxRows } from '../src/sync/outbox';
 
 const USER = '6f1c1c39-6c1c-4a36-9d0e-2d6c1ad4e0f1';
@@ -105,5 +105,19 @@ describe('instructionsRepository', () => {
     const defaults = { ...DEFAULT_INSTRUCTIONS, writing: 'Everyone writes like this.', moreLikeThis: 'More.' };
     await saveInstruction(db, USER, 'writing', MINE, defaults.writing);
     expect(resolveInstructions(await readInstructions(db, USER), defaults)).toEqual({ ...defaults, writing: MINE });
+  });
+
+  it('clears the overrides equal to the published texts, and only those', async () => {
+    const db = makeTestDb();
+    expect(await clearInstructionsEqualTo(db, USER, DEFAULT_INSTRUCTIONS)).toBe(false);
+    await save(db, 'writing', MINE);
+    await save(db, 'moreLikeThis', 'Again, please.');
+    await clearOutboxRows(db, 'instructions', [USER]);
+    const published = { ...DEFAULT_INSTRUCTIONS, writing: MINE };
+    expect(await clearInstructionsEqualTo(db, USER, published)).toBe(true);
+    expect(await readInstructions(db, USER)).toMatchObject({ writing: null, moreLikeThis: 'Again, please.' });
+    const [row] = await outbox(db);
+    expect(Object.keys(row!.fields)).toEqual(['writing']);
+    expect(await clearInstructionsEqualTo(db, USER, published)).toBe(false);
   });
 });

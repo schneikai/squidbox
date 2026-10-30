@@ -14,7 +14,7 @@ import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 
 // Settings → Assistant → Admin → Instructions, for an ai_admin account: what the assistant is told
 // before each kind of request, one row per kind with its name and what it is for (instructionText), a Changed badge
-// while the user stored their own text.
+// while the user's own text differs from the app's (useInstructions' changedKinds).
 export default function InstructionsScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable('ai_admin');

@@ -1,18 +1,21 @@
 import { INSTRUCTION_KINDS, resolveInstructions } from '@squidbox/shared';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import useAiCatalog from '@/hooks/useAiCatalog';
 import useHasFeature from '@/hooks/useHasFeature';
 import useLibrary from '@/library/useLibrary';
-import { schema } from '@/sync/db/client';
-import { readInstructions } from '@/sync/instructionsRepository';
+import { getDb, schema } from '@/sync/db/client';
+import { clearInstructionsEqualTo, readInstructions } from '@/sync/instructionsRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
+import { requestSync } from '@/sync/worker';
 
 /**
  * The user's instructions, live: `stored`, their record (null before the first save, undefined while
  * reading); `defaultTexts`, the app's default of every kind (null until the catalog is in); `texts`,
  * every kind's text as the assistant gets it (null until the record and the defaults are in); and
- * `changedKinds`, the kinds the user stored an override for (null while reading). Editing them is an ai_admin
+ * `changedKinds`, the kinds whose override differs from the app's text (null until both are in). An
+ * override equal to the app's text (one published since) is cleared once both are in, so it no
+ * longer shadows later publishes. Editing them is an ai_admin
  * tool: only such an account's overrides apply (resolveInstructions), every other account gets the
  * app's defaults, as on the server, whatever it stored before. `error` and `retry` are the catalog's
  * (useAiCatalog).
@@ -29,9 +32,19 @@ export default function useInstructions() {
     [stored, defaultTexts, isAiAdmin],
   );
   const changedKinds = useMemo(
-    () => (stored === undefined ? null : INSTRUCTION_KINDS.filter((kind) => stored?.[kind] != null)),
-    [stored],
+    () =>
+      stored === undefined || !defaultTexts
+        ? null
+        : INSTRUCTION_KINDS.filter((kind) => stored?.[kind] != null && stored[kind].trim() !== defaultTexts[kind]),
+    [stored, defaultTexts],
   );
+
+  useEffect(() => {
+    if (!stored || !defaultTexts) return;
+    clearInstructionsEqualTo(getDb(), userId, defaultTexts)
+      .then((didClear) => didClear && requestSync())
+      .catch((error) => console.error('Clearing the published instructions failed', error));
+  }, [stored, defaultTexts, userId]);
 
   return { stored, defaultTexts, texts, changedKinds, error, retry };
 }
