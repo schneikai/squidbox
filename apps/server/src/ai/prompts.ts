@@ -24,23 +24,23 @@ export function fillTemplate(template: string, values: Record<string, string>): 
 }
 
 /**
- * The writing prompt of a compare, as the user: the writing briefing (`instructions.writing`, filled
- * as the chat fills it but without a post, so its post section is left out) as the system message,
- * then the prompt as the user's message. So a compare tests what the chat sends.
+ * The writing prompt of a compare: the writing briefing (`instructions.writing`, which sets the
+ * reply's format) without the creator's persona, Favorites or a post, so their sections are left
+ * out, as the system message, then the prompt as the user's message. So a compare tests only what
+ * is in its prompt box.
  */
 export function writingMessages({
   prompt,
-  persona,
-  favorites,
   instructions,
 }: {
   prompt: string;
-  persona: Persona;
-  favorites: string[];
   instructions: Instructions;
 }): ChatMessage[] {
   return [
-    { role: 'system', content: writingBriefingText(instructions.writing, { persona, favorites, context: null }) },
+    {
+      role: 'system',
+      content: writingBriefingText(instructions.writing, { persona: null, favorites: [], context: null }),
+    },
     { role: 'user', content: prompt },
   ];
 }
@@ -215,7 +215,7 @@ export function writingBriefingText(
 /**
  * A photo tags request: the photo tags briefing (`prompt`: the user's Photo tags instructions, or a
  * compare's prompt) filled with the creator's content themes (their persona's `contentTags`; the line
- * is left out without any) as the system message, then the photo.
+ * is left out without any, as for a compare) as the system message, then the photo.
  */
 export function visionMessages({
   prompt,

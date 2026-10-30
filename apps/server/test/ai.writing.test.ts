@@ -136,27 +136,31 @@ describe('writingMessages (the Compare)', () => {
     writingMessages({
       prompt: 'Write posts about a sunrise hike',
       instructions: DEFAULT_INSTRUCTIONS,
-      persona,
-      favorites,
       ...overrides,
     });
 
-  it('sends the same filled briefing the chat sends, without a post, then the prompt', () => {
+  it("sends the chat's briefing without a persona, Favorites or a post, then the prompt", () => {
     const [system, user] = compare();
-    const chat = chatMessages({ instructions: DEFAULT_INSTRUCTIONS, context, transcript, persona, favorites })[0]!
-      .content as string;
+    const chat = chatMessages({
+      instructions: DEFAULT_INSTRUCTIONS,
+      context,
+      transcript,
+      persona: null,
+      favorites: [],
+    })[0]!.content as string;
     const withoutPost = chat.replace(/# The post they're working on\n[\s\S]*?\n\n(?=# How to answer)/, '');
     expect(system).toEqual({ role: 'system', content: withoutPost });
+    expect(system!.content).not.toContain('# The creator');
+    expect(system!.content).not.toContain('# Posts they liked');
     expect(system!.content).not.toContain("# The post they're working on");
     expect(system!.content).toContain('3 options unless they say how many');
     expect(user).toEqual({ role: 'user', content: 'Write posts about a sunrise hike' });
   });
 
-  it("uses the user's own Writing text, and drops the creator's sections without a persona", () => {
-    const [system] = compare({ persona: null, favorites: [] });
-    expect(system!.content).not.toContain('# The creator');
-    expect(system!.content).not.toContain('# Posts they liked');
-    const [mine] = compare({ instructions: { ...DEFAULT_INSTRUCTIONS, writing: 'Tone: {tone}. {count} posts.' } });
-    expect(mine!.content).toBe('Tone: Short and calm. Never salesy.. 3 posts.');
+  it("uses the user's own Writing text, with the persona's placeholders left empty", () => {
+    const [mine] = compare({
+      instructions: { ...DEFAULT_INSTRUCTIONS, writing: 'Reply as JSON.\nTone: {tone}.\n{count} posts.' },
+    });
+    expect(mine!.content).toBe('Reply as JSON.\n3 posts.');
   });
 });

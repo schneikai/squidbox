@@ -34,7 +34,6 @@ import { catalogAsync, findModel, toApiModel, type CatalogEntry } from './catalo
 import { chatAsync } from './chat.js';
 import { compareModels } from './compare.js';
 import { publishInstruction, readAppInstructions, readInstructions } from './instructions.js';
-import { readFavorites, readPersona } from './persona.js';
 import { visionMessages, writingMessages } from './prompts.js';
 import { tagPhotoAsync } from './tagging.js';
 import { visionTask, writingTask } from './tasks.js';
@@ -317,20 +316,11 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         schema: { body: compareWritingRequestSchema, response: { 200: compareWritingResponseSchema } },
         handler: async (request, reply) => {
           const signal = untilClientLeaves(reply);
-          // The catalog loads meanwhile (compareRequested reads it from the cache then).
+          // Only the prompt box and the Writing instructions (the reply's format), not the persona or
+          // Favorites. The catalog loads meanwhile (compareRequested reads it from the cache then).
           const user = requireUser(request);
-          const [persona, favorites, instructions] = await Promise.all([
-            readPersona(getDb(), user.id),
-            readFavorites(getDb(), user.id),
-            readInstructions(getDb(), user),
-            catalogAsync(),
-          ]);
-          const messages = writingMessages({
-            prompt: request.body.prompt,
-            persona,
-            favorites,
-            instructions,
-          });
+          const [instructions] = await Promise.all([readInstructions(getDb(), user), catalogAsync()]);
+          const messages = writingMessages({ prompt: request.body.prompt, instructions });
           const results = await compareRequested(request.body.modelIds, 'writing', (models) =>
             compareModels({ task: writingTask, messages, models, log: request.log, signal }),
           );
@@ -354,12 +344,10 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         handler: async (request, reply) => {
           const signal = untilClientLeaves(reply);
           const { base64, mimeType } = request.body.image;
-          const user = requireUser(request);
-          const persona = await readPersona(getDb(), user.id);
+          // Only the prompt box, without the persona's content themes.
           const messages = visionMessages({
             prompt: request.body.prompt,
             imageDataUrl: `data:${mimeType};base64,${base64}`,
-            contentTags: persona?.contentTags ?? [],
           });
           const results = await compareRequested(request.body.modelIds, 'vision', (models) =>
             compareModels({ task: visionTask, messages, models, log: request.log, signal }),

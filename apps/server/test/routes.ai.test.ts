@@ -362,7 +362,7 @@ describe('POST /api/v1/ai/compare/writing', () => {
     expect(chatBodies()).toHaveLength(1);
   });
 
-  it("writes as the user's persona and favorites, in the chat's briefing", async () => {
+  it("leaves the user's persona and favorites out of the briefing: only the prompt box counts", async () => {
     veniceAnswers({ chatReply: { reply: '', postOptions: ['one', 'two', 'three'] } });
     vi.mocked(readPersona).mockResolvedValue({
       aboutYou: 'Outdoor photographer from Oregon.',
@@ -373,14 +373,13 @@ describe('POST /api/v1/ai/compare/writing', () => {
     vi.mocked(readFavorites).mockResolvedValue(['First light on the ridge.']);
     const res = await call('POST', '/ai/compare/writing', writing);
     expect(res.statusCode).toBe(200);
-    expect(readPersona).toHaveBeenCalledWith(expect.anything(), 'u1');
-    expect(readFavorites).toHaveBeenCalledWith(expect.anything(), 'u1');
+    expect(readPersona).not.toHaveBeenCalled();
+    expect(readFavorites).not.toHaveBeenCalled();
     for (const body of chatBodies()) {
-      expect(body.messages[0].content).toContain(
-        '# The creator\nOutdoor photographer from Oregon.\nTone: Short and calm.',
-      );
-      expect(body.messages[0].content).toContain('never copy them):\n- First light on the ridge.');
+      expect(body.messages[0].content).not.toContain('# The creator');
+      expect(body.messages[0].content).not.toContain('First light on the ridge.');
       expect(body.messages[0].content).not.toContain("# The post they're working on");
+      expect(body.messages[0].content).toContain('3 options unless they say how many');
     }
   });
 
@@ -439,9 +438,9 @@ describe('POST /api/v1/ai/compare/vision', () => {
     ]);
   });
 
-  it("fills the persona's content themes into the prompt", async () => {
+  it("leaves the persona's content themes out of the prompt", async () => {
     veniceAnswers();
-    vi.mocked(readPersona).mockResolvedValueOnce({
+    vi.mocked(readPersona).mockResolvedValue({
       aboutYou: '',
       tone: '',
       contentTags: ['landscape', 'hiking'],
@@ -449,9 +448,9 @@ describe('POST /api/v1/ai/compare/vision', () => {
     });
     const res = await call('POST', '/ai/compare/vision', { ...vision, prompt: 'Tag what you see\nThemes: {themes}' });
     expect(res.statusCode).toBe(200);
-    expect(readPersona).toHaveBeenCalledWith(expect.anything(), 'u1');
+    expect(readPersona).not.toHaveBeenCalled();
     for (const body of chatBodies()) {
-      expect(body.messages[0].content).toBe('Tag what you see\nThemes: landscape, hiking');
+      expect(body.messages[0].content).toBe('Tag what you see');
     }
   });
 

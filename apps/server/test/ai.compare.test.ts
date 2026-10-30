@@ -39,8 +39,6 @@ const compareWriting = (models: CatalogEntry[]) =>
     task: writingTask,
     messages: writingMessages({
       prompt: 'Write',
-      persona: null,
-      favorites: [],
       instructions: DEFAULT_INSTRUCTIONS,
     }),
     models,
