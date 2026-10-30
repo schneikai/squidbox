@@ -18,7 +18,7 @@ export default memo(ModelAnswers);
 function ModelAnswers({ answerKey, kind, letters, namesById, results = {}, taps = {}, roundNumber, toggle }) {
   return letters.map(({ modelId, label }) => {
     const items = results[modelId]?.items ?? [];
-    const tapped = taps[modelId] ?? [];
+    const levels = taps[modelId] ?? {};
     return (
       <ModelCard
         key={`${roundNumber}-${modelId}`}
@@ -30,7 +30,7 @@ function ModelAnswers({ answerKey, kind, letters, namesById, results = {}, taps 
         {kind === 'vision' ? (
           <ChipRow>
             {items.map((tag, index) => {
-              const isOn = tapped.includes(index);
+              const isOn = (levels[index] ?? 0) > 0;
               return (
                 <Chip
                   key={index}
@@ -45,9 +45,13 @@ function ModelAnswers({ answerKey, kind, letters, namesById, results = {}, taps 
           </ChipRow>
         ) : (
           items.map((tweet, index) => {
-            const isLiked = tapped.includes(index);
             return (
-              <TweetRow key={index} text={tweet} isLiked={isLiked} onToggle={() => toggle(answerKey, modelId, index)} />
+              <TweetRow
+                key={index}
+                text={tweet}
+                level={levels[index] ?? 0}
+                onToggle={() => toggle(answerKey, modelId, index)}
+              />
             );
           })
         )}

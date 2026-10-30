@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import GradientFill from '@/components/GradientFill';
 import Icon from '@/components/Icon';
@@ -15,12 +15,14 @@ import { colors, radii, sizes, typography } from '@/styles/designTokens';
  * isActive — accent tint, for a control whose setting is on (e.g. a filter is active).
  * filled   — fills the icon (see Icon), e.g. a favorite's heart.
  * label    — a few characters in place of the icon (18+), where no icon says it.
+ * iconCount — the icon twice (2), smaller and side by side, for a second step of the same mark.
  *
  * style applies to the Pressable (the tap target / visual container).
  */
 export default function IconButton({
   icon,
   label,
+  iconCount = 1,
   onPress,
   variant = 'plain',
   color = colors.text.primary,
@@ -33,11 +35,16 @@ export default function IconButton({
   style,
 }) {
   const contentColor = iconColorFor(variant, { color, disabled, isActive });
-  const iconElement = label ? (
-    <Text style={[styles.label, { color: contentColor }]}>{label}</Text>
-  ) : (
-    <Icon name={icon} size={size} color={contentColor} filled={filled} />
-  );
+  let iconElement = <Icon name={icon} size={size} color={contentColor} filled={filled} />;
+  if (label) iconElement = <Text style={[styles.label, { color: contentColor }]}>{label}</Text>;
+  else if (iconCount === 2) {
+    iconElement = (
+      <View style={styles.pair}>
+        <Icon name={icon} size={sizes.iconSmall} color={contentColor} filled={filled} />
+        <Icon name={icon} size={sizes.iconSmall} color={contentColor} filled={filled} style={styles.second} />
+      </View>
+    );
+  }
 
   return (
     <Pressable
@@ -93,6 +100,13 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.4,
+  },
+  pair: {
+    flexDirection: 'row',
+  },
+  // Two icons overlap a little, to fit the disc.
+  second: {
+    marginLeft: -4,
   },
   label: {
     fontSize: typography.footnote,

@@ -167,7 +167,7 @@ export async function resetScores(db: SyncDb, kind: AiModelKind, modelId?: strin
     .where(modelId ? and(eq(aiScores.kind, kind), eq(aiScores.modelId, modelId)) : eq(aiScores.kind, kind));
 }
 
-/** Adds `delta` (±1) to a model's score; it never goes below 0. */
+/** Adds `delta` (±1, or -2 for two thumbs up taken back) to a model's score; it never goes below 0. */
 export async function addScore(db: SyncDb, kind: AiModelKind, modelId: string, delta: number): Promise<void> {
   await db
     .insert(aiScores)

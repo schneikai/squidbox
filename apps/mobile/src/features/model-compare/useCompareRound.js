@@ -9,7 +9,6 @@ import { getDb } from '@/sync/db/client';
 import readVisionImageAsync from '@/utils/assets/readVisionImageAsync';
 import compareAsync from '@/utils/cloud-api/ai/compareAsync';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
-import toggleItem from '@/utils/toggleItem';
 
 // Photos asked at once in a vision round, each of them of every model at once.
 const CONCURRENCY = 2;
@@ -21,9 +20,9 @@ export const TEXT_KEY = 'text';
  * or `startRound({ prompt, photos })` (vision, the assets) reshuffles the letters, clears the taps and asks
  * every model again; `number` counts the rounds. `results[key][modelId]` is `{ status: 'loading' |
  * 'done' | 'error', items, error }`, keyed by TEXT_KEY or the photo's asset id, and `isRunning`
- * while any is loading. `taps[key][modelId]` holds the indexes of the tweets thumbed up or tags
- * marked as fitting this round; `toggle(key, modelId, index)` flips one and adds ±1 to the model's
- * score. `toggle` is stable, so memoized rows keep it.
+ * while any is loading. `taps[key][modelId][index]` is a tweet's thumbs up (0, 1 or 2, an
+ * outstanding one) or a tag's mark as fitting (0 or 1) this round; `toggle(key, modelId, index)`
+ * steps one on and adds the change to the model's score. `toggle` is stable, so memoized rows keep it.
  */
 export default function useCompareRound({ kind, modelIds }) {
   const haptics = useHaptics();
@@ -121,13 +120,15 @@ export default function useCompareRound({ kind, modelIds }) {
   const toggle = useCallback(
     (key, modelId, index) => {
       const taps = tapsRef.current;
-      const tapped = taps[key]?.[modelId] ?? [];
-      const isOn = tapped.includes(index);
-      const nextTaps = { ...taps, [key]: { ...taps[key], [modelId]: toggleItem(tapped, index) } };
+      const levels = taps[key]?.[modelId] ?? {};
+      const level = levels[index] ?? 0;
+      // A tweet steps through one thumb up and two (an outstanding one) back to none; a tag is on or off.
+      const next = level < (kind === 'vision' ? 1 : 2) ? level + 1 : 0;
+      const nextTaps = { ...taps, [key]: { ...taps[key], [modelId]: { ...levels, [index]: next } } };
       tapsRef.current = nextTaps;
       setRound((current) => ({ ...current, taps: nextTaps }));
       haptics.selection();
-      addScore(getDb(), kind, modelId, isOn ? -1 : 1).catch((error) => console.error('Saving the score failed', error));
+      addScore(getDb(), kind, modelId, next - level).catch((error) => console.error('Saving the score failed', error));
     },
     [kind, haptics],
   );
