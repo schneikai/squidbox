@@ -23,12 +23,20 @@ export function fillTemplate(template: string, values: Record<string, string>): 
   return template.replace(/\{(\w+)\}/g, (match, name: string) => (name in values ? values[name]! : match));
 }
 
+// Only how a writing compare answers, not what it writes, so it isn't one of the editable
+// instructions (the owner's call): the prompt box stays all the guidance a model gets.
+const COMPARE_WRITING_FORMAT =
+  'Answer only with the posts the prompt asks for. Each item is one finished post, with no intro, notes or quotes around it.';
+
 /**
- * The writing prompt of a compare: only the prompt box, as the user's message, without system
- * instructions; the reply's JSON schema (postsSchema) asks for the posts alone.
+ * The writing prompt of a compare: the prompt box as the user's message, after a system line on the
+ * answer's format only; the reply's JSON schema (postsSchema) asks for the posts alone.
  */
 export function writingMessages(prompt: string): ChatMessage[] {
-  return [{ role: 'user', content: prompt }];
+  return [
+    { role: 'system', content: COMPARE_WRITING_FORMAT },
+    { role: 'user', content: prompt },
+  ];
 }
 
 /**

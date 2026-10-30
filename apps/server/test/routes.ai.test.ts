@@ -346,7 +346,7 @@ describe('POST /api/v1/ai/compare/writing', () => {
       response_format: { type: 'json_schema', json_schema: { name: 'posts', strict: true } },
       venice_parameters: { include_venice_system_prompt: false, strip_thinking_response: true },
     });
-    expect(kimi.messages[0]).toEqual({ role: 'user', content: 'Write 3 posts about a sunrise hike' });
+    expect(kimi.messages[1]).toEqual({ role: 'user', content: 'Write 3 posts about a sunrise hike' });
     for (const body of [kimi, glm]) {
       expect(body).not.toHaveProperty('reasoning_effort');
       expect(body).not.toHaveProperty('max_tokens');
@@ -364,7 +364,7 @@ describe('POST /api/v1/ai/compare/writing', () => {
     expect(chatBodies()).toHaveLength(1);
   });
 
-  it('sends only the prompt box: no Writing instructions, persona or favorites', async () => {
+  it('sends only the prompt box after the format line: no Writing instructions, persona or favorites', async () => {
     veniceAnswers();
     vi.mocked(readPersona).mockResolvedValue({
       aboutYou: 'Outdoor photographer from Oregon.',
@@ -379,7 +379,10 @@ describe('POST /api/v1/ai/compare/writing', () => {
     expect(readPersona).not.toHaveBeenCalled();
     expect(readFavorites).not.toHaveBeenCalled();
     for (const body of chatBodies()) {
-      expect(body.messages).toEqual([{ role: 'user', content: writing.prompt }]);
+      expect(body.messages).toEqual([
+        { role: 'system', content: expect.stringContaining('Answer only with the posts') },
+        { role: 'user', content: writing.prompt },
+      ]);
     }
   });
 

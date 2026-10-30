@@ -132,8 +132,13 @@ describe('chatMessages', () => {
 });
 
 describe('writingMessages (the Compare)', () => {
-  it('sends only the prompt, as the user, without system instructions', () => {
+  it('sends the prompt as the user, after a system line on the format only', () => {
     expect(writingMessages('Write 3 posts about a sunrise hike')).toEqual([
+      {
+        role: 'system',
+        content:
+          'Answer only with the posts the prompt asks for. Each item is one finished post, with no intro, notes or quotes around it.',
+      },
       { role: 'user', content: 'Write 3 posts about a sunrise hike' },
     ]);
   });
