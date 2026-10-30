@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import Button from '@/components/Button';
@@ -11,8 +11,8 @@ import { colors, motion, radii, typography } from '@/styles/designTokens';
 const HIDDEN_OFFSET = 1000;
 
 /**
- * A sheet over the current screen, as tall as its content (up to most of the screen): a title with
- * a close button over `children`. It slides up while `isVisible` and back down once it turns false;
+ * A sheet over the current screen, as tall as its content (up to most of the screen, then
+ * `children` scroll under the title): a title with a close button over `children`. It slides up while `isVisible` and back down once it turns false;
  * a tap on the dimmed screen around it, the close button or Android's back calls `onClose`. The
  * grabber only says it's a sheet: there is no pan to close it. It rises above the keyboard, for a
  * field in it. Drawn in-app rather than as a native
@@ -60,7 +60,9 @@ export default function BottomSheet({ isVisible, onClose, title, children }) {
             </Text>
             <Button icon="close" variant="secondary" onPress={onClose} accessibilityLabel="Close" />
           </View>
-          {children}
+          <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
+            {children}
+          </ScrollView>
         </Animated.View>
       </View>
     </Modal>
@@ -96,6 +98,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 8,
     marginBottom: 8,
+  },
+  content: {
+    flexGrow: 0,
   },
   title: {
     flex: 1,
