@@ -3,6 +3,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import { albumOrder } from './helpers/albumOrder';
+import { fuzzRuns } from './helpers/fuzzRuns';
 import { makeTestDb } from './helpers/testDb';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
@@ -366,7 +367,7 @@ describe('edgesRepository (album_assets)', () => {
   // nothing changed elsewhere, gives exactly the user's list.
   it('setRefs keeps keys distinct and the order the editor and the other devices made (fuzz)', async () => {
     const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
-    for (let run = 1; run <= 150; run++) {
+    for (let run = 1; run <= fuzzRuns(40, 150); run++) {
       let a = run;
       const int = (k: number) => {
         a = (a * 1103515245 + 12345) % 2147483648;

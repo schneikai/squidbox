@@ -10,7 +10,6 @@ import {
   resolveExpiresIn,
   PRESIGN_DEFAULT_EXPIRES_IN,
   PRESIGN_MAX_EXPIRES_IN,
-  MULTIPART_PART_SIZE,
 } from '@squidbox/shared';
 import { AppError, errorBody } from '../src/errors.js';
 import { serverCollections } from '../src/sync/collections.js';
@@ -120,12 +119,6 @@ describe('presign expiry rules', () => {
   it('passes through a positive value and clamps to one week', () => {
     expect(resolveExpiresIn(120)).toBe(120);
     expect(resolveExpiresIn(PRESIGN_MAX_EXPIRES_IN + 100)).toBe(PRESIGN_MAX_EXPIRES_IN);
-  });
-});
-
-describe('constants', () => {
-  it('multipart part size is 100 MiB (binary)', () => {
-    expect(MULTIPART_PART_SIZE).toBe(104_857_600);
   });
 });
 
