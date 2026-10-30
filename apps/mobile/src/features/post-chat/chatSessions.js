@@ -177,7 +177,8 @@ function createSession(kind) {
 
     /** The Mentions sheet's change to the handles (`{ add, remove }`), as editedLists says. */
     editMentions({ add = [], remove = [] }) {
-      update({ mentionEdits: editedLists(store.get().mentionEdits, { add: add.map(asHandle), remove }) });
+      const handles = add.map(asHandle).filter((handle) => handle.length > 1);
+      update({ mentionEdits: editedLists(store.get().mentionEdits, { add: handles, remove }) });
     },
 
     /** Starts over (New chat): the reply under way, if any, is dropped. */
@@ -205,7 +206,7 @@ function editedLists({ added, removed }, { add = [], remove = [] }) {
   };
 }
 
-// A handle as typed, with its @ and without spaces.
+// A handle as typed, with its @ and without spaces; a bare @ is none.
 function asHandle(text) {
   const handle = text.replace(/\s+/g, '');
   return handle.startsWith('@') ? handle : `@${handle}`;

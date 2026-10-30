@@ -27,6 +27,7 @@ export default function ChatMentionsSheet({ isVisible, onClose, handles, onEditM
           placeholder="No mentions"
           maxTags={CHAT_LIMITS.mentions}
           maxTagLength={CHAT_LIMITS.mention}
+          itemName="handle"
         />
         <MoreMentions handles={handles} onEditMentions={onEditMentions} />
       </View>

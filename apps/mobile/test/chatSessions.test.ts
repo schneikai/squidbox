@@ -167,6 +167,12 @@ describe('chatSessions', () => {
     expect(session.getState().mentionEdits).toEqual({ added: ['@corntwee', '@TrailMike'], removed: [] });
   });
 
+  it('adds no handle for a bare @', () => {
+    const { session } = open();
+    session.editMentions({ add: ['@', ' '] });
+    expect(session.getState().mentionEdits.added).toEqual([]);
+  });
+
   it('clears the chat on reset', async () => {
     const { session } = open();
     const { request, calls } = deferredRequest();

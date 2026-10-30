@@ -16,7 +16,7 @@ const MORE_LIKE_THIS = 'More like this';
 /**
  * The assistant chat about a post (`sessionId`, chatSessions'), for a screen that shows it: the chat
  * (useChatSession; null once closed), its post's `assets`, their `tagging` (useAssetTags) and the
- * `mentions` (`{ handles, fromAlbum, hasAny }`: those it sends, useMentions' with the chat's
+ * `mentions` (`{ handles, fromAlbum }`: those it sends, useMentions' with the chat's
  * mentionEdits), and the sends: `send(turn)` waits for the photos being tagged
  * (`isWaiting`), then sends with the post as it is then (the turn cut to CHAT_LIMITS.message); it
  * resolves to whether the turn went. `moreLikeThis(text)` and `retry()` (the last reply, after it
@@ -30,13 +30,11 @@ export default function usePostChat(sessionId) {
   const tagging = useAssetTags(assets);
   const found = useMentions(assetIds);
   const mentionEdits = chat?.mentionEdits;
-  // The handles the chat may mention and sends: chatMentions'; `hasAny` while the posts or the edits
-  // have any, so the card offers them.
-  const mentions = useMemo(() => {
-    if (!found || !mentionEdits) return undefined;
-    const handles = chatMentions(found.handles, mentionEdits);
-    return { handles, fromAlbum: found.fromAlbum, hasAny: handles.length + found.handles.length > 0 };
-  }, [found, mentionEdits]);
+  // The handles the chat may mention and sends: chatMentions'.
+  const mentions = useMemo(
+    () => found && mentionEdits && { handles: chatMentions(found.handles, mentionEdits), fromAlbum: found.fromAlbum },
+    [found, mentionEdits],
+  );
   const [isWaiting, setIsWaiting] = useState(false);
   // Set at once, so a second send in the same moment (a typed one while Retry waits) is refused.
   const waitingRef = useRef(false);
