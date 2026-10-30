@@ -167,6 +167,22 @@ and the tiles already make a missing one again from the original on the device
 (`ensureAssetThumbnailAsync`); one whose original is gone too (already backed up) only gets a backup
 error, and could be made from the cloud original.
 
+### [ ] Sync the model list with the account
+
+Wanted by the owner, after more testing. The model list, its notes, removed models and scores are
+local tables (`ai_models`, `ai_scores` in `apps/mobile/src/sync/db/schema.ts`), so another device
+shows a different list. Make them one synced collection (`docs/sync-design.md` §9), and move them
+from "on the device" to "synced" in CLAUDE.md's "Where data is saved". Needs a server deploy before
+the app.
+
+### [ ] Copy the admin setup from the dev server to the live one
+
+Wanted by the owner, for when testing is done. "Apply changes for everyone" in the dev client writes
+only to the local server. A script (say `npm run admin:copy-to-live`) that reads the local server's
+published instructions (`app_instructions`), model defaults and Verified / Uncensored marks, shows
+what would change on the live server and writes it after a confirm. The model list, notes and
+scores are on the phone, not the server, so they need their own way across.
+
 ## Design
 
 - **Asset detail background:** a blurred background in the asset's colors.
