@@ -69,7 +69,11 @@ export async function veniceGetJson<S extends z.ZodTypeAny>(path: string, schema
 type ChatContentPart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } };
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string | ChatContentPart[] };
 
-export type JsonSchemaSpec<T> = { name: string; jsonSchema: Record<string, unknown>; zod: z.ZodType<T> };
+export type JsonSchemaSpec<T> = {
+  name: string;
+  jsonSchema: Record<string, unknown>;
+  zod: z.ZodType<T, z.ZodTypeDef, unknown>;
+};
 
 const TOO_SLOW = 'The model took too long to answer';
 

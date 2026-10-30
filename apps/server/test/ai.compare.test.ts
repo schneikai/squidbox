@@ -272,6 +272,12 @@ describe('compareModels: writing', () => {
     ]);
   });
 
+  it('reads a bare list of posts, without the object around it', async () => {
+    replies({ 'kimi-k3': ['one', 'two'] });
+    const [kimi] = await compareWriting([model('kimi-k3')]);
+    expect(kimi).toEqual({ modelId: 'kimi-k3', posts: ['one', 'two'] });
+  });
+
   it("says the reply couldn't be read when it isn't the JSON asked for", async () => {
     replies({ 'kimi-k3': 'thinking… here are your tweets', 'grok-4-7': { tweets: ['a'] } });
     const results = await compareWriting([model('kimi-k3'), model('grok-4-7')]);

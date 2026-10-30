@@ -237,6 +237,22 @@ function stringListSchema(key: string) {
   return objectSchema({ [key]: { type: 'array', items: { type: 'string' } } });
 }
 
+/**
+ * A reply that is one list of strings under `key`. Some models answer the bare list instead of the
+ * object around it, even held to the schema: that reads as the list too.
+ */
+function stringListSpec<K extends string>(key: K): JsonSchemaSpec<Record<K, string[]>> {
+  const list = z.array(z.string());
+  return {
+    name: key,
+    jsonSchema: stringListSchema(key),
+    zod: z.union([
+      z.object({ [key]: list } as Record<K, typeof list>),
+      list.transform((items) => ({ [key]: items }) as Record<K, string[]>),
+    ]),
+  };
+}
+
 // A chat reply: what the assistant says and the options for the post, when asked for (tasks.ts checks
 // them and keeps the first CHAT_LIMITS.posts; a maxItems here invited ten options).
 export const chatReplyJsonSpec: JsonSchemaSpec<ChatReply> = {
@@ -255,17 +271,9 @@ export const chatReplyJsonSpec: JsonSchemaSpec<ChatReply> = {
 
 // A writing compare's answer: only the posts its prompt asks for, so a model has nowhere else to put
 // them.
-export const postsSchema: JsonSchemaSpec<{ posts: string[] }> = {
-  name: 'posts',
-  jsonSchema: stringListSchema('posts'),
-  zod: z.object({ posts: z.array(z.string()) }),
-};
+export const postsSchema = stringListSpec('posts');
 
-export const tagsSchema: JsonSchemaSpec<{ tags: string[] }> = {
-  name: 'tags',
-  jsonSchema: stringListSchema('tags'),
-  zod: z.object({ tags: z.array(z.string()) }),
-};
+export const tagsSchema = stringListSpec('tags');
 
 // The judge's verdict on one chat turn.
 export const judgeVerdictJsonSpec: JsonSchemaSpec<{ pass: boolean; reason: string }> = {
