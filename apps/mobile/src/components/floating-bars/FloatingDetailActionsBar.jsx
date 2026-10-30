@@ -74,9 +74,7 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
       <View style={styles.row} pointerEvents="box-none">
         {/* Left pill — share + favorite + download */}
         <FloatingPill>
-          {canShareFiles && (
-            <Button icon="share" onPress={handleShare} colorPalette="muted" accessibilityLabel="Share" />
-          )}
+          {canShareFiles && <Button icon="share" onPress={handleShare} accessibilityLabel="Share" />}
           {!isDeleted && (
             <Button
               icon="heart"
@@ -90,7 +88,7 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
           <Button
             icon="cloud-download"
             onPress={handleDownload}
-            colorPalette="muted"
+
             accessibilityLabel="Save to camera roll"
           />
         </FloatingPill>
@@ -103,9 +101,7 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
 
         {/* Right pill — delete, or restore + delete permanently */}
         <FloatingPill>
-          {isDeleted && (
-            <Button icon="undo" onPress={handleRestore} colorPalette="muted" accessibilityLabel="Restore" />
-          )}
+          {isDeleted && <Button icon="undo" onPress={handleRestore} accessibilityLabel="Restore" />}
           <Button
             icon="trash"
             onPress={isDeleted ? handleDeletePermanently : handleDelete}

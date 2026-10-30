@@ -9,8 +9,8 @@ const PALETTE = {
   muted: colors.text.secondary,
   accent: colors.accent.base,
   danger: colors.status.danger,
-  // A favorite's heart: grey until it's selected, then red, without the selected tint.
-  favorite: colors.text.secondary,
+  // A favorite's heart: like `neutral` until it's selected, then red, without the selected tint.
+  favorite: colors.text.primary,
 };
 const INVERSE_PALETTE = {
   neutral: colors.text.inverse,

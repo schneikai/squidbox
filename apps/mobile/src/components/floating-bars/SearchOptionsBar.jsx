@@ -103,13 +103,13 @@ export default function SearchOptionsBar({
     <Animated.View style={[styles.container, { left }, containerStyle]}>
       <FloatingPill style={styles.pill}>
         {/* Search icon — always visible */}
-        <Button icon="search" onPress={handleOpen} colorPalette="muted" accessibilityLabel="Search" />
+        <Button icon="search" onPress={handleOpen} accessibilityLabel="Search" />
 
         {/* Collapsed: options button */}
         <Animated.View style={collapsedStyle}>
           <IconMenuButton
             icon="options"
-            colorPalette="muted"
+
             isSelected={hasActiveState}
             accessibilityLabel="Sort and filter"
           >
@@ -134,7 +134,7 @@ export default function SearchOptionsBar({
       {/* Cancel: a separate round button next to the field */}
       <Animated.View style={[styles.cancelSlot, cancelStyle]} pointerEvents={isSearchActive ? 'auto' : 'none'}>
         <FloatingPill style={styles.cancelPill}>
-          <Button icon="close" onPress={handleCancel} colorPalette="muted" accessibilityLabel="Cancel search" />
+          <Button icon="close" onPress={handleCancel} accessibilityLabel="Cancel search" />
         </FloatingPill>
       </Animated.View>
     </Animated.View>

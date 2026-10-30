@@ -72,8 +72,9 @@ All paths are under `apps/mobile/src/`.
   flat, without a shadow.
 - The account avatar (`AccountButton`) sits on its own at the far right of the main header,
   outside any pill: it stands for the user, not for an action.
-- Icon colors: `neutral` (the default) in the headers, `colorPalette="muted"` in the bottom bars,
-  `colorPalette="danger"` for destructive actions and `isSelected` for a setting that is on.
+- Icon colors: every toolbar action is `neutral` (the default), in the headers and the bottom bars
+  alike; `muted` only for a segment that isn't the current one, `colorPalette="danger"` for
+  destructive actions and `isSelected` for a setting that is on.
 
 ## Known conflicts: our decision wins
 
