@@ -3,8 +3,8 @@ import { StyleSheet } from 'react-native';
 
 import playVideo from './playVideo';
 
+import Button from '@/components/Button';
 import FadeView from '@/components/FadeView';
-import IconButton from '@/components/IconButton';
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 
 /**
@@ -21,7 +21,7 @@ export default function FullscreenPlayButton({ player, isVisible }) {
       pointerEvents="box-none"
     >
       <FloatingPill>
-        <IconButton icon="play" onPress={() => playVideo(player)} accessibilityLabel="Play" />
+        <Button icon="play" onPress={() => playVideo(player)} accessibilityLabel="Play" />
       </FloatingPill>
     </FadeView>
   );

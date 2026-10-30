@@ -3,12 +3,11 @@ import { StyleSheet, View } from 'react-native';
 
 import useCopyText from './useCopyText';
 
+import Button from '@/components/Button';
 import IconMenuButton from '@/components/IconMenuButton';
 import OptionCard from '@/components/OptionCard';
-import TextButton from '@/components/TextButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import FavoriteHeartButton from '@/features/favorites/FavoriteHeartButton';
-import { colors } from '@/styles/designTokens';
 
 // Memoized: a new reply renders only its own options.
 export default memo(ChatOptionCard);
@@ -23,14 +22,14 @@ function ChatOptionCard({ text, isFavorite, onToggleFavorite, onMoreLikeThis, on
   return (
     <OptionCard text={text}>
       <FavoriteHeartButton isFavorite={isFavorite} onPress={() => onToggleFavorite(text)} />
-      <IconMenuButton color={colors.text.secondary} accessibilityLabel="More for this suggestion">
+      <IconMenuButton colorPalette="muted" accessibilityLabel="More for this suggestion">
         <MenuOption label="More like this" icon="repeat" onPress={() => onMoreLikeThis(text)} />
       </IconMenuButton>
       <View style={styles.action}>
         {onUse ? (
-          <TextButton label="Use" size="small" onPress={() => onUse(text)} />
+          <Button label="Use" size="small" onPress={() => onUse(text)} />
         ) : (
-          <TextButton label="Copy" icon="copy" size="small" onPress={() => copy(text)} />
+          <Button label="Copy" icon="copy" size="small" onPress={() => copy(text)} />
         )}
       </View>
     </OptionCard>

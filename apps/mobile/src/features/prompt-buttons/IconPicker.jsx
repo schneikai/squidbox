@@ -3,10 +3,10 @@ import { ScrollView, StyleSheet } from 'react-native';
 
 import PROMPT_BUTTON_ICONS from './promptButtonIcons';
 
+import Button from '@/components/Button';
 import Card from '@/components/Card';
-import IconButton from '@/components/IconButton';
 import useHaptics from '@/hooks/useHaptics';
-import { colors, sizes } from '@/styles/designTokens';
+import { sizes } from '@/styles/designTokens';
 
 const GAP = 4;
 const PADDING = 8;
@@ -51,19 +51,19 @@ export default function IconPicker({ value, onChange }) {
         contentContainerStyle={styles.row}
         accessibilityRole="radiogroup"
       >
-        <IconButton
+        <Button
           icon="circle-off"
-          variant={value === null ? 'primary' : 'plain'}
-          color={colors.text.secondary}
+          variant={value === null ? 'primary' : 'tertiary'}
+          colorPalette="muted"
           accessibilityLabel="No icon"
           onPress={() => handlePick(null)}
         />
         {names.map((name) => (
-          <IconButton
+          <Button
             key={name}
             icon={name}
-            variant={name === value ? 'primary' : 'plain'}
-            color={colors.accent.base}
+            variant={name === value ? 'primary' : 'tertiary'}
+            colorPalette="accent"
             accessibilityLabel={name.replace(/-/g, ' ')}
             onPress={() => handlePick(name)}
           />

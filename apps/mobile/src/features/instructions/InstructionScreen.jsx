@@ -72,11 +72,11 @@ function InstructionEditor({ kind, userId, seed, defaultText, navigation }) {
     isChanged &&
       text.trim() !== '' && {
         label: 'Apply changes for everyone',
-        tone: 'accent',
+        colorPalette: 'accent',
         onPress: handlePublish,
         loading: isPublishing,
       },
-    isChanged && { label: 'Reset changes', tone: 'danger', onPress: handleReset, loading: isResetting },
+    isChanged && { label: 'Reset changes', colorPalette: 'danger', onPress: handleReset, loading: isResetting },
   ].filter(Boolean);
 
   // An empty text isn't saved (Reset is the way back to the default); null and the default's text

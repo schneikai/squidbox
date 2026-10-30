@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 
-import IconButton from '@/components/IconButton';
+import Button from '@/components/Button';
 import { colors, lineHeights, sizes, typography } from '@/styles/designTokens';
 
 /**
@@ -25,10 +25,10 @@ export default function Field({ label, description, onInfo, rightSlot, children,
       <View style={styles.labelRow}>
         <Text style={styles.label}>{label}</Text>
         {onInfo && (
-          <IconButton
+          <Button
             icon="info"
-            size={sizes.iconSmall}
-            color={colors.text.tertiary}
+            size="small"
+            colorPalette="muted"
             onPress={onInfo}
             accessibilityLabel={`What goes in ${label}`}
             style={styles.info}

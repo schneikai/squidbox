@@ -3,10 +3,9 @@ import { useSyncExternalStore } from 'react';
 
 import uncensoredMarks from './uncensoredMarks';
 
-import IconButton from '@/components/IconButton';
+import Button from '@/components/Button';
 import useAiCatalog from '@/hooks/useAiCatalog';
 import useHaptics from '@/hooks/useHaptics';
-import { colors } from '@/styles/designTokens';
 import findCatalogModel from '@/utils/ai/findCatalogModel';
 
 /**
@@ -33,11 +32,11 @@ export default function UncensoredToggle({ modelId, label }) {
   if (!model) return null;
 
   return (
-    <IconButton
+    <Button
       label="18+"
-      variant="tinted"
-      color={colors.text.secondary}
-      isActive={isOn}
+      variant="secondary"
+      colorPalette="muted"
+      isSelected={isOn}
       onPress={handlePress}
       accessibilityLabel={`${MODEL_LABEL_NAMES.uncensored}, ${label}`}
     />

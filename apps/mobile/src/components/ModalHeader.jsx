@@ -19,7 +19,7 @@ import { colors, layout, sizes, typography } from '@/styles/designTokens';
  * as the user scrolls (pass a reanimated SharedValue for this behaviour).
  *
  * Props:
- *   leftSlot    ReactElement  — typically <ModalCloseButton>
+ *   leftSlot    ReactElement  — typically a close Button (icon="close")
  *   rightSlot   ReactElement  — e.g. icon buttons; auto-wrapped in FloatingPill
  *   centerSlot  string | ReactElement
  *   subtitle    string (optional) — a smaller grey line under a string title

@@ -2,8 +2,8 @@ import { CHAT_LIMITS } from '@squidbox/shared';
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import Button from '@/components/Button';
 import Card from '@/components/Card';
-import IconButton from '@/components/IconButton';
 import Textarea from '@/components/Textarea';
 import { colors, scale, sizes } from '@/styles/designTokens';
 
@@ -49,7 +49,7 @@ export default function ChatComposer({ seed, placeholder, isDisabled, isWaiting,
         {isWaiting ? (
           <ActivityIndicator color={colors.accent.base} accessibilityLabel="Looking at the photos" />
         ) : (
-          <IconButton
+          <Button
             icon="arrow-up"
             variant="primary"
             onPress={handleSend}

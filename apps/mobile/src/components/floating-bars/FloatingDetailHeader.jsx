@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
 
-import IconButton from '@/components/IconButton';
+import Button from '@/components/Button';
 import { colors, layout, lineHeights, motion, scale, sizes, typography } from '@/styles/designTokens';
 
 /**
@@ -79,7 +79,7 @@ export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot
         onLayout={(e) => setLeftWidth(e.nativeEvent.layout.width)}
       >
         <FloatingPill style={styles.backPill}>
-          <IconButton icon="chevron-left" onPress={onBack} accessibilityLabel="Back" />
+          <Button icon="chevron-left" onPress={onBack} accessibilityLabel="Back" />
         </FloatingPill>
       </Animated.View>
 

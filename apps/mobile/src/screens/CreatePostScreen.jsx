@@ -2,13 +2,10 @@ import { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import IconButton from '@/components/IconButton';
-import ModalCloseButton from '@/components/ModalCloseButton';
+import Button from '@/components/Button';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
-import PrimaryButton from '@/components/PrimaryButton';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
-import TextButton from '@/components/TextButton';
 import { SCREEN_PADDING } from '@/constants';
 import PostList from '@/features/post-list/PostList';
 import postQuery from '@/features/post-list/postQuery';
@@ -56,7 +53,7 @@ export default function CreatePostScreen({ navigation }) {
   return (
     <ModalSheet>
       <ModalHeader
-        leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />}
+        leftSlot={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
         centerSlot="Create Post"
         scrollY={scrollY}
       />
@@ -68,17 +65,17 @@ export default function CreatePostScreen({ navigation }) {
         onScroll={onScroll}
         FirstListEntryComponent={
           <View style={styles.topSection}>
-            <PrimaryButton label="New Post" icon="add" onPress={handleCreateNewPost} />
+            <Button variant="primary" label="New Post" icon="add" onPress={handleCreateNewPost} />
 
             {/* Repost section header */}
             <ScreenSectionHeader
               title="Repost something"
               rightSlot={
-                <TextButton
+                <Button
                   label="Ignored posts"
                   icon="eye-off"
                   onPress={() => navigation.navigate('IgnoredPostsScreen')}
-                  tone="muted"
+                  colorPalette="muted"
                   size="small"
                 />
               }
@@ -100,9 +97,9 @@ export default function CreatePostScreen({ navigation }) {
 function PostActions({ onRepost, onPostpone, onIgnore }) {
   return (
     <View style={styles.menuContainer}>
-      <IconButton variant="primary" icon="edit" onPress={onRepost} accessibilityLabel="Repost" />
-      <IconButton variant="tinted" icon="clock" onPress={onPostpone} accessibilityLabel="Postpone" />
-      <IconButton variant="tinted" icon="eye-off" onPress={onIgnore} accessibilityLabel="Ignore" />
+      <Button variant="primary" icon="edit" onPress={onRepost} accessibilityLabel="Repost" />
+      <Button variant="secondary" icon="clock" onPress={onPostpone} accessibilityLabel="Postpone" />
+      <Button variant="secondary" icon="eye-off" onPress={onIgnore} accessibilityLabel="Ignore" />
     </View>
   );
 }

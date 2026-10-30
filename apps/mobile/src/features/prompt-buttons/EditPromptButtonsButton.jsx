@@ -1,16 +1,15 @@
 import { useNavigation } from '@react-navigation/native';
 
-import IconButton from '@/components/IconButton';
-import { colors, sizes } from '@/styles/designTokens';
+import Button from '@/components/Button';
 
 /** The small pencil beside a row of prompt buttons: opens Settings → Assistant → Prompt buttons. */
 export default function EditPromptButtonsButton() {
   const navigation = useNavigation();
   return (
-    <IconButton
+    <Button
       icon="pencil"
-      size={sizes.iconSmall}
-      color={colors.text.secondary}
+      size="small"
+      colorPalette="muted"
       onPress={() => navigation.navigate('PromptButtonsScreen')}
       accessibilityLabel="Edit prompt buttons"
     />

@@ -1,7 +1,6 @@
 import FloatingPill from './FloatingPill';
 
-import IconButton from '@/components/IconButton';
-import { colors } from '@/styles/designTokens';
+import Button from '@/components/Button';
 
 /**
  * A toolbar of icon segments, one of them active: the tab bar and a screen's view switcher.
@@ -12,22 +11,16 @@ export default function SegmentedPill({ items, activeKey, onSelect }) {
     <FloatingPill>
       {items.map(({ key, icon, label }) =>
         key === activeKey ? (
-          <IconButton
+          <Button
             variant="primary"
             icon={icon}
-            isActive
+            isSelected
             key={key}
             onPress={() => onSelect(key)}
             accessibilityLabel={label}
           />
         ) : (
-          <IconButton
-            key={key}
-            icon={icon}
-            onPress={() => onSelect(key)}
-            color={colors.text.secondary}
-            accessibilityLabel={label}
-          />
+          <Button key={key} icon={icon} onPress={() => onSelect(key)} colorPalette="muted" accessibilityLabel={label} />
         ),
       )}
     </FloatingPill>

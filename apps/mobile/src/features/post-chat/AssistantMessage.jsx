@@ -4,8 +4,8 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import AssistantBubble from './AssistantBubble';
 import ChatOptionCard from './ChatOptionCard';
 
+import Button from '@/components/Button';
 import Card from '@/components/Card';
-import TextButton from '@/components/TextButton';
 import { colors, typography } from '@/styles/designTokens';
 
 // A reasoning model's first drafting turn can take a while: after this, the card says it still works.
@@ -23,7 +23,7 @@ function AssistantMessage({ reply, favorites, onRetry, onMoreLikeThis, onUse }) 
     return (
       <Card style={styles.status}>
         <Text style={styles.statusText}>{reply.error}</Text>
-        {onRetry && <TextButton label="Retry" size="small" onPress={onRetry} />}
+        {onRetry && <Button label="Retry" size="small" onPress={onRetry} />}
       </Card>
     );
   }

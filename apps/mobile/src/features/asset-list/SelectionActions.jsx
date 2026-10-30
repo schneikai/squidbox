@@ -1,4 +1,4 @@
-import IconButton from '@/components/IconButton';
+import Button from '@/components/Button';
 
 // The buttons of select mode, for a floating pill: select all, download, add to album, post, delete
 // (when `onDelete` is given) and close. `actions` comes from useAssetSelectionActions.
@@ -6,29 +6,24 @@ export default function SelectionActions({ actions, onDelete, onClose }) {
   const disabled = !actions.hasSelection;
   return (
     <>
-      <IconButton
+      <Button
         icon="checkbox"
         onPress={actions.toggleSelectAll}
-        isActive={actions.allSelected}
+        isSelected={actions.allSelected}
         accessibilityLabel="Select all"
       />
-      <IconButton
-        icon="download"
-        onPress={actions.downloadSelected}
-        disabled={disabled}
-        accessibilityLabel="Download"
-      />
-      <IconButton
+      <Button icon="download" onPress={actions.downloadSelected} disabled={disabled} accessibilityLabel="Download" />
+      <Button
         icon="library"
         onPress={actions.addSelectedToAlbum}
         disabled={disabled}
         accessibilityLabel="Add to album"
       />
-      <IconButton icon="share" onPress={actions.postSelected} disabled={disabled} accessibilityLabel="Post" />
+      <Button icon="share" onPress={actions.postSelected} disabled={disabled} accessibilityLabel="Post" />
       {onDelete && (
-        <IconButton icon="trash" onPress={onDelete} disabled={disabled} variant="danger" accessibilityLabel="Delete" />
+        <Button icon="trash" onPress={onDelete} disabled={disabled} colorPalette="danger" accessibilityLabel="Delete" />
       )}
-      <IconButton variant="primary" icon="close" onPress={onClose} accessibilityLabel="Done" />
+      <Button variant="primary" icon="close" onPress={onClose} accessibilityLabel="Done" />
     </>
   );
 }

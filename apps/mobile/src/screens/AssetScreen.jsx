@@ -3,8 +3,8 @@ import { Keyboard, StatusBar, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
+import Button from '@/components/Button';
 import FadeView from '@/components/FadeView';
-import IconButton from '@/components/IconButton';
 import Page from '@/components/Page';
 import FloatingDetailActionsBar from '@/components/floating-bars/FloatingDetailActionsBar';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
@@ -198,7 +198,7 @@ export default function AssetScreen({ route, navigation }) {
               {!!asset.notes && !!assetIds && (
                 <View style={styles.noteButton}>
                   <FloatingPill>
-                    <IconButton icon="document" onPress={details.open} accessibilityLabel="Show note" />
+                    <Button icon="document" onPress={details.open} accessibilityLabel="Show note" />
                   </FloatingPill>
                 </View>
               )}

@@ -6,12 +6,11 @@ import ModelPickRow from './ModelPickRow';
 import PhotoSetRow from './PhotoSetRow';
 import modelKindText from './modelKindText';
 
+import Button from '@/components/Button';
 import CatalogStatus from '@/components/CatalogStatus';
 import IntroText from '@/components/IntroText';
-import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
-import PrimaryButton from '@/components/PrimaryButton';
 import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import { Section } from '@/components/settings-list/SettingsList';
@@ -90,7 +89,10 @@ export default function ComparePickScreen({ navigation, route }) {
 
   return (
     <ModalSheet>
-      <ModalHeader leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />} centerSlot="Compare" />
+      <ModalHeader
+        leftSlot={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
+        centerSlot="Compare"
+      />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom }]}>
         <IntroText style={styles.intro}>{modelKindText[kind].pickIntro}</IntroText>
         {rows ? (
@@ -116,7 +118,8 @@ export default function ComparePickScreen({ navigation, route }) {
         {isVision && photos && <PhotoSetRow assets={photos} detail={photosDetail} onPick={handlePickPhotos} />}
       </ScrollView>
       <FloatingPrimaryAction>
-        <PrimaryButton
+        <Button
+          variant="primary"
           label={`Start with ${pluralizeText('%{count} model', '%{count} models', modelCount)}`}
           onPress={handleStart}
           disabled={!canStart}

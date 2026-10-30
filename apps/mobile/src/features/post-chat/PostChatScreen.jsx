@@ -9,8 +9,7 @@ import UserMessage from './UserMessage';
 import promptTurn from './promptTurn';
 import usePostChat from './usePostChat';
 
-import IconButton from '@/components/IconButton';
-import ModalCloseButton from '@/components/ModalCloseButton';
+import Button from '@/components/Button';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import { SCREEN_PADDING } from '@/constants';
@@ -97,12 +96,12 @@ export default function PostChatScreen({ route, navigation }) {
   return (
     <ModalSheet>
       <ModalHeader
-        leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />}
+        leftSlot={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
         centerSlot="Assistant"
         subtitle="Writing as you"
         scrollY={scrollY}
         rightSlot={
-          <IconButton icon="edit" onPress={handleNewChat} disabled={!messages?.length} accessibilityLabel="New chat" />
+          <Button icon="edit" onPress={handleNewChat} disabled={!messages?.length} accessibilityLabel="New chat" />
         }
       />
       <Animated.ScrollView

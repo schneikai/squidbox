@@ -1,9 +1,10 @@
-import IconButton from './IconButton';
 import MenuButton from './MenuButton';
 
+import Button from '@/components/Button';
+
 /**
- * Convenience wrapper: an IconButton that opens an anchored popup menu.
- * Composes MenuButton with a default IconButton trigger.
+ * Convenience wrapper: a Button that opens an anchored popup menu.
+ * Composes MenuButton with a default Button trigger.
  *
  * Callers inside a React Native Modal must still wrap their content in
  * <MenuProvider skipInstanceCheck>. This component does not manage that.
@@ -14,10 +15,10 @@ import MenuButton from './MenuButton';
  *     <MenuOption label="..." icon="..." onPress={...} />
  *   </IconMenuButton>
  *
- * Other props (color, isActive) go to the IconButton.
+ * Other props (colorPalette, isSelected, size) go to the Button.
  *
  * style — forwarded to MenuButton's triggerContainerStyle. The wrapper is unstyled
- *   by default; IconButton owns its own appearance. Only pass style when you need
+ *   by default; Button owns its own appearance. Only pass style when you need
  *   to constrain the outer wrapper (rare).
  */
 export default function IconMenuButton({
@@ -30,7 +31,7 @@ export default function IconMenuButton({
   return (
     <MenuButton
       trigger={({ toggle }) => (
-        <IconButton {...buttonProps} icon={icon} onPress={toggle} accessibilityLabel={accessibilityLabel} />
+        <Button {...buttonProps} icon={icon} onPress={toggle} accessibilityLabel={accessibilityLabel} />
       )}
       triggerContainerStyle={style}
     >

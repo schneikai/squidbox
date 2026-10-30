@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import GradientFill from '@/components/GradientFill';
 import IconMenuButton from '@/components/IconMenuButton';
-import { colors, glass, lineHeights, sizes, typography } from '@/styles/designTokens';
+import { colors, glass, lineHeights, typography } from '@/styles/designTokens';
 
 /**
  * A turn in the chat as a bubble: the user's on the right in violet (`side` 'user', with the prompt
@@ -24,8 +24,8 @@ export default function ChatBubble({ side, label, text, children }) {
       </Fill>
       {children && (
         <IconMenuButton
-          size={sizes.iconSmall}
-          color={colors.text.secondary}
+          size="small"
+          colorPalette="muted"
           accessibilityLabel="More for this message"
           style={styles.menu}
         >

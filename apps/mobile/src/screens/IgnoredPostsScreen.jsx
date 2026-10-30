@@ -1,9 +1,8 @@
 import { View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import Button from '@/components/Button';
 import EmptyState from '@/components/EmptyState';
-import IconButton from '@/components/IconButton';
-import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import { SCREEN_PADDING } from '@/constants';
@@ -29,7 +28,7 @@ export default function IgnoredPostsScreen({ navigation }) {
   return (
     <ModalSheet>
       <ModalHeader
-        leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />}
+        leftSlot={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
         centerSlot="Ignored Posts"
         scrollY={scrollY}
       />
@@ -49,8 +48,8 @@ export default function IgnoredPostsScreen({ navigation }) {
           onScroll={onScroll}
           renderPostActions={(post) => (
             <View style={styles.actionContainer}>
-              <IconButton
-                variant="tinted"
+              <Button
+                variant="secondary"
                 icon="eye"
                 onPress={() => handleRestore(post)}
                 accessibilityLabel="Restore to the repost queue"

@@ -2,7 +2,7 @@ import { PERSONA_LIMITS } from '@squidbox/shared';
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import TextButton from '@/components/TextButton';
+import Button from '@/components/Button';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 
@@ -21,7 +21,7 @@ function RulesField({ rules, onOpen, onAdd }) {
       ))}
       {canAdd && (
         <View style={styles.add}>
-          <TextButton icon="add" label="Add a rule" onPress={onAdd} />
+          <Button icon="add" label="Add a rule" onPress={onAdd} />
         </View>
       )}
     </Section>

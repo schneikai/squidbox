@@ -2,12 +2,11 @@ import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
 
+import Button from '@/components/Button';
 import Card from '@/components/Card';
 import DateTimePicker from '@/components/DateTimePicker';
-import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
-import PrimaryButton from '@/components/PrimaryButton';
 import Textarea from '@/components/Textarea';
 import { SCREEN_PADDING } from '@/constants';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
@@ -44,10 +43,14 @@ export default function PostEditor({ kind, post, navigation, onSave }) {
   return (
     <ModalSheet>
       <ModalHeader
-        leftSlot={navigation ? <ModalCloseButton onPress={() => navigation.goBack()} /> : null}
+        leftSlot={
+          navigation ? <Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} /> : null
+        }
         scrollY={scrollY}
         rightSlot={
-          onSave && <PrimaryButton size="compact" label="Save" onPress={handleSave} disabled={!canSave || isSaving} />
+          onSave && (
+            <Button variant="primary" size="small" label="Save" onPress={handleSave} disabled={!canSave || isSaving} />
+          )
         }
       />
       <Animated.ScrollView

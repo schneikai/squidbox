@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
 
-import IconButton from '@/components/IconButton';
+import Button from '@/components/Button';
 import useAssets from '@/features/assets-context/useAssets';
 import useDeletedAssetsActions from '@/features/assets-context/useDeletedAssetsActions';
 import { colors, layout, sizes, typography } from '@/styles/designTokens';
@@ -75,21 +75,22 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
         {/* Left pill — share + favorite + download */}
         <FloatingPill>
           {canShareFiles && (
-            <IconButton icon="share" onPress={handleShare} color={colors.text.secondary} accessibilityLabel="Share" />
+            <Button icon="share" onPress={handleShare} colorPalette="muted" accessibilityLabel="Share" />
           )}
           {!isDeleted && (
-            <IconButton
+            <Button
               icon="heart"
+              colorPalette="favorite"
+              isSelected={asset.isFavorite}
               filled={asset.isFavorite}
               onPress={handleToggleFavorite}
-              color={asset.isFavorite ? colors.status.danger : colors.text.secondary}
               accessibilityLabel={asset.isFavorite ? 'Unfavorite' : 'Favorite'}
             />
           )}
-          <IconButton
+          <Button
             icon="cloud-download"
             onPress={handleDownload}
-            color={colors.text.secondary}
+            colorPalette="muted"
             accessibilityLabel="Save to camera roll"
           />
         </FloatingPill>
@@ -103,17 +104,12 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
         {/* Right pill — delete, or restore + delete permanently */}
         <FloatingPill>
           {isDeleted && (
-            <IconButton
-              icon="undo"
-              onPress={handleRestore}
-              color={colors.text.secondary}
-              accessibilityLabel="Restore"
-            />
+            <Button icon="undo" onPress={handleRestore} colorPalette="muted" accessibilityLabel="Restore" />
           )}
-          <IconButton
+          <Button
             icon="trash"
             onPress={isDeleted ? handleDeletePermanently : handleDelete}
-            variant="danger"
+            colorPalette="danger"
             accessibilityLabel={isDeleted ? 'Delete permanently' : 'Delete'}
           />
         </FloatingPill>

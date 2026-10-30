@@ -43,15 +43,19 @@ All paths are under `apps/mobile/src/`.
   and `lineHeights` (Apple's text styles), `glass`, `motion`. Sizes scale with the screen
   through `scale()`. A new color goes into `palette` and gets a role named by purpose.
 - `components/`: shared building blocks. Reuse or extend these before adding new ones:
-  - Buttons: `IconButton` (every icon-only button; `variant`: `plain`, `danger`, `primary` for the
-    purple gradient in a toolbar, `tinted`, `destructive` over content), `PrimaryButton` (a purple action with a label: `large` in a form or
-    list, `compact` in a modal header), `TextButton`, `MenuButton` /
-    `IconMenuButton` with `popup-menu-options/MenuOption` (anchored menus).
+  - Buttons: `Button`, every button in the app. `variant` is how much it stands out: `primary`
+    (the violet gradient: a form's or list's main action with a label, `size="small"` in a modal
+    header, or an icon-only circle, at most one per toolbar), `secondary` (a grey disc over content:
+    an icon or a label of up to 3 characters), `tertiary` (no fill: a toolbar icon, or with a label
+    a text link). `colorPalette` is what its color means (`neutral`, `muted`, `accent`, `danger`,
+    `favorite`), `isSelected` a toggle that is on, `isInverse` a dark surface. A close is
+    `icon="close"`. `MenuButton` / `IconMenuButton` with `popup-menu-options/MenuOption` (anchored
+    menus).
   - Floating chrome (`floating-bars/`): `FloatingPill` (a toolbar: a glass pill that groups
     buttons), `FloatingHeader` (main screens), `FloatingDetailHeader` (detail screens),
     `FloatingNavigationBar` and `FloatingSegmentPill` (both `SegmentedPill`), `SearchOptionsBar`,
     `SortFilterMenu` (its options button's menu, with a drill-down filter panel).
-  - Modals: `ModalSheet`, `ModalHeader`, `ModalCloseButton`.
+  - Modals: `ModalSheet`, `ModalHeader`.
   - Forms and lists: `Field`, `TextInput`, `Textarea`, `SearchInput`, `Switch`, `settings-list/`,
     `ThumbnailRow`, `EmptyState`, `StatusScreen`, `ProgressRing`, `progress-overlay/`.
 - `hooks/useHaptics` for haptics, `hooks/useReduceMotion` for reduced motion.
@@ -68,14 +72,14 @@ All paths are under `apps/mobile/src/`.
   flat, without a shadow.
 - The account avatar (`AccountButton`) sits on its own at the far right of the main header,
   outside any pill: it stands for the user, not for an action.
-- Icon colors: `colors.text.primary` in the headers, `colors.text.secondary` in the bottom bars,
-  `IconButton`'s `variant="danger"` for destructive actions and `isActive` for a setting that is on.
+- Icon colors: `neutral` (the default) in the headers, `colorPalette="muted"` in the bottom bars,
+  `colorPalette="danger"` for destructive actions and `isSelected` for a setting that is on.
 
 ## Known conflicts: our decision wins
 
 | Skill or generic advice says | Squidbox does |
 | --- | --- |
-| HIG: SF Symbols | lucide icons through `Icon` / `IconButton` |
+| HIG: SF Symbols | lucide icons through `Icon` / `Button` |
 | HIG: Liquid Glass / materials | Our glass (`FloatingPill`: blur + `glass` token + border) only on floating chrome, popovers and sheets; no blur in list cells |
 | apple-design improvement mode: a new palette, type scale or token system | Map every proposal onto the existing tokens. A real token change goes into `designTokens.js` and applies everywhere |
 | apple-design template check, Expo "slop" lists: violet gradient, floating pill tab bar | Frosted glass plus one violet gradient action per toolbar **is** the identity. Critique how it's executed, not the identity itself |

@@ -1,8 +1,7 @@
 import { useState, useTransition } from 'react';
 import { Alert, StyleSheet } from 'react-native';
 
-import PrimaryButton from '@/components/PrimaryButton';
-import TextButton from '@/components/TextButton';
+import Button from '@/components/Button';
 import TextInput from '@/components/TextInput';
 import { Section } from '@/components/settings-list/SettingsList';
 import useCloud from '@/features/cloud/useCloud';
@@ -63,9 +62,9 @@ export default function LoginForm({ ownerEmail }) {
         />
       </Section>
 
-      <PrimaryButton label="Sign In" onPress={handleSubmit} loading={isPending} style={styles.submit} />
+      <Button variant="primary" label="Sign In" onPress={handleSubmit} loading={isPending} style={styles.submit} />
 
-      {isOwnerEmail && <TextButton label="Sign in as someone else" onPress={handleSomeoneElse} />}
+      {isOwnerEmail && <Button label="Sign in as someone else" onPress={handleSomeoneElse} />}
     </>
   );
 }

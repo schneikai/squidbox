@@ -7,13 +7,12 @@ import ModelAnswers from './ModelAnswers';
 import PhotoAnswers from './PhotoAnswers';
 import useCompareRound, { TEXT_KEY } from './useCompareRound';
 
+import Button from '@/components/Button';
 import Card from '@/components/Card';
 import Field from '@/components/Field';
 import IntroText from '@/components/IntroText';
-import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
-import PrimaryButton from '@/components/PrimaryButton';
 import Textarea from '@/components/Textarea';
 import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
@@ -75,7 +74,7 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
   return (
     <ModalSheet>
       <ModalHeader
-        leftSlot={<ModalCloseButton onPress={() => navigation.getParent().goBack()} />}
+        leftSlot={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.getParent().goBack()} />}
         centerSlot="Compare"
         scrollY={scrollY}
       />
@@ -145,7 +144,8 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
         )}
       </Animated.ScrollView>
       <FloatingPrimaryAction>
-        <PrimaryButton
+        <Button
+          variant="primary"
           icon={hasStarted ? 'repeat' : 'play'}
           label={!hasStarted ? 'Start' : isVision ? 'New tags' : 'New suggestions'}
           onPress={handleStartRound}

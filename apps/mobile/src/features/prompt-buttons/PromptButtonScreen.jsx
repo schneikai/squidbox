@@ -166,7 +166,7 @@ function PromptButtonEditor({ id, seed, navigation }) {
             isScreenEnd
             actions={[
               { label: 'Duplicate', onPress: handleDuplicate },
-              { label: 'Delete prompt button', tone: 'danger', onPress: handleDelete },
+              { label: 'Delete prompt button', colorPalette: 'danger', onPress: handleDelete },
             ]}
           />
         )}

@@ -1,8 +1,8 @@
 import { StyleSheet, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import Button from '@/components/Button';
 import FadeView from '@/components/FadeView';
-import TextButton from '@/components/TextButton';
 import { colors, layout, radii, shadows, typography } from '@/styles/designTokens';
 
 /**
@@ -17,7 +17,7 @@ export default function UndoBar({ message, isVisible, onUndo }) {
       <Text style={styles.message} numberOfLines={1}>
         {message}
       </Text>
-      <TextButton label="Undo" tone="onDark" onPress={onUndo} />
+      <Button label="Undo" isInverse onPress={onUndo} />
     </FadeView>
   );
 }
