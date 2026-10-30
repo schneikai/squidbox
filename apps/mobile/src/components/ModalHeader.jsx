@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   centerSubtitle: {
-    fontSize: typography.caption,
+    fontSize: typography.caption2,
     color: colors.text.secondary,
   },
 });
