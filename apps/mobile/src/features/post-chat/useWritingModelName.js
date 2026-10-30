@@ -3,6 +3,7 @@ import useHasFeature from '@/hooks/useHasFeature';
 import usePersona from '@/hooks/usePersona';
 import useYourDefaults from '@/hooks/useYourDefaults';
 import findCatalogModel from '@/utils/ai/findCatalogModel';
+import usedModelId from '@/utils/ai/usedModelId';
 
 /**
  * The name of the writing model the chat uses (an ai_admin's own default, Uncensored when the
@@ -14,7 +15,7 @@ export default function useWritingModelName() {
   const persona = usePersona();
   const { yourDefaults } = useYourDefaults();
 
-  if (!isAiAdmin || !yourDefaults || persona === undefined) return null;
-  const id = yourDefaults.writing[persona?.adultContent ? 'unrestricted' : 'regular'];
+  const id = usedModelId(yourDefaults, 'writing', persona);
+  if (!isAiAdmin || !id) return null;
   return findCatalogModel(models, id)?.name ?? id;
 }

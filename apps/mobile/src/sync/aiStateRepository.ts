@@ -98,11 +98,11 @@ export async function readRemovedModels(
   return new Map(rows.map(({ id, note, score }) => [id, { note, score }]));
 }
 
-/** Sets a model's note (null or empty takes it away). */
+/** Sets a model's note (null takes it away; noteText makes one). */
 export async function setModelNote(db: SyncDb, kind: AiModelKind, modelId: string, note: string | null): Promise<void> {
   await db
     .update(aiModels)
-    .set({ note: note || null })
+    .set({ note })
     .where(and(eq(aiModels.kind, kind), eq(aiModels.modelId, modelId)));
 }
 

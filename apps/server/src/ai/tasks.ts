@@ -76,7 +76,7 @@ export type AiTask<T> = {
   onUnreadable?: (content: string, json: unknown) => T;
 };
 
-// A compare's posts: the chat's reply schema, with one option or more (the prompt says how many).
+// A compare's posts: one or more (the prompt says how many).
 export const writingTask: AiTask<{ posts: string[] }> = {
   schema: postsSchema,
   check: ({ posts }) => ({ posts: checkTweets(posts) }),

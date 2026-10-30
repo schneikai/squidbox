@@ -38,16 +38,17 @@ export default function IconButton({
   style,
 }) {
   const contentColor = iconColorFor(variant, { color, disabled, isActive });
-  let iconElement = <Icon name={icon} size={size} color={contentColor} filled={filled} />;
-  if (label) iconElement = <Text style={[styles.label, { color: contentColor }]}>{label}</Text>;
-  else if (iconCount === 2) {
-    iconElement = (
-      <View style={styles.pair}>
-        <Icon name={icon} size={PAIR_ICON_SIZE} color={contentColor} filled={filled} />
-        <Icon name={icon} size={PAIR_ICON_SIZE} color={contentColor} filled={filled} />
-      </View>
-    );
-  }
+  const iconSize = iconCount > 1 ? PAIR_ICON_SIZE : size;
+  const icons = Array.from({ length: iconCount }, (_, index) => (
+    <Icon key={index} name={icon} size={iconSize} color={contentColor} filled={filled} />
+  ));
+  const iconElement = label ? (
+    <Text style={[styles.label, { color: contentColor }]}>{label}</Text>
+  ) : iconCount > 1 ? (
+    <View style={styles.pair}>{icons}</View>
+  ) : (
+    icons[0]
+  );
 
   return (
     <Pressable

@@ -81,7 +81,7 @@ describe('aiStateRepository', () => {
     expect(await readModelList(db, 'writing')).toEqual([scored(grok), scored(kimi, 1, 'Too wordy')]);
     expect(await readRemovedModels(db, 'writing')).toEqual(new Map());
 
-    await setModelNote(db, 'writing', kimi.id, '');
+    await setModelNote(db, 'writing', kimi.id, null);
     expect((await readModelList(db, 'writing'))[1].note).toBeNull();
   });
 
