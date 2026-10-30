@@ -75,16 +75,16 @@ export default function AssetPickerScreen({ route, navigation }) {
   return (
     <ModalSheet>
       <ModalHeader
-        leftSlot={
+        leading={
           album ? (
             <Button icon="chevron-left" onPress={() => showView('Albums', null)} accessibilityLabel="Albums" />
           ) : (
             <Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />
           )
         }
-        centerSlot={title}
+        title={title}
         scrollY={scrollY}
-        rightSlot={
+        trailing={
           <Button
             variant="primary"
             size="small"

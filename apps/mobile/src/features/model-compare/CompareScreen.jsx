@@ -31,8 +31,8 @@ export default function CompareScreen({ navigation, route }) {
     return (
       <ModalSheet>
         <ModalHeader
-          leftSlot={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.getParent().goBack()} />}
-          centerSlot="Compare"
+          leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.getParent().goBack()} />}
+          title="Compare"
         />
         <View style={styles.status}>
           <CatalogStatus title="Couldn't load the instructions" error={error} retry={retry} />

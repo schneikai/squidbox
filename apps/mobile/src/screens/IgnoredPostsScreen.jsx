@@ -28,8 +28,8 @@ export default function IgnoredPostsScreen({ navigation }) {
   return (
     <ModalSheet>
       <ModalHeader
-        leftSlot={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
-        centerSlot="Ignored Posts"
+        leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
+        title="Ignored Posts"
         scrollY={scrollY}
       />
 

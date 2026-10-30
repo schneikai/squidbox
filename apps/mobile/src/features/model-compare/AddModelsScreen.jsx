@@ -74,8 +74,8 @@ export default function AddModelsScreen({ navigation, route }) {
   return (
     <ModalSheet>
       <ModalHeader
-        leftSlot={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
-        centerSlot="Add models"
+        leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
+        title="Add models"
         scrollY={scrollY}
       />
       <Animated.FlatList

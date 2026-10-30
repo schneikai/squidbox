@@ -53,8 +53,8 @@ export default function CreatePostScreen({ navigation }) {
   return (
     <ModalSheet>
       <ModalHeader
-        leftSlot={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
-        centerSlot="Create Post"
+        leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
+        title="Create Post"
         scrollY={scrollY}
       />
 
@@ -70,7 +70,7 @@ export default function CreatePostScreen({ navigation }) {
             {/* Repost section header */}
             <ScreenSectionHeader
               title="Repost something"
-              rightSlot={
+              trailing={
                 <Button
                   label="Ignored posts"
                   icon="eye-off"

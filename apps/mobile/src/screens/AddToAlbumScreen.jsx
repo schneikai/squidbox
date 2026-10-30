@@ -24,10 +24,10 @@ export default function AddToAlbumScreen({ route, navigation }) {
   return (
     <ModalSheet>
       <ModalHeader
-        leftSlot={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
-        centerSlot="Add to Album"
+        leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
+        title="Add to Album"
         scrollY={scrollY}
-        rightSlot={<Button variant="primary" icon="add" onPress={promptAddAlbum} accessibilityLabel="New album" />}
+        trailing={<Button variant="primary" icon="add" onPress={promptAddAlbum} accessibilityLabel="New album" />}
       />
       <AlbumPicker onPick={handleAddAssetsToAlbum} paddingTop={MODAL_HEADER_HEIGHT} onScroll={onScroll} />
     </ModalSheet>

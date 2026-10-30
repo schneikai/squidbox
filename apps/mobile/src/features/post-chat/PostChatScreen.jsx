@@ -99,12 +99,12 @@ export default function PostChatScreen({ route, navigation }) {
   return (
     <ModalSheet>
       <ModalHeader
-        leftSlot={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
-        centerSlot="Assistant"
+        leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
+        title="Assistant"
         subtitle={modelName ?? 'Writing as you'}
         subtitleSize={modelName ? 'small' : 'regular'}
         scrollY={scrollY}
-        rightSlot={
+        trailing={
           <Button icon="edit" onPress={handleNewChat} disabled={!messages?.length} accessibilityLabel="New chat" />
         }
       />

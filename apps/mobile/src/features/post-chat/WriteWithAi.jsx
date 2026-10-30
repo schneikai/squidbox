@@ -42,7 +42,7 @@ function WriteWithAiSection({ sessionId, navigation }) {
   return (
     <View style={styles.section}>
       <Divider style={styles.divider} />
-      <Field label="Write with AI" rightSlot={<EditPromptButtonsButton />}>
+      <Field label="Write with AI" trailing={<EditPromptButtonsButton />}>
         <PromptButtonRow buttons={buttons ?? []} onPress={(button) => openChat(promptTurn(button))}>
           <Chip label={opener.label} icon={opener.icon} variant="action" onPress={() => openChat()} />
         </PromptButtonRow>

@@ -35,8 +35,8 @@ export default function SyncErrorViewer({ query, onRetryAll, close }) {
     <Modal animationType="slide" visible presentationStyle="pageSheet" onRequestClose={close}>
       <ModalSheet style={{ paddingBottom: bottom }}>
         <ModalHeader
-          leftSlot={<Button icon="close" accessibilityLabel="Close" onPress={close} />}
-          centerSlot={`Sync Errors (${count})`}
+          leading={<Button icon="close" accessibilityLabel="Close" onPress={close} />}
+          title={`Sync Errors (${count})`}
           scrollY={scrollY}
         />
 

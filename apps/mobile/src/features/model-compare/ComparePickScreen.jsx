@@ -90,8 +90,8 @@ export default function ComparePickScreen({ navigation, route }) {
   return (
     <ModalSheet>
       <ModalHeader
-        leftSlot={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
-        centerSlot="Compare"
+        leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
+        title="Compare"
       />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom }]}>
         <IntroText style={styles.intro}>{modelKindText[kind].pickIntro}</IntroText>

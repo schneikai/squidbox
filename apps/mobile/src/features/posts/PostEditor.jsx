@@ -43,11 +43,11 @@ export default function PostEditor({ kind, post, navigation, onSave }) {
   return (
     <ModalSheet>
       <ModalHeader
-        leftSlot={
+        leading={
           navigation ? <Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} /> : null
         }
         scrollY={scrollY}
-        rightSlot={
+        trailing={
           onSave && (
             <Button variant="primary" size="small" label="Save" onPress={handleSave} disabled={!canSave || isSaving} />
           )

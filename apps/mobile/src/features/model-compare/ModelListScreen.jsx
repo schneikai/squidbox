@@ -114,7 +114,7 @@ export default function ModelListScreen({ navigation, route }) {
         <IntroText style={styles.intro}>{text.intro}</IntroText>
         <ScreenSectionHeader
           title="Your models"
-          rightSlot={
+          trailing={
             catalog && (
               <Button
                 label="Add"

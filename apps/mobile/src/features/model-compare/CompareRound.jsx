@@ -72,8 +72,8 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
   return (
     <ModalSheet>
       <ModalHeader
-        leftSlot={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.getParent().goBack()} />}
-        centerSlot="Compare"
+        leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.getParent().goBack()} />}
+        title="Compare"
         scrollY={scrollY}
       />
       {/* A plain scroll view (at most VISION_COMPARE_MAX_PHOTOS rows): each photo row's offset in

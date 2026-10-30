@@ -15,12 +15,12 @@ import { lineHeights, sizes } from '@/styles/designTokens';
  *     </Field>
  *   </Card>
  *
- * `onInfo` ends the label with an ⓘ that calls it, to explain what goes in the field. `rightSlot`
+ * `onInfo` ends the label with an ⓘ that calls it, to explain what goes in the field. `trailing`
  * sits at the label row's far end (a small button, say).
  *
  * style applies to the outer View.
  */
-export default function Field({ label, description, onInfo, rightSlot, children, style }) {
+export default function Field({ label, description, onInfo, trailing, children, style }) {
   return (
     <View style={[styles.field, style]}>
       <View style={styles.labelRow}>
@@ -34,7 +34,7 @@ export default function Field({ label, description, onInfo, rightSlot, children,
             style={styles.info}
           />
         )}
-        {rightSlot != null && <View style={styles.rightSlot}>{rightSlot}</View>}
+        {trailing != null && <View style={styles.trailing}>{trailing}</View>}
       </View>
       {children}
       {description != null && <Text variant="hint">{description}</Text>}
@@ -42,7 +42,7 @@ export default function Field({ label, description, onInfo, rightSlot, children,
   );
 }
 
-// A 44 pt button in the label row (the ⓘ, a rightSlot's) overlaps the space around the label instead
+// A 44 pt button in the label row (the ⓘ, a trailing button) overlaps the space around the label instead
 // of making its row taller.
 const OVERLAP_LABEL_ROW = -(sizes.iconButton - lineHeights.footnote) / 2;
 
@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     marginVertical: OVERLAP_LABEL_ROW,
     marginLeft: -6,
   },
-  rightSlot: {
+  trailing: {
     marginLeft: 'auto',
     marginVertical: OVERLAP_LABEL_ROW,
   },
