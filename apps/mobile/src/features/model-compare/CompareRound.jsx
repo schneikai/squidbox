@@ -19,9 +19,11 @@ import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAct
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import { SCREEN_PADDING } from '@/constants';
 import useScrollY from '@/hooks/useScrollY';
-import { scale } from '@/styles/designTokens';
+import { lineHeights, scale } from '@/styles/designTokens';
 import { setPrompt } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
+
+const PROMPT_FOLDED_LINES = 4;
 
 /**
  * A blind compare of the `models` (`{ id, name }`) of `kind`, from `savedPrompt` (the last one
@@ -36,6 +38,8 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
   const { scrollY, onScroll } = useScrollY();
   const paddingBottom = useFloatingPrimaryActionPadding();
   const [prompt, setPromptText] = useState(savedPrompt ?? defaultPrompt);
+  // A long prompt shows its first lines until tapped, so the answers stay in view.
+  const [isEditingPrompt, setIsEditingPrompt] = useState(false);
   const savedPromptRef = useRef(savedPrompt);
   const modelIds = useMemo(() => models.map(({ id }) => id), [models]);
   const round = useCompareRound({ kind, modelIds });
@@ -84,8 +88,12 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
             <Textarea
               value={prompt}
               onChangeText={setPromptText}
+              onFocus={() => setIsEditingPrompt(true)}
+              onBlur={() => setIsEditingPrompt(false)}
               maxLength={COMPARE_PROMPT_MAX_LENGTH}
               minHeight={scale(72)}
+              scrollEnabled={isEditingPrompt}
+              style={!isEditingPrompt && styles.promptFolded}
             />
           </Field>
         </Card>
@@ -140,6 +148,9 @@ const styles = StyleSheet.create({
   },
   promptCard: {
     padding: 14,
+  },
+  promptFolded: {
+    maxHeight: PROMPT_FOLDED_LINES * lineHeights.reading,
   },
   hint: {
     paddingHorizontal: 4,

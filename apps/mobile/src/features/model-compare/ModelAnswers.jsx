@@ -20,7 +20,13 @@ function ModelAnswers({ answerKey, kind, letters, namesById, results = {}, taps 
     const items = results[modelId]?.items ?? [];
     const tapped = taps[modelId] ?? [];
     return (
-      <ModelCard key={`${roundNumber}-${modelId}`} label={label} name={namesById[modelId]} result={results[modelId]}>
+      <ModelCard
+        key={`${roundNumber}-${modelId}`}
+        modelId={modelId}
+        label={label}
+        name={namesById[modelId]}
+        result={results[modelId]}
+      >
         {kind === 'vision' ? (
           <ChipRow>
             {items.map((tag, index) => {
