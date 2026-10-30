@@ -210,6 +210,20 @@ d('sync engine (Postgres)', () => {
     await pool.query('DELETE FROM personas WHERE user_id = $1 AND id = $2', [USER_A, id]);
   });
 
+  it('a favorite from an older build that still sends source is applied without it', async () => {
+    const id = randomUUID();
+    const favorite = { id, createdAt: 1000, updatedAt: 1000, deletedAt: null, text: 'First light.' };
+    const [result] = await push(db, USER_A, [
+      { collection: 'favorites', record: { ...favorite, source: 'Caption' }, fields: { text: 1000, source: 1000 } },
+    ]);
+    expect(result.status).toBe('applied');
+    const { changes } = await pull(db, USER_A, { cursor: 0 });
+    const pulled = changes.favorites.records.find((record) => record.id === id);
+    expect(pulled).toMatchObject({ text: 'First light.' });
+    expect(pulled).not.toHaveProperty('source');
+    await pool.query('DELETE FROM favorites WHERE user_id = $1 AND id = $2', [USER_A, id]);
+  });
+
   it("a persona's Adult content starts off and survives a push from a build without it", async () => {
     const id = randomUUID();
     const persona = {
@@ -1442,7 +1456,7 @@ d('sync engine (Postgres)', () => {
         icon: null,
         position: 'a0',
       }),
-      favorites: () => ({ ...base(), text: 'First light on the ridge.', source: null }),
+      favorites: () => ({ ...base(), text: 'First light on the ridge.' }),
       instructions: () => ({
         ...base(),
         writing: 'Write like me.',

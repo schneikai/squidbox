@@ -257,7 +257,6 @@ export const favorites = pgTable(
   {
     ...syncableBase(),
     text: text('text').notNull(),
-    source: text('source'),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.id] }),

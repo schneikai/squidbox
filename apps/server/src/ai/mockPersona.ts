@@ -20,16 +20,15 @@ export const MOCK_PERSONA = {
 };
 
 // The posts it writes like, newest first: his own posts, and two options he hearted in the chat.
-export const MOCK_FAVORITES: { text: string; source: string | null; daysAgo: number }[] = [
-  { text: "Up before the sun again. The hills don't wait, and neither does the light.", source: null, daysAgo: 2 },
-  { text: 'Golden hour on the ridge. Stayed until it was gone 🌅', source: 'Caption', daysAgo: 4 },
-  { text: 'Three days, one tent, zero signal. Best weekend this year 🌲', source: null, daysAgo: 9 },
+export const MOCK_FAVORITES: { text: string; daysAgo: number }[] = [
+  { text: "Up before the sun again. The hills don't wait, and neither does the light.", daysAgo: 2 },
+  { text: 'Golden hour on the ridge. Stayed until it was gone 🌅', daysAgo: 4 },
+  { text: 'Three days, one tent, zero signal. Best weekend this year 🌲', daysAgo: 9 },
   {
     text: `The rest of the coast trip is on my profile. The last one is the photo I almost didn't post. ${PROFILE_LINK}`,
-    source: 'Follow-up with link',
     daysAgo: 13,
   },
-  { text: "Coffee on a cold rock tastes better. I don't make the rules.", source: null, daysAgo: 20 },
-  { text: 'Some trails you hike for the view. This one was for the quiet.', source: null, daysAgo: 34 },
-  { text: 'Packed for rain, got a sunburn. Classic.', source: null, daysAgo: 51 },
+  { text: "Coffee on a cold rock tastes better. I don't make the rules.", daysAgo: 20 },
+  { text: 'Some trails you hike for the view. This one was for the quiet.', daysAgo: 34 },
+  { text: 'Packed for rain, got a sunburn. Classic.', daysAgo: 51 },
 ];

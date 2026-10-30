@@ -131,7 +131,6 @@ export default function PostChatScreen({ route, navigation }) {
             <AssistantMessage
               key={message.id}
               reply={message}
-              source={messages[index - 1]?.label ?? ASK_ANYTHING}
               favorites={favorites}
               onRetry={message === last ? retry : null}
               onMoreLikeThis={moreLikeThis}

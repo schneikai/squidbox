@@ -190,7 +190,6 @@ export const favorites = sqliteTable('favorites', {
   updatedAt: integer('updated_at').notNull(),
   deletedAt: integer('deleted_at'),
   text: text('text').notNull(),
-  source: text('source'),
 });
 export type FavoriteRow = typeof favorites.$inferSelect;
 

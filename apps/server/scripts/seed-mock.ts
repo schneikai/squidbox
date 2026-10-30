@@ -289,7 +289,6 @@ const promptButtons: PromptButtonRecord[] = PROMPT_BUTTONS.map((button) => {
 const favorites: FavoriteRecord[] = MOCK_FAVORITES.map((favorite, index) => ({
   ...baseRecord(`favorite:${index}`, now - favorite.daysAgo * DAY),
   text: favorite.text,
-  source: favorite.source,
 }));
 
 const mockRecords: Record<string, { id: string }[]> = {

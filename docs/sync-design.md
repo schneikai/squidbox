@@ -871,10 +871,12 @@ deletion or move of that default, and any real write then wins over the seed (th
 `skipped-lww` with the stored row).
 
 **favorites** (Settings → Assistant → Favorites: the posts the assistant writes like). Synced:
-`text`, `source` (the prompt button's name for an option hearted in the chat, null for the user's
-own post), plus the base columns; newest `createdAt` first, no position and no cap. One record per
-post rather than a list on the persona, so a heart on one device and an unheart on another merge
-per post, and each keeps where and when it came from. Removing one is a tombstone; Undo restores it
+`text`, plus the base columns; newest `createdAt` first, no position and no cap. `source` (the
+prompt button's name for a hearted option), which nothing read, was dropped in 0029 (server) and
+0028 (app); a push from an older build that still sends it has it stripped by the schema like any
+unknown field (tested), and the server ships before the app, since an older server's schema still
+requires it. One record per post rather than a list on the persona, so a heart on one device and an
+unheart on another merge per post, and each keeps when it was added. Removing one is a tombstone; Undo restores it
 by writing `deletedAt: null`, a per-field write that a later tombstone from another device still
 beats by its clock. The writing prompt sends the newest 20 (`FAVORITES_IN_PROMPT`).
 

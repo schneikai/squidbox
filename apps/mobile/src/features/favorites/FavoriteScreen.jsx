@@ -58,7 +58,7 @@ function FavoriteEditor({ id, seed, navigation }) {
         return false;
       }
     } else {
-      const [created] = await addFavorites(db, [next], null);
+      const [created] = await addFavorites(db, [next]);
       if (!created) {
         setIsTaken(true);
         return false;

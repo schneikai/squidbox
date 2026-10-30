@@ -29,6 +29,7 @@ import m0024 from './0024_merge_prompts.sql';
 import m0025 from './0025_adult_content.sql';
 import m0026 from './0026_model_check_judge.sql';
 import m0027 from './0027_uncensored_model_picks.sql';
+import m0028 from './0028_drop_favorite_source.sql';
 
   export default {
     journal,
@@ -60,7 +61,8 @@ m0023,
 m0024,
 m0025,
 m0026,
-m0027
+m0027,
+m0028
     }
   }
   

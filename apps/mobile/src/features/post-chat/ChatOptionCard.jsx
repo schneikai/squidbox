@@ -14,16 +14,15 @@ import { colors } from '@/styles/designTokens';
 export default memo(ChatOptionCard);
 
 /**
- * One option of the chat's reply: its text with a heart (`isFavorite`; `onToggleFavorite(text,
- * source)`), ⋯ → More like this (`onMoreLikeThis(text)`), and Use (`onUse(text)`, when given) or
+ * One option of the chat's reply: its text with a heart (`isFavorite`; `onToggleFavorite(text)`), ⋯ → More like this (`onMoreLikeThis(text)`), and Use (`onUse(text)`, when given) or
  * else Copy.
  */
-function ChatOptionCard({ text, source, isFavorite, onToggleFavorite, onMoreLikeThis, onUse }) {
+function ChatOptionCard({ text, isFavorite, onToggleFavorite, onMoreLikeThis, onUse }) {
   const copy = useCopyText();
 
   return (
     <OptionCard text={text}>
-      <FavoriteHeartButton isFavorite={isFavorite} onPress={() => onToggleFavorite(text, source)} />
+      <FavoriteHeartButton isFavorite={isFavorite} onPress={() => onToggleFavorite(text)} />
       <IconMenuButton color={colors.text.secondary} accessibilityLabel="More for this suggestion">
         <MenuOption label="More like this" icon="repeat" onPress={() => onMoreLikeThis(text)} />
       </IconMenuButton>
