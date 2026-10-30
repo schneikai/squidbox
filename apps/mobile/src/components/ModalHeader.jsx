@@ -23,13 +23,12 @@ import { colors, layout, sizes, typography } from '@/styles/designTokens';
  *   rightSlot   ReactElement  — e.g. icon buttons; auto-wrapped in FloatingPill
  *   centerSlot  string | ReactElement
  *   subtitle    string (optional) — a smaller grey line under a string title
- *   centerStyle "plain" (default) | "pill"  — wraps string title in FloatingPill when "pill"
  *   scrollY     Reanimated SharedValue<number> (optional) — drives title fade-out on scroll
  */
 
 export const MODAL_HEADER_HEIGHT = sizes.iconButton + layout.barBottom * 2 + 8;
 
-export default function ModalHeader({ leftSlot, rightSlot, centerSlot, subtitle, centerStyle = 'plain', scrollY }) {
+export default function ModalHeader({ leftSlot, rightSlot, centerSlot, subtitle, scrollY }) {
   // Stable fallback so animated style always has a value to read
   const fallback = useSharedValue(0);
   const anim = scrollY ?? fallback;
@@ -65,7 +64,7 @@ export default function ModalHeader({ leftSlot, rightSlot, centerSlot, subtitle,
 
       {/* Center — absolutely positioned so it doesn't affect side layout */}
       <View style={styles.centerAbsolute} pointerEvents="box-none">
-        {centerStyle === 'pill' && center ? <FloatingPill>{center}</FloatingPill> : center}
+        {center}
       </View>
 
       {/* Right slot — wrapped in FloatingPill */}

@@ -50,7 +50,7 @@ export default function AssistantScreen() {
             label="Writing as you"
             description={persona === undefined ? null : personaSummary(persona)}
             onPress={() => navigation.navigate('VoiceScreen')}
-            chevron
+            hasChevron
           />
         </Section>
         <Section isHeaderless>
@@ -59,21 +59,21 @@ export default function AssistantScreen() {
             label="Prompt buttons"
             value={promptButtonCount === undefined ? null : String(promptButtonCount)}
             onPress={() => navigation.navigate('PromptButtonsScreen')}
-            chevron
+            hasChevron
           />
           <Row
             leading={<Icon name="heart" color={colors.status.danger} />}
             label="Favorites"
             value={favoriteCount === undefined ? null : String(favoriteCount)}
             onPress={() => navigation.navigate('FavoritesScreen')}
-            chevron
+            hasChevron
           />
           <Row
             leading={<Icon name="list-checks" color={colors.text.secondary} />}
             label="Rules"
             value={persona === undefined ? null : String(persona?.rules.length ?? 0)}
             onPress={() => navigation.navigate('RulesScreen')}
-            chevron
+            hasChevron
           />
         </Section>
         {isAiAdmin && (
@@ -102,7 +102,7 @@ function AdminSection({ children }) {
             key={kind}
             label={modelKindText[kind].title}
             onPress={() => navigation.navigate('ModelListScreen', { kind })}
-            chevron
+            hasChevron
           >
             {changedKinds?.includes(kind) && <ChangedBadge />}
           </Row>
@@ -120,7 +120,7 @@ function InstructionsRow() {
   const { changedKinds } = useInstructions();
 
   return (
-    <Row label="Instructions" onPress={() => navigation.navigate('InstructionsScreen')} chevron>
+    <Row label="Instructions" onPress={() => navigation.navigate('InstructionsScreen')} hasChevron>
       {changedKinds?.length > 0 && <ChangedBadge />}
     </Row>
   );

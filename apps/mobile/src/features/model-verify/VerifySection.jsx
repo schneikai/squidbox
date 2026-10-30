@@ -41,7 +41,7 @@ export default function VerifySection({ kind, modelId, name, model }) {
             <Row
               label={title}
               description={detail ?? undefined}
-              chevron={run !== null}
+              hasChevron={run !== null}
               onPress={run !== null ? handleOpen : undefined}
             />
             {model && run?.status !== 'running' && (

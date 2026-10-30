@@ -1,12 +1,13 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
+import ToolbarTitle from './ToolbarTitle';
 
 import Button from '@/components/Button';
 import useAssets from '@/features/assets-context/useAssets';
 import useDeletedAssetsActions from '@/features/assets-context/useDeletedAssetsActions';
-import { colors, layout, sizes, typography } from '@/styles/designTokens';
+import { layout } from '@/styles/designTokens';
 import humanizeMediaType from '@/utils/assets/humanizeMediaType';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 import useShareAsset from '@/utils/assets/useShareAsset';
@@ -93,11 +94,7 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
           />
         </FloatingPill>
 
-        {isDeleted && (
-          <FloatingPill>
-            <Text style={styles.deletedLabel}>Deleted</Text>
-          </FloatingPill>
-        )}
+        {isDeleted && <ToolbarTitle title="Deleted" colorPalette="danger" />}
 
         {/* Right pill — delete, or restore + delete permanently */}
         <FloatingPill>
@@ -126,12 +123,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  deletedLabel: {
-    paddingHorizontal: layout.barPaddingX * 2,
-    lineHeight: sizes.iconButton,
-    fontSize: typography.footnote,
-    fontWeight: '600',
-    color: colors.status.danger,
   },
 });

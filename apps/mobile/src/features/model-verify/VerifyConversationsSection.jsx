@@ -34,7 +34,7 @@ export default function VerifyConversationsSection({ kind, modelId, name, run, p
               leading={<VerifyStatusIcon status={icon} />}
               label={planSection.title}
               description={text}
-              chevron={hasTurns}
+              hasChevron={hasTurns}
               onPress={hasTurns ? open : undefined}
             />
           );

@@ -17,7 +17,7 @@ function RulesField({ rules, onOpen, onAdd }) {
     <Section>
       {rules.map((rule, index) => (
         // Keyed by index: two rules can be the same.
-        <Row key={index} label={rule} onPress={() => onOpen(index)} chevron />
+        <Row key={index} label={rule} onPress={() => onOpen(index)} hasChevron />
       ))}
       {canAdd && (
         <View style={styles.add}>
