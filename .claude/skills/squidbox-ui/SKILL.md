@@ -60,7 +60,7 @@ All paths are under `apps/mobile/src/`.
     `FloatingNavigationBar` and `FloatingSegmentPill` (both `SegmentedPill`), `SearchOptionsBar`,
     `SortFilterMenu` (its options button's menu, with a drill-down filter panel).
   - Modals: `ModalSheet`, `ModalHeader`. `ToolbarTitle` for a title in a toolbar pill.
-  - Forms and lists: `Field`, `TextInput`, `Textarea`, `SearchInput`, `Switch`, `settings-list/`,
+  - Forms and lists: `Field`, `TextInput` (`variant` inline or field, `multiline`), `SearchInput`, `Switch`, `settings-list/`,
     `ThumbnailRow`, `EmptyState`, `StatusScreen`, `ProgressRing`, `progress-overlay/`.
 - `hooks/useHaptics` for haptics, `hooks/useReduceMotion` for reduced motion.
 - `features/<feature>/`: screens' building blocks, grouped by feature; `screens/` and

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
-import CardTextField from '@/components/CardTextField';
 import Field from '@/components/Field';
+import TextInput from '@/components/TextInput';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import { scale } from '@/styles/designTokens';
 import { setModelNote } from '@/sync/aiStateRepository';
@@ -19,7 +19,8 @@ export default function ModelNoteField({ kind, modelId, note, style }) {
 
   return (
     <Field label="Note" style={style}>
-      <CardTextField
+      <TextInput
+        variant="field"
         multiline
         value={text}
         onChangeText={setText}

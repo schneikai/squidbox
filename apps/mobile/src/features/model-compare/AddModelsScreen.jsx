@@ -85,6 +85,7 @@ export default function AddModelsScreen({ navigation, route }) {
         ItemSeparatorComponent={Divider}
         ListHeaderComponent={
           <SearchInput
+            variant="field"
             placeholder="Search models"
             value={searchText}
             onChangeText={setSearchText}

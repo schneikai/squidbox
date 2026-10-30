@@ -7,7 +7,7 @@ import Card from '@/components/Card';
 import DateTimePicker from '@/components/DateTimePicker';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
-import Textarea from '@/components/Textarea';
+import TextInput from '@/components/TextInput';
 import { SCREEN_PADDING } from '@/constants';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import WriteWithAi from '@/features/post-chat/WriteWithAi';
@@ -64,7 +64,8 @@ export default function PostEditor({ kind, post, navigation, onSave }) {
         </Card>
 
         <Card style={styles.textCard}>
-          <Textarea
+          <TextInput
+            multiline
             placeholder="What's new?"
             numberOfLines={4}
             onChangeText={setText}

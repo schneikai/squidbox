@@ -4,7 +4,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
-import FoldingTextarea from '@/components/FoldingTextarea';
+import FoldingTextInput from '@/components/FoldingTextInput';
 import { colors, scale, sizes } from '@/styles/designTokens';
 
 const MAX_INPUT_HEIGHT = scale(120);
@@ -37,7 +37,7 @@ export default function ChatComposer({ seed, placeholder, disabled, isWaiting, o
 
   return (
     <Card style={styles.composer}>
-      <FoldingTextarea
+      <FoldingTextInput
         foldedLines={1}
         editHint="Writes a message"
         value={text}

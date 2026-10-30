@@ -2,20 +2,20 @@ import { StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 import ActionButtons from '@/components/ActionButtons';
-import CardTextField from '@/components/CardTextField';
 import IntroText from '@/components/IntroText';
 import Page from '@/components/Page';
+import TextInput from '@/components/TextInput';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { SCREEN_PADDING } from '@/constants';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
 import useScreenPadding from '@/hooks/useScreenPadding';
 
 /**
- * A pushed screen that edits one text, the iOS Settings way: Back, the `title`, and a Textarea whose
+ * A pushed screen that edits one text, the iOS Settings way: Back, the `title`, and a multiline TextInput whose
  * text the screen stores as it changes (useSaveAsYouType; `onBlur` saves at once), with an optional
  * `description` over it and `actions` at the bottom, in order (`{ label, colorPalette, onPress, loading }`,
  * e.g. Delete or Reset changes; `loading` shows a spinner and blocks presses). No Save button.
- * The Textarea fills the screen above the keyboard and scrolls its text inside, as in Notes: a drag
+ * The text field fills the screen above the keyboard and scrolls its text inside, as in Notes: a drag
  * scrolls, a tap edits.
  */
 export default function TextEditScreen({
@@ -42,7 +42,8 @@ export default function TextEditScreen({
       <FloatingDetailHeader title={title} onBack={onBack} />
       <Animated.View style={[styles.content, { paddingTop }, contentStyle]}>
         {description != null && <IntroText isScreenIntro>{description}</IntroText>}
-        <CardTextField
+        <TextInput
+          variant="field"
           multiline
           isFilling
           value={value}

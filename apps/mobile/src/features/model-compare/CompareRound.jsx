@@ -10,7 +10,7 @@ import useCompareRound, { TEXT_KEY } from './useCompareRound';
 import Button from '@/components/Button';
 import Card from '@/components/Card';
 import Field from '@/components/Field';
-import FoldingTextarea from '@/components/FoldingTextarea';
+import FoldingTextInput from '@/components/FoldingTextInput';
 import IntroText from '@/components/IntroText';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
@@ -87,7 +87,7 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
       >
         <Card style={styles.promptCard}>
           <Field label="Prompt" description="Remembered for next time.">
-            <FoldingTextarea
+            <FoldingTextInput
               foldedLines={PROMPT_FOLDED_LINES}
               editHint="Edits the prompt"
               value={prompt}
