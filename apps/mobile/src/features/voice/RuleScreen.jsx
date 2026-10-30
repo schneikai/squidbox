@@ -35,17 +35,14 @@ export default function RuleScreen({ route, navigation }) {
 
 function RuleEditor({ index, userId, seed, navigation }) {
   const [text, setText] = useState(seed.text);
-  // The text Add or Save refused and why: shown while the text is still that one.
-  const [rejected, setRejected] = useState(null);
   const isNew = index == null;
-  const { sheetProps, finish } = useEditSheet({
+  const { sheetProps, notice, finish } = useEditSheet({
     isNew,
     isValid: Boolean(text.trim()),
     isDirty: text.trim() !== seed.text,
     save,
+    text,
   });
-
-  const notice = rejected?.text === text ? rejected.message : null;
 
   // A rule changed or removed on another device meanwhile isn't saved over: the sheet says so and
   // closes.
@@ -60,10 +57,7 @@ function RuleEditor({ index, userId, seed, navigation }) {
         navigation.goBack();
       };
     }
-    if (result !== 'added' && result !== 'updated') {
-      setRejected({ text, message: ruleResultText[result] });
-      return false;
-    }
+    if (result !== 'added' && result !== 'updated') return { refused: ruleResultText[result] };
   }
 
   function handleDelete() {

@@ -20,7 +20,8 @@ import publishInstructionAsync from '@/utils/cloud-api/ai/publishInstructionAsyn
 // One kind of instructions (`{ kind }`) as a draft sheet: its text, the user's override or the app's
 // default, saved on Save. While the draft differs from the app's default: Apply changes for everyone
 // (for a text that isn't empty), which publishes it for every account and closes the sheet, and
-// Reset changes, which puts the default back in the draft (× undoes it, so no confirm). It waits for
+// Reset changes, which puts the default back in the draft (× undoes it, so no confirm). Until the
+// user types, the draft is the stored text, and the app's default as it changes. It waits for
 // the app's defaults (they come with the catalog). A root screen, one per kind.
 export default function InstructionScreen({ route, navigation }) {
   const { kind } = route.params;
@@ -50,13 +51,15 @@ export default function InstructionScreen({ route, navigation }) {
 }
 
 // `defaultText` is the app's default as the catalog has it now (a publish replaces it at once).
+// `draft` is null until the user types.
 function InstructionEditor({ kind, userId, seed, defaultText }) {
-  const initialText = seed.stored ?? defaultText;
-  const [text, setText] = useState(initialText);
+  const [draft, setDraft] = useState(null);
   const { isPublishing, publish } = useApplyChangesForEveryone();
+  const storedText = seed.stored ?? defaultText;
+  const text = draft ?? storedText;
   const { sheetProps, finish } = useEditSheet({
     isValid: text.trim() !== '',
-    isDirty: text.trim() !== initialText.trim(),
+    isDirty: draft != null && draft.trim() !== storedText.trim(),
     save,
     isBusy: isPublishing,
   });
@@ -71,8 +74,13 @@ function InstructionEditor({ kind, userId, seed, defaultText }) {
         onPress: handlePublish,
         loading: isPublishing,
       },
-    isChanged && { label: 'Reset changes', colorPalette: 'danger', onPress: () => setText(defaultText) },
+    isChanged && { label: 'Reset changes', colorPalette: 'danger', onPress: handleReset },
   ].filter(Boolean);
+
+  // With no text of the account's own stored, the draft follows the default again.
+  function handleReset() {
+    setDraft(seed.stored == null ? null : defaultText);
+  }
 
   // The default's text is stored as null.
   async function save() {
@@ -80,15 +88,13 @@ function InstructionEditor({ kind, userId, seed, defaultText }) {
   }
 
   // The text becomes the default for every account, so the account's own text is cleared and
-  // nothing is left to save: the sheet closes.
+  // nothing is left to save: the sheet closes. A failing clear fails the publish's run, which says so.
   function handlePublish() {
     return publish("Every account's assistant gets this text.", async () => {
       const answer = await publishInstructionAsync(kind, { text: trimmed });
       applyAppInstructions(answer);
-      await finish(
-        () => saveInstruction(getDb(), userId, kind, null, answer.instructions[kind]),
-        "Couldn't save your changes",
-      );
+      await saveInstruction(getDb(), userId, kind, null, answer.instructions[kind]);
+      await finish(() => undefined, "Couldn't save your changes");
     });
   }
 
@@ -97,7 +103,7 @@ function InstructionEditor({ kind, userId, seed, defaultText }) {
       {...sheetProps}
       title={instructionText[kind].title}
       value={text}
-      onChangeText={setText}
+      onChangeText={setDraft}
       placeholder="What the assistant is told"
       maxLength={INSTRUCTION_LIMITS.text}
       description={instructionText[kind].description}

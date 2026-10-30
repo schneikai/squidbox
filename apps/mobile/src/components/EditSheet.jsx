@@ -33,12 +33,7 @@ export default function EditSheet({
 }) {
   const { scrollY, onScroll } = useScrollY();
   const { bottom } = useSafeAreaInsets();
-  const keyboardInset = useKeyboardInset(12);
   const isSheetRoute = useIsSheetRoute();
-
-  const fillingStyle = useAnimatedStyle(() => ({
-    paddingBottom: Math.max(bottom + SCREEN_PADDING, keyboardInset.value),
-  }));
 
   const sheetActions = actions.map((action) => ({ ...action, disabled: action.disabled || isSaving }));
   const header = (
@@ -70,10 +65,10 @@ export default function EditSheet({
     return (
       <ModalSheet>
         {header}
-        <Animated.View style={[styles.filling, fillingStyle]}>
+        <FillingBody>
           {children}
           <ActionButtons actions={sheetActions} isScreenEnd />
-        </Animated.View>
+        </FillingBody>
       </ModalSheet>
     );
   }
@@ -93,6 +88,16 @@ export default function EditSheet({
       </Animated.ScrollView>
     </ModalSheet>
   );
+}
+
+// The body that fills the sheet above the keyboard (`isFilling`).
+function FillingBody({ children }) {
+  const { bottom } = useSafeAreaInsets();
+  const keyboardInset = useKeyboardInset(12);
+  const fillingStyle = useAnimatedStyle(() => ({
+    paddingBottom: Math.max(bottom + SCREEN_PADDING, keyboardInset.value),
+  }));
+  return <Animated.View style={[styles.filling, fillingStyle]}>{children}</Animated.View>;
 }
 
 // Whether this screen is a sheet's own screen rather than a step pushed inside a sheet: a route of

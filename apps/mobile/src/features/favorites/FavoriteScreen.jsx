@@ -15,6 +15,7 @@ import {
 } from '@/sync/favoritesRepository';
 
 const NEW_FAVORITE = { text: '' };
+const TAKEN = { refused: 'This post is in your Favorites already.' };
 
 // One favorite, as a draft sheet: `{ id }` edits it (Save, or Delete, which the Favorites screen
 // offers to undo); no params adds one of your own posts (Add). A text in your Favorites already says
@@ -33,30 +34,25 @@ export default function FavoriteScreen({ route, navigation }) {
 
 function FavoriteEditor({ id, seed, navigation }) {
   const [text, setText] = useState(seed.text);
-  // The text Add or Save refused as in your Favorites already: said while the text is still that one.
-  const [takenText, setTakenText] = useState(null);
-  const { sheetProps, finish } = useEditSheet({
+  const { sheetProps, notice, finish } = useEditSheet({
     isNew: !id,
     isValid: Boolean(text.trim()),
     isDirty: text.trim() !== seed.text,
     save,
+    text,
   });
-
-  const notice = takenText === text ? 'This post is in your Favorites already.' : null;
 
   async function save() {
     const db = getDb();
     if (!id) {
-      if ((await addFavorites(db, [text])).length > 0) return;
-      setTakenText(text);
-      return false;
+      const added = await addFavorites(db, [text]);
+      return added.length > 0 ? undefined : TAKEN;
     }
     try {
       await updateFavorite(db, id, text);
     } catch (error) {
       if (error.message !== ALREADY_IN_FAVORITES) throw error;
-      setTakenText(text);
-      return false;
+      return TAKEN;
     }
   }
 

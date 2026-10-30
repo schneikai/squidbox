@@ -9,7 +9,8 @@ import buildPostAssets from '@/utils/posts/buildPostAssets';
 
 // A new post, seeded once from the route: the assets to post (`assetIds`, in that order), a text, or
 // the post to repost (`rePostId`: its text and assets, as fresh post assets). Reposting a post that
-// was deleted meanwhile closes the editor.
+// was deleted meanwhile closes the editor. Once the post is added, marking the reposted one is
+// best-effort: a failure there must not keep the editor open, where Add would add the post again.
 export default function AddPostScreen({ route, navigation }) {
   const { rePostId } = route.params ?? {};
   const { addPost, updatePost } = usePosts();
@@ -17,7 +18,12 @@ export default function AddPostScreen({ route, navigation }) {
 
   async function handleAddPost(data) {
     await addPost({ ...data, rePostId });
-    if (rePostId) await updatePost(rePostId, { hasBeenReposted: true });
+    if (!rePostId) return;
+    try {
+      await updatePost(rePostId, { hasBeenReposted: true });
+    } catch (error) {
+      console.error("Couldn't mark the post as reposted", error);
+    }
   }
 
   if (!seed) return null;
