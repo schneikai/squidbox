@@ -26,10 +26,11 @@ export type InstructionRecord = z.infer<typeof instructionCollection.schema>;
 /**
  * The kinds, in the order the Instructions screen lists them. Each is a template the server fills in
  * (a line whose placeholder is empty is left out, and so is a heading left with nothing under it):
- * - `writing`, the chat's whole system message and the Compare's: `{aboutYou}`, `{tone}`,
- *   `{contentTags}`, `{rules}`, `{favorites}` (Writing as you and the Favorites), `{media}`, `{tags}`,
- *   `{mentions}`, `{caption}` (the post; the Compare has none), `{count}` (the options to write);
- * - `visionTagging`, the system message of every photo tags request: `{themes}` (Your content);
+ * - `writing`, the chat's whole system message: `{aboutYou}`, `{tone}`, `{contentTags}`, `{rules}`,
+ *   `{favorites}` (Writing as you and the Favorites), `{media}`, `{tags}`, `{mentions}`, `{caption}`
+ *   (the post), `{count}` (the options to write). A Compare sends only its prompt box;
+ * - `visionTagging`, the system message of every photo tags request: `{themes}` (Your content). A
+ *   Compare sends its prompt box in its place, without the themes;
  * - `moreLikeThis`, what the chat's More like this sends, with the option after it;
  * - `modelCheckJudge`, what a writing Verify (ai_admin) asks its judge after each chat turn: the
  *   creator and the post the assistant was told about, as `writing` has them (`{aboutYou}` …

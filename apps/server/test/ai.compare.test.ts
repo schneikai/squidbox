@@ -37,10 +37,7 @@ const fetchMock = vi.fn();
 const compareWriting = (models: CatalogEntry[]) =>
   compareModels({
     task: writingTask,
-    messages: writingMessages({
-      prompt: 'Write',
-      instructions: DEFAULT_INSTRUCTIONS,
-    }),
+    messages: writingMessages('Write'),
     models,
   });
 const compareVision = (models: CatalogEntry[]) =>
@@ -112,9 +109,10 @@ describe('visionMessages', () => {
 });
 
 describe('checking the replies', () => {
-  it('takes exactly 3 non-empty tweets', () => {
+  it('takes the non-empty tweets, as many as there are, but at least one', () => {
     expect(checkTweets([' a ', 'b', 'c'])).toEqual(['a', 'b', 'c']);
-    expect(() => checkTweets(['a', 'b', ' '])).toThrow('Returned 2 tweets instead of 3');
+    expect(checkTweets(['a', ' ', 'b', 'c', 'd'])).toEqual(['a', 'b', 'c', 'd']);
+    expect(() => checkTweets([' ', ''])).toThrow('The model returned no posts');
   });
 
   it('takes a chat reply trimmed and cut to fit, without empty options, the first 10 of them', () => {
@@ -263,13 +261,13 @@ describe('compareModels: writing', () => {
   it("gives each model its result, and one model's failure stays on its own card", async () => {
     replies({
       'kimi-k3': { reply: '', postOptions: ['one', 'two', 'three'] },
-      'grok-4-7': { reply: '', postOptions: ['one', 'two'] },
+      'grok-4-7': { reply: '', postOptions: [' '] },
       'z-ai-glm-5-3': new Response(JSON.stringify({ error: { message: 'Model is busy' } }), { status: 503 }),
     });
     const results = await compareWriting([model('kimi-k3'), model('grok-4-7'), model('z-ai-glm-5-3')]);
     expect(results).toEqual([
       { modelId: 'kimi-k3', reply: '', postOptions: ['one', 'two', 'three'] },
-      { modelId: 'grok-4-7', error: 'Returned 2 tweets instead of 3' },
+      { modelId: 'grok-4-7', error: 'The model returned no posts' },
       { modelId: 'z-ai-glm-5-3', error: 'Model is busy' },
     ]);
   });

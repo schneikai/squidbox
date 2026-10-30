@@ -11,7 +11,7 @@ const persona = {
 const favorites = ['First light on the ridge.', 'Fog on the lake.'];
 const empty = { aboutYou: '', contentTags: [], tone: '', rules: [] };
 
-const systemOf = (messages: ReturnType<typeof writingMessages>) => messages[0]!.content as string;
+const systemOf = (messages: ReturnType<typeof chatMessages>) => messages[0]!.content as string;
 
 const context = {
   kind: 'draft' as const,
@@ -132,35 +132,9 @@ describe('chatMessages', () => {
 });
 
 describe('writingMessages (the Compare)', () => {
-  const compare = (overrides: Partial<Parameters<typeof writingMessages>[0]> = {}) =>
-    writingMessages({
-      prompt: 'Write posts about a sunrise hike',
-      instructions: DEFAULT_INSTRUCTIONS,
-      ...overrides,
-    });
-
-  it("sends the chat's briefing without a persona, Favorites or a post, then the prompt", () => {
-    const [system, user] = compare();
-    const chat = chatMessages({
-      instructions: DEFAULT_INSTRUCTIONS,
-      context,
-      transcript,
-      persona: null,
-      favorites: [],
-    })[0]!.content as string;
-    const withoutPost = chat.replace(/# The post they're working on\n[\s\S]*?\n\n(?=# How to answer)/, '');
-    expect(system).toEqual({ role: 'system', content: withoutPost });
-    expect(system!.content).not.toContain('# The creator');
-    expect(system!.content).not.toContain('# Posts they liked');
-    expect(system!.content).not.toContain("# The post they're working on");
-    expect(system!.content).toContain('3 options unless they say how many');
-    expect(user).toEqual({ role: 'user', content: 'Write posts about a sunrise hike' });
-  });
-
-  it("uses the user's own Writing text, with the persona's placeholders left empty", () => {
-    const [mine] = compare({
-      instructions: { ...DEFAULT_INSTRUCTIONS, writing: 'Reply as JSON.\nTone: {tone}.\n{count} posts.' },
-    });
-    expect(mine!.content).toBe('Reply as JSON.\n3 posts.');
+  it('sends only the prompt, as the user, without system instructions', () => {
+    expect(writingMessages('Write 3 posts about a sunrise hike')).toEqual([
+      { role: 'user', content: 'Write 3 posts about a sunrise hike' },
+    ]);
   });
 });

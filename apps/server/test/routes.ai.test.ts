@@ -344,7 +344,7 @@ describe('POST /api/v1/ai/compare/writing', () => {
       response_format: { type: 'json_schema', json_schema: { name: 'chat_reply', strict: true } },
       venice_parameters: { include_venice_system_prompt: false, strip_thinking_response: true },
     });
-    expect(kimi.messages[1]).toEqual({ role: 'user', content: 'Write 3 posts about a sunrise hike' });
+    expect(kimi.messages[0]).toEqual({ role: 'user', content: 'Write 3 posts about a sunrise hike' });
     for (const body of [kimi, glm]) {
       expect(body).not.toHaveProperty('reasoning_effort');
       expect(body).not.toHaveProperty('max_tokens');
@@ -362,7 +362,7 @@ describe('POST /api/v1/ai/compare/writing', () => {
     expect(chatBodies()).toHaveLength(1);
   });
 
-  it("leaves the user's persona and favorites out of the briefing: only the prompt box counts", async () => {
+  it('sends only the prompt box: no Writing instructions, persona or favorites', async () => {
     veniceAnswers({ chatReply: { reply: '', postOptions: ['one', 'two', 'three'] } });
     vi.mocked(readPersona).mockResolvedValue({
       aboutYou: 'Outdoor photographer from Oregon.',
@@ -373,24 +373,11 @@ describe('POST /api/v1/ai/compare/writing', () => {
     vi.mocked(readFavorites).mockResolvedValue(['First light on the ridge.']);
     const res = await call('POST', '/ai/compare/writing', writing);
     expect(res.statusCode).toBe(200);
+    expect(readInstructions).not.toHaveBeenCalled();
     expect(readPersona).not.toHaveBeenCalled();
     expect(readFavorites).not.toHaveBeenCalled();
     for (const body of chatBodies()) {
-      expect(body.messages[0].content).not.toContain('# The creator');
-      expect(body.messages[0].content).not.toContain('First light on the ridge.');
-      expect(body.messages[0].content).not.toContain("# The post they're working on");
-      expect(body.messages[0].content).toContain('3 options unless they say how many');
-    }
-  });
-
-  it("briefs the models with the user's own Writing text", async () => {
-    veniceAnswers({ chatReply: { reply: '', postOptions: ['one', 'two', 'three'] } });
-    const mine = 'Write like a park ranger.';
-    vi.mocked(readInstructions).mockResolvedValueOnce({ ...DEFAULT_INSTRUCTIONS, writing: mine });
-    expect((await call('POST', '/ai/compare/writing', writing)).statusCode).toBe(200);
-    expect(readInstructions).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ id: 'u1' }));
-    for (const body of chatBodies()) {
-      expect(body.messages[0]).toEqual({ role: 'system', content: mine });
+      expect(body.messages).toEqual([{ role: 'user', content: writing.prompt }]);
     }
   });
 

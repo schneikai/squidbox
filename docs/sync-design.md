@@ -882,8 +882,8 @@ beats by its clock. The writing prompt sends the newest 20 (`FAVORITES_IN_PROMPT
 
 **instructions** (Settings → Assistant → Admin → Instructions, for an ai_admin account: what the
 assistant is told before each request). Synced: `writing` (the writing briefing: the chat's whole
-system message, filled with the persona, the Favorites and the post, and the Compare's, with none of
-them, so a compare tests only its prompt box), `visionTagging` (the photo tags briefing, the system
+system message, filled with the persona, the Favorites and the post; a writing Compare sends only
+its prompt box, without system instructions), `visionTagging` (the photo tags briefing, the system
 message of every tags request, filled with Your content's themes; a Compare sends its prompt box
 instead, without them), `moreLikeThis` (what the chat's More like this sends) and `modelCheckJudge` (what
 a writing Verify asks its judge after each chat turn), templates the server fills in, each that

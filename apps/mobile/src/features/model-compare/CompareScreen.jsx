@@ -12,9 +12,8 @@ import useSeedOrClose from '@/hooks/useSeedOrClose';
 import { readPrompt, readVisionPhotos } from '@/sync/aiStateRepository';
 
 // The writing compare's sample request before the first compare; after it, the last one used. The
-// server sends it after the user's Writing briefing, filled without a post.
-const WRITING_PROMPT =
-  'Write posts about a sunrise hike for my followers. Calm, a little dry. Under 200 characters each.';
+// server sends it alone, without system instructions, so it says how many posts to write.
+const WRITING_PROMPT = 'Write 3 posts about a quiet morning hike on the coast. Be creative.';
 
 // The compare's second step (route params `kind` and the ticked `models`), from the remembered
 // prompt (vision's starts from the user's Photo tags instructions, which come with the catalog: a

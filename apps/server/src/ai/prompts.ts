@@ -24,25 +24,11 @@ export function fillTemplate(template: string, values: Record<string, string>): 
 }
 
 /**
- * The writing prompt of a compare: the writing briefing (`instructions.writing`, which sets the
- * reply's format) without the creator's persona, Favorites or a post, so their sections are left
- * out, as the system message, then the prompt as the user's message. So a compare tests only what
- * is in its prompt box.
+ * The writing prompt of a compare: only the prompt box, as the user's message, without system
+ * instructions; the reply's JSON schema (chatReplyJsonSpec) still asks for the posts as options.
  */
-export function writingMessages({
-  prompt,
-  instructions,
-}: {
-  prompt: string;
-  instructions: Instructions;
-}): ChatMessage[] {
-  return [
-    {
-      role: 'system',
-      content: writingBriefingText(instructions.writing, { persona: null, favorites: [], context: null }),
-    },
-    { role: 'user', content: prompt },
-  ];
+export function writingMessages(prompt: string): ChatMessage[] {
+  return [{ role: 'user', content: prompt }];
 }
 
 /**
@@ -181,7 +167,7 @@ function mediaText({ photo, video }: ChatContext['media']): string {
   return [count(photo, 'photo'), count(video, 'video')].filter(Boolean).join(' and ') || 'none yet';
 }
 
-// The post's values: none for a compare (`context` null), so its lines and heading are left out.
+// The post's values: none without one (`context` null), so its lines and heading are left out.
 function postValues(context: ChatContext | null): Record<string, string> {
   if (!context) return { media: '', tags: '', mentions: '', caption: '' };
   const caption = context.text.trim();
@@ -196,7 +182,7 @@ function postValues(context: ChatContext | null): Record<string, string> {
 /**
  * The writing briefing, `template` (instructions.writing) filled with the creator's persona, their
  * Favorites (the texts, newest first, as "- " lines like the rules, each on one line) and the chat's
- * post (`context`, null for a compare): `{caption}` is the caption as a JSON string, or (empty);
+ * post (`context`, null for none): `{caption}` is the caption as a JSON string, or (empty);
  * `{count}` the options to write. A line whose value is empty is left out, with its heading
  * (fillLines).
  */

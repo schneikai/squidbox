@@ -5,7 +5,6 @@ import {
   assetTagSchema,
   CHAT_LIMITS,
   uniqueTags,
-  WRITING_TWEET_COUNT,
   type AiModelKind,
   type ChatReply,
 } from '@squidbox/shared';
@@ -17,12 +16,12 @@ import { readChosenModelId } from './modelChoices.js';
 import { chatReplyJsonSpec, judgeVerdictJsonSpec, tagsSchema } from './prompts.js';
 import { chatJsonAsync, VeniceError, type ChatMessage, type JsonSchemaSpec } from './venice.js';
 
-/** The trimmed tweets when there are exactly WRITING_TWEET_COUNT non-empty ones; throws otherwise. */
+/**
+ * The trimmed non-empty tweets, as many as the compare's prompt asked for; throws without any.
+ */
 export function checkTweets(tweets: string[]): string[] {
   const kept = tweets.map((tweet) => tweet.trim()).filter(Boolean);
-  if (kept.length !== WRITING_TWEET_COUNT) {
-    throw new VeniceError(`Returned ${kept.length} tweets instead of ${WRITING_TWEET_COUNT}`);
-  }
+  if (kept.length === 0) throw new VeniceError('The model returned no posts');
   return kept;
 }
 
@@ -77,7 +76,7 @@ export type AiTask<T> = {
   onUnreadable?: (content: string, json: unknown) => T;
 };
 
-// A compare's posts: the chat's reply schema, with exactly WRITING_TWEET_COUNT options.
+// A compare's posts: the chat's reply schema, with one option or more (the prompt says how many).
 export const writingTask: AiTask<ChatReply> = {
   schema: chatReplyJsonSpec,
   check: (reply) => ({ ...reply, postOptions: checkTweets(reply.postOptions) }),

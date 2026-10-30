@@ -316,11 +316,8 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         schema: { body: compareWritingRequestSchema, response: { 200: compareWritingResponseSchema } },
         handler: async (request, reply) => {
           const signal = untilClientLeaves(reply);
-          // Only the prompt box and the Writing instructions (the reply's format), not the persona or
-          // Favorites. The catalog loads meanwhile (compareRequested reads it from the cache then).
-          const user = requireUser(request);
-          const [instructions] = await Promise.all([readInstructions(getDb(), user), catalogAsync()]);
-          const messages = writingMessages({ prompt: request.body.prompt, instructions });
+          // Only the prompt box: no instructions, persona or Favorites.
+          const messages = writingMessages(request.body.prompt);
           const results = await compareRequested(request.body.modelIds, 'writing', (models) =>
             compareModels({ task: writingTask, messages, models, log: request.log, signal }),
           );

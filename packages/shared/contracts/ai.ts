@@ -207,6 +207,7 @@ export type AiBalanceResponse = z.infer<typeof aiBalanceResponseSchema>;
 
 export const COMPARE_MIN_MODELS = 2;
 export const COMPARE_PROMPT_MAX_LENGTH = 2000;
+// The options the chat's writing briefing asks for ({count}); a compare's prompt says its own.
 export const WRITING_TWEET_COUNT = 3;
 // Photos in one vision compare: each is a request, so two rounds in a minute stay well within the
 // vision route's rate limit (240 a minute).
@@ -233,8 +234,8 @@ const promptSchema = z.string().trim().min(1).max(COMPARE_PROMPT_MAX_LENGTH);
 // A model's failure is its own result, so one failing model leaves the others' results.
 const modelErrorSchema = z.object({ modelId: z.string(), error: z.string() });
 
-// POST /ai/compare/writing — one prompt, each model writes WRITING_TWEET_COUNT tweets. The
-// request has room for the user's persona later; the server adds it, the app doesn't send it.
+// POST /ai/compare/writing — one prompt, each model writes the posts it asks for. The prompt is all
+// the models get: no system instructions, persona or Favorites.
 export const compareWritingRequestSchema = z.object({
   prompt: promptSchema,
   modelIds: modelIdsSchema,
