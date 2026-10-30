@@ -9,6 +9,7 @@ import { getDb } from '@/sync/db/client';
 import readVisionImageAsync from '@/utils/assets/readVisionImageAsync';
 import compareAsync from '@/utils/cloud-api/ai/compareAsync';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
+import tagKey from '@/utils/tagKey';
 
 // A request the tunnel of the dev client turned away (503) is asked once more after this pause:
 // it never reached the server.
@@ -45,14 +46,19 @@ export default function useCompareRound({ kind, modelIds }) {
 
   useEffect(() => () => controllerRef.current?.abort(), []);
 
-  // The steps of a round, each asked of every model: its results key, the results' items key, and
-  // its body. Each model gets its own earlier answers to the step with this prompt, and its new ones
-  // join them once in.
-  function jobsFor({ prompt, photos }) {
+  // The earlier answers of `prompt`'s rounds, by results key and model: kept while the prompt stays,
+  // started over for a new one. Counts this round.
+  function earlierRoundsOf(prompt) {
     const isSamePrompt = earlierRef.current.prompt === prompt;
     if (!isSamePrompt) earlierRef.current = { prompt, byKey: {} };
     setPromptRound((current) => (isSamePrompt ? current + 1 : 1));
-    const { byKey } = earlierRef.current;
+    return earlierRef.current.byKey;
+  }
+
+  // The steps of a round, each asked of every model: its results key, the results' items key, and
+  // its body. Each model gets its own earlier answers to the step (`byKey`, earlierRoundsOf's), and
+  // its new ones join them once in.
+  function jobsFor({ prompt, photos }, byKey) {
     const steps =
       kind === 'vision'
         ? photos.map((asset) => ({
@@ -66,12 +72,9 @@ export default function useCompareRound({ kind, modelIds }) {
         : [{ key: TEXT_KEY, itemsKey: 'tweets', body: async () => ({ prompt }) }];
     return steps.map((step) => {
       const atStart = { ...byKey[step.key] };
-      // A photo's tags already shown in its earlier rounds, by any model: only new ones are listed,
-      // so a model that repeats itself doesn't earn its thumbs up again.
-      const seen = new Set(Object.values(atStart).flatMap((rounds) => rounds.flat().map(tagKey)));
       return {
         ...step,
-        newOnly: kind === 'vision' ? (items) => items.filter((tag) => !seen.has(tagKey(tag))) : (items) => items,
+        shown: kind === 'vision' ? newTagsOnly(atStart) : (items) => items,
         earlierFor: (modelId) => atStart[modelId] ?? [],
         onDone: (modelId, items) => {
           byKey[step.key] = { ...byKey[step.key], [modelId]: [...(byKey[step.key]?.[modelId] ?? []), items] };
@@ -89,32 +92,33 @@ export default function useCompareRound({ kind, modelIds }) {
   }
 
   // Each model works through the steps on its own, one request at a time, so its cards fill as soon
-  // as it answers and a slow model doesn't hold up the others. A step's body (a photo) is read once.
+  // as it answers and a slow model doesn't hold up the others. A step's body (a photo) is read once,
+  // and let go once every model has sent it.
   async function run(jobs, signal) {
     const bodies = new Map();
-    function bodyOf(job) {
+    const pending = new Map(jobs.map(({ key }) => [key, modelIds.length]));
+    async function bodyFor(job) {
       if (!bodies.has(job.key)) bodies.set(job.key, job.body(signal));
-      return bodies.get(job.key);
+      try {
+        return await bodies.get(job.key);
+      } finally {
+        pending.set(job.key, pending.get(job.key) - 1);
+        if (pending.get(job.key) === 0) bodies.delete(job.key);
+      }
     }
     async function worker(modelId) {
       for (const job of jobs) {
         if (signal.aborted) return;
-        let body;
-        try {
-          body = await bodyOf(job);
-        } catch (error) {
-          if (!signal.aborted) land(job.key, { [modelId]: { status: 'error', error: apiErrorMessage(error) } });
-          continue;
-        }
-        await askModel(job, { ...body, modelIds: [modelId], earlierRounds: job.earlierFor(modelId) }, modelId, signal);
+        await askModel(job, modelId, () => bodyFor(job), signal);
       }
     }
     await Promise.all(modelIds.map(worker));
   }
 
-  async function askModel(job, body, modelId, signal) {
+  async function askModel(job, modelId, bodyAsync, signal) {
     let results;
     try {
+      const body = { ...(await bodyAsync()), modelIds: [modelId], earlierRounds: job.earlierFor(modelId) };
       results = byModel(await compareOnceMoreAsync(kind, body, signal), job.itemsKey);
     } catch (error) {
       results = { [modelId]: { status: 'error', error: apiErrorMessage(error) } };
@@ -123,7 +127,7 @@ export default function useCompareRound({ kind, modelIds }) {
     const result = results[modelId];
     if (result?.status === 'done') {
       job.onDone(modelId, result.items);
-      results = { ...results, [modelId]: { ...result, items: job.newOnly(result.items) } };
+      results = { ...results, [modelId]: { ...result, items: job.shown(result.items) } };
     }
     markTriedOnce(results);
     land(job.key, results);
@@ -141,7 +145,7 @@ export default function useCompareRound({ kind, modelIds }) {
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
-    const jobs = jobsFor(input);
+    const jobs = jobsFor(input, earlierRoundsOf(input.prompt));
     const loading = Object.fromEntries(modelIds.map((modelId) => [modelId, { status: 'loading' }]));
     tapsRef.current = {};
     setRound((current) => ({
@@ -182,9 +186,11 @@ export default function useCompareRound({ kind, modelIds }) {
   return { ...round, isRunning, promptRound, startRound, resetRounds, toggle };
 }
 
-// The same tag in any case and spacing.
-function tagKey(tag) {
-  return tag.trim().toLowerCase();
+// A photo's tags not shown in its earlier rounds (`earlier`, by model) by any model, so a model
+// that repeats itself doesn't earn its thumbs up again.
+function newTagsOnly(earlier) {
+  const seen = new Set(Object.values(earlier).flatMap((rounds) => rounds.flat().map(tagKey)));
+  return (tags) => tags.filter((tag) => !seen.has(tagKey(tag)));
 }
 
 // A compare request, asked once more when the dev client's tunnel turned it away.

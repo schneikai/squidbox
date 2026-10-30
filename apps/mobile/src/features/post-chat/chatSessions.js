@@ -2,12 +2,9 @@ import { CHAT_LIMITS, uniqueTags } from '@squidbox/shared';
 
 import createStore from '@/lib/createStore';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
+import tagKey from '@/utils/tagKey';
 
 const NO_TAG_EDITS = Object.freeze({ addedTags: [], removedTags: [] });
-
-function tagKey(tag) {
-  return tag.trim().toLowerCase();
-}
 
 // The open assistant chats by id. A chat lives while its editor is open and is never saved: the
 // editor and the chat screen (a route, whose params are plain data) share it by id.

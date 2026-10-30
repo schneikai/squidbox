@@ -41,6 +41,15 @@ Decide this before the app stores anything new:
 - The project checks are `npm run lint`, `npm run typecheck`, `npm run knip` and `npm test --workspaces --if-present`, all from the repo root. Run them before committing and keep them clean
 - Add to `knip.json` only files Expo or Metro load by convention. Delete code that is merely unused
 
+## Tests
+
+- Test behavior a user or another module relies on, one rule per test, named as that rule. Don't test constants, config values or what the types already guarantee
+- Before adding a test, look for one that already covers the case and extend it instead of copying it
+- A fixed bug gets the smallest case that failed: a pinned seed or one scenario, not another round of random cases
+- Size seeded fuzz tests with `fuzzRuns` (mobile) or `cases` (server): a plain run takes a few seconds, `FUZZ_DEEP=1` (CI) runs them all
+- Check performance by counting work (statements, rows read, query plans), never by timing it
+- A test file that takes over a second in a plain run needs a reason: put the large-scale part behind `FUZZ_DEEP` or the DB suites
+
 ## AI prompts
 
 - Every prompt the app sends to the AI is editable by an `ai_admin` account (Settings → Assistant → Admin → Instructions): an edit is an override only that account uses, to try it in the app; Apply changes for everyone publishes it as the app's text for every account (`app_instructions`, served with the catalog). Give new prompts the same treatment

@@ -15,6 +15,7 @@ import findCatalogModel from '@/utils/ai/findCatalogModel';
 import joinYourModels from '@/utils/ai/joinYourModels';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
 import seedModels from '@/utils/ai/seedModels';
+import usedModelId from '@/utils/ai/usedModelId';
 import fetchAiModelsAsync from '@/utils/cloud-api/ai/fetchAiModelsAsync';
 import setModelDefaultsAsync from '@/utils/cloud-api/ai/setModelDefaultsAsync';
 
@@ -70,10 +71,7 @@ export default function useYourModels(kind) {
   // Memoized: the Add screen's rows stay memoized across its search keystrokes.
   const rows = useMemo(() => (catalog && list ? joinYourModels(list, catalog, kind) : null), [catalog, list, kind]);
   const isChanged = changedKinds?.includes(kind) ?? false;
-  const usedId =
-    yourDefaults && persona !== undefined
-      ? yourDefaults[kind][persona?.adultContent ? 'unrestricted' : 'regular']
-      : null;
+  const usedId = usedModelId(yourDefaults, kind, persona);
 
   const pickDefault = useCallback(
     async (variant, model) => {

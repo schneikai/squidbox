@@ -33,7 +33,8 @@ const MAX_DISC_LABEL = 3;
  *               tighter link for a header row.
  * `colorPalette` is what its color means: `neutral`, `muted`, `accent`, `danger` or `favorite`
  * (a heart); a text link is `accent` and an icon button `muted` unless told, wherever it sits. `isInverse` puts it on a
- * dark surface (the Undo bar). `isSelected` marks a toggle that is on (on a primary, the current tab, it only tells VoiceOver).
+ * dark surface (the Undo bar). `isSelected` marks a toggle that is on (on a primary, the current tab, it only tells VoiceOver);
+ * `isSwitch` has VoiceOver read it as a switch, for a setting it turns on and off (18+).
  * `filled` fills the icon; `iconCount={2}` doubles it, smaller, for a second step of the same mark.
  * `loading` shows a spinner and blocks presses. style is for layout only.
  */
@@ -46,6 +47,7 @@ export default function Button({
   size = 'regular',
   isSelected = false,
   isInverse = false,
+  isSwitch = false,
   filled,
   iconCount = 1,
   disabled = false,
@@ -68,10 +70,10 @@ export default function Button({
       onPress={onPress}
       disabled={isInactive}
       hitSlop={hitSlop ?? (shape === 'link' ? 8 : 0)}
-      accessibilityRole="button"
+      accessibilityRole={isSwitch ? 'switch' : 'button'}
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={accessibilityHint}
-      accessibilityState={{ disabled: isInactive, selected: isSelected, busy: loading }}
+      accessibilityState={{ disabled: isInactive, busy: loading, [isSwitch ? 'checked' : 'selected']: isSelected }}
       style={({ pressed }) => [
         styles[shape],
         shape === 'block' && styles[`block_${size}`],

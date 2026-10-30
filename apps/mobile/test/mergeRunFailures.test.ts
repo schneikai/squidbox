@@ -2,6 +2,7 @@ import { eq, lte } from 'drizzle-orm';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
+import { fuzzRuns } from './helpers/fuzzRuns';
 import { mergeLosses } from './helpers/mergeLosses';
 import { prng } from './helpers/prng';
 import { seedAccountPhotos } from './helpers/seedAccountPhotos';
@@ -448,7 +449,7 @@ describe('round 18: a crash between the commit and the committed marker', () => 
 describe('round 19: seeded crashes', () => {
   const albumEdges = makeEdgeRepository('album_assets', schema.albumAssets, 'albumId');
   const albums = makeRepository('albums', schema.albums);
-  const SEEDS = Number(process.env.FUZZ_SEEDS ?? 150);
+  const SEEDS = fuzzRuns(40, 150);
   async function reboot() {
     Object.assign(inject, { step: null, dead: false });
     if (openLibraryId()) await closeLibrary();

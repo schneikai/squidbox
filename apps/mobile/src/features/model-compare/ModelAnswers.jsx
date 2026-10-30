@@ -28,23 +28,8 @@ function ModelAnswers({ answerKey, kind, letters, namesById, results = {}, taps 
         name={namesById[modelId]}
         result={results[modelId]}
       >
-        {kind === 'vision' && items.length === 0 ? (
-          <IntroText>Only tags from earlier rounds</IntroText>
-        ) : kind === 'vision' ? (
-          <ChipRow>
-            {items.map((tag, index) => {
-              const isOn = (levels[index] ?? 0) > 0;
-              return (
-                <Chip
-                  key={index}
-                  label={tag}
-                  isSelected={isOn}
-                  onPress={() => toggle(answerKey, modelId, index)}
-                  accessibilityRole="checkbox"
-                />
-              );
-            })}
-          </ChipRow>
+        {kind === 'vision' ? (
+          <VisionTags answerKey={answerKey} modelId={modelId} items={items} levels={levels} toggle={toggle} />
         ) : (
           items.map((tweet, index) => {
             return (
@@ -60,4 +45,25 @@ function ModelAnswers({ answerKey, kind, letters, namesById, results = {}, taps 
       </ModelCard>
     );
   });
+}
+
+// A model's tags of a photo to mark as fitting; none when it gave only tags shown in earlier rounds.
+function VisionTags({ answerKey, modelId, items, levels, toggle }) {
+  if (items.length === 0) return <IntroText>Only tags from earlier rounds</IntroText>;
+  return (
+    <ChipRow>
+      {items.map((tag, index) => {
+        const isOn = (levels[index] ?? 0) > 0;
+        return (
+          <Chip
+            key={index}
+            label={tag}
+            isSelected={isOn}
+            onPress={() => toggle(answerKey, modelId, index)}
+            accessibilityRole="checkbox"
+          />
+        );
+      })}
+    </ChipRow>
+  );
 }

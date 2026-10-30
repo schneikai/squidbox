@@ -6,6 +6,7 @@ import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import { scale } from '@/styles/designTokens';
 import { setModelNote } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
+import noteText from '@/utils/noteText';
 
 const NOTE_MAX_LENGTH = 1000;
 
@@ -15,7 +16,7 @@ const NOTE_MAX_LENGTH = 1000;
  */
 export default function ModelNoteField({ kind, modelId, note, style }) {
   const [text, setText] = useState(note ?? '');
-  const { flush } = useSaveAsYouType(text.trim(), (next) => setModelNote(getDb(), kind, modelId, next));
+  const { flush } = useSaveAsYouType(noteText(text), (next) => setModelNote(getDb(), kind, modelId, next));
 
   return (
     <Field label="Note" style={style}>

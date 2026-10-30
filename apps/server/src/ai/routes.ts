@@ -330,7 +330,8 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       });
 
       // POST /ai/compare/vision — each model tags the same photo, guided by the prompt. The app sends
-      // one request per photo and model, a few at a time, so a round of many photos fits the limit.
+      // one request per photo and model, each model one photo at a time, so a round of many photos
+      // fits the limit.
       r.route({
         method: 'POST',
         url: '/ai/compare/vision',
