@@ -27,7 +27,7 @@ export type InstructionRecord = z.infer<typeof instructionCollection.schema>;
  * The kinds, in the order the Instructions screen lists them. Each is a template the server fills in
  * (a line whose placeholder is empty is left out, and so is a heading left with nothing under it):
  * - `writing`, the chat's whole system message: `{aboutYou}`, `{tone}`, `{contentTags}`, `{rules}`,
- *   `{favorites}` (Writing as you and the Favorites), `{media}`, `{tags}`, `{mentions}`, `{caption}`
+ *   `{posts}` (Writing as you and a sample of their posts), `{media}`, `{tags}`, `{mentions}`, `{caption}`
  *   (the post), `{count}` (the options to write). A Compare sends only its prompt box;
  * - `visionTagging`, the system message of every photo tags request: `{themes}` (Your content). A
  *   Compare sends its prompt box in its place, without the themes;
@@ -38,6 +38,21 @@ export type InstructionRecord = z.infer<typeof instructionCollection.schema>;
  *   last message), `{reply}`.
  */
 export const INSTRUCTION_KINDS = ['writing', 'visionTagging', 'moreLikeThis', 'modelCheckJudge'] as const;
+
+// The placeholders the server fills in each kind (see INSTRUCTION_KINDS); a text without one leaves
+// that out of what the assistant gets.
+const CREATOR_AND_POST = ['aboutYou', 'tone', 'contentTags', 'rules', 'posts', 'media', 'tags', 'mentions', 'caption'];
+export const INSTRUCTION_PLACEHOLDERS: Readonly<Record<InstructionKind, readonly string[]>> = Object.freeze({
+  writing: [...CREATOR_AND_POST, 'count'],
+  visionTagging: ['themes'],
+  moreLikeThis: [],
+  modelCheckJudge: [...CREATOR_AND_POST, 'transcript', 'request', 'reply'],
+});
+
+/** The placeholders of `kind` that `text` lacks, as INSTRUCTION_PLACEHOLDERS orders them. */
+export function missingPlaceholders(kind: InstructionKind, text: string): string[] {
+  return INSTRUCTION_PLACEHOLDERS[kind].filter((name) => !text.includes(`{${name}}`));
+}
 
 export const instructionKindSchema = z.enum(INSTRUCTION_KINDS);
 
@@ -68,9 +83,9 @@ Themes they post about: {contentTags}
 Every post you write follows these, no exceptions:
 {rules}
 
-# Posts they liked
+# Posts they wrote
 Write posts that sound like these (voice, length, rhythm; never copy them):
-{favorites}
+{posts}
 
 # The post they're working on
 Media: {media}
@@ -100,7 +115,7 @@ Use only what the creator, the photos or this briefing give you: never invent pl
   moreLikeThis: 'Write more options like this one: the same idea and tone, different wording each time.',
   // Verify's judge (VERIFY_JUDGE_MODEL_ID in contracts/ai.ts): its whole question after each turn.
   modelCheckJudge: [
-    'You judge one turn of a writing assistant\'s chat with a content creator. Did the reply respond to what the creator asked in their last message, and hold the conversation (not change the subject, not invent facts it wasn\'t given, posts only when asked)? The assistant was given the creator, the posts they liked and the post below: names, handles, places, tags and details found there or earlier in the chat are given, not invented. Answer as JSON: {"pass": true or false, "reason": one short line}.',
+    'You judge one turn of a writing assistant\'s chat with a content creator. Did the reply respond to what the creator asked in their last message, and hold the conversation (not change the subject, not invent facts it wasn\'t given, posts only when asked)? The assistant was given the creator, posts they wrote and the post below: names, handles, places, tags and details found there or earlier in the chat are given, not invented. Answer as JSON: {"pass": true or false, "reason": one short line}.',
     '',
     '# The creator',
     '{aboutYou}',
@@ -110,8 +125,8 @@ Use only what the creator, the photos or this briefing give you: never invent pl
     '# Their rules',
     '{rules}',
     '',
-    '# Posts they liked',
-    '{favorites}',
+    '# Posts they wrote',
+    '{posts}',
     '',
     '# The post',
     'Media: {media}',

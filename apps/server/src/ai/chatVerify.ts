@@ -2,7 +2,7 @@
 // ai_admin, or `npm run verify:models`): fixed scenarios run turn by turn through the server's own
 // chat code (chatMessages with the briefing, the chat task with its reply schema, the unreadable-reply
 // fallback and checkChatReply), briefed as the mock account's creator (mockPersona.ts) with his
-// Favorites, each real reply appended to the transcript as the app keeps it. Each turn gets the
+// posts, each real reply appended to the transcript as the app keeps it. Each turn gets the
 // checks that can be made in code, then one judge question to VERIFY_JUDGE_MODEL_ID: did the reply
 // answer the request and hold the conversation.
 import {
@@ -17,7 +17,7 @@ import {
   type VerifyTurn,
 } from '@squidbox/shared';
 import { findModel } from './catalog.js';
-import { MOCK_FAVORITES, MOCK_PERSONA } from './mockPersona.js';
+import { MOCK_PERSONA, MOCK_POSTS } from './mockPersona.js';
 import { chatMessages, judgeMessages } from './prompts.js';
 import { chatTask, judgeTask, runTask } from './tasks.js';
 import { VeniceUnavailableError } from './venice.js';
@@ -34,7 +34,7 @@ import { missedTurn, timedCall, verifyProgress } from './verifyTurns.js';
  *   shorter   cards, on average shorter than the previous set
  *   lines:N   no cards, and at least N lines in the reply (bios, ideas)
  *   about:re  every card matches the regex (the caption was rewritten, not the chat's posts)
- * Every reply with cards is also checked against the persona's rules, the Favorites (never copied)
+ * Every reply with cards is also checked against the persona's rules, his posts (never copied)
  * and the post's handles (only those, spelled exactly).
  */
 type Step = { user: string; post?: Partial<VerifyPost>; expect: string[] };
@@ -140,7 +140,7 @@ export const SCENARIOS: Record<string, { title: string; steps: Step[] }> = {
   },
 };
 
-// The talk scenario without Writing as you or Favorites: the briefing with those sections dropped.
+// The talk scenario without Writing as you or his posts: the briefing with those sections dropped.
 export const BARE = 'bare';
 const BARE_TITLE = 'Without Writing as you';
 
@@ -156,7 +156,6 @@ export const CHAT_PLAN: VerifyPlan = {
   sections: SECTIONS.map(({ id, title, steps }) => ({ id, title, prompts: steps.map((step) => step.user) })),
 };
 
-const FAVORITE_TEXTS = MOCK_FAVORITES.map((favorite) => favorite.text);
 const HANDLE = /@[\w-]+(?:\.[\w-]+)+/g;
 
 const normalized = (text: string) => text.toLowerCase().replace(/\s+/g, ' ').trim();
@@ -195,7 +194,7 @@ export function check(expectation: string, reply: ChatReply, before: string[] | 
   throw new Error(`Unknown expectation ${expectation}`);
 }
 
-// The checks every set of cards gets: the persona's rules, no copied Favorite, only the post's handles.
+// The checks every set of cards gets: the persona's rules, none of his posts copied, only the post's handles.
 export function cardChecks(cards: string[], post: VerifyPost, isBare: boolean): Check[] {
   if (cards.length === 0) return [];
   const checks: Check[] = [];
@@ -217,9 +216,9 @@ export function cardChecks(cards: string[], post: VerifyPost, isBare: boolean): 
         'over 300 characters',
       ),
       checked(
-        'favorites: none copied',
-        cards.every((card) => !FAVORITE_TEXTS.some((text) => normalized(card).includes(normalized(text)))),
-        'a Favorite copied',
+        'posts: none copied',
+        cards.every((card) => !MOCK_POSTS.some((text) => normalized(card).includes(normalized(text)))),
+        'one of his posts copied',
       ),
     );
   }
@@ -283,7 +282,7 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
           context: contextOf(post),
           transcript: [...transcript, { role: 'user', content }],
           persona: isBare ? null : MOCK_PERSONA,
-          favorites: isBare ? [] : FAVORITE_TEXTS,
+          posts: isBare ? [] : MOCK_POSTS,
           instructions,
         });
         if (!section) {
@@ -322,7 +321,7 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
               template: instructions.modelCheckJudge,
               context: contextOf(post),
               persona: isBare ? null : MOCK_PERSONA,
-              favorites: isBare ? [] : FAVORITE_TEXTS,
+              posts: isBare ? [] : MOCK_POSTS,
               transcript,
               request: content,
               reply,

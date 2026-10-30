@@ -36,7 +36,11 @@ describe('chatSessions', () => {
       { role: 'user', label: 'Caption', content: 'Write a caption' },
       { role: 'assistant', status: 'loading', reply: '', postOptions: [] },
     ]);
-    expect(calls[0]!.body).toEqual({ context, messages: [{ role: 'user', content: 'Write a caption' }] });
+    expect(calls[0]!.body).toEqual({
+      chatId: expect.any(String),
+      context,
+      messages: [{ role: 'user', content: 'Write a caption' }],
+    });
     calls[0]!.resolve(REPLY);
     await sending;
     expect(session.getState().isSending).toBe(false);
@@ -171,6 +175,22 @@ describe('chatSessions', () => {
     const { session } = open();
     session.editMentions({ add: ['@', ' '] });
     expect(session.getState().mentionEdits.added).toEqual([]);
+  });
+
+  it('sends one chatId all chat long, and a new one after New chat', async () => {
+    const { session } = open();
+    const { request, calls } = deferredRequest();
+    for (const content of ['First', 'Second']) {
+      const sending = session.send({ content }, context, request);
+      calls[calls.length - 1]!.resolve(REPLY);
+      await sending;
+    }
+    session.reset();
+    const sending = session.send({ content: 'Again' }, context, request);
+    calls[2]!.resolve(REPLY);
+    await sending;
+    expect(calls[1]!.body.chatId).toBe(calls[0]!.body.chatId);
+    expect(calls[2]!.body.chatId).not.toBe(calls[0]!.body.chatId);
   });
 
   it('clears the chat on reset', async () => {

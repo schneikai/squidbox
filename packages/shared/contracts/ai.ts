@@ -253,7 +253,7 @@ function earlierRoundsSchema(maxItems: number) {
 }
 
 // POST /ai/compare/writing — one prompt, each model writes the posts it asks for. The models get the
-// prompt and a fixed line on the answer's format: no persona or Favorites.
+// prompt and a fixed line on the answer's format: no persona or posts of the creator.
 export const compareWritingRequestSchema = z.object({
   prompt: promptSchema,
   modelIds: modelIdsSchema,
@@ -300,7 +300,7 @@ export type TagPhotoResponse = z.infer<typeof tagPhotoResponseSchema>;
 
 // POST /ai/chat — the assistant chat: the writing model answers the transcript as the creator's
 // collaborator, with post options only when asked, briefed by instructions.writing filled with
-// their persona, Favorites and the post. Nothing is stored: the app sends the whole chat each time.
+// their persona, a sample of their posts and the post. Nothing is stored: the app sends the whole chat each time.
 export const CHAT_LIMITS = {
   messages: 30,
   message: 4000,
@@ -354,6 +354,9 @@ export type ChatTurn = z.infer<typeof chatTurnSchema>;
 
 export const chatRequestSchema = z.object({
   context: chatContextSchema,
+  // The chat's id: it picks the creator's posts the briefing quotes, the same all chat long.
+  // Optional: older builds don't send it.
+  chatId: z.string().min(1).max(64).optional(),
   messages: z
     .array(chatTurnSchema)
     .min(1)

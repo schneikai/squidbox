@@ -14,7 +14,7 @@ vi.mock('../src/users.js', () => ({
 vi.mock('../src/ai/persona.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/ai/persona.js')>()),
   readPersona: vi.fn().mockResolvedValue(null),
-  readFavorites: vi.fn().mockResolvedValue([]),
+  readSamplePosts: vi.fn().mockResolvedValue([]),
 }));
 // The chosen model likewise: the seeded default unless a test chooses one.
 vi.mock('../src/ai/modelChoices.js', () => ({
@@ -86,7 +86,7 @@ import { CHAT_PLAN } from '../src/ai/chatVerify.js';
 import { PHOTO_FILES } from '../src/ai/tagVerify.js';
 import { readLatestRun, runVerify, startRun } from '../src/ai/verifyRuns.js';
 import { setModelDefaults, setUncensored, setVerification } from '../src/ai/verification.js';
-import { readFavorites, readPersona } from '../src/ai/persona.js';
+import { readPersona, readSamplePosts } from '../src/ai/persona.js';
 import { findUserById } from '../src/users.js';
 
 const auth = { authorization: `Bearer ${signAccessToken('u1')}` };
@@ -162,7 +162,7 @@ beforeEach(() => {
   venice.apiKey = 'test-venice-key';
   signedInWith(['ai', 'ai_admin']);
   vi.mocked(readPersona).mockResolvedValue(null);
-  vi.mocked(readFavorites).mockResolvedValue([]);
+  vi.mocked(readSamplePosts).mockResolvedValue([]);
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -364,7 +364,7 @@ describe('POST /api/v1/ai/compare/writing', () => {
     expect(chatBodies()).toHaveLength(1);
   });
 
-  it('sends only the prompt box after the format line: no Writing instructions, persona or favorites', async () => {
+  it('sends only the prompt box after the format line: no Writing instructions, persona or posts', async () => {
     veniceAnswers();
     vi.mocked(readPersona).mockResolvedValue({
       aboutYou: 'Outdoor photographer from Oregon.',
@@ -372,12 +372,12 @@ describe('POST /api/v1/ai/compare/writing', () => {
       tone: 'Short and calm.',
       rules: [],
     });
-    vi.mocked(readFavorites).mockResolvedValue(['First light on the ridge.']);
+    vi.mocked(readSamplePosts).mockResolvedValue(['First light on the ridge.']);
     const res = await call('POST', '/ai/compare/writing', writing);
     expect(res.statusCode).toBe(200);
     expect(readInstructions).not.toHaveBeenCalled();
     expect(readPersona).not.toHaveBeenCalled();
-    expect(readFavorites).not.toHaveBeenCalled();
+    expect(readSamplePosts).not.toHaveBeenCalled();
     for (const body of chatBodies()) {
       expect(body.messages).toEqual([
         { role: 'system', content: expect.stringContaining('Answer in JSON, with only the posts') },
@@ -632,6 +632,14 @@ describe('POST /api/v1/ai/chat', () => {
     expect(res.statusCode).toBe(200);
     const [body] = chatBodies();
     expect(body.messages.at(-1)).toEqual({ role: 'user', content: 'Again, please.\n\nb' });
+  });
+
+  it("briefs the chat with the user's posts its chatId picks", async () => {
+    veniceAnswers();
+    vi.mocked(readSamplePosts).mockResolvedValueOnce(['First light on the ridge.']);
+    await call('POST', '/ai/chat', { ...chatRequest, chatId: 'chat-1' });
+    expect(readSamplePosts).toHaveBeenCalledWith(expect.anything(), 'u1', 'chat-1');
+    expect(chatBodies()[0].messages[0].content).toContain('never copy them):\n- First light on the ridge.');
   });
 
   it('returns a reply without options as it is', async () => {

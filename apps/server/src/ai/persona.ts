@@ -1,9 +1,9 @@
-// "Writing as you": the persona and the Favorites the writing prompts take, read from the user's
-// synced `personas` record and `favorites`.
-import { and, desc, eq, isNull } from 'drizzle-orm';
+// "Writing as you": the persona and the user's own posts the writing prompts take, read from the
+// user's synced `personas` record and `posts`.
+import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import { PERSONA_FIELDS } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
-import { favorites, personas } from '../db/schema.js';
+import { personas, posts } from '../db/schema.js';
 import type { Persona } from './prompts.js';
 
 // The persona's columns, read as the record's fields.
@@ -20,16 +20,33 @@ export async function readPersona(db: Db, userId: string): Promise<Persona> {
   return row ?? null;
 }
 
-// The Favorites a writing prompt sends: the newest weigh most, and the system message stays bounded.
-export const FAVORITES_IN_PROMPT = 20;
+// The user's posts a writing prompt sends, so the model hears how they write.
+export const POSTS_IN_PROMPT = 100;
 
-/** The texts of the user's Favorites, newest first, at most `limit`. */
-export async function readFavorites(db: Db, userId: string, limit = FAVORITES_IN_PROMPT): Promise<string[]> {
+/**
+ * The texts of `limit` of the user's posted posts (live, posted, not a repost, with text), picked at
+ * random by `seed`: the same seed picks the same posts in the same order, so a chat keeps its posts
+ * from turn to turn.
+ */
+export async function readSamplePosts(
+  db: Db,
+  userId: string,
+  seed: string,
+  limit = POSTS_IN_PROMPT,
+): Promise<string[]> {
   const rows = await db
-    .select({ text: favorites.text })
-    .from(favorites)
-    .where(and(eq(favorites.userId, userId), isNull(favorites.deletedAt)))
-    .orderBy(desc(favorites.createdAt), desc(favorites.id))
+    .select({ text: posts.text })
+    .from(posts)
+    .where(
+      and(
+        eq(posts.userId, userId),
+        isNull(posts.deletedAt),
+        isNotNull(posts.postedAt),
+        isNull(posts.rePostId),
+        sql`trim(${posts.text}) <> ''`,
+      ),
+    )
+    .orderBy(sql`md5(${posts.id} || ${seed})`)
     .limit(limit);
   return rows.map((row) => row.text);
 }

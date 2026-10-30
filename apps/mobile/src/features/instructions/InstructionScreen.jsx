@@ -2,6 +2,7 @@ import { INSTRUCTION_LIMITS } from '@squidbox/shared';
 import { useState } from 'react';
 
 import instructionText from './instructionText';
+import missingPlaceholdersNote from './missingPlaceholdersNote';
 
 import CatalogStatus from '@/components/CatalogStatus';
 import DetailScrollView from '@/components/DetailScrollView';
@@ -114,6 +115,7 @@ function InstructionEditor({ kind, userId, seed, defaultText, navigation }) {
       placeholder="What the assistant is told"
       maxLength={INSTRUCTION_LIMITS.text}
       description={instructionText[kind].description}
+      note={missingPlaceholdersNote(kind, text)}
       actions={actions}
     />
   );

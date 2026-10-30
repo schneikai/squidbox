@@ -22,18 +22,15 @@ import useVeniceBalance from '@/hooks/useVeniceBalance';
 import useYourDefaults from '@/hooks/useYourDefaults';
 import { colors, radii, sizes } from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
-import { countFavorites } from '@/sync/favoritesRepository';
 import { countPromptButtons } from '@/sync/promptButtonsRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 
-// Settings → Assistant: how the assistant writes as you, its prompt buttons, the posts it writes like
-// (Favorites), its Rules, and for an ai_admin account the Admin section (the model lists, what it is
+// Settings → Assistant: how the assistant writes as you, its prompt buttons, its Rules, and for an ai_admin account the Admin section (the model lists, what it is
 // told before each request: Instructions, what is left on the Venice account).
 export default function AssistantScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
   const persona = usePersona();
-  const favoriteCount = useLiveQuery((db) => countFavorites(db), [schema.favorites]);
   const promptButtonCount = useLiveQuery((db) => countPromptButtons(db), [schema.promptButtons]);
   useSeedPromptButtons();
   const isAiAdmin = useHasFeature('ai_admin');
@@ -59,13 +56,6 @@ export default function AssistantScreen() {
             label="Prompt buttons"
             value={promptButtonCount === undefined ? null : String(promptButtonCount)}
             onPress={() => navigation.navigate('PromptButtonsScreen')}
-            hasChevron
-          />
-          <Row
-            leading={<Icon name="heart" color={colors.status.danger} />}
-            label="Favorites"
-            value={favoriteCount === undefined ? null : String(favoriteCount)}
-            onPress={() => navigation.navigate('FavoritesScreen')}
             hasChevron
           />
           <Row

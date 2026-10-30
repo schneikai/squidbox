@@ -26,8 +26,8 @@ const instructions = {
   modelCheckJudge: [
     'Judge.',
     'About the creator: {aboutYou}',
-    'Posts they liked:',
-    '{favorites}',
+    'Posts they wrote:',
+    '{posts}',
     'Media: {media}',
     "What's in the photos (from image recognition): {tags}",
     "People they've tagged in posts from the same album: {mentions}",
@@ -183,7 +183,7 @@ describe('verifyChatModel', () => {
     expect(judge.messages[0].content).toContain("What's in the photos (from image recognition): coastline, grey sky");
     expect(judge.messages[0].content).toContain('Media: 4 photos and 1 video');
     expect(judge.messages[0].content).toContain('Caption so far: (empty)');
-    expect(judge.messages[0].content).toContain('Posts they liked:\n- ');
+    expect(judge.messages[0].content).toContain('Posts they wrote:\n- ');
 
     expect(onTurn.mock.calls.map(([, turnsDone]) => turnsDone)).toEqual([1, 2, 3, 4]);
     const [section] = result.sections;
@@ -297,7 +297,7 @@ describe('verifyChatModel', () => {
       .filter((body) => body.model === VERIFY_JUDGE_MODEL_ID)
       .at(-1)!;
     expect(judgeOfBare.messages[0].content).not.toContain('About the creator');
-    expect(judgeOfBare.messages[0].content).not.toContain('Posts they liked');
+    expect(judgeOfBare.messages[0].content).not.toContain('Posts they wrote');
     expect(judgeOfBare.messages[0].content).toContain('@ridgeline.bsky.social');
   });
 

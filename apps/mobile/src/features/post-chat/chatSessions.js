@@ -4,6 +4,7 @@ import withEdits from './withEdits';
 
 import createStore from '@/lib/createStore';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
+import getNewItemId from '@/utils/getNewItemId';
 
 const NO_EDITS = Object.freeze({ added: [], removed: [] });
 
@@ -79,6 +80,9 @@ function createSession(kind) {
   let draft = { text: '', assets: [] };
   let applier = null;
   let controller = null;
+  // Sent with each turn: it picks the posts of the user's that the server quotes, the same all chat
+  // long; New chat picks others.
+  let chatId = getNewItemId();
   let isClosed = false;
   let lastMessageId = 0;
 
@@ -102,7 +106,7 @@ function createSession(kind) {
     const { signal } = controller;
     const { messages } = store.get();
     const at = messages.findIndex((message) => message.id === replyId);
-    const body = { context, messages: wireTurns(messages.slice(0, at)) };
+    const body = { chatId, context, messages: wireTurns(messages.slice(0, at)) };
     try {
       const { reply, postOptions } = await request(body, { signal });
       if (!signal.aborted) replaceMessage(replyId, { status: 'done', reply, postOptions });
@@ -185,6 +189,7 @@ function createSession(kind) {
     reset() {
       controller?.abort();
       controller = null;
+      chatId = getNewItemId();
       update({ messages: [] });
     },
 

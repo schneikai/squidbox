@@ -13,7 +13,7 @@ import useScreenPadding from '@/hooks/useScreenPadding';
 /**
  * A pushed screen that edits one text, the iOS Settings way: Back, the `title`, and a multiline TextInput whose
  * text the screen stores as it changes (useSaveAsYouType; `onBlur` saves at once), with an optional
- * `description` over it and `actions` at the bottom, in order (`{ label, colorPalette, onPress, loading }`,
+ * `description` over it, an optional `note` under it (a hint on the text) and `actions` at the bottom, in order (`{ label, colorPalette, onPress, loading }`,
  * e.g. Delete or Reset changes; `loading` shows a spinner and blocks presses). No Save button.
  * The text field fills the screen above the keyboard and scrolls its text inside, as in Notes: a drag
  * scrolls, a tap edits.
@@ -28,6 +28,7 @@ export default function TextEditScreen({
   maxLength,
   autoFocus = false,
   description,
+  note,
   actions = [],
 }) {
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
@@ -53,6 +54,7 @@ export default function TextEditScreen({
           maxLength={maxLength}
           autoFocus={autoFocus}
         />
+        {note != null && <IntroText style={styles.note}>{note}</IntroText>}
         <ActionButtons actions={actions} isScreenEnd />
       </Animated.View>
     </Page>
@@ -63,5 +65,9 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: SCREEN_PADDING,
+  },
+  note: {
+    marginHorizontal: 4,
+    marginTop: 8,
   },
 });

@@ -58,7 +58,7 @@ export function writingMessages(prompt: string, earlierRounds: string[][] = []):
 
 /**
  * The assistant chat, as the user: the writing briefing (`instructions.writing`, filled with their
- * persona, Favorites and the post) as the whole system message, then the transcript, a past reply in
+ * persona, their posts and the post) as the whole system message, then the transcript, a past reply in
  * the JSON the model replies in and a More like this turn as `instructions.moreLikeThis` with the
  * option after it.
  */
@@ -66,17 +66,17 @@ export function chatMessages({
   context,
   transcript,
   persona,
-  favorites,
+  posts,
   instructions,
 }: {
   context: ChatContext;
   transcript: ChatTurn[];
   persona: Persona;
-  favorites: string[];
+  posts: string[];
   instructions: Instructions;
 }): ChatMessage[] {
   return [
-    { role: 'system', content: writingBriefingText(instructions.writing, { persona, favorites, context }) },
+    { role: 'system', content: writingBriefingText(instructions.writing, { persona, posts, context }) },
     ...transcript.map((turn): ChatMessage =>
       turn.role === 'user'
         ? {
@@ -96,7 +96,7 @@ function replyText({ reply, postOptions }: ChatReply): string {
 /**
  * Verify's judge question after a chat turn: `template` (instructions.modelCheckJudge)
  * filled with what the writing model was told about the creator and the post, with the writing
- * briefing's placeholders (the persona's facts, the posts they liked, none for a section without them,
+ * briefing's placeholders (the persona's facts, the posts they wrote, none for a section without them,
  * and the post's media, photo tags, tagged people and caption), so a name, handle or tag it was given
  * never counts as invented; the turns before it (`{transcript}`, "Creator: …" and "Assistant: …" with its numbered
  * options, "(none)" on the first turn), the creator's last message (`{request}`) and the reply to
@@ -106,7 +106,7 @@ export function judgeMessages({
   template,
   context,
   persona,
-  favorites,
+  posts,
   transcript,
   request,
   reply,
@@ -114,7 +114,7 @@ export function judgeMessages({
   template: string;
   context: ChatContext;
   persona: Persona;
-  favorites: string[];
+  posts: string[];
   transcript: ChatTurn[];
   request: string;
   reply: ChatReply;
@@ -124,7 +124,7 @@ export function judgeMessages({
   );
   const content = fillLines(template, {
     ...personaValues(persona),
-    favorites: favoritesText(favorites),
+    ...postsValues(posts),
     ...postValues(context),
     transcript: before.join('\n\n') || '(none)',
     request,
@@ -181,9 +181,11 @@ function personaValues(persona: Persona): Record<string, string> {
   };
 }
 
-// The Favorites' texts as "- " lines like the rules, each on one line.
-function favoritesText(favorites: string[]): string {
-  return favorites.map((post) => `- ${post.trim().replace(/\s*\n\s*/g, ' ')}`).join('\n');
+// The creator's posts as "- " lines like the rules, each on one line, for `{posts}`, and for
+// `{favorites}`, which a text published before the posts replaced the Favorites still has.
+function postsValues(posts: string[]): Record<string, string> {
+  const lines = posts.map((post) => `- ${post.trim().replace(/\s*\n\s*/g, ' ')}`).join('\n');
+  return { posts: lines, favorites: lines };
 }
 
 // "4 photos and 1 video", "none yet" without media.
@@ -206,18 +208,18 @@ function postValues(context: ChatContext | null): Record<string, string> {
 
 /**
  * The writing briefing, `template` (instructions.writing) filled with the creator's persona, their
- * Favorites (the texts, newest first, as "- " lines like the rules, each on one line) and the chat's
+ * posts (`posts`, as "- " lines like the rules, each on one line) and the chat's
  * post (`context`, null for none): `{caption}` is the caption as a JSON string, or (empty);
  * `{count}` the options to write. A line whose value is empty is left out, with its heading
  * (fillLines).
  */
 export function writingBriefingText(
   template: string,
-  { persona, favorites, context }: { persona: Persona; favorites: string[]; context: ChatContext | null },
+  { persona, posts, context }: { persona: Persona; posts: string[]; context: ChatContext | null },
 ): string {
   return fillLines(template, {
     ...personaValues(persona),
-    favorites: favoritesText(favorites),
+    ...postsValues(posts),
     ...postValues(context),
     count: String(WRITING_TWEET_COUNT),
   });

@@ -14,7 +14,6 @@ import Button from '@/components/Button';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import { SCREEN_PADDING } from '@/constants';
-import useFavoriteToggle from '@/features/favorites/useFavoriteToggle';
 import EditPromptButtonsButton from '@/features/prompt-buttons/EditPromptButtonsButton';
 import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import usePromptButtons from '@/features/prompt-buttons/usePromptButtons';
@@ -46,7 +45,6 @@ export default function PostChatScreen({ route, navigation }) {
   const buttons = usePromptButtons();
   // What waits in the composer: a new `key` remounts it with the prompt a button put there.
   const [seed, setSeed] = useState(() => ({ key: 0, turn: prompt }));
-  const favorites = useFavoriteToggle();
   const isAiAdmin = useHasFeature('ai_admin');
   const scrollRef = useRef(null);
   // The title fades as the messages scroll under the header, as on the other sheets (ModalHeader).
@@ -134,7 +132,6 @@ export default function PostChatScreen({ route, navigation }) {
             <AssistantMessage
               key={message.id}
               reply={message}
-              favorites={favorites}
               onRetry={message === last ? retry : null}
               onMoreLikeThis={moreLikeThis}
               onUse={applyText ? handleUse : null}
