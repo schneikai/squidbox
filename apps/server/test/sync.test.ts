@@ -121,6 +121,7 @@ d('sync engine (Postgres)', () => {
     await db.delete(schema.promptButtons).where(inArray(schema.promptButtons.userId, users));
     await db.delete(schema.favorites).where(inArray(schema.favorites.userId, users));
     await db.delete(schema.instructions).where(inArray(schema.instructions.userId, users));
+    await db.delete(schema.modelChoices).where(inArray(schema.modelChoices.userId, users));
   }
   afterAll(async () => {
     await clearAll();
