@@ -1,22 +1,24 @@
 import { useNavigation, useNavigationState, useRoute } from '@react-navigation/native';
-import { StyleSheet, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import { StyleSheet } from 'react-native';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import ModalCloseButton from '@/components/ModalCloseButton';
+import ActionButtons from '@/components/ActionButtons';
+import Button from '@/components/Button';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
-import PrimaryButton from '@/components/PrimaryButton';
-import TextButton from '@/components/TextButton';
 import { SCREEN_PADDING } from '@/constants';
+import useKeyboardInset from '@/hooks/useKeyboardInset';
 import useScrollY from '@/hooks/useScrollY';
 
 /**
- * The sheet that edits one item as a draft (hooks/useEditSheet gives its props): × on the
- * leading side to cancel (Back when pushed inside another sheet), the optional `title`, and `confirmLabel`
+ * The sheet that edits one item as a draft (hooks/useEditSheet gives its props): × on the leading
+ * side to cancel (Back when pushed inside another sheet), the optional `title`, and `confirmLabel`
  * (Add for a new item, Save for an edit) on the trailing side, off unless `canConfirm`, with a
  * spinner while `isSaving`. The body (`children`) scrolls under the header, with optional `actions`
- * (`[{ label, tone, onPress }]`, e.g. Delete) as text buttons at the bottom, off while `isSaving`.
+ * at its end (ActionButtons: `{ label, colorPalette, onPress, loading }`, e.g. Delete), off while
+ * `isSaving`. `isFilling` lets the body fill the sheet above the keyboard instead of scrolling, for
+ * a text field that fills it (TextEditSheet).
  */
 export default function EditSheet({
   title,
@@ -25,29 +27,59 @@ export default function EditSheet({
   isSaving,
   onCancel,
   onConfirm,
-  actions,
+  actions = [],
+  isFilling = false,
   children,
 }) {
   const { scrollY, onScroll } = useScrollY();
   const { bottom } = useSafeAreaInsets();
+  const keyboardInset = useKeyboardInset(12);
   const isSheetRoute = useIsSheetRoute();
+
+  const fillingStyle = useAnimatedStyle(() => ({
+    paddingBottom: Math.max(bottom + SCREEN_PADDING, keyboardInset.value),
+  }));
+
+  const sheetActions = actions.map((action) => ({ ...action, disabled: isSaving }));
+  const header = (
+    <ModalHeader
+      leading={
+        <Button
+          icon={isSheetRoute ? 'close' : 'chevron-left'}
+          accessibilityLabel={isSheetRoute ? 'Close' : 'Back'}
+          onPress={onCancel}
+        />
+      }
+      title={title}
+      scrollY={scrollY}
+      trailing={
+        <Button
+          variant="primary"
+          size="small"
+          label={confirmLabel}
+          onPress={onConfirm}
+          disabled={!canConfirm || isSaving}
+          loading={isSaving}
+        />
+      }
+    />
+  );
+
+  if (isFilling) {
+    return (
+      <ModalSheet>
+        {header}
+        <Animated.View style={[styles.filling, fillingStyle]}>
+          {children}
+          <ActionButtons actions={sheetActions} isScreenEnd />
+        </Animated.View>
+      </ModalSheet>
+    );
+  }
 
   return (
     <ModalSheet>
-      <ModalHeader
-        leftSlot={<ModalCloseButton kind={isSheetRoute ? 'close' : 'back'} onPress={onCancel} />}
-        centerSlot={title}
-        scrollY={scrollY}
-        rightSlot={
-          <PrimaryButton
-            size="compact"
-            label={confirmLabel}
-            onPress={onConfirm}
-            disabled={!canConfirm || isSaving}
-            loading={isSaving}
-          />
-        }
-      />
+      {header}
       <Animated.ScrollView
         automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
@@ -56,19 +88,7 @@ export default function EditSheet({
         contentContainerStyle={[styles.content, { paddingBottom: bottom + SCREEN_PADDING }]}
       >
         {children}
-        {actions?.length > 0 && (
-          <View style={styles.actions}>
-            {actions.map((action) => (
-              <TextButton
-                key={action.label}
-                label={action.label}
-                tone={action.tone}
-                onPress={action.onPress}
-                disabled={isSaving}
-              />
-            ))}
-          </View>
-        )}
+        <ActionButtons actions={sheetActions} isScreenEnd />
       </Animated.ScrollView>
     </ModalSheet>
   );
@@ -91,7 +111,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SCREEN_PADDING,
     gap: 12,
   },
-  actions: {
-    paddingTop: 24,
+  filling: {
+    flex: 1,
+    paddingTop: MODAL_HEADER_HEIGHT + SCREEN_PADDING,
+    paddingHorizontal: SCREEN_PADDING,
   },
 });

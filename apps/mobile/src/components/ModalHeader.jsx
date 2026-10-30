@@ -12,24 +12,24 @@ import { colors, layout, sizes, typography } from '@/styles/designTokens';
  * first item is not hidden behind the header.
  *
  * Layout:
- *   [ FloatingPill: leftSlot ]   [ centerTitle ]   [ FloatingPill: rightSlot ]
+ *   [ FloatingPill: leading ]   [ centerTitle ]   [ FloatingPill: trailing ]
  *
  * Both side slots are automatically wrapped in FloatingPill (frosted glass).
  * The center title is absolutely positioned to stay truly centred and fades out
  * as the user scrolls (pass a reanimated SharedValue for this behaviour).
  *
  * Props:
- *   leftSlot    ReactElement  — typically <ModalCloseButton>
- *   rightSlot   ReactElement  — e.g. icon buttons; auto-wrapped in FloatingPill
- *   centerSlot  string | ReactElement
+ *   leading     ReactElement  — typically a close Button (icon="close")
+ *   trailing    ReactElement  — e.g. icon buttons; auto-wrapped in FloatingPill
+ *   title       string | ReactElement
  *   subtitle    string (optional) — a smaller grey line under a string title
- *   centerStyle "plain" (default) | "pill"  — wraps string title in FloatingPill when "pill"
+ *   subtitleSize 'regular' (default) | 'small', for a subtitle that may be long (a model's name)
  *   scrollY     Reanimated SharedValue<number> (optional) — drives title fade-out on scroll
  */
 
 export const MODAL_HEADER_HEIGHT = sizes.iconButton + layout.barBottom * 2 + 8;
 
-export default function ModalHeader({ leftSlot, rightSlot, centerSlot, subtitle, centerStyle = 'plain', scrollY }) {
+export default function ModalHeader({ leading, trailing, title, subtitle, subtitleSize = 'regular', scrollY }) {
   // Stable fallback so animated style always has a value to read
   const fallback = useSharedValue(0);
   const anim = scrollY ?? fallback;
@@ -39,39 +39,42 @@ export default function ModalHeader({ leftSlot, rightSlot, centerSlot, subtitle,
   }));
 
   const center =
-    typeof centerSlot === 'string' ? (
+    typeof title === 'string' ? (
       <Animated.View style={[styles.centerTitles, titleStyle]}>
         <Text style={styles.centerTitle} numberOfLines={1}>
-          {centerSlot}
+          {title}
         </Text>
         {!!subtitle && (
-          <Text style={styles.centerSubtitle} numberOfLines={1}>
+          <Text
+            style={[styles.centerSubtitle, subtitleSize === 'small' && styles.centerSubtitleSmall]}
+            numberOfLines={1}
+          >
             {subtitle}
           </Text>
         )}
       </Animated.View>
     ) : (
-      (centerSlot ?? null)
+      (title ?? null)
     );
 
   return (
     <View style={styles.container} pointerEvents="box-none">
       {/* Left slot — wrapped in FloatingPill */}
-      {leftSlot != null && (
+      {leading != null && (
         <View style={styles.side} pointerEvents="box-none">
-          <FloatingPill>{leftSlot}</FloatingPill>
+          <FloatingPill>{leading}</FloatingPill>
         </View>
       )}
 
       {/* Center — absolutely positioned so it doesn't affect side layout */}
       <View style={styles.centerAbsolute} pointerEvents="box-none">
-        {centerStyle === 'pill' && center ? <FloatingPill>{center}</FloatingPill> : center}
+        {center}
       </View>
 
       {/* Right slot — wrapped in FloatingPill */}
-      {rightSlot != null && (
+      {trailing != null && (
         <View style={[styles.side, styles.sideRight]} pointerEvents="box-none">
-          <FloatingPill>{rightSlot}</FloatingPill>
+          <FloatingPill>{trailing}</FloatingPill>
         </View>
       )}
     </View>
@@ -115,5 +118,8 @@ const styles = StyleSheet.create({
   centerSubtitle: {
     fontSize: typography.footnote,
     color: colors.text.secondary,
+  },
+  centerSubtitleSmall: {
+    fontSize: typography.caption2,
   },
 });

@@ -49,10 +49,10 @@ export async function countFavorites(db: SyncDb): Promise<number> {
 }
 
 /**
- * Add `texts` as favorites from `source` (null: your own post): trimmed, the empty ones dropped,
+ * Add `texts` as favorites: trimmed, the empty ones dropped,
  * each once, and none a live favorite already has. Returns the ones it created.
  */
-export async function addFavorites(db: SyncDb, texts: string[], source: string | null): Promise<FavoriteRecord[]> {
+export async function addFavorites(db: SyncDb, texts: string[]): Promise<FavoriteRecord[]> {
   const wanted = [...new Set(texts.map(favoriteText).filter(Boolean))];
   if (wanted.length === 0) return [];
   return db.transaction(async (tx) => {
@@ -63,7 +63,7 @@ export async function addFavorites(db: SyncDb, texts: string[], source: string |
     const taken = new Set(existing.map((row) => row.text));
     const records = wanted
       .filter((text) => !taken.has(text))
-      .map((text) => newRecord(favoriteCollection, {}, { text, source }) as FavoriteRecord);
+      .map((text) => newRecord(favoriteCollection, {}, { text }) as FavoriteRecord);
     await saveRecords(tx, 'favorites', t, records, { isNew: true });
     return records;
   });

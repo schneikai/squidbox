@@ -46,7 +46,7 @@ function FavoriteEditor({ id, seed, navigation }) {
   async function save() {
     const db = getDb();
     if (!id) {
-      if ((await addFavorites(db, [text], null)).length > 0) return true;
+      if ((await addFavorites(db, [text])).length > 0) return true;
       setNotice(ALREADY_TEXT);
       return false;
     }
@@ -83,7 +83,7 @@ function FavoriteEditor({ id, seed, navigation }) {
       maxLength={FAVORITE_LIMITS.text}
       autoFocus={!id}
       description={notice}
-      actions={id ? [{ label: 'Delete favorite', tone: 'danger', onPress: handleDelete }] : null}
+      actions={id ? [{ label: 'Delete favorite', colorPalette: 'danger', onPress: handleDelete }] : []}
     />
   );
 }

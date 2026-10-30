@@ -6,12 +6,11 @@ import ModelPickRow from './ModelPickRow';
 import PhotoSetRow from './PhotoSetRow';
 import modelKindText from './modelKindText';
 
+import Button from '@/components/Button';
 import CatalogStatus from '@/components/CatalogStatus';
 import IntroText from '@/components/IntroText';
-import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
-import PrimaryButton from '@/components/PrimaryButton';
 import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import { Section } from '@/components/settings-list/SettingsList';
@@ -34,7 +33,7 @@ export default function ComparePickScreen({ navigation, route }) {
   const isVision = kind === 'vision';
   const paddingBottom = useFloatingPrimaryActionPadding();
   const { openAssetPicker } = useAssetPicker();
-  const { rows, chosenId, error, retry } = useYourModels(kind);
+  const { rows, defaults, yourDefaults, usedId, error, retry } = useYourModels(kind);
   // Your changes only: null keeps the default, the current choice ticked.
   const [tickedIds, setTickedIds] = useState(null);
   // Every photo picked here, of which the first VISION_COMPARE_MAX_PHOTOS count; null keeps the
@@ -50,7 +49,7 @@ export default function ComparePickScreen({ navigation, route }) {
   );
 
   const models = rows?.filter((row) => row.model !== null) ?? [];
-  const ticked = tickedIds ?? (models.some(({ id }) => id === chosenId) ? [chosenId] : []);
+  const ticked = tickedIds ?? (models.some(({ id }) => id === usedId) ? [usedId] : []);
   const modelCount = ticked.length;
   const hasPhotos = !isVision || (photos?.length ?? 0) > 0;
   const canStart = modelCount >= COMPARE_MIN_MODELS && hasPhotos;
@@ -90,7 +89,10 @@ export default function ComparePickScreen({ navigation, route }) {
 
   return (
     <ModalSheet>
-      <ModalHeader leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />} centerSlot="Compare" />
+      <ModalHeader
+        leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
+        title="Compare"
+      />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom }]}>
         <IntroText style={styles.intro}>{modelKindText[kind].pickIntro}</IntroText>
         {rows ? (
@@ -98,12 +100,14 @@ export default function ComparePickScreen({ navigation, route }) {
             {models.map(({ id, name, model, score }) => (
               <ModelPickRow
                 key={id}
+                id={id}
                 name={name}
                 model={model}
                 kind={kind}
                 score={score}
+                yourDefaults={yourDefaults}
+                defaults={defaults}
                 isTicked={ticked.includes(id)}
-                isCurrent={id === chosenId}
                 onToggle={() => setTickedIds(toggleItem(ticked, id))}
               />
             ))}
@@ -114,7 +118,8 @@ export default function ComparePickScreen({ navigation, route }) {
         {isVision && photos && <PhotoSetRow assets={photos} detail={photosDetail} onPick={handlePickPhotos} />}
       </ScrollView>
       <FloatingPrimaryAction>
-        <PrimaryButton
+        <Button
+          variant="primary"
           label={`Start with ${pluralizeText('%{count} model', '%{count} models', modelCount)}`}
           onPress={handleStart}
           disabled={!canStart}

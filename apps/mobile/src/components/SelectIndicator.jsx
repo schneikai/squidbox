@@ -6,10 +6,10 @@ import { colors, radii } from '@/styles/designTokens';
 const SIZE = 22;
 
 // A selection circle: a check on an accent disc when selected, an empty ring when not. The ring is
-// white `onMedia` (over a picture) and grey on a list. The parent positions it through `style`.
-export default function SelectIndicator({ isSelected, onMedia = false, style }) {
+// white `isOnMedia` (over a picture) and grey on a list. The parent positions it through `style`.
+export default function SelectIndicator({ isSelected, isOnMedia = false, style }) {
   return (
-    <View style={[styles.circle, onMedia && styles.onMedia, isSelected && styles.selected, style]}>
+    <View style={[styles.circle, isOnMedia && styles.onMedia, isSelected && styles.selected, style]}>
       {isSelected && <Icon name="check" size={15} color={colors.text.inverse} />}
     </View>
   );

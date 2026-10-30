@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import type { FieldClocks } from '@squidbox/shared';
+import type { FieldClocks, VerifyResult } from '@squidbox/shared';
 import {
   pgTable,
   uuid,
@@ -12,6 +12,7 @@ import {
   jsonb,
   doublePrecision,
   primaryKey,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
 // Users. id is a uuid; every syncable row is scoped by it (multi-tenant sync model).
@@ -256,7 +257,6 @@ export const favorites = pgTable(
   {
     ...syncableBase(),
     text: text('text').notNull(),
-    source: text('source'),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.id] }),
@@ -273,6 +273,7 @@ export const instructions = pgTable(
     writing: text('writing'),
     visionTagging: text('vision_tagging'),
     moreLikeThis: text('more_like_this'),
+    modelCheckJudge: text('model_check_judge'),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.id] }),
@@ -281,14 +282,17 @@ export const instructions = pgTable(
 );
 export type InstructionRow = typeof instructions.$inferSelect;
 
-// One model_choices record per user: its id is the user's id. Each kind's chosen model is jsonb
-// ({ id, name }); null is the app's default.
+// One model_choices record per user: its id is the user's id. An ai_admin's picks of each kind's
+// Default (`*_model`) and Uncensored default (`*_uncensored_model`), jsonb ({ id, name }); null is
+// the published default (model_defaults).
 export const modelChoices = pgTable(
   'model_choices',
   {
     ...syncableBase(),
     writingModel: jsonb('writing_model').$type<{ id: string; name: string }>(),
     visionModel: jsonb('vision_model').$type<{ id: string; name: string }>(),
+    writingUncensoredModel: jsonb('writing_uncensored_model').$type<{ id: string; name: string }>(),
+    visionUncensoredModel: jsonb('vision_uncensored_model').$type<{ id: string; name: string }>(),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.id] }),
@@ -296,6 +300,84 @@ export const modelChoices = pgTable(
   }),
 );
 export type ModelChoiceRow = typeof modelChoices.$inferSelect;
+
+// --- Model verification (app-wide, server-owned) ---
+// Facts an ai_admin sets for every account, read through the API and never synced: plain tables
+// outside the collection registry (no user_id, no server_seq). sync-design §12.
+
+// A model Squidbox verified for a kind (`kind`: writing | vision).
+export const verifiedModels = pgTable(
+  'verified_models',
+  {
+    kind: text('kind').notNull(),
+    modelId: text('model_id').notNull(),
+    verifiedBy: uuid('verified_by').references(() => users.id, { onDelete: 'set null' }),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.kind, t.modelId] }),
+  }),
+);
+
+// An override of Venice's Uncensored label for a model, whatever the kind (true uncensored, false
+// not). No row follows Venice (catalog.ts isUncensored resolves it).
+export const uncensoredOverrides = pgTable('uncensored_overrides', {
+  modelId: text('model_id').primaryKey(),
+  uncensored: boolean('uncensored').notNull(),
+  setBy: uuid('set_by').references(() => users.id, { onDelete: 'set null' }),
+  setAt: timestamp('set_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// The model the assistant uses for a kind while the user chose none, per `variant` (regular |
+// unrestricted: the persona's Adult content switch off or on). Any model of the kind: Verified is a
+// flag of its own. The seed makes all four rows; nothing deletes one.
+export const modelDefaults = pgTable(
+  'model_defaults',
+  {
+    kind: text('kind').notNull(),
+    variant: text('variant').notNull(),
+    modelId: text('model_id').notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.kind, t.variant] }),
+  }),
+);
+
+// The instruction of a kind every account gets while it has no override (Apply changes for everyone,
+// ai/instructions.ts): `kind` one of INSTRUCTION_KINDS. No row is the built-in DEFAULT_INSTRUCTIONS
+// text, so a row is never stored equal to it.
+export const appInstructions = pgTable('app_instructions', {
+  kind: text('kind').primaryKey(),
+  text: text('text').notNull(),
+});
+
+// A Verify run of a model for a kind (ai/verifyRuns.ts): only a model's latest one per kind is
+// kept, and the database allows one running at a time. `result` is the VerifyResult so far.
+export const verifyRuns = pgTable(
+  'verify_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: text('kind').notNull(),
+    modelId: text('model_id').notNull(),
+    status: text('status').notNull(), // 'running' | 'done' | 'stopped'
+    startedBy: uuid('started_by').references(() => users.id, { onDelete: 'set null' }),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    // The heartbeat: set on each turn written, so a running row that stopped changing is abandoned.
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+    turnsDone: integer('turns_done').notNull().default(0),
+    turnsTotal: integer('turns_total').notNull(),
+    result: jsonb('result').$type<VerifyResult>(),
+    error: text('error'),
+  },
+  (t) => ({
+    running: uniqueIndex('verify_runs_running_idx')
+      .on(t.kind, t.modelId)
+      .where(sql`${t.status} = 'running'`),
+    latest: index('verify_runs_latest_idx').on(t.kind, t.modelId, t.startedAt.desc()),
+  }),
+);
+export type VerifyRunRow = typeof verifyRuns.$inferSelect;
 
 // Global monotonic sequence stamped onto every syncable row by a BEFORE INSERT/UPDATE trigger.
 // Created here so the sequence exists before any syncable table. Raw SQL

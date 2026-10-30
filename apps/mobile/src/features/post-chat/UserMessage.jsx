@@ -1,7 +1,6 @@
 import { Alert } from 'react-native';
 
-import ChatBubble from './ChatBubble';
-
+import ChatBubble from '@/components/ChatBubble';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import addRuleText from '@/features/voice/addRuleText';
 import useHaptics from '@/hooks/useHaptics';
@@ -12,7 +11,7 @@ import { requestSync } from '@/sync/worker';
 
 /**
  * One of the user's turns in the chat: a violet bubble with the prompt button's name (`label`) over
- * what was sent (`content`), and a ⋯ under it to add the text to the rules of Writing as you.
+ * what was sent (`content`), and a ⋯ under it to add the text to the Rules.
  */
 export default function UserMessage({ label, content }) {
   const haptics = useHaptics();

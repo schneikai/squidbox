@@ -1,6 +1,7 @@
 import { loadConfig } from './config.js';
 import { buildApp } from './app.js';
-import { closeDb } from './db/client.js';
+import { closeDb, getDb } from './db/client.js';
+import { stopAbandonedRuns, stopOwnRuns } from './ai/verifyRuns.js';
 
 const config = loadConfig();
 const app = await buildApp();
@@ -12,8 +13,12 @@ try {
   process.exit(1);
 }
 
+// A Verify whose server stopped never finishes now; the boot doesn't wait for this.
+stopAbandonedRuns(getDb()).catch((err: unknown) => app.log.error({ err }, 'Stopping abandoned Verify runs failed'));
+
 async function shutdown(signal: string): Promise<void> {
   app.log.info(`Received ${signal}, shutting down`);
+  await stopOwnRuns(getDb()).catch((err: unknown) => app.log.error({ err }, 'Stopping the running Verify runs failed'));
   await app.close();
   await closeDb();
   process.exit(0);

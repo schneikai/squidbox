@@ -3,6 +3,7 @@ import FavoritesScreen from '@/features/favorites/FavoritesScreen';
 import PromptButtonScreen from '@/features/prompt-buttons/PromptButtonScreen';
 import PromptButtonsScreen from '@/features/prompt-buttons/PromptButtonsScreen';
 import RuleScreen from '@/features/voice/RuleScreen';
+import RulesScreen from '@/features/voice/RulesScreen';
 import VoiceScreen from '@/features/voice/VoiceScreen';
 import asModalRoute from '@/navigators/asModalRoute';
 
@@ -10,6 +11,7 @@ const LISTS = [
   { name: 'PromptButtonsScreen', component: PromptButtonsScreen },
   { name: 'FavoritesScreen', component: FavoritesScreen },
   { name: 'VoiceScreen', component: VoiceScreen },
+  { name: 'RulesScreen', component: RulesScreen },
 ];
 
 // Each editor's modal route is wrapped once, here: a wrap inside a render would remount an open
@@ -19,8 +21,8 @@ const EDITORS = [
     name: 'PromptButtonScreen',
     component: PromptButtonScreen,
     modalComponent: asModalRoute(PromptButtonScreen),
-    // One screen per prompt button, and one Add per placement.
-    getId: ({ params }) => params?.id ?? `new:${params?.placement}`,
+    // One screen per prompt button, and one Add.
+    getId: ({ params }) => params?.id ?? 'new',
   },
   {
     name: 'FavoriteScreen',
@@ -41,7 +43,7 @@ const EDITORS = [
 const SHEET_OPTIONS = { presentation: 'modal' };
 
 /**
- * The assistant's setup screens the chat opens (prompt buttons, Favorites, Writing as you), as
+ * The assistant's setup screens the chat opens (prompt buttons, Favorites, Writing as you, Rules), as
  * `Screen`s of the navigator that calls it. The lists are pushed; with `editorsAsSheets` (the root
  * stack) their editors open as sheets, else (the post editor's stack) they push too, so that from
  * inside its sheet they open in the sheet, never behind it or as a second sheet.

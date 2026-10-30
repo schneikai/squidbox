@@ -1,27 +1,32 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import IconButton from '@/components/IconButton';
+import Button from '@/components/Button';
 import { colors, lineHeights, radii, typography } from '@/styles/designTokens';
 
-// A tweet a model wrote, with its thumbs up.
-export default function TweetRow({ text, isLiked, onToggle }) {
+// A tweet a model wrote, with its thumbs up: `level` 0, 1 (a thumb up) or 2 (two, an outstanding
+// one); `onToggle` steps it on, from two back to none.
+export default function TweetRow({ text, level, onToggle }) {
+  const isLiked = level > 0;
   return (
     <View style={styles.row}>
       <Text style={styles.text} selectable>
         {text}
       </Text>
-      <IconButton
+      <Button
         icon="thumbs-up"
-        variant="tinted"
-        isActive={isLiked}
+        variant="secondary"
+        iconCount={level === 2 ? 2 : 1}
+        isSelected={isLiked}
         filled={isLiked}
-        color={colors.text.secondary}
         onPress={onToggle}
-        accessibilityLabel={isLiked ? 'Remove thumbs up' : 'Thumbs up'}
+        accessibilityLabel={LEVEL_LABELS[level]}
       />
     </View>
   );
 }
+
+// What a tap does, for a screen reader.
+const LEVEL_LABELS = ['Thumbs up', 'Two thumbs up', 'Remove thumbs up'];
 
 const styles = StyleSheet.create({
   row: {

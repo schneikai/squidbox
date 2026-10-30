@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
+import ToolbarTitle from './ToolbarTitle';
 
-import IconButton from '@/components/IconButton';
-import { colors, layout, lineHeights, motion, scale, sizes, typography } from '@/styles/designTokens';
+import Button from '@/components/Button';
+import { layout, motion } from '@/styles/designTokens';
 
 /**
  * Three-part floating header for detail screens, mirroring the main screen
@@ -55,20 +56,7 @@ export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot
           pointerEvents="none" ensures touches pass through to the pills above */}
       {(!!title || !!subtitle) && (
         <Animated.View style={[styles.infoArea, leftStyle]} pointerEvents="none">
-          <FloatingPill style={[styles.infoPill, centerMaxWidth > 0 && { maxWidth: centerMaxWidth }]}>
-            <View style={styles.infoContent}>
-              {!!title && (
-                <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
-                  {title}
-                </Text>
-              )}
-              {!!subtitle && (
-                <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">
-                  {subtitle}
-                </Text>
-              )}
-            </View>
-          </FloatingPill>
+          <ToolbarTitle title={title} subtitle={subtitle} style={centerMaxWidth > 0 && { maxWidth: centerMaxWidth }} />
         </Animated.View>
       )}
 
@@ -79,7 +67,7 @@ export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot
         onLayout={(e) => setLeftWidth(e.nativeEvent.layout.width)}
       >
         <FloatingPill style={styles.backPill}>
-          <IconButton icon="chevron-left" onPress={onBack} accessibilityLabel="Back" />
+          <Button icon="chevron-left" onPress={onBack} accessibilityLabel="Back" />
         </FloatingPill>
       </Animated.View>
 
@@ -115,41 +103,12 @@ const styles = StyleSheet.create({
 
   backPill: {},
 
-  // ── Info pill ─────────────────────────────────────────────────────────────
   infoArea: {
     position: 'absolute',
     left: 0,
     right: 0,
     alignItems: 'center',
   },
-  infoPill: {
-    maxWidth: '100%',
-    minWidth: 80,
-    alignSelf: 'center',
-  },
-  infoContent: {
-    minHeight: sizes.iconButton,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexShrink: 1,
-    paddingHorizontal: layout.barPaddingX * 2,
-  },
-  title: {
-    fontSize: typography.subheadline,
-    lineHeight: scale(17),
-    fontWeight: '600',
-    color: colors.text.primary,
-    textAlign: 'center',
-    flexShrink: 1,
-  },
-  subtitle: {
-    fontSize: typography.caption2,
-    lineHeight: lineHeights.caption2,
-    color: colors.text.secondary,
-    textAlign: 'center',
-    flexShrink: 1,
-  },
-
   menuPill: {},
 
   emptyRightMeasure: {

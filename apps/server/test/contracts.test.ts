@@ -10,7 +10,6 @@ import {
   resolveExpiresIn,
   PRESIGN_DEFAULT_EXPIRES_IN,
   PRESIGN_MAX_EXPIRES_IN,
-  MULTIPART_PART_SIZE,
 } from '@squidbox/shared';
 import { AppError, errorBody } from '../src/errors.js';
 import { serverCollections } from '../src/sync/collections.js';
@@ -123,17 +122,12 @@ describe('presign expiry rules', () => {
   });
 });
 
-describe('constants', () => {
-  it('multipart part size is 100 MiB (binary)', () => {
-    expect(MULTIPART_PART_SIZE).toBe(104_857_600);
-  });
-});
-
 describe('error envelope', () => {
   it('AppError factories carry status + code', () => {
     expect(AppError.unauthorized()).toMatchObject({ statusCode: 401, code: 'unauthorized' });
     expect(AppError.invalidCredentials()).toMatchObject({ statusCode: 401, code: 'invalid_credentials' });
     expect(AppError.invalidToken()).toMatchObject({ statusCode: 401, code: 'invalid_token' });
+    expect(AppError.validation('bad')).toMatchObject({ statusCode: 400, code: 'validation_error', message: 'bad' });
     expect(AppError.notFound()).toMatchObject({ statusCode: 404, code: 'not_found' });
     expect(AppError.s3('boom')).toMatchObject({ statusCode: 502, code: 's3_error' });
   });

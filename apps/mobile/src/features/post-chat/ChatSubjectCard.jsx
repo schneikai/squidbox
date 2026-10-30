@@ -4,10 +4,10 @@ import ItSeesRow from './ItSeesRow';
 
 import Card from '@/components/Card';
 import CoverImage from '@/components/CoverImage';
+import IntroText from '@/components/IntroText';
 import { SCREEN_PADDING } from '@/constants';
 import useAssetAlbums from '@/hooks/useAssetAlbums';
 import { colors, scale, typography } from '@/styles/designTokens';
-import listTextStyles from '@/styles/listTextStyles';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
@@ -18,7 +18,7 @@ const SUBJECTS = { draft: 'New post', edit: 'Edit post' };
  * What the chat is about, at its top: the post's first photos, "New post · 2 Photos · <album>" (the
  * album named when every photo is in it; "Edit post" for a saved post), what the assistant sees in
  * them (ItSeesRow, from `tagging`, useAssetTags', with the post's tag edits `tagEdits`, changed with
- * `onEditTags`) and the handles it may mention (`mentions`, useMentions').
+ * `onEditTags`) and the handles it may mention (`mentions`, useMentions'), as grey lines.
  */
 export default function ChatSubjectCard({ kind, assets, tagging, tagEdits, onEditTags, mentions }) {
   const assetIds = assets.map((asset) => asset.id);
@@ -57,9 +57,9 @@ export default function ChatSubjectCard({ kind, assets, tagging, tagEdits, onEdi
         />
       )}
       {mentions?.handles.length > 0 && (
-        <Text style={[listTextStyles.subtitle, styles.mentions]}>
-          Mentions from {mentionsFrom}: {mentions.handles.slice(0, 5).join(', ')}
-        </Text>
+        <IntroText label="Mentions">
+          {mentions.handles.slice(0, 5).join(', ')} from {mentionsFrom}
+        </IntroText>
       )}
     </Card>
   );
@@ -68,7 +68,7 @@ export default function ChatSubjectCard({ kind, assets, tagging, tagEdits, onEdi
 const styles = StyleSheet.create({
   card: {
     padding: SCREEN_PADDING * 0.75,
-    gap: 10,
+    gap: 6,
   },
   header: {
     flexDirection: 'row',
@@ -91,8 +91,5 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: typography.subheadline,
     color: colors.text.primary,
-  },
-  mentions: {
-    marginTop: 0,
   },
 });

@@ -34,7 +34,7 @@ export default function AlbumNotesScreen({ route }) {
       onChangeText={setNotes}
       placeholder="Add a note…"
       autoFocus
-      actions={noteText(initialNotes) ? [{ label: 'Delete note', tone: 'danger', onPress: handleDelete }] : null}
+      actions={noteText(initialNotes) ? [{ label: 'Delete note', colorPalette: 'danger', onPress: handleDelete }] : []}
     />
   );
 }

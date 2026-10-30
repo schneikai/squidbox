@@ -7,7 +7,7 @@ import AccountButton from './AccountButton';
 import { useFloatingBars } from './FloatingBarsContext';
 import FloatingPill from './FloatingPill';
 
-import IconButton from '@/components/IconButton';
+import Button from '@/components/Button';
 import SelectionActions from '@/features/asset-list/SelectionActions';
 import { colors, layout, motion, typography } from '@/styles/designTokens';
 
@@ -56,10 +56,8 @@ export default function FloatingHeader({ title, onAdd, selection, selectionActio
       {/* Normal mode: action pill + account */}
       <Animated.View style={[styles.rightGroup, normalStyle]}>
         <FloatingPill>
-          {selection && (
-            <IconButton icon="check-circle" onPress={selection.toggleSelectMode} accessibilityLabel="Select" />
-          )}
-          <IconButton variant="primary" icon="add" onPress={onAdd} accessibilityLabel="Add" />
+          {selection && <Button icon="check-circle" onPress={selection.toggleSelectMode} accessibilityLabel="Select" />}
+          <Button variant="primary" icon="add" onPress={onAdd} accessibilityLabel="Add" />
         </FloatingPill>
         <AccountButton onPress={handleSettings} />
       </Animated.View>

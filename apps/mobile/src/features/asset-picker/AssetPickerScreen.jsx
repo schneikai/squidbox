@@ -2,11 +2,9 @@ import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 
-import IconButton from '@/components/IconButton';
-import ModalCloseButton from '@/components/ModalCloseButton';
+import Button from '@/components/Button';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
-import PrimaryButton from '@/components/PrimaryButton';
 import FloatingSegmentPill from '@/components/floating-bars/FloatingSegmentPill';
 import useAlbum from '@/features/album-detail/useAlbum';
 import AlbumPicker from '@/features/album-list/AlbumPicker';
@@ -77,18 +75,19 @@ export default function AssetPickerScreen({ route, navigation }) {
   return (
     <ModalSheet>
       <ModalHeader
-        leftSlot={
+        leading={
           album ? (
-            <IconButton icon="chevron-left" onPress={() => showView('Albums', null)} accessibilityLabel="Albums" />
+            <Button icon="chevron-left" onPress={() => showView('Albums', null)} accessibilityLabel="Albums" />
           ) : (
-            <ModalCloseButton onPress={() => navigation.goBack()} />
+            <Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />
           )
         }
-        centerSlot={title}
+        title={title}
         scrollY={scrollY}
-        rightSlot={
-          <PrimaryButton
-            size="compact"
+        trailing={
+          <Button
+            variant="primary"
+            size="small"
             label={selectedCount ? `Add ${selectedCount}` : 'Add'}
             onPress={handleAdd}
             disabled={!selectedCount || isAdding}

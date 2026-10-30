@@ -11,11 +11,10 @@ import useEditSheet from '@/hooks/useEditSheet';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import useLibrary from '@/library/useLibrary';
-import { scale } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { addRule, readPersona, savePersona } from '@/sync/personaRepository';
 
-// One rule of Writing as you, as a draft sheet: `{ index }` edits that rule (Save, or Delete), no
+// One of the Rules, as a draft sheet: `{ index }` edits that rule (Save, or Delete), no
 // params adds one (Add).
 export default function RuleScreen({ route }) {
   const index = route.params?.index;
@@ -100,10 +99,9 @@ function RuleEditor({ index, userId, seed }) {
       onChangeText={handleChangeText}
       placeholder={voiceFields.rules.placeholder}
       maxLength={PERSONA_LIMITS.rule}
-      minHeight={scale(88)}
       autoFocus={isNew}
       description={notice ?? voiceFields.rules.description}
-      actions={isNew ? null : [{ label: 'Delete rule', tone: 'danger', onPress: handleDelete }]}
+      actions={isNew ? [] : [{ label: 'Delete rule', colorPalette: 'danger', onPress: handleDelete }]}
     />
   );
 }

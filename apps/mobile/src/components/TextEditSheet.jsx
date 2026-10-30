@@ -1,43 +1,35 @@
-import { StyleSheet } from 'react-native';
-
-import CardTextField from '@/components/CardTextField';
 import EditSheet from '@/components/EditSheet';
 import IntroText from '@/components/IntroText';
-import { scale } from '@/styles/designTokens';
+import TextInput from '@/components/TextInput';
 
 /**
- * An EditSheet that edits one text: a Textarea (`value`, `onChangeText`, `placeholder`, `maxLength`,
- * `minHeight`, `autoFocus`) with an optional `description` under it. The other props go to EditSheet
- * (`title`, the props useEditSheet gives, `actions`).
+ * An EditSheet that edits one text, the look of a Notes page: an optional `description` over a
+ * multiline TextInput (`value`, `onChangeText`, `placeholder`, `maxLength`, `autoFocus`) that fills
+ * the sheet above the keyboard and scrolls its text inside, and the sheet's `actions` under it. The
+ * other props go to EditSheet (`title`, the props useEditSheet gives, `actions`).
  */
 export default function TextEditSheet({
   value,
   onChangeText,
   placeholder,
   maxLength,
-  minHeight = scale(160),
   autoFocus = false,
   description,
   ...sheetProps
 }) {
   return (
-    <EditSheet {...sheetProps}>
-      <CardTextField
+    <EditSheet {...sheetProps} isFilling>
+      {description != null && <IntroText isScreenIntro>{description}</IntroText>}
+      <TextInput
+        variant="field"
         multiline
+        isFilling
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
         maxLength={maxLength}
-        minHeight={minHeight}
         autoFocus={autoFocus}
       />
-      {description != null && <IntroText style={styles.description}>{description}</IntroText>}
     </EditSheet>
   );
 }
-
-const styles = StyleSheet.create({
-  description: {
-    marginHorizontal: 4,
-  },
-});

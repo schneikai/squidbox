@@ -1,8 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import Button from '@/components/Button';
 import Card from '@/components/Card';
 import CoverImage from '@/components/CoverImage';
-import TextButton from '@/components/TextButton';
 import ThumbnailBadge from '@/components/ThumbnailBadge';
 import { SCREEN_PADDING } from '@/constants';
 import { colors, scale, typography } from '@/styles/designTokens';
@@ -35,7 +35,7 @@ export default function PhotoSetRow({ assets, detail, onPick }) {
         </Text>
         {!!detail && count > 0 && <Text style={listTextStyles.subtitle}>{detail}</Text>}
       </View>
-      <TextButton label={count === 0 ? 'Pick photos' : 'Change'} onPress={onPick} size="small" />
+      <Button label={count === 0 ? 'Pick photos' : 'Change'} onPress={onPick} size="small" />
     </Card>
   );
 }

@@ -5,23 +5,23 @@ import {
   assetTagSchema,
   CHAT_LIMITS,
   uniqueTags,
-  WRITING_TWEET_COUNT,
   type AiModelKind,
   type ChatReply,
 } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
+import type { User } from '../db/schema.js';
 import { AppError } from '../errors.js';
 import { catalogAsync, findModel, type CatalogEntry } from './catalog.js';
 import { readChosenModelId } from './modelChoices.js';
-import { chatReplyJsonSpec, tagsSchema } from './prompts.js';
+import { chatReplyJsonSpec, judgeVerdictJsonSpec, postsSchema, tagsSchema } from './prompts.js';
 import { chatJsonAsync, VeniceError, type ChatMessage, type JsonSchemaSpec } from './venice.js';
 
-/** The trimmed tweets when there are exactly WRITING_TWEET_COUNT non-empty ones; throws otherwise. */
+/**
+ * The trimmed non-empty tweets, as many as the compare's prompt asked for; throws without any.
+ */
 export function checkTweets(tweets: string[]): string[] {
   const kept = tweets.map((tweet) => tweet.trim()).filter(Boolean);
-  if (kept.length !== WRITING_TWEET_COUNT) {
-    throw new VeniceError(`Returned ${kept.length} tweets instead of ${WRITING_TWEET_COUNT}`);
-  }
+  if (kept.length === 0) throw new VeniceError('The model returned no posts');
   return kept;
 }
 
@@ -76,10 +76,10 @@ export type AiTask<T> = {
   onUnreadable?: (content: string, json: unknown) => T;
 };
 
-// A compare's posts: the chat's reply schema, with exactly WRITING_TWEET_COUNT options.
-export const writingTask: AiTask<ChatReply> = {
-  schema: chatReplyJsonSpec,
-  check: (reply) => ({ ...reply, postOptions: checkTweets(reply.postOptions) }),
+// A compare's posts: one or more (the prompt says how many).
+export const writingTask: AiTask<{ posts: string[] }> = {
+  schema: postsSchema,
+  check: ({ posts }) => ({ posts: checkTweets(posts) }),
 };
 
 /**
@@ -113,6 +113,12 @@ export const photoTagsTask: AiTask<{ tags: string[] }> = {
   check: ({ tags }) => ({ tags: fitTags(tags) }),
 };
 
+// The model check's judge: whether a chat turn's reply answered the request, and why in one line.
+export const judgeTask: AiTask<{ pass: boolean; reason: string }> = {
+  schema: judgeVerdictJsonSpec,
+  check: ({ pass, reason }) => ({ pass, reason: reason.trim() }),
+};
+
 /**
  * Asks one model for the task's JSON and returns the reply once it passes the task's check; a failed
  * call or check is a VeniceError that says why. `signal` stops the call.
@@ -140,27 +146,27 @@ export async function runTask<T>({
 }
 
 /**
- * Runs the task on the user's chosen model of `kind` (or the default one) with the messages
- * `messagesAsync` resolves to, read meanwhile. 502 ai_unavailable when the model is gone or can't do
+ * Runs the task on the user's model of `kind` (readChosenModelId: an ai_admin's pick, else the
+ * published default) with the messages `messagesAsync` resolves to, read meanwhile. 502 ai_unavailable when the model is gone or can't do
  * the kind, or when Venice fails; anything else is the error handler's 500. `signal` stops the call.
  */
 export async function runChosenModelTask<T>({
   db,
-  userId,
+  user,
   kind,
   task,
   messagesAsync,
   signal,
 }: {
   db: Db;
-  userId: string;
+  user: Pick<User, 'id' | 'features'>;
   kind: AiModelKind;
   task: AiTask<T>;
   messagesAsync: Promise<ChatMessage[]>;
   signal?: AbortSignal;
 }): Promise<T> {
   const [modelId, catalog, messages] = await Promise.all([
-    readChosenModelId(db, userId, kind),
+    readChosenModelId(db, user, kind),
     catalogAsync(),
     messagesAsync,
   ]);

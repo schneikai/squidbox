@@ -1,6 +1,5 @@
 // This file is required for Expo/React Native SQLite migrations - https://orm.drizzle.team/quick-sqlite/expo
 
-import journal from './meta/_journal.json';
 import m0000 from './0000_long_cerebro.sql';
 import m0001 from './0001_public_wind_dancer.sql';
 import m0002 from './0002_loose_shooting_star.sql';
@@ -27,36 +26,44 @@ import m0022 from './0022_photo_tags.sql';
 import m0023 from './0023_chat_prompts.sql';
 import m0024 from './0024_merge_prompts.sql';
 import m0025 from './0025_adult_content.sql';
+import m0026 from './0026_model_check_judge.sql';
+import m0027 from './0027_uncensored_model_picks.sql';
+import m0028 from './0028_drop_favorite_source.sql';
+import m0029 from './0029_model_notes.sql';
+import journal from './meta/_journal.json';
 
-  export default {
-    journal,
-    migrations: {
-      m0000,
-m0001,
-m0002,
-m0003,
-m0004,
-m0005,
-m0006,
-m0007,
-m0008,
-m0009,
-m0010,
-m0011,
-m0012,
-m0013,
-m0014,
-m0015,
-m0016,
-m0017,
-m0018,
-m0019,
-m0020,
-m0021,
-m0022,
-m0023,
-m0024,
-m0025
-    }
-  }
-  
+export default {
+  journal,
+  migrations: {
+    m0000,
+    m0001,
+    m0002,
+    m0003,
+    m0004,
+    m0005,
+    m0006,
+    m0007,
+    m0008,
+    m0009,
+    m0010,
+    m0011,
+    m0012,
+    m0013,
+    m0014,
+    m0015,
+    m0016,
+    m0017,
+    m0018,
+    m0019,
+    m0020,
+    m0021,
+    m0022,
+    m0023,
+    m0024,
+    m0025,
+    m0026,
+    m0027,
+    m0028,
+    m0029,
+  },
+};

@@ -1,9 +1,9 @@
 import { useState, useRef } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, useWindowDimensions, Text } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import AssetImage from '@/components/AssetImage';
 import SuperPressable from '@/components/SuperPressable';
-import { colors, radii } from '@/styles/designTokens';
+import { colors, press, radii } from '@/styles/designTokens';
 
 // `postAssets` are a post's [{ id, asset }], as postQuery reads them; a tap on one calls `onPressAsset(asset)`.
 export default function PostAssets({ postAssets, onPressAsset }) {
@@ -72,9 +72,9 @@ function PaginationIndicator({ entries, currentPage, scrollToItem }) {
   return (
     <View style={styles.pagination}>
       {entries.map((_, index) => (
-        <TouchableOpacity
+        <Pressable
           key={index}
-          style={[styles.dot, currentPage === index && styles.activeDot]}
+          style={({ pressed }) => [styles.dot, currentPage === index && styles.activeDot, pressed && press.flat]}
           onPress={() => scrollToItem(index)}
         />
       ))}

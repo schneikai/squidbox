@@ -1,26 +1,23 @@
 import ModelSummary from './ModelSummary';
-import formatCost from './formatCost';
-import isVerifiedModel from './isVerifiedModel';
-import scoreText from './scoreText';
 
-import useHasFeature from '@/hooks/useHasFeature';
+import modelDetailText from '@/utils/ai/modelDetailText';
+import modelLabels from '@/utils/ai/modelLabels';
 
 /**
- * A model of your list as the list and the compare's pick step show it: its name with the Verified
- * and Uncensored labels over its score and cost. `model` null is one Venice no longer offers: greyed, so labelled.
- * The score shows only to an ai_admin account (it comes from Compare).
+ * A model of your list (`id`) as the list and the compare's pick step show it: its name with its
+ * labels over its score, cost and reasoning, and its `note` if any (`yourDefaults` the defaults this account uses,
+ * useYourModels', for the Default labels; with the published `defaults`, Changed on a default of
+ * yours that differs). `model` null is one Venice no longer offers: greyed, so labelled.
  */
-export default function ModelListSummary({ name, model, kind, score }) {
-  const isScored = useHasFeature('ai_admin');
+export default function ModelListSummary({ id, name, model, kind, score, note, yourDefaults, defaults }) {
   const isAvailable = model !== null;
-  const cost = isAvailable ? formatCost(model, kind) : 'No longer available';
   return (
     <ModelSummary
       name={name}
-      isVerified={isAvailable && isVerifiedModel(kind, model.id)}
-      isUncensored={model?.isUncensored}
-      detail={isScored ? `${scoreText(score, kind)} · ${cost}` : cost}
-      detailIcon={isScored && kind === 'writing' && score !== null ? 'thumbs-up' : null}
+      labels={modelLabels(kind, id, model, yourDefaults, defaults)}
+      detail={isAvailable ? modelDetailText(model, kind) : 'No longer available'}
+      score={isAvailable ? score : undefined}
+      note={note}
       isDimmed={!isAvailable}
     />
   );

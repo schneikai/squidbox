@@ -3,12 +3,10 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import IconPicker from './IconPicker';
-import SegmentedControl from './SegmentedControl';
-import placementText, { PLACEMENTS } from './placementText';
 
-import CardTextField from '@/components/CardTextField';
 import EditSheet from '@/components/EditSheet';
 import Field from '@/components/Field';
+import TextInput from '@/components/TextInput';
 import useEditSheet from '@/hooks/useEditSheet';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
@@ -28,19 +26,18 @@ import isPresent from '@/utils/isPresent';
 const { shape } = promptButtonCollection.schema;
 const NAME_MAX_LENGTH = shape.name.maxLength;
 const PROMPT_MAX_LENGTH = shape.prompt.maxLength;
-const SHOW_IT_ITEMS = PLACEMENTS.map((key) => ({ key, label: placementText[key].title }));
 // A button can't be without these.
 const REQUIRED_FIELDS = ['name', 'prompt'];
 
-// One prompt button as a draft sheet: `{ id }` edits it (Save, Duplicate, Delete), `{ placement }`
-// adds one there (Add, once it has a name and a prompt). Reachable from anywhere (a root screen, one
+// One prompt button as a draft sheet: `{ id }` edits it (Save, Duplicate, Delete), `{}` adds
+// one at the end (Add, once it has a name and a prompt). Reachable from anywhere (a root screen, one
 // per button), so the chat opens it too.
 export default function PromptButtonScreen({ route, navigation }) {
-  const { id, placement } = route.params;
+  const { id } = route.params ?? {};
   const isAvailable = useLeaveWhenUnavailable();
   const seed = useSeedOrClose(
-    (db) => (id ? readPromptButton(db, id) : Promise.resolve({ name: '', prompt: '', placement, icon: null })),
-    id ?? placement,
+    (db) => (id ? readPromptButton(db, id) : Promise.resolve({ name: '', prompt: '', icon: null })),
+    id ?? 'new',
     'This prompt button was deleted.',
   );
   if (!isAvailable || !seed) return null;
@@ -51,10 +48,9 @@ function PromptButtonEditor({ id, seed, navigation }) {
   const [draft, setDraft] = useState({
     name: seed.name,
     prompt: seed.prompt,
-    placement: seed.placement,
     icon: seed.icon,
   });
-  const values = { name: draft.name.trim(), prompt: draft.prompt.trim(), placement: draft.placement, icon: draft.icon };
+  const values = { name: draft.name.trim(), prompt: draft.prompt.trim(), icon: draft.icon };
   const changes = changedValues(seed, values);
   const { sheetProps, finish, confirmDiscard } = useEditSheet({
     isNew: !id,
@@ -75,7 +71,7 @@ function PromptButtonEditor({ id, seed, navigation }) {
     else await createPromptButton(db, { id: getNewItemId(), ...values });
   }
 
-  // A copy of the button as stored at the end of its group, opened in place of this one. Unsaved
+  // A copy of the button as stored at the end of the list, opened in place of this one. Unsaved
   // changes are discarded first (asked before the copy is made, so Keep editing leaves no copy).
   async function handleDuplicate() {
     if (!(await confirmDiscard())) return;
@@ -87,7 +83,6 @@ function PromptButtonEditor({ id, seed, navigation }) {
         id: getNewItemId(),
         name: `${button.name} copy`.slice(0, NAME_MAX_LENGTH),
         prompt: button.prompt,
-        placement: button.placement,
         icon: button.icon,
       });
       return () => navigation.replace('PromptButtonScreen', { id: copy.id });
@@ -113,14 +108,15 @@ function PromptButtonEditor({ id, seed, navigation }) {
         id
           ? [
               { label: 'Duplicate', onPress: handleDuplicate },
-              { label: 'Delete prompt button', tone: 'danger', onPress: handleDelete },
+              { label: 'Delete prompt button', colorPalette: 'danger', onPress: handleDelete },
             ]
-          : null
+          : []
       }
     >
       <View style={styles.fields}>
         <Field label="Name">
-          <CardTextField
+          <TextInput
+            variant="field"
             value={draft.name}
             onChangeText={(text) => setField('name', text)}
             placeholder="e.g. Shorter"
@@ -129,20 +125,14 @@ function PromptButtonEditor({ id, seed, navigation }) {
           />
         </Field>
         <Field label="Prompt">
-          <CardTextField
+          <TextInput
+            variant="field"
             multiline
             value={draft.prompt}
             onChangeText={(text) => setField('prompt', text)}
-            placeholder="e.g. Make each option shorter. Keep the hook, cut the rest."
+            placeholder="e.g. Make it shorter. Keep the hook, cut the rest."
             maxLength={PROMPT_MAX_LENGTH}
             minHeight={scale(140)}
-          />
-        </Field>
-        <Field label="Show it">
-          <SegmentedControl
-            items={SHOW_IT_ITEMS}
-            activeKey={draft.placement}
-            onSelect={(key) => setField('placement', key)}
           />
         </Field>
         <Field label="Icon">

@@ -7,33 +7,35 @@ import type { SyncDb } from './db/types';
 import { inJson } from './inJson';
 
 // The model testing's memory in the library's local ai_* tables (schema.ts): your models per kind,
-// the scores, each kind's prompt and the vision photo set. Their only reader and writer. The model the
-// assistant uses syncs with the account (modelChoicesRepository).
+// the scores, each kind's prompt and the vision photo set. Their only reader and writer. An ai_admin's
+// picks of the defaults sync with the account (modelChoicesRepository).
 
 export type ModelRef = { id: string; name: string };
-// score: null for a model never compared, else its thumbs up or tags that fit (0 and up).
-export type ModelListEntry = ModelRef & { score: number | null };
+// score: null for a model never compared, else its thumbs up or tags that fit (0 and up); note: what
+// the admin noted about it, null without one.
+export type ModelListEntry = ModelRef & { score: number | null; note: string | null };
 
 const { aiKinds, aiModels, aiScores, aiVisionPhotos, assets } = schema;
 
 /**
- * Your models of this kind in the order added, each with its score, in one statement; null while the
- * list was never seeded.
+ * Your models of this kind in the order added, each with its score and note, in one statement; null
+ * while the list was never seeded. A removed model isn't in it.
  */
 export async function readModelList(db: SyncDb, kind: AiModelKind): Promise<ModelListEntry[] | null> {
   const rows = await db
     .select({
       id: aiModels.modelId,
       name: aiModels.name,
+      note: aiModels.note,
       score: aiScores.score,
     })
     .from(aiKinds)
-    .leftJoin(aiModels, eq(aiModels.kind, aiKinds.kind))
+    .leftJoin(aiModels, and(eq(aiModels.kind, aiKinds.kind), eq(aiModels.isHidden, false)))
     .leftJoin(aiScores, and(eq(aiScores.kind, aiModels.kind), eq(aiScores.modelId, aiModels.modelId)))
     .where(eq(aiKinds.kind, kind))
     .orderBy(asc(aiModels.position));
   if (rows.length === 0) return null;
-  return rows.flatMap(({ id, name, score }) => (id !== null && name !== null ? [{ id, name, score }] : []));
+  return rows.flatMap(({ id, name, note, score }) => (id !== null && name !== null ? [{ id, name, note, score }] : []));
 }
 
 /** Starts your list with these models, once: a seeded list (even emptied since) is left as it is. */
@@ -48,7 +50,10 @@ export function seedYourModels(db: SyncDb, kind: AiModelKind, models: ModelRef[]
   });
 }
 
-/** Adds a model at the end of your list (which then counts as seeded); one already there stays put. */
+/**
+ * Adds a model at the end of your list (which then counts as seeded); one already there stays put,
+ * and a removed one comes back at the end with its note.
+ */
 export function addYourModel(db: SyncDb, kind: AiModelKind, model: ModelRef): Promise<void> {
   return db.transaction(async (tx) => {
     await tx.insert(aiKinds).values({ kind }).onConflictDoNothing();
@@ -58,15 +63,47 @@ export function addYourModel(db: SyncDb, kind: AiModelKind, model: ModelRef): Pr
         kind,
         modelId: model.id,
         name: model.name,
-        position: sql`(select coalesce(max(${aiModels.position}), -1) + 1 from ${aiModels} where ${aiModels.kind} = ${kind})`,
+        position: nextPosition(kind),
       })
-      .onConflictDoNothing();
+      .onConflictDoUpdate({
+        target: [aiModels.kind, aiModels.modelId],
+        set: { isHidden: false, position: nextPosition(kind) },
+        setWhere: eq(aiModels.isHidden, true),
+      });
   });
 }
 
-/** Takes a model off your list. Its score stays. */
+function nextPosition(kind: AiModelKind) {
+  return sql`(select coalesce(max(${aiModels.position}), -1) + 1 from ${aiModels} where ${aiModels.kind} = ${kind})`;
+}
+
+/** Takes a model off your list: hidden, its note and score kept for when it's added again. */
 export async function removeYourModel(db: SyncDb, kind: AiModelKind, modelId: string): Promise<void> {
-  await db.delete(aiModels).where(and(eq(aiModels.kind, kind), eq(aiModels.modelId, modelId)));
+  await db
+    .update(aiModels)
+    .set({ isHidden: true })
+    .where(and(eq(aiModels.kind, kind), eq(aiModels.modelId, modelId)));
+}
+
+/** The removed models of this kind by id, with their notes and scores, for the Add screen. */
+export async function readRemovedModels(
+  db: SyncDb,
+  kind: AiModelKind,
+): Promise<Map<string, { note: string | null; score: number | null }>> {
+  const rows = await db
+    .select({ id: aiModels.modelId, note: aiModels.note, score: aiScores.score })
+    .from(aiModels)
+    .leftJoin(aiScores, and(eq(aiScores.kind, aiModels.kind), eq(aiScores.modelId, aiModels.modelId)))
+    .where(and(eq(aiModels.kind, kind), eq(aiModels.isHidden, true)));
+  return new Map(rows.map(({ id, note, score }) => [id, { note, score }]));
+}
+
+/** Sets a model's note (null takes it away; noteText makes one). */
+export async function setModelNote(db: SyncDb, kind: AiModelKind, modelId: string, note: string | null): Promise<void> {
+  await db
+    .update(aiModels)
+    .set({ note })
+    .where(and(eq(aiModels.kind, kind), eq(aiModels.modelId, modelId)));
 }
 
 /** The prompt of the last compare of this kind; null before the first. */
@@ -130,7 +167,7 @@ export async function resetScores(db: SyncDb, kind: AiModelKind, modelId?: strin
     .where(modelId ? and(eq(aiScores.kind, kind), eq(aiScores.modelId, modelId)) : eq(aiScores.kind, kind));
 }
 
-/** Adds `delta` (±1) to a model's score; it never goes below 0. */
+/** Adds `delta` (±1, or -2 for two thumbs up taken back) to a model's score; it never goes below 0. */
 export async function addScore(db: SyncDb, kind: AiModelKind, modelId: string, delta: number): Promise<void> {
   await db
     .insert(aiScores)

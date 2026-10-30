@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
-import { StyleSheet, View, Text, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import PostAssets from './PostAssets';
 
@@ -8,7 +8,7 @@ import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
 import PostRows from '@/features/post-list/PostRows';
 import PostPostedAt from '@/features/posts/PostPostedAt';
-import { colors, lineHeights, typography } from '@/styles/designTokens';
+import { colors, lineHeights, press, typography } from '@/styles/designTokens';
 
 const OTHER_POSTS_LIMIT = 30;
 
@@ -30,9 +30,9 @@ export default function Post({ post, contentPaddingTop = 0 }) {
       <PostAssets postAssets={post.postAssets} onPressAsset={handleOpenAsset} />
 
       <View style={styles.container}>
-        <TouchableOpacity onPress={handleCopyToClipboard}>
+        <Pressable style={({ pressed }) => pressed && press.flat} onPress={handleCopyToClipboard}>
           <Text style={styles.postText}>{post.text}</Text>
-        </TouchableOpacity>
+        </Pressable>
         <PostPostedAt postedAt={post.postedAt} style={styles.postedAt} />
 
         <View style={styles.related}>

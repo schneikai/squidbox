@@ -858,50 +858,62 @@ new clock. A save names only the fields the user changed in the editor, the firs
 (its record goes whole, but only those fields carry clocks), so a device that hasn't pulled
 another's persona yet never overwrites it with empty fields. No field groups.
 
-**prompt_buttons** (the chat's one-tap prompts). Synced: `name`, `prompt`, `placement` (`post` on a
-post, `newPost` on a new post, `caption` under the caption in the editor, `refine` under every reply
-in the chat), `icon` (an Icon name or null), `position` (a fractional-index key, the order within the
-placement by `(position, id)`), plus the base columns. A button for two places is two records. The
-defaults have fixed ids (`DEFAULT_PROMPT_BUTTONS`). After the library's first full pull the app
-seeds each default whose id the table doesn't hold, tombstones included, at the end of its
-placement: so a deleted default never comes back, one moved to another placement stays there, a
-default added in a later version reaches a library with buttons once, and two devices that both
-seed converge on one row each. A seeded row carries the lowest clock (1, `SEED_CLOCK` in
+**prompt_buttons** (the chat's one-tap prompts, one list under the post editor's caption and over
+the chat's message box). Synced: `name`, `prompt`, `icon` (an Icon name or null), `position` (a
+fractional-index key, the order by `(position, id)`), plus the base columns. `placement` is retired:
+the app writes `ONE_LIST_PLACEMENT` and reads none, and the field stays so an older build still
+syncs. The defaults have fixed ids (`DEFAULT_PROMPT_BUTTONS`). After the library's first full pull
+the app seeds each default whose id the table doesn't hold, tombstones included, at the end of the
+list: so a deleted default never comes back, a default added in a later version reaches a library
+with buttons once, and two devices that both seed converge on one row each. A seeded row carries the lowest clock (1, `SEED_CLOCK` in
 `promptButtonsRepository.ts`): a device may seed before this launch's pull brings another device's
 deletion or move of that default, and any real write then wins over the seed (the push answers
 `skipped-lww` with the stored row).
 
 **favorites** (Settings → Assistant → Favorites: the posts the assistant writes like). Synced:
-`text`, `source` (the prompt button's name for an option hearted in the chat, null for the user's
-own post), plus the base columns; newest `createdAt` first, no position and no cap. One record per
-post rather than a list on the persona, so a heart on one device and an unheart on another merge
-per post, and each keeps where and when it came from. Removing one is a tombstone; Undo restores it
+`text`, plus the base columns; newest `createdAt` first, no position and no cap. `source` (the
+prompt button's name for a hearted option), which nothing read, was dropped in 0029 (server) and
+0028 (app); a push from an older build that still sends it has it stripped by the schema like any
+unknown field (tested), and the server ships before the app, since an older server's schema still
+requires it. One record per post rather than a list on the persona, so a heart on one device and an
+unheart on another merge per post, and each keeps when it was added. Removing one is a tombstone; Undo restores it
 by writing `deletedAt: null`, a per-field write that a later tombstone from another device still
 beats by its clock. The writing prompt sends the newest 20 (`FAVORITES_IN_PROMPT`).
 
-**instructions** (Settings → Assistant → Instructions: what the assistant is told before each
-request). Synced: `writing` (the writing briefing: the chat's whole system message and the
-Compare's, filled with the persona, the Favorites and the post), `visionTagging` (the photo tags
-briefing, the system message of every tags request, filled with Your content's themes) and
-`moreLikeThis` (what the chat's More like this sends), templates the server fills in, each the
-user's text or null for the app's default (`DEFAULT_INSTRUCTIONS` in `packages/shared`, resolved by
+**instructions** (Settings → Assistant → Admin → Instructions, for an ai_admin account: what the
+assistant is told before each request). Synced: `writing` (the writing briefing: the chat's whole
+system message, filled with the persona, the Favorites and the post; a writing Compare sends only
+its prompt box, without system instructions), `visionTagging` (the photo tags briefing, the system
+message of every tags request, filled with Your content's themes; a Compare sends its prompt box
+instead, without them), `moreLikeThis` (what the chat's More like this sends) and `modelCheckJudge` (what
+a writing Verify asks its judge after each chat turn), templates the server fills in, each that
+account's override or null for the app's default (the text published for every account in the
+server's `app_instructions`, §12, else `DEFAULT_INSTRUCTIONS` in `packages/shared`; resolved by
 `resolveInstructions`), plus the base columns. Migrations 0022 (server) and 0024 (app) dropped the
 earlier app prompts (`writingFormat`, `tagsSystem`, `themesContext`, `personaFraming`,
 `chatContext`) and reset `writing` and `visionTagging` to the default, their meaning having changed;
 the server's reset carries a fresh clock for both fields and a new `server_seq`, so every device
 pulls it and an older pending edit loses. One record per user with the user's id as its id, like
 `personas`, so two devices editing different kinds merge per field, and Reset is a per-field write
-of null that wins or loses by its clock like any edit. A text equal to the default is stored as
-null. The schema each reply is read with (`chat_reply`, the tags list) is the server's and never
+of null that wins or loses by its clock like any edit. A text equal to the app's default is
+stored as null, and an override that equals a text published since is cleared once the app has the
+catalog (`clearInstructionsEqualTo`), so it doesn't shadow later publishes; a kind counts as
+changed only while its override differs from the published text. The schema each reply is read with (`chat_reply`, the tags list) is the server's and never
 stored.
 
-**model_choices** (Settings → Assistant → Models: the model the assistant uses). Synced per kind:
-`writingModel` and `visionModel`, each `{ id, name }` (the name for a model Venice no longer offers)
-or null for the app's default, plus the base columns. One record per user with the user's id as its
-id, like `personas`, so a choice made on one device is the choice on all of them. The model list to
-choose from and the model testing (the compare prompts, the scores and the vision compare's photos)
-stay in the library's local `ai_*` tables: they are a developer tool for one device. Taking the
-chosen model off a device's list leaves the choice as it is.
+**model_choices** (Settings → Assistant → Writing or Vision → a model: the Default and Uncensored
+default switches). An ai_admin's picks of the defaults, per kind and variant: `writingModel` and
+`visionModel` the Default (`regular`), `writingUncensoredModel` and `visionUncensoredModel` the
+Uncensored default (`unrestricted`, optional so a push from an older build keeps them), each
+`{ id, name }` (the name for a model Venice no longer offers) or null for the published default, plus
+the base columns. One record per user with the user's id as its id, like `personas`, so a pick made
+on one device is the pick on all of them. A pick equal to the published default is stored as null,
+and Apply changes for everyone clears the picks it made equal. The model list to choose from and the
+model testing (the compare prompts, the scores and the vision compare's photos) stay in the library's
+local `ai_*` tables: they are a developer tool for one device. Taking a picked model off a device's
+list leaves the pick as it is. The server uses the picks for an ai_admin only, the one for the
+persona's Adult content switch: for any other account it ignores the stored picks (they stay as they
+are) and uses the published default for that switch, from the server's `model_defaults` (§12).
 
 The per-user records are written by `saveUserRecord` (`userRecord.ts`), which brings a tombstoned
 record back instead of inserting it again.
@@ -947,6 +959,15 @@ gone. Imported records kept deterministic uuid v5 ids, and their files stay at t
   app returns to the foreground, on a new edit, or Retry All (§6).
 - Sync runs in the foreground and on each local write (§8).
 - Users are isolated; there is no cross-user sharing (§2a).
+- What an ai_admin sets for the whole app — which models are verified for each kind
+  (`verified_models`), whether a model counts as uncensored where that overrides Venice's label
+  (`uncensored_overrides`), the defaults (`model_defaults`, set by Apply changes for everyone from an
+  admin's picks, both variants of a kind at once), the Verify runs (`verify_runs`) and
+  the instructions published for every account (`app_instructions`, Apply changes for everyone) —
+  lives in plain server tables outside the collection registry: no `user_id`, no `server_seq`
+  trigger, never pushed or pulled. Every account reads the marks, the defaults and the published
+  instructions with the catalog (`GET /ai/models`), the admin the Verify runs through the admin routes; the app keeps them
+  only in memory.
 
 ---
 

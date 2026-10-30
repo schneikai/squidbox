@@ -3,8 +3,8 @@ import { View, StyleSheet, ActivityIndicator } from 'react-native';
 
 import ProgressOverlayStateContext from './ProgressOverlayStateContext';
 
+import Button from '@/components/Button';
 import ProgressRing from '@/components/ProgressRing';
-import TextButton from '@/components/TextButton';
 import { colors, scale } from '@/styles/designTokens';
 
 // The visual overlay, rendered IN-TREE (never via a native Modal). A native Modal presents from the
@@ -26,7 +26,7 @@ export default function ProgressOverlayHost() {
       )}
       {cancel && (
         <View style={styles.cancel}>
-          <TextButton label="Cancel" onPress={cancel} tone="inverse" />
+          <Button label="Cancel" onPress={cancel} isInverse colorPalette="neutral" />
         </View>
       )}
     </View>

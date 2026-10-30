@@ -169,6 +169,48 @@
       "when": 1793180394754,
       "tag": "0023_adult_content",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793214478317,
+      "tag": "0024_model_verification",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793263691004,
+      "tag": "0025_verify_runs",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793298739088,
+      "tag": "0026_model_defaults_any_model",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1793299377019,
+      "tag": "0027_app_instructions",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1793301204656,
+      "tag": "0028_uncensored_model_picks",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793344382683,
+      "tag": "0029_drop_favorite_source",
+      "breakpoints": true
     }
   ]
 }

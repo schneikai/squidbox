@@ -37,7 +37,7 @@ export default function BackupScreen() {
     <Page>
       <FloatingDetailHeader title="Backup" onBack={() => navigation.goBack()} />
       <DetailScrollView>
-        <IntroText style={styles.intro}>
+        <IntroText isScreenIntro>
           Back up your original photos to the cloud. This happens while the app is open — keep it open until it
           finishes.
         </IntroText>
@@ -71,9 +71,9 @@ export default function BackupScreen() {
             </View>
           )}
 
-          {unsyncedCount > 0 && !isSyncing && <Row label="Back up now" onPress={() => syncNow()} chevron />}
+          {unsyncedCount > 0 && !isSyncing && <Row label="Back up now" onPress={() => syncNow()} hasChevron />}
           {syncErrorCount > 0 && (
-            <Row label="View errors" value={`${syncErrorCount}`} onPress={() => setShowErrors(true)} chevron />
+            <Row label="View errors" value={`${syncErrorCount}`} onPress={() => setShowErrors(true)} hasChevron />
           )}
         </Section>
 
@@ -95,10 +95,6 @@ export default function BackupScreen() {
 }
 
 const styles = StyleSheet.create({
-  intro: {
-    paddingHorizontal: SCREEN_PADDING,
-    paddingBottom: 12,
-  },
   panel: {
     paddingHorizontal: SCREEN_PADDING,
     paddingBottom: 15,

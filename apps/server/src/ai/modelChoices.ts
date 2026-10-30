@@ -1,23 +1,36 @@
-// The model the assistant uses for each kind: the user's synced `model_choices` record (its id is
-// the user's id), or while they have chosen none the app's default for their persona's Adult
-// content switch (resolveModelId, as the app shows it).
+// The model the assistant uses for each kind. For an ai_admin, their synced `model_choices` record
+// (its id is the user's id): their picks of the Default and Uncensored default, tried on their own
+// account before Apply changes for everyone publishes them, over the published defaults
+// (model_defaults). For every other account the published defaults. Either way the variant follows
+// the persona's Adult content switch (resolveModelId, as the app shows it). Another account's stored
+// picks stay as they are; they only don't apply.
 import { and, eq, isNull } from 'drizzle-orm';
 import { resolveModelId, type AiModelKind } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
-import { modelChoices, personas } from '../db/schema.js';
+import { modelChoices, personas, type User } from '../db/schema.js';
+import { readModelDefaults } from './verification.js';
 
-const columns = { writing: modelChoices.writingModel, vision: modelChoices.visionModel };
-
-/** The id of the model the user chose for `kind`, or the default one. */
-export async function readChosenModelId(db: Db, userId: string, kind: AiModelKind): Promise<string> {
-  const [row] = await db
-    .select({ model: columns[kind] })
-    .from(modelChoices)
-    .where(and(eq(modelChoices.userId, userId), eq(modelChoices.id, userId), isNull(modelChoices.deletedAt)));
-  if (row?.model) return row.model.id;
-  const [persona] = await db
-    .select({ adultContent: personas.adultContent })
-    .from(personas)
-    .where(and(eq(personas.userId, userId), eq(personas.id, userId), isNull(personas.deletedAt)));
-  return resolveModelId(kind, null, persona?.adultContent);
+/** The id of the model the user uses for `kind`: an ai_admin's pick, or the published default. */
+export async function readChosenModelId(
+  db: Db,
+  user: Pick<User, 'id' | 'features'>,
+  kind: AiModelKind,
+): Promise<string> {
+  const userId = user.id;
+  const [picks, persona, defaults] = await Promise.all([
+    user.features.includes('ai_admin')
+      ? db
+          .select()
+          .from(modelChoices)
+          .where(and(eq(modelChoices.userId, userId), eq(modelChoices.id, userId), isNull(modelChoices.deletedAt)))
+          .then(([row]) => row ?? null)
+      : null,
+    db
+      .select({ adultContent: personas.adultContent })
+      .from(personas)
+      .where(and(eq(personas.userId, userId), eq(personas.id, userId), isNull(personas.deletedAt)))
+      .then(([row]) => row),
+    readModelDefaults(db),
+  ]);
+  return resolveModelId(kind, picks, persona?.adultContent, defaults);
 }

@@ -43,6 +43,14 @@ describe('chatSessions', () => {
     expect(session.getState().messages[1]).toMatchObject({ status: 'done', ...REPLY });
   });
 
+  it('sends a More like this turn with its flag, for the server to put the instruction before it', async () => {
+    const { session } = open();
+    const { request, calls } = deferredRequest();
+    session.send({ label: 'More like this', content: 'one', moreLikeThis: true }, context, request);
+    expect(session.getState().messages[0]).toMatchObject({ label: 'More like this', content: 'one' });
+    expect(calls[0]!.body.messages).toEqual([{ role: 'user', content: 'one', moreLikeThis: true }]);
+  });
+
   it('sends the answered turns and the new one, but not a failed reply', async () => {
     const { session } = open();
     const { request, calls } = deferredRequest();

@@ -1,25 +1,27 @@
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import BlindModelName from './BlindModelName';
+import UncensoredToggle from './UncensoredToggle';
 
 import Card from '@/components/Card';
-import { colors, lineHeights, typography } from '@/styles/designTokens';
+import Text from '@/components/Text';
+import { colors } from '@/styles/designTokens';
 
 /**
- * One model's answer in a blind compare: its letter, its blurred name, and `children` (the tweets
- * or tags) once `result` is done; a spinner while loading, the error when it failed. No counts: they
- * would give the model away.
+ * One model's answer in a blind compare: its letter with the eye for its name, its Uncensored
+ * toggle, and `children` (the tweets or tags) once `result` is done; a spinner while loading, the
+ * error when it failed. No counts: they would give the model away.
  */
-export default function ModelCard({ label, name, result, children }) {
+export default function ModelCard({ modelId, label, name, result, children }) {
   return (
     <Card style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.label}>{label}</Text>
-        <BlindModelName name={name} />
+        <BlindModelName label={label} name={name} />
+        <UncensoredToggle modelId={modelId} label={label} />
       </View>
       {result?.status === 'done' && children}
       {result?.status === 'loading' && <ActivityIndicator style={styles.loading} color={colors.text.secondary} />}
-      {result?.status === 'error' && <Text style={styles.error}>{result.error}</Text>}
+      {result?.status === 'error' && <Text variant="error">{result.error}</Text>}
     </Card>
   );
 }
@@ -35,18 +37,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
-  label: {
-    flexShrink: 0,
-    fontSize: typography.callout,
-    fontWeight: '600',
-    color: colors.text.primary,
-  },
   loading: {
     paddingVertical: 16,
-  },
-  error: {
-    fontSize: typography.subheadline,
-    lineHeight: lineHeights.subheadline,
-    color: colors.status.danger,
   },
 });
