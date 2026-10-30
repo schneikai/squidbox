@@ -26,10 +26,10 @@ import type { RemoveFiles } from '../src/sync/sweepPurgedFiles';
 import type { SyncTransport } from '../src/sync/transport';
 import { runSyncOnce } from '../src/sync/worker';
 
-// The installed app is the client code of INSTALLED, the commit of the preview build on the owner's
+// The installed app is the client code of INSTALLED, the commit installed on the owner's
 // phone, run as it is against this server. The suite extracts its apps/mobile/src/sync into
 // test/.main-client (gitignored) and drives it with its own SQLite migrations; an "update" then runs
-// this branch's new migrations on that same database and goes on with this branch's code. Needs the
+// the current migrations on that same database and goes on with the current code. Needs the
 // docker Postgres and that commit, which the suite fetches (depth 1) when the checkout lacks it: in CI
 // one it can't get fails the suite instead of skipping it.
 const INSTALLED = 'b8171cf94f0e681b1b1e1489755730698a95789c';
@@ -126,7 +126,7 @@ d('the installed app (its client code, as built) against this server', () => {
     runMigrations(sqlite, newMigrations);
     return { sqlite, db: createDb(executor(sqlite)), old: false, removed: [] };
   }
-  // The app update: this branch's migrations on the installed app's database, then this branch's code,
+  // The app update: the current migrations on the installed app's database, then the current code,
   // opened as library/current.ts opens it (failed pushes retried, the owner kept).
   async function update(phone: Phone) {
     runMigrations(phone.sqlite, newMigrations, firstNew);
@@ -199,7 +199,7 @@ d('the installed app (its client code, as built) against this server', () => {
       driver: await import(/* @vite-ignore */ `${mainRoot}/sync/db/driver.ts`),
       schema: await import(/* @vite-ignore */ `${mainRoot}/sync/db/schema.ts`),
     };
-    // The update runs the migrations after the installed app's, which must be the first of this branch's.
+    // The update runs the migrations after the installed app's, which must be the first of the current ones.
     const hashes = (folder: string) => readMigrationFiles({ migrationsFolder: folder }).map(({ hash }) => hash);
     const installed = hashes(installedMigrations);
     expect(hashes(newMigrations).slice(0, installed.length)).toEqual(installed);

@@ -569,11 +569,11 @@ describe('a merge pass run again (a crash, a failed file move)', () => {
   });
 });
 
-// Round 8: a photo an earlier pass merged into the account's photo of the same camera-roll item was
+// A photo an earlier pass merged into the account's photo of the same camera-roll item was
 // matched again by every later pass, and copied whole once the account's photo was gone from the
 // live photos. The pass's decision is recorded (merged into that photo): later passes only bring the
 // device's newer edits there, and nowhere once it is gone.
-describe('round 8: a resumed pass and a matched photo the account deleted since', () => {
+describe('a resumed pass and a matched photo the account deleted since', () => {
   beforeEach(() => resetToAccount());
 
   // Pass 1 merges the device's photo into the account's (favorite OR'd), commits, then the app
@@ -599,10 +599,10 @@ describe('round 8: a resumed pass and a matched photo the account deleted since'
   });
 });
 
-// Round 8: the device library's own marker (getMergeTarget) names the library an earlier pass
+// The device library's own marker (getMergeTarget) names the library an earlier pass
 // committed into. It is the authority: while that library is in the list, the device library joins
 // no other, and the list's marker is set back to it (the boot then finishes that merge).
-describe('round 8: a device library an earlier pass copied into a library that is still there', () => {
+describe('a device library an earlier pass copied into a library that is still there', () => {
   const ACC2 = { id: 'acc2', owner: { kind: 'account' as const, serverId: 's1', userId: 'u2', email: 'u2@test' } };
   const TGT2 = libraryPaths('acc2');
 
@@ -633,12 +633,12 @@ describe('round 8: a device library an earlier pass copied into a library that i
   });
 });
 
-// Round 9: a pass committed into `acc`, then `acc` was lost before it pushed anything (removed from
+// A pass committed into `acc`, then `acc` was lost before it pushed anything (removed from
 // the device), and the device library joins another library of the account, `acc2`, whose first pull
 // brought none of it. The source learned nothing from that pass (it learns a decision once the
 // target has pushed it), so the pass into `acc2` is an ordinary one: everything is copied, with its
 // files; new edges to the album have their album.
-describe('round 9: records an earlier library never pushed', () => {
+describe('records an earlier library never pushed', () => {
   const ACC2 = { id: 'acc2', owner: { kind: 'account' as const, serverId: 's1', userId: 'u1', email: 'u1@test' } };
   const TGT2 = libraryPaths('acc2');
   let edgeIds = 0;
@@ -679,14 +679,14 @@ describe('round 9: records an earlier library never pushed', () => {
   });
 });
 
-// Round 10: a merge into the account's library waits for its first full pull (mergeWaits) so that a
+// A merge into the account's library waits for its first full pull (mergeWaits) so that a
 // device photo of a camera-roll item the account has is merged into the account's photo instead of
 // copied beside it. The account's photo can be a record whose file never reached the cloud: it was
 // imported on this iPhone by an install deleted before its backup ran (the camera-roll id is the
 // iPhone's own), and the photo was imported again before the sign-in. The device library is removed
 // with its folders, so the device's file moves into the account's library under the account photo's
 // name, and that library's backup uploads it.
-describe('round 10: a camera-roll match whose account photo has no file in the cloud', () => {
+describe('a camera-roll match whose account photo has no file in the cloud', () => {
   beforeEach(() => resetToAccount());
 
   it('keeps the device’s file for the account’s photo when the cloud has none', async () => {
@@ -712,7 +712,7 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
 
   const unsynced = { isFileSynced: false, isThumbnailSynced: false, isSynced: false };
 
-  // Round 17: a pass that writes nothing but moves the device's file into the account's folders (a
+  // A pass that writes nothing but moves the device's file into the account's folders (a
   // match with nothing to merge) commits its decisions and has joined the account's library: the
   // marker says so before the move, so a move that fails half-way never reopens the device library.
   it('a pass that only moves files marks the device library committed before the move', async () => {
@@ -732,7 +732,7 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
     expect(files.has(getAssetFileUri('r.jpg', TGT))).toBe(true);
   });
 
-  // Round 19: two device photos of an item whose account photo has no file in the cloud: the first
+  // Two device photos of an item whose account photo has no file in the cloud: the first
   // gives it its file, and the second's stays in the device library. No later pass plans a move into
   // a destination the account's library has (it would commit again and wait for later rows), so the
   // merge finishes once the pass's rows pushed, whatever the account edited since.
@@ -755,7 +755,7 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
     expect(entry('dev')).toBeUndefined();
   });
 
-  // Round 19: a pass that adds no outbox rows (here it only moves the files a crash left) keeps what
+  // A pass that adds no outbox rows (here it only moves the files a crash left) keeps what
   // the earlier passes wait for, so a later edit of the account doesn't hold the merge. Until its
   // files moved, its commit isn't counted as pushed (usePendingMerges).
   it('a pass that only moves files keeps the rows the merge waits for', async () => {
@@ -771,7 +771,7 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
     expect(entry('dev')).toBeUndefined();
   });
 
-  // Round 18: a pass that writes nothing but moves the device's copy under a matched record's names
+  // A pass that writes nothing but moves the device's copy under a matched record's names
   // commits its decisions first. Its move fails, the account deletes the record meanwhile, and the
   // retry keeps the decision: the device's photo isn't copied in as a new live photo.
   it('a pass that only moves files keeps its match when the account deletes the record before the retry', async () => {
@@ -804,7 +804,7 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
     expect(rows.map((row) => [row.id, row.deletedAt])).toEqual([[accountPhoto.id, 5000]]);
   });
 
-  // Round 20: a copied photo whose move failed, backed up by hand before the next launch (its backup
+  // A copied photo whose move failed, backed up by hand before the next launch (its backup
   // found no file there): the sync error stays while the move keeps failing, and goes once a pass
   // has moved the file, so its backup tries again.
   it('a copied photo’s sync error goes once a pass has moved its file, not before', async () => {
@@ -823,8 +823,8 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
     expect(await syncError()).toBeNull();
   });
 
-  // Round 21: a device photo deleted on the device that the account keeps by id, and a live device
-  // photo of an item whose account photo has no file in the cloud, share one file (earlier builds):
+  // A device photo deleted on the device that the account keeps by id, and a live device
+  // photo of an item whose account photo has no file in the cloud, share one file (two records can):
   // the file is copied to one and moved to the other, so both records keep it.
   it('a file a kept record and a live match share reaches both', async () => {
     const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-r', filename: 'r.jpg', ...unsynced });
@@ -877,10 +877,10 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
     expect(files.has(getAssetFileUri('r.jpg', TGT))).toBe(true);
   });
 
-  // Round 13: a camera-roll match appends the device photo's note to the account photo's unless it is
+  // A camera-roll match appends the device photo's note to the account photo's unless it is
   // already there (mergedNotes): the same note or whole lines of it, not a part of a line, so "Mom" is
   // merged into "Mom's birthday".
-  it('round 13: a device note that is part of a word or line of the account’s note is still merged', async () => {
+  it('a device note that is part of a word or line of the account’s note is still merged', async () => {
     const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-r', notes: 'Mom’s birthday', ...unsynced });
     await upsertRows(getDb(), 'assets', schema.assets, [{ ...accountPhoto, syncError: null }]);
     await devicePhoto({ mediaLibraryAssetId: 'm-r', filename: 'r2.jpg', notes: 'Mom' });
@@ -892,13 +892,14 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
   });
 });
 
-// Round 15: pass 1 merges the device's photo into the account's photo X (a camera-roll match: the
+// Pass 1 merges the device's photo into the account's photo X (a camera-roll match: the
 // device's favorite and note go onto X) and commits into `acc`; the app stops before the files move,
-// and `acc` is lost before it pushed anything (as in round 9). The source learns a decision only once
-// the target has pushed it, so it holds nothing of that pass: the pass into `acc2`, a new library of
-// the same account whose first pull brought X as the server has it, is an ordinary one, and the match
-// is made again at now (nothing of pass 1 reached the server).
-describe('round 15: a camera-roll match an earlier library never pushed', () => {
+// and `acc` is lost before it pushed anything (as in "records an earlier library never pushed").
+// The source learns a decision only once the target has pushed it, so it holds nothing of that
+// pass: the pass into `acc2`, a new library of the same account whose first pull brought X as the
+// server has it, is an ordinary one, and the match is made again at now (nothing of pass 1 reached
+// the server).
+describe('a camera-roll match an earlier library never pushed', () => {
   const ACC2 = { id: 'acc2', owner: { kind: 'account' as const, serverId: 's1', userId: 'u1', email: 'u1@test' } };
   const TGT2 = libraryPaths('acc2');
 
@@ -956,9 +957,9 @@ describe('round 15: a camera-roll match an earlier library never pushed', () => 
     expect(await getDb().select().from(schema.outbox)).toHaveLength(0);
   });
 
-  // Round 13: the same camera-roll item imported a second time while the device library was open
+  // The same camera-roll item imported a second time while the device library was open
   // again (imports don't dedupe): both photos are merged into X, both notes kept.
-  it('round 13: a photo of the same item imported again keeps both notes', async () => {
+  it('a photo of the same item imported again keeps both notes', async () => {
     const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-x', isFavorite: false, notes: null });
     await devicePhoto({ mediaLibraryAssetId: 'm-x', filename: 'd.jpg', isFavorite: true, notes: 'from the beach' });
     await passIntoAccThenLost(accountPhoto);
@@ -971,9 +972,9 @@ describe('round 15: a camera-roll match an earlier library never pushed', () => 
     expect(row.notes?.split('\n').sort()).toEqual(['from the beach', 'imported again']);
   });
 
-  // Round 13: the app is stopped inside the commit of the pass into acc2 (rolled back): the next
+  // The app is stopped inside the commit of the pass into acc2 (rolled back): the next
   // launch's pass makes the match.
-  it('round 13: a pass stopped inside its commit is made at the next launch', async () => {
+  it('a pass stopped inside its commit is made at the next launch', async () => {
     const { applyMerge } = await import('../src/library/mergeLibrary');
     const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-x', isFavorite: false, notes: null });
     await devicePhoto({ mediaLibraryAssetId: 'm-x', filename: 'd.jpg', isFavorite: true, notes: 'from the beach' });
@@ -994,13 +995,13 @@ describe('round 15: a camera-roll match an earlier library never pushed', () => 
   });
 });
 
-// Round 19 (seeded fuzz): a device library of photos of camera-roll items the account holds (with or
+// A device library of photos of camera-roll items the account holds (with or
 // without a file in the cloud), in an album, merged while passes fail (a file move, the commit), the
 // account pushes all or part of its outbox, deletes photos, edits them, uploads their files, another
 // device adds photos of the same items, and the device library is opened and edited while it waits.
 // Then the account pushes and a later edit of the account waits in its outbox, which holds no merge
 // (only the rows the passes wrote do). The merge completes and nothing of the device library is lost.
-describe('round 19: seeded merges', () => {
+describe('seeded merges', () => {
   const SEEDS = fuzzRuns(40, 150);
 
   async function seeded(seed: number): Promise<string[]> {
@@ -1022,7 +1023,7 @@ describe('round 19: seeded merges', () => {
     };
     const device: schema.AssetRow[] = [];
     for (let i = 0; i < 5; i++) {
-      // Now and then the file name of an earlier photo (earlier builds could give two one name).
+      // Now and then the file name of an earlier photo (two records can share one file name).
       const name = i > 0 && r() < 0.2 ? `dev${Math.floor(r() * i)}` : `dev${i}`;
       const photo = await devicePhoto({
         ...{ mediaLibraryAssetId: pick(media), filename: `${name}.jpg`, thumbnailFilename: `${name}-t.jpg` },

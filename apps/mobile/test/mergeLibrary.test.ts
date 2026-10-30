@@ -265,7 +265,7 @@ describe('planMerge + applyMerge', () => {
     expect(writesTarget(await planMerge(source, target, SRC, TGT))).toBe(false);
   });
 
-  // Round 15: the device has the account's photo X by id and noted it, and a second photo P of the
+  // The device has the account's photo X by id and noted it, and a second photo P of the
   // same camera-roll item with a note. P's match merges onto X as the replay leaves it.
   it('a new match merges onto the row as the replays leave it: the device’s note of X stays', async () => {
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-1', notes: 'orig', updatedAt: 5000 });
@@ -281,7 +281,7 @@ describe('planMerge + applyMerge', () => {
     expect((await outbox(target))[0]!.fields.notes).toBe(row!.updatedAt);
   });
 
-  // Round 15: the device favorited X by id (its own clock, older than what the server may hold), and
+  // The device favorited X by id (its own clock, older than what the server may hold), and
   // P is a favorite: the match brings the favorite, so it goes at now too.
   it('a new match writes what it brings at now, even a value a replay set', async () => {
     fakeClock();
@@ -348,7 +348,7 @@ describe('planMerge + applyMerge', () => {
     expect((await planMerge(source, target, SRC, TGT)).files).toEqual([]);
   });
 
-  // Round 20: earlier builds could give two records one file name. Each destination gets the file:
+  // Two records can share one file name. Each destination gets the file:
   // a copy to all but the last, made before the move.
   it('a file two records share is copied to the first destination and moved to the last', async () => {
     const theirs = await repo.create(

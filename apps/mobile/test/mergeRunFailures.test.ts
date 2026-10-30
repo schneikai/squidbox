@@ -19,7 +19,7 @@ import { sweepPurgedFiles } from '../src/sync/sweepPurgedFiles';
 import { upsertRows } from '../src/sync/upsertRows';
 import { getAssetFileUri } from '../src/utils/assets/assetStorage';
 
-// Round 6: a merge pass (mergeRun.ts) failing, or the app dying, at each of its steps, then the
+// A merge pass (mergeRun.ts) failing, or the app dying, at each of its steps, then the
 // device library opened again while the session is lost (its photo purged there, its open-sweep
 // run), then the boot's resume. The invariant (sync-design §7a, §8): a device photo whose record an
 // account library holds keeps a file somewhere (the device library's folder or the account's) while
@@ -313,7 +313,7 @@ describe('a merge pass failing or crashing at each step, then a purge on the dev
   });
 });
 
-// Round 6: the device library's open-sweep still running when the sign-in switches to the account's
+// The device library's open-sweep still running when the sign-in switches to the account's
 // library and the merge starts. closeLibrary aborts it (between batches) and closes its database, so
 // a batch in flight can still remove its files but marks nothing; the merge then copies the live
 // photos with their files, and leaves the purged ones (gone from the device for good) behind.
@@ -363,7 +363,7 @@ describe('a device library’s sweep running when the sign-in merges it', () => 
   });
 });
 
-// Round 17: after a crash between the finish (finishMerge) and the source's removal, the target holds
+// After a crash between the finish (finishMerge) and the source's removal, the target holds
 // no marks any more; the next finish adds the target's marks to the source's, so a second crash there
 // leaves the source's decisions as they were.
 // Scenario: the device's photo is merged into the account's copy of the same camera-roll item (its
@@ -371,7 +371,7 @@ describe('a device library’s sweep running when the sign-in merges it', () => 
 // database is deleted, twice in a row. Meanwhile another device deletes the account's photo (pulled
 // as a tombstone). The match stands (sync-design §8: "a decision that was pushed stands ... a
 // tombstone included"), so the deleted photo stays deleted.
-describe('round 17: two crashes between a merge’s finish and the device library’s removal', () => {
+describe('two crashes between a merge’s finish and the device library’s removal', () => {
   it('a photo the account deleted since the match stays deleted', async () => {
     await resetLibraries();
     await openLibrary(ACC);
@@ -407,11 +407,11 @@ describe('round 17: two crashes between a merge’s finish and the device librar
   });
 });
 
-// Round 18: the app dies right after pass 1's commit, before the device library's marker says
+// The app dies right after pass 1's commit, before the device library's marker says
 // committed. The next pass writes nothing (the account holds the photo), but has joined the account's
 // library all the same: it marks the device library's database committed too, not only the list, so
 // a list rebuilt from it, or a pass after the finish, keeps it committed.
-describe('round 18: a crash between the commit and the committed marker', () => {
+describe('a crash between the commit and the committed marker', () => {
   it('the next pass marks the device library committed in its database, before the files move', async () => {
     await devicePhoto(await resetLibraries(), { filename: 'p.jpg', mediaLibraryAssetId: 'm-p' });
     await openLibrary(ACC);
@@ -438,14 +438,14 @@ describe('round 18: a crash between the commit and the committed marker', () => 
   });
 });
 
-// Round 19 (seeded crash fuzz): device photos of camera-roll items the account holds (with or without
+// Device photos of camera-roll items the account holds (with or without
 // a file in the cloud), one living in another account's storage (the source is kept), in an album;
 // passes that crash at any step, the account pushing all or part of its outbox, purging and deleting
 // photos, uploading their files, and the device library opened and edited while it waits. Then the
 // account pushes and a later edit of the account waits in its outbox at each boot. The merge completes
 // (or keeps the source for the photo in another account's storage), and nothing of the device
 // library is lost.
-describe('round 19: seeded crashes', () => {
+describe('seeded crashes', () => {
   const albumEdges = makeEdgeRepository('album_assets', schema.albumAssets, 'albumId');
   const albums = makeRepository('albums', schema.albums);
   const SEEDS = fuzzRuns(40, 150);
@@ -476,7 +476,7 @@ describe('round 19: seeded crashes', () => {
     };
     const device: schema.AssetRow[] = [];
     for (let i = 0; i < 5; i++) {
-      // Now and then the file name of an earlier photo (earlier builds could give two one name).
+      // Now and then the file name of an earlier photo (two records can share one file name).
       const name = i > 0 && r() < 0.2 ? `dev${Math.floor(r() * i)}` : `dev${i}`;
       const photo = await devicePhoto(source, {
         ...{ mediaLibraryAssetId: pick(media), filename: `${name}.jpg`, thumbnailFilename: `${name}-t.jpg` },

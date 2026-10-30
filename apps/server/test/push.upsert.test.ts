@@ -102,8 +102,8 @@ d('push: one upsert per collection', () => {
     pool = new pg.Pool({ connectionString: TEST_URL });
     db = drizzle(pool, { schema });
     await db.insert(schema.users).values([
-      { id: ME, email: `r4-${ME}@test.local`, passwordDigest: 'x', storageBucket: null },
-      { id: TWIN, email: `r4-${TWIN}@test.local`, passwordDigest: 'x', storageBucket: null },
+      { id: ME, email: `upsert-${ME}@test.local`, passwordDigest: 'x', storageBucket: null },
+      { id: TWIN, email: `upsert-${TWIN}@test.local`, passwordDigest: 'x', storageBucket: null },
     ]);
   });
   afterAll(async () => {
@@ -213,10 +213,10 @@ d('push: one upsert per collection', () => {
   // The fallback after a row error reruns the batch one savepoint per row: every other row, a twice
   // merged one included, gets the result and row it gets pushed one by one.
   it('a database error in a batch with duplicates: the fallback gets the one-by-one results', async () => {
-    const BAD = 'rejected by test_r4_notes';
-    await pool.query('ALTER TABLE assets DROP CONSTRAINT IF EXISTS test_r4_notes');
+    const BAD = 'rejected by test_upsert_notes';
+    await pool.query('ALTER TABLE assets DROP CONSTRAINT IF EXISTS test_upsert_notes');
     await pool.query(
-      `ALTER TABLE assets ADD CONSTRAINT test_r4_notes CHECK (notes IS DISTINCT FROM '${BAD}') NOT VALID`,
+      `ALTER TABLE assets ADD CONSTRAINT test_upsert_notes CHECK (notes IS DISTINCT FROM '${BAD}') NOT VALID`,
     );
     try {
       const a = asset();
@@ -248,7 +248,7 @@ d('push: one upsert per collection', () => {
       expect(wire(batched)).toEqual(wire(single));
       await sameRows('assets', [a.id, b.id, c.id]);
     } finally {
-      await pool.query('ALTER TABLE assets DROP CONSTRAINT test_r4_notes');
+      await pool.query('ALTER TABLE assets DROP CONSTRAINT test_upsert_notes');
     }
     // The ALTER TABLEs wait for the other test files' pushes into assets to commit.
   }, 60_000);

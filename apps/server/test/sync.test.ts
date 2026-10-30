@@ -176,7 +176,7 @@ d('sync engine (Postgres)', () => {
     expect(await clocks()).toMatchObject({ name: 2000, position: 1000 });
     expect(await clocks()).not.toHaveProperty('updatedAt');
 
-    // A row written before per-field merge has no clocks: each field's is its updated_at.
+    // A row without field clocks: each field's is its updated_at.
     await pool.query('UPDATE albums SET field_clock = NULL WHERE user_id = $1 AND id = $2', [USER_A, album.id]);
     await push(db, USER_A, [{ collection: 'albums', record: { ...withoutPosition, name: 'C', updatedAt: 3000 } }]);
     expect(await clocks()).toMatchObject({ name: 3000, position: 2000 });
@@ -186,7 +186,7 @@ d('sync engine (Postgres)', () => {
     expect(changes.albums.records[0]).not.toHaveProperty('fieldClock'); // server-only
   });
 
-  it('a persona from an older build that still sends useEmoji is applied without it', async () => {
+  it('a persona that still sends useEmoji is applied without it', async () => {
     const id = randomUUID();
     const persona = {
       id,
@@ -209,7 +209,7 @@ d('sync engine (Postgres)', () => {
     await pool.query('DELETE FROM personas WHERE user_id = $1 AND id = $2', [USER_A, id]);
   });
 
-  it("a persona's Adult content starts off and survives a push from a build without it", async () => {
+  it("a persona's Adult content starts off and survives a push without it", async () => {
     const id = randomUUID();
     const persona = {
       id,
@@ -611,7 +611,7 @@ d('sync engine (Postgres)', () => {
       expect(await stored(r.id)).toMatchObject({ purgedAt: 2000, notes: 'from the old app', updatedAt: 3000 });
     });
 
-    it('a row written before per-field merge takes its updated_at as every field’s clock', async () => {
+    it('a row without field clocks takes its updated_at as every field’s clock', async () => {
       const r = assetRecord({ updatedAt: 2000 });
       await push(db, USER_A, [mut(r)]);
       await pool.query('UPDATE assets SET field_clock = NULL WHERE user_id = $1 AND id = $2', [USER_A, r.id]);
@@ -1139,8 +1139,8 @@ d('sync engine (Postgres)', () => {
 
     beforeAll(async () => {
       await db.insert(schema.users).values([
-        { id: ME, email: `r3-${ME}@test.local`, passwordDigest: 'x', storageBucket: null },
-        { id: TWIN, email: `r3-${TWIN}@test.local`, passwordDigest: 'x', storageBucket: null },
+        { id: ME, email: `restores-${ME}@test.local`, passwordDigest: 'x', storageBucket: null },
+        { id: TWIN, email: `restores-${TWIN}@test.local`, passwordDigest: 'x', storageBucket: null },
       ]);
     });
     afterAll(async () => {
@@ -1294,14 +1294,14 @@ d('sync engine (Postgres)', () => {
         expect(await raw(r.id)).toMatchObject({ notes: 'n19', isFavorite: false, updatedAt: 5019 });
     });
 
-    // A record sent without the final field (an app from before purges) leaves the merged record's
+    // A record sent without the final field (an app without purges) leaves the merged record's
     // purgedAt as the column holds it (null), which the next mutation of the batch merges against.
-    it('a restore by an app from before purges, then a restore by a new app in the same batch: applied, as pushed alone', async () => {
+    it('a restore by an app without purges, then a restore by a new app in the same batch: applied, as pushed alone', async () => {
       const r = asset({ deletedAt: 1000 });
       await push(db, ME, [mut(r)]);
-      const { purgedAt: _p, ...prePurge } = { ...r, updatedAt: 3000, deletedAt: null };
+      const { purgedAt: _p, ...withoutPurges } = { ...r, updatedAt: 3000, deletedAt: null };
       const newer = at({ ...r, updatedAt: 2000, deletedAt: null }, 2000, pair); // older clock, same values
-      const results = await push(db, ME, [mut(prePurge), newer]);
+      const results = await push(db, ME, [mut(withoutPurges), newer]);
       expect(await raw(r.id)).toMatchObject({ deletedAt: null, purgedAt: null });
       expect(results.map((result) => result.status)).toEqual(['applied', 'applied']);
     });
@@ -1330,9 +1330,9 @@ d('sync engine (Postgres)', () => {
         copy.updatedAt = clock;
         const record = { ...copy };
         const kind = pick(kinds);
-        if (kind === 'whole') return mut(record); // an app from before per-field merge
-        if (kind === 'prePurge') {
-          const { purgedAt: _p, ...rest } = record; // and from before purges
+        if (kind === 'whole') return mut(record); // an app without per-field merge (whole-record pushes)
+        if (kind === 'withoutPurges') {
+          const { purgedAt: _p, ...rest } = record; // and without purges
           return mut(rest);
         }
         return at(record, clock, fields);
@@ -1359,9 +1359,9 @@ d('sync engine (Postgres)', () => {
       await batchAgainstOneByOne(['fields', 'fields', 'fields', 'whole']);
     });
 
-    // The one above, with apps from before purges in the mix.
-    it('the same with apps from before purges in the mix', async () => {
-      await batchAgainstOneByOne(['fields', 'fields', 'fields', 'whole', 'prePurge']);
+    // The one above, with apps without purges in the mix.
+    it('the same with apps without purges in the mix', async () => {
+      await batchAgainstOneByOne(['fields', 'fields', 'fields', 'whole', 'withoutPurges']);
     });
 
     it('an id sent in upper case names the stored row: a purged one stays purged, a live one merges', async () => {

@@ -118,7 +118,7 @@ describe('withSyncPaused', () => {
     await withSyncPaused(async () => setSyncTarget(null));
   });
 
-  // Round 19: a sync queued just before a paused section starts finds the runs paused: it asks
+  // A sync queued just before a paused section starts finds the runs paused: it asks
   // again, and runs after the section.
   it('a sync held back by a pause runs after the section', async () => {
     await repo.create(db, makeAssetRecord());
@@ -131,7 +131,7 @@ describe('withSyncPaused', () => {
     await withSyncPaused(async () => setSyncTarget(null));
   });
 
-  // Round 21: a full resync tapped just before a paused section starts finds the runs paused: it fails
+  // A full resync tapped just before a paused section starts finds the runs paused: it fails
   // with a message to try again (the section may switch libraries), and nothing runs in its place.
   it('a full resync held back by a pause fails, to be tapped again', async () => {
     await setCursor(db, 5000); // a sync pulls from here, a full resync from the start

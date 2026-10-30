@@ -295,8 +295,8 @@ d('two-device sync e2e (client SQLite ↔ server Postgres)', () => {
   });
 });
 
-// ── Adversarial per-field merge: devices A and B run this app; C runs an app from before per-field
-// merge (its pushes carry no `fields`, so the server merges the whole record at its updatedAt). Date
+// ── Adversarial per-field merge: devices A and B run this app; C runs an app without per-field
+// merge (whole-record pushes: no `fields`, so the server merges the whole record at its updatedAt). Date
 // is faked so each edit gets the clock the scenario names; the server's clock is SERVER_NOW unless a
 // scenario sets it. Every push is checked as it lands: `applied` means every field it merged holds
 // the pushed value, `skipped-lww` carries the merged server row as `current` and lost something.
@@ -941,7 +941,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       expect(edges.map((e) => e.assetId).sort()).toEqual([asset1, asset2].sort());
     });
 
-    // Round 6: the seed as EditPostScreen really builds it (readPost → PostEditor's postData), and
+    // The seed as EditPostScreen really builds it (readPost → PostEditor's postData), and
     // the save as PostsProvider.updatePost writes it.
     const postEdges = makeEdgeRepository('post_assets', clientSchema.postAssets, 'postId');
     async function openEditor(device: SyncDb, postId: string) {
@@ -1098,7 +1098,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       });
     });
 
-    // Round 8: a save is an edit of its seed (edgesRepository setRefs), and what the user moved is read
+    // A save is an edit of its seed (edgesRepository setRefs), and what the user moved is read
     // against the seed's order, not the edges' current keys. B drags z to the front of the post while
     // A's editor is open; A, seeded before that arrived, only adds w: B's move and A's add both survive.
     it('a photo another device moved while the editor was open stays where it moved it after a save that only adds one', async () => {
@@ -1250,7 +1250,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       });
     });
 
-    // Round 8 (was on main): the sign-in merged the device library right after the switch, into the
+    // The sign-in merged the device library right after the switch, into the
     // account's library on a new phone, new and empty: the camera-roll match found nothing, and the
     // account's photo arrived with the first full pull beside the copy. Every merge waits for the
     // target's first full pull now, and runs when it drains (usePendingMerges).
@@ -1273,14 +1273,14 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       expect(live.map((row) => row.mediaLibraryAssetId)).toEqual(['camera-roll-1']);
     });
 
-    // Round 13: the iPhone's device library has its copy of camera-roll item x, a favorite with a note
+    // The iPhone's device library has its copy of camera-roll item x, a favorite with a note
     // (S+100). Later, the iPad (B) notes the account's photo of x and favorites it and takes that back
     // (S+200..S+220). At the sign-in on the iPhone, pass 1 into the account's library T1 merges the
     // device's photo into it at S+300 (the iPad's note, then the iPhone's; a favorite) and commits,
     // and T1 is lost before it pushes. The source learned nothing of pass 1, so the pass into the next
     // library T2 is an ordinary one, merging the photo at now (S+400): both notes and the favorite,
     // everywhere.
-    it('round 13: a library lost before it pushed: the next pass merges what pass 1 did', async () => {
+    it('a library lost before it pushed: the next pass merges what pass 1 did', async () => {
       const id = await seedAsset({ mediaLibraryAssetId: 'camera-roll-x', notes: null, isFavorite: false });
       const D = makeTestDb(); // the iPhone's device library, before the sign-in
       await setOwner(D, { kind: 'device' });
@@ -1317,12 +1317,12 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       });
     });
 
-    // Round 14: pass 1 into T1 merges the iPhone's note into the account's photo of item x at S+300,
+    // Pass 1 into T1 merges the iPhone's note into the account's photo of item x at S+300,
     // and T1 is lost before it pushes. The iPad then notes the photo, and favorites it and takes that
     // back (S+400..S+420). With T1 gone and no tokens, the device library is open again (libraryToOpen)
     // and the user edits the iPhone's photo at S+500: a new note, and a favorite. The pass into T2
     // (S+600) is an ordinary one: the photo as it is now, merged at now onto the iPad's edits.
-    it('round 14: an edit made on the device after a lost pass beats an earlier edit of the account', async () => {
+    it('an edit made on the device after a lost pass beats an earlier edit of the account', async () => {
       const id = await seedAsset({ mediaLibraryAssetId: 'camera-roll-x', notes: null, isFavorite: false });
       const D = makeTestDb();
       await setOwner(D, { kind: 'device' });
@@ -1397,13 +1397,13 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
     }
 
     // T1 never pushed: the source learned nothing of pass 1, and the pass into T2 merges both photos.
-    it('round 15: a photo imported again after a pass whose library never pushed keeps both notes', async () => {
+    it('a photo imported again after a pass whose library never pushed keeps both notes', async () => {
       expect(await importedAgainAfterPass1(false)).toMatchObject({ notes: 'first\nimported again', isFavorite: true });
     });
 
     // T1 pushed 'first', and the iPad deleted the note later (S+400): pass 1's decision stands, so only
     // the new photo is merged, and the deleted note stays deleted.
-    it('round 15: a photo imported again doesn’t bring back a note the account deleted after a pushed pass', async () => {
+    it('a photo imported again doesn’t bring back a note the account deleted after a pushed pass', async () => {
       const deleteOnIpad = async (id: string) => {
         await sync(B);
         await edit(B, S + 400, () => repo.update(B, id, { notes: null }));
@@ -1415,11 +1415,11 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       });
     });
 
-    // Round 15: the iPhone holds three photos of item x: P1 (a favorite, 'one'), P2 ('two') and P3
+    // The iPhone holds three photos of item x: P1 (a favorite, 'one'), P2 ('two') and P3
     // ('three'). Pass 1 into T1 merges them into the account's photo (S+300), and T1 is lost before it
     // pushes. The iPhone then edits P2's note (S+400) and deletes P3 (S+410). The pass into T2 is an
     // ordinary one: what the photos hold now, merged at now.
-    it('round 15: a library lost before it pushed: the next pass merges the photos as they are now', async () => {
+    it('a library lost before it pushed: the next pass merges the photos as they are now', async () => {
       const id = await seedAsset({ mediaLibraryAssetId: 'camera-roll-x', notes: null, isFavorite: false });
       const D = makeTestDb();
       await setOwner(D, { kind: 'device' });
@@ -1450,12 +1450,12 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       });
     });
 
-    // Round 14: D holds the account's photo by id (an earlier library's pass copied it and pushed it,
+    // D holds the account's photo by id (an earlier library's pass copied it and pushed it,
     // then that library was lost; as in deviceLibraryWith). Opened again while the session had no
     // tokens, D notes the photo (S+100). Pass 1 into T1 replays that note onto T1's row (by id) and
     // commits; T1 is lost before it pushes. The pass into T2 (whose first pull brought the photo
     // without the note) is an ordinary one: the note replays, and reaches the account.
-    it('round 14: an edit replayed by id into a library lost before it pushed is replayed again', async () => {
+    it('an edit replayed by id into a library lost before it pushed is replayed again', async () => {
       const id = await seedAsset({ notes: 'orig' });
       const D = await deviceLibraryWith(id);
       await setOwner(D, { kind: 'device' });
@@ -1474,11 +1474,11 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       expect(await expectConverged('assets', id, [A, B, T2])).toMatchObject({ notes: 'device' });
     });
 
-    // Round 14: D holds the account's photo X of camera-roll item x by id (as in deviceLibraryWith), and
+    // D holds the account's photo X of camera-roll item x by id (as in deviceLibraryWith), and
     // the same item imported again as P (S+100). Pass 1 into T1 matches P into X (S+300) and commits;
     // T1 is lost before it pushes. Opened again, D favorites X (S+500). The pass into T2 replays the
     // device's favorite (by id) and merges P into X onto it.
-    it('round 14: a match into a record the device also edited by id keeps that edit', async () => {
+    it('a match into a record the device also edited by id keeps that edit', async () => {
       const id = await seedAsset({ mediaLibraryAssetId: 'camera-roll-x', notes: 'orig', isFavorite: false });
       const D = await deviceLibraryWith(id);
       await setOwner(D, { kind: 'device' });
@@ -1510,12 +1510,12 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       });
     });
 
-    // Round 14: D holds the account's photo X of camera-roll item x by id (as in deviceLibraryWith),
+    // D holds the account's photo X of camera-roll item x by id (as in deviceLibraryWith),
     // and the same item imported again as P with a note (imports don't dedupe). The user deletes the
     // duplicate X on the device and keeps P. The merge plans P as a match of X (live in the account at
     // plan time) and replays X's deletion by id. A match goes only into a record still live once the
     // plan's own replays apply, so P is copied: a live photo of item x with P's note.
-    it('round 14: a photo kept on the device isn’t merged into its duplicate the device deleted', async () => {
+    it('a photo kept on the device isn’t merged into its duplicate the device deleted', async () => {
       const id = await seedAsset({ mediaLibraryAssetId: 'camera-roll-x', notes: null });
       const D = await deviceLibraryWith(id);
       await setOwner(D, { kind: 'device' });
@@ -1745,8 +1745,8 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       expect(await expectConverged('assets', id)).toMatchObject({ deletedAt: S + 100, purgedAt: S + 250 });
     });
 
-    // An app from before "Delete permanently": no `fields`, and no purgedAt in its records.
-    async function syncAsPrePurgeApp(device: SyncDb) {
+    // An app without purges: no `fields`, and no purgedAt in its records.
+    async function syncAsAppWithoutPurges(device: SyncDb) {
       at(SERVER_NOW);
       const base = transportOf(device);
       await runSyncOnce(device, {
@@ -1775,20 +1775,20 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       await settle();
       expect(await expectConverged('assets', first)).toMatchObject({ deletedAt: S + 100, purgedAt: S + 300 });
 
-      // C, as an app from before purges, restores; A, unaware, purges later by clock.
+      // C, as an app without purges, restores; A, unaware, purges later by clock.
       const second = await seedAsset();
       await edit(A, S + 100, () => repo.remove(A, [second]));
       await settle();
       await edit(C, S + 200, () => repo.updateAll(C, [second], { deletedAt: null }));
-      await syncAsPrePurgeApp(C);
+      await syncAsAppWithoutPurges(C);
       await edit(A, S + 300, () => repo.purgeAssets(A, [second]));
       await settle([A, B]);
-      await syncAsPrePurgeApp(C);
+      await syncAsAppWithoutPurges(C);
       await settle();
       expect(await expectConverged('assets', second)).toMatchObject({ deletedAt: null, purgedAt: null });
     });
 
-    it('an app from before purges pushing a stale record to a purged row: frozen, told so, and it converges', async () => {
+    it('an app without purges pushing a stale record to a purged row: frozen, told so, and it converges', async () => {
       const id = await seedAsset();
       await edit(A, S + 100, () => repo.remove(A, [id]));
       await settle();
@@ -1796,7 +1796,7 @@ d('per-field merge, adversarial (devices A, B, an old app C ↔ server)', () => 
       await sync(A);
       const frozen = await serverRaw('assets', id);
       await edit(C, S + 900, () => repo.updateAll(C, [id], { deletedAt: null, notes: 'C' }));
-      await syncAsPrePurgeApp(C);
+      await syncAsAppWithoutPurges(C);
       expect(pushLog.at(-1)!.results[0]).toMatchObject({ status: 'skipped-lww', current: { purgedAt: S + 200 } });
       expect(await serverRaw('assets', id)).toEqual(frozen);
       await settle();

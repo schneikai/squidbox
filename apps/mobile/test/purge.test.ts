@@ -622,7 +622,7 @@ describe('the sweep: concurrent sweeps, aborts, stuck assets, resyncs', () => {
   });
 });
 
-describe('migration 0012_purged_files on a database from before it', () => {
+describe('migration 0012_purged_files on a database at 0011', () => {
   const migrationsFolder = fileURLToPath(new URL('../src/sync/db/migrations', import.meta.url));
   const migrations = readMigrationFiles({ migrationsFolder });
   const at = (tag: string) => journal.entries.findIndex((entry) => entry.tag === tag);

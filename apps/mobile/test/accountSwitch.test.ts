@@ -259,9 +259,9 @@ describe('switching libraries with the session', () => {
     expect(await assetIdsIn(deviceId)).toEqual([photo.id, cloudOnly.id]);
   });
 
-  // Round 8 (was on main): `keptFor` lived only in the library list, so a corrupt list rebuilt from
-  // the databases' owners lost it, and the device library, A's already, joined B's library. The
-  // device library's own database keeps it now, and the rebuilt list takes it from there.
+  // `keptFor` is in the device library's own database, so a list rebuilt from disk (a corrupt list
+  // rebuilt from the databases' owners) keeps it: the device library, A's already, joins no library
+  // of B's.
   it('a kept device library joins no second account after the library list is rebuilt', async () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(null);
@@ -430,7 +430,7 @@ describe('switching libraries with the session', () => {
     });
   });
 
-  // Round 10: the setup screen (FirstSyncScreen) offers Sign out while the account's first pull runs,
+  // The setup screen (FirstSyncScreen) offers Sign out while the account's first pull runs,
   // and the device library's merge waits for that pull (mergeWaits). The session stays, without
   // tokens, but its account library would hide this iPhone's photos until it pulls: this device's
   // library opens instead (libraryToOpen), at the sign-out and at every launch, until a sign-in.
@@ -458,7 +458,7 @@ describe('switching libraries with the session', () => {
     expect(openOwner()).toMatchObject({ kind: 'account', userId: 'A' });
   });
 
-  // Round 10: a device library a merge pass committed into account A's library is A's from then on.
+  // A device library a merge pass committed into account A's library is A's from then on.
   // A's library is gone from the phone (web storage evicted, the list rebuilt) and B signs in: the
   // device library joins nothing of B's, and keeps its files, waiting for a library of A's.
   it('a device library committed into one account’s library never joins another account', async () => {
@@ -487,7 +487,7 @@ describe('switching libraries with the session', () => {
     expect(libraryIds()).not.toContain(deviceId);
   });
 
-  // Round 11: a merge marked for A's library (a pass that committed, then failed or crashed) resumes at
+  // A merge marked for A's library (a pass that committed, then failed or crashed) resumes at
   // A's next sign-in, not only at the next launch.
   it('a sign-in resumes a merge marked for the account’s library', async () => {
     await loadRegistry(async () => ({ libraries: [] }));
@@ -528,7 +528,7 @@ describe('switching libraries with the session', () => {
     expect(deviceLibraryToJoin()?.id).toBe(deviceId);
   });
 
-  // Round 11: the server rejects the session while the account's first pull runs (a refresh token
+  // The server rejects the session while the account's first pull runs (a refresh token
   // revoked by a password change, or one that expired while the app sat closed mid-setup): the pull's
   // token refresh gets a 401 and the tokens go (refreshAccessTokenAsync), as at a sign-out. Every loss
   // of the tokens opens the library for the session without them (watchTokenDrops, which
@@ -553,7 +553,7 @@ describe('switching libraries with the session', () => {
     expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
   });
 
-  // Round 11: the same rejection, and the user goes on in the library the app shows and adds a photo.
+  // The same rejection, and the user goes on in the library the app shows and adds a photo.
   // That library is this device's from the rejection on, as it is at the next launch: the photo stays
   // in the open library.
   it('a photo added after a session was rejected mid-setup is still there at the next launch', async () => {
@@ -583,7 +583,7 @@ describe('switching libraries with the session', () => {
     expect((await assets()).map(({ id }) => id)).toContain(added.id);
   });
 
-  // Round 11: a sign-out on the setup screen switches to this device's library (libraryToOpen); when
+  // A sign-out on the setup screen switches to this device's library (libraryToOpen); when
   // that library's database won't open (a failed migration after an update, a damaged file), the
   // session's own library opens instead (openLibraryForSession), at the sign-out and at every boot,
   // so the app boots and the user can sign in.
@@ -608,14 +608,14 @@ describe('switching libraries with the session', () => {
     expect(getLibrary().id).toBe(aId);
   });
 
-  // Round 16: the sign-in's pass committed the device library into A's library and moved the photo's
+  // The sign-in's pass committed the device library into A's library and moved the photo's
   // file into A's folders; the device library waits, marked, for A's push (offline, or a row the
   // server keeps rejecting). The user taps "Rebuild from server" (Library sync → Troubleshooting),
   // which clears A's first-sync flag and shows the setup screen again, and signs out there (or the
   // server rejects the session during that pull). libraryToOpen sees A's library "not pulled", but
   // the device library's marker says committed: it has joined A's library, which holds its photo and
   // the photo's file, and A's library stays open. The setup screen counts no photos to add.
-  it('round 16: a rebuild while a merge waits for its push, then a setup sign-out: the photo shown keeps its file', async () => {
+  it('a rebuild while a merge waits for its push, then a setup sign-out: the photo shown keeps its file', async () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(null);
     const deviceId = getLibrary().id;

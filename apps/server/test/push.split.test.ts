@@ -99,8 +99,8 @@ d('push: split statements', () => {
     pool = new pg.Pool({ connectionString: TEST_URL });
     db = drizzle(pool, { schema });
     await db.insert(schema.users).values([
-      { id: ME, email: `r5-${ME}@test.local`, passwordDigest: 'x', storageBucket: null },
-      { id: TWIN, email: `r5-${TWIN}@test.local`, passwordDigest: 'x', storageBucket: null },
+      { id: ME, email: `split-${ME}@test.local`, passwordDigest: 'x', storageBucket: null },
+      { id: TWIN, email: `split-${TWIN}@test.local`, passwordDigest: 'x', storageBucket: null },
     ]);
   });
   afterAll(async () => {
@@ -151,10 +151,10 @@ d('push: split statements', () => {
   }, 180_000);
 
   it('a row error in the last statement of a split push: every other row as in batches of 500, the row alone rejected', async () => {
-    const BAD = 'rejected by test_r5_notes';
-    await pool.query('ALTER TABLE assets DROP CONSTRAINT IF EXISTS test_r5_notes');
+    const BAD = 'rejected by test_split_notes';
+    await pool.query('ALTER TABLE assets DROP CONSTRAINT IF EXISTS test_split_notes');
     await pool.query(
-      `ALTER TABLE assets ADD CONSTRAINT test_r5_notes CHECK (notes IS DISTINCT FROM '${BAD}') NOT VALID`,
+      `ALTER TABLE assets ADD CONSTRAINT test_split_notes CHECK (notes IS DISTINCT FROM '${BAD}') NOT VALID`,
     );
     try {
       const mutations = seededMutations(9, 6000, 1000);
@@ -168,7 +168,7 @@ d('push: split statements', () => {
       expect(wire(giant)).toEqual(wire(batched));
       await expectSameRows('assets');
     } finally {
-      await pool.query('ALTER TABLE assets DROP CONSTRAINT test_r5_notes');
+      await pool.query('ALTER TABLE assets DROP CONSTRAINT test_split_notes');
       await clear(ME);
       await clear(TWIN);
     }
@@ -340,7 +340,7 @@ d('push: split statements', () => {
     const THIRD = randomUUID();
     await db
       .insert(schema.users)
-      .values({ id: THIRD, email: `r5-${THIRD}@test.local`, passwordDigest: 'x', storageBucket: null });
+      .values({ id: THIRD, email: `split-${THIRD}@test.local`, passwordDigest: 'x', storageBucket: null });
     try {
       for (let round = 0; round < 8; round++) {
         let seed = 1000 + round;
