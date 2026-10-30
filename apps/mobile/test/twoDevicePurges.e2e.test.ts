@@ -32,10 +32,10 @@ import { pull as serverPull } from '../../server/src/sync/pull.js';
 import { deletePurgedFiles } from '../../server/src/sync/purgedFiles.js';
 import { push as serverPush } from '../../server/src/sync/push.js';
 import * as repo from '../src/sync/assetsRepository';
-import type { RemoveFiles } from '../src/sync/assetsRepository';
 import * as clientSchema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { retryFailures } from '../src/sync/outbox';
+import type { RemoveFiles } from '../src/sync/sweepPurgedFiles';
 import type { SyncTransport } from '../src/sync/transport';
 import { runSyncOnce } from '../src/sync/worker';
 

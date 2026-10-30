@@ -14,12 +14,12 @@ import { serverCollections } from '../../../server/src/sync/collections.js';
 import { pull as serverPull } from '../../../server/src/sync/pull.js';
 import { push as serverPush } from '../../../server/src/sync/push.js';
 import * as repo from '../../src/sync/assetsRepository';
-import type { RemoveFiles } from '../../src/sync/assetsRepository';
 import { clientCollectionTables } from '../../src/sync/clientCollections';
 import * as clientSchema from '../../src/sync/db/schema';
 import type { SyncDb } from '../../src/sync/db/types';
 import { retryFailures } from '../../src/sync/outbox';
 import { makeRepository } from '../../src/sync/repository';
+import type { RemoveFiles } from '../../src/sync/sweepPurgedFiles';
 import type { SyncTransport } from '../../src/sync/transport';
 import { runSyncOnce } from '../../src/sync/worker';
 

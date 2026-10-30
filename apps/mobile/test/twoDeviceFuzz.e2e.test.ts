@@ -21,10 +21,10 @@ import {
 } from './helpers/twoDeviceServer';
 import * as serverSchema from '../../server/src/db/schema.js';
 import * as repo from '../src/sync/assetsRepository';
-import type { RemoveFiles } from '../src/sync/assetsRepository';
 import * as clientSchema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { retryFailures } from '../src/sync/outbox';
+import type { RemoveFiles } from '../src/sync/sweepPurgedFiles';
 import { runSyncOnce } from '../src/sync/worker';
 
 // Seeded random interleavings of edits, deletes, restores, purges and syncs across the devices.

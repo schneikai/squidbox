@@ -1,4 +1,4 @@
-import type { PushMutation, PushResult } from '@squidbox/shared';
+import type { FieldClocks, PushMutation, PushResult } from '@squidbox/shared';
 import { expect } from 'vitest';
 
 import { serverCollections } from '../../../server/src/sync/collections.js';
@@ -22,7 +22,9 @@ export async function pushViolations(
     const mutation = mutations[i]!;
     const col = serverCollections[mutation.collection]!;
     const record = mutation.record as Record<string, unknown>;
-    const merged = Object.keys(sentFields(col, record as never, mutation.fields, Number.MAX_SAFE_INTEGER));
+    const merged = Object.keys(
+      sentFields(col, record as never, mutation.fields as FieldClocks | undefined, Number.MAX_SAFE_INTEGER),
+    );
     const row = await serverRow(mutation.collection, result.id);
     const lost = merged.filter((field) => !Object.is(row?.[field], record[field]));
     const final = col.descriptor.finalField;
