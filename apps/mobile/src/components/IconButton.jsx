@@ -2,7 +2,10 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import GradientFill from '@/components/GradientFill';
 import Icon from '@/components/Icon';
-import { colors, radii, sizes, typography } from '@/styles/designTokens';
+import { colors, radii, scale, sizes, typography } from '@/styles/designTokens';
+
+// Two icons side by side, small enough to fit the disc apart.
+const PAIR_ICON_SIZE = scale(15);
 
 /**
  * Standard icon-only pressable with a 44pt tap target, pill clipping, and press feedback. Every
@@ -40,8 +43,8 @@ export default function IconButton({
   else if (iconCount === 2) {
     iconElement = (
       <View style={styles.pair}>
-        <Icon name={icon} size={sizes.iconSmall} color={contentColor} filled={filled} />
-        <Icon name={icon} size={sizes.iconSmall} color={contentColor} filled={filled} style={styles.second} />
+        <Icon name={icon} size={PAIR_ICON_SIZE} color={contentColor} filled={filled} />
+        <Icon name={icon} size={PAIR_ICON_SIZE} color={contentColor} filled={filled} />
       </View>
     );
   }
@@ -103,10 +106,7 @@ const styles = StyleSheet.create({
   },
   pair: {
     flexDirection: 'row',
-  },
-  // Two icons overlap a little, to fit the disc.
-  second: {
-    marginLeft: -4,
+    gap: 2,
   },
   label: {
     fontSize: typography.footnote,
