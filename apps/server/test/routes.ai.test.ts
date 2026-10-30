@@ -418,6 +418,9 @@ describe('POST /api/v1/ai/compare/writing', () => {
   });
 });
 
+// The vision compare's line on the format, after the prompt box.
+const VISION_FORMAT = 'Answer in JSON, with the tags of this one photo.';
+
 describe('POST /api/v1/ai/compare/vision', () => {
   it('sends the prompt and the photo as a data URL and returns the tags per model', async () => {
     veniceAnswers();
@@ -431,7 +434,7 @@ describe('POST /api/v1/ai/compare/vision', () => {
     });
     // The message's shape is the compare test's; here the request's prompt and photo reach it.
     const [gemma] = chatBodies();
-    expect(gemma.messages[0]).toEqual({ role: 'system', content: 'Tag what you see' });
+    expect(gemma.messages[0]).toEqual({ role: 'system', content: `Tag what you see\n\n${VISION_FORMAT}` });
     expect(gemma.messages[1].content).toEqual([
       { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,AAAA' } },
     ]);
@@ -449,7 +452,7 @@ describe('POST /api/v1/ai/compare/vision', () => {
     expect(res.statusCode).toBe(200);
     expect(readPersona).not.toHaveBeenCalled();
     for (const body of chatBodies()) {
-      expect(body.messages[0].content).toBe('Tag what you see');
+      expect(body.messages[0].content).toBe(`Tag what you see\n\n${VISION_FORMAT}`);
     }
   });
 

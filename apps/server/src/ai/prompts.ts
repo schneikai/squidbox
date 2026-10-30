@@ -32,6 +32,13 @@ const COMPARE_WRITING_FORMAT =
 // After the model's earlier posts, so New suggestions with the same prompt brings new ones.
 const COMPARE_WRITE_DIFFERENT = 'Write different ones.';
 
+// A vision compare's line on the answer's format, after the prompt box: a prompt about "each photo"
+// had a model answer a list of photos.
+const COMPARE_VISION_FORMAT = 'Answer in JSON, with the tags of this one photo.';
+
+// After the model's earlier tags of the photo, so a new round with the same prompt brings new ones.
+const COMPARE_TAG_DIFFERENT = 'Give different tags.';
+
 /**
  * The writing prompt of a compare: the prompt box as the user's message, after a system line on the
  * answer's format only; the reply's JSON schema (postsSchema) asks for the posts alone. Each of
@@ -236,6 +243,31 @@ export function visionMessages({
   ];
 }
 
+/**
+ * A vision compare's request: the prompt box (visionMessages, without content themes) and a line on
+ * the answer's format, then the photo; each of `earlierRounds` (the model's tags of this photo in
+ * its last rounds, oldest first) follows as its answer, then asks for different ones.
+ */
+export function compareVisionMessages({
+  prompt,
+  imageDataUrl,
+  earlierRounds = [],
+}: {
+  prompt: string;
+  imageDataUrl: string;
+  earlierRounds?: string[][];
+}): ChatMessage[] {
+  const [system, photo] = visionMessages({ prompt, imageDataUrl });
+  return [
+    { role: 'system', content: `${system!.content}\n\n${COMPARE_VISION_FORMAT}` },
+    photo!,
+    ...earlierRounds.flatMap((tags): ChatMessage[] => [
+      { role: 'assistant', content: JSON.stringify({ tags }) },
+      { role: 'user', content: COMPARE_TAG_DIFFERENT },
+    ]),
+  ];
+}
+
 // A JSON object of these properties, all required.
 function objectSchema(properties: Record<string, unknown>) {
   return { type: 'object', properties, required: Object.keys(properties), additionalProperties: false };
@@ -248,16 +280,22 @@ function stringListSchema(key: string) {
 
 /**
  * A reply that is one list of strings under `key`. Some models answer the bare list instead of the
- * object around it, even held to the schema: that reads as the list too.
+ * object around it, or the object inside a list, even held to the schema: those read as the list
+ * too (the objects' lists joined).
  */
 function stringListSpec<K extends string>(key: K): JsonSchemaSpec<Record<K, string[]>> {
   const list = z.array(z.string());
+  const object = z.object({ [key]: list } as Record<K, typeof list>);
   return {
     name: key,
     jsonSchema: stringListSchema(key),
     zod: z.union([
-      z.object({ [key]: list } as Record<K, typeof list>),
+      object,
       list.transform((items) => ({ [key]: items }) as Record<K, string[]>),
+      z
+        .array(object)
+        .min(1)
+        .transform((objects) => ({ [key]: objects.flatMap((item) => item[key]) }) as Record<K, string[]>),
     ]),
   };
 }

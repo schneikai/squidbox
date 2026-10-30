@@ -268,6 +268,12 @@ export const compareVisionRequestSchema = z.object({
   prompt: promptSchema,
   image: visionImageSchema,
   modelIds: modelIdsSchema,
+  // The model's tags of this photo in its earlier rounds with this prompt, oldest first, so it gives
+  // different ones; the app asks each model on its own, so they are that model's.
+  earlierRounds: z
+    .array(z.array(z.string().max(COMPARE_PROMPT_MAX_LENGTH)).max(50))
+    .max(COMPARE_EARLIER_ROUNDS_MAX)
+    .default([]),
 });
 export type CompareVisionRequest = z.infer<typeof compareVisionRequestSchema>;
 
