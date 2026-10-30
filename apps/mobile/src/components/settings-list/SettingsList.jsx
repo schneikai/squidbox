@@ -1,11 +1,12 @@
 import { Children } from 'react';
 import { Pressable, Text as RNText, StyleSheet, View } from 'react-native';
 
+import Card from '@/components/Card';
 import Divider from '@/components/Divider';
 import Icon from '@/components/Icon';
 import Text from '@/components/Text';
 import { SCREEN_PADDING } from '@/constants';
-import { colors, lineHeights, press, radii, shadows, sizes, typography } from '@/styles/designTokens';
+import { colors, lineHeights, press, sizes, typography } from '@/styles/designTokens';
 
 // iOS-style grouped-list building blocks shared by the Settings screen and its detail screens
 // (Backup, Sync), so they all look and behave the same.
@@ -14,14 +15,14 @@ import { colors, lineHeights, press, radii, shadows, sizes, typography } from '@
 export function Section({ children, isHeaderless = false }) {
   const kids = Children.toArray(children);
   return (
-    <View style={[styles.section, isHeaderless && styles.headerless]}>
+    <Card style={[styles.section, isHeaderless && styles.headerless]}>
       {kids.map((child, i) => (
         <View key={child.key ?? i}>
           {child}
           {i < kids.length - 1 && <Divider />}
         </View>
       ))}
-    </View>
+    </Card>
   );
 }
 
@@ -97,10 +98,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   section: {
-    backgroundColor: colors.background.glass,
-    borderRadius: radii.card,
     marginBottom: 4,
-    ...shadows.section,
   },
   row: {
     flexDirection: 'row',

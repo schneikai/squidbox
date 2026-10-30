@@ -100,14 +100,6 @@ export const shadows = {
     shadowRadius: 16,
     elevation: 8,
   },
-  // Grouped list sections (settings-list) lifted off the page
-  section: {
-    shadowColor: palette.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 4,
-  },
   // A grid cell lifted under the finger while it's dragged
   lifted: {
     shadowColor: palette.black,
