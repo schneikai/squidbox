@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import ChatTagsSheet from './ChatTagsSheet';
+import EditableLine from './EditableLine';
 import postTags from './postTags';
 
 import Button from '@/components/Button';
-import Icon from '@/components/Icon';
 import IntroText from '@/components/IntroText';
-import { colors, sizes } from '@/styles/designTokens';
+import { colors } from '@/styles/designTokens';
 import pluralizeText from '@/utils/pluralizeText';
 
 /**
@@ -33,17 +33,9 @@ export default function ItSeesRow({ rows, attempts, isTagging, untagged, tagEdit
   return (
     <>
       {(isTagged || !isTagging) && (
-        <Pressable
-          onPress={() => setIsEditing(true)}
-          accessibilityRole="button"
-          accessibilityHint="Edits the tags"
-          style={({ pressed }) => [styles.line, pressed && styles.pressed]}
-        >
-          <IntroText label="Sees" style={styles.text}>
-            {tags.length > 0 ? tags.join(', ') : 'no tags'}
-          </IntroText>
-          <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.tertiary} />
-        </Pressable>
+        <EditableLine label="Sees" editHint="Edits the tags" onPress={() => setIsEditing(true)}>
+          {tags.length > 0 ? tags.join(', ') : 'no tags'}
+        </EditableLine>
       )}
       {isTagging && (
         <View style={styles.line}>
@@ -82,9 +74,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  pressed: {
-    opacity: 0.6,
   },
   text: {
     flex: 1,

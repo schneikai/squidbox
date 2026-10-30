@@ -159,6 +159,14 @@ describe('chatSessions', () => {
     expect(setTags).not.toHaveBeenCalled();
   });
 
+  it("holds the Mentions sheet's edits, a typed handle with its @", () => {
+    const { session } = open();
+    session.editMentions({ remove: ['@trailmike'], add: ['corn twee'] });
+    expect(session.getState().mentionEdits).toEqual({ added: ['@corntwee'], removed: ['@trailmike'] });
+    session.editMentions({ add: ['@TrailMike'] });
+    expect(session.getState().mentionEdits).toEqual({ added: ['@corntwee', '@TrailMike'], removed: [] });
+  });
+
   it('clears the chat on reset', async () => {
     const { session } = open();
     const { request, calls } = deferredRequest();

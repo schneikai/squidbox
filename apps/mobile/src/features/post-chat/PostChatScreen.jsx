@@ -124,6 +124,7 @@ export default function PostChatScreen({ route, navigation }) {
             tagEdits={chat.tagEdits}
             onEditTags={chat.editTags}
             mentions={mentions}
+            onEditMentions={chat.editMentions}
           />
         )}
         {messages.map((message, index) =>

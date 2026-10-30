@@ -5,6 +5,7 @@ import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import tagKey from '@/utils/tagKey';
 
 const NO_TAG_EDITS = Object.freeze({ addedTags: [], removedTags: [] });
+const NO_MENTION_EDITS = Object.freeze({ added: [], removed: [] });
 
 // The open assistant chats by id. A chat lives while its editor is open and is never saved: the
 // editor and the chat screen (a route, whose params are plain data) share it by id.
@@ -63,9 +64,18 @@ function wireTurns(messages) {
  * The editor's caption and assets (`getDraft()`) change with every keystroke, so they are read when
  * needed, not told. `tagEdits` (`{ addedTags, removedTags }`) is what the chat card changed in the
  * post's tags (postTags): kept here only, while the editor is open, never on the photos.
+ * `mentionEdits` (`{ added, removed }`) is the same for the handles it may mention (chatMentions),
+ * never on the posts.
  */
 function createSession(kind) {
-  const store = createStore({ kind, messages: [], isSending: false, canApply: false, tagEdits: NO_TAG_EDITS });
+  const store = createStore({
+    kind,
+    messages: [],
+    isSending: false,
+    canApply: false,
+    tagEdits: NO_TAG_EDITS,
+    mentionEdits: NO_MENTION_EDITS,
+  });
   let draft = { text: '', assets: [] };
   let applier = null;
   let controller = null;
@@ -160,25 +170,21 @@ function createSession(kind) {
       return requestReply(last.id, context, request);
     },
 
-    /** Starts over (New chat): the reply under way, if any, is dropped. */
-    /**
-     * The card's change to the post's tags (`{ add, remove }`): a tag taken off goes on the removed
-     * list (and off the added one), one added the other way round, by tag in any case.
-     */
-    editTags({ add = [], remove = [] }) {
+    /** The card's change to the post's tags (`{ add, remove }`), as editedLists says. */
+    editTags(edit) {
       const { addedTags, removedTags } = store.get().tagEdits;
-      const without = (list, tags) => {
-        const keys = new Set(tags.map(tagKey));
-        return list.filter((tag) => !keys.has(tagKey(tag)));
-      };
-      update({
-        tagEdits: {
-          addedTags: uniqueTags([...without(addedTags, remove), ...add]),
-          removedTags: uniqueTags([...without(removedTags, add), ...remove]),
-        },
-      });
+      const [added, removed] = editedLists([addedTags, removedTags], edit);
+      update({ tagEdits: { addedTags: added, removedTags: removed } });
     },
 
+    /** The Mentions sheet's change to the handles (`{ add, remove }`), as editedLists says. */
+    editMentions({ add = [], remove = [] }) {
+      const { added, removed } = store.get().mentionEdits;
+      const [nextAdded, nextRemoved] = editedLists([added, removed], { add: add.map(asHandle), remove });
+      update({ mentionEdits: { added: nextAdded, removed: nextRemoved } });
+    },
+
+    /** Starts over (New chat): the reply under way, if any, is dropped. */
     reset() {
       controller?.abort();
       controller = null;
@@ -190,4 +196,22 @@ function createSession(kind) {
       isClosed = true;
     },
   };
+}
+
+/**
+ * The added and removed lists (`[added, removed]`) after a change (`{ add, remove }`): an item taken
+ * off goes on the removed list (and off the added one), one added the other way round, in any case.
+ */
+function editedLists([added, removed], { add = [], remove = [] }) {
+  const without = (list, items) => {
+    const keys = new Set(items.map(tagKey));
+    return list.filter((item) => !keys.has(tagKey(item)));
+  };
+  return [uniqueTags([...without(added, remove), ...add]), uniqueTags([...without(removed, add), ...remove])];
+}
+
+// A handle as typed, with its @ and without spaces.
+function asHandle(text) {
+  const handle = text.replace(/\s+/g, '');
+  return handle.startsWith('@') ? handle : `@${handle}`;
 }
