@@ -103,6 +103,7 @@ export default function PostChatScreen({ route, navigation }) {
         leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />}
         centerSlot="Assistant"
         subtitle={modelName ?? 'Writing as you'}
+        subtitleSize={modelName ? 'small' : 'regular'}
         scrollY={scrollY}
         rightSlot={
           <IconButton icon="edit" onPress={handleNewChat} disabled={!messages?.length} accessibilityLabel="New chat" />
