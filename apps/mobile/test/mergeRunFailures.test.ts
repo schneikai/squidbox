@@ -1,9 +1,9 @@
+import { gate } from '@squidbox/shared/testing/gate';
 import { eq, lte } from 'drizzle-orm';
 import { describe, it, expect, vi, beforeEach, onTestFinished } from 'vitest';
 
 import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { fuzzRuns } from './helpers/fuzzRuns';
-import { gate } from './helpers/gate';
 import { mergeLosses } from './helpers/mergeLosses';
 import { prng } from './helpers/prng';
 import { seedAccountPhotos } from './helpers/seedAccountPhotos';

@@ -1,6 +1,6 @@
+import { deferred } from '@squidbox/shared/testing/deferred';
 import { describe, it, expect } from 'vitest';
 
-import { deferred } from './helpers/deferred';
 import { flushTurns } from './helpers/flushTurns';
 import { createSingleFlight } from '../src/sync/singleFlight';
 
@@ -19,7 +19,7 @@ describe('createSingleFlight', () => {
     expect(runs).toBe(2);
   });
 
-  it('coalesces requests made during a run into one trailing run', async () => {
+  it('coalesces requests made during a run into one trailing run, and is idle once that ends', async () => {
     const gate = deferred();
     let runs = 0;
     const flight = createSingleFlight(async () => {
@@ -34,7 +34,7 @@ describe('createSingleFlight', () => {
     expect(runs).toBe(1);
 
     gate.resolve();
-    await flushTurns();
+    await flight.idle();
     expect(runs).toBe(2);
   });
 

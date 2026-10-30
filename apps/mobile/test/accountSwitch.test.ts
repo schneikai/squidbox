@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { deferred } from './helpers/deferred';
 import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { sessionStoreMock } from './helpers/sessionStoreMock';
 import { makeTestDb } from './helpers/testDb';
@@ -107,7 +106,7 @@ const {
 } = await import('../src/library/sessionLibrary');
 const { switchLibrary } = await import('../src/library/switchLibrary');
 const { getDb, openAppDb } = await import('../src/sync/db/client');
-const { fullResync } = await import('../src/sync/worker');
+const { fullResync, syncSettled } = await import('../src/sync/worker');
 const { libraryPaths } = await import('../src/library/libraryPaths');
 const { getAssetFileUri } = await import('../src/utils/assets/assetStorage');
 const { dropTokensAsync: signOut } = await import('../src/utils/cloud-api/sessionStore');
@@ -155,19 +154,6 @@ describe('switching libraries with the session', () => {
   afterEach(() => {
     for (const stop of watching.splice(0)) stop();
   });
-  // Watches the token drops (as LibraryProvider does); resolves once the switch a drop starts is done.
-  // That is inside its paused section, before the pause ends: nothing these tests check after it
-  // needs the pause over.
-  function watchDrops(): Promise<void> {
-    const switched = deferred();
-    watching.push(
-      watchTokenDrops(async (target) => {
-        await switchLibrary(target);
-        switched.resolve();
-      }),
-    );
-    return switched.promise;
-  }
 
   beforeEach(async () => {
     if (openLibraryId()) await closeLibrary();
@@ -555,14 +541,14 @@ describe('switching libraries with the session', () => {
       makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
     );
     await signIn(sessionOf('A')); // the setup screen: the merge waits for the first pull
-    const switched = watchDrops();
+    watching.push(watchTokenDrops(switchLibrary));
     api.post = async () => {
       throw Object.assign(new Error('HTTP 401'), { response: { status: 401 } });
     };
     await expect(refreshAccessTokenAsync({ serverId: 's1', userId: 'A' })).rejects.toThrow('rejected');
     expect(store.session).toMatchObject({ userId: 'A', tokens: null });
 
-    await switched;
+    await syncSettled(); // the drop's switch runs in a paused section
     expect(openOwner()).toEqual({ kind: 'device' });
     expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
   });
@@ -578,12 +564,12 @@ describe('switching libraries with the session', () => {
       makeAssetRecord({ filename: 'a.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
     );
     await signIn(sessionOf('A'));
-    const switched = watchDrops();
+    watching.push(watchTokenDrops(switchLibrary));
     api.post = async () => {
       throw Object.assign(new Error('HTTP 401'), { response: { status: 401 } });
     };
     await expect(refreshAccessTokenAsync({ serverId: 's1', userId: 'A' })).rejects.toThrow('rejected');
-    await switched;
+    await syncSettled(); // the drop's switch runs in a paused section
     expect(openOwner()).toEqual({ kind: 'device' });
     const added = await repo.create(
       getDb(),

@@ -1,4 +1,5 @@
 import { collectionsByName, type AssetRecord } from '@squidbox/shared';
+import { fakeClock } from '@squidbox/shared/testing/fakeClock';
 import Database from 'better-sqlite3';
 import { and, eq } from 'drizzle-orm';
 import { readMigrationFiles } from 'drizzle-orm/migrator';
@@ -11,7 +12,6 @@ import pg from 'pg';
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
-import { fakeClock } from './helpers/fakeClock';
 import * as serverSchema from '../../server/src/db/schema.js';
 import { serverCollections } from '../../server/src/sync/collections.js';
 import { pull as serverPull } from '../../server/src/sync/pull.js';

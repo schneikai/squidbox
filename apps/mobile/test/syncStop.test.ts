@@ -1,10 +1,10 @@
 import type { PullResponse, PushRequest, PushResponse } from '@squidbox/shared';
+import { deferred } from '@squidbox/shared/testing/deferred';
+import { gate } from '@squidbox/shared/testing/gate';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-import { deferred } from './helpers/deferred';
 import { makeAssetRecord } from './helpers/factory';
 import { flushTurns } from './helpers/flushTurns';
-import { gate } from './helpers/gate';
 import { makeTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
@@ -235,16 +235,17 @@ describe('a pull downloading the next batch while it applies one', () => {
       if (req.cursor === APPLY_BATCH) (page.changes.assets!.records[0] as { width: unknown }).width = null;
       return page;
     });
+    // A batch is applied in one db.transaction (applyChanges): its rejection is the apply's failure.
     const applyFailed = deferred();
-    const watched: AppDb = Object.assign(Object.create(db), {
-      transaction: ((work) =>
-        db.transaction(work).catch((error: unknown) => {
-          applyFailed.resolve();
-          throw error;
-        })) as AppDb['transaction'],
-    });
+    const transaction = db.transaction.bind(db);
+    vi.spyOn(db, 'transaction').mockImplementation((work) =>
+      transaction(work).catch((error: unknown) => {
+        applyFailed.resolve();
+        throw error;
+      }),
+    );
 
-    const run = runSyncOnce(watched, transport);
+    const run = runSyncOnce(db, transport);
     await download.entered;
     await applyFailed.promise;
     download.release();

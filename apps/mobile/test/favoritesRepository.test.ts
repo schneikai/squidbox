@@ -1,7 +1,8 @@
+import { fakeClock } from '@squidbox/shared/testing/fakeClock';
+import { tick } from '@squidbox/shared/testing/tick';
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
-import { fakeClock, tick } from './helpers/fakeClock';
 import { makeTestDb } from './helpers/testDb';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';

@@ -1,14 +1,14 @@
 import type { PushMutation } from '@squidbox/shared';
+import { deferred } from '@squidbox/shared/testing/deferred';
+import { gate } from '@squidbox/shared/testing/gate';
 import Database from 'better-sqlite3';
 import { desc, eq } from 'drizzle-orm';
 import { readMigrationFiles } from 'drizzle-orm/migrator';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { deferred } from './helpers/deferred';
 import { createPost, makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { fakeTransport } from './helpers/fakeTransport';
-import { gate } from './helpers/gate';
 import { makeTestDb } from './helpers/testDb';
 import assetQuery from '../src/features/asset-list/assetQuery';
 import postQuery from '../src/features/post-list/postQuery';
@@ -496,11 +496,17 @@ describe('the sweep: concurrent sweeps, aborts, stuck assets, resyncs', () => {
       for (const { filename, thumbnailFilename } of files)
         removed.push(...[filename, thumbnailFilename].filter((n) => n !== undefined));
     };
-    await Promise.all([
+    const sweeps = [
       sweepPurgedFiles(db, together),
       runSyncOnce(db, applied, { removeFiles: together }),
       sweepPurgedFiles(db, together),
-    ]);
+    ];
+    // One that ends without a removal opens the barrier too, so the count below fails instead of a hang.
+    Promise.race(sweeps).then(allInside.resolve, allInside.resolve);
+    let reached = 0;
+    allInside.promise.then(() => (reached = calls));
+    await Promise.all(sweeps);
+    expect(reached).toBe(3); // all three were inside a removal at once
     expect(await unswept()).toEqual([]);
     expect(new Set(removed).size).toBe(700 + 1200);
     const [log] = await db.select().from(schema.syncLog).orderBy(desc(schema.syncLog.id)).limit(1);

@@ -1,8 +1,8 @@
+import { deferred } from '@squidbox/shared/testing/deferred';
+import { gate } from '@squidbox/shared/testing/gate';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { deferred } from './helpers/deferred';
 import { makeAssetRecord } from './helpers/factory';
-import { gate } from './helpers/gate';
 import { makeTestDb } from './helpers/testDb';
 import tagAssetAsync from '../src/features/photo-tags/tagAssetAsync';
 import * as repo from '../src/sync/assetsRepository';

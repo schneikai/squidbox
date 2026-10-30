@@ -1,6 +1,6 @@
+import { deferred } from '@squidbox/shared/testing/deferred';
 import { describe, expect, it, vi } from 'vitest';
 
-import { deferred } from './helpers/deferred';
 import createAutoSaver from '../src/utils/createAutoSaver';
 
 type Value = Record<string, string>;

@@ -1,4 +1,6 @@
 import { collectionsByName, type AssetRecord, type PushMutation, type PushResult } from '@squidbox/shared';
+import { fakeClock } from '@squidbox/shared/testing/fakeClock';
+import { tick } from '@squidbox/shared/testing/tick';
 import { and, eq } from 'drizzle-orm';
 import { drizzle as pgDrizzle } from 'drizzle-orm/node-postgres';
 import { randomUUID } from 'node:crypto';
@@ -7,7 +9,6 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } 
 
 import { albumOrder } from './helpers/albumOrder';
 import { createPost, makeAlbumRecord, makeAssetRecord, makePostRecord } from './helpers/factory';
-import { fakeClock, tick } from './helpers/fakeClock';
 import { prng } from './helpers/prng';
 import { readLiveAsset } from './helpers/readLiveAsset';
 import { makeTestDb } from './helpers/testDb';

@@ -435,7 +435,7 @@ export function requestSync(): void {
   if (syncTarget) syncFlight.request();
 }
 
-/** Resolves once no sync run is running or queued (for tests). */
+/** Resolves once no sync run or paused section is running or queued (for tests; not from inside a section). */
 export function syncSettled(): Promise<void> {
   return syncFlight.idle();
 }

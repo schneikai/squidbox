@@ -1,10 +1,10 @@
+import { deferred } from '@squidbox/shared/testing/deferred';
+import { gate } from '@squidbox/shared/testing/gate';
 import { sql } from 'drizzle-orm';
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { deferred } from './helpers/deferred';
 import { makeAssetRecord } from './helpers/factory';
 import { flushTurns } from './helpers/flushTurns';
-import { gate } from './helpers/gate';
 import { makeTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';

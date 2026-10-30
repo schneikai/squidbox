@@ -14,8 +14,10 @@ import {
   isPurgedFileKey,
   purgedFileCleanupsSettled,
 } from '../src/sync/purgedFiles.js';
-import { fakeClock, tick } from './helpers/fakeClock.js';
-import { gate } from './helpers/gate.js';
+import { fakeClock } from '@squidbox/shared/testing/fakeClock';
+import { tick } from '@squidbox/shared/testing/tick';
+import { deferred } from '@squidbox/shared/testing/deferred';
+import { gate } from '@squidbox/shared/testing/gate';
 
 // DB-backed integration tests (advisory locks, trigger, ON CONFLICT) — require a real
 // Postgres. Run with `npm run test:db` (points at the docker-compose stack); plain `npm test`
@@ -446,27 +448,42 @@ d('sync engine (Postgres)', () => {
       let running = 0;
       let overlapped = false;
       const errors: unknown[] = [];
-      const firstDelete = gate(); // holds the user's lock until the test releases it
-      let calls = 0;
+      // Each delete holds the user's lock until the test lets it go (nextHeld), one at a time.
+      const held: (() => void)[] = [];
+      let arrived = deferred();
       const heldDelete = async (keys: string[]) => {
         overlapped ||= running > 0;
         running += 1;
-        if (calls++ === 0) await firstDelete.hold();
+        const hold = gate();
+        held.push(hold.release);
+        arrived.resolve();
+        await hold.hold();
         running -= 1;
         return deleteKeys(keys);
       };
+      const nextHeld = async () => {
+        while (held.length === 0) {
+          arrived = deferred();
+          await arrived.promise;
+        }
+        return held.shift()!;
+      };
 
       cleanUpPurgedFiles(db, USER_A, heldDelete, (error) => errors.push(error));
-      await firstDelete.entered;
+      const releaseFirst = await nextHeld();
       const pushed = push(db, USER_A, [
         mut(purgedAsset({ filename: 'second.jpg', thumbnailFilename: 'second-t.jpg' })),
       ]); // waits for the lock
       cleanUpPurgedFiles(db, USER_A, heldDelete, (error) => errors.push(error));
       cleanUpPurgedFiles(db, USER_A, heldDelete, (error) => errors.push(error));
-      firstDelete.release();
+      releaseFirst();
       await pushed;
       cleanUpPurgedFiles(db, USER_A, heldDelete, (error) => errors.push(error)); // the push's, after its reply
-      await purgedFileCleanupsSettled();
+      const settled = purgedFileCleanupsSettled().then(() => null);
+      for (let release = await Promise.race([nextHeld(), settled]); release;) {
+        release();
+        release = await Promise.race([nextHeld(), settled]);
+      }
 
       expect(overlapped).toBe(false);
       expect(deleted.flat().sort()).toEqual(['first-t.jpg', 'first.jpg', 'second-t.jpg', 'second.jpg']);

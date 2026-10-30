@@ -1,8 +1,9 @@
+import { fakeClock } from '@squidbox/shared/testing/fakeClock';
+import { tick } from '@squidbox/shared/testing/tick';
 import { isNull } from 'drizzle-orm';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { createPost, makeAlbumRecord, makeAssetRecord } from './helpers/factory';
-import { fakeClock, tick } from './helpers/fakeClock';
 import { makeTestDb } from './helpers/testDb';
 import { libraryPaths } from '../src/library/libraryPaths';
 import { writesTarget, applyMerge, mergeWaits, moveMergedFiles, planMerge } from '../src/library/mergeLibrary';

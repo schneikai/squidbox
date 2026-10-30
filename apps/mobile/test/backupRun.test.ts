@@ -1,9 +1,9 @@
+import { deferred } from '@squidbox/shared/testing/deferred';
+import { gate } from '@squidbox/shared/testing/gate';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-import { deferred } from './helpers/deferred';
 import { makeAssetRecord } from './helpers/factory';
 import { flushTurns } from './helpers/flushTurns';
-import { gate } from './helpers/gate';
 import { makeTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
 import { isBackupRunning, runBackup, type BackupUploads } from '../src/sync/backupRun';
