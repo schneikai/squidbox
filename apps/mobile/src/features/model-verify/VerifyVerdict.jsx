@@ -5,8 +5,8 @@ import missReason from './missReason';
 import secondsText from './secondsText';
 
 import Badge from '@/components/Badge';
-import ErrorText from '@/components/ErrorText';
 import IntroText from '@/components/IntroText';
+import Text from '@/components/Text';
 
 /** Under a reply of a Verify conversation: Passed or Missed, how long it took, and why it missed. */
 export default function VerifyVerdict({ turn }) {
@@ -17,7 +17,11 @@ export default function VerifyVerdict({ turn }) {
         <Badge label={isPassed ? 'Passed' : 'Missed'} tone={isPassed ? 'success' : 'danger'} />
         {turn.seconds !== null && <IntroText>{secondsText(turn.seconds)}</IntroText>}
       </View>
-      {!isPassed && <ErrorText isSmall>{missReason(turn)}</ErrorText>}
+      {!isPassed && (
+        <Text variant="error" size="small">
+          {missReason(turn)}
+        </Text>
+      )}
     </View>
   );
 }

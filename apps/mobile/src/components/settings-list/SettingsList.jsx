@@ -1,8 +1,9 @@
 import { Children } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text as RNText, StyleSheet, View } from 'react-native';
 
 import Divider from '@/components/Divider';
 import Icon from '@/components/Icon';
+import Text from '@/components/Text';
 import { SCREEN_PADDING } from '@/constants';
 import { colors, lineHeights, press, radii, shadows, sizes, typography } from '@/styles/designTokens';
 
@@ -24,10 +25,13 @@ export function Section({ children, isHeaderless = false }) {
   );
 }
 
-// iOS-style small gray explanatory text shown BELOW a grouped section. `isMuted` greys it further,
-// for a value that couldn't be read.
-export function SectionFooter({ children, isMuted = false }) {
-  return <Text style={[styles.footer, isMuted && styles.footerMuted]}>{children}</Text>;
+// iOS-style small gray explanatory text shown BELOW a grouped section.
+export function SectionFooter({ children }) {
+  return (
+    <Text variant="hint" style={styles.footer}>
+      {children}
+    </Text>
+  );
 }
 
 // The label always keeps its width; a long value wraps onto more lines beside it, as Apple's
@@ -55,14 +59,14 @@ export function Row({
       {leading != null && <View style={styles.rowLeading}>{leading}</View>}
       <View style={value ? styles.rowTextKept : styles.rowText}>
         {typeof label === 'string' ? (
-          <Text style={[styles.rowLabel, colorPalette === 'danger' && styles.rowLabelDanger]}>{label}</Text>
+          <RNText style={[styles.rowLabel, colorPalette === 'danger' && styles.rowLabelDanger]}>{label}</RNText>
         ) : (
           label
         )}
-        {description != null && <Text style={styles.rowDescription}>{description}</Text>}
+        {description != null && <RNText style={styles.rowDescription}>{description}</RNText>}
       </View>
       <View style={[styles.rowRight, value && styles.rowRightFilling]}>
-        {value ? <Text style={styles.rowValue}>{value}</Text> : null}
+        {value ? <RNText style={styles.rowValue}>{value}</RNText> : null}
         {children}
         {isSelected && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
         {hasChevron && (
@@ -153,14 +157,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   footer: {
-    fontSize: typography.footnote,
-    color: colors.text.secondary,
     marginTop: 8,
-    marginLeft: 4,
-    marginRight: 4,
-    lineHeight: lineHeights.footnote,
-  },
-  footerMuted: {
-    color: colors.text.tertiary,
+    marginHorizontal: 4,
   },
 });

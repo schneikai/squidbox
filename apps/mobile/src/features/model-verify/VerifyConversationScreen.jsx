@@ -10,10 +10,10 @@ import CatalogStatus from '@/components/CatalogStatus';
 import ChatBubble from '@/components/ChatBubble';
 import DetailScrollView from '@/components/DetailScrollView';
 import EmptyState from '@/components/EmptyState';
-import ErrorText from '@/components/ErrorText';
 import IntroText from '@/components/IntroText';
 import OptionCard from '@/components/OptionCard';
 import Page from '@/components/Page';
+import Text from '@/components/Text';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
@@ -82,7 +82,7 @@ const VerifyTurn = memo(function VerifyTurn({ turn }) {
       {turn.note && <IntroText style={styles.note}>{turn.note}</IntroText>}
       <ChatBubble side="user" text={turn.prompt} />
       {turn.error ? (
-        <ErrorText>{turn.error}</ErrorText>
+        <Text variant="error">{turn.error}</Text>
       ) : (
         <>
           {!!turn.reply && <ChatBubble side="assistant" text={turn.reply} />}

@@ -129,7 +129,7 @@ function InstructionsRow() {
 // What is left on the Venice account, read each time the screen comes into focus.
 function VeniceBalanceFooter() {
   const balance = useVeniceBalance();
-  return <SectionFooter isMuted={balance.isError}>Venice balance: {balance.value ?? '…'}</SectionFooter>;
+  return <SectionFooter>Venice balance: {balance.value ?? '…'}</SectionFooter>;
 }
 
 // The assistant's mark: its sparkle on an accent disc.

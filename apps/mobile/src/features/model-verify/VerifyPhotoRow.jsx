@@ -7,8 +7,8 @@ import missReason from './missReason';
 import turnStatus from './turnStatus';
 
 import CoverImage from '@/components/CoverImage';
-import ErrorText from '@/components/ErrorText';
 import IntroText from '@/components/IntroText';
+import Text from '@/components/Text';
 import { SCREEN_PADDING } from '@/constants';
 
 const THUMBNAIL = 56;
@@ -30,7 +30,7 @@ function VerifyPhotoRow({ uri, turn, isRunning }) {
       <View style={styles.tags}>
         {!turn && <IntroText>{isRunning ? 'Tagging…' : 'Waiting'}</IntroText>}
         {turn?.items.length > 0 && <TagChips tags={turn.items} />}
-        {status === 'missed' && <ErrorText>Missed: {missReason(turn)}</ErrorText>}
+        {status === 'missed' && <Text variant="error">Missed: {missReason(turn)}</Text>}
       </View>
     </View>
   );

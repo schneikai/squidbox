@@ -1,7 +1,8 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 
 import Button from '@/components/Button';
-import { colors, lineHeights, sizes, typography } from '@/styles/designTokens';
+import Text from '@/components/Text';
+import { lineHeights, sizes } from '@/styles/designTokens';
 
 /**
  * A label + children slot + optional description text.
@@ -23,7 +24,7 @@ export default function Field({ label, description, onInfo, rightSlot, children,
   return (
     <View style={[styles.field, style]}>
       <View style={styles.labelRow}>
-        <Text style={styles.label}>{label}</Text>
+        <Text variant="label">{label}</Text>
         {onInfo && (
           <Button
             icon="info"
@@ -36,7 +37,7 @@ export default function Field({ label, description, onInfo, rightSlot, children,
         {rightSlot != null && <View style={styles.rightSlot}>{rightSlot}</View>}
       </View>
       {children}
-      {description != null && <Text style={styles.description}>{description}</Text>}
+      {description != null && <Text variant="hint">{description}</Text>}
     </View>
   );
 }
@@ -60,15 +61,5 @@ const styles = StyleSheet.create({
   rightSlot: {
     marginLeft: 'auto',
     marginVertical: OVERLAP_LABEL_ROW,
-  },
-  label: {
-    fontSize: typography.footnote,
-    fontWeight: '600',
-    color: colors.text.secondary,
-  },
-  description: {
-    fontSize: typography.footnote,
-    color: colors.text.secondary,
-    lineHeight: lineHeights.footnote,
   },
 });

@@ -49,13 +49,17 @@ All paths are under `apps/mobile/src/`.
     an icon or a label of up to 3 characters), `tertiary` (no fill: a toolbar icon, or with a label
     a text link). `colorPalette` is what its color means (`neutral`, `muted`, `accent`, `danger`,
     `favorite`), `isSelected` a toggle that is on, `isInverse` a dark surface. A close is
-    `icon="close"`. `MenuButton` / `IconMenuButton` with `popup-menu-options/MenuOption` (anchored
-    menus).
+    `icon="close"`. `MenuButton` (a Button trigger from Button props, or a custom `trigger`) with
+    `popup-menu-options/MenuOption` (anchored menus). `Chip` for tags (`variant` `tag`, `action`,
+    `add`, with `isSelected`).
+  - Text: `Text` with `variant` `reading` (a post, an answer), `hint` (small grey text that
+    explains), `label` (a field's name) or `error`; `IntroText` and `SectionFooter` are hints that
+    also set a screen's spacing. `Divider` (`list` or `menu`) between rows.
   - Floating chrome (`floating-bars/`): `FloatingPill` (a toolbar: a glass pill that groups
     buttons), `FloatingHeader` (main screens), `FloatingDetailHeader` (detail screens),
     `FloatingNavigationBar` and `FloatingSegmentPill` (both `SegmentedPill`), `SearchOptionsBar`,
     `SortFilterMenu` (its options button's menu, with a drill-down filter panel).
-  - Modals: `ModalSheet`, `ModalHeader`.
+  - Modals: `ModalSheet`, `ModalHeader`. `ToolbarTitle` for a title in a toolbar pill.
   - Forms and lists: `Field`, `TextInput`, `Textarea`, `SearchInput`, `Switch`, `settings-list/`,
     `ThumbnailRow`, `EmptyState`, `StatusScreen`, `ProgressRing`, `progress-overlay/`.
 - `hooks/useHaptics` for haptics, `hooks/useReduceMotion` for reduced motion.

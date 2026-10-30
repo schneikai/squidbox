@@ -1,10 +1,10 @@
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text as RNText } from 'react-native';
 
 import TagChips from './TagChips';
 
 import Card from '@/components/Card';
 import IntroText from '@/components/IntroText';
-import PostText from '@/components/PostText';
+import Text from '@/components/Text';
 import { colors, typography } from '@/styles/designTokens';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
@@ -15,12 +15,12 @@ export default function VerifyPostCard({ post }) {
 
   return (
     <Card style={styles.card}>
-      <Text style={styles.title}>
+      <RNText style={styles.title}>
         New post · {media}
         {people}
-      </Text>
+      </RNText>
       {post.tags.length > 0 && <TagChips tags={post.tags} />}
-      {post.caption ? <PostText>{post.caption}</PostText> : <IntroText>No caption yet</IntroText>}
+      {post.caption ? <Text>{post.caption}</Text> : <IntroText>No caption yet</IntroText>}
     </Card>
   );
 }
