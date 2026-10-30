@@ -66,8 +66,12 @@ export default function useCompareRound({ kind, modelIds }) {
         : [{ key: TEXT_KEY, itemsKey: 'tweets', body: async () => ({ prompt }) }];
     return steps.map((step) => {
       const atStart = { ...byKey[step.key] };
+      // A photo's tags already shown in its earlier rounds, by any model: only new ones are listed,
+      // so a model that repeats itself doesn't earn its thumbs up again.
+      const seen = new Set(Object.values(atStart).flatMap((rounds) => rounds.flat().map(tagKey)));
       return {
         ...step,
+        newOnly: kind === 'vision' ? (items) => items.filter((tag) => !seen.has(tagKey(tag))) : (items) => items,
         earlierFor: (modelId) => atStart[modelId] ?? [],
         onDone: (modelId, items) => {
           byKey[step.key] = { ...byKey[step.key], [modelId]: [...(byKey[step.key]?.[modelId] ?? []), items] };
@@ -116,7 +120,11 @@ export default function useCompareRound({ kind, modelIds }) {
       results = { [modelId]: { status: 'error', error: apiErrorMessage(error) } };
     }
     if (signal.aborted) return;
-    if (results[modelId]?.status === 'done') job.onDone(modelId, results[modelId].items);
+    const result = results[modelId];
+    if (result?.status === 'done') {
+      job.onDone(modelId, result.items);
+      results = { ...results, [modelId]: { ...result, items: job.newOnly(result.items) } };
+    }
     markTriedOnce(results);
     land(job.key, results);
   }
@@ -172,6 +180,11 @@ export default function useCompareRound({ kind, modelIds }) {
   }
 
   return { ...round, isRunning, promptRound, startRound, resetRounds, toggle };
+}
+
+// The same tag in any case and spacing.
+function tagKey(tag) {
+  return tag.trim().toLowerCase();
 }
 
 // A compare request, asked once more when the dev client's tunnel turned it away.

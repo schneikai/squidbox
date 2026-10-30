@@ -5,6 +5,7 @@ import TweetRow from './TweetRow';
 
 import Chip from '@/components/Chip';
 import ChipRow from '@/components/ChipRow';
+import IntroText from '@/components/IntroText';
 
 // Memoized: a vision round settles photo by photo, and a tap changes one key's taps, so only the
 // cards whose `results` or `taps` changed re-render.
@@ -27,7 +28,9 @@ function ModelAnswers({ answerKey, kind, letters, namesById, results = {}, taps 
         name={namesById[modelId]}
         result={results[modelId]}
       >
-        {kind === 'vision' ? (
+        {kind === 'vision' && items.length === 0 ? (
+          <IntroText>Only tags from earlier rounds</IntroText>
+        ) : kind === 'vision' ? (
           <ChipRow>
             {items.map((tag, index) => {
               const isOn = (levels[index] ?? 0) > 0;
