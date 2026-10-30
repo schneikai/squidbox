@@ -294,7 +294,7 @@ describe('edgesRepository (album_assets)', () => {
     expect(live.map((r) => r.id)).toEqual(['r2', 'r3', 'r1']);
   });
 
-  // Round 9: two photos tied at one key (two devices appended one each offline, `keyBetween(last,
+  // Two photos tied at one key (two devices appended one each offline, `keyBetween(last,
   // null)` is deterministic) show in id order. The user puts a new photo between them in the editor:
   // it lands between them (keysInOrder keeps one of the tied keys and re-keys around it).
   it('setRefs puts a photo added between two tied photos between them', async () => {
@@ -323,7 +323,7 @@ describe('edgesRepository (album_assets)', () => {
     expect(live.map((r) => r.assetId)).toEqual(['a1', 'a2', 'ax', 'a3']);
   });
 
-  // Round 9: another device moved a1 to the end while the editor was open (synced in before the
+  // Another device moved a1 to the end while the editor was open (synced in before the
   // save), and the user added X right after a1 and Y at the end: X follows a1, Y is appended after
   // it, each with its own key.
   it('setRefs gives two photos added in one save distinct keys in their order after a reorder made elsewhere', async () => {
@@ -344,7 +344,7 @@ describe('edgesRepository (album_assets)', () => {
     expect(position('r9') < position('r5')).toBe(true);
   });
 
-  // Round 9: another device put a photo at the front of the post (its editor's insert, or a drag:
+  // Another device put a photo at the front of the post (its editor's insert, or a drag:
   // keyBetween(null, k1)), synced in while this editor was open. The user, whose seed hasn't that
   // photo, adds one at the front: it gets a key of its own, before the other device's.
   it('setRefs keys a photo added at the front apart from a live photo another device put there', async () => {

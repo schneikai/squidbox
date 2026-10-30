@@ -11,13 +11,17 @@
     "dev:local": "node scripts/dev.mjs",
     "lint": "npm run --workspace apps/mobile lint",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "knip": "knip"
+    "knip": "knip",
+    "format": "node scripts/check.mjs --format",
+    "check": "node scripts/check.mjs",
+    "check:all": "node scripts/check.mjs --all"
   },
   "devDependencies": {
     "eslint": "^8.53.0",
     "knip": "^5.88.1",
     "prettier": "^3.1.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.9"
   },
   "overrides": {
     "react": "19.2.0",

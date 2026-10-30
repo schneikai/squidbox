@@ -1,3 +1,5 @@
+import { deferred } from '@squidbox/shared/testing/deferred';
+import { gate } from '@squidbox/shared/testing/gate';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
@@ -22,20 +24,12 @@ vi.mock('../src/utils/cloud-api/ai/tagPhotoAsync', () => ({ default: vi.fn() }))
 const deps = { library: {}, isAuthenticated: true, preloadAssetThumbnailsAsync: vi.fn() };
 const image = { base64: 'AAAA', mimeType: 'image/jpeg' };
 
-// A request whose answer the test gives when it wants to.
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((done) => (resolve = done));
-  return { promise, resolve };
-}
-
 async function tagsOf(id: string) {
   const [row] = await readByIds(current.db!, schema.assets, [id]);
   return row.tags;
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
   current.db = makeTestDb();
   vi.mocked(readVisionImageAsync).mockResolvedValue(image);
   vi.mocked(tagPhotoAsync).mockResolvedValue(['forest', 'morning fog']);
@@ -72,12 +66,12 @@ describe('tagAssetAsync', () => {
 
   it('fails and stores nothing when the photo was deleted while it was being tagged', async () => {
     const [asset] = await repo.createMany(current.db!, [makeAssetRecord({ id: 'a1' })]);
-    const reply = deferred<string[]>();
-    vi.mocked(tagPhotoAsync).mockReturnValueOnce(reply.promise);
+    const reply = gate<string[]>();
+    vi.mocked(tagPhotoAsync).mockImplementationOnce(reply.hold);
     const tagging = tagAssetAsync(asset!, deps);
-    await vi.waitFor(() => expect(vi.mocked(tagPhotoAsync)).toHaveBeenCalled());
+    await reply.entered;
     await repo.remove(current.db!, ['a1']);
-    reply.resolve(['creek']);
+    reply.release(['creek']);
 
     await expect(tagging).rejects.toThrow('This photo was deleted');
     expect(await tagsOf('a1')).toBeNull();

@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { flushTurns } from './helpers/flushTurns';
 import tagAttempts from '../src/features/photo-tags/tagAttempts';
-
-const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('tagAttempts', () => {
   it('starts a photo by itself once, however often it is asked, and forgets it once tagged', async () => {
@@ -10,7 +9,7 @@ describe('tagAttempts', () => {
     tagAttempts.once('a1', tag);
     expect(tagAttempts.get().a1).toMatchObject({ status: 'loading', error: null });
     tagAttempts.once('a1', tag);
-    await settle();
+    await flushTurns();
     expect(tagAttempts.get().a1).toBeUndefined();
     tagAttempts.once('a1', tag);
     expect(tag).toHaveBeenCalledTimes(1);
@@ -28,7 +27,7 @@ describe('tagAttempts', () => {
   it('keeps a failure until the next run, which tags it again', async () => {
     const tag = vi.fn().mockRejectedValueOnce(new Error('Network Error')).mockResolvedValue(['moss']);
     tagAttempts.once('a3', tag);
-    await settle();
+    await flushTurns();
     expect(tagAttempts.get().a3).toMatchObject({ status: 'error', error: 'Network Error' });
     tagAttempts.once('a3', tag);
     expect(tag).toHaveBeenCalledTimes(1);
