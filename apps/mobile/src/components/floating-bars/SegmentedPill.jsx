@@ -20,7 +20,7 @@ export default function SegmentedPill({ items, activeKey, onSelect }) {
             accessibilityLabel={label}
           />
         ) : (
-          <Button key={key} icon={icon} onPress={() => onSelect(key)} colorPalette="muted" accessibilityLabel={label} />
+          <Button key={key} icon={icon} onPress={() => onSelect(key)} accessibilityLabel={label} />
         ),
       )}
     </FloatingPill>

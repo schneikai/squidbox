@@ -18,7 +18,6 @@ export default function TweetRow({ text, level, onToggle }) {
         iconCount={level === 2 ? 2 : 1}
         isSelected={isLiked}
         filled={isLiked}
-        colorPalette="muted"
         onPress={onToggle}
         accessibilityLabel={LEVEL_LABELS[level]}
       />

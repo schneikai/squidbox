@@ -27,11 +27,11 @@ screen-local exception.
 
 ## What to read
 
-| Task | Read |
-| --- | --- |
-| Any UI change | `CLAUDE.md` (React, UI / Components) and `styles/designTokens.js` |
+| Task                                                                          | Read                                                                                                                                                                            |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Any UI change                                                                 | `CLAUDE.md` (React, UI / Components) and `styles/designTokens.js`                                                                                                               |
 | New screen or flow, screen review, navigation, toolbar or accessibility audit | The `apple-design` skill: its always-load set, `references/cross-platform.md`, and 3–6 pages for what is on screen (`toolbars.md`, `tab-bars.md`, `buttons.md`, `sheets.md`, …) |
-| Small change inside an existing component | This file; skip `apple-design` |
+| Small change inside an existing component                                     | This file; skip `apple-design`                                                                                                                                                  |
 
 ## Where things live
 
@@ -72,24 +72,24 @@ All paths are under `apps/mobile/src/`.
   flat, without a shadow.
 - The account avatar (`AccountButton`) sits on its own at the far right of the main header,
   outside any pill: it stands for the user, not for an action.
-- Icon colors: every toolbar action is `neutral` (the default), in the headers and the bottom bars
-  alike; `muted` only for a segment that isn't the current one, `colorPalette="danger"` for
-  destructive actions and `isSelected` for a setting that is on.
+- Icon colors: every icon button is `muted` grey (Button's default), in the headers, the bottom bars
+  and the tab bar alike; `colorPalette="danger"` for destructive actions and `isSelected` for a
+  setting that is on.
 
 ## Known conflicts: our decision wins
 
-| Skill or generic advice says | Squidbox does |
-| --- | --- |
-| HIG: SF Symbols | lucide icons through `Icon` / `Button` |
-| HIG: Liquid Glass / materials | Our glass (`FloatingPill`: blur + `glass` token + border) only on floating chrome, popovers and sheets; no blur in list cells |
-| apple-design improvement mode: a new palette, type scale or token system | Map every proposal onto the existing tokens. A real token change goes into `designTokens.js` and applies everywhere |
-| apple-design template check, Expo "slop" lists: violet gradient, floating pill tab bar | Frosted glass plus one violet gradient action per toolbar **is** the identity. Critique how it's executed, not the identity itself |
-| Expo: `NativeTabs`, native stack headers, "never hand-roll the header" | JS tabs with `FloatingNavigationBar`, `headerShown: false` with `FloatingHeader` / `FloatingDetailHeader`: deliberate chrome that renders the same on web. Don't migrate unless asked |
-| Expo: `@expo/ui` components, `formSheet` | Our components; `@expo/ui` only after asking (iOS only, takes the touch) |
-| Expo: inline style objects, `Color` / `PlatformColor`, hex literals | `StyleSheet.create` with `designTokens` values only; no spreading of style objects such as `...glass` in screens |
-| Ad-hoc durations, easings, springs | The `motion` tokens (`enter`, `exit`, `move`, `spring`) |
-| Haptics on every tap | `useHaptics` for meaningful moments only (CLAUDE.md) |
-| Expo: kebab-case file names | PascalCase, one exported component per file (CLAUDE.md) |
+| Skill or generic advice says                                                           | Squidbox does                                                                                                                                                                         |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HIG: SF Symbols                                                                        | lucide icons through `Icon` / `Button`                                                                                                                                                |
+| HIG: Liquid Glass / materials                                                          | Our glass (`FloatingPill`: blur + `glass` token + border) only on floating chrome, popovers and sheets; no blur in list cells                                                         |
+| apple-design improvement mode: a new palette, type scale or token system               | Map every proposal onto the existing tokens. A real token change goes into `designTokens.js` and applies everywhere                                                                   |
+| apple-design template check, Expo "slop" lists: violet gradient, floating pill tab bar | Frosted glass plus one violet gradient action per toolbar **is** the identity. Critique how it's executed, not the identity itself                                                    |
+| Expo: `NativeTabs`, native stack headers, "never hand-roll the header"                 | JS tabs with `FloatingNavigationBar`, `headerShown: false` with `FloatingHeader` / `FloatingDetailHeader`: deliberate chrome that renders the same on web. Don't migrate unless asked |
+| Expo: `@expo/ui` components, `formSheet`                                               | Our components; `@expo/ui` only after asking (iOS only, takes the touch)                                                                                                              |
+| Expo: inline style objects, `Color` / `PlatformColor`, hex literals                    | `StyleSheet.create` with `designTokens` values only; no spreading of style objects such as `...glass` in screens                                                                      |
+| Ad-hoc durations, easings, springs                                                     | The `motion` tokens (`enter`, `exit`, `move`, `spring`)                                                                                                                               |
+| Haptics on every tap                                                                   | `useHaptics` for meaningful moments only (CLAUDE.md)                                                                                                                                  |
+| Expo: kebab-case file names                                                            | PascalCase, one exported component per file (CLAUDE.md)                                                                                                                               |
 
 ## Checks before calling a screen done
 

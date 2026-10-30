@@ -9,7 +9,6 @@ export default function EditPromptButtonsButton() {
     <Button
       icon="pencil"
       size="small"
-      colorPalette="muted"
       onPress={() => navigation.navigate('PromptButtonsScreen')}
       accessibilityLabel="Edit prompt buttons"
     />

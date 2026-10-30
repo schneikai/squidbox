@@ -9,8 +9,8 @@ const PALETTE = {
   muted: colors.text.secondary,
   accent: colors.accent.base,
   danger: colors.status.danger,
-  // A favorite's heart: like `neutral` until it's selected, then red, without the selected tint.
-  favorite: colors.text.primary,
+  // A favorite's heart: like `muted` until it's selected, then red, without the selected tint.
+  favorite: colors.text.secondary,
 };
 const INVERSE_PALETTE = {
   neutral: colors.text.inverse,
@@ -32,7 +32,7 @@ const MAX_DISC_LABEL = 3;
  *               may lead it). `size="small"` draws a smaller icon in the same 44 pt target, or a
  *               tighter link for a header row.
  * `colorPalette` is what its color means: `neutral`, `muted`, `accent`, `danger` or `favorite`
- * (a heart); a text link is `accent` and the rest `neutral` unless told. `isInverse` puts it on a
+ * (a heart); a text link is `accent` and an icon button `muted` unless told, wherever it sits. `isInverse` puts it on a
  * dark surface (the Undo bar). `isSelected` marks a toggle that is on (on a primary, the current tab, it only tells VoiceOver).
  * `filled` fills the icon; `iconCount={2}` doubles it, smaller, for a second step of the same mark.
  * `loading` shows a spinner and blocks presses. style is for layout only.
@@ -56,7 +56,7 @@ export default function Button({
   style,
 }) {
   const shape = shapeFor(variant, label);
-  const palette = colorPalette ?? (shape === 'link' ? 'accent' : 'neutral');
+  const palette = colorPalette ?? (shape === 'link' ? 'accent' : 'muted');
   const isInactive = disabled || loading;
   if (__DEV__) warnOnce(combinationProblem({ variant, icon, label, isInverse, palette }));
 

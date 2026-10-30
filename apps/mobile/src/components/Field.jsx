@@ -28,7 +28,6 @@ export default function Field({ label, description, onInfo, rightSlot, children,
           <Button
             icon="info"
             size="small"
-            colorPalette="muted"
             onPress={onInfo}
             accessibilityLabel={`What goes in ${label}`}
             style={styles.info}

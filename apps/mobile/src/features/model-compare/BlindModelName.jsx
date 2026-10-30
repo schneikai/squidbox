@@ -42,7 +42,6 @@ export default function BlindModelName({ label, name }) {
       <Button
         icon={isShown ? 'eye-off' : 'eye'}
         variant="secondary"
-        colorPalette="muted"
         isSelected={isShown}
         onPress={handlePress}
         accessibilityLabel={isShown ? `${name}, hide the name` : `Show the name of ${label}`}

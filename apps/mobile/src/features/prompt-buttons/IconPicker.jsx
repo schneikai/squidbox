@@ -54,7 +54,6 @@ export default function IconPicker({ value, onChange }) {
         <Button
           icon="circle-off"
           variant={value === null ? 'primary' : 'tertiary'}
-          colorPalette="muted"
           accessibilityLabel="No icon"
           onPress={() => handlePick(null)}
         />
