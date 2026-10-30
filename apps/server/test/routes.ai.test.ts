@@ -102,6 +102,7 @@ function veniceAnswers({
   chatStatus = 200,
   tags: replyTags = tags,
   chatReply = CHAT_REPLY,
+  posts = ['one', 'two', 'three'],
 } = {}) {
   fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
     if (url.endsWith('/api_keys/rate_limits')) {
@@ -121,6 +122,7 @@ function veniceAnswers({
     const { response_format } = JSON.parse(String(init!.body));
     const content = {
       tags: { tags: replyTags },
+      posts: { posts },
       chat_reply: chatReply,
     }[response_format.json_schema.name as string];
     return new Response(
@@ -328,8 +330,8 @@ describe('GET /api/v1/ai/balance', () => {
 });
 
 describe('POST /api/v1/ai/compare/writing', () => {
-  it("asks each model for the chat's reply JSON, on its own defaults, and answers its options as tweets", async () => {
-    veniceAnswers({ chatReply: { reply: '', postOptions: ['one', 'two', 'three'] } });
+  it('asks each model for the posts alone, on its own defaults, and answers them as tweets', async () => {
+    veniceAnswers();
     const res = await call('POST', '/ai/compare/writing', writing);
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({
@@ -341,7 +343,7 @@ describe('POST /api/v1/ai/compare/writing', () => {
     const [kimi, glm] = chatBodies();
     expect(kimi).toMatchObject({
       model: 'kimi-k3',
-      response_format: { type: 'json_schema', json_schema: { name: 'chat_reply', strict: true } },
+      response_format: { type: 'json_schema', json_schema: { name: 'posts', strict: true } },
       venice_parameters: { include_venice_system_prompt: false, strip_thinking_response: true },
     });
     expect(kimi.messages[0]).toEqual({ role: 'user', content: 'Write 3 posts about a sunrise hike' });
@@ -352,7 +354,7 @@ describe('POST /api/v1/ai/compare/writing', () => {
   });
 
   it('answers a model Venice no longer has on its own card, and compares the others', async () => {
-    veniceAnswers({ chatReply: { reply: '', postOptions: ['one', 'two', 'three'] } });
+    veniceAnswers();
     const res = await call('POST', '/ai/compare/writing', { ...writing, modelIds: ['gone', 'kimi-k3'] });
     expect(res.statusCode).toBe(200);
     expect(res.json().results).toEqual([
@@ -363,7 +365,7 @@ describe('POST /api/v1/ai/compare/writing', () => {
   });
 
   it('sends only the prompt box: no Writing instructions, persona or favorites', async () => {
-    veniceAnswers({ chatReply: { reply: '', postOptions: ['one', 'two', 'three'] } });
+    veniceAnswers();
     vi.mocked(readPersona).mockResolvedValue({
       aboutYou: 'Outdoor photographer from Oregon.',
       contentTags: [],
@@ -381,6 +383,13 @@ describe('POST /api/v1/ai/compare/writing', () => {
     }
   });
 
+  it('compares one model on its own, as the app asks each', async () => {
+    veniceAnswers();
+    const res = await call('POST', '/ai/compare/writing', { ...writing, modelIds: ['kimi-k3'] });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().results).toEqual([{ modelId: 'kimi-k3', tweets: ['one', 'two', 'three'] }]);
+  });
+
   it('400 for the same model twice', async () => {
     veniceAnswers();
     const res = await call('POST', '/ai/compare/writing', { ...writing, modelIds: ['kimi-k3', 'kimi-k3'] });
@@ -396,12 +405,12 @@ describe('POST /api/v1/ai/compare/writing', () => {
     expect(res.json().results.map(({ modelId }: { modelId: string }) => modelId)).toEqual(modelIds);
   });
 
-  it('429 on the 31st call in a minute', async () => {
+  it('429 on the 121st call in a minute', async () => {
     veniceAnswers();
     const app = await buildApp({ logger: false });
     const send = () =>
       app.inject({ method: 'POST', url: '/api/v1/ai/compare/writing', headers: auth, payload: writing });
-    for (let i = 0; i < 30; i++) expect((await send()).statusCode).toBe(200);
+    for (let i = 0; i < 120; i++) expect((await send()).statusCode).toBe(200);
     expect((await send()).statusCode).toBe(429);
   });
 });

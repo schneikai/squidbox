@@ -11,7 +11,7 @@ import compareAsync from '@/utils/cloud-api/ai/compareAsync';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import toggleItem from '@/utils/toggleItem';
 
-// Requests in flight at once in a round: a vision round is one request per photo with every model.
+// Photos asked at once in a vision round, each of them of every model at once.
 const CONCURRENCY = 2;
 // The results key of a writing round, which has no photos.
 export const TEXT_KEY = 'text';
@@ -42,16 +42,15 @@ export default function useCompareRound({ kind, modelIds }) {
     return Object.fromEntries(modelIds.map((modelId) => [modelId, { status: 'error', error: message }]));
   }
 
-  // One request of a round: its results key, the results' items key, and its body.
+  // One step of a round, asked of every model: its results key, the results' items key, and its body.
   function jobsFor({ prompt, photos }) {
-    if (kind !== 'vision') return [{ key: TEXT_KEY, itemsKey: 'tweets', body: async () => ({ prompt, modelIds }) }];
+    if (kind !== 'vision') return [{ key: TEXT_KEY, itemsKey: 'tweets', body: async () => ({ prompt }) }];
     return photos.map((asset) => ({
       key: asset.id,
       itemsKey: 'tags',
       body: async (signal) => ({
         prompt,
         image: await readVisionImageAsync(asset, { ...imageDeps, signal }),
-        modelIds,
       }),
     }));
   }
@@ -64,23 +63,43 @@ export default function useCompareRound({ kind, modelIds }) {
     markTried(getDb(), kind, newlyTried).catch((error) => console.error('Saving the score failed', error));
   }
 
+  // Each model is asked on its own, so its card fills as soon as it answers.
   async function run(jobs, signal) {
     const queue = [...jobs];
     async function worker() {
       while (queue.length > 0 && !signal.aborted) {
         const job = queue.shift();
-        let results;
+        let body;
         try {
-          results = byModel(await compareAsync(kind, await job.body(signal), { signal }), job.itemsKey);
+          body = await job.body(signal);
         } catch (error) {
-          results = failAll(error);
+          if (!signal.aborted) land(job.key, failAll(error));
+          continue;
         }
-        if (signal.aborted) return;
-        markTriedOnce(results);
-        setRound((current) => ({ ...current, results: { ...current.results, [job.key]: results } }));
+        await Promise.all(modelIds.map((modelId) => askModel(job, { ...body, modelIds: [modelId] }, modelId, signal)));
       }
     }
     await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  }
+
+  async function askModel(job, body, modelId, signal) {
+    let results;
+    try {
+      results = byModel(await compareAsync(kind, body, { signal }), job.itemsKey);
+    } catch (error) {
+      results = { [modelId]: { status: 'error', error: apiErrorMessage(error) } };
+    }
+    if (signal.aborted) return;
+    markTriedOnce(results);
+    land(job.key, results);
+  }
+
+  // Puts `results` (by model) in the round under `key`, next to the models already there.
+  function land(key, results) {
+    setRound((current) => ({
+      ...current,
+      results: { ...current.results, [key]: { ...current.results[key], ...results } },
+    }));
   }
 
   function startRound(input) {

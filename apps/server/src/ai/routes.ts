@@ -312,7 +312,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       r.route({
         method: 'POST',
         url: '/ai/compare/writing',
-        config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+        config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
         schema: { body: compareWritingRequestSchema, response: { 200: compareWritingResponseSchema } },
         handler: async (request, reply) => {
           const signal = untilClientLeaves(reply);
@@ -321,22 +321,21 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
           const results = await compareRequested(request.body.modelIds, 'writing', (models) =>
             compareModels({ task: writingTask, messages, models, log: request.log, signal }),
           );
-          // A model's posts are its reply's options.
           return {
             results: results.map((result) =>
-              'error' in result ? result : { modelId: result.modelId, tweets: result.postOptions },
+              'error' in result ? result : { modelId: result.modelId, tweets: result.posts },
             ),
           };
         },
       });
 
-      // POST /ai/compare/vision — each model tags the same photo, guided by the prompt. One request
-      // per photo, so a compare of many photos (and a second round within the minute) fits the limit.
+      // POST /ai/compare/vision — each model tags the same photo, guided by the prompt. The app sends
+      // one request per photo and model, a few at a time, so a round of many photos fits the limit.
       r.route({
         method: 'POST',
         url: '/ai/compare/vision',
         bodyLimit: VISION_REQUEST_BODY_LIMIT,
-        config: { rateLimit: { max: 240, timeWindow: '1 minute' } },
+        config: { rateLimit: { max: 600, timeWindow: '1 minute' } },
         schema: { body: compareVisionRequestSchema, response: { 200: compareVisionResponseSchema } },
         handler: async (request, reply) => {
           const signal = untilClientLeaves(reply);

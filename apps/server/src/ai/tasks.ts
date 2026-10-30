@@ -13,7 +13,7 @@ import type { User } from '../db/schema.js';
 import { AppError } from '../errors.js';
 import { catalogAsync, findModel, type CatalogEntry } from './catalog.js';
 import { readChosenModelId } from './modelChoices.js';
-import { chatReplyJsonSpec, judgeVerdictJsonSpec, tagsSchema } from './prompts.js';
+import { chatReplyJsonSpec, judgeVerdictJsonSpec, postsSchema, tagsSchema } from './prompts.js';
 import { chatJsonAsync, VeniceError, type ChatMessage, type JsonSchemaSpec } from './venice.js';
 
 /**
@@ -77,9 +77,9 @@ export type AiTask<T> = {
 };
 
 // A compare's posts: the chat's reply schema, with one option or more (the prompt says how many).
-export const writingTask: AiTask<ChatReply> = {
-  schema: chatReplyJsonSpec,
-  check: (reply) => ({ ...reply, postOptions: checkTweets(reply.postOptions) }),
+export const writingTask: AiTask<{ posts: string[] }> = {
+  schema: postsSchema,
+  check: ({ posts }) => ({ posts: checkTweets(posts) }),
 };
 
 /**

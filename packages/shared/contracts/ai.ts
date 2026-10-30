@@ -209,8 +209,8 @@ export const COMPARE_MIN_MODELS = 2;
 export const COMPARE_PROMPT_MAX_LENGTH = 2000;
 // The options the chat's writing briefing asks for ({count}); a compare's prompt says its own.
 export const WRITING_TWEET_COUNT = 3;
-// Photos in one vision compare: each is a request, so two rounds in a minute stay well within the
-// vision route's rate limit (240 a minute).
+// Photos in one vision compare: each photo is a request per model, sent a few at a time (the
+// vision route's rate limit is 600 a minute).
 export const VISION_COMPARE_MAX_PHOTOS = 50;
 // The app sends a 512 px JPEG (readVisionImageAsync); the limit still takes the 1000 px thumbnail
 // (~150–400 KB, ~0.5 MB as base64) that older apps send.
@@ -222,10 +222,11 @@ const visionImageSchema = z.object({
   mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
 });
 
-// Each model once: every id is a paid call.
+// Each model once: every id is a paid call. The app asks each model on its own, so its card fills
+// as soon as it answers; a compare still picks COMPARE_MIN_MODELS or more.
 const modelIdsSchema = z
   .array(z.string().min(1))
-  .min(COMPARE_MIN_MODELS)
+  .min(1)
   .refine((ids) => new Set(ids).size === ids.length, 'Each model can be compared only once');
 
 // The prompt of a compare: what to write, or what to look for in the photos.

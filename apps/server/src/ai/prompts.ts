@@ -25,7 +25,7 @@ export function fillTemplate(template: string, values: Record<string, string>): 
 
 /**
  * The writing prompt of a compare: only the prompt box, as the user's message, without system
- * instructions; the reply's JSON schema (chatReplyJsonSpec) still asks for the posts as options.
+ * instructions; the reply's JSON schema (postsSchema) asks for the posts alone.
  */
 export function writingMessages(prompt: string): ChatMessage[] {
   return [{ role: 'user', content: prompt }];
@@ -242,6 +242,14 @@ export const chatReplyJsonSpec: JsonSchemaSpec<ChatReply> = {
     },
   }),
   zod: chatReplyFieldsSchema,
+};
+
+// A writing compare's answer: only the posts its prompt asks for, so a model has nowhere else to put
+// them.
+export const postsSchema: JsonSchemaSpec<{ posts: string[] }> = {
+  name: 'posts',
+  jsonSchema: stringListSchema('posts'),
+  zod: z.object({ posts: z.array(z.string()) }),
 };
 
 export const tagsSchema: JsonSchemaSpec<{ tags: string[] }> = {

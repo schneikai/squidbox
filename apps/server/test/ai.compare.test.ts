@@ -260,20 +260,20 @@ describe('runTask', () => {
 describe('compareModels: writing', () => {
   it("gives each model its result, and one model's failure stays on its own card", async () => {
     replies({
-      'kimi-k3': { reply: '', postOptions: ['one', 'two', 'three'] },
-      'grok-4-7': { reply: '', postOptions: [' '] },
+      'kimi-k3': { posts: ['one', 'two', 'three'] },
+      'grok-4-7': { posts: [' '] },
       'z-ai-glm-5-3': new Response(JSON.stringify({ error: { message: 'Model is busy' } }), { status: 503 }),
     });
     const results = await compareWriting([model('kimi-k3'), model('grok-4-7'), model('z-ai-glm-5-3')]);
     expect(results).toEqual([
-      { modelId: 'kimi-k3', reply: '', postOptions: ['one', 'two', 'three'] },
+      { modelId: 'kimi-k3', posts: ['one', 'two', 'three'] },
       { modelId: 'grok-4-7', error: 'The model returned no posts' },
       { modelId: 'z-ai-glm-5-3', error: 'Model is busy' },
     ]);
   });
 
   it("says the reply couldn't be read when it isn't the JSON asked for", async () => {
-    replies({ 'kimi-k3': 'thinking… here are your tweets', 'grok-4-7': { posts: [] } });
+    replies({ 'kimi-k3': 'thinking… here are your tweets', 'grok-4-7': { tweets: ['a'] } });
     const results = await compareWriting([model('kimi-k3'), model('grok-4-7')]);
     expect(results).toEqual([
       { modelId: 'kimi-k3', error: "The reply couldn't be read" },
@@ -288,13 +288,13 @@ describe('compareModels: writing', () => {
       capabilities: { ...plain.model_spec.capabilities, supportsResponseSchema: false },
     };
     replies({
-      plain: 'Here they are:\n```json\n{"reply": "", "postOptions": ["a", "b", "c"]}\n```',
-      'kimi-k3': { reply: '', postOptions: ['d', 'e', 'f'] },
+      plain: 'Here they are:\n```json\n{"posts": ["a", "b", "c"]}\n```',
+      'kimi-k3': { posts: ['d', 'e', 'f'] },
     });
     const results = await compareWriting([plain, model('kimi-k3')]);
     expect(results).toEqual([
-      { modelId: 'plain', reply: '', postOptions: ['a', 'b', 'c'] },
-      { modelId: 'kimi-k3', reply: '', postOptions: ['d', 'e', 'f'] },
+      { modelId: 'plain', posts: ['a', 'b', 'c'] },
+      { modelId: 'kimi-k3', posts: ['d', 'e', 'f'] },
     ]);
     const [plainBody, kimiBody] = fetchMock.mock.calls.map(([, init]) => JSON.parse(init.body));
     expect(plainBody).not.toHaveProperty('response_format');
@@ -304,20 +304,20 @@ describe('compareModels: writing', () => {
   it("keeps the model's name out of Venice's error text, so the card stays blind", async () => {
     replies({
       'kimi-k3': new Response(JSON.stringify({ error: { message: 'Model KIMI-K3 is at capacity' } }), { status: 503 }),
-      'grok-4-7': { reply: '', postOptions: ['a', 'b', 'c'] },
+      'grok-4-7': { posts: ['a', 'b', 'c'] },
     });
     const [kimi] = await compareWriting([model('kimi-k3'), model('grok-4-7')]);
     expect(kimi).toEqual({ modelId: 'kimi-k3', error: 'Model the model is at capacity' });
   });
 
   it('reports a model Venice could not be reached for without the network details', async () => {
-    replies({ 'kimi-k3': { reply: '', postOptions: ['a', 'b', 'c'] } });
+    replies({ 'kimi-k3': { posts: ['a', 'b', 'c'] } });
     fetchMock.mockImplementationOnce(async () => {
       throw new Error('socket hang up');
     });
     const results = await compareWriting([model('grok-4-7'), model('kimi-k3')]);
     expect(results[0]).toEqual({ modelId: 'grok-4-7', error: "Couldn't reach Venice" });
-    expect(results[1]).toEqual({ modelId: 'kimi-k3', reply: '', postOptions: ['a', 'b', 'c'] });
+    expect(results[1]).toEqual({ modelId: 'kimi-k3', posts: ['a', 'b', 'c'] });
   });
 });
 
