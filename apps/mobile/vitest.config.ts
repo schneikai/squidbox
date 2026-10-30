@@ -15,19 +15,33 @@ const mocking = readdirSync(testDir)
   .filter((file) => file.endsWith('.test.ts'))
   .filter((file) => /\bvi\.(do)?mock\(/.test(readFileSync(new URL(file, testDir), 'utf8')));
 
-export default defineConfig({
-  test: {
-    environment: 'node',
-    include: ['test/**/*.test.ts'],
-    exclude: process.env.TEST_DATABASE_URL
-      ? configDefaults.exclude
-      : [...configDefaults.exclude, 'test/**/*.e2e.test.ts'],
-    clearMocks: true,
-    pool: 'threads',
-    poolOptions: { threads: { isolate: false } },
-    poolMatchGlobs: mocking.map((file) => [`**/test/${file}`, 'forks']),
-  },
-  resolve: {
-    alias: { '@': new URL('./src', import.meta.url).pathname },
-  },
+export default defineConfig(async () => {
+  // vitest 2 never reads back its file timings (its results cache wants a 0.30+ minor version), so
+  // it starts the largest files first. The e2e files wait on Postgres the longest, whatever their
+  // size: start them first, so the run doesn't end on one of them alone.
+  const { BaseSequencer } = await import('vitest/node');
+  class E2eFirst extends BaseSequencer {
+    async sort(files: Parameters<BaseSequencer['sort']>[0]) {
+      const sorted = await super.sort(files);
+      const e2e = (spec: (typeof sorted)[number]) => spec.moduleId.endsWith('.e2e.test.ts');
+      return [...sorted.filter(e2e), ...sorted.filter((spec) => !e2e(spec))];
+    }
+  }
+  return {
+    test: {
+      environment: 'node',
+      include: ['test/**/*.test.ts'],
+      exclude: process.env.TEST_DATABASE_URL
+        ? configDefaults.exclude
+        : [...configDefaults.exclude, 'test/**/*.e2e.test.ts'],
+      clearMocks: true,
+      pool: 'threads',
+      poolOptions: { threads: { isolate: false } },
+      poolMatchGlobs: mocking.map((file) => [`**/test/${file}`, 'forks']),
+      sequence: { sequencer: E2eFirst },
+    },
+    resolve: {
+      alias: { '@': new URL('./src', import.meta.url).pathname },
+    },
+  };
 });
