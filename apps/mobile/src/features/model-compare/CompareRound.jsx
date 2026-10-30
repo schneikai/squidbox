@@ -19,6 +19,7 @@ import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAct
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import { SCREEN_PADDING } from '@/constants';
 import useScrollY from '@/hooks/useScrollY';
+import useVeniceBalance from '@/hooks/useVeniceBalance';
 import { scale } from '@/styles/designTokens';
 import textareaTextStyle from '@/styles/textareaTextStyle';
 import { setPrompt } from '@/sync/aiStateRepository';
@@ -45,6 +46,8 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
   const savedPromptRef = useRef(savedPrompt);
   const modelIds = useMemo(() => models.map(({ id }) => id), [models]);
   const round = useCompareRound({ kind, modelIds });
+  // Read again once a round has ended, so it shows what the round cost.
+  const balance = useVeniceBalance(round.isRunning ? null : round.number);
 
   const namesById = useMemo(() => Object.fromEntries(models.map(({ id, name }) => [id, name])), [models]);
 
@@ -110,6 +113,7 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
             )}
           </Field>
         </Card>
+        <IntroText style={styles.hint}>Venice balance: {balance.value ?? '…'}</IntroText>
         {isVision && hasStarted && <IntroText style={styles.hint}>Tap the tags that fit.</IntroText>}
         {isVision ? (
           photos.map((asset) => (

@@ -6,10 +6,11 @@ import fetchAiBalanceAsync from '@/utils/cloud-api/ai/fetchAiBalanceAsync';
 
 /**
  * The Venice account's balance as text ("$4.59", with DIEM when there is any), read again each time
- * the screen comes into focus, so it follows the compares just run. `isError` when the last read
- * failed; the value is null until the first read is in.
+ * the screen comes into focus, so it follows the compares just run, and when `refreshKey` changes
+ * (a compare round that ended). `isError` when the last read failed; the value is null until the
+ * first read is in.
  */
-export default function useVeniceBalance() {
+export default function useVeniceBalance(refreshKey) {
   const [state, setState] = useState({ value: null, isError: false });
 
   useFocusEffect(
@@ -21,7 +22,7 @@ export default function useVeniceBalance() {
       return () => {
         isCurrent = false;
       };
-    }, []),
+    }, [refreshKey]),
   );
 
   return state;

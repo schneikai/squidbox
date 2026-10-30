@@ -3,7 +3,6 @@ import { aiModelKindSchema } from '@squidbox/shared';
 import { StyleSheet } from 'react-native';
 
 import personaSummary from './personaSummary';
-import useVeniceBalance from './useVeniceBalance';
 
 import ChangedBadge from '@/components/ChangedBadge';
 import DetailScrollView from '@/components/DetailScrollView';
@@ -19,6 +18,7 @@ import useInstructions from '@/hooks/useInstructions';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import usePersona from '@/hooks/usePersona';
 import useSeedPromptButtons from '@/hooks/useSeedPromptButtons';
+import useVeniceBalance from '@/hooks/useVeniceBalance';
 import useYourDefaults from '@/hooks/useYourDefaults';
 import { colors, radii, sizes } from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
