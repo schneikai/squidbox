@@ -35,28 +35,35 @@ const all = process.argv.includes('--all');
 const colors = process.stdout.isTTY;
 const paint = (code, text) => (colors ? `\x1b[${code}m${text}\x1b[0m` : text);
 
-function git(...args) {
+// git's output lines. A failing git command ends the run with git's error, unless it may fail.
+function git(args, { mayFail = false } = {}) {
   const result = spawnSync('git', args, { cwd: ROOT, encoding: 'utf8' });
-  return result.status === 0 ? result.stdout.split('\n').filter(Boolean) : null;
+  if (result.status === 0) return result.stdout.split('\n').filter(Boolean);
+  if (mayFail) return null;
+  console.error(`git ${args.join(' ')} failed:\n${result.stderr || result.error}`);
+  process.exit(1);
 }
 
 // What changed since the branch left main, and what of it was deleted.
 function changes() {
-  const base = git('merge-base', 'HEAD', 'origin/main')?.[0] ?? git('merge-base', 'HEAD', 'main')?.[0];
+  const mergeBase = (ref) => git(['merge-base', 'HEAD', ref], { mayFail: true })?.[0];
+  const base = mergeBase('origin/main') ?? mergeBase('main');
   if (!base) console.warn(paint(33, 'No main branch to compare with: checking what changed since HEAD.'));
   const since = base ?? 'HEAD';
   const files = [
-    ...git('diff', '--name-only', '--diff-filter=d', since),
-    ...git('ls-files', '--others', '--exclude-standard'),
+    ...git(['diff', '--name-only', '--diff-filter=d', since]),
+    ...git(['ls-files', '--others', '--exclude-standard']),
   ];
-  return { files: [...new Set(files)], deleted: git('diff', '--name-only', '--diff-filter=D', since) };
+  return { files: [...new Set(files)], deleted: git(['diff', '--name-only', '--diff-filter=D', since]) };
 }
 
 // Runs a command with its output captured. Resolves to the check's result, never rejects.
 function run(command, args, cwd = ROOT) {
   const started = Date.now();
   return new Promise((resolve) => {
-    const child = spawn(command, args, { cwd, env: { ...process.env, FORCE_COLOR: colors ? '1' : '0' } });
+    // Without Vite's notice that its CJS build is deprecated (the mobile vitest config loads as CJS).
+    const env = { ...process.env, FORCE_COLOR: colors ? '1' : '0', VITE_CJS_IGNORE_WARNING: '1' };
+    const child = spawn(command, args, { cwd, env });
     let output = '';
     child.stdout.on('data', (chunk) => (output += chunk));
     child.stderr.on('data', (chunk) => (output += chunk));
@@ -98,6 +105,13 @@ function formatFiles(files) {
   return formatted.length === 0 ? null : [[`${BIN}prettier`, ['--check', ...formatted]]];
 }
 
+// An app's tests, printing only the failures.
+const vitest = (app, args) => [
+  `${BIN}vitest`,
+  [...args, `--reporter=${ROOT}scripts/vitestFailures.mjs`],
+  `${ROOT}${app}`,
+];
+
 // Per app: its whole suite, the test files related to its changed files, or nothing.
 function testRuns({ files, deleted }) {
   const runs = [];
@@ -109,15 +123,15 @@ function testRuns({ files, deleted }) {
       ) || deleted.some(ours);
     const related = files.filter((file) => ours(file) && CODE.test(file)).map((file) => `${ROOT}${file}`);
     const name = app.slice('apps/'.length, -1);
-    if (whole) runs.push({ name: `${name} all`, step: [`${BIN}vitest`, ['run'], `${ROOT}${app}`] });
+    if (whole) runs.push({ name: `${name} all`, step: vitest(app, ['run']) });
     else if (related.length > 0)
-      runs.push({
-        name: `${name} related`,
-        step: [`${BIN}vitest`, ['related', '--run', '--passWithNoTests', ...related], `${ROOT}${app}`],
-      });
+      runs.push({ name: `${name} related`, step: vitest(app, ['related', '--run', '--passWithNoTests', ...related]) });
   }
   return runs;
 }
+
+// A root script, without npm's own lines (its banner, its "Lifecycle script failed" error).
+const npmRun = (script) => ['npm', ['run', '--silent', script]];
 
 // Each check's steps, or null when it has nothing to check. All checks run at once: measured faster
 // than the tests after the rest, for one changed file and for the whole repo.
@@ -125,12 +139,13 @@ async function plan() {
   if (all)
     return {
       checks: {
-        lint: [['npm', ['run', 'lint']]],
-        format: [['npm', ['run', 'format']]],
-        typecheck: [['npm', ['run', 'typecheck']]],
-        knip: [['npm', ['run', 'knip']]],
+        lint: [npmRun('lint')],
+        format: [npmRun('format')],
+        typecheck: [npmRun('typecheck')],
+        knip: [npmRun('knip')],
       },
-      tests: { steps: [['npm', ['test', '--workspaces', '--if-present']]] },
+      // `npm test --workspaces --if-present`, app by app: the apps are the workspaces with tests.
+      tests: { steps: APPS.map((app) => vitest(app, ['run'])) },
     };
   const changed = changes();
   const runs = testRuns(changed);
@@ -138,7 +153,7 @@ async function plan() {
     checks: {
       lint: await lintFiles(changed.files),
       format: formatFiles(changed.files),
-      typecheck: [['npm', ['run', 'typecheck']]],
+      typecheck: [npmRun('typecheck')],
       knip: null,
     },
     tests: runs.length === 0 ? null : { steps: runs.map((r) => r.step), note: runs.map((r) => r.name).join(', ') },
