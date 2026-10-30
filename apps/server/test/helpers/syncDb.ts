@@ -17,8 +17,8 @@ export let USER_B: string;
 export let pool: pg.Pool;
 export let db: Db;
 
-async function clearAll() {
-  const users = [USER_A, USER_B];
+/** Deletes these users' rows in every collection. */
+export async function clearRows(users = [USER_A, USER_B]) {
   await Promise.all(
     Object.values(serverCollections).map(({ table }) =>
       db.delete(table).where(inArray(getTableColumns(table).userId!, users)),
@@ -39,10 +39,10 @@ export function useSyncDb() {
     ]);
   });
   beforeEach(async () => {
-    await clearAll();
+    await clearRows();
   });
   afterAll(async () => {
-    await clearAll();
+    await clearRows();
     await db.delete(schema.users).where(inArray(schema.users.id, [USER_A, USER_B]));
     await pool.end();
   });
@@ -74,6 +74,20 @@ export function assetRecord(over: Record<string, unknown> = {}) {
     isSynced: true,
     ...over,
   };
+}
+
+/** An asset as a client that knows every column pushes it, the optional ones empty. */
+export function fullAssetRecord(over: Record<string, unknown> = {}) {
+  return assetRecord({
+    purgedAt: null,
+    favoritedAt: null,
+    takenAt: null,
+    originalFilename: null,
+    latitude: null,
+    longitude: null,
+    tags: null,
+    ...over,
+  }) as Record<string, any> & { id: string; updatedAt: number };
 }
 
 export function postRecord(over: Record<string, unknown> = {}) {
@@ -112,7 +126,11 @@ export function albumRecord(over: Record<string, unknown> = {}) {
   };
 }
 
-export const mut = (record: Record<string, unknown>) => ({ collection: 'assets', record });
+/** A whole-record push of `record`. */
+export const mut = (record: Record<string, unknown>, collection = 'assets'): PushMutation => ({
+  collection,
+  record: record as PushMutation['record'],
+});
 
 /** A push of `record` naming the fields it changed: each at `clock`, or the clocks of a map. */
 export function fieldPush(
@@ -142,24 +160,47 @@ export async function serverSeqOf(user: string, id: string): Promise<number | nu
 /** Results as the wire carries them: JSON, where an undefined field reads as a missing one. */
 export const wire = (results: PushResult[]) => results.map((result) => JSON.stringify(result));
 
+/** `mutations` pushed for `user` in batches of `size`, one after the other. */
+export async function inBatches(user: string, mutations: PushMutation[], size: number) {
+  const results: PushResult[] = [];
+  for (let i = 0; i < mutations.length; i += size)
+    results.push(...(await push(db, user, mutations.slice(i, i + size))));
+  return results;
+}
+
 /**
  * The same mutations pushed for USER_A in batches of `size` (all at once by default) and for USER_B
  * one by one.
  */
 export async function batchedAndOneByOne(mutations: PushMutation[], size = mutations.length) {
-  const batched: PushResult[] = [];
-  for (let i = 0; i < mutations.length; i += size)
-    batched.push(...(await push(db, USER_A, mutations.slice(i, i + size))));
-  const single: PushResult[] = [];
-  for (const mutation of mutations) single.push(...(await push(db, USER_B, [mutation])));
-  return { batched, single };
+  return { batched: await inBatches(USER_A, mutations, size), single: await inBatches(USER_B, mutations, 1) };
 }
 
-/** USER_A's and USER_B's rows hold the same, but for what differs between users by construction. */
-export async function expectSameRows(collection: string, ids: string[]) {
-  for (const id of ids) {
-    const { userId: _a, serverSeq: _b, ...a } = (await rowOf(id.toLowerCase(), { user: USER_A, collection })) ?? {};
-    const { userId: _c, serverSeq: _d, ...b } = (await rowOf(id.toLowerCase(), { user: USER_B, collection })) ?? {};
-    expect(a, `${collection} ${id}`).toEqual(b);
-  }
+/**
+ * A user's rows of a collection (only `ids`, when given) by id, without what differs between users by
+ * construction (userId, serverSeq).
+ */
+export async function rowsOf(collection: string, user: string, ids?: string[]) {
+  const table = serverCollections[collection]!.table as any;
+  const ofUser = eq(table.userId, user);
+  const where = ids
+    ? and(
+        ofUser,
+        inArray(
+          table.id,
+          ids.map((id) => id.toLowerCase()),
+        ),
+      )
+    : ofUser;
+  const rows = (await db.select().from(table).where(where)) as Record<string, any>[];
+  return new Map(rows.map(({ userId: _u, serverSeq: _s, ...row }) => [row.id as string, row]));
+}
+
+/** USER_A's and USER_B's rows of a collection (only `ids`, when given) hold the same. */
+export async function expectSameRows(collection: string, ids?: string[]) {
+  const mine = await rowsOf(collection, USER_A, ids);
+  const twin = await rowsOf(collection, USER_B, ids);
+  expect([...mine.keys()].sort(), collection).toEqual([...twin.keys()].sort());
+  for (const [id, row] of mine)
+    if (JSON.stringify(row) !== JSON.stringify(twin.get(id))) expect(row, `${collection} ${id}`).toEqual(twin.get(id));
 }

@@ -503,7 +503,11 @@ d('push: the merge rules (Postgres)', () => {
 
     it('a replayed mixed batch gets the same results and moves no server_seq', async () => {
       const rs = [assetRecord(), assetRecord(), assetRecord()];
-      await push(db, USER_A, rs.map(mut));
+      await push(
+        db,
+        USER_A,
+        rs.map((r) => mut(r)),
+      );
       await push(db, USER_A, [fieldPush({ ...rs[1], updatedAt: 3000, notes: 'newer' }, ['notes'], 3000)]);
       const batch = [
         fieldPush({ ...rs[0], updatedAt: 2000, notes: 'wins' }, ['notes'], 2000),
@@ -638,7 +642,11 @@ d('push: the merge rules (Postgres)', () => {
 
     it('a full batch of 500 mutations, two per record, newer and older, resolves each field by its clock', async () => {
       const rs = Array.from({ length: 250 }, () => assetRecord());
-      await push(db, USER_A, rs.map(mut));
+      await push(
+        db,
+        USER_A,
+        rs.map((r) => mut(r)),
+      );
       const mutations = rs.flatMap((r, i) => [
         fieldPush({ ...r, updatedAt: 3000, notes: `newer ${i}` }, ['notes'], 3000),
         i % 2 === 0
@@ -804,7 +812,11 @@ d('push: the merge rules (Postgres)', () => {
         }
       }
       const records = Array.from({ length: 20 }, () => asset());
-      await push(db, USER_A, records.map(mut));
+      await push(
+        db,
+        USER_A,
+        records.map((r) => mut(r)),
+      );
       // 20 concurrent pushes per record, each a newer clock for notes and isFavorite: the newest wins.
       await Promise.all(
         Array.from({ length: 20 }, (_, i) =>
@@ -868,8 +880,16 @@ d('push: the merge rules (Postgres)', () => {
         }
         return fieldPush(record, fields, clock);
       });
-      await push(db, USER_A, records.map(mut));
-      await push(db, USER_B, records.map(mut));
+      await push(
+        db,
+        USER_A,
+        records.map((r) => mut(r)),
+      );
+      await push(
+        db,
+        USER_B,
+        records.map((r) => mut(r)),
+      );
       const { batched, single } = await batchedAndOneByOne(mutations, 500);
       expect(batched.filter((result) => result.status === 'applied').length).toBeGreaterThan(300);
       expect(wire(batched)).toEqual(wire(single)); // `current` too: an undefined purgedAt reads as a missing one

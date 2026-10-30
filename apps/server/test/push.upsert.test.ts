@@ -10,6 +10,8 @@ import {
   db,
   expectSameRows,
   fieldPush,
+  fullAssetRecord,
+  mut,
   pool,
   rowOf,
   USER_A,
@@ -29,41 +31,11 @@ type Rec = Record<string, any> & { id: string; updatedAt: number };
 d('push: one upsert per collection', () => {
   useSyncDb();
 
-  const asset = (over: Record<string, unknown> = {}): Rec => ({
-    id: randomUUID(),
-    createdAt: 1000,
-    updatedAt: 1000,
-    deletedAt: null,
-    mediaLibraryAssetId: 'm1',
-    mediaType: 'photo',
-    width: 100,
-    height: 100,
-    fileSize: 500,
-    duration: null,
-    filename: 'a.jpg',
-    thumbnailFilename: 't.jpg',
-    isFavorite: false,
-    notes: null,
-    oldFileId: null,
-    isFileSynced: true,
-    isThumbnailSynced: true,
-    isSynced: true,
-    purgedAt: null,
-    favoritedAt: null,
-    takenAt: null,
-    originalFilename: null,
-    latitude: null,
-    longitude: null,
-    tags: null,
-    ...over,
-  });
-  const whole = (record: Rec, collection = 'assets'): PushMutation => ({ collection, record });
-
   // A new record is written with a clock for every field (a sent one, or its updated_at), and the batch
   // keeps the same clocks in memory (mergeRecord's insert branch), so a second mutation of it in the
   // same batch merges as it would pushed alone.
   it('an insert naming some fields, then an older edit of another field in the same batch: as pushed one by one', async () => {
-    const r = asset({ updatedAt: 2000, notes: 'new' });
+    const r = fullAssetRecord({ updatedAt: 2000, notes: 'new' });
     const mutations = [
       fieldPush(r, ['notes'], 2000), // a record the server doesn't have, sent with the fields its edit changed
       fieldPush({ ...r, updatedAt: 1500, isFavorite: true }, ['isFavorite'], 1500), // older than the insert
@@ -75,16 +47,16 @@ d('push: one upsert per collection', () => {
   });
 
   it('a whole-record insert, then an older edit in the same batch: as pushed one by one', async () => {
-    const r = asset({ updatedAt: 2000 });
-    const mutations = [whole(r), fieldPush({ ...r, updatedAt: 1500, isFavorite: true }, ['isFavorite'], 1500)];
+    const r = fullAssetRecord({ updatedAt: 2000 });
+    const mutations = [mut(r), fieldPush({ ...r, updatedAt: 1500, isFavorite: true }, ['isFavorite'], 1500)];
     const { batched, single } = await batchedAndOneByOne(mutations);
     expect(wire(batched)).toEqual(wire(single));
     await expectSameRows('assets', [r.id]);
   });
 
   it('one id in upper and lower case in one batch is one row, written once, with one server_seq', async () => {
-    const r = asset({ notes: 'a' });
-    await push(db, USER_A, [whole(r)]);
+    const r = fullAssetRecord({ notes: 'a' });
+    await push(db, USER_A, [mut(r)]);
     const before = (await rowOf(r.id))!.serverSeq;
     const upper = r.id.toUpperCase();
     const results = await push(db, USER_A, [
@@ -111,9 +83,9 @@ d('push: one upsert per collection', () => {
   });
 
   it('a new record sent twice in one batch, in upper case first: inserted once, in lower case, both applied', async () => {
-    const r = asset({ notes: 'first' });
+    const r = fullAssetRecord({ notes: 'first' });
     const results = await push(db, USER_A, [
-      whole({ ...r, id: r.id.toUpperCase() }),
+      mut({ ...r, id: r.id.toUpperCase() }),
       fieldPush({ ...r, updatedAt: 2000, notes: 'second' }, ['notes'], 2000),
     ]);
     expect(results.map((result) => result.status)).toEqual(['applied', 'applied']);
@@ -121,18 +93,18 @@ d('push: one upsert per collection', () => {
   });
 
   it('each row of a batch gets its own server_seq, and a lost or replayed mutation none', async () => {
-    const rows = Array.from({ length: 5 }, () => asset());
+    const rows = Array.from({ length: 5 }, () => fullAssetRecord());
     await push(
       db,
       USER_A,
-      rows.map((r) => whole(r)),
+      rows.map((r) => mut(r)),
     );
     const seqs = new Map<string, number>();
     for (const r of rows) seqs.set(r.id, (await rowOf(r.id))!.serverSeq);
     const results = await push(db, USER_A, [
       fieldPush({ ...rows[0]!, updatedAt: 2000, notes: 'x' }, ['notes'], 2000), // applies
       fieldPush({ ...rows[1]!, updatedAt: 900, notes: 'x' }, ['notes'], 900), // loses
-      whole(rows[2]!), // a replay
+      mut(rows[2]!), // a replay
       fieldPush({ ...rows[3]!, updatedAt: 2000, notes: 'x', isFavorite: true }, ['notes'], 2000), // applies, favorite not sent
       fieldPush({ ...rows[4]!, updatedAt: 2000, notes: 'y' }, ['notes'], 2000),
       fieldPush({ ...rows[4]!, updatedAt: 2100, notes: 'z' }, ['notes'], 2100),
@@ -159,18 +131,18 @@ d('push: one upsert per collection', () => {
   // The fallback after a row error reruns the batch one savepoint per row: every other row, a twice
   // merged one included, gets the result and row it gets pushed one by one.
   it('a database error in a batch with duplicates: the fallback gets the one-by-one results', async () => {
-    const a = asset();
-    const b = asset({ notes: 'b' });
-    await push(db, USER_A, [whole(a), whole(b)]);
-    await push(db, USER_B, [whole(a), whole(b)]);
-    const c = asset();
+    const a = fullAssetRecord();
+    const b = fullAssetRecord({ notes: 'b' });
+    await push(db, USER_A, [mut(a), mut(b)]);
+    await push(db, USER_B, [mut(a), mut(b)]);
+    const c = fullAssetRecord();
     const mutations = [
       fieldPush({ ...a, updatedAt: 2000, notes: REJECTED_NOTES }, ['notes'], 2000), // fails
       fieldPush({ ...a, updatedAt: 2100, isFavorite: true }, ['isFavorite'], 2100), // applies on the stored row
       fieldPush({ ...a, updatedAt: 1900, notes: 'older' }, ['notes'], 1900), // newer than the stored notes clock
       fieldPush({ ...b, updatedAt: 2000, notes: 'b2' }, ['notes'], 2000),
       fieldPush({ ...b, updatedAt: 1500, notes: 'b-old' }, ['notes'], 1500),
-      whole(c),
+      mut(c),
       fieldPush({ ...c, updatedAt: 3000, notes: REJECTED_NOTES }, ['notes'], 3000), // fails on a row inserted in this batch
       fieldPush({ ...c, updatedAt: 3100, isFavorite: true }, ['isFavorite'], 3100),
     ];
@@ -190,13 +162,13 @@ d('push: one upsert per collection', () => {
   });
 
   it('the guard: a purge and pushes after it in one batch leave the row purged, its updated_at never set back', async () => {
-    const r = asset({ updatedAt: 5000, deletedAt: 5000 });
-    await push(db, USER_A, [whole(r)]);
+    const r = fullAssetRecord({ updatedAt: 5000, deletedAt: 5000 });
+    await push(db, USER_A, [mut(r)]);
     const pair = ['deletedAt', 'purgedAt'];
     const results = await push(db, USER_A, [
       fieldPush({ ...r, updatedAt: 6000, purgedAt: 6000 }, pair, 6000),
       fieldPush({ ...r, updatedAt: 7000, deletedAt: null }, pair, 7000), // a restore after the purge loses
-      whole({ ...r, updatedAt: 8000, notes: 'late', deletedAt: null }), // a whole-record app's newer record too
+      mut({ ...r, updatedAt: 8000, notes: 'late', deletedAt: null }), // a whole-record app's newer record too
       fieldPush({ ...r, updatedAt: 9000, isFavorite: true }, ['isFavorite'], 9000),
     ]);
     expect(results.map((result) => result.status)).toEqual(['applied', 'skipped-lww', 'skipped-lww', 'skipped-lww']);
@@ -208,8 +180,8 @@ d('push: one upsert per collection', () => {
   // An edit of one field at a clock below the row's updated_at (another field is newer) is a legitimate
   // write: the guard (stored updated_at <= sent) must let it through.
   it('the guard lets an older-clocked field through when another field holds the newest clock', async () => {
-    const r = asset();
-    await push(db, USER_A, [whole(r)]);
+    const r = fullAssetRecord();
+    await push(db, USER_A, [mut(r)]);
     await push(db, USER_A, [fieldPush({ ...r, updatedAt: 5000, notes: 'newest' }, ['notes'], 5000)]);
     const [result] = await push(db, USER_A, [
       fieldPush({ ...r, updatedAt: 3000, isFavorite: true }, ['isFavorite'], 3000),
@@ -221,12 +193,12 @@ d('push: one upsert per collection', () => {
   it('an album missing an optional column, pushed beside full ones in one upsert, keeps its stored value', async () => {
     const a = albumRecord({ position: 'a0' });
     const b = albumRecord({ position: 'b0' });
-    await push(db, USER_A, [whole(a, 'albums'), whole(b, 'albums')]);
+    await push(db, USER_A, [mut(a, 'albums'), mut(b, 'albums')]);
     const { position: _p, ...withoutPosition }: Rec = { ...a, updatedAt: 2000, name: 'renamed' };
     const results = await push(db, USER_A, [
-      whole(withoutPosition as Rec, 'albums'), // an app without `position`
+      mut(withoutPosition as Rec, 'albums'), // an app without `position`
       fieldPush({ ...b, updatedAt: 2000, position: 'b1' }, ['position'], 2000, 'albums'),
-      whole(albumRecord({ position: 'c0' }), 'albums'), // and a new one in the same upsert
+      mut(albumRecord({ position: 'c0' }), 'albums'), // and a new one in the same upsert
     ]);
     expect(results.map((result) => result.status)).toEqual(['applied', 'applied', 'applied']);
     expect(await rowOf(a.id, { collection: 'albums' })).toMatchObject({ name: 'renamed', position: 'a0' });
@@ -239,19 +211,21 @@ d('push: one upsert per collection', () => {
     const results = await push(
       db,
       USER_A,
-      Array.from({ length: 5000 }, (_, i) => whole(asset({ filename: `${i}.jpg`, thumbnailFilename: `t${i}.jpg` }))),
+      Array.from({ length: 5000 }, (_, i) =>
+        mut(fullAssetRecord({ filename: `${i}.jpg`, thumbnailFilename: `t${i}.jpg` })),
+      ),
     );
     expect(results.filter((r) => r.status === 'applied')).toHaveLength(5000);
   }, 60_000);
 
   it('field_clock is null exactly when every clock is updated_at, and reads back the same', async () => {
-    const r = asset();
-    await push(db, USER_A, [whole(r)]);
+    const r = fullAssetRecord();
+    await push(db, USER_A, [mut(r)]);
     expect((await rowOf(r.id))!.fieldClock).toBeNull();
     await push(db, USER_A, [fieldPush({ ...r, updatedAt: 2000, notes: 'n' }, ['notes'], 2000)]);
     expect((await rowOf(r.id))!.fieldClock).toMatchObject({ notes: 2000, isFavorite: 1000 });
     // A whole record at 3000 pins every field at 3000: null again.
-    await push(db, USER_A, [whole({ ...r, updatedAt: 3000, notes: 'n' })]);
+    await push(db, USER_A, [mut({ ...r, updatedAt: 3000, notes: 'n' })]);
     expect((await rowOf(r.id))!.fieldClock).toBeNull();
     // ...and an edit older than 3000 still loses against every field.
     const [late] = await push(db, USER_A, [
@@ -268,7 +242,7 @@ d('push: one upsert per collection', () => {
     const rand = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
     const pick = <T>(list: readonly T[]) => list[Math.floor(rand() * list.length)]!;
     for (let round = 0; round < 6; round++) {
-      const assets = Array.from({ length: 12 }, () => asset());
+      const assets = Array.from({ length: 12 }, () => fullAssetRecord());
       const albums = Array.from({ length: 6 }, () => albumRecord());
       const edges = Array.from({ length: 6 }, () => ({
         id: randomUUID(),
@@ -311,7 +285,7 @@ d('push: one upsert per collection', () => {
         const first = !seen.has(key);
         seen.add(key);
         const style = first ? pick(['whole', 'every']) : pick(['fields', 'fields', 'fields', 'whole']);
-        if (style === 'whole') mutations.push(whole(record, kind));
+        if (style === 'whole') mutations.push(mut(record, kind));
         else if (style === 'every') {
           const every = serverCollections[kind]!.descriptor.mergeFields.filter((field) => field in record);
           mutations.push(fieldPush(record, every, clock, kind));

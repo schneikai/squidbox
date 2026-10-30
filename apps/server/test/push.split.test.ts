@@ -6,7 +6,20 @@ import * as schema from '../src/db/schema.js';
 import { serverCollections } from '../src/sync/collections.js';
 import { push } from '../src/sync/push.js';
 import { pull } from '../src/sync/pull.js';
-import { db, fieldPush, USER_A, USER_B, useSyncDb, wire } from './helpers/syncDb.js';
+import {
+  clearRows,
+  db,
+  expectSameRows,
+  fieldPush,
+  fullAssetRecord,
+  inBatches,
+  mut,
+  rowsOf,
+  USER_A,
+  USER_B,
+  useSyncDb,
+  wire,
+} from './helpers/syncDb.js';
 import { REJECTED_NOTES } from './dbSetup.js';
 
 // Pushes split into statements under Postgres' bind parameter limit. Rows
@@ -22,34 +35,6 @@ const rowsPerStatement = (collection: string) => Math.floor(65_535 / serverColle
 d('push: split statements', () => {
   useSyncDb();
 
-  const asset = (over: Record<string, unknown> = {}): Rec => ({
-    id: randomUUID(),
-    createdAt: 1000,
-    updatedAt: 1000,
-    deletedAt: null,
-    mediaLibraryAssetId: 'm1',
-    mediaType: 'photo',
-    width: 100,
-    height: 100,
-    fileSize: 500,
-    duration: null,
-    filename: 'a.jpg',
-    thumbnailFilename: 't.jpg',
-    isFavorite: false,
-    notes: null,
-    oldFileId: null,
-    isFileSynced: true,
-    isThumbnailSynced: true,
-    isSynced: true,
-    purgedAt: null,
-    favoritedAt: null,
-    takenAt: null,
-    originalFilename: null,
-    latitude: null,
-    longitude: null,
-    tags: null,
-    ...over,
-  });
   const edge = (over: Record<string, unknown> = {}): Rec => ({
     id: randomUUID(),
     createdAt: 1000,
@@ -60,30 +45,6 @@ d('push: split statements', () => {
     position: 'a0',
     ...over,
   });
-  const whole = (record: Rec, collection = 'assets'): PushMutation => ({ collection, record });
-
-  async function rowsOf(collection: string, user: string) {
-    const table = serverCollections[collection]!.table as any;
-    const rows = (await db.select().from(table).where(eq(table.userId, user))) as Record<string, any>[];
-    return new Map(rows.map(({ userId: _u, serverSeq: _s, ...row }) => [row.id as string, row]));
-  }
-  async function expectSameRows(collection: string) {
-    const mine = await rowsOf(collection, USER_A);
-    const twin = await rowsOf(collection, USER_B);
-    expect(mine.size).toBe(twin.size);
-    for (const [id, row] of mine)
-      if (JSON.stringify(row) !== JSON.stringify(twin.get(id))) expect(row).toEqual(twin.get(id));
-  }
-  async function clear(user: string) {
-    for (const table of [schema.albumAssets, schema.postAssets, schema.posts, schema.albums, schema.assets])
-      await db.delete(table).where(eq(table.userId, user));
-  }
-  async function inBatches(user: string, mutations: PushMutation[], size: number) {
-    const results: PushResult[] = [];
-    for (let i = 0; i < mutations.length; i += size)
-      results.push(...(await push(db, user, mutations.slice(i, i + size))));
-    return results;
-  }
 
   // A seeded run of mutations over more rows than one statement writes: inserts naming some fields,
   // later edits of the same rows far apart (so their merges straddle a statement boundary), upper-case
@@ -91,9 +52,9 @@ d('push: split statements', () => {
   function seededMutations(seed: number, rows: number, edits: number) {
     const rand = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
     const pick = <T>(list: readonly T[]) => list[Math.floor(rand() * list.length)]!;
-    const records = Array.from({ length: rows }, () => asset());
+    const records = Array.from({ length: rows }, () => fullAssetRecord());
     const mutations: PushMutation[] = records.map((r, i) =>
-      i % 3 === 0 ? whole(r) : fieldPush({ ...r, notes: `first${i}` }, ['notes'], 1000),
+      i % 3 === 0 ? mut(r) : fieldPush({ ...r, notes: `first${i}` }, ['notes'], 1000),
     );
     let now = 2000;
     for (let i = 0; i < edits; i++) {
@@ -111,7 +72,7 @@ d('push: split statements', () => {
         mutations.push(
           fieldPush({ ...record, deletedAt: clock - 1, purgedAt: clock }, ['deletedAt', 'purgedAt'], clock),
         );
-      else mutations.push(whole({ ...record, notes: `w${i}` }));
+      else mutations.push(mut({ ...record, notes: `w${i}` }));
     }
     return mutations;
   }
@@ -123,14 +84,12 @@ d('push: split statements', () => {
     const batched = await inBatches(USER_B, mutations, 500);
     expect(wire(giant)).toEqual(wire(batched));
     await expectSameRows('assets');
-    await clear(USER_A);
-    await clear(USER_B);
   }, 180_000);
 
   it('a row error in the last statement of a split push: every other row as in batches of 500, the row alone rejected', async () => {
     const mutations = seededMutations(9, 6000, 1000);
-    const x = asset();
-    mutations.push(whole(x));
+    const x = fullAssetRecord();
+    mutations.push(mut(x));
     mutations.push(fieldPush({ ...x, updatedAt: 9_000_000, notes: REJECTED_NOTES }, ['notes'], 9_000_000));
     mutations.push(fieldPush({ ...x, updatedAt: 9_000_001, isFavorite: true }, ['isFavorite'], 9_000_001));
     const giant = await push(db, USER_A, mutations);
@@ -138,8 +97,6 @@ d('push: split statements', () => {
     expect(giant.at(-2)).toMatchObject({ status: 'rejected', reason: 'db:23514' });
     expect(wire(giant)).toEqual(wire(batched));
     await expectSameRows('assets');
-    await clear(USER_A);
-    await clear(USER_B);
   }, 300_000);
 
   it('a pull after a split push delivers every row once, in server_seq order, and a replay moves none', async () => {
@@ -171,7 +128,6 @@ d('push: split statements', () => {
     const replay = await push(db, USER_A, mutations);
     expect(replay.filter((r) => r.status === 'rejected')).toEqual([]);
     expect(await seqs()).toEqual(before);
-    await clear(USER_A);
   }, 180_000);
 
   it('a push of 70,000 edges reads in two statements: the ids on both sides of the split merge right', async () => {
@@ -179,12 +135,12 @@ d('push: split statements', () => {
     const first = await push(
       db,
       USER_A,
-      edges.map((r) => whole(r, 'album_assets')),
+      edges.map((r) => mut(r, 'album_assets')),
     );
     expect(first.filter((r) => r.status !== 'applied')).toEqual([]);
     // Edits of the ids around index 65,534 (the read's split), each twice, older second, and the rest replayed.
     const around = [0, 65_532, 65_533, 65_534, 65_535, 69_999];
-    const mutations: PushMutation[] = edges.map((r) => whole(r, 'album_assets'));
+    const mutations: PushMutation[] = edges.map((r) => mut(r, 'album_assets'));
     for (const i of around) {
       mutations.push(
         fieldPush({ ...edges[i]!, updatedAt: 3000, position: `z${i}` }, ['position'], 3000, 'album_assets'),
@@ -211,12 +167,11 @@ d('push: split statements', () => {
     expect(new Map(stored.map((row) => [row.id, row.position]))).toEqual(
       new Map(around.map((i) => [edges[i]!.id, `z${i}`])),
     );
-    await clear(USER_A);
   }, 300_000);
 
   it('a library of 10,000 photos, 300 albums of 40 and 200 posts, each collection pushed whole, twice: the same rows, nothing moved', async () => {
     const assets = Array.from({ length: 10_000 }, (_, i) =>
-      asset({
+      fullAssetRecord({
         mediaLibraryAssetId: `m${i}`,
         filename: `${i}.jpg`,
         thumbnailFilename: `t${i}.jpg`,
@@ -278,7 +233,7 @@ d('push: split statements', () => {
         const results = await push(
           db,
           USER_A,
-          records.map((record) => whole(record, collection)),
+          records.map((record) => mut(record, collection)),
         );
         counts[collection] = {};
         for (const { status } of results) counts[collection]![status] = (counts[collection]![status] ?? 0) + 1;
@@ -303,7 +258,6 @@ d('push: split statements', () => {
     const before = await seqs();
     expect(await pushAll()).toEqual(first);
     expect(await seqs()).toEqual(before);
-    await clear(USER_A);
   }, 180_000);
 
   // Insert clocks: an insert naming only some fields is clocked as it is written, so a batch
@@ -318,7 +272,9 @@ d('push: split statements', () => {
         let seed = 1000 + round;
         const rand = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
         const pick = <T>(list: readonly T[]) => list[Math.floor(rand() * list.length)]!;
-        const assets = Array.from({ length: 10 }, () => asset({ updatedAt: 1000 + Math.floor(rand() * 5000) }));
+        const assets = Array.from({ length: 10 }, () =>
+          fullAssetRecord({ updatedAt: 1000 + Math.floor(rand() * 5000) }),
+        );
         const mutations: PushMutation[] = [];
         const seen = new Set<string>();
         for (let i = 0; i < 300; i++) {
@@ -337,7 +293,7 @@ d('push: split statements', () => {
           const first = !seen.has(record.id.toLowerCase());
           seen.add(record.id.toLowerCase());
           // A first push names only the fields of its edit (a row the server lost, say), or none at all.
-          if (rand() < (first ? 0.3 : 0.15)) mutations.push(whole(record));
+          if (rand() < (first ? 0.3 : 0.15)) mutations.push(mut(record));
           else mutations.push(fieldPush(record, fields, clock - (rand() < 0.3 ? Math.floor(rand() * 50) : 0)));
         }
         const giant = await push(db, USER_A, mutations);
@@ -356,9 +312,7 @@ d('push: split statements', () => {
         for (const [id, row] of await rowsOf('assets', USER_A)) expect(row, id).toEqual(third.get(id));
       }
     } finally {
-      await clear(USER_A);
-      await clear(USER_B);
-      await clear(THIRD);
+      await clearRows([THIRD]);
       await db.delete(schema.users).where(eq(schema.users.id, THIRD));
     }
   }, 120_000);

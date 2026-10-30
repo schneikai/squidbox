@@ -289,7 +289,11 @@ d('sync engine (Postgres)', () => {
 
   it('pagination: hasMore loops until drained', async () => {
     const records = Array.from({ length: 5 }, () => assetRecord());
-    await push(db, USER_A, records.map(mut));
+    await push(
+      db,
+      USER_A,
+      records.map((r) => mut(r)),
+    );
 
     const seen: string[] = [];
     let cursor = 0;
