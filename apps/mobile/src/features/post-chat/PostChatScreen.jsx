@@ -21,12 +21,14 @@ import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import usePromptButtons from '@/features/prompt-buttons/usePromptButtons';
 import useCloseWhen from '@/hooks/useCloseWhen';
 import useHaptics from '@/hooks/useHaptics';
+import useHasFeature from '@/hooks/useHasFeature';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useScrollY from '@/hooks/useScrollY';
 import confirmAsync from '@/utils/confirmAsync';
 
 const ASK_ANYTHING = 'Ask anything';
+const WRITING_AS_YOU = 'Writing as you';
 
 /**
  * The assistant chat about the post being written (`{ sessionId }`, the editor's chat; `prompt`, a
@@ -46,8 +48,7 @@ export default function PostChatScreen({ route, navigation }) {
   // What waits in the composer: a new `key` remounts it with the prompt a button put there.
   const [seed, setSeed] = useState(() => ({ key: 0, turn: prompt }));
   const favorites = useFavoriteToggle();
-  // An ai_admin sees which model writes, instead of whose voice.
-  const modelName = useWritingModelName();
+  const isAiAdmin = useHasFeature('ai_admin');
   const scrollRef = useRef(null);
   // The title fades as the messages scroll under the header, as on the other sheets (ModalHeader).
   const { scrollY, onScroll } = useScrollY();
@@ -99,11 +100,9 @@ export default function PostChatScreen({ route, navigation }) {
 
   return (
     <ModalSheet>
-      <ModalHeader
+      <ChatHeader
+        isAiAdmin={isAiAdmin}
         leftSlot={<ModalCloseButton onPress={() => navigation.goBack()} />}
-        centerSlot="Assistant"
-        subtitle={modelName ?? 'Writing as you'}
-        subtitleSize={modelName ? 'small' : 'regular'}
         scrollY={scrollY}
         rightSlot={
           <IconButton icon="edit" onPress={handleNewChat} disabled={!messages?.length} accessibilityLabel="New chat" />
@@ -162,6 +161,25 @@ export default function PostChatScreen({ route, navigation }) {
         />
       </Animated.View>
     </ModalSheet>
+  );
+}
+
+// The chat's header: "Writing as you" under the title, or for an ai_admin the writing model's name
+// (its hooks run only for one).
+function ChatHeader({ isAiAdmin, ...headerProps }) {
+  if (isAiAdmin) return <ModelNameHeader {...headerProps} />;
+  return <ModalHeader {...headerProps} centerSlot="Assistant" subtitle={WRITING_AS_YOU} />;
+}
+
+function ModelNameHeader(headerProps) {
+  const modelName = useWritingModelName();
+  return (
+    <ModalHeader
+      {...headerProps}
+      centerSlot="Assistant"
+      subtitle={modelName ?? WRITING_AS_YOU}
+      subtitleSize={modelName ? 'small' : 'regular'}
+    />
   );
 }
 

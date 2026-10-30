@@ -236,15 +236,20 @@ const promptSchema = z.string().trim().min(1).max(COMPARE_PROMPT_MAX_LENGTH);
 const modelErrorSchema = z.object({ modelId: z.string(), error: z.string() });
 
 /**
- * A model's answers (posts or a photo's tags, up to `maxItems` each) of its earlier rounds with the
- * same prompt, oldest first, so it gives different ones: all of them, up to a bound on the
- * request's size. The app asks each model on its own, so they are that model's.
+ * A model's answers (posts or a photo's tags) of its earlier rounds with the same prompt, oldest
+ * first, so it gives different ones. The app asks each model on its own, so they are that model's.
+ * Cut to a bound (the last 50 rounds, `maxItems` answers each, each answer as long as a prompt)
+ * rather than refused, so a long compare goes on.
  */
 function earlierRoundsSchema(maxItems: number) {
   return z
-    .array(z.array(z.string().max(COMPARE_PROMPT_MAX_LENGTH)).max(maxItems))
-    .max(50)
-    .default([]);
+    .array(z.array(z.string()))
+    .default([])
+    .transform((rounds) =>
+      rounds
+        .slice(-50)
+        .map((items) => items.slice(0, maxItems).map((item) => item.slice(0, COMPARE_PROMPT_MAX_LENGTH))),
+    );
 }
 
 // POST /ai/compare/writing — one prompt, each model writes the posts it asks for. The models get the

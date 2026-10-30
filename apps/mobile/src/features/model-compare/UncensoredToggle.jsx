@@ -38,6 +38,7 @@ export default function UncensoredToggle({ modelId, label }) {
       variant="tinted"
       color={colors.text.secondary}
       isActive={isOn}
+      isSwitch
       onPress={handlePress}
       accessibilityLabel={`${MODEL_LABEL_NAMES.uncensored}, ${label}`}
     />

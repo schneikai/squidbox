@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_INSTRUCTIONS, INSTRUCTION_LIMITS } from '@squidbox/shared';
+import { compareWritingRequestSchema, DEFAULT_INSTRUCTIONS, INSTRUCTION_LIMITS } from '@squidbox/shared';
 import { chatMessages, fillLines, writingMessages } from '../src/ai/prompts.js';
 
 const persona = {
@@ -152,5 +152,19 @@ describe('writingMessages (the Compare)', () => {
       },
       { role: 'user', content: 'Write 3 posts about a sunrise hike' },
     ]);
+  });
+});
+
+describe('compareWritingRequestSchema', () => {
+  it('cuts long earlier rounds to the bound instead of refusing them', () => {
+    const posts = Array.from({ length: 12 }, (_, index) => `post ${index}`);
+    const rounds = Array.from({ length: 52 }, () => posts);
+    const { earlierRounds } = compareWritingRequestSchema.parse({
+      prompt: 'Write',
+      modelIds: ['a'],
+      earlierRounds: rounds,
+    });
+    expect(earlierRounds).toHaveLength(50);
+    expect(earlierRounds[0]).toEqual(posts.slice(0, 10));
   });
 });

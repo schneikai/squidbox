@@ -19,6 +19,7 @@ const PAIR_ICON_SIZE = scale(15);
  * filled   — fills the icon (see Icon), e.g. a favorite's heart.
  * label    — a few characters in place of the icon (18+), where no icon says it.
  * iconCount — the icon twice (2), smaller and side by side, for a second step of the same mark.
+ * isSwitch — read as a switch, on while `isActive`, for a setting it turns on and off (18+).
  *
  * style applies to the Pressable (the tap target / visual container).
  */
@@ -35,6 +36,7 @@ export default function IconButton({
   isActive = false,
   filled,
   accessibilityLabel,
+  isSwitch = false,
   style,
 }) {
   const contentColor = iconColorFor(variant, { color, disabled, isActive });
@@ -55,8 +57,8 @@ export default function IconButton({
       onPress={disabled ? undefined : onPress}
       hitSlop={hitSlop}
       accessibilityLabel={accessibilityLabel}
-      accessibilityRole="button"
-      accessibilityState={{ disabled, selected: isActive }}
+      accessibilityRole={isSwitch ? 'switch' : 'button'}
+      accessibilityState={isSwitch ? { disabled, checked: isActive } : { disabled, selected: isActive }}
       style={({ pressed }) => [
         styles.button,
         styles[variant],
