@@ -3,10 +3,12 @@ import { eq, lte } from 'drizzle-orm';
 import { describe, it, expect, vi, beforeEach, onTestFinished } from 'vitest';
 
 import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
+import { faults, files, resetDevice, stores } from './helpers/fakeDevice';
 import { fuzzRuns } from './helpers/fuzzRuns';
 import { mergeLosses } from './helpers/mergeLosses';
 import { prng } from './helpers/prng';
 import { seedAccountPhotos } from './helpers/seedAccountPhotos';
+import { seedDevicePhotos } from './helpers/seedDevicePhotos';
 import { makeTestDb } from './helpers/testDb';
 import { purgedFilesRemover } from '../src/library/fs';
 import { libraryPaths } from '../src/library/libraryPaths';
@@ -25,80 +27,15 @@ import { getAssetFileUri } from '../src/utils/assets/assetStorage';
 // account library holds keeps a file somewhere (the device library's folder or the account's) while
 // its purge can still lose in the account; and a merge that completes leaves no marker.
 
-const stores = new Map<string, AppDb>();
-const files = new Set<string>();
-const storage = new Map<string, string>();
-// The step that fails, and whether the process dies there (nothing after it runs, no catch block).
-const inject = vi.hoisted(() => ({
-  step: null as string | null,
-  crash: false,
-  dead: false,
-  removing: null as (() => Promise<void>) | null, // what each removal waits for
-  autoPush: true, // the account's library pushes right after each commit
-}));
-function reach(step: string) {
-  if (inject.step !== step) return;
-  inject.step = null;
-  if (inject.crash) inject.dead = true;
-  throw new Error(`failed at ${step}`);
-}
-
+// The device (helpers/fakeDevice), with its faults: the step that fails, and whether the process
+// dies there (nothing after it runs, no catch block).
 vi.mock('expo-file-system/legacy', () => ({ documentDirectory: 'file:///docs/' }));
-vi.mock('../src/sync/db/client', () => {
-  let open: AppDb | null = null;
-  const openAppDb = async (name: string) => {
-    if (!stores.has(name)) stores.set(name, makeTestDb());
-    return Object.assign(Object.create(stores.get(name)!), { close: async () => {} });
-  };
-  return {
-    openAppDb,
-    withAppDb: async (name: string, use: (db: AppDb) => Promise<unknown>) => use(await openAppDb(name)),
-    deleteAppDb: async (name: string) => {
-      if (inject.dead) return;
-      reach('deleteDb');
-      stores.delete(name);
-    },
-    getDb: () => open!,
-    setOpenDb: (db: AppDb | null) => {
-      open = db;
-    },
-  };
-});
-vi.mock('@react-native-async-storage/async-storage', () => ({
-  default: {
-    getItem: async (key: string) => storage.get(key) ?? null,
-    setItem: async (key: string, value: string) => {
-      if (inject.dead) return;
-      storage.set(key, value);
-    },
-  },
-}));
-vi.mock('../src/library/fs', () => ({
-  listFiles: async (dir: string) =>
-    new Set([...files].filter((uri) => uri.startsWith(dir)).map((uri) => uri.slice(dir.length))),
-  fileExists: async (uri: string) => files.has(uri),
-  moveFile: async (from: string, to: string) => {
-    reach('move');
-    files.delete(from);
-    files.add(to);
-  },
-  copyFile: async (_from: string, to: string) => {
-    reach('move');
-    files.add(to);
-  },
-  removeLibraryFolders: async () => {},
-  purgedFilesRemover:
-    (paths: { filesDir: string; thumbnailsDir: string }) =>
-    async (names: { filename?: string; thumbnailFilename?: string }[]) => {
-      await inject.removing?.();
-      for (const { filename, thumbnailFilename } of names) {
-        if (filename) files.delete(`file:///docs/${paths.filesDir}${filename}`);
-        if (thumbnailFilename) files.delete(`file:///docs/${paths.thumbnailsDir}${thumbnailFilename}`);
-      }
-    },
-}));
+vi.mock('../src/sync/db/client', async () => (await import('./helpers/fakeDevice')).dbClient());
+vi.mock('@react-native-async-storage/async-storage', async () => (await import('./helpers/fakeDevice')).asyncStorage());
+vi.mock('../src/library/fs', async () => (await import('./helpers/fakeDevice')).libraryFs());
 vi.mock('../src/sync/status', async (importOriginal) => {
   const original = await importOriginal<typeof import('../src/sync/status')>();
+  const { faults, reach } = await import('./helpers/fakeDevice');
   return {
     ...original,
     getMergeTarget: async (...args: Parameters<typeof original.getMergeTarget>) => {
@@ -106,52 +43,39 @@ vi.mock('../src/sync/status', async (importOriginal) => {
       return original.getMergeTarget(...args);
     },
     setMergeTarget: async (...args: Parameters<typeof original.setMergeTarget>) => {
-      if (inject.dead) return;
+      if (faults.dead) return;
       const [, marker] = args;
       reach(marker ? (marker.committed ? 'commitMarker' : 'setMarker') : 'clearMarker');
       return original.setMergeTarget(...args);
     },
     // The finish (finishMerge) and what the pass records after its move.
     setMergeMarks: async (...args: Parameters<typeof original.setMergeMarks>) => {
-      if (inject.dead) return;
+      if (faults.dead) return;
       reach(args[2] ? 'sourceMarks' : 'forgetMarks');
       return original.setMergeMarks(...args);
     },
     clearMergeCommit: async (...args: Parameters<typeof original.clearMergeCommit>) => {
-      if (inject.dead) return;
+      if (faults.dead) return;
       reach('clearCommit');
       return original.clearMergeCommit(...args);
     },
     setMergeCommit: async (...args: Parameters<typeof original.setMergeCommit>) => {
-      if (inject.dead) return;
+      if (faults.dead) return;
       reach('movedFlag');
       return original.setMergeCommit(...args);
     },
   };
 });
-vi.mock('../src/library/mergeLibrary', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../src/library/mergeLibrary')>();
-  return {
-    ...original,
-    planMerge: async (...args: Parameters<typeof original.planMerge>) => {
-      reach('plan');
-      return original.planMerge(...args);
-    },
-    applyMerge: async (...args: Parameters<typeof original.applyMerge>) => {
-      reach('apply');
-      const commit = await original.applyMerge(...args);
-      reach('afterCommit'); // the transaction committed, and its promise still rejects
-      if (inject.autoPush) await pushAll(args[0]); // so the pass goes on to finish
-      return commit;
-    },
-  };
-});
+vi.mock('../src/library/mergeLibrary', async (importOriginal) =>
+  (await import('./helpers/fakeDevice')).mergeLibraryWithFaults(await importOriginal()),
+);
 vi.mock('../src/library/registry', async (importOriginal) => {
   const original = await importOriginal<typeof import('../src/library/registry')>();
+  const { faults, reach } = await import('./helpers/fakeDevice');
   return {
     ...original,
     updateLibrary: async (...args: Parameters<typeof original.updateLibrary>) => {
-      if (inject.dead) return original.getRegistry();
+      if (faults.dead) return original.getRegistry();
       const before = original.getRegistry().libraries.find((library) => library.id === args[0]);
       const after = args[1](before!);
       const marker = after.mergedInto;
@@ -177,10 +101,8 @@ const entry = (id: string) => getRegistry().libraries.find((library) => library.
 // A fresh device: the list [DEV, ACC], the device library's empty database, no files; returns it.
 async function resetLibraries(): Promise<AppDb> {
   if (openLibraryId()) await closeLibrary();
-  stores.clear();
-  files.clear();
-  storage.clear();
-  Object.assign(inject, { step: null, crash: false, dead: false, autoPush: true, removing: null });
+  resetDevice();
+  faults.autoPush = true;
   await loadRegistry(async () => ({ libraries: [DEV, ACC] }));
   const source = makeTestDb();
   stores.set(SRC.dbName, source);
@@ -244,13 +166,13 @@ async function scenario(step: string, crash: boolean, keepsSource: boolean): Pro
   const inAccount = async () =>
     (await stores.get(TGT.dbName)!.select().from(schema.assets)).some((row) => row.id === photo.id);
 
-  Object.assign(inject, { step, crash });
+  Object.assign(faults, { step, crash });
   await mergeLibrary('dev', 'acc').catch(() => {});
-  if (inject.step === step) {
+  if (faults.step === step) {
     reached.delete(at); // this pass never reaches the step (e.g. no source kept: no clearMarker)
     return [];
   }
-  inject.dead = false;
+  faults.dead = false;
 
   // The session is lost: the device library opens (its open sweeps), and the photo is purged there.
   if (entry('dev')) {
@@ -288,7 +210,7 @@ async function scenario(step: string, crash: boolean, keepsSource: boolean): Pro
 
 describe('a merge pass failing or crashing at each step, then a purge on the device, then the resume', () => {
   beforeEach(() => {
-    Object.assign(inject, { step: null, crash: false, dead: false });
+    Object.assign(faults, { step: null, crash: false, dead: false });
   });
 
   it('a crash at any step: the photo keeps a file while the account can restore it, and the merge completes clean', async () => {
@@ -341,7 +263,7 @@ describe('a device library’s sweep running when the sign-in merges it', () => 
 
     const removal = gate();
     onTestFinished(() => removal.release());
-    inject.removing = removal.hold;
+    faults.removing = removal.hold;
     await openLibrary(DEV); // its sweep starts, without holding up the open
     await removal.entered; // its first batch is being removed
     const left = () => [...files].filter((uri) => uri.startsWith(getAssetFileUri('gone', SRC))).length;
@@ -382,14 +304,14 @@ describe('two crashes between a merge’s finish and the device library’s remo
     await devicePhoto(stores.get(SRC.dbName)!, { mediaLibraryAssetId: 'm-o', filename: 'o.jpg' });
 
     // Pass 1: the match and the copy commit, the account pushes, the finish runs, then the app dies.
-    Object.assign(inject, { step: 'deleteDb', crash: true });
+    Object.assign(faults, { step: 'deleteDb', crash: true });
     await mergeLibrary('dev', 'acc').catch(() => {});
-    expect(inject.dead).toBe(true);
+    expect(faults.dead).toBe(true);
     // The next launch: the pass plans from the source's marks, finishes, and the app dies again there.
-    Object.assign(inject, { step: 'deleteDb', crash: true, dead: false });
+    Object.assign(faults, { step: 'deleteDb', crash: true, dead: false });
     await resumeMerges();
-    expect(inject.dead).toBe(true);
-    inject.dead = false;
+    expect(faults.dead).toBe(true);
+    faults.dead = false;
     expect(entry('dev')).toBeDefined();
     // The pass after the finish keeps the list's marker committed, as the source's database says.
     expect(entry('dev')?.mergedInto?.committed).toBe(true);
@@ -418,19 +340,19 @@ describe('a crash between the commit and the committed marker', () => {
     await status.markFirstSyncDone(getDb());
     const markerInDb = async () => (await status.getMergeTarget(stores.get(SRC.dbName)!))?.committed;
 
-    Object.assign(inject, { step: 'afterCommit', crash: true });
+    Object.assign(faults, { step: 'afterCommit', crash: true });
     await mergeLibrary('dev', 'acc').catch(() => {});
-    expect(inject.dead).toBe(true);
-    inject.dead = false;
+    expect(faults.dead).toBe(true);
+    faults.dead = false;
     expect(await markerInDb()).toBeUndefined();
 
     // The next launches: the pass moves the file, the account pushes, the finish runs, and the app
     // dies before the device library's deletion, twice.
     for (let crash = 0; crash < 2; crash++) {
-      Object.assign(inject, { step: 'deleteDb', crash: true });
+      Object.assign(faults, { step: 'deleteDb', crash: true });
       await resumeMerges();
-      expect(inject.dead).toBe(true);
-      inject.dead = false;
+      expect(faults.dead).toBe(true);
+      faults.dead = false;
       expect(entry('dev')?.mergedInto?.committed).toBe(true);
       expect(await markerInDb()).toBe(true);
       expect(files.has(getAssetFileUri('p.jpg', TGT))).toBe(true);
@@ -450,7 +372,7 @@ describe('seeded crashes', () => {
   const albums = makeRepository('albums', schema.albums);
   const SEEDS = fuzzRuns(40, 150);
   async function reboot() {
-    Object.assign(inject, { step: null, dead: false });
+    Object.assign(faults, { step: null, dead: false });
     if (openLibraryId()) await closeLibrary();
     await loadRegistry(async () => ({ libraries: [DEV, ACC] }));
     await openLibrary(ACC);
@@ -461,34 +383,17 @@ describe('seeded crashes', () => {
     const { pick } = rand;
     const r = rand.next;
     const source = await resetLibraries();
-    inject.autoPush = false;
+    faults.autoPush = false;
     await openLibrary(ACC);
     await status.markFirstSyncDone(getDb());
     const accountRows = await seedAccountPhotos(getDb(), rand, (name) => files.add(getAssetFileUri(name, TGT)));
-    const media = ['m0', 'm1', 'm2', 'm3', 'm4', 'm5'];
     const problems: string[] = [];
-    // A record whose backup found no file loses that error only once its file is here.
-    const missingFile = new Set<string>();
-    const errorGoneTooSoon = async () => {
-      for (const row of await getDb().select().from(schema.assets))
-        if (missingFile.has(row.id) && row.syncError === null && !files.has(getAssetFileUri(row.filename, TGT)))
-          problems.push(`seed ${seed}: ${row.filename} lost its sync error before its file arrived`);
-    };
-    const device: schema.AssetRow[] = [];
-    for (let i = 0; i < 5; i++) {
-      // Now and then the file name of an earlier photo (two records can share one file name).
-      const name = i > 0 && r() < 0.2 ? `dev${Math.floor(r() * i)}` : `dev${i}`;
-      const photo = await devicePhoto(source, {
-        ...{ mediaLibraryAssetId: pick(media), filename: `${name}.jpg`, thumbnailFilename: `${name}-t.jpg` },
-        ...{ isFavorite: r() < 0.3, notes: r() < 0.3 ? `dev note ${i}` : null },
-      });
-      device.push(photo as schema.AssetRow);
-      // Now and then one an earlier library copied and pushed, whose backup there found no file.
-      if (r() < 0.2) {
-        await upsertRows(getDb(), 'assets', schema.assets, [{ ...photo, syncError: 'No file on this device' }]);
-        missingFile.add(photo.id);
-      }
-    }
+    const { photos: device, errorsGoneTooSoon } = await seedDevicePhotos(
+      rand,
+      (over) => devicePhoto(source, over),
+      () => getDb(),
+      (name) => files.has(getAssetFileUri(name, TGT)),
+    );
     const keeps = r() < 0.3;
     if (keeps) await devicePhoto(source, { mediaLibraryAssetId: 'mk', filename: 'kept.jpg', isFileSynced: true });
     const album = makeAlbumRecord({ name: 'Trip' });
@@ -503,14 +408,14 @@ describe('seeded crashes', () => {
     const accountAssets = () => getDb().select().from(schema.assets);
 
     for (let step = 0; step < 10; step++) {
-      await errorGoneTooSoon();
+      problems.push(...(await errorsGoneTooSoon(`seed ${seed}`)));
       const op = r();
       if (op < 0.45) {
-        Object.assign(inject, { step: r() < 0.5 ? pick(STEPS) : null, crash: true });
+        Object.assign(faults, { step: r() < 0.5 ? pick(STEPS) : null, crash: true });
         if (entry('dev')?.mergedInto) await resumeMerges();
         else if (entry('dev')) await mergeLibrary('dev', 'acc').catch(() => {});
-        inject.step = null;
-        if (inject.dead) await reboot();
+        faults.step = null;
+        if (faults.dead) await reboot();
       } else if (op < 0.6) {
         await pushAll(getDb());
       } else if (op < 0.7) {

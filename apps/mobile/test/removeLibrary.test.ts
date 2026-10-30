@@ -1,40 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
-import { makeTestDb } from './helpers/testDb';
+import { deleted, resetDevice, storage } from './helpers/fakeDevice';
 import * as repo from '../src/sync/assetsRepository';
-import type { AppDb } from '../src/sync/db/driver';
 
-const stores = new Map<string, AppDb>();
-const deleted: string[] = [];
 const removedFolders: string[] = [];
-const storage = new Map<string, string>();
 
-vi.mock('../src/sync/db/client', () => {
-  let open: AppDb | null = null;
-  return {
-    openAppDb: async (name: string) => {
-      if (!stores.has(name)) stores.set(name, makeTestDb());
-      return Object.assign(Object.create(stores.get(name)!), { close: async () => {} });
-    },
-    deleteAppDb: async (name: string) => {
-      deleted.push(name);
-      stores.delete(name);
-    },
-    getDb: () => open!,
-    setOpenDb: (db: AppDb | null) => {
-      open = db;
-    },
-  };
-});
-vi.mock('@react-native-async-storage/async-storage', () => ({
-  default: {
-    getItem: async (key: string) => storage.get(key) ?? null,
-    setItem: async (key: string, value: string) => {
-      storage.set(key, value);
-    },
-  },
-}));
+// The device (helpers/fakeDevice): databases by name and AsyncStorage.
+vi.mock('../src/sync/db/client', async () => (await import('./helpers/fakeDevice')).dbClient());
+vi.mock('@react-native-async-storage/async-storage', async () => (await import('./helpers/fakeDevice')).asyncStorage());
 vi.mock('../src/library/fs', () => ({
   removeLibraryFolders: async (paths: { filesDir: string; thumbnailsDir: string }) => {
     removedFolders.push(paths.filesDir, paths.thumbnailsDir);
@@ -55,10 +29,8 @@ const parked = {
 describe('removeLibrary', () => {
   beforeEach(async () => {
     if (openLibraryId()) await closeLibrary();
-    stores.clear();
-    deleted.length = 0;
+    resetDevice();
     removedFolders.length = 0;
-    storage.clear();
     await loadRegistry(async () => ({ libraries: [open, parked] }));
     await openLibrary(open);
     await repo.create(getDb(), makeAssetRecord({ isSynced: false })); // the open library has its own data

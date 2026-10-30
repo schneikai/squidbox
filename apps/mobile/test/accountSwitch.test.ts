@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
+import { dbNames, deleted, faults, files, resetDevice, storage, stores } from './helpers/fakeDevice';
 import { sessionStoreMock } from './helpers/sessionStoreMock';
 import { makeTestDb } from './helpers/testDb';
 import type { Session } from '../src/library/session';
 import * as repo from '../src/sync/assetsRepository';
-import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import { setOutboxError } from '../src/sync/outbox';
 import { makeRepository } from '../src/sync/repository';
@@ -19,72 +19,19 @@ import {
   setOwner,
 } from '../src/sync/status';
 
-// The device: its databases by name (a store survives close and reopen, like a file), the stored
-// session and the library list in AsyncStorage.
-const stores = new Map<string, AppDb>();
-const failing = new Set<string>();
-const full = new Set<string>(); // the browser has no room for these (web's fixed pool of files)
-const deleted: string[] = [];
-const storage = new Map<string, string>();
+// The device (helpers/fakeDevice): its databases by name, the library files, and the stored session
+// and the library list in AsyncStorage.
 const store: { session: Session | null } = { session: null };
 
-vi.mock('../src/sync/db/client', () => {
-  let open: AppDb | null = null;
-  const openAppDb = async (name: string) => {
-    if (failing.has(name)) throw new Error(`cannot open ${name}`);
-    if (full.has(name)) throw new Error(`no room for ${name}`);
-    if (!stores.has(name)) stores.set(name, makeTestDb());
-    return Object.assign(Object.create(stores.get(name)!), { close: async () => {} });
-  };
-  return {
-    openAppDb,
-    withAppDb: async (name: string, use: (db: AppDb) => Promise<unknown>) => use(await openAppDb(name)),
-    deleteAppDb: async (name: string) => {
-      deleted.push(name);
-      stores.delete(name);
-    },
-    getDb: () => {
-      if (!open) throw new Error('No library is open');
-      return open;
-    },
-    setOpenDb: (db: AppDb | null) => {
-      open = db;
-    },
-  };
-});
-vi.mock('@react-native-async-storage/async-storage', () => ({
-  default: {
-    getItem: async (key: string) => storage.get(key) ?? null,
-    setItem: async (key: string, value: string) => {
-      storage.set(key, value);
-    },
-  },
-}));
+vi.mock('../src/sync/db/client', async () => (await import('./helpers/fakeDevice')).dbClient());
+vi.mock('@react-native-async-storage/async-storage', async () => (await import('./helpers/fakeDevice')).asyncStorage());
 vi.mock('../src/utils/cloud-api/sessionStore', () => sessionStoreMock(store));
 vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({ API_BASE_URL: 'https://api.test/api/v1' }));
 vi.mock('expo-file-system/legacy', () => ({ documentDirectory: 'file:///docs/' }));
 vi.mock('@sentry/react-native', () => ({ captureException: () => {}, captureMessage: () => {} }));
 // The boot's network check: the stored session as it is (offline).
 vi.mock('../src/utils/cloud-api/initializeCloudAsync', () => ({ default: async () => store.session }));
-const dbNames: string[] = []; // the databases on disk, for a registry rebuild
-// The files on disk by uri: none unless a test adds them.
-const files = vi.hoisted(() => new Set<string>());
-vi.mock('../src/library/fs', () => ({
-  listDatabaseNames: async () => dbNames,
-  listFiles: async (dir: string) =>
-    new Set([...files].filter((uri) => uri.startsWith(dir)).map((uri) => uri.slice(dir.length))),
-  createLibraryFolders: async () => {},
-  removeLibraryFolders: async () => {},
-  fileExists: async (uri: string) => files.has(uri),
-  moveFile: async (from: string, to: string) => {
-    files.delete(from);
-    files.add(to);
-  },
-  copyFile: async (_from: string, to: string) => {
-    files.add(to);
-  },
-  libraryLimitMessage: (error: Error) => (error.message.startsWith('no room') ? 'No more libraries' : null),
-}));
+vi.mock('../src/library/fs', async () => (await import('./helpers/fakeDevice')).libraryFs());
 const ids = vi.hoisted(() => ({ n: 0 }));
 vi.mock('../src/utils/getNewItemId', () => ({ default: () => `id-${++ids.n}` }));
 // The token refresh's request (refreshAccessTokenAsync), for a session the server rejects.
@@ -92,7 +39,7 @@ const api = vi.hoisted(() => ({ post: async (..._args: unknown[]): Promise<unkno
 vi.mock('../src/utils/cloud-api/api', () => ({ default: api }));
 
 const { bootLibrary } = await import('../src/library/bootLibrary');
-const { closeLibrary, getLibrary, openLibraryId } = await import('../src/library/current');
+const { closeLibrary, getLibrary, librarySweepsSettled, openLibraryId } = await import('../src/library/current');
 const { resumeMerges } = await import('../src/library/mergeRun');
 const { getRegistry, loadRegistry, updateLibrary } = await import('../src/library/registry');
 const {
@@ -157,14 +104,9 @@ describe('switching libraries with the session', () => {
 
   beforeEach(async () => {
     if (openLibraryId()) await closeLibrary();
-    stores.clear();
-    failing.clear();
-    full.clear();
-    deleted.length = 0;
-    storage.clear();
+    await librarySweepsSettled(); // a sweep the last test's library started removes nothing of this one's
+    resetDevice();
     store.session = null;
-    dbNames.length = 0;
-    files.clear();
     ids.n = 0;
   });
 
@@ -300,7 +242,7 @@ describe('switching libraries with the session', () => {
     await open(null);
     const deviceId = getLibrary().id;
     const photo = await repo.create(getDb(), makeAssetRecord({ isFileSynced: false, isSynced: false }));
-    failing.add(`library-${deviceId}.db`); // the merge's second connection to it
+    faults.failingOpens.add(`library-${deviceId}.db`); // the merge's second connection to it
 
     await signIn(sessionOf('A'));
 
@@ -309,7 +251,7 @@ describe('switching libraries with the session', () => {
     expect(libraryIds()).toContain(deviceId);
     expect(store.session).toEqual(sessionOf('A'));
 
-    failing.clear();
+    faults.failingOpens.clear();
     await closeLibrary(); // the app is closed and opened again
     await open(store.session);
     await markFirstSyncDone(getDb()); // the account's library pulled meanwhile
@@ -383,7 +325,7 @@ describe('switching libraries with the session', () => {
     await open(sessionOf('A'));
     const aId = getLibrary().id;
     await setCursor(getDb(), 42);
-    failing.add('library-id-2.db'); // the next id, B's new library
+    faults.failingOpens.add('library-id-2.db'); // the next id, B's new library
 
     await expect(signIn(sessionOf('B'))).rejects.toThrow("Couldn't create the library: cannot open library-id-2.db");
 
@@ -398,7 +340,7 @@ describe('switching libraries with the session', () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(sessionOf('A'));
     const aId = getLibrary().id;
-    full.add('library-id-2.db');
+    faults.fullOpens.add('library-id-2.db');
 
     const error = await signIn(sessionOf('B')).catch((e) => e);
 
@@ -411,8 +353,8 @@ describe('switching libraries with the session', () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(sessionOf('A'));
     const aId = getLibrary().id;
-    failing.add('library-id-2.db');
-    failing.add(`library-${aId}.db`);
+    faults.failingOpens.add('library-id-2.db');
+    faults.failingOpens.add(`library-${aId}.db`);
 
     await expect(signIn(sessionOf('B'))).rejects.toThrow("Couldn't create the library: cannot open library-id-2.db");
 
@@ -597,7 +539,7 @@ describe('switching libraries with the session', () => {
     );
     await signIn(sessionOf('A'));
     const aId = getLibrary().id;
-    failing.add(`library-${deviceId}.db`);
+    faults.failingOpens.add(`library-${deviceId}.db`);
     await signOut();
     await open(store.session); // what watchTokenDrops runs after the drop
     expect(getLibrary().id).toBe(aId);
