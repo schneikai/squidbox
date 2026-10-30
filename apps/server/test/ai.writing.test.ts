@@ -137,7 +137,7 @@ describe('writingMessages (the Compare)', () => {
       {
         role: 'system',
         content:
-          'Answer only with the posts the prompt asks for. Each item is one finished post, with no intro, notes or quotes around it.',
+          'Answer in JSON, with only the posts the prompt asks for. Each item is one finished post, with no intro, notes or quotes around it.',
       },
       { role: 'user', content: 'Write 3 posts about a sunrise hike' },
     ]);

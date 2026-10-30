@@ -24,9 +24,10 @@ export function fillTemplate(template: string, values: Record<string, string>): 
 }
 
 // Only how a writing compare answers, not what it writes, so it isn't one of the editable
-// instructions (the owner's call): the prompt box stays all the guidance a model gets.
+// instructions (the owner's call): the prompt box stays all the guidance a model gets. It names
+// JSON: some providers behind Venice refuse a response format when the messages don't.
 const COMPARE_WRITING_FORMAT =
-  'Answer only with the posts the prompt asks for. Each item is one finished post, with no intro, notes or quotes around it.';
+  'Answer in JSON, with only the posts the prompt asks for. Each item is one finished post, with no intro, notes or quotes around it.';
 
 /**
  * The writing prompt of a compare: the prompt box as the user's message, after a system line on the

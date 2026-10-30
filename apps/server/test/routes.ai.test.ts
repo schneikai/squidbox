@@ -380,7 +380,7 @@ describe('POST /api/v1/ai/compare/writing', () => {
     expect(readFavorites).not.toHaveBeenCalled();
     for (const body of chatBodies()) {
       expect(body.messages).toEqual([
-        { role: 'system', content: expect.stringContaining('Answer only with the posts') },
+        { role: 'system', content: expect.stringContaining('Answer in JSON, with only the posts') },
         { role: 'user', content: writing.prompt },
       ]);
     }
