@@ -16,6 +16,7 @@ export { default as Archive } from 'lucide-react-native/dist/cjs/icons/archive';
 export { default as ArrowDown } from 'lucide-react-native/dist/cjs/icons/arrow-down';
 export { default as ArrowUp } from 'lucide-react-native/dist/cjs/icons/arrow-up';
 export { default as ArrowUpDown } from 'lucide-react-native/dist/cjs/icons/arrow-up-down';
+export { default as AtSign } from 'lucide-react-native/dist/cjs/icons/at-sign';
 export { default as Award } from 'lucide-react-native/dist/cjs/icons/award';
 export { default as Briefcase } from 'lucide-react-native/dist/cjs/icons/briefcase';
 export { default as Calendar } from 'lucide-react-native/dist/cjs/icons/calendar';

@@ -16,6 +16,7 @@ const PROMPT_BUTTON_ICONS = [
   'thread',
   'poll',
   'hash',
+  'mention',
   'image',
   'award',
   'mountain',
