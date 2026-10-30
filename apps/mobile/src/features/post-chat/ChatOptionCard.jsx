@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import useCopyText from './useCopyText';
 
 import Button from '@/components/Button';
-import IconMenuButton from '@/components/IconMenuButton';
+import MenuButton from '@/components/MenuButton';
 import OptionCard from '@/components/OptionCard';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import FavoriteHeartButton from '@/features/favorites/FavoriteHeartButton';
@@ -22,9 +22,9 @@ function ChatOptionCard({ text, isFavorite, onToggleFavorite, onMoreLikeThis, on
   return (
     <OptionCard text={text}>
       <FavoriteHeartButton isFavorite={isFavorite} onPress={() => onToggleFavorite(text)} />
-      <IconMenuButton colorPalette="muted" accessibilityLabel="More for this suggestion">
+      <MenuButton accessibilityLabel="More for this suggestion">
         <MenuOption label="More like this" icon="repeat" onPress={() => onMoreLikeThis(text)} />
-      </IconMenuButton>
+      </MenuButton>
       <View style={styles.action}>
         {onUse ? (
           <Button label="Use" size="small" onPress={() => onUse(text)} />

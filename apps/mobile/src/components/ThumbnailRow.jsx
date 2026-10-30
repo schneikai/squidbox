@@ -1,8 +1,8 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import CoverImage from '@/components/CoverImage';
+import Divider from '@/components/Divider';
 import Icon from '@/components/Icon';
-import ListDivider from '@/components/ListDivider';
 import { colors, scale, sizes } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
@@ -30,7 +30,7 @@ export default function ThumbnailRow({ asset, hasThumbnail = true, title, subtit
           )}
         </View>
         <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.tertiary} />
-        {!isLast && <ListDivider style={styles.divider} />}
+        {!isLast && <Divider style={styles.divider} />}
       </View>
     </TouchableOpacity>
   );

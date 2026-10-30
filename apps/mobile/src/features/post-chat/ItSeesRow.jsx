@@ -71,7 +71,7 @@ export default function ItSeesRow({ rows, attempts, isTagging, untagged, tagEdit
         onClose={() => setIsEditing(false)}
         tags={tags}
         onEditTags={onEditTags}
-        isDisabled={isTagging}
+        disabled={isTagging}
       />
     </>
   );

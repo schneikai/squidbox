@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FloatingPill from './FloatingPill';
 
 import Button from '@/components/Button';
-import IconMenuButton from '@/components/IconMenuButton';
+import MenuButton from '@/components/MenuButton';
 import SearchTextInput from '@/components/SearchTextInput';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
 import { glass, layout, motion, scale, sizes } from '@/styles/designTokens';
@@ -107,14 +107,14 @@ export default function SearchOptionsBar({
 
         {/* Collapsed: options button */}
         <Animated.View style={collapsedStyle}>
-          <IconMenuButton
+          <MenuButton
             icon="options"
 
             isSelected={hasActiveState}
             accessibilityLabel="Sort and filter"
           >
             {optionsMenu}
-          </IconMenuButton>
+          </MenuButton>
         </Animated.View>
 
         {/* Expanded: the field, with the native clear button inside */}

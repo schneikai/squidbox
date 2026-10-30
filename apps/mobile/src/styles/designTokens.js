@@ -82,7 +82,7 @@ export const colors = {
   },
   border: {
     glass: alpha(palette.black, 0.08),
-    divider: alpha(palette.black, 0.08), // between the rows of a grouped list (ListDivider)
+    divider: alpha(palette.black, 0.08), // between the rows of a grouped list (Divider)
   },
   overlay: {
     pressed: alpha(palette.black, 0.06), // a pressed or highlighted row on a light surface

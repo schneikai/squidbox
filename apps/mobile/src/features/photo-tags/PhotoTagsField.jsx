@@ -6,9 +6,9 @@ import TagsField from '@/components/TagsField';
 
 /**
  * The tags of `asset` (its live row), edited in place (usePhotoTagsEdit): a tap on a chip takes it
- * off, Add adds one. `isDisabled` while a tagging runs; `guardPress`, TagsField's.
+ * off, Add adds one. `disabled` while a tagging runs; `guardPress`, TagsField's.
  */
-export default function PhotoTagsField({ asset, placeholder, isDisabled, guardPress }) {
+export default function PhotoTagsField({ asset, placeholder, disabled, guardPress }) {
   const { tags, change } = usePhotoTagsEdit(asset);
   return (
     <TagsField
@@ -17,7 +17,7 @@ export default function PhotoTagsField({ asset, placeholder, isDisabled, guardPr
       placeholder={placeholder}
       maxTags={ASSET_TAG_LIMITS.tags}
       maxTagLength={ASSET_TAG_LIMITS.tag}
-      isDisabled={isDisabled}
+      disabled={disabled}
       guardPress={guardPress}
     />
   );

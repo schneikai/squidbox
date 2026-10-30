@@ -35,10 +35,9 @@ function ModelAnswers({ answerKey, kind, letters, namesById, results = {}, taps 
                 <Chip
                   key={index}
                   label={tag}
-                  variant={isOn ? 'accent' : 'muted'}
+                  isSelected={isOn}
                   onPress={() => toggle(answerKey, modelId, index)}
                   accessibilityRole="checkbox"
-                  accessibilityState={{ checked: isOn }}
                 />
               );
             })}

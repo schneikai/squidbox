@@ -13,14 +13,14 @@ const MAX_INPUT_HEIGHT = scale(120);
  * Where the user writes to the assistant: a text field, seeded with `seed` (`{ label, content }`, a
  * prompt button's, whose name goes with it until the text is edited), and Send, which hands
  * `onSend({ label, content })` the trimmed text and empties the field once it was sent. Send waits
- * while `isDisabled`, and shows a spinner while `isWaiting` (the send waits for the photos' tags).
+ * while `disabled`, and shows a spinner while `isWaiting` (the send waits for the photos' tags).
  */
-export default function ChatComposer({ seed, placeholder, isDisabled, isWaiting, onSend }) {
+export default function ChatComposer({ seed, placeholder, disabled, isWaiting, onSend }) {
   const [text, setText] = useState(seed?.content ?? '');
   const [label, setLabel] = useState(seed?.label ?? null);
 
   const content = text.trim();
-  const canSend = Boolean(content) && !isDisabled && !isWaiting;
+  const canSend = Boolean(content) && !disabled && !isWaiting;
 
   function handleChangeText(next) {
     setText(next);

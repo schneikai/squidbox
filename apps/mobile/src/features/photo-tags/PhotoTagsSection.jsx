@@ -29,7 +29,7 @@ export default function PhotoTagsSection({ asset, guardPress }) {
 
   return (
     <View style={styles.section}>
-      <PhotoTagsField asset={asset} placeholder="No tags" isDisabled={isRunning} guardPress={guardPress} />
+      <PhotoTagsField asset={asset} placeholder="No tags" disabled={isRunning} guardPress={guardPress} />
       {isAssistantAvailable && (
         <View style={styles.line}>
           {error && <Text style={listTextStyles.subtitle}>{error}</Text>}

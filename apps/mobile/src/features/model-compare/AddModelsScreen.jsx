@@ -8,8 +8,8 @@ import searchModels from './searchModels';
 
 import Button from '@/components/Button';
 import CatalogStatus from '@/components/CatalogStatus';
+import Divider from '@/components/Divider';
 import EmptyState from '@/components/EmptyState';
-import ListDivider from '@/components/ListDivider';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import SearchInput from '@/components/SearchInput';
@@ -82,7 +82,7 @@ export default function AddModelsScreen({ navigation, route }) {
         data={models}
         keyExtractor={(model) => model.id}
         renderItem={renderItem}
-        ItemSeparatorComponent={ListDivider}
+        ItemSeparatorComponent={Divider}
         ListHeaderComponent={
           <SearchInput
             placeholder="Search models"

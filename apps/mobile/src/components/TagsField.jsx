@@ -11,15 +11,15 @@ import { colors, typography } from '@/styles/designTokens';
  * Tags as chips, a tap on one takes it out. The dashed Add turns into an input that adds a tag on
  * return (and stays open for the next) and closes on blur, adding what it holds. A tag that is
  * already there (in any case) isn't added twice; there is room for `maxTags` of `maxTagLength`.
- * `isDisabled` shows the tags without taking changes. `guardPress(onPress)` (optional) wraps the
+ * `disabled` shows the tags without taking changes. `guardPress(onPress)` (optional) wraps the
  * chips' presses, so a parent can drop a touch that dragged something else (useDetailsPanelDrag's);
  * a return or a blur in the input isn't a press.
  */
-function TagsField({ tags, onChange, placeholder, maxTags, maxTagLength, isDisabled = false, guardPress = unguarded }) {
+function TagsField({ tags, onChange, placeholder, maxTags, maxTagLength, disabled = false, guardPress = unguarded }) {
   const [isAdding, setIsAdding] = useState(false);
   const [text, setText] = useState('');
 
-  const canAdd = !isDisabled && tags.length < maxTags;
+  const canAdd = !disabled && tags.length < maxTags;
 
   function addTag() {
     const next = uniqueTags([...tags, text]);
@@ -41,8 +41,8 @@ function TagsField({ tags, onChange, placeholder, maxTags, maxTagLength, isDisab
         <Chip
           key={tag}
           label={tag}
-          variant="accent"
-          onPress={isDisabled ? undefined : guardPress(() => onChange(tags.filter((each) => each !== tag)))}
+          isSelected
+          onPress={disabled ? undefined : guardPress(() => onChange(tags.filter((each) => each !== tag)))}
           accessibilityHint="Removes this tag"
         />
       ))}

@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import GradientFill from '@/components/GradientFill';
-import IconMenuButton from '@/components/IconMenuButton';
+import MenuButton from '@/components/MenuButton';
 import { colors, glass, lineHeights, typography } from '@/styles/designTokens';
 
 /**
@@ -23,14 +23,9 @@ export default function ChatBubble({ side, label, text, children }) {
         </Text>
       </Fill>
       {children && (
-        <IconMenuButton
-          size="small"
-          colorPalette="muted"
-          accessibilityLabel="More for this message"
-          style={styles.menu}
-        >
+        <MenuButton size="small" accessibilityLabel="More for this message" style={styles.menu}>
           {children}
-        </IconMenuButton>
+        </MenuButton>
       )}
     </View>
   );

@@ -9,8 +9,8 @@ import Button from '@/components/Button';
 import CatalogStatus from '@/components/CatalogStatus';
 import DetailScrollView from '@/components/DetailScrollView';
 import EmptyState from '@/components/EmptyState';
-import IconMenuButton from '@/components/IconMenuButton';
 import IntroText from '@/components/IntroText';
+import MenuButton from '@/components/MenuButton';
 import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
@@ -104,9 +104,9 @@ export default function ModelListScreen({ navigation, route }) {
         onBack={() => navigation.goBack()}
         menuSlot={
           hasScores && (
-            <IconMenuButton accessibilityLabel="Score options">
-              <MenuOption label="Reset all scores" icon="undo" onPress={handleResetAllScores} danger />
-            </IconMenuButton>
+            <MenuButton accessibilityLabel="Score options">
+              <MenuOption label="Reset all scores" icon="undo" onPress={handleResetAllScores} colorPalette="danger" />
+            </MenuButton>
           )
         }
       />

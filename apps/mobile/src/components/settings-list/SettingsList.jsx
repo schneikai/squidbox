@@ -1,8 +1,8 @@
 import { Children } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import Divider from '@/components/Divider';
 import Icon from '@/components/Icon';
-import ListDivider from '@/components/ListDivider';
 import { SCREEN_PADDING } from '@/constants';
 import { colors, lineHeights, radii, shadows, sizes, typography } from '@/styles/designTokens';
 
@@ -17,7 +17,7 @@ export function Section({ children, isHeaderless = false }) {
       {kids.map((child, i) => (
         <View key={child.key ?? i}>
           {child}
-          {i < kids.length - 1 && <ListDivider />}
+          {i < kids.length - 1 && <Divider />}
         </View>
       ))}
     </View>

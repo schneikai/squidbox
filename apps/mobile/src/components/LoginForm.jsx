@@ -72,7 +72,7 @@ export default function LoginForm({ ownerEmail }) {
 const styles = StyleSheet.create({
   input: {
     height: sizes.iconButton,
-    paddingHorizontal: layout.sideGutter, // ListDivider's inset
+    paddingHorizontal: layout.sideGutter, // Divider's inset
   },
   submit: {
     marginTop: 12,

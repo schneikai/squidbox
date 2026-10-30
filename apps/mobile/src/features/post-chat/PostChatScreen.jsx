@@ -151,7 +151,7 @@ export default function PostChatScreen({ route, navigation }) {
           key={seed.key}
           seed={seed.turn}
           placeholder={messages.length === 0 ? ASK_ANYTHING : 'Message'}
-          isDisabled={chat.isSending}
+          disabled={chat.isSending}
           isWaiting={isWaiting}
           onSend={send}
         />
