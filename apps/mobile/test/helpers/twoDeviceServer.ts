@@ -134,14 +134,16 @@ export async function pullOnly(device: SyncDb, now = SERVER_NOW, { removeFiles }
   await retryFailures(device);
 }
 /**
- * A removeFiles that records the names of the files it removes, thumbnails too unless told not to;
- * a file two photos share counts once per call.
+ * A removeFiles that records the name of every file it is handed, thumbnails too unless told not to;
+ * with `oncePerCall`, a file two photos share counts once per call.
  */
-export function removedFiles({ thumbnails = true } = {}) {
+export function removedFiles({ thumbnails = true, oncePerCall = false } = {}) {
   const removed: string[] = [];
   const removeFiles: RemoveFiles = async (files) => {
-    const names = files.flatMap((f) => (thumbnails ? [f.filename, f.thumbnailFilename] : [f.filename]));
-    removed.push(...new Set(names.filter((name): name is string => !!name)));
+    const names = files
+      .flatMap((f) => (thumbnails ? [f.filename, f.thumbnailFilename] : [f.filename]))
+      .filter((name): name is string => !!name);
+    removed.push(...(oncePerCall ? new Set(names) : names));
   };
   return { removed, removeFiles };
 }

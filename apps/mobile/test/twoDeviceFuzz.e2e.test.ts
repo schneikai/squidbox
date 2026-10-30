@@ -57,7 +57,7 @@ describe('random interleavings (seeded, the real client and server)', () => {
     if (rand.chance(0.5)) wholeRecordApps.add(C);
     const skews = [0, 0, HOUR, -HOUR, 2_000, -2_000];
     const skew = new Map(devices.map((device) => [device, rand.pick(skews)]));
-    const removed = new Map(devices.map((device) => [device, removedFiles()]));
+    const removed = new Map(devices.map((device) => [device, removedFiles({ oncePerCall: true })]));
 
     at(S);
     const created = await repo.createMany(

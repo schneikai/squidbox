@@ -36,6 +36,9 @@ import { getAssetFileUri } from '../src/utils/assets/assetStorage';
 // account library holds keeps a file somewhere (the device library's folder or the account's) while
 // its purge can still lose in the account; and a merge that completes leaves no marker.
 
+// The scenarios' device photos have no thumbnail file.
+const photoOnDevice = (over: Record<string, unknown>) => devicePhoto(over, { thumbnail: false });
+
 // The device (helpers/fakeDevice), with its faults: the step that fails, and whether the process
 // dies there (nothing after it runs, no catch block).
 vi.mock('expo-file-system/legacy', () => ({ documentDirectory: 'file:///docs/' }));
@@ -138,9 +141,9 @@ async function scenario(step: string, crash: boolean, keepsSource: boolean): Pro
   const at = `${crash ? 'crash' : 'throw'} at ${step}${keepsSource ? ', source kept' : ''}`;
   reached.add(at);
   await resetPushing();
-  const photo = await devicePhoto({ filename: 'p.jpg', mediaLibraryAssetId: 'm-p' });
+  const photo = await photoOnDevice({ filename: 'p.jpg', mediaLibraryAssetId: 'm-p' });
   if (keepsSource)
-    await devicePhoto({
+    await photoOnDevice({
       filename: 'cloud.jpg',
       mediaLibraryAssetId: 'm-c',
       isFileSynced: true,
@@ -240,8 +243,8 @@ describe('a device library’s sweep running when the sign-in merges it', () => 
       purged.map((a) => a.id),
     );
     // A live photo sharing a purged one's name, and one of its own.
-    const sharing = await devicePhoto({ filename: 'gone7.jpg', mediaLibraryAssetId: 'm-s' });
-    const own = await devicePhoto({ filename: 'own.jpg', mediaLibraryAssetId: 'm-o' });
+    const sharing = await photoOnDevice({ filename: 'gone7.jpg', mediaLibraryAssetId: 'm-s' });
+    const own = await photoOnDevice({ filename: 'own.jpg', mediaLibraryAssetId: 'm-o' });
 
     const removal = gate();
     onTestFinished(() => removal.release());
@@ -282,8 +285,8 @@ describe('two crashes between a merge’s finish and the device library’s remo
     await status.markFirstSyncDone(getDb());
     const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-x', filename: 'p.jpg', isFavorite: false });
     await upsertRows(getDb(), 'assets', schema.assets, [{ ...accountPhoto, syncError: null }]); // pulled, in the cloud
-    await devicePhoto({ mediaLibraryAssetId: 'm-x', filename: 'd.jpg', isFavorite: true });
-    await devicePhoto({ mediaLibraryAssetId: 'm-o', filename: 'o.jpg' });
+    await photoOnDevice({ mediaLibraryAssetId: 'm-x', filename: 'd.jpg', isFavorite: true });
+    await photoOnDevice({ mediaLibraryAssetId: 'm-o', filename: 'o.jpg' });
 
     // Pass 1: the match and the copy commit, the account pushes, the finish runs, then the app dies.
     Object.assign(faults, { step: 'deleteDb', crash: true });
@@ -318,7 +321,7 @@ describe('two crashes between a merge’s finish and the device library’s remo
 describe('a crash between the commit and the committed marker', () => {
   it('the next pass marks the device library committed in its database, before the files move', async () => {
     await resetPushing();
-    await devicePhoto({ filename: 'p.jpg', mediaLibraryAssetId: 'm-p' });
+    await photoOnDevice({ filename: 'p.jpg', mediaLibraryAssetId: 'm-p' });
     await openLibrary(ACC);
     await status.markFirstSyncDone(getDb());
     const markerInDb = async () => (await status.getMergeTarget(stores.get(SRC.dbName)!))?.committed;
@@ -368,12 +371,12 @@ describe('seeded crashes', () => {
     const problems: string[] = [];
     const { photos: device, errorsGoneTooSoon } = await seedDevicePhotos(
       rand,
-      devicePhoto,
+      photoOnDevice,
       () => getDb(),
       (name) => files.has(getAssetFileUri(name, TGT)),
     );
     const keeps = r() < 0.3;
-    if (keeps) await devicePhoto({ mediaLibraryAssetId: 'mk', filename: 'kept.jpg', isFileSynced: true });
+    if (keeps) await photoOnDevice({ mediaLibraryAssetId: 'mk', filename: 'kept.jpg', isFileSynced: true });
     const inAlbum = await addToTrip(device);
     let liveDevice = (await source.select().from(schema.assets)).filter((row) => row.deletedAt === null);
     const accountAssets = () => getDb().select().from(schema.assets);

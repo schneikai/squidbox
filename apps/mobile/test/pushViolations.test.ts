@@ -51,6 +51,10 @@ describe('pushViolations', () => {
     ]);
   });
 
+  it('a skipped-lww push with fields that lost one of them, carrying the row as current, is not a violation', async () => {
+    expect(await judge('skipped-lww', notesEdit('dusk'), { ...record, updatedAt: 3000, notes: 'noon' })).toEqual([]);
+  });
+
   it('a skipped-lww whole record whose row ended newer is not a violation', async () => {
     expect(await judge('skipped-lww', whole, { ...record, updatedAt: 5000 })).toEqual([]);
   });

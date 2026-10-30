@@ -28,14 +28,17 @@ export const TGT = libraryPaths('acc');
 export const sourceDb = () => stores.get(SRC.dbName)!;
 export const entry = (id: string) => getRegistry().libraries.find((library) => library.id === id);
 
-/** A photo in the device library, with its thumbnail on the device, and its file unless it is in the cloud. */
-export async function devicePhoto(over: Record<string, unknown> = {}) {
+/**
+ * A photo in the device library, with its file on the device unless it is in the cloud, and its
+ * thumbnail unless told not to.
+ */
+export async function devicePhoto(over: Record<string, unknown> = {}, { thumbnail = true } = {}) {
   const asset = await repo.create(
     sourceDb(),
     makeAssetRecord({ isFileSynced: false, isThumbnailSynced: false, isSynced: false, ...over }),
   );
   if (!asset.isFileSynced) files.add(getAssetFileUri(asset.filename, SRC));
-  files.add(`file:///docs/${SRC.thumbnailsDir}${asset.thumbnailFilename}`);
+  if (thumbnail) files.add(`file:///docs/${SRC.thumbnailsDir}${asset.thumbnailFilename}`);
   return asset;
 }
 
