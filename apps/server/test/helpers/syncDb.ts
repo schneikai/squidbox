@@ -1,18 +1,19 @@
-import { afterAll, beforeAll, beforeEach } from 'vitest';
+import { afterAll, beforeAll, beforeEach, expect } from 'vitest';
 import { randomUUID } from 'node:crypto';
+import type { PushMutation, PushResult } from '@squidbox/shared';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { and, eq, getTableColumns, inArray } from 'drizzle-orm';
 import pg from 'pg';
 import * as schema from '../../src/db/schema.js';
 import { serverCollections } from '../../src/sync/collections.js';
-
-// Two users of their own per test file, so files running beside each other on one Postgres never
-// see or clear each other's rows.
-export const USER_A = randomUUID();
-export const USER_B = randomUUID();
+import { push } from '../../src/sync/push.js';
 
 type Db = ReturnType<typeof drizzle<typeof schema>>;
-// Bound in useSyncDb's beforeAll: read them inside a test or hook, never in a describe body.
+// Bound by useSyncDb's beforeAll: read them inside a test or hook, never in a describe body. The
+// users are two of the file's own, so files beside each other on one Postgres never see or clear
+// each other's rows, whether or not they share this module.
+export let USER_A: string;
+export let USER_B: string;
 export let pool: pg.Pool;
 export let db: Db;
 
@@ -28,6 +29,8 @@ async function clearAll() {
 /** Opens the pool and adds the two users for the file, and empties their rows before each test. */
 export function useSyncDb() {
   beforeAll(async () => {
+    USER_A = randomUUID();
+    USER_B = randomUUID();
     pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL });
     db = drizzle(pool, { schema });
     await db.insert(schema.users).values([
@@ -111,10 +114,52 @@ export function albumRecord(over: Record<string, unknown> = {}) {
 
 export const mut = (record: Record<string, unknown>) => ({ collection: 'assets', record });
 
-export async function serverSeqOf(userId: string, id: string): Promise<number | null> {
+/** A push of `record` naming the fields it changed: each at `clock`, or the clocks of a map. */
+export function fieldPush(
+  record: Record<string, unknown>,
+  fields: string[] | Record<string, number>,
+  clock = record.updatedAt as number,
+  collection = 'assets',
+): PushMutation {
+  const clocks = Array.isArray(fields) ? Object.fromEntries(fields.map((field) => [field, clock])) : fields;
+  return { collection, record: record as PushMutation['record'], fields: clocks };
+}
+
+/** A user's stored row, every column. */
+export async function rowOf(id: string, { user = USER_A, collection = 'assets' } = {}) {
+  const table = serverCollections[collection]!.table as any;
   const [row] = await db
     .select()
-    .from(schema.assets)
-    .where(and(eq(schema.assets.userId, userId), eq(schema.assets.id, id)));
-  return row ? (row.serverSeq as number | null) : null;
+    .from(table)
+    .where(and(eq(table.userId, user), eq(table.id, id)));
+  return row as Record<string, any> | undefined;
+}
+
+export async function serverSeqOf(user: string, id: string): Promise<number | null> {
+  return ((await rowOf(id, { user }))?.serverSeq as number | undefined) ?? null;
+}
+
+/** Results as the wire carries them: JSON, where an undefined field reads as a missing one. */
+export const wire = (results: PushResult[]) => results.map((result) => JSON.stringify(result));
+
+/**
+ * The same mutations pushed for USER_A in batches of `size` (all at once by default) and for USER_B
+ * one by one.
+ */
+export async function batchedAndOneByOne(mutations: PushMutation[], size = mutations.length) {
+  const batched: PushResult[] = [];
+  for (let i = 0; i < mutations.length; i += size)
+    batched.push(...(await push(db, USER_A, mutations.slice(i, i + size))));
+  const single: PushResult[] = [];
+  for (const mutation of mutations) single.push(...(await push(db, USER_B, [mutation])));
+  return { batched, single };
+}
+
+/** USER_A's and USER_B's rows hold the same, but for what differs between users by construction. */
+export async function expectSameRows(collection: string, ids: string[]) {
+  for (const id of ids) {
+    const { userId: _a, serverSeq: _b, ...a } = (await rowOf(id.toLowerCase(), { user: USER_A, collection })) ?? {};
+    const { userId: _c, serverSeq: _d, ...b } = (await rowOf(id.toLowerCase(), { user: USER_B, collection })) ?? {};
+    expect(a, `${collection} ${id}`).toEqual(b);
+  }
 }

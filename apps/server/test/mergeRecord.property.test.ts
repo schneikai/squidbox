@@ -6,8 +6,8 @@ import { sentFields } from '../src/sync/sentFields.js';
 
 // Property-style tests of the merge (sync-design §5–§7): random edits, deletes, restores and purges
 // from three devices with random clock skew, random push/pull interleavings, lost push responses
-// and old apps (whole-record pushes, the whole-record app's pull that skips a pending record), against a model of
-// the server around mergeRecord. Every case is seeded: a failure names its seed, and
+// and whole-record apps (whole-record pushes, a pull that skips a pending record), against a model
+// of the server around mergeRecord. Every case is seeded: a failure names its seed, and
 // `REPLAY=<seed> npx vitest run test/mergeRecord.property.test.ts -t none` reruns just that case,
 // printing its steps.
 //
@@ -60,20 +60,20 @@ interface Server {
   /** The newest clock and value each register field got, by any push that reached an unfrozen row. */
   oracle: Map<string, { clock: number; value: unknown }>;
   /** Between rollback steps: a server without per-field merge (a rollback: whole-record LWW, field_clock untouched). */
-  old: boolean;
+  rolledBack: boolean;
 }
 
 interface Device {
   name: string;
   skew: number;
   /** An app without per-field merge: whole-record pushes, and a pull that skips a record with a pending row. */
-  old: boolean;
+  wholeRecordApp: boolean;
   /** An app without purges: neither sends purgedAt nor purges. */
   withoutPurges: boolean;
   local: Rec;
   /** `whole`: a row without field clocks, carried over by an app update (SQLite migration 0011). */
   outbox: { payload: Rec; fields: FieldClocks; whole?: boolean } | null;
-  /** The step at which an old app is updated to this one, its pending row kept. */
+  /** The step at which a whole-record app is updated to this one, its pending row kept. */
   upgradeAt?: number;
   cursor: number;
   /** A push whose response was lost ends the run: the next run pushes again before it pulls. */
@@ -96,7 +96,7 @@ const stats = {
 };
 
 interface CaseOptions {
-  /** Old apps update to this one mid-case, their pending row carried over as a whole-record row. */
+  /** Whole-record apps update to this one mid-case, their pending row carried over as a whole-record row. */
   upgrades?: boolean;
   /** The device clock skews to pick from. */
   skews?: number[];
@@ -109,7 +109,7 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
   let now = T0;
   let seq = 0;
   const restoreOrder: number[] = []; // the deletedAt of every restore the new server applied, in order
-  const oldServerRestores = new Set<number>(); // the deletions a restore undid on the rolled-back server
+  const rolledBackRestores = new Set<number>(); // the deletions a restore undid on the rolled-back server
 
   const initial: Rec = {
     id: 'a',
@@ -139,16 +139,16 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
     restored: new Set(),
     restoredDeletions: [],
     oracle: new Map(REGISTERS.map((f) => [f, { clock: T0, value: initial[f] }])),
-    old: false,
+    rolledBack: false,
   };
   const skews = options.skews ?? [0, 0, 0, HOUR, -HOUR, 5_000, -5_000, 1, -1];
   const devices: Device[] = ['A', 'B', 'C'].map((name, i) => {
-    const old = i === 2 ? rand.chance(0.5) : i === 1 && rand.chance(0.1);
+    const wholeRecordApp = i === 2 ? rand.chance(0.5) : i === 1 && rand.chance(0.1);
     return {
       name,
       skew: rand.pick(skews),
-      old,
-      withoutPurges: old && rand.chance(0.3),
+      wholeRecordApp,
+      withoutPurges: wholeRecordApp && rand.chance(0.3),
       local: { ...initial },
       outbox: null,
       cursor: server.seq,
@@ -158,12 +158,12 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
   // Only the app with purges updates: an app without purges misses the purges it skipped
   // (SQLite migration 0009 adds the column empty).
   if (options.upgrades)
-    for (const device of devices) if (device.old && !device.withoutPurges) device.upgradeAt = rand.int(steps);
+    for (const device of devices) if (device.wholeRecordApp && !device.withoutPurges) device.upgradeAt = rand.int(steps);
 
   // ── The server: a push, as push.ts merges it (or whole-record LWW while rolled back).
   function serverPush(step: number, mutation: Mutation): Result {
     const record: Rec = { ...mutation.record, updatedAt: Math.min(mutation.record.updatedAt, now) };
-    if (server.old) return oldServerPush(record);
+    if (server.rolledBack) return rolledBackPush(record);
     const fields = sentFields(col, mutation.record as never, mutation.fields, now);
     const before = server.record;
     const clocksBefore = storedClocks(col, before.updatedAt, server.fieldClock);
@@ -228,7 +228,7 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
           server.restored.has(record.deletedAt!)
         ) {
           const since = new Set(restoreOrder.slice(restoreOrder.lastIndexOf(record.deletedAt!) + 1)).size;
-          if (oldServerRestores.has(record.deletedAt!)) stats.purgeOverRolledBackRestore++;
+          if (rolledBackRestores.has(record.deletedAt!)) stats.purgeOverRolledBackRestore++;
           else if (since >= 10) stats.purgeOverEvictedRestore++;
           else
             fail(
@@ -291,7 +291,7 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
 
   // A server without per-field merge: the newer record wins whole, a purge also applies over a record in the Deleted
   // album, nothing over a purged one; field_clock is left as it was.
-  function oldServerPush(record: Rec): Result {
+  function rolledBackPush(record: Rec): Result {
     const stored = server.record;
     const applies =
       stored.purgedAt == null &&
@@ -299,7 +299,7 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
     if (!applies) return { status: 'skipped-lww', current: stored };
     if (stored.deletedAt != null && record.deletedAt == null) {
       server.restored.add(stored.deletedAt);
-      oldServerRestores.add(stored.deletedAt);
+      rolledBackRestores.add(stored.deletedAt);
     }
     server.record = { ...stored, ...record };
     server.seq = ++seq;
@@ -326,8 +326,8 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
       const { purgedAt: _p, ...rest } = record;
       record = rest as Rec;
     }
-    if (device.outbox.whole && !device.old) stats.wholeRowPushed++;
-    return device.old || device.outbox.whole ? { record } : { record, fields: device.outbox.fields };
+    if (device.outbox.whole && !device.wholeRecordApp) stats.wholeRowPushed++;
+    return device.wholeRecordApp || device.outbox.whole ? { record } : { record, fields: device.outbox.fields };
   }
 
   function push(step: number, device: Device, { lostResponse = false } = {}) {
@@ -349,7 +349,7 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
       device.local = { ...device.local, ...record };
       return;
     }
-    if (device.old) return; // the whole-record app skips a record with a pending row
+    if (device.wholeRecordApp) return; // the whole-record app skips a record with a pending row
     const payload = device.outbox.payload;
     const kept = Object.fromEntries(
       Object.keys(device.outbox.fields)
@@ -375,7 +375,7 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
       const fields = Object.fromEntries(MERGE.filter((f) => f in payload).map((f) => [f, payload.updatedAt]));
       device.outbox = { payload, fields, whole: true };
     }
-    device.old = false;
+    device.wholeRecordApp = false;
   }
 
   const ops = [
@@ -395,13 +395,13 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
   ] as const;
   for (let step = 0; step < steps; step++) {
     now += rand.pick([0, 1, 1, 2, 10, 50, 500]);
-    if (rand.chance(0.02)) server.old = !server.old; // a rollback, and forward again
+    if (rand.chance(0.02)) server.rolledBack = !server.rolledBack; // a rollback, and forward again
     for (const other of devices) if (other.upgradeAt === step) upgrade(other);
     const device = rand.pick(devices);
     const live = device.local.purgedAt == null;
     const op = rand.pick(ops);
     log?.push(
-      `${step} t=${now - T0} ${device.name}${device.old ? '(old)' : ''}${server.old ? ' [old server]' : ''} ${op} local=${JSON.stringify({ u: device.local.updatedAt - T0, d: device.local.deletedAt && device.local.deletedAt - T0, p: device.local.purgedAt && device.local.purgedAt - T0 })} outbox=${JSON.stringify(device.outbox?.fields)}`,
+      `${step} t=${now - T0} ${device.name}${device.wholeRecordApp ? '(whole-record)' : ''}${server.rolledBack ? ' [rolled back]' : ''} ${op} local=${JSON.stringify({ u: device.local.updatedAt - T0, d: device.local.deletedAt && device.local.deletedAt - T0, p: device.local.purgedAt && device.local.purgedAt - T0 })} outbox=${JSON.stringify(device.outbox?.fields)}`,
     );
     switch (op) {
       case 'notes':
@@ -450,7 +450,7 @@ function runCase(seed: number, steps: number, log?: string[], options: CaseOptio
   if (server.record.purgedAt != null) stats.purged++;
 
   // Quiet: the server rolls forward, every device syncs until nothing moves.
-  server.old = false;
+  server.rolledBack = false;
   now += 1_000_000;
   const frozenRow = server.record.purgedAt != null ? JSON.stringify(server.record) : null;
   for (let round = 0; round < 4; round++)
@@ -495,14 +495,14 @@ describe('mergeRecord, property-style (seeded)', () => {
   });
 });
 
-// More seeds, clocks days apart, and old apps updated mid-case with their pending row carried over as a
+// More seeds, clocks days apart, and whole-record apps updated mid-case with their pending row carried over as a
 // whole-record row (pushed without fields, pulled around, new edits coalesced into it).
 describe('mergeRecord, property-style, with updates and skew (seeded)', () => {
   // Seed 116884: the installed app (whole-record pushes, a pull that skips a record with a pending
   // row) pushes a whole record at 2531 while the server row is at 2584 with the same values. Every
   // field loses on its clock but none holds another value; the push is told skipped-lww with the row
   // (its updatedAt is newer), as a server without per-field merge answered, so the app converges on updatedAt.
-  it('an old app whose whole record loses every clock but no value converges on updatedAt (seed 116884)', () => {
+  it('a whole-record app whose record loses every clock but no value converges on updatedAt (seed 116884)', () => {
     expect(runCase(116_884, 60)).toEqual([]);
   });
 
@@ -512,7 +512,7 @@ describe('mergeRecord, property-style, with updates and skew (seeded)', () => {
     expect(violations.slice(0, 10)).toEqual([]);
   }, 120_000);
 
-  it(`${count(cases(10_000))} cases where the old apps update mid-case, a pending row carried over whole, converge`, () => {
+  it(`${count(cases(10_000))} cases where the whole-record apps update mid-case, a pending row carried over whole, converge`, () => {
     const violations: string[] = [];
     for (let seed = 1; seed <= cases(10_000); seed++) violations.push(...runCase(seed, 80, undefined, { upgrades: true }));
     expect(violations.slice(0, 10)).toEqual([]);
@@ -520,7 +520,7 @@ describe('mergeRecord, property-style, with updates and skew (seeded)', () => {
     expect(stats.wholeRowPushed).toBeGreaterThan(cases(500));
   }, 120_000);
 
-  it(`${count(cases(10_000))} cases with clocks days apart, half of them with old apps updating, converge`, () => {
+  it(`${count(cases(10_000))} cases with clocks days apart, half of them with whole-record apps updating, converge`, () => {
     const DAY = 24 * HOUR;
     const skews = [0, DAY, -DAY, 3 * DAY, -3 * DAY, 50, -50, HOUR];
     const violations: string[] = [];

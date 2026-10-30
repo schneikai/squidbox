@@ -1,8 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import { and, eq } from 'drizzle-orm';
 import { collectionNames } from '@squidbox/shared';
-import * as schema from '../src/db/schema.js';
 import { serverCollections } from '../src/sync/collections.js';
 import { push } from '../src/sync/push.js';
 import { pull } from '../src/sync/pull.js';
@@ -14,7 +12,19 @@ import {
 } from '../src/sync/purgedFiles.js';
 import { deferred } from '@squidbox/shared/testing/deferred';
 import { gate } from '@squidbox/shared/testing/gate';
-import { albumRecord, assetRecord, db, mut, pool, postRecord, USER_A, USER_B, useSyncDb } from './helpers/syncDb.js';
+import {
+  albumRecord,
+  assetRecord,
+  db,
+  mut,
+  pool,
+  postRecord,
+  rowOf,
+  USER_A,
+  USER_B,
+  useSyncDb,
+} from './helpers/syncDb.js';
+import { REJECTED_NOTES } from './dbSetup.js';
 
 // DB-backed integration tests (advisory locks, trigger, ON CONFLICT) — require a real
 // Postgres. Run with `npm run test:db` (points at the docker-compose stack); plain `npm test`
@@ -72,13 +82,6 @@ d('sync engine (Postgres)', () => {
       deleted = [];
       failing = new Set();
     });
-    const stored = async (id: string) =>
-      (
-        await db
-          .select()
-          .from(schema.assets)
-          .where(and(eq(schema.assets.userId, USER_A), eq(schema.assets.id, id)))
-      )[0];
     const purgedAsset = (over: Record<string, unknown>) => assetRecord({ purgedAt: 1000, deletedAt: 1000, ...over });
 
     it('are deleted once, whatever the file flags say, keeping a key a live asset names', async () => {
@@ -96,7 +99,7 @@ d('sync engine (Postgres)', () => {
       await deletePurgedFiles(db, USER_A, deleteKeys);
 
       expect(deleted).toEqual([['p-t.jpg']]);
-      expect(await stored(r.id)).toMatchObject({ ...unflagged, updatedAt: 2000, filesDeletedAt: expect.any(Number) });
+      expect(await rowOf(r.id))!.toMatchObject({ ...unflagged, updatedAt: 2000, filesDeletedAt: expect.any(Number) });
       const { changes } = await pull(db, USER_A, { cursor, limit: 100 });
       expect(changes.assets.records).toEqual([expect.objectContaining({ id: r.id, purgedAt: 2000 })]);
 
@@ -109,7 +112,7 @@ d('sync engine (Postgres)', () => {
       await push(db, USER_A, [mut(r)]);
       const failure = new Error('S3 down');
       await expect(deletePurgedFiles(db, USER_A, async () => Promise.reject(failure))).rejects.toBe(failure);
-      expect((await stored(r.id))!.filesDeletedAt).toBeNull();
+      expect((await rowOf(r.id))!.filesDeletedAt).toBeNull();
       await deletePurgedFiles(db, USER_A, deleteKeys);
       expect(deleted).toEqual([['a.jpg', 't.jpg']]);
     });
@@ -125,14 +128,14 @@ d('sync engine (Postgres)', () => {
       await deletePurgedFiles(db, USER_A, deleteKeys);
 
       expect(deleted).toEqual([['bad.jpg', 'bad-t.jpg', 'ok.jpg', 'ok-t.jpg']]); // id order, the invalid keys skipped
-      expect((await stored(failingAsset.id))!.filesDeletedAt).toBeNull();
-      expect((await stored(ok.id))!.filesDeletedAt).not.toBeNull();
-      expect((await stored(invalid.id))!.filesDeletedAt).not.toBeNull();
+      expect((await rowOf(failingAsset.id))!.filesDeletedAt).toBeNull();
+      expect((await rowOf(ok.id))!.filesDeletedAt).not.toBeNull();
+      expect((await rowOf(invalid.id))!.filesDeletedAt).not.toBeNull();
 
       failing = new Set();
       await deletePurgedFiles(db, USER_A, deleteKeys);
       expect(deleted[1]).toEqual(['bad.jpg', 'bad-t.jpg']);
-      expect((await stored(failingAsset.id))!.filesDeletedAt).not.toBeNull();
+      expect((await rowOf(failingAsset.id))!.filesDeletedAt).not.toBeNull();
     });
 
     it('run one at a time per user after the push, a push meanwhile asking for one more pass', async () => {
@@ -249,49 +252,32 @@ d('sync engine (Postgres)', () => {
   });
 
   // No record the schema accepts fails in Postgres today; the savepoint fallback is the backstop for
-  // a row-level error the schema doesn't foresee. A temporary CHECK constraint stands in for one.
-  const REJECTED_NOTES = 'rejected by test_rejected_notes';
-  async function withRejectedNotes(run: () => Promise<void>) {
-    await pool.query('ALTER TABLE assets DROP CONSTRAINT IF EXISTS test_rejected_notes');
-    await pool.query(
-      `ALTER TABLE assets ADD CONSTRAINT test_rejected_notes CHECK (notes IS DISTINCT FROM '${REJECTED_NOTES}') NOT VALID`,
-    );
-    try {
-      await run();
-    } finally {
-      await pool.query('ALTER TABLE assets DROP CONSTRAINT test_rejected_notes');
-    }
-  }
-
+  // a row-level error the schema doesn't foresee. The test database refuses REJECTED_NOTES for one.
   it('partial-push rejection: a database error on one row rejects it, the rest of the push applies', async () => {
-    await withRejectedNotes(async () => {
-      const bad = assetRecord({ notes: REJECTED_NOTES });
-      const good = assetRecord();
-      const res = await push(db, USER_A, [mut(bad), mut(good)]);
-      expect(res[0]).toMatchObject({ id: bad.id, status: 'rejected', reason: 'db:23514' });
-      expect(res[1]).toMatchObject({ id: good.id, status: 'applied' });
+    const bad = assetRecord({ notes: REJECTED_NOTES });
+    const good = assetRecord();
+    const res = await push(db, USER_A, [mut(bad), mut(good)]);
+    expect(res[0]).toMatchObject({ id: bad.id, status: 'rejected', reason: 'db:23514' });
+    expect(res[1]).toMatchObject({ id: good.id, status: 'applied' });
 
-      const page = await pull(db, USER_A, { cursor: 0 });
-      expect(page.changes.assets.records.map((r: any) => r.id)).toEqual([good.id]);
-    });
+    const page = await pull(db, USER_A, { cursor: 0 });
+    expect(page.changes.assets.records.map((r: any) => r.id)).toEqual([good.id]);
   });
 
   it('partial-push rejection: rows before a database error get the same results as in a clean push', async () => {
     // The failing batch is rolled back and rerun row by row, so the rerun must not see its own writes.
-    await withRejectedNotes(async () => {
-      const r = assetRecord();
-      const res = await push(db, USER_A, [
-        mut({ ...r, updatedAt: 1000 }),
-        mut({ ...r, updatedAt: 2000, notes: 'win' }),
-        mut({ ...r, updatedAt: 1500, notes: 'lose' }),
-        mut(assetRecord({ notes: REJECTED_NOTES })),
-      ]);
-      expect(res.map((x) => x.reason ?? x.status)).toEqual(['applied', 'applied', 'skipped-lww', 'db:23514']);
-      expect(res[2].current).toMatchObject({ id: r.id, updatedAt: 2000, notes: 'win' });
+    const r = assetRecord();
+    const res = await push(db, USER_A, [
+      mut({ ...r, updatedAt: 1000 }),
+      mut({ ...r, updatedAt: 2000, notes: 'win' }),
+      mut({ ...r, updatedAt: 1500, notes: 'lose' }),
+      mut(assetRecord({ notes: REJECTED_NOTES })),
+    ]);
+    expect(res.map((x) => x.reason ?? x.status)).toEqual(['applied', 'applied', 'skipped-lww', 'db:23514']);
+    expect(res[2].current).toMatchObject({ id: r.id, updatedAt: 2000, notes: 'win' });
 
-      const page = await pull(db, USER_A, { cursor: 0 });
-      expect(page.changes.assets.records).toHaveLength(1);
-    });
+    const page = await pull(db, USER_A, { cursor: 0 });
+    expect(page.changes.assets.records).toHaveLength(1);
   });
 
   it('a push for a deleted user fails as a whole instead of rejecting each row', async () => {

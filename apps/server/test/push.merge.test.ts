@@ -1,45 +1,38 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import { and, eq, inArray } from 'drizzle-orm';
 import { keyBetween } from '@squidbox/shared';
-import * as schema from '../src/db/schema.js';
 import { push } from '../src/sync/push.js';
 import { pull } from '../src/sync/pull.js';
 import { fakeClock } from '@squidbox/shared/testing/fakeClock';
 import { tick } from '@squidbox/shared/testing/tick';
-import { albumRecord, assetRecord, db, mut, pool, serverSeqOf, USER_A, useSyncDb } from './helpers/syncDb.js';
+import {
+  albumRecord,
+  assetRecord,
+  batchedAndOneByOne,
+  db,
+  expectSameRows,
+  fieldPush,
+  mut,
+  pool,
+  rowOf,
+  serverSeqOf,
+  USER_A,
+  USER_B,
+  useSyncDb,
+  wire,
+} from './helpers/syncDb.js';
 
 // The merge rules a push applies (field clocks, LWW, purges, optional columns, the lock) on a real
 // Postgres. Run with `npm run test:db`; plain `npm test` skips them.
 const TEST_URL = process.env.TEST_DATABASE_URL;
 const d = TEST_URL ? describe : describe.skip;
 
-d('sync engine (Postgres)', () => {
+d('push: the merge rules (Postgres)', () => {
   useSyncDb();
 
-  it('an update without an optional column keeps its stored value (older clients)', async () => {
-    const album = {
-      id: randomUUID(),
-      createdAt: 1000,
-      updatedAt: 1000,
-      deletedAt: null,
-      name: 'Shots',
-      isFavorite: false,
-      archivedAt: null,
-      showInPostSuggestionsAfter: null,
-      oldCollectionName: null,
-      notes: null,
-      sortOrder: null,
-      smartAlbumType: null,
-      position: 'a0',
-    };
-    const stored = async () =>
-      (
-        await db
-          .select()
-          .from(schema.albums)
-          .where(and(eq(schema.albums.userId, USER_A), eq(schema.albums.id, album.id)))
-      )[0];
+  it('an update without an optional column keeps its stored value', async () => {
+    const album = albumRecord({ name: 'Shots', position: 'a0' });
+    const stored = () => rowOf(album.id, { collection: 'albums' });
     await push(db as any, USER_A, [{ collection: 'albums', record: album }]);
 
     const { position: _position, ...withoutPosition } = album; // what an app without `position` sends
@@ -74,7 +67,7 @@ d('sync engine (Postgres)', () => {
     expect(changes.albums.records[0]).not.toHaveProperty('fieldClock'); // server-only
   });
 
-  it('a persona that still sends useEmoji is applied without it', async () => {
+  it('a persona with a useEmoji field is applied without it', async () => {
     const id = randomUUID();
     const persona = {
       id,
@@ -177,7 +170,7 @@ d('sync engine (Postgres)', () => {
     expect(newer[0].status).toBe('applied');
   });
 
-  it('a purge is final: it beats a newer edit in the Deleted album, and no later version applies', async () => {
+  it('a whole-record purge is final: it beats a newer edit in the Deleted album, and no later version applies', async () => {
     const r = assetRecord({ updatedAt: 2000, deletedAt: 2000 });
     await push(db, USER_A, [mut(r)]);
     await push(db, USER_A, [mut({ ...r, updatedAt: 4000, notes: 'edited in the Deleted album' })]);
@@ -190,11 +183,11 @@ d('sync engine (Postgres)', () => {
       current: { purgedAt: 3000, notes: 'edited in the Deleted album' },
     });
 
-    // A stale device's newer restore, an older app that doesn't send purgedAt, or a newer purge: none applies.
+    // A stale device's newer restore, an app that doesn't send purgedAt, or a newer purge: none applies.
     const restore = await push(db, USER_A, [mut({ ...r, updatedAt: 9000, deletedAt: null, purgedAt: null })]);
     expect(restore[0]).toMatchObject({ status: 'skipped-lww', current: { purgedAt: 3000, deletedAt: 2000 } });
-    const olderApp = { ...r, updatedAt: 9001, deletedAt: null }; // no purgedAt key at all
-    expect((await push(db, USER_A, [mut(olderApp)]))[0].status).toBe('skipped-lww');
+    const withoutPurges = { ...r, updatedAt: 9001, deletedAt: null }; // no purgedAt key at all
+    expect((await push(db, USER_A, [mut(withoutPurges)]))[0].status).toBe('skipped-lww');
     expect((await push(db, USER_A, [mut({ ...purged, updatedAt: 9002, isFileSynced: false })]))[0].status).toBe(
       'skipped-lww',
     );
@@ -204,7 +197,7 @@ d('sync engine (Postgres)', () => {
     expect(changes.assets.records[0]).not.toHaveProperty('filesDeletedAt'); // server-only
   });
 
-  it('an offline device’s purge loses to a newer restore made on another device', async () => {
+  it('an offline device’s whole-record purge loses to a newer restore made on another device', async () => {
     const r = assetRecord({ updatedAt: 2000, deletedAt: 2000 });
     await push(db, USER_A, [mut(r)]);
     await push(db, USER_A, [mut({ ...r, updatedAt: 4000, deletedAt: null })]); // restored on device B
@@ -222,36 +215,22 @@ d('sync engine (Postgres)', () => {
   });
 
   describe('per-field merge', () => {
-    // A push of `record` that names the fields it changed, all at the record's clock.
-    const edit = (record: Record<string, unknown>, fields: string[], collection = 'assets') => ({
-      collection,
-      record,
-      fields: Object.fromEntries(fields.map((field) => [field, record.updatedAt as number])),
-    });
-    const stored = async (id: string) =>
-      (
-        await db
-          .select()
-          .from(schema.assets)
-          .where(and(eq(schema.assets.userId, USER_A), eq(schema.assets.id, id)))
-      )[0]!;
-
     it('edits of different fields both survive, whichever is pushed last', async () => {
       const r = assetRecord();
       await push(db, USER_A, [mut(r)]);
-      const newer = edit({ ...r, updatedAt: 3000, notes: 'from the phone' }, ['notes']);
-      const older = edit({ ...r, updatedAt: 2000, isFavorite: true }, ['isFavorite']);
+      const newer = fieldPush({ ...r, updatedAt: 3000, notes: 'from the phone' }, ['notes']);
+      const older = fieldPush({ ...r, updatedAt: 2000, isFavorite: true }, ['isFavorite']);
       expect((await push(db, USER_A, [newer]))[0].status).toBe('applied');
       expect((await push(db, USER_A, [older]))[0].status).toBe('applied');
-      expect(await stored(r.id)).toMatchObject({ notes: 'from the phone', isFavorite: true, updatedAt: 3000 });
-      expect((await stored(r.id)).fieldClock).toMatchObject({ notes: 3000, isFavorite: 2000, filename: 1000 });
+      expect(await rowOf(r.id)).toMatchObject({ notes: 'from the phone', isFavorite: true, updatedAt: 3000 });
+      expect((await rowOf(r.id))!.fieldClock).toMatchObject({ notes: 3000, isFavorite: 2000, filename: 1000 });
     });
 
     it('an older edit of the same field is skipped with the merged record as current', async () => {
       const r = assetRecord();
       await push(db, USER_A, [mut(r)]);
-      await push(db, USER_A, [edit({ ...r, updatedAt: 3000, notes: 'newer' }, ['notes'])]);
-      const [result] = await push(db, USER_A, [edit({ ...r, updatedAt: 2000, notes: 'older' }, ['notes'])]);
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: 3000, notes: 'newer' }, ['notes'])]);
+      const [result] = await push(db, USER_A, [fieldPush({ ...r, updatedAt: 2000, notes: 'older' }, ['notes'])]);
       expect(result).toMatchObject({ status: 'skipped-lww', current: { notes: 'newer', updatedAt: 3000 } });
       expect(result.current).not.toHaveProperty('fieldClock');
     });
@@ -259,10 +238,10 @@ d('sync engine (Postgres)', () => {
     it('a partial win applies its newer field, re-stamps server_seq and returns the merged record', async () => {
       const r = assetRecord();
       await push(db, USER_A, [mut(r)]);
-      await push(db, USER_A, [edit({ ...r, updatedAt: 3000, notes: 'newer' }, ['notes'])]);
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: 3000, notes: 'newer' }, ['notes'])]);
       const seq = await serverSeqOf(USER_A, r.id);
       const [result] = await push(db, USER_A, [
-        edit({ ...r, updatedAt: 2000, notes: 'older', isFavorite: true }, ['notes', 'isFavorite']),
+        fieldPush({ ...r, updatedAt: 2000, notes: 'older', isFavorite: true }, ['notes', 'isFavorite']),
       ]);
       expect(result).toMatchObject({ status: 'skipped-lww', current: { notes: 'newer', isFavorite: true } });
       expect(await serverSeqOf(USER_A, r.id)).toBeGreaterThan(seq!);
@@ -271,7 +250,7 @@ d('sync engine (Postgres)', () => {
     it('a replay is applied and changes nothing, not even server_seq', async () => {
       const r = assetRecord();
       await push(db, USER_A, [mut(r)]);
-      const favorite = edit({ ...r, updatedAt: 2000, isFavorite: true }, ['isFavorite']);
+      const favorite = fieldPush({ ...r, updatedAt: 2000, isFavorite: true }, ['isFavorite']);
       await push(db, USER_A, [favorite]);
       const seq = await serverSeqOf(USER_A, r.id);
       expect((await push(db, USER_A, [favorite]))[0].status).toBe('applied');
@@ -281,32 +260,32 @@ d('sync engine (Postgres)', () => {
     it('an edit of another field doesn’t undelete; a newer restore does', async () => {
       const r = assetRecord();
       await push(db, USER_A, [mut(r)]);
-      await push(db, USER_A, [edit({ ...r, updatedAt: 2000, deletedAt: 2000 }, ['deletedAt'])]);
-      const [notes] = await push(db, USER_A, [edit({ ...r, updatedAt: 3000, notes: 'still here?' }, ['notes'])]);
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: 2000, deletedAt: 2000 }, ['deletedAt'])]);
+      const [notes] = await push(db, USER_A, [fieldPush({ ...r, updatedAt: 3000, notes: 'still here?' }, ['notes'])]);
       expect(notes.status).toBe('applied');
-      expect(await stored(r.id)).toMatchObject({ deletedAt: 2000, notes: 'still here?' });
+      expect(await rowOf(r.id)).toMatchObject({ deletedAt: 2000, notes: 'still here?' });
 
-      await push(db, USER_A, [edit({ ...r, updatedAt: 4000, deletedAt: null }, ['deletedAt'])]);
-      expect(await stored(r.id)).toMatchObject({ deletedAt: null, notes: 'still here?' });
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: 4000, deletedAt: null }, ['deletedAt'])]);
+      expect(await rowOf(r.id)).toMatchObject({ deletedAt: null, notes: 'still here?' });
     });
 
     it('a purge loses to a newer restore, beats a newer edit in the Deleted album, and is final', async () => {
       const r = assetRecord({ deletedAt: 1000 });
       await push(db, USER_A, [mut(r)]);
-      await push(db, USER_A, [edit({ ...r, updatedAt: 3000, deletedAt: null }, ['deletedAt'])]); // restored
-      const purge = edit({ ...r, updatedAt: 2000, purgedAt: 2000 }, ['purgedAt']);
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: 3000, deletedAt: null }, ['deletedAt'])]); // restored
+      const purge = fieldPush({ ...r, updatedAt: 2000, purgedAt: 2000 }, ['purgedAt']);
       expect((await push(db, USER_A, [purge]))[0]).toMatchObject({
         status: 'skipped-lww',
         current: { deletedAt: null, purgedAt: null },
       });
 
-      await push(db, USER_A, [edit({ ...r, updatedAt: 4000, deletedAt: 4000 }, ['deletedAt'])]); // deleted again
-      await push(db, USER_A, [edit({ ...r, updatedAt: 5000, deletedAt: 4000, notes: 'n' }, ['notes'])]);
-      const laterPurge = edit({ ...r, updatedAt: 4500, deletedAt: 4000, purgedAt: 4500 }, ['purgedAt']);
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: 4000, deletedAt: 4000 }, ['deletedAt'])]); // deleted again
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: 5000, deletedAt: 4000, notes: 'n' }, ['notes'])]);
+      const laterPurge = fieldPush({ ...r, updatedAt: 4500, deletedAt: 4000, purgedAt: 4500 }, ['purgedAt']);
       expect((await push(db, USER_A, [laterPurge]))[0].status).toBe('applied');
 
       const seq = await serverSeqOf(USER_A, r.id);
-      const [restore] = await push(db, USER_A, [edit({ ...r, updatedAt: 9000, deletedAt: null }, ['deletedAt'])]);
+      const [restore] = await push(db, USER_A, [fieldPush({ ...r, updatedAt: 9000, deletedAt: null }, ['deletedAt'])]);
       expect(restore).toMatchObject({ status: 'skipped-lww', current: { deletedAt: 4000, purgedAt: 4500 } });
       expect(await serverSeqOf(USER_A, r.id)).toBe(seq);
     });
@@ -314,21 +293,21 @@ d('sync engine (Postgres)', () => {
     it('a purge applies over a newer whole-record edit in the Deleted album, which stamped every field', async () => {
       const r = assetRecord({ deletedAt: 1000, purgedAt: null });
       await push(db, USER_A, [mut(r)]);
-      await push(db, USER_A, [mut({ ...r, updatedAt: 3000, notes: 'from the old app' })]);
-      const purge = edit({ ...r, updatedAt: 2000, purgedAt: 2000 }, ['purgedAt']);
+      await push(db, USER_A, [mut({ ...r, updatedAt: 3000, notes: 'from the whole-record app' })]);
+      const purge = fieldPush({ ...r, updatedAt: 2000, purgedAt: 2000 }, ['purgedAt']);
       expect((await push(db, USER_A, [purge]))[0].status).toBe('applied');
-      expect(await stored(r.id)).toMatchObject({ purgedAt: 2000, notes: 'from the old app', updatedAt: 3000 });
+      expect(await rowOf(r.id)).toMatchObject({ purgedAt: 2000, notes: 'from the whole-record app', updatedAt: 3000 });
     });
 
     it('a row without field clocks takes its updated_at as every field’s clock', async () => {
       const r = assetRecord({ updatedAt: 2000 });
       await push(db, USER_A, [mut(r)]);
       await pool.query('UPDATE assets SET field_clock = NULL WHERE user_id = $1 AND id = $2', [USER_A, r.id]);
-      const [older] = await push(db, USER_A, [edit({ ...r, updatedAt: 1500, notes: 'older' }, ['notes'])]);
+      const [older] = await push(db, USER_A, [fieldPush({ ...r, updatedAt: 1500, notes: 'older' }, ['notes'])]);
       expect(older.status).toBe('skipped-lww');
-      const [newer] = await push(db, USER_A, [edit({ ...r, updatedAt: 2500, notes: 'newer' }, ['notes'])]);
+      const [newer] = await push(db, USER_A, [fieldPush({ ...r, updatedAt: 2500, notes: 'newer' }, ['notes'])]);
       expect(newer.status).toBe('applied');
-      expect((await stored(r.id)).fieldClock).toMatchObject({ notes: 2500, isFavorite: 2000 });
+      expect((await rowOf(r.id))!.fieldClock).toMatchObject({ notes: 2500, isFavorite: 2000 });
     });
 
     it('drops fields that aren’t merge fields the record carries, and merges the rest', async () => {
@@ -344,21 +323,21 @@ d('sync engine (Postgres)', () => {
         { collection: 'albums', record: withoutPosition, fields: { position: 1000 } },
       ]);
       expect(res.map((x) => x.status)).toEqual(['applied', 'applied']);
-      expect(await stored(r.id)).toMatchObject({ notes: 'n' });
+      expect(await rowOf(r.id)).toMatchObject({ notes: 'n' });
     });
 
     it('a field group sent in part merges whole, at its newest clock', async () => {
       const r = assetRecord({ isFileSynced: false, isThumbnailSynced: false, isSynced: false });
       await push(db, USER_A, [mut(r)]);
       // Another device marked the thumbnail later; this push names only isFileSynced, with stale others.
-      await push(db, USER_A, [edit({ ...r, updatedAt: 3000, isThumbnailSynced: true }, ['isThumbnailSynced'])]);
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: 3000, isThumbnailSynced: true }, ['isThumbnailSynced'])]);
       const stale = { ...r, updatedAt: 2000, isFileSynced: true };
       const [result] = await push(db, USER_A, [
         { collection: 'assets', record: stale, fields: { isFileSynced: 2000 } },
       ]);
       expect(result.status).toBe('skipped-lww');
-      expect(await stored(r.id)).toMatchObject({ isFileSynced: false, isThumbnailSynced: true, isSynced: false });
-      expect((await stored(r.id)).fieldClock).toMatchObject({ isFileSynced: 3000, isThumbnailSynced: 3000 });
+      expect(await rowOf(r.id)).toMatchObject({ isFileSynced: false, isThumbnailSynced: true, isSynced: false });
+      expect((await rowOf(r.id))!.fieldClock).toMatchObject({ isFileSynced: 3000, isThumbnailSynced: 3000 });
     });
 
     it('a field without a stored clock takes the row’s updated_at, and keeps it once the row moves on', async () => {
@@ -368,19 +347,19 @@ d('sync engine (Postgres)', () => {
         USER_A,
         r.id,
       ]);
-      const [older] = await push(db, USER_A, [edit({ ...r, updatedAt: 1500, isFavorite: true }, ['isFavorite'])]);
+      const [older] = await push(db, USER_A, [fieldPush({ ...r, updatedAt: 1500, isFavorite: true }, ['isFavorite'])]);
       expect(older.status).toBe('skipped-lww');
-      await push(db, USER_A, [edit({ ...r, updatedAt: 5000, notes: 'n' }, ['notes'])]);
-      expect((await stored(r.id)).fieldClock).toMatchObject({ notes: 5000, isFavorite: 2000 });
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: 5000, notes: 'n' }, ['notes'])]);
+      expect((await rowOf(r.id))!.fieldClock).toMatchObject({ notes: 5000, isFavorite: 2000 });
     });
 
     it('a restore beats a purge that hadn’t seen it, whatever the purge’s clock, and isn’t re-deleted', async () => {
       const r = { ...assetRecord({ deletedAt: 1000 }), purgedAt: null as number | null };
       await push(db, USER_A, [mut(r)]);
-      await push(db, USER_A, [edit({ ...r, updatedAt: 3000, deletedAt: null }, ['deletedAt', 'purgedAt'])]);
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: 3000, deletedAt: null }, ['deletedAt', 'purgedAt'])]);
       const seq = await serverSeqOf(USER_A, r.id);
       // Made later than the restore, on a device that only saw the deletion at 1000.
-      const purge = edit({ ...r, updatedAt: 5000, purgedAt: 5000 }, ['deletedAt', 'purgedAt']);
+      const purge = fieldPush({ ...r, updatedAt: 5000, purgedAt: 5000 }, ['deletedAt', 'purgedAt']);
       expect((await push(db, USER_A, [purge]))[0]).toMatchObject({
         status: 'skipped-lww',
         current: { deletedAt: null, purgedAt: null },
@@ -388,8 +367,8 @@ d('sync engine (Postgres)', () => {
       expect(await serverSeqOf(USER_A, r.id)).toBe(seq);
       // A deletion after the restore, then a purge of it, applies.
       const deletion = { ...r, updatedAt: 6000, deletedAt: 6000 };
-      await push(db, USER_A, [edit(deletion, ['deletedAt', 'purgedAt'])]);
-      const purgeAgain = edit({ ...deletion, updatedAt: 7000, purgedAt: 7000 }, ['deletedAt', 'purgedAt']);
+      await push(db, USER_A, [fieldPush(deletion, ['deletedAt', 'purgedAt'])]);
+      const purgeAgain = fieldPush({ ...deletion, updatedAt: 7000, purgedAt: 7000 }, ['deletedAt', 'purgedAt']);
       expect((await push(db, USER_A, [purgeAgain]))[0].status).toBe('applied');
     });
 
@@ -397,20 +376,20 @@ d('sync engine (Postgres)', () => {
       const r = { ...assetRecord(), purgedAt: null as number | null };
       await push(db, USER_A, [mut(r)]);
       const gone = { ...r, updatedAt: 3000, deletedAt: 2000, purgedAt: 3000 };
-      expect((await push(db, USER_A, [edit(gone, ['deletedAt', 'purgedAt'])]))[0].status).toBe('applied');
-      expect(await stored(r.id)).toMatchObject({ deletedAt: 2000, purgedAt: 3000 });
+      expect((await push(db, USER_A, [fieldPush(gone, ['deletedAt', 'purgedAt'])]))[0].status).toBe('applied');
+      expect(await rowOf(r.id)).toMatchObject({ deletedAt: 2000, purgedAt: 3000 });
     });
 
     it('a push to a purged asset that doesn’t have the purge is skipped with it, even if every sent field holds', async () => {
       const r = { ...assetRecord({ deletedAt: 1000 }), purgedAt: null as number | null };
       await push(db, USER_A, [mut(r)]);
-      await push(db, USER_A, [edit({ ...r, updatedAt: 2000, purgedAt: 2000 }, ['deletedAt', 'purgedAt'])]);
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: 2000, purgedAt: 2000 }, ['deletedAt', 'purgedAt'])]);
       // A device whose deletion the server already has, pushing it again without the purge.
-      const [again] = await push(db, USER_A, [edit({ ...r, updatedAt: 1000 }, ['notes'])]);
+      const [again] = await push(db, USER_A, [fieldPush({ ...r, updatedAt: 1000 }, ['notes'])]);
       expect(again).toMatchObject({ status: 'skipped-lww', current: { purgedAt: 2000 } });
-      const { purgedAt: _purgedAt, ...olderApp } = r; // an app that doesn't know purges
-      expect((await push(db, USER_A, [mut(olderApp)]))[0]).toMatchObject({ status: 'skipped-lww' });
-      const purge = edit({ ...r, updatedAt: 2000, purgedAt: 2000 }, ['deletedAt', 'purgedAt']);
+      const { purgedAt: _purgedAt, ...withoutPurges } = r; // an app that doesn't know purges
+      expect((await push(db, USER_A, [mut(withoutPurges)]))[0]).toMatchObject({ status: 'skipped-lww' });
+      const purge = fieldPush({ ...r, updatedAt: 2000, purgedAt: 2000 }, ['deletedAt', 'purgedAt']);
       expect((await push(db, USER_A, [purge]))[0].status).toBe('applied'); // the purge's own replay
     });
 
@@ -423,96 +402,89 @@ d('sync engine (Postgres)', () => {
     it('a row written since by a server without clocks (a rollback) takes its updated_at for every field', async () => {
       const r = assetRecord();
       await push(db, USER_A, [mut(r)]);
-      await push(db, USER_A, [edit({ ...r, updatedAt: 2000, notes: 'n' }, ['notes'])]);
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: 2000, notes: 'n' }, ['notes'])]);
       // An older server writes a whole record at 5000 and leaves field_clock as it was.
       await pool.query(`UPDATE assets SET updated_at = 5000, is_favorite = true WHERE user_id = $1 AND id = $2`, [
         USER_A,
         r.id,
       ]);
-      const [older] = await push(db, USER_A, [edit({ ...r, updatedAt: 4000, isFavorite: false }, ['isFavorite'])]);
+      const [older] = await push(db, USER_A, [fieldPush({ ...r, updatedAt: 4000, isFavorite: false }, ['isFavorite'])]);
       expect(older).toMatchObject({ status: 'skipped-lww', current: { isFavorite: true } });
-      const [newer] = await push(db, USER_A, [edit({ ...r, updatedAt: 6000, notes: 'm' }, ['notes'])]);
+      const [newer] = await push(db, USER_A, [fieldPush({ ...r, updatedAt: 6000, notes: 'm' }, ['notes'])]);
       expect(newer.status).toBe('applied');
-      expect((await stored(r.id)).fieldClock).toMatchObject({ notes: 6000, isFavorite: 5000 });
+      expect((await rowOf(r.id))!.fieldClock).toMatchObject({ notes: 6000, isFavorite: 5000 });
     });
   });
 
   describe('per-field merge, adversarial', () => {
-    const edit = (record: Record<string, unknown>, fields: Record<string, number>, collection = 'assets') => ({
-      collection,
-      record,
-      fields,
-    });
-    const at = (record: Record<string, unknown>, clock: number, fields: string[], collection = 'assets') =>
-      edit(record, Object.fromEntries(fields.map((field) => [field, clock])), collection);
-    const raw = async (id: string) =>
-      (
-        await db
-          .select()
-          .from(schema.assets)
-          .where(and(eq(schema.assets.userId, USER_A), eq(schema.assets.id, id)))
-      )[0]!;
-
-    it('an old app’s whole-record push between per-field pushes: its newer field wins, its stale ones lose, current is merged', async () => {
+    it('a whole-record push between per-field pushes: its newer field wins, its stale ones lose, current is merged', async () => {
       const r = assetRecord({ notes: 'orig' });
       await push(db, USER_A, [mut(r)]);
-      await push(db, USER_A, [at({ ...r, updatedAt: 3000, notes: 'new app' }, 3000, ['notes'])]);
-      const [old] = await push(db, USER_A, [mut({ ...r, updatedAt: 2000, isFavorite: true })]); // stale notes
-      expect(old).toMatchObject({
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: 3000, notes: 'new app' }, ['notes'], 3000)]);
+      const [whole] = await push(db, USER_A, [mut({ ...r, updatedAt: 2000, isFavorite: true })]); // stale notes
+      expect(whole).toMatchObject({
         status: 'skipped-lww',
         current: { notes: 'new app', isFavorite: true, updatedAt: 3000 },
       });
-      expect((await raw(r.id)).fieldClock).toMatchObject({
+      expect((await rowOf(r.id))!.fieldClock).toMatchObject({
         notes: 3000,
         isFavorite: 2000,
         filename: 2000,
         deletedAt: 2000,
       });
 
-      // A per-field push older than the old app's stamp loses on a field the old app never changed.
-      const [late] = await push(db, USER_A, [at({ ...r, updatedAt: 1500, filename: 'b.jpg' }, 1500, ['filename'])]);
+      // A per-field push older than the whole-record stamp loses on a field the whole record never changed.
+      const [late] = await push(db, USER_A, [
+        fieldPush({ ...r, updatedAt: 1500, filename: 'b.jpg' }, ['filename'], 1500),
+      ]);
       expect(late).toMatchObject({ status: 'skipped-lww', current: { filename: 'a.jpg' } });
       // A newer one wins on it.
       expect(
-        (await push(db, USER_A, [at({ ...r, updatedAt: 2500, filename: 'b.jpg' }, 2500, ['filename'])]))[0].status,
+        (await push(db, USER_A, [fieldPush({ ...r, updatedAt: 2500, filename: 'b.jpg' }, ['filename'], 2500)]))[0]
+          .status,
       ).toBe('applied');
-      expect(await raw(r.id)).toMatchObject({ notes: 'new app', isFavorite: true, filename: 'b.jpg', updatedAt: 3000 });
+      expect(await rowOf(r.id)).toMatchObject({
+        notes: 'new app',
+        isFavorite: true,
+        filename: 'b.jpg',
+        updatedAt: 3000,
+      });
     });
 
     it('a push that loses everything leaves the row and its server_seq alone', async () => {
       const r = assetRecord();
       await push(db, USER_A, [mut({ ...r, updatedAt: 3000 })]);
-      const before = await raw(r.id);
+      const before = (await rowOf(r.id))!;
       const [result] = await push(db, USER_A, [
-        at({ ...r, updatedAt: 2000, notes: 'n', isFavorite: true, deletedAt: 2000 }, 2000, [
-          'notes',
-          'isFavorite',
-          'deletedAt',
-        ]),
+        fieldPush(
+          { ...r, updatedAt: 2000, notes: 'n', isFavorite: true, deletedAt: 2000 },
+          ['notes', 'isFavorite', 'deletedAt'],
+          2000,
+        ),
       ]);
       expect(result.status).toBe('skipped-lww');
-      expect(await raw(r.id)).toEqual(before);
+      expect(await rowOf(r.id)).toEqual(before);
     });
 
     it('equal clocks with different values: the first stays, the second is skipped-lww with it as current', async () => {
       const r = assetRecord();
       await push(db, USER_A, [mut(r)]);
-      expect((await push(db, USER_A, [at({ ...r, updatedAt: 2000, notes: 'first' }, 2000, ['notes'])]))[0].status).toBe(
-        'applied',
-      );
-      const [second] = await push(db, USER_A, [at({ ...r, updatedAt: 2000, notes: 'second' }, 2000, ['notes'])]);
+      expect(
+        (await push(db, USER_A, [fieldPush({ ...r, updatedAt: 2000, notes: 'first' }, ['notes'], 2000)]))[0].status,
+      ).toBe('applied');
+      const [second] = await push(db, USER_A, [fieldPush({ ...r, updatedAt: 2000, notes: 'second' }, ['notes'], 2000)]);
       expect(second).toMatchObject({ status: 'skipped-lww', current: { notes: 'first' } });
     });
 
     it('per-field clocks of one push merge one by one: an older clock on one field loses while a newer one wins', async () => {
       const r = assetRecord();
       await push(db, USER_A, [mut(r)]);
-      await push(db, USER_A, [at({ ...r, updatedAt: 3000, notes: 'other device' }, 3000, ['notes'])]);
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: 3000, notes: 'other device' }, ['notes'], 3000)]);
       const [result] = await push(db, USER_A, [
-        edit({ ...r, updatedAt: 4000, notes: 'mine, older', isFavorite: true }, { notes: 2000, isFavorite: 4000 }),
+        fieldPush({ ...r, updatedAt: 4000, notes: 'mine, older', isFavorite: true }, { notes: 2000, isFavorite: 4000 }),
       ]);
       expect(result).toMatchObject({ status: 'skipped-lww', current: { notes: 'other device', isFavorite: true } });
-      expect((await raw(r.id)).fieldClock).toMatchObject({ notes: 3000, isFavorite: 4000 });
+      expect((await rowOf(r.id))!.fieldClock).toMatchObject({ notes: 3000, isFavorite: 4000 });
     });
 
     it('only the future field clocks of a push are clamped', async () => {
@@ -520,9 +492,9 @@ d('sync engine (Postgres)', () => {
       await push(db, USER_A, [mut(r)]);
       const future = Date.now() + 3_600_000;
       await push(db, USER_A, [
-        edit({ ...r, updatedAt: future, notes: 'ahead', isFavorite: true }, { notes: future, isFavorite: 2000 }),
+        fieldPush({ ...r, updatedAt: future, notes: 'ahead', isFavorite: true }, { notes: future, isFavorite: 2000 }),
       ]);
-      const row = await raw(r.id);
+      const row = (await rowOf(r.id))!;
       expect(row.notes).toBe('ahead');
       expect(row.fieldClock!.isFavorite).toBe(2000);
       expect(row.fieldClock!.notes).toBeLessThan(future);
@@ -532,11 +504,11 @@ d('sync engine (Postgres)', () => {
     it('a replayed mixed batch gets the same results and moves no server_seq', async () => {
       const rs = [assetRecord(), assetRecord(), assetRecord()];
       await push(db, USER_A, rs.map(mut));
-      await push(db, USER_A, [at({ ...rs[1], updatedAt: 3000, notes: 'newer' }, 3000, ['notes'])]);
+      await push(db, USER_A, [fieldPush({ ...rs[1], updatedAt: 3000, notes: 'newer' }, ['notes'], 3000)]);
       const batch = [
-        at({ ...rs[0], updatedAt: 2000, notes: 'wins' }, 2000, ['notes']),
-        at({ ...rs[1], updatedAt: 2000, notes: 'loses', isFavorite: true }, 2000, ['notes', 'isFavorite']),
-        at({ ...rs[2], updatedAt: 2000, deletedAt: 2000 }, 2000, ['deletedAt']),
+        fieldPush({ ...rs[0], updatedAt: 2000, notes: 'wins' }, ['notes'], 2000),
+        fieldPush({ ...rs[1], updatedAt: 2000, notes: 'loses', isFavorite: true }, ['notes', 'isFavorite'], 2000),
+        fieldPush({ ...rs[2], updatedAt: 2000, deletedAt: 2000 }, ['deletedAt'], 2000),
       ];
       const first = await push(db, USER_A, batch);
       expect(first.map((r) => r.status)).toEqual(['applied', 'skipped-lww', 'applied']);
@@ -549,14 +521,14 @@ d('sync engine (Postgres)', () => {
     it('a purged row is frozen for per-field pushes, whole-record pushes and a second purge alike', async () => {
       const r = assetRecord({ deletedAt: 1000 });
       await push(db, USER_A, [mut(r)]);
-      await push(db, USER_A, [at({ ...r, updatedAt: 2000, purgedAt: 2000 }, 2000, ['purgedAt'])]);
-      const frozen = await raw(r.id);
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: 2000, purgedAt: 2000 }, ['purgedAt'], 2000)]);
+      const frozen = (await rowOf(r.id))!;
       const attempts = [
-        at({ ...r, updatedAt: 9000, notes: 'n' }, 9000, ['notes']),
-        at({ ...r, updatedAt: 9000, deletedAt: null }, 9000, ['deletedAt']),
+        fieldPush({ ...r, updatedAt: 9000, notes: 'n' }, ['notes'], 9000),
+        fieldPush({ ...r, updatedAt: 9000, deletedAt: null }, ['deletedAt'], 9000),
         mut({ ...r, updatedAt: 9000, deletedAt: null, purgedAt: null }),
         mut({ ...r, updatedAt: 9000, isFavorite: true }), // no purgedAt key
-        at({ ...r, updatedAt: 9000, purgedAt: 9000 }, 9000, ['purgedAt', 'deletedAt']),
+        fieldPush({ ...r, updatedAt: 9000, purgedAt: 9000 }, ['purgedAt', 'deletedAt'], 9000),
       ];
       for (const attempt of attempts) {
         const [result] = await push(db, USER_A, [attempt]);
@@ -565,10 +537,10 @@ d('sync engine (Postgres)', () => {
           current: { purgedAt: 2000, deletedAt: 1000, notes: null },
         });
       }
-      expect(await raw(r.id)).toEqual(frozen);
+      expect(await rowOf(r.id)).toEqual(frozen);
       // The identical purge, replayed, is applied.
       expect(
-        (await push(db, USER_A, [at({ ...r, updatedAt: 2000, purgedAt: 2000 }, 2000, ['purgedAt'])]))[0].status,
+        (await push(db, USER_A, [fieldPush({ ...r, updatedAt: 2000, purgedAt: 2000 }, ['purgedAt'], 2000)]))[0].status,
       ).toBe('applied');
     });
 
@@ -578,14 +550,14 @@ d('sync engine (Postgres)', () => {
       const redeleted = assetRecord({ deletedAt: 1000 });
       await push(db, USER_A, [mut(live), mut(restored), mut(redeleted)]);
       await push(db, USER_A, [
-        at({ ...restored, updatedAt: 3000, deletedAt: null }, 3000, ['deletedAt']),
-        at({ ...redeleted, updatedAt: 3000, deletedAt: 3000 }, 3000, ['deletedAt']),
+        fieldPush({ ...restored, updatedAt: 3000, deletedAt: null }, ['deletedAt'], 3000),
+        fieldPush({ ...redeleted, updatedAt: 3000, deletedAt: 3000 }, ['deletedAt'], 3000),
       ]);
       const purge = (r: Record<string, unknown>) =>
-        edit({ ...r, updatedAt: 2500, deletedAt: 2000, purgedAt: 2500 }, { deletedAt: 2000, purgedAt: 2500 });
+        fieldPush({ ...r, updatedAt: 2500, deletedAt: 2000, purgedAt: 2500 }, { deletedAt: 2000, purgedAt: 2500 });
       const results = await push(db, USER_A, [purge(live), purge(restored), purge(redeleted)]);
       expect(results[0].status).toBe('applied');
-      expect(await raw(live.id)).toMatchObject({ deletedAt: 2000, purgedAt: 2500 });
+      expect(await rowOf(live.id)).toMatchObject({ deletedAt: 2000, purgedAt: 2500 });
       expect(results[1]).toMatchObject({ status: 'skipped-lww', current: { deletedAt: null, purgedAt: null } });
       expect(results[2]).toMatchObject({ status: 'skipped-lww', current: { deletedAt: 3000, purgedAt: 2500 } });
     });
@@ -597,15 +569,15 @@ d('sync engine (Postgres)', () => {
       await push(db, USER_A, [mut(r)]);
       const fastDeletion = Date.now() + 3_600_000; // the deleting device is an hour ahead
       const deleted = { ...r, updatedAt: fastDeletion, deletedAt: fastDeletion };
-      expect((await push(db, USER_A, [at(deleted, fastDeletion, ['deletedAt'])]))[0].status).toBe('applied');
+      expect((await push(db, USER_A, [fieldPush(deleted, ['deletedAt'], fastDeletion)]))[0].status).toBe('applied');
       tick();
       const restoredAt = Date.now();
-      await push(db, USER_A, [at({ ...r, updatedAt: restoredAt, deletedAt: null }, restoredAt, ['deletedAt'])]);
-      expect(await raw(r.id)).toMatchObject({ deletedAt: null });
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: restoredAt, deletedAt: null }, ['deletedAt'], restoredAt)]);
+      expect(await rowOf(r.id)).toMatchObject({ deletedAt: null });
       tick();
       const purgedAt = Date.now(); // made on a device that only saw the deletion
       const [result] = await push(db, USER_A, [
-        at({ ...deleted, updatedAt: purgedAt, purgedAt }, purgedAt, ['deletedAt', 'purgedAt']),
+        fieldPush({ ...deleted, updatedAt: purgedAt, purgedAt }, ['deletedAt', 'purgedAt'], purgedAt),
       ]);
       expect(result).toMatchObject({ status: 'skipped-lww', current: { deletedAt: null, purgedAt: null } });
     });
@@ -615,8 +587,9 @@ d('sync engine (Postgres)', () => {
       const purgedFirst = { ...assetRecord({ deletedAt: 1000 }), purgedAt: null as number | null };
       await push(db, USER_A, [mut(restoredFirst), mut(purgedFirst)]);
       const restore = (r: Record<string, unknown>) =>
-        at({ ...r, updatedAt: 3000, deletedAt: null }, 3000, ['deletedAt']);
-      const purge = (r: Record<string, unknown>) => at({ ...r, updatedAt: 2000, purgedAt: 2000 }, 2000, ['purgedAt']);
+        fieldPush({ ...r, updatedAt: 3000, deletedAt: null }, ['deletedAt'], 3000);
+      const purge = (r: Record<string, unknown>) =>
+        fieldPush({ ...r, updatedAt: 2000, purgedAt: 2000 }, ['purgedAt'], 2000);
       const results = await push(db, USER_A, [
         restore(restoredFirst),
         purge(restoredFirst),
@@ -624,17 +597,19 @@ d('sync engine (Postgres)', () => {
         restore(purgedFirst),
       ]);
       expect(results.map((result) => result.status)).toEqual(['applied', 'skipped-lww', 'applied', 'skipped-lww']);
-      expect(await raw(restoredFirst.id)).toMatchObject({ deletedAt: null, purgedAt: null });
-      expect(await raw(purgedFirst.id)).toMatchObject({ deletedAt: 1000, purgedAt: 2000 });
+      expect(await rowOf(restoredFirst.id)).toMatchObject({ deletedAt: null, purgedAt: null });
+      expect(await rowOf(purgedFirst.id)).toMatchObject({ deletedAt: 1000, purgedAt: 2000 });
     });
 
     it('a purge alone on a live row changes nothing', async () => {
       const r = assetRecord();
       await push(db, USER_A, [mut(r)]);
-      const before = await raw(r.id);
-      const [result] = await push(db, USER_A, [at({ ...r, updatedAt: 2000, purgedAt: 2000 }, 2000, ['purgedAt'])]);
+      const before = (await rowOf(r.id))!;
+      const [result] = await push(db, USER_A, [
+        fieldPush({ ...r, updatedAt: 2000, purgedAt: 2000 }, ['purgedAt'], 2000),
+      ]);
       expect(result).toMatchObject({ status: 'skipped-lww', current: { purgedAt: null } });
-      expect(await raw(r.id)).toEqual(before);
+      expect(await rowOf(r.id)).toEqual(before);
     });
 
     it('an edge removal stays removed when a newer reorder of it arrives, and keeps the new position', async () => {
@@ -648,9 +623,11 @@ d('sync engine (Postgres)', () => {
         position: 'a0',
       };
       await push(db, USER_A, [{ collection: 'album_assets', record: e }]);
-      await push(db, USER_A, [at({ ...e, updatedAt: 2000, deletedAt: 2000 }, 2000, ['deletedAt'], 'album_assets')]);
+      await push(db, USER_A, [
+        fieldPush({ ...e, updatedAt: 2000, deletedAt: 2000 }, ['deletedAt'], 2000, 'album_assets'),
+      ]);
       const [reorder] = await push(db, USER_A, [
-        at({ ...e, updatedAt: 3000, position: 'Zz' }, 3000, ['position'], 'album_assets'),
+        fieldPush({ ...e, updatedAt: 3000, position: 'Zz' }, ['position'], 3000, 'album_assets'),
       ]);
       expect(reorder.status).toBe('applied');
       const { changes } = await pull(db, USER_A, { cursor: 0 });
@@ -663,10 +640,10 @@ d('sync engine (Postgres)', () => {
       const rs = Array.from({ length: 250 }, () => assetRecord());
       await push(db, USER_A, rs.map(mut));
       const mutations = rs.flatMap((r, i) => [
-        at({ ...r, updatedAt: 3000, notes: `newer ${i}` }, 3000, ['notes']),
+        fieldPush({ ...r, updatedAt: 3000, notes: `newer ${i}` }, ['notes'], 3000),
         i % 2 === 0
-          ? at({ ...r, updatedAt: 2000, notes: `older ${i}`, isFavorite: true }, 2000, ['notes', 'isFavorite'])
-          : mut({ ...r, updatedAt: 2000, notes: `older ${i}`, isFavorite: true }), // an old app's whole record
+          ? fieldPush({ ...r, updatedAt: 2000, notes: `older ${i}`, isFavorite: true }, ['notes', 'isFavorite'], 2000)
+          : mut({ ...r, updatedAt: 2000, notes: `older ${i}`, isFavorite: true }), // a whole-record app's push
       ]);
       expect(mutations).toHaveLength(500);
       const results = await push(db, USER_A, mutations);
@@ -691,92 +668,66 @@ d('sync engine (Postgres)', () => {
   });
 
   describe('restored deletions, the lock, one batch against many pushes', () => {
-    // Users of their own: another checkout's run on the same Postgres can't touch their rows.
-    const ME = randomUUID();
-    const TWIN = randomUUID();
     const pair = ['deletedAt', 'purgedAt'];
-    const at = (record: Record<string, unknown>, clock: number, fields: string[]) => ({
-      collection: 'assets',
-      record,
-      fields: Object.fromEntries(fields.map((field) => [field, clock])),
-    });
-    const raw = async (id: string, user = ME) =>
-      (
-        await db
-          .select()
-          .from(schema.assets)
-          .where(and(eq(schema.assets.userId, user), eq(schema.assets.id, id)))
-      )[0]!;
     const asset = (over: Record<string, unknown> = {}) => ({
       ...assetRecord(over),
       purgedAt: null as number | null,
       ...over,
     });
 
-    beforeAll(async () => {
-      await db.insert(schema.users).values([
-        { id: ME, email: `restores-${ME}@test.local`, passwordDigest: 'x', storageBucket: null },
-        { id: TWIN, email: `restores-${TWIN}@test.local`, passwordDigest: 'x', storageBucket: null },
-      ]);
-    });
-    afterAll(async () => {
-      await db.delete(schema.assets).where(inArray(schema.assets.userId, [ME, TWIN]));
-      await db.delete(schema.users).where(inArray(schema.users.id, [ME, TWIN]));
-    });
-
     it('300 delete/restore cycles keep the last ten deletions undone: a purge of one of them loses, of an older one goes by its clock', async () => {
       const r = asset();
-      await push(db, ME, [mut(r)]);
+      await push(db, USER_A, [mut(r)]);
       let clock = 2000;
       for (let cycle = 0; cycle < 300; cycle++) {
         const deletedAt = (clock += 10);
-        await push(db, ME, [at({ ...r, updatedAt: deletedAt, deletedAt }, deletedAt, pair)]);
+        await push(db, USER_A, [fieldPush({ ...r, updatedAt: deletedAt, deletedAt }, pair, deletedAt)]);
         clock += 10;
-        await push(db, ME, [at({ ...r, updatedAt: clock, deletedAt: null }, clock, pair)]);
+        await push(db, USER_A, [fieldPush({ ...r, updatedAt: clock, deletedAt: null }, pair, clock)]);
       }
-      const row = await raw(r.id);
+      const row = (await rowOf(r.id))!;
       const last = clock - 10;
       expect(row.restoredDeletions).toEqual(Array.from({ length: 10 }, (_, i) => last - (9 - i) * 20));
       const recent = { ...r, updatedAt: 9_000_000, deletedAt: last, purgedAt: 9_000_000 };
-      const [lost] = await push(db, ME, [at(recent, 9_000_000, pair)]);
+      const [lost] = await push(db, USER_A, [fieldPush(recent, pair, 9_000_000)]);
       expect(lost).toMatchObject({ status: 'skipped-lww', current: { deletedAt: null, purgedAt: null } });
       const oldest = { ...r, updatedAt: 9_000_001, deletedAt: 2010, purgedAt: 9_000_001 };
-      const [applied] = await push(db, ME, [at(oldest, 9_000_001, pair)]);
+      const [applied] = await push(db, USER_A, [fieldPush(oldest, pair, 9_000_001)]);
       expect(applied.status).toBe('applied');
     });
 
     it('a fast clock’s restore doesn’t make a later real delete and purge on another device lose', async () => {
       const r = asset({ deletedAt: 1000 });
-      await push(db, ME, [mut(r)]);
+      await push(db, USER_A, [mut(r)]);
       // A device whose clock runs a day ahead restores the photo; then deletes it at its own clock.
       const ahead = 1000 + 86_400_000;
-      await push(db, ME, [at({ ...r, updatedAt: ahead, deletedAt: null }, ahead, pair)]);
-      await push(db, ME, [at({ ...r, updatedAt: ahead + 10, deletedAt: ahead + 10 }, ahead + 10, pair)]);
-      await push(db, ME, [at({ ...r, updatedAt: ahead + 20, deletedAt: null }, ahead + 20, pair)]); // and restores again
-      expect((await raw(r.id)).restoredDeletions).toEqual([1000, ahead + 10]);
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: ahead, deletedAt: null }, pair, ahead)]);
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: ahead + 10, deletedAt: ahead + 10 }, pair, ahead + 10)]);
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: ahead + 20, deletedAt: null }, pair, ahead + 20)]); // and restores again
+      expect((await rowOf(r.id))!.restoredDeletions).toEqual([1000, ahead + 10]);
       // Another device, its clock right, deletes and purges it for real, newer than every clock above.
       const now = ahead + 1000;
-      await push(db, ME, [at({ ...r, updatedAt: now, deletedAt: now - 5, purgedAt: now }, now, pair)]);
-      expect(await raw(r.id)).toMatchObject({ deletedAt: now - 5, purgedAt: now });
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: now, deletedAt: now - 5, purgedAt: now }, pair, now)]);
+      expect(await rowOf(r.id)).toMatchObject({ deletedAt: now - 5, purgedAt: now });
     });
 
-    it('the restored deletions survive the rollback rule and an old app’s whole record, and no client ever sees them', async () => {
+    it('the restored deletions survive the rollback rule and a whole-record push, and no client ever sees them', async () => {
       const r = asset({ deletedAt: 1000 });
-      await push(db, ME, [mut(r)]);
-      await push(db, ME, [at({ ...r, updatedAt: 2000, deletedAt: null }, 2000, pair)]);
+      await push(db, USER_A, [mut(r)]);
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: 2000, deletedAt: null }, pair, 2000)]);
       // A server without clocks writes the row since (a rollback), leaving field_clock as it was.
-      await pool.query(`UPDATE assets SET updated_at = 4000, notes = 'old server' WHERE user_id = $1 AND id = $2`, [
-        ME,
-        r.id,
+      await pool.query(
+        `UPDATE assets SET updated_at = 4000, notes = 'rolled-back server' WHERE user_id = $1 AND id = $2`,
+        [USER_A, r.id],
+      );
+      // Then a whole record, newer, from a device that saw the restore.
+      const [whole] = await push(db, USER_A, [
+        mut({ ...r, updatedAt: 5000, deletedAt: null, notes: 'rolled-back server', isFavorite: true }),
       ]);
-      // Then an old app's whole record, newer, from a device that saw the restore.
-      const [old] = await push(db, ME, [
-        mut({ ...r, updatedAt: 5000, deletedAt: null, notes: 'old server', isFavorite: true }),
-      ]);
-      expect(old.status).toBe('applied');
-      expect((await raw(r.id)).restoredDeletions).toEqual([1000]);
+      expect(whole.status).toBe('applied');
+      expect((await rowOf(r.id))!.restoredDeletions).toEqual([1000]);
       // A device that only saw the deletion at 1000 purges, its clock far ahead of everything.
-      const [purge] = await push(db, ME, [at({ ...r, updatedAt: 9000, purgedAt: 9000 }, 9000, pair)]);
+      const [purge] = await push(db, USER_A, [fieldPush({ ...r, updatedAt: 9000, purgedAt: 9000 }, pair, 9000)]);
       expect(purge).toMatchObject({
         status: 'skipped-lww',
         current: { deletedAt: null, purgedAt: null, isFavorite: true },
@@ -784,62 +735,65 @@ d('sync engine (Postgres)', () => {
       const serverOnly = (record: object) =>
         Object.keys(record).filter((key) => key === 'restoredDeletions' || key === 'fieldClock');
       expect(serverOnly(purge.current!)).toEqual([]);
-      const { changes } = await pull(db, ME, { cursor: 0, limit: 1000 });
+      const { changes } = await pull(db, USER_A, { cursor: 0, limit: 1000 });
       for (const record of changes.assets.records) expect(serverOnly(record)).toEqual([]);
     });
 
-    it('a restore an old server took is not remembered: a purge of that deletion then goes by its clock (a rollback’s limit)', async () => {
+    it('a restore a rolled-back server took is not remembered: a purge of that deletion then goes by its clock (a rollback’s limit)', async () => {
       const r = asset({ deletedAt: 1000 });
-      await push(db, ME, [mut(r)]);
+      await push(db, USER_A, [mut(r)]);
       await pool.query(`UPDATE assets SET updated_at = 2000, deleted_at = NULL WHERE user_id = $1 AND id = $2`, [
-        ME,
+        USER_A,
         r.id,
       ]);
-      const [purge] = await push(db, ME, [at({ ...r, updatedAt: 3000, purgedAt: 3000 }, 3000, pair)]);
+      const [purge] = await push(db, USER_A, [fieldPush({ ...r, updatedAt: 3000, purgedAt: 3000 }, pair, 3000)]);
       expect(purge.status).toBe('applied');
-      expect(await raw(r.id)).toMatchObject({ deletedAt: 1000, purgedAt: 3000 });
+      expect(await rowOf(r.id)).toMatchObject({ deletedAt: 1000, purgedAt: 3000 });
     });
 
-    it('a stale field_clock behind an old server’s writes: every field takes its updated_at, then pins again', async () => {
+    it('a stale field_clock behind a rolled-back server’s writes: every field takes its updated_at, then pins again', async () => {
       const r = asset();
-      await push(db, ME, [mut(r)]);
-      await push(db, ME, [at({ ...r, updatedAt: 3000, notes: 'new' }, 3000, ['notes'])]);
+      await push(db, USER_A, [mut(r)]);
+      await push(db, USER_A, [fieldPush({ ...r, updatedAt: 3000, notes: 'new' }, ['notes'], 3000)]);
       // A server without clocks writes a newer whole record at 4000, field_clock left at notes 3000.
       await pool.query(
-        `UPDATE assets SET updated_at = 4000, notes = 'old', is_favorite = true WHERE user_id = $1 AND id = $2`,
-        [ME, r.id],
+        `UPDATE assets SET updated_at = 4000, notes = 'rolled back', is_favorite = true WHERE user_id = $1 AND id = $2`,
+        [USER_A, r.id],
       );
-      // A per-field edit older than the old server's write loses, though newer than the stale clock.
-      const [older] = await push(db, ME, [at({ ...r, updatedAt: 3500, notes: 'newer than 3000' }, 3500, ['notes'])]);
-      expect(older).toMatchObject({ status: 'skipped-lww', current: { notes: 'old' } });
+      // A per-field edit older than the rolled-back server's write loses, though newer than the stale clock.
+      const [older] = await push(db, USER_A, [
+        fieldPush({ ...r, updatedAt: 3500, notes: 'newer than 3000' }, ['notes'], 3500),
+      ]);
+      expect(older).toMatchObject({ status: 'skipped-lww', current: { notes: 'rolled back' } });
       // A newer one wins, and from then on the row has clocks again: the next older edit of another field loses.
       expect(
-        (await push(db, ME, [at({ ...r, updatedAt: 4500, isFavorite: false }, 4500, ['isFavorite'])]))[0].status,
+        (await push(db, USER_A, [fieldPush({ ...r, updatedAt: 4500, isFavorite: false }, ['isFavorite'], 4500)]))[0]
+          .status,
       ).toBe('applied');
-      const row = await raw(r.id);
+      const row = (await rowOf(r.id))!;
       expect(row.fieldClock).toMatchObject({ notes: 4000, isFavorite: 4500, deletedAt: 4000 });
       expect(row.updatedAt).toBe(4500);
-      const [stale] = await push(db, ME, [at({ ...r, updatedAt: 4200, notes: 'late' }, 4200, ['notes'])]);
+      const [stale] = await push(db, USER_A, [fieldPush({ ...r, updatedAt: 4200, notes: 'late' }, ['notes'], 4200)]);
       expect(stale.status).toBe('applied'); // 4200 > the notes clock 4000
-      expect((await raw(r.id)).notes).toBe('late');
+      expect((await rowOf(r.id))!.notes).toBe('late');
     });
 
     it('two devices pushing one record at once, 30 times over: the lock serializes, the newer clock wins in any order', async () => {
       for (let round = 0; round < 30; round++) {
         const r = asset({ deletedAt: 1000 });
-        await push(db, ME, [mut(r)]);
-        const restore = at({ ...r, updatedAt: 2000, deletedAt: null, notes: 'B' }, 2000, [
-          'deletedAt',
-          'purgedAt',
-          'notes',
-        ]);
-        const purge = at({ ...r, updatedAt: 3000, purgedAt: 3000, notes: 'A' }, 3000, [
-          'deletedAt',
-          'purgedAt',
-          'notes',
-        ]);
-        const [[a], [b]] = await Promise.all([push(db, ME, [purge]), push(db, ME, [restore])]);
-        const row = await raw(r.id);
+        await push(db, USER_A, [mut(r)]);
+        const restore = fieldPush(
+          { ...r, updatedAt: 2000, deletedAt: null, notes: 'B' },
+          ['deletedAt', 'purgedAt', 'notes'],
+          2000,
+        );
+        const purge = fieldPush(
+          { ...r, updatedAt: 3000, purgedAt: 3000, notes: 'A' },
+          ['deletedAt', 'purgedAt', 'notes'],
+          3000,
+        );
+        const [[a], [b]] = await Promise.all([push(db, USER_A, [purge]), push(db, USER_A, [restore])]);
+        const row = (await rowOf(r.id))!;
         // Either order is consistent: the purge first is final; the restore first beats the purge of its deletion.
         if (row.purgedAt !== null) {
           expect(row).toMatchObject({ deletedAt: 1000, purgedAt: 3000, notes: 'A' });
@@ -850,35 +804,36 @@ d('sync engine (Postgres)', () => {
         }
       }
       const records = Array.from({ length: 20 }, () => asset());
-      await push(db, ME, records.map(mut));
+      await push(db, USER_A, records.map(mut));
       // 20 concurrent pushes per record, each a newer clock for notes and isFavorite: the newest wins.
       await Promise.all(
         Array.from({ length: 20 }, (_, i) =>
           push(
             db,
-            ME,
+            USER_A,
             records.map((r) =>
-              at({ ...r, updatedAt: 5000 + i, notes: `n${i}`, isFavorite: i % 2 === 0 }, 5000 + i, [
-                'notes',
-                'isFavorite',
-              ]),
+              fieldPush(
+                { ...r, updatedAt: 5000 + i, notes: `n${i}`, isFavorite: i % 2 === 0 },
+                ['notes', 'isFavorite'],
+                5000 + i,
+              ),
             ),
           ),
         ),
       );
       for (const r of records)
-        expect(await raw(r.id)).toMatchObject({ notes: 'n19', isFavorite: false, updatedAt: 5019 });
+        expect(await rowOf(r.id)).toMatchObject({ notes: 'n19', isFavorite: false, updatedAt: 5019 });
     });
 
     // A record sent without the final field (an app without purges) leaves the merged record's
     // purgedAt as the column holds it (null), which the next mutation of the batch merges against.
     it('a restore by an app without purges, then a restore by a new app in the same batch: applied, as pushed alone', async () => {
       const r = asset({ deletedAt: 1000 });
-      await push(db, ME, [mut(r)]);
+      await push(db, USER_A, [mut(r)]);
       const { purgedAt: _p, ...withoutPurges } = { ...r, updatedAt: 3000, deletedAt: null };
-      const newer = at({ ...r, updatedAt: 2000, deletedAt: null }, 2000, pair); // older clock, same values
-      const results = await push(db, ME, [mut(withoutPurges), newer]);
-      expect(await raw(r.id)).toMatchObject({ deletedAt: null, purgedAt: null });
+      const newer = fieldPush({ ...r, updatedAt: 2000, deletedAt: null }, pair, 2000); // older clock, same values
+      const results = await push(db, USER_A, [mut(withoutPurges), newer]);
+      expect(await rowOf(r.id)).toMatchObject({ deletedAt: null, purgedAt: null });
       expect(results.map((result) => result.status)).toEqual(['applied', 'applied']);
     });
 
@@ -911,24 +866,17 @@ d('sync engine (Postgres)', () => {
           const { purgedAt: _p, ...rest } = record; // and without purges
           return mut(rest);
         }
-        return at(record, clock, fields);
+        return fieldPush(record, fields, clock);
       });
-      await push(db, ME, records.map(mut));
-      await push(db, TWIN, records.map(mut));
-      const batched = [];
-      for (let i = 0; i < mutations.length; i += 500)
-        batched.push(...(await push(db, ME, mutations.slice(i, i + 500))));
-      const single = [];
-      for (const mutation of mutations) single.push(...(await push(db, TWIN, [mutation])));
-      // `current` is the wire record: JSON, where an undefined purgedAt reads as a missing one.
-      const wire = (rows: unknown[]) => rows.map((row) => JSON.stringify(row));
+      await push(db, USER_A, records.map(mut));
+      await push(db, USER_B, records.map(mut));
+      const { batched, single } = await batchedAndOneByOne(mutations, 500);
       expect(batched.filter((result) => result.status === 'applied').length).toBeGreaterThan(300);
-      expect(wire(batched)).toEqual(wire(single));
-      for (const r of records) {
-        const { userId: _a, serverSeq: _b, ...mine } = await raw(r.id, ME);
-        const { userId: _c, serverSeq: _d, ...twin } = await raw(r.id, TWIN);
-        expect(mine).toEqual(twin);
-      }
+      expect(wire(batched)).toEqual(wire(single)); // `current` too: an undefined purgedAt reads as a missing one
+      await expectSameRows(
+        'assets',
+        records.map((r) => r.id),
+      );
     }
 
     it('a seeded batch of 600 mutations naming 25 records over and over merges like the same pushes one by one', async () => {
@@ -943,25 +891,25 @@ d('sync engine (Postgres)', () => {
     it('an id sent in upper case names the stored row: a purged one stays purged, a live one merges', async () => {
       const purged = asset({ updatedAt: 2000, deletedAt: 1000, purgedAt: 2000 });
       const live = asset({ notes: 'kept' });
-      await push(db, ME, [mut(purged), mut(live)]);
+      await push(db, USER_A, [mut(purged), mut(live)]);
       const upper = (record: Record<string, unknown>) => ({ ...record, id: String(record.id).toUpperCase() });
-      const results = await push(db, ME, [
+      const results = await push(db, USER_A, [
         mut(upper({ ...purged, updatedAt: 9000, deletedAt: null, purgedAt: null })),
-        at(upper({ ...live, updatedAt: 3000, isFavorite: true }), 3000, ['isFavorite']),
+        fieldPush(upper({ ...live, updatedAt: 3000, isFavorite: true }), ['isFavorite'], 3000),
       ]);
       expect(results.map(({ id, status }) => ({ id, status }))).toEqual([
         { id: purged.id.toUpperCase(), status: 'skipped-lww' },
         { id: live.id.toUpperCase(), status: 'applied' },
       ]);
-      expect(await raw(purged.id)).toMatchObject({ deletedAt: 1000, purgedAt: 2000 });
-      expect(await raw(live.id)).toMatchObject({ notes: 'kept', isFavorite: true, updatedAt: 3000 });
+      expect(await rowOf(purged.id)).toMatchObject({ deletedAt: 1000, purgedAt: 2000 });
+      expect(await rowOf(live.id)).toMatchObject({ notes: 'kept', isFavorite: true, updatedAt: 3000 });
     });
 
     it('an insert whose fields name nothing it carries is written whole and applied', async () => {
       const r = asset({ notes: 'new' });
-      const [result] = await push(db, ME, [{ collection: 'assets', record: r, fields: { nothing: 5 } }]);
+      const [result] = await push(db, USER_A, [{ collection: 'assets', record: r, fields: { nothing: 5 } }]);
       expect(result.status).toBe('applied');
-      expect(await raw(r.id)).toMatchObject({ notes: 'new', updatedAt: r.updatedAt, fieldClock: null });
+      expect(await rowOf(r.id)).toMatchObject({ notes: 'new', updatedAt: r.updatedAt, fieldClock: null });
     });
   });
 });
