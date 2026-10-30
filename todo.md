@@ -183,6 +183,13 @@ published instructions (`app_instructions`), model defaults and Verified / Uncen
 what would change on the live server and writes it after a confirm. The model list, notes and
 scores are on the phone, not the server, so they need their own way across.
 
+### [ ] Make Compare's fixed lines editable
+
+Later, the owner's call. Compare sends four fixed texts that no ai_admin can edit, unlike every
+other prompt (CLAUDE.md "AI prompts"): the format lines and "Write different ones." / "Give
+different tags." (`COMPARE_*` in `apps/server/src/ai/prompts.ts`). Give them instruction kinds
+so a better wording can be tried and published.
+
 ## Design
 
 - **Asset detail background:** a blurred background in the asset's colors.
