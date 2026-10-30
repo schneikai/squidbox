@@ -1,6 +1,6 @@
 import { COMPARE_PROMPT_MAX_LENGTH } from '@squidbox/shared';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import ModelAnswers from './ModelAnswers';
@@ -14,6 +14,7 @@ import ModalCloseButton from '@/components/ModalCloseButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import PrimaryButton from '@/components/PrimaryButton';
+import TextButton from '@/components/TextButton';
 import Textarea from '@/components/Textarea';
 import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
@@ -113,7 +114,15 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
             )}
           </Field>
         </Card>
-        <IntroText style={styles.hint}>Venice balance: {balance.value ?? '…'}</IntroText>
+        <View style={styles.status}>
+          <IntroText>
+            Venice balance: {balance.value ?? '…'}
+            {round.promptRound > 1 && ` · Round ${round.promptRound}`}
+          </IntroText>
+          {round.promptRound > 1 && (
+            <TextButton label="Reset" size="small" onPress={round.resetRounds} disabled={round.isRunning} />
+          )}
+        </View>
         {isVision && hasStarted && <IntroText style={styles.hint}>Tap the tags that fit.</IntroText>}
         {isVision ? (
           photos.map((asset) => (
@@ -174,6 +183,13 @@ const styles = StyleSheet.create({
     minHeight: PROMPT_MIN_HEIGHT,
   },
   hint: {
+    paddingHorizontal: 4,
+  },
+  // The balance, and the round with this prompt with its Reset.
+  status: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 4,
   },
 });

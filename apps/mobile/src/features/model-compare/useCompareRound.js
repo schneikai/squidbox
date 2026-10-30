@@ -18,7 +18,8 @@ export const TEXT_KEY = 'text';
 /**
  * One blind compare round at a time for `kind` over `modelIds`. `startRound({ prompt })` (writing)
  * or `startRound({ prompt, photos })` (vision, the assets) reshuffles the letters, clears the taps and asks
- * every model again; `number` counts the rounds. `results[key][modelId]` is `{ status: 'loading' |
+ * every model again; `number` counts the rounds, and `promptRound` the writing rounds with the same
+ * prompt, whose earlier posts each model gets to write different ones (`resetRounds()` forgets them). `results[key][modelId]` is `{ status: 'loading' |
  * 'done' | 'error', items, error }`, keyed by TEXT_KEY or the photo's asset id, and `isRunning`
  * while any is loading. `taps[key][modelId][index]` is a tweet's thumbs up (0, 1 or 2, an
  * outstanding one) or a tag's mark as fitting (0 or 1) this round; `toggle(key, modelId, index)`
@@ -33,6 +34,11 @@ export default function useCompareRound({ kind, modelIds }) {
   const tapsRef = useRef({});
   // The models already marked as tried in this compare, so each is written once.
   const triedRef = useRef(new Set());
+  // Writing: each model's posts of its rounds with `prompt`, so New suggestions with the same prompt
+  // asks for different ones; a new prompt, resetRounds or closing the compare starts over.
+  const earlierRef = useRef({ prompt: null, byModel: {} });
+  // The rounds with the same prompt, this one included (writing).
+  const [promptRound, setPromptRound] = useState(0);
 
   useEffect(() => () => controllerRef.current?.abort(), []);
 
@@ -43,7 +49,7 @@ export default function useCompareRound({ kind, modelIds }) {
 
   // One step of a round, asked of every model: its results key, the results' items key, and its body.
   function jobsFor({ prompt, photos }) {
-    if (kind !== 'vision') return [{ key: TEXT_KEY, itemsKey: 'tweets', body: async () => ({ prompt }) }];
+    if (kind !== 'vision') return [writingJob(prompt)];
     return photos.map((asset) => ({
       key: asset.id,
       itemsKey: 'tags',
@@ -52,6 +58,25 @@ export default function useCompareRound({ kind, modelIds }) {
         image: await readVisionImageAsync(asset, { ...imageDeps, signal }),
       }),
     }));
+  }
+
+  // The writing round's one step: each model gets its own earlier posts with this prompt, and its
+  // new ones join them once in.
+  function writingJob(prompt) {
+    const isSamePrompt = earlierRef.current.prompt === prompt;
+    if (!isSamePrompt) earlierRef.current = { prompt, byModel: {} };
+    setPromptRound((current) => (isSamePrompt ? current + 1 : 1));
+    const earlier = earlierRef.current;
+    const atStart = { ...earlier.byModel };
+    return {
+      key: TEXT_KEY,
+      itemsKey: 'tweets',
+      body: async () => ({ prompt }),
+      extraFor: (modelId) => ({ earlierRounds: atStart[modelId] ?? [] }),
+      onDone: (modelId, posts) => {
+        earlier.byModel[modelId] = [...(earlier.byModel[modelId] ?? []), posts];
+      },
+    };
   }
 
   function markTriedOnce(results) {
@@ -84,11 +109,12 @@ export default function useCompareRound({ kind, modelIds }) {
   async function askModel(job, body, modelId, signal) {
     let results;
     try {
-      results = byModel(await compareAsync(kind, body, { signal }), job.itemsKey);
+      results = byModel(await compareAsync(kind, { ...body, ...job.extraFor?.(modelId) }, { signal }), job.itemsKey);
     } catch (error) {
       results = { [modelId]: { status: 'error', error: apiErrorMessage(error) } };
     }
     if (signal.aborted) return;
+    if (results[modelId]?.status === 'done') job.onDone?.(modelId, results[modelId].items);
     markTriedOnce(results);
     land(job.key, results);
   }
@@ -137,7 +163,13 @@ export default function useCompareRound({ kind, modelIds }) {
     Object.values(byModelId).some(({ status }) => status === 'loading'),
   );
 
-  return { ...round, isRunning, startRound, toggle };
+  // Forgets the earlier rounds: the next round starts over, as with a new prompt.
+  function resetRounds() {
+    earlierRef.current = { prompt: null, byModel: {} };
+    setPromptRound(0);
+  }
+
+  return { ...round, isRunning, promptRound, startRound, resetRounds, toggle };
 }
 
 // The server's results by model: `{ status: 'done', items }` or `{ status: 'error', error }`.

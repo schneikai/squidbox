@@ -29,14 +29,23 @@ export function fillTemplate(template: string, values: Record<string, string>): 
 const COMPARE_WRITING_FORMAT =
   'Answer in JSON, with only the posts the prompt asks for. Each item is one finished post, with no intro, notes or quotes around it.';
 
+// After the model's earlier posts, so New suggestions with the same prompt brings new ones.
+const COMPARE_WRITE_DIFFERENT = 'Write different ones.';
+
 /**
  * The writing prompt of a compare: the prompt box as the user's message, after a system line on the
- * answer's format only; the reply's JSON schema (postsSchema) asks for the posts alone.
+ * answer's format only; the reply's JSON schema (postsSchema) asks for the posts alone. Each of
+ * `earlierRounds` (the model's posts of its last rounds, oldest first) follows as its answer, then
+ * asks for different ones.
  */
-export function writingMessages(prompt: string): ChatMessage[] {
+export function writingMessages(prompt: string, earlierRounds: string[][] = []): ChatMessage[] {
   return [
     { role: 'system', content: COMPARE_WRITING_FORMAT },
     { role: 'user', content: prompt },
+    ...earlierRounds.flatMap((posts): ChatMessage[] => [
+      { role: 'assistant', content: JSON.stringify({ posts }) },
+      { role: 'user', content: COMPARE_WRITE_DIFFERENT },
+    ]),
   ];
 }
 

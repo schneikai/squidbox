@@ -132,6 +132,17 @@ describe('chatMessages', () => {
 });
 
 describe('writingMessages (the Compare)', () => {
+  it("follows with the model's earlier posts as its answers, each asking for different ones", () => {
+    const messages = writingMessages('Write 3 posts', [['a', 'b'], ['c']]);
+    expect(messages.slice(1)).toEqual([
+      { role: 'user', content: 'Write 3 posts' },
+      { role: 'assistant', content: '{"posts":["a","b"]}' },
+      { role: 'user', content: 'Write different ones.' },
+      { role: 'assistant', content: '{"posts":["c"]}' },
+      { role: 'user', content: 'Write different ones.' },
+    ]);
+  });
+
   it('sends the prompt as the user, after a system line on the format only', () => {
     expect(writingMessages('Write 3 posts about a sunrise hike')).toEqual([
       {

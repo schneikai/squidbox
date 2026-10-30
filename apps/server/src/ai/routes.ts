@@ -316,8 +316,8 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         schema: { body: compareWritingRequestSchema, response: { 200: compareWritingResponseSchema } },
         handler: async (request, reply) => {
           const signal = untilClientLeaves(reply);
-          // Only the prompt box: no instructions, persona or Favorites.
-          const messages = writingMessages(request.body.prompt);
+          // Only the prompt box (and the model's earlier posts): no instructions, persona or Favorites.
+          const messages = writingMessages(request.body.prompt, request.body.earlierRounds);
           const results = await compareRequested(request.body.modelIds, 'writing', (models) =>
             compareModels({ task: writingTask, messages, models, log: request.log, signal }),
           );
