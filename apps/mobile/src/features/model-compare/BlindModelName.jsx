@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import IconButton from '@/components/IconButton';
-import { colors, motion, sizes, typography } from '@/styles/designTokens';
+import { colors, motion, typography } from '@/styles/designTokens';
 
 // A compare card's title: its letter (`label`, Model A) and an eye that puts the real model name in
 // its place; a second tap hides it again. The name comes out from under a blur that fades: a blur is
@@ -41,7 +41,7 @@ export default function BlindModelName({ label, name }) {
       </View>
       <IconButton
         icon={isShown ? 'eye-off' : 'eye'}
-        size={sizes.iconSmall}
+        variant="tinted"
         color={colors.text.secondary}
         isActive={isShown}
         onPress={handlePress}
@@ -56,6 +56,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
   },
   text: {
     flexShrink: 1,

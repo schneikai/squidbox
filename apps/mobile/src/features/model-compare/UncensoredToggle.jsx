@@ -3,13 +3,14 @@ import { useSyncExternalStore } from 'react';
 
 import uncensoredMarks from './uncensoredMarks';
 
-import Chip from '@/components/Chip';
+import IconButton from '@/components/IconButton';
 import useAiCatalog from '@/hooks/useAiCatalog';
 import useHaptics from '@/hooks/useHaptics';
+import { colors } from '@/styles/designTokens';
 import findCatalogModel from '@/utils/ai/findCatalogModel';
 
 /**
- * A compare card's 18+ chip for the model `modelId` (on the card `label`, Model A): its Uncensored
+ * A compare card's 18+ button for the model `modelId` (on the card `label`, Model A): its Uncensored
  * label, the same mark as the switch on the model's page (every account sees it), on or off with one
  * tap whether its name is shown or not. It turns at once, on every card of the model.
  */
@@ -32,12 +33,12 @@ export default function UncensoredToggle({ modelId, label }) {
   if (!model) return null;
 
   return (
-    <Chip
+    <IconButton
       label="18+"
-      variant={isOn ? 'accent' : 'muted'}
+      variant="tinted"
+      color={colors.text.secondary}
+      isActive={isOn}
       onPress={handlePress}
-      accessibilityRole="switch"
-      accessibilityState={{ checked: isOn }}
       accessibilityLabel={`${MODEL_LABEL_NAMES.uncensored}, ${label}`}
     />
   );

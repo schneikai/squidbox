@@ -1,8 +1,8 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 
 import GradientFill from '@/components/GradientFill';
 import Icon from '@/components/Icon';
-import { colors, radii, sizes } from '@/styles/designTokens';
+import { colors, radii, sizes, typography } from '@/styles/designTokens';
 
 /**
  * Standard icon-only pressable with a 44pt tap target, pill clipping, and press feedback. Every
@@ -14,11 +14,13 @@ import { colors, radii, sizes } from '@/styles/designTokens';
  *            FloatingPill). Over content: `tinted` (a grey disc) or `destructive` (a red disc).
  * isActive — accent tint, for a control whose setting is on (e.g. a filter is active).
  * filled   — fills the icon (see Icon), e.g. a favorite's heart.
+ * label    — a few characters in place of the icon (18+), where no icon says it.
  *
  * style applies to the Pressable (the tap target / visual container).
  */
 export default function IconButton({
   icon,
+  label,
   onPress,
   variant = 'plain',
   color = colors.text.primary,
@@ -30,8 +32,11 @@ export default function IconButton({
   accessibilityLabel,
   style,
 }) {
-  const iconElement = (
-    <Icon name={icon} size={size} color={iconColorFor(variant, { color, disabled, isActive })} filled={filled} />
+  const contentColor = iconColorFor(variant, { color, disabled, isActive });
+  const iconElement = label ? (
+    <Text style={[styles.label, { color: contentColor }]}>{label}</Text>
+  ) : (
+    <Icon name={icon} size={size} color={contentColor} filled={filled} />
   );
 
   return (
@@ -88,6 +93,10 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.4,
+  },
+  label: {
+    fontSize: typography.footnote,
+    fontWeight: '700',
   },
 });
 
