@@ -608,7 +608,7 @@ describe('POST /api/v1/ai/chat', () => {
     expect(system.role).toBe('system');
     expect(system.content).toContain("What's in the photos (from image recognition): forest, morning fog");
     expect(system.content).toContain("People they've tagged in posts from the same album: @ridgeline.bsky.social");
-    expect(system.content).toContain('Caption so far: "Fog on the trail"');
+    expect(system.content).toContain('Their post so far: "Fog on the trail"');
     expect(system.content).not.toContain('{"tweets"');
     expect(turns).toEqual([
       { role: 'user', content: 'Write a caption for these photos' },

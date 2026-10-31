@@ -100,15 +100,15 @@ describe('chatMessages', () => {
     expect(content).toContain('Media: 4 photos and 1 video');
     expect(content).toContain("What's in the photos (from image recognition): forest, fog");
     expect(content).toContain("People they've tagged in posts from the same album: @ridgeline.bsky.social");
-    expect(content).toContain('Caption so far: "Fog on the trail"');
-    expect(content).toContain('3 options unless they say how many');
+    expect(content).toContain('Their post so far: "Fog on the trail"');
+    expect(content).toContain('Use 3 options unless the creator specifies otherwise');
   });
 
   it('says so for an empty caption and no media, and leaves out empty tags and handles', () => {
     const content = systemOfChat({
       context: { ...context, text: '  ', media: { photo: 0, video: 0 }, tags: [], mentions: [] },
     });
-    expect(content).toContain('Caption so far: (empty)');
+    expect(content).toContain('Their post so far: (empty)');
     expect(content).toContain('Media: none yet');
     expect(content).not.toContain("What's in the photos");
     expect(content).not.toContain("People they've tagged");
@@ -119,7 +119,7 @@ describe('chatMessages', () => {
     expect(content).not.toContain('# The creator');
     expect(content).not.toContain('# Their rules');
     expect(content).not.toContain('# Posts they wrote');
-    expect(content).toContain("changes the subject.\n\n# The post they're working on\nMedia:");
+    expect(content).toContain("follow them.\n\n# The post they're working on\nMedia:");
     expect(content).not.toContain('\n\n\n');
   });
 
