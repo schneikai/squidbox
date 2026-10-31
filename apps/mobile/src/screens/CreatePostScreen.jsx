@@ -1,23 +1,29 @@
 import { useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Button from '@/components/Button';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
-import { SCREEN_PADDING } from '@/constants';
-import PostList from '@/features/post-list/PostList';
+import NewPostCard from '@/features/create-post/NewPostCard';
+import RepostCard from '@/features/create-post/RepostCard';
 import postQuery from '@/features/post-list/postQuery';
 import usePosts from '@/features/posts-context/usePosts';
 import useScrollY from '@/hooks/useScrollY';
-import { scale } from '@/styles/designTokens';
+import { layout, scale } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { readNewestRepostDate } from '@/sync/postsRepository';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
 const candidates = postQuery({ scope: 'repostCandidates', sort: 'suggestRepostAt:asc' });
 
+/**
+ * The New post sheet: a "What's new?" card that opens the editor, then the posts to repost (oldest
+ * suggestion first, paged as it scrolls), each a card with Repost, Later and Don't suggest
+ * again. With nothing to repost it goes straight to the editor.
+ */
 export default function CreatePostScreen({ navigation }) {
   const { updatePost } = usePosts();
   const { bottom } = useSafeAreaInsets();
@@ -55,69 +61,52 @@ export default function CreatePostScreen({ navigation }) {
     <ModalSheet>
       <ModalHeader
         leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
-        title="Create Post"
+        title="New post"
         scrollY={scrollY}
       />
 
-      <PostList
-        rows={rows}
-        loadMore={loadMore}
-        contentContainerStyle={{ paddingTop: MODAL_HEADER_HEIGHT, paddingBottom: bottom + 16 }}
-        onScroll={onScroll}
-        FirstListEntryComponent={
-          <View style={styles.topSection}>
-            <Button variant="primary" label="New Post" icon="add" onPress={handleCreateNewPost} />
-
-            {/* Repost section header */}
+      <Animated.FlatList
+        data={rows ?? []}
+        keyExtractor={keyExtractor}
+        ListHeaderComponent={
+          <View style={styles.header}>
+            <NewPostCard onPress={handleCreateNewPost} />
             <ScreenSectionHeader
               title="Repost something"
               trailing={
-                <Button
-                  label="Ignored posts"
-                  icon="eye-off"
-                  onPress={() => navigation.navigate('IgnoredPostsScreen')}
-                  colorPalette="muted"
-                  size="small"
-                />
+                <Button label="Ignored" size="small" onPress={() => navigation.navigate('IgnoredPostsScreen')} />
               }
             />
           </View>
         }
-        renderPostActions={(post) => (
-          <PostActions
+        renderItem={({ item: post }) => (
+          <RepostCard
+            post={post}
+            onOpen={() => navigation.navigate('PostScreen', { postId: post.id })}
             onRepost={() => handleRepost(post)}
-            onPostpone={() => handlePostpone(post)}
+            onLater={() => handlePostpone(post)}
             onIgnore={() => handleIgnore(post)}
           />
         )}
+        // More is asked for only once the first page landed (see PostList).
+        onEndReached={rows ? loadMore : undefined}
+        onEndReachedThreshold={2}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        contentContainerStyle={[styles.content, { paddingTop: MODAL_HEADER_HEIGHT, paddingBottom: bottom + 16 }]}
       />
     </ModalSheet>
   );
 }
 
-function PostActions({ onRepost, onPostpone, onIgnore }) {
-  return (
-    <View style={styles.menuContainer}>
-      <Button variant="primary" icon="edit" onPress={onRepost} accessibilityLabel="Repost" />
-      <Button variant="secondary" icon="clock" onPress={onPostpone} accessibilityLabel="Postpone" />
-      <Button variant="secondary" icon="eye-off" onPress={onIgnore} accessibilityLabel="Ignore" />
-    </View>
-  );
-}
+const keyExtractor = (post) => post.id;
 
 const styles = StyleSheet.create({
-  // Posts pad only below themselves (PostListItem), so the room above the first is here.
-  topSection: {
-    paddingHorizontal: SCREEN_PADDING,
-    paddingTop: 20,
-    paddingBottom: SCREEN_PADDING,
-    gap: 8,
+  content: {
+    paddingHorizontal: layout.sideGutter,
+    gap: scale(14),
   },
-
-  // A row in the post's card, under its details, on the trailing side.
-  menuContainer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: scale(6),
+  header: {
+    gap: scale(14),
   },
 });

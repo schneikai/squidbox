@@ -1,8 +1,9 @@
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import useCopyText from './useCopyText';
+
 import Button from '@/components/Button';
-import CopyTextButton from '@/components/CopyTextButton';
 import MenuButton from '@/components/MenuButton';
 import OptionCard from '@/components/OptionCard';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
@@ -15,13 +16,19 @@ export default memo(ChatOptionCard);
  * (`onUse(text)`, when given) or else Copy.
  */
 function ChatOptionCard({ text, onMoreLikeThis, onUse }) {
+  const copy = useCopyText();
+
   return (
     <OptionCard text={text}>
       <MenuButton accessibilityLabel="More for this suggestion">
         <MenuOption label="More like this" icon="repeat" onPress={() => onMoreLikeThis(text)} />
       </MenuButton>
       <View style={styles.action}>
-        {onUse ? <Button label="Use" size="small" onPress={() => onUse(text)} /> : <CopyTextButton text={text} />}
+        {onUse ? (
+          <Button label="Use" size="small" onPress={() => onUse(text)} />
+        ) : (
+          <Button label="Copy" icon="copy" size="small" onPress={() => copy(text)} />
+        )}
       </View>
     </OptionCard>
   );

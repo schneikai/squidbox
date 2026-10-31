@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 
 import useHaptics from '@/hooks/useHaptics';
 
-/** Copying a text (a post, an answer the assistant wrote): `copy(text)` puts it on the clipboard, and it's felt. */
+/** Copying a text the assistant wrote: `copy(text)` puts it on the clipboard, and it's felt. */
 export default function useCopyText() {
   const haptics = useHaptics();
 

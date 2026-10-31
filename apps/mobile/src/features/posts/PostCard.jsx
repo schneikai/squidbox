@@ -15,18 +15,17 @@ import buildPostAssets from '@/utils/posts/buildPostAssets';
 /**
  * One post of the post editor (`card`: { key, text, postAssets }): its text, its photos once it has
  * any, the toolbar, and Write with AI while it `isActive` (the card being edited), whose chat's Use
- * fills this card. In a thread (`isThread`) the active card is the selected one of the set.
- * `onChange(key, changes)` and `onActivate(key)` report to the editor; the first card (`isFirst`) has
- * the thread's time (`postedAt`, `onChangePostedAt`), a following one × (`onRemove(key)`), the last ⊕
- * (`onAddToThread`).
+ * fills this card. `onChange(key, changes)` and `onActivate(key)` report to the editor; the first
+ * card (`isFirst`) has the thread's time (`postedAt`, as text once `isPostedAtShown`,
+ * `onChangePostedAt`), a following one × (`onRemove(key)`), the last ⊕ (`onAddToThread`).
  */
 export default function PostCard({
   kind,
   card,
   isFirst,
   isActive,
-  isThread,
   postedAt,
+  isPostedAtShown,
   onChangePostedAt,
   onChange,
   onActivate,
@@ -50,7 +49,7 @@ export default function PostCard({
   }
 
   return (
-    <Card isSelected={isThread && isActive} style={styles.card}>
+    <Card style={styles.card}>
       <View style={styles.top}>
         <TextInput
           multiline
@@ -77,12 +76,17 @@ export default function PostCard({
         exclude={postAssets.map((postAsset) => postAsset.asset.id)}
         onAddMedia={addPostAssets}
         postedAt={postedAt}
+        isPostedAtShown={isPostedAtShown}
         onChangePostedAt={onChangePostedAt}
         onAddToThread={onAddToThread}
         onActivate={activate}
       />
       {isActive && (
-        <WriteWithAi sessionId={sessionId} onOpenChat={(params) => navigation.navigate('PostChatScreen', params)} />
+        <WriteWithAi
+          sessionId={sessionId}
+          onOpenChat={(params) => navigation.navigate('PostChatScreen', params)}
+          style={styles.writeWithAi}
+        />
       )}
     </Card>
   );
@@ -103,6 +107,11 @@ const styles = StyleSheet.create({
   text: {
     flex: 1,
     minWidth: 0,
+  },
+  // The toolbar's 44 pt row already leaves room under its icons, so the divider follows at the
+  // card's gap, as far from the icons as they are from what's above them.
+  writeWithAi: {
+    marginTop: 0,
   },
   // Its 44 pt target reaches into the card's corner, so the × lines up with the text's first line.
   remove: {

@@ -2,12 +2,14 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import PostCard from './PostCard';
+import postedAtToSave from './postedAtToSave';
 
 import EditSheet from '@/components/EditSheet';
 import ThreadConnector from '@/components/ThreadConnector';
 import useEditSheet from '@/hooks/useEditSheet';
 import changedValues from '@/utils/changedValues';
 import confirmAsync from '@/utils/confirmAsync';
+import getTimestamp from '@/utils/date-time/getTimestamp';
 import isPresent from '@/utils/isPresent';
 import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
 
@@ -23,8 +25,14 @@ export default function PostEditor({ kind, post, navigation, onSave }) {
   const nextKey = useRef(0);
   const newKey = () => `card-${nextKey.current++}`;
   const [cards, setCards] = useState(() => seedCards(post).map((card) => ({ ...card, key: newKey() })));
-  const [postedAt, setPostedAt] = useState(post.postedAt);
+  // The Posted time the user picked: undefined while untouched, null once removed (postedAtToSave).
+  const [pickedPostedAt, setPickedPostedAt] = useState(undefined);
   const [activeKey, setActiveKey] = useState(cards[0].key);
+
+  const postedAt = pickedPostedAt === undefined ? post.postedAt : pickedPostedAt;
+  // A new post's time is now until the user picks one, and a removed one is none: till then the
+  // toolbar shows only its clock.
+  const isPostedAtShown = postedAt != null && (kind === 'edit' || pickedPostedAt !== undefined);
 
   const seed = useMemo(() => postData({ cards: seedCards(post), postedAt: post.postedAt }), [post]);
 
@@ -35,7 +43,7 @@ export default function PostEditor({ kind, post, navigation, onSave }) {
 
   // The posts store syncs by itself.
   const { sheetProps } = useEditSheet({
-    ...draftSheetOptions(kind, seed, { cards, postedAt }, onSave),
+    ...draftSheetOptions(kind, seed, { cards, postedAt, pickedPostedAt }, onSave),
     syncsItself: true,
   });
 
@@ -70,9 +78,9 @@ export default function PostEditor({ kind, post, navigation, onSave }) {
               card={card}
               isFirst={index === 0}
               isActive={card.key === activeKey}
-              isThread={cards.length > 1}
               postedAt={postedAt}
-              onChangePostedAt={setPostedAt}
+              isPostedAtShown={isPostedAtShown}
+              onChangePostedAt={setPickedPostedAt}
               onChange={updateCard}
               onActivate={setActiveKey}
               onRemove={index > 0 ? removeCard : undefined}
@@ -94,13 +102,23 @@ function seedCards(post) {
 }
 
 // What useEditSheet needs to know about the draft `current` of the post seeded as `seed` (postData).
+// The save resolves an untouched Posted time (postedAtToSave): a new post's is the time of the save.
 function draftSheetOptions(kind, seed, current, onSave) {
+  const isNew = kind === 'draft';
   const data = postData(current);
   return {
-    isNew: kind === 'draft',
+    isNew,
     isValid: current.cards.every(hasCardContent),
     isDirty: isPresent(changedValues(seed, data)),
-    save: () => onSave(data, seed),
+    save: () => {
+      const postedAt = postedAtToSave({
+        isNew,
+        picked: current.pickedPostedAt,
+        seedPostedAt: seed.postedAt,
+        now: getTimestamp(),
+      });
+      return onSave({ ...data, postedAt }, seed);
+    },
   };
 }
 

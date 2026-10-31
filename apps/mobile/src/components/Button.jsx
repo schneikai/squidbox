@@ -22,7 +22,8 @@ const PAIR_ICON_SIZE = scale(15);
 const OVERLAY_ICON_SIZE = scale(14);
 // What an overlay disc's touch reaches past its edge, so its target is still 44 pt.
 const OVERLAY_HIT_SLOP = (sizes.iconButton - sizes.overlayButton) / 2;
-// A secondary's label stands in for an icon in the disc (18+), so it must stay that short.
+// A secondary's label this short stands in for an icon in the disc (18+); a longer one makes it a
+// grey pill.
 const MAX_DISC_LABEL = 3;
 
 /**
@@ -31,7 +32,8 @@ const MAX_DISC_LABEL = 3;
  *               regular, a 44 pt pill at small, as Save in a modal header), or an icon-only circle
  *               (at most one per toolbar).
  *   secondary — a grey disc over content: an `icon`, or a `label` of up to 3 characters (18+).
- *               `colorPalette="danger"` makes it a red disc.
+ *               `colorPalette="danger"` makes it a red disc. A longer `label` makes it a grey pill
+ *               beside a primary's (Later beside Repost), sized like it.
  *   tertiary  — no fill (the default): an icon in a toolbar, or with a `label` a text link (an icon
  *               may lead it). `size="small"` draws a smaller icon in the same 44 pt target, or a
  *               tighter link for a header row.
@@ -92,10 +94,14 @@ export default function Button({
         style,
       ]}
     >
-      {shape === 'block' ? (
+      {shape === 'block' && variant === 'primary' ? (
         <GradientFill style={[styles.blockFill, size === 'small' && styles.blockFillSmall]}>
           <Content {...{ icon, label, loading, color, iconSize, filled, iconCount, shape, size, palette }} />
         </GradientFill>
+      ) : shape === 'block' ? (
+        <View style={[styles.blockFill, size === 'small' && styles.blockFillSmall, styles.mutedFill]}>
+          <Content {...{ icon, label, loading, color, iconSize, filled, iconCount, shape, size, palette }} />
+        </View>
       ) : variant === 'primary' ? (
         <GradientFill style={styles.discFill}>
           <Content {...{ icon, label, loading, color, iconSize, filled, iconCount, shape, size, palette }} />
@@ -107,11 +113,13 @@ export default function Button({
   );
 }
 
-// A link is a tertiary with a label, a block a primary with one; every other button is a 44 pt disc.
+// A link is a tertiary with a label, a block a primary with one or a secondary with a word; every
+// other button is a 44 pt disc.
 function shapeFor(variant, label) {
   if (!label) return 'disc';
   if (variant === 'tertiary') return 'link';
   if (variant === 'primary') return 'block';
+  if (variant === 'secondary' && label.length > MAX_DISC_LABEL) return 'block';
   return 'disc';
 }
 
@@ -134,9 +142,7 @@ function Content({ icon, label, loading, color, iconSize, filled, iconCount, sha
   const linkIconSize = isSmall ? scale(14) : scale(16);
   return (
     <>
-      {loading
-        ? spinner
-        : icon && <Icon name={icon} size={shape === 'link' ? linkIconSize : sizes.icon} color={color} />}
+      {loading ? spinner : icon && <Icon name={icon} size={shape === 'link' ? linkIconSize : iconSize} color={color} />}
       <Text
         style={[
           shape === 'link' ? styles.linkLabel : styles.blockLabel,
@@ -180,10 +186,10 @@ function pressedStyle(shape, variant) {
 function combinationProblem({ variant, icon, label, isInverse, palette }) {
   if (!icon && !label) return 'Button: needs an icon or a label';
   if (variant === 'secondary' && icon && label) return 'Button: a secondary shows an icon or a label, not both';
-  if (variant === 'overlay' && (label || !icon)) return 'Button: an overlay shows an icon only';
-  if (variant === 'secondary' && label?.length > MAX_DISC_LABEL) {
-    return `Button: "${label}" is too long for a secondary's disc; use a Chip`;
+  if (variant === 'secondary' && palette === 'danger' && label?.length > MAX_DISC_LABEL) {
+    return 'Button: a red secondary is a disc; its label must fit in it';
   }
+  if (variant === 'overlay' && (label || !icon)) return 'Button: an overlay shows an icon only';
   if (isInverse && !INVERSE_PALETTE[palette]) return `Button: no "${palette}" on a dark surface`;
   if (!PALETTE[palette]) return `Button: no colorPalette "${palette}"`;
   return null;
@@ -257,7 +263,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: scale(20),
   },
   blockFillSmall: {
-    paddingHorizontal: scale(16),
+    gap: scale(6),
+    paddingHorizontal: scale(12),
   },
   blockLabel: {
     fontSize: typography.callout,

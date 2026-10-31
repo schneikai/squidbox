@@ -3,7 +3,6 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import ThreadPost from './ThreadPost';
 
-import CopyTextButton from '@/components/CopyTextButton';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import ThreadConnector from '@/components/ThreadConnector';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
@@ -16,7 +15,7 @@ import { layout } from '@/styles/designTokens';
 const OTHER_POSTS_LIMIT = 30;
 
 /**
- * A post and its thread: the post's card (PostView, with Copy), then each following post's card
+ * A post and its thread: the post's card (PostView; a long press copies a post's text), then each following post's card
  * joined by a short line, then Write with AI about the post, the albums of the thread's pictures and
  * the other posts from the thread's albums. `post` is a postQuery row read by id (with its
  * `threadPosts`).
@@ -36,11 +35,7 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
     <ScrollView
       contentContainerStyle={[styles.content, { paddingTop: contentPaddingTop, paddingBottom: contentPaddingBottom }]}
     >
-      <PostView
-        post={post}
-        onPressAsset={(asset) => openAsset(post.id, asset)}
-        meta={<CopyTextButton text={post.text} style={styles.copy} />}
-      />
+      <PostView post={post} onPressAsset={(asset) => openAsset(post.id, asset)} isTextSelectable />
 
       {post.threadPosts.map((part) => (
         <View key={part.id}>
@@ -65,9 +60,6 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: layout.sideGutter,
-  },
-  copy: {
-    marginLeft: 'auto',
   },
   related: {
     marginTop: 20,

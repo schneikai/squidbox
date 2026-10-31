@@ -1,38 +1,65 @@
-// The post editor's quiet Posted time: a clock and the time as grey text ("Today, 12:39", or "Not posted"
-// without one), over the native compact picker. That picker has a hardcoded grey background that
-// cannot be styled away, so it stays interactive but nearly invisible (opacity 0 disables touch on
-// iOS) under the label, which lets touches through (pointerEvents="none") and gives the control its
-// size.
-// `mode="datetime"` is iOS-only in the library; on web the library renders nothing, so the label shows
-// and the time can't be changed there.
+// The post editor's quiet Posted time: a grey clock, with the time beside it ("Today, 12:39") once
+// `isShown` (picked, or a saved post's). A tap on either opens a sheet with the native picker, the
+// date's calendar and the time, where each change applies at once, and Remove, which takes the time
+// away (`onChange(null)`: the post is not posted). `mode="datetime"` with `display="inline"` is
+// iOS-only in the library; on web it renders nothing, so the sheet says where the time can be changed.
 import CommunityDateTimePicker from '@react-native-community/datetimepicker';
-import { StyleSheet, View, Text } from 'react-native';
+import { useState } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
 
-import Icon from '@/components/Icon';
-import { colors, scale, sizes, typography } from '@/styles/designTokens';
+import BottomSheet from '@/components/BottomSheet';
+import Button from '@/components/Button';
+import Text from '@/components/Text';
+import { scale } from '@/styles/designTokens';
 import formatDetailHeaderDate from '@/utils/date-time/formatDetailHeaderDate';
 
-export default function PostedAtPicker({ timestamp, onChange, style }) {
+export default function PostedAtPicker({ timestamp, isShown, onChange, style }) {
+  const [isOpen, setIsOpen] = useState(false);
+
   const label = timestamp == null ? 'Not posted' : formatLabel(timestamp);
+  const accessibilityLabel = timestamp == null ? label : `Posted at ${label}`;
+
+  function open() {
+    setIsOpen(true);
+  }
 
   function handleChange(_, date) {
     if (date) onChange(date.getTime());
   }
 
+  function handleRemove() {
+    onChange(null);
+    setIsOpen(false);
+  }
+
   return (
-    <View style={[styles.container, style]}>
-      <CommunityDateTimePicker
-        accessibilityLabel={timestamp == null ? label : `Posted at ${label}`}
-        mode="datetime"
-        display="compact"
-        value={new Date(timestamp ?? Date.now())}
-        onChange={handleChange}
-        style={styles.nativePicker}
-      />
-      <View style={styles.label} pointerEvents="none">
-        <Icon name="clock" size={sizes.iconSmall} color={colors.text.secondary} />
-        <Text style={styles.labelText}>{label}</Text>
-      </View>
+    <View style={[styles.row, style]}>
+      <Button icon="clock" accessibilityLabel={accessibilityLabel} onPress={open} />
+      {isShown && (
+        <Button
+          label={label}
+          colorPalette="muted"
+          accessibilityLabel={accessibilityLabel}
+          onPress={open}
+          style={styles.time}
+        />
+      )}
+      <BottomSheet isVisible={isOpen} onClose={() => setIsOpen(false)} title="Posted">
+        {Platform.OS === 'web' ? (
+          <Text variant="hint">The Posted time can be changed in the app on your phone.</Text>
+        ) : (
+          <CommunityDateTimePicker
+            mode="datetime"
+            display="inline"
+            value={new Date(timestamp ?? Date.now())}
+            onChange={handleChange}
+            style={styles.picker}
+          />
+        )}
+        {timestamp != null && (
+          <Button label="Remove" colorPalette="danger" onPress={handleRemove} style={styles.remove} />
+        )}
+      </BottomSheet>
     </View>
   );
 }
@@ -43,23 +70,20 @@ function formatLabel(timestamp) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    minHeight: sizes.iconButton,
-    justifyContent: 'center',
-  },
-  nativePicker: {
-    position: 'absolute',
-    left: 0,
-    opacity: 0.05,
-  },
-  label: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(5),
-    paddingHorizontal: scale(8),
   },
-  labelText: {
-    fontSize: typography.subheadline,
-    color: colors.text.secondary,
+  // The time follows the clock closely: a link pads 24 pt to its sides, and the clock sits 12 pt in
+  // from its button's edge.
+  time: {
+    marginLeft: -24 - scale(6),
+  },
+  // The calendar spans the sheet.
+  picker: {
+    width: '100%',
+  },
+  remove: {
+    alignSelf: 'center',
   },
 });

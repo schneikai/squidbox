@@ -1,7 +1,6 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import Card from '@/components/Card';
-import CopyTextButton from '@/components/CopyTextButton';
 import CoverImage from '@/components/CoverImage';
 import SuperPressable from '@/components/SuperPressable';
 import Text from '@/components/Text';
@@ -11,7 +10,7 @@ import isPresent from '@/utils/isPresent';
 
 /**
  * A following post of a thread on the post screen, as a card: its first picture as a tile ("+N" when
- * it has more; a tap opens them, `onOpenAsset(asset)`), its text and Copy.
+ * it has more; a tap opens them, `onOpenAsset(asset)`), its text, which a long press copies.
  */
 export default function ThreadPost({ post, onOpenAsset }) {
   const [first, ...more] = post.postAssets.map((postAsset) => postAsset.asset);
@@ -25,10 +24,11 @@ export default function ThreadPost({ post, onOpenAsset }) {
           </CoverImage>
         </SuperPressable>
       )}
-      <View style={styles.body}>
-        {isPresent(post.text) && <Text>{post.text}</Text>}
-        <CopyTextButton text={post.text} style={styles.copy} />
-      </View>
+      {isPresent(post.text) && (
+        <Text selectable style={styles.text}>
+          {post.text}
+        </Text>
+      )}
     </Card>
   );
 }
@@ -44,16 +44,9 @@ const styles = StyleSheet.create({
     width: scale(84),
     height: scale(112),
   },
-  body: {
+  text: {
     flex: 1,
-    minWidth: 0,
-    minHeight: scale(102),
     paddingTop: scale(6),
-    justifyContent: 'space-between',
-    gap: scale(10),
-  },
-  copy: {
-    alignSelf: 'flex-end',
   },
   more: {
     position: 'absolute',
