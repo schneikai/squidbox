@@ -12,8 +12,8 @@ import isPresent from '@/utils/isPresent';
 
 /**
  * A post offered for a repost on the New post sheet, as a card: its first photo, two lines of its
- * text, when it was posted, then Repost (`onRepost`), Later (`onLater`) and ⋯ with Don't suggest
- * again (`onIgnore`). A tap elsewhere opens the post (`onOpen`).
+ * text, when it was posted, then Repost (`onRepost`), Later (`onLater`) and ⋯ with Ignore
+ * (`onIgnore`). A tap elsewhere opens the post (`onOpen`).
  */
 export default function RepostCard({ post, onOpen, onRepost, onLater, onIgnore }) {
   const first = post.postAssets[0]?.asset;
@@ -41,7 +41,6 @@ export default function RepostCard({ post, onOpen, onRepost, onLater, onIgnore }
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
     gap: scale(12),
     padding: scale(12),
   },
@@ -54,11 +53,12 @@ const styles = StyleSheet.create({
     minWidth: 0,
     gap: scale(6),
   },
+  // The actions sit at the card's bottom, however many lines the text above them takes.
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: scale(6),
-    marginTop: scale(2),
+    marginTop: 'auto',
   },
   // The ⋯'s 44 pt target reaches into the card's padding, so its dots line up with the card's edge.
   more: {

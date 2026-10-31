@@ -34,7 +34,7 @@ const MAX_DISC_LABEL = 3;
 /**
  * Every button in the app. `variant` is how much it stands out:
  *   primary   — the violet gradient: a screen's main action with a `label` (50 pt tall at `size`
- *               regular, a 32 pt pill at small with a 44 pt target, as Repost), or an icon-only circle
+ *               regular, a 28 pt pill at small with a 44 pt target, as Repost), or an icon-only circle
  *               (at most one per toolbar).
  *   secondary — a grey disc over content: an `icon`, or a `label` of up to 3 characters (18+).
  *               `colorPalette="danger"` makes it a red disc. A longer `label` makes it a grey pill
@@ -154,7 +154,9 @@ function Content({ icon, label, loading, color, iconSize, filled, iconCount, sha
   const linkIconSize = isSmall ? scale(14) : scale(16);
   return (
     <>
-      {loading ? spinner : icon && <Icon name={icon} size={shape === 'link' ? linkIconSize : iconSize} color={color} />}
+      {loading
+        ? spinner
+        : icon && <Icon name={icon} size={shape === 'link' || isSmall ? linkIconSize : iconSize} color={color} />}
       <Text
         style={[
           shape === 'link' ? styles.linkLabel : styles.blockLabel,
@@ -283,7 +285,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   blockLabelSmall: {
-    fontSize: typography.subheadline,
+    fontSize: typography.footnote,
   },
   link: {
     flexDirection: 'row',
