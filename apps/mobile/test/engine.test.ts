@@ -187,7 +187,7 @@ describe('worker push', () => {
     expect(await outboxRows()).toHaveLength(0);
   });
 
-  // Round 6. A transport with the server's real limits: at most PUSH_MAX_MUTATIONS mutations, and a
+  // A transport with the server's real limits: at most PUSH_MAX_MUTATIONS mutations, and a
   // request body (`{"mutations":[…]}` in UTF-8) of at most PUSH_BODY_LIMIT, else Fastify answers 413
   // before the handler (test/routes.sync.test.ts in apps/server), which fails the request whole.
   function serverLimits(sentBodies: number[] = []) {

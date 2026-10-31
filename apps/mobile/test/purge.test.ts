@@ -1,4 +1,6 @@
 import type { PushMutation } from '@squidbox/shared';
+import { deferred } from '@squidbox/shared/testing/deferred';
+import { gate } from '@squidbox/shared/testing/gate';
 import Database from 'better-sqlite3';
 import { desc, eq } from 'drizzle-orm';
 import { readMigrationFiles } from 'drizzle-orm/migrator';
@@ -485,16 +487,26 @@ describe('the sweep: concurrent sweeps, aborts, stuck assets, resyncs', () => {
   it('two sweeps at once (the open’s and a run’s) remove each name, mark every asset, and neither throws', async () => {
     await manyPurged(1200, (i) => ({ filename: `f${i % 700}.jpg`, thumbnailFilename: `t${i}.jpg` }));
     const removed: string[] = [];
-    const slow: RemoveFiles = async (files) => {
-      await new Promise((resolve) => setTimeout(resolve, 1));
+    // The first removal of each sweep waits until all three are inside one: they remove the same batch.
+    let calls = 0;
+    const allInside = deferred();
+    const together: RemoveFiles = async (files) => {
+      if (++calls === 3) allInside.resolve();
+      await allInside.promise;
       for (const { filename, thumbnailFilename } of files)
         removed.push(...[filename, thumbnailFilename].filter((n) => n !== undefined));
     };
-    await Promise.all([
-      sweepPurgedFiles(db, slow),
-      runSyncOnce(db, applied, { removeFiles: slow }),
-      sweepPurgedFiles(db, slow),
-    ]);
+    const sweeps = [
+      sweepPurgedFiles(db, together),
+      runSyncOnce(db, applied, { removeFiles: together }),
+      sweepPurgedFiles(db, together),
+    ];
+    // One that ends without a removal opens the barrier too, so the count below fails instead of a hang.
+    Promise.race(sweeps).then(allInside.resolve, allInside.resolve);
+    let reached = 0;
+    allInside.promise.then(() => (reached = calls));
+    await Promise.all(sweeps);
+    expect(reached).toBe(3); // all three were inside a removal at once
     expect(await unswept()).toEqual([]);
     expect(new Set(removed).size).toBe(700 + 1200);
     const [log] = await db.select().from(schema.syncLog).orderBy(desc(schema.syncLog.id)).limit(1);
@@ -580,15 +592,14 @@ describe('the sweep: concurrent sweeps, aborts, stuck assets, resyncs', () => {
     const liveRow = await assetRow(live.id);
 
     const removed: string[] = [];
-    let release!: () => void;
-    const held = new Promise<void>((resolve) => (release = resolve));
+    const firstBatch = gate();
     let calls = 0;
     const sweep = sweepPurgedFiles(db, async (files) => {
-      if (calls++ === 0) await held; // the first batch's files take a while to go
+      if (calls++ === 0) await firstBatch.hold(); // the first batch's files take a while to go
       for (const { filename, thumbnailFilename } of files)
         removed.push(...[filename, thumbnailFilename].filter((n) => n !== undefined));
     });
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await firstBatch.entered;
     expect(calls).toBe(1);
 
     const stop = new AbortController();
@@ -605,13 +616,13 @@ describe('the sweep: concurrent sweeps, aborts, stuck assets, resyncs', () => {
       }),
       { signal: stop.signal },
     );
-    release();
+    firstBatch.release();
     await sweep;
     expect(removed).not.toContain('shared.jpg');
   });
 });
 
-describe('migration 0012_purged_files on a database from before it', () => {
+describe('migration 0012_purged_files on a database at 0011', () => {
   const migrationsFolder = fileURLToPath(new URL('../src/sync/db/migrations', import.meta.url));
   const migrations = readMigrationFiles({ migrationsFolder });
   const at = (tag: string) => journal.entries.findIndex((entry) => entry.tag === tag);

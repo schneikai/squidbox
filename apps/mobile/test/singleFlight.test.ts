@@ -1,18 +1,8 @@
+import { deferred } from '@squidbox/shared/testing/deferred';
 import { describe, it, expect } from 'vitest';
 
+import { flushTurns } from './helpers/flushTurns';
 import { createSingleFlight } from '../src/sync/singleFlight';
-
-function deferred() {
-  let resolve!: () => void;
-  let reject!: (error: Error) => void;
-  const promise = new Promise<void>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
-}
-
-const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('createSingleFlight', () => {
   it('runs the task once per request when idle', async () => {
@@ -22,14 +12,14 @@ describe('createSingleFlight', () => {
     });
 
     flight.request();
-    await settle();
+    await flushTurns();
     flight.request();
-    await settle();
+    await flushTurns();
 
     expect(runs).toBe(2);
   });
 
-  it('coalesces requests made during a run into one trailing run', async () => {
+  it('coalesces requests made during a run into one trailing run, and is idle once that ends', async () => {
     const gate = deferred();
     let runs = 0;
     const flight = createSingleFlight(async () => {
@@ -40,11 +30,11 @@ describe('createSingleFlight', () => {
     flight.request();
     flight.request();
     flight.request();
-    await settle();
+    await flushTurns();
     expect(runs).toBe(1);
 
     gate.resolve();
-    await settle();
+    await flight.idle();
     expect(runs).toBe(2);
   });
 
@@ -65,18 +55,18 @@ describe('createSingleFlight', () => {
       log.push('work:end');
       return 'done';
     });
-    await settle();
+    await flushTurns();
     expect(log).toEqual(['task:start']);
 
     taskGate.resolve();
-    await settle();
+    await flushTurns();
     flight.request();
-    await settle();
+    await flushTurns();
     expect(log).toEqual(['task:start', 'task:end', 'work:start']);
 
     workGate.resolve();
     await expect(work).resolves.toBe('done');
-    await settle();
+    await flushTurns();
     expect(log).toEqual(['task:start', 'task:end', 'work:start', 'work:end', 'task:start', 'task:end']);
   });
 
@@ -91,7 +81,7 @@ describe('createSingleFlight', () => {
     await expect(flight.exclusive(async () => Promise.reject(new Error('nope')))).rejects.toThrow('nope');
     await expect(flight.exclusive(async () => 'after')).resolves.toBe('after');
     flight.request();
-    await settle();
+    await flushTurns();
 
     expect(runs).toBe(2);
   });

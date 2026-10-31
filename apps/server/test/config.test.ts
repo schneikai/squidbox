@@ -1,14 +1,22 @@
 import { describe, it, expect, vi } from 'vitest';
 import { loadConfig } from '../src/config.js';
 
+// The config is cached at the first load: a test that loads its own env needs a fresh module.
+async function freshLoadConfig() {
+  vi.resetModules();
+  return (await import('../src/config.js')).loadConfig;
+}
+
 describe('server config', () => {
-  it('fails boot without SERVER_ID', () => {
+  it('fails boot without SERVER_ID', async () => {
     const { SERVER_ID: _serverId, ...withoutServerId } = process.env;
-    expect(() => loadConfig(withoutServerId)).toThrow(/SERVER_ID is required/);
+    const load = await freshLoadConfig();
+    expect(() => load(withoutServerId)).toThrow(/SERVER_ID is required/);
   });
 
-  it('rejects a SERVER_ID that is not a uuid', () => {
-    expect(() => loadConfig({ ...process.env, SERVER_ID: 'prod' })).toThrow(/SERVER_ID must be a uuid/);
+  it('rejects a SERVER_ID that is not a uuid', async () => {
+    const load = await freshLoadConfig();
+    expect(() => load({ ...process.env, SERVER_ID: 'prod' })).toThrow(/SERVER_ID must be a uuid/);
   });
 
   it('boots without VENICE_API_KEY (the AI endpoints answer 503 instead)', () => {
@@ -17,9 +25,8 @@ describe('server config', () => {
   });
 
   it('takes an empty VENICE_API_KEY as unset', async () => {
-    vi.resetModules(); // a fresh, uncached config
-    const { loadConfig: loadFresh } = await import('../src/config.js');
-    const config = loadFresh({ ...process.env, VENICE_API_KEY: '' });
+    const load = await freshLoadConfig();
+    const config = load({ ...process.env, VENICE_API_KEY: '' });
     expect(config.VENICE_API_KEY).toBeUndefined();
   });
 

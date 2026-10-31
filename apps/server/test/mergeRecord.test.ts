@@ -192,7 +192,7 @@ describe('mergeRecord', () => {
     expect(deletion).toMatchObject({ applied: [], record: { deletedAt: 2000, purgedAt: 3000 } });
   });
 
-  // An installed app's outbox row (from before per-field merge, carried over by SQLite migration 0011)
+  // An installed app's outbox row (an outbox row without fields, carried over by SQLite migration 0011)
   // is pushed without fields (worker.ts): that app removed a purge's files at once, so its purge keeps
   // the whole-record rule and no restoredDeletions check, like any push without fields.
   it('an installed app’s purge carried over by migration 0011 merges like its whole record', () => {
@@ -210,14 +210,14 @@ describe('mergeRecord', () => {
     expect(perField.record).toMatchObject({ deletedAt: null, purgedAt: null });
   });
 
-  // A record sent without the final field (an app from before purges) leaves the stored one: on the
+  // A record sent without the final field (an app without purges) leaves the stored one: on the
   // server the column holds null, and so must the merged record, which the next mutation of the batch
   // merges against.
-  it('a restore by an app from before purges leaves purgedAt null in the merged record, as the column holds', () => {
-    const { purgedAt: _p, ...prePurge } = asset({ updatedAt: 3000 });
+  it('a restore by an app without purges leaves purgedAt null in the merged record, as the column holds', () => {
+    const { purgedAt: _p, ...withoutPurges } = asset({ updatedAt: 3000 });
     const result = merge({
       stored: asset({ deletedAt: 1000 }),
-      sent: prePurge as ReturnType<typeof asset>,
+      sent: withoutPurges as ReturnType<typeof asset>,
       sentClocks: at(3000, { deletedAt: 3000 }),
     });
     expect(result.record.deletedAt).toBeNull();

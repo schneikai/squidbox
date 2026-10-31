@@ -1,0 +1,219 @@
+import { collectionsByName, type AssetRecord, type PushMutation, type PushResult } from '@squidbox/shared';
+import { fakeClock } from '@squidbox/shared/testing/fakeClock';
+import { and, eq, inArray } from 'drizzle-orm';
+import { drizzle as pgDrizzle } from 'drizzle-orm/node-postgres';
+import { randomUUID } from 'node:crypto';
+import pg from 'pg';
+import { afterAll, afterEach, beforeAll, beforeEach, expect, vi } from 'vitest';
+
+import { makeAlbumRecord, makeAssetRecord } from './factory';
+import { pushViolations } from './pushViolations';
+import { makeTestDb } from './testDb';
+import * as serverSchema from '../../../server/src/db/schema.js';
+import { serverCollections } from '../../../server/src/sync/collections.js';
+import { pull as serverPull } from '../../../server/src/sync/pull.js';
+import { push as serverPush } from '../../../server/src/sync/push.js';
+import * as repo from '../../src/sync/assetsRepository';
+import { clientCollectionTables } from '../../src/sync/clientCollections';
+import * as clientSchema from '../../src/sync/db/schema';
+import type { SyncDb } from '../../src/sync/db/types';
+import { retryFailures } from '../../src/sync/outbox';
+import { makeRepository } from '../../src/sync/repository';
+import type { RemoveFiles } from '../../src/sync/sweepPurgedFiles';
+import type { SyncTransport } from '../../src/sync/transport';
+import { runSyncOnce } from '../../src/sync/worker';
+
+/*
+ * The two-device world of the e2e tests: devices A and B run this app; C pushes whole records (no
+ * `fields`, so the server merges the whole record at its updatedAt), against the real server engine
+ * on Postgres. Date is faked so each edit gets the clock the scenario names; the server's clock is
+ * SERVER_NOW unless a scenario sets it. Every push is checked as it lands (pushViolations), and a
+ * test fails on what it found. Each e2e file calls `useTwoDeviceServer()` once, inside its top
+ * describe, which makes the file a user of its own: no other file (or another checkout's run on the
+ * same Postgres) sees its rows, whether or not the files share this module.
+ */
+export const S = 1_800_000_000_000; // the clock's origin: device edits happen at S + offset
+export const SERVER_NOW = S + 10_000_000; // after every edit, so nothing is clamped
+export const HOUR = 3_600_000;
+
+// Bound by useTwoDeviceServer's hooks: read them inside a test or hook, never in a describe body.
+export let USER: string;
+export let pgDb: ReturnType<typeof pgDrizzle>;
+export let A: SyncDb;
+export let B: SyncDb;
+export let C: SyncDb;
+let pool: pg.Pool;
+
+// What the pushes broke (pushViolations), for the test that made them.
+const violations: string[] = [];
+export const pushLog: { device: SyncDb; mutations: PushMutation[]; results: PushResult[] }[] = [];
+/** The devices that push whole records. */
+export const wholeRecordApps = new Set<SyncDb>();
+export const albumRepo = makeRepository('albums', clientSchema.albums);
+export const posts = makeRepository('posts', clientSchema.posts);
+
+export const at = (t: number) => vi.setSystemTime(t);
+const syncedKeys = (collection: string) =>
+  Object.keys((collectionsByName[collection]!.schema as unknown as { shape: object }).shape);
+/** The synced fields of a row, as the wire carries them. */
+export const synced = (collection: string, row: Record<string, unknown> | undefined) =>
+  row && Object.fromEntries(syncedKeys(collection).map((key) => [key, row[key] ?? null]));
+
+/** The server's rows with these ids, by id: as the wire carries them, or with `raw` every column. */
+export async function serverRows(collection: string, ids: string[], { raw = false } = {}) {
+  const { table, wireColumns } = serverCollections[collection]!;
+  const rows: Record<string, any>[] = await (raw ? pgDb.select() : pgDb.select(wireColumns))
+    .from(table)
+    .where(and(eq((table as any).userId, USER), inArray((table as any).id, ids)));
+  return new Map(rows.map((row) => [row.id as string, row]));
+}
+export async function serverRow(collection: string, id: string, options: { raw?: boolean } = {}) {
+  return (await serverRows(collection, [id], options)).get(id);
+}
+export async function localRow(device: SyncDb, collection: string, id: string) {
+  const table = clientCollectionTables[collection] as any;
+  const [row] = await device.select().from(table).where(eq(table.id, id));
+  return row as Record<string, any> | undefined;
+}
+
+export function transportOf(device: SyncDb): SyncTransport {
+  return {
+    push: async (req) => {
+      const mutations = wholeRecordApps.has(device)
+        ? req.mutations.map(({ fields: _fields, ...m }) => m)
+        : req.mutations;
+      const results = await serverPush(pgDb as any, USER, mutations);
+      violations.push(...(await pushViolations(mutations, results, serverRows)));
+      pushLog.push({ device, mutations, results });
+      return { results };
+    },
+    pull: (req) => serverPull(pgDb as any, USER, { cursor: req.cursor, limit: req.limit }),
+  };
+}
+export async function sync(
+  device: SyncDb,
+  { now = SERVER_NOW, removeFiles }: { now?: number; removeFiles?: RemoveFiles } = {},
+) {
+  at(now);
+  await runSyncOnce(device, transportOf(device), { removeFiles });
+}
+export async function settle(devices = [A, B, C], now = SERVER_NOW) {
+  for (let i = 0; i < 3; i++) for (const device of devices) await sync(device, { now });
+}
+/** A push the server never sees: the device is told each mutation was refused, for `reason`. */
+export const refusedPush =
+  (reason: string): SyncTransport['push'] =>
+  async (req) => ({
+    results: req.mutations.map((m) => ({
+      id: String(m.record.id),
+      collection: m.collection,
+      status: 'rejected' as const,
+      reason,
+    })),
+  });
+/**
+ * transportOf(device), but the device never hears back from a push that landed: the run fails with
+ * `message`, or with `refused` the device is told each mutation was refused, so it waits for a retry.
+ */
+export function unansweredTransport(device: SyncDb, { refused = false, message = 'no answer' } = {}): SyncTransport {
+  const transport = transportOf(device);
+  return {
+    ...transport,
+    push: async (req) => {
+      await transport.push(req);
+      if (refused) return refusedPush(message)(req);
+      throw new Error(message);
+    },
+  };
+}
+// A pull while the device's edits wait (its push is refused, then retried later), so the pull
+// applies around the pending fields (§5).
+export async function pullOnly(device: SyncDb, now = SERVER_NOW, { removeFiles }: { removeFiles?: RemoveFiles } = {}) {
+  at(now);
+  await runSyncOnce(device, { ...transportOf(device), push: refusedPush('offline') }, { removeFiles });
+  await retryFailures(device);
+}
+/**
+ * A removeFiles that records the name of every file it is handed, thumbnails too unless told not to;
+ * with `oncePerCall`, a file two photos share counts once per call.
+ */
+export function removedFiles({ thumbnails = true, oncePerCall = false } = {}) {
+  const removed: string[] = [];
+  const removeFiles: RemoveFiles = async (files) => {
+    const names = files
+      .flatMap((f) => (thumbnails ? [f.filename, f.thumbnailFilename] : [f.filename]))
+      .filter((name): name is string => !!name);
+    removed.push(...(oncePerCall ? new Set(names) : names));
+  };
+  return { removed, removeFiles };
+}
+export async function edit(device: SyncDb, t: number, write: () => Promise<unknown>) {
+  at(t);
+  await write();
+}
+
+// Every device and the server hold the same synced record, and nothing waits in an outbox.
+export async function expectConverged(collection: string, id: string, devices = [A, B, C]) {
+  const server = synced(collection, await serverRow(collection, id));
+  expect(server).toBeDefined();
+  for (const device of devices) {
+    expect(synced(collection, await localRow(device, collection, id))).toEqual(server);
+    expect(await device.select().from(clientSchema.outbox)).toEqual([]);
+  }
+  return server as Record<string, any>;
+}
+
+export async function seedAsset(over: Partial<AssetRecord> = {}) {
+  at(S);
+  const rec = await repo.create(A, makeAssetRecord({ createdAt: S, updatedAt: S, ...over }));
+  await settle();
+  return rec.id;
+}
+export async function seedAlbum(over: Record<string, unknown> = {}) {
+  at(S);
+  const rec = await albumRepo.create(A, makeAlbumRecord({ createdAt: S, updatedAt: S, ...over }));
+  await settle();
+  return rec.id;
+}
+
+export async function clearServer() {
+  for (const { table } of Object.values(serverCollections))
+    await pgDb.delete(table).where(eq((table as any).userId, USER));
+}
+
+/** An empty server, and devices A, B and C made anew, C pushing whole records. */
+export async function freshDevices() {
+  await clearServer();
+  A = makeTestDb();
+  B = makeTestDb();
+  C = makeTestDb();
+  wholeRecordApps.clear();
+  wholeRecordApps.add(C);
+}
+
+/** The pool and the user for the file, a fresh world for each test, and its pushes' violations checked. */
+export function useTwoDeviceServer() {
+  beforeAll(async () => {
+    USER = randomUUID();
+    pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL });
+    pgDb = pgDrizzle(pool, { schema: serverSchema });
+    await pgDb
+      .insert(serverSchema.users)
+      .values({ id: USER, email: `two-device-${USER}@test.local`, passwordDigest: 'x', storageBucket: null });
+  });
+  afterAll(async () => {
+    await clearServer();
+    await pgDb.delete(serverSchema.users).where(eq(serverSchema.users.id, USER));
+    await pool.end();
+  });
+  beforeEach(async () => {
+    fakeClock();
+    at(S);
+    await freshDevices();
+    violations.length = 0;
+    pushLog.length = 0;
+  });
+  afterEach(() => {
+    expect(violations).toEqual([]);
+  });
+}

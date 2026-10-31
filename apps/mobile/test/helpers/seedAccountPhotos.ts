@@ -5,9 +5,9 @@ import type { SyncDb } from '../../src/sync/db/types';
 import { upsertRows } from '../../src/sync/upsertRows';
 
 /**
- * The seeded merge fuzz runs' account (mergeRun.test.ts, mergeRunFailures.test.ts): its photos of
- * camera-roll items m0..m3 in its library (pulled), each with or without a file in the cloud (and
- * then maybe one on this phone, `addLocalFile`), a favorite, a note, a sync error.
+ * The seeded merge fuzz runs' account: its photos of camera-roll items m0..m3 in its library
+ * (pulled), each with or without a file in the cloud (and then maybe one on this phone,
+ * `addLocalFile`), a favorite, a note, a sync error.
  */
 export async function seedAccountPhotos(
   db: SyncDb,

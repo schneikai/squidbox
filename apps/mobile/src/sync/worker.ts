@@ -435,6 +435,11 @@ export function requestSync(): void {
   if (syncTarget) syncFlight.request();
 }
 
+/** Resolves once no sync run or paused section is running or queued (for tests; not from inside a section). */
+export function syncSettled(): Promise<void> {
+  return syncFlight.idle();
+}
+
 // Run `work` with syncing paused: aborts the running sync (it stops at its next batch or page) and backup
 // (at its next step), waits for both, and starts no run until `work` finishes. Use it for anything
 // that must not interleave with them, like changing the session or the open library. Sections run

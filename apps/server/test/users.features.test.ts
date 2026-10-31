@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { eq } from 'drizzle-orm';
 import pg from 'pg';
@@ -31,8 +31,13 @@ d('switchUserFeature', () => {
       email: 'features@test.local',
       passwordDigest: 'x',
       storageBucket: null,
-      features: ['developer', 'retired'],
     });
+  });
+  beforeEach(async () => {
+    await db
+      .update(schema.users)
+      .set({ features: ['developer', 'retired'] })
+      .where(eq(schema.users.id, USER));
   });
   afterAll(async () => {
     await db.delete(schema.users).where(eq(schema.users.id, USER));
@@ -46,7 +51,7 @@ d('switchUserFeature', () => {
   });
 
   it('switches one feature off', async () => {
-    expect((await switchUserFeature(db, USER, 'ai', false)).features).toEqual(['developer', 'retired']);
+    expect((await switchUserFeature(db, USER, 'developer', false)).features).toEqual(['retired']);
   });
 
   it('keeps a change made meanwhile to another feature', async () => {

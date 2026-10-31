@@ -1,6 +1,9 @@
+import { deferred } from '@squidbox/shared/testing/deferred';
+import { gate } from '@squidbox/shared/testing/gate';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
+import { flushTurns } from './helpers/flushTurns';
 import { makeTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
 import { isBackupRunning, runBackup, type BackupUploads } from '../src/sync/backupRun';
@@ -86,10 +89,10 @@ describe('runBackup', () => {
     })!;
 
     const writes = await assetWrites(async () => {
-      await settle();
+      await flushTurns();
       expect(calls).toEqual(['file a.jpg', 'thumbnail a.jpg']); // both in flight
       thumbnail.resolve();
-      await settle();
+      await flushTurns();
       expect(deleted).toEqual([]);
       file.resolve();
       await run;
@@ -213,7 +216,7 @@ describe('runBackup', () => {
     })!;
 
     const writes = await assetWrites(async () => {
-      await settle();
+      await flushTurns();
       expect(deleted).toEqual([]); // the thumbnail failed, the file is still uploading
       file.resolve();
       await run;
@@ -308,7 +311,7 @@ describe('runBackup', () => {
         },
         uploadThumbnail: () =>
           file.promise.then(async () => {
-            await settle(); // the file upload has resolved
+            await flushTurns(); // the file upload has resolved
             paused = pause();
             throw new Error('Upload cancelled');
           }),
@@ -454,14 +457,12 @@ describe('runBackup', () => {
 
   it('refuses a second run while one is running, and does not start while a pause holds', async () => {
     const a = await unsyncedAsset('a.jpg');
-    let release!: () => void;
-    const first = runBackup(db, {
-      uploads: uploads({ uploadFile: () => new Promise<void>((resolve) => (release = resolve)) }),
-    });
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    const upload = gate();
+    const first = runBackup(db, { uploads: uploads({ uploadFile: upload.hold }) });
+    await upload.entered;
     expect(isBackupRunning()).toBe(true);
     expect(() => runBackup(db, { uploads: uploads() })).toThrow('already running');
-    release();
+    upload.release();
     await first;
     expect(await row(a.id)).toMatchObject({ isSynced: true });
 
@@ -471,14 +472,3 @@ describe('runBackup', () => {
     });
   });
 });
-
-// Lets more promise callbacks and db queue turns run.
-async function settle(): Promise<void> {
-  for (let i = 0; i < 10; i++) await new Promise((resolve) => setImmediate(resolve));
-}
-
-function deferred() {
-  let resolve!: () => void;
-  const promise = new Promise<void>((res) => (resolve = res));
-  return { promise, resolve };
-}

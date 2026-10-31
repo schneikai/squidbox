@@ -4,8 +4,8 @@ import Button from '@/components/Button';
 import { layout } from '@/styles/designTokens';
 
 /**
- * A screen's text actions, in order (`{ label, colorPalette, onPress, loading }`, e.g. Delete or Reset
- * changes; `loading` shows a spinner and blocks presses). Nothing without any. `isScreenEnd` is a
+ * A screen's text actions, in order (`{ label, colorPalette, onPress, loading, disabled }`, e.g. Delete
+ * or Reset changes; `loading` shows a spinner and blocks presses, `disabled` greys it out). Nothing without any. `isScreenEnd` is a
  * screen's actions at the end of its content, with the gap every screen has above them.
  */
 export default function ActionButtons({ actions, isScreenEnd = false }) {
@@ -19,6 +19,7 @@ export default function ActionButtons({ actions, isScreenEnd = false }) {
           colorPalette={action.colorPalette}
           onPress={action.onPress}
           loading={action.loading}
+          disabled={action.disabled}
         />
       ))}
     </View>

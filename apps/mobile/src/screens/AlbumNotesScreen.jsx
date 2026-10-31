@@ -1,47 +1,40 @@
 import { useState } from 'react';
-import { Alert } from 'react-native';
 
-import TextEditScreen from '@/components/TextEditScreen';
+import TextEditSheet from '@/components/TextEditSheet';
 import useAlbums from '@/features/albums-context/useAlbums';
-import useHaptics from '@/hooks/useHaptics';
-import useSaveAsYouType from '@/hooks/useSaveAsYouType';
+import useEditSheet from '@/hooks/useEditSheet';
 import noteText from '@/utils/noteText';
 
-// An album's notes, saved as you type (an asset's are edited in its details, AssetNote).
-export default function AlbumNotesScreen({ route, navigation }) {
+// An album's notes as a draft sheet, saved on Save (an asset's are edited in its details, AssetNote).
+// An emptied note saves as none.
+export default function AlbumNotesScreen({ route }) {
   const { id, notes: initialNotes } = route.params;
   const { updateAlbum } = useAlbums();
-  const haptics = useHaptics();
   const [notes, setNotes] = useState(initialNotes ?? '');
-  // Saved only when changed, so a notes edit another device made meanwhile isn't sent back.
-  const { flush, end } = useSaveAsYouType(noteText(notes), saveNotes);
+  const { sheetProps, finish } = useEditSheet({
+    isDirty: noteText(notes) !== noteText(initialNotes),
+    save,
+    syncsItself: true,
+  });
 
-  async function saveNotes(next) {
-    await updateAlbum(id, { notes: next }, { shouldSync: false });
+  // Sent only on Save, so a notes edit another device made meanwhile is kept unless you change them.
+  async function save() {
+    await updateAlbum(id, { notes: noteText(notes) });
   }
 
-  // After the saves under way, and nothing typed is saved after it.
-  async function handleDelete() {
-    try {
-      await end(() => updateAlbum(id, { notes: null }));
-      navigation.goBack();
-    } catch (error) {
-      console.error('Deleting the note failed', error);
-      haptics.error();
-      Alert.alert("Couldn't delete the note", error.message);
-    }
+  function handleDelete() {
+    finish(() => updateAlbum(id, { notes: null }), "Couldn't delete the note");
   }
 
   return (
-    <TextEditScreen
+    <TextEditSheet
+      {...sheetProps}
       title="Notes"
       value={notes}
       onChangeText={setNotes}
-      onBlur={() => flush()}
-      onBack={() => navigation.goBack()}
       placeholder="Add a note…"
       autoFocus
-      actions={noteText(notes) ? [{ label: 'Delete note', colorPalette: 'danger', onPress: handleDelete }] : []}
+      actions={noteText(initialNotes) ? [{ label: 'Delete note', colorPalette: 'danger', onPress: handleDelete }] : []}
     />
   );
 }

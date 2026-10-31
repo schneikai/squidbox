@@ -3,26 +3,58 @@ import PromptButtonsScreen from '@/features/prompt-buttons/PromptButtonsScreen';
 import RuleScreen from '@/features/voice/RuleScreen';
 import RulesScreen from '@/features/voice/RulesScreen';
 import VoiceScreen from '@/features/voice/VoiceScreen';
+import asModalRoute from '@/navigators/asModalRoute';
+
+const LISTS = [
+  { name: 'PromptButtonsScreen', component: PromptButtonsScreen },
+  { name: 'VoiceScreen', component: VoiceScreen },
+  { name: 'RulesScreen', component: RulesScreen },
+];
 
 // One screen per prompt button, and one Add.
-const promptButtonId = ({ params }) => params?.id ?? 'new';
+const idOrNew = ({ params }) => params?.id ?? 'new';
 
-// One screen per rule, and one Add.
-const ruleIndex = ({ params }) => String(params?.index ?? 'new');
+// Each editor's modal route is wrapped once, here: a wrap inside a render would remount an open
+// editor and lose its draft.
+const EDITORS = [
+  {
+    name: 'PromptButtonScreen',
+    component: PromptButtonScreen,
+    modalComponent: asModalRoute(PromptButtonScreen),
+    getId: idOrNew,
+  },
+  {
+    name: 'RuleScreen',
+    component: RuleScreen,
+    modalComponent: asModalRoute(RuleScreen),
+    // One screen per rule, and one Add.
+    getId: ({ params }) => String(params?.index ?? 'new'),
+  },
+];
+
+const SHEET_OPTIONS = { presentation: 'modal' };
 
 /**
- * The assistant's setup screens the chat opens (prompt buttons, Writing as you), as
- * `Screen`s of the navigator that calls it: the root stack, and the post editor's stack, so that from
- * inside its sheet they open in the sheet rather than behind it.
+ * The assistant's setup screens the chat opens (prompt buttons, Writing as you, Rules), as
+ * `Screen`s of the navigator that calls it. The lists are pushed; with `editorsAsSheets` (the root
+ * stack) their editors open as sheets, else (the post editor's stack) they push too, so that from
+ * inside its sheet they open in the sheet, never behind it or as a second sheet.
  */
-export default function assistantScreens(Screen) {
+export default function assistantScreens(Screen, { editorsAsSheets = false } = {}) {
   return (
     <>
-      <Screen name="PromptButtonsScreen" component={PromptButtonsScreen} />
-      <Screen name="PromptButtonScreen" component={PromptButtonScreen} getId={promptButtonId} />
-      <Screen name="VoiceScreen" component={VoiceScreen} />
-      <Screen name="RulesScreen" component={RulesScreen} />
-      <Screen name="RuleScreen" component={RuleScreen} getId={ruleIndex} />
+      {LISTS.map(({ name, component }) => (
+        <Screen key={name} name={name} component={component} />
+      ))}
+      {EDITORS.map(({ name, component, modalComponent, getId }) => (
+        <Screen
+          key={name}
+          name={name}
+          component={editorsAsSheets ? modalComponent : component}
+          getId={getId}
+          options={editorsAsSheets ? SHEET_OPTIONS : undefined}
+        />
+      ))}
     </>
   );
 }

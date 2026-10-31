@@ -1,16 +1,33 @@
-import { and, eq, isNull, lte } from 'drizzle-orm';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { fakeClock } from '@squidbox/shared/testing/fakeClock';
+import { gate } from '@squidbox/shared/testing/gate';
+import { and, eq, isNull } from 'drizzle-orm';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
+import { deleted, faults, files, storage, stores } from './helpers/fakeDevice';
 import { fuzzRuns } from './helpers/fuzzRuns';
+import {
+  ACC,
+  DEV,
+  SRC,
+  TGT,
+  addToTrip,
+  deletedElsewhere,
+  devicePhoto,
+  entry,
+  pushOlderHalf,
+  resetLibraries,
+  resetToAccount,
+  sourceDb,
+} from './helpers/mergeDevice';
 import { mergeLosses } from './helpers/mergeLosses';
 import { prng } from './helpers/prng';
 import { seedAccountPhotos } from './helpers/seedAccountPhotos';
+import { seedDevicePhotos } from './helpers/seedDevicePhotos';
 import { makeTestDb } from './helpers/testDb';
+import { purgedFilesRemover } from '../src/library/fs';
 import { libraryPaths } from '../src/library/libraryPaths';
-import type { Registry } from '../src/library/registry';
 import * as repo from '../src/sync/assetsRepository';
-import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import { makeRepository } from '../src/sync/repository';
 import {
@@ -24,85 +41,22 @@ import {
 } from '../src/sync/status';
 import { getAssetFileUri } from '../src/utils/assets/assetStorage';
 
-// The device: databases by name (a store survives close and reopen), files by uri, the list.
-const stores = new Map<string, AppDb>();
-const deleted: string[] = [];
-const files = new Set<string>();
-const storage = new Map<string, string>();
-const failingMoves = vi.hoisted(() => new Set<string>()); // moves that throw
-
+// The device (helpers/fakeDevice): databases by name, files by uri, the list, and the faults.
 vi.mock('expo-file-system/legacy', () => ({ documentDirectory: 'file:///docs/' }));
-vi.mock('../src/sync/db/client', () => {
-  let open: AppDb | null = null;
-  const openAppDb = async (name: string) => {
-    if (!stores.has(name)) stores.set(name, makeTestDb());
-    return Object.assign(Object.create(stores.get(name)!), { close: async () => {} });
-  };
-  return {
-    openAppDb,
-    withAppDb: async (name: string, use: (db: AppDb) => Promise<unknown>) => use(await openAppDb(name)),
-    deleteAppDb: async (name: string) => {
-      deleted.push(name);
-      stores.delete(name);
-    },
-    getDb: () => open!,
-    setOpenDb: (db: AppDb | null) => {
-      open = db;
-    },
-  };
-});
-vi.mock('@react-native-async-storage/async-storage', () => ({
-  default: {
-    getItem: async (key: string) => storage.get(key) ?? null,
-    setItem: async (key: string, value: string) => {
-      storage.set(key, value);
-    },
-  },
-}));
-vi.mock('../src/library/fs', () => ({
-  listFiles: async (dir: string) =>
-    new Set([...files].filter((uri) => uri.startsWith(dir)).map((uri) => uri.slice(dir.length))),
-  fileExists: async (uri: string) => files.has(uri),
-  moveFile: async (from: string, to: string) => {
-    if (failingMoves.has(from)) throw new Error(`could not move ${from}`);
-    files.delete(from);
-    files.add(to);
-  },
-  copyFile: async (from: string, to: string) => {
-    if (failingMoves.has(from)) throw new Error(`could not copy ${from}`);
-    files.add(to);
-  },
-  removeLibraryFolders: async () => {},
-  // A device library's sweep (current.ts sweepOpenLibrary).
-  purgedFilesRemover:
-    (paths: { filesDir: string; thumbnailsDir: string }) =>
-    async (names: { filename?: string; thumbnailFilename?: string }[]) => {
-      for (const { filename, thumbnailFilename } of names) {
-        if (filename) files.delete(`file:///docs/${paths.filesDir}${filename}`);
-        if (thumbnailFilename) files.delete(`file:///docs/${paths.thumbnailsDir}${thumbnailFilename}`);
-      }
-    },
-}));
-const applyMergeImpl = vi.hoisted(() => ({ fail: false }));
-vi.mock('../src/library/mergeLibrary', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../src/library/mergeLibrary')>();
-  return {
-    ...original,
-    planMerge: vi.fn(original.planMerge),
-    applyMerge: vi.fn((...args: Parameters<typeof original.applyMerge>) => {
-      if (applyMergeImpl.fail) throw new Error('apply failed');
-      return original.applyMerge(...args);
-    }),
-  };
-});
+vi.mock('../src/sync/db/client', async () => (await import('./helpers/fakeDevice')).dbClient());
+vi.mock('@react-native-async-storage/async-storage', async () => (await import('./helpers/fakeDevice')).asyncStorage());
+vi.mock('../src/library/fs', async () => (await import('./helpers/fakeDevice')).libraryFs());
+vi.mock('../src/library/mergeLibrary', async (importOriginal) =>
+  (await import('./helpers/fakeDevice')).mergeLibraryWithFaults(await importOriginal()),
+);
 
 vi.mock('../src/sync/worker', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/sync/worker')>()),
   requestSync: vi.fn(),
 }));
 
-const { closeLibrary, openLibrary, openLibraryId, sweepOpenLibrary } = await import('../src/library/current');
-const { getRegistry, loadRegistry, updateLibrary, updateRegistry } = await import('../src/library/registry');
+const { closeLibrary, librarySweepsSettled, openLibrary, sweepOpenLibrary } = await import('../src/library/current');
+const { loadRegistry, updateLibrary, updateRegistry } = await import('../src/library/registry');
 const { mergeLibrary, resumeMerges } = await import('../src/library/mergeRun');
 const { getDb } = await import('../src/sync/db/client');
 const { requestSync } = await import('../src/sync/worker');
@@ -110,41 +64,8 @@ const { planMerge: plannedMerge } = await import('../src/library/mergeLibrary');
 const plans = () => vi.mocked(plannedMerge).mock.calls.length;
 
 const albums = makeRepository('albums', schema.albums);
-const DEV = { id: 'dev', owner: { kind: 'device' as const } };
-const ACC = { id: 'acc', owner: { kind: 'account' as const, serverId: 's1', userId: 'u1', email: 'u1@test' } };
-const SRC = libraryPaths('dev');
-const TGT = libraryPaths('acc');
-const sourceDb = () => stores.get(SRC.dbName)!;
-const entry = (id: string) => getRegistry().libraries.find((library) => library.id === id);
 // A merge marker for a library of account u1 (mergeMarker.ts).
 const marker = (library: string, userId = 'u1') => ({ library, serverId: 's1', userId });
-
-async function devicePhoto(over: Record<string, unknown> = {}) {
-  const asset = await repo.create(
-    sourceDb(),
-    makeAssetRecord({ isFileSynced: false, isThumbnailSynced: false, isSynced: false, ...over }),
-  );
-  files.add(getAssetFileUri(asset.filename, SRC));
-  files.add(`file:///docs/${SRC.thumbnailsDir}${asset.thumbnailFilename}`);
-  return asset;
-}
-
-// A fresh device: these libraries listed, the device library's database empty, no files.
-async function resetLibraries(libraries: Registry['libraries'] = [DEV, ACC]) {
-  if (openLibraryId()) await closeLibrary();
-  stores.clear();
-  deleted.length = 0;
-  files.clear();
-  storage.clear();
-  await loadRegistry(async () => ({ libraries }));
-  stores.set(SRC.dbName, makeTestDb());
-}
-// ... with the account's library open, its first full pull done.
-async function resetToAccount(libraries: Registry['libraries'] = [DEV, ACC]) {
-  await resetLibraries(libraries);
-  await openLibrary(ACC);
-  await markFirstSyncDone(getDb());
-}
 
 // A pass committed into the open account library `library`, then the app stops before the files move.
 async function commitPass(library = 'acc') {
@@ -160,11 +81,6 @@ async function pushAndFinish() {
   await getDb().delete(schema.outbox);
   await resumeMerges();
 }
-
-afterEach(() => {
-  failingMoves.clear();
-  applyMergeImpl.fail = false;
-});
 
 describe('mergeLibrary / resumeMerges', () => {
   beforeEach(() => resetToAccount());
@@ -252,7 +168,7 @@ describe('mergeLibrary / resumeMerges', () => {
 
   it('a throw before the commit clears the marker and leaves both libraries as they were', async () => {
     await devicePhoto();
-    applyMergeImpl.fail = true;
+    faults.failApply = true;
 
     await expect(mergeLibrary('dev', 'acc')).rejects.toThrow('apply failed');
 
@@ -326,7 +242,7 @@ describe('mergeLibrary / resumeMerges', () => {
     }));
     await closeLibrary();
     await openLibrary(DEV); // the session was lost: the marked device library opened again
-    applyMergeImpl.fail = true;
+    faults.failApply = true;
 
     await resumeMerges();
     expect(entry('dev')).toEqual({ ...DEV, mergedInto: marker('acc') }); // waits for a boot that opens another
@@ -354,12 +270,7 @@ const { sweepPurgedFiles } = await import('../src/sync/sweepPurgedFiles');
 
 describe('a failed pass after an earlier one committed', () => {
   // removeAssetFiles for the open library, on the fake file system.
-  const removeFiles = async (names: { filename?: string; thumbnailFilename?: string }[]) => {
-    for (const { filename, thumbnailFilename } of names) {
-      if (filename) files.delete(getAssetFileUri(filename, SRC));
-      if (thumbnailFilename) files.delete(`file:///docs/${SRC.thumbnailsDir}${thumbnailFilename}`);
-    }
-  };
+  const removeFiles = purgedFilesRemover(SRC);
 
   beforeEach(() => resetToAccount());
 
@@ -382,7 +293,7 @@ describe('a failed pass after an earlier one committed', () => {
     // Signed in again: the boot's next pass fails before its commit.
     await closeLibrary();
     await openLibrary(ACC);
-    applyMergeImpl.fail = true;
+    faults.failApply = true;
     await resumeMerges();
     expect((await getDb().select().from(schema.assets)).map((row) => row.deletedAt)).toEqual([null]); // live there
 
@@ -395,8 +306,6 @@ describe('a failed pass after an earlier one committed', () => {
 });
 
 describe('the sweep at a library’s open', () => {
-  const settled = () => new Promise((resolve) => setTimeout(resolve, 20));
-
   beforeEach(() => resetLibraries());
 
   it('a device library sweeps when it opens and after a purge', async () => {
@@ -405,11 +314,11 @@ describe('the sweep at a library’s open', () => {
     await repo.remove(sourceDb(), [a.id, b.id]);
     await repo.purgeAssets(sourceDb(), [a.id]);
     await openLibrary(DEV);
-    await settled();
+    await librarySweepsSettled();
     expect(files.has(getAssetFileUri('a.jpg', SRC))).toBe(false);
     await repo.purgeAssets(getDb(), [b.id]);
     sweepOpenLibrary(); // as AssetsProvider does after a purge
-    await settled();
+    await librarySweepsSettled();
     expect(files.has(getAssetFileUri('b.jpg', SRC))).toBe(false);
   });
 
@@ -424,7 +333,7 @@ describe('the sweep at a library’s open', () => {
     await markFirstSyncDone(TGT_DB);
     await openLibrary(ACC);
     sweepOpenLibrary();
-    await settled();
+    await librarySweepsSettled();
     expect(files.has(getAssetFileUri('acc.jpg', TGT))).toBe(true);
   });
 });
@@ -442,9 +351,6 @@ describe('a merge pass run again (a crash, a failed file move)', () => {
   const newEdgeId = () => `00000000-0000-4000-8000-${String(++edgeIds).padStart(12, '0')}`;
 
   beforeEach(() => resetToAccount());
-  afterEach(() => {
-    vi.useRealTimers();
-  });
 
   async function openDevice() {
     await closeLibrary();
@@ -484,7 +390,7 @@ describe('a merge pass run again (a crash, a failed file move)', () => {
   // Clocks are per record (nextUpdatedAt), not across a library: a device clock that ran ahead when
   // one record was written (set by hand, then corrected) must not hide the later edits of the others.
   it('an edit made on the device after the pass, stamped below the pass’s mark (the clock went back), reaches the account', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
+    fakeClock();
     vi.setSystemTime(new Date('2026-10-21T10:00:00Z'));
     const kept = await devicePhoto({ filename: 'k.jpg', mediaLibraryAssetId: 'm-k' });
     vi.setSystemTime(new Date('2026-10-22T10:00:00Z')); // the clock a day ahead for a while
@@ -571,11 +477,11 @@ describe('a merge pass run again (a crash, a failed file move)', () => {
   });
 });
 
-// Round 8: a photo an earlier pass merged into the account's photo of the same camera-roll item was
+// A photo an earlier pass merged into the account's photo of the same camera-roll item was
 // matched again by every later pass, and copied whole once the account's photo was gone from the
 // live photos. The pass's decision is recorded (merged into that photo): later passes only bring the
 // device's newer edits there, and nowhere once it is gone.
-describe('round 8: a resumed pass and a matched photo the account deleted since', () => {
+describe('a resumed pass and a matched photo the account deleted since', () => {
   beforeEach(() => resetToAccount());
 
   // Pass 1 merges the device's photo into the account's (favorite OR'd), commits, then the app
@@ -601,10 +507,10 @@ describe('round 8: a resumed pass and a matched photo the account deleted since'
   });
 });
 
-// Round 8: the device library's own marker (getMergeTarget) names the library an earlier pass
+// The device library's own marker (getMergeTarget) names the library an earlier pass
 // committed into. It is the authority: while that library is in the list, the device library joins
 // no other, and the list's marker is set back to it (the boot then finishes that merge).
-describe('round 8: a device library an earlier pass copied into a library that is still there', () => {
+describe('a device library an earlier pass copied into a library that is still there', () => {
   const ACC2 = { id: 'acc2', owner: { kind: 'account' as const, serverId: 's1', userId: 'u2', email: 'u2@test' } };
   const TGT2 = libraryPaths('acc2');
 
@@ -635,12 +541,12 @@ describe('round 8: a device library an earlier pass copied into a library that i
   });
 });
 
-// Round 9: a pass committed into `acc`, then `acc` was lost before it pushed anything (removed from
+// A pass committed into `acc`, then `acc` was lost before it pushed anything (removed from
 // the device), and the device library joins another library of the account, `acc2`, whose first pull
 // brought none of it. The source learned nothing from that pass (it learns a decision once the
 // target has pushed it), so the pass into `acc2` is an ordinary one: everything is copied, with its
 // files; new edges to the album have their album.
-describe('round 9: records an earlier library never pushed', () => {
+describe('records an earlier library never pushed', () => {
   const ACC2 = { id: 'acc2', owner: { kind: 'account' as const, serverId: 's1', userId: 'u1', email: 'u1@test' } };
   const TGT2 = libraryPaths('acc2');
   let edgeIds = 0;
@@ -681,14 +587,14 @@ describe('round 9: records an earlier library never pushed', () => {
   });
 });
 
-// Round 10: a merge into the account's library waits for its first full pull (mergeWaits) so that a
+// A merge into the account's library waits for its first full pull (mergeWaits) so that a
 // device photo of a camera-roll item the account has is merged into the account's photo instead of
 // copied beside it. The account's photo can be a record whose file never reached the cloud: it was
 // imported on this iPhone by an install deleted before its backup ran (the camera-roll id is the
 // iPhone's own), and the photo was imported again before the sign-in. The device library is removed
 // with its folders, so the device's file moves into the account's library under the account photo's
 // name, and that library's backup uploads it.
-describe('round 10: a camera-roll match whose account photo has no file in the cloud', () => {
+describe('a camera-roll match whose account photo has no file in the cloud', () => {
   beforeEach(() => resetToAccount());
 
   it('keeps the device’s file for the account’s photo when the cloud has none', async () => {
@@ -714,27 +620,27 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
 
   const unsynced = { isFileSynced: false, isThumbnailSynced: false, isSynced: false };
 
-  // Round 17: a pass that writes nothing but moves the device's file into the account's folders (a
+  // A pass that writes nothing but moves the device's file into the account's folders (a
   // match with nothing to merge) commits its decisions and has joined the account's library: the
   // marker says so before the move, so a move that fails half-way never reopens the device library.
   it('a pass that only moves files marks the device library committed before the move', async () => {
     const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-r', filename: 'r.jpg', ...unsynced });
     await upsertRows(getDb(), 'assets', schema.assets, [{ ...accountPhoto, syncError: null }]);
     await devicePhoto({ mediaLibraryAssetId: 'm-r', filename: 'r2.jpg', thumbnailFilename: 'r2-t.jpg' });
-    failingMoves.add(`file:///docs/${SRC.thumbnailsDir}r2-t.jpg`);
+    faults.failingMoves.add(`file:///docs/${SRC.thumbnailsDir}r2-t.jpg`);
 
     await expect(mergeLibrary('dev', 'acc')).rejects.toThrow('could not move');
 
     expect(await getDb().select().from(schema.outbox)).toEqual([]); // nothing written
     expect(entry('dev')).toEqual({ ...DEV, mergedInto: { ...marker('acc'), committed: true } });
     expect(await getMergeTarget(sourceDb())).toEqual({ ...marker('acc'), committed: true });
-    failingMoves.clear();
+    faults.failingMoves.clear();
     await resumeMerges();
     expect(entry('dev')).toBeUndefined();
     expect(files.has(getAssetFileUri('r.jpg', TGT))).toBe(true);
   });
 
-  // Round 19: two device photos of an item whose account photo has no file in the cloud: the first
+  // Two device photos of an item whose account photo has no file in the cloud: the first
   // gives it its file, and the second's stays in the device library. No later pass plans a move into
   // a destination the account's library has (it would commit again and wait for later rows), so the
   // merge finishes once the pass's rows pushed, whatever the account edited since.
@@ -757,7 +663,7 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
     expect(entry('dev')).toBeUndefined();
   });
 
-  // Round 19: a pass that adds no outbox rows (here it only moves the files a crash left) keeps what
+  // A pass that adds no outbox rows (here it only moves the files a crash left) keeps what
   // the earlier passes wait for, so a later edit of the account doesn't hold the merge. Until its
   // files moved, its commit isn't counted as pushed (usePendingMerges).
   it('a pass that only moves files keeps the rows the merge waits for', async () => {
@@ -773,7 +679,7 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
     expect(entry('dev')).toBeUndefined();
   });
 
-  // Round 18: a pass that writes nothing but moves the device's copy under a matched record's names
+  // A pass that writes nothing but moves the device's copy under a matched record's names
   // commits its decisions first. Its move fails, the account deletes the record meanwhile, and the
   // retry keeps the decision: the device's photo isn't copied in as a new live photo.
   it('a pass that only moves files keeps its match when the account deletes the record before the retry', async () => {
@@ -787,7 +693,7 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
     });
     await upsertRows(getDb(), 'assets', schema.assets, [{ ...accountPhoto, syncError: null }]);
     const photo = await devicePhoto({ mediaLibraryAssetId: 'm-r', filename: 'r2.jpg', thumbnailFilename: 'r2-t.jpg' });
-    failingMoves.add(`file:///docs/${SRC.thumbnailsDir}r2-t.jpg`);
+    faults.failingMoves.add(`file:///docs/${SRC.thumbnailsDir}r2-t.jpg`);
     await expect(mergeLibrary('dev', 'acc')).rejects.toThrow('could not move');
     expect(await getMergeMarks(getDb(), SRC.dbName)).toMatchObject({
       [`assets:${photo.id}`]: { as: 'match', into: accountPhoto.id },
@@ -797,7 +703,7 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
     await upsertRows(getDb(), 'assets', schema.assets, [
       { ...accountPhoto, deletedAt: 5000, updatedAt: 5000, syncError: null },
     ]);
-    failingMoves.clear();
+    faults.failingMoves.clear();
     await resumeMerges();
     await pushAndFinish();
 
@@ -806,12 +712,12 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
     expect(rows.map((row) => [row.id, row.deletedAt])).toEqual([[accountPhoto.id, 5000]]);
   });
 
-  // Round 20: a copied photo whose move failed, backed up by hand before the next launch (its backup
+  // A copied photo whose move failed, backed up by hand before the next launch (its backup
   // found no file there): the sync error stays while the move keeps failing, and goes once a pass
   // has moved the file, so its backup tries again.
   it('a copied photo’s sync error goes once a pass has moved its file, not before', async () => {
     const photo = await devicePhoto({ mediaLibraryAssetId: 'm-a', filename: 'a.jpg' });
-    failingMoves.add(getAssetFileUri('a.jpg', SRC));
+    faults.failingMoves.add(getAssetFileUri('a.jpg', SRC));
     await expect(mergeLibrary('dev', 'acc')).rejects.toThrow('could not move');
     await repo.setSyncError(getDb(), [photo.id], 'No file on this device');
     const syncError = async () => (await getDb().select().from(schema.assets))[0]!.syncError;
@@ -819,14 +725,14 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
     await resumeMerges(); // the move fails again
     expect(await syncError()).toBe('No file on this device');
 
-    failingMoves.clear();
+    faults.failingMoves.clear();
     await resumeMerges();
     expect(files.has(getAssetFileUri('a.jpg', TGT))).toBe(true);
     expect(await syncError()).toBeNull();
   });
 
-  // Round 21: a device photo deleted on the device that the account keeps by id, and a live device
-  // photo of an item whose account photo has no file in the cloud, share one file (earlier builds):
+  // A device photo deleted on the device that the account keeps by id, and a live device
+  // photo of an item whose account photo has no file in the cloud, share one file (two records can):
   // the file is copied to one and moved to the other, so both records keep it.
   it('a file a kept record and a live match share reaches both', async () => {
     const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-r', filename: 'r.jpg', ...unsynced });
@@ -879,10 +785,10 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
     expect(files.has(getAssetFileUri('r.jpg', TGT))).toBe(true);
   });
 
-  // Round 13: a camera-roll match appends the device photo's note to the account photo's unless it is
+  // A camera-roll match appends the device photo's note to the account photo's unless it is
   // already there (mergedNotes): the same note or whole lines of it, not a part of a line, so "Mom" is
   // merged into "Mom's birthday".
-  it('round 13: a device note that is part of a word or line of the account’s note is still merged', async () => {
+  it('a device note that is part of a word or line of the account’s note is still merged', async () => {
     const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-r', notes: 'Mom’s birthday', ...unsynced });
     await upsertRows(getDb(), 'assets', schema.assets, [{ ...accountPhoto, syncError: null }]);
     await devicePhoto({ mediaLibraryAssetId: 'm-r', filename: 'r2.jpg', notes: 'Mom' });
@@ -894,13 +800,14 @@ describe('round 10: a camera-roll match whose account photo has no file in the c
   });
 });
 
-// Round 15: pass 1 merges the device's photo into the account's photo X (a camera-roll match: the
+// Pass 1 merges the device's photo into the account's photo X (a camera-roll match: the
 // device's favorite and note go onto X) and commits into `acc`; the app stops before the files move,
-// and `acc` is lost before it pushed anything (as in round 9). The source learns a decision only once
-// the target has pushed it, so it holds nothing of that pass: the pass into `acc2`, a new library of
-// the same account whose first pull brought X as the server has it, is an ordinary one, and the match
-// is made again at now (nothing of pass 1 reached the server).
-describe('round 15: a camera-roll match an earlier library never pushed', () => {
+// and `acc` is lost before it pushed anything (as in "records an earlier library never pushed").
+// The source learns a decision only once the target has pushed it, so it holds nothing of that
+// pass: the pass into `acc2`, a new library of the same account whose first pull brought X as the
+// server has it, is an ordinary one, and the match is made again at now (nothing of pass 1 reached
+// the server).
+describe('a camera-roll match an earlier library never pushed', () => {
   const ACC2 = { id: 'acc2', owner: { kind: 'account' as const, serverId: 's1', userId: 'u1', email: 'u1@test' } };
   const TGT2 = libraryPaths('acc2');
 
@@ -958,9 +865,9 @@ describe('round 15: a camera-roll match an earlier library never pushed', () => 
     expect(await getDb().select().from(schema.outbox)).toHaveLength(0);
   });
 
-  // Round 13: the same camera-roll item imported a second time while the device library was open
+  // The same camera-roll item imported a second time while the device library was open
   // again (imports don't dedupe): both photos are merged into X, both notes kept.
-  it('round 13: a photo of the same item imported again keeps both notes', async () => {
+  it('a photo of the same item imported again keeps both notes', async () => {
     const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-x', isFavorite: false, notes: null });
     await devicePhoto({ mediaLibraryAssetId: 'm-x', filename: 'd.jpg', isFavorite: true, notes: 'from the beach' });
     await passIntoAccThenLost(accountPhoto);
@@ -973,21 +880,17 @@ describe('round 15: a camera-roll match an earlier library never pushed', () => 
     expect(row.notes?.split('\n').sort()).toEqual(['from the beach', 'imported again']);
   });
 
-  // Round 13: the app is stopped inside the commit of the pass into acc2 (rolled back): the next
+  // The app is stopped inside the commit of the pass into acc2 (rolled back): the next
   // launch's pass makes the match.
-  it('round 13: a pass stopped inside its commit is made at the next launch', async () => {
+  it('a pass stopped inside its commit is made at the next launch', async () => {
     const { applyMerge } = await import('../src/library/mergeLibrary');
     const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-x', isFavorite: false, notes: null });
     await devicePhoto({ mediaLibraryAssetId: 'm-x', filename: 'd.jpg', isFavorite: true, notes: 'from the beach' });
     await passIntoAccThenLost(accountPhoto);
-    let inCommit!: () => void;
-    const committing = new Promise<void>((resolve) => (inCommit = resolve));
-    vi.mocked(applyMerge).mockImplementationOnce(() => {
-      inCommit();
-      return new Promise<void>(() => {}); // the app is stopped: the transaction never commits
-    });
+    const committing = gate(); // never released: the app is stopped, the transaction never commits
+    vi.mocked(applyMerge).mockImplementationOnce(committing.hold);
     mergeLibrary('dev', 'acc2'); // never settles: the app stops inside it
-    await committing;
+    await committing.entered;
 
     // The next launch: the same databases and list; the boot resumes the merge.
     await closeLibrary();
@@ -1000,86 +903,49 @@ describe('round 15: a camera-roll match an earlier library never pushed', () => 
   });
 });
 
-// Round 19 (seeded fuzz): a device library of photos of camera-roll items the account holds (with or
+// A device library of photos of camera-roll items the account holds (with or
 // without a file in the cloud), in an album, merged while passes fail (a file move, the commit), the
 // account pushes all or part of its outbox, deletes photos, edits them, uploads their files, another
 // device adds photos of the same items, and the device library is opened and edited while it waits.
 // Then the account pushes and a later edit of the account waits in its outbox, which holds no merge
 // (only the rows the passes wrote do). The merge completes and nothing of the device library is lost.
-describe('round 19: seeded merges', () => {
+describe('seeded merges', () => {
   const SEEDS = fuzzRuns(40, 150);
 
   async function seeded(seed: number): Promise<string[]> {
     const rand = prng(seed);
     const { pick } = rand;
     const r = rand.next;
-    failingMoves.clear();
-    applyMergeImpl.fail = false;
     await resetToAccount();
     const accountRows = await seedAccountPhotos(getDb(), rand, (name) => files.add(getAssetFileUri(name, TGT)));
-    const media = ['m0', 'm1', 'm2', 'm3', 'm4', 'm5'];
     const problems: string[] = [];
-    // A record whose backup found no file loses that error only once its file is here.
-    const missingFile = new Set<string>();
-    const errorGoneTooSoon = async () => {
-      for (const row of await getDb().select().from(schema.assets))
-        if (missingFile.has(row.id) && row.syncError === null && !files.has(getAssetFileUri(row.filename, TGT)))
-          problems.push(`seed ${seed}: ${row.filename} lost its sync error before its file arrived`);
-    };
-    const device: schema.AssetRow[] = [];
-    for (let i = 0; i < 5; i++) {
-      // Now and then the file name of an earlier photo (earlier builds could give two one name).
-      const name = i > 0 && r() < 0.2 ? `dev${Math.floor(r() * i)}` : `dev${i}`;
-      const photo = await devicePhoto({
-        ...{ mediaLibraryAssetId: pick(media), filename: `${name}.jpg`, thumbnailFilename: `${name}-t.jpg` },
-        ...{ isFavorite: r() < 0.3, notes: r() < 0.3 ? `dev note ${i}` : null },
-      });
-      device.push(photo as schema.AssetRow);
-      // Now and then one an earlier library copied and pushed, whose backup there found no file.
-      if (r() < 0.2) {
-        await upsertRows(getDb(), 'assets', schema.assets, [{ ...photo, syncError: 'No file on this device' }]);
-        missingFile.add(photo.id);
-      }
-    }
-    if (r() < 0.3) await repo.remove(sourceDb(), [device[4]!.id]);
-    const album = makeAlbumRecord({ name: 'Trip' });
-    await albums.create(sourceDb(), album);
-    await albumEdges.add(
-      sourceDb(),
-      album.id,
-      device.slice(0, 3).map((photo) => photo.id),
-      () => crypto.randomUUID(),
+    const { photos: device, errorsGoneTooSoon } = await seedDevicePhotos(
+      rand,
+      devicePhoto,
+      () => getDb(),
+      (name) => files.has(getAssetFileUri(name, TGT)),
     );
+    if (r() < 0.3) await repo.remove(sourceDb(), [device[4]!.id]);
+    const inAlbum = await addToTrip(device);
     let liveDevice = (await sourceDb().select().from(schema.assets)).filter((row) => row.deletedAt === null);
     const accountAssets = () => getDb().select().from(schema.assets);
 
     for (let step = 0; step < 8; step++) {
-      await errorGoneTooSoon();
+      problems.push(...(await errorsGoneTooSoon(`seed ${seed}`)));
       const op = r();
       if (op < 0.35) {
-        if (r() < 0.3) failingMoves.add(getAssetFileUri(pick(device).filename, SRC));
-        applyMergeImpl.fail = r() < 0.15;
+        if (r() < 0.3) faults.failingMoves.add(getAssetFileUri(pick(device).filename, SRC));
+        faults.failApply = r() < 0.15;
         await mergeLibrary('dev', 'acc').catch(() => {});
-        failingMoves.clear();
-        applyMergeImpl.fail = false;
+        faults.failingMoves.clear();
+        faults.failApply = false;
       } else if (op < 0.45) {
         await pushAndFinish();
       } else if (op < 0.55) {
-        // A push cut short: the older half of the outbox.
-        const ids = (await getDb().select().from(schema.outbox)).map((row) => row.id).sort((a, b) => a - b);
-        const cut = ids[Math.floor(ids.length / 2)];
-        if (cut !== undefined) await getDb().delete(schema.outbox).where(lte(schema.outbox.id, cut));
+        await pushOlderHalf(getDb());
         if (r() < 0.5) await resumeMerges();
       } else if (op < 0.65) {
-        // Another device deletes one of the account's photos (pulled).
-        const [row] = await getDb()
-          .select()
-          .from(schema.assets)
-          .where(eq(schema.assets.id, pick(accountRows).id));
-        if (row && row.deletedAt === null)
-          await upsertRows(getDb(), 'assets', schema.assets, [
-            { ...row, deletedAt: 9000 + step, updatedAt: 9000 + step },
-          ]);
+        await deletedElsewhere(getDb(), pick(accountRows).id, 9000 + step);
       } else if (op < 0.75) {
         const rows = (await accountAssets()).filter((row) => row.deletedAt === null);
         if (rows.length) await repo.update(getDb(), pick(rows).id, { isFavorite: true });
@@ -1135,7 +1001,6 @@ describe('round 19: seeded merges', () => {
     }
     const at = `seed ${seed}`;
     if (entry('dev')) problems.push(`${at}: the device library stays ${JSON.stringify(entry('dev'))}`);
-    const inAlbum = device.slice(0, 3).map((photo) => photo.id);
     problems.push(
       ...(await mergeLosses(getDb(), liveDevice, inAlbum, (name) => files.has(getAssetFileUri(name, TGT)), at)),
     );

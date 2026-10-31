@@ -6,7 +6,14 @@ import { makeTestDb } from './helpers/testDb';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { clearOutboxRows } from '../src/sync/outbox';
-import { addRule, EMPTY_PERSONA, readPersona, savePersona } from '../src/sync/personaRepository';
+import {
+  addRule,
+  EMPTY_PERSONA,
+  readPersona,
+  removeRule,
+  savePersona,
+  updateRule,
+} from '../src/sync/personaRepository';
 
 const USER = '6f1c1c39-6c1c-4a36-9d0e-2d6c1ad4e0f1';
 const filled = {
@@ -93,5 +100,51 @@ describe('personaRepository', () => {
     await savePersona(db, USER, { rules });
     expect(await addRule(db, USER, 'One more')).toBe('full');
     expect((await readPersona(db, USER))!.rules).toEqual(rules);
+  });
+
+  it('updates the rule where it was', async () => {
+    const db = makeTestDb();
+    await savePersona(db, USER, { rules: ['a', 'b', 'c'] });
+    expect(await updateRule(db, USER, { index: 1, text: 'b' }, ' B ')).toBe('updated');
+    expect((await readPersona(db, USER))!.rules).toEqual(['a', 'B', 'c']);
+  });
+
+  it('updates a rule another device moved', async () => {
+    const db = makeTestDb();
+    await savePersona(db, USER, { rules: ['b', 'a', 'c'] });
+    expect(await updateRule(db, USER, { index: 1, text: 'b' }, 'B')).toBe('updated');
+    expect((await readPersona(db, USER))!.rules).toEqual(['B', 'a', 'c']);
+  });
+
+  it('reports a rule changed or removed meanwhile as gone, and writes nothing', async () => {
+    const db = makeTestDb();
+    await savePersona(db, USER, { rules: ['a', 'x', 'c'] });
+    expect(await updateRule(db, USER, { index: 1, text: 'b' }, 'B')).toBe('gone');
+    expect((await readPersona(db, USER))!.rules).toEqual(['a', 'x', 'c']);
+    expect(await updateRule(makeTestDb(), USER, { index: 0, text: 'b' }, 'B')).toBe('gone');
+  });
+
+  it('prefers the seeded index when two rules say the same', async () => {
+    const db = makeTestDb();
+    await savePersona(db, USER, { rules: ['b', 'a', 'b'] });
+    await removeRule(db, USER, { index: 2, text: 'b' });
+    expect((await readPersona(db, USER))!.rules).toEqual(['b', 'a']);
+  });
+
+  it("refuses another rule's text or one too long", async () => {
+    const db = makeTestDb();
+    await savePersona(db, USER, { rules: ['a', 'b'] });
+    expect(await updateRule(db, USER, { index: 1, text: 'b' }, 'a')).toBe('present');
+    expect(await updateRule(db, USER, { index: 1, text: 'b' }, 'x'.repeat(PERSONA_LIMITS.rule + 1))).toBe('tooLong');
+    expect((await readPersona(db, USER))!.rules).toEqual(['a', 'b']);
+  });
+
+  it('removes a moved rule, and nothing when it is gone already', async () => {
+    const db = makeTestDb();
+    await savePersona(db, USER, { rules: ['b', 'a'] });
+    await removeRule(db, USER, { index: 1, text: 'b' });
+    expect((await readPersona(db, USER))!.rules).toEqual(['a']);
+    await removeRule(db, USER, { index: 0, text: 'b' });
+    expect((await readPersona(db, USER))!.rules).toEqual(['a']);
   });
 });

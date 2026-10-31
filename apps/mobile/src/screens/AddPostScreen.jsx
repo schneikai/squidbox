@@ -1,5 +1,3 @@
-import { Alert } from 'react-native';
-
 import readPost from '@/features/post-detail/readPost';
 import PostEditor from '@/features/posts/PostEditor';
 import usePosts from '@/features/posts-context/usePosts';
@@ -11,19 +9,20 @@ import buildPostAssets from '@/utils/posts/buildPostAssets';
 
 // A new post, seeded once from the route: the assets to post (`assetIds`, in that order), a text, or
 // the post to repost (`rePostId`: its text and assets, as fresh post assets). Reposting a post that
-// was deleted meanwhile closes the editor.
+// was deleted meanwhile closes the editor. Once the post is added, marking the reposted one is
+// best-effort: a failure there must not keep the editor open, where Add would add the post again.
 export default function AddPostScreen({ route, navigation }) {
   const { rePostId } = route.params ?? {};
   const { addPost, updatePost } = usePosts();
   const seed = useSeedOrClose((db) => readSeed(db, route.params ?? {}), route.params, 'This post was deleted');
 
   async function handleAddPost(data) {
+    await addPost({ ...data, rePostId });
+    if (!rePostId) return;
     try {
-      await addPost({ ...data, rePostId });
-      if (rePostId) await updatePost(rePostId, { hasBeenReposted: true });
-      navigation.getParent().goBack(); // closes this editor only, not one it was opened over
+      await updatePost(rePostId, { hasBeenReposted: true });
     } catch (error) {
-      Alert.alert('Failed to create post!', error.message);
+      console.error("Couldn't mark the post as reposted", error);
     }
   }
 

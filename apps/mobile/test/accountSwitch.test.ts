@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { makeAlbumRecord, makeAssetRecord } from './helpers/factory';
+import { dbNames, deleted, faults, files, resetDevice, storage, stores } from './helpers/fakeDevice';
 import { sessionStoreMock } from './helpers/sessionStoreMock';
 import { makeTestDb } from './helpers/testDb';
 import type { Session } from '../src/library/session';
 import * as repo from '../src/sync/assetsRepository';
-import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import { setOutboxError } from '../src/sync/outbox';
 import { makeRepository } from '../src/sync/repository';
@@ -19,72 +19,19 @@ import {
   setOwner,
 } from '../src/sync/status';
 
-// The device: its databases by name (a store survives close and reopen, like a file), the stored
-// session and the library list in AsyncStorage.
-const stores = new Map<string, AppDb>();
-const failing = new Set<string>();
-const full = new Set<string>(); // the browser has no room for these (web's fixed pool of files)
-const deleted: string[] = [];
-const storage = new Map<string, string>();
+// The device (helpers/fakeDevice): its databases by name, the library files, and the stored session
+// and the library list in AsyncStorage.
 const store: { session: Session | null } = { session: null };
 
-vi.mock('../src/sync/db/client', () => {
-  let open: AppDb | null = null;
-  const openAppDb = async (name: string) => {
-    if (failing.has(name)) throw new Error(`cannot open ${name}`);
-    if (full.has(name)) throw new Error(`no room for ${name}`);
-    if (!stores.has(name)) stores.set(name, makeTestDb());
-    return Object.assign(Object.create(stores.get(name)!), { close: async () => {} });
-  };
-  return {
-    openAppDb,
-    withAppDb: async (name: string, use: (db: AppDb) => Promise<unknown>) => use(await openAppDb(name)),
-    deleteAppDb: async (name: string) => {
-      deleted.push(name);
-      stores.delete(name);
-    },
-    getDb: () => {
-      if (!open) throw new Error('No library is open');
-      return open;
-    },
-    setOpenDb: (db: AppDb | null) => {
-      open = db;
-    },
-  };
-});
-vi.mock('@react-native-async-storage/async-storage', () => ({
-  default: {
-    getItem: async (key: string) => storage.get(key) ?? null,
-    setItem: async (key: string, value: string) => {
-      storage.set(key, value);
-    },
-  },
-}));
+vi.mock('../src/sync/db/client', async () => (await import('./helpers/fakeDevice')).dbClient());
+vi.mock('@react-native-async-storage/async-storage', async () => (await import('./helpers/fakeDevice')).asyncStorage());
 vi.mock('../src/utils/cloud-api/sessionStore', () => sessionStoreMock(store));
 vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({ API_BASE_URL: 'https://api.test/api/v1' }));
 vi.mock('expo-file-system/legacy', () => ({ documentDirectory: 'file:///docs/' }));
 vi.mock('@sentry/react-native', () => ({ captureException: () => {}, captureMessage: () => {} }));
 // The boot's network check: the stored session as it is (offline).
 vi.mock('../src/utils/cloud-api/initializeCloudAsync', () => ({ default: async () => store.session }));
-const dbNames: string[] = []; // the databases on disk, for a registry rebuild
-// The files on disk by uri: none unless a test adds them.
-const files = vi.hoisted(() => new Set<string>());
-vi.mock('../src/library/fs', () => ({
-  listDatabaseNames: async () => dbNames,
-  listFiles: async (dir: string) =>
-    new Set([...files].filter((uri) => uri.startsWith(dir)).map((uri) => uri.slice(dir.length))),
-  createLibraryFolders: async () => {},
-  removeLibraryFolders: async () => {},
-  fileExists: async (uri: string) => files.has(uri),
-  moveFile: async (from: string, to: string) => {
-    files.delete(from);
-    files.add(to);
-  },
-  copyFile: async (_from: string, to: string) => {
-    files.add(to);
-  },
-  libraryLimitMessage: (error: Error) => (error.message.startsWith('no room') ? 'No more libraries' : null),
-}));
+vi.mock('../src/library/fs', async () => (await import('./helpers/fakeDevice')).libraryFs());
 const ids = vi.hoisted(() => ({ n: 0 }));
 vi.mock('../src/utils/getNewItemId', () => ({ default: () => `id-${++ids.n}` }));
 // The token refresh's request (refreshAccessTokenAsync), for a session the server rejects.
@@ -92,7 +39,7 @@ const api = vi.hoisted(() => ({ post: async (..._args: unknown[]): Promise<unkno
 vi.mock('../src/utils/cloud-api/api', () => ({ default: api }));
 
 const { bootLibrary } = await import('../src/library/bootLibrary');
-const { closeLibrary, getLibrary, openLibraryId } = await import('../src/library/current');
+const { closeLibrary, getLibrary, librarySweepsSettled, openLibraryId } = await import('../src/library/current');
 const { resumeMerges } = await import('../src/library/mergeRun');
 const { getRegistry, loadRegistry, updateLibrary } = await import('../src/library/registry');
 const {
@@ -106,7 +53,7 @@ const {
 } = await import('../src/library/sessionLibrary');
 const { switchLibrary } = await import('../src/library/switchLibrary');
 const { getDb, openAppDb } = await import('../src/sync/db/client');
-const { fullResync } = await import('../src/sync/worker');
+const { fullResync, syncSettled } = await import('../src/sync/worker');
 const { libraryPaths } = await import('../src/library/libraryPaths');
 const { getAssetFileUri } = await import('../src/utils/assets/assetStorage');
 const { dropTokensAsync: signOut } = await import('../src/utils/cloud-api/sessionStore');
@@ -157,14 +104,9 @@ describe('switching libraries with the session', () => {
 
   beforeEach(async () => {
     if (openLibraryId()) await closeLibrary();
-    stores.clear();
-    failing.clear();
-    full.clear();
-    deleted.length = 0;
-    storage.clear();
+    await librarySweepsSettled(); // a sweep the last test's library started removes nothing of this one's
+    resetDevice();
     store.session = null;
-    dbNames.length = 0;
-    files.clear();
     ids.n = 0;
   });
 
@@ -259,9 +201,9 @@ describe('switching libraries with the session', () => {
     expect(await assetIdsIn(deviceId)).toEqual([photo.id, cloudOnly.id]);
   });
 
-  // Round 8 (was on main): `keptFor` lived only in the library list, so a corrupt list rebuilt from
-  // the databases' owners lost it, and the device library, A's already, joined B's library. The
-  // device library's own database keeps it now, and the rebuilt list takes it from there.
+  // `keptFor` is in the device library's own database, so a list rebuilt from disk (a corrupt list
+  // rebuilt from the databases' owners) keeps it: the device library, A's already, joins no library
+  // of B's.
   it('a kept device library joins no second account after the library list is rebuilt', async () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(null);
@@ -300,7 +242,7 @@ describe('switching libraries with the session', () => {
     await open(null);
     const deviceId = getLibrary().id;
     const photo = await repo.create(getDb(), makeAssetRecord({ isFileSynced: false, isSynced: false }));
-    failing.add(`library-${deviceId}.db`); // the merge's second connection to it
+    faults.failingOpens.add(`library-${deviceId}.db`); // the merge's second connection to it
 
     await signIn(sessionOf('A'));
 
@@ -309,7 +251,7 @@ describe('switching libraries with the session', () => {
     expect(libraryIds()).toContain(deviceId);
     expect(store.session).toEqual(sessionOf('A'));
 
-    failing.clear();
+    faults.failingOpens.clear();
     await closeLibrary(); // the app is closed and opened again
     await open(store.session);
     await markFirstSyncDone(getDb()); // the account's library pulled meanwhile
@@ -383,7 +325,7 @@ describe('switching libraries with the session', () => {
     await open(sessionOf('A'));
     const aId = getLibrary().id;
     await setCursor(getDb(), 42);
-    failing.add('library-id-2.db'); // the next id, B's new library
+    faults.failingOpens.add('library-id-2.db'); // the next id, B's new library
 
     await expect(signIn(sessionOf('B'))).rejects.toThrow("Couldn't create the library: cannot open library-id-2.db");
 
@@ -398,7 +340,7 @@ describe('switching libraries with the session', () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(sessionOf('A'));
     const aId = getLibrary().id;
-    full.add('library-id-2.db');
+    faults.fullOpens.add('library-id-2.db');
 
     const error = await signIn(sessionOf('B')).catch((e) => e);
 
@@ -411,8 +353,8 @@ describe('switching libraries with the session', () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(sessionOf('A'));
     const aId = getLibrary().id;
-    failing.add('library-id-2.db');
-    failing.add(`library-${aId}.db`);
+    faults.failingOpens.add('library-id-2.db');
+    faults.failingOpens.add(`library-${aId}.db`);
 
     await expect(signIn(sessionOf('B'))).rejects.toThrow("Couldn't create the library: cannot open library-id-2.db");
 
@@ -430,7 +372,7 @@ describe('switching libraries with the session', () => {
     });
   });
 
-  // Round 10: the setup screen (FirstSyncScreen) offers Sign out while the account's first pull runs,
+  // The setup screen (FirstSyncScreen) offers Sign out while the account's first pull runs,
   // and the device library's merge waits for that pull (mergeWaits). The session stays, without
   // tokens, but its account library would hide this iPhone's photos until it pulls: this device's
   // library opens instead (libraryToOpen), at the sign-out and at every launch, until a sign-in.
@@ -458,7 +400,7 @@ describe('switching libraries with the session', () => {
     expect(openOwner()).toMatchObject({ kind: 'account', userId: 'A' });
   });
 
-  // Round 10: a device library a merge pass committed into account A's library is A's from then on.
+  // A device library a merge pass committed into account A's library is A's from then on.
   // A's library is gone from the phone (web storage evicted, the list rebuilt) and B signs in: the
   // device library joins nothing of B's, and keeps its files, waiting for a library of A's.
   it('a device library committed into one account’s library never joins another account', async () => {
@@ -487,7 +429,7 @@ describe('switching libraries with the session', () => {
     expect(libraryIds()).not.toContain(deviceId);
   });
 
-  // Round 11: a merge marked for A's library (a pass that committed, then failed or crashed) resumes at
+  // A merge marked for A's library (a pass that committed, then failed or crashed) resumes at
   // A's next sign-in, not only at the next launch.
   it('a sign-in resumes a merge marked for the account’s library', async () => {
     await loadRegistry(async () => ({ libraries: [] }));
@@ -528,7 +470,7 @@ describe('switching libraries with the session', () => {
     expect(deviceLibraryToJoin()?.id).toBe(deviceId);
   });
 
-  // Round 11: the server rejects the session while the account's first pull runs (a refresh token
+  // The server rejects the session while the account's first pull runs (a refresh token
   // revoked by a password change, or one that expired while the app sat closed mid-setup): the pull's
   // token refresh gets a 401 and the tokens go (refreshAccessTokenAsync), as at a sign-out. Every loss
   // of the tokens opens the library for the session without them (watchTokenDrops, which
@@ -548,11 +490,12 @@ describe('switching libraries with the session', () => {
     await expect(refreshAccessTokenAsync({ serverId: 's1', userId: 'A' })).rejects.toThrow('rejected');
     expect(store.session).toMatchObject({ userId: 'A', tokens: null });
 
-    await vi.waitFor(() => expect(openOwner()).toEqual({ kind: 'device' }));
+    await syncSettled(); // the drop's switch runs in a paused section
+    expect(openOwner()).toEqual({ kind: 'device' });
     expect((await assets()).map(({ id }) => id)).toEqual([photo.id]);
   });
 
-  // Round 11: the same rejection, and the user goes on in the library the app shows and adds a photo.
+  // The same rejection, and the user goes on in the library the app shows and adds a photo.
   // That library is this device's from the rejection on, as it is at the next launch: the photo stays
   // in the open library.
   it('a photo added after a session was rejected mid-setup is still there at the next launch', async () => {
@@ -568,7 +511,8 @@ describe('switching libraries with the session', () => {
       throw Object.assign(new Error('HTTP 401'), { response: { status: 401 } });
     };
     await expect(refreshAccessTokenAsync({ serverId: 's1', userId: 'A' })).rejects.toThrow('rejected');
-    await vi.waitFor(() => expect(openOwner()).toEqual({ kind: 'device' }));
+    await syncSettled(); // the drop's switch runs in a paused section
+    expect(openOwner()).toEqual({ kind: 'device' });
     const added = await repo.create(
       getDb(),
       makeAssetRecord({ filename: 'b.jpg', isFileSynced: false, isThumbnailSynced: false, isSynced: false }),
@@ -581,7 +525,7 @@ describe('switching libraries with the session', () => {
     expect((await assets()).map(({ id }) => id)).toContain(added.id);
   });
 
-  // Round 11: a sign-out on the setup screen switches to this device's library (libraryToOpen); when
+  // A sign-out on the setup screen switches to this device's library (libraryToOpen); when
   // that library's database won't open (a failed migration after an update, a damaged file), the
   // session's own library opens instead (openLibraryForSession), at the sign-out and at every boot,
   // so the app boots and the user can sign in.
@@ -595,7 +539,7 @@ describe('switching libraries with the session', () => {
     );
     await signIn(sessionOf('A'));
     const aId = getLibrary().id;
-    failing.add(`library-${deviceId}.db`);
+    faults.failingOpens.add(`library-${deviceId}.db`);
     await signOut();
     await open(store.session); // what watchTokenDrops runs after the drop
     expect(getLibrary().id).toBe(aId);
@@ -606,14 +550,14 @@ describe('switching libraries with the session', () => {
     expect(getLibrary().id).toBe(aId);
   });
 
-  // Round 16: the sign-in's pass committed the device library into A's library and moved the photo's
+  // The sign-in's pass committed the device library into A's library and moved the photo's
   // file into A's folders; the device library waits, marked, for A's push (offline, or a row the
   // server keeps rejecting). The user taps "Rebuild from server" (Library sync → Troubleshooting),
   // which clears A's first-sync flag and shows the setup screen again, and signs out there (or the
   // server rejects the session during that pull). libraryToOpen sees A's library "not pulled", but
   // the device library's marker says committed: it has joined A's library, which holds its photo and
   // the photo's file, and A's library stays open. The setup screen counts no photos to add.
-  it('round 16: a rebuild while a merge waits for its push, then a setup sign-out: the photo shown keeps its file', async () => {
+  it('a rebuild while a merge waits for its push, then a setup sign-out: the photo shown keeps its file', async () => {
     await loadRegistry(async () => ({ libraries: [] }));
     await open(null);
     const deviceId = getLibrary().id;

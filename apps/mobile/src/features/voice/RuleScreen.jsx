@@ -1,21 +1,20 @@
 import { PERSONA_LIMITS } from '@squidbox/shared';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Alert } from 'react-native';
 
 import voiceFields from './voiceFields';
 
-import TextEditScreen from '@/components/TextEditScreen';
-import useHaptics from '@/hooks/useHaptics';
+import TextEditSheet from '@/components/TextEditSheet';
+import useEditSheet from '@/hooks/useEditSheet';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
-import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
+import ruleResultText from '@/lib/ruleResultText';
 import useLibrary from '@/library/useLibrary';
 import { getDb } from '@/sync/db/client';
-import { readPersona, savePersona } from '@/sync/personaRepository';
-import { requestSync } from '@/sync/worker';
+import { addRule, readPersona, removeRule, updateRule } from '@/sync/personaRepository';
 
-// One of the Rules, saved as you type: `{ index }` edits that rule (or Delete), no params
-// adds one, appended once it has text. A rule left empty is dropped when you leave.
+// One of the Rules, as a draft sheet: `{ index }` edits that rule (Save, or Delete), no
+// params adds one (Add).
 export default function RuleScreen({ route, navigation }) {
   const index = route.params?.index;
   const isAvailable = useLeaveWhenUnavailable();
@@ -35,87 +34,47 @@ export default function RuleScreen({ route, navigation }) {
 }
 
 function RuleEditor({ index, userId, seed, navigation }) {
-  const haptics = useHaptics();
   const [text, setText] = useState(seed.text);
-  // Where the rule was last seen and its stored text, to find it again after a sync moved or
-  // changed the list (null: a new rule not stored yet), and whether it was gone when last looked for.
-  const ruleRef = useRef(index == null ? null : { index, text: seed.text });
-  const isGoneRef = useRef(false);
-  const { flush, end } = useSaveAsYouType(text.trim(), saveText);
+  const isNew = index == null;
+  const { sheetProps, notice, finish } = useEditSheet({
+    isNew,
+    isValid: Boolean(text.trim()),
+    isDirty: text.trim() !== seed.text,
+    save,
+    text,
+  });
 
-  // The rule's place in `rules` now: where it was if its text is still there, else the first rule
-  // with its text; -1 when it's gone, null for a rule not stored yet.
-  function locate(rules) {
-    const rule = ruleRef.current;
-    if (!rule) return null;
-    return rules[rule.index] === rule.text ? rule.index : rules.indexOf(rule.text);
-  }
-
-  async function readRules(db) {
-    return (await readPersona(db, userId))?.rules ?? [];
-  }
-
-  // A sync removed or changed the rule meanwhile: nothing is saved over another rule, and the screen
+  // A rule changed or removed on another device meanwhile isn't saved over: the sheet says so and
   // closes.
-  function handleGone(isLeaving) {
-    isGoneRef.current = true;
-    if (isLeaving) return;
-    Alert.alert('This rule was changed on another device.');
-    navigation.goBack();
-  }
-
-  async function saveText(next, stored, { isLeaving }) {
-    if (isGoneRef.current || (!next && !isLeaving)) return false;
+  async function save() {
     const db = getDb();
-    const rules = await readRules(db);
-    const at = locate(rules);
-    if (at === -1) {
-      handleGone(isLeaving);
-      return false;
+    const result = isNew
+      ? await addRule(db, userId, text)
+      : await updateRule(db, userId, { index, text: seed.text }, text);
+    if (result === 'gone') {
+      return () => {
+        Alert.alert('This rule was changed on another device.');
+        navigation.goBack();
+      };
     }
-    if (!next) {
-      // Empty: dropped when you leave.
-      if (at != null) await savePersona(db, userId, { rules: rules.filter((_, i) => i !== at) });
-      return false;
-    }
-    const nextAt = at ?? rules.length;
-    await savePersona(db, userId, {
-      rules: at == null ? [...rules, next] : rules.map((rule, i) => (i === at ? next : rule)),
-    });
-    ruleRef.current = { index: nextAt, text: next };
-    return true;
+    if (result !== 'added' && result !== 'updated') return { refused: ruleResultText[result] };
   }
 
-  // After the saves under way, and nothing typed is saved after it.
-  async function handleDelete() {
-    try {
-      await end(async () => {
-        const db = getDb();
-        const rules = await readRules(db);
-        const at = locate(rules);
-        if (at != null && at !== -1) await savePersona(db, userId, { rules: rules.filter((_, i) => i !== at) });
-      });
-      requestSync();
-      navigation.goBack();
-    } catch (error) {
-      console.error('Deleting the rule failed', error);
-      haptics.error();
-      Alert.alert("Couldn't delete the rule", error.message);
-    }
+  function handleDelete() {
+    finish(() => removeRule(getDb(), userId, { index, text: seed.text }), "Couldn't delete the rule");
   }
 
   return (
-    <TextEditScreen
+    <TextEditSheet
+      {...sheetProps}
       title="Rule"
       value={text}
       onChangeText={setText}
-      onBlur={() => flush()}
-      onBack={() => navigation.goBack()}
       placeholder={voiceFields.rules.placeholder}
       maxLength={PERSONA_LIMITS.rule}
-      autoFocus={index == null}
-      description={voiceFields.rules.description}
-      actions={index != null ? [{ label: 'Delete rule', colorPalette: 'danger', onPress: handleDelete }] : []}
+      autoFocus={isNew}
+      description={notice ?? voiceFields.rules.description}
+      actions={isNew ? [] : [{ label: 'Delete rule', colorPalette: 'danger', onPress: handleDelete }]}
     />
   );
 }
