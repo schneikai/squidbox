@@ -1,71 +1,117 @@
 import { useNavigation } from '@react-navigation/native';
-import * as Clipboard from 'expo-clipboard';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import PostAssets from './PostAssets';
+import ThreadPost from './ThreadPost';
 
+import Button from '@/components/Button';
+import Card from '@/components/Card';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
+import ThreadConnector from '@/components/ThreadConnector';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
 import WriteWithAi from '@/features/post-chat/WriteWithAi';
+import useCopyText from '@/features/post-chat/useCopyText';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
+import PostImage from '@/features/post-list/PostImage';
 import PostRows from '@/features/post-list/PostRows';
 import PostPostedAt from '@/features/posts/PostPostedAt';
-import { colors, lineHeights, press, typography } from '@/styles/designTokens';
+import { colors, layout, lineHeights, scale, typography } from '@/styles/designTokens';
+import isPresent from '@/utils/isPresent';
 
 const OTHER_POSTS_LIMIT = 30;
 
-export default function Post({ post, contentPaddingTop = 0 }) {
+/**
+ * A post and its thread: the post's card (its pictures, text, when it was posted and Copy), then each
+ * following post's card joined by a short line, then Write with AI about the post, the albums of the
+ * thread's pictures and the other posts from the post's albums. `post` is a postQuery row read by id
+ * (with its `threadPosts`).
+ */
+export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom = 0 }) {
   const navigation = useNavigation();
+  const copy = useCopyText();
   const sessionId = useSubjectChat({ kind: 'post', text: post.text, postAssets: post.postAssets });
 
-  // Pushed, so back returns to the post.
-  function handleOpenAsset(asset) {
-    navigation.push('AssetScreen', { assetId: asset.id, query: { scope: { postId: post.id } } });
-  }
+  const threadPosts = post.threadPosts ?? [];
+  const assetIds = [post, ...threadPosts].flatMap((p) => p.postAssets.map((postAsset) => postAsset.asset.id));
 
-  async function handleCopyToClipboard() {
-    await Clipboard.setStringAsync(post.text);
-    Alert.alert('Copied to clipboard');
+  // Pushed, so back returns to the post. A picture opens with the others of its own post.
+  function openAsset(postId, asset) {
+    navigation.push('AssetScreen', { assetId: asset.id, query: { scope: { postId } } });
   }
 
   return (
-    <ScrollView contentContainerStyle={{ paddingTop: contentPaddingTop }}>
-      <PostAssets postAssets={post.postAssets} onPressAsset={handleOpenAsset} />
-
-      <View style={styles.container}>
-        <Pressable style={({ pressed }) => pressed && press.flat} onPress={handleCopyToClipboard}>
-          <Text style={styles.postText}>{post.text}</Text>
-        </Pressable>
-        <PostPostedAt postedAt={post.postedAt} style={styles.postedAt} />
-        <WriteWithAi sessionId={sessionId} onOpenChat={(params) => navigation.navigate('PostChat', params)} />
-
-        <View style={styles.related}>
-          <ScreenSectionHeader title="Posted Albums" isFlush />
-          <AssetAlbums assetIds={post.postAssets.map((postAsset) => postAsset.asset.id)} emptyText="Not in an album" />
-
-          <ScreenSectionHeader title="Other Posts" isFlush />
-          <PostRows scope={{ sharesAlbumWithPostId: post.id }} emptyText="No other posts" limit={OTHER_POSTS_LIMIT} />
+    <ScrollView
+      contentContainerStyle={[styles.content, { paddingTop: contentPaddingTop, paddingBottom: contentPaddingBottom }]}
+    >
+      <Card style={styles.card}>
+        <PostImage
+          assets={post.postAssets.map((postAsset) => postAsset.asset)}
+          onPressAsset={(asset) => openAsset(post.id, asset)}
+        />
+        <View style={styles.body}>
+          {isPresent(post.text) && <Text style={styles.text}>{post.text}</Text>}
+          <View style={styles.meta}>
+            <PostPostedAt postedAt={post.postedAt} />
+            {isPresent(post.text) && (
+              <Button
+                variant="tertiary"
+                size="small"
+                icon="copy"
+                label="Copy"
+                onPress={() => copy(post.text)}
+                style={styles.copy}
+              />
+            )}
+          </View>
         </View>
+      </Card>
+
+      {threadPosts.map((part) => (
+        <View key={part.id}>
+          <ThreadConnector />
+          <ThreadPost post={part} onOpenAsset={(asset) => openAsset(part.id, asset)} onCopy={() => copy(part.text)} />
+        </View>
+      ))}
+
+      <WriteWithAi sessionId={sessionId} onOpenChat={(params) => navigation.navigate('PostChat', params)} />
+
+      <View style={styles.related}>
+        <ScreenSectionHeader title="Posted Albums" isFlush />
+        <AssetAlbums assetIds={assetIds} emptyText="Not in an album" />
+
+        <ScreenSectionHeader title="Other Posts" isFlush />
+        <PostRows scope={{ sharesAlbumWithPostId: post.id }} emptyText="No other posts" limit={OTHER_POSTS_LIMIT} />
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  related: {
-    marginTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: colors.border.glass,
+  content: {
+    paddingHorizontal: layout.sideGutter,
   },
-
-  container: {
-    padding: 20,
+  card: {
+    padding: scale(8),
+    gap: scale(14),
   },
-  postText: {
+  body: {
+    paddingHorizontal: scale(8),
+    paddingBottom: scale(4),
+    gap: scale(8),
+  },
+  text: {
     fontSize: typography.callout,
     lineHeight: lineHeights.reading,
+    color: colors.text.primary,
   },
-  postedAt: {
-    marginTop: 10,
+  meta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: scale(16),
+  },
+  copy: {
+    marginLeft: 'auto',
+  },
+  related: {
+    marginTop: 20,
   },
 });

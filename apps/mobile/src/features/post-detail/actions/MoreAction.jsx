@@ -17,7 +17,9 @@ export default function MoreAction({ post, afterDelete }) {
   }
 
   async function handleDeletePost() {
-    const message = 'Are you sure you want to delete this post?';
+    const count = 1 + (post.threadPosts?.length ?? 0);
+    const message =
+      count > 1 ? `This deletes all ${count} posts of the thread.` : 'Are you sure you want to delete this post?';
     if (!(await confirmAsync({ title: 'Delete Post', message, action: 'Delete', destructive: true }))) return;
     await deletePost(post.id);
     if (afterDelete) afterDelete();

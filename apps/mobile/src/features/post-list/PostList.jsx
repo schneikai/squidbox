@@ -5,13 +5,15 @@ import Animated from 'react-native-reanimated';
 import PostListItem from './PostListItem';
 
 import SuperPressable from '@/components/SuperPressable';
+import { layout, scale } from '@/styles/designTokens';
 
 const FIRST_ENTRY = { id: 'FirstListEntryComponent' };
 const keyExtractor = (post) => post.id;
 
 // The posts list: `rows` are the loaded posts of a paged query (each with its `postAssets`),
 // `loadMore` reads the next page when the end comes near. A tap on a post opens it;
-// `onDoublePressPost(post)` and `renderPostActions(post)` (shown under the post) are optional.
+// `onDoublePressPost(post)` and `renderPostActions(post)` (shown in the post's card, under it) are
+// optional.
 export default function PostList({
   rows,
   loadMore,
@@ -44,8 +46,7 @@ export default function PostList({
             onDoublePress={onDoublePressPost && (() => onDoublePressPost(post))}
             style={styles.post}
           >
-            <PostListItem post={post} />
-            {renderPostActions?.(post)}
+            <PostListItem post={post} actions={renderPostActions?.(post)} />
           </SuperPressable>
         )
       }
@@ -63,7 +64,11 @@ export default function PostList({
 }
 
 const styles = StyleSheet.create({
+  // Nothing above a post, so the list's top padding alone sets where the first one starts; the room
+  // between posts is all below each.
   post: {
     flex: 1,
+    paddingHorizontal: layout.sideGutter,
+    paddingBottom: scale(14),
   },
 });

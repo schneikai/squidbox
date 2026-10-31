@@ -40,6 +40,7 @@ import {
   CircleArrowUp,
   CircleCheck,
   CircleOff,
+  CirclePlus,
   CircleX,
   Clock,
   CloudCheck,
@@ -111,6 +112,7 @@ import { sizes } from '@/styles/designTokens';
 
 const ICON_MAP = {
   add: Plus,
+  'add-circle': CirclePlus,
   alert: CircleAlert,
   apps: LayoutGrid,
   archive: Archive,

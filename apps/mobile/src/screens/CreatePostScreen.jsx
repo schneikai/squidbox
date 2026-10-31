@@ -113,12 +113,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
-  // Over the post's bottom padding (PostListItem's), like its text.
+  // A row in the post's card, under its details, on the trailing side.
   menuContainer: {
-    position: 'absolute',
-    right: 12,
-    bottom: SCREEN_PADDING + 12,
     flexDirection: 'row',
+    justifyContent: 'flex-end',
     gap: 6,
   },
 });

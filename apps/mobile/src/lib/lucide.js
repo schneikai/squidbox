@@ -28,6 +28,7 @@ export { default as CircleAlert } from 'lucide-react-native/dist/cjs/icons/circl
 export { default as CircleArrowUp } from 'lucide-react-native/dist/cjs/icons/circle-arrow-up';
 export { default as CircleCheck } from 'lucide-react-native/dist/cjs/icons/circle-check';
 export { default as CircleOff } from 'lucide-react-native/dist/cjs/icons/circle-off';
+export { default as CirclePlus } from 'lucide-react-native/dist/cjs/icons/circle-plus';
 export { default as CircleX } from 'lucide-react-native/dist/cjs/icons/circle-x';
 export { default as Clock } from 'lucide-react-native/dist/cjs/icons/clock';
 export { default as CloudCheck } from 'lucide-react-native/dist/cjs/icons/cloud-check';

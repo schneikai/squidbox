@@ -1,85 +1,68 @@
-// Note: the native iOS compact picker has a hardcoded grey background that cannot be
-// styled away. We use a pointerEvents="none" overlay to visually replace it.
-// opacity: 0.01 keeps the picker interactive (opacity: 0 disables touch on iOS).
+// A quiet date and time control: a clock and the time as grey text ("Today, 12:39", or "Not posted"
+// without one), over the native compact picker. That picker has a hardcoded grey background that
+// cannot be styled away, so it stays interactive but nearly invisible (opacity 0 disables touch on
+// iOS) under the label, which lets touches through (pointerEvents="none") and gives the control its
+// size.
+// `mode="datetime"` is iOS-only in the library; on web the library renders nothing, so the label shows
+// and the time can't be changed there.
 import CommunityDateTimePicker from '@react-native-community/datetimepicker';
 import { StyleSheet, View, Text } from 'react-native';
 
-import Card from '@/components/Card';
 import Icon from '@/components/Icon';
-import { colors, sizes, typography } from '@/styles/designTokens';
+import { colors, scale, sizes, typography } from '@/styles/designTokens';
+import formatDetailHeaderDate from '@/utils/date-time/formatDetailHeaderDate';
 
-export default function DateTimePicker({ datetime: dt, timestamp, onChange, style = {} }) {
-  const dateTime = dt || new Date(timestamp);
+export default function DateTimePicker({ timestamp, onChange, style }) {
+  const label = timestamp == null ? 'Not posted' : formatLabel(timestamp);
 
   function handleChange(_, date) {
-    if (!date) return;
-    if (timestamp !== undefined) {
-      onChange(date.getTime());
-    } else {
-      onChange(date);
-    }
+    if (date) onChange(date.getTime());
   }
 
-  const dateLabel = dateTime.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-  const timeLabel = dateTime.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-
   return (
-    <View style={[styles.row, style]}>
-      <Card style={styles.pill}>
-        <CommunityDateTimePicker
-          mode="date"
-          value={dateTime}
-          display="compact"
-          onChange={handleChange}
-          style={styles.nativePicker}
-        />
-        <View style={[StyleSheet.absoluteFill, styles.overlay]} pointerEvents="none">
-          <Icon name="calendar" size={sizes.iconSmall} color={colors.text.secondary} />
-          <Text style={styles.label}>{dateLabel}</Text>
-        </View>
-      </Card>
-
-      <Card style={styles.pill}>
-        <CommunityDateTimePicker
-          mode="time"
-          value={dateTime}
-          display="compact"
-          onChange={handleChange}
-          style={styles.nativePicker}
-        />
-        <View style={[StyleSheet.absoluteFill, styles.overlay]} pointerEvents="none">
-          <Icon name="clock" size={sizes.iconSmall} color={colors.text.secondary} />
-          <Text style={styles.label}>{timeLabel}</Text>
-        </View>
-      </Card>
+    <View
+      style={[styles.container, style]}
+      accessible
+      accessibilityLabel={timestamp == null ? label : `Posted at ${label}`}
+    >
+      <CommunityDateTimePicker
+        mode="datetime"
+        display="compact"
+        value={new Date(timestamp ?? Date.now())}
+        onChange={handleChange}
+        style={styles.nativePicker}
+      />
+      <View style={styles.label} pointerEvents="none">
+        <Icon name="clock" size={sizes.iconSmall} color={colors.text.secondary} />
+        <Text style={styles.labelText}>{label}</Text>
+      </View>
     </View>
   );
 }
 
+function formatLabel(timestamp) {
+  const { title, subtitle } = formatDetailHeaderDate(timestamp);
+  return `${title}, ${subtitle}`;
+}
+
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  pill: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    alignItems: 'center',
+  container: {
+    minHeight: sizes.iconButton,
     justifyContent: 'center',
   },
   nativePicker: {
+    position: 'absolute',
+    left: 0,
     opacity: 0.05,
   },
-  overlay: {
+  label: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
+    gap: scale(5),
+    paddingHorizontal: scale(8),
   },
-  label: {
-    fontSize: typography.body,
-    color: colors.text.primary,
-    fontWeight: '500',
+  labelText: {
+    fontSize: typography.subheadline,
+    color: colors.text.secondary,
   },
 });

@@ -1,76 +1,77 @@
 import { StyleSheet, View } from 'react-native';
 
 import AssetImage from '@/components/AssetImage';
+import SuperPressable from '@/components/SuperPressable';
 import ThumbnailBadge from '@/components/ThumbnailBadge';
+import { radii, scale } from '@/styles/designTokens';
 
-const IMAGE_ELEMENT_HEIGHT = 240;
+const IMAGE_ELEMENT_HEIGHT = scale(240);
+const GAP = 4;
 
-export default function PostImage({ assets }) {
+// A post's pictures as rounded tiles: one or two side by side, three as one and a column of two,
+// four or more as a 2×2 grid with "+N" for the rest. With `onPressAsset(asset)` each tile opens its
+// picture (the post screen); without it the tiles are part of whatever holds them (a list card).
+export default function PostImage({ assets, onPressAsset }) {
+  const tile = (asset) => <Tile key={asset.id} asset={asset} onPressAsset={onPressAsset} />;
+
   switch (assets.length) {
     case 0:
       return null;
     case 1:
     case 2:
-      return (
-        <View style={styles.row}>
-          {assets.map((asset, index) => (
-            <View key={index} style={styles.cell}>
-              <AssetImage asset={asset} />
-            </View>
-          ))}
-        </View>
-      );
+      return <View style={[styles.frame, styles.row]}>{assets.map(tile)}</View>;
     case 3:
       return (
-        <View style={styles.row}>
-          <View style={styles.cell}>
-            <AssetImage asset={assets[0]} />
-          </View>
-          <View style={styles.cell}>
-            <View style={styles.cell}>
-              <AssetImage asset={assets[1]} />
-            </View>
-            <View style={styles.cell}>
-              <AssetImage asset={assets[2]} />
-            </View>
-          </View>
+        <View style={[styles.frame, styles.row]}>
+          {tile(assets[0])}
+          <View style={[styles.half, styles.column]}>{assets.slice(1).map(tile)}</View>
         </View>
       );
     default:
-      return <PostImageFourImages assets={assets} />;
+      return (
+        <View style={[styles.frame, styles.column]}>
+          <View style={[styles.half, styles.row]}>{assets.slice(0, 2).map(tile)}</View>
+          <View style={[styles.half, styles.row]}>{assets.slice(2, 4).map(tile)}</View>
+          {assets.length > 4 && <ThumbnailBadge label={`+${assets.length - 4}`} style={styles.moreImages} />}
+        </View>
+      );
   }
 }
 
-function PostImageFourImages({ assets }) {
-  const moreImages = assets.length - 4;
-
+// Each picture in its own box: a loading placeholder fills its box, not the whole row.
+function Tile({ asset, onPressAsset }) {
+  if (!onPressAsset) {
+    return (
+      <View style={styles.tile}>
+        <AssetImage asset={asset} />
+      </View>
+    );
+  }
   return (
-    <View style={[styles.row, styles.grid]}>
-      {assets.slice(0, 4).map((asset, index) => (
-        <View key={index} style={styles.quarter}>
-          <AssetImage asset={asset} />
-        </View>
-      ))}
-      {moreImages > 0 && <ThumbnailBadge label={`+${moreImages}`} style={styles.moreImages} />}
-    </View>
+    <SuperPressable style={styles.tile} onPress={() => onPressAsset(asset)}>
+      <AssetImage asset={asset} />
+    </SuperPressable>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
+  frame: {
     height: IMAGE_ELEMENT_HEIGHT,
   },
-  // Each picture in its own box: a loading placeholder fills its box, not the whole row.
-  cell: {
+  row: {
+    flexDirection: 'row',
+    gap: GAP,
+  },
+  column: {
+    gap: GAP,
+  },
+  half: {
     flex: 1,
   },
-  grid: {
-    flexWrap: 'wrap',
-  },
-  quarter: {
-    height: IMAGE_ELEMENT_HEIGHT / 2,
-    width: '50%',
+  tile: {
+    flex: 1,
+    borderRadius: radii.cover,
+    overflow: 'hidden',
   },
   moreImages: {
     position: 'absolute',
