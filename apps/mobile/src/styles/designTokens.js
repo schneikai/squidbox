@@ -146,6 +146,7 @@ export const layout = {
 export const sizes = {
   iconButton: scale(44), // Apple's minimum tap target
   overlayButton: scale(28), // a small dark disc over a picture (Button's `overlay`); hitSlop keeps the 44 pt target
+  smallButton: scale(32), // a small Button with a label (`size="small"`); hitSlop keeps the 44 pt target
   primaryButton: scale(50), // the height of a primary Button with a label, the main action of a form or list
   icon: scale(20), // inside a button
   iconSmall: scale(18), // compact: avatars, secondary indicators

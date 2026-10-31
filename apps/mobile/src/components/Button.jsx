@@ -22,6 +22,11 @@ const PAIR_ICON_SIZE = scale(15);
 const OVERLAY_ICON_SIZE = scale(14);
 // What an overlay disc's touch reaches past its edge, so its target is still 44 pt.
 const OVERLAY_HIT_SLOP = (sizes.iconButton - sizes.overlayButton) / 2;
+// A small block's pill is shorter than a tap target; hitSlop makes up the rest.
+const SMALL_BLOCK_HIT_SLOP = {
+  top: (sizes.iconButton - sizes.smallButton) / 2,
+  bottom: (sizes.iconButton - sizes.smallButton) / 2,
+};
 // A secondary's label this short stands in for an icon in the disc (18+); a longer one makes it a
 // grey pill.
 const MAX_DISC_LABEL = 3;
@@ -29,7 +34,7 @@ const MAX_DISC_LABEL = 3;
 /**
  * Every button in the app. `variant` is how much it stands out:
  *   primary   — the violet gradient: a screen's main action with a `label` (50 pt tall at `size`
- *               regular, a 44 pt pill at small, as Save in a modal header), or an icon-only circle
+ *               regular, a 32 pt pill at small with a 44 pt target, as Repost), or an icon-only circle
  *               (at most one per toolbar).
  *   secondary — a grey disc over content: an `icon`, or a `label` of up to 3 characters (18+).
  *               `colorPalette="danger"` makes it a red disc. A longer `label` makes it a grey pill
@@ -72,7 +77,14 @@ export default function Button({
 
   const color = contentColor({ variant, palette, isSelected, isInverse });
   const iconSize = variant === 'overlay' ? OVERLAY_ICON_SIZE : size === 'small' ? sizes.iconSmall : sizes.icon;
-  const defaultHitSlop = shape === 'link' ? 8 : variant === 'overlay' ? OVERLAY_HIT_SLOP : 0;
+  const defaultHitSlop =
+    shape === 'link'
+      ? 8
+      : variant === 'overlay'
+        ? OVERLAY_HIT_SLOP
+        : shape === 'block' && size === 'small'
+          ? SMALL_BLOCK_HIT_SLOP
+          : 0;
 
   return (
     <Pressable
@@ -251,7 +263,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
   },
   block_small: {
-    height: sizes.iconButton,
+    height: sizes.smallButton,
     borderRadius: radii.pill,
   },
   blockFill: {
@@ -263,8 +275,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: scale(20),
   },
   blockFillSmall: {
-    gap: scale(6),
-    paddingHorizontal: scale(12),
+    gap: scale(4),
+    paddingHorizontal: scale(10),
   },
   blockLabel: {
     fontSize: typography.callout,
