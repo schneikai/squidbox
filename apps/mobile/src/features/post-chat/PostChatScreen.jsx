@@ -37,7 +37,7 @@ const WRITING_AS_YOU = 'Writing as you';
  * left out for a new post without photos yet), the user's turns and the assistant's replies with
  * their options, and the prompt buttons over the composer, a tap putting the prompt in it
  * (usePostChat does the sending). Use puts an option into the caption and goes back to the editor.
- * The chat lasts while the editor is open.
+ * The chat lasts while the editor or the post's screen is open; a posted post's options have Copy.
  */
 export default function PostChatScreen({ route, navigation }) {
   const { sessionId, prompt } = route.params;

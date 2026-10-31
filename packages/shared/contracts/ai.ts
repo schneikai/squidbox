@@ -311,9 +311,9 @@ export const CHAT_LIMITS = {
   posts: 10,
 } as const;
 
-// The chat's subject, a post open in the editor: 'draft' a new one, 'edit' one of the user's posts.
-// PR 3 adds 'post' (a published post, outside the editor).
-export const chatSubjectKindSchema = z.enum(['draft', 'edit']);
+// The chat's subject: a post open in the editor ('draft' a new one, 'edit' one of the user's posts)
+// or 'post', one of the user's posts on its own screen, outside the editor.
+export const chatSubjectKindSchema = z.enum(['draft', 'edit', 'post']);
 export type ChatSubjectKind = z.infer<typeof chatSubjectKindSchema>;
 
 // What the chat is about, as the app sees it when it sends: the server fills the briefing with its

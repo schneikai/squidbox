@@ -6,6 +6,8 @@ import PostAssets from './PostAssets';
 
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
+import WriteWithAi from '@/features/post-chat/WriteWithAi';
+import useSubjectChat from '@/features/post-chat/useSubjectChat';
 import PostRows from '@/features/post-list/PostRows';
 import PostPostedAt from '@/features/posts/PostPostedAt';
 import { colors, lineHeights, press, typography } from '@/styles/designTokens';
@@ -14,6 +16,7 @@ const OTHER_POSTS_LIMIT = 30;
 
 export default function Post({ post, contentPaddingTop = 0 }) {
   const navigation = useNavigation();
+  const sessionId = useSubjectChat({ kind: 'post', text: post.text, postAssets: post.postAssets });
 
   // Pushed, so back returns to the post.
   function handleOpenAsset(asset) {
@@ -34,6 +37,7 @@ export default function Post({ post, contentPaddingTop = 0 }) {
           <Text style={styles.postText}>{post.text}</Text>
         </Pressable>
         <PostPostedAt postedAt={post.postedAt} style={styles.postedAt} />
+        <WriteWithAi sessionId={sessionId} onOpenChat={(params) => navigation.navigate('PostChat', params)} />
 
         <View style={styles.related}>
           <ScreenSectionHeader title="Posted Albums" isFlush />

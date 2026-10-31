@@ -13,9 +13,10 @@ import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
 import useSeedPromptButtons from '@/hooks/useSeedPromptButtons';
 
 /**
- * "Write with AI" under the post editor's caption, for an account with the assistant: the prompt
- * buttons on one line, then Back to chat (Ask anything before there is a chat). Each opens the chat
- * (`sessionId`), a prompt button with its prompt in the composer, ready to edit and send.
+ * "Write with AI" under a post's text (the editor's caption, a posted post), for an account with the
+ * assistant: the prompt buttons on one line, then Back to chat (Ask anything before there is a chat).
+ * Each opens the chat (`onOpenChat(params)` with PostChatScreen's params for `sessionId`), a prompt
+ * button with its prompt in the composer, ready to edit and send.
  */
 export default function WriteWithAi(props) {
   const isAvailable = useIsAssistantAvailable();
@@ -23,7 +24,7 @@ export default function WriteWithAi(props) {
   return <WriteWithAiSection {...props} />;
 }
 
-function WriteWithAiSection({ sessionId, navigation }) {
+function WriteWithAiSection({ sessionId, onOpenChat }) {
   const buttons = usePromptButtons();
   const chat = useChatSession(sessionId);
   useSeedPromptButtons();
@@ -34,7 +35,7 @@ function WriteWithAiSection({ sessionId, navigation }) {
     : { label: 'Ask anything', icon: 'sparkle' };
 
   function openChat(prompt) {
-    navigation.navigate('PostChatScreen', prompt ? { sessionId, prompt } : { sessionId });
+    onOpenChat(prompt ? { sessionId, prompt } : { sessionId });
   }
 
   if (!chat) return null;

@@ -12,7 +12,7 @@ import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
 const THUMB_SIZE = scale(36);
-const SUBJECTS = { draft: 'New post', edit: 'Edit post' };
+const SUBJECTS = { draft: 'New post', edit: 'Edit post', post: 'This post' };
 
 /**
  * What the chat is about, at its top: the post's first photos, "New post · 2 Photos · <album>" (the

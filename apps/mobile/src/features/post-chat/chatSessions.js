@@ -8,8 +8,8 @@ import getNewItemId from '@/utils/getNewItemId';
 
 const NO_EDITS = Object.freeze({ added: [], removed: [] });
 
-// The open assistant chats by id. A chat lives while its editor is open and is never saved: the
-// editor and the chat screen (a route, whose params are plain data) share it by id.
+// The open assistant chats by id. A chat lives while its post's editor or screen is open and is never
+// saved: that screen and the chat screen (a route, whose params are plain data) share it by id.
 const sessions = new Map();
 let lastId = 0;
 
