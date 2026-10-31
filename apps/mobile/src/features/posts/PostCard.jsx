@@ -51,7 +51,7 @@ export default function PostCard({
           <TextInput
             multiline
             placeholder="What's new?"
-            minHeight={onChangePostedAt ? scale(84) : scale(48)}
+            minHeight={onChangePostedAt && postAssets.length === 0 ? scale(84) : scale(48)}
             onChangeText={setText}
             onFocus={activate}
             value={text}
