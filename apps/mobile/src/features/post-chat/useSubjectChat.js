@@ -3,11 +3,12 @@ import { useEffect, useState } from 'react';
 import chatSessions from './chatSessions';
 
 /**
- * The editor's assistant chat about its post (`kind`, chatSubjectKindSchema): opened with the
- * editor and closed with it, told the caption and the assets as they change, and given `setText`
- * for Use. → the chat's id, null until it is open.
+ * The assistant chat about a post (`kind`, chatSubjectKindSchema): opened with the screen that shows
+ * the post (its editor, or a posted post) and closed with it, told the text and the assets as they
+ * change, and given `setText` for Use (none for a posted post: its options have Copy). → the chat's
+ * id, null until it is open.
  */
-export default function useEditorChat({ kind, text, postAssets, setText }) {
+export default function useSubjectChat({ kind, text, postAssets, setText = null }) {
   const [sessionId, setSessionId] = useState(null);
 
   // Opened and closed by one effect, so an effect run again (Fast Refresh) opens a new chat.

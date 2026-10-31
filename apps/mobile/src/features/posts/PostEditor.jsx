@@ -8,7 +8,7 @@ import TextInput from '@/components/TextInput';
 import { SCREEN_PADDING } from '@/constants';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import WriteWithAi from '@/features/post-chat/WriteWithAi';
-import useEditorChat from '@/features/post-chat/useEditorChat';
+import useSubjectChat from '@/features/post-chat/useSubjectChat';
 import useEditSheet from '@/hooks/useEditSheet';
 import changedValues from '@/utils/changedValues';
 import isPresent from '@/utils/isPresent';
@@ -24,7 +24,7 @@ export default function PostEditor({ kind, post, navigation, onSave }) {
   const [text, setText] = useState(post.text);
   const [postAssets, setPostAssets] = useState(post.postAssets);
   const [postedAt, setPostedAt] = useState(post.postedAt);
-  const sessionId = useEditorChat({ kind, text, postAssets, setText });
+  const sessionId = useSubjectChat({ kind, text, postAssets, setText });
 
   // The posts store syncs by itself.
   const { sheetProps } = useEditSheet({
@@ -47,7 +47,7 @@ export default function PostEditor({ kind, post, navigation, onSave }) {
           value={text}
           style={styles.textArea}
         />
-        <WriteWithAi sessionId={sessionId} navigation={navigation} />
+        <WriteWithAi sessionId={sessionId} onOpenChat={(params) => navigation.navigate('PostChatScreen', params)} />
       </Card>
 
       <DateTimePicker timestamp={postedAt} onChange={setPostedAt} />

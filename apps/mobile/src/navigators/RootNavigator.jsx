@@ -8,6 +8,7 @@ import AddEditPostNavigator from '@/navigators/AddEditPostNavigator';
 import CreatePostNavigator from '@/navigators/CreatePostNavigator';
 import MainTabNavigator from '@/navigators/MainTabNavigator';
 import ModelCompareNavigator from '@/navigators/ModelCompareNavigator';
+import PostChatNavigator from '@/navigators/PostChatNavigator';
 import asModalRoute from '@/navigators/asModalRoute';
 import assistantScreens from '@/navigators/assistantScreens';
 import AddToAlbumScreen from '@/screens/AddToAlbumScreen';
@@ -26,6 +27,7 @@ const ModelCompareModalRoute = asModalRoute(ModelCompareNavigator);
 const AddAiModelsModalRoute = asModalRoute(AddModelsScreen);
 const InstructionModalRoute = asModalRoute(InstructionScreen);
 const AlbumNotesModalRoute = asModalRoute(AlbumNotesScreen);
+const PostChatModalRoute = asModalRoute(PostChatNavigator);
 
 // One editor per params: opening the editor for another post or other assets, also from inside an
 // open editor's sheet, opens a new one on top; the same params go back to the editor that has them.
@@ -56,6 +58,7 @@ export default function RootNavigator() {
         <RootStack.Screen name="AddAiModelsModal" component={AddAiModelsModalRoute} getId={modelKind} />
         <RootStack.Screen name="InstructionScreen" component={InstructionModalRoute} getId={instructionKind} />
         <RootStack.Screen name="AlbumNotesScreen" component={AlbumNotesModalRoute} />
+        <RootStack.Screen name="PostChat" component={PostChatModalRoute} />
       </RootStack.Group>
       <RootStack.Group screenOptions={{ headerShown: false }}>
         <RootStack.Screen name="MainTab" component={MainTabNavigator} />
