@@ -3,7 +3,6 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import AssistantBubble from './AssistantBubble';
 import ChatOptionCard from './ChatOptionCard';
-import SystemMessageButton from './SystemMessageButton';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
@@ -15,8 +14,7 @@ const SLOW_MS = 20_000;
 /**
  * One of the assistant's replies (`reply`, a chat message): a spinner while it's written, what went
  * wrong with Retry (`onRetry`, for the last reply only), or what it says (AssistantBubble) and its
- * options for the post as ChatOptionCards, and for an ai_admin what the model was told
- * (SystemMessageButton).
+ * options for the post as ChatOptionCards.
  */
 function AssistantMessage({ reply, onRetry, onMoreLikeThis, onUse }) {
   if (reply.status === 'loading') return <ThinkingCard />;
@@ -36,7 +34,6 @@ function AssistantMessage({ reply, onRetry, onMoreLikeThis, onUse }) {
       {reply.postOptions.map((text, index) => (
         <ChatOptionCard key={`${index}:${text}`} text={text} onMoreLikeThis={onMoreLikeThis} onUse={onUse} />
       ))}
-      {reply.systemMessage && <SystemMessageButton systemMessage={reply.systemMessage} />}
     </View>
   );
 }

@@ -44,7 +44,7 @@ export default function VerifyConversationScreen({ navigation, route }) {
           <>
             <Section>
               <Row
-                label="What the model was told"
+                label="System prompt"
                 value={isBriefingOpen ? 'Hide' : 'Show'}
                 onPress={() => setIsBriefingOpen((isOpen) => !isOpen)}
               />
