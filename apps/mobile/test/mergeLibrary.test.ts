@@ -1,3 +1,5 @@
+import { fakeClock } from '@squidbox/shared/testing/fakeClock';
+import { tick } from '@squidbox/shared/testing/tick';
 import { isNull } from 'drizzle-orm';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -160,10 +162,11 @@ describe('planMerge + applyMerge', () => {
   });
 
   it('a replay keeps each field’s own clock, also for a target row edited later', async () => {
+    fakeClock();
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await repo.update(source, shared.id, { notes: 'first on the device' });
-    await new Promise((resolve) => setTimeout(resolve, 2));
+    tick();
     await repo.toggleFavorite(source, shared.id);
     const [sourceRow] = await outbox(source);
     // The account pulled a newer edit of another field: the device's edits are older than its row.
@@ -181,11 +184,12 @@ describe('planMerge + applyMerge', () => {
   });
 
   it('a newer pending edit of the target keeps its field; the device’s other fields replay', async () => {
+    fakeClock();
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await repo.update(source, shared.id, { notes: 'older', isFavorite: true });
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    tick();
     await repo.update(target, shared.id, { notes: 'newer' });
 
     const plan = await planMerge(source, target, SRC, TGT);
@@ -196,11 +200,12 @@ describe('planMerge + applyMerge', () => {
   });
 
   it('does not replay over a newer pending edit of the target', async () => {
+    fakeClock();
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await repo.update(source, shared.id, { notes: 'older' });
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    tick();
     await repo.update(target, shared.id, { notes: 'newer' });
 
     const plan = await planMerge(source, target, SRC, TGT);
@@ -209,12 +214,13 @@ describe('planMerge + applyMerge', () => {
   });
 
   it('an edit made on the target between the plan and its commit isn’t set back by the replay', async () => {
+    fakeClock();
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-s', updatedAt: 5000 });
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await repo.update(source, shared.id, { notes: 'device', oldFileId: 'device' });
     const plan = await planMerge(source, target, SRC, TGT);
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    tick();
     await repo.update(target, shared.id, { notes: 'account, meanwhile', isFavorite: true }); // the app is in use
     await applyMerge(target, plan);
     const [row] = await target.select().from(schema.assets);
@@ -259,7 +265,7 @@ describe('planMerge + applyMerge', () => {
     expect(writesTarget(await planMerge(source, target, SRC, TGT))).toBe(false);
   });
 
-  // Round 15: the device has the account's photo X by id and noted it, and a second photo P of the
+  // The device has the account's photo X by id and noted it, and a second photo P of the
   // same camera-roll item with a note. P's match merges onto X as the replay leaves it.
   it('a new match merges onto the row as the replays leave it: the device’s note of X stays', async () => {
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-1', notes: 'orig', updatedAt: 5000 });
@@ -275,15 +281,16 @@ describe('planMerge + applyMerge', () => {
     expect((await outbox(target))[0]!.fields.notes).toBe(row!.updatedAt);
   });
 
-  // Round 15: the device favorited X by id (its own clock, older than what the server may hold), and
+  // The device favorited X by id (its own clock, older than what the server may hold), and
   // P is a favorite: the match brings the favorite, so it goes at now too.
   it('a new match writes what it brings at now, even a value a replay set', async () => {
+    fakeClock();
     const shared = makeAssetRecord({ mediaLibraryAssetId: 'm-1', isFavorite: false, updatedAt: 5000 });
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await repo.toggleFavorite(source, shared.id);
     const replayedAt = (await outbox(source))[0]!.fields.isFavorite!;
-    await new Promise((resolve) => setTimeout(resolve, 2));
+    tick();
     await devicePhoto({ mediaLibraryAssetId: 'm-1', isFavorite: true });
 
     await commitPass();
@@ -341,7 +348,7 @@ describe('planMerge + applyMerge', () => {
     expect((await planMerge(source, target, SRC, TGT)).files).toEqual([]);
   });
 
-  // Round 20: earlier builds could give two records one file name. Each destination gets the file:
+  // Two records can share one file name. Each destination gets the file:
   // a copy to all but the last, made before the move.
   it('a file two records share is copied to the first destination and moved to the last', async () => {
     const theirs = await repo.create(
@@ -401,11 +408,12 @@ describe('planMerge + applyMerge', () => {
   });
 
   it("replays an unpushed edit of an edge the target has, like a record's", async () => {
+    fakeClock();
     const a = await devicePhoto({ mediaLibraryAssetId: 'm-a' });
     const album = await albums.create(source, makeAlbumRecord({ name: 'Trip' }));
     await albumEdges.add(source, album.id, [a.id], newEdgeId);
     await commitPass(); // the edge is in the target now
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    tick();
     await albumEdges.remove(source, album.id, [a.id]); // removed on the device afterwards, not pushed
 
     const plan = await planMerge(source, target, SRC, TGT);
@@ -423,7 +431,7 @@ describe('planMerge + applyMerge', () => {
 // Every field the target's outbox row names must carry the value of the side whose clock it holds,
 // or the server merges one side's value under the other side's clock.
 describe('replays against a pending edit of the target (adversarial)', () => {
-  const tick = () => new Promise((resolve) => setTimeout(resolve, 3));
+  beforeEach(() => fakeClock());
 
   // One asset in both libraries, deleted in both (synced: no outbox rows).
   async function sharedDeletedAsset() {
@@ -436,7 +444,7 @@ describe('replays against a pending edit of the target (adversarial)', () => {
   it('a device purge does not undo the account’s newer pending restore', async () => {
     const shared = await sharedDeletedAsset();
     await repo.purgeAssets(source, [shared.id]); // the device purges it, not pushed
-    await tick();
+    tick();
     await repo.updateAll(target, [shared.id], { deletedAt: null }); // the account restores it later
 
     await commitPass();
@@ -461,7 +469,7 @@ describe('replays against a pending edit of the target (adversarial)', () => {
         const restore = () => repo.updateAll(restorer, [shared.id], { deletedAt: null });
         for (const write of restoreLater ? [purge, restore] : [restore, purge]) {
           await write();
-          await tick();
+          tick();
         }
 
         await commitPass();
@@ -481,7 +489,7 @@ describe('replays against a pending edit of the target (adversarial)', () => {
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, deletedAt: 5000, syncError: null }]);
     await repo.purgeAssets(target, [shared.id]); // the account purges it, not pushed
-    await tick();
+    tick();
     await repo.remove(source, [shared.id]); // the device deletes it later
 
     await commitPass();
@@ -495,7 +503,7 @@ describe('replays against a pending edit of the target (adversarial)', () => {
   it('a device edit of another field replays beside the account’s pending purge, which stays', async () => {
     const shared = await sharedDeletedAsset();
     await repo.update(source, shared.id, { notes: 'device notes' });
-    await tick();
+    tick();
     await repo.purgeAssets(target, [shared.id]);
 
     await commitPass();
@@ -511,9 +519,9 @@ describe('replays against a pending edit of the target (adversarial)', () => {
     await upsertRows(target, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await upsertRows(source, 'assets', schema.assets, [{ ...shared, syncError: null }]);
     await repo.update(source, shared.id, { notes: 'device, older' });
-    await tick();
+    tick();
     await repo.update(target, shared.id, { notes: 'account, newer', isFavorite: true });
-    await tick();
+    tick();
     await repo.update(source, shared.id, { isFileSynced: true, isThumbnailSynced: true, isSynced: true });
     await repo.update(source, shared.id, { oldFileId: 'x' }); // the newest edit
 
@@ -541,15 +549,15 @@ describe('replays against a pending edit of the target (adversarial)', () => {
 // A device library that never synced holds a pending insert for every asset it made (the
 // insert names every field, deletedAt and purgedAt included), and its files are the only copy.
 describe('a device library merged again', () => {
-  const tick = () => new Promise((resolve) => setTimeout(resolve, 3));
+  beforeEach(() => fakeClock());
   const targetRow = async () => (await target.select().from(schema.assets))[0]!;
 
   it('a delete and purge made on the device after a first pass reach the account', async () => {
     const asset = await devicePhoto({ filename: 'x.jpg', thumbnailFilename: 'xt.jpg', mediaLibraryAssetId: 'm-x' });
     await commitPass(); // the first pass; its file move never ran
-    await tick();
+    tick();
     await repo.remove(source, [asset.id]);
-    await tick();
+    tick();
     await repo.purgeAssets(source, [asset.id]);
 
     await commitPass();
@@ -559,7 +567,7 @@ describe('a device library merged again', () => {
   it('a photo deleted on the device after a first pass still has its file moved', async () => {
     const asset = await devicePhoto({ filename: 'x.jpg', thumbnailFilename: 'xt.jpg', mediaLibraryAssetId: 'm-x' });
     await commitPass();
-    await tick();
+    tick();
     await repo.remove(source, [asset.id]);
 
     const plan = await planMerge(source, target, SRC, TGT);
@@ -571,9 +579,9 @@ describe('a device library merged again', () => {
   it('a device copy older than the account’s pending delete and purge does not undo them', async () => {
     const asset = await devicePhoto({ mediaLibraryAssetId: 'm-x' }); // pending insert in the source
     await upsertRows(target, 'assets', schema.assets, [{ ...asset, syncError: null }]); // synced in the account
-    await tick();
+    tick();
     await repo.remove(target, [asset.id]);
-    await tick();
+    tick();
     await repo.purgeAssets(target, [asset.id]); // pending in the account
 
     await commitPass();

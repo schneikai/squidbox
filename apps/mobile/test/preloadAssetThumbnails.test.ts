@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import { flushTurns } from './helpers/flushTurns';
 import { libraryPaths } from '../src/library/libraryPaths';
 
 // The files on the device, the downloads running (each until the test ends it) and the most at once.
@@ -42,14 +43,13 @@ const { default: webThumbnailUrls } = await import('../src/utils/assets/thumbnai
 const library = libraryPaths('abc');
 const thumbnails = 'file:///documents/libraries/abc/thumbnails/';
 const assetsOf = (...names: string[]) => names.map((thumbnailFilename) => ({ thumbnailFilename }));
-const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 // Ends each download as it starts, by its name (a status, or an error thrown), until `result` settles.
 async function endAll<T>(result: Promise<T>, outcome: (name: string) => number | Error): Promise<T> {
   let isSettled = false;
   result.finally(() => (isSettled = true));
   for (let ended = 0; !isSettled;) {
-    await flush();
+    await flushTurns();
     while (ended < downloads.length) downloads[ended]!.end(outcome(downloads[ended++]!.name));
   }
   return result;
@@ -88,7 +88,7 @@ describe('preloadAssetThumbnailsAsync', () => {
       library,
       controller.signal,
     );
-    await flush();
+    await flushTurns();
     controller.abort();
     expect(await endAll(result, () => 200)).toEqual(new Set(['a.jpg', 'b.jpg', 'c.jpg']));
     expect(downloads).toHaveLength(3);

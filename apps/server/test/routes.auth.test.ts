@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('../src/db/client.js', () => ({ getDb: () => ({}), closeDb: async () => {} }));
 vi.mock('../src/users.js', () => ({
@@ -30,10 +30,6 @@ const serverId = process.env.SERVER_ID;
 async function app() {
   return buildApp({ logger: false });
 }
-
-beforeEach(() => {
-  vi.clearAllMocks();
-});
 
 describe('POST /api/v1/auth/login', () => {
   it('returns tokens, user and the server identity on valid credentials', async () => {

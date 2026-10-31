@@ -20,7 +20,7 @@ vi.mock('../src/sync/purgedFiles.js', () => ({ cleanUpPurgedFiles: () => {} }));
 import { buildApp } from '../src/app.js';
 import { signAccessToken } from '../src/auth/jwt.js';
 
-// Round 6: the client sizes its pushes to PUSH_BODY_LIMIT, the push route's bodyLimit (sync-design
+// The client sizes its pushes to PUSH_BODY_LIMIT, the push route's bodyLimit (sync-design
 // §6). A request over it is refused before the handler, whatever its schema says.
 describe('POST /sync/push and its body limit (PUSH_BODY_LIMIT)', () => {
   const headers = { authorization: `Bearer ${signAccessToken('u1')}`, 'content-type': 'application/json' };

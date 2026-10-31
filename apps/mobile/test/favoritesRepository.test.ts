@@ -1,3 +1,5 @@
+import { fakeClock } from '@squidbox/shared/testing/fakeClock';
+import { tick } from '@squidbox/shared/testing/tick';
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
@@ -19,16 +21,17 @@ import { clearOutboxRows } from '../src/sync/outbox';
 const texts = async (db: SyncDb) => (await readFavorites(db)).map((row) => row.text);
 const outbox = (db: SyncDb) => db.select().from(schema.outbox).where(eq(schema.outbox.collection, 'favorites'));
 
-// One add per call, so each has its own (later) createdAt.
+// One add per call, the clock moved on after each, so each has its own (later) createdAt.
 async function addEach(db: SyncDb, list: string[]) {
   for (const text of list) {
     await addFavorites(db, [text]);
-    await new Promise((resolve) => setTimeout(resolve, 2));
+    tick();
   }
 }
 
 describe('favoritesRepository', () => {
   it('reads the live favorites newest first, and counts them', async () => {
+    fakeClock();
     const db = makeTestDb();
     await addEach(db, ['first', 'second', 'third']);
     expect(await texts(db)).toEqual(['third', 'second', 'first']);

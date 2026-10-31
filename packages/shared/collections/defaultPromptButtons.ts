@@ -60,4 +60,3 @@ export const DEFAULT_PROMPT_BUTTONS: readonly NewPromptButton[] = [
       'Turn this into a thread of 3 short posts. Open with the strongest line, add one detail each time, and end with a question.',
   },
 ];
-

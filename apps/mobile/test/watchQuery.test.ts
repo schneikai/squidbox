@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
+import { flushTurns } from './helpers/flushTurns';
 import { makeMeasuredTestDb, makeTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
@@ -21,11 +22,6 @@ const readAssets = (db: SyncDb): Promise<Row[]> =>
     .from(schema.assets)
     .orderBy(schema.assets.id);
 
-// Reads land on later ticks; a few turns of the event loop settle every pending one.
-async function settle(): Promise<void> {
-  for (let i = 0; i < 10; i++) await new Promise((resolve) => setImmediate(resolve));
-}
-
 // A read that waits until the test releases it, counting its runs.
 function gatedRead<T>(read: (db: SyncDb) => Promise<T>) {
   let release = () => {};
@@ -42,18 +38,18 @@ describe('watchQuery', () => {
   it('reads once enabled and again after a committed write to a watched table only', async () => {
     const results: Row[][] = [];
     const watch = watchQuery(db, readAssets, [schema.assets], (rows) => results.push(rows));
-    await settle();
+    await flushTurns();
     expect(results).toEqual([]); // starts disabled
     watch.setEnabled(true);
-    await settle();
+    await flushTurns();
     expect(results).toHaveLength(1);
 
     await setCursor(db, 7); // sync_meta: not watched
-    await settle();
+    await flushTurns();
     expect(results).toHaveLength(1);
 
     await repo.create(db, makeAssetRecord({ filename: 'a.jpg' }));
-    await settle();
+    await flushTurns();
     expect(results).toHaveLength(2);
     expect(results[1]!.map((row) => row.filename)).toEqual(['a.jpg']);
     watch.stop();
@@ -64,18 +60,18 @@ describe('watchQuery', () => {
     const results: Row[][] = [];
     const watch = watchQuery(db, gated, [schema.assets], (rows) => results.push(rows));
     watch.setEnabled(true);
-    await settle();
+    await flushTurns();
     expect(gate.runs).toBe(1);
 
     await repo.create(db, makeAssetRecord({ filename: 'a.jpg' }));
     await repo.create(db, makeAssetRecord({ filename: 'b.jpg' }));
-    await settle();
+    await flushTurns();
     expect(gate.runs).toBe(1); // still the first read
     gate.release();
-    await settle();
+    await flushTurns();
     expect(gate.runs).toBe(2); // one catch-up read for both writes
     gate.release();
-    await settle();
+    await flushTurns();
     expect(gate.runs).toBe(2);
     expect(results).toHaveLength(2);
     expect(results[1]!.map((row) => row.filename).sort()).toEqual(['a.jpg', 'b.jpg']);
@@ -87,15 +83,15 @@ describe('watchQuery', () => {
     const results: Row[][] = [];
     const watch = watchQuery(db, gated, [schema.assets], (rows) => results.push(rows));
     watch.setEnabled(true);
-    await settle();
+    await flushTurns();
     watch.stop();
     gate.release();
-    await settle();
+    await flushTurns();
     expect(gate.runs).toBe(1);
     expect(results).toEqual([]);
 
     await repo.create(db, makeAssetRecord());
-    await settle();
+    await flushTurns();
     expect(gate.runs).toBe(1);
   });
 
@@ -104,10 +100,10 @@ describe('watchQuery', () => {
     const results: Row[][] = [];
     const watch = watchQuery(db, readAssets, [schema.assets], (rows) => results.push(rows));
     watch.setEnabled(true);
-    await settle();
+    await flushTurns();
 
     await repo.toggleFavorite(db, b!.id);
-    await settle();
+    await flushTurns();
     const [first, second] = results;
     expect(second).not.toBe(first);
     expect(second![0]).toBe(first![0]);
@@ -115,7 +111,7 @@ describe('watchQuery', () => {
     expect(second![1]!.isFavorite).toBe(true);
 
     await repo.update(db, a!.id, { notes: 'not a field the read selects' });
-    await settle();
+    await flushTurns();
     expect(results).toHaveLength(3);
     expect(results[2]).toBe(second);
     watch.stop();
@@ -131,13 +127,13 @@ describe('watchQuery', () => {
       (rows) => first.push(rows),
     );
     firstWatch.setEnabled(true);
-    await settle();
+    await flushTurns();
     firstWatch.stop();
 
     const second: Row[][] = [];
     const secondWatch = watchQuery(db, readAssets, [schema.assets], (rows) => second.push(rows), first[0]);
     secondWatch.setEnabled(true);
-    await settle();
+    await flushTurns();
     expect(second[0]![0]).toBe(first[0]![0]);
     expect(second[0]).toHaveLength(2);
     secondWatch.stop();
@@ -155,13 +151,13 @@ describe('watchQuery', () => {
     const results: Awaited<ReturnType<typeof read>>[] = [];
     const watch = watchQuery(db, read, [schema.assets], (data) => results.push(data));
     watch.setEnabled(true);
-    await settle();
+    await flushTurns();
     await repo.update(db, 'a', { notes: 'unselected field' });
-    await settle();
+    await flushTurns();
     expect(results[1]).toBe(results[0]);
 
     await repo.toggleFavorite(db, 'b');
-    await settle();
+    await flushTurns();
     const [first, , third] = results;
     expect(third).not.toBe(first);
     expect(third!.posts[0]!.postAssets[0]).toBe(first!.posts[0]!.postAssets[0]);
@@ -173,26 +169,26 @@ describe('watchQuery', () => {
     const { gate, gated } = gatedRead(readAssets);
     const watch = watchQuery(db, gated, [schema.assets], () => {});
     await repo.create(db, makeAssetRecord());
-    await settle();
+    await flushTurns();
     expect(gate.runs).toBe(0);
     watch.setEnabled(true);
     gate.release();
-    await settle();
+    await flushTurns();
     expect(gate.runs).toBe(1); // the first read, due since the start
 
     watch.setEnabled(false);
     await repo.create(db, makeAssetRecord());
     await repo.create(db, makeAssetRecord());
-    await settle();
+    await flushTurns();
     expect(gate.runs).toBe(1);
     watch.setEnabled(true);
     gate.release();
-    await settle();
+    await flushTurns();
     expect(gate.runs).toBe(2); // one catch-up read for both writes
 
     watch.setEnabled(false);
     watch.setEnabled(true);
-    await settle();
+    await flushTurns();
     expect(gate.runs).toBe(2); // nothing happened meanwhile
     watch.stop();
   });
@@ -201,14 +197,14 @@ describe('watchQuery', () => {
     const { gate, gated } = gatedRead(readAssets);
     const watch = watchQuery(db, gated, [schema.assets], () => {});
     watch.setEnabled(true);
-    await settle();
+    await flushTurns();
     await repo.create(db, makeAssetRecord());
     watch.setEnabled(false);
     gate.release();
-    await settle();
+    await flushTurns();
     expect(gate.runs).toBe(1);
     watch.setEnabled(true);
-    await settle();
+    await flushTurns();
     expect(gate.runs).toBe(2);
     gate.release();
     watch.stop();
@@ -218,7 +214,7 @@ describe('watchQuery', () => {
     const seen: number[] = [];
     const watch = watchQuery(db, readAssets, [schema.assets], (_rows, readAt) => seen.push(readAt));
     watch.setEnabled(true);
-    await settle();
+    await flushTurns();
     expect(seen).toEqual([0]);
 
     // A read already queued, then a write: the read runs first, so it can't show the write.
@@ -228,7 +224,7 @@ describe('watchQuery', () => {
     const writtenAt = db.committedWrites();
     expect(await read).toEqual([]);
     expect(queued).toBeLessThan(writtenAt);
-    await settle();
+    await flushTurns();
     // The watch's re-read after the write is at least as fresh as the write.
     expect(seen.at(-1)).toBeGreaterThanOrEqual(writtenAt);
     // A write that changes nothing isn't counted.
@@ -243,10 +239,10 @@ describe('watchQuery', () => {
       waitForWrite: true,
     });
     watch.setEnabled(true);
-    await settle();
+    await flushTurns();
     expect(seen).toEqual([]);
     await repo.createMany(db, [makeAssetRecord({ id: 'a' })]);
-    await settle();
+    await flushTurns();
     expect(seen.map((rows) => rows.map((row) => row.id))).toEqual([['a']]);
     watch.stop();
   });
@@ -260,7 +256,7 @@ describe('watchQuery', () => {
     const current: Row[][] = [];
 
     const work = await measured.measure(async () => {
-      await settle();
+      await flushTurns();
       // A keystroke: a watch queues its read, the next keystroke replaces it before the queue gets there.
       const first = watchQuery(measured.db, readAssets, [schema.assets], (rows) => stale.push(rows));
       first.setEnabled(true);
@@ -269,7 +265,7 @@ describe('watchQuery', () => {
       second.setEnabled(true);
       gate.release();
       await busy;
-      await settle();
+      await flushTurns();
       second.stop();
     });
 
@@ -294,25 +290,25 @@ describe('watchQuery', () => {
         minInterval: 1000,
       });
       watch.setEnabled(true);
-      await settle();
+      await flushTurns();
       expect(results).toHaveLength(1); // the first read doesn't wait
 
       vi.advanceTimersByTime(2000);
       await repo.create(db, makeAssetRecord({ filename: 'quiet.jpg' }));
-      await settle();
+      await flushTurns();
       expect(results).toHaveLength(2); // a write after a quiet second shows right away
 
       for (let i = 0; i < 5; i++) {
         await repo.create(db, makeAssetRecord({ filename: `burst${i}.jpg` }));
-        await settle();
+        await flushTurns();
         vi.advanceTimersByTime(100);
       }
       expect(results).toHaveLength(2);
       vi.advanceTimersByTime(499);
-      await settle();
+      await flushTurns();
       expect(results).toHaveLength(2);
       vi.advanceTimersByTime(1);
-      await settle();
+      await flushTurns();
       expect(results).toHaveLength(3); // one read for the whole burst, a second after the last one began
       expect(results[2]).toHaveLength(6);
 
@@ -320,7 +316,7 @@ describe('watchQuery', () => {
       watch.stop();
       expect(vi.getTimerCount()).toBe(0);
       vi.advanceTimersByTime(1000);
-      await settle();
+      await flushTurns();
       expect(results).toHaveLength(3); // a stopped watch's pending re-read is dropped
     });
 
@@ -330,15 +326,15 @@ describe('watchQuery', () => {
         minInterval: 1000,
       });
       watch.setEnabled(true);
-      await settle();
+      await flushTurns();
       await repo.create(db, makeAssetRecord());
-      await settle();
+      await flushTurns();
       expect(vi.getTimerCount()).toBe(1); // the re-read waits for the interval
 
       watch.setEnabled(false);
       expect(vi.getTimerCount()).toBe(0);
       vi.advanceTimersByTime(1000);
-      await settle();
+      await flushTurns();
       expect(results).toHaveLength(1);
       watch.stop();
     });
@@ -348,14 +344,14 @@ describe('watchQuery', () => {
       const watch = watchQuery(db, gated, [schema.assets], () => {}, undefined, { minInterval: 1000 });
       watch.setEnabled(true);
       gate.release();
-      await settle();
+      await flushTurns();
       expect(gate.runs).toBe(1);
 
       watch.setEnabled(false);
       await repo.create(db, makeAssetRecord());
-      await settle();
+      await flushTurns();
       watch.setEnabled(true);
-      await settle();
+      await flushTurns();
       expect(gate.runs).toBe(2); // within the interval, but a focus shows fresh data at once
       gate.release();
       watch.stop();
@@ -365,16 +361,16 @@ describe('watchQuery', () => {
       const { gate, gated } = gatedRead(readAssets);
       const watch = watchQuery(db, gated, [schema.assets], () => {}, undefined, { minInterval: 1000 });
       watch.setEnabled(true);
-      await settle();
+      await flushTurns();
       watch.setEnabled(false);
       watch.setEnabled(true); // a quick blur and focus while the first read runs
       await repo.create(db, makeAssetRecord());
       gate.release();
-      await settle();
+      await flushTurns();
       expect(gate.runs).toBe(1); // the write's re-read waits for the interval
 
       vi.advanceTimersByTime(1000);
-      await settle();
+      await flushTurns();
       expect(gate.runs).toBe(2);
       gate.release();
       watch.stop();
