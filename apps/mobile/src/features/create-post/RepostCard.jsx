@@ -29,7 +29,7 @@ export default function RepostCard({ post, onOpen, onRepost, onLater, onIgnore }
             <Button variant="primary" size="small" label="Repost" icon="repeat" onPress={onRepost} />
             <Button variant="secondary" size="small" label="Later" colorPalette="neutral" onPress={onLater} />
             <MenuButton accessibilityLabel="More for this post" style={styles.more}>
-              <MenuOption label="Don't suggest again" icon="eye-off" onPress={onIgnore} />
+              <MenuOption label="Ignore" icon="eye-off" onPress={onIgnore} />
             </MenuButton>
           </View>
         </View>

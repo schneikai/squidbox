@@ -46,7 +46,7 @@ export default function CreatePostScreen({ navigation }) {
     navigation.navigate('AddEditPostModal', { rePostId: post.id });
   }
 
-  async function handlePostpone(post) {
+  async function handleLater(post) {
     const newestDate = await readNewestRepostDate(getDb());
     const from = post.suggestRepostAt || Date.now();
     const suggestRepostAt = Math.round(from + Math.random() * (newestDate - from)); // the server stores whole ms
@@ -84,7 +84,7 @@ export default function CreatePostScreen({ navigation }) {
             post={post}
             onOpen={() => navigation.navigate('PostScreen', { postId: post.id })}
             onRepost={() => handleRepost(post)}
-            onLater={() => handlePostpone(post)}
+            onLater={() => handleLater(post)}
             onIgnore={() => handleIgnore(post)}
           />
         )}
