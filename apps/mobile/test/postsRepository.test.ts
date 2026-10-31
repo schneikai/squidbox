@@ -7,7 +7,7 @@ import { makeTestDb } from './helpers/testDb';
 import * as assets from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
-import { readMentionTexts, readNewestRepostDate } from '../src/sync/postsRepository';
+import { readMentionedTexts, readMentionTexts, readNewestRepostDate } from '../src/sync/postsRepository';
 import { makeRepository } from '../src/sync/repository';
 
 const posts = makeRepository('posts', schema.posts);
@@ -48,7 +48,10 @@ describe('postsRepository', () => {
       await createPost(db, { id: 'p3', text: 'not in the album', postedAt: 30 }, ['a3']);
       await createPost(db, { id: 'p4', text: 'deleted', postedAt: 40, deletedAt: 41 }, ['a2']);
       await createPost(db, { id: 'p5', text: 'only in a deleted album', postedAt: 50 }, ['a4']);
-      expect(await readMentionTexts(db, ['a1'])).toEqual({ texts: ['newer', 'older, with @ridge'], fromAlbum: true });
+      expect(await readMentionTexts(db, ['a1'])).toEqual({
+        texts: ['newer', 'older, with @ridge'],
+        fromAlbum: true,
+      });
     });
 
     it('skips a post whose edge to the album asset was removed, and an asset taken out of the album', async () => {
@@ -72,5 +75,14 @@ describe('postsRepository', () => {
       expect(await readMentionTexts(db, ['a3'])).toEqual({ texts: ['two', 'one'], fromAlbum: false });
       expect(await readMentionTexts(db, [])).toEqual({ texts: ['two', 'one'], fromAlbum: false });
     });
+  });
+
+  it('reads every live post with an @ for the handles ever mentioned, newest first', async () => {
+    const db = makeTestDb();
+    await createPost(db, { id: 'p1', text: 'older, @ridge', postedAt: 10 });
+    await createPost(db, { id: 'p2', text: 'newer, @trailmike', postedAt: 20 });
+    await createPost(db, { id: 'p3', text: 'no handle', postedAt: 30 });
+    await createPost(db, { id: 'p4', text: 'deleted @gone', postedAt: 40, deletedAt: 41 });
+    expect(await readMentionedTexts(db)).toEqual(['newer, @trailmike', 'older, @ridge']);
   });
 });

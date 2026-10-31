@@ -3,7 +3,7 @@
  * picsum.photos, stock videos with music from mixkit.co (all free to use, baked into
  * scripts/mock-videos by bake-mock-videos.sh), albums (including the smart Favorites/Deleted albums)
  * and posts, all by one guy who posts his outdoor photos on Bluesky, and his assistant setup: Writing
- * as you, the prompt buttons (the app's defaults in his words, and one more), Favorites and the
+ * as you, the prompt buttons (the app's defaults in his words, and one more) and the
  * Instructions, left on the app's defaults. Re-running resets the account to exactly this set: ids
  * are deterministic and anything else in these collections is tombstoned.
  *
@@ -23,7 +23,6 @@ import {
   type AlbumAssetRecord,
   type AlbumRecord,
   type AssetRecord,
-  type FavoriteRecord,
   type InstructionRecord,
   type NewPromptButton,
   type PersonaRecord,
@@ -34,7 +33,7 @@ import {
   type PushMutation,
   type PushResponse,
 } from '@squidbox/shared';
-import { MOCK_FAVORITES, MOCK_PERSONA, PROFILE_LINK } from '../src/ai/mockPersona.js';
+import { MOCK_PERSONA, PROFILE_LINK } from '../src/ai/mockPersona.js';
 
 const API_URL = process.env.MOCK_API_URL ?? `http://localhost:${process.env.PORT ?? 3100}/api/v1`;
 const email = process.env.SEED_USER_EMAIL;
@@ -286,11 +285,6 @@ const promptButtons: PromptButtonRecord[] = PROMPT_BUTTONS.map((button) => {
   });
 });
 
-const favorites: FavoriteRecord[] = MOCK_FAVORITES.map((favorite, index) => ({
-  ...baseRecord(`favorite:${index}`, now - favorite.daysAgo * DAY),
-  text: favorite.text,
-}));
-
 const mockRecords: Record<string, { id: string }[]> = {
   assets,
   albums,
@@ -299,7 +293,6 @@ const mockRecords: Record<string, { id: string }[]> = {
   post_assets: postAssets,
   personas,
   prompt_buttons: promptButtons,
-  favorites,
   instructions,
 };
 const mutations = [...toMutations(mockRecords), ...(await tombstonesForOtherRecords(mockRecords))];
@@ -307,7 +300,7 @@ await push(mutations);
 
 console.log(
   `Mock data ready: ${assets.length} assets, ${albums.length} albums, ${posts.length} posts, a persona,` +
-    ` ${promptButtons.length} prompt buttons, ${favorites.length} favorites, default instructions (${mutations.length} records pushed).`,
+    ` ${promptButtons.length} prompt buttons, default instructions (${mutations.length} records pushed).`,
 );
 
 async function createPhotoAsset(

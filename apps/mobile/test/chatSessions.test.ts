@@ -36,7 +36,11 @@ describe('chatSessions', () => {
       { role: 'user', label: 'Caption', content: 'Write a caption' },
       { role: 'assistant', status: 'loading', reply: '', postOptions: [] },
     ]);
-    expect(calls[0]!.body).toEqual({ context, messages: [{ role: 'user', content: 'Write a caption' }] });
+    expect(calls[0]!.body).toEqual({
+      chatId: expect.any(String),
+      context,
+      messages: [{ role: 'user', content: 'Write a caption' }],
+    });
     calls[0]!.resolve(REPLY);
     await sending;
     expect(session.getState().isSending).toBe(false);
@@ -148,15 +152,58 @@ describe('chatSessions', () => {
 
   it("holds the card's tag edits: a removed tag leaves the added ones, an added one the removed", () => {
     const { session } = open();
-    expect(session.getState().tagEdits).toEqual({ addedTags: [], removedTags: [] });
+    expect(session.getState().tagEdits).toEqual({ added: [], removed: [] });
     session.editTags({ remove: ['selfie'] });
     session.editTags({ add: ['campfire', 'Ridge'] });
-    expect(session.getState().tagEdits).toEqual({ addedTags: ['campfire', 'Ridge'], removedTags: ['selfie'] });
+    expect(session.getState().tagEdits).toEqual({ added: ['campfire', 'Ridge'], removed: ['selfie'] });
     session.editTags({ remove: ['ridge'], add: ['SELFIE'] });
-    expect(session.getState().tagEdits).toEqual({ addedTags: ['campfire', 'SELFIE'], removedTags: ['ridge'] });
+    expect(session.getState().tagEdits).toEqual({ added: ['campfire', 'SELFIE'], removed: ['ridge'] });
     session.reset();
-    expect(session.getState().tagEdits.removedTags).toEqual(['ridge']);
+    expect(session.getState().tagEdits.removed).toEqual(['ridge']);
     expect(setTags).not.toHaveBeenCalled();
+  });
+
+  it("holds the Mentions sheet's edits, a typed handle with its @", () => {
+    const { session } = open();
+    session.editMentions({ remove: ['@trailmike'], add: ['corn twee'] });
+    expect(session.getState().mentionEdits).toEqual({ added: ['@corntwee'], removed: ['@trailmike'] });
+    session.editMentions({ add: ['@TrailMike'] });
+    expect(session.getState().mentionEdits).toEqual({ added: ['@corntwee', '@TrailMike'], removed: [] });
+  });
+
+  it('adds no handle for a bare @', () => {
+    const { session } = open();
+    session.editMentions({ add: ['@', ' '] });
+    expect(session.getState().mentionEdits.added).toEqual([]);
+  });
+
+  it('keeps the system message an ai_admin gets with a reply, and none without', async () => {
+    const { session } = open();
+    const { request, calls } = deferredRequest();
+    let sending = session.send({ content: 'First' }, context, request);
+    calls[0]!.resolve({ ...REPLY, systemMessage: 'You are a writing assistant.' });
+    await sending;
+    sending = session.send({ content: 'Second' }, context, request);
+    calls[1]!.resolve(REPLY);
+    await sending;
+    const replies = session.getState().messages.filter((message: any) => message.role === 'assistant');
+    expect(replies.map((reply: any) => reply.systemMessage)).toEqual(['You are a writing assistant.', null]);
+  });
+
+  it('sends one chatId all chat long, and a new one after New chat', async () => {
+    const { session } = open();
+    const { request, calls } = deferredRequest();
+    for (const content of ['First', 'Second']) {
+      const sending = session.send({ content }, context, request);
+      calls[calls.length - 1]!.resolve(REPLY);
+      await sending;
+    }
+    session.reset();
+    const sending = session.send({ content: 'Again' }, context, request);
+    calls[2]!.resolve(REPLY);
+    await sending;
+    expect(calls[1]!.body.chatId).toBe(calls[0]!.body.chatId);
+    expect(calls[2]!.body.chatId).not.toBe(calls[0]!.body.chatId);
   });
 
   it('clears the chat on reset', async () => {

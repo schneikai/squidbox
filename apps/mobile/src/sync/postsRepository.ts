@@ -55,3 +55,14 @@ export async function readMentionTexts(
   if (fromAlbum.length > 0) return { texts: fromAlbum.map((row) => row.text), fromAlbum: true };
   return { texts: (await read()).map((row) => row.text), fromAlbum: false };
 }
+
+/** The texts of every live post with an @, newest post date first: the handles the user ever mentioned. */
+export async function readMentionedTexts(db: SyncDb): Promise<string[]> {
+  const p = schema.posts;
+  const rows = await db
+    .select({ text: p.text })
+    .from(p)
+    .where(sql`${p.deletedAt} is null and instr(${p.text}, '@') > 0`)
+    .orderBy(sql`${p.postedAt} desc, ${p.id} desc`);
+  return rows.map((row) => row.text);
+}

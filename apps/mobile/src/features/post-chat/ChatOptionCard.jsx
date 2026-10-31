@@ -7,21 +7,19 @@ import Button from '@/components/Button';
 import MenuButton from '@/components/MenuButton';
 import OptionCard from '@/components/OptionCard';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
-import FavoriteHeartButton from '@/features/favorites/FavoriteHeartButton';
 
 // Memoized: a new reply renders only its own options.
 export default memo(ChatOptionCard);
 
 /**
- * One option of the chat's reply: its text with a heart (`isFavorite`; `onToggleFavorite(text)`), ⋯ → More like this (`onMoreLikeThis(text)`), and Use (`onUse(text)`, when given) or
- * else Copy.
+ * One option of the chat's reply: its text with ⋯ → More like this (`onMoreLikeThis(text)`), and Use
+ * (`onUse(text)`, when given) or else Copy.
  */
-function ChatOptionCard({ text, isFavorite, onToggleFavorite, onMoreLikeThis, onUse }) {
+function ChatOptionCard({ text, onMoreLikeThis, onUse }) {
   const copy = useCopyText();
 
   return (
     <OptionCard text={text}>
-      <FavoriteHeartButton isFavorite={isFavorite} onPress={() => onToggleFavorite(text)} />
       <MenuButton accessibilityLabel="More for this suggestion">
         <MenuOption label="More like this" icon="repeat" onPress={() => onMoreLikeThis(text)} />
       </MenuButton>

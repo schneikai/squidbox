@@ -5,16 +5,18 @@ import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import AssistantMessage from './AssistantMessage';
 import ChatComposer from './ChatComposer';
 import ChatSubjectCard from './ChatSubjectCard';
+import SystemMessageSheet from './SystemMessageSheet';
 import UserMessage from './UserMessage';
 import promptTurn from './promptTurn';
 import usePostChat from './usePostChat';
 import useWritingModelName from './useWritingModelName';
 
 import Button from '@/components/Button';
+import MenuButton from '@/components/MenuButton';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
+import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { SCREEN_PADDING } from '@/constants';
-import useFavoriteToggle from '@/features/favorites/useFavoriteToggle';
 import EditPromptButtonsButton from '@/features/prompt-buttons/EditPromptButtonsButton';
 import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import usePromptButtons from '@/features/prompt-buttons/usePromptButtons';
@@ -46,8 +48,8 @@ export default function PostChatScreen({ route, navigation }) {
   const buttons = usePromptButtons();
   // What waits in the composer: a new `key` remounts it with the prompt a button put there.
   const [seed, setSeed] = useState(() => ({ key: 0, turn: prompt }));
-  const favorites = useFavoriteToggle();
   const isAiAdmin = useHasFeature('ai_admin');
+  const [isSystemMessageOpen, setIsSystemMessageOpen] = useState(false);
   const scrollRef = useRef(null);
   // The title fades as the messages scroll under the header, as on the other sheets (ModalHeader).
   const { scrollY, onScroll } = useScrollY();
@@ -65,6 +67,8 @@ export default function PostChatScreen({ route, navigation }) {
   }));
 
   const last = messages?.[messages.length - 1];
+  // The system prompt of the newest reply that has it (an ai_admin's, from the server).
+  const systemMessage = messages?.findLast((message) => message.systemMessage)?.systemMessage ?? null;
   // A new post's card would say only "New post" until it has photos.
   const hasSubject = chat?.kind !== 'draft' || assets.length > 0;
   const applyText = chat?.canApply ? chat.applyText : null;
@@ -104,7 +108,16 @@ export default function PostChatScreen({ route, navigation }) {
         leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
         scrollY={scrollY}
         trailing={
-          <Button icon="edit" onPress={handleNewChat} disabled={!messages?.length} accessibilityLabel="New chat" />
+          isAiAdmin ? (
+            <MenuButton accessibilityLabel="Chat options">
+              {messages.length > 0 && <MenuOption label="New chat" icon="edit" onPress={handleNewChat} />}
+              {systemMessage && (
+                <MenuOption label="System prompt" icon="document" onPress={() => setIsSystemMessageOpen(true)} />
+              )}
+            </MenuButton>
+          ) : (
+            <Button icon="edit" onPress={handleNewChat} disabled={!messages?.length} accessibilityLabel="New chat" />
+          )
         }
       />
       <Animated.ScrollView
@@ -124,6 +137,7 @@ export default function PostChatScreen({ route, navigation }) {
             tagEdits={chat.tagEdits}
             onEditTags={chat.editTags}
             mentions={mentions}
+            onEditMentions={chat.editMentions}
           />
         )}
         {messages.map((message, index) =>
@@ -133,7 +147,6 @@ export default function PostChatScreen({ route, navigation }) {
             <AssistantMessage
               key={message.id}
               reply={message}
-              favorites={favorites}
               onRetry={message === last ? retry : null}
               onMoreLikeThis={moreLikeThis}
               onUse={applyText ? handleUse : null}
@@ -159,6 +172,11 @@ export default function PostChatScreen({ route, navigation }) {
           onSend={send}
         />
       </Animated.View>
+      <SystemMessageSheet
+        isVisible={isSystemMessageOpen}
+        onClose={() => setIsSystemMessageOpen(false)}
+        systemMessage={systemMessage}
+      />
     </ModalSheet>
   );
 }

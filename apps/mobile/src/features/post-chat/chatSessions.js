@@ -1,10 +1,12 @@
-import { CHAT_LIMITS, uniqueTags } from '@squidbox/shared';
+import { CHAT_LIMITS } from '@squidbox/shared';
+
+import withEdits from './withEdits';
 
 import createStore from '@/lib/createStore';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
-import tagKey from '@/utils/tagKey';
+import getNewItemId from '@/utils/getNewItemId';
 
-const NO_TAG_EDITS = Object.freeze({ addedTags: [], removedTags: [] });
+const NO_EDITS = Object.freeze({ added: [], removed: [] });
 
 // The open assistant chats by id. A chat lives while its editor is open and is never saved: the
 // editor and the chat screen (a route, whose params are plain data) share it by id.
@@ -57,18 +59,30 @@ function wireTurns(messages) {
  * which `subscribe(listener)` tells. A message is the user's `{ id, role: 'user', label, content,
  * moreLikeThis }` (`label`: the prompt button's name, or null for a typed message; `moreLikeThis`:
  * More like this on the option `content`, which the server puts its instruction before) or a reply `{ id, role:
- * 'assistant', status: 'loading' | 'done' | 'error', reply, postOptions, error, errorStatus }`
- * (`reply`: what the assistant says; `postOptions`: the options for the post, when the user asked for
- * posts; `errorStatus`: the failed request's HTTP status, if any). `isSending` while a reply loads.
+ * 'assistant', status: 'loading' | 'done' | 'error', reply, postOptions, systemMessage, error,
+ * errorStatus }` (`reply`: what the assistant says; `postOptions`: the options for the post, when the
+ * user asked for posts; `systemMessage`: what the model was told, for an ai_admin, else null; `errorStatus`: the failed request's HTTP status, if any). `isSending` while a reply loads.
  * The editor's caption and assets (`getDraft()`) change with every keystroke, so they are read when
- * needed, not told. `tagEdits` (`{ addedTags, removedTags }`) is what the chat card changed in the
+ * needed, not told. `tagEdits` (`{ added, removed }`) is what the chat card changed in the
  * post's tags (postTags): kept here only, while the editor is open, never on the photos.
+ * `mentionEdits` (`{ added, removed }`) is the same for the handles it may mention (chatMentions),
+ * never on the posts.
  */
 function createSession(kind) {
-  const store = createStore({ kind, messages: [], isSending: false, canApply: false, tagEdits: NO_TAG_EDITS });
+  const store = createStore({
+    kind,
+    messages: [],
+    isSending: false,
+    canApply: false,
+    tagEdits: NO_EDITS,
+    mentionEdits: NO_EDITS,
+  });
   let draft = { text: '', assets: [] };
   let applier = null;
   let controller = null;
+  // Sent with each turn: it picks the posts of the user's that the server quotes, the same all chat
+  // long; New chat picks others.
+  let chatId = getNewItemId();
   let isClosed = false;
   let lastMessageId = 0;
 
@@ -92,10 +106,10 @@ function createSession(kind) {
     const { signal } = controller;
     const { messages } = store.get();
     const at = messages.findIndex((message) => message.id === replyId);
-    const body = { context, messages: wireTurns(messages.slice(0, at)) };
+    const body = { chatId, context, messages: wireTurns(messages.slice(0, at)) };
     try {
-      const { reply, postOptions } = await request(body, { signal });
-      if (!signal.aborted) replaceMessage(replyId, { status: 'done', reply, postOptions });
+      const { reply, postOptions, systemMessage = null } = await request(body, { signal });
+      if (!signal.aborted) replaceMessage(replyId, { status: 'done', reply, postOptions, systemMessage });
     } catch (error) {
       if (!signal.aborted) {
         replaceMessage(replyId, {
@@ -160,28 +174,22 @@ function createSession(kind) {
       return requestReply(last.id, context, request);
     },
 
-    /** Starts over (New chat): the reply under way, if any, is dropped. */
-    /**
-     * The card's change to the post's tags (`{ add, remove }`): a tag taken off goes on the removed
-     * list (and off the added one), one added the other way round, by tag in any case.
-     */
-    editTags({ add = [], remove = [] }) {
-      const { addedTags, removedTags } = store.get().tagEdits;
-      const without = (list, tags) => {
-        const keys = new Set(tags.map(tagKey));
-        return list.filter((tag) => !keys.has(tagKey(tag)));
-      };
-      update({
-        tagEdits: {
-          addedTags: uniqueTags([...without(addedTags, remove), ...add]),
-          removedTags: uniqueTags([...without(removedTags, add), ...remove]),
-        },
-      });
+    /** The card's change to the post's tags (`{ add, remove }`), as editedLists says. */
+    editTags(edit) {
+      update({ tagEdits: editedLists(store.get().tagEdits, edit) });
     },
 
+    /** The Mentions sheet's change to the handles (`{ add, remove }`), as editedLists says. */
+    editMentions({ add = [], remove = [] }) {
+      const handles = add.map(asHandle).filter((handle) => handle.length > 1);
+      update({ mentionEdits: editedLists(store.get().mentionEdits, { add: handles, remove }) });
+    },
+
+    /** Starts over (New chat): the reply under way, if any, is dropped. */
     reset() {
       controller?.abort();
       controller = null;
+      chatId = getNewItemId();
       update({ messages: [] });
     },
 
@@ -190,4 +198,21 @@ function createSession(kind) {
       isClosed = true;
     },
   };
+}
+
+/**
+ * The edits (`{ added, removed }`) after a change (`{ add, remove }`): an item taken off goes on the
+ * removed list (and off the added one), one added the other way round, in any case.
+ */
+function editedLists({ added, removed }, { add = [], remove = [] }) {
+  return {
+    added: withEdits(added, { added: add, removed: remove }),
+    removed: withEdits(removed, { added: remove, removed: add }),
+  };
+}
+
+// A handle as typed, with its @ and without spaces; a bare @ is none.
+function asHandle(text) {
+  const handle = text.replace(/\s+/g, '');
+  return handle.startsWith('@') ? handle : `@${handle}`;
 }

@@ -4,7 +4,7 @@
 const featureText = {
   ai: {
     title: 'Assistant',
-    description: 'Settings → Assistant: writing as you, favorites, prompt buttons and instructions.',
+    description: 'Settings → Assistant: writing as you, prompt buttons and instructions.',
   },
   ai_admin: {
     title: 'AI admin',

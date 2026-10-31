@@ -870,7 +870,8 @@ with buttons once, and two devices that both seed converge on one row each. A se
 deletion or move of that default, and any real write then wins over the seed (the push answers
 `skipped-lww` with the stored row).
 
-**favorites** (Settings → Assistant → Favorites: the posts the assistant writes like). Synced:
+**favorites** (once Settings → Assistant → Favorites: the posts the assistant wrote like; the app no
+longer shows or sends them, and the records stay as they are). Synced:
 `text`, plus the base columns; newest `createdAt` first, no position and no cap. `source` (the
 prompt button's name for a hearted option), which nothing read, was dropped in 0029 (server) and
 0028 (app); a push from an older build that still sends it has it stripped by the schema like any
@@ -878,11 +879,12 @@ unknown field (tested), and the server ships before the app, since an older serv
 requires it. One record per post rather than a list on the persona, so a heart on one device and an
 unheart on another merge per post, and each keeps when it was added. Removing one is a tombstone; Undo restores it
 by writing `deletedAt: null`, a per-field write that a later tombstone from another device still
-beats by its clock. The writing prompt sends the newest 20 (`FAVORITES_IN_PROMPT`).
+beats by its clock. The writing prompt now quotes 100 of the user's posted posts instead, picked
+by the chat's id (`readSamplePosts`).
 
 **instructions** (Settings → Assistant → Admin → Instructions, for an ai_admin account: what the
 assistant is told before each request). Synced: `writing` (the writing briefing: the chat's whole
-system message, filled with the persona, the Favorites and the post; a writing Compare sends only
+system message, filled with the persona, a sample of the user's posts and the post; a writing Compare sends only
 its prompt box, without system instructions), `visionTagging` (the photo tags briefing, the system
 message of every tags request, filled with Your content's themes; a Compare sends its prompt box
 instead, without them), `moreLikeThis` (what the chat's More like this sends) and `modelCheckJudge` (what

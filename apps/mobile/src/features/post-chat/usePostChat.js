@@ -1,6 +1,7 @@
 import { CHAT_LIMITS } from '@squidbox/shared';
 import { useCallback, useMemo, useRef, useState } from 'react';
 
+import chatMentions from './chatMentions';
 import postTags from './postTags';
 import useChatSession from './useChatSession';
 import useMentions from './useMentions';
@@ -15,7 +16,8 @@ const MORE_LIKE_THIS = 'More like this';
 /**
  * The assistant chat about a post (`sessionId`, chatSessions'), for a screen that shows it: the chat
  * (useChatSession; null once closed), its post's `assets`, their `tagging` (useAssetTags) and the
- * `mentions` (useMentions), and the sends: `send(turn)` waits for the photos being tagged
+ * `mentions` (`{ handles, fromAlbum }`: those it sends, useMentions' with the chat's
+ * mentionEdits), and the sends: `send(turn)` waits for the photos being tagged
  * (`isWaiting`), then sends with the post as it is then (the turn cut to CHAT_LIMITS.message); it
  * resolves to whether the turn went. `moreLikeThis(text)` and `retry()` (the last reply, after it
  * failed) do the same.
@@ -26,7 +28,13 @@ export default function usePostChat(sessionId) {
   const assets = useMemo(() => draft?.assets ?? [], [draft]);
   const assetIds = useMemo(() => assets.map((asset) => asset.id), [assets]);
   const tagging = useAssetTags(assets);
-  const mentions = useMentions(assetIds);
+  const found = useMentions(assetIds);
+  const mentionEdits = chat?.mentionEdits;
+  // The handles the chat may mention and sends: chatMentions'.
+  const mentions = useMemo(
+    () => found && mentionEdits && { handles: chatMentions(found.handles, mentionEdits), fromAlbum: found.fromAlbum },
+    [found, mentionEdits],
+  );
   const [isWaiting, setIsWaiting] = useState(false);
   // Set at once, so a second send in the same moment (a typed one while Retry waits) is refused.
   const waitingRef = useRef(false);
@@ -46,9 +54,7 @@ export default function usePostChat(sessionId) {
       text: text.slice(0, CHAT_LIMITS.text),
       media: countMediaTypes(now),
       tags: postTags(rows, chat.tagEdits).slice(0, CHAT_LIMITS.tags),
-      mentions: (mentions?.handles ?? [])
-        .filter((handle) => handle.length <= CHAT_LIMITS.mention)
-        .slice(0, CHAT_LIMITS.mentions),
+      mentions: mentions?.handles ?? [],
     };
   }, [chat, taggingAsync, taggedRows, mentions]);
 

@@ -4,7 +4,7 @@ import {
   aiBalanceResponseSchema,
   aiModelKindSchema,
   aiModelsResponseSchema,
-  chatReplySchema,
+  chatResponseSchema,
   chatRequestSchema,
   compareVisionRequestSchema,
   compareVisionResponseSchema,
@@ -161,7 +161,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       method: 'POST',
       url: '/ai/chat',
       config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
-      schema: { body: chatRequestSchema, response: { 200: chatReplySchema } },
+      schema: { body: chatRequestSchema, response: { 200: chatResponseSchema } },
       handler: async (request, reply) => {
         const signal = untilClientLeaves(reply);
         return chatAsync({ db: getDb(), user: requireUser(request), request: request.body, signal });
@@ -316,7 +316,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         schema: { body: compareWritingRequestSchema, response: { 200: compareWritingResponseSchema } },
         handler: async (request, reply) => {
           const signal = untilClientLeaves(reply);
-          // Only the prompt box (and the model's earlier posts): no instructions, persona or Favorites.
+          // Only the prompt box (and the model's earlier posts): no instructions, persona or posts of the creator.
           const messages = writingMessages(request.body.prompt, request.body.earlierRounds);
           const results = await compareRequested(request.body.modelIds, 'writing', (models) =>
             compareModels({ task: writingTask, messages, models, log: request.log, signal }),
