@@ -2,8 +2,9 @@
 /**
  * Starts the dev client in one command, and Ctrl+C (or SIGTERM) stops everything it started.
  *
- * Local backend with mock data (default):
- *   Docker stack (Postgres + MinIO) → migrations + accounts → Metro with Expo's tunnel → API server.
+ * Local backend with mock data (default), in two lanes that run side by side:
+ *   Metro with Expo's tunnel, building the first iOS bundle as soon as Metro answers
+ *   Docker stack (Postgres + MinIO) → migrations + accounts → API server (once the tunnel URL is known)
  *   Metro serves the API and file storage through its tunnel (apps/mobile/scripts/localBackendProxy.js),
  *   so no env file needs the tunnel URL. The Docker stack keeps running after a stop.
  * Live backend: Metro with Expo's tunnel only, against EXPO_PUBLIC_API_URL from .env.local. Only when
@@ -16,7 +17,7 @@
  *   npm run dev:local -- --clear         # rebuild the bundle from scratch (README → "Dev client")
  *   npm run dev:local -- --live-backend-on-owner-request   # the live backend, on the owner's request only
  */
-import { spawn, spawnSync } from 'node:child_process';
+import { execFile, spawn, spawnSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import {
   appendFileSync,
@@ -59,12 +60,14 @@ process.on('SIGINT', () => shutdown(0));
 process.on('SIGTERM', () => shutdown(0));
 
 if (!existsSync(`${MOBILE_DIR}/.env.local`)) {
-  run('scripts/write-env-local.sh', [], MOBILE_DIR);
+  if (spawnSync('scripts/write-env-local.sh', [], { cwd: MOBILE_DIR, stdio: 'inherit' }).status !== 0) {
+    fail('scripts/write-env-local.sh failed');
+  }
 }
 
 if (live) {
-  const publicUrl = webOnly ? await startMetroLocally() : await startMetroWithTunnel();
-  if (!webOnly) prewarmBundle();
+  const { url: publicUrl, bundled } = webOnly ? await startMetroLocally() : await startMetroWithTunnel();
+  await bundled;
   console.log(`
   ${webOnly ? 'Web preview:            ' : 'Open in Squidbox (Dev): '} ${publicUrl}
   Backend:                 live (EXPO_PUBLIC_API_URL in apps/mobile/.env.local)
@@ -74,7 +77,6 @@ if (live) {
 }
 
 async function startLocalBackendAndMetro() {
-  await ensureDocker();
   if (!existsSync(SERVER_ENV)) {
     copyFileSync(`${SERVER_DIR}/.env.docker`, SERVER_ENV);
     log('Created apps/server/.env from .env.docker');
@@ -93,16 +95,6 @@ async function startLocalBackendAndMetro() {
     LIBRARY_COPY_PASSWORD: serverEnv.LIBRARY_COPY_PASSWORD,
   };
 
-  log('Starting Postgres + MinIO');
-  run('docker', ['compose', 'up', '-d'], SERVER_DIR);
-  await waitFor(
-    'Postgres',
-    () =>
-      spawnSync('docker', ['compose', 'exec', '-T', 'postgres', 'pg_isready', '-q'], { cwd: SERVER_DIR }).status === 0,
-  );
-  run('docker', ['compose', 'wait', 'createbuckets'], SERVER_DIR);
-  run('npm', ['run', 'db:setup', '--silent'], SERVER_DIR, backendEnv(copyAccountEnv));
-
   const metroEnv = {
     EXPO_PUBLIC_LOCAL_BACKEND: 'true',
     // In development, .env.local wins over these; leave the login prefill out of it.
@@ -119,7 +111,14 @@ async function startLocalBackendAndMetro() {
       },
     ]),
   };
-  const publicUrl = webOnly ? await startMetroLocally(metroEnv) : await startMetroWithTunnel(metroEnv);
+  // Metro (and the first bundle), the database and the live server's settings don't wait on each
+  // other; only the API server needs all three.
+  const liveEnv = liveLibraryEnv();
+  const database = setUpDatabase(copyAccountEnv);
+  const { url: publicUrl, bundled } = webOnly
+    ? await startMetroLocally(metroEnv)
+    : await startMetroWithTunnel(metroEnv);
+  await database;
 
   log('Starting the API server');
   // The copy of the owner's library reads the live database (through the cloud workspace's proxy
@@ -131,7 +130,7 @@ async function startLocalBackendAndMetro() {
     backendEnv({
       S3_PUBLIC_ENDPOINT: publicUrl,
       LIBRARY_COPY_EMAIL: copyAccountEnv.LIBRARY_COPY_EMAIL,
-      ...liveLibraryEnv(),
+      ...(await liveEnv),
       NODE_USE_ENV_PROXY: '1',
     }),
   );
@@ -141,12 +140,11 @@ async function startLocalBackendAndMetro() {
   superviseExit(server);
   await waitFor('the API server', async () => (await fetch(`${SERVER_URL}/up`).catch(() => null))?.ok);
 
-  if (!webOnly) prewarmBundle();
-
   if (resetData) {
     log('Resetting the mock data');
-    run('npm', ['run', 'seed:mock', '--silent'], SERVER_DIR, backendEnv());
+    await run('npm', ['run', 'seed:mock', '--silent'], SERVER_DIR, backendEnv());
   }
+  await bundled;
 
   console.log(`
   ${webOnly ? 'Web preview:            ' : 'Open in Squidbox (Dev): '} ${publicUrl}
@@ -155,12 +153,25 @@ async function startLocalBackendAndMetro() {
 `);
 }
 
+async function setUpDatabase(copyAccountEnv) {
+  await ensureDocker();
+  log('Starting Postgres + MinIO');
+  await run('docker', ['compose', 'up', '-d'], SERVER_DIR);
+  await waitFor(
+    'Postgres',
+    () =>
+      spawnSync('docker', ['compose', 'exec', '-T', 'postgres', 'pg_isready', '-q'], { cwd: SERVER_DIR }).status === 0,
+  );
+  await run('docker', ['compose', 'wait', 'createbuckets'], SERVER_DIR);
+  await run('npm', ['run', 'db:setup', '--silent'], SERVER_DIR, backendEnv(copyAccountEnv));
+}
+
 // What the copy of the owner's library reads from: the live database and the live bucket, with the
 // live server's own DATABASE_URL and AWS keys, read from it through `fly` (or LIVE_DATABASE_URL and
 // LIVE_AWS_* from the environment). They stay in the API server's memory, never on disk; the server
 // opens the database read-only and signs only GET URLs with the keys. Without them the app still
 // runs; opening the copy then says what's missing.
-function liveLibraryEnv() {
+async function liveLibraryEnv() {
   // Each live setting under the name the live server knows it by.
   const names = {
     LIVE_DATABASE_URL: 'DATABASE_URL',
@@ -174,12 +185,11 @@ function liveLibraryEnv() {
     const script = Object.values(names)
       .map((name) => `echo "${name}=$${name}"`)
       .join('; ');
-    const { stdout } = spawnSync('fly', ['ssh', 'console', '--app', 'squidbox-server', '-C', `sh -c '${script}'`], {
-      encoding: 'utf8',
+    const stdout = await output('fly', ['ssh', 'console', '--app', 'squidbox-server', '-C', `sh -c '${script}'`], {
       timeout: 60_000,
     });
     const found = Object.fromEntries(
-      (stdout ?? '')
+      stdout
         .split('\n')
         .map((line) => line.trim().match(/^([A-Z_]+)=(.+)$/))
         .filter(Boolean)
@@ -194,21 +204,53 @@ function liveLibraryEnv() {
   return Object.fromEntries(Object.entries(live).filter(([, value]) => value));
 }
 
-// The phone gives up on a bundle that takes a minute to build; build it before handing out the URL.
-function prewarmBundle() {
-  run('node', ['scripts/prewarmBundle.mjs'], MOBILE_DIR);
+// The phone gives up on a bundle that takes a minute to build, so it's built before the URL is
+// handed out: the bundle the dev client would load, from Metro's manifest, asked for on localhost
+// so the phone's request hits the cache. It starts once Metro answers, while the tunnel and the
+// backend come up. Resolves false, quietly, when this Metro stops first (a tunnel retry).
+async function buildFirstBundle(metro, answered) {
+  if (!(await answered)) return false;
+  const started = Date.now();
+  try {
+    const manifestRes = await fetch(METRO_URL, {
+      headers: { 'expo-platform': 'ios', accept: 'application/expo+json,application/json' },
+    });
+    if (!manifestRes.ok) throw new Error(`Metro's manifest: ${manifestRes.status}`);
+    // The manifest names the host Metro was asked on; fetch from localhost to stay off the tunnel.
+    const { pathname, search } = new URL((await manifestRes.json()).launchAsset.url);
+    log('Building the first iOS bundle (half a minute on a cold cache)');
+    const bundleRes = await fetch(`${METRO_URL}${pathname}${search}`);
+    const bundle = await bundleRes.text();
+    if (!bundleRes.ok) fail(`Metro couldn't build the bundle:\n${bundle.slice(0, 2000)}`);
+  } catch (error) {
+    if (metro.exitCode !== null || !children.has(metro)) return false;
+    fail(`Metro couldn't build the bundle: ${error.message}`);
+  }
+  log(`Bundle ready in ${Math.round((Date.now() - started) / 1000)}s`);
+  return true;
 }
 
-function startMetro(args, extraEnv) {
+// Resolves true once this Metro answers, false if it exits first.
+async function waitForMetro(metro) {
+  while (metro.exitCode === null && children.has(metro)) {
+    if ((await fetch(`${METRO_URL}/status`).catch(() => null))?.ok) return true;
+    await sleep(500);
+  }
+  return false;
+}
+
+// keepCache: an earlier attempt of this start already cleared the cache (a tunnel retry).
+function startMetro(args, extraEnv, { keepCache = false } = {}) {
   const env = {
     ...withoutKeys(process.env, (key) => key === 'CI'), // CI makes Expo skip file watching
     ...proxyEnv(),
     EXPO_NO_TELEMETRY: '1',
     ...extraEnv,
   };
+  const cacheArgs = metroCacheArgs(env);
   return start(
     'npx',
-    ['expo', 'start', '--dev-client', '--port', '8081', ...metroCacheArgs(env), ...args],
+    ['expo', 'start', '--dev-client', '--port', '8081', ...(keepCache ? [] : cacheArgs), ...args],
     MOBILE_DIR,
     env,
   );
@@ -243,6 +285,7 @@ function saveMetroCacheKey() {
   writeFileSync(METRO_CACHE_KEY, metroCacheKey);
 }
 
+// The web preview builds its own bundle, so this one builds none.
 async function startMetroLocally(extraEnv) {
   log('Starting Metro');
   const metro = startMetro([], extraEnv);
@@ -251,17 +294,20 @@ async function startMetroLocally(extraEnv) {
   superviseExit(metro);
   await waitFor('Metro', async () => (await fetch(`${METRO_URL}/status`).catch(() => null))?.ok);
   saveMetroCacheKey();
-  return METRO_URL;
+  return { url: METRO_URL, bundled: Promise.resolve(true) };
 }
 
 async function startMetroWithTunnel(extraEnv) {
+  let keepCache = false;
   for (let attempt = 1; attempt <= TUNNEL_ATTEMPTS; attempt++) {
     log(attempt === 1 ? 'Starting Metro with a tunnel' : `Tunnel failed, retrying (${attempt}/${TUNNEL_ATTEMPTS})`);
-    const metro = startMetro(['--tunnel'], extraEnv);
+    const metro = startMetro(['--tunnel'], extraEnv, { keepCache });
     let output = '';
     metro.stdout.on('data', (chunk) => (output += chunk));
     metro.stderr.on('data', (chunk) => (output += chunk));
     const exited = new Promise((resolve) => metro.once('exit', resolve));
+    const answered = waitForMetro(metro);
+    const bundled = buildFirstBundle(metro, answered);
 
     const url = await Promise.race([pollTunnelUrl(metro), exited.then(() => null)]);
     if (url) {
@@ -269,9 +315,11 @@ async function startMetroWithTunnel(extraEnv) {
       metro.stderr.removeAllListeners('data').pipe(process.stderr);
       superviseExit(metro);
       saveMetroCacheKey();
-      return url;
+      return { url, bundled };
     }
     stop(metro);
+    // A Metro that answered had cleared its cache already, and what it built since is still good.
+    keepCache ||= await answered;
     if (!TUNNEL_FAILED.test(output)) {
       process.stderr.write(output);
       fail('Metro exited before the tunnel was ready');
@@ -330,9 +378,25 @@ async function waitFor(what, check, timeoutMs = 120_000) {
   }
 }
 
+// Runs a step to its end, its output shown as it goes; a failed step stops everything.
 function run(command, args, cwd, env = process.env) {
-  const { status } = spawnSync(command, args, { cwd, env, stdio: 'inherit' });
-  if (status !== 0) fail(`${command} ${args.join(' ')} failed`);
+  const child = spawn(command, args, { cwd, env, detached: true, stdio: 'inherit' });
+  children.add(child);
+  return new Promise((resolve) => {
+    child.once('error', () => fail(`${command} ${args.join(' ')} failed`));
+    child.once('exit', (code) => {
+      children.delete(child);
+      if (code === 0) resolve();
+      else fail(`${command} ${args.join(' ')} failed`);
+    });
+  });
+}
+
+// What a command printed, also when it failed or ran past the timeout.
+function output(command, args, { timeout }) {
+  return new Promise((resolve) => {
+    execFile(command, args, { encoding: 'utf8', timeout }, (_error, stdout) => resolve(stdout ?? ''));
+  });
 }
 
 // Each child leads its own process group, so a stop reaches what npx and npm start under it
