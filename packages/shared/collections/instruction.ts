@@ -114,7 +114,7 @@ Bios, profile text, names, ideas, lists and anything that isn't a post go into "
 Write handles exactly as given.`,
   // The photo tags briefing; the line with {themes} is left out while Your content has no tags.
   visionTagging: [
-    "You generate tags for images based on these instructions. Tag this photo with 8 short, specific tags. Capture what's visible, the atmosphere, aesthetic, and possible story angles. Lowercase, 1–2 words per tag, preferably one.",
+    "You generate tags for images to inspire creative posts and captions. Tag this photo with 8 short, specific tags. Capture what's visible, the mood, aesthetic, and interesting story angles. Lowercase, 1–2 words per tag.",
     '',
     "Creator's content themes: {themes}. Treat these themes as a creative starting point, not a fixed vocabulary. Reuse their exact wording when relevant, but freely discover related subjects, moods, styles, and new ideas. Never force a theme that doesn't fit the image.",
     '',
