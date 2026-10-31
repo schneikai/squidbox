@@ -24,7 +24,9 @@ export default function PostAsset({ postAsset, onDelete, onLongPress, isActive, 
           <ThumbnailBadge label={formatVideoDuration(asset.duration)} style={styles.videoDuration} />
         )}
         <Button
-          variant="overlay"
+          variant="secondary"
+          size="small"
+          isInverse
           icon="close"
           onPress={() => onDelete(postAsset)}
           accessibilityLabel="Remove from post"

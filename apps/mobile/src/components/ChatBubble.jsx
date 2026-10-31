@@ -70,9 +70,10 @@ const styles = StyleSheet.create({
   assistantText: {
     color: colors.text.primary,
   },
-  // Close under the bubble: the button's tap target overlaps the gap above it.
+  // Close under the bubble, its ⋯ in line with the bubble's text.
   menu: {
-    marginTop: -6,
-    marginBottom: -10,
+    marginTop: 2,
+    marginBottom: -2,
+    marginHorizontal: 14,
   },
 });

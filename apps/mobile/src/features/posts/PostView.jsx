@@ -9,10 +9,10 @@ import { scale } from '@/styles/designTokens';
 import isPresent from '@/utils/isPresent';
 
 /**
- * A post as a card: its pictures (`onPressAsset(asset)` makes each open), its text (copied on a long press
- * with `isTextSelectable`), then a row with when it was posted and `meta` (what else the place shows
- * about it: a thread's size, the heart), and `children` under that row (buttons for this post). `post` is a postQuery row: it carries
- * its `postAssets` ([{ id, asset }]).
+ * A post as a card: its pictures (`onPressAsset(asset)` makes each open), its text (copied on a
+ * long press with `isTextSelectable`), then a row with when it was posted and `meta` (what else the
+ * place shows about it: a thread's size), and `children` under that row (buttons for this post).
+ * `post` is a postQuery row: it carries its `postAssets` ([{ id, asset }]).
  */
 export default function PostView({ post, onPressAsset, isTextSelectable = false, meta, children }) {
   const { text, postAssets, postedAt } = post;

@@ -59,11 +59,11 @@ export default function PostCardToolbar({
 }
 
 const styles = StyleSheet.create({
-  // The buttons' 44 pt targets reach into the card's padding, so their icons line up with the text.
+  // Bare icons, so they line up with the text and sit close like neighbouring toolbar icons.
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: -scale(12),
+    gap: scale(20),
   },
   trailing: {
     marginLeft: 'auto',

@@ -1,7 +1,9 @@
+import { useContext } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import GradientFill from '@/components/GradientFill';
 import Icon from '@/components/Icon';
+import ToolbarContext from '@/components/floating-bars/ToolbarContext';
 import { colors, disabledOpacity, press, radii, scale, sizes, typography } from '@/styles/designTokens';
 
 const PALETTE = {
@@ -9,47 +11,50 @@ const PALETTE = {
   muted: colors.text.secondary,
   accent: colors.accent.base,
   danger: colors.status.danger,
-  // A favorite's heart: like `muted` until it's selected, then red, without the selected tint.
+  // A favorite's heart: like `muted` until it's selected, then red.
   favorite: colors.text.secondary,
 };
 const INVERSE_PALETTE = {
   neutral: colors.text.inverse,
   accent: colors.accent.onDark,
 };
+// Every size has one height, for its discs and pills alike, so they line up side by side.
+const HEIGHTS = { regular: sizes.iconButton, small: sizes.smallButton };
+// A bare (tertiary) icon is as wide as itself.
+const ICON_SIZES = { regular: sizes.icon, small: sizes.iconSmall };
+// A small disc's icon, small enough to sit in its 28 pt disc.
+const SMALL_DISC_ICON_SIZE = scale(14);
 // Two icons side by side, small enough to fit the disc apart.
 const PAIR_ICON_SIZE = scale(15);
-// An overlay disc's icon, small enough to sit in its 28 pt disc.
-const OVERLAY_ICON_SIZE = scale(14);
-// What an overlay disc's touch reaches past its edge, so its target is still 44 pt.
-const OVERLAY_HIT_SLOP = (sizes.iconButton - sizes.overlayButton) / 2;
-// A small block's pill is shorter than a tap target; hitSlop makes up the rest.
-const SMALL_BLOCK_HIT_SLOP = {
-  top: (sizes.iconButton - sizes.smallButton) / 2,
-  bottom: (sizes.iconButton - sizes.smallButton) / 2,
-};
+// A pill's icon beside its label.
+const PILL_ICON_SIZES = { regular: sizes.icon, small: scale(14) };
+// A link's icon beside its label.
+const LINK_ICON_SIZES = { regular: scale(16), small: scale(14) };
 // A secondary's label this short stands in for an icon in the disc (18+); a longer one makes it a
 // grey pill.
 const MAX_DISC_LABEL = 3;
 
 /**
- * Every button in the app. `variant` is how much it stands out:
- *   primary   — the violet gradient: an action with a `label`, or an icon-only circle (at most one
- *               per toolbar). A labeled one is sized by where it sits: `size="large"` (50 pt) for the
- *               one main action floating at the bottom of a screen or form, regular (a 44 pt pill, as
- *               tall as the discs beside it) in a header or toolbar (Add, Save), `size="small"` (a
- *               28 pt pill with a 44 pt target) inside a card (Repost).
- *   secondary — a grey disc over content: an `icon`, or a `label` of up to 3 characters (18+).
- *               `colorPalette="danger"` makes it a red disc. A longer `label` makes it a grey pill
- *               beside a primary's (Later beside Repost), sized like it.
- *   tertiary  — no fill (the default): an icon in a toolbar, or with a `label` a text link (an icon
- *               may lead it). `size="small"` draws a smaller icon in the same 44 pt target, or a
- *               tighter link for a section header or a card. Discs and links have no large size.
- *   overlay   — a small dark translucent disc with a white icon, over a picture (× on a photo
- *               tile): 28 pt, its touch target kept at 44 pt. It ignores `size`.
+ * Every button in the app: a `variant`, an `icon` or a `label`, in one of two sizes.
+ *   primary   — the violet gradient: a disc with an `icon` (at most one per toolbar), or a pill
+ *               with a `label` (an icon may lead it): Add and Save in a header, a screen's main
+ *               action (its parent stretches it across), Repost in a card.
+ *   secondary — a grey fill: a disc with an `icon` or a `label` of up to 3 characters (18+), or a
+ *               pill with a longer `label`, in dark text (Later beside Repost).
+ *               `colorPalette="danger"` makes the disc red; `isInverse` makes it dark and
+ *               translucent with a white icon, over a picture (× on a photo tile).
+ *   tertiary  — no fill (the default): a bare `icon` (a toolbar's, a row's), or with a `label` a
+ *               text link (an icon may lead it).
+ * `size` is `regular` (44 pt tall, discs and pills alike) or `small` (28 pt), so a pill and a disc
+ * of one size line up; a bare icon is as tall as its size and only as wide as the icon. Whatever
+ * its size, every button takes a 44 pt tap target (hitSlop), and in a toolbar (FloatingPill) a bare
+ * icon takes a 44 pt slot. A link has its own height, regular or small.
  * `colorPalette` is what its color means: `neutral`, `muted`, `accent`, `danger` or `favorite`
- * (a heart); a text link is `accent` and an icon button `muted` unless told, wherever it sits. `isInverse` puts it on a
- * dark surface (the Undo bar). `isSelected` marks a toggle that is on (on a primary, the current tab, it only tells VoiceOver);
- * `isSwitch` has VoiceOver read it as a switch, for a setting it turns on and off (18+).
+ * (a heart); a link is `accent`, a secondary pill `neutral` and an icon `muted` unless told,
+ * wherever it sits. `isInverse` puts a link on a dark surface (the Undo bar). `isSelected` marks a
+ * toggle that is on: a secondary tints its disc, a bare icon takes the accent (a heart turns red);
+ * on a primary, the current tab, it only tells VoiceOver. `isSwitch` has VoiceOver read it as a
+ * switch, for a setting it turns on and off (18+).
  * `filled` fills the icon; `iconCount={2}` doubles it, smaller, for a second step of the same mark.
  * `loading` shows a spinner and blocks presses. style is for layout only.
  */
@@ -72,69 +77,87 @@ export default function Button({
   accessibilityHint,
   style,
 }) {
+  const isInToolbar = useContext(ToolbarContext);
   const shape = shapeFor(variant, label);
-  const palette = colorPalette ?? (shape === 'link' ? 'accent' : 'muted');
+  const palette = colorPalette ?? defaultPalette(shape, variant);
   const isInactive = disabled || loading;
   if (__DEV__) warnOnce(combinationProblem({ variant, icon, label, isInverse, palette }));
 
   const color = contentColor({ variant, palette, isSelected, isInverse });
-  const iconSize = variant === 'overlay' ? OVERLAY_ICON_SIZE : size === 'small' ? sizes.iconSmall : sizes.icon;
-  const defaultHitSlop =
-    shape === 'link'
-      ? 8
-      : variant === 'overlay'
-        ? OVERLAY_HIT_SLOP
-        : shape === 'block' && size === 'small'
-          ? SMALL_BLOCK_HIT_SLOP
-          : 0;
+  const iconSize = iconSizeFor(shape, size);
+  const box = boxFor(shape, size, iconSize, isInToolbar);
+  const fill = fillFor({ shape, variant, palette, isSelected, isInverse });
+  const content = <Content {...{ icon, label, loading, color, iconSize, filled, iconCount, shape, size, palette }} />;
 
   return (
     <Pressable
       onPress={onPress}
       disabled={isInactive}
-      hitSlop={hitSlop ?? defaultHitSlop}
+      hitSlop={hitSlop ?? targetSlop(shape, box)}
       accessibilityRole={isSwitch ? 'switch' : 'button'}
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: isInactive, busy: loading, [isSwitch ? 'checked' : 'selected']: isSelected }}
       style={({ pressed }) => [
         styles[shape],
-        shape === 'block' && styles[`block_${size}`],
         shape === 'link' && size === 'small' && styles.linkSmall,
-        shape === 'disc' && discBackground({ variant, palette, isSelected, pressed: pressed && !isInactive }),
-        variant === 'overlay' && styles.overlayDisc,
-        pressed && !isInactive && pressedStyle(shape, variant),
+        box,
+        fill,
+        pressed && !isInactive && pressedStyle(shape),
         isInactive && styles.disabled,
         style,
       ]}
     >
-      {shape === 'block' && variant === 'primary' ? (
-        <GradientFill style={[styles.blockFill, styles[`blockFill_${size}`]]}>
-          <Content {...{ icon, label, loading, color, iconSize, filled, iconCount, shape, size, palette }} />
+      {variant === 'primary' ? (
+        <GradientFill style={shape === 'pill' ? [styles.pillFill, styles[`pillFill_${size}`]] : styles.discFill}>
+          {content}
         </GradientFill>
-      ) : shape === 'block' ? (
-        <View style={[styles.blockFill, styles[`blockFill_${size}`], styles.mutedFill]}>
-          <Content {...{ icon, label, loading, color, iconSize, filled, iconCount, shape, size, palette }} />
-        </View>
-      ) : variant === 'primary' ? (
-        <GradientFill style={styles.discFill}>
-          <Content {...{ icon, label, loading, color, iconSize, filled, iconCount, shape, size, palette }} />
-        </GradientFill>
+      ) : shape === 'pill' ? (
+        <View style={[styles.pillFill, styles[`pillFill_${size}`]]}>{content}</View>
       ) : (
-        <Content {...{ icon, label, loading, color, iconSize, filled, iconCount, shape, size, palette }} />
+        content
       )}
     </Pressable>
   );
 }
 
-// A link is a tertiary with a label, a block a primary with one or a secondary with a word; every
-// other button is a 44 pt disc.
+// A tertiary is a link with a label and a bare icon without; a primary or secondary is a pill with a
+// label (a secondary's short one stays in its disc) and a disc without.
 function shapeFor(variant, label) {
-  if (!label) return 'disc';
-  if (variant === 'tertiary') return 'link';
-  if (variant === 'primary') return 'block';
-  if (variant === 'secondary' && label.length > MAX_DISC_LABEL) return 'block';
+  if (variant === 'tertiary') return label ? 'link' : 'bare';
+  if (label && (variant === 'primary' || label.length > MAX_DISC_LABEL)) return 'pill';
   return 'disc';
+}
+
+function defaultPalette(shape, variant) {
+  if (shape === 'link') return 'accent';
+  if (shape === 'pill' && variant === 'secondary') return 'neutral';
+  return 'muted';
+}
+
+function iconSizeFor(shape, size) {
+  if (shape === 'disc') return size === 'small' ? SMALL_DISC_ICON_SIZE : sizes.icon;
+  if (shape === 'pill') return PILL_ICON_SIZES[size];
+  if (shape === 'link') return LINK_ICON_SIZES[size];
+  return ICON_SIZES[size];
+}
+
+// The button's own box: a disc is its size's height square, a pill that tall, a bare icon that tall
+// and as wide as its icon (a full slot in a toolbar). A link sizes itself.
+function boxFor(shape, size, iconSize, isInToolbar) {
+  const height = HEIGHTS[size];
+  if (shape === 'disc') return { width: height, height };
+  if (shape === 'pill') return { height };
+  if (shape === 'bare') return { width: isInToolbar ? sizes.iconButton : iconSize, height };
+  return null;
+}
+
+// What a touch reaches past the box, so the target is at least 44 pt each way.
+function targetSlop(shape, box) {
+  if (shape === 'link') return LINK_HIT_SLOP;
+  const vertical = Math.max(0, (sizes.iconButton - box.height) / 2);
+  const horizontal = box.width === undefined ? 0 : Math.max(0, (sizes.iconButton - box.width) / 2);
+  return { top: vertical, bottom: vertical, left: horizontal, right: horizontal };
 }
 
 function Content({ icon, label, loading, color, iconSize, filled, iconCount, shape, size, palette }) {
@@ -142,7 +165,7 @@ function Content({ icon, label, loading, color, iconSize, filled, iconCount, sha
   const spinner = <ActivityIndicator size="small" color={color} />;
   if (loading && shape !== 'link') return spinner;
   if (shape === 'disc' && label) return <Text style={[styles.discLabel, { color }]}>{label}</Text>;
-  if (shape === 'disc' && iconCount === 2) {
+  if (iconCount === 2) {
     return (
       <View style={styles.pair}>
         <Icon name={icon} size={PAIR_ICON_SIZE} color={color} filled={filled} />
@@ -150,19 +173,15 @@ function Content({ icon, label, loading, color, iconSize, filled, iconCount, sha
       </View>
     );
   }
-  if (shape === 'disc') return <Icon name={icon} size={iconSize} color={color} filled={filled} />;
+  if (shape === 'disc' || shape === 'bare') return <Icon name={icon} size={iconSize} color={color} filled={filled} />;
 
-  const isSmall = size === 'small';
-  const linkIconSize = isSmall ? scale(14) : scale(16);
   return (
     <>
-      {loading
-        ? spinner
-        : icon && <Icon name={icon} size={shape === 'link' || isSmall ? linkIconSize : iconSize} color={color} />}
+      {loading ? spinner : icon && <Icon name={icon} size={iconSize} color={color} />}
       <Text
         style={[
-          shape === 'link' ? styles.linkLabel : [styles.blockLabel, styles[`blockLabel_${size}`]],
-          isSmall && shape === 'link' && styles.linkLabelSmall,
+          shape === 'link' ? styles.linkLabel : [styles.pillLabel, styles[`pillLabel_${size}`]],
+          size === 'small' && shape === 'link' && styles.linkLabelSmall,
           shape === 'link' && palette === 'muted' && styles.linkLabelMuted,
           { color },
         ]}
@@ -174,42 +193,46 @@ function Content({ icon, label, loading, color, iconSize, filled, iconCount, sha
 }
 
 function contentColor({ variant, palette, isSelected, isInverse }) {
-  if (variant === 'primary' || variant === 'overlay') return colors.text.inverse;
-  if (variant === 'secondary' && palette === 'danger') return colors.text.inverse;
+  if (variant === 'primary') return colors.text.inverse;
+  if (variant === 'secondary' && (palette === 'danger' || isInverse)) return colors.text.inverse;
   if (isSelected) return palette === 'favorite' ? colors.status.danger : colors.accent.base;
   if (isInverse) return INVERSE_PALETTE[palette];
   return PALETTE[palette];
 }
 
-function discBackground({ variant, palette, isSelected, pressed }) {
-  if (variant === 'primary') return null;
-  if (variant === 'overlay') return styles.overlayFill;
-  if (variant === 'secondary' && palette === 'danger') return styles.dangerFill;
-  if (isSelected && palette !== 'favorite') return styles.selectedFill;
-  if (variant === 'secondary') return styles.mutedFill;
-  if (pressed) return palette === 'danger' ? styles.dangerTint : styles.mutedFill;
-  return null;
+// A secondary's fill (a primary's is its gradient; a tertiary has none).
+function fillFor({ shape, variant, palette, isSelected, isInverse }) {
+  if (variant !== 'secondary') return null;
+  if (shape === 'pill') return styles.mutedFill;
+  if (isInverse) return styles.inverseFill;
+  if (palette === 'danger') return styles.dangerFill;
+  if (isSelected) return styles.selectedFill;
+  return styles.mutedFill;
 }
 
-// A tertiary disc tints behind it (discBackground); everything filled dims and shrinks; a link fades.
-function pressedStyle(shape, variant) {
-  if (shape === 'link') return press.flat;
-  if (variant === 'tertiary') return null;
-  return press.filled;
+// Everything filled dims and shrinks; a link or a bare icon fades.
+function pressedStyle(shape) {
+  return shape === 'link' || shape === 'bare' ? press.flat : press.filled;
 }
 
 // Why these props make no button the app has, or null.
 function combinationProblem({ variant, icon, label, isInverse, palette }) {
   if (!icon && !label) return 'Button: needs an icon or a label';
+  if (!VARIANTS.includes(variant)) return `Button: no variant "${variant}"`;
   if (variant === 'secondary' && icon && label) return 'Button: a secondary shows an icon or a label, not both';
-  if (variant === 'secondary' && palette === 'danger' && label?.length > MAX_DISC_LABEL) {
-    return 'Button: a red secondary is a disc; its label must fit in it';
+  if (variant === 'secondary' && (palette === 'danger' || isInverse) && label?.length > MAX_DISC_LABEL) {
+    return 'Button: a red or inverse secondary is a disc; its label must fit in it';
   }
-  if (variant === 'overlay' && (label || !icon)) return 'Button: an overlay shows an icon only';
-  if (isInverse && !INVERSE_PALETTE[palette]) return `Button: no "${palette}" on a dark surface`;
+  if (isInverse && variant === 'tertiary' && !INVERSE_PALETTE[palette]) {
+    return `Button: no "${palette}" on a dark surface`;
+  }
   if (!PALETTE[palette]) return `Button: no colorPalette "${palette}"`;
   return null;
 }
+
+const VARIANTS = ['primary', 'secondary', 'tertiary'];
+// A link's touch reaches a little past its text.
+const LINK_HIT_SLOP = 8;
 
 const warned = new Set();
 function warnOnce(problem) {
@@ -220,10 +243,12 @@ function warnOnce(problem) {
 
 const styles = StyleSheet.create({
   disc: {
-    width: sizes.iconButton,
-    height: sizes.iconButton,
     borderRadius: radii.pill,
     overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bare: {
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -235,11 +260,7 @@ const styles = StyleSheet.create({
   mutedFill: {
     backgroundColor: colors.overlay.pressed,
   },
-  overlayDisc: {
-    width: sizes.overlayButton,
-    height: sizes.overlayButton,
-  },
-  overlayFill: {
+  inverseFill: {
     backgroundColor: colors.overlay.dim,
   },
   selectedFill: {
@@ -247,9 +268,6 @@ const styles = StyleSheet.create({
   },
   dangerFill: {
     backgroundColor: colors.status.danger,
-  },
-  dangerTint: {
-    backgroundColor: colors.status.dangerLight,
   },
   discLabel: {
     fontSize: typography.footnote,
@@ -259,49 +277,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 2,
   },
-  block: {
+  pill: {
+    borderRadius: radii.pill,
     overflow: 'hidden',
   },
-  block_large: {
-    height: sizes.primaryButton,
-    borderRadius: radii.card,
-  },
-  block_regular: {
-    height: sizes.iconButton,
-    borderRadius: radii.pill,
-  },
-  block_small: {
-    height: sizes.smallButton,
-    borderRadius: radii.pill,
-  },
-  blockFill: {
+  pillFill: {
     flexGrow: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  blockFill_large: {
-    gap: scale(8),
-    paddingHorizontal: scale(20),
-  },
-  blockFill_regular: {
+  pillFill_regular: {
     gap: scale(6),
     paddingHorizontal: scale(16),
   },
-  blockFill_small: {
+  pillFill_small: {
     gap: scale(4),
     paddingHorizontal: scale(10),
   },
-  blockLabel: {
+  pillLabel: {
     fontWeight: '600',
   },
-  blockLabel_large: {
-    fontSize: typography.callout,
-  },
-  blockLabel_regular: {
+  pillLabel_regular: {
     fontSize: typography.subheadline,
   },
-  blockLabel_small: {
+  pillLabel_small: {
     fontSize: typography.footnote,
   },
   link: {

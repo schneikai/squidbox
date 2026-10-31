@@ -58,10 +58,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  // The time follows the clock closely: a link pads 24 pt to its sides, and the clock sits 12 pt in
-  // from its button's edge.
+  // The time follows the clock closely: a link pads 24 pt to its sides.
   time: {
-    marginLeft: -24 - scale(6),
+    marginLeft: -24 + scale(6),
   },
   remove: {
     alignSelf: 'center',

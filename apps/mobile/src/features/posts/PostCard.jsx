@@ -113,10 +113,9 @@ const styles = StyleSheet.create({
   writeWithAi: {
     marginTop: 0,
   },
-  // Its 44 pt target reaches into the card's corner, so the × lines up with the text's first line.
+  // The × lines up with the text's first line.
   remove: {
     flexShrink: 0,
-    marginTop: -scale(10),
-    marginRight: -scale(12),
+    marginTop: -scale(2),
   },
 });

@@ -56,6 +56,7 @@ export default function IconPicker({ value, onChange }) {
           variant={value === null ? 'primary' : 'tertiary'}
           accessibilityLabel="No icon"
           onPress={() => handlePick(null)}
+          style={styles.cell}
         />
         {names.map((name) => (
           <Button
@@ -65,6 +66,7 @@ export default function IconPicker({ value, onChange }) {
             colorPalette="accent"
             accessibilityLabel={name.replace(/-/g, ' ')}
             onPress={() => handlePick(name)}
+            style={styles.cell}
           />
         ))}
       </ScrollView>
@@ -81,5 +83,9 @@ const styles = StyleSheet.create({
   row: {
     padding: PADDING,
     gap: GAP,
+  },
+  // Every icon, picked (a disc) or not (a bare icon), takes the same 44 pt cell.
+  cell: {
+    width: sizes.iconButton,
   },
 });

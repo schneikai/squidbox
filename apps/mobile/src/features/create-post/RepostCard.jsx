@@ -27,8 +27,8 @@ export default function RepostCard({ post, onOpen, onRepost, onLater, onIgnore }
           <PostPostedAt postedAt={post.postedAt} />
           <View style={styles.actions}>
             <Button variant="primary" size="small" label="Repost" icon="repeat" onPress={onRepost} />
-            <Button variant="secondary" size="small" label="Later" colorPalette="neutral" onPress={onLater} />
-            <MenuButton accessibilityLabel="More for this post" style={styles.more}>
+            <Button variant="secondary" size="small" label="Later" onPress={onLater} />
+            <MenuButton size="small" accessibilityLabel="More for this post" style={styles.more}>
               <MenuOption label="Ignore" icon="eye-off" onPress={onIgnore} />
             </MenuButton>
           </View>
@@ -60,9 +60,7 @@ const styles = StyleSheet.create({
     gap: scale(6),
     marginTop: 'auto',
   },
-  // The ⋯'s 44 pt target reaches into the card's padding, so its dots line up with the card's edge.
   more: {
     marginLeft: 'auto',
-    marginRight: -scale(12),
   },
 });
