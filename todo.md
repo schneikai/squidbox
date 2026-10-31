@@ -113,28 +113,6 @@ Native menus were checked: `@expo/ui` `ContextMenu` ships with the SDK but is iO
 touch, so drag-to-reorder can't follow it (fine later for screens that don't drag, like a post);
 `zeego` and `react-native-ios-context-menu` would make SDK upgrades harder.
 
-### [ ] AI assistant rework
-
-Where AI is needed:
-- Create a PPV message from an existing post, for sending the post as a PPV.
-- Create fresh ideas from an existing post, for reposting.
-- Create a follow-up tweet with the OnlyFans URL. Also quoted RTs and other predefined prompts, for
-  example as buttons after a reply.
-- Suggest @ mentions from the album's posts, or more generally from the post history.
-- The former post suggestions worked well but had no idea what's in the pictures, so caption
-  suggestions didn't always fit.
-
-General ideas:
-- **One assistant** for all these use cases, with a similar interface where possible, so it can also
-  cover other use cases users might have.
-- **Know what the content is about.** Image recognition of the user's media, and it must be very
-  specific: for the owner's media, tags like blowjob, deepthroat, facefuck, throatfuck, etc. Let the
-  user also enter tags for what their content is about, and set how detailed or broad to be about a
-  topic.
-- **Favorite suggestions** to teach the assistant which style and tone the user prefers.
-- **Memory.** What the user tells the assistant is remembered, e.g. "make it more about the action
-  and less about the filming", "less influencer style, more guy next door".
-
 ### [ ] Saved assistant chats
 
 Wanted by the owner. The assistant chat (`features/post-chat`, `chatSessions`) lives only while
