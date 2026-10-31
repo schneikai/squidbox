@@ -4,15 +4,12 @@ import { useState } from 'react';
 import instructionText from './instructionText';
 
 import CatalogStatus from '@/components/CatalogStatus';
-import DetailScrollView from '@/components/DetailScrollView';
-import Page from '@/components/Page';
-import TextEditScreen from '@/components/TextEditScreen';
-import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
+import EditSheet from '@/components/EditSheet';
+import TextEditSheet from '@/components/TextEditSheet';
 import useApplyChangesForEveryone from '@/hooks/useApplyChangesForEveryone';
+import useEditSheet from '@/hooks/useEditSheet';
 import useInstructions from '@/hooks/useInstructions';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
-import useResetChanges from '@/hooks/useResetChanges';
-import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import applyAppInstructions from '@/lib/applyAppInstructions';
 import useLibrary from '@/library/useLibrary';
@@ -20,10 +17,12 @@ import { getDb } from '@/sync/db/client';
 import { readInstructions, saveInstruction } from '@/sync/instructionsRepository';
 import publishInstructionAsync from '@/utils/cloud-api/ai/publishInstructionAsync';
 
-// One kind of instructions (`{ kind }`): its text, the user's override or the app's default, saved
-// as you type. While it differs from the app's default: Apply changes for everyone (for a text that
-// isn't empty), which publishes it for every account, and Reset changes. It waits for the app's
-// defaults (they come with the catalog). A root screen, one per kind.
+// One kind of instructions (`{ kind }`) as a draft sheet: its text, the user's override or the app's
+// default, saved on Save. While the draft differs from the app's default: Apply changes for everyone
+// (for a text that isn't empty), which publishes it for every account and closes the sheet, and
+// Reset changes, which puts the default back in the draft (× undoes it, so no confirm). Until the
+// user types, the draft is the stored text, and the app's default as it changes. It waits for
+// the app's defaults (they come with the catalog). A root screen, one per kind.
 export default function InstructionScreen({ route, navigation }) {
   const { kind } = route.params;
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
@@ -38,79 +37,73 @@ export default function InstructionScreen({ route, navigation }) {
   if (!isAvailable || !seed) return null;
   if (!defaultTexts) {
     return (
-      <Page>
-        <FloatingDetailHeader title={instructionText[kind].title} onBack={() => navigation.goBack()} />
-        <DetailScrollView>
-          <CatalogStatus title="Couldn't load the instructions" error={error} retry={retry} />
-        </DetailScrollView>
-      </Page>
+      <EditSheet
+        title={instructionText[kind].title}
+        confirmLabel="Save"
+        canConfirm={false}
+        onCancel={() => navigation.goBack()}
+      >
+        <CatalogStatus title="Couldn't load the instructions" error={error} retry={retry} />
+      </EditSheet>
     );
   }
-  return (
-    <InstructionEditor
-      kind={kind}
-      userId={userId}
-      seed={seed}
-      defaultText={defaultTexts[kind]}
-      navigation={navigation}
-    />
-  );
+  return <InstructionEditor kind={kind} userId={userId} seed={seed} defaultText={defaultTexts[kind]} />;
 }
 
-// `defaultText` is the app's default as the catalog has it now (a publish replaces it at once). The
-// draft is the account's override only, null while it has none, so the text shown follows the
-// default until the user types.
-function InstructionEditor({ kind, userId, seed, defaultText, navigation }) {
-  const { isResetting, reset } = useResetChanges();
-  const [draft, setDraft] = useState(seed.stored);
+// `defaultText` is the app's default as the catalog has it now (a publish replaces it at once).
+// `draft` is null until the user types.
+function InstructionEditor({ kind, userId, seed, defaultText }) {
+  const [draft, setDraft] = useState(null);
   const { isPublishing, publish } = useApplyChangesForEveryone();
-  const { flush } = useSaveAsYouType(draft === null ? null : draft.trim(), saveText);
+  const storedText = seed.stored ?? defaultText;
+  const text = draft ?? storedText;
+  const { sheetProps, finish } = useEditSheet({
+    isValid: text.trim() !== '',
+    isDirty: draft != null && draft.trim() !== storedText.trim(),
+    save,
+    isBusy: isPublishing,
+  });
 
-  const text = draft ?? defaultText;
-  const isChanged = text.trim() !== defaultText;
+  const trimmed = text.trim();
+  const isChanged = trimmed !== defaultText;
   const actions = [
     isChanged &&
-      text.trim() !== '' && {
+      trimmed !== '' && {
         label: 'Apply changes for everyone',
         colorPalette: 'accent',
         onPress: handlePublish,
         loading: isPublishing,
       },
-    isChanged && { label: 'Reset changes', colorPalette: 'danger', onPress: handleReset, loading: isResetting },
+    isChanged && { label: 'Reset changes', colorPalette: 'danger', onPress: handleReset },
   ].filter(Boolean);
 
-  // An empty text isn't saved (Reset is the way back to the default); null and the default's text
-  // are stored as null.
-  async function saveText(next) {
-    if (next === '') return false;
-    await saveInstruction(getDb(), userId, kind, next, defaultText);
-    return true;
-  }
-
-  // Back to the app's default, saved as you type like any other edit (as null).
+  // With no text of the account's own stored, the draft follows the default again.
   function handleReset() {
-    return reset("Your text is replaced by the app's.", () => setDraft(null));
+    setDraft(seed.stored == null ? null : defaultText);
   }
 
-  // The text becomes the default for every account. The draft, now equal to it, goes back to null
-  // (the override is cleared as you type); a text typed meanwhile stays.
+  // The default's text is stored as null.
+  async function save() {
+    await saveInstruction(getDb(), userId, kind, trimmed, defaultText);
+  }
+
+  // The text becomes the default for every account, so the account's own text is cleared and
+  // nothing is left to save: the sheet closes. A failing clear fails the publish's run, which says so.
   function handlePublish() {
     return publish("Every account's assistant gets this text.", async () => {
-      await flush();
-      const answer = await publishInstructionAsync(kind, { text: text.trim() });
+      const answer = await publishInstructionAsync(kind, { text: trimmed });
       applyAppInstructions(answer);
-      const published = answer.instructions[kind];
-      setDraft((current) => (current?.trim() === published ? null : current));
+      await saveInstruction(getDb(), userId, kind, null, answer.instructions[kind]);
+      await finish(() => undefined, "Couldn't save your changes");
     });
   }
 
   return (
-    <TextEditScreen
+    <TextEditSheet
+      {...sheetProps}
       title={instructionText[kind].title}
       value={text}
       onChangeText={setDraft}
-      onBlur={() => flush()}
-      onBack={() => navigation.goBack()}
       placeholder="What the assistant is told"
       maxLength={INSTRUCTION_LIMITS.text}
       description={instructionText[kind].description}

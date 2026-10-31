@@ -50,3 +50,44 @@ export async function addRule(
   await savePersona(db, userId, { rules: [...rules, rule] });
   return 'added';
 }
+
+/** A stored rule as the editor opened it: where it was and what it said. */
+type SeededRule = { index: number; text: string };
+
+/**
+ * Where `seeded` is in `rules` now, after a sync may have moved or changed the list: its index if
+ * its text is still there, else the first rule with that text, -1 when it's gone.
+ */
+function locateRule(rules: string[], { index, text }: SeededRule): number {
+  return rules[index] === text ? index : rules.indexOf(text);
+}
+
+/**
+ * Replaces the rule the editor opened (`seeded`, found again with locateRule, so a sync that moved
+ * or changed the list never gets another rule overwritten) with `text` (trimmed): 'updated',
+ * 'present' when another rule already says it, 'tooLong' over PERSONA_LIMITS.rule, 'gone' when the
+ * rule isn't there anymore; only 'updated' writes.
+ */
+export async function updateRule(
+  db: SyncDb,
+  userId: string,
+  seeded: SeededRule,
+  text: string,
+): Promise<'updated' | 'present' | 'tooLong' | 'gone'> {
+  const rule = text.trim();
+  if (rule.length > PERSONA_LIMITS.rule) return 'tooLong';
+  const rules = (await readPersona(db, userId))?.rules ?? [];
+  const at = locateRule(rules, seeded);
+  if (at === -1) return 'gone';
+  if (rules.some((other, i) => i !== at && other === rule)) return 'present';
+  await savePersona(db, userId, { rules: rules.map((other, i) => (i === at ? rule : other)) });
+  return 'updated';
+}
+
+/** Removes the rule the editor opened (`seeded`, found again as in updateRule); one gone already stays gone. */
+export async function removeRule(db: SyncDb, userId: string, seeded: SeededRule): Promise<void> {
+  const rules = (await readPersona(db, userId))?.rules ?? [];
+  const at = locateRule(rules, seeded);
+  if (at === -1) return;
+  await savePersona(db, userId, { rules: rules.filter((_, i) => i !== at) });
+}

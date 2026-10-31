@@ -1,84 +1,70 @@
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
-import Animated from 'react-native-reanimated';
 
-import Button from '@/components/Button';
 import Card from '@/components/Card';
 import DateTimePicker from '@/components/DateTimePicker';
-import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
-import ModalSheet from '@/components/ModalSheet';
+import EditSheet from '@/components/EditSheet';
 import TextInput from '@/components/TextInput';
 import { SCREEN_PADDING } from '@/constants';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import WriteWithAi from '@/features/post-chat/WriteWithAi';
 import useEditorChat from '@/features/post-chat/useEditorChat';
-import useScrollY from '@/hooks/useScrollY';
+import useEditSheet from '@/hooks/useEditSheet';
+import changedValues from '@/utils/changedValues';
+import isPresent from '@/utils/isPresent';
 import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
 
-// Edits a post seeded from `post` ({ text, postAssets, postedAt }) and holds the draft; Save hands
-// `onSave` the post the posts store takes ({ text, assetRefs, postedAt }), allowed once it is valid,
-// and the seed in the same shape, so an edit can save only what changed. `kind` is what its
-// assistant chat is about (chatSubjectKindSchema: 'draft' a new post, 'edit' a saved one).
+// Edits a post seeded from `post` ({ text, postAssets, postedAt }) as a draft sheet: Add (a new
+// post, `kind` 'draft') or Save (an edit) hands `onSave` the post the posts store takes ({ text,
+// assetRefs, postedAt }), allowed once it is valid (and, for Save, changed), and the seed in the same
+// shape, so an edit can save only what changed; a save that throws says so and keeps the editor open.
+// × or a swipe down with changes asks first. `kind` is also what its assistant chat is about
+// (chatSubjectKindSchema: 'draft' a new post, 'edit' a saved one).
 export default function PostEditor({ kind, post, navigation, onSave }) {
-  const { scrollY, onScroll } = useScrollY();
-  const [isSaving, setIsSaving] = useState(false);
   const [text, setText] = useState(post.text);
   const [postAssets, setPostAssets] = useState(post.postAssets);
   const [postedAt, setPostedAt] = useState(post.postedAt);
   const sessionId = useEditorChat({ kind, text, postAssets, setText });
 
-  const data = postData({ text, postAssets, postedAt });
-  const canSave = hasContent(data);
-
-  // One save at a time: a second tap while the first is still writing would save the post twice.
-  async function handleSave() {
-    setIsSaving(true);
-    try {
-      await onSave(data, postData(post));
-    } finally {
-      setIsSaving(false);
-    }
-  }
+  // The posts store syncs by itself.
+  const { sheetProps } = useEditSheet({
+    ...draftSheetOptions(kind, post, { text, postAssets, postedAt }, onSave),
+    syncsItself: true,
+  });
 
   return (
-    <ModalSheet>
-      <ModalHeader
-        leading={
-          navigation ? <Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} /> : null
-        }
-        scrollY={scrollY}
-        trailing={
-          onSave && (
-            <Button variant="primary" size="small" label="Save" onPress={handleSave} disabled={!canSave || isSaving} />
-          )
-        }
-      />
-      <Animated.ScrollView
-        automaticallyAdjustKeyboardInsets
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        contentContainerStyle={styles.scrollContent}
-      >
-        <Card style={styles.mediaCard}>
-          <PostAssetsEditor postAssets={postAssets} onChange={setPostAssets} />
-        </Card>
+    <EditSheet {...sheetProps}>
+      <Card style={styles.mediaCard}>
+        <PostAssetsEditor postAssets={postAssets} onChange={setPostAssets} />
+      </Card>
 
-        <Card style={styles.textCard}>
-          <TextInput
-            multiline
-            placeholder="What's new?"
-            numberOfLines={4}
-            onChangeText={setText}
-            value={text}
-            style={styles.textArea}
-          />
-          <WriteWithAi sessionId={sessionId} navigation={navigation} />
-        </Card>
+      <Card style={styles.textCard}>
+        <TextInput
+          multiline
+          placeholder="What's new?"
+          numberOfLines={4}
+          onChangeText={setText}
+          value={text}
+          style={styles.textArea}
+        />
+        <WriteWithAi sessionId={sessionId} navigation={navigation} />
+      </Card>
 
-        <DateTimePicker timestamp={postedAt} onChange={setPostedAt} />
-      </Animated.ScrollView>
-    </ModalSheet>
+      <DateTimePicker timestamp={postedAt} onChange={setPostedAt} />
+    </EditSheet>
   );
+}
+
+// What useEditSheet needs to know about the draft `current` of `post`.
+function draftSheetOptions(kind, post, current, onSave) {
+  const seed = postData(post);
+  const data = postData(current);
+  return {
+    isNew: kind === 'draft',
+    isValid: hasContent(data),
+    isDirty: isPresent(changedValues(seed, data)),
+    save: () => onSave(data, seed),
+  };
 }
 
 // The post as the posts store takes it.
@@ -92,13 +78,6 @@ function hasContent({ text, assetRefs }) {
 }
 
 const styles = StyleSheet.create({
-  scrollContent: {
-    paddingTop: MODAL_HEADER_HEIGHT + SCREEN_PADDING,
-    paddingHorizontal: SCREEN_PADDING,
-    paddingBottom: SCREEN_PADDING * 2,
-    gap: 12,
-  },
-
   mediaCard: {
     overflow: 'hidden',
   },

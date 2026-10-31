@@ -16,7 +16,7 @@ const MAX_FIELD_HEIGHT = scale(240);
  *            style is the input's own box: padding, flex, sizes
  *   field  — a field of its own on a Card, inset like a list row's text. A multiline one grows up
  *            to MAX_FIELD_HEIGHT; `isFilling` makes it fill the space its parent gives the card,
- *            scrolling its text inside, as in Notes (TextEditScreen). style is for layout only
+ *            scrolling its text inside, as in Notes (TextEditSheet). style is for layout only
  * `multiline` takes many lines at the reading line height (`minHeight` sets its height). The other
  * props are React Native's TextInput's.
  *
