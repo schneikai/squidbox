@@ -10,7 +10,8 @@ const RING = 3;
  * Replaces repeated `...glass + borderRadius: radii.card` in content containers.
  * `isSelected` (true or false) makes it one of a set the user picks among, like the post editor's
  * cards: the selected one gets an accent border and a soft accent glow around it. A selectable card
- * keeps the glow's room either way, so nothing moves when the selection does.
+ * keeps the glow's room either way, so nothing moves when the selection does. Keep passing a boolean
+ * while the card can ever be selected: going from undefined to a boolean remounts its content.
  *
  * Use for: content cards, input areas, media frames.
  * Do NOT use for: toolbars, chat bubbles, floating pills, borderless glass surfaces.

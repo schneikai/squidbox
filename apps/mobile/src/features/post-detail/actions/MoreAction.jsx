@@ -30,7 +30,9 @@ export default function MoreAction({ post, afterDelete }) {
   }
 
   async function handleDownloadAssets() {
-    await saveAssetsToMediaLibraryAsync(post.postAssets.map((postAsset) => postAsset.asset));
+    await saveAssetsToMediaLibraryAsync(
+      [post, ...post.threadPosts].flatMap((p) => p.postAssets.map((postAsset) => postAsset.asset)),
+    );
   }
 
   return (

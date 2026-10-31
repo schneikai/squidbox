@@ -20,11 +20,8 @@ beforeEach(() => {
 });
 
 const newPart = (fields: Partial<PostRecord>) => makePostRecord({ id: newId(), ...fields });
-const save = (
-  parts: Parameters<typeof saveThreadPosts>[2],
-  seed: Parameters<typeof saveThreadPosts>[3],
-  postedAt = 50,
-) => db.transaction((tx) => saveThreadPosts(tx, 't1', parts, seed, { postedAt, newPart }));
+const save = (parts: Parameters<typeof saveThreadPosts>[2], seed: Parameters<typeof saveThreadPosts>[3]) =>
+  db.transaction((tx) => saveThreadPosts(tx, 't1', parts, seed, newPart));
 const row = async (id: string) => (await db.select().from(schema.posts).where(eq(schema.posts.id, id)))[0]!;
 const edgesOf = async (postId: string) =>
   (await db.select().from(schema.postAssets).where(eq(schema.postAssets.postId, postId))).map((edge) => ({
@@ -53,7 +50,7 @@ async function seedThread() {
 }
 
 describe('postThreads', () => {
-  it("adds the following posts with the first post's Posted time, indexes 1..n and their edges", async () => {
+  it("adds the following posts with the first post's Posted time as saved, indexes 1..n and their edges", async () => {
     await posts.create(db, makePostRecord({ id: 't1', postedAt: 50 }));
     await save(
       [

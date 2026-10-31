@@ -20,12 +20,9 @@ export default function PostedAtPicker({ timestamp, onChange, style }) {
   }
 
   return (
-    <View
-      style={[styles.container, style]}
-      accessible
-      accessibilityLabel={timestamp == null ? label : `Posted at ${label}`}
-    >
+    <View style={[styles.container, style]}>
       <CommunityDateTimePicker
+        accessibilityLabel={timestamp == null ? label : `Posted at ${label}`}
         mode="datetime"
         display="compact"
         value={new Date(timestamp ?? Date.now())}

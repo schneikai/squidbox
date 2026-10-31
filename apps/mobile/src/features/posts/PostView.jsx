@@ -1,7 +1,8 @@
 import { StyleSheet, View } from 'react-native';
 
+import PostImage from './PostImage';
+
 import Card from '@/components/Card';
-import PostImage from '@/components/PostImage';
 import Text from '@/components/Text';
 import PostPostedAt from '@/features/posts/PostPostedAt';
 import { scale } from '@/styles/designTokens';

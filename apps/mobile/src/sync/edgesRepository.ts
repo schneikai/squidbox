@@ -229,5 +229,17 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
     async tombstoneParent(db: SyncDb, parentId: string): Promise<void> {
       await db.transaction(async (tx) => tombstoneAll(tx, await liveSorted(tx, parentId)));
     },
+
+    /** Tombstone all live edges of these parents (a deleted thread's posts) with one read. */
+    async tombstoneParents(db: SyncDb, parentIds: string[]): Promise<void> {
+      if (parentIds.length === 0) return;
+      await db.transaction(async (tx) => {
+        const live = await tx
+          .select()
+          .from(table)
+          .where(and(inJson(parentCol, parentIds), isNull(t.deletedAt)));
+        await tombstoneAll(tx, live);
+      });
+    },
   };
 }

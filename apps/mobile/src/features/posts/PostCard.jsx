@@ -50,7 +50,7 @@ export default function PostCard({
   }
 
   return (
-    <Card isSelected={isThread ? isActive : undefined} style={styles.card}>
+    <Card isSelected={isThread && isActive} style={styles.card}>
       <View style={styles.top}>
         <TextInput
           multiline

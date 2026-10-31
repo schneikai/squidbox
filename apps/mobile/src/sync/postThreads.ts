@@ -1,11 +1,10 @@
 import type { PostRecord } from '@squidbox/shared';
-import { and, asc, isNull } from 'drizzle-orm';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { inJson } from './inJson';
 import * as posts from './postsRepository';
-import { postEdges } from './postsRepository';
 
 // A post's thread (sync-design §10): its following posts are posts of their own, linked to the first
 // post by `threadRootId` and ordered by `(threadIndex, id)`. Every function writes inside the caller's
@@ -30,16 +29,22 @@ export function readThreadPosts(tx: SyncDb, rootIds: string[]) {
  * Save an editor's following posts (`parts`) over the ones it was seeded with (`seedParts`; `[]` for
  * a new thread): a seed part the list no longer has is removed with its edges, a listed one gets its
  * changed text and photos, a new one (no id) is created by `newPart` after the thread's last, with
- * the thread's `postedAt`. A seed part deleted meanwhile (another device) is left as it is.
+ * the first post's `postedAt` as it stands in `tx` (it may have changed since the editor opened). A
+ * seed part deleted meanwhile (another device) is left as it is.
  */
 export async function saveThreadPosts(
   tx: SyncDb,
   rootId: string,
   parts: ThreadPart[],
   seedParts: ThreadPart[],
-  { postedAt, newPart }: { postedAt: number | null; newPart: (fields: NewPart) => PostRecord },
+  newPart: (fields: NewPart) => PostRecord,
 ): Promise<void> {
   if (parts.length === 0 && seedParts.length === 0) return;
+  const [root] = await tx
+    .select({ postedAt: schema.posts.postedAt })
+    .from(schema.posts)
+    .where(eq(schema.posts.id, rootId));
+  const postedAt = root?.postedAt ?? null;
   const live = await readThreadPosts(tx, [rootId]);
   const liveById = new Map(live.map((post) => [post.id, post]));
   const listed = new Set(parts.map((part) => part.id));
@@ -56,13 +61,13 @@ export async function saveThreadPosts(
     if (part.id === null) {
       threadIndex += 1;
       const created = await posts.create(tx, newPart({ text: part.text, postedAt, threadRootId: rootId, threadIndex }));
-      await postEdges.createFromRefs(tx, created.id, part.assetRefs);
+      await posts.postEdges.createFromRefs(tx, created.id, part.assetRefs);
       continue;
     }
     const seed = seedById.get(part.id);
     if (!liveById.has(part.id) || !seed) continue;
     if (part.text !== seed.text) await posts.update(tx, part.id, { text: part.text });
-    await postEdges.setRefs(tx, part.id, part.assetRefs, seed.assetRefs); // writes only what changed
+    await posts.postEdges.setRefs(tx, part.id, part.assetRefs, seed.assetRefs); // writes only what changed
   }
 }
 
@@ -81,5 +86,5 @@ export async function removeThread(tx: SyncDb, rootId: string): Promise<void> {
 async function removePosts(tx: SyncDb, ids: string[]): Promise<void> {
   if (ids.length === 0) return;
   await posts.remove(tx, ids);
-  for (const id of ids) await postEdges.tombstoneParent(tx, id);
+  await posts.postEdges.tombstoneParents(tx, ids);
 }

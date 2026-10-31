@@ -33,10 +33,10 @@ const MAX_DISC_LABEL = 3;
  *   secondary — a grey disc over content: an `icon`, or a `label` of up to 3 characters (18+).
  *               `colorPalette="danger"` makes it a red disc.
  *   tertiary  — no fill (the default): an icon in a toolbar, or with a `label` a text link (an icon
- *               may lead it).
- *   overlay   — a small dark translucent disc with a white icon, over a picture (× on a photo
- *               tile): 28 pt, its touch target kept at 44 pt. `size="small"` draws a smaller icon in the same 44 pt target, or a
+ *               may lead it). `size="small"` draws a smaller icon in the same 44 pt target, or a
  *               tighter link for a header row.
+ *   overlay   — a small dark translucent disc with a white icon, over a picture (× on a photo
+ *               tile): 28 pt, its touch target kept at 44 pt. It ignores `size`.
  * `colorPalette` is what its color means: `neutral`, `muted`, `accent`, `danger` or `favorite`
  * (a heart); a text link is `accent` and an icon button `muted` unless told, wherever it sits. `isInverse` puts it on a
  * dark surface (the Undo bar). `isSelected` marks a toggle that is on (on a primary, the current tab, it only tells VoiceOver);
