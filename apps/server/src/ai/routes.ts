@@ -4,7 +4,7 @@ import {
   aiBalanceResponseSchema,
   aiModelKindSchema,
   aiModelsResponseSchema,
-  chatReplySchema,
+  chatResponseSchema,
   chatRequestSchema,
   compareVisionRequestSchema,
   compareVisionResponseSchema,
@@ -161,7 +161,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       method: 'POST',
       url: '/ai/chat',
       config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
-      schema: { body: chatRequestSchema, response: { 200: chatReplySchema } },
+      schema: { body: chatRequestSchema, response: { 200: chatResponseSchema } },
       handler: async (request, reply) => {
         const signal = untilClientLeaves(reply);
         return chatAsync({ db: getDb(), user: requireUser(request), request: request.body, signal });

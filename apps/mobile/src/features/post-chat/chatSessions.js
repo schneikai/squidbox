@@ -59,9 +59,9 @@ function wireTurns(messages) {
  * which `subscribe(listener)` tells. A message is the user's `{ id, role: 'user', label, content,
  * moreLikeThis }` (`label`: the prompt button's name, or null for a typed message; `moreLikeThis`:
  * More like this on the option `content`, which the server puts its instruction before) or a reply `{ id, role:
- * 'assistant', status: 'loading' | 'done' | 'error', reply, postOptions, error, errorStatus }`
- * (`reply`: what the assistant says; `postOptions`: the options for the post, when the user asked for
- * posts; `errorStatus`: the failed request's HTTP status, if any). `isSending` while a reply loads.
+ * 'assistant', status: 'loading' | 'done' | 'error', reply, postOptions, systemMessage, error,
+ * errorStatus }` (`reply`: what the assistant says; `postOptions`: the options for the post, when the
+ * user asked for posts; `systemMessage`: what the model was told, for an ai_admin, else null; `errorStatus`: the failed request's HTTP status, if any). `isSending` while a reply loads.
  * The editor's caption and assets (`getDraft()`) change with every keystroke, so they are read when
  * needed, not told. `tagEdits` (`{ added, removed }`) is what the chat card changed in the
  * post's tags (postTags): kept here only, while the editor is open, never on the photos.
@@ -108,8 +108,8 @@ function createSession(kind) {
     const at = messages.findIndex((message) => message.id === replyId);
     const body = { chatId, context, messages: wireTurns(messages.slice(0, at)) };
     try {
-      const { reply, postOptions } = await request(body, { signal });
-      if (!signal.aborted) replaceMessage(replyId, { status: 'done', reply, postOptions });
+      const { reply, postOptions, systemMessage = null } = await request(body, { signal });
+      if (!signal.aborted) replaceMessage(replyId, { status: 'done', reply, postOptions, systemMessage });
     } catch (error) {
       if (!signal.aborted) {
         replaceMessage(replyId, {

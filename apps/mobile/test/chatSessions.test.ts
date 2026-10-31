@@ -177,6 +177,19 @@ describe('chatSessions', () => {
     expect(session.getState().mentionEdits.added).toEqual([]);
   });
 
+  it('keeps the system message an ai_admin gets with a reply, and none without', async () => {
+    const { session } = open();
+    const { request, calls } = deferredRequest();
+    let sending = session.send({ content: 'First' }, context, request);
+    calls[0]!.resolve({ ...REPLY, systemMessage: 'You are a writing assistant.' });
+    await sending;
+    sending = session.send({ content: 'Second' }, context, request);
+    calls[1]!.resolve(REPLY);
+    await sending;
+    const replies = session.getState().messages.filter((message: any) => message.role === 'assistant');
+    expect(replies.map((reply: any) => reply.systemMessage)).toEqual(['You are a writing assistant.', null]);
+  });
+
   it('sends one chatId all chat long, and a new one after New chat', async () => {
     const { session } = open();
     const { request, calls } = deferredRequest();

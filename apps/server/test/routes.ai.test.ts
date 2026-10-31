@@ -597,7 +597,7 @@ describe('POST /api/v1/ai/chat', () => {
       ],
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual(CHAT_REPLY);
+    expect(res.json()).toMatchObject(CHAT_REPLY);
     expect(readChosenModelId).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ id: 'u1' }), 'writing');
     const [body, ...others] = chatBodies();
     expect(others).toHaveLength(0);
@@ -633,6 +633,15 @@ describe('POST /api/v1/ai/chat', () => {
     expect(body.messages.at(-1)).toEqual({ role: 'user', content: 'Again, please.\n\nb' });
   });
 
+  it('answers an ai_admin with the system message the model was told, and no one else', async () => {
+    veniceAnswers();
+    const admin = (await call('POST', '/ai/chat', chatRequest)).json();
+    expect(admin.systemMessage).toMatch(/^You are a writing assistant/);
+    expect(admin.systemMessage).toBe(chatBodies()[0].messages[0].content);
+    signedInWith(['ai']);
+    expect((await call('POST', '/ai/chat', chatRequest)).json()).not.toHaveProperty('systemMessage');
+  });
+
   it("briefs the chat with the user's posts its chatId picks", async () => {
     veniceAnswers();
     vi.mocked(readSamplePosts).mockResolvedValueOnce(['First light on the ridge.']);
@@ -644,7 +653,7 @@ describe('POST /api/v1/ai/chat', () => {
   it('returns a reply without options as it is', async () => {
     veniceAnswers({ chatReply: { reply: 'Sounds like a good trip.', postOptions: [] } });
     const res = await call('POST', '/ai/chat', chatRequest);
-    expect(res.json()).toEqual({ reply: 'Sounds like a good trip.', postOptions: [] });
+    expect(res.json()).toMatchObject({ reply: 'Sounds like a good trip.', postOptions: [] });
   });
 
   it("runs the chat on each model's own defaults: no reasoning or effort settings", async () => {

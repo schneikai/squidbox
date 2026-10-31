@@ -339,6 +339,11 @@ export const chatReplySchema = chatReplyFieldsSchema.extend({
 });
 export type ChatReply = z.infer<typeof chatReplySchema>;
 
+// What POST /ai/chat answers: the reply, and for an ai_admin account the system message the model
+// was told (`systemMessage`), to check the filled briefing.
+export const chatResponseSchema = chatReplySchema.extend({ systemMessage: z.string().optional() });
+export type ChatResponse = z.infer<typeof chatResponseSchema>;
+
 // The transcript so far: the user's turns and the assistant's replies, oldest first, ending with the
 // user's new turn. A user turn with `moreLikeThis` is More like this on an option (`content`): the
 // server puts the user's More like this instruction before it.
