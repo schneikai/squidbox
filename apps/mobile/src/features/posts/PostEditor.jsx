@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import PostCard from './PostCard';
@@ -26,6 +26,8 @@ export default function PostEditor({ kind, post, navigation, onSave }) {
   const [postedAt, setPostedAt] = useState(post.postedAt);
   const [activeKey, setActiveKey] = useState(cards[0].key);
 
+  const seed = useMemo(() => postData({ cards: seedCards(post), postedAt: post.postedAt }), [post]);
+
   const updateCard = useCallback((key, changes) => {
     setCards((current) => current.map((card) => (card.key === key ? { ...card, ...changes } : card)));
     setActiveKey(key);
@@ -33,7 +35,7 @@ export default function PostEditor({ kind, post, navigation, onSave }) {
 
   // The posts store syncs by itself.
   const { sheetProps } = useEditSheet({
-    ...draftSheetOptions(kind, post, { cards, postedAt }, onSave),
+    ...draftSheetOptions(kind, seed, { cards, postedAt }, onSave),
     syncsItself: true,
   });
 
@@ -44,8 +46,7 @@ export default function PostEditor({ kind, post, navigation, onSave }) {
   }
 
   async function removeCard(key) {
-    const card = cards.find((c) => c.key === key);
-    if (card && hasCardContent(card)) {
+    if (hasCardContent(cards.find((c) => c.key === key))) {
       const isConfirmed = await confirmAsync({
         title: 'Remove this post?',
         message: 'Its text and photos go with it.',
@@ -67,10 +68,11 @@ export default function PostEditor({ kind, post, navigation, onSave }) {
             <PostCard
               kind={kind}
               card={card}
+              isFirst={index === 0}
               isActive={card.key === activeKey}
-              isRinged={cards.length > 1 && card.key === activeKey}
-              postedAt={index === 0 ? postedAt : undefined}
-              onChangePostedAt={index === 0 ? setPostedAt : undefined}
+              isThread={cards.length > 1}
+              postedAt={postedAt}
+              onChangePostedAt={setPostedAt}
               onChange={updateCard}
               onActivate={setActiveKey}
               onRemove={index > 0 ? removeCard : undefined}
@@ -87,13 +89,12 @@ export default function PostEditor({ kind, post, navigation, onSave }) {
 // The editor's cards from the post it edits: the first post's, then one per following post.
 function seedCards(post) {
   const first = { id: null, text: post.text, postAssets: post.postAssets };
-  const following = (post.threadPosts ?? []).map(({ id, text, postAssets }) => ({ id, text, postAssets }));
+  const following = post.threadPosts.map(({ id, text, postAssets }) => ({ id, text, postAssets }));
   return [first, ...following];
 }
 
-// What useEditSheet needs to know about the draft `current` of `post`.
-function draftSheetOptions(kind, post, current, onSave) {
-  const seed = postData({ cards: seedCards(post), postedAt: post.postedAt });
+// What useEditSheet needs to know about the draft `current` of the post seeded as `seed` (postData).
+function draftSheetOptions(kind, seed, current, onSave) {
   const data = postData(current);
   return {
     isNew: kind === 'draft',
@@ -105,16 +106,13 @@ function draftSheetOptions(kind, post, current, onSave) {
 
 // The post as the posts store takes it.
 function postData({ cards: [first, ...following], postedAt }) {
-  return {
-    text: first.text,
-    assetRefs: postAssetsToAssetRefs(first.postAssets),
-    postedAt,
-    threadPosts: following.map(({ id, text, postAssets }) => ({
-      id,
-      text,
-      assetRefs: postAssetsToAssetRefs(postAssets),
-    })),
-  };
+  const { text, assetRefs } = partData(first);
+  return { text, assetRefs, postedAt, threadPosts: following.map(partData) };
+}
+
+// One card as the posts store takes a post of the thread.
+function partData({ id, text, postAssets }) {
+  return { id, text, assetRefs: postAssetsToAssetRefs(postAssets) };
 }
 
 // A post needs text or at least one photo.

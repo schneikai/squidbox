@@ -9,9 +9,6 @@ import listTextStyles from '@/styles/listTextStyles';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
-const TILE = { width: scale(120), height: scale(160) };
-const TILE_GAP = scale(8);
-
 // The post's assets ([{ id, asset }]) as a strip of tiles under its text, nothing until it has one:
 // hold one to reorder, × to take it out. `onChange` gets the new list.
 export default function PostAssetsEditor({ postAssets, onChange }) {
@@ -47,7 +44,7 @@ export default function PostAssetsEditor({ postAssets, onChange }) {
             onDelete={deletePostAsset}
             onLongPress={drag}
             isActive={isActive}
-            itemDimension={TILE}
+            style={styles.tile}
           />
         )}
       />
@@ -61,6 +58,10 @@ const styles = StyleSheet.create({
     gap: scale(8),
   },
   strip: {
-    gap: TILE_GAP,
+    gap: scale(8),
+  },
+  tile: {
+    width: scale(120),
+    height: scale(160),
   },
 });

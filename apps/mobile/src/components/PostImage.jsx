@@ -6,7 +6,7 @@ import ThumbnailBadge from '@/components/ThumbnailBadge';
 import { radii, scale } from '@/styles/designTokens';
 
 const IMAGE_ELEMENT_HEIGHT = scale(240);
-const GAP = 4;
+const GAP = scale(4);
 
 // A post's pictures as rounded tiles: one or two side by side, three as one and a column of two,
 // four or more as a 2×2 grid with "+N" for the rest. With `onPressAsset(asset)` each tile opens its
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
   },
   moreImages: {
     position: 'absolute',
-    bottom: 10,
-    right: 10,
+    bottom: scale(10),
+    right: scale(10),
   },
 });

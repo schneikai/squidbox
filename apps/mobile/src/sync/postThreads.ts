@@ -3,15 +3,13 @@ import { and, asc, isNull } from 'drizzle-orm';
 
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
-import { makeEdgeRepository } from './edgesRepository';
 import { inJson } from './inJson';
 import * as posts from './postsRepository';
+import { postEdges } from './postsRepository';
 
 // A post's thread (sync-design §10): its following posts are posts of their own, linked to the first
 // post by `threadRootId` and ordered by `(threadIndex, id)`. Every function writes inside the caller's
 // transaction, so a user action commits the first post and its following posts at once.
-
-export const postEdges = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
 
 type AssetRef = { id: string; assetId: string };
 /** One following post as the editor emits it: `id` null for a new one. */
@@ -41,6 +39,7 @@ export async function saveThreadPosts(
   seedParts: ThreadPart[],
   { postedAt, newPart }: { postedAt: number | null; newPart: (fields: NewPart) => PostRecord },
 ): Promise<void> {
+  if (parts.length === 0 && seedParts.length === 0) return;
   const live = await readThreadPosts(tx, [rootId]);
   const liveById = new Map(live.map((post) => [post.id, post]));
   const listed = new Set(parts.map((part) => part.id));
@@ -63,9 +62,7 @@ export async function saveThreadPosts(
     const seed = seedById.get(part.id);
     if (!liveById.has(part.id) || !seed) continue;
     if (part.text !== seed.text) await posts.update(tx, part.id, { text: part.text });
-    if (JSON.stringify(part.assetRefs) !== JSON.stringify(seed.assetRefs)) {
-      await postEdges.setRefs(tx, part.id, part.assetRefs, seed.assetRefs);
-    }
+    await postEdges.setRefs(tx, part.id, part.assetRefs, seed.assetRefs); // writes only what changed
   }
 }
 

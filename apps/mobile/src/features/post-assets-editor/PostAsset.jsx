@@ -8,7 +8,8 @@ import { press, radii, scale } from '@/styles/designTokens';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
 // One tile of the post editor's media strip: × in its top right corner, a video's length at the bottom.
-export default function PostAsset({ postAsset, onDelete, onLongPress, isActive, itemDimension }) {
+// style is for layout only (its size).
+export default function PostAsset({ postAsset, onDelete, onLongPress, isActive, style }) {
   const asset = postAsset.asset;
 
   return (
@@ -16,17 +17,15 @@ export default function PostAsset({ postAsset, onDelete, onLongPress, isActive, 
       <Pressable
         onLongPress={onLongPress}
         disabled={isActive}
-        style={({ pressed }) => [styles.tile, itemDimension, pressed && press.flat]}
+        style={({ pressed }) => [styles.tile, style, pressed && press.flat]}
       >
         <AssetImage asset={asset} />
         {!!asset.duration && (
           <ThumbnailBadge label={formatVideoDuration(asset.duration)} style={styles.videoDuration} />
         )}
         <Button
-          variant="secondary"
-          colorPalette="danger"
+          variant="overlay"
           icon="close"
-          size="small"
           onPress={() => onDelete(postAsset)}
           accessibilityLabel="Remove from post"
           style={styles.deleteButton}
@@ -43,8 +42,8 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     position: 'absolute',
-    top: scale(2),
-    right: scale(2),
+    top: scale(6),
+    right: scale(6),
   },
   videoDuration: {
     position: 'absolute',

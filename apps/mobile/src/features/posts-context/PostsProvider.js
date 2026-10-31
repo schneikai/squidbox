@@ -4,8 +4,9 @@ import { useMemo } from 'react';
 import PostsContext from './PostsContext';
 
 import { getDb } from '@/sync/db/client';
-import { postEdges as edges, removeThread, saveThreadPosts, setThreadPostedAt } from '@/sync/postThreads';
+import { removeThread, saveThreadPosts, setThreadPostedAt } from '@/sync/postThreads';
 import * as repo from '@/sync/postsRepository';
+import { postEdges as edges } from '@/sync/postsRepository';
 import { requestSync } from '@/sync/worker';
 import newRecord from '@/utils/newRecord';
 
@@ -35,9 +36,10 @@ export default function PostsProvider({ children }) {
         await db.transaction(async (tx) => {
           if (assetRefs !== undefined) await edges.setRefs(tx, id, assetRefs ?? [], seed?.assetRefs ?? []);
           await repo.update(tx, id, changes);
-          if (changes.postedAt !== undefined) await setThreadPostedAt(tx, id, changes.postedAt);
+          const isPostedAtChanged = changes.postedAt !== undefined;
+          if (isPostedAtChanged) await setThreadPostedAt(tx, id, changes.postedAt);
           if (threadPosts !== undefined) {
-            const postedAt = changes.postedAt !== undefined ? changes.postedAt : (seed?.postedAt ?? null);
+            const postedAt = isPostedAtChanged ? changes.postedAt : (seed?.postedAt ?? null);
             await saveThreadPosts(tx, id, threadPosts, seed?.threadPosts ?? [], threadOptions(postedAt));
           }
         });

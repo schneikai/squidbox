@@ -1,37 +1,31 @@
 import { useNavigation } from '@react-navigation/native';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import ThreadPost from './ThreadPost';
 
-import Button from '@/components/Button';
-import Card from '@/components/Card';
+import CopyTextButton from '@/components/CopyTextButton';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import ThreadConnector from '@/components/ThreadConnector';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
 import WriteWithAi from '@/features/post-chat/WriteWithAi';
-import useCopyText from '@/features/post-chat/useCopyText';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
-import PostImage from '@/features/post-list/PostImage';
 import PostRows from '@/features/post-list/PostRows';
-import PostPostedAt from '@/features/posts/PostPostedAt';
-import { colors, layout, lineHeights, scale, typography } from '@/styles/designTokens';
-import isPresent from '@/utils/isPresent';
+import PostView from '@/features/posts/PostView';
+import { layout } from '@/styles/designTokens';
 
 const OTHER_POSTS_LIMIT = 30;
 
 /**
- * A post and its thread: the post's card (its pictures, text, when it was posted and Copy), then each
- * following post's card joined by a short line, then Write with AI about the post, the albums of the
- * thread's pictures and the other posts from the post's albums. `post` is a postQuery row read by id
- * (with its `threadPosts`).
+ * A post and its thread: the post's card (PostView, with Copy), then each following post's card
+ * joined by a short line, then Write with AI about the post, the albums of the thread's pictures and
+ * the other posts from the thread's albums. `post` is a postQuery row read by id (with its
+ * `threadPosts`).
  */
 export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom = 0 }) {
   const navigation = useNavigation();
-  const copy = useCopyText();
   const sessionId = useSubjectChat({ kind: 'post', text: post.text, postAssets: post.postAssets });
 
-  const threadPosts = post.threadPosts ?? [];
-  const assetIds = [post, ...threadPosts].flatMap((p) => p.postAssets.map((postAsset) => postAsset.asset.id));
+  const assetIds = [post, ...post.threadPosts].flatMap((p) => p.postAssets.map((postAsset) => postAsset.asset.id));
 
   // Pushed, so back returns to the post. A picture opens with the others of its own post.
   function openAsset(postId, asset) {
@@ -42,33 +36,16 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
     <ScrollView
       contentContainerStyle={[styles.content, { paddingTop: contentPaddingTop, paddingBottom: contentPaddingBottom }]}
     >
-      <Card style={styles.card}>
-        <PostImage
-          assets={post.postAssets.map((postAsset) => postAsset.asset)}
-          onPressAsset={(asset) => openAsset(post.id, asset)}
-        />
-        <View style={styles.body}>
-          {isPresent(post.text) && <Text style={styles.text}>{post.text}</Text>}
-          <View style={styles.meta}>
-            <PostPostedAt postedAt={post.postedAt} />
-            {isPresent(post.text) && (
-              <Button
-                variant="tertiary"
-                size="small"
-                icon="copy"
-                label="Copy"
-                onPress={() => copy(post.text)}
-                style={styles.copy}
-              />
-            )}
-          </View>
-        </View>
-      </Card>
+      <PostView
+        post={post}
+        onPressAsset={(asset) => openAsset(post.id, asset)}
+        meta={<CopyTextButton text={post.text} style={styles.copy} />}
+      />
 
-      {threadPosts.map((part) => (
+      {post.threadPosts.map((part) => (
         <View key={part.id}>
           <ThreadConnector />
-          <ThreadPost post={part} onOpenAsset={(asset) => openAsset(part.id, asset)} onCopy={() => copy(part.text)} />
+          <ThreadPost post={part} onOpenAsset={(asset) => openAsset(part.id, asset)} />
         </View>
       ))}
 
@@ -88,25 +65,6 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: layout.sideGutter,
-  },
-  card: {
-    padding: scale(8),
-    gap: scale(14),
-  },
-  body: {
-    paddingHorizontal: scale(8),
-    paddingBottom: scale(4),
-    gap: scale(8),
-  },
-  text: {
-    fontSize: typography.callout,
-    lineHeight: lineHeights.reading,
-    color: colors.text.primary,
-  },
-  meta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: scale(16),
   },
   copy: {
     marginLeft: 'auto',

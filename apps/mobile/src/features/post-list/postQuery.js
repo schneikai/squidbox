@@ -15,7 +15,7 @@ import * as schema from '@/sync/db/schema';
 import { inJson } from '@/sync/inJson';
 import { matchingIds } from '@/sync/matchingIds';
 import { readThreadPosts } from '@/sync/postThreads';
-import { repostDate } from '@/sync/postsRepository';
+import { isListedPost, listedPostId, postsHoldingAssets, repostDate } from '@/sync/postsRepository';
 
 const p = alias(schema.posts, 'p');
 
@@ -49,22 +49,18 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
     if (scope === 'repostCandidates') return and(eq(p.isIgnoredForRepost, false), eq(p.hasBeenReposted, false));
     if (scope === 'ignored') return eq(p.isIgnoredForRepost, true);
     if (scope.postId) return eq(p.id, scope.postId);
-    if (scope.assetId) {
-      return sql`${p.id} in ${threadsOf(sql`select post_id from post_assets where asset_id = ${scope.assetId} and deleted_at is null`)}`;
-    }
+    if (scope.assetId) return sql`${p.id} in ${postsHoldingAssets(sql`asset_id = ${scope.assetId}`)}`;
     if (scope.albumId) {
-      return sql`${p.id} in ${threadsOf(sql`select post_id from post_assets where asset_id in ${liveAlbumAssetIds(scope.albumId)} and deleted_at is null`)}`;
+      return sql`${p.id} in ${postsHoldingAssets(sql`asset_id in ${liveAlbumAssetIds(scope.albumId)}`)}`;
     }
     if (scope.sharesAlbumWithPostId) {
       const postId = scope.sharesAlbumWithPostId;
-      return sql`${p.id} != ${postId} and ${p.id} in ${threadsOf(sql`select post_id from post_assets where asset_id in ${postAlbumAssetIds(postId)} and deleted_at is null`)}`;
+      return sql`${p.id} != ${postId} and ${p.id} in ${postsHoldingAssets(sql`asset_id in ${postAlbumAssetIds(postId)}`)}`;
     }
     return undefined;
   })();
-  // A thread is listed as its first post, unless that is deleted (an older build deletes it alone).
-  const threadCondition = scope.postId
-    ? undefined
-    : sql`(${p.threadRootId} is null or not exists (select 1 from posts r where r.id = ${p.threadRootId} and r.deleted_at is null))`;
+  // The scopes above and the search pick listed posts already; the plain lists check each post.
+  const threadCondition = typeof scope === 'string' ? isListedPost('p') : undefined;
   const favorites = filter.includes('favorites') ? eq(p.isFavorite, true) : undefined;
   const order = (() => {
     if (sort === 'suggestRepostAt:asc') return [asc(repostDate(p)), asc(p.id)];
@@ -73,16 +69,14 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
   })();
 
   // The search runs over every live post's text, once per read for rows and count alike. A hit in a
-  // following post finds its thread's first post, while that is live.
+  // following post finds the post it is listed as (listedPostId).
   async function matchedIds(tx) {
     if (!searchText) return null;
     const rows = await tx
-      .select({ id: p.id, threadRootId: p.threadRootId, text: p.text })
+      .select({ id: listedPostId('p'), text: p.text })
       .from(p)
       .where(isNull(p.deletedAt));
-    const live = new Set(rows.map((row) => row.id));
-    const rootOf = new Map(rows.map((row) => [row.id, live.has(row.threadRootId) ? row.threadRootId : row.id]));
-    return [...new Set(matchingIds(rows, searchText).map((id) => rootOf.get(id)))];
+    return [...new Set(matchingIds(rows, searchText))];
   }
   const where = (ids) =>
     and(isNull(p.deletedAt), threadCondition, scopeCondition, favorites, ids ? inJson(p.id, ids) : undefined);
@@ -132,13 +126,6 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
       });
     },
   };
-}
-
-// The live first post of each post `postIds` selects: a following post's thread root, while that is
-// live, else the post itself.
-function threadsOf(postIds) {
-  return sql`(select coalesce(r.id, q.id) from posts q left join posts r on r.id = q.thread_root_id and r.deleted_at is null
-    where q.id in (${postIds}))`;
 }
 
 // A post's live following posts, counted over posts_thread_idx. `p.id` is spelled out: drizzle

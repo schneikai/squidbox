@@ -1,14 +1,17 @@
 import { StyleSheet, View } from 'react-native';
 
+import PostedAtPicker from './PostedAtPicker';
+
 import Button from '@/components/Button';
-import DateTimePicker from '@/components/DateTimePicker';
 import AddMediaMenu from '@/features/asset-picker/AddMediaMenu';
+import { scale } from '@/styles/designTokens';
 
 // The quiet row under a post editor card's text: the photo button (the Add media menu), the thread's
-// time (`postedAt`, on the first card only: with `onChangePostedAt`) and ⊕ Add to thread on the
-// trailing side (the last card only: with `onAddToThread`). `onActivate` runs on any of them, so the
-// card they're on becomes the one being edited.
+// Posted time on the first card (`isFirst`) and ⊕ Add to thread on the trailing side (with
+// `onAddToThread`, the last card). `onActivate` runs on any of them, so the card they're on becomes
+// the one being edited.
 export default function PostCardToolbar({
+  isFirst,
   exclude,
   onAddMedia,
   postedAt,
@@ -16,6 +19,11 @@ export default function PostCardToolbar({
   onAddToThread,
   onActivate,
 }) {
+  function handleAddMedia(toggle) {
+    onActivate();
+    toggle();
+  }
+
   function handleAddToThread() {
     onActivate();
     onAddToThread();
@@ -29,16 +37,13 @@ export default function PostCardToolbar({
             icon="image"
             colorPalette="accent"
             accessibilityLabel="Add photos"
-            onPress={() => {
-              onActivate();
-              toggle();
-            }}
+            onPress={() => handleAddMedia(toggle)}
           />
         )}
         exclude={exclude}
         onAdd={onAddMedia}
       />
-      {onChangePostedAt && <DateTimePicker timestamp={postedAt} onChange={onChangePostedAt} />}
+      {isFirst && <PostedAtPicker timestamp={postedAt} onChange={onChangePostedAt} />}
       {onAddToThread && (
         <Button
           icon="add-circle"
@@ -57,7 +62,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: -10,
+    marginHorizontal: -scale(12),
   },
   trailing: {
     marginLeft: 'auto',

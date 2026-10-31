@@ -11,6 +11,7 @@ import PostList from '@/features/post-list/PostList';
 import postQuery from '@/features/post-list/postQuery';
 import usePosts from '@/features/posts-context/usePosts';
 import useScrollY from '@/hooks/useScrollY';
+import { scale } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { readNewestRepostDate } from '@/sync/postsRepository';
 import { usePagedQuery } from '@/sync/usePagedQuery';
@@ -117,6 +118,6 @@ const styles = StyleSheet.create({
   menuContainer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 6,
+    gap: scale(6),
   },
 });

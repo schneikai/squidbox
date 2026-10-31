@@ -18,6 +18,10 @@ const INVERSE_PALETTE = {
 };
 // Two icons side by side, small enough to fit the disc apart.
 const PAIR_ICON_SIZE = scale(15);
+// An overlay disc's icon, small enough to sit in its 28 pt disc.
+const OVERLAY_ICON_SIZE = scale(14);
+// What an overlay disc's touch reaches past its edge, so its target is still 44 pt.
+const OVERLAY_HIT_SLOP = (sizes.iconButton - sizes.overlayButton) / 2;
 // A secondary's label stands in for an icon in the disc (18+), so it must stay that short.
 const MAX_DISC_LABEL = 3;
 
@@ -29,7 +33,9 @@ const MAX_DISC_LABEL = 3;
  *   secondary — a grey disc over content: an `icon`, or a `label` of up to 3 characters (18+).
  *               `colorPalette="danger"` makes it a red disc.
  *   tertiary  — no fill (the default): an icon in a toolbar, or with a `label` a text link (an icon
- *               may lead it). `size="small"` draws a smaller icon in the same 44 pt target, or a
+ *               may lead it).
+ *   overlay   — a small dark translucent disc with a white icon, over a picture (× on a photo
+ *               tile): 28 pt, its touch target kept at 44 pt. `size="small"` draws a smaller icon in the same 44 pt target, or a
  *               tighter link for a header row.
  * `colorPalette` is what its color means: `neutral`, `muted`, `accent`, `danger` or `favorite`
  * (a heart); a text link is `accent` and an icon button `muted` unless told, wherever it sits. `isInverse` puts it on a
@@ -63,13 +69,14 @@ export default function Button({
   if (__DEV__) warnOnce(combinationProblem({ variant, icon, label, isInverse, palette }));
 
   const color = contentColor({ variant, palette, isSelected, isInverse });
-  const iconSize = size === 'small' ? sizes.iconSmall : sizes.icon;
+  const iconSize = variant === 'overlay' ? OVERLAY_ICON_SIZE : size === 'small' ? sizes.iconSmall : sizes.icon;
+  const defaultHitSlop = shape === 'link' ? 8 : variant === 'overlay' ? OVERLAY_HIT_SLOP : 0;
 
   return (
     <Pressable
       onPress={onPress}
       disabled={isInactive}
-      hitSlop={hitSlop ?? (shape === 'link' ? 8 : 0)}
+      hitSlop={hitSlop ?? defaultHitSlop}
       accessibilityRole={isSwitch ? 'switch' : 'button'}
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={accessibilityHint}
@@ -79,6 +86,7 @@ export default function Button({
         shape === 'block' && styles[`block_${size}`],
         shape === 'link' && size === 'small' && styles.linkSmall,
         shape === 'disc' && discBackground({ variant, palette, isSelected, pressed: pressed && !isInactive }),
+        variant === 'overlay' && styles.overlayDisc,
         pressed && !isInactive && pressedStyle(shape, variant),
         isInactive && styles.disabled,
         style,
@@ -144,7 +152,7 @@ function Content({ icon, label, loading, color, iconSize, filled, iconCount, sha
 }
 
 function contentColor({ variant, palette, isSelected, isInverse }) {
-  if (variant === 'primary') return colors.text.inverse;
+  if (variant === 'primary' || variant === 'overlay') return colors.text.inverse;
   if (variant === 'secondary' && palette === 'danger') return colors.text.inverse;
   if (isSelected) return palette === 'favorite' ? colors.status.danger : colors.accent.base;
   if (isInverse) return INVERSE_PALETTE[palette];
@@ -153,6 +161,7 @@ function contentColor({ variant, palette, isSelected, isInverse }) {
 
 function discBackground({ variant, palette, isSelected, pressed }) {
   if (variant === 'primary') return null;
+  if (variant === 'overlay') return styles.overlayFill;
   if (variant === 'secondary' && palette === 'danger') return styles.dangerFill;
   if (isSelected && palette !== 'favorite') return styles.selectedFill;
   if (variant === 'secondary') return styles.mutedFill;
@@ -171,6 +180,7 @@ function pressedStyle(shape, variant) {
 function combinationProblem({ variant, icon, label, isInverse, palette }) {
   if (!icon && !label) return 'Button: needs an icon or a label';
   if (variant === 'secondary' && icon && label) return 'Button: a secondary shows an icon or a label, not both';
+  if (variant === 'overlay' && (label || !icon)) return 'Button: an overlay shows an icon only';
   if (variant === 'secondary' && label?.length > MAX_DISC_LABEL) {
     return `Button: "${label}" is too long for a secondary's disc; use a Chip`;
   }
@@ -202,6 +212,13 @@ const styles = StyleSheet.create({
   },
   mutedFill: {
     backgroundColor: colors.overlay.pressed,
+  },
+  overlayDisc: {
+    width: sizes.overlayButton,
+    height: sizes.overlayButton,
+  },
+  overlayFill: {
+    backgroundColor: colors.overlay.dim,
   },
   selectedFill: {
     backgroundColor: colors.accent.light,

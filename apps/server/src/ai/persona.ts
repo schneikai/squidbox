@@ -24,7 +24,8 @@ export async function readPersona(db: Db, userId: string): Promise<Persona> {
 export const POSTS_IN_PROMPT = 100;
 
 /**
- * The texts of `limit` of the user's posted posts (live, posted, not a repost, with text), picked at
+ * The texts of `limit` of the user's posted posts (live, posted, not a repost, not a following post of
+ * a live thread, with text), picked at
  * random by `seed`: the same seed picks the same posts in the same order, so a chat keeps its posts
  * from turn to turn.
  */
@@ -43,7 +44,8 @@ export async function readSamplePosts(
         isNull(posts.deletedAt),
         isNotNull(posts.postedAt),
         isNull(posts.rePostId),
-        isNull(posts.threadRootId),
+        // A thread is its first post; a following post whose first post is deleted counts on its own.
+        sql`not exists (select 1 from ${posts} r where r.user_id = ${posts.userId} and r.id = ${posts.threadRootId} and r.deleted_at is null)`,
         sql`trim(${posts.text}) <> ''`,
       ),
     )

@@ -292,6 +292,15 @@ describe('postQuery: threads', () => {
     expect(await ids({ scope: { sharesAlbumWithPostId: 't1' } })).toEqual(['t2-1', 'p3']);
   });
 
+  it('lists as Other Posts the posts sharing an album with any post of the thread', async () => {
+    await repo.createMany(db, [makeAssetRecord({ id: 'a1' }), makeAssetRecord({ id: 'a2' })]);
+    await albums.createMany(db, [makeAlbumRecord({ id: 'B' })]);
+    await albumEdges.add(db, 'B', ['a1', 'a2'], newId);
+    await thread('t1', [{ id: 't1-1', assetIds: ['a1'] }]);
+    await createPost('p2', {}, ['a2']);
+    expect(await ids({ scope: { sharesAlbumWithPostId: 't1' } })).toEqual(['p2']);
+  });
+
   it('finds a thread by a search hit in a following post, once', async () => {
     await thread(
       't1',
