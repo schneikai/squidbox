@@ -149,6 +149,13 @@ the post editor is open. Decide whether they go to the photos or are saved on th
 repost could then reuse for a new caption. A post can mix subjects (a selfie and a landscape), so
 writing one tag to every photo is wrong.
 
+### [ ] Tag each photo once at upload, on the server
+
+Wanted by the owner. Photos are tagged on the phone when a chat opens or from the photo's details
+(`features/photo-tags/tagAssetOnce.js`, `useAssetTags.js`), so "It sees" waits on a vision call the
+first time. Tagging every photo once on the server after its upload would make it instant and work
+for photos added on another device.
+
 ### [ ] Fill in Writing as you from your posts
 
 Bring back "Fill it in for me" as an agent chat session that drafts About you, Tone, Your content and
