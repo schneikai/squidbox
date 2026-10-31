@@ -19,7 +19,7 @@ import popupMenuStyles from '@/styles/popupMenuStyles';
  *     <MenuOption label="..." icon="..." onPress={...} />
  *   </MenuButton>
  *
- * style is for layout only, on the trigger's wrapper.
+ * style is for layout only, on the menu's outer view (so `marginLeft: 'auto'` and flex work in a row).
  */
 export default function MenuButton({
   trigger,
@@ -41,8 +41,8 @@ export default function MenuButton({
   }
 
   return (
-    <Menu ref={menuRef} onOpen={() => setIsOpen(true)} onClose={() => setIsOpen(false)}>
-      <MenuTrigger disabled customStyles={{ triggerWrapper: style }}>
+    <Menu ref={menuRef} onOpen={() => setIsOpen(true)} onClose={() => setIsOpen(false)} style={style}>
+      <MenuTrigger disabled>
         {trigger ? (
           trigger({ toggle, isOpen })
         ) : (

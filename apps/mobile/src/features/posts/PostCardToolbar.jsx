@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(20),
+    gap: scale(12),
   },
   trailing: {
     marginLeft: 'auto',
