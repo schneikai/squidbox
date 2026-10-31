@@ -130,6 +130,7 @@ export default function ModelListScreen({ navigation, route }) {
       <FloatingPrimaryAction>
         <Button
           variant="primary"
+          size="large"
           icon="thumbs-up"
           label="Compare"
           onPress={() => navigation.navigate('ModelCompareModal', { kind })}

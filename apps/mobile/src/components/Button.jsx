@@ -33,15 +33,17 @@ const MAX_DISC_LABEL = 3;
 
 /**
  * Every button in the app. `variant` is how much it stands out:
- *   primary   — the violet gradient: a screen's main action with a `label` (50 pt tall at `size`
- *               regular, a 28 pt pill at small with a 44 pt target, as Repost), or an icon-only circle
- *               (at most one per toolbar).
+ *   primary   — the violet gradient: an action with a `label`, or an icon-only circle (at most one
+ *               per toolbar). A labeled one is sized by where it sits: `size="large"` (50 pt) for the
+ *               one main action floating at the bottom of a screen or form, regular (a 44 pt pill, as
+ *               tall as the discs beside it) in a header or toolbar (Add, Save), `size="small"` (a
+ *               28 pt pill with a 44 pt target) inside a card (Repost).
  *   secondary — a grey disc over content: an `icon`, or a `label` of up to 3 characters (18+).
  *               `colorPalette="danger"` makes it a red disc. A longer `label` makes it a grey pill
  *               beside a primary's (Later beside Repost), sized like it.
  *   tertiary  — no fill (the default): an icon in a toolbar, or with a `label` a text link (an icon
  *               may lead it). `size="small"` draws a smaller icon in the same 44 pt target, or a
- *               tighter link for a header row.
+ *               tighter link for a section header or a card. Discs and links have no large size.
  *   overlay   — a small dark translucent disc with a white icon, over a picture (× on a photo
  *               tile): 28 pt, its touch target kept at 44 pt. It ignores `size`.
  * `colorPalette` is what its color means: `neutral`, `muted`, `accent`, `danger` or `favorite`
@@ -107,11 +109,11 @@ export default function Button({
       ]}
     >
       {shape === 'block' && variant === 'primary' ? (
-        <GradientFill style={[styles.blockFill, size === 'small' && styles.blockFillSmall]}>
+        <GradientFill style={[styles.blockFill, styles[`blockFill_${size}`]]}>
           <Content {...{ icon, label, loading, color, iconSize, filled, iconCount, shape, size, palette }} />
         </GradientFill>
       ) : shape === 'block' ? (
-        <View style={[styles.blockFill, size === 'small' && styles.blockFillSmall, styles.mutedFill]}>
+        <View style={[styles.blockFill, styles[`blockFill_${size}`], styles.mutedFill]}>
           <Content {...{ icon, label, loading, color, iconSize, filled, iconCount, shape, size, palette }} />
         </View>
       ) : variant === 'primary' ? (
@@ -159,8 +161,8 @@ function Content({ icon, label, loading, color, iconSize, filled, iconCount, sha
         : icon && <Icon name={icon} size={shape === 'link' || isSmall ? linkIconSize : iconSize} color={color} />}
       <Text
         style={[
-          shape === 'link' ? styles.linkLabel : styles.blockLabel,
-          isSmall && (shape === 'link' ? styles.linkLabelSmall : styles.blockLabelSmall),
+          shape === 'link' ? styles.linkLabel : [styles.blockLabel, styles[`blockLabel_${size}`]],
+          isSmall && shape === 'link' && styles.linkLabelSmall,
           shape === 'link' && palette === 'muted' && styles.linkLabelMuted,
           { color },
         ]}
@@ -260,9 +262,13 @@ const styles = StyleSheet.create({
   block: {
     overflow: 'hidden',
   },
-  block_regular: {
+  block_large: {
     height: sizes.primaryButton,
     borderRadius: radii.card,
+  },
+  block_regular: {
+    height: sizes.iconButton,
+    borderRadius: radii.pill,
   },
   block_small: {
     height: sizes.smallButton,
@@ -273,18 +279,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  blockFill_large: {
     gap: scale(8),
     paddingHorizontal: scale(20),
   },
-  blockFillSmall: {
+  blockFill_regular: {
+    gap: scale(6),
+    paddingHorizontal: scale(16),
+  },
+  blockFill_small: {
     gap: scale(4),
     paddingHorizontal: scale(10),
   },
   blockLabel: {
-    fontSize: typography.callout,
     fontWeight: '600',
   },
-  blockLabelSmall: {
+  blockLabel_large: {
+    fontSize: typography.callout,
+  },
+  blockLabel_regular: {
+    fontSize: typography.subheadline,
+  },
+  blockLabel_small: {
     fontSize: typography.footnote,
   },
   link: {

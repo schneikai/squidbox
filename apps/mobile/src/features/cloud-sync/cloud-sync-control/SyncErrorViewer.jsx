@@ -61,7 +61,7 @@ export default function SyncErrorViewer({ query, onRetryAll, close }) {
         />
 
         <View style={styles.footer}>
-          <Button variant="primary" label="Retry All" onPress={handleRetry} />
+          <Button variant="primary" size="large" label="Retry All" onPress={handleRetry} />
         </View>
       </ModalSheet>
     </Modal>

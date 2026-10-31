@@ -62,7 +62,14 @@ export default function LoginForm({ ownerEmail }) {
         />
       </Section>
 
-      <Button variant="primary" label="Sign In" onPress={handleSubmit} loading={isPending} style={styles.submit} />
+      <Button
+        variant="primary"
+        size="large"
+        label="Sign In"
+        onPress={handleSubmit}
+        loading={isPending}
+        style={styles.submit}
+      />
 
       {isOwnerEmail && <Button label="Sign in as someone else" onPress={handleSomeoneElse} />}
     </>

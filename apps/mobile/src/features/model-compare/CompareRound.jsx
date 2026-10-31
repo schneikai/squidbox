@@ -140,6 +140,7 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
       <FloatingPrimaryAction>
         <Button
           variant="primary"
+          size="large"
           icon={hasStarted ? 'repeat' : 'play'}
           label={!hasStarted ? 'Start' : isVision ? 'New tags' : 'New suggestions'}
           onPress={handleStartRound}

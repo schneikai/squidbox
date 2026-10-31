@@ -51,7 +51,6 @@ export default function EditSheet({
       trailing={
         <Button
           variant="primary"
-          size="small"
           label={confirmLabel}
           onPress={onConfirm}
           disabled={!canConfirm || isSaving}

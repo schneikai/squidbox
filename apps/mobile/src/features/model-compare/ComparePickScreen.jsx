@@ -120,6 +120,7 @@ export default function ComparePickScreen({ navigation, route }) {
       <FloatingPrimaryAction>
         <Button
           variant="primary"
+          size="large"
           label={`Start with ${pluralizeText('%{count} model', '%{count} models', modelCount)}`}
           onPress={handleStart}
           disabled={!canStart}

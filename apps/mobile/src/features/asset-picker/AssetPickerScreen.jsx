@@ -87,7 +87,6 @@ export default function AssetPickerScreen({ route, navigation }) {
         trailing={
           <Button
             variant="primary"
-            size="small"
             label={selectedCount ? `Add ${selectedCount}` : 'Add'}
             onPress={handleAdd}
             disabled={!selectedCount || isAdding}
