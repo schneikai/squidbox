@@ -327,6 +327,17 @@ describe('plan guard', () => {
     expect(work.plans).toContain('SEARCH a USING INDEX sqlite_autoindex_assets_1 (id=?)');
   });
 
+  it("reads a thread's first posts by a primary-key probe of the first post, their count over the thread index", async () => {
+    const { measure, db } = await library();
+    const work = await measure(() => postQuery({ scope: 'all' }).read(db, { limit: 20 }));
+    expect(work.plans).toContain('CORRELATED SCALAR SUBQUERY 1');
+    expect(work.plans).toContain('SEARCH r USING INDEX sqlite_autoindex_posts_1 (id=?)');
+    expect(work.plans).toContain('SEARCH c USING INDEX posts_thread_idx (thread_root_id=?)');
+    const post = await measure(() => postQuery({ scope: { postId: 'post-1' } }).read(db, { withCount: false }));
+    expect(unindexedScans(post)).toEqual([]);
+    expect(post.plans).toContain('SEARCH posts USING INDEX posts_thread_idx (thread_root_id=?)');
+  });
+
   it("reads each post's first asset in one windowed pass over the edges, through their indexes", async () => {
     const { measure, db } = await library();
     const work = await measure(() => postQuery({ scope: 'all' }).read(db, { limit: 20, firstAssetOnly: true }));

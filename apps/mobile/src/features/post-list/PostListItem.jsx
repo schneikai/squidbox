@@ -1,66 +1,80 @@
 import { View, StyleSheet, Text } from 'react-native';
 
-import PostImage from './PostImage';
-
+import Card from '@/components/Card';
 import Icon from '@/components/Icon';
-import { SCREEN_PADDING } from '@/constants';
-import PostPostedAt from '@/features/posts/PostPostedAt';
-import { colors, lineHeights, sizes, typography } from '@/styles/designTokens';
-import isPresent from '@/utils/isPresent';
+import PostView from '@/features/posts/PostView';
+import { colors, scale, sizes } from '@/styles/designTokens';
+import listTextStyles from '@/styles/listTextStyles';
 
-// `post` is a postQuery row: it carries its `postAssets` ([{ id, asset }]).
-export default function PostListItem({ post }) {
-  const { text, postAssets, isFavorite, postedAt } = post;
+// How far a thread's stacked edges show below its card, and how far in each sits.
+const STACK_STEP = scale(7);
+const STACK_INSET = scale(12);
+
+/**
+ * A post in the posts list, as a card (PostView) with "N posts" for a thread and its heart, and
+ * `actions` (buttons for this post, e.g. a Repost suggestion's) under them. A thread (a post with
+ * following posts) sits on two card edges peeking out below, a stack; its following posts aren't
+ * shown. `post` is a postQuery row: it carries its `postAssets` and `threadCount`.
+ */
+export default function PostListItem({ post, actions }) {
+  const { isFavorite, threadCount } = post;
+  const isThread = threadCount > 0;
 
   return (
-    <View style={styles.container}>
-      {isPresent(postAssets) && <PostImage assets={postAssets.map((postAsset) => postAsset.asset)} />}
-
-      {isPresent(text) && <Text style={styles.postText}>{text}</Text>}
-
-      <View style={styles.postInfos}>
-        <PostPostedAt postedAt={postedAt} />
-      </View>
-
-      <View style={styles.indicators}>
-        <FavoritePostIndicator isFavorite={isFavorite} />
-      </View>
+    <View style={isThread && styles.stacked}>
+      {isThread && (
+        <>
+          <Card style={[styles.edge, styles.edgeBack]} />
+          <Card style={[styles.edge, styles.edgeFront]} />
+        </>
+      )}
+      <PostView
+        post={post}
+        meta={
+          <>
+            {isThread && (
+              <View style={styles.threadMark}>
+                <Icon name="thread" size={sizes.captionIcon} color={colors.accent.base} />
+                <Text style={listTextStyles.captionAccent}>{`${1 + threadCount} posts`}</Text>
+              </View>
+            )}
+            {isFavorite && (
+              <Icon name="heart" filled size={sizes.captionIcon} color={colors.status.danger} style={styles.heart} />
+            )}
+          </>
+        }
+      >
+        {actions}
+      </PostView>
     </View>
   );
 }
 
-function FavoritePostIndicator({ isFavorite }) {
-  if (!isFavorite) return;
-
-  return <Icon name="heart" filled size={sizes.icon} color={colors.text.inverse} />;
-}
-
 const styles = StyleSheet.create({
-  // Nothing above the post, so the list's top padding alone sets where the first one starts; the
-  // room between posts is all below each.
-  container: {
-    flex: 1,
-    paddingHorizontal: SCREEN_PADDING,
-    paddingBottom: SCREEN_PADDING * 2,
+  stacked: {
+    paddingBottom: STACK_STEP * 2,
   },
-  postText: {
-    fontSize: typography.subheadline,
-    marginTop: 10,
-    lineHeight: lineHeights.subheadline,
-  },
-
-  postInfos: {
-    marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  indicators: {
+  // The card edges a thread's card sits on: the bottoms of two cards behind it, each further in.
+  edge: {
     position: 'absolute',
-    top: 25 - SCREEN_PADDING,
-    left: 25,
+    height: scale(40),
+  },
+  edgeFront: {
+    left: STACK_INSET,
+    right: STACK_INSET,
+    bottom: STACK_STEP,
+  },
+  edgeBack: {
+    left: STACK_INSET * 2,
+    right: STACK_INSET * 2,
+    bottom: 0,
+  },
+  threadMark: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: scale(4),
+  },
+  heart: {
+    marginLeft: 'auto',
   },
 });

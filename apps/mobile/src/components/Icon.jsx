@@ -40,6 +40,7 @@ import {
   CircleArrowUp,
   CircleCheck,
   CircleOff,
+  CirclePlus,
   CircleX,
   Clock,
   CloudCheck,
@@ -79,7 +80,6 @@ import {
   MessagesSquare,
   MountainSnow,
   Pause,
-  Pencil,
   PenLine,
   Play,
   Plus,
@@ -112,6 +112,7 @@ import { sizes } from '@/styles/designTokens';
 
 const ICON_MAP = {
   add: Plus,
+  'add-circle': CirclePlus,
   alert: CircleAlert,
   apps: LayoutGrid,
   archive: Archive,
@@ -168,7 +169,6 @@ const ICON_MAP = {
   mountain: MountainSnow,
   options: SlidersHorizontal,
   pause: Pause,
-  pencil: Pencil,
   play: Play,
   poll: Vote,
   printer: Printer,

@@ -28,6 +28,7 @@ export { default as CircleAlert } from 'lucide-react-native/dist/cjs/icons/circl
 export { default as CircleArrowUp } from 'lucide-react-native/dist/cjs/icons/circle-arrow-up';
 export { default as CircleCheck } from 'lucide-react-native/dist/cjs/icons/circle-check';
 export { default as CircleOff } from 'lucide-react-native/dist/cjs/icons/circle-off';
+export { default as CirclePlus } from 'lucide-react-native/dist/cjs/icons/circle-plus';
 export { default as CircleX } from 'lucide-react-native/dist/cjs/icons/circle-x';
 export { default as Clock } from 'lucide-react-native/dist/cjs/icons/clock';
 export { default as CloudCheck } from 'lucide-react-native/dist/cjs/icons/cloud-check';
@@ -67,7 +68,6 @@ export { default as MessageCircle } from 'lucide-react-native/dist/cjs/icons/mes
 export { default as MessagesSquare } from 'lucide-react-native/dist/cjs/icons/messages-square';
 export { default as MountainSnow } from 'lucide-react-native/dist/cjs/icons/mountain-snow';
 export { default as Pause } from 'lucide-react-native/dist/cjs/icons/pause';
-export { default as Pencil } from 'lucide-react-native/dist/cjs/icons/pencil';
 export { default as PenLine } from 'lucide-react-native/dist/cjs/icons/pen-line';
 export { default as Play } from 'lucide-react-native/dist/cjs/icons/play';
 export { default as Plus } from 'lucide-react-native/dist/cjs/icons/plus';

@@ -3,6 +3,13 @@ import { z } from 'zod';
 // Epoch ms; a safe integer, which the server's bigint column holds exactly.
 export const timestampSchema = z.number().int().safe();
 
+// The server's integer (int4) columns.
+export const int4Schema = z
+  .number()
+  .int()
+  .min(-(2 ** 31))
+  .max(2 ** 31 - 1);
+
 // A string for a server text column, which can't hold a NUL character.
 export const textSchema = z.string().regex(/^[^\0]*$/, 'contains a NUL character');
 

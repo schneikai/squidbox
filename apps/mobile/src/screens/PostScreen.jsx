@@ -9,7 +9,7 @@ import formatDetailHeaderDate from '@/utils/date-time/formatDetailHeaderDate';
 
 export default function PostScreen({ route, navigation }) {
   const post = usePost(route.params.postId);
-  const { paddingTop } = useScreenPadding('detail');
+  const { paddingTop, paddingBottom } = useScreenPadding('detail');
   useCloseWhenGone(post, 'This post was deleted');
 
   if (!post) return null;
@@ -25,7 +25,7 @@ export default function PostScreen({ route, navigation }) {
         menuSlot={<MoreAction post={post} afterDelete={() => navigation.goBack()} />}
       />
 
-      <Post post={post} contentPaddingTop={paddingTop} />
+      <Post post={post} contentPaddingTop={paddingTop} contentPaddingBottom={paddingBottom} />
     </Page>
   );
 }

@@ -102,11 +102,18 @@ export const posts = sqliteTable(
     isIgnoredForRepost: integer('is_ignored_for_repost', { mode: 'boolean' }).notNull(),
     suggestRepostAt: integer('suggest_repost_at').notNull(),
     hasBeenReposted: integer('has_been_reposted', { mode: 'boolean' }).notNull(),
+    // A thread's following post: its first post and its place after it (null on a first post).
+    threadRootId: text('thread_root_id'),
+    threadIndex: integer('thread_index'),
   },
   (t) => ({
     live: index('posts_live_posted_idx')
       .on(t.postedAt, t.id)
       .where(sql`${t.deletedAt} is null`),
+    // A thread's following posts in order (readThreadPosts) and their count (postQuery threadCount).
+    thread: index('posts_thread_idx')
+      .on(t.threadRootId, t.threadIndex, t.id)
+      .where(sql`${t.deletedAt} is null and ${t.threadRootId} is not null`),
   }),
 );
 export type PostRow = typeof posts.$inferSelect;

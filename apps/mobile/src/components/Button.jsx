@@ -18,19 +18,32 @@ const INVERSE_PALETTE = {
 };
 // Two icons side by side, small enough to fit the disc apart.
 const PAIR_ICON_SIZE = scale(15);
-// A secondary's label stands in for an icon in the disc (18+), so it must stay that short.
+// An overlay disc's icon, small enough to sit in its 28 pt disc.
+const OVERLAY_ICON_SIZE = scale(14);
+// What an overlay disc's touch reaches past its edge, so its target is still 44 pt.
+const OVERLAY_HIT_SLOP = (sizes.iconButton - sizes.overlayButton) / 2;
+// A small block's pill is shorter than a tap target; hitSlop makes up the rest.
+const SMALL_BLOCK_HIT_SLOP = {
+  top: (sizes.iconButton - sizes.smallButton) / 2,
+  bottom: (sizes.iconButton - sizes.smallButton) / 2,
+};
+// A secondary's label this short stands in for an icon in the disc (18+); a longer one makes it a
+// grey pill.
 const MAX_DISC_LABEL = 3;
 
 /**
  * Every button in the app. `variant` is how much it stands out:
  *   primary   — the violet gradient: a screen's main action with a `label` (50 pt tall at `size`
- *               regular, a 44 pt pill at small, as Save in a modal header), or an icon-only circle
+ *               regular, a 28 pt pill at small with a 44 pt target, as Repost), or an icon-only circle
  *               (at most one per toolbar).
  *   secondary — a grey disc over content: an `icon`, or a `label` of up to 3 characters (18+).
- *               `colorPalette="danger"` makes it a red disc.
+ *               `colorPalette="danger"` makes it a red disc. A longer `label` makes it a grey pill
+ *               beside a primary's (Later beside Repost), sized like it.
  *   tertiary  — no fill (the default): an icon in a toolbar, or with a `label` a text link (an icon
  *               may lead it). `size="small"` draws a smaller icon in the same 44 pt target, or a
  *               tighter link for a header row.
+ *   overlay   — a small dark translucent disc with a white icon, over a picture (× on a photo
+ *               tile): 28 pt, its touch target kept at 44 pt. It ignores `size`.
  * `colorPalette` is what its color means: `neutral`, `muted`, `accent`, `danger` or `favorite`
  * (a heart); a text link is `accent` and an icon button `muted` unless told, wherever it sits. `isInverse` puts it on a
  * dark surface (the Undo bar). `isSelected` marks a toggle that is on (on a primary, the current tab, it only tells VoiceOver);
@@ -63,13 +76,21 @@ export default function Button({
   if (__DEV__) warnOnce(combinationProblem({ variant, icon, label, isInverse, palette }));
 
   const color = contentColor({ variant, palette, isSelected, isInverse });
-  const iconSize = size === 'small' ? sizes.iconSmall : sizes.icon;
+  const iconSize = variant === 'overlay' ? OVERLAY_ICON_SIZE : size === 'small' ? sizes.iconSmall : sizes.icon;
+  const defaultHitSlop =
+    shape === 'link'
+      ? 8
+      : variant === 'overlay'
+        ? OVERLAY_HIT_SLOP
+        : shape === 'block' && size === 'small'
+          ? SMALL_BLOCK_HIT_SLOP
+          : 0;
 
   return (
     <Pressable
       onPress={onPress}
       disabled={isInactive}
-      hitSlop={hitSlop ?? (shape === 'link' ? 8 : 0)}
+      hitSlop={hitSlop ?? defaultHitSlop}
       accessibilityRole={isSwitch ? 'switch' : 'button'}
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={accessibilityHint}
@@ -79,15 +100,20 @@ export default function Button({
         shape === 'block' && styles[`block_${size}`],
         shape === 'link' && size === 'small' && styles.linkSmall,
         shape === 'disc' && discBackground({ variant, palette, isSelected, pressed: pressed && !isInactive }),
+        variant === 'overlay' && styles.overlayDisc,
         pressed && !isInactive && pressedStyle(shape, variant),
         isInactive && styles.disabled,
         style,
       ]}
     >
-      {shape === 'block' ? (
+      {shape === 'block' && variant === 'primary' ? (
         <GradientFill style={[styles.blockFill, size === 'small' && styles.blockFillSmall]}>
           <Content {...{ icon, label, loading, color, iconSize, filled, iconCount, shape, size, palette }} />
         </GradientFill>
+      ) : shape === 'block' ? (
+        <View style={[styles.blockFill, size === 'small' && styles.blockFillSmall, styles.mutedFill]}>
+          <Content {...{ icon, label, loading, color, iconSize, filled, iconCount, shape, size, palette }} />
+        </View>
       ) : variant === 'primary' ? (
         <GradientFill style={styles.discFill}>
           <Content {...{ icon, label, loading, color, iconSize, filled, iconCount, shape, size, palette }} />
@@ -99,11 +125,13 @@ export default function Button({
   );
 }
 
-// A link is a tertiary with a label, a block a primary with one; every other button is a 44 pt disc.
+// A link is a tertiary with a label, a block a primary with one or a secondary with a word; every
+// other button is a 44 pt disc.
 function shapeFor(variant, label) {
   if (!label) return 'disc';
   if (variant === 'tertiary') return 'link';
   if (variant === 'primary') return 'block';
+  if (variant === 'secondary' && label.length > MAX_DISC_LABEL) return 'block';
   return 'disc';
 }
 
@@ -128,7 +156,7 @@ function Content({ icon, label, loading, color, iconSize, filled, iconCount, sha
     <>
       {loading
         ? spinner
-        : icon && <Icon name={icon} size={shape === 'link' ? linkIconSize : sizes.icon} color={color} />}
+        : icon && <Icon name={icon} size={shape === 'link' || isSmall ? linkIconSize : iconSize} color={color} />}
       <Text
         style={[
           shape === 'link' ? styles.linkLabel : styles.blockLabel,
@@ -144,7 +172,7 @@ function Content({ icon, label, loading, color, iconSize, filled, iconCount, sha
 }
 
 function contentColor({ variant, palette, isSelected, isInverse }) {
-  if (variant === 'primary') return colors.text.inverse;
+  if (variant === 'primary' || variant === 'overlay') return colors.text.inverse;
   if (variant === 'secondary' && palette === 'danger') return colors.text.inverse;
   if (isSelected) return palette === 'favorite' ? colors.status.danger : colors.accent.base;
   if (isInverse) return INVERSE_PALETTE[palette];
@@ -153,6 +181,7 @@ function contentColor({ variant, palette, isSelected, isInverse }) {
 
 function discBackground({ variant, palette, isSelected, pressed }) {
   if (variant === 'primary') return null;
+  if (variant === 'overlay') return styles.overlayFill;
   if (variant === 'secondary' && palette === 'danger') return styles.dangerFill;
   if (isSelected && palette !== 'favorite') return styles.selectedFill;
   if (variant === 'secondary') return styles.mutedFill;
@@ -171,9 +200,10 @@ function pressedStyle(shape, variant) {
 function combinationProblem({ variant, icon, label, isInverse, palette }) {
   if (!icon && !label) return 'Button: needs an icon or a label';
   if (variant === 'secondary' && icon && label) return 'Button: a secondary shows an icon or a label, not both';
-  if (variant === 'secondary' && label?.length > MAX_DISC_LABEL) {
-    return `Button: "${label}" is too long for a secondary's disc; use a Chip`;
+  if (variant === 'secondary' && palette === 'danger' && label?.length > MAX_DISC_LABEL) {
+    return 'Button: a red secondary is a disc; its label must fit in it';
   }
+  if (variant === 'overlay' && (label || !icon)) return 'Button: an overlay shows an icon only';
   if (isInverse && !INVERSE_PALETTE[palette]) return `Button: no "${palette}" on a dark surface`;
   if (!PALETTE[palette]) return `Button: no colorPalette "${palette}"`;
   return null;
@@ -203,6 +233,13 @@ const styles = StyleSheet.create({
   mutedFill: {
     backgroundColor: colors.overlay.pressed,
   },
+  overlayDisc: {
+    width: sizes.overlayButton,
+    height: sizes.overlayButton,
+  },
+  overlayFill: {
+    backgroundColor: colors.overlay.dim,
+  },
   selectedFill: {
     backgroundColor: colors.accent.light,
   },
@@ -228,7 +265,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
   },
   block_small: {
-    height: sizes.iconButton,
+    height: sizes.smallButton,
     borderRadius: radii.pill,
   },
   blockFill: {
@@ -240,14 +277,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: scale(20),
   },
   blockFillSmall: {
-    paddingHorizontal: scale(16),
+    gap: scale(4),
+    paddingHorizontal: scale(10),
   },
   blockLabel: {
     fontSize: typography.callout,
     fontWeight: '600',
   },
   blockLabelSmall: {
-    fontSize: typography.subheadline,
+    fontSize: typography.footnote,
   },
   link: {
     flexDirection: 'row',

@@ -34,6 +34,8 @@ d('readSamplePosts', () => {
     ...over,
   });
   const posted = ['one', 'two', 'three', 'four', 'five'];
+  const threadRoot = post(USER, 'a thread');
+  const orphanRoot = randomUUID();
 
   beforeAll(async () => {
     pool = new pg.Pool({ connectionString: TEST_URL });
@@ -54,6 +56,10 @@ d('readSamplePosts', () => {
         post(USER, 'a draft', { postedAt: null }),
         post(USER, 'removed', { deletedAt: 2000 }),
         post(USER, 'a repost', { rePostId: randomUUID() }),
+        threadRoot,
+        post(USER, 'a following post', { threadRootId: threadRoot.id, threadIndex: 1 }),
+        post(USER, 'removed first post', { deletedAt: 2000, id: orphanRoot }),
+        post(USER, 'an orphaned following post', { threadRootId: orphanRoot, threadIndex: 1 }),
         post(USER, '  '),
         post(OTHER, 'not yours'),
       ]);
@@ -66,7 +72,14 @@ d('readSamplePosts', () => {
   });
 
   it("reads only the user's live, posted posts with text, no reposts", async () => {
-    expect((await readSamplePosts(db, USER, 'chat-1')).sort()).toEqual([...posted].sort());
+    const expected = [...posted, 'a thread', 'an orphaned following post'];
+    expect((await readSamplePosts(db, USER, 'chat-1')).sort()).toEqual(expected.sort());
+  });
+
+  it("leaves a thread's following posts out of the sample, unless their first post is deleted", async () => {
+    const sample = await readSamplePosts(db, USER, 'chat-1');
+    expect(sample).not.toContain('a following post');
+    expect(sample).toContain('an orphaned following post');
   });
 
   it('picks the same posts in the same order for the same seed, within the limit', async () => {

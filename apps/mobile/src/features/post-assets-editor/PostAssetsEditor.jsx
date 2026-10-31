@@ -1,34 +1,21 @@
-import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import DraggableFlatList from 'react-native-draggable-flatlist';
 
-import AddAssetButton from './AddAssetButton';
 import PostAsset from './PostAsset';
 
-import AddMediaMenu from '@/features/asset-picker/AddMediaMenu';
 import useHaptics from '@/hooks/useHaptics';
-import { colors } from '@/styles/designTokens';
+import { scale } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
-import buildPostAssets from '@/utils/posts/buildPostAssets';
 
-const LIST_VERTICAL_PADDING = 80;
-
-// The post's assets ([{ id, asset }]) as an orderable strip; `onChange` gets the new list.
+// The post's assets ([{ id, asset }]) as a strip of tiles under its text, nothing until it has one:
+// hold one to reorder, × to take it out. `onChange` gets the new list.
 export default function PostAssetsEditor({ postAssets, onChange }) {
-  const { width } = useWindowDimensions();
   const haptics = useHaptics();
 
-  const itemDimension = {
-    width: width / 2.5,
-    height: width - LIST_VERTICAL_PADDING * 2,
-  };
-
-  const assetCountInfo = getAssetCountInfo(countMediaTypes(postAssets.map((postAsset) => postAsset.asset)));
-
-  function addPostAssets(assets) {
-    onChange([...postAssets, ...buildPostAssets(assets)]);
-  }
+  const countInfo = getAssetCountInfo(countMediaTypes(postAssets.map((postAsset) => postAsset.asset)));
+  const caption = postAssets.length > 1 ? `${countInfo} · hold to reorder` : countInfo;
 
   function deletePostAsset(postAsset) {
     onChange(postAssets.filter((x) => x.id !== postAsset.id));
@@ -39,8 +26,10 @@ export default function PostAssetsEditor({ postAssets, onChange }) {
     onChange(data);
   }
 
+  if (postAssets.length === 0) return null;
+
   return (
-    <View style={[styles.container, { width, height: width }]}>
+    <View style={styles.container}>
       <DraggableFlatList
         data={postAssets}
         horizontal
@@ -48,35 +37,31 @@ export default function PostAssetsEditor({ postAssets, onChange }) {
         onDragBegin={haptics.lift}
         onDragEnd={handleDragEnd}
         keyExtractor={(postAsset) => postAsset.id}
+        contentContainerStyle={styles.strip}
         renderItem={({ item: postAsset, drag, isActive }) => (
           <PostAsset
             postAsset={postAsset}
             onDelete={deletePostAsset}
             onLongPress={drag}
             isActive={isActive}
-            itemDimension={itemDimension}
+            style={styles.tile}
           />
         )}
-        ListFooterComponent={
-          <AddMediaMenu
-            trigger={({ toggle }) => <AddAssetButton onPress={toggle} itemDimension={itemDimension} />}
-            exclude={postAssets.map((postAsset) => postAsset.asset.id)}
-            onAdd={addPostAssets}
-          />
-        }
       />
-      {postAssets.length > 0 && <Text style={[listTextStyles.caption, styles.assetCountInfo]}>{assetCountInfo}</Text>}
+      <Text style={listTextStyles.caption}>{caption}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: LIST_VERTICAL_PADDING,
-    paddingLeft: 15,
-    backgroundColor: colors.background.glass,
+    gap: scale(8),
   },
-  assetCountInfo: {
-    paddingLeft: 5,
+  strip: {
+    gap: scale(8),
+  },
+  tile: {
+    width: scale(120),
+    height: scale(160),
   },
 });

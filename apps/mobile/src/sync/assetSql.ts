@@ -71,12 +71,14 @@ export function liveAlbumAssetIds(albumId: string | SQL): SQL {
 
 /**
  * The ids of the assets of a post's live albums (the albums holding any of the assets the post
- * screen shows, so not the purged), through live edges. A trashed asset of those albums counts, as
- * in an album's Posts tab (liveAlbumAssetIds), though the album's grid hides it.
+ * screen shows, its thread's following posts' included, so not the purged), through live edges. A
+ * trashed asset of those albums counts, as in an album's Posts tab (liveAlbumAssetIds), though the
+ * album's grid hides it.
  */
 export function postAlbumAssetIds(postId: string): SQL {
   return albumAssetIdsOf(sql`(select pe.asset_id from post_assets pe join assets pa on pa.id = pe.asset_id and pa.purged_at is null
-    where pe.post_id = ${postId} and pe.deleted_at is null)`);
+    where pe.deleted_at is null and (pe.post_id = ${postId} or pe.post_id in
+      (select id from posts where thread_root_id = ${postId} and deleted_at is null)))`);
 }
 
 /**
