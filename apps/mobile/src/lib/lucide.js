@@ -67,7 +67,6 @@ export { default as MessageCircle } from 'lucide-react-native/dist/cjs/icons/mes
 export { default as MessagesSquare } from 'lucide-react-native/dist/cjs/icons/messages-square';
 export { default as MountainSnow } from 'lucide-react-native/dist/cjs/icons/mountain-snow';
 export { default as Pause } from 'lucide-react-native/dist/cjs/icons/pause';
-export { default as Pencil } from 'lucide-react-native/dist/cjs/icons/pencil';
 export { default as PenLine } from 'lucide-react-native/dist/cjs/icons/pen-line';
 export { default as Play } from 'lucide-react-native/dist/cjs/icons/play';
 export { default as Plus } from 'lucide-react-native/dist/cjs/icons/plus';
