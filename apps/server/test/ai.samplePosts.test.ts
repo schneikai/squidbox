@@ -54,6 +54,7 @@ d('readSamplePosts', () => {
         post(USER, 'a draft', { postedAt: null }),
         post(USER, 'removed', { deletedAt: 2000 }),
         post(USER, 'a repost', { rePostId: randomUUID() }),
+        post(USER, 'a following post', { threadRootId: randomUUID(), threadIndex: 1 }),
         post(USER, '  '),
         post(OTHER, 'not yours'),
       ]);
@@ -67,6 +68,10 @@ d('readSamplePosts', () => {
 
   it("reads only the user's live, posted posts with text, no reposts", async () => {
     expect((await readSamplePosts(db, USER, 'chat-1')).sort()).toEqual([...posted].sort());
+  });
+
+  it("leaves a thread's following posts out of the sample", async () => {
+    expect(await readSamplePosts(db, USER, 'chat-1')).not.toContain('a following post');
   });
 
   it('picks the same posts in the same order for the same seed, within the limit', async () => {

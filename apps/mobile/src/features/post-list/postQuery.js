@@ -14,6 +14,7 @@ import {
 import * as schema from '@/sync/db/schema';
 import { inJson } from '@/sync/inJson';
 import { matchingIds } from '@/sync/matchingIds';
+import { readThreadPosts } from '@/sync/postThreads';
 import { repostDate } from '@/sync/postsRepository';
 
 const p = alias(schema.posts, 'p');
@@ -22,8 +23,12 @@ const p = alias(schema.posts, 'p');
  * What a post list shows, as SQL: `read(db, { limit })` → `{ rows, count }` from one transaction
  * (no `limit` reads them all; `withCount: false` skips the count, for a read of one post),
  * each row a post with `postAssets: [{ id, asset }]` (its live edges in order, one per asset, a
- * deleted asset included; `firstAssetOnly` reads just the first, e.g. for a thumbnail);
- * `tables` → what a live read watches.
+ * deleted asset included; `firstAssetOnly` reads just the first, e.g. for a thumbnail) and
+ * `threadCount` (its live following posts); `tables` → what a live read watches.
+ * A thread is its first post: lists, counts and searches leave its following posts out (a search or
+ * a photo found in one finds the thread), but a following post whose first post is deleted is a post
+ * of its own. The `{ postId }` scope reads that exact post, with `threadPosts` (its following posts
+ * in order, each with its `postAssets`).
  * Every order ends with an id tie-break, so refreshes and pages see one stable order.
  * @param {object} descriptor
  * @param {'all' | 'repostCandidates' | 'ignored' | { assetId: string } | { albumId: string } | { postId: string } | { sharesAlbumWithPostId: string }} [descriptor.scope]
@@ -45,17 +50,21 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
     if (scope === 'ignored') return eq(p.isIgnoredForRepost, true);
     if (scope.postId) return eq(p.id, scope.postId);
     if (scope.assetId) {
-      return sql`${p.id} in (select post_id from post_assets where asset_id = ${scope.assetId} and deleted_at is null)`;
+      return sql`${p.id} in ${threadsOf(sql`select post_id from post_assets where asset_id = ${scope.assetId} and deleted_at is null`)}`;
     }
     if (scope.albumId) {
-      return sql`${p.id} in (select post_id from post_assets where asset_id in ${liveAlbumAssetIds(scope.albumId)} and deleted_at is null)`;
+      return sql`${p.id} in ${threadsOf(sql`select post_id from post_assets where asset_id in ${liveAlbumAssetIds(scope.albumId)} and deleted_at is null`)}`;
     }
     if (scope.sharesAlbumWithPostId) {
       const postId = scope.sharesAlbumWithPostId;
-      return sql`${p.id} != ${postId} and ${p.id} in (select post_id from post_assets where asset_id in ${postAlbumAssetIds(postId)} and deleted_at is null)`;
+      return sql`${p.id} != ${postId} and ${p.id} in ${threadsOf(sql`select post_id from post_assets where asset_id in ${postAlbumAssetIds(postId)} and deleted_at is null`)}`;
     }
     return undefined;
   })();
+  // A thread is listed as its first post, unless that is deleted (an older build deletes it alone).
+  const threadCondition = scope.postId
+    ? undefined
+    : sql`(${p.threadRootId} is null or not exists (select 1 from posts r where r.id = ${p.threadRootId} and r.deleted_at is null))`;
   const favorites = filter.includes('favorites') ? eq(p.isFavorite, true) : undefined;
   const order = (() => {
     if (sort === 'suggestRepostAt:asc') return [asc(repostDate(p)), asc(p.id)];
@@ -63,12 +72,20 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
     return [direction(p.postedAt), direction(p.id)];
   })();
 
-  // The search runs over every live post's text, once per read for rows and count alike.
+  // The search runs over every live post's text, once per read for rows and count alike. A hit in a
+  // following post finds its thread's first post, while that is live.
   async function matchedIds(tx) {
     if (!searchText) return null;
-    return matchingIds(await tx.select({ id: p.id, text: p.text }).from(p).where(isNull(p.deletedAt)), searchText);
+    const rows = await tx
+      .select({ id: p.id, threadRootId: p.threadRootId, text: p.text })
+      .from(p)
+      .where(isNull(p.deletedAt));
+    const live = new Set(rows.map((row) => row.id));
+    const rootOf = new Map(rows.map((row) => [row.id, live.has(row.threadRootId) ? row.threadRootId : row.id]));
+    return [...new Set(matchingIds(rows, searchText).map((id) => rootOf.get(id)))];
   }
-  const where = (ids) => and(isNull(p.deletedAt), scopeCondition, favorites, ids ? inJson(p.id, ids) : undefined);
+  const where = (ids) =>
+    and(isNull(p.deletedAt), threadCondition, scopeCondition, favorites, ids ? inJson(p.id, ids) : undefined);
 
   // The posts' assets in order, read as the asset screen reads a post's (assetQuery's post scope): a
   // trashed asset still shows (it can come back), a purged one never does (sync-design §7). With
@@ -95,16 +112,40 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
         const ids = await matchedIds(tx);
         const total = withCount ? (await tx.select({ count: count() }).from(p).where(where(ids)))[0].count : undefined;
         const posts = await tx
-          .select(getTableColumns(p))
+          .select({ ...getTableColumns(p), threadCount })
           .from(p)
           .where(where(ids))
           .orderBy(...order)
           .limit(limit);
-        return { rows: await readPostAssets(tx, posts, firstAssetOnly), count: total };
+        if (!scope.postId) return { rows: await readPostAssets(tx, posts, firstAssetOnly), count: total };
+        // The post screen and the editor's seed: the post's following posts too, one edge read for all.
+        const following = await readThreadPosts(
+          tx,
+          posts.map((post) => post.id),
+        );
+        const withAssets = await readPostAssets(tx, [...posts, ...following], firstAssetOnly);
+        const rows = withAssets.slice(0, posts.length).map((post) => ({
+          ...post,
+          threadPosts: withAssets.slice(posts.length).filter((part) => part.threadRootId === post.id),
+        }));
+        return { rows, count: total };
       });
     },
   };
 }
+
+// The live first post of each post `postIds` selects: a following post's thread root, while that is
+// live, else the post itself.
+function threadsOf(postIds) {
+  return sql`(select coalesce(r.id, q.id) from posts q left join posts r on r.id = q.thread_root_id and r.deleted_at is null
+    where q.id in (${postIds}))`;
+}
+
+// A post's live following posts, counted over posts_thread_idx. `p.id` is spelled out: drizzle
+// leaves a selected field's columns unqualified, which inside the subquery would name `c.id`.
+const threadCount = sql`(select count(*) from posts c where c.thread_root_id = p.id and c.deleted_at is null)`
+  .mapWith(Number)
+  .as('thread_count');
 
 // Each post's first edge of its scope (placeInPost), with its asset: one windowed pass over the
 // scope's edges, then the asset rows of the first ones only.

@@ -43,6 +43,7 @@ export async function readSamplePosts(
         isNull(posts.deletedAt),
         isNotNull(posts.postedAt),
         isNull(posts.rePostId),
+        isNull(posts.threadRootId),
         sql`trim(${posts.text}) <> ''`,
       ),
     )

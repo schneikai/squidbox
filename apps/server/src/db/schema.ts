@@ -172,6 +172,9 @@ export const posts = pgTable(
     isIgnoredForRepost: boolean('is_ignored_for_repost').notNull(),
     suggestRepostAt: bigint('suggest_repost_at', { mode: 'number' }).notNull(),
     hasBeenReposted: boolean('has_been_reposted').notNull(),
+    // A thread's following post: its first post and its place after it (null on a first post).
+    threadRootId: uuid('thread_root_id'),
+    threadIndex: integer('thread_index'),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.id] }),

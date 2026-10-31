@@ -14,6 +14,7 @@ import {
   fieldPush,
   mut,
   pool,
+  postRecord,
   rowOf,
   serverSeqOf,
   USER_A,
@@ -130,6 +131,24 @@ d('push: the merge rules (Postgres)', () => {
     ).toMatchObject({ status: 'applied' });
     expect(await pulled()).toMatchObject({ aboutYou: 'Me, later.', adultContent: true });
     await pool.query('DELETE FROM personas WHERE user_id = $1 AND id = $2', [USER_A, id]);
+  });
+
+  it("a post's thread fields are null while unset and survive a push without them", async () => {
+    const pulled = async (id: string) =>
+      (await pull(db, USER_A, { cursor: 0 })).changes.posts.records.find((record) => record.id === id);
+    const first = postRecord();
+    await push(db, USER_A, [{ collection: 'posts', record: first, fields: { text: 1000 } }]);
+    expect(await pulled(first.id)).toMatchObject({ threadRootId: null, threadIndex: null });
+
+    const following = postRecord({ threadRootId: first.id, threadIndex: 1 });
+    await push(db, USER_A, [
+      { collection: 'posts', record: following, fields: { text: 1000, threadRootId: 1000, threadIndex: 1000 } },
+    ]);
+    const edited = { ...postRecord(), id: following.id, text: 'edited', updatedAt: 2000 }; // an older build
+    expect(
+      (await push(db, USER_A, [{ collection: 'posts', record: edited, fields: { text: 2000 } }]))[0],
+    ).toMatchObject({ status: 'applied' });
+    expect(await pulled(following.id)).toMatchObject({ text: 'edited', threadRootId: first.id, threadIndex: 1 });
   });
 
   it("instructions without the model check's judge are applied, and keep a judge set elsewhere", async () => {

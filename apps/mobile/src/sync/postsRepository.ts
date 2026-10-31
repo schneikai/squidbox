@@ -7,7 +7,7 @@ import { makeRepository } from './repository';
 
 const repository = makeRepository('posts', schema.posts);
 
-export const { create, update, remove } = repository;
+export const { create, update, updateAll, remove } = repository;
 export const toggleFavorite = (db: SyncDb, id: string) => repository.toggle(db, id, 'isFavorite');
 
 /**

@@ -83,3 +83,26 @@ export async function createPost(
     assetIds.map((assetId) => ({ id: newEdgeId(), assetId })),
   );
 }
+
+type PostSpec = Partial<PostRecord> & { assetIds?: string[] };
+
+/**
+ * A thread: the first post `root` and its following posts `parts` (indexes 1..n unless given), each
+ * with edges to its `assetIds`.
+ */
+export async function createThread(
+  db: SyncDb,
+  { assetIds: rootAssetIds = [], ...root }: PostSpec & { id: string },
+  parts: PostSpec[],
+  newEdgeId: () => string = randomUUID,
+): Promise<void> {
+  await createPost(db, root, rootAssetIds, newEdgeId);
+  for (const [i, { assetIds = [], ...part }] of parts.entries()) {
+    await createPost(
+      db,
+      { postedAt: root.postedAt ?? null, threadRootId: root.id, threadIndex: i + 1, ...part },
+      assetIds,
+      newEdgeId,
+    );
+  }
+}
