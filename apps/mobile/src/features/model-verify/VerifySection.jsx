@@ -1,4 +1,4 @@
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { router, useFocusEffect } from 'expo-router';
 
 import VerifyRunRow from './VerifyRunRow';
 import useVerifyRun from './useVerifyRun';
@@ -16,7 +16,6 @@ import { Row, Section, SectionFooter } from '@/components/settings-list/Settings
  * finished elsewhere shows here too.
  */
 export default function VerifySection({ kind, modelId, name, model }) {
-  const navigation = useNavigation();
   const { run, plan, error, retry, show } = useVerifyRun(kind, modelId);
   useFocusEffect(retry);
 
@@ -24,7 +23,10 @@ export default function VerifySection({ kind, modelId, name, model }) {
   const { title, detail } = isLoaded ? verifySummary(kind, run) : {};
 
   function handleOpen() {
-    navigation.navigate('VerifyScreen', { kind, modelId, name });
+    router.navigate({
+      pathname: '/settings/assistant/models/[kind]/[modelId]/verify',
+      params: { kind, modelId, name },
+    });
   }
 
   function handleStarted(answer) {

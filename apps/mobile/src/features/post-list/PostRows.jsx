@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { router } from 'expo-router';
 import { Text } from 'react-native';
 
 import ThumbnailRow from '@/components/ThumbnailRow';
@@ -18,7 +18,6 @@ const identity = (onPress) => onPress;
  * (useDetailsPanelDrag's); `isLive: false` reads them once (useLiveQuery's).
  */
 export default function PostRows({ scope, emptyText, limit, guardPress = identity, isLive }) {
-  const navigation = useNavigation();
   const posts = useScopePosts(scope, limit, isLive);
 
   if (!posts) return null;
@@ -30,7 +29,7 @@ export default function PostRows({ scope, emptyText, limit, guardPress = identit
       asset={post.postAssets[0]?.asset}
       {...postRowText(post)}
       isLast={index === posts.length - 1}
-      onPress={guardPress(() => navigation.navigate('PostScreen', { postId: post.id }))}
+      onPress={guardPress(() => router.navigate(`/post/${post.id}`))}
     />
   ));
 }

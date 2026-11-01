@@ -1,4 +1,5 @@
 import { COMPARE_PROMPT_MAX_LENGTH } from '@squidbox/shared';
+import { router } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -17,7 +18,9 @@ import ModalSheet from '@/components/ModalSheet';
 import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import { SCREEN_PADDING } from '@/constants';
+import assetHref from '@/features/asset-list/assetHref';
 import useScrollY from '@/hooks/useScrollY';
+import useSheetRoute from '@/hooks/useSheetRoute';
 import useVeniceBalance from '@/hooks/useVeniceBalance';
 import { scale } from '@/styles/designTokens';
 import { setPrompt } from '@/sync/aiStateRepository';
@@ -35,7 +38,8 @@ const PROMPT_MIN_HEIGHT = scale(72);
  * tweets per model to thumb up; vision the tags per model per photo to mark as fitting, one row per
  * photo. Both add up in the model list. X closes the whole compare.
  */
-export default function CompareRound({ navigation, kind, models, savedPrompt, defaultPrompt, photos }) {
+export default function CompareRound({ kind, models, savedPrompt, defaultPrompt, photos }) {
+  const sheet = useSheetRoute();
   const isVision = kind === 'vision';
   const { scrollY, onScroll } = useScrollY();
   const paddingBottom = useFloatingPrimaryActionPadding();
@@ -49,8 +53,8 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
   const namesById = useMemo(() => Object.fromEntries(models.map(({ id, name }) => [id, name])), [models]);
 
   const handleOpenPhoto = useCallback(
-    (asset) => navigation.navigate('AssetScreen', { assetId: asset.id, query: { scope: { assetId: asset.id } } }),
-    [navigation],
+    (asset) => router.navigate(assetHref(asset.id, { scope: { assetId: asset.id } })),
+    [],
   );
 
   const hasStarted = round.number > 0;
@@ -72,7 +76,7 @@ export default function CompareRound({ navigation, kind, models, savedPrompt, de
   return (
     <ModalSheet>
       <ModalHeader
-        leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.getParent().goBack()} />}
+        leading={<Button icon="close" accessibilityLabel="Close" onPress={sheet.close} />}
         title="Compare"
         scrollY={scrollY}
       />

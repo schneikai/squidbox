@@ -1,4 +1,4 @@
-import { UNSTABLE_usePreventRemove as usePreventRemove, useNavigation } from '@react-navigation/native';
+import { usePreventRemove, useNavigation } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 
 import confirmDiscardAsync from '@/utils/confirmDiscardAsync';

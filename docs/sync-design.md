@@ -1013,7 +1013,7 @@ puts their edits back, so they still wait.
 
 ### Sync Inspector
 
-The "Library sync" screen (`apps/mobile/src/screens/SyncScreen.jsx`) shows:
+The "Library sync" screen (`apps/mobile/src/features/sync-status/SyncScreen.jsx`) shows:
 
 - **Status:** current status, last sync time, **View errors** (above, while pushes have failed)
   and **Sync now**.

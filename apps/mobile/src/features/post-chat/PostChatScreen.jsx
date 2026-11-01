@@ -1,3 +1,4 @@
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
@@ -32,22 +33,23 @@ const ASK_ANYTHING = 'Ask anything';
 const WRITING_AS_YOU = 'Writing as you';
 
 /**
- * The assistant chat about the post being written (`{ sessionId }`, the editor's chat; `prompt`, a
- * prompt button's `{ label, content }`, waits in the composer): what it's about (ChatSubjectCard,
+ * The assistant chat about the post being written (`sessionId`, the editor's chat; `label` and
+ * `prompt`, a prompt button's name and prompt, wait in the composer): what it's about (ChatSubjectCard,
  * left out for a new post without photos yet), the user's turns and the assistant's replies with
  * their options, and the prompt buttons over the composer, a tap putting the prompt in it
  * (usePostChat does the sending). Use puts an option into the caption and goes back to the editor.
  * The chat lasts while the editor or the post's screen is open; a posted post's options have Copy.
  */
-export default function PostChatScreen({ route, navigation }) {
-  const { sessionId, prompt } = route.params;
+export default function PostChatScreen() {
+  const navigation = useNavigation();
+  const { sessionId, label, prompt } = useLocalSearchParams();
   const isAvailable = useLeaveWhenUnavailable();
   const { chat, assets, tagging, mentions, isWaiting, send, moreLikeThis, retry } = usePostChat(sessionId);
   useCloseWhen(chat === null);
   const haptics = useHaptics();
   const buttons = usePromptButtons();
   // What waits in the composer: a new `key` remounts it with the prompt a button put there.
-  const [seed, setSeed] = useState(() => ({ key: 0, turn: prompt }));
+  const [seed, setSeed] = useState(() => ({ key: 0, turn: prompt ? { label, content: prompt } : undefined }));
   const isAiAdmin = useHasFeature('ai_admin');
   const [isSystemMessageOpen, setIsSystemMessageOpen] = useState(false);
   const scrollRef = useRef(null);

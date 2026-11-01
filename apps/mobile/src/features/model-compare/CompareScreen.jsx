@@ -1,3 +1,4 @@
+import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import CompareRound from './CompareRound';
@@ -9,20 +10,23 @@ import ModalSheet from '@/components/ModalSheet';
 import useInstructions from '@/hooks/useInstructions';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
-import { readPrompt, readVisionPhotos } from '@/sync/aiStateRepository';
+import useSheetRoute from '@/hooks/useSheetRoute';
+import { readModelList, readPrompt, readVisionPhotos } from '@/sync/aiStateRepository';
 
 // The writing compare's sample request before the first compare; after it, the last one used. The
 // server sends it alone, without system instructions, so it says how many posts to write.
 const WRITING_PROMPT = 'Write 3 posts about a quiet morning hike on the coast. Be creative.';
 
-// The compare's second step (route params `kind` and the ticked `models`), from the remembered
-// prompt (vision's starts from the user's Photo tags instructions, which come with the catalog: a
-// spinner or Try again until they're in) and for vision the photo set the pick step saved, read once.
-export default function CompareScreen({ navigation, route }) {
-  const { kind, models } = route.params;
+// The compare's second step (route params `kind` and the ticked `modelIds`, comma-separated), from
+// the remembered prompt (vision's starts from the user's Photo tags instructions, which come with the
+// catalog: a spinner or Try again until they're in) and for vision the photo set the pick step saved,
+// read once with the ticked models' names.
+export default function CompareScreen() {
+  const { kind, modelIds } = useLocalSearchParams();
+  const sheet = useSheetRoute();
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const { texts, error, retry } = useInstructions();
-  const seed = useSeedOrClose((db) => readSeed(db, kind), kind);
+  const seed = useSeedOrClose((db) => readSeed(db, kind, modelIds.split(',')), `${kind}:${modelIds}`);
 
   const defaultPrompt = kind === 'vision' ? texts?.visionTagging : WRITING_PROMPT;
 
@@ -31,7 +35,7 @@ export default function CompareScreen({ navigation, route }) {
     return (
       <ModalSheet>
         <ModalHeader
-          leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.getParent().goBack()} />}
+          leading={<Button icon="close" accessibilityLabel="Close" onPress={sheet.close} />}
           title="Compare"
         />
         <View style={styles.status}>
@@ -43,9 +47,8 @@ export default function CompareScreen({ navigation, route }) {
 
   return (
     <CompareRound
-      navigation={navigation}
       kind={kind}
-      models={models}
+      models={seed.models}
       savedPrompt={seed.prompt}
       defaultPrompt={defaultPrompt}
       photos={seed.photos}
@@ -53,9 +56,15 @@ export default function CompareScreen({ navigation, route }) {
   );
 }
 
-async function readSeed(db, kind) {
-  const [prompt, photos] = await Promise.all([readPrompt(db, kind), kind === 'vision' ? readVisionPhotos(db) : []]);
-  return { prompt, photos };
+// The ticked models in the order of your list, which is the order they were ticked in.
+async function readSeed(db, kind, modelIds) {
+  const [prompt, photos, list] = await Promise.all([
+    readPrompt(db, kind),
+    kind === 'vision' ? readVisionPhotos(db) : [],
+    readModelList(db, kind),
+  ]);
+  const models = (list ?? []).filter(({ id }) => modelIds.includes(id)).map(({ id, name }) => ({ id, name }));
+  return { prompt, photos, models };
 }
 
 const styles = StyleSheet.create({

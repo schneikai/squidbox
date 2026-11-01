@@ -1,3 +1,4 @@
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { memo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -24,8 +25,9 @@ import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
  * with, then each turn: the editor's change, the creator's message, the reply with its posts, and
  * whether it passed. A conversation still running grows as its turns come in.
  */
-export default function VerifyConversationScreen({ navigation, route }) {
-  const { kind, modelId, sectionId } = route.params;
+export default function VerifyConversationScreen() {
+  const navigation = useNavigation();
+  const { kind, modelId, sectionId } = useLocalSearchParams();
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const { run, plan, error, retry } = useVerifyRun(kind, modelId);
   const [isBriefingOpen, setIsBriefingOpen] = useState(false);

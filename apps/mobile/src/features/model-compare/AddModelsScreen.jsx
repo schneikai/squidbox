@@ -1,3 +1,4 @@
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -25,8 +26,9 @@ import modelsOfKind from '@/utils/ai/modelsOfKind';
 
 // Every model Venice offers for a kind (route param `kind`), with a search box; a tap adds one to
 // your list. Removing is on the model's page; a removed model shows its score and note here.
-export default function AddModelsScreen({ navigation, route }) {
-  const { kind } = route.params;
+export default function AddModelsScreen() {
+  const navigation = useNavigation();
+  const { kind } = useLocalSearchParams();
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const [searchText, setSearchText] = useState('');
   const { scrollY, onScroll } = useScrollY();

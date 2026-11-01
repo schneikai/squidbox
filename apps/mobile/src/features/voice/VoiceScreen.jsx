@@ -1,4 +1,5 @@
 import { PERSONA_LIMITS, uniqueTags } from '@squidbox/shared';
+import { useNavigation } from 'expo-router';
 import { useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
@@ -28,9 +29,8 @@ import changedValues from '@/utils/changedValues';
 const TEXT_FIELDS = ['aboutYou', 'tone', 'contentTags'];
 
 // Settings → Assistant → Writing as you: what the assistant writes with, as plain fields, saved as
-// you type, and the Adult content switch under Your content, saved as it flips. Reachable from
-// anywhere (a root screen), so the chat opens it too.
-export default function VoiceScreen({ navigation }) {
+// you type, and the Adult content switch under Your content, saved as it flips.
+export default function VoiceScreen() {
   const isAvailable = useLeaveWhenUnavailable();
   const { library } = useLibrary();
   const userId = library.owner.userId;
@@ -39,10 +39,11 @@ export default function VoiceScreen({ navigation }) {
     return Object.fromEntries(TEXT_FIELDS.map((field) => [field, persona[field]]));
   }, 'persona');
   if (!isAvailable || !seed) return null;
-  return <VoiceEditor userId={userId} seed={seed} navigation={navigation} />;
+  return <VoiceEditor userId={userId} seed={seed} />;
 }
 
-function VoiceEditor({ userId, seed, navigation }) {
+function VoiceEditor({ userId, seed }) {
+  const navigation = useNavigation();
   const [draft, setDraft] = useState(seed);
   const [info, setInfo] = useState({ field: 'aboutYou', isVisible: false });
   // One setter per field that keeps its identity, so typing in one field leaves the others' lists

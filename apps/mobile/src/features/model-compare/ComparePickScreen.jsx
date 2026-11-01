@@ -1,4 +1,5 @@
 import { COMPARE_MIN_MODELS, VISION_COMPARE_MAX_PHOTOS } from '@squidbox/shared';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet } from 'react-native';
 
@@ -27,8 +28,9 @@ import toggleItem from '@/utils/toggleItem';
 // The compare's first step (route param `kind`): tick 2 or more of your available models, shown as
 // in your list, and for vision pick the photos (the last compare's to start with). Start saves the
 // photos for CompareScreen, which reads them back.
-export default function ComparePickScreen({ navigation, route }) {
-  const { kind } = route.params;
+export default function ComparePickScreen() {
+  const navigation = useNavigation();
+  const { kind } = useLocalSearchParams();
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const isVision = kind === 'vision';
   const paddingBottom = useFloatingPrimaryActionPadding();
@@ -81,8 +83,8 @@ export default function ComparePickScreen({ navigation, route }) {
       }
     }
     // In your list's order, so a round's letters are the only shuffle.
-    const tickedModels = models.filter(({ id }) => ticked.includes(id)).map(({ id, name }) => ({ id, name }));
-    navigation.navigate('CompareScreen', { kind, models: tickedModels });
+    const modelIds = models.filter(({ id }) => ticked.includes(id)).map(({ id }) => id);
+    router.navigate({ pathname: '/compare/[kind]/round', params: { kind, modelIds: modelIds.join(',') } });
   }
 
   if (!isAvailable) return null;

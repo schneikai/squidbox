@@ -10,6 +10,8 @@ const baseConfig = {
     // lacks a module it needs.
     runtimeVersion: '1.0.0',
     orientation: 'portrait',
+    // Deep links (squidbox://post/…) open the screen at that URL (Expo Router).
+    scheme: 'squidbox',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
     splash: {
@@ -43,6 +45,7 @@ const baseConfig = {
       },
     },
     plugins: [
+      'expo-router',
       'expo-secure-store',
       'expo-sqlite',
       [

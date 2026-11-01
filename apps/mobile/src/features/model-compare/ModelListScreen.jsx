@@ -1,4 +1,5 @@
 import { COMPARE_MIN_MODELS } from '@squidbox/shared';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
 import ModelDefaultsActions from './ModelDefaultsActions';
@@ -28,8 +29,9 @@ import confirmAsync from '@/utils/confirmAsync';
 // add them; a row opens the model's page (ModelScreen: its labels, Verify and Remove), their scores
 // from Compare, and Compare. While your picks of the defaults differ from everyone's, the list ends
 // with Apply changes for everyone and Reset changes (ModelDefaultsActions). An ai_admin tool.
-export default function ModelListScreen({ navigation, route }) {
-  const { kind } = route.params;
+export default function ModelListScreen() {
+  const navigation = useNavigation();
+  const { kind } = useLocalSearchParams();
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const paddingBottom = useFloatingPrimaryActionPadding();
   const {
@@ -50,7 +52,10 @@ export default function ModelListScreen({ navigation, route }) {
   const text = modelKindText[kind];
 
   function handleOpen(row) {
-    navigation.navigate('ModelScreen', { kind, modelId: row.id, name: row.name });
+    router.navigate({
+      pathname: '/settings/assistant/models/[kind]/[modelId]',
+      params: { kind, modelId: row.id, name: row.name },
+    });
   }
 
   async function handleResetAllScores() {
@@ -120,7 +125,7 @@ export default function ModelListScreen({ navigation, route }) {
                 label="Add"
                 icon="add"
                 size="small"
-                onPress={() => navigation.navigate('AddAiModelsModal', { kind })}
+                onPress={() => router.navigate(`/settings/assistant/models/${kind}/add`)}
               />
             )
           }
@@ -132,7 +137,7 @@ export default function ModelListScreen({ navigation, route }) {
           variant="primary"
           icon="thumbs-up"
           label="Compare"
-          onPress={() => navigation.navigate('ModelCompareModal', { kind })}
+          onPress={() => router.navigate(`/compare/${kind}`)}
           disabled={availableCount < COMPARE_MIN_MODELS}
         />
       </FloatingPrimaryAction>

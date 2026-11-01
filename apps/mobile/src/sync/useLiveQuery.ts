@@ -1,12 +1,11 @@
 import { getTableName } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
+import { useIsFocused } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 
 import { getDb } from './db/client';
 import type { SyncDb } from './db/types';
 import { watchQuery, type Watch, type WatchOptions } from './watchQuery';
-
-import useScreenFocus from '@/hooks/useScreenFocus';
 
 const NOT_READ = { data: undefined, readAt: -1 };
 
@@ -76,7 +75,7 @@ function useWatch<T>(
   const dataRef = useRef(data);
   dataRef.current = data;
   const watch = useRef<Watch>(null);
-  const isFocused = useScreenFocus();
+  const isFocused = useIsFocused();
   const tableNames = tables.map((table) => getTableName(table)).join();
   const depsKey = JSON.stringify(deps);
   const key = `${tableNames}|${depsKey}`;

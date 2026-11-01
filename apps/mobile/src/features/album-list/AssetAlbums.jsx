@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { router } from 'expo-router';
 import { Text } from 'react-native';
 
 import ThumbnailRow from '@/components/ThumbnailRow';
@@ -16,7 +16,6 @@ const identity = (onPress) => onPress;
  * `isLive: false` reads them once (useLiveQuery's).
  */
 export default function AssetAlbums({ assetIds, emptyText, guardPress = identity, isLive }) {
-  const navigation = useNavigation();
   const albums = useAssetAlbums(assetIds, { isLive });
 
   if (!albums) return null;
@@ -29,7 +28,7 @@ export default function AssetAlbums({ assetIds, emptyText, guardPress = identity
       title={album.name}
       subtitle={`${pluralizeText('1 Asset', '%{count} Assets', album.assetCount)} · ${albumLastPostedText(album)}`}
       isLast={index === albums.length - 1}
-      onPress={guardPress(() => navigation.push('AlbumScreen', { albumId: album.id }))}
+      onPress={guardPress(() => router.push(`/album/${album.id}`))}
     />
   ));
 }

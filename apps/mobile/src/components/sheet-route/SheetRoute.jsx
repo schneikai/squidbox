@@ -1,0 +1,36 @@
+import { useNavigation } from 'expo-router';
+import { useMemo } from 'react';
+import { MenuProvider } from 'react-native-popup-menu';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+import SheetRouteContext from './SheetRouteContext';
+
+import ProgressOverlayHost from '@/components/progress-overlay/ProgressOverlayHost';
+
+/**
+ * Frames a route presented as a sheet (`presentation: 'modal'`): a one-screen sheet as its
+ * `Stack.Screen`'s `layout`, a sheet with its own stack through SheetStack. Screens inside read it
+ * with useSheetRoute: whether they are in a sheet, whether they are its first screen, how to close
+ * the whole sheet, and its options (`setOptions({ gestureEnabled })` locks its swipe down).
+ *
+ * iOS presents the sheet as a page sheet whose own top safe-area inset is 0, so the sheet has its
+ * own SafeAreaProvider: without it, screens read the window's inset (the notch) and leave a gap
+ * below the sheet's top edge. The root's menus and progress overlay would show behind the sheet, so
+ * it has its own MenuProvider and overlay host too (they share the root's overlay state).
+ */
+export default function SheetRoute({ hasStack = false, children }) {
+  const navigation = useNavigation();
+  const sheet = useMemo(
+    () => ({ hasStack, close: () => navigation.goBack(), setOptions: navigation.setOptions }),
+    [hasStack, navigation],
+  );
+
+  return (
+    <SheetRouteContext value={sheet}>
+      <SafeAreaProvider>
+        <MenuProvider skipInstanceCheck>{children}</MenuProvider>
+        <ProgressOverlayHost />
+      </SafeAreaProvider>
+    </SheetRouteContext>
+  );
+}

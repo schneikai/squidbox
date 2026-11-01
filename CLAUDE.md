@@ -11,6 +11,7 @@ What matters most, in order: a beautiful, intuitive UI, data integrity, performa
 - Follow the patterns of the code around you. Before writing a new component, hook or helper, check `src/components`, `src/hooks` and `src/lib` for one that already does the job
 - One exported component or utility per file. Small private helpers may live in the same file
 - Group by feature (`src/features/<feature>/`), next to where the code is used. Move code to `src/components`, `src/hooks` or `src/lib` only when more than one feature uses it
+- Routes live in `src/app/` (Expo Router) as thin files that render a feature's screen. A screen that also opens inside a sheet has a copy in that sheet's group (`app/(main,new-post,compare)/post/[postId].jsx`), and Expo Router opens the copy of the sheet it is opened from (`test/routes.test.ts`)
 
 ## Where data is saved
 
@@ -34,7 +35,7 @@ Decide this before the app stores anything new:
 - Components define their appearance; parents define layout
 - Animate with the `motion` tokens in `styles/designTokens.js` (`enter`, `exit`, `move`, `spring`), not ad-hoc durations, easings or spring values
 - Give haptic feedback through `hooks/useHaptics`, never expo-haptics directly: it respects the Haptics setting and skips builds and web without the native module. Use it only for meaningful moments (a lift, a drop, a peek, a selection change, a success or an error), never for every tap
-- Push a screen to go deeper (a photo, post or album, a Settings section, a list). Open a sheet (`presentation: 'modal'` with `asModalRoute`) for a task that ends where it started: creating or editing one item (`components/EditSheet`, `TextEditSheet`), picking something, a flow. A sheet is a draft: × on the left (a `Button` with `icon="close"`) closes it without saving, Add (new item) or Save (edit) on the right saves and closes it, both off until the item is valid and changed; leaving with changes asks first (`hooks/useDiscardGuard`). Inside a sheet, more steps push inside it with Back, never a second sheet. Short info or a quick in-place edit about the current screen goes in a `BottomSheet`, one line of text in an alert prompt
+- Push a screen to go deeper (a photo, post or album, a Settings section, a list). Open a sheet (a route with `presentation: 'modal'`, framed by `components/sheet-route`) for a task that ends where it started: creating or editing one item (`components/EditSheet`, `TextEditSheet`), picking something, a flow. A sheet is a draft: × on the left (a `Button` with `icon="close"`) closes it without saving, Add (new item) or Save (edit) on the right saves and closes it, both off until the item is valid and changed; leaving with changes asks first (`hooks/useDiscardGuard`). Inside a sheet, more steps push inside it with Back, never a second sheet. Short info or a quick in-place edit about the current screen goes in a `BottomSheet`, one line of text in an alert prompt
 - A screen pushed outside a sheet saves its edits as you type, like iOS Settings (`hooks/useSaveAsYouType`): no Save buttons or discard prompts. One pushed inside a sheet is a draft like the sheet
 
 ## Code Quality

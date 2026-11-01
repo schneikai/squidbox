@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { router, useNavigation } from 'expo-router';
 
 import RulesField from './RulesField';
 import voiceFields from './voiceFields';
@@ -11,7 +11,7 @@ import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import usePersona from '@/hooks/usePersona';
 
 // Settings → Assistant → Rules: what the assistant must always or never do, one row each; a tap opens
-// one (RuleScreen), Add a rule adds one. Reachable from anywhere (a root screen).
+// one (RuleScreen) as a sheet, Add a rule adds one.
 export default function RulesScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
@@ -27,8 +27,8 @@ export default function RulesScreen() {
         {persona !== undefined && (
           <RulesField
             rules={persona?.rules ?? []}
-            onOpen={(index) => navigation.navigate('RuleScreen', { index })}
-            onAdd={() => navigation.navigate('RuleScreen')}
+            onOpen={(index) => router.navigate(`/settings/assistant/rules/${index}`)}
+            onAdd={() => router.navigate('/settings/assistant/rules/new')}
           />
         )}
       </DetailScrollView>

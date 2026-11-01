@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { router } from 'expo-router';
 import { Alert } from 'react-native';
 
 import Divider from '@/components/Divider';
@@ -10,7 +10,6 @@ import getTimestamp from '@/utils/date-time/getTimestamp';
 
 export default function MoreAction({ album, afterDelete, onSelect }) {
   const { updateAlbum, setAlbumDeleted } = useAlbums();
-  const navigation = useNavigation();
 
   async function handleDeleteAlbum() {
     if (!(await confirmAsync({ title: 'Delete Album?', action: 'Delete', destructive: true }))) return;
@@ -31,7 +30,7 @@ export default function MoreAction({ album, afterDelete, onSelect }) {
   }
 
   function handleEditNotes() {
-    navigation.navigate('AlbumNotesScreen', { id: album.id, notes: album.notes ?? '' });
+    router.navigate(`/album/${album.id}/notes`);
   }
 
   async function handleArchiveAlbum() {

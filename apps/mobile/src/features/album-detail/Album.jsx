@@ -1,5 +1,5 @@
 import { useActionSheet } from '@expo/react-native-action-sheet';
-import { useNavigation } from '@react-navigation/native';
+import { router, useNavigation } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
@@ -170,7 +170,7 @@ export default function Album({ album }) {
           {!!album.notes && (
             <Pressable
               style={({ pressed }) => pressed && press.flat}
-              onPress={() => navigation.navigate('AlbumNotesScreen', { id: album.id, notes: album.notes })}
+              onPress={() => router.navigate(`/album/${album.id}/notes`)}
             >
               <Text variant="hint">{album.notes}</Text>
             </Pressable>

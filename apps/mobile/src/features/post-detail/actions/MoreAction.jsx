@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { router } from 'expo-router';
 
 import Divider from '@/components/Divider';
 import MenuButton from '@/components/MenuButton';
@@ -9,11 +9,10 @@ import confirmAsync from '@/utils/confirmAsync';
 
 export default function MoreAction({ post, afterDelete }) {
   const { deletePost } = usePosts();
-  const navigation = useNavigation();
   const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary();
 
   function handleEditPost() {
-    navigation.navigate('AddEditPostModal', { postId: post.id });
+    router.navigate(`/post-editor/${post.id}`);
   }
 
   async function handleDeletePost() {
@@ -26,7 +25,7 @@ export default function MoreAction({ post, afterDelete }) {
   }
 
   function handleRepost() {
-    navigation.navigate('AddEditPostModal', { rePostId: post.id });
+    router.navigate({ pathname: '/post-editor', params: { rePostId: post.id } });
   }
 
   async function handleDownloadAssets() {

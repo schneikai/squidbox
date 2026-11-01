@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
 import useGridLongPressPan from './useGridLongPressPan';

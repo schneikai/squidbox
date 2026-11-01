@@ -1,3 +1,4 @@
+import { useNavigation } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -26,7 +27,8 @@ import canShareFiles from '@/utils/files/canShareFiles';
  * the header, says where it is):
  *   [⇪  ↓]                                  [↺  🗑]
  */
-export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigation, children }) {
+export default function FloatingDetailActionsBar({ asset, onDeleteAsset, children }) {
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { toggleFavoriteAsset } = useAssets();
   const { restore, deletePermanently } = useDeletedAssetsActions();

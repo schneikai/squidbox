@@ -1,5 +1,5 @@
-import { useNavigation } from '@react-navigation/native';
 import { INSTRUCTION_KINDS } from '@squidbox/shared';
+import { router, useNavigation } from 'expo-router';
 
 import instructionText from './instructionText';
 
@@ -26,7 +26,7 @@ export default function InstructionsScreen() {
         key={kind}
         label={instructionText[kind].title}
         description={instructionText[kind].description}
-        onPress={() => navigation.navigate('InstructionScreen', { kind })}
+        onPress={() => router.navigate(`/settings/assistant/instructions/${kind}`)}
         hasChevron
       >
         {changedKinds?.includes(kind) && <ChangedBadge />}

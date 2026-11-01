@@ -1,17 +1,18 @@
 import * as Clipboard from 'expo-clipboard';
+import { router } from 'expo-router';
 import { Alert } from 'react-native';
 
 import MenuButton from '@/components/MenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import getAssetFileDownloadUrlAsync from '@/utils/cloud-api/assets/getAssetFileDownloadUrlAsync';
 
-export default function MoreAction({ asset, navigation }) {
+export default function MoreAction({ asset }) {
   function handleAddToAlbum() {
-    navigation.navigate('AddToAlbumModal', { assetIds: [asset.id] });
+    router.navigate({ pathname: '/add-to-album', params: { assetIds: asset.id } });
   }
 
   function handleCreatePost() {
-    navigation.navigate('AddEditPostModal', { assetIds: [asset.id] });
+    router.navigate({ pathname: '/post-editor', params: { assetIds: asset.id } });
   }
 
   async function handleCopyFileUrl() {

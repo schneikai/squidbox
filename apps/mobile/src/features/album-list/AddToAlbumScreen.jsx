@@ -1,0 +1,39 @@
+import { useLocalSearchParams, useNavigation } from 'expo-router';
+
+import Button from '@/components/Button';
+import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import ModalSheet from '@/components/ModalSheet';
+import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
+import AlbumPicker from '@/features/album-list/AlbumPicker';
+import useAddAlbumAction from '@/features/album-list/actions/add-album-action/useAddAlbumAction';
+import useAlbums from '@/features/albums-context/useAlbums';
+import useScrollY from '@/hooks/useScrollY';
+
+export default function AddToAlbumScreen() {
+  const navigation = useNavigation();
+  const { assetIds } = useLocalSearchParams();
+  const { addAssetsToAlbum } = useAlbums();
+  const promptAddAlbum = useAddAlbumAction();
+  const runWithProgress = useRunWithProgress();
+
+  const { scrollY, onScroll } = useScrollY();
+
+  async function handleAddAssetsToAlbum(album) {
+    // After a failure or a Cancel the screen stays, so the user can go on (what was added stays).
+    if (await runWithProgress((batchOptions) => addAssetsToAlbum(album, assetIds.split(','), batchOptions))) {
+      navigation.goBack();
+    }
+  }
+
+  return (
+    <ModalSheet>
+      <ModalHeader
+        leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
+        title="Add to Album"
+        scrollY={scrollY}
+        trailing={<Button variant="primary" icon="add" onPress={promptAddAlbum} accessibilityLabel="New album" />}
+      />
+      <AlbumPicker onPick={handleAddAssetsToAlbum} paddingTop={MODAL_HEADER_HEIGHT} onScroll={onScroll} />
+    </ModalSheet>
+  );
+}

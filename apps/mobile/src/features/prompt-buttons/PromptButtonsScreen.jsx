@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { router, useNavigation, usePathname } from 'expo-router';
 
 import PromptButtonGroup from './PromptButtonGroup';
 import usePromptButtons from './usePromptButtons';
@@ -14,21 +14,23 @@ import { getDb } from '@/sync/db/client';
 import { movePromptButton } from '@/sync/promptButtonsRepository';
 import { requestSync } from '@/sync/worker';
 
-// Settings → Assistant → Prompt buttons: the chat's one-tap prompts, one list. Reachable from
-// anywhere (a root screen), so the chat opens it too.
+// Settings → Assistant → Prompt buttons: the chat's one-tap prompts, one list. The chat opens it too,
+// inside its sheet. A button's editor opens under the list's own path, so in Settings it is a sheet
+// and in the chat's sheet it pushes.
 export default function PromptButtonsScreen() {
   const navigation = useNavigation();
+  const pathname = usePathname();
   const isAvailable = useLeaveWhenUnavailable();
   const buttons = usePromptButtons();
   useSeedPromptButtons();
   const haptics = useHaptics();
 
   function handleOpen(button) {
-    navigation.navigate('PromptButtonScreen', { id: button.id });
+    router.navigate(`${pathname}/${button.id}`);
   }
 
   function handleAdd() {
-    navigation.navigate('PromptButtonScreen', {});
+    router.navigate(`${pathname}/new`);
   }
 
   function handleMove(id, afterId) {
