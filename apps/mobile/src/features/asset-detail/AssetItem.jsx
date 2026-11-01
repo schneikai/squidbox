@@ -20,10 +20,12 @@ export default memo(AssetItem);
 // `edgeSwipe`: see useZoomGesture.
 function AssetItem({ asset, style, isZoomable, onTap, onZoomChange, video, verticalDrag, pagerGesture, edgeSwipe }) {
   const assetId = asset?.id;
+  const canZoom = asset?.mediaType !== MEDIA_TYPES.VIDEO;
   const handleZoomChange = useCallback((isZoomed) => onZoomChange?.(assetId, isZoomed), [assetId, onZoomChange]);
   const { gesture, zoomStyle, onLayout } = useZoomGesture({
     aspectRatio: asset?.width / asset?.height,
-    isZoomable: isZoomable && asset?.mediaType !== MEDIA_TYPES.VIDEO,
+    canZoom,
+    isZoomable: isZoomable && canZoom,
     onTap,
     onZoomChange: handleZoomChange,
     verticalDrag,

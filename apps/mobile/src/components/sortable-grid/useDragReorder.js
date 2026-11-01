@@ -31,6 +31,7 @@ import { motion } from '@/styles/designTokens';
 // `onPeekEnd()` on release or on moving, which drags on from there).
 //
 // Near the top/bottom edge the list auto-scrolls (useGridLongPressPan). `layout`: see gridSlotOrigin.
+// With `waitsFor` (another gesture on the grid, drag-select), a drag starts only once it has failed.
 
 // After the lift, so a drag that starts right away never flashes the quick view first.
 const PEEK_AFTER_LIFT_MS = 400;
@@ -53,6 +54,7 @@ export default function useDragReorder({
   onSettled,
   onPeek,
   onPeekEnd,
+  waitsFor,
 }) {
   const haptics = useHaptics();
   const orderRef = useRef([]);
@@ -82,6 +84,7 @@ export default function useDragReorder({
 
   const { gesture, onContainerLayout, startAutoScroll, contentPoint, indexAtContent } = useGridLongPressPan({
     enabled,
+    waitsFor,
     holdMs: DRAG_LONG_PRESS_MS,
     layout,
     paddingTop,

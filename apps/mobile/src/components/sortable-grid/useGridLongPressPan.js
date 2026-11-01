@@ -21,6 +21,7 @@ const SCROLL_TICK_MS = 16;
  */
 export default function useGridLongPressPan({
   enabled,
+  waitsFor,
   holdMs,
   layout,
   paddingTop,
@@ -66,6 +67,7 @@ export default function useGridLongPressPan({
   const config = useMemo(
     () => ({
       enabled,
+      requireToFail: waitsFor,
       activateAfterLongPress: holdMs,
       runOnJS: true,
       onActivate: (e) => {
@@ -86,7 +88,7 @@ export default function useGridLongPressPan({
         handlers.current.onRelease();
       },
     }),
-    [enabled, holdMs],
+    [enabled, waitsFor, holdMs],
   );
   const gesture = usePanGesture(config);
 

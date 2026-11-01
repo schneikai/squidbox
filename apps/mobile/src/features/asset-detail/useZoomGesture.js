@@ -39,8 +39,9 @@ const DOUBLE_TAP_DELAY_MS = 250;
  * pan (one finger) within the image's edges, fling, and double tap to zoom in on a point or back out.
  * Pan only takes the touch while zoomed, so at 1× a swipe stays with the pager around the view.
  * Everything runs on the UI thread; `onZoomChange(isZoomed)` reports the transitions. Without a
- * known `aspectRatio` (width / height), the image is taken to fill the view. While not `isZoomable`
- * only the tap is on, and a view that stops being zoomable (or unmounts) goes back to 1×.
+ * known `aspectRatio` (width / height), the image is taken to fill the view. An image that can't zoom
+ * (`canZoom` false: a video) only has the tap. One that can is zoomable while `isZoomable` (the
+ * current page), and one that stops being zoomable (or unmounts) goes back to 1×.
  *
  * The gesture goes on an untransformed container (focal points are measured in it) that reports
  * `onLayout`; `zoomStyle` goes on the view inside it.
@@ -59,6 +60,7 @@ const DOUBLE_TAP_DELAY_MS = 250;
  */
 export default function useZoomGesture({
   aspectRatio,
+  canZoom,
   isZoomable,
   onTap,
   onZoomChange,
@@ -409,22 +411,29 @@ export default function useZoomGesture({
     tapTouch,
   ]);
 
+  // Zooming turns on and off with `isZoomable` (a page becoming the current one) through `enabled`:
+  // a detector handed a different composition while mounted doesn't attach the new gestures.
+  const pinchConfig = useMemo(() => ({ ...configs.pinch, enabled: isZoomable }), [configs.pinch, isZoomable]);
+  const doubleTapConfig = useMemo(
+    () => ({ ...configs.doubleTap, enabled: isZoomable }),
+    [configs.doubleTap, isZoomable],
+  );
   const singleTap = useTapGesture(configs.singleTap);
-  const pinch = usePinchGesture(configs.pinch);
-  const doubleTap = useTapGesture(configs.doubleTap);
+  const pinch = usePinchGesture(pinchConfig);
+  const doubleTap = useTapGesture(doubleTapConfig);
   // The pan waits for the double tap only where there is one.
   const panConfig = useMemo(
-    () => ({ ...configs.pan, requireToFail: isZoomable ? doubleTap : undefined }),
-    [configs.pan, isZoomable, doubleTap],
+    () => ({ ...configs.pan, requireToFail: canZoom ? doubleTap : undefined }),
+    [configs.pan, canZoom, doubleTap],
   );
   const pan = usePanGesture(panConfig);
 
   // Hooks can't be called conditionally: every combination is built, and the detector gets the one
-  // that applies (relations come from the gesture the detector has).
+  // that fits the asset, which stays the same while it's mounted.
   const tapOrDoubleTap = useExclusiveGestures(doubleTap, singleTap);
   const zoomAndTaps = useSimultaneousGestures(pinch, pan, tapOrDoubleTap);
   const dragAndTap = useSimultaneousGestures(pan, singleTap);
-  const gesture = isZoomable ? zoomAndTaps : verticalDrag ? dragAndTap : singleTap;
+  const gesture = canZoom ? zoomAndTaps : verticalDrag ? dragAndTap : singleTap;
 
   const zoomStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }, { translateY: translateY.value }, { scale: scale.value }],

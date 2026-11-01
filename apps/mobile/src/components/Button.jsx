@@ -252,8 +252,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Rounded itself: on iOS (SDK 58) the button's corners don't clip the gradient inside.
   discFill: {
     ...StyleSheet.absoluteFillObject,
+    borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -283,6 +285,7 @@ const styles = StyleSheet.create({
   },
   pillFill: {
     flexGrow: 1,
+    borderRadius: radii.pill,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
