@@ -8,8 +8,10 @@ import { DatePicker, Host } from '@expo/ui/src/swift-ui';
 import { datePickerStyle, fixedSize, tint } from '@expo/ui/src/swift-ui/modifiers';
 import { StyleSheet } from 'react-native';
 
-import { colors } from '@/styles/designTokens';
+import { colors, scale } from '@/styles/designTokens';
 
+// What SwiftUI's graphical calendar leaves between its edges and its month and weekdays.
+const CALENDAR_INSET = scale(16);
 const MODIFIERS = [
   datePickerStyle('graphical'),
   tint(colors.accent.base),
@@ -34,7 +36,10 @@ export default function PostedAtCalendar({ timestamp, onChange }) {
 }
 
 const styles = StyleSheet.create({
+  // SwiftUI's graphical calendar pads its month and weekdays in from its edges; reaching past the
+  // sheet's padding by as much lines them up with the sheet's title and its ×.
   picker: {
-    width: '100%',
+    alignSelf: 'stretch',
+    marginHorizontal: -CALENDAR_INSET,
   },
 });
