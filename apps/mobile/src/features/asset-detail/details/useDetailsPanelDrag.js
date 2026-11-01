@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useRef } from 'react';
-import { Gesture } from 'react-native-gesture-handler';
+import { useCallback, useRef } from 'react';
+import { usePanGesture } from 'react-native-gesture-handler';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { TAP_SLOP } from '@/constants';
@@ -18,30 +18,27 @@ export default function useDetailsPanelDrag(verticalDrag, pagerGesture) {
     isPressBlocked.current = isBlocked;
   }, []);
 
-  const gesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .activeOffsetY([-TAP_SLOP, TAP_SLOP])
-        .failOffsetX([-TAP_SLOP, TAP_SLOP])
-        .blocksExternalGesture(pagerGesture)
-        .onBegin(() => {
-          scheduleOnRN(blockPress, verticalDrag.grab());
-        })
-        .onStart(() => {
-          scheduleOnRN(blockPress, true);
-          verticalDrag.onStart();
-        })
-        .onChange((event) => {
-          verticalDrag.onChange(event.changeY);
-        })
-        .onEnd((event) => {
-          verticalDrag.onEnd(event.velocityY);
-        })
-        .onFinalize(() => {
-          verticalDrag.letGo();
-        }),
-    [verticalDrag, pagerGesture, blockPress],
-  );
+  const gesture = usePanGesture({
+    activeOffsetY: [-TAP_SLOP, TAP_SLOP],
+    failOffsetX: [-TAP_SLOP, TAP_SLOP],
+    block: pagerGesture,
+    onBegin: () => {
+      scheduleOnRN(blockPress, verticalDrag.grab());
+    },
+    onActivate: () => {
+      scheduleOnRN(blockPress, true);
+      verticalDrag.onStart();
+    },
+    onUpdate: (event) => {
+      verticalDrag.onChange(event.changeY);
+    },
+    onDeactivate: (event) => {
+      verticalDrag.onEnd(event.velocityY);
+    },
+    onFinalize: () => {
+      verticalDrag.letGo();
+    },
+  });
 
   const guardPress = useCallback(
     (onPress) => () => {

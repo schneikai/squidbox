@@ -1,5 +1,13 @@
-import { useEffect, useMemo, useRef } from 'react';
-import { Gesture, State } from 'react-native-gesture-handler';
+import { useEffect, useRef } from 'react';
+import {
+  GestureStateManager,
+  State,
+  useExclusiveGestures,
+  usePanGesture,
+  usePinchGesture,
+  useSimultaneousGestures,
+  useTapGesture,
+} from 'react-native-gesture-handler';
 import {
   cancelAnimation,
   clamp,
@@ -106,288 +114,274 @@ export default function useZoomGesture({
     };
   }, [isZoomable, scale, translateX, translateY]);
 
-  const gesture = useMemo(() => {
-    // One finger only, and not one that lands on a gliding or springing image: a quick two-finger
-    // touch, a tiny pinch or catching a fling isn't meant as a tap.
-    const singleTap = Gesture.Tap()
-      .maxDistance(TAP_SLOP)
-      .onTouchesDown((event) => {
-        const isFirst = event.numberOfTouches === 1;
-        tapTouch.value = {
-          pointers: Math.max(event.numberOfTouches, isFirst ? 0 : tapTouch.value.pointers),
-          isOnMovingImage: isFirst ? settlingCount.value > 0 : tapTouch.value.isOnMovingImage,
-        };
-      })
-      .onStart(() => {
-        const { pointers, isOnMovingImage } = tapTouch.value;
-        if (onTap && pointers === 1 && !isOnMovingImage) scheduleOnRN(onTap);
-      });
-
-    if (!isZoomable && !verticalDrag) return singleTap;
-
-    const boundsAt = (atScale) => {
-      'worklet';
-      return getPanBounds({ scale: atScale, ...size.value, aspectRatio });
-    };
-
-    // The scale a release settles on.
-    const restingScale = () => {
-      'worklet';
-      return clamp(scale.value, 1, MAX_SCALE);
-    };
-
-    // Positions relative to the view's center, the transform origin.
-    const fromCenter = (x, y) => {
-      'worklet';
-      return { x: x - size.value.width / 2, y: y - size.value.height / 2 };
-    };
-
-    // What the next pinch event compares against.
-    const pinchSnapshot = (event) => {
-      'worklet';
-      return {
-        scale: event.scale,
-        focalX: event.focalX - size.value.width / 2,
-        focalY: event.focalY - size.value.height / 2,
-        pointers: event.numberOfPointers,
+  // One finger only, and not one that lands on a gliding or springing image: a quick two-finger
+  // touch, a tiny pinch or catching a fling isn't meant as a tap.
+  const singleTap = useTapGesture({
+    maxDistance: TAP_SLOP,
+    onTouchesDown: (event) => {
+      const isFirst = event.numberOfTouches === 1;
+      tapTouch.value = {
+        pointers: Math.max(event.numberOfTouches, isFirst ? 0 : tapTouch.value.pointers),
+        isOnMovingImage: isFirst ? settlingCount.value > 0 : tapTouch.value.isOnMovingImage,
       };
-    };
+    },
+    onActivate: () => {
+      const { pointers, isOnMovingImage } = tapTouch.value;
+      if (onTap && pointers === 1 && !isOnMovingImage) scheduleOnRN(onTap);
+    },
+  });
 
-    const touchAnchor = (event) => {
-      'worklet';
-      const [touch] = event.allTouches;
-      return { id: touch.id, x: touch.x, y: touch.y };
-    };
+  const boundsAt = (atScale) => {
+    'worklet';
+    return getPanBounds({ scale: atScale, ...size.value, aspectRatio });
+  };
 
-    // Counts an animation as under way until it finishes or is cancelled.
-    const settled = () => {
-      'worklet';
-      settlingCount.value -= 1;
-    };
-    const settling = () => {
-      'worklet';
-      settlingCount.value += 1;
-      return settled;
-    };
+  // The scale a release settles on.
+  const restingScale = () => {
+    'worklet';
+    return clamp(scale.value, 1, MAX_SCALE);
+  };
 
-    const stop = () => {
-      'worklet';
-      cancelAnimation(scale);
+  // Positions relative to the view's center, the transform origin.
+  const fromCenter = (x, y) => {
+    'worklet';
+    return { x: x - size.value.width / 2, y: y - size.value.height / 2 };
+  };
+
+  // What the next pinch event compares against.
+  const pinchSnapshot = (event) => {
+    'worklet';
+    return {
+      scale: event.scale,
+      focalX: event.focalX - size.value.width / 2,
+      focalY: event.focalY - size.value.height / 2,
+      pointers: event.numberOfPointers,
+    };
+  };
+
+  const touchAnchor = (event) => {
+    'worklet';
+    const [touch] = event.allTouches;
+    return { id: touch.id, x: touch.x, y: touch.y };
+  };
+
+  // Counts an animation as under way until it finishes or is cancelled.
+  const settled = () => {
+    'worklet';
+    settlingCount.value -= 1;
+  };
+  const settling = () => {
+    'worklet';
+    settlingCount.value += 1;
+    return settled;
+  };
+
+  const stop = () => {
+    'worklet';
+    cancelAnimation(scale);
+    cancelAnimation(translateX);
+    cancelAnimation(translateY);
+  };
+
+  // Animates to `toScale` keeping the content under `focal` there (or moving it to `to`), with the
+  // image's edges pulled back inside the view. Scale and translation share one spring from rest,
+  // so the focal point holds still all the way.
+  const zoomTo = (toScale, focal, to = focal) => {
+    'worklet';
+    const ratio = toScale / scale.value;
+    const bounds = boundsAt(toScale);
+    const x = zoomAround({ translation: translateX.value, from: focal.x, to: to.x, ratio });
+    const y = zoomAround({ translation: translateY.value, from: focal.y, to: to.y, ratio });
+    scale.value = withSpring(toScale, motion.spring, settling());
+    translateX.value = withSpring(clamp(x, -bounds.x, bounds.x), motion.spring, settling());
+    translateY.value = withSpring(clamp(y, -bounds.y, bounds.y), motion.spring, settling());
+  };
+
+  const dragAxis = (value, delta, bound, dimension) => {
+    'worklet';
+    value.value = dragWithin({ position: value.value, delta, min: -bound, max: bound, dimension });
+  };
+
+  // A one-finger zoomed pan's sideways change: with `edgeSwipe`, the image takes it up to its edge
+  // and the pager the rest; once the pager is off its page, it takes all of it until it is back.
+  // Says whether the pager is off its page afterwards.
+  const dragX = (changeX, bound) => {
+    'worklet';
+    const isShifted = !!edgeSwipe && edgeSwipe.isShifted();
+    const x = translateX.value;
+    const room = changeX < 0 ? Math.max(x + bound, 0) : Math.max(bound - x, 0);
+    const toImage = isShifted ? 0 : Math.sign(changeX) * Math.min(Math.abs(changeX), room);
+    const toPager = changeX - toImage;
+    if (!edgeSwipe || toPager === 0) {
+      dragAxis(translateX, changeX, bound, size.value.width);
+      return isShifted;
+    }
+    const { leftover, hasMoved, isShifted: isShiftedNow } = edgeSwipe.drag(toPager);
+    if (!hasMoved) {
+      // No page that way: the image pans and rubber-bands as without a pager.
+      dragAxis(translateX, changeX, bound, size.value.width);
+      return isShifted;
+    }
+    // Dragged back onto its page, the pager is let go: the pan's release is the image's again.
+    isHoldingPager.value = isShiftedNow;
+    // Flush with the page's edge, also when the pan caught the image rubber-banding past it.
+    translateX.value = clamp(x + toImage, -bound, bound);
+    if (leftover !== 0) dragAxis(translateX, leftover, bound, size.value.width);
+    return isShiftedNow;
+  };
+
+  const settleAxis = (value, velocity, bound) => {
+    'worklet';
+    settleWithin({ value, velocity, min: -bound, max: bound, onDone: settling() });
+  };
+
+  // The vertical drag, or what it opened, has the photo.
+  const isZoomBlocked = () => {
+    'worklet';
+    return isDraggingVertically.value || (!!verticalDrag && verticalDrag.isOpen());
+  };
+
+  const pinch = usePinchGesture({
+    onActivate: (event) => {
+      stop();
+      lastPinch.value = pinchSnapshot(event);
+    },
+    onUpdate: (event) => {
+      const last = lastPinch.value;
+      const latest = pinchSnapshot(event);
+      lastPinch.value = latest;
+      // A finger lifting or landing moves the focal point in one jump.
+      if (latest.pointers !== 2 || last.pointers !== 2 || isZoomBlocked()) return;
+      const current = scale.value;
+      const next = dragWithin({
+        position: current,
+        delta: current * (latest.scale / last.scale - 1),
+        min: 1,
+        max: MAX_SCALE,
+        dimension: 1,
+      });
+      const ratio = next / current;
+      scale.value = next;
+      translateX.value = zoomAround({ translation: translateX.value, from: last.focalX, to: latest.focalX, ratio });
+      translateY.value = zoomAround({ translation: translateY.value, from: last.focalY, to: latest.focalY, ratio });
+    },
+    onDeactivate: () => {
+      if (isZoomBlocked()) return;
+      const { focalX, focalY } = lastPinch.value;
+      zoomTo(restingScale(), { x: focalX, y: focalY });
+    },
+  });
+
+  const doubleTap = useTapGesture({
+    numberOfTaps: 2,
+    maxDelay: DOUBLE_TAP_DELAY_MS,
+    maxDistance: TAP_SLOP,
+    onActivate: (event) => {
+      if (isZoomBlocked()) {
+        if (onTap) scheduleOnRN(onTap);
+        return;
+      }
+      stop();
+      const point = fromCenter(event.x, event.y);
+      if (scale.value > ZOOMED_SCALE) zoomTo(1, point);
+      else zoomTo(DOUBLE_TAP_SCALE, point, { x: 0, y: 0 });
+    },
+  });
+
+  // Starts only once a finger moves past the tap's slop and the double tap has failed, so a tap's
+  // jitter never starts a pan whose fling would undo the double tap's zoom.
+  const pan = usePanGesture({
+    manualActivation: true,
+    requireToFail: isZoomable ? doubleTap : undefined,
+    block: pagerGesture,
+    onTouchesDown: (event) => {
+      if (event.numberOfTouches === 1) panStart.value = touchAnchor(event);
+    },
+    onTouchesMove: (event) => {
+      if (event.state !== State.BEGAN) return;
+      const start = panStart.value;
+      const touch = event.allTouches.find(({ id }) => id === start.id);
+      // The finger it measured from lifted: measure from the one still down.
+      if (!touch) {
+        panStart.value = touchAnchor(event);
+        return;
+      }
+      const dx = touch.x - start.x;
+      const dy = touch.y - start.y;
+      if (Math.hypot(dx, dy) <= TAP_SLOP) return;
+      if (scale.value > ZOOMED_SCALE) {
+        GestureStateManager.activate(event.handlerTag);
+        return;
+      }
+      // At 1× two fingers may be a pinch zooming in that carries on as a pan.
+      if (event.numberOfTouches !== 1) return;
+      if (verticalDrag && Math.abs(dy) > Math.abs(dx) && verticalDrag.canStart(dy)) {
+        isDraggingVertically.value = true;
+        GestureStateManager.activate(event.handlerTag);
+      } else {
+        // One finger swiping sideways swipes the pager.
+        GestureStateManager.fail(event.handlerTag);
+      }
+    },
+    onActivate: (event) => {
+      if (isDraggingVertically.value) {
+        verticalDrag.onStart();
+        return;
+      }
       cancelAnimation(translateX);
       cancelAnimation(translateY);
-    };
-
-    // Animates to `toScale` keeping the content under `focal` there (or moving it to `to`), with the
-    // image's edges pulled back inside the view. Scale and translation share one spring from rest,
-    // so the focal point holds still all the way.
-    const zoomTo = (toScale, focal, to = focal) => {
-      'worklet';
-      const ratio = toScale / scale.value;
-      const bounds = boundsAt(toScale);
-      const x = zoomAround({ translation: translateX.value, from: focal.x, to: to.x, ratio });
-      const y = zoomAround({ translation: translateY.value, from: focal.y, to: to.y, ratio });
-      scale.value = withSpring(toScale, motion.spring, settling());
-      translateX.value = withSpring(clamp(x, -bounds.x, bounds.x), motion.spring, settling());
-      translateY.value = withSpring(clamp(y, -bounds.y, bounds.y), motion.spring, settling());
-    };
-
-    const dragAxis = (value, delta, bound, dimension) => {
-      'worklet';
-      value.value = dragWithin({ position: value.value, delta, min: -bound, max: bound, dimension });
-    };
-
-    // A one-finger zoomed pan's sideways change: with `edgeSwipe`, the image takes it up to its edge
-    // and the pager the rest; once the pager is off its page, it takes all of it until it is back.
-    // Says whether the pager is off its page afterwards.
-    const dragX = (changeX, bound) => {
-      'worklet';
-      const isShifted = !!edgeSwipe && edgeSwipe.isShifted();
-      const x = translateX.value;
-      const room = changeX < 0 ? Math.max(x + bound, 0) : Math.max(bound - x, 0);
-      const toImage = isShifted ? 0 : Math.sign(changeX) * Math.min(Math.abs(changeX), room);
-      const toPager = changeX - toImage;
-      if (!edgeSwipe || toPager === 0) {
-        dragAxis(translateX, changeX, bound, size.value.width);
-        return isShifted;
+      lastPanPointers.value = event.numberOfPointers;
+      // A pan that catches a running snap carries the pager on from where it is.
+      if (edgeSwipe) {
+        edgeSwipe.stop();
+        isHoldingPager.value = edgeSwipe.isShifted();
       }
-      const { leftover, hasMoved, isShifted: isShiftedNow } = edgeSwipe.drag(toPager);
-      if (!hasMoved) {
-        // No page that way: the image pans and rubber-bands as without a pager.
-        dragAxis(translateX, changeX, bound, size.value.width);
-        return isShifted;
+    },
+    onUpdate: (event) => {
+      if (isDraggingVertically.value) {
+        verticalDrag.onChange(event.changeY);
+        return;
       }
-      // Dragged back onto its page, the pager is let go: the pan's release is the image's again.
-      isHoldingPager.value = isShiftedNow;
-      // Flush with the page's edge, also when the pan caught the image rubber-banding past it.
-      translateX.value = clamp(x + toImage, -bound, bound);
-      if (leftover !== 0) dragAxis(translateX, leftover, bound, size.value.width);
-      return isShiftedNow;
-    };
+      const hasSamePointers = event.numberOfPointers === lastPanPointers.value;
+      lastPanPointers.value = event.numberOfPointers;
+      // Two fingers belong to the pinch, which moves the image with them.
+      if (event.numberOfPointers !== 1 || !hasSamePointers) return;
+      const bounds = boundsAt(scale.value);
+      const isPagerShifted = dragX(event.changeX, bounds.x);
+      // While the pager moves, only the pager moves.
+      if (!isPagerShifted) dragAxis(translateY, event.changeY, bounds.y, size.value.height);
+    },
+    onDeactivate: (event) => {
+      if (isDraggingVertically.value) {
+        verticalDrag.onEnd(event.velocityY);
+        return;
+      }
+      // A pan last moved by two fingers was the pinch's, which settles the image itself.
+      if (lastPanPointers.value !== 1) return;
+      const bounds = boundsAt(restingScale());
+      // A pan holding the pager snaps it (onFinalize): the image doesn't fling, it only comes back
+      // within its edges (a drag rubber-banded past one before the hand-off).
+      const isFlung = !isHoldingPager.value;
+      settleAxis(translateX, isFlung ? event.velocityX : 0, bounds.x);
+      settleAxis(translateY, isFlung ? event.velocityY : 0, bounds.y);
+    },
+    onFinalize: (event) => {
+      isDraggingVertically.value = false;
+      // A pan that held the pager snaps it, a cancelled one without velocity: never leave the list
+      // between pages.
+      if (isHoldingPager.value) {
+        isHoldingPager.value = false;
+        edgeSwipe.release(event.canceled ? 0 : event.velocityX);
+      }
+    },
+  });
 
-    const settleAxis = (value, velocity, bound) => {
-      'worklet';
-      settleWithin({ value, velocity, min: -bound, max: bound, onDone: settling() });
-    };
-
-    // The vertical drag, or what it opened, has the photo.
-    const isZoomBlocked = () => {
-      'worklet';
-      return isDraggingVertically.value || (!!verticalDrag && verticalDrag.isOpen());
-    };
-
-    const pinch = Gesture.Pinch()
-      .onStart((event) => {
-        stop();
-        lastPinch.value = pinchSnapshot(event);
-      })
-      .onUpdate((event) => {
-        const last = lastPinch.value;
-        const latest = pinchSnapshot(event);
-        lastPinch.value = latest;
-        // A finger lifting or landing moves the focal point in one jump.
-        if (latest.pointers !== 2 || last.pointers !== 2 || isZoomBlocked()) return;
-        const current = scale.value;
-        const next = dragWithin({
-          position: current,
-          delta: current * (latest.scale / last.scale - 1),
-          min: 1,
-          max: MAX_SCALE,
-          dimension: 1,
-        });
-        const ratio = next / current;
-        scale.value = next;
-        translateX.value = zoomAround({ translation: translateX.value, from: last.focalX, to: latest.focalX, ratio });
-        translateY.value = zoomAround({ translation: translateY.value, from: last.focalY, to: latest.focalY, ratio });
-      })
-      .onEnd(() => {
-        if (isZoomBlocked()) return;
-        const { focalX, focalY } = lastPinch.value;
-        zoomTo(restingScale(), { x: focalX, y: focalY });
-      });
-
-    const doubleTap = Gesture.Tap()
-      .numberOfTaps(2)
-      .maxDelay(DOUBLE_TAP_DELAY_MS)
-      .maxDistance(TAP_SLOP)
-      .onStart((event) => {
-        if (isZoomBlocked()) {
-          if (onTap) scheduleOnRN(onTap);
-          return;
-        }
-        stop();
-        const point = fromCenter(event.x, event.y);
-        if (scale.value > ZOOMED_SCALE) zoomTo(1, point);
-        else zoomTo(DOUBLE_TAP_SCALE, point, { x: 0, y: 0 });
-      });
-
-    // Starts only once a finger moves past the tap's slop and the double tap has failed, so a tap's
-    // jitter never starts a pan whose fling would undo the double tap's zoom.
-    const pan = Gesture.Pan()
-      .manualActivation(true)
-      .requireExternalGestureToFail(...(isZoomable ? [doubleTap] : []))
-      .blocksExternalGesture(...(pagerGesture ? [pagerGesture] : []))
-      .onTouchesDown((event) => {
-        if (event.numberOfTouches === 1) panStart.value = touchAnchor(event);
-      })
-      .onTouchesMove((event, manager) => {
-        if (event.state !== State.BEGAN) return;
-        const start = panStart.value;
-        const touch = event.allTouches.find(({ id }) => id === start.id);
-        // The finger it measured from lifted: measure from the one still down.
-        if (!touch) {
-          panStart.value = touchAnchor(event);
-          return;
-        }
-        const dx = touch.x - start.x;
-        const dy = touch.y - start.y;
-        if (Math.hypot(dx, dy) <= TAP_SLOP) return;
-        if (scale.value > ZOOMED_SCALE) {
-          manager.activate();
-          return;
-        }
-        // At 1× two fingers may be a pinch zooming in that carries on as a pan.
-        if (event.numberOfTouches !== 1) return;
-        if (verticalDrag && Math.abs(dy) > Math.abs(dx) && verticalDrag.canStart(dy)) {
-          isDraggingVertically.value = true;
-          manager.activate();
-        } else {
-          // One finger swiping sideways swipes the pager.
-          manager.fail();
-        }
-      })
-      .onStart((event) => {
-        if (isDraggingVertically.value) {
-          verticalDrag.onStart();
-          return;
-        }
-        cancelAnimation(translateX);
-        cancelAnimation(translateY);
-        lastPanPointers.value = event.numberOfPointers;
-        // A pan that catches a running snap carries the pager on from where it is.
-        if (edgeSwipe) {
-          edgeSwipe.stop();
-          isHoldingPager.value = edgeSwipe.isShifted();
-        }
-      })
-      .onChange((event) => {
-        if (isDraggingVertically.value) {
-          verticalDrag.onChange(event.changeY);
-          return;
-        }
-        const hasSamePointers = event.numberOfPointers === lastPanPointers.value;
-        lastPanPointers.value = event.numberOfPointers;
-        // Two fingers belong to the pinch, which moves the image with them.
-        if (event.numberOfPointers !== 1 || !hasSamePointers) return;
-        const bounds = boundsAt(scale.value);
-        const isPagerShifted = dragX(event.changeX, bounds.x);
-        // While the pager moves, only the pager moves.
-        if (!isPagerShifted) dragAxis(translateY, event.changeY, bounds.y, size.value.height);
-      })
-      .onEnd((event) => {
-        if (isDraggingVertically.value) {
-          verticalDrag.onEnd(event.velocityY);
-          return;
-        }
-        // A pan last moved by two fingers was the pinch's, which settles the image itself.
-        if (lastPanPointers.value !== 1) return;
-        const bounds = boundsAt(restingScale());
-        // A pan holding the pager snaps it (onFinalize): the image doesn't fling, it only comes back
-        // within its edges (a drag rubber-banded past one before the hand-off).
-        const isFlung = !isHoldingPager.value;
-        settleAxis(translateX, isFlung ? event.velocityX : 0, bounds.x);
-        settleAxis(translateY, isFlung ? event.velocityY : 0, bounds.y);
-      })
-      .onFinalize((event, success) => {
-        isDraggingVertically.value = false;
-        // A pan that held the pager snaps it, a cancelled one without velocity: never leave the list
-        // between pages.
-        if (isHoldingPager.value) {
-          isHoldingPager.value = false;
-          edgeSwipe.release(success ? event.velocityX : 0);
-        }
-      });
-
-    if (!isZoomable) return Gesture.Simultaneous(pan, singleTap);
-    return Gesture.Simultaneous(pinch, pan, Gesture.Exclusive(doubleTap, singleTap));
-  }, [
-    aspectRatio,
-    isZoomable,
-    onTap,
-    verticalDrag,
-    pagerGesture,
-    edgeSwipe,
-    size,
-    scale,
-    translateX,
-    translateY,
-    lastPinch,
-    lastPanPointers,
-    panStart,
-    isDraggingVertically,
-    isHoldingPager,
-    settlingCount,
-    tapTouch,
-  ]);
+  // Hooks can't be called conditionally: every combination is built, and the detector gets the one
+  // that applies (relations come from the gesture the detector has).
+  const tapOrDoubleTap = useExclusiveGestures(doubleTap, singleTap);
+  const zoomAndTaps = useSimultaneousGestures(pinch, pan, tapOrDoubleTap);
+  const dragAndTap = useSimultaneousGestures(pan, singleTap);
+  const gesture = isZoomable ? zoomAndTaps : verticalDrag ? dragAndTap : singleTap;
 
   const zoomStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }, { translateY: translateY.value }, { scale: scale.value }],

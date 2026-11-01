@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform, View, useWindowDimensions } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { GestureDetector, useExclusiveGestures } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedReaction,
   useAnimatedRef,
@@ -183,11 +183,10 @@ export default function SortableGrid({
   });
 
   // Compose only what can run: on web, a disabled gesture inside Exclusive still makes the other
-  // wait for it, so reordering would never start.
-  const gesture = useMemo(
-    () => (dragSelectEnabled ? Gesture.Exclusive(dragSelect.gesture, dragReorder.gesture) : dragReorder.gesture),
-    [dragSelectEnabled, dragSelect.gesture, dragReorder.gesture],
-  );
+  // wait for it, so reordering would never start. Hooks can't be conditional, so the composition
+  // is always built and the detector gets it only while drag-select is on.
+  const selectOrReorder = useExclusiveGestures(dragSelect.gesture, dragReorder.gesture);
+  const gesture = dragSelectEnabled ? selectOrReorder : dragReorder.gesture;
   const contentContainerStyle = useMemo(() => ({ paddingTop, paddingBottom }), [paddingTop, paddingBottom]);
 
   const rowPitch = layout.cellHeight + layout.gap;

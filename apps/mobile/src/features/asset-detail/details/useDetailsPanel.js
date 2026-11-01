@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Gesture } from 'react-native-gesture-handler';
+import { useNativeGesture } from 'react-native-gesture-handler';
 import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
 import {
   cancelAnimation,
@@ -19,6 +19,10 @@ import springForRelease from '@/features/asset-detail/springForRelease';
 
 // The page's share the open panel takes; the photo covers the rest, above it.
 const OPEN_SHARE = 2 / 3;
+// The list of pages' own scrolling, unconfigured. A constant, so the gesture (and the panel the
+// pages get) keeps its identity across renders.
+const PAGER_GESTURE = {};
+
 // Room left between the note being edited and the keyboard.
 const KEYBOARD_GAP = 16;
 
@@ -55,7 +59,7 @@ export default function useDetailsPanel() {
   const isCaught = useSharedValue(false);
   // The list of pages: the vertical drags hold it while they run (useZoomGesture,
   // useDetailsPanelDrag), so a drag never pages.
-  const pagerGesture = useMemo(() => Gesture.Native(), []);
+  const pagerGesture = useNativeGesture(PAGER_GESTURE);
   // Negative: how far the keyboard moves content up.
   const { height: keyboardOffset } = useReanimatedKeyboardAnimation();
 
