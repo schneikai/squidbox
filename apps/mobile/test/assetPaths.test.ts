@@ -13,7 +13,10 @@ const isListed = (uri: string) =>
 vi.mock('expo-file-system', async () =>
   (await import('./helpers/fakeFileSystem')).fakeFileSystem({
     create: (uri) => fs.push(`mkdir ${uri}`),
-    delete: (uri) => fs.push(`delete ${uri}`),
+    delete: (uri) => {
+      if (uri.includes('locked')) throw new Error(`cannot delete ${uri}`);
+      fs.push(`delete ${uri}`);
+    },
     exists: (uri) => (uri.endsWith('/') ? uri in folders || isListed(uri) : !uri.includes('missing')),
     list: (uri) => {
       fs.push(`list ${uri}`);
@@ -61,6 +64,12 @@ describe('asset file and thumbnail paths', () => {
       'delete file:///documents/libraries/abc/files/a.jpg',
       'delete file:///documents/libraries/abc/thumbnails/athumb.jpg',
     ]);
+  });
+
+  it('a copy that can’t be deleted doesn’t keep the others: they go, then the removal fails', async () => {
+    const removal = removeAssetFiles([{ filename: 'locked.jpg', thumbnailFilename: 'athumb.jpg' }], abc);
+    await expect(removal).rejects.toThrow('cannot delete');
+    expect(fs).toEqual(['delete file:///documents/libraries/abc/thumbnails/athumb.jpg']);
   });
 
   it('existence checks look in the library they were given', async () => {

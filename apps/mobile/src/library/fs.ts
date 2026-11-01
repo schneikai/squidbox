@@ -21,10 +21,11 @@ export async function listDatabaseNames(): Promise<string[]> {
   return [...(await listFiles(new Directory(Paths.document, 'SQLite').uri))];
 }
 
-// The names of the files in a folder (none for a folder that doesn't exist).
+// The names of the files in a folder (none for a folder that doesn't exist). An entry's uri, and so
+// its name, is percent-encoded on iOS.
 export async function listFiles(dir: string): Promise<Set<string>> {
   const directory = new Directory(dir);
-  return new Set(directory.exists ? directory.list().map((entry) => entry.name) : []);
+  return new Set(directory.exists ? directory.list().map((entry) => decodeURIComponent(entry.name)) : []);
 }
 
 // A library's two folders, ready when it opens, before anything is written into them; downloads over
@@ -114,20 +115,30 @@ async function listFolders(library: LibraryPaths): Promise<Set<string>> {
 }
 
 // Deleting is synchronous: a long sweep lets other work run between batches.
+// One that fails doesn't stop the rest: the first failure is thrown once all were tried.
 async function deleteAll(uris: string[]): Promise<void> {
+  const failures: unknown[] = [];
   for (const batch of chunk(uris, DELETES_PER_TURN)) {
-    for (const uri of batch) deletePath(uri);
+    for (const uri of batch) {
+      try {
+        deletePath(uri);
+      } catch (error) {
+        failures.push(error);
+      }
+    }
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
+  if (failures.length > 0) throw failures[0];
 }
 
 export async function fileExists(uri: string): Promise<boolean> {
   return new File(uri).exists;
 }
 
-// Moves a file into a destination that doesn't exist yet: one that does makes it throw.
-export async function moveFile(from: string, to: string): Promise<void> {
-  await new File(from).move(new File(to));
+// Moves a file into a destination that doesn't exist yet: one that does makes it throw, unless
+// `overwrite` replaces it.
+export async function moveFile(from: string, to: string, { overwrite = false } = {}): Promise<void> {
+  await new File(from).move(new File(to), { overwrite });
 }
 
 // Copies a file into a destination that doesn't exist yet, whole or not at all: to a temporary name

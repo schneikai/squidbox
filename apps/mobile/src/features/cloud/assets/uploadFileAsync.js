@@ -1,5 +1,6 @@
 import { File, UploadType } from 'expo-file-system';
 
+import cancelledError from '@/features/cloud/assets/cancelledError';
 import { API_BASE_URL } from '@/utils/cloud-api/apiBaseUrl';
 import refreshAccessTokenAsync from '@/utils/cloud-api/authentication/refreshAccessTokenAsync';
 import requireSession from '@/utils/cloud-api/requireSession';
@@ -24,7 +25,7 @@ export default async function uploadFileAsync(filename, fileUri, identity, { onP
   assertSuccess(result, filename, signal);
 }
 
-const cancelled = (filename) => Object.assign(new Error(`Uploading ${filename} was cancelled`), { name: 'AbortError' });
+const cancelled = (filename) => cancelledError(`Uploading ${filename} was cancelled`);
 
 async function doUploadAsync(filename, fileUri, accessToken, { onProgress, signal }) {
   // A signal aborted before this upload starts (during the token refresh, say) fires no event.

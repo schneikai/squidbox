@@ -1,5 +1,7 @@
 import { Directory, File } from 'expo-file-system';
 
+import cancelledError from '@/features/cloud/assets/cancelledError';
+
 const PROGRESS_THROTTLE = 250; // ms
 
 // Fetches an asset's full-resolution file from `downloadUrl` (getAssetFileSourceAsync's) into
@@ -8,7 +10,7 @@ const PROGRESS_THROTTLE = 250; // ms
 // lands as the download finishes, so nothing uses a file after a Cancel). A response that isn't a
 // success (a presigned GET that 403s, say) rejects and writes no file.
 export default async function downloadAssetFileAsync({ filename }, downloadUrl, directory, { onProgress, signal }) {
-  const cancelled = () => Object.assign(new Error(`Downloading ${filename} was cancelled`), { name: 'AbortError' });
+  const cancelled = () => cancelledError(`Downloading ${filename} was cancelled`);
   new Directory(directory).create({ intermediates: true, idempotent: true });
 
   // We throttle the progress updates because the frequent rerendering slows down the download.

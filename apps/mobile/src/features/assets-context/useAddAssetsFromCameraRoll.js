@@ -1,10 +1,10 @@
+import getPickedAssetMetadataAsync from '@/features/assets-context/getPickedAssetMetadataAsync';
 import useAssets from '@/features/assets-context/useAssets';
 import { openLibraryId } from '@/library/current';
 import { removeAssetFiles } from '@/library/fs';
 import useLibrary from '@/library/useLibrary';
 import buildAssetAsync from '@/utils/assets/buildAssetAsync';
 import imagePickerMediaTypeToAssetMediaType from '@/utils/assets/imagePickerMediaTypeToAssetMediaType';
-import getPickedAssetMetadataAsync from '@/utils/media-library/getPickedAssetMetadataAsync';
 import pickImageFromMediaLibrary from '@/utils/media-library/pickImageFromMediaLibrary';
 
 export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFinish }) {
