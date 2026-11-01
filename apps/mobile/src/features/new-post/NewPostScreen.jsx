@@ -8,8 +8,8 @@ import Button from '@/components/Button';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
-import NewPostCard from '@/features/create-post/NewPostCard';
-import RepostCard from '@/features/create-post/RepostCard';
+import NewPostCard from '@/features/new-post/NewPostCard';
+import RepostCard from '@/features/new-post/RepostCard';
 import postQuery from '@/features/post-list/postQuery';
 import usePosts from '@/features/posts-context/usePosts';
 import useScrollY from '@/hooks/useScrollY';
@@ -25,7 +25,7 @@ const candidates = postQuery({ scope: 'repostCandidates', sort: 'suggestRepostAt
  * suggestion first, paged as it scrolls), each a card with Repost, Later and Don't suggest
  * again. With nothing to repost it goes straight to the editor.
  */
-export default function CreatePostScreen() {
+export default function NewPostScreen() {
   const navigation = useNavigation();
   const { updatePost } = usePosts();
   const { bottom } = useSafeAreaInsets();

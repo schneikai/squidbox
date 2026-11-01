@@ -21,7 +21,7 @@ const WRITING_PROMPT = 'Write 3 posts about a quiet morning hike on the coast. B
 // the remembered prompt (vision's starts from the user's Photo tags instructions, which come with the
 // catalog: a spinner or Try again until they're in) and for vision the photo set the pick step saved,
 // read once with the ticked models' names.
-export default function CompareScreen() {
+export default function CompareRoundScreen() {
   const { kind, modelIds } = useLocalSearchParams();
   const sheet = useSheetRoute();
   const isAvailable = useLeaveWhenUnavailable('ai_admin');

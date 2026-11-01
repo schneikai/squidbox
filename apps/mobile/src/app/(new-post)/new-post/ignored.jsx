@@ -1,1 +1,1 @@
-export { default } from '@/features/create-post/IgnoredPostsScreen';
+export { default } from '@/features/new-post/IgnoredPostsScreen';

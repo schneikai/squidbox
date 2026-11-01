@@ -124,7 +124,7 @@ export default function useDetailsPanel() {
         return offset.value > 0;
       },
       // While closed only a swipe up starts it: a swipe down stays with the sheet the screen may be
-      // in (the create-post sheet), which the screen locks while the panel shows.
+      // in (the New post sheet), which the screen locks while the panel shows.
       canStart: (dy) => {
         'worklet';
         return offset.value > 0 || (dy < 0 && openAt.value > 0);

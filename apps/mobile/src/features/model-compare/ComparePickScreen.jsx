@@ -27,7 +27,7 @@ import toggleItem from '@/utils/toggleItem';
 
 // The compare's first step (route param `kind`): tick 2 or more of your available models, shown as
 // in your list, and for vision pick the photos (the last compare's to start with). Start saves the
-// photos for CompareScreen, which reads them back.
+// photos for CompareRoundScreen, which reads them back.
 export default function ComparePickScreen() {
   const navigation = useNavigation();
   const { kind } = useLocalSearchParams();

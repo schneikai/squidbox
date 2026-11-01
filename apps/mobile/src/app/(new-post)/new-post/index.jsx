@@ -1,1 +1,1 @@
-export { default } from '@/features/create-post/CreatePostScreen';
+export { default } from '@/features/new-post/NewPostScreen';
