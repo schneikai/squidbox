@@ -83,7 +83,6 @@ export const colors = {
   },
   border: {
     glass: alpha(palette.black, 0.08),
-    litGlass: 'transparent', // the lit edge (shadows.litEdge) draws the rim, so no white line runs under its bottom shade
     divider: alpha(palette.black, 0.08), // between the rows of a grouped list (Divider)
   },
   overlay: {
@@ -134,7 +133,7 @@ export const layout = {
   barBottom: scale(16), // between the bottom bars and the home indicator's safe area
   barPaddingX: scale(8),
   barPaddingY: scale(6),
-  toolbarFrame: 2, // the glass frame around a toolbar's buttons (FloatingPill)
+  toolbarFrame: 3, // the glass frame around a toolbar's buttons, its lit rim inside it (FloatingPill)
   contentTop: scale(88), // clears the floating header
   contentBottom: scale(128), // clears the floating bottom bars
   popoverGap: 25, // between a trigger button and the popover that opens from it
@@ -184,11 +183,9 @@ export const glass = {
   borderWidth: 1,
 };
 
-// A floating pill's glass: a light rim instead of the dark hairline, so the lit top edge reads
+// A floating pill's glass: no border, its lit edge (shadows.litEdge) draws the rim inside it
 export const litGlass = {
   backgroundColor: colors.background.litGlass,
-  borderColor: colors.border.litGlass,
-  borderWidth: 1,
 };
 
 const durations = { fast: 150, base: 250 };
