@@ -113,10 +113,11 @@ export const shadows = {
     shadowOpacity: 0.35,
     shadowRadius: 12,
   },
-  // A small floating button on its own (the account avatar): a softer floating shadow and its lit edge
+  // A small floating button on its own (the account avatar): a softer floating shadow
   subtle: {
-    boxShadow: `0 10px 36px ${alpha(palette.black, 0.07)}, 0 1px 8px ${alpha(palette.black, 0.03)}, ${LIT_EDGE}`,
+    boxShadow: `0 10px 36px ${alpha(palette.black, 0.07)}, 0 1px 8px ${alpha(palette.black, 0.03)}`,
   },
+
   // The lit edge of a floating surface whose shadow sits on a wrapper (FloatingPill, a popover)
   litEdge: {
     boxShadow: LIT_EDGE,
