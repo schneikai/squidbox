@@ -190,6 +190,7 @@ export default function SettingsScreen() {
               <Row label="Check API" onPress={handleCheckApi} hasChevron />
               <Row label="Sort albums by name" onPress={handleResortAlbums} hasChevron />
               <Row label="Features" onPress={() => navigation.navigate('FeaturesScreen')} hasChevron />
+              <Row label="Components" onPress={() => navigation.navigate('ComponentGalleryScreen')} hasChevron />
             </Section>
           </>
         )}

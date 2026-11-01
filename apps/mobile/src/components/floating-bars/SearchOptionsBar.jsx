@@ -10,7 +10,7 @@ import Button from '@/components/Button';
 import MenuButton from '@/components/MenuButton';
 import SearchInput from '@/components/SearchInput';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
-import { glass, layout, motion, scale, sizes } from '@/styles/designTokens';
+import { layout, motion, scale, sizes } from '@/styles/designTokens';
 
 /**
  * Reusable bottom-left floating search + options bar, following the iOS search pattern:
@@ -142,8 +142,8 @@ export default function SearchOptionsBar({
 }
 
 const PILL_GAP = 8;
-// A pill's width around its buttons: the frame and the border on each side.
-const PILL_CHROME = (layout.toolbarFrame + glass.borderWidth) * 2;
+// A pill's width around its buttons: the frame on each side.
+const PILL_CHROME = layout.toolbarFrame * 2;
 const COLLAPSED_WIDTH = sizes.iconButton * 2 + PILL_CHROME;
 const CANCEL_PILL_WIDTH = sizes.iconButton + PILL_CHROME;
 const CANCEL_SLOT_WIDTH = CANCEL_PILL_WIDTH + PILL_GAP;
