@@ -24,7 +24,7 @@ export default function FloatingNavigationBar({ state }) {
   const { isNavBarHidden, isSearchActive, isSelectMode, resetScroll } = useFloatingBars();
 
   const activeTab = state.routes[state.index].name;
-  const hideBar = isSearchActive || !HREFS[activeTab] || isSelectMode;
+  const hideBar = isSearchActive || activeTab === 'settings' || isSelectMode;
 
   // Toggle-driven: search / select / Settings — animated both ways via shared value
   const contextHidden = useSharedValue(hideBar ? 1 : 0);

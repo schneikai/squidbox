@@ -1,4 +1,6 @@
-const SCOPE_KEYS = { albumId: 'album', postId: 'post', assetId: 'asset' };
+import assetScopeKinds from './assetScopeKinds';
+
+const KIND_BY_KEY = Object.fromEntries(Object.entries(assetScopeKinds).map(([kind, key]) => [key, kind]));
 
 /**
  * The asset screen's href for `assetId` in the grid's query (assetQuery's descriptor), as URL
@@ -16,5 +18,5 @@ export default function assetHref(assetId, { scope = 'library', sort, filter = [
 function scopeParam(scope) {
   if (typeof scope === 'string') return scope;
   const [key, id] = Object.entries(scope)[0];
-  return `${SCOPE_KEYS[key]}:${id}`;
+  return `${KIND_BY_KEY[key]}:${id}`;
 }

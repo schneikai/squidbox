@@ -8,6 +8,7 @@ import AlbumPicker from '@/features/album-list/AlbumPicker';
 import useAddAlbumAction from '@/features/album-list/actions/add-album-action/useAddAlbumAction';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useScrollY from '@/hooks/useScrollY';
+import listParam from '@/lib/listParam';
 
 export default function AddToAlbumScreen() {
   const navigation = useNavigation();
@@ -20,7 +21,7 @@ export default function AddToAlbumScreen() {
 
   async function handleAddAssetsToAlbum(album) {
     // After a failure or a Cancel the screen stays, so the user can go on (what was added stays).
-    if (await runWithProgress((batchOptions) => addAssetsToAlbum(album, assetIds.split(','), batchOptions))) {
+    if (await runWithProgress((batchOptions) => addAssetsToAlbum(album, listParam(assetIds), batchOptions))) {
       navigation.goBack();
     }
   }

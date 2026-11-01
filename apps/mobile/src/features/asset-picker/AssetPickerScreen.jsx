@@ -13,6 +13,7 @@ import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-se
 import AssetPickerGrid from '@/features/asset-picker/AssetPickerGrid';
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';
 import useScrollY from '@/hooks/useScrollY';
+import listParam from '@/lib/listParam';
 import { getDb, schema } from '@/sync/db/client';
 import { readByIds } from '@/sync/readByIds';
 import getAlbumAssetScope from '@/utils/albums/getAlbumAssetScope';
@@ -28,7 +29,7 @@ const TABS = [
 export default function AssetPickerScreen() {
   const navigation = useNavigation();
   const params = useLocalSearchParams();
-  const exclude = params.excludeAlbumId ? { albumId: params.excludeAlbumId } : (params.exclude?.split(',') ?? []);
+  const exclude = params.excludeAlbumId ? { albumId: params.excludeAlbumId } : listParam(params.exclude);
   const { finishAssetPicking } = useAssetPicker();
   const selection = useToggleSelectAssetsAction();
   const [activeTab, setActiveTab] = useState('Library');

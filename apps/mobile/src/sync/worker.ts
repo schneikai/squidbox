@@ -398,7 +398,7 @@ export async function fullResync(db: SyncDb, transport: SyncTransport, options: 
   await runSyncOnce(db, transport, options);
 }
 
-// ── Production wrapper: one sync at a time (see singleFlight) for the target App.js sets: the open
+// ── Production wrapper: one sync at a time (see singleFlight) for the target app/_layout.jsx sets: the open
 // library's database and the identity of its signed-in owner, or null while nothing may sync (the
 // boot not done, nobody signed in, a library switching). requestSync() is called after a local
 // write (from a provider) or on foreground/interval, and is a no-op without a target.

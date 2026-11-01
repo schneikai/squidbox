@@ -8,7 +8,7 @@ import useAlbum from '../src/features/album-detail/useAlbum';
 import * as schema from '../src/sync/db/schema';
 import { makeRepository } from '../src/sync/repository';
 
-// The live hook needs the app database and React Navigation, which don't load in node; it is
+// The live hook needs the app database and Expo Router, which don't load in node; it is
 // replaced by what it would return, and the read it is handed runs against a test database.
 const liveQuery = vi.hoisted(() => vi.fn());
 vi.mock('../src/sync/useLiveQuery', () => ({ useLiveQuery: liveQuery }));

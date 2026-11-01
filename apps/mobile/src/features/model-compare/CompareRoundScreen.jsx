@@ -11,6 +11,7 @@ import useInstructions from '@/hooks/useInstructions';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import useSheetRoute from '@/hooks/useSheetRoute';
+import listParam from '@/lib/listParam';
 import { readModelList, readPrompt, readVisionPhotos } from '@/sync/aiStateRepository';
 
 // The writing compare's sample request before the first compare; after it, the last one used. The
@@ -26,7 +27,7 @@ export default function CompareRoundScreen() {
   const sheet = useSheetRoute();
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const { texts, error, retry } = useInstructions();
-  const seed = useSeedOrClose((db) => readSeed(db, kind, modelIds.split(',')), `${kind}:${modelIds}`);
+  const seed = useSeedOrClose((db) => readSeed(db, kind, listParam(modelIds)), `${kind}:${modelIds}`);
 
   const defaultPrompt = kind === 'vision' ? texts?.visionTagging : WRITING_PROMPT;
 

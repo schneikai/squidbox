@@ -42,9 +42,8 @@ export default function AssetScreen() {
   const navigation = useNavigation();
   const sheet = useSheetRoute();
   const { setAssetsDeleted } = useAssets();
-  const { assetId: tappedAssetId, ...queryParams } = useLocalSearchParams();
-  const queryKey = JSON.stringify(queryParams);
-  const query = useMemo(() => assetQueryFromParams(queryParams), [queryKey]);
+  const { assetId: tappedAssetId, scope, sort, filter, search } = useLocalSearchParams();
+  const query = useMemo(() => assetQueryFromParams({ scope, sort, filter, search }), [scope, sort, filter, search]);
   const scopeQuery = useMemo(() => assetQuery(query), [query]);
   const [selectedAssetId, setSelectedAssetId] = useState(tappedAssetId);
   const [assetIds, setAssetIds] = useState(null);

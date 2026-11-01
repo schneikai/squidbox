@@ -4,6 +4,7 @@ import readPost from '@/features/post-detail/readPost';
 import PostEditor from '@/features/posts/PostEditor';
 import usePosts from '@/features/posts-context/usePosts';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
+import listParam from '@/lib/listParam';
 import { schema } from '@/sync/db/client';
 import { readByIds } from '@/sync/readByIds';
 import getTimestamp from '@/utils/date-time/getTimestamp';
@@ -18,7 +19,7 @@ export default function AddPostScreen() {
   const { rePostId, assetIds } = useLocalSearchParams();
   const { addPost, updatePost } = usePosts();
   const seed = useSeedOrClose(
-    (db) => readSeed(db, { rePostId, assetIds: assetIds?.split(',') }),
+    (db) => readSeed(db, { rePostId, assetIds: assetIds && listParam(assetIds) }),
     `${rePostId}:${assetIds}`,
     'This post was deleted',
   );
