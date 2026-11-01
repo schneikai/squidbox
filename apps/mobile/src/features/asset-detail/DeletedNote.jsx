@@ -8,7 +8,7 @@ import humanizeMediaType from '@/utils/assets/humanizeMediaType';
 // under the header.
 export default function DeletedNote({ mediaType }) {
   return (
-    <View style={styles.note} accessibilityRole="text">
+    <View style={[styles.note, shadows.floating]} accessibilityRole="text">
       <Icon name="trash" size={sizes.menuIcon} color={colors.text.inverse} />
       <Text style={styles.text}>This {humanizeMediaType(mediaType).toLowerCase()} was deleted</Text>
     </View>
@@ -24,7 +24,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: radii.pill,
     backgroundColor: colors.status.danger,
-    ...shadows.floating,
   },
   text: {
     color: colors.text.inverse,

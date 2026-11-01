@@ -5,7 +5,8 @@ import { layout, litGlass, radii, shadows } from '@/styles/designTokens';
 
 /**
  * A toolbar: the frosted-glass pill that groups the buttons that belong together, one button tall
- * with a thin frame around them. Wraps content in a BlurView + border + shadow.
+ * with a thin frame around them. Wraps content in a BlurView with a soft shadow and a lit edge
+ * (shadows.litEdge) drawn inside it, no border.
  */
 export default function FloatingPill({ children, style }) {
   return (

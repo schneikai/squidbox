@@ -5,6 +5,7 @@ import DeletedAlbumActionsBar from './DeletedAlbumActionsBar';
 import Button from '@/components/Button';
 import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
+import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import AssetList from '@/features/asset-list/AssetList';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import assetQuery from '@/features/asset-list/assetQuery';
@@ -20,7 +21,8 @@ const query = assetQuery({ scope: 'deleted' });
 export default function AlbumScreenComponentForDeletedAssets({ album }) {
   const { restore, deletePermanently } = useDeletedAssetsActions();
   const navigation = useNavigation();
-  const { paddingTop, paddingBottom } = useScreenPadding('detail');
+  const { paddingTop } = useScreenPadding('detail');
+  const paddingBottom = useFloatingPrimaryActionPadding();
 
   const { isSelectMode, selectedAssetIds, isAssetSelected, toggleSelectMode, exitSelectMode, toggleSelectAsset } =
     useToggleSelectAssetsAction();

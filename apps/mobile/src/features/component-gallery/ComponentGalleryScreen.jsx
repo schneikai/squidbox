@@ -14,7 +14,7 @@ import DetailScrollView from '@/components/DetailScrollView';
 import Divider from '@/components/Divider';
 import EmptyState from '@/components/EmptyState';
 import Field from '@/components/Field';
-import Icon from '@/components/Icon';
+import Icon, { ICON_NAMES } from '@/components/Icon';
 import IntroText from '@/components/IntroText';
 import OptionCard from '@/components/OptionCard';
 import Page from '@/components/Page';
@@ -35,79 +35,13 @@ import ToolbarTitle from '@/components/floating-bars/ToolbarTitle';
 import MenuItemContent from '@/components/popup-menu-options/MenuItemContent';
 import PopoverSurface from '@/components/popup-menu-options/PopoverSurface';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import { colors, sizes } from '@/styles/designTokens';
+import { colors, radii, sizes } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
 const TAB_ITEMS = [
   { key: 'library', icon: 'grid', label: 'Library' },
   { key: 'albums', icon: 'folder', label: 'Albums' },
   { key: 'posts', icon: 'share-alt', label: 'Posts' },
-];
-
-const ICON_NAMES = [
-  'add',
-  'alert',
-  'apps',
-  'archive',
-  'arrow-down',
-  'arrow-up',
-  'award',
-  'calendar',
-  'check',
-  'check-circle',
-  'chevron-down',
-  'chevron-left',
-  'chevron-right',
-  'clock',
-  'close',
-  'close-circle',
-  'cloud-check',
-  'cloud-download',
-  'cloud-offline',
-  'copy',
-  'document',
-  'download',
-  'edit',
-  'eye',
-  'eye-off',
-  'filter',
-  'flame',
-  'folder',
-  'grid',
-  'hash',
-  'heart',
-  'image',
-  'images',
-  'info',
-  'library',
-  'link',
-  'list',
-  'lock',
-  'map-pin',
-  'megaphone',
-  'menu',
-  'message-circle',
-  'mountain',
-  'options',
-  'pause',
-  'pencil',
-  'play',
-  'prompt-buttons',
-  'quote',
-  'repeat',
-  'search',
-  'share',
-  'share-alt',
-  'sort',
-  'sparkle',
-  'star',
-  'tag',
-  'thread',
-  'thumbs-up',
-  'trash',
-  'undo',
-  'user',
-  'video',
 ];
 
 const noop = () => {};
@@ -451,7 +385,7 @@ const styles = StyleSheet.create({
   },
   scrim: {
     padding: 24,
-    borderRadius: 16,
+    borderRadius: radii.card,
     backgroundColor: colors.overlay.scrim,
   },
   cardContent: {
@@ -464,7 +398,7 @@ const styles = StyleSheet.create({
   media: {
     width: 64,
     height: 64,
-    borderRadius: 8,
+    borderRadius: radii.cover,
     backgroundColor: colors.background.media,
     alignItems: 'center',
     justifyContent: 'center',
