@@ -112,9 +112,10 @@ export const shadows = {
   subtle: {
     boxShadow: `0 10px 36px ${alpha(palette.black, 0.07)}, 0 1px 8px ${alpha(palette.black, 0.03)}`,
   },
-  // The lit top edge of a floating pill: a bright rim along its top, a faint shade along its bottom
+  // The lit edge of a floating pill, lit from the top left: a bright rim along its top and left, a
+  // faint shade along its bottom and right
   litEdge: {
-    boxShadow: `inset 0 1.5px 0 ${alpha(palette.white, 1)}, inset 0 -1px 0 ${alpha(palette.black, 0.06)}`,
+    boxShadow: `inset 1.5px 1.5px 0 ${alpha(palette.white, 1)}, inset -1px -1px 0 ${alpha(palette.black, 0.06)}`,
   },
 };
 
