@@ -35,8 +35,8 @@ const PAIR_ICON_SIZE = scale(15);
 // grey pill.
 const MAX_DISC_LABEL = 3;
 const VARIANTS = ['primary', 'secondary', 'tertiary'];
-// A link's touch reaches a little past its text.
-const LINK_HIT_SLOP = 8;
+// A link's touch reaches a little past its text: a small one's further, to make up its 44 pt.
+const LINK_HIT_SLOP = { regular: 8, small: 12 };
 
 /**
  * Every button in the app: a `variant`, an `icon` or a `label`, in one of two sizes.
@@ -84,7 +84,7 @@ export default function Button({
   const shape = shapeFor(variant, label);
   const palette = colorPalette ?? defaultPalette(shape, variant);
   const isInactive = disabled || loading;
-  if (__DEV__) warnOnce(combinationProblem({ variant, icon, label, isInverse, palette }));
+  if (__DEV__) warnOnce(combinationProblem({ variant, icon, label, iconCount, isInverse, palette }));
 
   const color = contentColor({ variant, palette, isSelected, isInverse });
   const iconSize = ICON_SIZES[shape][size];
@@ -97,7 +97,7 @@ export default function Button({
     <Pressable
       onPress={onPress}
       disabled={isInactive}
-      hitSlop={targetSlop(shape, box)}
+      hitSlop={targetSlop(shape, size, box)}
       accessibilityRole={isSwitch ? 'switch' : 'button'}
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={accessibilityHint}
@@ -148,8 +148,8 @@ function boxFor(shape, size, iconSize, hasIconSlot) {
 }
 
 // What a touch reaches past the box, so the target is at least 44 pt each way.
-function targetSlop(shape, box) {
-  if (shape === 'link') return LINK_HIT_SLOP;
+function targetSlop(shape, size, box) {
+  if (shape === 'link') return LINK_HIT_SLOP[size];
   const vertical = Math.max(0, (sizes.iconButton - box.height) / 2);
   const horizontal = box.width === undefined ? 0 : Math.max(0, (sizes.iconButton - box.width) / 2);
   return { top: vertical, bottom: vertical, left: horizontal, right: horizontal };
@@ -211,9 +211,10 @@ function pressedStyle(shape) {
 }
 
 // Why these props make no button the app has, or null.
-function combinationProblem({ variant, icon, label, isInverse, palette }) {
+function combinationProblem({ variant, icon, label, iconCount, isInverse, palette }) {
   if (!icon && !label) return 'Button: needs an icon or a label';
   if (!VARIANTS.includes(variant)) return `Button: no variant "${variant}"`;
+  if (iconCount === 2 && label) return 'Button: a doubled icon has no label';
   if (variant === 'secondary' && icon && label) return 'Button: a secondary shows an icon or a label, not both';
   if (variant === 'secondary' && (palette === 'danger' || isInverse) && label?.length > MAX_DISC_LABEL) {
     return 'Button: a red or inverse secondary is a disc; its label must fit in it';
