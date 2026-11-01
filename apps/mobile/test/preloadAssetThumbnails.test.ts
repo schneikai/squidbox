@@ -8,29 +8,30 @@ const files = new Set<string>();
 const downloads: { name: string; end(status: number | Error): void }[] = [];
 const peak = { running: 0, most: 0 };
 
-vi.mock('expo-file-system/legacy', () => ({
-  documentDirectory: 'file:///documents/',
-  getInfoAsync: async (uri: string) => ({ exists: files.has(uri) }),
-  downloadAsync: (url: string, uri: string) => {
-    peak.running += 1;
-    peak.most = Math.max(peak.most, peak.running);
-    return new Promise((resolve, reject) => {
-      downloads.push({
-        name: url,
-        end: (status) => {
-          peak.running -= 1;
-          files.add(uri); // an error response is written too
-          if (status instanceof Error) reject(status);
-          else resolve({ status });
-        },
+// A download that isn't a success rejects and writes no file, as expo-file-system's does.
+vi.mock('expo-file-system', async () =>
+  (await import('./helpers/fakeFileSystem')).fakeFileSystem({
+    exists: (uri) => files.has(uri),
+    download: (url, uri) => {
+      peak.running += 1;
+      peak.most = Math.max(peak.most, peak.running);
+      return new Promise<void>((resolve, reject) => {
+        downloads.push({
+          name: url,
+          end: (status) => {
+            peak.running -= 1;
+            if (status instanceof Error) reject(status);
+            else if (status !== 200) reject(new Error(`response has status ${status}`));
+            else {
+              files.add(uri);
+              resolve();
+            }
+          },
+        });
       });
-    });
-  },
-  deleteAsync: async (uri: string) => {
-    if (uri.includes('undeletable')) throw new Error('busy');
-    files.delete(uri);
-  },
-}));
+    },
+  }),
+);
 vi.mock('../src/utils/cloud-api/assets/getAssetFileDownloadUrlsAsync', () => ({
   default: async (names: string[]) => names.map((name) => [name, name]),
 }));
@@ -65,20 +66,12 @@ describe('preloadAssetThumbnailsAsync', () => {
 
   it('resolves the ones it has afterwards, three downloads at a time; a failed one leaves the others be', async () => {
     files.add(`${thumbnails}here.jpg`);
-    const names = [
-      'here.jpg',
-      'gone.jpg',
-      'offline.jpg',
-      'undeletable.jpg',
-      ...['a', 'b', 'c', 'd'].map((n) => `${n}.jpg`),
-    ];
+    const names = ['here.jpg', 'gone.jpg', 'offline.jpg', ...['a', 'b', 'c', 'd'].map((n) => `${n}.jpg`)];
     const result = preloadAssetThumbnailsAsync(assetsOf(...names), library);
-    const outcome = (name: string) =>
-      name === 'offline.jpg' ? new Error('offline') : name.match(/gone|undeletable/) ? 404 : 200;
+    const outcome = (name: string) => (name === 'offline.jpg' ? new Error('offline') : name === 'gone.jpg' ? 404 : 200);
 
     expect(await endAll(result, outcome)).toEqual(new Set(['here.jpg', 'a.jpg', 'b.jpg', 'c.jpg', 'd.jpg']));
     expect(peak.most).toBe(3);
-    expect(files.has(`${thumbnails}gone.jpg`)).toBe(false); // no error page passing for a thumbnail
   });
 
   it('starts no new download once aborted', async () => {

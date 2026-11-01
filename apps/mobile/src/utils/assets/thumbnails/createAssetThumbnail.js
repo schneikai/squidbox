@@ -1,6 +1,6 @@
-import * as FileSystem from 'expo-file-system/legacy';
-
+import { moveFile } from '@/library/fs';
 import { getAssetThumbnailUri } from '@/utils/assets/assetStorage';
+import deletePath from '@/utils/files/deletePath';
 import getFileExtension from '@/utils/files/getFileExtension';
 import createThumbnail from '@/utils/thumbnails/createThumbnail';
 
@@ -12,12 +12,13 @@ export default async function createAssetThumbnail(assetId, fileUri, mediaType, 
   const filename = thumbnailFilename ?? `${assetId}thumb.${getFileExtension(tempAssetThumbnailUri)}`;
 
   try {
-    await FileSystem.moveAsync({
-      from: tempAssetThumbnailUri,
-      to: getAssetThumbnailUri(filename, library),
-    });
+    await moveFile(tempAssetThumbnailUri, getAssetThumbnailUri(filename, library));
   } catch (e) {
-    FileSystem.deleteAsync(tempAssetThumbnailUri, { idempotent: true });
+    try {
+      deletePath(tempAssetThumbnailUri);
+    } catch {
+      // The temporary file is in the cache, which the OS clears.
+    }
     throw e;
   }
 

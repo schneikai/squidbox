@@ -1,21 +1,19 @@
-import * as FileSystem from 'expo-file-system/legacy';
+import { Directory } from 'expo-file-system';
 
 import { getDownloadsDirectory } from '@/utils/assets/assetStorage';
 
-const STALE_AFTER = 60 * 60; // s
+const STALE_AFTER = 60 * 60 * 1000; // ms
 
 // Deletes a library's downloads (a folder each) older than an hour: those kept for a share sheet
 // (iOS doesn't always say when it's done with them) and those an interrupted run left. Best effort: never throws.
 export default async function deleteStaleDownloadsAsync(library) {
   try {
-    const directory = getDownloadsDirectory(library);
-    if (!(await FileSystem.getInfoAsync(directory)).exists) return;
-    const now = Date.now() / 1000;
-    for (const name of await FileSystem.readDirectoryAsync(directory)) {
-      const info = await FileSystem.getInfoAsync(directory + name);
-      if (info.exists && now - info.modificationTime > STALE_AFTER) {
-        await FileSystem.deleteAsync(directory + name, { idempotent: true });
-      }
+    const directory = new Directory(getDownloadsDirectory(library));
+    if (!directory.exists) return;
+    const now = Date.now();
+    for (const entry of directory.list()) {
+      const { exists, modificationTime } = entry.info();
+      if (exists && modificationTime != null && now - modificationTime > STALE_AFTER) entry.delete();
     }
   } catch (error) {
     console.warn('Could not delete stale downloads', error);

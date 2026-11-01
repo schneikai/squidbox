@@ -1,7 +1,8 @@
-import * as FileSystem from 'expo-file-system/legacy';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 
 import resizeToThumbnail from './resizeToThumbnail';
+
+import deletePath from '@/utils/files/deletePath';
 
 export default async function createVideoThumbnail(videoUri) {
   const frame = await VideoThumbnails.getThumbnailAsync(videoUri, { time: 0, quality: 1 });
@@ -9,6 +10,6 @@ export default async function createVideoThumbnail(videoUri) {
   try {
     return await resizeToThumbnail(frame.uri, frame.width, frame.height);
   } finally {
-    await FileSystem.deleteAsync(frame.uri, { idempotent: true });
+    deletePath(frame.uri);
   }
 }

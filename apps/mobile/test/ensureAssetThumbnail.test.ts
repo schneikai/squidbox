@@ -7,15 +7,16 @@ import { libraryPaths } from '../src/library/libraryPaths';
 const files = new Set<string>();
 const making: { uri: string; finish(): void; fail(error: Error): void }[] = [];
 
-vi.mock('expo-file-system/legacy', () => ({
-  documentDirectory: 'file:///documents/',
-  getInfoAsync: async (uri: string) => ({ exists: files.has(uri) }),
-  moveAsync: async ({ from, to }: { from: string; to: string }) => {
-    files.delete(from);
-    files.add(to);
-  },
-  deleteAsync: async () => {},
-}));
+vi.mock('expo-file-system', async () =>
+  (await import('./helpers/fakeFileSystem')).fakeFileSystem({
+    exists: (uri) => files.has(uri),
+    move: (from, to) => {
+      files.delete(from);
+      files.add(to);
+    },
+    delete: (uri) => files.delete(uri),
+  }),
+);
 vi.mock('../src/utils/thumbnails/createThumbnail', () => ({
   default: (uri: string) =>
     new Promise<string>((resolve, reject) => {

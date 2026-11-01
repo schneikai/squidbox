@@ -20,19 +20,6 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, 'node_modules'),
 ];
 
-// Packages resolve through their exports maps (Expo's default; React Native 0.88 reaches its own
-// subpaths that way). Only src/lib/lucide.js's CJS icon files, which lucide-react-native's map
-// doesn't list, resolve without it.
-const resolveRequest = config.resolver.resolveRequest;
-config.resolver.resolveRequest = (context, moduleName, platform) => {
-  const resolveContext = moduleName.startsWith('lucide-react-native/dist/')
-    ? { ...context, unstable_enablePackageExports: false }
-    : context;
-  return resolveRequest
-    ? resolveRequest(resolveContext, moduleName, platform)
-    : context.resolveRequest(resolveContext, moduleName, platform);
-};
-
 // Let Metro treat bundled Drizzle migration files (.sql) as source, so babel-plugin-inline-import
 // can inline them (see babel.config.js). Used by the on-device SQLite migrator.
 config.resolver.sourceExts = [...config.resolver.sourceExts, 'sql'];

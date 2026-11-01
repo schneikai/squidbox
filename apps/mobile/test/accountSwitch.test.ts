@@ -27,7 +27,9 @@ vi.mock('../src/sync/db/client', async () => (await import('./helpers/fakeDevice
 vi.mock('@react-native-async-storage/async-storage', async () => (await import('./helpers/fakeDevice')).asyncStorage());
 vi.mock('../src/utils/cloud-api/sessionStore', () => sessionStoreMock(store));
 vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({ API_BASE_URL: 'https://api.test/api/v1' }));
-vi.mock('expo-file-system/legacy', () => ({ documentDirectory: 'file:///docs/' }));
+vi.mock('expo-file-system', async () =>
+  (await import('./helpers/fakeFileSystem')).fakeFileSystem({ document: 'file:///docs/' }),
+);
 vi.mock('@sentry/react-native', () => ({ captureException: () => {}, captureMessage: () => {} }));
 // The boot's network check: the stored session as it is (offline).
 vi.mock('../src/utils/cloud-api/initializeCloudAsync', () => ({ default: async () => store.session }));

@@ -21,7 +21,9 @@ import { getAssetFileUri, getAssetThumbnailUri } from '../src/utils/assets/asset
 const files = new Set<string>();
 const moves: string[] = [];
 const lose = new Set<string>();
-vi.mock('expo-file-system/legacy', () => ({ documentDirectory: 'file:///docs/' }));
+vi.mock('expo-file-system', async () =>
+  (await import('./helpers/fakeFileSystem')).fakeFileSystem({ document: 'file:///docs/' }),
+);
 vi.mock('../src/library/fs', () => ({
   listFiles: async (dir: string) =>
     new Set([...files].filter((uri) => uri.startsWith(dir)).map((uri) => uri.slice(dir.length))),

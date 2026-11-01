@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system/legacy';
+import { File, UploadType } from 'expo-file-system';
 
 import { API_BASE_URL } from '@/utils/cloud-api/apiBaseUrl';
 import refreshAccessTokenAsync from '@/utils/cloud-api/authentication/refreshAccessTokenAsync';
@@ -31,26 +31,21 @@ async function doUploadAsync(filename, fileUri, accessToken, { onProgress, signa
   // The API's authenticate_request supports both header and ?token= param.
   const uploadUrl = `${API_BASE_URL}/assets/upload/${encodeURIComponent(filename)}?token=${accessToken}`;
 
-  const uploadTask = FileSystem.createUploadTask(
-    uploadUrl,
-    fileUri,
-    {
-      httpMethod: 'PUT',
-      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+  const uploadTask = new File(fileUri).createUploadTask(uploadUrl, {
+    httpMethod: 'PUT',
+    uploadType: UploadType.BINARY_CONTENT,
+    onProgress: ({ bytesSent, totalBytes }) => {
+      if (onProgress) onProgress({ totalBytesSent: bytesSent, totalBytesExpectedToSend: totalBytes });
     },
-    ({ totalBytesExpectedToSend, totalBytesSent }) => {
-      if (onProgress) {
-        onProgress({ totalBytesSent, totalBytesExpectedToSend });
-      }
-    },
-  );
+    signal,
+  });
 
-  const cancel = () => uploadTask.cancelAsync();
-  signal?.addEventListener('abort', cancel);
   try {
     return await uploadTask.uploadAsync();
-  } finally {
-    signal?.removeEventListener('abort', cancel);
+  } catch (error) {
+    // A cancelled upload rejects with an AbortError.
+    if (signal?.aborted) throw new Error('Upload cancelled');
+    throw error;
   }
 }
 

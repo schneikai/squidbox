@@ -10,16 +10,8 @@
  *   filled – when true, applies fill={color} (meaningful for heart/star)
  *   style  – layout-only styles (e.g. margin)
  *
- * Icon set setup (lucide-react-native workaround)
- * ------------------------------------------------
- * Icons are imported from src/lib/lucide.js instead of lucide-react-native directly.
- * The package's ESM barrel re-exports the same `default` under multiple names in one
- * statement (`export { default as X, default as Y } from './icons/x'`), which
- * Babel/Metro cannot transform — all exports come out undefined at runtime.
- * The shim imports each icon from its individual CJS file, which works correctly.
- *
- * metro.config.js resolves the shim's CJS subpaths without lucide-react-native's
- * exports map, which doesn't list them.
+ * Icons come from src/lib/lucide.js, which imports each one from its own file rather than
+ * lucide-react-native's barrel (see there).
  */
 
 import {

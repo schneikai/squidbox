@@ -41,7 +41,9 @@ const photoOnDevice = (over: Record<string, unknown>) => devicePhoto(over, { thu
 
 // The device (helpers/fakeDevice), with its faults: the step that fails, and whether the process
 // dies there (nothing after it runs, no catch block).
-vi.mock('expo-file-system/legacy', () => ({ documentDirectory: 'file:///docs/' }));
+vi.mock('expo-file-system', async () =>
+  (await import('./helpers/fakeFileSystem')).fakeFileSystem({ document: 'file:///docs/' }),
+);
 vi.mock('../src/sync/db/client', async () => (await import('./helpers/fakeDevice')).dbClient());
 vi.mock('@react-native-async-storage/async-storage', async () => (await import('./helpers/fakeDevice')).asyncStorage());
 vi.mock('../src/library/fs', async () => (await import('./helpers/fakeDevice')).libraryFs());
