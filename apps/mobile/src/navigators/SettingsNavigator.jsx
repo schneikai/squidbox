@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import FeaturesScreen from '@/features/account-features/FeaturesScreen';
 import AssistantScreen from '@/features/assistant/AssistantScreen';
+import ComponentGalleryScreen from '@/features/component-gallery/ComponentGalleryScreen';
 import ModelListScreen from '@/features/model-compare/ModelListScreen';
 import ModelScreen from '@/features/model-verify/ModelScreen';
 import VerifyConversationScreen from '@/features/model-verify/VerifyConversationScreen';
@@ -28,6 +29,7 @@ export default function SettingsNavigator() {
       <Stack.Screen name="VerifyScreen" component={VerifyScreen} getId={modelId} />
       <Stack.Screen name="VerifyConversationScreen" component={VerifyConversationScreen} getId={conversationId} />
       <Stack.Screen name="FeaturesScreen" component={FeaturesScreen} />
+      <Stack.Screen name="ComponentGalleryScreen" component={ComponentGalleryScreen} />
     </Stack.Navigator>
   );
 }

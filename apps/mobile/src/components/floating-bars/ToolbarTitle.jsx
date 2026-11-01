@@ -5,14 +5,13 @@ import FloatingPill from './FloatingPill';
 import { colors, layout, lineHeights, scale, sizes, typography } from '@/styles/designTokens';
 
 // Text in a toolbar: a FloatingPill one button tall with a one-line `title` and an optional smaller
-// `subtitle` under it (a photo's date and place). `colorPalette="danger"` for a state that warns
-// ("Deleted"). It takes no touches. style is for layout only (a max width).
-export default function ToolbarTitle({ title, subtitle, colorPalette, style }) {
+// `subtitle` under it (a photo's date and place). It takes no touches. style is for layout only (a max width).
+export default function ToolbarTitle({ title, subtitle, style }) {
   return (
     <FloatingPill style={[styles.pill, style]}>
       <View style={styles.content} pointerEvents="none">
         {!!title && (
-          <Text style={[styles.title, colorPalette === 'danger' && styles.danger]} numberOfLines={1}>
+          <Text style={styles.title} numberOfLines={1}>
             {title}
           </Text>
         )}
@@ -46,9 +45,6 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     textAlign: 'center',
     flexShrink: 1,
-  },
-  danger: {
-    color: colors.status.danger,
   },
   subtitle: {
     fontSize: typography.caption2,

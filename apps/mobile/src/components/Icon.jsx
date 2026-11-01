@@ -187,6 +187,9 @@ const ICON_MAP = {
   'volume-on': Volume2,
 };
 
+// Every name an Icon takes, e.g. for the component gallery.
+export const ICON_NAMES = Object.keys(ICON_MAP);
+
 export default function Icon({ name, size = sizes.icon, color, filled, style }) {
   const IconComponent = ICON_MAP[name];
 

@@ -11,6 +11,7 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 import AssetItem from '@/features/asset-detail/AssetItem';
 import AssetPager from '@/features/asset-detail/AssetPager';
+import DeletedNote from '@/features/asset-detail/DeletedNote';
 import FullscreenPlayButton from '@/features/asset-detail/FullscreenPlayButton';
 import VideoControls from '@/features/asset-detail/VideoControls';
 import MoreAction from '@/features/asset-detail/actions/MoreAction';
@@ -179,7 +180,9 @@ export default function AssetScreen({ route, navigation }) {
             subtitle={headerDate?.subtitle ?? ''}
             onBack={() => navigation.goBack()}
             menuSlot={asset && <MoreAction asset={asset} navigation={navigation} />}
-          />
+          >
+            {!!asset?.deletedAt && <DeletedNote mediaType={asset.mediaType} />}
+          </FloatingDetailHeader>
         </FadeView>
 
         {/* The details panel takes the actions' place. */}

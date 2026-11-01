@@ -71,6 +71,7 @@ export const colors = {
     base: palette.gray50, // a sheet or screen without the gradient
     surface: palette.white, // opaque, for a surface over media that mustn't show it through
     glass: alpha(palette.white, 0.95),
+    litGlass: alpha('#F6F6F8', 0.94), // a floating pill: a hair off-white, so its white rim shows
     menu: alpha(palette.white, 0.72), // tint over the BlurView of popover menus
     muted: palette.gray100, // `overlay.pressed` over white, opaque
     tint: palette.violet50, // a lavender card on a white sheet (an example to copy)
@@ -93,12 +94,13 @@ export const colors = {
 };
 
 export const shadows = {
+  // Floating UI (toolbars, popovers): a wide, very soft shadow, as if lit softly from above
   floating: {
-    shadowColor: palette.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 8,
+    boxShadow: `0 16px 56px ${alpha(palette.black, 0.07)}, 0 2px 12px ${alpha(palette.black, 0.03)}`,
+  },
+  // A card resting on the page: the same soft light, lower
+  card: {
+    boxShadow: `0 10px 40px ${alpha(palette.black, 0.05)}`,
   },
   // A grid cell lifted under the finger while it's dragged
   lifted: {
@@ -107,12 +109,15 @@ export const shadows = {
     shadowOpacity: 0.35,
     shadowRadius: 12,
   },
+  // A small floating button on its own (the account avatar): a softer floating shadow
   subtle: {
-    shadowColor: palette.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 4,
+    boxShadow: `0 10px 36px ${alpha(palette.black, 0.07)}, 0 1px 8px ${alpha(palette.black, 0.03)}`,
+  },
+
+  // The lit edge of a floating surface (FloatingPill, a popover), lit from the top left: a bright
+  // rim along its top and left, a faint shade along its bottom and right, drawn inside its edge
+  litEdge: {
+    boxShadow: `inset 1.5px 1.5px 0 ${alpha(palette.white, 1)}, inset -1px -1px 0 ${alpha(palette.black, 0.06)}`,
   },
 };
 
@@ -131,7 +136,7 @@ export const layout = {
   barBottom: scale(16), // between the bottom bars and the home indicator's safe area
   barPaddingX: scale(8),
   barPaddingY: scale(6),
-  toolbarFrame: 2, // the glass frame around a toolbar's buttons (FloatingPill)
+  toolbarFrame: 3, // the glass frame around a toolbar's buttons, its lit rim inside it (FloatingPill)
   contentTop: scale(88), // clears the floating header
   contentBottom: scale(128), // clears the floating bottom bars
   popoverGap: 25, // between a trigger button and the popover that opens from it
@@ -180,6 +185,11 @@ export const glass = {
   backgroundColor: colors.background.glass,
   borderColor: colors.border.glass,
   borderWidth: 1,
+};
+
+// A floating pill's glass: no border, its lit edge (shadows.litEdge) draws the rim inside it
+export const litGlass = {
+  backgroundColor: colors.background.litGlass,
 };
 
 const durations = { fast: 150, base: 250 };

@@ -3,12 +3,13 @@ import { StyleSheet, View } from 'react-native';
 
 import ToolbarContext from './ToolbarContext';
 
-import { glass, layout, radii, shadows } from '@/styles/designTokens';
+import { layout, litGlass, radii, shadows } from '@/styles/designTokens';
 
 /**
  * A toolbar: the frosted-glass pill that groups the buttons that belong together, one button tall
- * with a thin frame around them. Wraps content in a BlurView + border + shadow. Its tertiary icon
- * buttons each take a 44 pt slot (ToolbarContext), so their icons sit apart like discs.
+ * with a thin frame around them. Wraps content in a BlurView with a soft shadow and a lit edge
+ * (shadows.litEdge) drawn inside it, no border. Its tertiary icon buttons each take a 44 pt slot
+ * (ToolbarContext), so their icons sit apart like discs.
  */
 export default function FloatingPill({ children, style }) {
   return (
@@ -33,7 +34,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   surface: {
-    ...glass,
+    ...litGlass,
+    ...shadows.litEdge,
     borderRadius: radii.pill,
     flexDirection: 'row',
     alignItems: 'center',
