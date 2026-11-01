@@ -3,15 +3,13 @@
 // directory's uri ends in a slash, as the app builds them.
 type Hooks = {
   document?: string;
-  cache?: string;
   exists?(uri: string): boolean;
   delete?(uri: string): void;
   list?(uri: string): string[];
   create?(uri: string): void;
   move?(from: string, to: string): void | Promise<void>;
   copy?(from: string, to: string): void | Promise<void>;
-  info?(uri: string): { exists: boolean; modificationTime?: number | null };
-  download?(url: string, uri: string, options?: { signal?: AbortSignal }): void | Promise<void>;
+  download?(url: string, uri: string): void | Promise<void>;
 };
 
 type Part = string | { uri: string };
@@ -35,7 +33,7 @@ export function fakeFileSystem(hooks: Hooks) {
       hooks.delete?.(this.uri);
     }
     info() {
-      return hooks.info?.(this.uri) ?? { exists: this.exists };
+      return { exists: this.exists };
     }
   }
 
@@ -47,8 +45,8 @@ export function fakeFileSystem(hooks: Hooks) {
     async copy(destination: { uri: string }) {
       await hooks.copy?.(this.uri, destination.uri);
     }
-    static async downloadFileAsync(url: string, destination: { uri: string }, options?: { signal?: AbortSignal }) {
-      await hooks.download?.(url, destination.uri, options);
+    static async downloadFileAsync(url: string, destination: { uri: string }) {
+      await hooks.download?.(url, destination.uri);
       return new File(destination.uri);
     }
   }
@@ -71,9 +69,9 @@ export function fakeFileSystem(hooks: Hooks) {
       return new Directory(hooks.document ?? 'file:///documents/');
     },
     get cache() {
-      return new Directory(hooks.cache ?? 'file:///caches/');
+      return new Directory('file:///caches/');
     },
   };
 
-  return { File, Directory, Paths, UploadType: { BINARY_CONTENT: 0, MULTIPART: 1 } };
+  return { File, Directory, Paths };
 }

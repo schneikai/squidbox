@@ -32,12 +32,12 @@ export default function CloudSyncProvider({ children }) {
   const emaSpeedRef = useRef(0);
   const sessionStartRef = useRef(null);
   const completedBytesRef = useRef(0);
-  function updateSyncProgressMessage({ totalBytesSent, totalBytesExpectedToSend }) {
+  function updateSyncProgressMessage({ bytesSent, totalBytes }) {
     const now = Date.now();
 
     if (lastProgressRef.current) {
       const elapsedSeconds = (now - lastProgressRef.current.time) / 1000;
-      const bytesDelta = totalBytesSent - lastProgressRef.current.bytes;
+      const bytesDelta = bytesSent - lastProgressRef.current.bytes;
       if (elapsedSeconds > 0 && bytesDelta >= 0) {
         const instantSpeed = bytesDelta / elapsedSeconds;
         // Exponential moving average — weights recent samples more heavily
@@ -47,10 +47,10 @@ export default function CloudSyncProvider({ children }) {
       }
     }
 
-    lastProgressRef.current = { bytes: totalBytesSent, time: now };
+    lastProgressRef.current = { bytes: bytesSent, time: now };
 
     const sessionElapsed = (now - sessionStartRef.current) / 1000;
-    const sessionTotalBytes = completedBytesRef.current + totalBytesSent;
+    const sessionTotalBytes = completedBytesRef.current + bytesSent;
     const sessionAvgSpeed = sessionElapsed > 0 ? sessionTotalBytes / sessionElapsed : 0;
 
     setSyncSpeedMessage({
@@ -58,10 +58,10 @@ export default function CloudSyncProvider({ children }) {
       avg: `${fileSizeToHumanReadable(sessionAvgSpeed)}/s`,
     });
 
-    const uploadPercent = Math.round((totalBytesSent / totalBytesExpectedToSend) * 100);
+    const uploadPercent = Math.round((bytesSent / totalBytes) * 100);
     setSyncProgressMessage({
-      sent: fileSizeToHumanReadable(totalBytesSent),
-      total: fileSizeToHumanReadable(totalBytesExpectedToSend),
+      sent: fileSizeToHumanReadable(bytesSent),
+      total: fileSizeToHumanReadable(totalBytes),
       percent: `${uploadPercent}%`,
     });
   }
@@ -77,7 +77,7 @@ export default function CloudSyncProvider({ children }) {
         await uploadFileAsync(asset.filename, getAssetFileUri(asset.filename, library), identity, {
           signal,
           onProgress: (progress) => {
-            fileTotalBytes = progress.totalBytesExpectedToSend;
+            fileTotalBytes = progress.totalBytes;
             updateSyncProgressMessage(progress);
           },
         });

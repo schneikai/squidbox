@@ -136,8 +136,6 @@ Run `/deploy-server`. It builds, migrates and releases via the `fly` CLI.
 
 If `expo-doctor` flags version drift, do NOT run `expo install --fix` (or any `npm install`) from `apps/mobile/`. In this npm-workspaces monorepo that bumps only the app and leaves old versions hoisted at the workspace root, which gives duplicate native modules that won't dedupe. Instead, set the target versions in `apps/mobile/package.json`, then do ONE clean install from the repo root (`rm -rf node_modules apps/*/node_modules packages/*/node_modules package-lock.json && npm install`), then rebuild the dev client.
 
-The root `package.json` overrides `react`, `react-dom` and `react-native` to the versions the SDK expects, so every package's peer dependency gets the app's copy (Reanimated's and Worklets' peer ranges lag React Native's patch releases). On an SDK bump, set them to the new SDK's versions too.
-
 ## Sentry
 
 Sentry handles error tracking. Configure it for your own account:

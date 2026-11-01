@@ -5,21 +5,28 @@ import { Directory, File, Paths } from 'expo-file-system';
 // library a flow started with), so a late write lands in the library it belongs to. Web keeps no
 // files: see assetStorage.web.js.
 
+// Worked out on first use (web has no `Paths`): each read builds a native object, and thumbnails
+// ask on every render.
+let documentDir;
+let cacheDir;
+const documentFolder = () => (documentDir ??= folderUri(Paths.document));
+const cacheFolder = () => (cacheDir ??= folderUri(Paths.cache));
+
 /** @param {{ filesDir: string }} library */
 export function getAssetFilesDirectory(library) {
-  return `${folderUri(Paths.document)}${library.filesDir}`;
+  return `${documentFolder()}${library.filesDir}`;
 }
 
 /** @param {{ thumbnailsDir: string }} library */
 export function getAssetThumbnailsDirectory(library) {
-  return `${folderUri(Paths.document)}${library.thumbnailsDir}`;
+  return `${documentFolder()}${library.thumbnailsDir}`;
 }
 
 // The folder full-resolution files are fetched into (to save or share), each in a folder of its own,
 // per library, so a removed library leaves none of its photos behind. In the cache: the OS may clear it.
 /** @param {{ downloadsDir: string }} library */
 export function getDownloadsDirectory(library) {
-  return `${folderUri(Paths.cache)}${library.downloadsDir}`;
+  return `${cacheFolder()}${library.downloadsDir}`;
 }
 
 export function getAssetFileUri(filename, library) {

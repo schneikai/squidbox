@@ -7,7 +7,8 @@ import requireSession from '@/utils/cloud-api/requireSession';
 // Uploads a file to the API which proxies it to S3 synchronously.
 // The API only responds 200 after S3 confirms the upload, so no extra validation is needed.
 // The access token is read fresh for `identity`, the user the upload runs for, and refused once
-// someone else is signed in (requireSession). Aborting `signal` cancels the upload in flight.
+// someone else is signed in (requireSession). `onProgress({ bytesSent, totalBytes })` follows it;
+// aborting `signal` cancels it, which rejects with an `AbortError` (like downloadAssetFileAsync).
 export default async function uploadFileAsync(filename, fileUri, identity, { onProgress, signal } = {}) {
   const { tokens } = requireSession(identity);
   const result = await doUploadAsync(filename, fileUri, tokens.accessToken, { onProgress, signal });
@@ -16,16 +17,18 @@ export default async function uploadFileAsync(filename, fileUri, identity, { onP
     // Token expired mid-session — refresh and retry once.
     const newAccessToken = await refreshAccessTokenAsync(identity);
     const retryResult = await doUploadAsync(filename, fileUri, newAccessToken, { onProgress, signal });
-    assertSuccess(retryResult, signal);
+    assertSuccess(retryResult, filename, signal);
     return;
   }
 
-  assertSuccess(result, signal);
+  assertSuccess(result, filename, signal);
 }
+
+const cancelled = (filename) => Object.assign(new Error(`Uploading ${filename} was cancelled`), { name: 'AbortError' });
 
 async function doUploadAsync(filename, fileUri, accessToken, { onProgress, signal }) {
   // A signal aborted before this upload starts (during the token refresh, say) fires no event.
-  if (signal?.aborted) throw new Error('Upload cancelled');
+  if (signal?.aborted) throw cancelled(filename);
   // Token is passed as a query param because iOS can silently drop Authorization
   // headers on background upload tasks (NSURLSessionUploadTask limitation).
   // The API's authenticate_request supports both header and ?token= param.
@@ -34,23 +37,20 @@ async function doUploadAsync(filename, fileUri, accessToken, { onProgress, signa
   const uploadTask = new File(fileUri).createUploadTask(uploadUrl, {
     httpMethod: 'PUT',
     uploadType: UploadType.BINARY_CONTENT,
-    onProgress: ({ bytesSent, totalBytes }) => {
-      if (onProgress) onProgress({ totalBytesSent: bytesSent, totalBytesExpectedToSend: totalBytes });
-    },
+    onProgress,
     signal,
   });
 
   try {
     return await uploadTask.uploadAsync();
   } catch (error) {
-    // A cancelled upload rejects with an AbortError.
-    if (signal?.aborted) throw new Error('Upload cancelled');
+    if (signal?.aborted) throw cancelled(filename);
     throw error;
   }
 }
 
-function assertSuccess(result, signal) {
-  if (signal?.aborted) throw new Error('Upload cancelled');
+function assertSuccess(result, filename, signal) {
+  if (signal?.aborted) throw cancelled(filename);
   if (!result || result.status < 200 || result.status >= 300) {
     const serverError = result?.body ? JSON.parse(result.body)?.error : null;
     throw new Error(serverError || `Upload failed with status ${result?.status}`);

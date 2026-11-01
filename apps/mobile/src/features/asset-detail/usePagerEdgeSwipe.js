@@ -47,7 +47,7 @@ export default function usePagerEdgeSwipe({ listRef, pageWidth, pageIndex, pageC
     pager.value = { index: pageIndex, count: pageCount, width: pageWidth };
   }, [pager, pageIndex, pageCount, pageWidth]);
 
-  // Stable for scheduleOnRN, whatever `onPage` is now.
+  // Stable whatever `onPage` is now, so the worklets that call it keep their identity.
   const reportPage = useCallback((index) => onPageRef.current(index), []);
 
   useAnimatedReaction(

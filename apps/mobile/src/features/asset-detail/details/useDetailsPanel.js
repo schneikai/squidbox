@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNativeGesture } from 'react-native-gesture-handler';
-import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
 import {
   cancelAnimation,
   clamp,
@@ -16,13 +15,10 @@ import dragWithin from '@/features/asset-detail/dragWithin';
 import projectRelease from '@/features/asset-detail/projectRelease';
 import settleWithin from '@/features/asset-detail/settleWithin';
 import springForRelease from '@/features/asset-detail/springForRelease';
+import useKeyboardHeight from '@/hooks/useKeyboardHeight';
 
 // The page's share the open panel takes; the photo covers the rest, above it.
 const OPEN_SHARE = 2 / 3;
-// The list of pages' own scrolling, unconfigured. A constant, so the gesture (and the panel the
-// pages get) keeps its identity across renders.
-const PAGER_GESTURE = {};
-
 // Room left between the note being edited and the keyboard.
 const KEYBOARD_GAP = 16;
 
@@ -59,9 +55,8 @@ export default function useDetailsPanel() {
   const isCaught = useSharedValue(false);
   // The list of pages: the vertical drags hold it while they run (useZoomGesture,
   // useDetailsPanelDrag), so a drag never pages.
-  const pagerGesture = useNativeGesture(PAGER_GESTURE);
-  // Negative: how far the keyboard moves content up.
-  const { height: keyboardOffset } = useReanimatedKeyboardAnimation();
+  const pagerGesture = useNativeGesture();
+  const keyboardHeight = useKeyboardHeight();
 
   const settled = useCallback(
     (finished) => {
@@ -223,7 +218,7 @@ export default function useDetailsPanel() {
   // `openAt − editingBottom`), never past the panel's top reaching the screen's.
   const liftStyle = useAnimatedStyle(() => {
     if (editingBottom.value <= 0) return { transform: [{ translateY: 0 }] };
-    const overlap = -keyboardOffset.value + KEYBOARD_GAP - (openAt.value - editingBottom.value);
+    const overlap = keyboardHeight.value + KEYBOARD_GAP - (openAt.value - editingBottom.value);
     return { transform: [{ translateY: -clamp(overlap, 0, page.value.height - openAt.value) }] };
   });
 

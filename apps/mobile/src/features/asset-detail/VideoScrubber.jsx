@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 import Animated, { clamp, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
@@ -16,20 +17,31 @@ const THUMB_SIZE = 14;
 export default function VideoScrubber({ progress, onScrubStart, onScrub, onScrubEnd }) {
   const width = useSharedValue(0);
 
-  const scrubTo = (x) => {
-    'worklet';
-    progress.value = width.value > 0 ? clamp(x / width.value, 0, 1) : 0;
-    scheduleOnRN(onScrub, progress.value);
-  };
-  const gesture = usePanGesture({
-    minDistance: 0,
-    onBegin: (event) => {
-      scheduleOnRN(onScrubStart);
-      scrubTo(event.x);
-    },
-    onUpdate: (event) => scrubTo(event.x),
-    onFinalize: () => scheduleOnRN(onScrubEnd),
-  });
+  // Memoized: it re-renders every second of playback, and a new config re-sends the gesture to native.
+  const config = useMemo(() => {
+    const scrubTo = (x) => {
+      'worklet';
+      progress.value = width.value > 0 ? clamp(x / width.value, 0, 1) : 0;
+      scheduleOnRN(onScrub, progress.value);
+    };
+    return {
+      minDistance: 0,
+      onBegin: (event) => {
+        'worklet';
+        scheduleOnRN(onScrubStart);
+        scrubTo(event.x);
+      },
+      onUpdate: (event) => {
+        'worklet';
+        scrubTo(event.x);
+      },
+      onFinalize: () => {
+        'worklet';
+        scheduleOnRN(onScrubEnd);
+      },
+    };
+  }, [progress, width, onScrubStart, onScrub, onScrubEnd]);
+  const gesture = usePanGesture(config);
 
   const fillStyle = useAnimatedStyle(() => ({ width: progress.value * width.value }));
   const thumbStyle = useAnimatedStyle(() => ({

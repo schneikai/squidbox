@@ -1,9 +1,7 @@
 /**
  * Lucide icons, one file per icon (lucide-react-native's public `icons/*` subpaths), so only the
- * icons listed here are bundled.
- *
- * Not the package barrel: it re-exports each icon's `default` under several names in one statement,
- * which Babel/Metro cannot transform, so every export comes out undefined.
+ * icons listed here are bundled: Metro doesn't tree-shake, and the package barrel would pull in
+ * every icon lucide has. Exported under lucide's own names, which follow the file names.
  *
  * To add an icon: export { default as IconName } from 'lucide-react-native/icons/icon-name';
  */
@@ -36,21 +34,22 @@ export { default as Download } from 'lucide-react-native/icons/download';
 export { default as Ellipsis } from 'lucide-react-native/icons/ellipsis';
 export { default as Eye } from 'lucide-react-native/icons/eye';
 export { default as EyeOff } from 'lucide-react-native/icons/eye-off';
+export { default as FaceGrinning } from 'lucide-react-native/icons/face-grinning';
+export { default as FaceSlightlySmiling } from 'lucide-react-native/icons/face-slightly-smiling';
 export { default as Feather } from 'lucide-react-native/icons/feather';
 export { default as FileText } from 'lucide-react-native/icons/file-text';
 export { default as Flame } from 'lucide-react-native/icons/flame';
 export { default as Folder } from 'lucide-react-native/icons/folder';
 export { default as Grid3x3 } from 'lucide-react-native/icons/grid-3x3';
 export { default as Hash } from 'lucide-react-native/icons/hash';
-export { default as Heading } from 'lucide-react-native/icons/letter-h';
 export { default as Heart } from 'lucide-react-native/icons/heart';
 export { default as Image } from 'lucide-react-native/icons/image';
 export { default as Images } from 'lucide-react-native/icons/images';
 export { default as Info } from 'lucide-react-native/icons/info';
 export { default as Languages } from 'lucide-react-native/icons/languages';
-export { default as Laugh } from 'lucide-react-native/icons/face-grinning';
 export { default as LayoutGrid } from 'lucide-react-native/icons/layout-grid';
 export { default as LayoutTemplate } from 'lucide-react-native/icons/layout-template';
+export { default as LetterH } from 'lucide-react-native/icons/letter-h';
 export { default as Library } from 'lucide-react-native/icons/library';
 export { default as Link } from 'lucide-react-native/icons/link';
 export { default as List } from 'lucide-react-native/icons/list';
@@ -76,14 +75,13 @@ export { default as Share } from 'lucide-react-native/icons/share';
 export { default as Share2 } from 'lucide-react-native/icons/share-2';
 export { default as SlidersHorizontal } from 'lucide-react-native/icons/sliders-horizontal';
 export { default as Smartphone } from 'lucide-react-native/icons/smartphone';
-export { default as Smile } from 'lucide-react-native/icons/face-slightly-smiling';
 export { default as Sparkle } from 'lucide-react-native/icons/sparkle';
 export { default as SpellCheck } from 'lucide-react-native/icons/spell-check';
 export { default as SquareCheck } from 'lucide-react-native/icons/square-check';
 export { default as Star } from 'lucide-react-native/icons/star';
 export { default as Tag } from 'lucide-react-native/icons/tag';
 export { default as ThumbsUp } from 'lucide-react-native/icons/thumbs-up';
-export { default as Trash2 } from 'lucide-react-native/icons/trash';
+export { default as Trash } from 'lucide-react-native/icons/trash';
 export { default as Undo2 } from 'lucide-react-native/icons/undo-2';
 export { default as User } from 'lucide-react-native/icons/user';
 export { default as Video } from 'lucide-react-native/icons/video';
