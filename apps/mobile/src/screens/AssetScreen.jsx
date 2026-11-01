@@ -63,6 +63,10 @@ export default function AssetScreen({ route, navigation }) {
   const currentIndex = snapshot.indexOf(selectedAssetId);
   const asset = assetsById.get(selectedAssetId);
   const headerDate = asset ? formatDetailHeaderDate(asset.createdAt) : null;
+  // A trashed photo (opened from a post) says so in its title, its date under it.
+  const headerTitle = asset?.deletedAt
+    ? { title: 'Deleted', subtitle: `${headerDate.title} · ${headerDate.subtitle}`, colorPalette: 'danger' }
+    : { title: headerDate?.title ?? '', subtitle: headerDate?.subtitle ?? '' };
   // One player, for the current asset while it is a video, once the pager (which shows it) is up.
   const video = useAssetVideo(assetIds ? asset : null);
   const details = useDetailsPanel();
@@ -175,8 +179,7 @@ export default function AssetScreen({ route, navigation }) {
       <SafeAreaInsetsContext.Provider value={chromeInsets}>
         <FadeView isVisible={!isFullscreen} style={StyleSheet.absoluteFill} pointerEvents="box-none">
           <FloatingDetailHeader
-            title={headerDate?.title ?? ''}
-            subtitle={headerDate?.subtitle ?? ''}
+            {...headerTitle}
             onBack={() => navigation.goBack()}
             menuSlot={asset && <MoreAction asset={asset} navigation={navigation} />}
           />

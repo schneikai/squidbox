@@ -2,7 +2,6 @@ import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
-import ToolbarTitle from './ToolbarTitle';
 
 import Button from '@/components/Button';
 import useAssets from '@/features/assets-context/useAssets';
@@ -23,8 +22,9 @@ import canShareFiles from '@/utils/files/canShareFiles';
  *   left pill (share + favorite + download)   right pill (delete)
  *   (Share only in a build with expo-sharing's native module)
  *
- * A trashed asset (shown in a post) gets the Deleted album's actions instead, and says it's deleted:
- *   [⇪  ↓]          Deleted           [↺  🗑]
+ * A trashed asset (shown in a post) gets the Deleted album's actions instead (the header says it's
+ * deleted):
+ *   [⇪  ↓]                            [Restore  🗑]
  */
 export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigation, children }) {
   const insets = useSafeAreaInsets();
@@ -94,11 +94,9 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
           />
         </FloatingPill>
 
-        {isDeleted && <ToolbarTitle title="Deleted" colorPalette="danger" />}
-
         {/* Right pill — delete, or restore + delete permanently */}
         <FloatingPill>
-          {isDeleted && <Button icon="undo" onPress={handleRestore} accessibilityLabel="Restore" />}
+          {isDeleted && <Button variant="primary" size="small" label="Restore" onPress={handleRestore} />}
           <Button
             icon="trash"
             onPress={isDeleted ? handleDeletePermanently : handleDelete}
