@@ -7,22 +7,24 @@ const fs: string[] = [];
 const folders: Record<string, string[]> = {}; // what readDirectoryAsync lists, by folder
 const failing = new Set<string>(); // folders whose next listing fails
 
-vi.mock('expo-file-system/legacy', () => ({
-  documentDirectory: 'file:///documents/',
-  cacheDirectory: 'file:///caches/',
-  makeDirectoryAsync: async (uri: string) => {
-    fs.push(`mkdir ${uri}`);
-  },
-  deleteAsync: async (uri: string) => {
-    fs.push(`delete ${uri}`);
-  },
-  getInfoAsync: async (uri: string) => ({ exists: uri.endsWith('present.jpg') || uri in folders }),
-  readDirectoryAsync: async (uri: string) => {
-    fs.push(`list ${uri}`);
-    if (failing.delete(uri)) throw new Error(`cannot list ${uri}`);
-    return folders[uri];
-  },
-}));
+// Every file is there but a missing one; a folder is there when it has a listing or is listed.
+const isListed = (uri: string) =>
+  Object.entries(folders).some(([dir, names]) => names?.some((n) => `${dir}${n}/` === uri));
+vi.mock('expo-file-system', async () =>
+  (await import('./helpers/fakeFileSystem')).fakeFileSystem({
+    create: (uri) => fs.push(`mkdir ${uri}`),
+    delete: (uri) => {
+      if (uri.includes('locked')) throw new Error(`cannot delete ${uri}`);
+      fs.push(`delete ${uri}`);
+    },
+    exists: (uri) => (uri.endsWith('/') ? uri in folders || isListed(uri) : !uri.includes('missing')),
+    list: (uri) => {
+      fs.push(`list ${uri}`);
+      if (failing.delete(uri)) throw new Error(`cannot list ${uri}`);
+      return folders[uri]!;
+    },
+  }),
+);
 
 // The status helper makes a missing thumbnail again from its original; none of these assets has one.
 vi.mock('../src/utils/thumbnails/createThumbnail', () => ({ default: vi.fn() }));
@@ -62,6 +64,12 @@ describe('asset file and thumbnail paths', () => {
       'delete file:///documents/libraries/abc/files/a.jpg',
       'delete file:///documents/libraries/abc/thumbnails/athumb.jpg',
     ]);
+  });
+
+  it('a copy that can’t be deleted doesn’t keep the others: they go, then the removal fails', async () => {
+    const removal = removeAssetFiles([{ filename: 'locked.jpg', thumbnailFilename: 'athumb.jpg' }], abc);
+    await expect(removal).rejects.toThrow('cannot delete');
+    expect(fs).toEqual(['delete file:///documents/libraries/abc/thumbnails/athumb.jpg']);
   });
 
   it('existence checks look in the library they were given', async () => {

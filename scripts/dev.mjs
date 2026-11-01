@@ -40,10 +40,11 @@ const SERVER_ENV = `${SERVER_DIR}/.env`;
 const SERVER_URL = 'http://localhost:3100';
 const SERVER_LOG = `${tmpdir()}/squidbox-server.log`;
 const METRO_URL = 'http://localhost:8081';
-const NGROK_API = 'http://127.0.0.1:4040/api/tunnels';
-// Expo's shared ngrok account fails now and then (out of agent sessions, dropped connections); a
-// later attempt gets through. Expo ends every tunnel error with this hint.
-const TUNNEL_FAILED = /Check the Ngrok status page/;
+// Expo's tunnel (on.expo.app, through the signed-in Expo account) can drop now and then; a later
+// attempt gets through. Expo ends every tunnel error with this hint.
+const TUNNEL_FAILED = /Check the Expo status page/;
+// What Metro prints once the tunnel is up: the dev client's link, with the tunnel's host.
+const TUNNEL_READY = /Waiting on exp\+[\w-]+:\/\/([\w.-]+)/;
 const TUNNEL_ATTEMPTS = 20;
 // What Metro's cache was built from, by the last start that got Metro up (see metroCacheArgs).
 const METRO_CACHE_KEY = `${ROOT}node_modules/.cache/squidbox-dev/metro-cache-key`;
@@ -309,7 +310,7 @@ async function startMetroWithTunnel(extraEnv) {
     const answered = waitForMetro(metro);
     const bundled = buildFirstBundle(metro, answered);
 
-    const url = await Promise.race([pollTunnelUrl(metro), exited.then(() => null)]);
+    const url = await Promise.race([pollTunnelUrl(metro, () => output), exited.then(() => null)]);
     if (url) {
       metro.stdout.removeAllListeners('data').pipe(process.stdout);
       metro.stderr.removeAllListeners('data').pipe(process.stderr);
@@ -329,14 +330,12 @@ async function startMetroWithTunnel(extraEnv) {
   fail("Expo's tunnel kept failing; try again in a few minutes, or use --web for the web preview");
 }
 
-async function pollTunnelUrl(metro) {
+// The tunnel's https URL, read from Metro's output (`output()`, so far) once it's up.
+async function pollTunnelUrl(metro, output) {
   while (metro.exitCode === null) {
-    const res = await fetch(NGROK_API).catch(() => null);
-    const url = res?.ok
-      ? (await res.json()).tunnels?.find((t) => t.public_url.startsWith('https://'))?.public_url
-      : null;
-    if (url) return url;
-    await sleep(1000);
+    const host = TUNNEL_READY.exec(output())?.[1];
+    if (host) return `https://${host}`;
+    await sleep(500);
   }
   return null;
 }
@@ -400,7 +399,7 @@ function output(command, args, { timeout }) {
 }
 
 // Each child leads its own process group, so a stop reaches what npx and npm start under it
-// (Metro, Expo's ngrok, the API server), not just the wrapper.
+// (Metro, the API server), not just the wrapper.
 function start(command, args, cwd, env) {
   const child = spawn(command, args, { cwd, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
   children.add(child);

@@ -29,7 +29,9 @@ import { upsertRows } from '../src/sync/upsertRows';
 // A device library merged into the account library while other devices edit the same records.
 // Devices A, B and a whole-record app C run against the real server engine on Postgres
 // (helpers/twoDeviceServer). A library merge only lists and moves files; these devices have none.
-vi.mock('expo-file-system/legacy', () => ({ documentDirectory: 'file:///docs/' }));
+vi.mock('expo-file-system', async () =>
+  (await import('./helpers/fakeFileSystem')).fakeFileSystem({ document: 'file:///docs/' }),
+);
 vi.mock('../src/library/fs', async () => (await import('./helpers/fakeDevice')).noFiles());
 
 describe('a device library merged into the account library', () => {

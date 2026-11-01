@@ -42,7 +42,9 @@ import {
 import { getAssetFileUri } from '../src/utils/assets/assetStorage';
 
 // The device (helpers/fakeDevice): databases by name, files by uri, the list, and the faults.
-vi.mock('expo-file-system/legacy', () => ({ documentDirectory: 'file:///docs/' }));
+vi.mock('expo-file-system', async () =>
+  (await import('./helpers/fakeFileSystem')).fakeFileSystem({ document: 'file:///docs/' }),
+);
 vi.mock('../src/sync/db/client', async () => (await import('./helpers/fakeDevice')).dbClient());
 vi.mock('@react-native-async-storage/async-storage', async () => (await import('./helpers/fakeDevice')).asyncStorage());
 vi.mock('../src/library/fs', async () => (await import('./helpers/fakeDevice')).libraryFs());

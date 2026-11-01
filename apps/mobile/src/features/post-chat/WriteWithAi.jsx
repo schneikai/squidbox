@@ -16,7 +16,7 @@ import useSeedPromptButtons from '@/hooks/useSeedPromptButtons';
  * "Write with AI" under a post's text (the editor's caption, a posted post), for an account with the
  * assistant: the prompt buttons on one line, then Back to chat (Ask anything before there is a chat).
  * Each opens the chat (`onOpenChat(params)` with PostChatScreen's params for `sessionId`), a prompt
- * button with its prompt in the composer, ready to edit and send.
+ * button with its prompt in the composer, ready to edit and send. style is for layout only.
  */
 export default function WriteWithAi(props) {
   const isAvailable = useIsAssistantAvailable();
@@ -24,7 +24,7 @@ export default function WriteWithAi(props) {
   return <WriteWithAiSection {...props} />;
 }
 
-function WriteWithAiSection({ sessionId, onOpenChat }) {
+function WriteWithAiSection({ sessionId, onOpenChat, style }) {
   const buttons = usePromptButtons();
   const chat = useChatSession(sessionId);
   useSeedPromptButtons();
@@ -41,7 +41,7 @@ function WriteWithAiSection({ sessionId, onOpenChat }) {
   if (!chat) return null;
 
   return (
-    <View style={styles.section}>
+    <View style={[styles.section, style]}>
       <Divider style={styles.divider} />
       <Field label="Write with AI" trailing={<EditPromptButtonsButton />}>
         <PromptButtonRow buttons={buttons ?? []} onPress={(button) => openChat(promptTurn(button))}>

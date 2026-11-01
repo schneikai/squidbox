@@ -53,7 +53,6 @@ const baseConfig = {
           organization: 'squidbox',
         },
       ],
-      '@react-native-community/datetimepicker',
       '@sentry/react-native',
       'expo-image',
       'expo-video',

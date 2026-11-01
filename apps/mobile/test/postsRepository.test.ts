@@ -27,6 +27,17 @@ describe('postsRepository', () => {
     expect(await readNewestRepostDate(db)).toBe(50);
   });
 
+  it("leaves a thread's following posts out of the newest repost date, unless their first post is deleted", async () => {
+    const db = makeTestDb();
+    await posts.createMany(db, [
+      post('p1', { suggestRepostAt: 50 }),
+      post('p2', { suggestRepostAt: 90, threadRootId: 'p1', threadIndex: 1 }),
+    ]);
+    expect(await readNewestRepostDate(db)).toBe(50);
+    await posts.remove(db, ['p1']);
+    expect(await readNewestRepostDate(db)).toBe(90);
+  });
+
   describe('readMentionTexts', () => {
     // Album "walks" holds a1 (the draft's photo) and a2; a3 is in no album.
     async function library() {

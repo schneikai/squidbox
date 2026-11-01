@@ -10,17 +10,8 @@
  *   filled – when true, applies fill={color} (meaningful for heart/star)
  *   style  – layout-only styles (e.g. margin)
  *
- * Icon set setup (lucide-react-native workaround)
- * ------------------------------------------------
- * Icons are imported from src/lib/lucide.js instead of lucide-react-native directly.
- * The package's ESM barrel re-exports the same `default` under multiple names in one
- * statement (`export { default as X, default as Y } from './icons/x'`), which
- * Babel/Metro cannot transform — all exports come out undefined at runtime.
- * The shim imports each icon from its individual CJS file, which works correctly.
- *
- * metro.config.js sets `config.resolver.unstable_enablePackageExports = false` so
- * Metro resolves packages via their react-native/main fields instead of the exports
- * map — this is required for the CJS subpaths used in the shim to be reachable.
+ * Icons come from src/lib/lucide.js, which imports each one from its own file rather than
+ * lucide-react-native's barrel (see there).
  */
 
 import {
@@ -40,6 +31,7 @@ import {
   CircleArrowUp,
   CircleCheck,
   CircleOff,
+  CirclePlus,
   CircleX,
   Clock,
   CloudCheck,
@@ -51,21 +43,22 @@ import {
   Ellipsis,
   Eye,
   EyeOff,
+  FaceGrinning,
+  FaceSlightlySmiling,
   Feather,
   FileText,
   Flame,
   Folder,
   Grid3x3,
   Hash,
-  Heading,
   Heart,
   Image,
   Images,
   Info,
   Languages,
-  Laugh,
   LayoutGrid,
   LayoutTemplate,
+  LetterH,
   Library,
   Link,
   List,
@@ -79,7 +72,6 @@ import {
   MessagesSquare,
   MountainSnow,
   Pause,
-  Pencil,
   PenLine,
   Play,
   Plus,
@@ -92,14 +84,13 @@ import {
   Share2,
   SlidersHorizontal,
   Smartphone,
-  Smile,
   Sparkle,
   SpellCheck,
   SquareCheck,
   Star,
   Tag,
   ThumbsUp,
-  Trash2,
+  Trash,
   Undo2,
   User,
   Video,
@@ -112,6 +103,7 @@ import { sizes } from '@/styles/designTokens';
 
 const ICON_MAP = {
   add: Plus,
+  'add-circle': CirclePlus,
   alert: CircleAlert,
   apps: LayoutGrid,
   archive: Archive,
@@ -148,12 +140,12 @@ const ICON_MAP = {
   formal: Briefcase,
   grid: Grid3x3,
   hash: Hash,
-  heading: Heading,
+  heading: LetterH,
   heart: Heart,
   image: Image,
   images: Images,
   info: Info,
-  laugh: Laugh,
+  laugh: FaceGrinning,
   library: Library,
   link: Link,
   list: List,
@@ -168,7 +160,6 @@ const ICON_MAP = {
   mountain: MountainSnow,
   options: SlidersHorizontal,
   pause: Pause,
-  pencil: Pencil,
   play: Play,
   poll: Vote,
   printer: Printer,
@@ -179,7 +170,7 @@ const ICON_MAP = {
   search: Search,
   share: Share,
   'share-alt': Share2,
-  smile: Smile,
+  smile: FaceSlightlySmiling,
   sort: ArrowUpDown,
   sparkle: Sparkle,
   'spell-check': SpellCheck,
@@ -188,7 +179,7 @@ const ICON_MAP = {
   thread: MessagesSquare,
   'thumbs-up': ThumbsUp,
   translate: Languages,
-  trash: Trash2,
+  trash: Trash,
   undo: Undo2,
   user: User,
   video: Video,

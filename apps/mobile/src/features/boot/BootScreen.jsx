@@ -1,7 +1,8 @@
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import Octopus from '@/components/octopus/Octopus';
 import { splashOctopusFrame } from '@/components/octopus/splashOctopusFrame';
@@ -18,7 +19,7 @@ export default function BootScreen({ leaving }) {
 
   useEffect(() => {
     if (!leaving) return;
-    opacity.value = withTiming(0, motion.exit, () => runOnJS(setGone)(true));
+    opacity.value = withTiming(0, motion.exit, () => scheduleOnRN(setGone, true));
   }, [leaving, opacity]);
 
   if (gone) return null;

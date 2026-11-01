@@ -1,5 +1,5 @@
 import { chunk } from '@squidbox/shared';
-import * as FileSystem from 'expo-file-system/legacy';
+import { Directory, File, Paths } from 'expo-file-system';
 
 import type { OpenLibrary } from './current';
 import type { LibraryPaths } from './libraryPaths';
@@ -13,19 +13,19 @@ import {
   getAssetThumbnailsDirectory,
 } from '@/utils/assets/assetStorage';
 import deleteStaleDownloadsAsync from '@/utils/assets/files/deleteStaleDownloadsAsync';
+import deletePath from '@/utils/files/deletePath';
 
-// expo-sqlite keeps every database under this folder (it exists once a database has been opened).
-const SQLITE_DIR = `${FileSystem.documentDirectory}SQLite/`;
-
-// Every database file on this device, by name.
+// Every database file on this device, by name. expo-sqlite keeps them all in the documents' SQLite
+// folder (it exists once a database has been opened).
 export async function listDatabaseNames(): Promise<string[]> {
-  return [...(await listFiles(SQLITE_DIR))];
+  return [...(await listFiles(new Directory(Paths.document, 'SQLite').uri))];
 }
 
-// The names of the files in a folder (none for a folder that doesn't exist).
+// The names of the files in a folder (none for a folder that doesn't exist). An entry's uri, and so
+// its name, is percent-encoded on iOS.
 export async function listFiles(dir: string): Promise<Set<string>> {
-  const info = await FileSystem.getInfoAsync(dir);
-  return new Set(info.exists ? await FileSystem.readDirectoryAsync(dir) : []);
+  const directory = new Directory(dir);
+  return new Set(directory.exists ? directory.list().map((entry) => decodeURIComponent(entry.name)) : []);
 }
 
 // A library's two folders, ready when it opens, before anything is written into them; downloads over
@@ -43,7 +43,7 @@ export function libraryLimitMessage(_error: unknown): string | null {
 // A removed library's folders and its downloads cache, with everything in them.
 export async function removeLibraryFolders(paths: LibraryPaths): Promise<void> {
   for (const dir of [getAssetFilesDirectory(paths), getAssetThumbnailsDirectory(paths), getDownloadsDirectory(paths)]) {
-    await FileSystem.deleteAsync(dir, { idempotent: true });
+    deletePath(dir);
   }
 }
 
@@ -51,7 +51,7 @@ export async function removeLibraryFolders(paths: LibraryPaths): Promise<void> {
 export type AssetFileNames = { filename?: string; thumbnailFilename?: string };
 
 const LIST_FROM = 100; // assets; from here, listing the folders beats a delete per absent file
-const PARALLEL = 50; // deletes at a time
+const DELETES_PER_TURN = 50;
 
 // These files on this device: file and downloaded copies by `filename`, thumbnail by its name.
 export async function removeAssetFiles(assets: AssetFileNames[], library: LibraryPaths): Promise<void> {
@@ -114,26 +114,38 @@ async function listFolders(library: LibraryPaths): Promise<Set<string>> {
   return new Set(listed.flat());
 }
 
+// Deleting is synchronous: a long sweep lets other work run between batches.
+// One that fails doesn't stop the rest: the first failure is thrown once all were tried.
 async function deleteAll(uris: string[]): Promise<void> {
-  for (const batch of chunk(uris, PARALLEL)) {
-    await Promise.all(batch.map((uri) => FileSystem.deleteAsync(uri, { idempotent: true })));
+  const failures: unknown[] = [];
+  for (const batch of chunk(uris, DELETES_PER_TURN)) {
+    for (const uri of batch) {
+      try {
+        deletePath(uri);
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 0));
   }
+  if (failures.length > 0) throw failures[0];
 }
 
 export async function fileExists(uri: string): Promise<boolean> {
-  return (await FileSystem.getInfoAsync(uri)).exists;
+  return new File(uri).exists;
 }
 
-// Moves a file into a destination that doesn't exist yet (the legacy iOS move would replace one).
-export async function moveFile(from: string, to: string): Promise<void> {
-  await FileSystem.moveAsync({ from, to });
+// Moves a file into a destination that doesn't exist yet: one that does makes it throw, unless
+// `overwrite` replaces it.
+export async function moveFile(from: string, to: string, { overwrite = false } = {}): Promise<void> {
+  await new File(from).move(new File(to), { overwrite });
 }
 
 // Copies a file into a destination that doesn't exist yet, whole or not at all: to a temporary name
 // next to it (a copy cut off there before is removed first), then renamed into place.
 export async function copyFile(from: string, to: string): Promise<void> {
   const partial = `${to}.partial`;
-  await FileSystem.deleteAsync(partial, { idempotent: true });
-  await FileSystem.copyAsync({ from, to: partial });
-  await FileSystem.moveAsync({ from: partial, to });
+  deletePath(partial);
+  await new File(from).copy(new File(partial));
+  await moveFile(partial, to);
 }

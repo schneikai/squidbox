@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import Button from '@/components/Button';
 import { SCREEN_PADDING } from '@/constants';
@@ -31,7 +32,7 @@ export default function BottomSheet({ isVisible, onClose, title, children }) {
     } else {
       progress.value = withTiming(0, motion.exit, (finished) => {
         'worklet';
-        if (finished) runOnJS(setIsMounted)(false);
+        if (finished) scheduleOnRN(setIsMounted, false);
       });
     }
   }, [isVisible]);
@@ -60,7 +61,11 @@ export default function BottomSheet({ isVisible, onClose, title, children }) {
             </Text>
             <Button icon="close" variant="secondary" onPress={onClose} accessibilityLabel="Close" />
           </View>
-          <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            style={styles.content}
+            contentContainerStyle={styles.contentInner}
+            keyboardShouldPersistTaps="handled"
+          >
             {children}
           </ScrollView>
         </Animated.View>
@@ -99,8 +104,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 8,
   },
+  // The content scrolls edge to edge and pads itself, so a child can reach into the padding (the
+  // Posted calendar lines its month up with the title that way) without the scroll view clipping it.
   content: {
     flexGrow: 0,
+    marginHorizontal: -SCREEN_PADDING,
+  },
+  contentInner: {
+    paddingHorizontal: SCREEN_PADDING,
   },
   title: {
     flex: 1,

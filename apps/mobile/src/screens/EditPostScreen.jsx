@@ -4,8 +4,9 @@ import usePosts from '@/features/posts-context/usePosts';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import changedValues from '@/utils/changedValues';
 
-// Edits a post, seeded once from what it is when the screen opens, and saves what the user changed
-// from that seed; a post deleted meanwhile (e.g. by a sync) closes the editor.
+// Edits a post and its thread (the post as read carries its `threadPosts`), seeded once from what it
+// is when the screen opens, and saves what the user changed from that seed; a post deleted meanwhile
+// (e.g. by a sync) closes the editor.
 export default function EditPostScreen({ route, navigation }) {
   const { postId } = route.params;
   const { updatePost } = usePosts();

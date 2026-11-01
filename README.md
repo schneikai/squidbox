@@ -8,7 +8,7 @@ npm workspaces. `npm install` runs once at the repo root.
 
 | Package | What it is |
 |---|---|
-| `apps/mobile` | Expo React Native app (SDK 55). Run app commands (`scripts/check-env.sh`, `npm run web:preview`) from here; the `.env.local` / `.secrets` files live here too. |
+| `apps/mobile` | Expo React Native app (SDK 58). Run app commands (`scripts/check-env.sh`, `npm run web:preview`) from here; the `.env.local` / `.secrets` files live here too. |
 | `apps/server` | Backend: Fastify + TypeScript + Drizzle + Postgres, with AWS S3 for file storage. Runs locally against Docker (Postgres + MinIO), see [Dev client](#dev-client). |
 | `packages/shared` | Zod wire contracts + sync collection descriptors shared by app and server. |
 
@@ -83,7 +83,7 @@ The bundle ID is chosen in `app.config.js` from `EAS_BUILD_PROFILE`, which is wh
 
 ### Dev client
 
-The dev client loads JS from Metro at runtime over Expo's tunnel (an `exp.direct` URL, through Expo's own ngrok account; no keys needed, and it works behind the cloud workspace's proxy). It always runs against a local backend filled with stock photos, albums and posts, so testing never touches your real library. One command starts everything, from the repo root, on a laptop or in the cloud (needs Docker):
+The dev client loads JS from Metro at runtime over Expo's tunnel (an `on.expo.app` URL, through your Expo account: signed in with `eas login`, or `EXPO_TOKEN` in the cloud; it works behind the cloud workspace's proxy). It always runs against a local backend filled with stock photos, albums and posts, so testing never touches your real library. One command starts everything, from the repo root, on a laptop or in the cloud (needs Docker):
 
 ```
 npm run dev:local                    # start
@@ -135,8 +135,6 @@ Run `/deploy-server`. It builds, migrates and releases via the `fly` CLI.
 ## Dependencies
 
 If `expo-doctor` flags version drift, do NOT run `expo install --fix` (or any `npm install`) from `apps/mobile/`. In this npm-workspaces monorepo that bumps only the app and leaves old versions hoisted at the workspace root, which gives duplicate native modules that won't dedupe. Instead, set the target versions in `apps/mobile/package.json`, then do ONE clean install from the repo root (`rm -rf node_modules apps/*/node_modules packages/*/node_modules package-lock.json && npm install`), then rebuild the dev client.
-
-`@sentry/react-native` is pinned to **8.x** on purpose (see `expo.install.exclude` in `apps/mobile/package.json`): 8.x supports React 19 and the New Architecture that SDK 55 needs, while expo-doctor still suggests ~7.11, which breaks the build.
 
 ## Sentry
 

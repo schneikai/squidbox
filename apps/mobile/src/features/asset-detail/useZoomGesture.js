@@ -1,14 +1,22 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { Gesture, State } from 'react-native-gesture-handler';
+import {
+  GestureStateManager,
+  State,
+  useExclusiveGestures,
+  usePanGesture,
+  usePinchGesture,
+  useSimultaneousGestures,
+  useTapGesture,
+} from 'react-native-gesture-handler';
 import {
   cancelAnimation,
   clamp,
-  runOnJS,
   useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import dragWithin from './dragWithin';
 import getPanBounds from './getPanBounds';
@@ -31,8 +39,9 @@ const DOUBLE_TAP_DELAY_MS = 250;
  * pan (one finger) within the image's edges, fling, and double tap to zoom in on a point or back out.
  * Pan only takes the touch while zoomed, so at 1× a swipe stays with the pager around the view.
  * Everything runs on the UI thread; `onZoomChange(isZoomed)` reports the transitions. Without a
- * known `aspectRatio` (width / height), the image is taken to fill the view. While not `isZoomable`
- * only the tap is on, and a view that stops being zoomable (or unmounts) goes back to 1×.
+ * known `aspectRatio` (width / height), the image is taken to fill the view. An image that can't zoom
+ * (`canZoom` false: a video) only has the tap. One that can is zoomable while `isZoomable` (the
+ * current page), and one that stops being zoomable (or unmounts) goes back to 1×.
  *
  * The gesture goes on an untransformed container (focal points are measured in it) that reports
  * `onLayout`; `zoomStyle` goes on the view inside it.
@@ -51,6 +60,7 @@ const DOUBLE_TAP_DELAY_MS = 250;
  */
 export default function useZoomGesture({
   aspectRatio,
+  canZoom,
   isZoomable,
   onTap,
   onZoomChange,
@@ -83,7 +93,7 @@ export default function useZoomGesture({
     () => scale.value > ZOOMED_SCALE,
     (isZoomed, wasZoomed) => {
       if (isZoomed === wasZoomed) return;
-      runOnJS(onZoomChange)(isZoomed);
+      scheduleOnRN(onZoomChange, isZoomed);
     },
     [onZoomChange],
   );
@@ -106,24 +116,26 @@ export default function useZoomGesture({
     };
   }, [isZoomable, scale, translateX, translateY]);
 
-  const gesture = useMemo(() => {
+  // Built once per change of what they read: a new config re-sends the gesture to native.
+  const configs = useMemo(() => {
     // One finger only, and not one that lands on a gliding or springing image: a quick two-finger
     // touch, a tiny pinch or catching a fling isn't meant as a tap.
-    const singleTap = Gesture.Tap()
-      .maxDistance(TAP_SLOP)
-      .onTouchesDown((event) => {
+    const singleTap = {
+      maxDistance: TAP_SLOP,
+      onTouchesDown: (event) => {
+        'worklet';
         const isFirst = event.numberOfTouches === 1;
         tapTouch.value = {
           pointers: Math.max(event.numberOfTouches, isFirst ? 0 : tapTouch.value.pointers),
           isOnMovingImage: isFirst ? settlingCount.value > 0 : tapTouch.value.isOnMovingImage,
         };
-      })
-      .onStart(() => {
+      },
+      onActivate: () => {
+        'worklet';
         const { pointers, isOnMovingImage } = tapTouch.value;
-        if (onTap && pointers === 1 && !isOnMovingImage) runOnJS(onTap)();
-      });
-
-    if (!isZoomable && !verticalDrag) return singleTap;
+        if (onTap && pointers === 1 && !isOnMovingImage) scheduleOnRN(onTap);
+      },
+    };
 
     const boundsAt = (atScale) => {
       'worklet';
@@ -235,12 +247,14 @@ export default function useZoomGesture({
       return isDraggingVertically.value || (!!verticalDrag && verticalDrag.isOpen());
     };
 
-    const pinch = Gesture.Pinch()
-      .onStart((event) => {
+    const pinch = {
+      onActivate: (event) => {
+        'worklet';
         stop();
         lastPinch.value = pinchSnapshot(event);
-      })
-      .onUpdate((event) => {
+      },
+      onUpdate: (event) => {
+        'worklet';
         const last = lastPinch.value;
         const latest = pinchSnapshot(event);
         lastPinch.value = latest;
@@ -258,38 +272,43 @@ export default function useZoomGesture({
         scale.value = next;
         translateX.value = zoomAround({ translation: translateX.value, from: last.focalX, to: latest.focalX, ratio });
         translateY.value = zoomAround({ translation: translateY.value, from: last.focalY, to: latest.focalY, ratio });
-      })
-      .onEnd(() => {
+      },
+      onDeactivate: () => {
+        'worklet';
         if (isZoomBlocked()) return;
         const { focalX, focalY } = lastPinch.value;
         zoomTo(restingScale(), { x: focalX, y: focalY });
-      });
+      },
+    };
 
-    const doubleTap = Gesture.Tap()
-      .numberOfTaps(2)
-      .maxDelay(DOUBLE_TAP_DELAY_MS)
-      .maxDistance(TAP_SLOP)
-      .onStart((event) => {
+    const doubleTap = {
+      numberOfTaps: 2,
+      maxDelay: DOUBLE_TAP_DELAY_MS,
+      maxDistance: TAP_SLOP,
+      onActivate: (event) => {
+        'worklet';
         if (isZoomBlocked()) {
-          if (onTap) runOnJS(onTap)();
+          if (onTap) scheduleOnRN(onTap);
           return;
         }
         stop();
         const point = fromCenter(event.x, event.y);
         if (scale.value > ZOOMED_SCALE) zoomTo(1, point);
         else zoomTo(DOUBLE_TAP_SCALE, point, { x: 0, y: 0 });
-      });
+      },
+    };
 
     // Starts only once a finger moves past the tap's slop and the double tap has failed, so a tap's
     // jitter never starts a pan whose fling would undo the double tap's zoom.
-    const pan = Gesture.Pan()
-      .manualActivation(true)
-      .requireExternalGestureToFail(...(isZoomable ? [doubleTap] : []))
-      .blocksExternalGesture(...(pagerGesture ? [pagerGesture] : []))
-      .onTouchesDown((event) => {
+    const pan = {
+      manualActivation: true,
+      block: pagerGesture,
+      onTouchesDown: (event) => {
+        'worklet';
         if (event.numberOfTouches === 1) panStart.value = touchAnchor(event);
-      })
-      .onTouchesMove((event, manager) => {
+      },
+      onTouchesMove: (event) => {
+        'worklet';
         if (event.state !== State.BEGAN) return;
         const start = panStart.value;
         const touch = event.allTouches.find(({ id }) => id === start.id);
@@ -302,20 +321,21 @@ export default function useZoomGesture({
         const dy = touch.y - start.y;
         if (Math.hypot(dx, dy) <= TAP_SLOP) return;
         if (scale.value > ZOOMED_SCALE) {
-          manager.activate();
+          GestureStateManager.activate(event.handlerTag);
           return;
         }
         // At 1× two fingers may be a pinch zooming in that carries on as a pan.
         if (event.numberOfTouches !== 1) return;
         if (verticalDrag && Math.abs(dy) > Math.abs(dx) && verticalDrag.canStart(dy)) {
           isDraggingVertically.value = true;
-          manager.activate();
+          GestureStateManager.activate(event.handlerTag);
         } else {
           // One finger swiping sideways swipes the pager.
-          manager.fail();
+          GestureStateManager.fail(event.handlerTag);
         }
-      })
-      .onStart((event) => {
+      },
+      onActivate: (event) => {
+        'worklet';
         if (isDraggingVertically.value) {
           verticalDrag.onStart();
           return;
@@ -328,8 +348,9 @@ export default function useZoomGesture({
           edgeSwipe.stop();
           isHoldingPager.value = edgeSwipe.isShifted();
         }
-      })
-      .onChange((event) => {
+      },
+      onUpdate: (event) => {
+        'worklet';
         if (isDraggingVertically.value) {
           verticalDrag.onChange(event.changeY);
           return;
@@ -342,8 +363,9 @@ export default function useZoomGesture({
         const isPagerShifted = dragX(event.changeX, bounds.x);
         // While the pager moves, only the pager moves.
         if (!isPagerShifted) dragAxis(translateY, event.changeY, bounds.y, size.value.height);
-      })
-      .onEnd((event) => {
+      },
+      onDeactivate: (event) => {
+        'worklet';
         if (isDraggingVertically.value) {
           verticalDrag.onEnd(event.velocityY);
           return;
@@ -356,22 +378,22 @@ export default function useZoomGesture({
         const isFlung = !isHoldingPager.value;
         settleAxis(translateX, isFlung ? event.velocityX : 0, bounds.x);
         settleAxis(translateY, isFlung ? event.velocityY : 0, bounds.y);
-      })
-      .onFinalize((event, success) => {
+      },
+      onFinalize: (event) => {
+        'worklet';
         isDraggingVertically.value = false;
         // A pan that held the pager snaps it, a cancelled one without velocity: never leave the list
         // between pages.
         if (isHoldingPager.value) {
           isHoldingPager.value = false;
-          edgeSwipe.release(success ? event.velocityX : 0);
+          edgeSwipe.release(event.canceled ? 0 : event.velocityX);
         }
-      });
+      },
+    };
 
-    if (!isZoomable) return Gesture.Simultaneous(pan, singleTap);
-    return Gesture.Simultaneous(pinch, pan, Gesture.Exclusive(doubleTap, singleTap));
+    return { singleTap, pinch, doubleTap, pan };
   }, [
     aspectRatio,
-    isZoomable,
     onTap,
     verticalDrag,
     pagerGesture,
@@ -388,6 +410,30 @@ export default function useZoomGesture({
     settlingCount,
     tapTouch,
   ]);
+
+  // Zooming turns on and off with `isZoomable` (a page becoming the current one) through `enabled`:
+  // a detector handed a different composition while mounted doesn't attach the new gestures.
+  const pinchConfig = useMemo(() => ({ ...configs.pinch, enabled: isZoomable }), [configs.pinch, isZoomable]);
+  const doubleTapConfig = useMemo(
+    () => ({ ...configs.doubleTap, enabled: isZoomable }),
+    [configs.doubleTap, isZoomable],
+  );
+  const singleTap = useTapGesture(configs.singleTap);
+  const pinch = usePinchGesture(pinchConfig);
+  const doubleTap = useTapGesture(doubleTapConfig);
+  // The pan waits for the double tap only where there is one.
+  const panConfig = useMemo(
+    () => ({ ...configs.pan, requireToFail: canZoom ? doubleTap : undefined }),
+    [configs.pan, canZoom, doubleTap],
+  );
+  const pan = usePanGesture(panConfig);
+
+  // Hooks can't be called conditionally: every combination is built, and the detector gets the one
+  // that fits the asset, which stays the same while it's mounted.
+  const tapOrDoubleTap = useExclusiveGestures(doubleTap, singleTap);
+  const zoomAndTaps = useSimultaneousGestures(pinch, pan, tapOrDoubleTap);
+  const dragAndTap = useSimultaneousGestures(pan, singleTap);
+  const gesture = canZoom ? zoomAndTaps : verticalDrag ? dragAndTap : singleTap;
 
   const zoomStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }, { translateY: translateY.value }, { scale: scale.value }],

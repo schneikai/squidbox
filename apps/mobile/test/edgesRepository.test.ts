@@ -146,6 +146,17 @@ describe('edgesRepository (album_assets)', () => {
     expect(albumOrder(rows, 'album-2')).toEqual(['x']); // other album intact
   });
 
+  it('tombstoneParents tombstones the live edges of every given parent and no other', async () => {
+    await edges.add(db, AL, ['a', 'b'], newId);
+    await edges.add(db, 'album-2', ['x'], newId);
+    await edges.add(db, 'album-3', ['y'], newId);
+    await edges.tombstoneParents(db, [AL, 'album-2']);
+    const rows = await db.select().from(schema.albumAssets);
+    expect(albumOrder(rows, AL)).toEqual([]);
+    expect(albumOrder(rows, 'album-2')).toEqual([]);
+    expect(albumOrder(rows, 'album-3')).toEqual(['y']);
+  });
+
   it('setRefs saves the list over its seed (add + remove + reorder in one)', async () => {
     const posts = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
     await posts.createFromRefs(db, 'post-1', [

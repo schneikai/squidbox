@@ -1,18 +1,23 @@
 import { BlurView } from 'expo-blur';
 import { StyleSheet, View } from 'react-native';
 
+import ToolbarContext from './ToolbarContext';
+
 import { layout, litGlass, radii, shadows } from '@/styles/designTokens';
 
 /**
  * A toolbar: the frosted-glass pill that groups the buttons that belong together, one button tall
  * with a thin frame around them. Wraps content in a BlurView with a soft shadow and a lit edge
- * (shadows.litEdge) drawn inside it, no border.
+ * (shadows.litEdge) drawn inside it, no border. Its tertiary icon buttons each take a 44 pt slot
+ * (ToolbarContext), so their icons sit apart like discs.
  */
 export default function FloatingPill({ children, style }) {
   return (
     <View style={[styles.shadow, style]}>
       <BlurView intensity={80} tint="light" style={styles.blur}>
-        <View style={styles.surface}>{children}</View>
+        <View style={styles.surface}>
+          <ToolbarContext.Provider value>{children}</ToolbarContext.Provider>
+        </View>
       </BlurView>
     </View>
   );

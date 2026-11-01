@@ -4,12 +4,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const fs: string[] = [];
 const outcome: { download: 'ok' | Error; use: 'ok' | Error } = { download: 'ok', use: 'ok' };
 
-vi.mock('expo-file-system/legacy', () => ({
-  cacheDirectory: 'file:///caches/',
-  deleteAsync: async (uri: string) => {
-    fs.push(`delete ${uri}`);
-  },
-}));
+vi.mock('expo-file-system', async () =>
+  (await import('./helpers/fakeFileSystem')).fakeFileSystem({
+    exists: () => true,
+    delete: (uri) => fs.push(`delete ${uri}`),
+  }),
+);
 vi.mock('../src/utils/assets/files/getAssetFileSourceAsync', () => ({
   default: async () => ({ uri: 'https://s3/a.jpg', isRemote: true }),
 }));

@@ -1,9 +1,8 @@
-import * as FileSystem from 'expo-file-system/legacy';
-
 import getAssetFileSourceAsync from './getAssetFileSourceAsync';
 
 import downloadAssetFileAsync from '@/features/cloud/assets/downloadAssetFileAsync';
 import { getDownloadsDirectory } from '@/utils/assets/assetStorage';
+import deletePath from '@/utils/files/deletePath';
 import getNewItemId from '@/utils/getNewItemId';
 
 // Runs `use` with a local uri of an asset's full-resolution file: the on-device original (kept, the
@@ -33,7 +32,11 @@ export default async function withAssetFileAsync(
   } finally {
     // Best effort, so it never hides the outcome: the stale sweep gets what stays.
     if (failed || !keepDownloads) {
-      await FileSystem.deleteAsync(directory, { idempotent: true }).catch((error) => console.warn(error));
+      try {
+        deletePath(directory);
+      } catch (error) {
+        console.warn(error);
+      }
     }
   }
 }

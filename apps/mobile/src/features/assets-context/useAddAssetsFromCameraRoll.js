@@ -1,5 +1,4 @@
-import * as MediaLibrary from 'expo-media-library';
-
+import getPickedAssetMetadataAsync from '@/features/assets-context/getPickedAssetMetadataAsync';
 import useAssets from '@/features/assets-context/useAssets';
 import { openLibraryId } from '@/library/current';
 import { removeAssetFiles } from '@/library/fs';
@@ -25,11 +24,8 @@ export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFini
       const newAssets = [];
       try {
         for (const result of imagePickerResults) {
-          // Its metadata only (the picker exported the file); null outside a Limited Photos selection
-          // or without access, which only leaves the details out.
-          const assetInfo = await MediaLibrary.getAssetInfoAsync(result.assetId, {
-            shouldDownloadFromNetwork: false,
-          }).catch(() => null);
+          // Its metadata only (the picker exported the file).
+          const assetInfo = await getPickedAssetMetadataAsync(result);
           const newAsset = await buildAssetAsync(
             {
               mediaLibraryAssetId: result.assetId,

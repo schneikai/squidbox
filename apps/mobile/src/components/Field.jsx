@@ -2,7 +2,7 @@ import { View, StyleSheet } from 'react-native';
 
 import Button from '@/components/Button';
 import Text from '@/components/Text';
-import { lineHeights, sizes } from '@/styles/designTokens';
+import { lineHeights, scale, sizes } from '@/styles/designTokens';
 
 /**
  * A label + children slot + optional description text.
@@ -42,9 +42,10 @@ export default function Field({ label, description, onInfo, trailing, children, 
   );
 }
 
-// A 44 pt button in the label row (the ⓘ, a trailing button) overlaps the space around the label instead
-// of making its row taller.
-const OVERLAP_LABEL_ROW = -(sizes.iconButton - lineHeights.footnote) / 2;
+// A button in the label row (the ⓘ, a trailing button) overlaps the space around the label instead
+// of making its row taller: a small one (28 pt) or a regular one (44 pt).
+const OVERLAP_SMALL = -(sizes.smallButton - lineHeights.footnote) / 2;
+const OVERLAP_REGULAR = -(sizes.iconButton - lineHeights.footnote) / 2;
 
 const styles = StyleSheet.create({
   field: {
@@ -55,11 +56,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   info: {
-    marginVertical: OVERLAP_LABEL_ROW,
-    marginLeft: -6,
+    marginVertical: OVERLAP_SMALL,
+    marginLeft: scale(6),
   },
   trailing: {
     marginLeft: 'auto',
-    marginVertical: OVERLAP_LABEL_ROW,
+    marginVertical: OVERLAP_REGULAR,
   },
 });

@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system/legacy';
+import { File } from 'expo-file-system';
 
 import { getAssetThumbnailUri, hasThumbnailAsync } from '@/utils/assets/assetStorage';
 import getAssetFileDownloadUrlsAsync from '@/utils/cloud-api/assets/getAssetFileDownloadUrlsAsync';
@@ -28,16 +28,15 @@ export default async function preloadAssetThumbnailsAsync(assets, library, signa
   return available;
 }
 
-// Resolves whether the file landed; never throws, so one bad download leaves the others be.
+// Resolves whether the file landed; never throws, so one bad download leaves the others be. A
+// response that isn't a success (a presigned GET that 403s, say) writes no file, so nothing passes
+// for the thumbnail.
 async function downloadAsync(url, fileUri) {
   try {
-    const { status } = await FileSystem.downloadAsync(url, fileUri);
-    if (status === 200) return true;
+    await File.downloadFileAsync(url, new File(fileUri), { idempotent: true });
+    return true;
   } catch {
-    // A network error: the loader tries it again.
+    // A network error or a failed response: the loader tries it again.
+    return false;
   }
-  // A presigned GET that 403/404s does NOT throw — downloadAsync writes the S3 error XML to the file
-  // and returns non-200. Left there, it would pass for the thumbnail and show as a broken image.
-  await FileSystem.deleteAsync(fileUri, { idempotent: true }).catch(() => {});
-  return false;
 }

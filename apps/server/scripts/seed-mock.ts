@@ -113,11 +113,26 @@ const ALBUMS: { name: string; media?: number[]; smartAlbumType?: 'FAVORITES' | '
   { name: 'To post', media: [33, 34, 35, 36, 37, 38, 40, 4] },
 ];
 
-const POSTS: { text: string; media: number[]; postedDaysAgo: number | null; isFavorite?: boolean }[] = [
+// `thread`: the posts that follow this one in its thread, each with its own text and photos.
+const POSTS: {
+  text: string;
+  media: number[];
+  postedDaysAgo: number | null;
+  isFavorite?: boolean;
+  thread?: { text: string; media: number[] }[];
+}[] = [
   { text: 'First light over the hills ☀️', media: [0, 1], postedDaysAgo: 40, isFavorite: true },
   { text: 'Lost in the forest for a day with @ridgeline.bsky.social 🌲', media: [14, 15, 17, 32], postedDaysAgo: 32 },
   { text: 'Coffee and a view. That is all.', media: [4, 33], postedDaysAgo: 21 },
-  { text: 'Summer recap, part 1, with @ridgeline.bsky.social', media: [3, 5, 7, 8, 11], postedDaysAgo: 12 },
+  {
+    text: 'Summer recap, part 1, with @ridgeline.bsky.social',
+    media: [3, 5, 7, 8, 11],
+    postedDaysAgo: 12,
+    thread: [
+      { text: 'Day two: the coast road, one stop at every pull-out 🌊', media: [6, 25] },
+      { text: 'Last walk before heading home. Part 2 soon.', media: [16] },
+    ],
+  },
   { text: 'Quiet roads, loud thoughts.', media: [19], postedDaysAgo: 5, isFavorite: true },
   { text: 'Draft: weekend dump', media: [35, 36, 37], postedDaysAgo: null },
   { text: 'Draft: which one should I post?', media: [38, 40], postedDaysAgo: null },
@@ -233,25 +248,54 @@ const albumAssets: AlbumAssetRecord[] = ALBUMS.flatMap((album, albumIndex) => {
   }));
 });
 
+// A post record: `key` names it (its id and its edges'), `fields` what sets it apart.
+const postRecord = (key: string, createdAt: number, fields: Partial<PostRecord>): PostRecord => ({
+  ...baseRecord(key, createdAt),
+  text: '',
+  isFavorite: false,
+  postedAt: null,
+  rePostId: null,
+  isIgnoredForRepost: false,
+  suggestRepostAt: 0,
+  hasBeenReposted: false,
+  ...fields,
+});
+
 const posts: PostRecord[] = POSTS.map((post, index) => {
   const postedAt = post.postedDaysAgo === null ? null : now - post.postedDaysAgo * DAY;
-  return {
-    ...baseRecord(`post:${index}`, postedAt ?? now - index * DAY),
+  return postRecord(`post:${index}`, postedAt ?? now - index * DAY, {
     text: post.text,
     isFavorite: post.isFavorite ?? false,
     postedAt,
-    rePostId: null,
-    isIgnoredForRepost: false,
     suggestRepostAt: postedAt === null ? 0 : postedAt + 90 * DAY,
-    hasBeenReposted: false,
-  };
+  });
 });
 
-const postAssets: PostAssetRecord[] = POSTS.flatMap((post, postIndex) => {
-  const positions = initialKeys(post.media.length);
-  return post.media.map((item, i) => ({
-    ...baseRecord(`post:${postIndex}:asset:${item}`, now),
-    postId: posts[postIndex]!.id,
+// A thread's following posts: their own records, linked to the first post, with its Posted time.
+const threadParts = POSTS.flatMap((post, index) =>
+  (post.thread ?? []).map((part, j) => ({ ...part, key: `post:${index}:part:${j + 1}`, root: posts[index]!, j })),
+);
+for (const { text, key, root, j } of threadParts) {
+  posts.push(
+    postRecord(key, root.createdAt, {
+      text,
+      postedAt: root.postedAt,
+      suggestRepostAt: root.suggestRepostAt,
+      threadRootId: root.id,
+      threadIndex: j + 1,
+    }),
+  );
+}
+
+// Each post's edges to its `media`, in that order.
+const postAssets: PostAssetRecord[] = [
+  ...POSTS.map((post, index) => ({ key: `post:${index}`, media: post.media })),
+  ...threadParts,
+].flatMap(({ key, media }) => {
+  const positions = initialKeys(media.length);
+  return media.map((item, i) => ({
+    ...baseRecord(`${key}:asset:${item}`, now),
+    postId: mockUuid(key),
     assetId: assetAt(item).id,
     position: positions[i]!,
   }));

@@ -8,9 +8,10 @@ import getTimestamp from '@/utils/date-time/getTimestamp';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
 
 // A new post, seeded once from the route: the assets to post (`assetIds`, in that order), a text, or
-// the post to repost (`rePostId`: its text and assets, as fresh post assets). Reposting a post that
-// was deleted meanwhile closes the editor. Once the post is added, marking the reposted one is
-// best-effort: a failure there must not keep the editor open, where Add would add the post again.
+// the post to repost (`rePostId`: its first post's text and assets, as fresh post assets, without its
+// thread). Reposting a post that was deleted meanwhile closes the editor. Once the post is added,
+// marking the reposted one is best-effort: a failure there must not keep the editor open, where Add
+// would add the post again.
 export default function AddPostScreen({ route, navigation }) {
   const { rePostId } = route.params ?? {};
   const { addPost, updatePost } = usePosts();
@@ -36,8 +37,8 @@ async function readSeed(db, { rePostId, assetIds }) {
     const rePost = await readPost(db, rePostId);
     if (!rePost) return null;
     const assets = rePost.postAssets.map((postAsset) => postAsset.asset);
-    return { text: rePost.text, postAssets: buildPostAssets(assets), postedAt: getTimestamp() };
+    return { text: rePost.text, postAssets: buildPostAssets(assets), postedAt: getTimestamp(), threadPosts: [] };
   }
   const assets = assetIds ? await readByIds(db, schema.assets, assetIds) : [];
-  return { text: '', postAssets: buildPostAssets(assets), postedAt: getTimestamp() };
+  return { text: '', postAssets: buildPostAssets(assets), postedAt: getTimestamp(), threadPosts: [] };
 }

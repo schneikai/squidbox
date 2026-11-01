@@ -46,7 +46,7 @@ export default function MoreAction({ album, afterDelete, onSelect }) {
     <MenuButton>
       {!!onSelect && <MenuOption label="Select" icon="check-circle" onPress={onSelect} />}
       <MenuOption label={album.notes ? 'Edit note' : 'Add note'} icon="document" onPress={handleEditNotes} />
-      <MenuOption label="Rename" icon="pencil" onPress={handleRenameAlbum} />
+      <MenuOption label="Rename" icon="edit" onPress={handleRenameAlbum} />
       {!!album.archivedAt && <MenuOption label="Unarchive" icon="arrow-up-circle" onPress={handleUnarchiveAlbum} />}
       {!album.archivedAt && <MenuOption label="Archive" icon="archive" onPress={handleArchiveAlbum} />}
       <Divider variant="menu" />

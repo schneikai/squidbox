@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { Gesture } from 'react-native-gesture-handler';
+import { usePanGesture } from 'react-native-gesture-handler';
 
 const EDGE_ZONE = 90; // px from top/bottom where auto-scroll kicks in
 const MAX_SCROLL_STEP = 16; // px per tick at the very edge
@@ -15,12 +15,13 @@ const SCROLL_TICK_MS = 16;
  * `onContainerLayout(height)` gets the container's height. `layout`: see gridSlotOrigin. Items
  * that aren't grid cells (chips that wrap) pass `findIndexAt(contentPoint, count)` instead.
  *
- * The callbacks are read when the gesture calls them, so new rows or callbacks don't rebuild the
- * gesture mid-drag. Work a callback schedules for later (a timer, a spring's end) still sees the
+ * The callbacks are read when the gesture calls them, so new rows or callbacks don't re-send the
+ * gesture to native mid-drag. Work a callback schedules for later (a timer, a spring's end) still sees the
  * render it ran in.
  */
 export default function useGridLongPressPan({
   enabled,
+  waitsFor,
   holdMs,
   layout,
   paddingTop,
@@ -63,31 +64,33 @@ export default function useGridLongPressPan({
     if (!timerRef.current) timerRef.current = setInterval(tick, SCROLL_TICK_MS);
   }
 
-  const gesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .enabled(enabled)
-        .activateAfterLongPress(holdMs)
-        .runOnJS(true)
-        .onStart((e) => {
-          liftedRef.current = true;
-          pointRef.current = { x: e.x, y: e.y };
-          handlers.current.onLift(e.x, e.y);
-        })
-        .onUpdate((e) => {
-          pointRef.current = { x: e.x, y: e.y };
-          handlers.current.onMove(e.x, e.y);
-        })
-        // Also runs for touches that never lifted (a tap), which have nothing to release.
-        .onFinalize(() => {
-          clearInterval(timerRef.current);
-          timerRef.current = null;
-          if (!liftedRef.current) return;
-          liftedRef.current = false;
-          handlers.current.onRelease();
-        }),
-    [enabled, holdMs],
+  const config = useMemo(
+    () => ({
+      enabled,
+      requireToFail: waitsFor,
+      activateAfterLongPress: holdMs,
+      runOnJS: true,
+      onActivate: (e) => {
+        liftedRef.current = true;
+        pointRef.current = { x: e.x, y: e.y };
+        handlers.current.onLift(e.x, e.y);
+      },
+      onUpdate: (e) => {
+        pointRef.current = { x: e.x, y: e.y };
+        handlers.current.onMove(e.x, e.y);
+      },
+      // Also runs for touches that never lifted (a tap), which have nothing to release.
+      onFinalize: () => {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+        if (!liftedRef.current) return;
+        liftedRef.current = false;
+        handlers.current.onRelease();
+      },
+    }),
+    [enabled, waitsFor, holdMs],
   );
+  const gesture = usePanGesture(config);
 
   return {
     gesture,

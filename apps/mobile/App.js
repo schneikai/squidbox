@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useState, useEffect, useCallback, Component, Fragment, createContext, memo, use } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { Menu, MenuProvider } from 'react-native-popup-menu';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -79,23 +80,25 @@ class BootErrorBoundary extends Component {
 const App = () => {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <BootErrorBoundary>
-          <ProgressOverlayProvider>
-            <AppSettingsProvider>
-              <LibraryProvider>
-                <CloudProvider>
-                  <AppInit>
-                    <LibraryGate>
-                      <AppGate />
-                    </LibraryGate>
-                  </AppInit>
-                </CloudProvider>
-              </LibraryProvider>
-            </AppSettingsProvider>
-          </ProgressOverlayProvider>
-        </BootErrorBoundary>
-      </SafeAreaProvider>
+      <KeyboardProvider>
+        <SafeAreaProvider>
+          <BootErrorBoundary>
+            <ProgressOverlayProvider>
+              <AppSettingsProvider>
+                <LibraryProvider>
+                  <CloudProvider>
+                    <AppInit>
+                      <LibraryGate>
+                        <AppGate />
+                      </LibraryGate>
+                    </AppInit>
+                  </CloudProvider>
+                </LibraryProvider>
+              </AppSettingsProvider>
+            </ProgressOverlayProvider>
+          </BootErrorBoundary>
+        </SafeAreaProvider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 };

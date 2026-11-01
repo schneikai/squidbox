@@ -294,8 +294,7 @@ react-native-web's ScrollView never fires `onMomentumScrollEnd`/`onScrollEndDrag
 `AssetPager` never learns the new page (header, actions, notes and the swipe-up details stay on the
 first photo, and only that photo zooms). Playwright's Chromium can't decode H.264 or HEVC, so the
 mock videos (H.264) don't play in the preview; only a WebM would (an iPhone's HEVC `.mov` may not
-play in desktop Chrome either). The post editor's date and time pills (`DateTimePicker`) render clipped
-("23," / "10:5 AM").
+play in desktop Chrome either).
 
 ### [ ] Sentry receives events from development
 

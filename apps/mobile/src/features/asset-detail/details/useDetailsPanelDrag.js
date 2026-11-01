@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
-import { Gesture } from 'react-native-gesture-handler';
-import { runOnJS } from 'react-native-reanimated';
+import { usePanGesture } from 'react-native-gesture-handler';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { TAP_SLOP } from '@/constants';
 
@@ -18,30 +18,37 @@ export default function useDetailsPanelDrag(verticalDrag, pagerGesture) {
     isPressBlocked.current = isBlocked;
   }, []);
 
-  const gesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .activeOffsetY([-TAP_SLOP, TAP_SLOP])
-        .failOffsetX([-TAP_SLOP, TAP_SLOP])
-        .blocksExternalGesture(pagerGesture)
-        .onBegin(() => {
-          runOnJS(blockPress)(verticalDrag.grab());
-        })
-        .onStart(() => {
-          runOnJS(blockPress)(true);
-          verticalDrag.onStart();
-        })
-        .onChange((event) => {
-          verticalDrag.onChange(event.changeY);
-        })
-        .onEnd((event) => {
-          verticalDrag.onEnd(event.velocityY);
-        })
-        .onFinalize(() => {
-          verticalDrag.letGo();
-        }),
+  // Memoized: a new config re-sends the gesture to native, and the panel re-renders as it's edited.
+  const config = useMemo(
+    () => ({
+      activeOffsetY: [-TAP_SLOP, TAP_SLOP],
+      failOffsetX: [-TAP_SLOP, TAP_SLOP],
+      block: pagerGesture,
+      onBegin: () => {
+        'worklet';
+        scheduleOnRN(blockPress, verticalDrag.grab());
+      },
+      onActivate: () => {
+        'worklet';
+        scheduleOnRN(blockPress, true);
+        verticalDrag.onStart();
+      },
+      onUpdate: (event) => {
+        'worklet';
+        verticalDrag.onChange(event.changeY);
+      },
+      onDeactivate: (event) => {
+        'worklet';
+        verticalDrag.onEnd(event.velocityY);
+      },
+      onFinalize: () => {
+        'worklet';
+        verticalDrag.letGo();
+      },
+    }),
     [verticalDrag, pagerGesture, blockPress],
   );
+  const gesture = usePanGesture(config);
 
   const guardPress = useCallback(
     (onPress) => () => {

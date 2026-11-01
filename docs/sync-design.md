@@ -387,7 +387,7 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
     editor was open stays, and no keys tie. A moved photo's duplicate edges are tombstoned, as
     `reorder` and `move` do.
   - Removing tombstones the edge. Deleting an album or post tombstones its edges too
-    (`tombstoneParent`). Deleting or purging an asset does not touch its edges, so a restore puts
+    (`tombstoneParent`); deleting a thread does so for every post of it (`removeThread`). Deleting or purging an asset does not touch its edges, so a restore puts
     it back where it was. Readers resolve edges through the asset: albums skip deleted assets, a
     post still shows a deleted one (it can come back) but never a purged one, and ids that don't
     resolve are skipped.
@@ -835,7 +835,16 @@ columns. Reordering an album's photos sets its `sortOrder` to `custom`. `positio
 place in the albums list's custom order; albums without one come first, newest first.
 
 **posts**. Synced: `text`, `isFavorite`, `postedAt`, `rePostId`, `isIgnoredForRepost`,
-`suggestRepostAt`, `hasBeenReposted`, plus the base columns.
+`suggestRepostAt`, `hasBeenReposted`, `threadRootId` and `threadIndex`, plus the base columns. A
+post can be a thread: its following posts are posts of their own, each with its text and
+`post_assets` edges, `threadRootId` the thread's first post and `threadIndex` its place after it
+(1 = right after; ordered by `(threadIndex, id)`, gaps are fine, a new one takes the highest + 1),
+with the first post's `postedAt` (changing it changes theirs). Both fields are optional and null
+while unset (null on a first post), so a push from a build without them keeps the stored values,
+and an older build shows the following posts as ordinary posts; server 0030, app 0030. Readers show
+a thread as its first post (lists, counts, searches, a photo's or an album's posts, Repost
+suggestions, the assistant's example posts) and a following post whose first post is deleted as a
+post of its own. Deleting a thread tombstones every post of it and their edges, in one transaction.
 
 **album_assets** (album membership). Synced: `albumId`, `assetId`, `position`, plus the base
 columns. One record per album and asset.

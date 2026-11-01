@@ -1,21 +1,21 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Gesture } from 'react-native-gesture-handler';
+import { useNativeGesture } from 'react-native-gesture-handler';
 import {
   cancelAnimation,
   clamp,
-  runOnJS,
-  useAnimatedKeyboard,
   useAnimatedReaction,
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import dragWithin from '@/features/asset-detail/dragWithin';
 import projectRelease from '@/features/asset-detail/projectRelease';
 import settleWithin from '@/features/asset-detail/settleWithin';
 import springForRelease from '@/features/asset-detail/springForRelease';
+import useKeyboardHeight from '@/hooks/useKeyboardHeight';
 
 // The page's share the open panel takes; the photo covers the rest, above it.
 const OPEN_SHARE = 2 / 3;
@@ -55,15 +55,15 @@ export default function useDetailsPanel() {
   const isCaught = useSharedValue(false);
   // The list of pages: the vertical drags hold it while they run (useZoomGesture,
   // useDetailsPanelDrag), so a drag never pages.
-  const pagerGesture = useMemo(() => Gesture.Native(), []);
-  const keyboard = useAnimatedKeyboard();
+  const pagerGesture = useNativeGesture();
+  const keyboardHeight = useKeyboardHeight();
 
   const settled = useCallback(
     (finished) => {
       'worklet';
       if (!finished) return;
       isSettling.value = false;
-      if (offset.value <= 0) runOnJS(setIsShown)(false);
+      if (offset.value <= 0) scheduleOnRN(setIsShown, false);
     },
     [isSettling, offset],
   );
@@ -150,7 +150,7 @@ export default function useDetailsPanel() {
         stop();
         isCaught.value = false;
         isDragging.value = true;
-        runOnJS(setIsShown)(true);
+        scheduleOnRN(setIsShown, true);
       },
       onChange: (changeY) => {
         'worklet';
@@ -218,7 +218,7 @@ export default function useDetailsPanel() {
   // `openAt − editingBottom`), never past the panel's top reaching the screen's.
   const liftStyle = useAnimatedStyle(() => {
     if (editingBottom.value <= 0) return { transform: [{ translateY: 0 }] };
-    const overlap = keyboard.height.value + KEYBOARD_GAP - (openAt.value - editingBottom.value);
+    const overlap = keyboardHeight.value + KEYBOARD_GAP - (openAt.value - editingBottom.value);
     return { transform: [{ translateY: -clamp(overlap, 0, page.value.height - openAt.value) }] };
   });
 

@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform, View, useWindowDimensions } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { GestureDetector, useCompetingGestures } from 'react-native-gesture-handler';
 import Animated, {
-  runOnJS,
   useAnimatedReaction,
   useAnimatedRef,
   useAnimatedScrollHandler,
   useComposedEventHandler,
   useSharedValue,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import SortableGridCell from './SortableGridCell';
 import SortableGridLiftedCell from './SortableGridLiftedCell';
@@ -76,7 +76,7 @@ export default function SortableGrid({
       askedAtHeight.value = -1;
     } else if (askedAtHeight.value !== contentSize.height) {
       askedAtHeight.value = contentSize.height;
-      runOnJS(askForMore)();
+      scheduleOnRN(askForMore);
     }
   });
   const handleScroll = useComposedEventHandler([trackScroll, onScroll ?? null]);
@@ -87,7 +87,7 @@ export default function SortableGrid({
   useAnimatedReaction(
     () => Math.floor(scrollY.value / viewportHeight),
     (index, prev) => {
-      if (index !== prev) runOnJS(setScreenIndex)(index);
+      if (index !== prev) scheduleOnRN(setScreenIndex, index);
     },
   );
 
@@ -180,14 +180,14 @@ export default function SortableGrid({
     onSettled: handleSettled,
     onPeek,
     onPeekEnd,
+    // Drag-select first, while it's on. Not an Exclusive composition: a disabled gesture in one still
+    // makes the other wait for it on web, so reordering would never start.
+    waitsFor: dragSelectEnabled ? dragSelect.gesture : undefined,
   });
 
-  // Compose only what can run: on web, a disabled gesture inside Exclusive still makes the other
-  // wait for it, so reordering would never start.
-  const gesture = useMemo(
-    () => (dragSelectEnabled ? Gesture.Exclusive(dragSelect.gesture, dragReorder.gesture) : dragReorder.gesture),
-    [dragSelectEnabled, dragSelect.gesture, dragReorder.gesture],
-  );
+  // One composition whatever is on: a detector handed a different one while mounted doesn't attach
+  // the new gestures. Competing, so the first to start wins; `waitsFor` orders them.
+  const gesture = useCompetingGestures(dragSelect.gesture, dragReorder.gesture);
   const contentContainerStyle = useMemo(() => ({ paddingTop, paddingBottom }), [paddingTop, paddingBottom]);
 
   const rowPitch = layout.cellHeight + layout.gap;

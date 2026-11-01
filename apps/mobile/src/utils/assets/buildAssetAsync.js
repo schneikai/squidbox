@@ -1,9 +1,8 @@
 import { assetCollection } from '@squidbox/shared';
-import * as FileSystem from 'expo-file-system/legacy';
 
 import createAssetThumbnail from './thumbnails/createAssetThumbnail';
 
-import { removeAssetFiles } from '@/library/fs';
+import { moveFile, removeAssetFiles } from '@/library/fs';
 import { getAssetFileUri } from '@/utils/assets/assetStorage';
 import getFileExtension from '@/utils/files/getFileExtension';
 import getNewItemId from '@/utils/getNewItemId';
@@ -35,7 +34,7 @@ export default async function buildAssetAsync({ sourceFileUri, ...fields }, libr
   const id = getNewItemId();
   const filename = `${id}.${getFileExtension(sourceFileUri)}`;
   const assetFileUri = getAssetFileUri(filename, library);
-  await FileSystem.moveAsync({ from: sourceFileUri, to: assetFileUri });
+  await moveFile(sourceFileUri, assetFileUri);
 
   let thumbnailFilename;
   try {

@@ -149,12 +149,13 @@ export const layout = {
 
 // Fixed sizes of controls and icons; they scale with the screen like everything else.
 export const sizes = {
-  iconButton: scale(44), // Apple's minimum tap target
-  primaryButton: scale(50), // the height of a primary Button with a label, the main action of a form or list
+  iconButton: scale(44), // Apple's minimum tap target, and a regular Button's height (discs and pills)
+  smallButton: scale(28), // a small Button's height (`size="small"`, discs and pills); hitSlop keeps the 44 pt target
   icon: scale(20), // inside a button
   iconSmall: scale(18), // compact: avatars, secondary indicators
   iconLarge: scale(32), // stands for content (a not-uploaded thumbnail)
   menuIcon: scale(16),
+  captionIcon: scale(14), // beside a caption (a post card's thread mark)
   // Fits typical labels on one line, never wider than the screen minus the side gutters.
   popoverWidth: Math.min(scale(230), SCREEN_WIDTH - 2 * SIDE_GUTTER),
 };

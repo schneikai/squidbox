@@ -1,9 +1,9 @@
 module.exports = function (api) {
   api.cache(true);
   return {
+    // babel-preset-expo adds the worklets plugin Reanimated needs.
     presets: ['babel-preset-expo'],
     plugins: [
-      'react-native-reanimated/plugin',
       // Use import alias to avoid relative paths when importing
       // Heads-Up: If you make changes here you need to restart `npm run dev:local` (it clears Metro's cache)
       [
