@@ -1,7 +1,8 @@
 import { BlurView } from 'expo-blur';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import Button from '@/components/Button';
 import { colors, motion, typography } from '@/styles/designTokens';
@@ -17,7 +18,7 @@ export default function BlindModelName({ label, name }) {
 
   useEffect(() => {
     if (!isRevealing) return;
-    blur.value = withTiming(0, motion.move, (finished) => finished && runOnJS(setIsRevealing)(false));
+    blur.value = withTiming(0, motion.move, (finished) => finished && scheduleOnRN(setIsRevealing, false));
   }, [isRevealing]);
 
   function handlePress() {

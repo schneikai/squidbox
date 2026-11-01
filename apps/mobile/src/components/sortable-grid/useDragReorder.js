@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { runOnJS, withSpring } from 'react-native-reanimated';
+import { withSpring } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import gridSlotOrigin from './gridSlotOrigin';
 import mergeRowIds from './mergeRowIds';
@@ -193,7 +194,7 @@ export default function useDragReorder({
       if (!finished) return;
       activeId.value = null;
       shownLiftedId.value = null;
-      runOnJS(settled)();
+      scheduleOnRN(settled);
     });
     const order = orderRef.current;
     const afterId = order[slot - 1] ?? null;

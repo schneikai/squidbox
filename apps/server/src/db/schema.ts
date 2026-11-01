@@ -50,9 +50,7 @@ export const refreshTokens = pgTable(
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => ({
-    byUser: index('refresh_tokens_user_id_idx').on(t.userId),
-  }),
+  (t) => [index('refresh_tokens_user_id_idx').on(t.userId)],
 );
 
 export type User = typeof users.$inferSelect;
@@ -109,17 +107,17 @@ export const assets = pgTable(
     // Server-only, never on the wire: when the purge cleanup deleted the asset's S3 files (§7a).
     filesDeletedAt: bigint('files_deleted_at', { mode: 'number' }),
   },
-  (t) => ({
-    pk: primaryKey({ columns: [t.userId, t.id] }),
-    byUserSeq: index('assets_user_seq_idx').on(t.userId, t.serverSeq),
+  (t) => [
+    primaryKey({ columns: [t.userId, t.id] }),
+    index('assets_user_seq_idx').on(t.userId, t.serverSeq),
     // Purged assets whose S3 files the cleanup after a push still has to delete, in id order (sync/purgedFiles.ts).
-    purgedFiles: index('assets_purged_files_idx')
+    index('assets_purged_files_idx')
       .on(t.userId, t.id)
       .where(sql`${t.purgedAt} is not null and ${t.filesDeletedAt} is null`),
     // The assets naming a key: the purge cleanup's and the upload route's checks.
-    byFilename: index('assets_user_filename_idx').on(t.userId, t.filename),
-    byThumbnailFilename: index('assets_user_thumbnail_filename_idx').on(t.userId, t.thumbnailFilename),
-  }),
+    index('assets_user_filename_idx').on(t.userId, t.filename),
+    index('assets_user_thumbnail_filename_idx').on(t.userId, t.thumbnailFilename),
+  ],
 );
 
 export type AssetRow = typeof assets.$inferSelect;
@@ -154,10 +152,7 @@ export const albums = pgTable(
     smartAlbumType: text('smart_album_type'),
     position: text('position'),
   },
-  (t) => ({
-    pk: primaryKey({ columns: [t.userId, t.id] }),
-    byUserSeq: index('albums_user_seq_idx').on(t.userId, t.serverSeq),
-  }),
+  (t) => [primaryKey({ columns: [t.userId, t.id] }), index('albums_user_seq_idx').on(t.userId, t.serverSeq)],
 );
 export type AlbumRow = typeof albums.$inferSelect;
 
@@ -176,10 +171,7 @@ export const posts = pgTable(
     threadRootId: uuid('thread_root_id'),
     threadIndex: integer('thread_index'),
   },
-  (t) => ({
-    pk: primaryKey({ columns: [t.userId, t.id] }),
-    byUserSeq: index('posts_user_seq_idx').on(t.userId, t.serverSeq),
-  }),
+  (t) => [primaryKey({ columns: [t.userId, t.id] }), index('posts_user_seq_idx').on(t.userId, t.serverSeq)],
 );
 export type PostRow = typeof posts.$inferSelect;
 
@@ -195,11 +187,11 @@ export const albumAssets = pgTable(
     assetId: uuid('asset_id').notNull(),
     position: text('position').notNull(),
   },
-  (t) => ({
-    pk: primaryKey({ columns: [t.userId, t.id] }),
-    byUserSeq: index('album_assets_user_seq_idx').on(t.userId, t.serverSeq),
-    byAlbum: index('album_assets_album_idx').on(t.userId, t.albumId),
-  }),
+  (t) => [
+    primaryKey({ columns: [t.userId, t.id] }),
+    index('album_assets_user_seq_idx').on(t.userId, t.serverSeq),
+    index('album_assets_album_idx').on(t.userId, t.albumId),
+  ],
 );
 export type AlbumAssetRow = typeof albumAssets.$inferSelect;
 
@@ -211,11 +203,11 @@ export const postAssets = pgTable(
     assetId: uuid('asset_id').notNull(),
     position: text('position').notNull(),
   },
-  (t) => ({
-    pk: primaryKey({ columns: [t.userId, t.id] }),
-    byUserSeq: index('post_assets_user_seq_idx').on(t.userId, t.serverSeq),
-    byPost: index('post_assets_post_idx').on(t.userId, t.postId),
-  }),
+  (t) => [
+    primaryKey({ columns: [t.userId, t.id] }),
+    index('post_assets_user_seq_idx').on(t.userId, t.serverSeq),
+    index('post_assets_post_idx').on(t.userId, t.postId),
+  ],
 );
 export type PostAssetRow = typeof postAssets.$inferSelect;
 
@@ -231,10 +223,7 @@ export const personas = pgTable(
     rules: jsonb('rules').$type<string[]>().notNull(),
     adultContent: boolean('adult_content').notNull().default(false),
   },
-  (t) => ({
-    pk: primaryKey({ columns: [t.userId, t.id] }),
-    byUserSeq: index('personas_user_seq_idx').on(t.userId, t.serverSeq),
-  }),
+  (t) => [primaryKey({ columns: [t.userId, t.id] }), index('personas_user_seq_idx').on(t.userId, t.serverSeq)],
 );
 export type PersonaRow = typeof personas.$inferSelect;
 
@@ -248,10 +237,7 @@ export const promptButtons = pgTable(
     icon: text('icon'),
     position: text('position').notNull(),
   },
-  (t) => ({
-    pk: primaryKey({ columns: [t.userId, t.id] }),
-    byUserSeq: index('prompt_buttons_user_seq_idx').on(t.userId, t.serverSeq),
-  }),
+  (t) => [primaryKey({ columns: [t.userId, t.id] }), index('prompt_buttons_user_seq_idx').on(t.userId, t.serverSeq)],
 );
 export type PromptButtonRow = typeof promptButtons.$inferSelect;
 
@@ -261,10 +247,7 @@ export const favorites = pgTable(
     ...syncableBase(),
     text: text('text').notNull(),
   },
-  (t) => ({
-    pk: primaryKey({ columns: [t.userId, t.id] }),
-    byUserSeq: index('favorites_user_seq_idx').on(t.userId, t.serverSeq),
-  }),
+  (t) => [primaryKey({ columns: [t.userId, t.id] }), index('favorites_user_seq_idx').on(t.userId, t.serverSeq)],
 );
 export type FavoriteRow = typeof favorites.$inferSelect;
 
@@ -278,10 +261,7 @@ export const instructions = pgTable(
     moreLikeThis: text('more_like_this'),
     modelCheckJudge: text('model_check_judge'),
   },
-  (t) => ({
-    pk: primaryKey({ columns: [t.userId, t.id] }),
-    byUserSeq: index('instructions_user_seq_idx').on(t.userId, t.serverSeq),
-  }),
+  (t) => [primaryKey({ columns: [t.userId, t.id] }), index('instructions_user_seq_idx').on(t.userId, t.serverSeq)],
 );
 export type InstructionRow = typeof instructions.$inferSelect;
 
@@ -297,10 +277,7 @@ export const modelChoices = pgTable(
     writingUncensoredModel: jsonb('writing_uncensored_model').$type<{ id: string; name: string }>(),
     visionUncensoredModel: jsonb('vision_uncensored_model').$type<{ id: string; name: string }>(),
   },
-  (t) => ({
-    pk: primaryKey({ columns: [t.userId, t.id] }),
-    byUserSeq: index('model_choices_user_seq_idx').on(t.userId, t.serverSeq),
-  }),
+  (t) => [primaryKey({ columns: [t.userId, t.id] }), index('model_choices_user_seq_idx').on(t.userId, t.serverSeq)],
 );
 export type ModelChoiceRow = typeof modelChoices.$inferSelect;
 
@@ -317,9 +294,7 @@ export const verifiedModels = pgTable(
     verifiedBy: uuid('verified_by').references(() => users.id, { onDelete: 'set null' }),
     verifiedAt: timestamp('verified_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => ({
-    pk: primaryKey({ columns: [t.kind, t.modelId] }),
-  }),
+  (t) => [primaryKey({ columns: [t.kind, t.modelId] })],
 );
 
 // An override of Venice's Uncensored label for a model, whatever the kind (true uncensored, false
@@ -341,9 +316,7 @@ export const modelDefaults = pgTable(
     variant: text('variant').notNull(),
     modelId: text('model_id').notNull(),
   },
-  (t) => ({
-    pk: primaryKey({ columns: [t.kind, t.variant] }),
-  }),
+  (t) => [primaryKey({ columns: [t.kind, t.variant] })],
 );
 
 // The instruction of a kind every account gets while it has no override (Apply changes for everyone,
@@ -373,12 +346,12 @@ export const verifyRuns = pgTable(
     result: jsonb('result').$type<VerifyResult>(),
     error: text('error'),
   },
-  (t) => ({
-    running: uniqueIndex('verify_runs_running_idx')
+  (t) => [
+    uniqueIndex('verify_runs_running_idx')
       .on(t.kind, t.modelId)
       .where(sql`${t.status} = 'running'`),
-    latest: index('verify_runs_latest_idx').on(t.kind, t.modelId, t.startedAt.desc()),
-  }),
+    index('verify_runs_latest_idx').on(t.kind, t.modelId, t.startedAt.desc()),
+  ],
 );
 export type VerifyRunRow = typeof verifyRuns.$inferSelect;
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import Button from '@/components/Button';
 import { SCREEN_PADDING } from '@/constants';
@@ -31,7 +32,7 @@ export default function BottomSheet({ isVisible, onClose, title, children }) {
     } else {
       progress.value = withTiming(0, motion.exit, (finished) => {
         'worklet';
-        if (finished) runOnJS(setIsMounted)(false);
+        if (finished) scheduleOnRN(setIsMounted, false);
       });
     }
   }, [isVisible]);

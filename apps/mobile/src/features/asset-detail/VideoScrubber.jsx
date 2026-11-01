@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { clamp, runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { clamp, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { colors, layout, radii, sizes } from '@/styles/designTokens';
 
@@ -20,16 +21,16 @@ export default function VideoScrubber({ progress, onScrubStart, onScrub, onScrub
     const scrubTo = (x) => {
       'worklet';
       progress.value = width.value > 0 ? clamp(x / width.value, 0, 1) : 0;
-      runOnJS(onScrub)(progress.value);
+      scheduleOnRN(onScrub, progress.value);
     };
     return Gesture.Pan()
       .minDistance(0)
       .onBegin((event) => {
-        runOnJS(onScrubStart)();
+        scheduleOnRN(onScrubStart);
         scrubTo(event.x);
       })
       .onUpdate((event) => scrubTo(event.x))
-      .onFinalize(() => runOnJS(onScrubEnd)());
+      .onFinalize(() => scheduleOnRN(onScrubEnd));
   }, [progress, width, onScrubStart, onScrub, onScrubEnd]);
 
   const fillStyle = useAnimatedStyle(() => ({ width: progress.value * width.value }));

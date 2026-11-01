@@ -43,28 +43,28 @@ export const assets = sqliteTable(
   },
   // Partial indexes for the screens' reads (docs/paged-reads-plan.md §2). A query uses one only when
   // its WHERE implies the index's, so keep the predicates in step with the queries.
-  (t) => ({
-    live: index('assets_live_created_idx')
+  (t) => [
+    index('assets_live_created_idx')
       .on(t.createdAt, t.id, t.isFavorite, t.mediaType)
       .where(sql`${t.deletedAt} is null`),
     // purgedAt (always null here) keeps the Deleted reads covered by the index.
-    deleted: index('assets_deleted_idx')
+    index('assets_deleted_idx')
       .on(t.deletedAt, t.id, t.purgedAt)
       .where(sql`${t.deletedAt} is not null and ${t.purgedAt} is null`),
-    unsynced: index('assets_unsynced_idx')
+    index('assets_unsynced_idx')
       .on(t.id)
       .where(sql`${t.isSynced} = 0 and ${t.deletedAt} is null and ${t.syncError} is null`),
-    syncError: index('assets_sync_error_idx')
+    index('assets_sync_error_idx')
       .on(t.id)
       .where(sql`${t.syncError} is not null and ${t.deletedAt} is null`),
-    notes: index('assets_notes_idx')
+    index('assets_notes_idx')
       .on(t.id, t.notes)
       .where(sql`${t.notes} is not null and ${t.deletedAt} is null`),
     // The purged assets whose files this device still has: the sweep's work (sweepPurgedFiles).
-    purgedFiles: index('assets_purged_files_idx')
+    index('assets_purged_files_idx')
       .on(t.id)
       .where(sql`${t.purgedAt} is not null and ${t.filesRemovedFor} is not ${t.purgedAt}`),
-  }),
+  ],
 );
 export type AssetRow = typeof assets.$inferSelect;
 
@@ -106,15 +106,15 @@ export const posts = sqliteTable(
     threadRootId: text('thread_root_id'),
     threadIndex: integer('thread_index'),
   },
-  (t) => ({
-    live: index('posts_live_posted_idx')
+  (t) => [
+    index('posts_live_posted_idx')
       .on(t.postedAt, t.id)
       .where(sql`${t.deletedAt} is null`),
     // A thread's following posts in order (readThreadPosts) and their count (postQuery threadCount).
-    thread: index('posts_thread_idx')
+    index('posts_thread_idx')
       .on(t.threadRootId, t.threadIndex, t.id)
       .where(sql`${t.deletedAt} is null and ${t.threadRootId} is not null`),
-  }),
+  ],
 );
 export type PostRow = typeof posts.$inferSelect;
 
@@ -131,14 +131,14 @@ export const albumAssets = sqliteTable(
     assetId: text('asset_id').notNull(),
     position: text('position').notNull(),
   },
-  (t) => ({
-    byAlbum: index('album_assets_album_position_idx')
+  (t) => [
+    index('album_assets_album_position_idx')
       .on(t.albumId, t.position, t.assetId)
       .where(sql`${t.deletedAt} is null`),
-    byAsset: index('album_assets_asset_idx')
+    index('album_assets_asset_idx')
       .on(t.assetId, t.albumId)
       .where(sql`${t.deletedAt} is null`),
-  }),
+  ],
 );
 export type AlbumAssetRow = typeof albumAssets.$inferSelect;
 
@@ -153,12 +153,12 @@ export const postAssets = sqliteTable(
     assetId: text('asset_id').notNull(),
     position: text('position').notNull(),
   },
-  (t) => ({
-    byPost: index('post_assets_post_idx').on(t.postId),
-    byAsset: index('post_assets_asset_idx')
+  (t) => [
+    index('post_assets_post_idx').on(t.postId),
+    index('post_assets_asset_idx')
       .on(t.assetId, t.postId)
       .where(sql`${t.deletedAt} is null`),
-  }),
+  ],
 );
 export type PostAssetRow = typeof postAssets.$inferSelect;
 
@@ -255,12 +255,12 @@ export const outbox = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
     error: text('error'),
   },
-  (t) => ({
-    oneRowPerRecord: uniqueIndex('outbox_collection_record_idx').on(t.collection, t.recordId),
-    failed: index('outbox_error_idx')
+  (t) => [
+    uniqueIndex('outbox_collection_record_idx').on(t.collection, t.recordId),
+    index('outbox_error_idx')
       .on(t.id)
       .where(sql`${t.error} is not null`),
-  }),
+  ],
 );
 export type OutboxRow = typeof outbox.$inferSelect;
 
@@ -301,7 +301,7 @@ export const aiModels = sqliteTable(
     // Removed from the list: kept, with its note, so it comes back as it was when added again.
     isHidden: integer('is_hidden', { mode: 'boolean' }).notNull().default(false),
   },
-  (t) => ({ pk: primaryKey({ columns: [t.kind, t.modelId] }) }),
+  (t) => [primaryKey({ columns: [t.kind, t.modelId] })],
 );
 
 // Each model's score of a kind (thumbs up / tags that fit), kept when it leaves your list.
@@ -312,7 +312,7 @@ export const aiScores = sqliteTable(
     modelId: text('model_id').notNull(),
     score: integer('score').notNull(),
   },
-  (t) => ({ pk: primaryKey({ columns: [t.kind, t.modelId] }) }),
+  (t) => [primaryKey({ columns: [t.kind, t.modelId] })],
 );
 
 // The photos of the last vision compare, in order.

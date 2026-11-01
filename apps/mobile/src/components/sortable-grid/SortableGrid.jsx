@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
-  runOnJS,
   useAnimatedReaction,
   useAnimatedRef,
   useAnimatedScrollHandler,
   useComposedEventHandler,
   useSharedValue,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import SortableGridCell from './SortableGridCell';
 import SortableGridLiftedCell from './SortableGridLiftedCell';
@@ -76,7 +76,7 @@ export default function SortableGrid({
       askedAtHeight.value = -1;
     } else if (askedAtHeight.value !== contentSize.height) {
       askedAtHeight.value = contentSize.height;
-      runOnJS(askForMore)();
+      scheduleOnRN(askForMore);
     }
   });
   const handleScroll = useComposedEventHandler([trackScroll, onScroll ?? null]);
@@ -87,7 +87,7 @@ export default function SortableGrid({
   useAnimatedReaction(
     () => Math.floor(scrollY.value / viewportHeight),
     (index, prev) => {
-      if (index !== prev) runOnJS(setScreenIndex)(index);
+      if (index !== prev) scheduleOnRN(setScreenIndex, index);
     },
   );
 

@@ -3,12 +3,12 @@ import { Gesture, State } from 'react-native-gesture-handler';
 import {
   cancelAnimation,
   clamp,
-  runOnJS,
   useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import dragWithin from './dragWithin';
 import getPanBounds from './getPanBounds';
@@ -83,7 +83,7 @@ export default function useZoomGesture({
     () => scale.value > ZOOMED_SCALE,
     (isZoomed, wasZoomed) => {
       if (isZoomed === wasZoomed) return;
-      runOnJS(onZoomChange)(isZoomed);
+      scheduleOnRN(onZoomChange, isZoomed);
     },
     [onZoomChange],
   );
@@ -120,7 +120,7 @@ export default function useZoomGesture({
       })
       .onStart(() => {
         const { pointers, isOnMovingImage } = tapTouch.value;
-        if (onTap && pointers === 1 && !isOnMovingImage) runOnJS(onTap)();
+        if (onTap && pointers === 1 && !isOnMovingImage) scheduleOnRN(onTap);
       });
 
     if (!isZoomable && !verticalDrag) return singleTap;
@@ -271,7 +271,7 @@ export default function useZoomGesture({
       .maxDistance(TAP_SLOP)
       .onStart((event) => {
         if (isZoomBlocked()) {
-          if (onTap) runOnJS(onTap)();
+          if (onTap) scheduleOnRN(onTap);
           return;
         }
         stop();

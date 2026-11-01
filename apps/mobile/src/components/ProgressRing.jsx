@@ -1,13 +1,8 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedProps,
-  useAnimatedReaction,
-  withTiming,
-  runOnJS,
-} from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedProps, useAnimatedReaction, withTiming } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { colors, motion, scale, typography } from '@/styles/designTokens';
 
@@ -31,7 +26,7 @@ export default function ProgressRing({ value }) {
     () => Math.round(animatedValue.value),
     (current, previous) => {
       if (current !== previous) {
-        runOnJS(setDisplayValue)(current);
+        scheduleOnRN(setDisplayValue, current);
       }
     },
   );

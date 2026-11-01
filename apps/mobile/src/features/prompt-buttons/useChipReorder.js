@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import mergeRowIds from '@/components/sortable-grid/mergeRowIds';
 import sameOrder from '@/components/sortable-grid/sameOrder';
@@ -120,7 +121,7 @@ export default function useChipReorder({ ids, onMove }) {
     liftedX.value = withSpring(frame.x, motion.spring);
     liftedY.value = withSpring(frame.y, motion.spring, (finished) => {
       'worklet';
-      if (finished) runOnJS(setLiftedId)(null);
+      if (finished) scheduleOnRN(setLiftedId, null);
     });
   }
 

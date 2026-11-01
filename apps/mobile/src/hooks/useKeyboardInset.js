@@ -1,4 +1,5 @@
-import { useAnimatedKeyboard, useDerivedValue } from 'react-native-reanimated';
+import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
+import { useDerivedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /**
@@ -8,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
  */
 export default function useKeyboardInset(gap = 0) {
   const { bottom } = useSafeAreaInsets();
-  const keyboard = useAnimatedKeyboard();
-  return useDerivedValue(() => Math.max(bottom, keyboard.height.value) + gap, [bottom, gap]);
+  // react-native-keyboard-controller reports the height as a negative offset (how far to move up).
+  const { height } = useReanimatedKeyboardAnimation();
+  return useDerivedValue(() => Math.max(bottom, -height.value) + gap, [bottom, gap]);
 }

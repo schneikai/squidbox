@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { Gesture } from 'react-native-gesture-handler';
-import { runOnJS } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { TAP_SLOP } from '@/constants';
 
@@ -25,10 +25,10 @@ export default function useDetailsPanelDrag(verticalDrag, pagerGesture) {
         .failOffsetX([-TAP_SLOP, TAP_SLOP])
         .blocksExternalGesture(pagerGesture)
         .onBegin(() => {
-          runOnJS(blockPress)(verticalDrag.grab());
+          scheduleOnRN(blockPress, verticalDrag.grab());
         })
         .onStart(() => {
-          runOnJS(blockPress)(true);
+          scheduleOnRN(blockPress, true);
           verticalDrag.onStart();
         })
         .onChange((event) => {

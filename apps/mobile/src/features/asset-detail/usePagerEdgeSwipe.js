@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   cancelAnimation,
   clamp,
-  runOnJS,
   scrollTo,
   useAnimatedReaction,
   useEvent,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import shiftPager from './shiftPager';
 import snapPagerShift from './snapPagerShift';
@@ -47,7 +47,7 @@ export default function usePagerEdgeSwipe({ listRef, pageWidth, pageIndex, pageC
     pager.value = { index: pageIndex, count: pageCount, width: pageWidth };
   }, [pager, pageIndex, pageCount, pageWidth]);
 
-  // Stable for runOnJS, whatever `onPage` is now.
+  // Stable for scheduleOnRN, whatever `onPage` is now.
   const reportPage = useCallback((index) => onPageRef.current(index), []);
 
   useAnimatedReaction(
@@ -89,7 +89,7 @@ export default function usePagerEdgeSwipe({ listRef, pageWidth, pageIndex, pageC
       // Same frame: the new page's origin is where the list already is, so it doesn't jump back.
       pager.value = { index: index + delta, count, width };
       shift.value = 0;
-      runOnJS(reportPage)(index + delta);
+      scheduleOnRN(reportPage, index + delta);
     };
 
     return {
