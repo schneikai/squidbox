@@ -1,6 +1,6 @@
 import { View, StyleSheet } from 'react-native';
 
-import { glass, radii } from '@/styles/designTokens';
+import { colors, radii, shadows } from '@/styles/designTokens';
 
 /**
  * The standard bordered glass surface.
@@ -19,8 +19,9 @@ export default function Card({ children, style, ...rest }) {
 
 const styles = StyleSheet.create({
   card: {
-    ...glass,
+    backgroundColor: colors.background.surface,
     borderRadius: radii.card,
+    ...shadows.card,
     overflow: 'hidden',
   },
 });

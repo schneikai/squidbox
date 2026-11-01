@@ -71,6 +71,7 @@ export const colors = {
     base: palette.gray50, // a sheet or screen without the gradient
     surface: palette.white, // opaque, for a surface over media that mustn't show it through
     glass: alpha(palette.white, 0.95),
+    litGlass: alpha('#FCFCFD', 0.94), // a floating pill: a hair off-white, so its white rim shows
     menu: alpha(palette.white, 0.72), // tint over the BlurView of popover menus
     muted: palette.gray100, // `overlay.pressed` over white, opaque
     tint: palette.violet50, // a lavender card on a white sheet (an example to copy)
@@ -82,6 +83,7 @@ export const colors = {
   },
   border: {
     glass: alpha(palette.black, 0.08),
+    litGlass: alpha(palette.white, 0.8),
     divider: alpha(palette.black, 0.08), // between the rows of a grouped list (Divider)
   },
   overlay: {
@@ -93,12 +95,13 @@ export const colors = {
 };
 
 export const shadows = {
+  // Floating UI (toolbars, popovers): a wide, very soft shadow, as if lit softly from above
   floating: {
-    shadowColor: palette.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 8,
+    boxShadow: `0 12px 36px ${alpha(palette.black, 0.09)}, 0 2px 8px ${alpha(palette.black, 0.05)}`,
+  },
+  // A card resting on the page: the same soft light, lower
+  card: {
+    boxShadow: `0 6px 24px ${alpha(palette.black, 0.06)}, 0 1px 3px ${alpha(palette.black, 0.03)}`,
   },
   // A grid cell lifted under the finger while it's dragged
   lifted: {
@@ -108,11 +111,11 @@ export const shadows = {
     shadowRadius: 12,
   },
   subtle: {
-    shadowColor: palette.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 4,
+    boxShadow: `0 6px 20px ${alpha(palette.black, 0.08)}, 0 1px 4px ${alpha(palette.black, 0.04)}`,
+  },
+  // The lit top edge of a floating pill: a bright rim along its top, a faint shade along its bottom
+  litEdge: {
+    boxShadow: `inset 0 1.5px 0.5px ${alpha(palette.white, 1)}, inset 0 -1px 0.5px ${alpha(palette.black, 0.05)}`,
   },
 };
 
@@ -178,6 +181,13 @@ export const lineHeights = {
 export const glass = {
   backgroundColor: colors.background.glass,
   borderColor: colors.border.glass,
+  borderWidth: 1,
+};
+
+// A floating pill's glass: a light rim instead of the dark hairline, so the lit top edge reads
+export const litGlass = {
+  backgroundColor: colors.background.litGlass,
+  borderColor: colors.border.litGlass,
   borderWidth: 1,
 };
 

@@ -1,7 +1,7 @@
 import { BlurView } from 'expo-blur';
 import { StyleSheet, View } from 'react-native';
 
-import { glass, layout, radii, shadows } from '@/styles/designTokens';
+import { layout, litGlass, radii, shadows } from '@/styles/designTokens';
 
 /**
  * A toolbar: the frosted-glass pill that groups the buttons that belong together, one button tall
@@ -28,7 +28,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   surface: {
-    ...glass,
+    ...litGlass,
+    ...shadows.litEdge,
     borderRadius: radii.pill,
     flexDirection: 'row',
     alignItems: 'center',
