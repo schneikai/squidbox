@@ -2,8 +2,8 @@
 // Compose, through @expo/ui's DateTimePicker), as wide as the sheet. Each change applies at once.
 // iOS: `PostedAtCalendar.ios.jsx`; web: `PostedAtCalendar.web.jsx`.
 // The source path: Metro here resolves without package exports (metro.config.js), so the
-// '@expo/ui/datetimepicker' subpath isn't found.
-import DateTimePicker from '@expo/ui/src/datetime-picker';
+// '@expo/ui/community/datetime-picker' subpath isn't found.
+import DateTimePicker from '@expo/ui/src/community/datetime-picker';
 import { StyleSheet } from 'react-native';
 
 import { colors } from '@/styles/designTokens';

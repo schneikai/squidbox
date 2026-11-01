@@ -1,4 +1,4 @@
-import * as MediaLibrary from 'expo-media-library';
+import * as MediaLibrary from 'expo-media-library/legacy';
 
 import useAssets from '@/features/assets-context/useAssets';
 import { openLibraryId } from '@/library/current';

@@ -1,4 +1,4 @@
-import * as ExpoMediaLibrary from 'expo-media-library';
+import * as ExpoMediaLibrary from 'expo-media-library/legacy';
 
 import { MEDIA_LIBRARY_ALBUM_NAME } from '@/constants';
 
