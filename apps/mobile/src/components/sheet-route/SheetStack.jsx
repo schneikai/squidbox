@@ -1,7 +1,5 @@
 import { Stack } from 'expo-router';
 
-import SheetRoute from './SheetRoute';
-
 import { STACK_SCREEN_OPTIONS } from '@/components/sheet-route/stackScreenOptions';
 
 /**
@@ -10,9 +8,5 @@ import { STACK_SCREEN_OPTIONS } from '@/components/sheet-route/stackScreenOption
  * `Stack.Screen`s that need options of their own.
  */
 export default function SheetStack({ children }) {
-  return (
-    <SheetRoute hasStack>
-      <Stack screenOptions={STACK_SCREEN_OPTIONS}>{children}</Stack>
-    </SheetRoute>
-  );
+  return <Stack screenOptions={STACK_SCREEN_OPTIONS}>{children}</Stack>;
 }

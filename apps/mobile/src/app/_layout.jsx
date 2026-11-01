@@ -13,7 +13,7 @@ import { enableFreeze } from 'react-native-screens';
 import FloatingBarsProvider from '@/components/floating-bars/FloatingBarsProvider';
 import BlurPopoverRenderer from '@/components/popup-menu-options/BlurPopoverRenderer';
 import ProgressOverlayProvider from '@/components/progress-overlay/ProgressOverlayProvider';
-import sheetLayout from '@/components/sheet-route/sheetLayout';
+import sheetScreenLayout from '@/components/sheet-route/sheetScreenLayout';
 import { SHEET_OPTIONS, STACK_SCREEN_OPTIONS } from '@/components/sheet-route/stackScreenOptions';
 import AlbumsProvider from '@/features/albums-context/AlbumsProvider';
 import AppSettingsProvider from '@/features/app-settings/AppSettingsProvider';
@@ -225,9 +225,9 @@ const MainApp = memo(function MainApp() {
   );
 });
 
-// One editor per post, repost or set of assets: opening another opens a new editor on top, the same
-// goes back to the editor that has it.
-const editorId = (name, params) => [params.postId, params.rePostId, params.assetIds].join('|');
+// One editor per post: editing the post again goes back to its editor. A group route gets only the
+// URL's path params, so a new post's editor (`?assetIds`, `?rePostId`) is always a new one.
+const editorId = (name, params) => params.postId;
 
 // One compare per kind of model.
 const modelKind = (name, params) => params.kind;
@@ -238,11 +238,11 @@ const modelKind = (name, params) => params.kind;
 // are opened from.
 function RootStack() {
   return (
-    <Stack screenOptions={STACK_SCREEN_OPTIONS}>
+    <Stack screenOptions={STACK_SCREEN_OPTIONS} screenLayout={sheetScreenLayout}>
       <Stack.Screen name="(main)/post/[postId]" dangerouslySingular />
-      <Stack.Screen name="(main)/album/[albumId]/notes" options={SHEET_OPTIONS} layout={sheetLayout} />
-      <Stack.Screen name="(main)/pick-assets" options={SHEET_OPTIONS} layout={sheetLayout} />
-      <Stack.Screen name="(main)/add-to-album" options={SHEET_OPTIONS} layout={sheetLayout} />
+      <Stack.Screen name="(main)/album/[albumId]/notes" options={SHEET_OPTIONS} />
+      <Stack.Screen name="(main)/pick-assets" options={SHEET_OPTIONS} />
+      <Stack.Screen name="(main)/add-to-album" options={SHEET_OPTIONS} />
       <Stack.Screen name="(main)/(chat)" options={SHEET_OPTIONS} />
       <Stack.Screen name="(new-post)" options={SHEET_OPTIONS} />
       <Stack.Screen name="(compare)" options={SHEET_OPTIONS} dangerouslySingular={modelKind} />

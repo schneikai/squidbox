@@ -14,7 +14,8 @@ export default function useSheetRoute() {
   const navigation = useNavigation();
   const route = useRoute();
   if (!sheet) return null;
-  // A screen's place in its stack never changes: nothing below it goes while it stays.
-  const isFirstScreen = !sheet.hasStack || navigation.getState()?.routes[0]?.key === route.key;
+  // The sheet's route itself (a one-screen sheet), or the first screen of the sheet's stack. A
+  // screen's place in its stack never changes: nothing below it goes while it stays.
+  const isFirstScreen = route.key === sheet.routeKey || navigation.getState()?.routes[0]?.key === route.key;
   return { isFirstScreen, close: sheet.close, setOptions: sheet.setOptions };
 }

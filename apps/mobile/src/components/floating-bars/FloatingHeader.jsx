@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { useNavigation } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, interpolate, Extrapolation, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,6 +15,7 @@ import { colors, layout, motion, typography } from '@/styles/designTokens';
 // (useToggleSelectAssetsAction), the `selectionActions` (useAssetSelectionActions) and `onDelete`.
 export default function FloatingHeader({ title, onAdd, selection, selectionActions, onDelete }) {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const { scrollY } = useFloatingBars();
   const isSelectMode = selection?.isSelectMode ?? false;
 
@@ -43,8 +44,9 @@ export default function FloatingHeader({ title, onAdd, selection, selectionActio
     pointerEvents: isSelectMode ? 'auto' : 'none',
   }));
 
+  // To the Settings tab as it was left (`router.navigate('/settings')` would pop to its first screen).
   function handleSettings() {
-    router.navigate('/settings');
+    navigation.navigate('settings');
   }
 
   return (

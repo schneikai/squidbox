@@ -7,6 +7,7 @@ import FloatingPill from './FloatingPill';
 import ToolbarTitle from './ToolbarTitle';
 
 import Button from '@/components/Button';
+import useSheetRoute from '@/hooks/useSheetRoute';
 import { layout, motion } from '@/styles/designTokens';
 
 /**
@@ -18,7 +19,7 @@ import { layout, motion } from '@/styles/designTokens';
  * Props:
  *   title        — primary label (e.g. date string)
  *   subtitle     — optional secondary line
- *   onBack       — called when the back chevron is pressed
+ *   onBack       — called when the back chevron is pressed (× when the screen opens a sheet)
  *   menuSlot     — element(s) rendered inside the right FloatingPill
  *   isSelectMode — when true, back + info animate out to the left
  *   children     — centred under the row (a note about what the screen shows)
@@ -28,6 +29,8 @@ const SIDE_GAP = 12;
 
 export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot, isSelectMode = false, children }) {
   const insets = useSafeAreaInsets();
+  // A sheet's first screen has nothing in the sheet to go back to: it closes the sheet.
+  const isSheet = useSheetRoute()?.isFirstScreen ?? false;
 
   const [containerWidth, setContainerWidth] = useState(0);
   const [leftWidth, setLeftWidth] = useState(0);
@@ -72,7 +75,11 @@ export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot
           onLayout={(e) => setLeftWidth(e.nativeEvent.layout.width)}
         >
           <FloatingPill style={styles.backPill}>
-            <Button icon="chevron-left" onPress={onBack} accessibilityLabel="Back" />
+            {isSheet ? (
+              <Button icon="close" onPress={onBack} accessibilityLabel="Close" />
+            ) : (
+              <Button icon="chevron-left" onPress={onBack} accessibilityLabel="Back" />
+            )}
           </FloatingPill>
         </Animated.View>
 
