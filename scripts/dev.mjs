@@ -301,7 +301,8 @@ async function startMetroWithTunnel(extraEnv) {
   let keepCache = false;
   for (let attempt = 1; attempt <= TUNNEL_ATTEMPTS; attempt++) {
     log(attempt === 1 ? 'Starting Metro with a tunnel' : `Tunnel failed, retrying (${attempt}/${TUNNEL_ATTEMPTS})`);
-    const metro = startMetro(['--tunnel'], extraEnv, { keepCache });
+    // SDK 58 defaults to Expo's own tunnel; this script reads ngrok's local API for the URL.
+    const metro = startMetro(['--tunnel', 'ngrok'], extraEnv, { keepCache });
     let output = '';
     metro.stdout.on('data', (chunk) => (output += chunk));
     metro.stderr.on('data', (chunk) => (output += chunk));
