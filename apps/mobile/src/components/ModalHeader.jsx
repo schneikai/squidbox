@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   centerAbsolute: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: sizes.iconButton + layout.sideGutter,

@@ -30,7 +30,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   icon: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },
