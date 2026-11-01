@@ -18,7 +18,6 @@ import { layout, motion } from '@/styles/designTokens';
  * Props:
  *   title        — primary label (e.g. date string)
  *   subtitle     — optional secondary line
- *   colorPalette — `danger` for a title that warns ("Deleted")
  *   onBack       — called when the back chevron is pressed
  *   menuSlot     — element(s) rendered inside the right FloatingPill
  *   isSelectMode — when true, back + info animate out to the left
@@ -26,14 +25,7 @@ import { layout, motion } from '@/styles/designTokens';
 
 const SIDE_GAP = 12;
 
-export default function FloatingDetailHeader({
-  title,
-  subtitle,
-  colorPalette,
-  onBack,
-  menuSlot,
-  isSelectMode = false,
-}) {
+export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot, isSelectMode = false }) {
   const insets = useSafeAreaInsets();
 
   const [containerWidth, setContainerWidth] = useState(0);
@@ -64,12 +56,7 @@ export default function FloatingDetailHeader({
           pointerEvents="none" ensures touches pass through to the pills above */}
       {(!!title || !!subtitle) && (
         <Animated.View style={[styles.infoArea, leftStyle]} pointerEvents="none">
-          <ToolbarTitle
-            title={title}
-            subtitle={subtitle}
-            colorPalette={colorPalette}
-            style={centerMaxWidth > 0 && { maxWidth: centerMaxWidth }}
-          />
+          <ToolbarTitle title={title} subtitle={subtitle} style={centerMaxWidth > 0 && { maxWidth: centerMaxWidth }} />
         </Animated.View>
       )}
 

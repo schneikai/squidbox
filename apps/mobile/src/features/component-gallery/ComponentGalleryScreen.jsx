@@ -154,7 +154,6 @@ export default function ComponentGalleryScreen() {
         <Specimen name="ToolbarTitle">
           <ToolbarTitle title="Settings" />
           <ToolbarTitle title="Sunrise at the lake" subtitle="Jul 14 · Lake Tahoe" />
-          <ToolbarTitle title="Deleted" colorPalette="danger" />
         </Specimen>
         <Specimen name="AccountButton">
           <AccountButton onPress={noop} />

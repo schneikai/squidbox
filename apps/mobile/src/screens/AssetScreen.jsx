@@ -11,6 +11,7 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 import AssetItem from '@/features/asset-detail/AssetItem';
 import AssetPager from '@/features/asset-detail/AssetPager';
+import DeletedNote from '@/features/asset-detail/DeletedNote';
 import FullscreenPlayButton from '@/features/asset-detail/FullscreenPlayButton';
 import VideoControls from '@/features/asset-detail/VideoControls';
 import MoreAction from '@/features/asset-detail/actions/MoreAction';
@@ -20,7 +21,7 @@ import useAssetVideo from '@/features/asset-detail/useAssetVideo';
 import useChromeInsets from '@/features/asset-detail/useChromeInsets';
 import assetQuery from '@/features/asset-list/assetQuery';
 import useAssets from '@/features/assets-context/useAssets';
-import { colors } from '@/styles/designTokens';
+import { colors, layout, sizes } from '@/styles/designTokens';
 import { getDb, schema } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import formatDetailHeaderDate from '@/utils/date-time/formatDetailHeaderDate';
@@ -63,10 +64,6 @@ export default function AssetScreen({ route, navigation }) {
   const currentIndex = snapshot.indexOf(selectedAssetId);
   const asset = assetsById.get(selectedAssetId);
   const headerDate = asset ? formatDetailHeaderDate(asset.createdAt) : null;
-  // A trashed photo (opened from a post) says so in its title, its date under it.
-  const headerTitle = asset?.deletedAt
-    ? { title: 'Deleted', subtitle: `${headerDate.title} · ${headerDate.subtitle}`, colorPalette: 'danger' }
-    : { title: headerDate?.title ?? '', subtitle: headerDate?.subtitle ?? '' };
   // One player, for the current asset while it is a video, once the pager (which shows it) is up.
   const video = useAssetVideo(assetIds ? asset : null);
   const details = useDetailsPanel();
@@ -179,10 +176,22 @@ export default function AssetScreen({ route, navigation }) {
       <SafeAreaInsetsContext.Provider value={chromeInsets}>
         <FadeView isVisible={!isFullscreen} style={StyleSheet.absoluteFill} pointerEvents="box-none">
           <FloatingDetailHeader
-            {...headerTitle}
+            title={headerDate?.title ?? ''}
+            subtitle={headerDate?.subtitle ?? ''}
             onBack={() => navigation.goBack()}
             menuSlot={asset && <MoreAction asset={asset} navigation={navigation} />}
           />
+          {!!asset?.deletedAt && (
+            <View
+              style={[
+                styles.deletedNote,
+                { top: Math.max(chromeInsets.top + 8, layout.barBottom) + sizes.iconButton + NOTE_GAP },
+              ]}
+              pointerEvents="none"
+            >
+              <DeletedNote />
+            </View>
+          )}
         </FadeView>
 
         {/* The details panel takes the actions' place. */}
@@ -216,6 +225,9 @@ export default function AssetScreen({ route, navigation }) {
   );
 }
 
+// Between the floating header (placed as FloatingDetailHeader places it) and the note under it.
+const NOTE_GAP = 12;
+
 const styles = StyleSheet.create({
   // The details panels wait below the screen's edge.
   clip: {
@@ -226,6 +238,12 @@ const styles = StyleSheet.create({
   },
   fullscreenBackdrop: {
     backgroundColor: colors.background.media,
+  },
+  deletedNote: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
   },
   // Above the actions, at their left.
   noteButton: {

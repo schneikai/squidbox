@@ -22,9 +22,9 @@ import canShareFiles from '@/utils/files/canShareFiles';
  *   left pill (share + favorite + download)   right pill (delete)
  *   (Share only in a build with expo-sharing's native module)
  *
- * A trashed asset (shown in a post) gets the Deleted album's actions instead (the header says it's
- * deleted):
- *   [⇪  ↓]                            [Restore  🗑]
+ * A trashed asset (shown in a post) gets the Deleted album's actions instead (DeletedNote, under
+ * the header, says where it is):
+ *   [⇪  ↓]                                  [↺  🗑]
  */
 export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigation, children }) {
   const insets = useSafeAreaInsets();
@@ -96,7 +96,7 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, navigat
 
         {/* Right pill — delete, or restore + delete permanently */}
         <FloatingPill>
-          {isDeleted && <Button variant="primary" size="small" label="Restore" onPress={handleRestore} />}
+          {isDeleted && <Button icon="undo" onPress={handleRestore} accessibilityLabel="Restore" />}
           <Button
             icon="trash"
             onPress={isDeleted ? handleDeletePermanently : handleDelete}
