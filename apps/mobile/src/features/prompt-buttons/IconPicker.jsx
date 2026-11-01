@@ -5,6 +5,7 @@ import PROMPT_BUTTON_ICONS from './promptButtonIcons';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
+import IconSlotContext from '@/components/IconSlotContext';
 import useHaptics from '@/hooks/useHaptics';
 import { sizes } from '@/styles/designTokens';
 
@@ -51,24 +52,25 @@ export default function IconPicker({ value, onChange }) {
         contentContainerStyle={styles.row}
         accessibilityRole="radiogroup"
       >
-        <Button
-          icon="circle-off"
-          variant={value === null ? 'primary' : 'tertiary'}
-          accessibilityLabel="No icon"
-          onPress={() => handlePick(null)}
-          style={styles.cell}
-        />
-        {names.map((name) => (
+        {/* Every icon, picked (a disc) or not (a bare icon), takes the same 44 pt cell. */}
+        <IconSlotContext.Provider value>
           <Button
-            key={name}
-            icon={name}
-            variant={name === value ? 'primary' : 'tertiary'}
-            colorPalette="accent"
-            accessibilityLabel={name.replace(/-/g, ' ')}
-            onPress={() => handlePick(name)}
-            style={styles.cell}
+            icon="circle-off"
+            variant={value === null ? 'primary' : 'tertiary'}
+            accessibilityLabel="No icon"
+            onPress={() => handlePick(null)}
           />
-        ))}
+          {names.map((name) => (
+            <Button
+              key={name}
+              icon={name}
+              variant={name === value ? 'primary' : 'tertiary'}
+              colorPalette="accent"
+              accessibilityLabel={name.replace(/-/g, ' ')}
+              onPress={() => handlePick(name)}
+            />
+          ))}
+        </IconSlotContext.Provider>
       </ScrollView>
     </Card>
   );
@@ -83,9 +85,5 @@ const styles = StyleSheet.create({
   row: {
     padding: PADDING,
     gap: GAP,
-  },
-  // Every icon, picked (a disc) or not (a bare icon), takes the same 44 pt cell.
-  cell: {
-    width: sizes.iconButton,
   },
 });
