@@ -83,7 +83,7 @@ export const colors = {
   },
   border: {
     glass: alpha(palette.black, 0.08),
-    litGlass: palette.white,
+    litGlass: 'transparent', // the lit edge (shadows.litEdge) draws the rim, so no white line runs under its bottom shade
     divider: alpha(palette.black, 0.08), // between the rows of a grouped list (Divider)
   },
   overlay: {
