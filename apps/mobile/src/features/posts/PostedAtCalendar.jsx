@@ -1,6 +1,6 @@
-// The Posted sheet's picker on a phone: the system's inline calendar with the time under it (SwiftUI
-// on iOS, Jetpack Compose on Android, through @expo/ui), as wide as the sheet. Each change applies at
-// once. The web version is `PostedAtCalendar.web.jsx`.
+// The Posted sheet's picker on Android: the system's inline calendar with the time under it (Jetpack
+// Compose, through @expo/ui's DateTimePicker), as wide as the sheet. Each change applies at once.
+// iOS: `PostedAtCalendar.ios.jsx`; web: `PostedAtCalendar.web.jsx`.
 // The source path: Metro here resolves without package exports (metro.config.js), so the
 // '@expo/ui/datetimepicker' subpath isn't found.
 import DateTimePicker from '@expo/ui/src/datetime-picker';
