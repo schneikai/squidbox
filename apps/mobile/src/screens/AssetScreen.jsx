@@ -189,7 +189,7 @@ export default function AssetScreen({ route, navigation }) {
               ]}
               pointerEvents="none"
             >
-              <DeletedNote />
+              <DeletedNote mediaType={asset.mediaType} />
             </View>
           )}
         </FadeView>

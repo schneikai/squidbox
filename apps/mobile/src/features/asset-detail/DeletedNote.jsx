@@ -2,14 +2,15 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import Icon from '@/components/Icon';
 import { colors, radii, shadows, sizes, typography } from '@/styles/designTokens';
+import humanizeMediaType from '@/utils/assets/humanizeMediaType';
 
-// The red note on a trashed photo or video (opened from a post it's still in): where it is. The
+// The red note on a trashed photo or video (opened from a post it's still in), of `mediaType`. The
 // parent positions it through `style`.
-export default function DeletedNote({ style }) {
+export default function DeletedNote({ mediaType, style }) {
   return (
     <View style={[styles.note, style]} accessibilityRole="text">
       <Icon name="trash" size={sizes.menuIcon} color={colors.text.inverse} />
-      <Text style={styles.text}>In the Deleted album</Text>
+      <Text style={styles.text}>This {humanizeMediaType(mediaType).toLowerCase()} was deleted</Text>
     </View>
   );
 }
