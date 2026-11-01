@@ -21,7 +21,7 @@ import useAssetVideo from '@/features/asset-detail/useAssetVideo';
 import useChromeInsets from '@/features/asset-detail/useChromeInsets';
 import assetQuery from '@/features/asset-list/assetQuery';
 import useAssets from '@/features/assets-context/useAssets';
-import { colors, layout, sizes } from '@/styles/designTokens';
+import { colors } from '@/styles/designTokens';
 import { getDb, schema } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import formatDetailHeaderDate from '@/utils/date-time/formatDetailHeaderDate';
@@ -180,18 +180,9 @@ export default function AssetScreen({ route, navigation }) {
             subtitle={headerDate?.subtitle ?? ''}
             onBack={() => navigation.goBack()}
             menuSlot={asset && <MoreAction asset={asset} navigation={navigation} />}
-          />
-          {!!asset?.deletedAt && (
-            <View
-              style={[
-                styles.deletedNote,
-                { top: Math.max(chromeInsets.top + 8, layout.barBottom) + sizes.iconButton + NOTE_GAP },
-              ]}
-              pointerEvents="none"
-            >
-              <DeletedNote mediaType={asset.mediaType} />
-            </View>
-          )}
+          >
+            {!!asset?.deletedAt && <DeletedNote mediaType={asset.mediaType} />}
+          </FloatingDetailHeader>
         </FadeView>
 
         {/* The details panel takes the actions' place. */}
@@ -225,9 +216,6 @@ export default function AssetScreen({ route, navigation }) {
   );
 }
 
-// Between the floating header (placed as FloatingDetailHeader places it) and the note under it.
-const NOTE_GAP = 12;
-
 const styles = StyleSheet.create({
   // The details panels wait below the screen's edge.
   clip: {
@@ -238,12 +226,6 @@ const styles = StyleSheet.create({
   },
   fullscreenBackdrop: {
     backgroundColor: colors.background.media,
-  },
-  deletedNote: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
   },
   // Above the actions, at their left.
   noteButton: {

@@ -3,11 +3,10 @@ import { View, StyleSheet } from 'react-native';
 import { colors, radii, shadows } from '@/styles/designTokens';
 
 /**
- * The standard bordered glass surface.
- * Replaces repeated `...glass + borderRadius: radii.card` in content containers.
+ * The standard card: an opaque white surface resting on the page with a soft shadow, no border.
  *
  * Use for: content cards, input areas, media frames.
- * Do NOT use for: toolbars, chat bubbles, floating pills, borderless glass surfaces.
+ * Do NOT use for: toolbars, chat bubbles, floating pills (FloatingPill).
  */
 export default function Card({ children, style, ...rest }) {
   return (

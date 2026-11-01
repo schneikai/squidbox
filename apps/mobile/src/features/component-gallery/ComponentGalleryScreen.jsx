@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 
 import ActionButtons from '@/components/ActionButtons';
@@ -37,8 +37,6 @@ import PopoverSurface from '@/components/popup-menu-options/PopoverSurface';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import { colors, sizes } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
-
-const CATEGORIES = ['Toolbars', 'Buttons', 'Surfaces', 'Lists', 'Inputs', 'Text', 'Status', 'Icons'];
 
 const TAB_ITEMS = [
   { key: 'library', icon: 'grid', label: 'Library' },
@@ -114,6 +112,9 @@ const ICON_NAMES = [
 
 const noop = () => {};
 
+// A popover shown open, as if it had finished growing.
+const POPOVER_SHOWN = new Animated.Value(1);
+
 /**
  * Developer → Components: every shared component in its variants, one category at a time, to look
  * at a change to the design (a token, a component's look) across the app in one place and to
@@ -121,12 +122,11 @@ const noop = () => {};
  */
 export default function ComponentGalleryScreen() {
   const navigation = useNavigation();
-  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [category, setCategory] = useState('Toolbars');
   const [activeTab, setActiveTab] = useState('library');
   const [isOn, setIsOn] = useState(true);
   const [selectedTags, setSelectedTags] = useState(['Hiking']);
   const [text, setText] = useState('');
-  const popoverProgress = useRef(new Animated.Value(1)).current;
 
   function toggleTag(tag) {
     setSelectedTags((tags) => (tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag]));
@@ -159,7 +159,7 @@ export default function ComponentGalleryScreen() {
           <AccountButton onPress={noop} />
         </Specimen>
         <Specimen name="PopoverSurface + MenuItemContent">
-          <PopoverSurface progress={popoverProgress} origin="top left" style={styles.popover}>
+          <PopoverSurface progress={POPOVER_SHOWN} origin="top left" style={styles.popover}>
             <View style={popupMenuStyles.row}>
               <MenuItemContent label="Sort" isHeader />
             </View>
@@ -387,7 +387,8 @@ export default function ComponentGalleryScreen() {
     );
   }
 
-  const RENDERERS = {
+  // One per category, in the order of the chips.
+  const renderers = {
     Toolbars: renderToolbars,
     Buttons: renderButtons,
     Surfaces: renderSurfaces,
@@ -403,7 +404,7 @@ export default function ComponentGalleryScreen() {
       <FloatingDetailHeader title="Components" onBack={() => navigation.goBack()} />
       <DetailScrollView>
         <ChipRow>
-          {CATEGORIES.map((name) => (
+          {Object.keys(renderers).map((name) => (
             <Chip
               key={name}
               label={name}
@@ -413,7 +414,7 @@ export default function ComponentGalleryScreen() {
             />
           ))}
         </ChipRow>
-        <View style={styles.category}>{RENDERERS[category]()}</View>
+        <View style={styles.category}>{renderers[category]()}</View>
       </DetailScrollView>
     </Page>
   );
@@ -422,10 +423,9 @@ export default function ComponentGalleryScreen() {
 // One component's name over its variants, side by side.
 function Specimen({ name, children }) {
   return (
-    <View style={styles.specimen}>
-      <Text variant="label">{name}</Text>
+    <Field label={name} style={styles.specimen}>
       <View style={styles.variants}>{children}</View>
-    </View>
+    </Field>
   );
 }
 
@@ -435,7 +435,6 @@ const styles = StyleSheet.create({
   },
   specimen: {
     marginBottom: 24,
-    gap: 10,
   },
   variants: {
     flexDirection: 'row',

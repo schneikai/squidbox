@@ -1,4 +1,4 @@
-import { colors, layout, sizes } from '@/styles/designTokens';
+import { layout, sizes } from '@/styles/designTokens';
 
 // Everything that affects a popover's SIZE. Menus pass it to <MenuOptions> through `menuOptions`,
 // because the library measures the options with that style before BlurPopoverRenderer draws them;
@@ -8,8 +8,6 @@ import { colors, layout, sizes } from '@/styles/designTokens';
 const frame = {
   width: sizes.popoverWidth,
   paddingVertical: layout.barPaddingY,
-  borderWidth: 1,
-  borderColor: colors.border.glass,
 };
 
 export default {

@@ -4,11 +4,11 @@ import Icon from '@/components/Icon';
 import { colors, radii, shadows, sizes, typography } from '@/styles/designTokens';
 import humanizeMediaType from '@/utils/assets/humanizeMediaType';
 
-// The red note on a trashed photo or video (opened from a post it's still in), of `mediaType`. The
-// parent positions it through `style`.
-export default function DeletedNote({ mediaType, style }) {
+// The red note on a trashed photo or video (opened from a post it's still in), of `mediaType`,
+// under the header.
+export default function DeletedNote({ mediaType }) {
   return (
-    <View style={[styles.note, style]} accessibilityRole="text">
+    <View style={styles.note} accessibilityRole="text">
       <Icon name="trash" size={sizes.menuIcon} color={colors.text.inverse} />
       <Text style={styles.text}>This {humanizeMediaType(mediaType).toLowerCase()} was deleted</Text>
     </View>
