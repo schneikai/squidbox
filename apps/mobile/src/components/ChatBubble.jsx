@@ -31,6 +31,9 @@ export default function ChatBubble({ side, label, text, children }) {
   );
 }
 
+// The bubble's text inset, which its ⋯ lines up with.
+const BUBBLE_PADDING_X = 14;
+
 const styles = StyleSheet.create({
   userRow: {
     alignItems: 'flex-end',
@@ -43,7 +46,7 @@ const styles = StyleSheet.create({
   bubble: {
     borderRadius: 18,
     paddingVertical: 9,
-    paddingHorizontal: 14,
+    paddingHorizontal: BUBBLE_PADDING_X,
     gap: 4,
   },
   // The corner that points at the speaker's side.
@@ -74,6 +77,6 @@ const styles = StyleSheet.create({
   menu: {
     marginTop: 2,
     marginBottom: -2,
-    marginHorizontal: 14,
+    marginHorizontal: BUBBLE_PADDING_X,
   },
 });

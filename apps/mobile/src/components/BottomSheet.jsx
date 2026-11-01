@@ -104,8 +104,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 8,
   },
-  // The content scrolls edge to edge and pads itself, so a child can reach into the padding (the
-  // Posted calendar lines its month up with the title that way) without the scroll view clipping it.
+  // The content scrolls edge to edge and pads itself, so a child may reach into the side padding
+  // without the scroll view clipping it.
   content: {
     flexGrow: 0,
     marginHorizontal: -SCREEN_PADDING,

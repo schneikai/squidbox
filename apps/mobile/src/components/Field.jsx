@@ -2,7 +2,7 @@ import { View, StyleSheet } from 'react-native';
 
 import Button from '@/components/Button';
 import Text from '@/components/Text';
-import { lineHeights, scale, sizes } from '@/styles/designTokens';
+import { lineHeights, scale } from '@/styles/designTokens';
 
 /**
  * A label + children slot + optional description text.
@@ -26,26 +26,17 @@ export default function Field({ label, description, onInfo, trailing, children, 
       <View style={styles.labelRow}>
         <Text variant="label">{label}</Text>
         {onInfo && (
-          <Button
-            icon="info"
-            size="small"
-            onPress={onInfo}
-            accessibilityLabel={`What goes in ${label}`}
-            style={styles.info}
-          />
+          <View style={[styles.slot, styles.info]}>
+            <Button icon="info" size="small" onPress={onInfo} accessibilityLabel={`What goes in ${label}`} />
+          </View>
         )}
-        {trailing != null && <View style={styles.trailing}>{trailing}</View>}
+        {trailing != null && <View style={[styles.slot, styles.trailing]}>{trailing}</View>}
       </View>
       {children}
       {description != null && <Text variant="hint">{description}</Text>}
     </View>
   );
 }
-
-// A button in the label row (the ⓘ, a trailing button) overlaps the space around the label instead
-// of making its row taller: a small one (28 pt) or a regular one (44 pt).
-const OVERLAP_SMALL = -(sizes.smallButton - lineHeights.footnote) / 2;
-const OVERLAP_REGULAR = -(sizes.iconButton - lineHeights.footnote) / 2;
 
 const styles = StyleSheet.create({
   field: {
@@ -55,12 +46,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  // A button in the label row (the ⓘ, a trailing button), whatever its size, sits centered on the
+  // label's line and overlaps the space around it instead of making the row taller.
+  slot: {
+    height: lineHeights.footnote,
+    justifyContent: 'center',
+  },
   info: {
-    marginVertical: OVERLAP_SMALL,
     marginLeft: scale(6),
   },
   trailing: {
     marginLeft: 'auto',
-    marginVertical: OVERLAP_REGULAR,
   },
 });

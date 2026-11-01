@@ -25,6 +25,11 @@ export default function PostCardToolbar({
     toggle();
   }
 
+  function handleChangePostedAt(timestamp) {
+    onActivate();
+    onChangePostedAt(timestamp);
+  }
+
   function handleAddToThread() {
     onActivate();
     onAddToThread();
@@ -44,7 +49,7 @@ export default function PostCardToolbar({
         exclude={exclude}
         onAdd={onAddMedia}
       />
-      {isFirst && <PostedAtPicker timestamp={postedAt} isShown={isPostedAtShown} onChange={onChangePostedAt} />}
+      {isFirst && <PostedAtPicker timestamp={postedAt} isShown={isPostedAtShown} onChange={handleChangePostedAt} />}
       {onAddToThread && (
         <Button
           icon="add-circle"

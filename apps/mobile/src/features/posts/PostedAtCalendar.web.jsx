@@ -1,7 +1,10 @@
 // The Posted sheet's picker in a browser: the library has no web picker, so this is the browser's
 // own date and time field (`datetime-local`), which opens the browser's native picker. Each change
 // applies at once; clearing the field changes nothing (Remove takes the time away).
+import moment from 'moment';
+
 import { colors, radii, scale, typography } from '@/styles/designTokens';
+import { LOCAL_INPUT_FORMAT } from '@/utils/date-time/constants';
 
 export default function PostedAtCalendar({ timestamp, onChange }) {
   function handleChange(event) {
@@ -22,9 +25,7 @@ export default function PostedAtCalendar({ timestamp, onChange }) {
 
 // `datetime-local` reads and writes the local time as "YYYY-MM-DDTHH:mm".
 function toLocalInputValue(timestamp) {
-  const date = new Date(timestamp);
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return moment(timestamp).format(LOCAL_INPUT_FORMAT);
 }
 
 const INPUT_STYLE = {

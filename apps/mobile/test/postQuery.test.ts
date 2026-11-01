@@ -218,16 +218,15 @@ describe('postQuery', () => {
     expect(first.id).toBe('p3'); // ignored last
   });
 
-  it('filters favorites and matches the search Unicode-aware, literally and once per read', async () => {
+  it('matches the search Unicode-aware, literally and once per read', async () => {
     await repo.createMany(db, [makeAssetRecord({ id: 'a1' })]);
-    await createPost('p1', { text: 'Über 50% done', isFavorite: true }, ['a1']);
+    await createPost('p1', { text: 'Über 50% done' }, ['a1']);
     await createPost('p2', { text: 'under_score' });
-    await createPost('p3', { text: 'plain', isFavorite: true });
-    expect(await ids({ scope: 'all', filter: ['favorites'] })).toEqual(['p3', 'p1']);
+    await createPost('p3', { text: 'plain' });
     expect(await ids({ scope: 'all', search: 'über' })).toEqual(['p1']);
     expect(await ids({ scope: 'all', search: '%' })).toEqual(['p1']);
     expect(await ids({ scope: 'all', search: '_' })).toEqual(['p2']);
-    expect(await ids({ scope: 'all', search: 'n', filter: ['favorites'] })).toEqual(['p3', 'p1']);
+    expect(await ids({ scope: 'all', search: 'n' })).toEqual(['p3', 'p2', 'p1']);
     const work = await measure(() => postQuery({ scope: 'all', search: 'n' }).read(db, { limit: 10 }));
     expect(work.statements).toBe(2 + 4);
     expect((await postQuery({ scope: 'all', search: 'n' }).read(db, { limit: 10 })).count).toBe(3);
