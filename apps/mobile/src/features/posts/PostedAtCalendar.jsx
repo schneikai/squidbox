@@ -1,12 +1,13 @@
-// The Posted sheet's picker on Android: the system's inline calendar with the time under it (Jetpack
-// Compose, through @expo/ui's DateTimePicker), as wide as the sheet. Each change applies at once.
-// iOS: `PostedAtCalendar.ios.jsx`; web: `PostedAtCalendar.web.jsx`.
-// The source path: Metro here resolves without package exports (metro.config.js), so the
-// '@expo/ui/community/datetime-picker' subpath isn't found.
-import DateTimePicker from '@expo/ui/src/community/datetime-picker';
-import { StyleSheet } from 'react-native';
+// The Posted sheet's picker: the system's inline calendar with the time under it (SwiftUI on iOS,
+// Jetpack Compose on Android, through @expo/ui's DateTimePicker), as wide as the sheet. Each change
+// applies at once. Web: `PostedAtCalendar.web.jsx`.
+import DateTimePicker from '@expo/ui/community/datetime-picker';
+import { Platform, StyleSheet } from 'react-native';
 
-import { colors } from '@/styles/designTokens';
+import { colors, scale } from '@/styles/designTokens';
+
+// What SwiftUI's graphical calendar leaves between its edges and its month and weekdays.
+const IOS_CALENDAR_INSET = scale(16);
 
 export default function PostedAtCalendar({ timestamp, onChange }) {
   function handleChange(_, date) {
@@ -26,7 +27,10 @@ export default function PostedAtCalendar({ timestamp, onChange }) {
 }
 
 const styles = StyleSheet.create({
+  // On iOS, reaching past the sheet's padding by the calendar's own inset lines its month and
+  // weekdays up with the sheet's title and its ×.
   picker: {
-    width: '100%',
+    alignSelf: 'stretch',
+    marginHorizontal: Platform.OS === 'ios' ? -IOS_CALENDAR_INSET : 0,
   },
 });

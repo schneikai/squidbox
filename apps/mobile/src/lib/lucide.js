@@ -6,8 +6,8 @@
  * exports come out undefined. Per-file CJS uses `module.exports = Component`,
  * which always works.
  *
- * Requires metro.config.js: config.resolver.unstable_enablePackageExports = false
- * so Metro can reach these subpaths (not listed in the package exports map).
+ * metro.config.js resolves these subpaths without the package exports map, which doesn't
+ * list them.
  *
  * To add an icon: export { default as IconName } from 'lucide-react-native/dist/cjs/icons/icon-name';
  */

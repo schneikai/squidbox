@@ -18,9 +18,8 @@
  * Babel/Metro cannot transform — all exports come out undefined at runtime.
  * The shim imports each icon from its individual CJS file, which works correctly.
  *
- * metro.config.js sets `config.resolver.unstable_enablePackageExports = false` so
- * Metro resolves packages via their react-native/main fields instead of the exports
- * map — this is required for the CJS subpaths used in the shim to be reachable.
+ * metro.config.js resolves the shim's CJS subpaths without lucide-react-native's
+ * exports map, which doesn't list them.
  */
 
 import {
