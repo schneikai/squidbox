@@ -9,7 +9,7 @@
     "apps/mobile": {
       "entry": ["metro.config.js", "scripts/*.{js,mjs}", "src/**/*.{web,ios,android}.{js,jsx,ts}"],
       "ignore": ["src/obsolete-code/**"],
-      "ignoreDependencies": ["@babel/core", "@expo/ngrok", "expo-updates", "expo-system-ui"],
+      "ignoreDependencies": ["@babel/core", "expo-updates", "expo-system-ui"],
       "ignoreUnresolved": ["babel-preset-expo"]
     },
     "apps/server": {
