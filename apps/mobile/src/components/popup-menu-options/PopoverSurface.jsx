@@ -31,5 +31,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     backgroundColor: colors.background.menu,
+    borderRadius: radii.modal,
+    ...shadows.litEdge,
   },
 });

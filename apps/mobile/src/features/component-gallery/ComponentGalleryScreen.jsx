@@ -35,7 +35,8 @@ import ToolbarTitle from '@/components/floating-bars/ToolbarTitle';
 import MenuItemContent from '@/components/popup-menu-options/MenuItemContent';
 import PopoverSurface from '@/components/popup-menu-options/PopoverSurface';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import { colors, layout, sizes } from '@/styles/designTokens';
+import { colors, sizes } from '@/styles/designTokens';
+import popupMenuStyles from '@/styles/popupMenuStyles';
 
 const CATEGORIES = ['Toolbars', 'Buttons', 'Surfaces', 'Lists', 'Inputs', 'Text', 'Status', 'Icons'];
 
@@ -160,17 +161,17 @@ export default function ComponentGalleryScreen() {
         </Specimen>
         <Specimen name="PopoverSurface + MenuItemContent">
           <PopoverSurface progress={popoverProgress} origin="top left" style={styles.popover}>
-            <View style={styles.menuRow}>
+            <View style={popupMenuStyles.row}>
               <MenuItemContent label="Sort" isHeader />
             </View>
-            <View style={styles.menuRow}>
+            <View style={popupMenuStyles.row}>
               <MenuItemContent label="Newest first" icon="arrow-down" isSelected />
             </View>
-            <View style={styles.menuRow}>
+            <View style={popupMenuStyles.row}>
               <MenuItemContent label="Oldest first" icon="arrow-up" />
             </View>
             <Divider variant="menu" />
-            <View style={styles.menuRow}>
+            <View style={popupMenuStyles.row}>
               <MenuItemContent label="Delete" icon="trash" colorPalette="danger" />
             </View>
           </PopoverSurface>
@@ -461,10 +462,6 @@ const styles = StyleSheet.create({
   popover: {
     position: 'relative',
     width: sizes.popoverWidth,
-  },
-  menuRow: {
-    paddingHorizontal: layout.menuRowPaddingX,
-    paddingVertical: layout.menuRowPaddingY,
   },
   media: {
     width: 64,

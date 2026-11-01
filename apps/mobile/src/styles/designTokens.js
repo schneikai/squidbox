@@ -93,6 +93,10 @@ export const colors = {
   },
 };
 
+// Lit from the top left: a bright rim along a floating surface's top and left, a faint shade along
+// its bottom and right, drawn inside its edge
+const LIT_EDGE = `inset 1.5px 1.5px 0 ${alpha(palette.white, 1)}, inset -1px -1px 0 ${alpha(palette.black, 0.06)}`;
+
 export const shadows = {
   // Floating UI (toolbars, popovers): a wide, very soft shadow, as if lit softly from above
   floating: {
@@ -109,13 +113,13 @@ export const shadows = {
     shadowOpacity: 0.35,
     shadowRadius: 12,
   },
+  // A small floating button on its own (the account avatar): a softer floating shadow and its lit edge
   subtle: {
-    boxShadow: `0 10px 36px ${alpha(palette.black, 0.07)}, 0 1px 8px ${alpha(palette.black, 0.03)}`,
+    boxShadow: `0 10px 36px ${alpha(palette.black, 0.07)}, 0 1px 8px ${alpha(palette.black, 0.03)}, ${LIT_EDGE}`,
   },
-  // The lit edge of a floating pill, lit from the top left: a bright rim along its top and left, a
-  // faint shade along its bottom and right
+  // The lit edge of a floating surface whose shadow sits on a wrapper (FloatingPill, a popover)
   litEdge: {
-    boxShadow: `inset 1.5px 1.5px 0 ${alpha(palette.white, 1)}, inset -1px -1px 0 ${alpha(palette.black, 0.06)}`,
+    boxShadow: LIT_EDGE,
   },
 };
 
