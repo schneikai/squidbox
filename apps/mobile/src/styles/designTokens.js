@@ -71,7 +71,7 @@ export const colors = {
     base: palette.gray50, // a sheet or screen without the gradient
     surface: palette.white, // opaque, for a surface over media that mustn't show it through
     glass: alpha(palette.white, 0.95),
-    litGlass: alpha('#FAFAFB', 0.94), // a floating pill: a hair off-white, so its white rim shows
+    litGlass: alpha('#F6F6F8', 0.94), // a floating pill: a hair off-white, so its white rim shows
     menu: alpha(palette.white, 0.72), // tint over the BlurView of popover menus
     muted: palette.gray100, // `overlay.pressed` over white, opaque
     tint: palette.violet50, // a lavender card on a white sheet (an example to copy)
@@ -114,7 +114,7 @@ export const shadows = {
   },
   // The lit top edge of a floating pill: a bright rim along its top, a faint shade along its bottom
   litEdge: {
-    boxShadow: `inset 0 1px 0 ${alpha(palette.white, 1)}, inset 0 -1px 0 ${alpha(palette.black, 0.06)}`,
+    boxShadow: `inset 0 1.5px 0 ${alpha(palette.white, 1)}, inset 0 -1px 0 ${alpha(palette.black, 0.06)}`,
   },
 };
 
