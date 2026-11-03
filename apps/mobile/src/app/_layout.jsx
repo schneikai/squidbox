@@ -1,7 +1,7 @@
 import { ActionSheetProvider } from '@expo/react-native-action-sheet';
 import * as Sentry from '@sentry/react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Stack } from 'expo-router';
+import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useState, useEffect, useCallback, Component, Fragment, createContext, memo, use } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -200,6 +200,9 @@ export default Sentry.wrap(RootLayout);
 // A deep link opens its screen over the tabs, so its back or × leads into the app.
 export const unstable_settings = { anchor: '(main)/(tabs)' };
 
+// The navigators paint the theme's background behind every screen; the page gradient shows instead.
+const NAVIGATION_THEME = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: 'transparent' } };
+
 // Memoized: a change of AppGate's cloud state must not re-render the whole app below it.
 const MainApp = memo(function MainApp() {
   return (
@@ -215,7 +218,9 @@ const MainApp = memo(function MainApp() {
                   end={{ x: 1, y: 1 }}
                   style={StyleSheet.absoluteFill}
                 />
-                <RootStack />
+                <ThemeProvider value={NAVIGATION_THEME}>
+                  <RootStack />
+                </ThemeProvider>
               </View>
             </FloatingBarsProvider>
           </AssetPickerProvider>
