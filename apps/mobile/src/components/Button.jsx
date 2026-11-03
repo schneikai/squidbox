@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import GradientFill from '@/components/GradientFill';
 import Icon from '@/components/Icon';
-import ToolbarContext from '@/components/floating-bars/ToolbarContext';
+import IconSlotContext from '@/components/IconSlotContext';
 import { colors, disabledOpacity, press, radii, scale, sizes, typography } from '@/styles/designTokens';
 
 const PALETTE = {
@@ -20,19 +20,23 @@ const INVERSE_PALETTE = {
 };
 // Every size has one height, for its discs and pills alike, so they line up side by side.
 const HEIGHTS = { regular: sizes.iconButton, small: sizes.smallButton };
-// A bare (tertiary) icon is as wide as itself.
-const ICON_SIZES = { regular: sizes.icon, small: sizes.iconSmall };
-// A small disc's icon, small enough to sit in its 28 pt disc.
-const SMALL_DISC_ICON_SIZE = scale(14);
+// Each shape's icon, by size. A small disc's or pill's is small enough to sit in 28 pt; a link's sits
+// beside its label; a bare (tertiary) icon is as wide as itself.
+const FILLED_ICON_SIZES = { regular: sizes.icon, small: scale(14) };
+const ICON_SIZES = {
+  disc: FILLED_ICON_SIZES,
+  pill: FILLED_ICON_SIZES,
+  link: { regular: scale(16), small: scale(14) },
+  bare: { regular: sizes.icon, small: sizes.iconSmall },
+};
 // Two icons side by side, small enough to fit the disc apart.
 const PAIR_ICON_SIZE = scale(15);
-// A pill's icon beside its label.
-const PILL_ICON_SIZES = { regular: sizes.icon, small: scale(14) };
-// A link's icon beside its label.
-const LINK_ICON_SIZES = { regular: scale(16), small: scale(14) };
 // A secondary's label this short stands in for an icon in the disc (18+); a longer one makes it a
 // grey pill.
 const MAX_DISC_LABEL = 3;
+const VARIANTS = ['primary', 'secondary', 'tertiary'];
+// A link's touch reaches a little past its text: a small one's further, to make up its 44 pt.
+const LINK_HIT_SLOP = { regular: 8, small: 12 };
 
 /**
  * Every button in the app: a `variant`, an `icon` or a `label`, in one of two sizes.
@@ -47,8 +51,8 @@ const MAX_DISC_LABEL = 3;
  *               text link (an icon may lead it).
  * `size` is `regular` (44 pt tall, discs and pills alike) or `small` (28 pt), so a pill and a disc
  * of one size line up; a bare icon is as tall as its size and only as wide as the icon. Whatever
- * its size, every button takes a 44 pt tap target (hitSlop), and in a toolbar (FloatingPill) a bare
- * icon takes a 44 pt slot. A link has its own height, regular or small.
+ * its size, every button takes a 44 pt tap target (hitSlop), and in a toolbar (FloatingPill) or a picker
+ * (IconSlotContext) a bare icon takes a 44 pt slot. A link has its own height, regular or small.
  * `colorPalette` is what its color means: `neutral`, `muted`, `accent`, `danger` or `favorite`
  * (a heart); a link is `accent`, a secondary pill `neutral` and an icon `muted` unless told,
  * wherever it sits. `isInverse` puts a link on a dark surface (the Undo bar). `isSelected` marks a
@@ -72,35 +76,35 @@ export default function Button({
   iconCount = 1,
   disabled = false,
   loading = false,
-  hitSlop,
   accessibilityLabel,
   accessibilityHint,
   style,
 }) {
-  const isInToolbar = useContext(ToolbarContext);
+  const hasIconSlot = useContext(IconSlotContext);
   const shape = shapeFor(variant, label);
   const palette = colorPalette ?? defaultPalette(shape, variant);
   const isInactive = disabled || loading;
-  if (__DEV__) warnOnce(combinationProblem({ variant, icon, label, isInverse, palette }));
+  if (__DEV__) warnOnce(combinationProblem({ variant, icon, label, iconCount, isInverse, palette }));
 
   const color = contentColor({ variant, palette, isSelected, isInverse });
-  const iconSize = iconSizeFor(shape, size);
-  const box = boxFor(shape, size, iconSize, isInToolbar);
+  const iconSize = ICON_SIZES[shape][size];
+  const box = boxFor(shape, size, iconSize, hasIconSlot);
   const fill = fillFor({ shape, variant, palette, isSelected, isInverse });
+  const pillFill = shape === 'pill' && [styles.pillFill, styles[`pillFill_${size}`]];
   const content = <Content {...{ icon, label, loading, color, iconSize, filled, iconCount, shape, size, palette }} />;
 
   return (
     <Pressable
       onPress={onPress}
       disabled={isInactive}
-      hitSlop={hitSlop ?? targetSlop(shape, box)}
+      hitSlop={targetSlop(shape, size, box)}
       accessibilityRole={isSwitch ? 'switch' : 'button'}
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: isInactive, busy: loading, [isSwitch ? 'checked' : 'selected']: isSelected }}
       style={({ pressed }) => [
         styles[shape],
-        shape === 'link' && size === 'small' && styles.linkSmall,
+        shape === 'link' && styles[`link_${size}`],
         box,
         fill,
         pressed && !isInactive && pressedStyle(shape),
@@ -109,11 +113,9 @@ export default function Button({
       ]}
     >
       {variant === 'primary' ? (
-        <GradientFill style={shape === 'pill' ? [styles.pillFill, styles[`pillFill_${size}`]] : styles.discFill}>
-          {content}
-        </GradientFill>
+        <GradientFill style={pillFill || styles.discFill}>{content}</GradientFill>
       ) : shape === 'pill' ? (
-        <View style={[styles.pillFill, styles[`pillFill_${size}`]]}>{content}</View>
+        <View style={pillFill}>{content}</View>
       ) : (
         content
       )}
@@ -135,26 +137,19 @@ function defaultPalette(shape, variant) {
   return 'muted';
 }
 
-function iconSizeFor(shape, size) {
-  if (shape === 'disc') return size === 'small' ? SMALL_DISC_ICON_SIZE : sizes.icon;
-  if (shape === 'pill') return PILL_ICON_SIZES[size];
-  if (shape === 'link') return LINK_ICON_SIZES[size];
-  return ICON_SIZES[size];
-}
-
 // The button's own box: a disc is its size's height square, a pill that tall, a bare icon that tall
-// and as wide as its icon (a full slot in a toolbar). A link sizes itself.
-function boxFor(shape, size, iconSize, isInToolbar) {
+// and as wide as its icon (a full slot in a toolbar or a picker, IconSlotContext). A link sizes itself.
+function boxFor(shape, size, iconSize, hasIconSlot) {
   const height = HEIGHTS[size];
   if (shape === 'disc') return { width: height, height };
   if (shape === 'pill') return { height };
-  if (shape === 'bare') return { width: isInToolbar ? sizes.iconButton : iconSize, height };
+  if (shape === 'bare') return { width: hasIconSlot ? sizes.iconButton : iconSize, height };
   return null;
 }
 
 // What a touch reaches past the box, so the target is at least 44 pt each way.
-function targetSlop(shape, box) {
-  if (shape === 'link') return LINK_HIT_SLOP;
+function targetSlop(shape, size, box) {
+  if (shape === 'link') return LINK_HIT_SLOP[size];
   const vertical = Math.max(0, (sizes.iconButton - box.height) / 2);
   const horizontal = box.width === undefined ? 0 : Math.max(0, (sizes.iconButton - box.width) / 2);
   return { top: vertical, bottom: vertical, left: horizontal, right: horizontal };
@@ -180,8 +175,8 @@ function Content({ icon, label, loading, color, iconSize, filled, iconCount, sha
       {loading ? spinner : icon && <Icon name={icon} size={iconSize} color={color} />}
       <Text
         style={[
-          shape === 'link' ? styles.linkLabel : [styles.pillLabel, styles[`pillLabel_${size}`]],
-          size === 'small' && shape === 'link' && styles.linkLabelSmall,
+          styles[`${shape}Label`],
+          styles[`${shape}Label_${size}`],
           shape === 'link' && palette === 'muted' && styles.linkLabelMuted,
           { color },
         ]}
@@ -216,9 +211,10 @@ function pressedStyle(shape) {
 }
 
 // Why these props make no button the app has, or null.
-function combinationProblem({ variant, icon, label, isInverse, palette }) {
+function combinationProblem({ variant, icon, label, iconCount, isInverse, palette }) {
   if (!icon && !label) return 'Button: needs an icon or a label';
   if (!VARIANTS.includes(variant)) return `Button: no variant "${variant}"`;
+  if (iconCount === 2 && label) return 'Button: a doubled icon has no label';
   if (variant === 'secondary' && icon && label) return 'Button: a secondary shows an icon or a label, not both';
   if (variant === 'secondary' && (palette === 'danger' || isInverse) && label?.length > MAX_DISC_LABEL) {
     return 'Button: a red or inverse secondary is a disc; its label must fit in it';
@@ -229,10 +225,6 @@ function combinationProblem({ variant, icon, label, isInverse, palette }) {
   if (!PALETTE[palette]) return `Button: no colorPalette "${palette}"`;
   return null;
 }
-
-const VARIANTS = ['primary', 'secondary', 'tertiary'];
-// A link's touch reaches a little past its text.
-const LINK_HIT_SLOP = 8;
 
 const warned = new Set();
 function warnOnce(problem) {
@@ -309,18 +301,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: scale(4),
+  },
+  link_regular: {
     paddingVertical: 12,
     paddingHorizontal: 24,
   },
-  linkSmall: {
+  link_small: {
     paddingVertical: 4,
     paddingHorizontal: 4,
   },
   linkLabel: {
-    fontSize: typography.subheadline,
     fontWeight: '500',
   },
-  linkLabelSmall: {
+  linkLabel_regular: {
+    fontSize: typography.subheadline,
+  },
+  linkLabel_small: {
     fontSize: typography.footnote,
   },
   linkLabelMuted: {

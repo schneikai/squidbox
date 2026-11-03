@@ -31,6 +31,7 @@ export default function SortFilterMenu({
 }) {
   const { thumbnailStyle, setThumbnailStyle } = useAppSettings();
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const hasFilter = filterOptions.length > 0;
 
   // Returning false keeps the menu open while it switches panels.
   function showPanel(isFilter) {
@@ -69,15 +70,18 @@ export default function SortFilterMenu({
         />
       ))}
 
-      {sortOptions.length > 0 && <Divider variant="menu" />}
-
-      <MenuOption
-        onPress={() => showPanel(true)}
-        label="Filter"
-        trailing={
-          <Icon name="chevron-right" size={sizes.menuIcon} color={colors.text.secondary} style={styles.chevron} />
-        }
-      />
+      {hasFilter && (
+        <>
+          {sortOptions.length > 0 && <Divider variant="menu" />}
+          <MenuOption
+            onPress={() => showPanel(true)}
+            label="Filter"
+            trailing={
+              <Icon name="chevron-right" size={sizes.menuIcon} color={colors.text.secondary} style={styles.chevron} />
+            }
+          />
+        </>
+      )}
       {activeFilter.length > 0 && (
         <MenuOption
           onPress={() => {

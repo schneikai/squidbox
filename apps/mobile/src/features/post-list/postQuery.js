@@ -33,11 +33,10 @@ const p = alias(schema.posts, 'p');
  * @param {object} descriptor
  * @param {'all' | 'repostCandidates' | 'ignored' | { assetId: string } | { albumId: string } | { postId: string } | { sharesAlbumWithPostId: string }} [descriptor.scope]
  * @param {'postedAt:asc' | 'postedAt:desc' | 'suggestRepostAt:asc' | 'updatedAt:desc'} [descriptor.sort]
- * @param {'favorites'[]} [descriptor.filter]
  * @param {string} [descriptor.search] a text substring, matched as the list did: Unicode-aware, literal, case-insensitive
  */
-export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filter = [], search = '' }) {
-  const descriptor = { scope, sort, filter, search };
+export default function postQuery({ scope = 'all', sort = 'postedAt:desc', search = '' }) {
+  const descriptor = { scope, sort, search };
   const searchText = search.trim().toLowerCase();
   const direction = sort.endsWith(':asc') ? asc : desc;
 
@@ -61,7 +60,6 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
   })();
   // The scopes above and the search pick listed posts already; the plain lists check each post.
   const threadCondition = typeof scope === 'string' ? isListedPost('p') : undefined;
-  const favorites = filter.includes('favorites') ? eq(p.isFavorite, true) : undefined;
   const order = (() => {
     if (sort === 'suggestRepostAt:asc') return [asc(repostDate(p)), asc(p.id)];
     if (sort === 'updatedAt:desc') return [desc(p.updatedAt), desc(p.id)];
@@ -78,8 +76,7 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', filte
       .where(isNull(p.deletedAt));
     return [...new Set(matchingIds(rows, searchText))];
   }
-  const where = (ids) =>
-    and(isNull(p.deletedAt), threadCondition, scopeCondition, favorites, ids ? inJson(p.id, ids) : undefined);
+  const where = (ids) => and(isNull(p.deletedAt), threadCondition, scopeCondition, ids ? inJson(p.id, ids) : undefined);
 
   // The posts' assets in order, read as the asset screen reads a post's (assetQuery's post scope): a
   // trashed asset still shows (it can come back), a purged one never does (sync-design §7). With

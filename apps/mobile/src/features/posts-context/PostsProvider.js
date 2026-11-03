@@ -40,10 +40,6 @@ export default function PostsProvider({ children }) {
         });
         requestSync();
       },
-      toggleFavoritePost: async (post) => {
-        await repo.toggleFavorite(db, post.id);
-        requestSync();
-      },
       deletePost: async (id) => {
         await db.transaction((tx) => removeThread(tx, id));
         requestSync();

@@ -12,7 +12,6 @@ const repository = makeRepository('posts', schema.posts);
 export const postEdges = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
 
 export const { create, update, updateAll, remove } = repository;
-export const toggleFavorite = (db: SyncDb, id: string) => repository.toggle(db, id, 'isFavorite');
 
 /**
  * When a post comes up for a repost: its suggestion date, else its post date (a suggestion of 0 is

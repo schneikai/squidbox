@@ -12,14 +12,12 @@ const keyExtractor = (post) => post.id;
 
 // The posts list: `rows` are the loaded posts of a paged query (each with its `postAssets`),
 // `loadMore` reads the next page when the end comes near. A tap on a post opens it;
-// `onDoublePressPost(post)` and `renderPostActions(post)` (shown in the post's card, under it) are
-// optional.
+// `renderPostActions(post)` (shown in the post's card, under it) is optional.
 export default function PostList({
   rows,
   loadMore,
   ListHeaderComponent,
   FirstListEntryComponent,
-  onDoublePressPost,
   renderPostActions,
   listRef,
   contentContainerStyle,
@@ -40,11 +38,7 @@ export default function PostList({
         post === FIRST_ENTRY ? (
           FirstListEntryComponent
         ) : (
-          <SuperPressable
-            onPress={() => router.navigate(`/post/${post.id}`)}
-            onDoublePress={onDoublePressPost && (() => onDoublePressPost(post))}
-            style={styles.post}
-          >
+          <SuperPressable onPress={() => router.navigate(`/post/${post.id}`)} style={styles.post}>
             <PostListItem post={post} actions={renderPostActions?.(post)} />
           </SuperPressable>
         )
