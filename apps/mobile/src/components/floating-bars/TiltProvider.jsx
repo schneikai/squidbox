@@ -5,8 +5,8 @@ import TiltContext from './TiltContext';
 
 import useReduceMotion from '@/hooks/useReduceMotion';
 
-// How far the phone turns (gravity along an axis, m/s²) for a full tilt: about 15°.
-const FULL_TILT = 2.5;
+// How far the phone turns (radians) for a full tilt: about 12°.
+const FULL_TILT = 0.2;
 // How long the rest pose takes to follow the phone (ms): the tilt is the turn from how it has been
 // held lately, so floating UI settles back while the phone is held still at any angle.
 const REST_FOLLOW_MS = 2500;
@@ -35,19 +35,22 @@ export default function TiltProvider({ children }) {
         y.value = 0;
         return;
       }
+      // The phone's turn as angles, so it reads the same at any angle it is held: side to side, and
+      // toward and away from the user (gravity moves between y and z then, little along either).
+      const roll = Math.atan2(reading.x, Math.hypot(reading.y, reading.z));
+      const pitch = Math.atan2(-reading.z, -reading.y);
       const now = Date.now();
-      const previous = rest.value ?? { x: reading.x, y: reading.y, at: now };
+      const previous = rest.value ?? { roll, pitch, at: now };
       const follow = 1 - Math.exp(-(now - previous.at) / REST_FOLLOW_MS);
       const next = {
-        x: previous.x + (reading.x - previous.x) * follow,
-        y: previous.y + (reading.y - previous.y) * follow,
+        roll: previous.roll + (roll - previous.roll) * follow,
+        pitch: previous.pitch + (pitch - previous.pitch) * follow,
         at: now,
       };
       rest.value = next;
-      x.value = Math.max(-1, Math.min(1, (reading.x - next.x) / FULL_TILT));
-      y.value = Math.max(-1, Math.min(1, (reading.y - next.y) / FULL_TILT));
+      x.value = Math.max(-1, Math.min(1, (roll - next.roll) / FULL_TILT));
+      y.value = Math.max(-1, Math.min(1, (pitch - next.pitch) / FULL_TILT));
     },
-    [reduceMotion, gravity.sensor],
   );
 
   const value = useMemo(() => ({ x, y }), [x, y]);
