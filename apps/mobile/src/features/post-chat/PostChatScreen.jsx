@@ -71,8 +71,6 @@ export default function PostChatScreen() {
   const last = messages?.[messages.length - 1];
   // The system prompt of the newest reply that has it (an ai_admin's, from the server).
   const systemMessage = messages?.findLast((message) => message.systemMessage)?.systemMessage ?? null;
-  // The ⋯ menu shows only with something in it (the header would keep an empty pill otherwise).
-  const hasChatOptions = messages?.length > 0 || !!systemMessage;
   // A new post's card would say only "New post" until it has photos.
   const hasSubject = chat?.kind !== 'draft' || assets.length > 0;
   const applyText = chat?.canApply ? chat.applyText : null;
@@ -90,10 +88,11 @@ export default function PostChatScreen() {
     setSeed((current) => ({ key: current.key + 1, turn: promptTurn(button) }));
   }
 
-  // There is no chat history yet, so a cleared chat is gone for good.
+  // There is no chat history yet, so a cleared chat is gone for good: ask, unless it's empty.
   async function handleNewChat() {
     const message = "This chat is cleared and can't be brought back.";
-    if (!(await confirmAsync({ title: 'New chat', message, action: 'New chat', destructive: true }))) return;
+    const confirm = { title: 'New chat', message, action: 'New chat', destructive: true };
+    if (messages.length > 0 && !(await confirmAsync(confirm))) return;
     chat.reset();
   }
 
@@ -113,14 +112,13 @@ export default function PostChatScreen() {
         scrollY={scrollY}
         trailing={
           isAiAdmin ? (
-            hasChatOptions && (
-              <MenuButton accessibilityLabel="Chat options">
-                {messages.length > 0 && <MenuOption label="New chat" icon="edit" onPress={handleNewChat} />}
-                {systemMessage && (
-                  <MenuOption label="System prompt" icon="document" onPress={() => setIsSystemMessageOpen(true)} />
-                )}
-              </MenuButton>
-            )
+            // New chat is always there, so the ⋯ button never pops in with the first message.
+            <MenuButton accessibilityLabel="Chat options">
+              <MenuOption label="New chat" icon="edit" onPress={handleNewChat} />
+              {systemMessage && (
+                <MenuOption label="System prompt" icon="document" onPress={() => setIsSystemMessageOpen(true)} />
+              )}
+            </MenuButton>
           ) : (
             <Button icon="edit" onPress={handleNewChat} disabled={!messages?.length} accessibilityLabel="New chat" />
           )
