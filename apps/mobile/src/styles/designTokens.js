@@ -107,9 +107,9 @@ const RIM_SHADE = alpha(palette.black, 0.06);
 // slides away from the light, and the light on its rim moves around its edge. `tilt` runs -1…1 on
 // each axis; the shadows are built for a tilt, `0, 0` at rest.
 export const tilt = {
-  parallax: 3, // pt a floating surface drifts at full tilt
-  shadowShift: 6, // px its shadow slides at full tilt
-  light: 0.6, // how far the rim light moves around the edge at full tilt (1: to the next side)
+  parallax: 4, // pt a floating surface drifts at full tilt
+  shadowShift: 8, // px its shadow slides at full tilt
+  light: 0.8, // how far the rim light moves around the edge at full tilt (1: to the next side)
   floatingShadow(dx, dy) {
     'worklet';
     return `${dx}px ${16 + dy}px 56px ${FLOATING_SHADE}, ${dx / 4}px ${2 + dy / 4}px 12px ${FLOATING_CONTACT}`;
