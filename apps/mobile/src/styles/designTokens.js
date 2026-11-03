@@ -23,13 +23,15 @@ const SIDE_GUTTER = scale(16);
 const palette = {
   white: '#FFFFFF',
   black: '#000000',
-  gray50: '#F9FAFB',
+  gray75: '#F2F2F5', // the page's soft gray, a hair from iOS's grouped #F2F2F7
+  gray60: '#F5F5F8',
   gray100: '#F0F0F0',
   gray300: '#D3D3D3',
   gray400: '#9CA3AF',
   gray500: '#6B7280',
   gray900: '#111827',
   violet50: '#F5F3FF',
+  violet75: '#EFEDF8', // the page gray with a touch of lavender
   violet100: '#EFE7FD',
   violet300: '#C4B5FD',
   violet600: '#7C3AED',
@@ -67,8 +69,9 @@ export const colors = {
     infoLight: alpha(palette.blue600, 0.12),
   },
   background: {
-    app: [palette.gray50, palette.white, palette.violet50], // the page gradient
-    base: palette.gray50, // a sheet or screen without the gradient
+    // The page gradient: a soft gray, never white, so white cards (`surface`) stand clear of it.
+    app: [palette.gray75, palette.gray60, palette.violet75],
+    base: palette.gray75, // a sheet or screen without the gradient
     surface: palette.white, // opaque, for a surface over media that mustn't show it through
     glass: alpha(palette.white, 0.95),
     litGlass: alpha('#F6F6F8', 0.94), // a floating pill: a hair off-white, so its white rim shows
