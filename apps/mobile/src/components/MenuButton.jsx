@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { Children, useRef, useState } from 'react';
 import { Menu, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
 
 import Button from '@/components/Button';
@@ -20,6 +20,7 @@ import popupMenuStyles from '@/styles/popupMenuStyles';
  *   </MenuButton>
  *
  * style is for layout only, on the menu's outer view (so `marginLeft: 'auto'` and flex work in a row).
+ * With no options (every child left out, as `{cond && <MenuOption … />}` does) it renders nothing.
  */
 export default function MenuButton({
   trigger,
@@ -39,6 +40,8 @@ export default function MenuButton({
       menuRef.current?.open();
     }
   }
+
+  if (Children.toArray(children).length === 0) return null;
 
   return (
     <Menu ref={menuRef} onOpen={() => setIsOpen(true)} onClose={() => setIsOpen(false)} style={style}>

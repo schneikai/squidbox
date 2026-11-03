@@ -72,7 +72,7 @@ export default function ModalHeader({ leading, trailing, title, subtitle, subtit
       </View>
 
       {/* Right slot — wrapped in FloatingPill */}
-      {trailing != null && (
+      {!!trailing && (
         <View style={[styles.side, styles.sideRight]} pointerEvents="box-none">
           <FloatingPill>{trailing}</FloatingPill>
         </View>

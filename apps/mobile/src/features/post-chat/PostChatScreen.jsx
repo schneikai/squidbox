@@ -71,6 +71,8 @@ export default function PostChatScreen() {
   const last = messages?.[messages.length - 1];
   // The system prompt of the newest reply that has it (an ai_admin's, from the server).
   const systemMessage = messages?.findLast((message) => message.systemMessage)?.systemMessage ?? null;
+  // The ⋯ menu shows only with something in it (the header would keep an empty pill otherwise).
+  const hasChatOptions = messages?.length > 0 || !!systemMessage;
   // A new post's card would say only "New post" until it has photos.
   const hasSubject = chat?.kind !== 'draft' || assets.length > 0;
   const applyText = chat?.canApply ? chat.applyText : null;
@@ -111,12 +113,14 @@ export default function PostChatScreen() {
         scrollY={scrollY}
         trailing={
           isAiAdmin ? (
-            <MenuButton accessibilityLabel="Chat options">
-              {messages.length > 0 && <MenuOption label="New chat" icon="edit" onPress={handleNewChat} />}
-              {systemMessage && (
-                <MenuOption label="System prompt" icon="document" onPress={() => setIsSystemMessageOpen(true)} />
-              )}
-            </MenuButton>
+            hasChatOptions && (
+              <MenuButton accessibilityLabel="Chat options">
+                {messages.length > 0 && <MenuOption label="New chat" icon="edit" onPress={handleNewChat} />}
+                {systemMessage && (
+                  <MenuOption label="System prompt" icon="document" onPress={() => setIsSystemMessageOpen(true)} />
+                )}
+              </MenuButton>
+            )
           ) : (
             <Button icon="edit" onPress={handleNewChat} disabled={!messages?.length} accessibilityLabel="New chat" />
           )
