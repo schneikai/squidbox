@@ -99,7 +99,7 @@ export const colors = {
 export const shadows = {
   // Floating UI (toolbars, popovers): a wide, very soft shadow, as if lit softly from above
   floating: {
-    boxShadow: `0 16px 56px ${alpha(palette.black, 0.07)}, 0 2px 12px ${alpha(palette.black, 0.03)}`,
+    boxShadow: `0 16px 56px ${alpha(palette.black, 0.12)}, 0 2px 12px ${alpha(palette.black, 0.06)}`,
   },
   // A card resting on the page: the same soft light, lower
   card: {
@@ -114,7 +114,7 @@ export const shadows = {
   },
   // A small floating button on its own (the account avatar): a softer floating shadow
   subtle: {
-    boxShadow: `0 10px 36px ${alpha(palette.black, 0.07)}, 0 1px 8px ${alpha(palette.black, 0.03)}`,
+    boxShadow: `0 10px 36px ${alpha(palette.black, 0.11)}, 0 1px 8px ${alpha(palette.black, 0.05)}`,
   },
 
   // The lit edge of a floating surface (FloatingPill, a popover), lit from the top left: a bright
