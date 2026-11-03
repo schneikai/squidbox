@@ -200,7 +200,8 @@ export default Sentry.wrap(RootLayout);
 // A deep link opens its screen over the tabs, so its back or × leads into the app.
 export const unstable_settings = { anchor: '(main)/(tabs)' };
 
-// The navigators paint the theme's background behind every screen; the page gradient shows instead.
+// The app's backgrounds: the gradient below behind the tabs, Page on a pushed screen and ModalSheet on
+// a sheet. The navigators paint the theme's background behind every screen, so it is transparent.
 const NAVIGATION_THEME = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: 'transparent' } };
 
 // Memoized: a change of AppGate's cloud state must not re-render the whole app below it.

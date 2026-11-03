@@ -471,7 +471,7 @@ The app keeps one such database per **library** (the design record is
 `docs/library-ownership-plan.md`; what is built is described here): the open library's database is
 behind `getDb()` (`sync/db/client.ts`), opened and migrated by `library/current.ts` when the
 library opens (`openAppDb` runs the SQLite migrations of `apps/mobile/src/sync/db/migrations`), and
-`LibraryGate` (`App.js`) mounts the app under it, keyed by the library, so nothing queries across a
+`LibraryGate` (`src/app/_layout.jsx`) mounts the app under it, keyed by the library, so nothing queries across a
 switch.
 
 Tables (`apps/mobile/src/sync/db/schema.ts`):
@@ -480,14 +480,14 @@ Tables (`apps/mobile/src/sync/db/schema.ts`):
 - `sync_meta(key, value)`: `cursor`, `status`, `firstSyncDone`, `owner` (whose library this
   database is, JSON, so the library list can be rebuilt from the databases), and in a device
   library merged into an account's: `mergedInto` (the merge marker, JSON `{ library, serverId,
-  userId, committed? }`: the library a merge pass is adding it to and its account, `committed` once
+userId, committed? }`: the library a merge pass is adding it to and its account, `committed` once
   a pass committed or moved files there, §7a, `library/mergeMarker.ts`), `keptFor` (the library it joined and stays
   beside) and, once the target has pushed, `mergeMarks:<its database>` (the decisions of its merge
   passes, until the source goes). The target holds `mergeMarks:<source>` from each pass's commit,
   and `mergeCommitted:<source>` (what the merge waits for, `MergeCommit`), until the merge finishes
   (§8). `lastSyncUserId`, from before libraries, is left unread.
 - `outbox(id, collection, record_id, op, payload, fields, whole_record, updated_at, created_at,
-  error)`: pending mutations, one row per record. `op` is `delete` when the payload has
+error)`: pending mutations, one row per record. `op` is `delete` when the payload has
   `deletedAt`, otherwise `upsert`. `fields` is the changed fields with their clocks (§6);
   `whole_record` marks a row from before per-field merge, pushed without them (§7). `error` is why
   the server rejected the payload (§6), null while it waits to be pushed.
@@ -541,7 +541,7 @@ sync and backup alike, is aborted (a sync at its next push batch or applied pull
 is committed and the next run resumes; a backup at its next step, the upload in flight included),
 and `work` starts once they ended. Both kinds of run start through the gate (`startRun`), which
 registers a run synchronously and starts none while a pause holds. The worker syncs the target
-`App.js` sets from one effect, `setSyncTarget({ db, identity, library } | null)`: the open
+`src/app/_layout.jsx` sets from one effect, `setSyncTarget({ db, identity, library } | null)`: the open
 library's database and folders and the identity of its signed-in owner, null until the app has finished init, the library
 is open AND someone is signed in; every trigger above is a no-op without it. A run is bound to the open library and to the identity `{ serverId, userId }`
 of the session at its start (`library/currentSyncIdentity.ts`, `library/sessionMatches.ts`): it
@@ -670,18 +670,18 @@ backs it up and keeps it in sync, and signing out only pauses that.
     once) and repairs the list. A source whose earlier target is gone joins a new library of the
     same account by the rules above. A kept source keeps no marks (nothing reads them), and the
     target's go before `keptFor` is set.
-  Before the source is removed, every file it holds for a record that ends up in the account is in
-  the target's folders or in the cloud: the files of the assets that end in the target by id, live
-  or with a purge still pending (never of one purged there for good), and, for a camera-roll match
-  whose record has no file or thumbnail in the cloud and no confirmed purge, the device's copy, moved
-  under the record's names (each destination once); its backup uploads it, a sync error it had
-  cleared. The same merge runs again at every boot while an
-  unmerged device library exists (`runPendingMerges`: `resumeMerges`, which skips a marked source
-  that is the open library and goes on after a failed one, then `mergeDeviceLibrary`, which leaves
-  a source marked for a listed library to it, inside `withSyncPaused`), so one that failed or that a
-  crash interrupted finishes then. A device library with photos
-  whose file lives in another account's storage is kept, recorded as `keptFor` the account once its
-  merge completed, and never merged again, so it never joins a second account.
+    Before the source is removed, every file it holds for a record that ends up in the account is in
+    the target's folders or in the cloud: the files of the assets that end in the target by id, live
+    or with a purge still pending (never of one purged there for good), and, for a camera-roll match
+    whose record has no file or thumbnail in the cloud and no confirmed purge, the device's copy, moved
+    under the record's names (each destination once); its backup uploads it, a sync error it had
+    cleared. The same merge runs again at every boot while an
+    unmerged device library exists (`runPendingMerges`: `resumeMerges`, which skips a marked source
+    that is the open library and goes on after a failed one, then `mergeDeviceLibrary`, which leaves
+    a source marked for a listed library to it, inside `withSyncPaused`), so one that failed or that a
+    crash interrupted finishes then. A device library with photos
+    whose file lives in another account's storage is kept, recorded as `keptFor` the account once its
+    merge completed, and never merged again, so it never joins a second account.
 - **Signing out** drops the tokens and nothing else (`dropTokensAsync`, then a best-effort
   revoke): the same library stays open and editable, writes queue in its outbox and photos wait for
   the backup, and all of it uploads when its owner signs in again. Settings asks once, and only
@@ -749,7 +749,7 @@ before its account library's first pull drained while this device's library wait
 device library opens (§8, Signing in).
 
 **First sync.** A new device or account starts at `cursor = 0` and pulls everything. While
-signed in and `firstSyncDone` is not set, `AppGate` (`App.js`) shows `FirstSyncScreen` and does
+signed in and `firstSyncDone` is not set, `AppGate` (`src/app/_layout.jsx`) shows `FirstSyncScreen` and does
 not mount the data providers, so nothing competes with the bulk pull. The providers mount once
 the pull has drained. Files download on demand. A sign-out there stops the pull at its next batch;
 the library keeps what it pulled and the next sign-in resumes from the committed cursor.

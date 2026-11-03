@@ -25,7 +25,6 @@ function slideFromSide({ current }) {
 
 const SCREEN_OPTIONS = {
   headerShown: false,
-  sceneStyle: { backgroundColor: 'transparent' },
   sceneStyleInterpolator: slideFromSide,
   transitionSpec: { animation: 'timing', config: motion.enter },
 };
