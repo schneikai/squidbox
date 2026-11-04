@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
 import ToolbarTitle from './ToolbarTitle';
+import useTitleMaxWidth from './useTitleMaxWidth';
 
 import Button from '@/components/Button';
 import useSheetRoute from '@/hooks/useSheetRoute';
@@ -25,22 +25,11 @@ import { layout, motion } from '@/styles/designTokens';
  *   children     — centred under the row (a note about what the screen shows)
  */
 
-const SIDE_GAP = 12;
-
 export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot, isSelectMode = false, children }) {
   const insets = useSafeAreaInsets();
   // A sheet's first screen has nothing in the sheet to go back to: it closes the sheet.
-  const isSheet = useSheetRoute()?.isFirstScreen ?? false;
-
-  const [containerWidth, setContainerWidth] = useState(0);
-  const [leftWidth, setLeftWidth] = useState(0);
-  const [rightWidth, setRightWidth] = useState(0);
-
-  const centerMaxWidth = useMemo(() => {
-    if (!containerWidth) return 0;
-    const sideClearance = Math.max(leftWidth, rightWidth) + SIDE_GAP;
-    return Math.max(0, containerWidth - sideClearance * 2);
-  }, [containerWidth, leftWidth, rightWidth]);
+  const closesSheet = useSheetRoute()?.isFirstScreen ?? false;
+  const { maxWidth, onRowLayout, onLeftLayout, onRightLayout } = useTitleMaxWidth();
 
   const leftStyle = useAnimatedStyle(() => ({
     opacity: withTiming(isSelectMode ? 0 : 1, motion.move),
@@ -55,49 +44,35 @@ export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot
       style={[styles.container, { top: Math.max(insets.top + 8, layout.barBottom) }]}
       pointerEvents="box-none"
     >
-      <View style={styles.row} pointerEvents="box-none" onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}>
+      <View style={styles.row} pointerEvents="box-none" onLayout={onRowLayout}>
         {/* Centre — rendered first so it sits below the pills in z-order;
           pointerEvents="none" ensures touches pass through to the pills above */}
         {(!!title || !!subtitle) && (
           <Animated.View style={[styles.infoArea, leftStyle]} pointerEvents="none">
-            <ToolbarTitle
-              title={title}
-              subtitle={subtitle}
-              style={centerMaxWidth > 0 && { maxWidth: centerMaxWidth }}
-            />
+            <ToolbarTitle title={title} subtitle={subtitle} style={maxWidth !== undefined && { maxWidth }} />
           </Animated.View>
         )}
 
         {/* Left — back chevron pill */}
-        <Animated.View
-          style={leftStyle}
-          pointerEvents={isSelectMode ? 'none' : 'auto'}
-          onLayout={(e) => setLeftWidth(e.nativeEvent.layout.width)}
-        >
+        <Animated.View style={leftStyle} pointerEvents={isSelectMode ? 'none' : 'auto'} onLayout={onLeftLayout}>
           <FloatingPill style={styles.backPill}>
-            {isSheet ? (
-              <Button icon="close" onPress={onBack} accessibilityLabel="Close" />
-            ) : (
-              <Button icon="chevron-left" onPress={onBack} accessibilityLabel="Back" />
-            )}
+            <Button
+              icon={closesSheet ? 'close' : 'chevron-left'}
+              onPress={onBack}
+              accessibilityLabel={closesSheet ? 'Close' : 'Back'}
+            />
           </FloatingPill>
         </Animated.View>
 
         {/* Right — menu / action pill */}
         {!!menuSlot && (
-          <View onLayout={(e) => setRightWidth(e.nativeEvent.layout.width)}>
+          <View onLayout={onRightLayout}>
             <FloatingPill style={styles.menuPill}>{menuSlot}</FloatingPill>
           </View>
         )}
 
         {/* Placeholder so rightWidth is measured even when there is no menuSlot */}
-        {!menuSlot && (
-          <View
-            pointerEvents="none"
-            onLayout={(e) => setRightWidth(e.nativeEvent.layout.width)}
-            style={styles.emptyRightMeasure}
-          />
-        )}
+        {!menuSlot && <View pointerEvents="none" onLayout={onRightLayout} style={styles.emptyRightMeasure} />}
       </View>
       {children && (
         <View style={styles.below} pointerEvents="box-none">

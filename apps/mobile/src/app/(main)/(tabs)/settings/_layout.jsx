@@ -16,21 +16,11 @@ export default function SettingsLayout() {
       <Stack.Screen name="assistant/models/[kind]/[modelId]/verify/index" dangerouslySingular />
       <Stack.Screen name="assistant/models/[kind]/[modelId]/verify/[sectionId]" dangerouslySingular />
       <Stack.Screen name="assistant/models/[kind]/add" options={SHEET_OPTIONS} />
-      <Stack.Screen
-        name="assistant/prompt-buttons/[id]"
-        options={SHEET_OPTIONS}
-
-        dangerouslySingular
-      />
+      <Stack.Screen name="assistant/prompt-buttons/[id]" options={SHEET_OPTIONS} dangerouslySingular />
       <Stack.Screen name="assistant/prompt-buttons/new" options={SHEET_OPTIONS} />
       <Stack.Screen name="assistant/rules/[index]" options={SHEET_OPTIONS} dangerouslySingular />
       <Stack.Screen name="assistant/rules/new" options={SHEET_OPTIONS} />
-      <Stack.Screen
-        name="assistant/instructions/[kind]"
-        options={SHEET_OPTIONS}
-
-        dangerouslySingular
-      />
+      <Stack.Screen name="assistant/instructions/[kind]" options={SHEET_OPTIONS} dangerouslySingular />
     </Stack>
   );
 }

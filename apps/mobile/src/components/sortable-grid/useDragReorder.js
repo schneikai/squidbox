@@ -8,8 +8,9 @@ import mergeRowIds from './mergeRowIds';
 import sameOrder from './sameOrder';
 import slotPositions from './slotPositions';
 import useGridLongPressPan from './useGridLongPressPan';
+import usePeekAfterLift from './usePeekAfterLift';
 
-import { DRAG_LIFT_SCALE, DRAG_LONG_PRESS_MS, PEEK_AFTER_LIFT_MS } from '@/constants';
+import { DRAG_LIFT_SCALE, DRAG_LONG_PRESS_MS } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
 import { motion } from '@/styles/designTokens';
 
@@ -61,23 +62,13 @@ export default function useDragReorder({
   const grabOffsetRef = useRef({ x: 0, y: 0 });
   const liftPointRef = useRef({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
-  const peekTimerRef = useRef(null);
-  const isPeekingRef = useRef(false);
-
-  const canPeek = Boolean(onPeek);
-  // Called later (after a timer, at a spring's end, from endPeek), so read when they run.
+  const peek = usePeekAfterLift({ onPeek, onPeekEnd });
+  // Called at a spring's end, so read when it runs.
   const deferred = useRef({});
-  deferred.current = { onPeek, onPeekEnd, onSettled };
+  deferred.current.onSettled = onSettled;
 
   function settled() {
     deferred.current.onSettled?.();
-  }
-
-  function endPeek() {
-    clearTimeout(peekTimerRef.current);
-    if (!isPeekingRef.current) return;
-    isPeekingRef.current = false;
-    deferred.current.onPeekEnd?.();
   }
 
   const { gesture, onContainerLayout, startAutoScroll, contentPoint, indexAtContent } = useGridLongPressPan({
@@ -109,14 +100,8 @@ export default function useDragReorder({
       activeId.value = row.id;
       liftPointRef.current = { x, y };
       isDraggingRef.current = false;
-      if (canPeek) {
-        peekTimerRef.current = setTimeout(() => {
-          isPeekingRef.current = true;
-          deferred.current.onPeek?.(row);
-        }, PEEK_AFTER_LIFT_MS);
-      } else {
-        startDragging();
-      }
+      if (peek.canPeek) peek.schedule(row);
+      else startDragging();
     },
     onMove(x, y) {
       if (activeIndexRef.current === -1) return;
@@ -130,14 +115,12 @@ export default function useDragReorder({
       moveActive(targetIndexAt(content));
     },
     onRelease() {
-      endPeek();
+      peek.end();
       if (activeIndexRef.current === -1) return;
       settleAndCommit();
       activeIndexRef.current = -1;
     },
   });
-
-  useEffect(() => () => clearTimeout(peekTimerRef.current), []);
 
   // Rows that arrive or leave during a drag (a page the auto-scroll loaded, a synced album) join the
   // drag's slots, so their cells don't overlap others and a drop can land among them.
@@ -178,7 +161,7 @@ export default function useDragReorder({
 
   function startDragging() {
     isDraggingRef.current = true;
-    endPeek();
+    peek.end();
     startAutoScroll();
   }
 

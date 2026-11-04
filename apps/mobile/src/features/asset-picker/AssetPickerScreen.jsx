@@ -55,7 +55,7 @@ export default function AssetPickerScreen() {
   const isPickingAlbum = activeTab === 'Albums' && !album;
   const title = album?.name ?? activeTab;
 
-  // Each view starts at its top, so the header title shows again.
+  // Each view starts at its top, so drag-select reads the new list's offset.
   function showView(nextTab, nextAlbum) {
     setActiveTab(nextTab);
     setPickedAlbum(nextAlbum);

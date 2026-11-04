@@ -10,7 +10,6 @@ import { SCREEN_PADDING } from '@/constants';
 import PostList from '@/features/post-list/PostList';
 import postQuery from '@/features/post-list/postQuery';
 import usePosts from '@/features/posts-context/usePosts';
-import useScrollY from '@/hooks/useScrollY';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
 const ignored = postQuery({ scope: 'ignored', sort: 'updatedAt:desc' });
@@ -19,7 +18,6 @@ export default function IgnoredPostsScreen() {
   const navigation = useNavigation();
   const { updatePost } = usePosts();
   const { bottom } = useSafeAreaInsets();
-  const { scrollY, onScroll } = useScrollY();
 
   const { rows, count, loadMore } = usePagedQuery(ignored, 20);
 
@@ -32,7 +30,6 @@ export default function IgnoredPostsScreen() {
       <ModalHeader
         leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
         title="Ignored Posts"
-        scrollY={scrollY}
       />
 
       {count === 0 ? (
@@ -47,7 +44,6 @@ export default function IgnoredPostsScreen() {
           rows={rows}
           loadMore={loadMore}
           contentContainerStyle={{ paddingTop: MODAL_HEADER_HEIGHT + SCREEN_PADDING, paddingBottom: bottom + 16 }}
-          onScroll={onScroll}
           renderPostActions={(post) => (
             <View style={styles.actionContainer}>
               <Button

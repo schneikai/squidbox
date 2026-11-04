@@ -52,7 +52,6 @@ export default function PostChatScreen() {
   const isAiAdmin = useHasFeature('ai_admin');
   const [isSystemMessageOpen, setIsSystemMessageOpen] = useState(false);
   const scrollRef = useRef(null);
-  // The title fades as the messages scroll under the header, as on the other sheets (ModalHeader).
   const shouldScrollRef = useRef(false);
   const bottomInset = useKeyboardInset(8);
   const messages = chat?.messages;

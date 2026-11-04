@@ -1,8 +1,8 @@
-import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 import ToolbarTitle from '@/components/floating-bars/ToolbarTitle';
+import useTitleMaxWidth from '@/components/floating-bars/useTitleMaxWidth';
 import { layout, sizes } from '@/styles/designTokens';
 
 /**
@@ -16,8 +16,8 @@ import { layout, sizes } from '@/styles/designTokens';
  *   [ FloatingPill: leading ]   [ centerTitle ]   [ FloatingPill: trailing ]
  *
  * Both side slots are automatically wrapped in FloatingPill (frosted glass). A string title sits
- * in a ToolbarTitle pill like a pushed screen's (FloatingDetailHeader), centred on the screen and kept clear of
- * the wider side pill, like FloatingDetailHeader's.
+ * in a ToolbarTitle pill like a pushed screen's (FloatingDetailHeader), centred on the screen and
+ * kept clear of the wider side pill.
  *
  * Props:
  *   leading     ReactElement  — typically a close Button (icon="close")
@@ -26,48 +26,34 @@ import { layout, sizes } from '@/styles/designTokens';
  *   subtitle    string (optional) — a smaller grey line under a string title
  */
 
-// The least room between the title and a side pill.
-const SIDE_GAP = 12;
-
 export const MODAL_HEADER_HEIGHT = sizes.iconButton + layout.barBottom * 2 + 8;
 
 export default function ModalHeader({ leading, trailing, title, subtitle }) {
-  const [width, setWidth] = useState(0);
-  const [leftWidth, setLeftWidth] = useState(0);
-  const [rightWidth, setRightWidth] = useState(0);
-  const titleMaxWidth = width ? Math.max(0, width - 2 * (Math.max(leftWidth, rightWidth) + SIDE_GAP)) : undefined;
+  const { maxWidth, onRowLayout, onLeftLayout, onRightLayout } = useTitleMaxWidth();
 
   const center =
     typeof title === 'string' ? (
-      <ToolbarTitle
-        title={title}
-        subtitle={subtitle}
-        style={titleMaxWidth !== undefined && { maxWidth: titleMaxWidth }}
-      />
+      <ToolbarTitle title={title} subtitle={subtitle} style={maxWidth !== undefined && { maxWidth }} />
     ) : (
       (title ?? null)
     );
 
   return (
     <View style={styles.container} pointerEvents="box-none">
-      <View style={styles.row} pointerEvents="box-none" onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+      <View style={styles.row} pointerEvents="box-none" onLayout={onRowLayout}>
         {/* Center — absolutely positioned so it stays centred on the screen; below the pills */}
         <View style={styles.center} pointerEvents="box-none">
           {center}
         </View>
 
         {leading != null && (
-          <View style={styles.side} pointerEvents="box-none" onLayout={(e) => setLeftWidth(e.nativeEvent.layout.width)}>
+          <View style={styles.side} pointerEvents="box-none" onLayout={onLeftLayout}>
             <FloatingPill>{leading}</FloatingPill>
           </View>
         )}
 
         {!!trailing && (
-          <View
-            style={[styles.side, styles.sideRight]}
-            pointerEvents="box-none"
-            onLayout={(e) => setRightWidth(e.nativeEvent.layout.width)}
-          >
+          <View style={[styles.side, styles.sideRight]} pointerEvents="box-none" onLayout={onRightLayout}>
             <FloatingPill>{trailing}</FloatingPill>
           </View>
         )}

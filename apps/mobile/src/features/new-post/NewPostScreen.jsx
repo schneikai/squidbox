@@ -1,7 +1,6 @@
 import { router, useNavigation } from 'expo-router';
 import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Button from '@/components/Button';
@@ -12,7 +11,6 @@ import NewPostCard from '@/features/new-post/NewPostCard';
 import RepostCard from '@/features/new-post/RepostCard';
 import postQuery from '@/features/post-list/postQuery';
 import usePosts from '@/features/posts-context/usePosts';
-import useScrollY from '@/hooks/useScrollY';
 import { layout, scale } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { readNewestRepostDate } from '@/sync/postsRepository';
@@ -29,7 +27,6 @@ export default function NewPostScreen() {
   const navigation = useNavigation();
   const { updatePost } = usePosts();
   const { bottom } = useSafeAreaInsets();
-  const { scrollY, onScroll } = useScrollY();
 
   const { rows, count, loadMore } = usePagedQuery(candidates, 20);
 
@@ -64,10 +61,9 @@ export default function NewPostScreen() {
       <ModalHeader
         leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
         title="New post"
-        scrollY={scrollY}
       />
 
-      <Animated.FlatList
+      <FlatList
         data={rows ?? []}
         keyExtractor={keyExtractor}
         ListHeaderComponent={
@@ -91,8 +87,6 @@ export default function NewPostScreen() {
         // More is asked for only once the first page landed (see PostList).
         onEndReached={rows ? loadMore : undefined}
         onEndReachedThreshold={2}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
         contentContainerStyle={[styles.content, { paddingTop: MODAL_HEADER_HEIGHT, paddingBottom: bottom + 16 }]}
       />
     </ModalSheet>

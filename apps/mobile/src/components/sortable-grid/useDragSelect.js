@@ -3,8 +3,8 @@ import { useEffect, useRef } from 'react';
 
 import isPastTapSlop from './isPastTapSlop';
 import useGridLongPressPan from './useGridLongPressPan';
+import usePeekAfterLift from './usePeekAfterLift';
 
-import { PEEK_AFTER_LIFT_MS } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
 
 // Apple Photos-style drag-to-select for a grid (the asset grids).
@@ -57,11 +57,7 @@ export default function useDragSelect({
   const intentRef = useRef(true); // true = add to selection, false = remove
   const liftPointRef = useRef({ x: 0, y: 0 });
   const isSelectingRef = useRef(false);
-  const peekTimerRef = useRef(null);
-  const isPeekingRef = useRef(false);
-  // Called after a timer, so read when they run.
-  const deferred = useRef({});
-  deferred.current = { onPeek, onPeekEnd };
+  const peek = usePeekAfterLift({ onPeek, onPeekEnd });
   // Indices past the loaded rows (a page the auto-scroll is still loading) select nothing.
   const loadedRows = rows ?? [];
 
@@ -81,15 +77,8 @@ export default function useDragSelect({
       intentRef.current = !baseSelectedRef.current.includes(loadedRows[index].id);
       liftPointRef.current = { x, y };
       isSelectingRef.current = false;
-      if (!onPeek) {
-        startSelecting();
-        return;
-      }
-      const row = loadedRows[index];
-      peekTimerRef.current = setTimeout(() => {
-        isPeekingRef.current = true;
-        deferred.current.onPeek?.(row);
-      }, PEEK_AFTER_LIFT_MS);
+      if (peek.canPeek) peek.schedule(loadedRows[index]);
+      else startSelecting();
     },
     onMove(x, y) {
       if (anchorIndexRef.current === -1) return;
@@ -103,30 +92,21 @@ export default function useDragSelect({
       applyRange(index);
     },
     onRelease() {
-      const wasPeeking = isPeekingRef.current;
-      endPeek();
+      const wasPeeking = peek.isPeeking();
+      peek.end();
       if (anchorIndexRef.current !== -1 && !isSelectingRef.current && !wasPeeking) startSelecting();
       anchorIndexRef.current = -1;
       currentIndexRef.current = -1;
     },
   });
 
-  useEffect(() => () => clearTimeout(peekTimerRef.current), []);
-
   // Selects the anchor and from then on the range to the finger, scrolling near an edge.
   function startSelecting() {
-    endPeek();
+    peek.end();
     isSelectingRef.current = true;
     applyRange(anchorIndexRef.current);
     haptics.selection();
     startAutoScroll();
-  }
-
-  function endPeek() {
-    clearTimeout(peekTimerRef.current);
-    if (!isPeekingRef.current) return;
-    isPeekingRef.current = false;
-    deferred.current.onPeekEnd?.();
   }
 
   function applyRange(currentIndex) {
