@@ -15,8 +15,7 @@ import { layout, sizes } from '@/styles/designTokens';
  *   [ FloatingPill: leading ]   [ centerTitle ]   [ FloatingPill: trailing ]
  *
  * Both side slots are automatically wrapped in FloatingPill (frosted glass). A string title sits
- * in a ToolbarTitle pill like a pushed screen's (FloatingDetailHeader), absolutely positioned to
- * stay truly centred.
+ * in a ToolbarTitle pill like a pushed screen's (FloatingDetailHeader), centred between the side pills.
  *
  * Props:
  *   leading     ReactElement  — typically a close Button (icon="close")
@@ -39,14 +38,14 @@ export default function ModalHeader({ leading, trailing, title, subtitle }) {
         </View>
       )}
 
-      {/* Center — absolutely positioned so it doesn't affect side layout */}
-      <View style={styles.centerAbsolute} pointerEvents="box-none">
+      {/* Center — between the side pills, an even gap to each */}
+      <View style={styles.center} pointerEvents="box-none">
         {center}
       </View>
 
       {/* Right slot — wrapped in FloatingPill */}
       {!!trailing && (
-        <View style={[styles.side, styles.sideRight]} pointerEvents="box-none">
+        <View style={styles.side} pointerEvents="box-none">
           <FloatingPill>{trailing}</FloatingPill>
         </View>
       )}
@@ -71,13 +70,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexShrink: 0,
   },
-  sideRight: {
-    marginLeft: 'auto',
-  },
-  centerAbsolute: {
-    ...StyleSheet.absoluteFill,
+  center: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: sizes.iconButton + layout.sideGutter,
+    marginHorizontal: layout.barPaddingX,
   },
 });

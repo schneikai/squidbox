@@ -35,6 +35,7 @@ const styles = StyleSheet.create({
     minHeight: sizes.iconButton,
     justifyContent: 'center',
     alignItems: 'center',
+    flexGrow: 1, // fills a pill held at its minWidth, so a short title stays centred in it
     flexShrink: 1,
     paddingHorizontal: layout.barPaddingX * 1.25,
   },
