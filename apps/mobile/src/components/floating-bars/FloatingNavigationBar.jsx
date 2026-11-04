@@ -1,4 +1,4 @@
-import { useNavigationState } from '@react-navigation/native';
+import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming, interpolate } from 'react-native-reanimated';
@@ -6,30 +6,27 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useFloatingBars } from './FloatingBarsContext';
 import SegmentedPill from './SegmentedPill';
-import { getActiveTabName, isDetailScreenActive } from './navStateHelpers';
 
-import { navigateToTab } from '@/navigators/navigationRef';
 import { layout, motion } from '@/styles/designTokens';
 
+// Keyed by the tab's route name (`app/(main)/(tabs)/`).
 const NAV_ITEMS = [
-  { key: 'AssetsTab', icon: 'grid', label: 'Library' },
-  { key: 'AlbumsTab', icon: 'folder', label: 'Albums' },
-  { key: 'PostsTab', icon: 'share-alt', label: 'Posts' },
+  { key: 'index', href: '/', icon: 'grid', label: 'Library' },
+  { key: 'albums', href: '/albums', icon: 'folder', label: 'Albums' },
+  { key: 'posts', href: '/posts', icon: 'share-alt', label: 'Posts' },
 ];
 
-const MAIN_TABS = NAV_ITEMS.map((item) => item.key);
+const HREFS = Object.fromEntries(NAV_ITEMS.map((item) => [item.key, item.href]));
 
-export default function FloatingNavigationBar() {
+// The main tabs' bar (the tab navigator's `tabBar`), floating over the tab. Settings has none.
+export default function FloatingNavigationBar({ state }) {
   const insets = useSafeAreaInsets();
   const { isNavBarHidden, isSearchActive, isSelectMode, resetScroll } = useFloatingBars();
 
-  const activeTab = useNavigationState((s) => getActiveTabName(s));
-  const isDetailActive = useNavigationState((s) => isDetailScreenActive(s));
-  const isMainScreen = !isDetailActive && MAIN_TABS.includes(activeTab);
+  const activeTab = state.routes[state.index].name;
+  const hideBar = isSearchActive || activeTab === 'settings' || isSelectMode;
 
-  const hideBar = isSearchActive || !isMainScreen || isSelectMode;
-
-  // Toggle-driven: search / select / depth — animated both ways via shared value
+  // Toggle-driven: search / select / Settings — animated both ways via shared value
   const contextHidden = useSharedValue(hideBar ? 1 : 0);
   useEffect(() => {
     contextHidden.value = withTiming(hideBar ? 1 : 0, hideBar ? motion.exit : motion.enter);
@@ -39,7 +36,7 @@ export default function FloatingNavigationBar() {
     // Scroll-driven: isNavBarHidden is already animated at the source (scroll handler)
     const scrollTranslate = interpolate(isNavBarHidden.value, [0, 1], [0, 100]);
     const scrollOpacity = interpolate(isNavBarHidden.value, [0, 1], [1, 0]);
-    // Toggle-driven: search / select / depth
+    // Toggle-driven: search / select / Settings
     const contextTranslate = interpolate(contextHidden.value, [0, 1], [0, 100]);
     const contextOpacity = interpolate(contextHidden.value, [0, 1], [1, 0]);
     // Most-hidden value wins
@@ -51,9 +48,7 @@ export default function FloatingNavigationBar() {
 
   function handleNavigate(tab) {
     resetScroll();
-    // Goes through the container ref (see navigationRef.js): honored immediately when ready, and
-    // remembered + flushed if the container is still mounting (first-sync gate flip).
-    navigateToTab(tab);
+    router.navigate(HREFS[tab]);
   }
 
   return (

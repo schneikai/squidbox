@@ -9,7 +9,7 @@ import { colors, layout, lineHeights, scale, sizes, typography } from '@/styles/
 export default function ToolbarTitle({ title, subtitle, style }) {
   return (
     <FloatingPill style={[styles.pill, style]}>
-      <View style={styles.content} pointerEvents="none">
+      <View style={[styles.content, !!subtitle && styles.twoLines]} pointerEvents="none">
         {!!title && (
           <Text style={styles.title} numberOfLines={1}>
             {title}
@@ -35,7 +35,11 @@ const styles = StyleSheet.create({
     minHeight: sizes.iconButton,
     justifyContent: 'center',
     alignItems: 'center',
+    flexGrow: 1, // fills a pill held at its minWidth, so a short title stays centred in it
     flexShrink: 1,
+    paddingHorizontal: layout.barPaddingX * 1.25,
+  },
+  twoLines: {
     paddingHorizontal: layout.barPaddingX * 2,
   },
   title: {

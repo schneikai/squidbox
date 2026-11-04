@@ -1,4 +1,5 @@
 import { promptButtonCollection } from '@squidbox/shared';
+import { router, useLocalSearchParams, usePathname } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -29,11 +30,11 @@ const PROMPT_MAX_LENGTH = shape.prompt.maxLength;
 // A button can't be without these.
 const REQUIRED_FIELDS = ['name', 'prompt'];
 
-// One prompt button as a draft sheet: `{ id }` edits it (Save, Duplicate, Delete), `{}` adds
-// one at the end (Add, once it has a name and a prompt). Reachable from anywhere (a root screen, one
-// per button), so the chat opens it too.
-export default function PromptButtonScreen({ route, navigation }) {
-  const { id } = route.params;
+// One prompt button as a draft sheet: `…/prompt-buttons/[id]` edits it (Save, Duplicate, Delete),
+// `…/prompt-buttons/new` adds one at the end (Add, once it has a name and a prompt). Opened from the
+// list, in Settings or inside the chat's sheet.
+export default function PromptButtonScreen() {
+  const { id } = useLocalSearchParams();
   const isAvailable = useLeaveWhenUnavailable();
   const seed = useSeedOrClose(
     (db) => (id ? readPromptButton(db, id) : Promise.resolve({ name: '', prompt: '', icon: null })),
@@ -41,10 +42,11 @@ export default function PromptButtonScreen({ route, navigation }) {
     'This prompt button was deleted.',
   );
   if (!isAvailable || !seed) return null;
-  return <PromptButtonEditor id={id} seed={seed} navigation={navigation} />;
+  return <PromptButtonEditor id={id} seed={seed} />;
 }
 
-function PromptButtonEditor({ id, seed, navigation }) {
+function PromptButtonEditor({ id, seed }) {
+  const pathname = usePathname();
   const [draft, setDraft] = useState({
     name: seed.name,
     prompt: seed.prompt,
@@ -85,7 +87,7 @@ function PromptButtonEditor({ id, seed, navigation }) {
         prompt: button.prompt,
         icon: button.icon,
       });
-      return () => navigation.replace('PromptButtonScreen', { id: copy.id });
+      return () => router.replace(pathname.replace(/[^/]+$/, copy.id));
     }, "Couldn't duplicate the prompt button");
   }
 

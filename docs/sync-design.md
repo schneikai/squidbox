@@ -471,7 +471,7 @@ The app keeps one such database per **library** (the design record is
 `docs/library-ownership-plan.md`; what is built is described here): the open library's database is
 behind `getDb()` (`sync/db/client.ts`), opened and migrated by `library/current.ts` when the
 library opens (`openAppDb` runs the SQLite migrations of `apps/mobile/src/sync/db/migrations`), and
-`LibraryGate` (`App.js`) mounts the app under it, keyed by the library, so nothing queries across a
+`LibraryGate` (`src/app/_layout.jsx`) mounts the app under it, keyed by the library, so nothing queries across a
 switch.
 
 Tables (`apps/mobile/src/sync/db/schema.ts`):
@@ -541,7 +541,7 @@ sync and backup alike, is aborted (a sync at its next push batch or applied pull
 is committed and the next run resumes; a backup at its next step, the upload in flight included),
 and `work` starts once they ended. Both kinds of run start through the gate (`startRun`), which
 registers a run synchronously and starts none while a pause holds. The worker syncs the target
-`App.js` sets from one effect, `setSyncTarget({ db, identity, library } | null)`: the open
+`src/app/_layout.jsx` sets from one effect, `setSyncTarget({ db, identity, library } | null)`: the open
 library's database and folders and the identity of its signed-in owner, null until the app has finished init, the library
 is open AND someone is signed in; every trigger above is a no-op without it. A run is bound to the open library and to the identity `{ serverId, userId }`
 of the session at its start (`library/currentSyncIdentity.ts`, `library/sessionMatches.ts`): it
@@ -749,7 +749,7 @@ before its account library's first pull drained while this device's library wait
 device library opens (§8, Signing in).
 
 **First sync.** A new device or account starts at `cursor = 0` and pulls everything. While
-signed in and `firstSyncDone` is not set, `AppGate` (`App.js`) shows `FirstSyncScreen` and does
+signed in and `firstSyncDone` is not set, `AppGate` (`src/app/_layout.jsx`) shows `FirstSyncScreen` and does
 not mount the data providers, so nothing competes with the bulk pull. The providers mount once
 the pull has drained. Files download on demand. A sign-out there stops the pull at its next batch;
 the library keeps what it pulled and the next sign-in resumes from the committed cursor.
@@ -912,7 +912,7 @@ catalog (`clearInstructionsEqualTo`), so it doesn't shadow later publishes; a ki
 changed only while its override differs from the published text. The schema each reply is read with (`chat_reply`, the tags list) is the server's and never
 stored.
 
-**model_choices** (Settings → Assistant → Writing or Vision → a model: the Default and Uncensored
+**model_choices** (Settings → Assistant → Writing model or Vision model → a model: the Default and Uncensored
 default switches). An ai_admin's picks of the defaults, per kind and variant: `writingModel` and
 `visionModel` the Default (`regular`), `writingUncensoredModel` and `visionUncensoredModel` the
 Uncensored default (`unrestricted`, optional so a push from an older build keeps them), each
@@ -1013,7 +1013,7 @@ puts their edits back, so they still wait.
 
 ### Sync Inspector
 
-The "Library sync" screen (`apps/mobile/src/screens/SyncScreen.jsx`) shows:
+The "Library sync" screen (`apps/mobile/src/features/sync-status/SyncScreen.jsx`) shows:
 
 - **Status:** current status, last sync time, **View errors** (above, while pushes have failed)
   and **Sync now**.

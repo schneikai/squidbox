@@ -1,11 +1,11 @@
-import { UNSTABLE_usePreventRemove as usePreventRemove, useNavigation } from '@react-navigation/native';
+import { usePreventRemove, useNavigation } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 
 import confirmDiscardAsync from '@/utils/confirmDiscardAsync';
 
 // Marks an action whose discard the user confirmed, so a sheet's other guarded routes (an editor
-// pushed inside the post editor's sheet) let it through instead of asking again. React Navigation
-// copies the action from route to route, with this key.
+// pushed inside the post editor's sheet) let it through instead of asking again. Expo Router's
+// stack copies the action from route to route, with this key.
 const DISCARD_CONFIRMED = Symbol('DISCARD_CONFIRMED');
 
 /**

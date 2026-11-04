@@ -8,7 +8,7 @@ import { onRegistryChange } from './registry';
 import { runPendingMerges, watchTokenDrops } from './sessionLibrary';
 import { switchLibrary as performSwitch } from './switchLibrary';
 
-// The open library. A switch sets `next`: LibraryGate (App.js) then shows the switching screen, so
+// The open library. A switch sets `next`: LibraryGate (app/_layout.jsx) then shows the switching screen, so
 // everything below unmounts and its effects clean up, and the effect here runs the switch after
 // those cleanups, in the same commit; the gate remounts the app under the new library's id.
 export default function LibraryProvider({ children }) {

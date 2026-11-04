@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useMemo, useSyncExternalStore } from 'react';
 import { Alert } from 'react-native';
 
@@ -7,7 +8,6 @@ import preloadAssetThumbnailsAsync from './assets/preloadAssetThumbnailsAsync';
 import { openLibraryForSignIn } from '@/library/sessionLibrary';
 import { isSessionAuthenticated, needsReauth as sessionNeedsReauth } from '@/library/sessionMatches';
 import useLibrary from '@/library/useLibrary';
-import { navigateToTab } from '@/navigators/navigationRef';
 import { withSyncPaused } from '@/sync/worker';
 import apiLoginAsync from '@/utils/cloud-api/authentication/loginAsync';
 import apiLogoutAsync from '@/utils/cloud-api/authentication/logoutAsync';
@@ -30,7 +30,7 @@ export default function CloudProvider({ children }) {
     const next = await apiLoginAsync(email, password);
     const switched = await withSyncPaused(() => openLibraryForSignIn(next, switchLibrary));
     // The remount after a switch reset the navigation; a sign-in ends where it began, in Settings.
-    if (switched) navigateToTab('SettingsTab');
+    if (switched) router.navigate('/settings');
   }
 
   // Signs out: the sync and backup stop and the tokens go; watchTokenDrops then opens the library for

@@ -23,17 +23,22 @@ const SIDE_GUTTER = scale(16);
 const palette = {
   white: '#FFFFFF',
   black: '#000000',
-  gray50: '#F9FAFB',
+  gray75: '#F2F2F5', // the page's soft gray, a hair from iOS's grouped #F2F2F7
+  gray60: '#F5F5F8',
   gray100: '#F0F0F0',
   gray300: '#D3D3D3',
   gray400: '#9CA3AF',
   gray500: '#6B7280',
   gray900: '#111827',
   violet50: '#F5F3FF',
+  violet75: '#EFEDF8', // the page gray with a touch of lavender
   violet100: '#EFE7FD',
+  violet250: '#C4AAFF', // light and saturated, the rim light on the violet
   violet300: '#C4B5FD',
   violet600: '#7C3AED',
+  violet650: '#6640E9', // between violet600 and indigo600
   indigo600: '#4F46E5',
+  violet900: '#2E108C', // dark and saturated, the shade on the violet
   rose600: '#E11D48',
   green500: '#34C759',
   blue600: '#2563EB',
@@ -57,6 +62,8 @@ export const colors = {
     border: alpha(palette.violet600, 0.3), // the frame of an outlined or dashed chip
     onDark: palette.violet300, // the accent on a dark surface (the Undo bar's Undo)
     gradient: [palette.violet600, palette.indigo600],
+    frame: palette.violet650, // the frame of a toolbar that is only the primary (FloatingPill), between the gradient's ends
+    frameDisabled: alpha(palette.violet650, 0.4), // that frame while its button is off, faded like the button (disabledOpacity)
   },
   status: {
     success: palette.green500, // a confirmation that just happened (copied)
@@ -67,8 +74,9 @@ export const colors = {
     infoLight: alpha(palette.blue600, 0.12),
   },
   background: {
-    app: [palette.gray50, palette.white, palette.violet50], // the page gradient
-    base: palette.gray50, // a sheet or screen without the gradient
+    // The page gradient: a soft gray, never white, so white cards (`surface`) stand clear of it.
+    app: [palette.gray75, palette.gray60, palette.violet75],
+    base: palette.gray75, // a sheet or screen without the gradient
     surface: palette.white, // opaque, for a surface over media that mustn't show it through
     glass: alpha(palette.white, 0.95),
     litGlass: alpha('#F6F6F8', 0.94), // a floating pill: a hair off-white, so its white rim shows
@@ -96,7 +104,7 @@ export const colors = {
 export const shadows = {
   // Floating UI (toolbars, popovers): a wide, very soft shadow, as if lit softly from above
   floating: {
-    boxShadow: `0 16px 56px ${alpha(palette.black, 0.07)}, 0 2px 12px ${alpha(palette.black, 0.03)}`,
+    boxShadow: `0 16px 56px ${alpha(palette.black, 0.12)}, 0 2px 12px ${alpha(palette.black, 0.06)}`,
   },
   // A card resting on the page: the same soft light, lower
   card: {
@@ -111,13 +119,17 @@ export const shadows = {
   },
   // A small floating button on its own (the account avatar): a softer floating shadow
   subtle: {
-    boxShadow: `0 10px 36px ${alpha(palette.black, 0.07)}, 0 1px 8px ${alpha(palette.black, 0.03)}`,
+    boxShadow: `0 10px 36px ${alpha(palette.black, 0.11)}, 0 1px 8px ${alpha(palette.black, 0.05)}`,
   },
 
   // The lit edge of a floating surface (FloatingPill, a popover), lit from the top left: a bright
   // rim along its top and left, a faint shade along its bottom and right, drawn inside its edge
   litEdge: {
     boxShadow: `inset 1.5px 1.5px 0 ${alpha(palette.white, 1)}, inset -1px -1px 0 ${alpha(palette.black, 0.06)}`,
+  },
+  // litEdge on the violet, in violets: white and black would read as a hard crescent and a gray line
+  litEdgeAccent: {
+    boxShadow: `inset 1.5px 1.5px 0 ${alpha(palette.violet250, 0.95)}, inset -1px -1px 0 ${alpha(palette.violet900, 0.85)}`,
   },
 };
 

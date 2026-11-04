@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { router } from 'expo-router';
 
 import VerifyStatusIcon from './VerifyStatusIcon';
 import sectionStatuses from './sectionStatuses';
@@ -17,7 +17,6 @@ const FOOTERS = {
  * waits or wasn't reached), and a tap opens it once it has turns.
  */
 export default function VerifyConversationsSection({ kind, modelId, name, run, plan }) {
-  const navigation = useNavigation();
   const statuses = sectionStatuses(plan, run);
 
   return (
@@ -27,7 +26,10 @@ export default function VerifyConversationsSection({ kind, modelId, name, run, p
         {plan.sections.map((planSection, index) => {
           const { icon, text, hasTurns } = statuses[index];
           const open = () =>
-            navigation.navigate('VerifyConversationScreen', { kind, modelId, name, sectionId: planSection.id });
+            router.navigate({
+              pathname: '/settings/assistant/models/[kind]/[modelId]/verify/[sectionId]',
+              params: { kind, modelId, name, sectionId: planSection.id },
+            });
           return (
             <Row
               key={planSection.id}

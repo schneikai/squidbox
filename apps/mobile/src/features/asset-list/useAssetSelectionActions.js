@@ -1,5 +1,6 @@
-import { useNavigation } from '@react-navigation/native';
+import { router } from 'expo-router';
 
+import assetHref from '@/features/asset-list/assetHref';
 import { getDb, schema } from '@/sync/db/client';
 import { readByIds } from '@/sync/readByIds';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
@@ -8,7 +9,6 @@ import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibr
 // useToggleSelectAssetsAction; `query` is the grid's assetQuery and `count` how many assets it shows.
 export default function useAssetSelectionActions(selection, query, count) {
   const { isSelectMode, selectedAssetIds, toggleSelectAsset, selectAssets, exitSelectMode } = selection;
-  const navigation = useNavigation();
   const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary();
 
   const allSelected = count > 0 && selectedAssetIds.length === count;
@@ -18,7 +18,7 @@ export default function useAssetSelectionActions(selection, query, count) {
     allSelected,
     openAsset(asset) {
       if (isSelectMode) toggleSelectAsset(asset.id);
-      else navigation.navigate('AssetScreen', { assetId: asset.id, query: query.descriptor });
+      else router.navigate(assetHref(asset.id, query.descriptor));
     },
     // Exactly what the grid shows, however many: the count and the selection always agree.
     async toggleSelectAll() {
@@ -28,11 +28,11 @@ export default function useAssetSelectionActions(selection, query, count) {
       await saveAssetsToMediaLibraryAsync(await readByIds(getDb(), schema.assets, selectedAssetIds));
     },
     addSelectedToAlbum() {
-      navigation.navigate('AddToAlbumModal', { assetIds: selectedAssetIds });
+      router.navigate({ pathname: '/add-to-album', params: { assetIds: selectedAssetIds.join(',') } });
       exitSelectMode();
     },
     postSelected() {
-      navigation.navigate('AddEditPostModal', { assetIds: selectedAssetIds });
+      router.navigate({ pathname: '/post-editor', params: { assetIds: selectedAssetIds.join(',') } });
       exitSelectMode();
     },
   };

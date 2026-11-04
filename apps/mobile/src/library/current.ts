@@ -87,6 +87,6 @@ export function openLibraryEntry(): Library | null {
 }
 
 export function getLibrary(): OpenLibrary {
-  if (!current) throw new Error('No library is open (see LibraryGate in App.js).');
+  if (!current) throw new Error('No library is open (see LibraryGate in app/_layout.jsx).');
   return current;
 }

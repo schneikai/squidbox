@@ -1,5 +1,6 @@
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 import AssistantMessage from './AssistantMessage';
@@ -25,34 +26,32 @@ import useHaptics from '@/hooks/useHaptics';
 import useHasFeature from '@/hooks/useHasFeature';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
-import useScrollY from '@/hooks/useScrollY';
 import confirmAsync from '@/utils/confirmAsync';
 
 const ASK_ANYTHING = 'Ask anything';
 const WRITING_AS_YOU = 'Writing as you';
 
 /**
- * The assistant chat about the post being written (`{ sessionId }`, the editor's chat; `prompt`, a
- * prompt button's `{ label, content }`, waits in the composer): what it's about (ChatSubjectCard,
+ * The assistant chat about the post being written (`sessionId`, the editor's chat; `label` and
+ * `prompt`, a prompt button's name and prompt, wait in the composer): what it's about (ChatSubjectCard,
  * left out for a new post without photos yet), the user's turns and the assistant's replies with
  * their options, and the prompt buttons over the composer, a tap putting the prompt in it
  * (usePostChat does the sending). Use puts an option into the caption and goes back to the editor.
  * The chat lasts while the editor or the post's screen is open; a posted post's options have Copy.
  */
-export default function PostChatScreen({ route, navigation }) {
-  const { sessionId, prompt } = route.params;
+export default function PostChatScreen() {
+  const navigation = useNavigation();
+  const { sessionId, label, prompt } = useLocalSearchParams();
   const isAvailable = useLeaveWhenUnavailable();
   const { chat, assets, tagging, mentions, isWaiting, send, moreLikeThis, retry } = usePostChat(sessionId);
   useCloseWhen(chat === null);
   const haptics = useHaptics();
   const buttons = usePromptButtons();
   // What waits in the composer: a new `key` remounts it with the prompt a button put there.
-  const [seed, setSeed] = useState(() => ({ key: 0, turn: prompt }));
+  const [seed, setSeed] = useState(() => ({ key: 0, turn: prompt ? { label, content: prompt } : undefined }));
   const isAiAdmin = useHasFeature('ai_admin');
   const [isSystemMessageOpen, setIsSystemMessageOpen] = useState(false);
   const scrollRef = useRef(null);
-  // The title fades as the messages scroll under the header, as on the other sheets (ModalHeader).
-  const { scrollY, onScroll } = useScrollY();
   const shouldScrollRef = useRef(false);
   const bottomInset = useKeyboardInset(8);
   const messages = chat?.messages;
@@ -86,10 +85,11 @@ export default function PostChatScreen({ route, navigation }) {
     setSeed((current) => ({ key: current.key + 1, turn: promptTurn(button) }));
   }
 
-  // There is no chat history yet, so a cleared chat is gone for good.
+  // There is no chat history yet, so a cleared chat is gone for good: ask, unless it's empty.
   async function handleNewChat() {
     const message = "This chat is cleared and can't be brought back.";
-    if (!(await confirmAsync({ title: 'New chat', message, action: 'New chat', destructive: true }))) return;
+    const confirm = { title: 'New chat', message, action: 'New chat', destructive: true };
+    if (messages.length > 0 && !(await confirmAsync(confirm))) return;
     chat.reset();
   }
 
@@ -106,11 +106,11 @@ export default function PostChatScreen({ route, navigation }) {
       <ChatHeader
         isAiAdmin={isAiAdmin}
         leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
-        scrollY={scrollY}
         trailing={
           isAiAdmin ? (
+            // New chat is always there, so the ⋯ button never pops in with the first message.
             <MenuButton accessibilityLabel="Chat options">
-              {messages.length > 0 && <MenuOption label="New chat" icon="edit" onPress={handleNewChat} />}
+              <MenuOption label="New chat" icon="edit" onPress={handleNewChat} />
               {systemMessage && (
                 <MenuOption label="System prompt" icon="document" onPress={() => setIsSystemMessageOpen(true)} />
               )}
@@ -120,10 +120,8 @@ export default function PostChatScreen({ route, navigation }) {
           )
         }
       />
-      <Animated.ScrollView
+      <ScrollView
         ref={scrollRef}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         onContentSizeChange={handleContentSizeChange}
@@ -153,7 +151,7 @@ export default function PostChatScreen({ route, navigation }) {
             />
           ),
         )}
-      </Animated.ScrollView>
+      </ScrollView>
       <Animated.View style={[styles.composer, composerStyle]}>
         <PromptButtonRow
           buttons={buttons ?? []}
@@ -190,14 +188,7 @@ function ChatHeader({ isAiAdmin, ...headerProps }) {
 
 function ModelNameHeader(headerProps) {
   const modelName = useWritingModelName();
-  return (
-    <ModalHeader
-      {...headerProps}
-      title="Assistant"
-      subtitle={modelName ?? WRITING_AS_YOU}
-      subtitleSize={modelName ? 'small' : 'regular'}
-    />
-  );
+  return <ModalHeader {...headerProps} title="Assistant" subtitle={modelName ?? WRITING_AS_YOU} />;
 }
 
 const styles = StyleSheet.create({

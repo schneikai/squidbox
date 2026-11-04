@@ -1,7 +1,9 @@
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
+import isPastTapSlop from './isPastTapSlop';
 import useGridLongPressPan from './useGridLongPressPan';
+import usePeekAfterLift from './usePeekAfterLift';
 
 import useHaptics from '@/hooks/useHaptics';
 
@@ -13,6 +15,11 @@ import useHaptics from '@/hooks/useHaptics';
 // entire rows, not just the cells the finger crosses. Dragging back shrinks the
 // range, restoring items to their pre-drag state. The anchor's initial state
 // decides whether the drag adds or removes (select vs deselect).
+//
+// With `onPeek`, the range starts only once the finger moves past the tap slop: held still a moment
+// longer it peeks at the cell (`onPeek(row)`, until `onPeekEnd()` on release or on moving, which
+// selects on from there), like Photos' preview in select mode. Let go before the peek, the cell is
+// selected as before; after it, nothing changes.
 //
 // Near the top/bottom edge the list auto-scrolls (useGridLongPressPan). `layout`: the grid's cells,
 // see gridSlotOrigin. `locksSwipeBack: false` for a grid that is a sheet's own screen, see below.
@@ -29,6 +36,8 @@ export default function useDragSelect({
   selectedIdsRef,
   onSelect,
   locksSwipeBack = true,
+  onPeek,
+  onPeekEnd,
 }) {
   const navigation = useNavigation();
   const haptics = useHaptics();
@@ -46,6 +55,9 @@ export default function useDragSelect({
   const anchorIndexRef = useRef(-1);
   const currentIndexRef = useRef(-1);
   const intentRef = useRef(true); // true = add to selection, false = remove
+  const liftPointRef = useRef({ x: 0, y: 0 });
+  const isSelectingRef = useRef(false);
+  const peek = usePeekAfterLift({ onPeek, onPeekEnd });
   // Indices past the loaded rows (a page the auto-scroll is still loading) select nothing.
   const loadedRows = rows ?? [];
 
@@ -63,21 +75,43 @@ export default function useDragSelect({
       anchorIndexRef.current = index;
       currentIndexRef.current = index;
       intentRef.current = !baseSelectedRef.current.includes(loadedRows[index].id);
-      applyRange(index);
-      haptics.selection();
-      startAutoScroll();
+      liftPointRef.current = { x, y };
+      isSelectingRef.current = false;
+      if (peek.canPeek) peek.schedule(loadedRows[index]);
+      else startSelecting();
     },
     onMove(x, y) {
+      if (anchorIndexRef.current === -1) return;
+      if (!isSelectingRef.current) {
+        if (!isPastTapSlop(liftPointRef.current, x, y)) return;
+        startSelecting();
+      }
       const index = indexAtContent(contentPoint(x, y), loadedRows.length);
       if (index === -1 || index === currentIndexRef.current) return;
       currentIndexRef.current = index;
       applyRange(index);
     },
-    onRelease() {
+    onRelease({ canceled }) {
+      const wasPeeking = peek.isPeeking();
+      peek.end();
+      if (!canceled && anchorIndexRef.current !== -1 && !isSelectingRef.current && !wasPeeking) selectAnchor();
       anchorIndexRef.current = -1;
       currentIndexRef.current = -1;
     },
   });
+
+  // Selects the anchor and from then on the range to the finger, scrolling near an edge.
+  function startSelecting() {
+    peek.end();
+    isSelectingRef.current = true;
+    selectAnchor();
+    startAutoScroll();
+  }
+
+  function selectAnchor() {
+    applyRange(anchorIndexRef.current);
+    haptics.selection();
+  }
 
   function applyRange(currentIndex) {
     const anchor = anchorIndexRef.current;

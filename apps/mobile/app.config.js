@@ -8,8 +8,10 @@ const baseConfig = {
     version: '0.0.1',
     // Bump whenever native modules change, so an OTA bundle is never delivered to a binary that
     // lacks a module it needs.
-    runtimeVersion: '1.0.0',
+    runtimeVersion: '1.1.0',
     orientation: 'portrait',
+    // Deep links (squidbox://post/…) open the screen at that URL (Expo Router).
+    scheme: 'squidbox',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
     splash: {
@@ -43,6 +45,7 @@ const baseConfig = {
       },
     },
     plugins: [
+      'expo-router',
       'expo-secure-store',
       'expo-sqlite',
       [
@@ -66,6 +69,8 @@ const baseConfig = {
 if (process.env.EAS_BUILD_PROFILE === 'development') {
   baseConfig.expo.name = 'Squidbox (Dev)';
   baseConfig.expo.icon = './assets/icon-dev.png';
+  // Its own scheme, so a squidbox:// link opens the release app when both are installed.
+  baseConfig.expo.scheme = 'squidbox-dev';
   baseConfig.expo.ios = {
     ...baseConfig.expo.ios,
     bundleIdentifier: 'com.schneikai.squidbox.dev',

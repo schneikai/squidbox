@@ -6,11 +6,11 @@ A React Native app for managing photos and videos in the cloud. Like Apple Photo
 
 npm workspaces. `npm install` runs once at the repo root.
 
-| Package | What it is |
-|---|---|
-| `apps/mobile` | Expo React Native app (SDK 58). Run app commands (`scripts/check-env.sh`, `npm run web:preview`) from here; the `.env.local` / `.secrets` files live here too. |
-| `apps/server` | Backend: Fastify + TypeScript + Drizzle + Postgres, with AWS S3 for file storage. Runs locally against Docker (Postgres + MinIO), see [Dev client](#dev-client). |
-| `packages/shared` | Zod wire contracts + sync collection descriptors shared by app and server. |
+| Package           | What it is                                                                                                                                                       |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/mobile`     | Expo React Native app (SDK 58). Run app commands (`scripts/check-env.sh`, `npm run web:preview`) from here; the `.env.local` / `.secrets` files live here too.   |
+| `apps/server`     | Backend: Fastify + TypeScript + Drizzle + Postgres, with AWS S3 for file storage. Runs locally against Docker (Postgres + MinIO), see [Dev client](#dev-client). |
+| `packages/shared` | Zod wire contracts + sync collection descriptors shared by app and server.                                                                                       |
 
 The backend lives in `apps/server` and runs on **Fly.io** (app `squidbox-server`, region `lhr`) with **Neon Postgres** + **AWS S3** (eu-west-1). API base: `https://squidbox-server.fly.dev/api/v1`.
 
@@ -40,11 +40,11 @@ The session is bound to the server's identity (`SERVER_ID`) and to the user, so 
 
 Common operations are driven by skills rather than memorized commands:
 
-| Skill | What it does |
-|---|---|
-| `/deploy-server` | Deploy the backend (Fly.io + Neon): build, migrate, release. |
-| `/ios-build` | Build the iOS app from the cloud (no Mac) via EAS. Asks whether to build the **App** (preview/release) or the **Dev Client**, then runs `eas` itself — no flags or profiles to remember. |
-| `/build` | Deliver a feature, bug fix or refactor end to end: plan, build, review and a PR. |
+| Skill            | What it does                                                                                                                                                                             |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/deploy-server` | Deploy the backend (Fly.io + Neon): build, migrate, release.                                                                                                                             |
+| `/ios-build`     | Build the iOS app from the cloud (no Mac) via EAS. Asks whether to build the **App** (preview/release) or the **Dev Client**, then runs `eas` itself — no flags or profiles to remember. |
+| `/build`         | Deliver a feature, bug fix or refactor end to end: plan, build, review and a PR.                                                                                                         |
 
 The sync engine is described in `docs/sync-design.md`. Open work and ideas are in `todo.md`.
 
@@ -52,10 +52,10 @@ The sync engine is described in `docs/sync-design.md`. Open work and ideas are i
 
 Two gitignored env files in `apps/mobile/`, each for a different audience:
 
-| File | Read by | Purpose |
-|---|---|---|
+| File         | Read by           | Purpose                                                                                                                                                                                         |
+| ------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `.env.local` | Metro, at runtime | Supplies `EXPO_PUBLIC_*` to the **dev client** over the tunnel. Copy from `.env.local.example`, or let `npm run dev:local` (or `scripts/check-env.sh`) write it from the environment variables. |
-| `.secrets` | you, once | Upload bundle to push **preview/release** secrets to EAS. Not read at runtime. |
+| `.secrets`   | you, once         | Upload bundle to push **preview/release** secrets to EAS. Not read at runtime.                                                                                                                  |
 
 `.env.local` holds `EXPO_PUBLIC_API_URL`, optional login prefill and Sentry debug. Each variable is explained in `.env.local.example`.
 
@@ -69,15 +69,15 @@ On a fresh checkout, runtime secrets are already in EAS. Restore the rest from y
 
 Run `/ios-build`: it asks what to build and drives EAS for you (no flags or profiles to type). The two build types install as **separate apps** (different bundle IDs), so both can coexist on the phone:
 
-| | Dev client | Preview / release build |
-|---|---|---|
-| Profile | `development` | `preview` / `production` |
-| Bundle ID | `com.schneikai.squidbox.dev` | `com.schneikai.squidbox` |
-| App name | Squidbox (Dev) | Squidbox |
-| Icon | dark, with a yellow DEV band (`assets/icon-dev.png`) | the regular icon |
-| JS bundle | served by Metro over a tunnel (hot reload); reads `EXPO_PUBLIC_*` from `apps/mobile/.env.local` | baked in at build time from EAS secrets |
-| Use for | fast iteration | testing / shipping a stable snapshot |
-| Test-build UI (Settings → Assistant → Testing) | yes | `preview` yes, `production` no |
+|                                                | Dev client                                                                                      | Preview / release build                 |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------- |
+| Profile                                        | `development`                                                                                   | `preview` / `production`                |
+| Bundle ID                                      | `com.schneikai.squidbox.dev`                                                                    | `com.schneikai.squidbox`                |
+| App name                                       | Squidbox (Dev)                                                                                  | Squidbox                                |
+| Icon                                           | dark, with a yellow DEV band (`assets/icon-dev.png`)                                            | the regular icon                        |
+| JS bundle                                      | served by Metro over a tunnel (hot reload); reads `EXPO_PUBLIC_*` from `apps/mobile/.env.local` | baked in at build time from EAS secrets |
+| Use for                                        | fast iteration                                                                                  | testing / shipping a stable snapshot    |
+| Test-build UI (Settings → Assistant → Testing) | yes                                                                                             | `preview` yes, `production` no          |
 
 The bundle ID is chosen in `app.config.js` from `EAS_BUILD_PROFILE`, which is why the two don't overwrite each other. The same variable sets `extra.buildProfile` (unset for a build made without EAS); `src/utils/isTestBuild.js` shows the test-only UI under Metro (a development bundle) and in the `development` and `preview` builds only. Builds are distributed via [Internal Distribution](https://docs.expo.dev/build/internal-distribution/) (no App Store). Installing, credentials (an App Store Connect API key, no Mac), signing renewal and the full runbook are in the `ios-build` skill.
 
@@ -121,7 +121,7 @@ The web build is a preview, not a target. Platform files (`*.web.js`) stand in f
 
 ## Verifying a model
 
-Before offering a Venice model as one of the assistant's models, verify it. An ai_admin account verifies from the app: Settings → Assistant → Writing or Vision → a model → Verify, reads every conversation on the Verify page, and sets the model's labels (Verified, Uncensored, Default, Uncensored default) on the model's page. Default and Uncensored default are the admin's own picks until Apply changes for everyone at the end of the model list gives them to every account. The same Verify runs from `apps/server/` with `npm run verify:models -- deepseek-v4-1-flash-uncensored kimi-k3` (`--kind vision` for the vision Verify, `--scenario <id>` for one writing conversation, `--out <file.md>` for the report's path), against Venice directly with `VENICE_API_KEY` (no database, no backend, the built-in instructions).
+Before offering a Venice model as one of the assistant's models, verify it. An ai_admin account verifies from the app: Settings → Assistant → Writing model or Vision model → a model → Verify, reads every conversation on the Verify page, and sets the model's labels (Verified, Uncensored, Default, Uncensored default) on the model's page. Default and Uncensored default are the admin's own picks until Apply changes for everyone at the end of the model list gives them to every account. The same Verify runs from `apps/server/` with `npm run verify:models -- deepseek-v4-1-flash-uncensored kimi-k3` (`--kind vision` for the vision Verify, `--scenario <id>` for one writing conversation, `--out <file.md>` for the report's path), against Venice directly with `VENICE_API_KEY` (no database, no backend, the built-in instructions).
 
 - **Writing**: fixed conversations run through the server's own chat code and briefing, as the mock account's creator. It checks what code can: talk before posts, the counts asked for, shorter when asked, bios in the text, "this" meaning the caption, the persona's rules, none of his posts copied, exact handles, asking instead of inventing. Then the judge (`VERIFY_JUDGE_MODEL_ID` in `packages/shared/contracts/ai.ts`) judges each turn: did the reply answer the request and hold the conversation (its prompt is the Verify judge in Instructions).
 - **Vision**: four fixed photos (`apps/server/src/ai/verifyPhotos/`) tagged with the Photo tags briefing; it checks only that valid tags come back (JSON, within the limits, no refusal). What they say is judged in Compare.
@@ -142,7 +142,7 @@ Sentry handles error tracking. Configure it for your own account:
 
 - `app.config.js`: specify organization and project in the Sentry Plugin section
 - `SENTRY_AUTH_TOKEN`: a secret stored in EAS (see [Environment & secrets](#environment--secrets))
-- `App.js`: set the DSN in the `Sentry.init` call
+- `apps/mobile/src/app/_layout.jsx`: set the DSN in the `Sentry.init` call
 
 ## Caveats
 

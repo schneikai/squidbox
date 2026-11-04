@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { router } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import ThreadPost from './ThreadPost';
@@ -6,6 +6,7 @@ import ThreadPost from './ThreadPost';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import ThreadConnector from '@/components/ThreadConnector';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
+import assetHref from '@/features/asset-list/assetHref';
 import WriteWithAi from '@/features/post-chat/WriteWithAi';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
 import PostRows from '@/features/post-list/PostRows';
@@ -21,14 +22,13 @@ const OTHER_POSTS_LIMIT = 30;
  * `threadPosts`).
  */
 export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom = 0 }) {
-  const navigation = useNavigation();
   const sessionId = useSubjectChat({ kind: 'post', text: post.text, postAssets: post.postAssets });
 
   const assetIds = [post, ...post.threadPosts].flatMap((p) => p.postAssets.map((postAsset) => postAsset.asset.id));
 
   // Pushed, so back returns to the post. A picture opens with the others of its own post.
   function openAsset(postId, asset) {
-    navigation.push('AssetScreen', { assetId: asset.id, query: { scope: { postId } } });
+    router.push(assetHref(asset.id, { scope: { postId } }));
   }
 
   return (
@@ -44,7 +44,7 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
         </View>
       ))}
 
-      <WriteWithAi sessionId={sessionId} onOpenChat={(params) => navigation.navigate('PostChat', params)} />
+      <WriteWithAi sessionId={sessionId} />
 
       <View style={styles.related}>
         <ScreenSectionHeader title="Posted Albums" isFlush />

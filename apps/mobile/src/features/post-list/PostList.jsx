@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { router } from 'expo-router';
 import { StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -23,7 +23,6 @@ export default function PostList({
   contentContainerStyle,
   onScroll,
 }) {
-  const navigation = useNavigation();
   const data = FirstListEntryComponent ? [FIRST_ENTRY, ...(rows ?? [])] : rows;
   // More is asked for only once the first page landed: until then the list is just the first entry,
   // and a load-more asked then would read a second page at once.
@@ -39,7 +38,7 @@ export default function PostList({
         post === FIRST_ENTRY ? (
           FirstListEntryComponent
         ) : (
-          <SuperPressable onPress={() => navigation.navigate('PostScreen', { postId: post.id })} style={styles.post}>
+          <SuperPressable onPress={() => router.navigate(`/post/${post.id}`)} style={styles.post}>
             <PostListItem post={post} actions={renderPostActions?.(post)} />
           </SuperPressable>
         )

@@ -1,5 +1,5 @@
-import { useNavigation } from '@react-navigation/native';
 import { aiModelKindSchema } from '@squidbox/shared';
+import { router, useNavigation } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
 import personaSummary from './personaSummary';
@@ -46,7 +46,7 @@ export default function AssistantScreen() {
             leading={<AssistantMark />}
             label="Writing as you"
             description={persona === undefined ? null : personaSummary(persona)}
-            onPress={() => navigation.navigate('VoiceScreen')}
+            onPress={() => router.navigate('/settings/assistant/voice')}
             hasChevron
           />
         </Section>
@@ -55,14 +55,14 @@ export default function AssistantScreen() {
             leading={<Icon name="prompt-buttons" color={colors.text.secondary} />}
             label="Prompt buttons"
             value={promptButtonCount === undefined ? null : String(promptButtonCount)}
-            onPress={() => navigation.navigate('PromptButtonsScreen')}
+            onPress={() => router.navigate('/settings/assistant/prompt-buttons')}
             hasChevron
           />
           <Row
             leading={<Icon name="list-checks" color={colors.text.secondary} />}
             label="Rules"
             value={persona === undefined ? null : String(persona?.rules.length ?? 0)}
-            onPress={() => navigation.navigate('RulesScreen')}
+            onPress={() => router.navigate('/settings/assistant/rules')}
             hasChevron
           />
         </Section>
@@ -80,7 +80,6 @@ export default function AssistantScreen() {
 // while this account's picks differ from the published defaults, then `children` (Instructions),
 // and the Venice balance.
 function AdminSection({ children }) {
-  const navigation = useNavigation();
   const { changedKinds } = useYourDefaults();
 
   return (
@@ -91,7 +90,7 @@ function AdminSection({ children }) {
           <Row
             key={kind}
             label={modelKindText[kind].title}
-            onPress={() => navigation.navigate('ModelListScreen', { kind })}
+            onPress={() => router.navigate(`/settings/assistant/models/${kind}`)}
             hasChevron
           >
             {changedKinds?.includes(kind) && <ChangedBadge />}
@@ -106,11 +105,10 @@ function AdminSection({ children }) {
 
 // Instructions, Changed while the user's own text of any kind differs from the app's.
 function InstructionsRow() {
-  const navigation = useNavigation();
   const { changedKinds } = useInstructions();
 
   return (
-    <Row label="Instructions" onPress={() => navigation.navigate('InstructionsScreen')} hasChevron>
+    <Row label="Instructions" onPress={() => router.navigate('/settings/assistant/instructions')} hasChevron>
       {changedKinds?.length > 0 && <ChangedBadge />}
     </Row>
   );

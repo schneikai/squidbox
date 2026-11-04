@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
 import ModelLabelsSection from './ModelLabelsSection';
@@ -28,8 +28,8 @@ import confirmAsync from '@/utils/confirmAsync';
  * Reset score and Remove (which hides it, its note and score kept for when it's added again). A model Venice no longer offers keeps its page, to read its Verify and
  * remove it.
  */
-export default function ModelScreen({ route }) {
-  const { kind, modelId, name } = route.params;
+export default function ModelScreen() {
+  const { kind, modelId, name } = useLocalSearchParams();
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const yourModels = useYourModels(kind);

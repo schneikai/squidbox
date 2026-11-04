@@ -160,6 +160,8 @@ export default function SortableGrid({
     selectedIdsRef,
     onSelect,
     locksSwipeBack: dragSelectLocksSwipeBack,
+    onPeek,
+    onPeekEnd,
   });
 
   const dragReorder = useDragReorder({

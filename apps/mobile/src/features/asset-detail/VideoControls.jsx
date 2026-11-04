@@ -1,5 +1,5 @@
-import { useIsFocused } from '@react-navigation/native';
 import { useEvent, useEventListener } from 'expo';
+import { useIsFocused } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { Easing, useSharedValue, withTiming } from 'react-native-reanimated';

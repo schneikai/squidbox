@@ -21,7 +21,7 @@ import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
 // so an edit can save only what changed; a save that throws says so and keeps the editor open. × or a
 // swipe down with changes asks first. `kind` is also what each card's assistant chat is about
 // (chatSubjectKindSchema: 'draft' a new post, 'edit' a saved one).
-export default function PostEditor({ kind, post, navigation, onSave }) {
+export default function PostEditor({ kind, post, onSave }) {
   const nextKey = useRef(0);
   const newKey = () => `card-${nextKey.current++}`;
   const [cards, setCards] = useState(() => seedCards(post).map((card) => ({ ...card, key: newKey() })));
@@ -85,7 +85,6 @@ export default function PostEditor({ kind, post, navigation, onSave }) {
               onActivate={setActiveKey}
               onRemove={index > 0 ? removeCard : undefined}
               onAddToThread={index === cards.length - 1 ? addToThread : undefined}
-              navigation={navigation}
             />
           </View>
         ))}

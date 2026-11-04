@@ -1,10 +1,8 @@
 import { PERSONA_LIMITS } from '@squidbox/shared';
 import { memo } from 'react';
-import { StyleSheet, View } from 'react-native';
 
-import Button from '@/components/Button';
+import AddRow from '@/components/settings-list/AddRow';
 import { Row, Section } from '@/components/settings-list/SettingsList';
-import { SCREEN_PADDING } from '@/constants';
 
 /**
  * Rules: one row each, a tap opens it (`onOpen(index)`), and "Add a rule" (`onAdd`) while there is
@@ -19,21 +17,9 @@ function RulesField({ rules, onOpen, onAdd }) {
         // Keyed by index: two rules can be the same.
         <Row key={index} label={rule} onPress={() => onOpen(index)} hasChevron />
       ))}
-      {canAdd && (
-        <View style={styles.add}>
-          <Button icon="add" label="Add a rule" onPress={onAdd} />
-        </View>
-      )}
+      {canAdd && <AddRow label="Add a rule" onPress={onAdd} />}
     </Section>
   );
 }
 
 export default memo(RulesField);
-
-const styles = StyleSheet.create({
-  // The button's own inset is wider than the rows', so its icon lines up with their text.
-  add: {
-    alignItems: 'flex-start',
-    marginLeft: SCREEN_PADDING - 24,
-  },
-});

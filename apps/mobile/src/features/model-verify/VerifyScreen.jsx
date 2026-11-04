@@ -1,3 +1,4 @@
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
 import VerifyConversationsSection from './VerifyConversationsSection';
@@ -23,8 +24,9 @@ import findCatalogModel from '@/utils/ai/findCatalogModel';
  * conversations (writing) or its photos (vision), and Verify again once it's no longer running. A
  * haptic marks the run finishing while the page is open.
  */
-export default function VerifyScreen({ navigation, route }) {
-  const { kind, modelId, name } = route.params;
+export default function VerifyScreen() {
+  const navigation = useNavigation();
+  const { kind, modelId, name } = useLocalSearchParams();
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const haptics = useHaptics();
   const { models } = useAiCatalog();

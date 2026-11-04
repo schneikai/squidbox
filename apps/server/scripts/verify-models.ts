@@ -1,6 +1,6 @@
 /**
  * Verifies Venice models for one kind, on demand, as an ai_admin does from the app (Settings →
- * Assistant → Writing or Vision → the model → Verify): for writing src/ai/chatVerify.ts (fixed
+ * Assistant → Writing model or Vision model → the model → Verify): for writing src/ai/chatVerify.ts (fixed
  * conversations, code checks and a judge question per turn), for vision src/ai/tagVerify.ts (four
  * fixed photos, valid tags). Writes every turn to a
  * Markdown report, with per-model pass counts and seconds per turn, for a human to read the replies.

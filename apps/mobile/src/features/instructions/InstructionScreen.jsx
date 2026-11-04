@@ -1,4 +1,5 @@
 import { INSTRUCTION_LIMITS } from '@squidbox/shared';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useState } from 'react';
 
 import instructionText from './instructionText';
@@ -24,8 +25,9 @@ import publishInstructionAsync from '@/utils/cloud-api/ai/publishInstructionAsyn
 // Reset changes, which puts the default back in the draft (× undoes it, so no confirm). Until the
 // user types, the draft is the stored text, and the app's default as it changes. It waits for
 // the app's defaults (they come with the catalog). A root screen, one per kind.
-export default function InstructionScreen({ route, navigation }) {
-  const { kind } = route.params;
+export default function InstructionScreen() {
+  const navigation = useNavigation();
+  const { kind } = useLocalSearchParams();
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const { library } = useLibrary();
   const userId = library.owner.userId;

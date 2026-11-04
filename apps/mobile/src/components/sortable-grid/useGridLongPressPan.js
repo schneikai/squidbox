@@ -60,8 +60,9 @@ export default function useGridLongPressPan({
     handlers.current.onMove(x, y);
   }
 
+  // Only while the finger is down: a release that selects (useDragSelect) must not restart it.
   function startAutoScroll() {
-    if (!timerRef.current) timerRef.current = setInterval(tick, SCROLL_TICK_MS);
+    if (liftedRef.current && !timerRef.current) timerRef.current = setInterval(tick, SCROLL_TICK_MS);
   }
 
   const config = useMemo(
@@ -80,12 +81,12 @@ export default function useGridLongPressPan({
         handlers.current.onMove(e.x, e.y);
       },
       // Also runs for touches that never lifted (a tap), which have nothing to release.
-      onFinalize: () => {
+      onFinalize: (e) => {
         clearInterval(timerRef.current);
         timerRef.current = null;
         if (!liftedRef.current) return;
         liftedRef.current = false;
-        handlers.current.onRelease();
+        handlers.current.onRelease({ canceled: e.canceled });
       },
     }),
     [enabled, waitsFor, holdMs],

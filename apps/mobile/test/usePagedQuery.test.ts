@@ -12,7 +12,7 @@ import {
   type PagedQuery,
 } from '../src/sync/usePagedQuery';
 
-// The live hook needs the app database and React Navigation, which don't load in node; it is
+// The live hook needs the app database and Expo Router, which don't load in node; it is
 // replaced by what it would return. A server render is enough to see what the hook passes and returns.
 const liveQuery = vi.hoisted(() => vi.fn());
 vi.mock('../src/sync/useLiveQuery', () => ({ useLiveQueryState: liveQuery }));

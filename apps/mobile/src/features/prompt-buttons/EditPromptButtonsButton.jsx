@@ -1,15 +1,17 @@
-import { useNavigation } from '@react-navigation/native';
+import { router } from 'expo-router';
 
 import Button from '@/components/Button';
 
-/** The small pen beside a row of prompt buttons: opens Settings → Assistant → Prompt buttons. */
+/**
+ * The small pen beside the chat's row of prompt buttons: opens the list of prompt buttons (Settings →
+ * Assistant → Prompt buttons), pushed inside the chat's sheet.
+ */
 export default function EditPromptButtonsButton() {
-  const navigation = useNavigation();
   return (
     <Button
       icon="edit"
       size="small"
-      onPress={() => navigation.navigate('PromptButtonsScreen')}
+      onPress={() => router.navigate('/prompt-buttons')}
       accessibilityLabel="Edit prompt buttons"
     />
   );

@@ -6,7 +6,7 @@ const LABELS_FOOTNOTE = 'Default and Uncensored default are only for you until y
 // What each kind of model is called and does, as its screens say it.
 const modelKindText = {
   writing: {
-    title: 'Writing',
+    title: 'Writing model',
     intro: 'Writes the captions and replies.',
     footer: 'Thumbs up from Compare add up here.',
     labelsFootnote: LABELS_FOOTNOTE,
@@ -14,7 +14,7 @@ const modelKindText = {
     pickIntro: 'Pick 2 or more models. Each one writes posts for the same prompt.',
   },
   vision: {
-    title: 'Vision',
+    title: 'Vision model',
     intro: 'Tags your photos and videos.',
     footer: 'Every tag you tap as fitting in Compare adds a thumbs up.',
     labelsFootnote: LABELS_FOOTNOTE,

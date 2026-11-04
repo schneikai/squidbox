@@ -1,8 +1,9 @@
-import { StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, interpolate, Extrapolation, useSharedValue } from 'react-native-reanimated';
+import { StyleSheet, View } from 'react-native';
 
 import FloatingPill from '@/components/floating-bars/FloatingPill';
-import { colors, layout, sizes, typography } from '@/styles/designTokens';
+import ToolbarTitle from '@/components/floating-bars/ToolbarTitle';
+import useTitleMaxWidth from '@/components/floating-bars/useTitleMaxWidth';
+import { layout, sizes } from '@/styles/designTokens';
 
 /**
  * Unified floating header for modal screens — matches the floating-bar visual language.
@@ -14,69 +15,47 @@ import { colors, layout, sizes, typography } from '@/styles/designTokens';
  * Layout:
  *   [ FloatingPill: leading ]   [ centerTitle ]   [ FloatingPill: trailing ]
  *
- * Both side slots are automatically wrapped in FloatingPill (frosted glass).
- * The center title is absolutely positioned to stay truly centred and fades out
- * as the user scrolls (pass a reanimated SharedValue for this behaviour).
+ * Both side slots are automatically wrapped in FloatingPill (frosted glass). A string title sits
+ * in a ToolbarTitle pill like a pushed screen's (FloatingDetailHeader), centred on the screen and
+ * kept clear of the wider side pill.
  *
  * Props:
  *   leading     ReactElement  — typically a close Button (icon="close")
  *   trailing    ReactElement  — e.g. icon buttons; auto-wrapped in FloatingPill
  *   title       string | ReactElement
  *   subtitle    string (optional) — a smaller grey line under a string title
- *   subtitleSize 'regular' (default) | 'small', for a subtitle that may be long (a model's name)
- *   scrollY     Reanimated SharedValue<number> (optional) — drives title fade-out on scroll
  */
 
 export const MODAL_HEADER_HEIGHT = sizes.iconButton + layout.barBottom * 2 + 8;
 
-export default function ModalHeader({ leading, trailing, title, subtitle, subtitleSize = 'regular', scrollY }) {
-  // Stable fallback so animated style always has a value to read
-  const fallback = useSharedValue(0);
-  const anim = scrollY ?? fallback;
-
-  const titleStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(anim.value, [0, 40], [1, 0], Extrapolation.CLAMP),
-  }));
+export default function ModalHeader({ leading, trailing, title, subtitle }) {
+  const { maxWidth, onRowLayout, onLeftLayout, onRightLayout } = useTitleMaxWidth();
 
   const center =
     typeof title === 'string' ? (
-      <Animated.View style={[styles.centerTitles, titleStyle]}>
-        <Text style={styles.centerTitle} numberOfLines={1}>
-          {title}
-        </Text>
-        {!!subtitle && (
-          <Text
-            style={[styles.centerSubtitle, subtitleSize === 'small' && styles.centerSubtitleSmall]}
-            numberOfLines={1}
-          >
-            {subtitle}
-          </Text>
-        )}
-      </Animated.View>
+      <ToolbarTitle title={title} subtitle={subtitle} style={maxWidth !== undefined && { maxWidth }} />
     ) : (
       (title ?? null)
     );
 
   return (
     <View style={styles.container} pointerEvents="box-none">
-      {/* Left slot — wrapped in FloatingPill */}
-      {leading != null && (
-        <View style={styles.side} pointerEvents="box-none">
-          <FloatingPill>{leading}</FloatingPill>
+      <View style={styles.row} pointerEvents="box-none" onLayout={onRowLayout}>
+        {/* Center — absolutely positioned so it stays centred on the screen; below the pills. A string
+            title is only a label, so touches pass through it to the list. */}
+        <View style={styles.center} pointerEvents={typeof title === 'string' ? 'none' : 'box-none'}>
+          {center}
         </View>
-      )}
 
-      {/* Center — absolutely positioned so it doesn't affect side layout */}
-      <View style={styles.centerAbsolute} pointerEvents="box-none">
-        {center}
+        {/* Both sides always render, so a slot that goes away measures 0 and frees the title. */}
+        <View style={styles.side} pointerEvents="box-none" onLayout={onLeftLayout}>
+          {leading != null && <FloatingPill>{leading}</FloatingPill>}
+        </View>
+
+        <View style={[styles.side, styles.sideRight]} pointerEvents="box-none" onLayout={onRightLayout}>
+          {!!trailing && <FloatingPill>{trailing}</FloatingPill>}
+        </View>
       </View>
-
-      {/* Right slot — wrapped in FloatingPill */}
-      {trailing != null && (
-        <View style={[styles.side, styles.sideRight]} pointerEvents="box-none">
-          <FloatingPill>{trailing}</FloatingPill>
-        </View>
-      )}
     </View>
   );
 }
@@ -87,39 +66,25 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: layout.sideGutter,
     paddingVertical: layout.barBottom,
     zIndex: 100,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   side: {
     flexDirection: 'row',
     alignItems: 'center',
     flexShrink: 0,
   },
-  sideRight: {
-    marginLeft: 'auto',
-  },
-  centerAbsolute: {
+  center: {
     ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: sizes.iconButton + layout.sideGutter,
   },
-  centerTitles: {
-    alignItems: 'center',
-  },
-  centerTitle: {
-    fontSize: typography.body,
-    fontWeight: '600',
-    color: colors.text.primary,
-  },
-  centerSubtitle: {
-    fontSize: typography.footnote,
-    color: colors.text.secondary,
-  },
-  centerSubtitleSmall: {
-    fontSize: typography.caption2,
+  sideRight: {
+    marginLeft: 'auto',
   },
 });

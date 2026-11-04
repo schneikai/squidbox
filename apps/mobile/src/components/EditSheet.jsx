@@ -1,5 +1,4 @@
-import { useNavigation, useNavigationState, useRoute } from '@react-navigation/native';
-import { StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -9,7 +8,7 @@ import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import { SCREEN_PADDING } from '@/constants';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
-import useScrollY from '@/hooks/useScrollY';
+import useSheetRoute from '@/hooks/useSheetRoute';
 
 /**
  * The sheet that edits one item as a draft (hooks/useEditSheet gives its props): × on the leading
@@ -31,9 +30,8 @@ export default function EditSheet({
   isFilling = false,
   children,
 }) {
-  const { scrollY, onScroll } = useScrollY();
   const { bottom } = useSafeAreaInsets();
-  const isSheetRoute = useIsSheetRoute();
+  const isSheetRoute = useSheetRoute()?.isFirstScreen ?? true;
 
   const sheetActions = actions.map((action) => ({ ...action, disabled: action.disabled || isSaving }));
   const header = (
@@ -47,7 +45,6 @@ export default function EditSheet({
         />
       }
       title={title}
-      scrollY={scrollY}
       trailing={
         <Button
           variant="primary"
@@ -75,16 +72,14 @@ export default function EditSheet({
   return (
     <ModalSheet>
       {header}
-      <Animated.ScrollView
+      <ScrollView
         automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
-        onScroll={onScroll}
-        scrollEventThrottle={16}
         contentContainerStyle={[styles.content, { paddingBottom: bottom + SCREEN_PADDING }]}
       >
         {children}
         <ActionButtons actions={sheetActions} isScreenEnd />
-      </Animated.ScrollView>
+      </ScrollView>
     </ModalSheet>
   );
 }
@@ -97,17 +92,6 @@ function FillingBody({ children }) {
     paddingBottom: Math.max(bottom + SCREEN_PADDING, keyboardInset.value),
   }));
   return <Animated.View style={[styles.filling, fillingStyle]}>{children}</Animated.View>;
-}
-
-// Whether this screen is a sheet's own screen rather than a step pushed inside a sheet: a route of
-// the root stack (an editor presented as a modal), or the first route of its stack (the post editor,
-// first in its sheet's stack). Anything else is pushed inside a sheet (an editor opened from the
-// post editor's chat, an album's notes inside the New post sheet), and leads with Back.
-function useIsSheetRoute() {
-  const navigation = useNavigation();
-  const route = useRoute();
-  const firstRouteKey = useNavigationState((state) => state.routes[0]?.key);
-  return navigation.getParent() == null || firstRouteKey === route.key;
 }
 
 const styles = StyleSheet.create({

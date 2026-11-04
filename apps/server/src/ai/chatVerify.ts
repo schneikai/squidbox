@@ -1,4 +1,4 @@
-// The writing Verify of a model (Settings → Assistant → Writing → the model → Verify for an
+// The writing Verify of a model (Settings → Assistant → Writing model → the model → Verify for an
 // ai_admin, or `npm run verify:models`): fixed scenarios run turn by turn through the server's own
 // chat code (chatMessages with the briefing, the chat task with its reply schema, the unreadable-reply
 // fallback and checkChatReply), briefed as the mock account's creator (mockPersona.ts) with his

@@ -31,7 +31,6 @@ export default function PostCard({
   onActivate,
   onRemove,
   onAddToThread,
-  navigation,
 }) {
   const { key, text, postAssets } = card;
   const setText = useCallback((value) => onChange(key, { text: value }), [onChange, key]);
@@ -81,13 +80,7 @@ export default function PostCard({
         onAddToThread={onAddToThread}
         onActivate={activate}
       />
-      {isActive && (
-        <WriteWithAi
-          sessionId={sessionId}
-          onOpenChat={(params) => navigation.navigate('PostChatScreen', params)}
-          style={styles.writeWithAi}
-        />
-      )}
+      {isActive && <WriteWithAi sessionId={sessionId} style={styles.writeWithAi} />}
     </Card>
   );
 }

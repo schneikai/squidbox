@@ -1,4 +1,5 @@
 import { PERSONA_LIMITS } from '@squidbox/shared';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useState } from 'react';
 import { Alert } from 'react-native';
 
@@ -13,10 +14,11 @@ import useLibrary from '@/library/useLibrary';
 import { getDb } from '@/sync/db/client';
 import { addRule, readPersona, removeRule, updateRule } from '@/sync/personaRepository';
 
-// One of the Rules, as a draft sheet: `{ index }` edits that rule (Save, or Delete), no
-// params adds one (Add).
-export default function RuleScreen({ route, navigation }) {
-  const index = route.params?.index;
+// One of the Rules, as a draft sheet: `rules/[index]` edits that rule (Save, or Delete), `rules/new`
+// adds one (Add).
+export default function RuleScreen() {
+  const params = useLocalSearchParams();
+  const index = params.index == null ? undefined : Number(params.index);
   const isAvailable = useLeaveWhenUnavailable();
   const { library } = useLibrary();
   const userId = library.owner.userId;
@@ -30,10 +32,11 @@ export default function RuleScreen({ route, navigation }) {
     'This rule was deleted.',
   );
   if (!isAvailable || !seed) return null;
-  return <RuleEditor index={index} userId={userId} seed={seed} navigation={navigation} />;
+  return <RuleEditor index={index} userId={userId} seed={seed} />;
 }
 
-function RuleEditor({ index, userId, seed, navigation }) {
+function RuleEditor({ index, userId, seed }) {
+  const navigation = useNavigation();
   const [text, setText] = useState(seed.text);
   const isNew = index == null;
   const { sheetProps, notice, finish } = useEditSheet({

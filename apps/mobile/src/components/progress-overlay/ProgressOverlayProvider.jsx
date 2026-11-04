@@ -45,8 +45,8 @@ export default function ProgressOverlayProvider({ children }) {
     <ProgressOverlayContext.Provider value={actions}>
       <ProgressOverlayStateContext.Provider value={state}>
         {children}
-        {/* Root host — covers the main app. Each modal route mounts its own host too (see
-            RootNavigator), because an in-tree overlay can't cover a native sheet from the root. */}
+        {/* Root host — covers the main app. Each sheet mounts its own host too (SheetRoute),
+            because an in-tree overlay can't cover a native sheet from the root. */}
         <ProgressOverlayHost />
       </ProgressOverlayStateContext.Provider>
     </ProgressOverlayContext.Provider>

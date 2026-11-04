@@ -1,3 +1,4 @@
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
@@ -12,6 +13,7 @@ import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-se
 import AssetPickerGrid from '@/features/asset-picker/AssetPickerGrid';
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';
 import useScrollY from '@/hooks/useScrollY';
+import listParam from '@/lib/listParam';
 import { getDb, schema } from '@/sync/db/client';
 import { readByIds } from '@/sync/readByIds';
 import getAlbumAssetScope from '@/utils/albums/getAlbumAssetScope';
@@ -21,9 +23,13 @@ const TABS = [
   { key: 'Albums', icon: 'library', label: 'Albums' },
 ];
 
-// The modal of useAssetPicker: pick assets from the library or from an album. The selection holds
+// The sheet of useAssetPicker (what to leave out: `exclude`, comma-separated ids, or an album's,
+// `excludeAlbumId`): pick assets from the library or from an album. The selection holds
 // across both, and Add hands the picked assets to the caller.
-export default function AssetPickerScreen({ route, navigation }) {
+export default function AssetPickerScreen() {
+  const navigation = useNavigation();
+  const params = useLocalSearchParams();
+  const exclude = params.excludeAlbumId ? { albumId: params.excludeAlbumId } : listParam(params.exclude);
   const { finishAssetPicking } = useAssetPicker();
   const selection = useToggleSelectAssetsAction();
   const [activeTab, setActiveTab] = useState('Library');
@@ -49,7 +55,7 @@ export default function AssetPickerScreen({ route, navigation }) {
   const isPickingAlbum = activeTab === 'Albums' && !album;
   const title = album?.name ?? activeTab;
 
-  // Each view starts at its top, so the header title shows again.
+  // Each view starts at its top, so drag-select reads the new list's offset.
   function showView(nextTab, nextAlbum) {
     setActiveTab(nextTab);
     setPickedAlbum(nextAlbum);
@@ -83,7 +89,6 @@ export default function AssetPickerScreen({ route, navigation }) {
           )
         }
         title={title}
-        scrollY={scrollY}
         trailing={
           <Button
             variant="primary"
@@ -107,7 +112,7 @@ export default function AssetPickerScreen({ route, navigation }) {
           // A new grid per album: its own search, sort and filter, and it starts at the top.
           key={album?.id ?? 'library'}
           scope={album ? getAlbumAssetScope(album) : 'library'}
-          exclude={route.params?.exclude}
+          exclude={exclude}
           selection={selection}
           onScroll={onScroll}
           scrollY={scrollY}
