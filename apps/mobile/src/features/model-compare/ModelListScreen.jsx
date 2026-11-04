@@ -9,7 +9,6 @@ import modelKindText from './modelKindText';
 import Button from '@/components/Button';
 import CatalogStatus from '@/components/CatalogStatus';
 import DetailScrollView from '@/components/DetailScrollView';
-import EmptyState from '@/components/EmptyState';
 import IntroText from '@/components/IntroText';
 import MenuButton from '@/components/MenuButton';
 import Page from '@/components/Page';
@@ -18,6 +17,7 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
+import AddRow from '@/components/settings-list/AddRow';
 import { Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useYourModels from '@/hooks/useYourModels';
@@ -66,7 +66,6 @@ export default function ModelListScreen() {
 
   function renderModels() {
     if (!rows) return <CatalogStatus error={error} retry={retry} />;
-    if (rows.length === 0) return <EmptyState icon="cpu" title="No models yet" subtitle="Add a model to compare." />;
     return (
       <>
         <Section>
@@ -84,6 +83,9 @@ export default function ModelListScreen() {
               onOpen={() => handleOpen(row)}
             />
           ))}
+          {catalog && (
+            <AddRow label="Add a model" onPress={() => router.navigate(`/settings/assistant/models/${kind}/add`)} />
+          )}
         </Section>
         <SectionFooter>{text.footer}</SectionFooter>
         {text.note && <SectionFooter>{text.note}</SectionFooter>}
@@ -117,19 +119,7 @@ export default function ModelListScreen() {
       />
       <DetailScrollView contentContainerStyle={{ paddingBottom }}>
         <IntroText style={styles.intro}>{text.intro}</IntroText>
-        <ScreenSectionHeader
-          title="Your models"
-          trailing={
-            catalog && (
-              <Button
-                label="Add"
-                icon="add"
-                size="small"
-                onPress={() => router.navigate(`/settings/assistant/models/${kind}/add`)}
-              />
-            )
-          }
-        />
+        <ScreenSectionHeader title="Your models" />
         {renderModels()}
       </DetailScrollView>
       <FloatingPrimaryAction>

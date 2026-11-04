@@ -1,4 +1,4 @@
-// The vision Verify of a model (Settings → Assistant → Vision → the model → Verify for an ai_admin,
+// The vision Verify of a model (Settings → Assistant → Vision model → the model → Verify for an ai_admin,
 // or `npm run verify:models -- --kind vision`): four fixed photos tagged through the server's own
 // path (visionMessages with the Photo tags briefing filled with the mock creator's themes,
 // photoTagsTask: fit, dedupe, throw when none fit). It checks only that valid tags come back; what

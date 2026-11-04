@@ -912,7 +912,7 @@ catalog (`clearInstructionsEqualTo`), so it doesn't shadow later publishes; a ki
 changed only while its override differs from the published text. The schema each reply is read with (`chat_reply`, the tags list) is the server's and never
 stored.
 
-**model_choices** (Settings → Assistant → Writing or Vision → a model: the Default and Uncensored
+**model_choices** (Settings → Assistant → Writing model or Vision model → a model: the Default and Uncensored
 default switches). An ai_admin's picks of the defaults, per kind and variant: `writingModel` and
 `visionModel` the Default (`regular`), `writingUncensoredModel` and `visionUncensoredModel` the
 Uncensored default (`unrestricted`, optional so a push from an older build keeps them), each
