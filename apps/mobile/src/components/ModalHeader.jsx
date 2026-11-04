@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import FloatingPill from '@/components/floating-bars/FloatingPill';
@@ -15,7 +16,8 @@ import { layout, sizes } from '@/styles/designTokens';
  *   [ FloatingPill: leading ]   [ centerTitle ]   [ FloatingPill: trailing ]
  *
  * Both side slots are automatically wrapped in FloatingPill (frosted glass). A string title sits
- * in a ToolbarTitle pill like a pushed screen's (FloatingDetailHeader), centred between the side pills.
+ * in a ToolbarTitle pill like a pushed screen's (FloatingDetailHeader), centred on the screen and kept clear of
+ * the wider side pill, like FloatingDetailHeader's.
  *
  * Props:
  *   leading     ReactElement  — typically a close Button (icon="close")
@@ -24,31 +26,52 @@ import { layout, sizes } from '@/styles/designTokens';
  *   subtitle    string (optional) — a smaller grey line under a string title
  */
 
+// The least room between the title and a side pill.
+const SIDE_GAP = 12;
+
 export const MODAL_HEADER_HEIGHT = sizes.iconButton + layout.barBottom * 2 + 8;
 
 export default function ModalHeader({ leading, trailing, title, subtitle }) {
-  const center = typeof title === 'string' ? <ToolbarTitle title={title} subtitle={subtitle} /> : (title ?? null);
+  const [width, setWidth] = useState(0);
+  const [leftWidth, setLeftWidth] = useState(0);
+  const [rightWidth, setRightWidth] = useState(0);
+  const titleMaxWidth = width ? Math.max(0, width - 2 * (Math.max(leftWidth, rightWidth) + SIDE_GAP)) : undefined;
+
+  const center =
+    typeof title === 'string' ? (
+      <ToolbarTitle
+        title={title}
+        subtitle={subtitle}
+        style={titleMaxWidth !== undefined && { maxWidth: titleMaxWidth }}
+      />
+    ) : (
+      (title ?? null)
+    );
 
   return (
     <View style={styles.container} pointerEvents="box-none">
-      {/* Left slot — wrapped in FloatingPill */}
-      {leading != null && (
-        <View style={styles.side} pointerEvents="box-none">
-          <FloatingPill>{leading}</FloatingPill>
+      <View style={styles.row} pointerEvents="box-none" onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+        {/* Center — absolutely positioned so it stays centred on the screen; below the pills */}
+        <View style={styles.center} pointerEvents="box-none">
+          {center}
         </View>
-      )}
 
-      {/* Center — between the side pills, an even gap to each */}
-      <View style={styles.center} pointerEvents="box-none">
-        {center}
+        {leading != null && (
+          <View style={styles.side} pointerEvents="box-none" onLayout={(e) => setLeftWidth(e.nativeEvent.layout.width)}>
+            <FloatingPill>{leading}</FloatingPill>
+          </View>
+        )}
+
+        {!!trailing && (
+          <View
+            style={[styles.side, styles.sideRight]}
+            pointerEvents="box-none"
+            onLayout={(e) => setRightWidth(e.nativeEvent.layout.width)}
+          >
+            <FloatingPill>{trailing}</FloatingPill>
+          </View>
+        )}
       </View>
-
-      {/* Right slot — wrapped in FloatingPill */}
-      {!!trailing && (
-        <View style={styles.side} pointerEvents="box-none">
-          <FloatingPill>{trailing}</FloatingPill>
-        </View>
-      )}
     </View>
   );
 }
@@ -59,11 +82,13 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: layout.sideGutter,
     paddingVertical: layout.barBottom,
     zIndex: 100,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   side: {
     flexDirection: 'row',
@@ -71,9 +96,11 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   center: {
-    flex: 1,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: layout.barPaddingX,
+  },
+  sideRight: {
+    marginLeft: 'auto',
   },
 });
