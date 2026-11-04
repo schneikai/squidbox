@@ -7,7 +7,6 @@ import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress
 import AlbumPicker from '@/features/album-list/AlbumPicker';
 import useAddAlbumAction from '@/features/album-list/actions/add-album-action/useAddAlbumAction';
 import useAlbums from '@/features/albums-context/useAlbums';
-import useScrollY from '@/hooks/useScrollY';
 import listParam from '@/lib/listParam';
 
 export default function AddToAlbumScreen() {
@@ -16,8 +15,6 @@ export default function AddToAlbumScreen() {
   const { addAssetsToAlbum } = useAlbums();
   const promptAddAlbum = useAddAlbumAction();
   const runWithProgress = useRunWithProgress();
-
-  const { scrollY, onScroll } = useScrollY();
 
   async function handleAddAssetsToAlbum(album) {
     // After a failure or a Cancel the screen stays, so the user can go on (what was added stays).
@@ -31,10 +28,9 @@ export default function AddToAlbumScreen() {
       <ModalHeader
         leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
         title="Add to Album"
-        scrollY={scrollY}
         trailing={<Button variant="primary" icon="add" onPress={promptAddAlbum} accessibilityLabel="New album" />}
       />
-      <AlbumPicker onPick={handleAddAssetsToAlbum} paddingTop={MODAL_HEADER_HEIGHT} onScroll={onScroll} />
+      <AlbumPicker onPick={handleAddAssetsToAlbum} paddingTop={MODAL_HEADER_HEIGHT} />
     </ModalSheet>
   );
 }

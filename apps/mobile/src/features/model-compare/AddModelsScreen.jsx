@@ -1,7 +1,6 @@
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { StyleSheet } from 'react-native';
-import Animated from 'react-native-reanimated';
+import { FlatList, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AddModelRow from './AddModelRow';
@@ -17,7 +16,6 @@ import SearchInput from '@/components/SearchInput';
 import { SCREEN_PADDING } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
-import useScrollY from '@/hooks/useScrollY';
 import useYourModels from '@/hooks/useYourModels';
 import { addYourModel, readRemovedModels } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
@@ -31,7 +29,6 @@ export default function AddModelsScreen() {
   const { kind } = useLocalSearchParams();
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const [searchText, setSearchText] = useState('');
-  const { scrollY, onScroll } = useScrollY();
   const { bottom } = useSafeAreaInsets();
   const haptics = useHaptics();
   const { catalog, defaults, yourDefaults, error, retry, rows } = useYourModels(kind);
@@ -78,9 +75,8 @@ export default function AddModelsScreen() {
       <ModalHeader
         leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
         title="Add models"
-        scrollY={scrollY}
       />
-      <Animated.FlatList
+      <FlatList
         data={models}
         keyExtractor={(model) => model.id}
         renderItem={renderItem}
@@ -98,8 +94,6 @@ export default function AddModelsScreen() {
         ListEmptyComponent={renderEmpty()}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        onScroll={onScroll}
-        scrollEventThrottle={16}
         contentContainerStyle={{ paddingTop: MODAL_HEADER_HEIGHT, paddingBottom: bottom + SCREEN_PADDING }}
       />
     </ModalSheet>

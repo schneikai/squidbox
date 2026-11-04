@@ -89,7 +89,6 @@ export default function AssetPickerScreen() {
           )
         }
         title={title}
-        scrollY={scrollY}
         trailing={
           <Button
             variant="primary"

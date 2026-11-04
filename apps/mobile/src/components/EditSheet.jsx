@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,7 +8,6 @@ import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import { SCREEN_PADDING } from '@/constants';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
-import useScrollY from '@/hooks/useScrollY';
 import useSheetRoute from '@/hooks/useSheetRoute';
 
 /**
@@ -31,7 +30,6 @@ export default function EditSheet({
   isFilling = false,
   children,
 }) {
-  const { scrollY, onScroll } = useScrollY();
   const { bottom } = useSafeAreaInsets();
   const isSheetRoute = useSheetRoute()?.isFirstScreen ?? true;
 
@@ -47,7 +45,6 @@ export default function EditSheet({
         />
       }
       title={title}
-      scrollY={scrollY}
       trailing={
         <Button
           variant="primary"
@@ -75,16 +72,14 @@ export default function EditSheet({
   return (
     <ModalSheet>
       {header}
-      <Animated.ScrollView
+      <ScrollView
         automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
-        onScroll={onScroll}
-        scrollEventThrottle={16}
         contentContainerStyle={[styles.content, { paddingBottom: bottom + SCREEN_PADDING }]}
       >
         {children}
         <ActionButtons actions={sheetActions} isScreenEnd />
-      </Animated.ScrollView>
+      </ScrollView>
     </ModalSheet>
   );
 }

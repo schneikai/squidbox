@@ -75,11 +75,7 @@ export default function CompareRound({ kind, models, savedPrompt, defaultPrompt,
 
   return (
     <ModalSheet>
-      <ModalHeader
-        leading={<Button icon="close" accessibilityLabel="Close" onPress={sheet.close} />}
-        title="Compare"
-        scrollY={scrollY}
-      />
+      <ModalHeader leading={<Button icon="close" accessibilityLabel="Close" onPress={sheet.close} />} title="Compare" />
       {/* A plain scroll view (at most VISION_COMPARE_MAX_PHOTOS rows): each photo row's offset in
           the content is its layout's y, which its sticky photo needs. */}
       <Animated.ScrollView

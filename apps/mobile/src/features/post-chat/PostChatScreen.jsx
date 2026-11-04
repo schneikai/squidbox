@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 import AssistantMessage from './AssistantMessage';
@@ -26,7 +26,6 @@ import useHaptics from '@/hooks/useHaptics';
 import useHasFeature from '@/hooks/useHasFeature';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
-import useScrollY from '@/hooks/useScrollY';
 import confirmAsync from '@/utils/confirmAsync';
 
 const ASK_ANYTHING = 'Ask anything';
@@ -54,7 +53,6 @@ export default function PostChatScreen() {
   const [isSystemMessageOpen, setIsSystemMessageOpen] = useState(false);
   const scrollRef = useRef(null);
   // The title fades as the messages scroll under the header, as on the other sheets (ModalHeader).
-  const { scrollY, onScroll } = useScrollY();
   const shouldScrollRef = useRef(false);
   const bottomInset = useKeyboardInset(8);
   const messages = chat?.messages;
@@ -109,7 +107,6 @@ export default function PostChatScreen() {
       <ChatHeader
         isAiAdmin={isAiAdmin}
         leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
-        scrollY={scrollY}
         trailing={
           isAiAdmin ? (
             // New chat is always there, so the ⋯ button never pops in with the first message.
@@ -124,10 +121,8 @@ export default function PostChatScreen() {
           )
         }
       />
-      <Animated.ScrollView
+      <ScrollView
         ref={scrollRef}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         onContentSizeChange={handleContentSizeChange}
@@ -157,7 +152,7 @@ export default function PostChatScreen() {
             />
           ),
         )}
-      </Animated.ScrollView>
+      </ScrollView>
       <Animated.View style={[styles.composer, composerStyle]}>
         <PromptButtonRow
           buttons={buttons ?? []}
@@ -194,14 +189,7 @@ function ChatHeader({ isAiAdmin, ...headerProps }) {
 
 function ModelNameHeader(headerProps) {
   const modelName = useWritingModelName();
-  return (
-    <ModalHeader
-      {...headerProps}
-      title="Assistant"
-      subtitle={modelName ?? WRITING_AS_YOU}
-      subtitleSize={modelName ? 'small' : 'regular'}
-    />
-  );
+  return <ModalHeader {...headerProps} title="Assistant" subtitle={modelName ?? WRITING_AS_YOU} />;
 }
 
 const styles = StyleSheet.create({

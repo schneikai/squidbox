@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
-import { Modal, View, Text as RNText, StyleSheet } from 'react-native';
-import Animated from 'react-native-reanimated';
+import { FlatList, Modal, View, Text as RNText, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Button from '@/components/Button';
@@ -9,7 +8,6 @@ import ModalSheet from '@/components/ModalSheet';
 import Text from '@/components/Text';
 import { Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
-import useScrollY from '@/hooks/useScrollY';
 import listTextStyles from '@/styles/listTextStyles';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
@@ -17,7 +15,6 @@ import { usePagedQuery } from '@/sync/usePagedQuery';
 // retries every one of them, not just the loaded page. Closes itself once none are left.
 export default function SyncErrorViewer({ query, onRetryAll, close }) {
   const { bottom } = useSafeAreaInsets();
-  const { scrollY, onScroll } = useScrollY();
   const { rows, count, loadMore } = usePagedQuery(query, 50);
 
   useEffect(() => {
@@ -37,10 +34,9 @@ export default function SyncErrorViewer({ query, onRetryAll, close }) {
         <ModalHeader
           leading={<Button icon="close" accessibilityLabel="Close" onPress={close} />}
           title={`Sync Errors (${count})`}
-          scrollY={scrollY}
         />
 
-        <Animated.FlatList
+        <FlatList
           data={rows}
           keyExtractor={(row) => String(row.id)}
           renderItem={({ item: row }) => (
@@ -55,8 +51,6 @@ export default function SyncErrorViewer({ query, onRetryAll, close }) {
           )}
           onEndReached={loadMore}
           onEndReachedThreshold={2}
-          onScroll={onScroll}
-          scrollEventThrottle={16}
           contentContainerStyle={[styles.list, { paddingTop: MODAL_HEADER_HEIGHT + SCREEN_PADDING }]}
         />
 
