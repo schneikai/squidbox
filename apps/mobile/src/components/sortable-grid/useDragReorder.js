@@ -3,12 +3,13 @@ import { withSpring } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import gridSlotOrigin from './gridSlotOrigin';
+import isPastTapSlop from './isPastTapSlop';
 import mergeRowIds from './mergeRowIds';
 import sameOrder from './sameOrder';
 import slotPositions from './slotPositions';
 import useGridLongPressPan from './useGridLongPressPan';
 
-import { DRAG_LIFT_SCALE, DRAG_LONG_PRESS_MS, TAP_SLOP } from '@/constants';
+import { DRAG_LIFT_SCALE, DRAG_LONG_PRESS_MS, PEEK_AFTER_LIFT_MS } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
 import { motion } from '@/styles/designTokens';
 
@@ -32,9 +33,6 @@ import { motion } from '@/styles/designTokens';
 //
 // Near the top/bottom edge the list auto-scrolls (useGridLongPressPan). `layout`: see gridSlotOrigin.
 // With `waitsFor` (another gesture on the grid, drag-select), a drag starts only once it has failed.
-
-// After the lift, so a drag that starts right away never flashes the quick view first.
-const PEEK_AFTER_LIFT_MS = 400;
 
 export default function useDragReorder({
   enabled,
@@ -207,10 +205,4 @@ export default function useDragReorder({
   }
 
   return { gesture, onContainerLayout };
-}
-
-// Whether the finger at (x, y) left the point it lifted the cell at by more than a tap's slop, so a
-// held finger's tremor still peeks.
-function isPastTapSlop(liftPoint, x, y) {
-  return Math.hypot(x - liftPoint.x, y - liftPoint.y) > TAP_SLOP;
 }

@@ -26,6 +26,8 @@ export default function AssetList({
   dragSelectLocksSwipeBack,
   selectedAssetIds,
   selectAssets,
+  onPeek,
+  onPeekEnd,
 }) {
   const numColumns = 3;
   const window = useWindowDimensions();
@@ -55,6 +57,8 @@ export default function AssetList({
     selectedIdsRef,
     onSelect: selectAssets,
     locksSwipeBack: dragSelectLocksSwipeBack,
+    onPeek,
+    onPeekEnd,
   });
 
   const renderItem = useCallback(
