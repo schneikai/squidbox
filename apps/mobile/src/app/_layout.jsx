@@ -11,7 +11,6 @@ import { Menu, MenuProvider } from 'react-native-popup-menu';
 import { enableFreeze } from 'react-native-screens';
 
 import FloatingBarsProvider from '@/components/floating-bars/FloatingBarsProvider';
-import TiltProvider from '@/components/floating-bars/TiltProvider';
 import BlurPopoverRenderer from '@/components/popup-menu-options/BlurPopoverRenderer';
 import ProgressOverlayProvider from '@/components/progress-overlay/ProgressOverlayProvider';
 import sheetScreenLayout from '@/components/sheet-route/sheetScreenLayout';
@@ -213,19 +212,17 @@ const MainApp = memo(function MainApp() {
         <MenuProvider>
           <AssetPickerProvider>
             <FloatingBarsProvider>
-              <TiltProvider>
-                <View style={styles.root}>
-                  <LinearGradient
-                    colors={colors.background.app}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={StyleSheet.absoluteFill}
-                  />
-                  <ThemeProvider value={NAVIGATION_THEME}>
-                    <RootStack />
-                  </ThemeProvider>
-                </View>
-              </TiltProvider>
+              <View style={styles.root}>
+                <LinearGradient
+                  colors={colors.background.app}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
+                <ThemeProvider value={NAVIGATION_THEME}>
+                  <RootStack />
+                </ThemeProvider>
+              </View>
             </FloatingBarsProvider>
           </AssetPickerProvider>
         </MenuProvider>

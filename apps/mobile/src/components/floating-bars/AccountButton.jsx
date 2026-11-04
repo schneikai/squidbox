@@ -1,11 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated from 'react-native-reanimated';
-
-import useTiltStyles from './useTiltStyles';
 
 import Icon from '@/components/Icon';
 import useCloud from '@/features/cloud/useCloud';
-import { colors, radii, scale, sizes, typography } from '@/styles/designTokens';
+import { colors, radii, scale, shadows, sizes, typography } from '@/styles/designTokens';
 
 const SIZE = scale(34);
 // Brings the tap target to the 44pt minimum.
@@ -14,38 +11,31 @@ const HIT_SLOP = (sizes.iconButton - SIZE) / 2;
 /**
  * The account avatar at the far right of the main header, outside any toolbar: it stands for the
  * user, not for an action. Shows the account's initial while signed in, a person when signed out,
- * and a red dot when the session ended and a sign-in is needed before anything syncs. It floats
- * and tilts with the phone like the toolbars (useTiltStyles).
+ * and a red dot when the session ended and a sign-in is needed before anything syncs.
  */
 export default function AccountButton({ onPress }) {
   const { user, isAuthenticated, needsReauth } = useCloud();
   const initial = (isAuthenticated || needsReauth) && user?.email ? user.email.charAt(0).toUpperCase() : null;
-  const { lift } = useTiltStyles('subtle');
 
   return (
-    <Animated.View style={[styles.lift, lift]}>
-      <Pressable
-        onPress={onPress}
-        hitSlop={HIT_SLOP}
-        accessibilityRole="button"
-        accessibilityLabel="Settings"
-        style={({ pressed }) => [styles.avatar, !initial && styles.signedOut, pressed && styles.pressed]}
-      >
-        {initial ? (
-          <Text style={styles.initial}>{initial}</Text>
-        ) : (
-          <Icon name="user" size={sizes.iconSmall} color={colors.text.secondary} />
-        )}
-        {needsReauth && <View style={styles.badge} />}
-      </Pressable>
-    </Animated.View>
+    <Pressable
+      onPress={onPress}
+      hitSlop={HIT_SLOP}
+      accessibilityRole="button"
+      accessibilityLabel="Settings"
+      style={({ pressed }) => [styles.avatar, !initial && styles.signedOut, pressed && styles.pressed]}
+    >
+      {initial ? (
+        <Text style={styles.initial}>{initial}</Text>
+      ) : (
+        <Icon name="user" size={sizes.iconSmall} color={colors.text.secondary} />
+      )}
+      {needsReauth && <View style={styles.badge} />}
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  lift: {
-    borderRadius: SIZE / 2,
-  },
   avatar: {
     width: SIZE,
     height: SIZE,
@@ -53,6 +43,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent.surface,
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadows.subtle,
   },
   signedOut: {
     backgroundColor: colors.background.muted,
