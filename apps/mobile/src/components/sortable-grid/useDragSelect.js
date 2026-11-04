@@ -91,10 +91,10 @@ export default function useDragSelect({
       currentIndexRef.current = index;
       applyRange(index);
     },
-    onRelease() {
+    onRelease({ canceled }) {
       const wasPeeking = peek.isPeeking();
       peek.end();
-      if (anchorIndexRef.current !== -1 && !isSelectingRef.current && !wasPeeking) startSelecting();
+      if (!canceled && anchorIndexRef.current !== -1 && !isSelectingRef.current && !wasPeeking) selectAnchor();
       anchorIndexRef.current = -1;
       currentIndexRef.current = -1;
     },
@@ -104,9 +104,13 @@ export default function useDragSelect({
   function startSelecting() {
     peek.end();
     isSelectingRef.current = true;
+    selectAnchor();
+    startAutoScroll();
+  }
+
+  function selectAnchor() {
     applyRange(anchorIndexRef.current);
     haptics.selection();
-    startAutoScroll();
   }
 
   function applyRange(currentIndex) {

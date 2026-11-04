@@ -41,22 +41,20 @@ export default function ModalHeader({ leading, trailing, title, subtitle }) {
   return (
     <View style={styles.container} pointerEvents="box-none">
       <View style={styles.row} pointerEvents="box-none" onLayout={onRowLayout}>
-        {/* Center — absolutely positioned so it stays centred on the screen; below the pills */}
-        <View style={styles.center} pointerEvents="box-none">
+        {/* Center — absolutely positioned so it stays centred on the screen; below the pills. A string
+            title is only a label, so touches pass through it to the list. */}
+        <View style={styles.center} pointerEvents={typeof title === 'string' ? 'none' : 'box-none'}>
           {center}
         </View>
 
-        {leading != null && (
-          <View style={styles.side} pointerEvents="box-none" onLayout={onLeftLayout}>
-            <FloatingPill>{leading}</FloatingPill>
-          </View>
-        )}
+        {/* Both sides always render, so a slot that goes away measures 0 and frees the title. */}
+        <View style={styles.side} pointerEvents="box-none" onLayout={onLeftLayout}>
+          {leading != null && <FloatingPill>{leading}</FloatingPill>}
+        </View>
 
-        {!!trailing && (
-          <View style={[styles.side, styles.sideRight]} pointerEvents="box-none" onLayout={onRightLayout}>
-            <FloatingPill>{trailing}</FloatingPill>
-          </View>
-        )}
+        <View style={[styles.side, styles.sideRight]} pointerEvents="box-none" onLayout={onRightLayout}>
+          {!!trailing && <FloatingPill>{trailing}</FloatingPill>}
+        </View>
       </View>
     </View>
   );

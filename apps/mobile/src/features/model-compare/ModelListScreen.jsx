@@ -34,18 +34,8 @@ export default function ModelListScreen() {
   const { kind } = useLocalSearchParams();
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const paddingBottom = useFloatingPrimaryActionPadding();
-  const {
-    catalog,
-    defaults,
-    yourDefaults,
-    isChanged,
-    error,
-    retry,
-    rows,
-    readDefaultsToApply,
-    publishDefaults,
-    resetDefaults,
-  } = useYourModels(kind);
+  const { defaults, yourDefaults, isChanged, error, retry, rows, readDefaultsToApply, publishDefaults, resetDefaults } =
+    useYourModels(kind);
 
   const availableCount = rows?.filter((row) => row.model !== null).length ?? 0;
   const hasScores = rows?.some(({ score }) => score > 0) ?? false;
@@ -83,9 +73,7 @@ export default function ModelListScreen() {
               onOpen={() => handleOpen(row)}
             />
           ))}
-          {catalog && (
-            <AddRow label="Add a model" onPress={() => router.navigate(`/settings/assistant/models/${kind}/add`)} />
-          )}
+          <AddRow label="Add a model" onPress={() => router.navigate(`/settings/assistant/models/${kind}/add`)} />
         </Section>
         <SectionFooter>{text.footer}</SectionFooter>
         {text.note && <SectionFooter>{text.note}</SectionFooter>}
