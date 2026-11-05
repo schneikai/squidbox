@@ -2,10 +2,11 @@ import AssetList from '@/features/asset-list/AssetList';
 import SortableAssetGrid from '@/features/asset-list/SortableAssetGrid';
 import useAssetCells from '@/features/asset-list/useAssetCells';
 
-// An asset grid with its cells (which peek in the app's QuickViewHost): the library, an album and the asset picker. In select
-// mode a tap goes to `onPressAsset` and a drag selects (with `selectAssets`). `onScroll` gets the
-// grid's scroll events and `scrollY` is the offset it writes, which the drag-select then reads. A
-// grid that is a sheet's own screen passes `isSheet`, so a drag-select leaves the sheet's swipe down on.
+// An asset grid with its cells (which peek in the surface's QuickViewHost): the library, an album
+// and the asset picker. In select mode a tap goes to `onPressAsset` and a drag selects (with
+// `selectAssets`). `onScroll` gets the grid's scroll events and `scrollY` is the offset it writes,
+// which the drag-select then reads. A grid that is a sheet's own screen passes `isSheet`, so a
+// drag-select leaves the sheet's swipe down on.
 export default function AssetGrid({
   rows,
   rowsReadAt,

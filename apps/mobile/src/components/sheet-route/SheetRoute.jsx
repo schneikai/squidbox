@@ -31,7 +31,7 @@ export default function SheetRoute({ routeKey, children }) {
     <SheetRouteContext value={sheet}>
       <SafeAreaProvider>
         <MenuProvider skipInstanceCheck>{children}</MenuProvider>
-        <QuickViewHost routeKey={routeKey} />
+        <QuickViewHost />
         <ProgressOverlayHost />
       </SafeAreaProvider>
     </SheetRouteContext>
