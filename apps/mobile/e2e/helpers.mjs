@@ -46,7 +46,7 @@ export async function dragCell(page, from, to) {
   const end = await centre(to);
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
-  await expect.poll(() => hasLiftedItem(page), { message: 'the item lifts' }).toBe(true);
+  await expect.poll(() => hasLiftedItem(from), { message: 'the item lifts' }).toBe(true);
   await page.mouse.move(end.x, end.y, { steps: 20 });
   await page.mouse.up();
 }
@@ -79,9 +79,12 @@ async function centre(locator) {
   return { x: x + width / 2, y: y + height / 2, width };
 }
 
-// Whether a grid shows a lifted item: the sortable grid draws it scaled up (DRAG_LIFT_SCALE).
-function hasLiftedItem(page) {
-  return page.evaluate(() =>
-    [...document.querySelectorAll('*')].some((node) => new DOMMatrixReadOnly(getComputedStyle(node).transform).a > 1),
+// Whether the cell's screen shows a lifted item: the sortable grid draws it scaled up
+// (DRAG_LIFT_SCALE). Only that screen counts, so nothing scaled up elsewhere passes for it.
+function hasLiftedItem(cell) {
+  return cell.evaluate((node) =>
+    [...(node.closest('[data-testid$="-screen"]') ?? document).querySelectorAll('*')].some(
+      (child) => new DOMMatrixReadOnly(getComputedStyle(child).transform).a > 1,
+    ),
   );
 }
