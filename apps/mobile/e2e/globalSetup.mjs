@@ -1,19 +1,34 @@
 /* eslint-env node, browser */
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 
-import { openWebPreview } from '../scripts/webPreview.mjs';
+import { backendEnv, SEED_MOCK, SERVER_DIR } from '../../../scripts/mockData.mjs';
+import { APP_URL } from '../scripts/webPreview.mjs';
 
-const SERVER_DIR = new URL('../../server/', import.meta.url).pathname;
-
-// Before the UI flow tests: the mock account reset to exactly the mock data set (what
-// `dev:local -- --reset-data` runs), then Metro's web bundle built once, so no test carries the
-// first build (minutes on a cold cache) inside its own timeout.
+// Before the UI flow tests, side by side: the mock account reset to exactly the mock data set (what
+// `dev:local -- --reset-data` runs), and Metro's web bundle built once, so no test carries the first
+// build (minutes on a cold cache) inside its own timeout.
 export default async function globalSetup() {
-  // AWS credentials exported in the shell would win over MinIO's from apps/server/.env (as in dev.mjs).
-  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('AWS_')));
-  const seed = spawnSync('npm', ['run', 'seed:mock', '--silent'], { cwd: SERVER_DIR, env, stdio: 'inherit' });
-  if (seed.status !== 0) throw new Error(`npm run seed:mock failed (${seed.status ?? seed.signal})`);
+  await Promise.all([resetMockData(), buildWebBundle()]);
+}
 
-  const { close } = await openWebPreview();
-  await close();
+function resetMockData() {
+  return new Promise((resolve, reject) => {
+    const seed = spawn(SEED_MOCK.command, SEED_MOCK.args, { cwd: SERVER_DIR, env: backendEnv(), stdio: 'inherit' });
+    seed.once('error', reject);
+    seed.once('exit', (code) => (code === 0 ? resolve() : reject(new Error(`npm run seed:mock failed (${code})`))));
+  });
+}
+
+// Asks Metro for the bundles the page loads, as the browser would.
+async function buildWebBundle() {
+  const html = await (await fetch(APP_URL)).text();
+  const bundles = [...html.matchAll(/<script[^>]* src="([^"]+\.bundle[^"]*)"/g)].map(
+    ([, src]) => new URL(src.replaceAll('&amp;', '&'), APP_URL),
+  );
+  if (bundles.length === 0) throw new Error(`No bundle in the page at ${APP_URL}`);
+  for (const url of bundles) {
+    const res = await fetch(url);
+    const body = await res.text();
+    if (!res.ok) throw new Error(`Metro couldn't build the web bundle:\n${body.slice(0, 2000)}`);
+  }
 }

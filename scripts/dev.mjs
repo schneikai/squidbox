@@ -33,8 +33,9 @@ import { dirname } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { parseEnv } from 'node:util';
 
+import { backendEnv, SEED_MOCK, SERVER_DIR } from './mockData.mjs';
+
 const ROOT = new URL('..', import.meta.url).pathname;
-const SERVER_DIR = `${ROOT}apps/server`;
 const MOBILE_DIR = `${ROOT}apps/mobile`;
 const SERVER_ENV = `${SERVER_DIR}/.env`;
 const SERVER_URL = 'http://localhost:3100';
@@ -60,8 +61,9 @@ const children = new Set();
 process.on('SIGINT', () => shutdown(0));
 process.on('SIGTERM', () => shutdown(0));
 
+// Only the live backend needs .env.local (its EXPO_PUBLIC_API_URL); the local one runs without it.
 if (!existsSync(`${MOBILE_DIR}/.env.local`)) {
-  if (spawnSync('scripts/write-env-local.sh', [], { cwd: MOBILE_DIR, stdio: 'inherit' }).status !== 0) {
+  if (spawnSync('scripts/write-env-local.sh', [], { cwd: MOBILE_DIR, stdio: 'inherit' }).status !== 0 && live) {
     fail('scripts/write-env-local.sh failed');
   }
 }
@@ -143,7 +145,7 @@ async function startLocalBackendAndMetro() {
 
   if (resetData) {
     log('Resetting the mock data');
-    await run('npm', ['run', 'seed:mock', '--silent'], SERVER_DIR, backendEnv());
+    await run(SEED_MOCK.command, SEED_MOCK.args, SERVER_DIR, backendEnv());
   }
   await bundled;
 
@@ -351,12 +353,6 @@ async function ensureDocker() {
 
 function dockerIsUp() {
   return spawnSync('docker', ['info'], { stdio: 'ignore' }).status === 0;
-}
-
-// `node --env-file` never overrides the shell, so AWS credentials exported there would win over
-// MinIO's from apps/server/.env.
-function backendEnv(extra = {}) {
-  return { ...withoutKeys(process.env, (key) => key.startsWith('AWS_')), ...extra };
 }
 
 function withoutKeys(env, isExcluded) {

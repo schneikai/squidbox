@@ -1,11 +1,11 @@
 /* eslint-env node, browser */
 import { expect, test } from './fixtures.mjs';
-import { openTab, uniqueName, withDialog } from './helpers.mjs';
+import { openTab, postCards, uniqueName, withDialog } from './helpers.mjs';
 
 // Opens the first post's editor and changes its text; returns the editor and the original text.
 async function editFirstPost(page) {
   await openTab(page, 'Posts');
-  await page.getByTestId('posts-screen').getByTestId('post-card').first().click();
+  await postCards(page.getByTestId('posts-screen')).first().click();
   const post = page.getByTestId('post-screen');
   await post.getByRole('button', { name: 'More options' }).click();
   await page.getByRole('menuitem', { name: 'Edit' }).click();

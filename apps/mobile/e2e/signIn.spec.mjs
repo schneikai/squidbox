@@ -16,8 +16,8 @@ test.describe('signed out', () => {
     await settings.getByRole('button', { name: 'Sign In', exact: true }).click();
 
     // The app reopens on the account's library and pulls it before Settings shows again.
-    await expect(page.getByTestId('settings-screen').getByText('Signed in as')).toBeVisible({ timeout: 120_000 });
-    await page.getByTestId('settings-screen').getByRole('button', { name: 'Back', exact: true }).click();
+    await expect(settings.getByText('Signed in as')).toBeVisible({ timeout: 120_000 });
+    await settings.getByRole('button', { name: 'Back', exact: true }).click();
     await expect(assetCells(page.getByTestId('library-screen')).first()).toBeVisible();
   });
 });

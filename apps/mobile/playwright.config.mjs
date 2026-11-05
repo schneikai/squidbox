@@ -7,15 +7,15 @@
  */
 import { defineConfig } from 'playwright/test';
 
+import { SERVER_URL } from './scripts/webPreview.mjs';
+
 const isCI = !!process.env.CI;
 
 export default defineConfig({
   testDir: 'e2e',
-  testMatch: '**/*.spec.mjs',
-  // The flows share one account and one Metro. A flaky test gets fixed, not retried.
+  // The flows share one account and one Metro, one after another. A flaky test gets fixed, not
+  // retried (no retries is the default).
   workers: 1,
-  fullyParallel: false,
-  retries: 0,
   forbidOnly: isCI,
   timeout: 120_000,
   expect: { timeout: 15_000 },
@@ -25,7 +25,7 @@ export default defineConfig({
   webServer: {
     command: 'node ../../scripts/dev.mjs --web',
     // The API server comes up after Metro, so it answering means both are ready.
-    url: 'http://localhost:3100/up',
+    url: `${SERVER_URL}/up`,
     // Cold Docker pulls, migrations and Metro's start.
     timeout: 600_000,
     reuseExistingServer: !isCI,
@@ -33,6 +33,5 @@ export default defineConfig({
     // its own group) outlive the run. dev.mjs stops them on SIGTERM.
     gracefulShutdown: { signal: 'SIGTERM', timeout: 15_000 },
     stdout: 'pipe',
-    stderr: 'pipe',
   },
 });

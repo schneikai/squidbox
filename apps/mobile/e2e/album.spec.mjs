@@ -18,7 +18,6 @@ async function addPhotos(page, name, count) {
   await page.getByTestId('albums-screen').getByText(name, { exact: true }).click();
   const album = page.getByTestId('album-screen');
   await album.getByRole('button', { name: 'Add', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'From Squidbox' }).click();
   await pickFromSquidbox(page, count);
   await expect(assetCells(album)).toHaveCount(count);
   return album;
@@ -39,7 +38,6 @@ test('From Squidbox adds the picked photos to the album', async ({ app: { page }
 
   const album = await addPhotos(page, name, 3);
 
-  await expect(assetCells(album)).toHaveCount(3);
   await expect(album.getByText('3 Assets', { exact: true })).toBeVisible();
 });
 

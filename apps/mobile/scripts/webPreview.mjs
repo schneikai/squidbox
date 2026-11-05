@@ -16,8 +16,10 @@ import { readFileSync } from 'node:fs';
 import { parseEnv } from 'node:util';
 import { chromium, devices } from 'playwright';
 
-const APP_URL = 'http://localhost:8081/';
-const API_URL = 'http://localhost:3100/api/v1';
+export const APP_URL = 'http://localhost:8081/';
+// The local API server (scripts/dev.mjs starts it).
+export const SERVER_URL = 'http://localhost:3100';
+const API_URL = `${SERVER_URL}/api/v1`;
 const SERVER_ENV = new URL('../../server/.env', import.meta.url);
 
 export async function openWebPreview({ signedIn = true, production = false } = {}) {

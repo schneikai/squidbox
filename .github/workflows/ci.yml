@@ -81,19 +81,26 @@ jobs:
 
       - run: npm ci
 
-      - uses: actions/cache@v4
+      # The browser build follows Playwright's version, so the cache does too.
+      - id: playwright
+        run: echo "version=$(npx playwright --version | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
+        working-directory: apps/mobile
+
+      - id: browsers
+        uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
 
-      - run: npx playwright install --with-deps chromium
+      # A cached browser still needs its system libraries.
+      - if: steps.browsers.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+        working-directory: apps/mobile
+      - if: steps.browsers.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
         working-directory: apps/mobile
 
       - run: npm run test:ui --workspace apps/mobile
-        env:
-          # dev.mjs writes apps/mobile/.env.local from this (it stops without one); the local
-          # backend replaces it anyway.
-          EXPO_PUBLIC_API_URL: http://localhost:3100/api/v1
 
       - if: failure()
         uses: actions/upload-artifact@v4

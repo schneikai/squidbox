@@ -36,9 +36,10 @@ export function cellAssetIds(screen) {
 // a photo (its gesture views take every touch), so a sideways mouse wheel scrolls the pager, and its
 // scroll snap settles on the next page.
 export async function swipeLeft(page, locator) {
-  const box = await locator.boundingBox();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.wheel(box.width, 0);
+  const { x, y } = await centre(locator);
+  const { width } = await locator.boundingBox();
+  await page.mouse.move(x, y);
+  await page.mouse.wheel(width, 0);
 }
 
 // Drag-to-reorder: a press held until the item lifts, moved onto `to`'s slot, and let go.
@@ -53,8 +54,9 @@ export async function dragCell(page, from, to) {
   await page.mouse.up();
 }
 
-// In the open asset picker: picks the first `count` photos and adds them.
+// In an open Add media menu: From Squidbox, then the first `count` photos of the picker, added.
 export async function pickFromSquidbox(page, count) {
+  await page.getByRole('menuitem', { name: 'From Squidbox' }).click();
   const picker = page.getByTestId('asset-picker');
   const cells = assetCells(picker);
   for (let index = 0; index < count; index++) await cells.nth(index).click();
@@ -66,17 +68,13 @@ export async function pickFromSquidbox(page, count) {
 // (browserDialogs.web.js turns alerts into window.confirm and window.prompt). Waits until it is
 // answered: the alert may come after the action returns.
 export async function withDialog(page, handle, action) {
-  let handler;
-  const answered = new Promise((resolve, reject) => {
-    handler = (dialog) => Promise.resolve(handle(dialog)).then(resolve, reject);
-  });
-  page.on('dialog', handler);
-  try {
-    await action();
-    await answered;
-  } finally {
-    page.off('dialog', handler);
-  }
+  await Promise.all([page.waitForEvent('dialog').then(handle), action()]);
+}
+
+// The post cards on `screen` (the posts list or a post), or the one showing `text`.
+export function postCards(screen, text) {
+  const cards = screen.getByTestId('post-card');
+  return text === undefined ? cards : cards.filter({ hasText: text });
 }
 
 async function centre(locator) {

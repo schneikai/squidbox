@@ -26,8 +26,9 @@ export default function useDiscardGuard(isDirty, isSaving = false) {
 
   usePreventRemove((isDirty || isSaving) && !pending, async ({ data }) => {
     if (isSaving || isAskingRef.current) return;
-    // The blocked action runs once the guard is off (`leave`): run while it is on, it would be
-    // blocked again and come back here, over and over.
+    // The blocked action runs once the guard is off (`leave`). Dispatched while it is on, the copy
+    // is a new removal that this guard blocks again, and it comes back here with its mark, over and
+    // over (React's "Maximum update depth exceeded"). So don't dispatch it here directly.
     if (data.action[DISCARD_CONFIRMED]) {
       leave(() => navigation.dispatch(data.action));
       return;
