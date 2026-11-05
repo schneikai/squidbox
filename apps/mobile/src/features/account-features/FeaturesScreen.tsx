@@ -2,7 +2,8 @@ import { useNavigation } from 'expo-router';
 import { useState } from 'react';
 import { Alert } from 'react-native';
 
-import featureText from './featureText';
+import featureSwitchRows, { type PendingFeature } from './featureSwitchRows';
+import type { SwitchableFeature } from './featureText';
 
 import DetailScrollView from '@/components/DetailScrollView';
 import Page from '@/components/Page';
@@ -23,16 +24,12 @@ export default function FeaturesScreen() {
   const { user } = useCloud();
   const isAvailable = useHasFeature('developer');
   useCloseWhen(!isAvailable);
-  // The switch on its way to the server, `{ feature, isOn }`, null otherwise.
-  const [pending, setPending] = useState(null);
+  // The switch on its way to the server, null otherwise.
+  const [pending, setPending] = useState<PendingFeature | null>(null);
 
-  const features = user?.features ?? [];
+  const rows = featureSwitchRows(user?.features ?? [], pending);
 
-  function isFeatureOn(feature) {
-    return pending?.feature === feature ? pending.isOn : features.includes(feature);
-  }
-
-  async function handleChange(feature, isOn) {
+  async function handleChange(feature: SwitchableFeature, isOn: boolean) {
     setPending({ feature, isOn });
     try {
       await updateFeatureAsync(feature, isOn);
@@ -50,13 +47,13 @@ export default function FeaturesScreen() {
       <FloatingDetailHeader title="Features" onBack={() => navigation.goBack()} />
       <DetailScrollView>
         <Section>
-          {Object.entries(featureText).map(([feature, { title, description, requires }]) => (
-            <Row key={feature} label={title} description={description}>
+          {rows.map((row) => (
+            <Row key={row.feature} label={row.title} description={row.description}>
               <Switch
-                value={isFeatureOn(feature)}
-                onValueChange={(isOn) => handleChange(feature, isOn)}
-                disabled={pending !== null || (requires !== undefined && !isFeatureOn(requires))}
-                accessibilityLabel={title}
+                value={row.isOn}
+                onValueChange={(isOn) => handleChange(row.feature, isOn)}
+                disabled={row.isDisabled}
+                accessibilityLabel={row.title}
               />
             </Row>
           ))}
